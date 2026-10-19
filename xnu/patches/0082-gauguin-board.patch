@@ -382,16 +382,32 @@ diff --git a/pexpert/pexpert/arm64/board_config.h b/pexpert/pexpert/arm64/board_
 diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
 --- a/makedefs/MakeInc.def
 +++ b/makedefs/MakeInc.def
-@@ -29,7 +29,7 @@ SUPPORTED_ARM64_MACHINE_CONFIGS = NONE
+@@ -21,15 +21,19 @@ SUPPORTED_KERNEL_CONFIGS = RELEASE DEVELOPMENT DEBUG PROFILE KASAN
+ # Machine Configuration options
+ #
+ 
+-SUPPORTED_X86_64_MACHINE_CONFIGS = NONE
+-SUPPORTED_X86_64H_MACHINE_CONFIGS = NONE
++# GAUGUIN (Redmi Note 9 Pro 5G, SM7125) is listed for every architecture:
++# 'make installhdrs ARCH_CONFIGS="X86_64 ARM64"' asks for a host pass with
++# DEFAULT = NONE too, and the validation below rejects any TARGET_CONFIGS
++# whose machine config is not in SUPPORTED_<ARCH>_MACHINE_CONFIGS.
++SUPPORTED_X86_64_MACHINE_CONFIGS = NONE GAUGUIN
++SUPPORTED_X86_64H_MACHINE_CONFIGS = NONE GAUGUIN
+ 
+ ifneq ($(findstring _Sim,$(RC_ProjectName)),)
+-SUPPORTED_ARM64_MACHINE_CONFIGS = NONE
++SUPPORTED_ARM64_MACHINE_CONFIGS = NONE GAUGUIN
  else ifneq ($(findstring _host,$(RC_ProjectName)),)
- SUPPORTED_ARM64_MACHINE_CONFIGS = NONE
+-SUPPORTED_ARM64_MACHINE_CONFIGS = NONE
++SUPPORTED_ARM64_MACHINE_CONFIGS = NONE GAUGUIN
  else
 -SUPPORTED_ARM64_MACHINE_CONFIGS = BCM2837 T6000 T8101 T8103 VMAPPLE SWEET
 +SUPPORTED_ARM64_MACHINE_CONFIGS = BCM2837 T6000 T8101 T8103 VMAPPLE SWEET GAUGUIN
  
  endif
  
-@@ -62,6 +62,9 @@ MACHINE_FLAGS_ARM64_T6000 = -DARM64_BOARD_CONFIG_T6000 		-mcpu=apple-a14
+@@ -62,6 +66,9 @@ MACHINE_FLAGS_ARM64_T6000 = -DARM64_BOARD_CONFIG_T6000 		-mcpu=apple-a14
  MACHINE_FLAGS_ARM64_VMAPPLE = -DARM64_BOARD_CONFIG_VMAPPLE              -march=armv8.5a
  MACHINE_FLAGS_ARM64_BCM2837 = -DARM64_BOARD_CONFIG_BCM2837
  MACHINE_FLAGS_ARM64_SWEET = -DARM64_BOARD_CONFIG_SWEET                -march=armv8.2-a+crypto
@@ -401,7 +417,7 @@ diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
  
  
  #
-@@ -260,8 +263,9 @@ ifeq ($(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG),)
+@@ -260,8 +267,9 @@ ifeq ($(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG),)
  # Without embdedded device map, use a default arch string
  export ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG := $(shell echo $(CURRENT_ARCH_CONFIG) | tr A-Z a-z)
  ifneq ($(filter arm64,$(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG)),)
@@ -413,15 +429,3 @@ diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
  export ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG := arm64e
  endif
  endif
-diff --git a/makedefs/MakeInc.top b/makedefs/MakeInc.top
---- a/makedefs/MakeInc.top
-+++ b/makedefs/MakeInc.top
-@@ -285,7 +285,7 @@ endif
- # $(warning PRIMARY_KERNEL_CONFIGS is $(PRIMARY_KERNEL_CONFIGS))
- # $(warning VARIANT_CONFIGS is $(VARIANT_CONFIGS))
- 
--MEMORY_SIZE := $(shell /usr/sbin/sysctl -n hw.memsize)
-+MEMORY_SIZE := $(shell /usr/sbin/sysctl -n hw.memsize 2>/dev/null || echo 68719476736)
- 
- # Assume LTO scaling by default, unless it is being explicitly passed on the command-line
- LARGE_BUILD_FOOTPRINT := $(if $(BUILD_LTO),$(BUILD_LTO),1)

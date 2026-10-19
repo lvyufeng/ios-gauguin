@@ -382,7 +382,16 @@ diff --git a/pexpert/pexpert/arm64/board_config.h b/pexpert/pexpert/arm64/board_
 diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
 --- a/makedefs/MakeInc.def
 +++ b/makedefs/MakeInc.def
-@@ -62,6 +62,9 @@
+@@ -29,7 +29,7 @@ SUPPORTED_ARM64_MACHINE_CONFIGS = NONE
+ else ifneq ($(findstring _host,$(RC_ProjectName)),)
+ SUPPORTED_ARM64_MACHINE_CONFIGS = NONE
+ else
+-SUPPORTED_ARM64_MACHINE_CONFIGS = BCM2837 T6000 T8101 T8103 VMAPPLE SWEET
++SUPPORTED_ARM64_MACHINE_CONFIGS = BCM2837 T6000 T8101 T8103 VMAPPLE SWEET GAUGUIN
+ 
+ endif
+ 
+@@ -62,6 +62,9 @@ MACHINE_FLAGS_ARM64_T6000 = -DARM64_BOARD_CONFIG_T6000 		-mcpu=apple-a14
  MACHINE_FLAGS_ARM64_VMAPPLE = -DARM64_BOARD_CONFIG_VMAPPLE              -march=armv8.5a
  MACHINE_FLAGS_ARM64_BCM2837 = -DARM64_BOARD_CONFIG_BCM2837
  MACHINE_FLAGS_ARM64_SWEET = -DARM64_BOARD_CONFIG_SWEET                -march=armv8.2-a+crypto
@@ -392,15 +401,27 @@ diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
  
  
  #
-diff --git a/osfmk/arm64/machine_routines.c b/osfmk/arm64/machine_routines.c
---- a/osfmk/arm64/machine_routines.c
-+++ b/osfmk/arm64/machine_routines.c
-@@ -1088,7 +1088,7 @@ ml_parse_cpu_topology(void)
- #endif
+@@ -260,8 +263,9 @@ ifeq ($(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG),)
+ # Without embdedded device map, use a default arch string
+ export ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG := $(shell echo $(CURRENT_ARCH_CONFIG) | tr A-Z a-z)
+ ifneq ($(filter arm64,$(ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG)),)
+-# sweet's Cortex-A76/A55 have no pointer authentication: stay plain arm64
+-ifneq ($(CURRENT_MACHINE_CONFIG),SWEET)
++# sweet's Cortex-A76/A55 (gauguin: Kryo 465/265) have no pointer
++# authentication: stay plain arm64
++ifeq ($(filter SWEET GAUGUIN,$(CURRENT_MACHINE_CONFIG)),)
+ export ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG := arm64e
+ endif
+ endif
+diff --git a/makedefs/MakeInc.top b/makedefs/MakeInc.top
+--- a/makedefs/MakeInc.top
++++ b/makedefs/MakeInc.top
+@@ -285,7 +285,7 @@ endif
+ # $(warning PRIMARY_KERNEL_CONFIGS is $(PRIMARY_KERNEL_CONFIGS))
+ # $(warning VARIANT_CONFIGS is $(VARIANT_CONFIGS))
  
- #if defined(SWEET)
--		/* Aff1 encodes the core on SM7150, not an Apple cluster ID. */
-+		/* Aff1 encodes the core on SM7150/SM7125, not an Apple cluster ID. */
- 		cpu->die_cluster_id = (int)ml_readprop(child, "die-cluster-id", 0);
- 		cpu->cluster_core_id = (int)ml_readprop(child, "cluster-core-id", cpu->phys_id >> 8);
- #else
+-MEMORY_SIZE := $(shell /usr/sbin/sysctl -n hw.memsize)
++MEMORY_SIZE := $(shell /usr/sbin/sysctl -n hw.memsize 2>/dev/null || echo 68719476736)
+ 
+ # Assume LTO scaling by default, unless it is being explicitly passed on the command-line
+ LARGE_BUILD_FOOTPRINT := $(if $(BUILD_LTO),$(BUILD_LTO),1)

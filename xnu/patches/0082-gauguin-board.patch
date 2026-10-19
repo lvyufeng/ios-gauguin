@@ -128,7 +128,7 @@ diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
  	st.gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
  	st.gpio = ml_io_map(TOUCH_NORTH_PA, 0x5b000);
  	st.se = ml_io_map(TOUCH_SE_PA, 0x4000);
-@@ -569,28 +616,40 @@
+@@ -569,28 +616,42 @@
  	if (!touch_clocks() || !touch_se_init()) {
  		goto out;
  	}
@@ -148,11 +148,15 @@ diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
 +	int power_error = sweet_rpmh_vreg_enable(TOUCH_RAIL, TOUCH_RAIL_MV);
  	if (power_error) {
 -		printf("SWEET TOUCH: L11C RPMh enable failed %d; probes skipped\n", power_error);
-+		printf("SWEET TOUCH: %s RPMh enable failed %d; probes skipped\n",
-+		    TOUCH_RAIL, power_error);
- 		goto out;
- 	}
+-		goto out;
+-	}
 -	touch_gpio(90, 0, 0, 0, true, true); /* board digital power enable */
++		/* Vendor init is LPM 1.71 V (always-on sleep set): the rail may be
++		 * powered without the ACTIVE vote. Probe it and report all reads;
++		 * never report input from an IC that did not answer. */
++		printf("SWEET TOUCH: %s RPMh ACTIVE vote failed %d; probing anyway\n",
++		    TOUCH_RAIL, power_error);
++	}
 +#if !defined(GAUGUIN)
 +	touch_gpio(90, 0, 0, 0, true, true); /* sweet: board digital power enable */
 +#endif
@@ -179,12 +183,12 @@ diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
 +	    fe1, fe2, fid1, fid2, st.irq_status);
 +	touch_probe_info(0x01, gid);	/* touch report buffer (FTS_TOUCH_POINT_NUM at +2) */
 +	int ge = -1;
-+	(void)gid; (void)legacy;
++	(void)legacy;
 +#else
  	int ge = touch_probe_info(GOODIX_PID_REG, gid);
  	printf("SWEET TOUCH: probe 0x5d err=%d pid=%02x%02x%02x%02x fw=%02x.%02x.%02x.%02x irq=%#x\n",
  	    ge, gid[0], gid[1], gid[2], gid[3], gid[8], gid[9], gid[10], gid[11], st.irq_status);
-@@ -599,21 +658,28 @@
+@@ -599,21 +660,43 @@
  	int fe2 = touch_read(0x38, 0x9f, false, &fid2, 1);
  	printf("SWEET TOUCH: probe 0x38 err=%d/%d chip-id=%02x:%02x irq=%#x\n",
  	    fe1, fe2, fid1, fid2, st.irq_status);
@@ -200,6 +204,21 @@ diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
  	if (st.dead || goodix == fts) {
  		printf("SWEET TOUCH: no unique supported IC (goodix=%d fts=%d dead=%d); stopping\n",
  		    goodix, fts, st.dead);
++		if (!st.dead) {
++			/* A powered IC with an unsupported ID: dump its report buffer
++			 * so the next boot brings the protocol evidence. */
++			printf("SWEET TOUCH: unexpected IC; register dumps follow\n");
++			for (unsigned i = 0; i < 64; ++i) {
++				uint8_t q = 0;
++				int e = touch_read(0x38, 0xa3 + i, false, &q, 1);
++				printf("SWEET TOUCH: fts reg %#x %02x e=%d\n", 0xa3 + i, q, e);
++			}
++			for (unsigned i = 0; i < 64; ++i) {
++				uint8_t q = 0;
++				int e = touch_read(0x5d, 0x8000 + i, true, &q, 1);
++				printf("SWEET TOUCH: gtx reg %#x %02x e=%d\n", 0x8000 + i, q, e);
++			}
++		}
  		goto out;
  	}
  	st.kind = goodix ? TOUCH_GOODIX : TOUCH_FTS;

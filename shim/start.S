@@ -22,11 +22,16 @@ _start:
 	msr	daifset, #0xf
 	mov	x19, x0			/* DTB pointer from ABL */
 	msr	spsel, #1
-	adr	x1, _stack_top
+	adrp	x1, _stack_top
+	add	x1, x1, :lo12:_stack_top
 	mov	sp, x1
+
+	/* The image has no BSS and .data is not copied: clear the C BSS (misc
+	 * buffers after the page tables) here, early data is x19. */
 	adr	x1, vectors
 	msr	vbar_el1, x1
 	isb
+	bl	zero_tables
 	/* zero .bss */
 	adr	x1, _bss_start
 	adr	x2, _bss_end
@@ -44,7 +49,9 @@ _start:
 secondary_entry:
 	msr	daifset, #0xf
 	msr	spsel, #1
-	adr	x1, _sec_stacks
+	/* stacks live above the page tables in .data: ADRP+LDR (image < 1MB) */
+	adrp	x1, _sec_stacks
+	add	x1, x1, :lo12:_sec_stacks
 	add	x1, x1, x0, lsl #12
 	add	x1, x1, #0x1000
 	mov	sp, x1

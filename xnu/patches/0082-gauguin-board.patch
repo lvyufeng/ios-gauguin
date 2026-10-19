@@ -1,0 +1,406 @@
+diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -1,9 +1,17 @@
+ /*
+- * SWEET SE7 FIFO I2C / GT9896 Yellowstone / Focaltech 54:52 bring-up.
+- * Call once after the scheduler is running; all work runs on one thread.
+- * Requires ABL-loaded GENI I2C firmware; votes L11C through sweet_rpmh.c.
+- * No firmware/config upload or direct PMIC writes. Only IC data write:
+- * zero to GT9896's event status after reading a report. See touch2/report.md.
++ * SWEET FIFO I2C touch bring-up: GT9896 (Goodix) or FT5452/FTS (Focaltech)
++ * on a QUPv3 GENI serial engine. Call once after the scheduler is running;
++ * all work runs on one thread. Requires ABL-loaded GENI I2C firmware; the
++ * touch rail is voted through RPMh (sweet_rpmh.c). No firmware/config upload
++ * or direct PMIC writes. Only IC data write: zero to GT9896's event status
++ * after reading a report. See touch2/report.md.
++ *
++ * Board layout (from the live DT / vendor DTS):
++ *   sweet   : SE7  0xa84000, TLMM reset gpio8 / irq gpio9, GT9896 @0x5d,
++ *             rail PM6150L LDO11C ("ldoc11", 3.2 V), board power gpio90.
++ *   gauguin : SE8  0x988000, TLMM reset gpio21 / irq gpio22 (Falling),
++ *             Focaltech @0x38, rail PM6350 LDO6A ("ldoa6", 1.8 V), no
++ *             board enable (vdd-supply = L6A only), display 1080x2340.
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ #include <sys/param.h>
+@@ -22,14 +30,39 @@
+ extern void sweet_hid_touch(int finger, int down, int x, int y);
+ void sweet_touch_init(void);
+ 
++#if defined(GAUGUIN)
++#define TOUCH_SE_PA      0x00988000u
++#define TOUCH_GCC_PA     0x00100000u
++#define TOUCH_NORTH_PA   0x03900000u
++#define TOUCH_GCC_VOTE   0x5200cu
++#define TOUCH_RCG       0x1814cu    /* wrapper1 LOCAL S2 (boot 2) = global SE8 */
++#define TOUCH_GPIO_RST   21u
++#define TOUCH_GPIO_IRQ   22u
++#define TOUCH_RAIL       "ldoa6"
++#define TOUCH_RAIL_MV    1800u
++#define TOUCH_Y_MAX      2339u      /* focaltech,display-coords 0 0 1080 2340 */
++#define TOUCH_FTS_CHIP_ID (0x54u << 8 | 0x54u)  /* FT5452: A3=0x54, A4=0x54 */
++#define TOUCH_SDA_PIN    20u
++#define TOUCH_SCL_PIN    19u
++#else
+ #define TOUCH_SE_PA      0x00a84000u
+ #define TOUCH_GCC_PA     0x00100000u
+ #define TOUCH_NORTH_PA   0x03900000u /* DT TLMM + NORTH (0x500000) */
+ #define TOUCH_GCC_VOTE   0x5200cu
+ #define TOUCH_RCG       0x18148u    /* wrapper1 LOCAL S1 = global SE7 */
++#define TOUCH_GPIO_RST   8u
++#define TOUCH_GPIO_IRQ   9u
++#define TOUCH_RAIL       "ldoc11"
++#define TOUCH_RAIL_MV    3200u
++#define TOUCH_Y_MAX      2399u
++#define TOUCH_FTS_CHIP_ID (0x52u << 8 | 0x54u)
++#define TOUCH_SDA_PIN    6u
++#define TOUCH_SCL_PIN    7u
++#endif
+ #define TOUCH_GPIO_CFG(n) ((uint32_t)(n) * 0x1000u)
+ #define TOUCH_GPIO_IO(n)  (TOUCH_GPIO_CFG(n) + 4u)
+ #define TOUCH_MAX        10u
++#define FTS_PTR_LEN      4u      /* focaltech: 0x00 00 hi lo in one transaction */
+ #define TOUCH_GOODIX     1
+ #define TOUCH_FTS        2
+ /* GT9896 is Yellowstone in Xiaomi sweet-r-oss, not the Berlin protocol. */
+@@ -214,7 +247,7 @@
+ touch_msg_run(uint8_t addr, const uint8_t *tx, unsigned nt, uint8_t *rx,
+     unsigned nr, bool stretch)
+ {
+-	if (st.dead || nt > 3 || nr > 90 || (nt && nr) || (!nt && !nr)) {
++	if (st.dead || nt > MAX(3u, FTS_PTR_LEN) || nr > 90 || (nt && nr) || (!nt && !nr)) {
+ 		return EIO;
+ 	}
+ 	if (!touch_wait_clear(st.se, SE_STATUS, 1u)) {
+@@ -308,8 +341,15 @@
+ touch_read(uint8_t addr, uint16_t reg, bool wide, uint8_t *buf, unsigned len)
+ {
+ 	uint8_t ptr[2] = {(uint8_t)(reg >> 8), (uint8_t)reg};
+-	int err = touch_msg(addr, wide ? ptr : ptr + 1, wide ? 2u : 1u,
+-	    NULL, 0, true);
++	int err;
++	if (addr == 0x38u) {
++		/* Focaltech read: 0x00 <pad> <reg hi> <reg lo>, repeated start, N bytes. */
++		const uint8_t fptr[FTS_PTR_LEN] = {0x00, 0x00, (uint8_t)(reg >> 8), (uint8_t)reg};
++		err = touch_msg(addr, fptr, FTS_PTR_LEN, NULL, 0, true);
++	} else {
++		err = touch_msg(addr, wide ? ptr : ptr + 1, wide ? 2u : 1u,
++		    NULL, 0, true);
++	}
+ 	if (err) {
+ 		return err;
+ 	}
+@@ -472,7 +512,7 @@
+ 		}
+ 		unsigned px = ((unsigned)(p[0] & 15u) << 8) | p[1];
+ 		unsigned py = ((unsigned)(p[2] & 15u) << 8) | p[3];
+-		if (px > 1079 || py > 2399) {
++		if (px > 1079 || py > TOUCH_Y_MAX) {
+ 			return EIO;
+ 		}
+ 		mask |= 1u << id;
+@@ -507,9 +547,15 @@
+ 	}
+ 	touch_wr(st.se, 0xe18, 0); /* no GSI events */
+ 	touch_wr(st.se, 0xe1c, 0); /* mask external IRQ routing; poll local status */
+-	touch_wr(st.se, 0x644, 0);
++	touch_wr(st.se, 0x644, 0);	/* M_CMD_CTRL */
++#if defined(GAUGUIN)
++	touch_wr(st.se, 0x634, 0);	/* S_CMD_CTRL (SE8 has HW-dependent defaults) */
++#endif
+ 	touch_wr(st.se, SE_IRQ_CLR, 0xffffffffu);
+-	touch_wr(st.se, 0x648, 0xffffffffu);
++	touch_wr(st.se, 0x648, 0xffffffffu);	/* M_CMD_CTRL IRQ clear */
++#if defined(GAUGUIN)
++	touch_wr(st.se, 0x638, 0xffffffffu);	/* S_CMD_CTRL IRQ clear */
++#endif
+ 	touch_wr(st.se, SE_DMA, 0);
+ 	touch_wr(st.se, 0x28, touch_rd(st.se, 0x28) | 0x7fu);
+ 	touch_wr(st.se, 0xe30, touch_rd(st.se, 0xe30) | 0x0fu);
+@@ -558,7 +604,8 @@
+ 	(void)PE_parse_boot_argn("sweettouchdelay", &delay_s, sizeof(delay_s));
+ 	printf("SWEET TOUCH: starting in %u s\n", delay_s);
+ 	touch_wait(delay_s * 1000u);
+-	printf("SWEET TOUCH: mapping GCC/TLMM/SE7\n");
++	printf("SWEET TOUCH: mapping GCC/TLMM/SE%u\n",
++	    (unsigned)((TOUCH_SE_PA >> 16) - 0x8cu));
+ 	st.gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
+ 	st.gpio = ml_io_map(TOUCH_NORTH_PA, 0x5b000);
+ 	st.se = ml_io_map(TOUCH_SE_PA, 0x4000);
+@@ -569,28 +616,40 @@
+ 	if (!touch_clocks() || !touch_se_init()) {
+ 		goto out;
+ 	}
+-	printf("SWEET TOUCH: TLMM reset=%#x irq=%#x vdd90=%#x; voting L11C through RPMh\n",
+-	    touch_rd(st.gpio, TOUCH_GPIO_IO(8)), touch_rd(st.gpio, TOUCH_GPIO_IO(9)),
+-	    touch_rd(st.gpio, TOUCH_GPIO_IO(90)));
+-	/* Keep the IC in reset while its rails settle; IRQ stays an input. */
+-	touch_gpio(9, 0, 3, 3, false, false); /* IRQ input, 8 mA, pull-up */
+-	touch_gpio(8, 0, 3, 3, true, false);
+-	int power_error = sweet_rpmh_vreg_enable("ldoc11", 3200);
++	printf("SWEET TOUCH: TLMM reset=%#x irq=%#x; voting %s (%u mV) through RPMh\n",
++	    touch_rd(st.gpio, TOUCH_GPIO_IO(TOUCH_GPIO_RST)),
++	    touch_rd(st.gpio, TOUCH_GPIO_IO(TOUCH_GPIO_IRQ)), TOUCH_RAIL, TOUCH_RAIL_MV);
++	/* Keep the IC in reset while its rail settles; the IRQ stays an input. */
++	touch_gpio(TOUCH_GPIO_IRQ, 0, 3, 3, false, false);
++	touch_gpio(TOUCH_GPIO_RST, 0, 3, 3, true, false);
++	int power_error = sweet_rpmh_vreg_enable(TOUCH_RAIL, TOUCH_RAIL_MV);
+ 	if (power_error) {
+-		printf("SWEET TOUCH: L11C RPMh enable failed %d; probes skipped\n", power_error);
++		printf("SWEET TOUCH: %s RPMh enable failed %d; probes skipped\n",
++		    TOUCH_RAIL, power_error);
+ 		goto out;
+ 	}
+-	touch_gpio(90, 0, 0, 0, true, true); /* board digital power enable */
++#if !defined(GAUGUIN)
++	touch_gpio(90, 0, 0, 0, true, true); /* sweet: board digital power enable */
++#endif
+ 	touch_wait(10); /* conservative rail settling; not a DT timing value */
+-	touch_gpio(6, 1, 0, 0, false, false); /* qup11 SDA/SCL, 2 mA */
+-	touch_gpio(7, 1, 0, 0, false, false);
+-	/* Vendor GT9896 dev_confirm: reset low 2 ms, then high. */
+-	touch_gpio(8, 0, 3, 3, true, false);
++	touch_gpio(TOUCH_SDA_PIN, 1, 0, 0, false, false); /* SE SDA/SCL, 2 mA */
++	touch_gpio(TOUCH_SCL_PIN, 1, 0, 0, false, false);
++	touch_gpio(TOUCH_GPIO_RST, 0, 3, 3, true, false); /* reset low 2 ms */
+ 	touch_wait(2);
+-	touch_gpio(8, 0, 3, 3, true, true);
+-	touch_wait(300); /* exceeds vendor 5 ms test + 95 ms post-test wait */
++	touch_gpio(TOUCH_GPIO_RST, 0, 3, 3, true, true);
++	touch_wait(300); /* exceeds the vendor's 5 ms boot time + post-test wait */
+ 	uint8_t gid[32], legacy[32], fid1 = 0, fid2 = 0;
+ 	st.probing = true;
++#if defined(GAUGUIN)
++	/* Focaltech first: SE8 is its own bus on gauguin. */
++	int fe1 = touch_read(0x38, 0xa3, false, &fid1, 1);
++	int fe2 = touch_read(0x38, 0xa4, false, &fid2, 1);
++	printf("SWEET TOUCH: probe 0x38 a3/a4 err=%d/%d chip-id=%02x:%02x irq=%#x\n",
++	    fe1, fe2, fid1, fid2, st.irq_status);
++	touch_probe_info(0x01, gid);	/* touch report buffer (FTS_TOUCH_POINT_NUM at +2) */
++	int ge = -1;
++	(void)gid; (void)legacy;
++#else
+ 	int ge = touch_probe_info(GOODIX_PID_REG, gid);
+ 	printf("SWEET TOUCH: probe 0x5d err=%d pid=%02x%02x%02x%02x fw=%02x.%02x.%02x.%02x irq=%#x\n",
+ 	    ge, gid[0], gid[1], gid[2], gid[3], gid[8], gid[9], gid[10], gid[11], st.irq_status);
+@@ -599,21 +658,28 @@
+ 	int fe2 = touch_read(0x38, 0x9f, false, &fid2, 1);
+ 	printf("SWEET TOUCH: probe 0x38 err=%d/%d chip-id=%02x:%02x irq=%#x\n",
+ 	    fe1, fe2, fid1, fid2, st.irq_status);
++#endif
+ 	st.probing = false;
++#if defined(GAUGUIN)
++	bool goodix = false;
++	bool fts = !fe1 && !fe2 && (((unsigned)fid1 << 8) | fid2) == TOUCH_FTS_CHIP_ID;
++#else
+ 	bool goodix = !ge && gid[0] == '9' && gid[1] == '8' && gid[2] == '9' && gid[3] == '6';
+ 	bool fts = !fe1 && !fe2 && fid1 == 0x54 && fid2 == 0x52;
++#endif
+ 	if (st.dead || goodix == fts) {
+ 		printf("SWEET TOUCH: no unique supported IC (goodix=%d fts=%d dead=%d); stopping\n",
+ 		    goodix, fts, st.dead);
+ 		goto out;
+ 	}
+ 	st.kind = goodix ? TOUCH_GOODIX : TOUCH_FTS;
+-	printf("SWEET TOUCH: selected %s, 1080x2400, poll=10ms irq-hint=%d\n",
+-	    goodix ? "GT9896 Yellowstone" : "Focaltech 54:52", st.irq_hint);
++	printf("SWEET TOUCH: selected %s, 1080x%u, poll=10ms irq-hint=%d\n",
++	    goodix ? "GT9896 Yellowstone" : "Focaltech", (unsigned)(TOUCH_Y_MAX + 1), st.irq_hint);
+ 	unsigned errors = 0, ticks = 0;
+ 	while (!st.dead) {
+ 		/* Optional IRQ hint still reads every 100ms, and always while down. */
+-		if (!st.irq_hint || st.active || !(touch_rd(st.gpio, TOUCH_GPIO_IO(9)) & 1u) ||
++		if (!st.irq_hint || st.active ||
++		    !(touch_rd(st.gpio, TOUCH_GPIO_IO(TOUCH_GPIO_IRQ)) & 1u) ||
+ 		    (++ticks % 10u) == 0) {
+ 			int err = st.kind == TOUCH_GOODIX ? touch_goodix() : touch_focaltech();
+ 			if (err) {
+diff --git a/bsd/dev/sweet_keys.c b/bsd/dev/sweet_keys.c
+--- a/bsd/dev/sweet_keys.c
++++ b/bsd/dev/sweet_keys.c
+@@ -1,6 +1,10 @@
+ /*
+  * Minimal polled SWEET keys. Call once after the scheduler is running.
+- * See hw-report.md: volume-up is PM6150L SID 4, NOT PM6150 SID 0.
++ * See hw-report.md. Power/volume-down come from the main PMIC PON block
++ * (SID 0, power-on@0x800); volume-up is a PMIC GPIO, one byte at 0xc110
++ * (mode2: input enable bit 7, out/in bit 0):
++ *   sweet  : PM6150L (SID 4), PPID 0x4c1, gpio2 (hw-report.md).
++ *   gauguin: PM6350  (SID 0), PPID 0x4c0, gpio2 (vendor key_vol_up_default).
+  * PMIC access is READ ONLY: the sole MMIO write issues EXT_READL on an
+  * observer channel. No PMIC config, IRQ acknowledge or reset writes exist.
+  */
+@@ -113,7 +117,7 @@
+ 		for (int k = 0; k < 3; ++k) {
+ 			if ((k == 1 ? gok : pok) && now[k] != state[k]) {
+ 				state[k] = now[k];
+-				printf("SWEET KEYS: key=%d down=%d pon=%#x gpio4:c110=%#x\n",
++				printf("SWEET KEYS: key=%d down=%d pon=%#x gpio:c110=%#x\n",
+ 				    k, state[k], pon, gpio);
+ 				sweet_hid_key(k, state[k]);
+ 			}
+@@ -152,14 +156,18 @@
+ 		return;
+ 	}
+ 	keys_pon_apid = keys_find_apid(0x008, count);
++#if defined(GAUGUIN)
++	keys_gpio_apid = keys_find_apid(0x4c0, count);
++#else
+ 	keys_gpio_apid = keys_find_apid(0x4c1, count);
++#endif
+ 	uint8_t pon = 0, gpio = 0, mode = 0, en = 0, subtype = 0;
+ 	bool pok = keys_read(keys_pon_apid, KEYS_PON_RT, &pon);
+ 	bool gok = keys_read(keys_gpio_apid, KEYS_GPIO_RT, &gpio);
+ 	bool mok = keys_read(keys_gpio_apid, 0xc140, &mode);
+ 	bool eok = keys_read(keys_gpio_apid, 0xc146, &en);
+ 	bool sok = keys_read(keys_gpio_apid, 0xc105, &subtype);
+-	printf("SWEET KEYS: arb=%#x apids=%u pon-apid=%u gpio4-apid=%u pon=%#x/%d gpio=%#x/%d mode=%#x/%d en=%#x/%d subtype=%#x/%d\n",
++	printf("SWEET KEYS: arb=%#x apids=%u pon-apid=%u gpio-apid=%u pon=%#x/%d gpio=%#x/%d mode=%#x/%d en=%#x/%d subtype=%#x/%d\n",
+ 	    keys_version, count, keys_pon_apid, keys_gpio_apid,
+ 	    pon, pok, gpio, gok, mode, mok, en, eok, subtype, sok);
+ 	/* GPIO configuration belongs to firmware. Diagnose, never repair it here. */
+diff --git a/bsd/dev/sweet_rpmh.c b/bsd/dev/sweet_rpmh.c
+--- a/bsd/dev/sweet_rpmh.c
++++ b/bsd/dev/sweet_rpmh.c
+@@ -219,7 +219,7 @@
+ }
+ 
+ static int
+-rh_send(uint32_t address, unsigned mv)
++rh_send(const char *res, uint32_t address, unsigned mv)
+ {
+ 	int chosen = -1;
+ 	for (unsigned t = 0; t < RH_ACTIVE_N; ++t) {
+@@ -234,7 +234,7 @@
+ 		for (unsigned c = 0; c < rh_ncpt; ++c) {
+ 			if ((enabled & (1u << c)) &&
+ 			    (rh_read(rh_tcs, b + RH_ADDR + c * RH_CMD_STRIDE) & ~15u) == address) {
+-				printf("SWEET RPMH: conflicting inherited L11C request in TCS%u\n", t);
++				printf("SWEET RPMH: conflicting inherited %s request in TCS%u\n", res, t);
+ 				return EBUSY;
+ 			}
+ 		}
+@@ -320,18 +320,33 @@
+ 		return EIO;
+ 	}
+ 	rh_poisoned = false;
+-	printf("SWEET RPMH: L11C ACTIVE vote complete (rail voltage requires hardware verification)\n");
++	printf("SWEET RPMH: %s ACTIVE vote complete (rail voltage requires hardware verification)\n",
++	    res);
+ 	return 0;
+ }
+ 
+ int
+ sweet_rpmh_vreg_enable(const char *res, unsigned mv)
+ {
+-	/* Board-specific helper: do not apply PMIC5-LDO policy to arbitrary resources. */
+-	if (!res || strcmp(res, "ldoc11") || mv < 2950 || mv > 3400) {
+-		printf("SWEET RPMH: expected ldoc11 and 2950..3400 mV\n");
++		/* Board-specific helper: do not apply PMIC5-LDO policy to arbitrary
++	 * resources. The resource names are the vendor DT's rpmh-regulator
++	 * qcom,resource-name values; gauguin powers the touch IC from the main
++	 * PMIC's LDO6A (pm6350_l6, 1.71-3.54 V) instead of PM6150L LDO11C. */
++	if (!res || mv < 1710 || mv > 3200) {
++		printf("SWEET RPMH: expected a LDO resource and 1710..3200 mV\n");
+ 		return EINVAL;
+ 	}
++#if defined(GAUGUIN)
++	if (strcmp(res, "ldoa6")) {
++		printf("SWEET RPMH: gauguin expects ldoa6, got %s\n", res);
++		return EINVAL;
++	}
++#else
++	if (strcmp(res, "ldoc11")) {
++		printf("SWEET RPMH: sweet expects ldoc11, got %s\n", res);
++		return EINVAL;
++	}
++#endif
+ 	if (__atomic_exchange_n(&rh_lock, 1, __ATOMIC_ACQUIRE)) {
+ 		return EBUSY;
+ 	}
+@@ -346,7 +361,7 @@
+ 		error = rh_lookup(res, &address);
+ 	}
+ 	if (!error) {
+-		error = rh_send(address, mv);
++		error = rh_send(res, address, mv);
+ 	}
+ out:
+ 	if (error) {
+diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
+--- a/iokit/KernelConfigTables.cpp
++++ b/iokit/KernelConfigTables.cpp
+@@ -38,13 +38,21 @@
+     "   {"
+     "     'IOClass'         = SweetPlatformExpert;"
+     "     'IOProviderClass' = IOPlatformExpertDevice;"
++#if defined(GAUGUIN)
++    "     'IONameMatch'     = 'xiaomi,gauguin';"
++#else
+     "     'IONameMatch'     = 'xiaomi,sweet';"
++#endif
+     "     'IOProbeScore'    = 10000:32;"
+     "   },"
+     "   {"
+     "     'IOClass'         = SweetCPU;"
+     "     'IOProviderClass' = IOPlatformDevice;"
++#if defined(GAUGUIN)
++    "     'IONameMatch'     = 'qcom,kryo465';"
++#else
+     "     'IONameMatch'     = 'qcom,kryo470';"
++#endif
+     "     'IOProbeScore'    = 10000:32;"
+     "   },"
+     "   {"
+diff --git a/pexpert/pexpert/arm64/SWEET.h b/pexpert/pexpert/arm64/SWEET.h
+--- a/pexpert/pexpert/arm64/SWEET.h
++++ b/pexpert/pexpert/arm64/SWEET.h
+@@ -1,6 +1,9 @@
+ /*
+  * Board config for the Redmi Note 10 Pro ("sweet", Qualcomm SM7150 /
+  * Snapdragon 732G): Kryo 470 = Cortex-A76 + Cortex-A55, ARMv8.2, no PAC.
++ * The same config builds for gauguin (Redmi Note 9 Pro 5G / Mi 10T Lite,
++ * SM7125 "lagoip": Kryo 465, same CPU/MPIDR/GIC/timer/UFS/dwc3 layout);
++ * -DGAUGUIN selects the board's touch/keys/rails/DRAM in bsd/dev.
+  *
+  * Generic ARM like BCM2837 (no APPLE_ARM64_ARCH_FAMILY: none of Apple's
+  * implementation-defined system registers exist), 16K pages and GICv3 like
+diff --git a/pexpert/pexpert/arm64/board_config.h b/pexpert/pexpert/arm64/board_config.h
+--- a/pexpert/pexpert/arm64/board_config.h
++++ b/pexpert/pexpert/arm64/board_config.h
+@@ -97,6 +97,9 @@
+ #define CORE_NCTRS                     8 /* Placeholder; KPC is not enabled for this target */
+ #endif  /* ARM64_BOARD_CONFIG_BCM2837 */
+ 
++#if defined(ARM64_BOARD_CONFIG_GAUGUIN) && !defined(ARM64_BOARD_CONFIG_SWEET)
++#define ARM64_BOARD_CONFIG_SWEET 1
++#endif
+ #ifdef ARM64_BOARD_CONFIG_SWEET
+ #include <pexpert/arm64/SWEET.h>
+ 
+diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
+--- a/makedefs/MakeInc.def
++++ b/makedefs/MakeInc.def
+@@ -62,6 +62,9 @@
+ MACHINE_FLAGS_ARM64_VMAPPLE = -DARM64_BOARD_CONFIG_VMAPPLE              -march=armv8.5a
+ MACHINE_FLAGS_ARM64_BCM2837 = -DARM64_BOARD_CONFIG_BCM2837
+ MACHINE_FLAGS_ARM64_SWEET = -DARM64_BOARD_CONFIG_SWEET                -march=armv8.2-a+crypto
++# gauguin (Redmi Note 9 Pro 5G, SM7125): same board config, board layout
++# differences are #if defined(GAUGUIN) in bsd/dev/sweet_*.c
++MACHINE_FLAGS_ARM64_GAUGUIN = -DARM64_BOARD_CONFIG_SWEET -DGAUGUIN     -march=armv8.2-a+crypto
+ 
+ 
+ #
+diff --git a/osfmk/arm64/machine_routines.c b/osfmk/arm64/machine_routines.c
+--- a/osfmk/arm64/machine_routines.c
++++ b/osfmk/arm64/machine_routines.c
+@@ -1088,7 +1088,7 @@ ml_parse_cpu_topology(void)
+ #endif
+ 
+ #if defined(SWEET)
+-		/* Aff1 encodes the core on SM7150, not an Apple cluster ID. */
++		/* Aff1 encodes the core on SM7150/SM7125, not an Apple cluster ID. */
+ 		cpu->die_cluster_id = (int)ml_readprop(child, "die-cluster-id", 0);
+ 		cpu->cluster_core_id = (int)ml_readprop(child, "cluster-core-id", cpu->phys_id >> 8);
+ #else

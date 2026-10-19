@@ -3,6 +3,7 @@
  * every access is Device memory, so stay aligned (-mstrict-align).
  */
 #include "console.h"
+#include "fdt.h"
 #include "font.h"
 
 #define SCALE		3
@@ -12,14 +13,40 @@
 #define LABEL_COLS	8
 
 volatile uint32_t *con_fb = (volatile uint32_t *)FB_BASE;
+uint64_t con_fb_base = FB_BASE;
+uint32_t con_w = FB_W, con_h = FB_H, con_stride = FB_STRIDE;
 static uint32_t con_bg;
 static int row;
 
+void con_init(uintptr_t fdt)
+{
+	uint64_t base = 0, size = 0;
+
+	uintptr_t n = fdt_find(fdt, "/reserved-memory/cont_splash_region");
+	if (n && fdt_reg1(fdt, n, &base, &size) && base && size) {
+		con_fb_base = base;
+	}
+	/* /chosen/framebuffer@0: "width", "height", "stride" (decimal pixels/bytes) */
+	uintptr_t c = fdt_find(fdt, "/chosen/framebuffer");
+	if (c) {
+		uint32_t w = 0, h = 0, st = 0;
+		if (fdt_dec3(fdt, c, "width", &w) && fdt_dec3(fdt, c, "height", &h) &&
+		    fdt_dec3(fdt, c, "stride", &st) && w && h && st) {
+			con_w = w;
+			con_h = h;
+			con_stride = st;
+		}
+	}
+	if (!con_stride)
+		con_stride = con_w * 4;
+	con_fb = (volatile uint32_t *)con_fb_base;
+}
+
 void con_clear(uint32_t bg)
 {
-	for (int y = 0; y < FB_H; y++) {
-		volatile uint32_t *line = con_fb + y * (FB_STRIDE / 4);
-		for (int x = 0; x < FB_W; x++)
+	for (uint32_t y = 0; y < con_h; y++) {
+		volatile uint32_t *line = con_fb + y * (con_stride / 4);
+		for (uint32_t x = 0; x < con_w; x++)
 			line[x] = bg;
 	}
 	con_bg = bg;
@@ -32,13 +59,13 @@ static void put_char(int col, char ch, uint32_t fg)
 		ch = '?';
 	const unsigned char *g = font8x16[ch - 0x20];
 	int x0 = MARGIN + col * CH_W, y0 = MARGIN + row * CH_H;
-	if (x0 + CH_W > FB_W || y0 + CH_H > FB_H)
+	if (x0 + CH_W > (int)con_w || y0 + CH_H > (int)con_h)
 		return;
 	for (int gy = 0; gy < 16; gy++)
 		for (int gx = 0; gx < 8; gx++) {
 			uint32_t c = (g[gy] & (0x80 >> gx)) ? fg : con_bg;
 			for (int sy = 0; sy < SCALE; sy++) {
-				volatile uint32_t *p = con_fb + (y0 + gy * SCALE + sy) * (FB_STRIDE / 4)
+				volatile uint32_t *p = con_fb + (y0 + gy * SCALE + sy) * (con_stride / 4)
 						       + x0 + gx * SCALE;
 				for (int sx = 0; sx < SCALE; sx++)
 					p[sx] = c;

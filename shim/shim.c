@@ -8,9 +8,12 @@
  */
 #include <stdint.h>
 #include "console.h"
+#include "fdt.h"
 #include "mmu.h"
 #include "loader.h"
 #include "ufs.h"
+
+extern uint64_t ufs_base;
 
 #define IMEM_RESTART_REASON	0x146aa65cUL	/* qcom,msm-imem restart_reason@65c */
 #define RESTART_BOOTLOADER	0x77665500U
@@ -208,7 +211,10 @@ static void __attribute__((unused)) test_smp(void)
 static uintptr_t find_gicr(void)
 {
 	uint64_t aff = rsr("mpidr_el1");
-	uint32_t want = (aff & 0xffffff) | ((aff >> 8) & 0xff000000);
+	/* GICR_TYPER.Affinity_Value is 32-bit: Aff3:Aff2:Aff1:Aff0 = Aff3 in bits
+	 * 31:24, Aff0 in 23:0, with Aff1:Aff0 swapped vs. MPIDR. For Aff3=0 the
+	 * low 24 bits of MPIDR are the value (sweet and gauguin both Aff3=0). */
+	uint32_t want = (uint32_t)(aff & 0xffffff);
 
 	for (uintptr_t off = 0; off < GICR_SIZE; off += GICR_PE_SIZE) {
 		uint64_t typer = rd64(GICR_BASE + off + GICR_TYPER);
@@ -373,6 +379,23 @@ static uint32_t to_us(uint64_t ticks)
 void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
+	uint64_t mem = 0, memsz = 0, base = 0, size = 0;
+	uintptr_t n;
+
+	/* Board facts from the live FDT (sweet 0x9c000000, gauguin 0xa0000000...). */
+	con_init(dtb);
+	n = fdt_find(dtb, "/memory");
+	if (n && fdt_reg2(dtb, n, &mem, &memsz)) {
+		con_hex2("MEMORY", "base=", (uint32_t)mem, "lo=", (uint32_t)memsz);
+		con_hex("MEMORYHI", mem >> 32);
+	}
+	n = fdt_find(dtb, "/soc/ufshc");
+	if (n && fdt_reg1(dtb, n, &base, &size) && base) {
+		ufs_base = base;
+		con_hex2("UFSHCI", "at=", (uint32_t)base, "size=", (uint32_t)size);
+	}
+	con_hex2("FBCON", "at=", (uint32_t)con_fb_base, "stride=", con_stride);
+	con_skip();
 
 	/* An xnu payload in the ramdisk means: boot it (MMU stays off). */
 	stage = "loader";
@@ -417,7 +440,7 @@ void shim_main(uint64_t dtb)
 	con_hex2("PARANGE", "mmfr0=", rsr("id_aa64mmfr0_el1") & 0xf, "tg16=", (rsr("id_aa64mmfr0_el1") >> 20) & 0xf);
 	con_skip();
 	con_hex("PAR img", mmu_probe((uintptr_t)shim_main));
-	con_hex("PAR fb", mmu_probe(FB_PHYS + 0x1000));
+	con_hex("PAR fb", mmu_probe(con_fb_base + 0x1000));
 	con_hex("PAR gic", mmu_probe(GICD_BASE));
 	con_hex("PAR 12G", mmu_probe(0x300000000UL));
 	con_skip();

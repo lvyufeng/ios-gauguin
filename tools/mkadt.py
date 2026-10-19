@@ -12,11 +12,26 @@ import adt  # noqa: E402
 # Kernel-managed RAM: above every Qualcomm XPU carve-out (see NOTES.md)
 PHYS_BASE = 0xb0000000
 MEM_SIZE = 0x4d000000
-# --highmem (phone only): the whole upper DDR bank. The live FDT memory node is
-# <0x80000000 2G>, <0x1_00000000 0xfcc00000>; every fixed reserved-memory
-# carve-out is in the low bank and the dynamic pools are limited below 4G.
+# --highmem (phone only), sweet: the whole upper DDR bank. The live FDT memory
+# node is <0x80000000 2G>, <0x1_00000000 0xfcc00000>; every fixed
+# reserved-memory carve-out is in the low bank and the dynamic pools are
+# limited below 4G.
 HIGH_PHYS_BASE = 0x100000000
 HIGH_MEM_SIZE = 0xfcc00000
+# gaugeuin (Redmi Note 9 Pro 5G / Mi 10T Lite, SM7125 "lagoip"): the live FDT
+# memory node is <0x80000000 0x3bb00000>, <0x180000000 0x100000000>,
+# <0xc0000000 0xc0000000> (the last one is removed_region@c0000000, i.e.
+# offline). Same rule: firmware carve-outs (modem 0x8b800000 + 248 MiB,
+# ipa/wlan, adsp, npu, video, cdsp, camera, qseecom below 0xc0000000) all live
+# in the low bank, so the kernel gets the whole upper bank.
+GAUGUIN_PHYS_BASE = 0x180000000
+GAUGUIN_MEM_SIZE = 0x100000000
+DEVICES = {
+    # name: (low DDR bank start, root compatible tags, cpu compatible)
+    # name: (low DDR start, root tags, cpu tag, big-core clock Hz)
+    'sweet': (0x80000000, ('xiaomi,sweet', 'qcom,sm7150'), 'qcom,kryo470', 2304000000),
+    'gauguin': (0x80000000, ('xiaomi,gauguin', 'qcom,sm7125'), 'qcom,kryo465', 2200000000),
+}
 # /arm-io children are relative to this; it must not be 0 (serial_init bails)
 SOC_BASE = 0x01000000
 
@@ -68,9 +83,19 @@ def node(name, props=(), children=()):
     return n
 
 
-def build(seed=None, qemu=False, highmem=False):
-    """qemu=True: same tree, but with QEMU virt's GIC addresses and CNTFRQ (tools/qemu-sweet.py)."""
-    phys_base, mem_size = (HIGH_PHYS_BASE, HIGH_MEM_SIZE) if highmem else (PHYS_BASE, MEM_SIZE)
+def build(seed=None, qemu=False, highmem=False, device='sweet'):
+    """qemu=True: same tree, but with QEMU virt's GIC addresses and CNTFRQ (tools/qemu-sweet.py).
+    device: 'sweet' (SM7150) or 'gauguin' (SM7125): DRAM layout and SoC tags."""
+    if device not in DEVICES:
+        raise SystemExit(f'unknown device {device}')
+    dram_low, soc_tags, cpu_tag, big_hz = DEVICES[device]
+    if highmem:
+        if device == 'gauguin':
+            phys_base, mem_size = GAUGUIN_PHYS_BASE, GAUGUIN_MEM_SIZE
+        else:
+            phys_base, mem_size = HIGH_PHYS_BASE, HIGH_MEM_SIZE
+    else:
+        phys_base, mem_size = PHYS_BASE, MEM_SIZE
     gicd, gicr, timebase = (QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE) if qemu else (GICD, GICR, TIMEBASE)
     seed = seed if seed is not None else os.urandom(64)
     phandle = iter(range(1, 1000))
@@ -80,6 +105,8 @@ def build(seed=None, qemu=False, highmem=False):
         ph(),
         ('dram-base', u64(phys_base)),
         ('dram-size', u64(mem_size)),
+        # low DDR bank (where ABL loads us); informational for the kernel
+        ('dram-base-low', u64(dram_low)),
         ('random-seed', seed),
         ('debug-enabled', u32(1)),
         ('firmware-version', cstr('sweet-shim')),
@@ -128,7 +155,7 @@ def build(seed=None, qemu=False, highmem=False):
         cpu_nodes.append(node(f'cpu{core}', [
             ph(),
             ('device_type', cstr('cpu')),
-            ('compatible', cstr('qcom,kryo470') + cstr('ARM,v8')),
+            ('compatible', cstr(cpu_tag) + cstr('ARM,v8')),
             ('reg', u32(core << 8)),  # actual MPIDR Aff1:Aff0, NOT logical ID
             ('cpu-id', u32(core)),   # descriptive: XNU assigns IDs by DT order
             ('cluster-id', u32(0)),  # descriptive; see ml_parse_cpu_topology
@@ -139,7 +166,7 @@ def build(seed=None, qemu=False, highmem=False):
             ('l3-cache-id', u32(0)),     # shared L3
             ('state', cstr('running' if core == 0 else 'stopped')),
             ('timebase-frequency', u32(timebase)),
-            ('clock-frequency', u32(2304000000 if core >= 6 else 1804800000)),
+            ('clock-frequency', u32(big_hz if core >= 6 else 1804800000)),
             ('bus-frequency', u32(100000000)),
             ('memory-frequency', u32(1866000000)),
             ('peripheral-frequency', u32(timebase)),
@@ -214,10 +241,10 @@ def build(seed=None, qemu=False, highmem=False):
 
     # Identity of the iPhone X whose userland runs here: compatible[0] is
     # hw.model/hw.target (D22AP), model is hw.machine/hw.product
-    # (iPhone10,3). 'xiaomi,sweet' stays for SweetPlatformExpert matching.
+    # (iPhone10,3). 'xiaomi,<board>' stays for SweetPlatformExpert matching.
     return node('device-tree', [
         ph(),
-        ('compatible', cstr('D22AP') + cstr('iPhone10,3') + cstr('xiaomi,sweet') + cstr('qcom,sm7150') + cstr('AppleARM')),
+        ('compatible', cstr('D22AP') + cstr('iPhone10,3') + cstr(soc_tags[0]) + cstr(soc_tags[1]) + cstr('AppleARM')),
         ('model', cstr('iPhone10,3')),
         ('target-type', cstr('D22')),
         ('target-sub-type', cstr('D22AP')),
@@ -228,7 +255,8 @@ def build(seed=None, qemu=False, highmem=False):
 
 
 if __name__ == '__main__':
-    root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv)
+    device = 'gauguin' if '--device=gauguin' in sys.argv else 'sweet'
+    root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv, device=device)
     blob = adt.serialize(root)
     open(sys.argv[1], 'wb').write(blob)
     if '--dump' in sys.argv:

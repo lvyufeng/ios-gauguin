@@ -1,10 +1,12 @@
 #pragma once
 #include <stdint.h>
 
-#define FB_PHYS	0x9c000000UL
+/* Identity map target: every block below this is Device (or fb Normal-NC). */
+#define MAP_LIMIT	(8UL << 30)
 
 struct mmu_info {
 	uint64_t img_lo, img_hi, ttbr;
+	uint64_t ram_lo, ram_hi;	/* first RAM block found in the live FDT */
 	uint64_t sctlr_before, sctlr_after;
 	int n_l3;
 };

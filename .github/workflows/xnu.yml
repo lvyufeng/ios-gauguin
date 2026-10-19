@@ -10,11 +10,14 @@ on:
         description: RELEASE / DEVELOPMENT / DEBUG
         default: DEVELOPMENT
       machine_config:
-        description: xnu MACHINE_CONFIG
+        description: xnu MACHINE_CONFIG passed to dxb (overridden by machine_configs)
         default: SWEET
       keep_going:
         description: make -k (collect all compile errors in one run)
         default: "true"
+      machine_configs:
+        description: space-separated MACHINE_CONFIGs (sweet, gauguin)
+        default: "sweet gauguin"
   push:
     branches: [main]
     paths:
@@ -26,6 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  MACHINE_CONFIGS: ${{ inputs.machine_configs || 'sweet gauguin' }}
   DXB_REPO: https://github.com/blacktop/darwin-xnu-build
   DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
   MACOS_VERSION: ${{ inputs.macos_version || '13.5' }}
@@ -67,12 +71,26 @@ jobs:
           xcodebuild -version
           xcrun --find iig
 
+      # One dxb invocation per MACHINE_CONFIG: dxb's patch step is complete
+      # by then, only fakeroot/Kernels/* differ. gauguin shares the SWEET
+      # sources (-DGAUGUIN selects the board layout in bsd/dev/sweet_*.c).
       - name: Build
         working-directory: dxb
         env:
           # keep going after errors so one run reports every compile failure
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
-        run: bash build.sh
+        run: |
+          mkdir -p out
+          for mc in $MACHINE_CONFIGS; do
+            echo "==== MACHINE_CONFIG=$mc"
+            rm -rf fakeroot/System/Library/Kernels
+            MACHINE_CONFIG="$mc" bash build.sh
+            for k in fakeroot/System/Library/Kernels/*; do
+              cp "$k" "out/$(basename "$k").${mc}"
+            done
+            cp -R fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
+          done
+          ls -la out
 
       - name: Package build tree for local compiles
         if: always()
@@ -112,6 +130,7 @@ jobs:
         if: always()
         run: |
           mkdir -p out
+          cp -R dxb/out/. out/ 2>/dev/null || true
           cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
           ls -la out
           (cd out && shasum -a 256 kernel.* > SHA256SUMS) || true

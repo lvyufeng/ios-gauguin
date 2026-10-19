@@ -1,10 +1,22 @@
 #pragma once
 #include <stdint.h>
 
-#define FB_BASE		0x9c000000UL	/* reserved-memory cont_splash_region */
+/*
+ * Framebuffer defaults: sweet's ABL cont splash (1080x2400 a8r8g8b8 at
+ * 0x9c000000). con_init() replaces them with the phone's actual
+ * /reserved-memory/cont_splash_region and /chosen framebuffer geometry, so
+ * boards with a different layout (gauguin: 0xa0000000) need no rebuild.
+ */
+#define FB_BASE		0x9c000000UL
 #define FB_W		1080
 #define FB_H		2400
-#define FB_STRIDE	(FB_W * 4)	/* a8r8g8b8, matches mainline simplefb */
+#define FB_STRIDE	(FB_W * 4)	/* a8r8g8b8 */
+
+extern uint64_t con_fb_base;
+extern uint32_t con_w, con_h, con_stride;
+
+/* Use the framebuffer described by the live FDT (falls back to the defaults). */
+void con_init(uintptr_t fdt);
 
 #define RED	0xffff0000U
 #define BLUE	0xff0000a0U

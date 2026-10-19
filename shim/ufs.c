@@ -13,7 +13,10 @@
 #include "console.h"
 #include "ufs.h"
 
-#define UFS_BASE	0x01d84000UL	/* ufshc@1d84000, sweet live FDT */
+/* ufshc base; con_init() replaces it with the live FDT value (both sweet and
+ * gauguin: ufshc@1d84000 / ufsphy_mem@1d87000). */
+uint64_t ufs_base = 0x01d84000UL;
+#define UFS_BASE	ufs_base
 
 #define REG_CAP		0x00
 #define REG_VER		0x08

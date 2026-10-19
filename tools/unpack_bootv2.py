@@ -17,7 +17,8 @@ if ver >= 1:
     rds, rdo, hs = struct.unpack_from('<IQI', b, 1632)
     parts.append(('recovery_dtbo', rds)); info['header_size'] = hs
 if ver >= 2:
-    ds, da = struct.unpack_from('<IQ', b, 1648)
+    ds, = struct.unpack_from('<Q', b, 1648)          # u64 in v2, u32 in v1
+    da, = struct.unpack_from('<Q', b, 1656)
     parts.append(('dtb', ds)); info['dtb_addr'] = hex(da)
 for name, sz in parts:
     if sz:

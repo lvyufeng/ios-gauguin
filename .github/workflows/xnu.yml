@@ -76,17 +76,6 @@ jobs:
       # dxb for what it is good at on a Mac: Xcode bootstrap tools (mig,
       # ctfmerge), the KDK and the macOS xnu clone. build.sh ends in
       # `main "$@"`; main() is redefined to run only the steps asked for.
-      # The kernel sources: upstream xnu-8796.141.3 + the SWEET/gauguin patch
-      # series, committed on the fork's `gauguin` branch (with your identity).
-      # dxb skips its own clone when dxb/xnu exists; its patch step then sees
-      # a tree where every patch already applies in reverse, so `git apply`
-      # fails and dxb only warns (Skipping patch ...). The VMAPPLE bootstrap
-      # build links because every SWEET-only source is guarded.
-      - name: Kernel sources (fork gauguin branch)
-        run: |
-          git clone -q --depth 1 --branch gauguin https://github.com/${{ github.repository_owner }}/xnu dxb/xnu
-          git -C dxb/xnu log --oneline -1
-
       - name: dxb bootstrap (Xcode tools, KDK, xnu clone)
         id: dxb
         working-directory: dxb
@@ -114,7 +103,10 @@ jobs:
           # no `patches` here: dxb runs build_xnu right after its patch step,
           # and that VMAPPLE bootstrap build cannot link SWEET-only code. The
           # series is applied after this step, before the first build_xnu.
-          DXB_STEPS="install_deps setup_xcode_toolchain venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
+          # get_xnu clones pristine upstream and `patches` applies dxb's own
+          # patches *and* ours (copied into dxb/patches by the first step);
+          # order matters, dxb's build-environment patches must not be skipped.
+          DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu patches venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
             DXB_STEP_NAME=bootstrap bash run-dxb.sh || { tail -100 /tmp/dxb-bootstrap.log; exit 1; }
           tail -20 /tmp/dxb-bootstrap.log
           ls -la fakeroot/usr/local/bin | head -20

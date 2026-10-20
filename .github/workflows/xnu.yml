@@ -74,12 +74,8 @@ jobs:
       # mirror (deps/mirror): apple-oss-distributions and bearssl.org are
       # still one more network dependency, and the repo is already here.
       # dxb for what it is good at on a Mac: Xcode bootstrap tools (mig,
-      # ctfmerge), KDK, the macOS xnu clone. Its own patch step (scripts +
-      # git apply) stays in dxb's main; build.sh ends in `main "$@"`, which is
-      # redefined to run only what this workflow asks for. No xnu compilation
-      # happens here: the SWEET patches only build for the SWEET machine
-      # config, and dxb has no way to pass MACHINE_CONFIG to its VMAPPLE
-      # bootstrap build.
+      # ctfmerge), the KDK and the macOS xnu clone. build.sh ends in
+      # `main "$@"`; main() is redefined to run only the steps asked for.
       - name: dxb bootstrap (Xcode tools, KDK, xnu clone)
         id: dxb
         working-directory: dxb
@@ -101,7 +97,10 @@ jobs:
           SH
           # the `source` receives dxb's top-level flags (e.g. none). Process
           # substitution keeps the exit status of the sourced script.
-          DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu patches venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
+          # no `patches` here: dxb runs build_xnu right after its patch step,
+          # and that VMAPPLE bootstrap build cannot link SWEET-only code. The
+          # series is applied after this step, before the first build_xnu.
+          DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
             DXB_STEP_NAME=bootstrap bash run-dxb.sh || { tail -100 /tmp/dxb-bootstrap.log; exit 1; }
           tail -20 /tmp/dxb-bootstrap.log
           ls -la fakeroot/usr/local/bin | head -20
@@ -109,7 +108,7 @@ jobs:
       # One dxb invocation per MACHINE_CONFIG: dxb's patch step is complete
       # by then, only fakeroot/Kernels/* differ. gauguin shares the SWEET
       # sources (-DGAUGUIN selects the board layout in bsd/dev/sweet_*.c).
-      - name: Build kernel
+      - name: Build kernel (apply the series, then build each MACHINE_CONFIG)
         working-directory: dxb
         env:
           # keep going after errors so one run reports every compile failure

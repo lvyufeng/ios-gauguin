@@ -35,6 +35,27 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-20 22:45: journaled root fixes the HFS corruption; userland runs 2 min <<<
+
+The flashed image was created with `hdiutil create` and **never had a journal**
+(unlike `tools/mkiosroot.sh`, which runs `mkfs.hfsplus -J`). Every hard reset
+left the catalog dirty, so the kernel kept reporting
+`hfs_mark_inconsistent: Runtime corruption detected on iOSRoot, fsck will be
+forced on next mount` and `BlockMarkFreeInternal() trying to free unallocated
+blocks`. Rebuilt with `diskutil enableJournal`, re-flashed (283 s) and booted:
+
+* `/dev/ufsroot0 on / (hfs, local, journaled, noatime)` and **zero** corruption
+  messages; SpringBoard, 221 `exec`s, configd's lo0 address + route and the
+  AKS users all run.
+* 33,947-line console (`boot-journaled-userland.txt`); the log still ends in
+  ordinary daemon chatter (securityd AKS 0xe00002c7, `exec coreauthd`) with no
+  panic - so the ~2 min reset is not a logged panic. `panic_reboot` defaults to
+  1 here, so the reset probably runs through a *non*-kernel path (watchdog
+  driver re-arming, or the bootloader's own reset on a hung AP).
+
+Image at `/tmp/iosroot16g-j.dmg` (16 GiB journaled, 11 GiB used);
+`tools/img2simg.py` -> `.simg` for `fastboot flash userdata`.
+
 ### >>> UPDATE 2026-10-20 22:25: userland runs, but every boot resets after 2-3 minutes <<<
 
 With `sweetfb_noconsole=1` (no `sweetfb_hz`) the system reaches userland and

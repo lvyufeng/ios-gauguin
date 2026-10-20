@@ -148,7 +148,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dxb-logs
-          path: /tmp/dxb-*.log
+          path: |
+            /tmp/dxb-*.log
+            /tmp/build-*.log
           retention-days: 7
 
       - name: Package build tree for local compiles

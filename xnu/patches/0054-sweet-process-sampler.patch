@@ -28,7 +28,7 @@
  
 --- a/osfmk/kern/exception.c
 +++ b/osfmk/kern/exception.c
-@@ -971,6 +971,58 @@
+@@ -971,6 +971,56 @@
  	printf("STR done: %llu KiB scanned, %d strings\n", scanned >> 10, lines);
  	kfree_data(buf, 65536);
  }
@@ -36,7 +36,6 @@
 + * SWEET process sampler (bsd/dev/sweet_sample.c): user pc/lr/sp and a frame
 + * pointer backtrace of every thread of a task, from the saved user state.
 + */
-+#if defined(ARM64_BOARD_CONFIG_SWEET)
 +void sweet_sample_task(const char *name, int pid, task_t task);
 +
 +void
@@ -82,7 +81,6 @@
 +	}
 +	task_unlock(task);
 +}
-+#endif /* ARM64_BOARD_CONFIG_SWEET */
 +
  #endif /* ARM64_BOARD_CONFIG_SWEET */
  
@@ -130,7 +128,7 @@
  		fConsolePaused = true;
 --- /dev/null
 +++ b/bsd/dev/sweet_sample.c
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,88 @@
 +/*
 + * SWEET process sampler: where is a daemon stuck?
 + *
@@ -145,7 +143,6 @@
 + *
 + * First sample 90 s after start, then every 120 s, 10 samples at most.
 + */
-+#if defined(ARM64_BOARD_CONFIG_SWEET)
 +#include <sys/param.h>
 +#include <sys/systm.h>
 +#include <sys/proc.h>
@@ -220,5 +217,3 @@
 +		thread_deallocate(thread);
 +	}
 +}
-+#endif /* ARM64_BOARD_CONFIG_SWEET */
-

@@ -19,19 +19,24 @@ import sys
 
 
 def stage(src, dst, label):
+    """Copy every file that is missing (dxb's stage scripts may have created
+    the directory with only part of the tree, so a directory-level check is
+    not enough)."""
     if not os.path.isdir(src):
         return f'{label}: mirror entry missing ({src})'
-    if os.path.isdir(dst) and os.listdir(dst):
-        return f'{label}: present'
-    os.makedirs(dst, exist_ok=True)
-    for entry in os.listdir(src):
-        s = os.path.join(src, entry)
-        d = os.path.join(dst, entry)
-        if os.path.isdir(s):
-            shutil.copytree(s, d, dirs_exist_ok=True)
-        else:
+    copied = 0
+    for root, _dirs, names in os.walk(src):
+        rel = os.path.relpath(root, src)
+        target_dir = dst if rel == '.' else os.path.join(dst, rel)
+        os.makedirs(target_dir, exist_ok=True)
+        for name in names:
+            s = os.path.join(root, name)
+            d = os.path.join(target_dir, name)
+            if os.path.exists(d) and os.path.getsize(d) == os.path.getsize(s):
+                continue
             shutil.copy2(s, d)
-    return f'{label}: staged'
+            copied += 1
+    return f'{label}: {copied} file(s) staged'
 
 
 def main():

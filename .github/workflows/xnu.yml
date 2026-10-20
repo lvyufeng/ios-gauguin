@@ -122,9 +122,19 @@ jobs:
             # dxb's variables do not survive the previous bash invocation.
             DXB_STEPS="choose_xnu xnu_headers libsystem_headers libsyscall_headers build_libplatform build_libdispatch build_xnu" \
               DXB_STEP_NAME="build-$mc" MACHINE_CONFIG="$mc" bash run-dxb.sh || fail=1
+            produced=0
             for k in fakeroot/System/Library/Kernels/*; do
-              [ -e "$k" ] && cp "$k" "out/$(basename "$k").$mc"
+              if [ -e "$k" ]; then
+                cp "$k" "out/$(basename "$k").$mc"
+                produced=1
+              fi
             done
+            # dxb's build_xnu can exit 0 even when make failed; the kernel
+            # file is the real success criterion.
+            if [ "$produced" -eq 0 ]; then
+              echo "::error::no kernel produced for $mc"
+              fail=1
+            fi
             ls -la out
           done
           exit $fail

@@ -56,6 +56,31 @@ def allow_gauguin(root):
     return done
 
 
+def sdk_includes(root):
+    """Add the SDK's usr/include to the kernel include path.
+
+    dxb normally patches makedefs/MakeInc.def for this, but our series touches
+    that file first (0004-sweet-machine-config), so dxb's patch is skipped and
+    the SDK headers that far-from-Apple code needs (<limits.h> from BearSSL,
+    <TargetConditionals.h> from the libpthread shims) are not found.
+    """
+    path = os.path.join(root, 'makedefs/MakeInc.def')
+    if not os.path.exists(path):
+        return 'MakeInc.def: absent'
+    text = open(path).read()
+    marker = 'INCFLAGS_SDK\t= -I$(SDKROOT)/usr/local/include/kernel'
+    if 'INCFLAGS_SDK' not in text or '$(SDKROOT)/usr/include' in text:
+        return 'MakeInc.def: sdk include already set'
+    out = []
+    for line in text.split('\n'):
+        if line.startswith('INCFLAGS_SDK'):
+            if 'usr/local/include/kernel' in line and 'usr/include' not in line:
+                line = line + ' -I$(SDKROOT)/usr/include'
+        out.append(line)
+    open(path, 'w').write('\n'.join(out))
+    return 'MakeInc.def: -I$(SDKROOT)/usr/include added'
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else '.'
     if not os.path.exists(os.path.join(root, 'bsd/dev/sweet_sample.c')) and \
@@ -63,6 +88,7 @@ def main():
         sys.exit(f'{root}: not an xnu tree')
     print(guard_sampler(root))
     print('machine-config gates updated:', allow_gauguin(root) or 'none')
+    print(sdk_includes(root))
     return 0
 
 

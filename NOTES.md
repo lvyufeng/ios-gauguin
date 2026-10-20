@@ -35,6 +35,44 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-20 late night: iOS launchd RUNS on gauguin <<<
+
+**`sweet_usb_probe()` was killing the boot.** With `sweetusb=0` the kernel goes
+past the driver inits, mounts the HFS root and starts userland:
+
+```
+hfs: mounted iOSRoot on device b(1, 0)
+load_init_program: attempting to load /usr/appleinternal/sbin/launchd.development
+load_init_program: attempting to load /sbin/launchd
+exec launchd
+libignition: 1: program : launchd
+libignition: 1: hello: hello from launchd.1
+...
+IOK backboardd: matching <key>IOProviderClass</key><string>IOAcceleratorES</string> -> 0 found
+```
+
+(the full 24k-line console is `.deps-cache/logs/boot-userland-gauguin.txt`).
+The USB probe reads GCC_USB30_PRIM_GDSCR / the CBCR set from **SM7150's**
+gcc offsets; on SM7125 (lagoon) those offsets differ, so it can conclude "the
+USB GDSC is on" while it is gated and then reads the DWC3 block — a bus hang
+(bus timeout -> reset), which is exactly the silent reset we chased. Fix: make
+the probe's register map board-specific (or skip it on GAUGUIN) before
+re-enabling `sweetusb`.
+
+**Unattended debug loop (`tools/fastboot-cycle.sh`):** writing
+`boot-recovery` into the misc partition's `bootloader_message.command` makes
+the bootloader boot the recovery partition (TWRP is flashed there) instead of
+the UEFI on `boot`, so a dying kernel comes back to adb by itself:
+TWRP -> arm misc -> `adb reboot bootloader` -> `fastboot boot IMG` -> kernel
+dies -> TWRP -> `tools/sweet-log-pull.sh`. One cycle is ~60 s, no human. This
+also removed the "reset lands in UEFI" problem for the rest of the bring-up.
+
+**Persistent console log improvements (cached tree only):** the SWEET log
+thread flushed *after* its first sleep and the boot often died inside that
+window, so nothing reached the disk. It now flushes once synchronously at
+`sweet_log_start()`, again after every driver init in `sweet_ufs_init`, and
+the loop flushes before sleeping. `sweetlog=1 ufslogsecs=2` in the cmdline.
+
 ### >>> UPDATE 2026-10-20 night: iOS root built + flashed; UFS root is the next wall <<<
 
 **Root image (new route, no Linux needed for APFS):** macOS has APFS and HFS+

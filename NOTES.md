@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-10-20 night: iOS root built + flashed; UFS root is the next wall <<<
+
+**Root image (new route, no Linux needed for APFS):** macOS has APFS and HFS+
+natively, 137 has root but no apfs-fuse package. Split the job:
+- macOS (unprivileged): `hdiutil create -size 16g -fs "Case-sensitive HFS+"
+  -volname iOSRoot -layout NONE /tmp/iosroot16g.dmg` (a partitionless raw HFS+
+  volume; `newfs_hfs` refuses plain files and hdiutil's default layout adds a
+  GPT). Gzip sends 16 GiB of zeros as 75 MB, `gunzip` on 137.
+- macOS (sudo, `tools/mkiosroot-macos` steps run by hand): `hdiutil attach
+  -readonly -noverify` the three DMGs, `rsync -aH --numeric-ids` as root into
+  the mounted image, then the dyld-cache/cryptex hard links, the `_logd`
+  stores, the system keybag. `tools/mkiosroot.sh --reuse` (new flag) documents
+  the same flow for the Linux side.
+- IPSW: iPhone10,3 16.7.16 20H392, 6,171,035,648 B from
+  `updates.cdn-apple.com/2025FallFCS/fullrestores/122-77006/...` (~5 MB/s).
+  DMGs: `087-86698-044.dmg` (OS 4,730,814,044), `087-86593-047.dmg`
+  (SystemOS 2,743,074,816), `087-86715-047.dmg` (AppOS 10,485,760).
+  Result: 11 GiB used of 16 GiB, launchd/dyld root:wheel, keybag 0600.
+
+**Flashing (macOS, adb/fastboot from `brew install android-platform-tools`):**
+`fastboot flash userdata` on the raw image dies with `Failed reading from
+userdata`: fastboot's `copy_avb_footer()` reads the whole image into a
+`std::string` when the image size differs from the partition size. Sparse
+images skip that path, so `tools/img2simg.py` (new, 4096 chunks of 4 MiB,
+RAW/FILL/DONT_CARE) turns the 16 GiB image into 11.1 GiB, and
+`fastboot flash userdata iosroot16g.simg` finished in 283 s (15 chunks).
+userdata = `/dev/block/sda35`, 114,919,714,816 B.
+
+**Boot with the root (`shim/out/shim-boot-pn.img`, payload cmdline `debug=0xc
+serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress rd=ufsroot0
+unentitled_ios_sim_launch=1 ignition_level=1 wdt_test=no_user_checkin ufsrw=1
+rootrw=1 launchd_unsecure_cache=1 wdt=-1 [panic_reboot=0]`):** the shim's red
+screen appears, XNU prints up to
+`SWEET AKS / WDT / SURF / HID (buttons+touch) / BATTERY`, `SWEET FB: AppleCLCD
+1080x2400 stride 4320 at 0xa0000000`, `1/1 CPUs initialized, SGI1 verified`,
+`VM bootstrap done: 85 maps, 165 entries and 502 holes left`,
+`IOMD setownership ENABLED`, `4 subsystems initialized`, then either the
+zone/coredump block (`Registered coredump handler for kernel`) and a hang, or
+a reset ~30-40 s later. `panic_reboot=0` did not keep anything on screen, so
+this looks like a hang/reset in the root path rather than a printed panic.
+Without `rd=ufsroot0` the same kernel reaches `bsd_autoconf: calling kminit`
+and parks in `Waiting on <dict ... Apple_HFS`, i.e. the UFS media never
+attaches: **the gauguin UFS root device is the next thing to debug**
+(`bsd/dev/sweet_ufs.c`, patch 0028/0030/0031/0034; sweet differs in clocks,
+GDSC/PHY and the `ufshc@1d84000` register window).
+
+**Boot nondeterminism:** two boots of the same image stopped at different
+places (one at the coredump registration, one past `VM bootstrap done`), so
+expect flakiness while debugging.
+
 ### >>> UPDATE 2026-10-20 late: built on the Mac, first gauguin boot <<<
 
 **Status: a GAUGUIN XNU kernel exists and boots the phone into BSD.** Built on

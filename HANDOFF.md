@@ -82,7 +82,39 @@ I started a CMake + host-tool port that needs no dxb and no TAPI:
   sdkpkg/xarpack.py` + `pbzx.py`); the in-repo `xnu-cache/blobs` branch has
   the same SDK + BearSSL/hfs/libpthread for CI.
 
-## Plan A state (fork)
+## Plan A state (fork) — FINAL for this session
+
+- Fork `lvyufeng/xnu` exists; branch **`sweet-base`** = upstream
+  `xnu-8796.141.3` + commit `45398fa` (author lvyufeng <lvyufeng@cqu.edu.cn>)
+  that wraps `bsd/dev/sweet_sample.c` and `bsd/dev/sweet_ufs.c` in
+  `#if defined(ARM64_BOARD_CONFIG_SWEET)`. All other SWEET sources already
+  carry that guard, so dxb's VMAPPLE bootstrap links.
+- Still needed: the **`gauguin` branch** = `sweet-base` + all of
+  `xnu/patches`. The series is not fully replayable from a clean upstream
+  tree without care: `0019/0020/0026-staging.sh` must run first (mkinit,
+  BearSSL, hfs, libpthread + `sweet_hfs_compat.h`/`sweet_hfs_iokit.c`), and
+  per-file additions arrive through the patches themselves. The reliable
+  method: clone the fork fully (network permitting), check out `sweet-base`,
+  run `deps/mirror/xnu/prepare.sh` + `prepare-bearssl.sh` with
+  `SWEET_GUARD=0`, then `git apply` every `xnu/patches/*.patch` in order and
+  commit. `deps/make-branch.sh` does exactly this.
+- CI step to change afterwards: before dxb runs,
+  `git clone --branch gauguin https://github.com/lvyufeng/xnu dxb/xnu`
+  (dxb skips its own clone when `dxb/xnu` exists).
+
+## Other facts worth keeping
+
+- The phone is in TWRP; `backup/` holds boot/dtbo/vbmeta, persist,
+  modemst1/2, fsg, fsc (read-only dumps + `SHA256SUMS`).
+- `/tmp` on this host is wiped between commands: keep everything under the
+  repo (`research/tmp/`, `.deps-cache/`).
+- `sudo` is disabled here (`no new privileges`); use prefixed tools.
+- GitHub download hosts ~4 KB/s; Apple CDN, PyPI (Tsinghua mirror), npm OK.
+- Native config generation for xnu works (`xnu-port/host/xconfig.c`,
+  `xnu-port/doconf.py`): generates `Makefile`, `ioconf.c` and the option
+  headers for a component; next step there would be the other components,
+  genassym and compile with the macOS SDK + ld64.lld.
+
 
 The user chose plan A: a fork of apple-oss xnu under `lvyufeng/xnu` with a
 branch CI can build. `deps/make-branch.sh WORKDIR` prepares it from a clone

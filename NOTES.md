@@ -35,6 +35,28 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-21 03:00: panic flush hook, and debug=0xc explains the silent resets <<<
+
+Two changes to how the bring-up kernel reports:
+* `osfmk/kern/debug.c` calls `sweet_log_flush_panic()` (weak) right before
+  `DEBUGGER_OPTION_PANICLOGANDREBOOT` restarts, so a panic's text reaches the
+  on-disk log; implemented in `bsd/dev/sweet_ufs.c` (no-op until the root
+  device is up). The VMAPPLE bootstrap build still links (the symbol is weak).
+* `sweetlogms=<ms>` (<=2000) flushes the persistent log every N ms instead of
+  every `ufslogsecs` seconds.
+
+**`debug=0xc` sets `DB_KERN_DUMP_ON_PANIC` (0x400).** On non-macOS
+(`on_device_corefile_enabled()`) any non-zero `debug` also enables local
+corefiles, and 0x400 asks for one on panic; while the core is written the
+kernel cannot flush its console log, which is why every silent reset ended with
+the log cut mid-line and no panic text. Runs at 02:56 (`debug=0xc`,
+shim-pf.img, 25,633 lines) and 02:59 (`debug=0x8` = DB_KPRT only,
+shim-d8.img, 25,164 lines) both reached the same place - CommCenter's
+`CRASH ... sig 11`, configd, securityd, ReportCrash - and both reset without a
+panic in the log, so either there is no panic (a hardware/watchdog reset) or
+the panic path never reaches the flush. The D8 log is
+`.deps-cache/logs/boot-debug8-userland.txt`.
+
 ### >>> UPDATE 2026-10-20 23:10: userland long run, and how the debug loop now closes <<<
 
 Run at 23:01 (`shim/out/shim-long.img`, `sweetlogms=250 sweetreboot=300`,

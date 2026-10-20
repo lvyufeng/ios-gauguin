@@ -73,12 +73,14 @@ jobs:
       # steps. The staging scripts' downloads are replaced by the in-repo
       # mirror (deps/mirror): apple-oss-distributions and bearssl.org are
       # still one more network dependency, and the repo is already here.
-      # dxb for what it is good at on a Mac: Xcode bootstrap tools (mig,
-      # ctfmerge), the KDK and the macOS xnu clone. build.sh ends in
-      # `main "$@"`; main() is redefined to run only the steps asked for.
-      - name: dxb bootstrap (Xcode tools, KDK, xnu clone)
+      # Everything in one shell: dxb's functions set variables (libplatform/
+      # libdispatch repos, KDK paths) that later calls need, so the steps
+      # cannot be spread over separate Actions steps.
+      - name: Build kernel (apply the series, build each MACHINE_CONFIG)
         id: dxb
         working-directory: dxb
+        env:
+          MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
         run: |
           set -o pipefail
           cat > run-dxb.sh <<'SH'
@@ -87,8 +89,6 @@ jobs:
           # first, source the function library, and then call only the steps
           # this workflow asks for (DXB_STEPS).
           sed -i.bak 's/^main "\$@"$/:/' ./build.sh
-          # build.sh turns on errexit/nounset for itself; keep them off here so
-          # one failing step is reported instead of killing the runner script.
           set +e +u
           source ./build.sh
           echo "sourced build.sh (rc=$?)"
@@ -100,63 +100,30 @@ jobs:
             done
           ) > /tmp/dxb-${DXB_STEP_NAME:-steps}.log 2>&1
           rc=$?
-          echo "==== dxb ${DXB_STEP_NAME:-steps} rc=$rc (log /tmp/dxb-${DXB_STEP_NAME:-steps}.log)"
+          echo "==== dxb ${DXB_STEP_NAME:-steps} rc=$rc"
           grep -nE "error:|\*\*\*|Undefined symbols|No such file" /tmp/dxb-${DXB_STEP_NAME:-steps}.log | grep -v warning | tail -40 || true
-          tail -40 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
+          tail -25 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
           exit $rc
           SH
-          # the `source` receives dxb's top-level flags (e.g. none). Process
-          # substitution keeps the exit status of the sourced script.
-          # no `patches` here: dxb runs build_xnu right after its patch step,
-          # and that VMAPPLE bootstrap build cannot link SWEET-only code. The
-          # series is applied after this step, before the first build_xnu.
-          # get_xnu clones pristine upstream and `patches` applies dxb's own
-          # patches *and* ours (copied into dxb/patches by the first step);
-          # order matters, dxb's build-environment patches must not be skipped.
+          # bootstrap: tools, KDK, pristine xnu, dxb's patches + ours, venv
           DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu patches venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
-            DXB_STEP_NAME=bootstrap bash run-dxb.sh || { tail -100 /tmp/dxb-bootstrap.log; exit 1; }
-          tail -20 /tmp/dxb-bootstrap.log
+            DXB_STEP_NAME=bootstrap bash run-dxb.sh || exit 1
           ls -la fakeroot/usr/local/bin | head -20
-
-      # One dxb invocation per MACHINE_CONFIG: dxb's patch step is complete
-      # by then, only fakeroot/Kernels/* differ. gauguin shares the SWEET
-      # sources (-DGAUGUIN selects the board layout in bsd/dev/sweet_*.c).
-      - name: Build kernel (apply the series, then build each MACHINE_CONFIG)
-        working-directory: dxb
-        env:
-          # keep going after errors so one run reports every compile failure
-          MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
-        run: |
-          set -o pipefail
-          # Post-patch fix-ups (see tools/xnu-post-patch.py): the SWEET-only
-          # sources must compile out for other machine configs, and the
-          # GAUGUIN config needs the SWEET build rules in libkern/bsd conf.
+          # fix-ups the patch series leaves to a script (see tools/)
           python3 "$GITHUB_WORKSPACE/tools/xnu-post-patch.py" "$PWD/xnu"
           mkdir -p out
           fail=0
           for mc in $MACHINE_CONFIGS; do
             echo "==== MACHINE_CONFIG=$mc"
             rm -rf fakeroot/System/Library/Kernels
-            # dxb derives MACHINE_CONFIG from its flags: set it per step.
             DXB_STEPS="xnu_headers libsystem_headers libsyscall_headers build_libplatform build_libdispatch build_xnu" \
               DXB_STEP_NAME="build-$mc" MACHINE_CONFIG="$mc" bash run-dxb.sh || fail=1
-            tail -50 "/tmp/build-$mc.log"
             for k in fakeroot/System/Library/Kernels/*; do
               [ -e "$k" ] && cp "$k" "out/$(basename "$k").$mc"
             done
             ls -la out
           done
           exit $fail
-
-      - name: Upload dxb logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dxb-logs
-          path: |
-            /tmp/dxb-*.log
-            /tmp/build-*.log
-          retention-days: 7
 
       - name: Package build tree for local compiles
         if: always()

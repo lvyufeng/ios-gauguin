@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+**UFS works at the register level on gauguin (2026-10-20 19:52, `shim/out/shim-boot-probe.img`
+= the shim with an empty ramdisk, which runs its own read-only UFS probe):**
+`ver=00000300 cap=1587031F`, `hce=00000001 hcs=0000010F`, `is=00000400`,
+`utrlba=9B9AE000 nutrs=00000020`, our slot at `A2497000`, `TUR rc=0`,
+`CAP rc=0`, `LUN0 lastlba=01D82BFF blk=00001000`, `READ rc=0`, MBR `0xAA55`
+type `0xEE`, GPT entries=0x40 at lba 2, partitions visible (persist,
+persistbak, logdump, rawdump, ...). So the controller window in the live DT is
+right and ABL leaves the host usable; the hang is in XNU's own root path, not
+in the hardware hand-off.
+
+**XNU's root path still hangs/resets** even with `panic_reboot=0` and with the
+`wdt*` args removed (19:49). Same image stops at different places across boots
+(one boot frozen at `Registered coredump handler for kernel`, another reached
+`VM bootstrap done` + `IOMD setownership ENABLED`), which points at a race or
+an interrupt storm rather than one deterministic bug. Next: add progress
+prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
+`ufs_take_over_host`, `ufs_scsi`, `ufs_find_partition`) and photograph the
+frozen screen, since the framebuffer console is the only log until the UFS
+console log (0047) can write.
+
 ### >>> UPDATE 2026-10-20 night: iOS root built + flashed; UFS root is the next wall <<<
 
 **Root image (new route, no Linux needed for APFS):** macOS has APFS and HFS+

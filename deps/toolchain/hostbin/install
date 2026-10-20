@@ -1,0 +1,36 @@
+#!/bin/bash
+# Linux stand-in for BSD install(1) as used by xnu's makefiles:
+#   install [-c] [-S] [-m MODE] [-d] [-o user] [-g group] SRC... DST
+# -d: create directories. -c: overwrite only if different. -S: atomic.
+here=$(cd "$(dirname "$0")" && pwd)
+mode=0755
+mkdirs=0
+args=()
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-d) mkdirs=1; shift;;
+	-m) mode=$2; shift 2;;
+	-o|-g) shift 2;;
+	-c|-S|-s|-p) shift;;
+	-*) shift;;
+	*) args+=("$1"); shift;;
+	esac
+done
+if [ $mkdirs = 1 ]; then
+	mkdir -p "${args[@]}" && chmod "$mode" "${args[@]}"
+	exit 0
+fi
+if [ ${#args[@]} -lt 2 ]; then
+	echo "install: need a source and a destination" >&2
+	exit 64
+fi
+dst=${args[${#args[@]}-1]}
+for src in "${args[@]:0:${#args[@]}-1}"; do
+	target=$dst
+	if [ -d "$dst" ]; then
+		target=$dst/$(basename "$src")
+	fi
+	if ! /home/lvyufeng/Project/ios-gauguin/deps/toolchain/compat/installfile -c -S -m "$mode" "$src" "$target"; then
+		exit 1
+	fi
+done

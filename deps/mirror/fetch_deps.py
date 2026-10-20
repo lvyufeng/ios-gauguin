@@ -30,7 +30,7 @@ SOURCES = {
                    'a6c70ca0e544347a0377babf748f831577ec24f9', ['kern', 'private', 'include']),
     'hfs': ('https://github.com/apple-oss-distributions/hfs.git',
             '31d5ec238dfab485e78a9a30b8b92d13e8914f03',
-            ['core', 'include', 'private', 'LICENSE*']),
+            ['core', 'hfs_encodings', 'include', 'private', 'LICENSE*']),
     'BearSSL': ('https://www.bearssl.org/git/BearSSL',
                 '7bea48e5e850ab4cafbe68d3765cdaba13a86d6f', BEARSSL_FILES),
 }

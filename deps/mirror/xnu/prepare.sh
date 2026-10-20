@@ -38,16 +38,27 @@ replace('kern_support.c',
         'panic(__func__ ": thread_set_wq_state failed: %d", error);',
         'panic("%s: thread_set_wq_state failed: %d", __func__, error);', 4)
 PY
-cp "$(xcrun --sdk macosx --show-sdk-path)/usr/include/TargetConditionals.h" bsd/pthread/sweet_libpthread/
+sdk_file() {
+	# TargetConditionals.h from the macOS SDK: xcrun on a Mac, the
+	# osxcross SDK on Linux (deps/README.md).
+	local f
+	for f in "${OSXCROSS_SDK_ROOT:-}"/*/usr/include/TargetConditionals.h \
+	         "$(ls -d /home/lvyufeng/Project/ios-gauguin/osxcross/osxcross-master/target/SDK/*/usr/include/TargetConditionals.h 2>/dev/null | head -1)"; do
+		[ -f "$f" ] && { printf '%s' "$f"; return 0; }
+	done
+	command -v xcrun > /dev/null && printf '%s/usr/include/TargetConditionals.h' "$(xcrun --sdk macosx --show-sdk-path)"
+}
+SDK_TC=$(sdk_file)
+cp "$SDK_TC" bsd/pthread/sweet_libpthread/
 echo "Staged libpthread-514.100.2 from the mirror"
 
 # HFS 627.100.6 (0026-stage-hfs.sh, same edits)
 [[ -d bsd/sweet_hfs ]] && { echo >&2 "refusing to overwrite sweet_hfs"; exit 1; }
 mkdir -p bsd/sweet_hfs
-for entry in "$mirror"/hfs/*; do cp -R "$entry" bsd/sweet_hfs/; done
+for entry in core hfs_encodings; do cp -R "$mirror/hfs/$entry" bsd/sweet_hfs/; done
 python3 - <<'PY'
 from pathlib import Path
-path = Path('bsd/sweet_hfs/core/hfs_vfsutils.c')
+path = Path('bsd/sweet_hfs/core/hfs_iokit.h')
 text = path.read_text()
 include = '#include <AppleKeyStore/AppleKeyStoreFSServices.h>\n'
 first = 'int hfs_unwrap_key('
@@ -59,6 +70,6 @@ i, j = text.index(first), text.index(end)
 text = text[:i] + '#if CONFIG_PROTECT\n' + text[i:j].rstrip('\n') + '\n#endif\n\n' + text[j:]
 path.write_text(text)
 PY
-cp "$(xcrun --sdk macosx --show-sdk-path)/usr/include/TargetConditionals.h" bsd/sweet_hfs/
+cp "$SDK_TC" bsd/sweet_hfs/
 echo "Staged hfs-627.100.6 from the mirror"
 

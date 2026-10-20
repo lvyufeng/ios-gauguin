@@ -72,23 +72,73 @@ jobs:
           xcodebuild -version
           xcrun --find iig
 
+      # dxb only for what it is good at on a Mac: Xcode bootstrap tools
+      # (mig, ctfmerge), KDK, the macOS xnu clone and the staging/building
+      # steps. The staging scripts' downloads are replaced by the in-repo
+      # mirror (deps/mirror): apple-oss-distributions and bearssl.org are
+      # still one more network dependency, and the repo is already here.
+      - name: dxb bootstrap (build.sh up to the platform libraries)
+        id: dxb
+        working-directory: dxb
+        run: |
+          set -o pipefail
+          # Run dxb until just before its own `patches` step would download;
+          # the functions are independent, so call them explicitly.
+          cat > run-dxb.sh <<'SH'
+          set -eo pipefail
+          source ./build.sh --help >/dev/null 2>&1 || true
+          install_deps
+          setup_xcode_toolchain
+          choose_xnu
+          get_xnu
+          venv
+          build_bootstrap_cmds
+          build_dtrace
+          build_availabilityversions
+          SH
+          # build.sh runs main() at the end; strip that call when sourced.
+          sed -i '$ d' build.sh 2>/dev/null || true
+          bash run-dxb.sh 2>&1 | tee /tmp/dxb-bootstrap.log
+          ls -la fakeroot/usr/local/bin | head -20
+
+      - name: Patches and staging from the in-repo mirror
+        working-directory: dxb/xnu
+        run: |
+          set -eo pipefail
+          export MACHINE_CONFIG=${{ inputs.machine_config || 'SWEET' }} MACOS_VERSION=13.5
+          # the two scripts that download are replaced by deps/apply-patches.sh;
+          # it applies every patch in order and fails on the first mismatch
+          "$GITHUB_WORKSPACE/deps/apply-patches.sh" "$PWD" "$GITHUB_WORKSPACE/deps/mirror" \
+            "${{ inputs.machine_config || 'SWEET' }}"
+
+      - name: xnu headers, system headers, libplatform, libdispatch
+        working-directory: dxb
+        run: |
+          set -eo pipefail
+          source ./run-dxb.sh
+          xnu_headers
+          libsystem_headers
+          libsyscall_headers
+          build_libplatform
+          build_libdispatch
+
       # One dxb invocation per MACHINE_CONFIG: dxb's patch step is complete
       # by then, only fakeroot/Kernels/* differ. gauguin shares the SWEET
       # sources (-DGAUGUIN selects the board layout in bsd/dev/sweet_*.c).
-      - name: Build
+      - name: Build kernel
         working-directory: dxb
         env:
           # keep going after errors so one run reports every compile failure
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
         run: |
+          set -eo pipefail
+          source ./run-dxb.sh
           mkdir -p out
           fail=0
           for mc in $MACHINE_CONFIGS; do
             echo "==== MACHINE_CONFIG=$mc"
             rm -rf fakeroot/System/Library/Kernels
-            MACHINE_CONFIG="$mc" bash build.sh || fail=1
-            # keep every config's kernels side by side:
-            # kernel.development.sweet / kernel.development.gauguin
+            MACHINE_CONFIG="$mc" bash -c 'source ./run-dxb.sh; build_xnu' 2>&1 | tail -2000 || fail=1
             for k in fakeroot/System/Library/Kernels/*; do
               [ -e "$k" ] && cp "$k" "out/$(basename "$k").$mc"
             done

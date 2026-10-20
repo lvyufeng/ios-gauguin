@@ -1,0 +1,36 @@
+#!/bin/bash
+# Host compiler for the xnu SETUP tools on Linux.
+#  - Apple's <copyfile.h>, getprogname() and fcopyfile() come from
+#    deps/toolchain/compat (same interface, plain POSIX underneath).
+#  - Darwin-only linker/SDK switches are dropped.
+#  - Host tools are linked with compat.c and glibc's libbsd-free fallbacks.
+here=$(cd "$(dirname "$0")" && pwd)
+# BSD libc additions the macOS SDK headers normally provide: declare them
+# for every host tool (getprogname, MAXPATHLEN, ...).
+pre=$here/compat/darwin_compat.h
+# Mach-O <mach-o/*.h> for setsegname/kextsymboltool: cctools-port's headers.
+# Its include/foreign shadows glibc's <strings.h> with a Darwin variant, so
+# only the Mach and architecture sub-trees are opened.
+ct=/home/lvyufeng/Project/ios-gauguin/osxcross/dev/cctools-port/cctools/include
+args=()
+skip=0
+link=0
+for a in "$@"; do
+	if [ $skip = 1 ]; then skip=0; continue; fi
+	case "$a" in
+	-lstdc++|-lc++) args+=("-L$here/lib" "-lstdc++"); continue;;
+	-isysroot) skip=1;;
+	-isysroot*) ;;
+	-arch) skip=1;;
+	-mmacosx-version-min=*|-Wl,-platform_version*|-Wl,-dead_strip*|-Wl,-fdarwin*|-F*) ;;
+	-Wl,-exported_symbols_list,*|-Wl,-undefined,*|-Wl,-sectcreate,*) ;;
+	-o) link=1; args+=("$a");;
+	*) args+=("$a");;
+	esac
+done
+if [ $link = 1 ]; then
+	# append the compat object after everything else (it defines only the
+	# missing libc symbols, so order does not matter for it)
+	args+=("$here/compat/compat.o" "$here/hostlib/libcctools-macho.a")
+fi
+exec clang -D_DARWIN_C_SOURCE -D_BSD_SOURCE -D_DEFAULT_SOURCE -include "$pre" -I"$here/compat/cctools" -I"$here/compat" "${args[@]}"

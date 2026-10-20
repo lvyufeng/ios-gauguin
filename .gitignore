@@ -12,3 +12,6 @@ __pycache__/
 # local build caches (osxcross toolchain, patched xnu, downloaded sources)
 .deps-cache/
 osxcross/
+
+# work-in-progress CMake port (see HANDOFF.md)
+xnu-port/build/

@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""unifdef stand-in (for xnu's SETUP/config/doconf only).
+Handles -t -DSYM -USYM - and standards the #if/#ifdef lines: keeps lines whose
+condition is true under the given defines, drops the false branch."""
+import re, sys
+defs = set()
+lines_out = []
+args = sys.argv[1:]
+while args:
+    a = args.pop(0)
+    if a == "-t":
+        continue
+    if a.startswith("-D"):
+        defs.add(a[2:])
+    elif a.startswith("-U"):
+        defs.discard(a[2:])
+    elif a == "-":
+        continue
+    else:
+        # input file argument (unifdef FILE ...): ignore, read stdin
+        pass
+text = sys.stdin.read()
+stack = []       # (active, taken_any, parent_active)
+out = []
+def ev(expr):
+    expr = expr.strip()
+    # replace defined(X)
+    expr = re.sub(r"defined\s*\(\s*(\w+)\s*\)", lambda m: "1" if m.group(1) in defs else "0", expr)
+    expr = re.sub(r"defined\s+(\w+)", lambda m: "1" if m.group(1) in defs else "0", expr)
+    expr = re.sub(r"!\s*(\w+)", lambda m: "0" if m.group(1) in defs else "1", expr)
+    expr = re.sub(r"\b(\w+)\b", lambda m: "1" if m.group(1) in defs else "0", expr)
+    expr = expr.replace("&&", " and ").replace("||", " or ")
+    try:
+        return bool(eval(expr))
+    except Exception:
+        return False
+active = True
+taken = {}
+for line in text.split("\n"):
+    s = line.strip()
+    m = re.match(r"#\s*if\s+(.*)", s)
+    if m:
+        cond = ev(m.group(1)) and active
+        stack.append([active, cond, cond])
+        active = cond
+        continue
+    m = re.match(r"#\s*ifdef\s+(\w+)", s)
+    if m:
+        cond = (m.group(1) in defs) and active
+        stack.append([active, cond, cond])
+        active = cond
+        continue
+    m = re.match(r"#\s*ifndef\s+(\w+)", s)
+    if m:
+        cond = (m.group(1) not in defs) and active
+        stack.append([active, cond, cond])
+        active = cond
+        continue
+    if re.match(r"#\s*else", s):
+        if stack:
+            parent, cond, any_taken = stack[-1]
+            active = parent and not any_taken
+            stack[-1][2] = True
+        continue
+    if re.match(r"#\s*endif", s):
+        if stack:
+            active = stack.pop()[0]
+        continue
+    if active:
+        out.append(line)
+sys.stdout.write("\n".join(out))

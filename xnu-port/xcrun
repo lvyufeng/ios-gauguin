@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""xcrun stand-in for the Linux build: -sdk X -show-sdk-path/version."""
+import os, sys
+sdk = os.environ.get("XNU_SDK")
+if "-show-sdk-path" in sys.argv:
+    print(sdk)
+elif "-show-sdk-version" in sys.argv:
+    print(os.environ.get("XNU_SDK_VERSION", "11.3"))
+elif "-show-sdk-platform-path" in sys.argv:
+    print(os.path.dirname(os.path.dirname(sdk)))
+elsif "-find" in sys.argv:
+    import shutil
+    print(shutil.which(sys.argv[-1]) or "")
+else:
+    sys.exit(1)

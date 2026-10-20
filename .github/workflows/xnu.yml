@@ -109,8 +109,8 @@ jobs:
             "$BLOG" > "$BLOG.clean"
           grep -nE "fatal error|error:|Undefined symbols|No such file" "$BLOG.clean" | head -20 || true
           echo "==== diagnostics with context"
-          grep -nE "fatal error|error:" "$BLOG.clean" | grep -v warning | head -3 | cut -d: -f1 \
-            | while read -r n; do sed -n "$((n > 2 ? n - 2 : 1)),$((n + 6))p" "$BLOG.clean"; echo "   ---"; done || true
+          grep -nE "fatal error|error:|Undefined symbols" "$BLOG.clean" | grep -v warning | head -3 | cut -d: -f1 \
+            | while read -r n; do sed -n "$((n > 2 ? n - 2 : 1)),$((n + 25))p" "$BLOG.clean"; echo "   ---"; done || true
           tail -15 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
           exit $rc
           SH
@@ -147,6 +147,15 @@ jobs:
             ls -la out
           done
           exit $fail
+
+      - name: Upload dxb logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dxb-logs
+          path: |
+            /tmp/dxb-*.log
+          retention-days: 7
 
       - name: Package build tree for local compiles
         if: always()

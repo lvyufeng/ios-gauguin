@@ -92,7 +92,8 @@ jobs:
           }
           source ./build.sh "$@" > /tmp/dxb-${DXB_STEP_NAME:-steps}.log 2>&1
           rc=$?
-          tail -80 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
+          grep -nE "error:|\*\*\*|Undefined symbols|No such file" /tmp/dxb-${DXB_STEP_NAME:-steps}.log | grep -v warning | tail -30 || true
+          tail -40 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
           exit $rc
           SH
           # the `source` receives dxb's top-level flags (e.g. none). Process
@@ -130,6 +131,14 @@ jobs:
             ls -la out
           done
           exit $fail
+
+      - name: Upload dxb logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dxb-logs
+          path: /tmp/dxb-*.log
+          retention-days: 7
 
       - name: Package build tree for local compiles
         if: always()

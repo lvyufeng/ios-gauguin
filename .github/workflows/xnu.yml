@@ -109,6 +109,8 @@ jobs:
           DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu patches venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
             DXB_STEP_NAME=bootstrap bash run-dxb.sh || exit 1
           ls -la fakeroot/usr/local/bin | head -20
+          # pinned third-party sources (dxb's stage scripts download them)
+          python3 "$GITHUB_WORKSPACE/tools/xnu-stage-mirror.py" "$PWD/xnu" "$GITHUB_WORKSPACE/deps/mirror"
           # fix-ups the patch series leaves to a script (see tools/)
           python3 "$GITHUB_WORKSPACE/tools/xnu-post-patch.py" "$PWD/xnu"
           mkdir -p out

@@ -35,6 +35,23 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-20 22:25: userland runs, but every boot resets after 2-3 minutes <<<
+
+With `sweetfb_noconsole=1` (no `sweetfb_hz`) the system reaches userland and
+stays busy for minutes: 29,596 console lines
+(`.deps-cache/logs/boot-fbA-userland.txt`) with backboardd, containermanagerd,
+CommCenter, remindd, liveactivitiesd, `SWEET FB: MobileGestaltHelper` calls and
+the usual daemon crashes (`CRASH CommCenter sig 6`, `containermanager sig 5`).
+No kernel panic is in the log, yet the phone comes back through a reset ~2-3
+minutes in - and the persistent log's last 1-2 s are lost, which is exactly
+where the reason would be.
+
+Practical consequence: the flush interval is now the debugging clock. Next
+attempts should use `ufslogsecs=1` (or flush from the panic path) so the last
+second is on disk, and arm misc (`boot-recovery`) *before every manual boot*
+too, not only inside `tools/fastboot-cycle.sh` - a manual `adb reboot
+bootloader; fastboot boot` otherwise lands in the UEFI on reset.
+
 ### >>> UPDATE 2026-10-20 22:17: the boot that reaches userland, and the display knobs <<<
 
 The configuration that reaches iOS userland and stays up (21:03 log,

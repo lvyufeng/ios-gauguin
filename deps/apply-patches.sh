@@ -10,6 +10,7 @@ set -euo pipefail
 root=${1:?usage: apply-patches.sh XNU_CHECKOUT MIRROR_DIR [MACHINE_CONFIG]}
 mirror=${2:?usage: apply-patches.sh XNU_CHECKOUT MIRROR_DIR [MACHINE_CONFIG]}
 machine=${3:-GAUGUIN}
+machine=$(echo "$machine" | tr '[:lower:]' '[:upper:]')
 repo=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 export MACHINE_CONFIG=$machine MACOS_VERSION=13.5

@@ -116,7 +116,9 @@ jobs:
           for mc in $MACHINE_CONFIGS; do
             echo "==== MACHINE_CONFIG=$mc"
             rm -rf fakeroot/System/Library/Kernels
-            DXB_STEPS="xnu_headers libsystem_headers libsyscall_headers build_libplatform build_libdispatch build_xnu" \
+            # choose_xnu re-sets RELEASE_URL/KDKROOT/RC_DARWIN_KERNEL_VERSION:
+            # dxb's variables do not survive the previous bash invocation.
+            DXB_STEPS="choose_xnu xnu_headers libsystem_headers libsyscall_headers build_libplatform build_libdispatch build_xnu" \
               DXB_STEP_NAME="build-$mc" MACHINE_CONFIG="$mc" bash run-dxb.sh || fail=1
             for k in fakeroot/System/Library/Kernels/*; do
               [ -e "$k" ] && cp "$k" "out/$(basename "$k").$mc"

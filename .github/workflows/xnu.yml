@@ -76,7 +76,10 @@ jobs:
       # dxb for what it is good at on a Mac: Xcode bootstrap tools (mig,
       # ctfmerge), KDK, the macOS xnu clone. Its own patch step (scripts +
       # git apply) stays in dxb's main; build.sh ends in `main "$@"`, which is
-      # redefined to run only what this workflow asks for.
+      # redefined to run only what this workflow asks for. No xnu compilation
+      # happens here: the SWEET patches only build for the SWEET machine
+      # config, and dxb has no way to pass MACHINE_CONFIG to its VMAPPLE
+      # bootstrap build.
       - name: dxb bootstrap (Xcode tools, KDK, xnu clone)
         id: dxb
         working-directory: dxb
@@ -98,18 +101,10 @@ jobs:
           SH
           # the `source` receives dxb's top-level flags (e.g. none). Process
           # substitution keeps the exit status of the sourced script.
-          DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
+          DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu patches venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
             DXB_STEP_NAME=bootstrap bash run-dxb.sh || { tail -100 /tmp/dxb-bootstrap.log; exit 1; }
           tail -20 /tmp/dxb-bootstrap.log
           ls -la fakeroot/usr/local/bin | head -20
-
-      - name: xnu headers, system headers, libplatform, libdispatch
-        working-directory: dxb
-        run: |
-          set -o pipefail
-          DXB_STEPS="xnu_headers libsystem_headers libsyscall_headers build_libplatform build_libdispatch" \
-            DXB_STEP_NAME=headers bash run-dxb.sh || { tail -100 /tmp/dxb-headers.log; exit 1; }
-          tail -20 /tmp/dxb-headers.log
 
       # One dxb invocation per MACHINE_CONFIG: dxb's patch step is complete
       # by then, only fakeroot/Kernels/* differ. gauguin shares the SWEET
@@ -127,7 +122,8 @@ jobs:
             echo "==== MACHINE_CONFIG=$mc"
             rm -rf fakeroot/System/Library/Kernels
             # dxb derives MACHINE_CONFIG from its flags: set it per step.
-            DXB_STEPS="MACHINE_CONFIG=$mc build_xnu" DXB_STEP_NAME="build-$mc" bash run-dxb.sh || fail=1
+            DXB_STEPS="xnu_headers libsystem_headers libsyscall_headers build_libplatform build_libdispatch build_xnu" \
+              DXB_STEP_NAME="build-$mc" MACHINE_CONFIG="$mc" bash run-dxb.sh || fail=1
             tail -50 "/tmp/build-$mc.log"
             for k in fakeroot/System/Library/Kernels/*; do
               [ -e "$k" ] && cp "$k" "out/$(basename "$k").$mc"

@@ -130,7 +130,7 @@
  		fConsolePaused = true;
 --- /dev/null
 +++ b/bsd/dev/sweet_sample.c
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,89 @@
 +/*
 + * SWEET process sampler: where is a daemon stuck?
 + *
@@ -145,6 +145,7 @@
 + *
 + * First sample 90 s after start, then every 120 s, 10 samples at most.
 + */
++#if defined(ARM64_BOARD_CONFIG_SWEET)
 +#include <sys/param.h>
 +#include <sys/systm.h>
 +#include <sys/proc.h>
@@ -219,4 +220,5 @@
 +		thread_deallocate(thread);
 +	}
 +}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
 

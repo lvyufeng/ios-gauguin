@@ -1362,4 +1362,294 @@ uint32_t br_rsa_i62_oaep_decrypt(
  * If `pk` is `NULL`, then `kbuf_pub` may be `NULL`, and only the
  * private key is set.
  *
- * If `pu
+ * If `pubexp` is not zero, then its value will be used as public
+ * exponent. Valid RSA public exponent values are odd integers
+ * greater than 1. If `pubexp` is zero, then the public exponent will
+ * have value 3.
+ *
+ * The provided PRNG (`rng_ctx`) must have already been initialized
+ * and seeded.
+ *
+ * Returned value is 1 on success, 0 on error. An error is reported
+ * if the requested range is outside of the supported key sizes, or
+ * if an invalid non-zero public exponent value is provided. Supported
+ * range starts at 512 bits, and up to an implementation-defined
+ * maximum (by default 4096 bits). Note that key sizes up to 768 bits
+ * have been broken in practice, and sizes lower than 2048 bits are
+ * usually considered to be weak and should not be used.
+ *
+ * \param rng_ctx     source PRNG context (already initialized)
+ * \param sk          RSA private key structure (destination)
+ * \param kbuf_priv   buffer for private key elements
+ * \param pk          RSA public key structure (destination), or `NULL`
+ * \param kbuf_pub    buffer for public key elements, or `NULL`
+ * \param size        target RSA modulus size (in bits)
+ * \param pubexp      public exponent to use, or zero
+ * \return  1 on success, 0 on error (invalid parameters)
+ */
+typedef uint32_t (*br_rsa_keygen)(
+	const br_prng_class **rng_ctx,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
+	unsigned size, uint32_t pubexp);
+
+/**
+ * \brief RSA key pair generation with the "i15" engine.
+ *
+ * \see br_rsa_keygen
+ *
+ * \param rng_ctx     source PRNG context (already initialized)
+ * \param sk          RSA private key structure (destination)
+ * \param kbuf_priv   buffer for private key elements
+ * \param pk          RSA public key structure (destination), or `NULL`
+ * \param kbuf_pub    buffer for public key elements, or `NULL`
+ * \param size        target RSA modulus size (in bits)
+ * \param pubexp      public exponent to use, or zero
+ * \return  1 on success, 0 on error (invalid parameters)
+ */
+uint32_t br_rsa_i15_keygen(
+	const br_prng_class **rng_ctx,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
+	unsigned size, uint32_t pubexp);
+
+/**
+ * \brief RSA key pair generation with the "i31" engine.
+ *
+ * \see br_rsa_keygen
+ *
+ * \param rng_ctx     source PRNG context (already initialized)
+ * \param sk          RSA private key structure (destination)
+ * \param kbuf_priv   buffer for private key elements
+ * \param pk          RSA public key structure (destination), or `NULL`
+ * \param kbuf_pub    buffer for public key elements, or `NULL`
+ * \param size        target RSA modulus size (in bits)
+ * \param pubexp      public exponent to use, or zero
+ * \return  1 on success, 0 on error (invalid parameters)
+ */
+uint32_t br_rsa_i31_keygen(
+	const br_prng_class **rng_ctx,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
+	unsigned size, uint32_t pubexp);
+
+/**
+ * \brief RSA key pair generation with the "i62" engine.
+ *
+ * This function is defined only on architecture that offer a 64x64->128
+ * opcode. Use `br_rsa_i62_keygen_get()` to dynamically obtain a pointer
+ * to that function.
+ *
+ * \see br_rsa_keygen
+ *
+ * \param rng_ctx     source PRNG context (already initialized)
+ * \param sk          RSA private key structure (destination)
+ * \param kbuf_priv   buffer for private key elements
+ * \param pk          RSA public key structure (destination), or `NULL`
+ * \param kbuf_pub    buffer for public key elements, or `NULL`
+ * \param size        target RSA modulus size (in bits)
+ * \param pubexp      public exponent to use, or zero
+ * \return  1 on success, 0 on error (invalid parameters)
+ */
+uint32_t br_rsa_i62_keygen(
+	const br_prng_class **rng_ctx,
+	br_rsa_private_key *sk, void *kbuf_priv,
+	br_rsa_public_key *pk, void *kbuf_pub,
+	unsigned size, uint32_t pubexp);
+
+/**
+ * \brief Get the RSA "i62" implementation (key pair generation),
+ * if available.
+ *
+ * \return  the implementation, or 0.
+ */
+br_rsa_keygen br_rsa_i62_keygen_get(void);
+
+/**
+ * \brief Get "default" RSA implementation (key pair generation).
+ *
+ * This returns the preferred implementation of RSA (key pair generation)
+ * on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_keygen br_rsa_keygen_get_default(void);
+
+/**
+ * \brief Type for a modulus computing function.
+ *
+ * Such a function computes the public modulus from the private key. The
+ * encoded modulus (unsigned big-endian) is written on `n`, and the size
+ * (in bytes) is returned. If `n` is `NULL`, then the size is returned but
+ * the modulus itself is not computed.
+ *
+ * If the key size exceeds an internal limit, 0 is returned.
+ *
+ * \param n    destination buffer (or `NULL`).
+ * \param sk   RSA private key.
+ * \return  the modulus length (in bytes), or 0.
+ */
+typedef size_t (*br_rsa_compute_modulus)(void *n, const br_rsa_private_key *sk);
+
+/**
+ * \brief Recompute RSA modulus ("i15" engine).
+ *
+ * \see br_rsa_compute_modulus
+ *
+ * \param n    destination buffer (or `NULL`).
+ * \param sk   RSA private key.
+ * \return  the modulus length (in bytes), or 0.
+ */
+size_t br_rsa_i15_compute_modulus(void *n, const br_rsa_private_key *sk);
+
+/**
+ * \brief Recompute RSA modulus ("i31" engine).
+ *
+ * \see br_rsa_compute_modulus
+ *
+ * \param n    destination buffer (or `NULL`).
+ * \param sk   RSA private key.
+ * \return  the modulus length (in bytes), or 0.
+ */
+size_t br_rsa_i31_compute_modulus(void *n, const br_rsa_private_key *sk);
+
+/**
+ * \brief Get "default" RSA implementation (recompute modulus).
+ *
+ * This returns the preferred implementation of RSA (recompute modulus)
+ * on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_compute_modulus br_rsa_compute_modulus_get_default(void);
+
+/**
+ * \brief Type for a public exponent computing function.
+ *
+ * Such a function recomputes the public exponent from the private key.
+ * 0 is returned if any of the following occurs:
+ *
+ *   - Either `p` or `q` is not equal to 3 modulo 4.
+ *
+ *   - The public exponent does not fit on 32 bits.
+ *
+ *   - An internal limit is exceeded.
+ *
+ *   - The private key is invalid in some way.
+ *
+ * For all private keys produced by the key generator functions
+ * (`br_rsa_keygen` type), this function succeeds and returns the true
+ * public exponent. The public exponent is always an odd integer greater
+ * than 1.
+ *
+ * \return  the public exponent, or 0.
+ */
+typedef uint32_t (*br_rsa_compute_pubexp)(const br_rsa_private_key *sk);
+
+/**
+ * \brief Recompute RSA public exponent ("i15" engine).
+ *
+ * \see br_rsa_compute_pubexp
+ *
+ * \return  the public exponent, or 0.
+ */
+uint32_t br_rsa_i15_compute_pubexp(const br_rsa_private_key *sk);
+
+/**
+ * \brief Recompute RSA public exponent ("i31" engine).
+ *
+ * \see br_rsa_compute_pubexp
+ *
+ * \return  the public exponent, or 0.
+ */
+uint32_t br_rsa_i31_compute_pubexp(const br_rsa_private_key *sk);
+
+/**
+ * \brief Get "default" RSA implementation (recompute public exponent).
+ *
+ * This returns the preferred implementation of RSA (recompute public
+ * exponent) on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_compute_pubexp br_rsa_compute_pubexp_get_default(void);
+
+/**
+ * \brief Type for a private exponent computing function.
+ *
+ * An RSA private key (`br_rsa_private_key`) contains two reduced
+ * private exponents, which are sufficient to perform private key
+ * operations. However, standard encoding formats for RSA private keys
+ * require also a copy of the complete private exponent (non-reduced),
+ * which this function recomputes.
+ *
+ * This function suceeds if all the following conditions hold:
+ *
+ *   - Both private factors `p` and `q` are equal to 3 modulo 4.
+ *
+ *   - The provided public exponent `pubexp` is correct, and, in particular,
+ *     is odd, relatively prime to `p-1` and `q-1`, and greater than 1.
+ *
+ *   - No internal storage limit is exceeded.
+ *
+ * For all private keys produced by the key generator functions
+ * (`br_rsa_keygen` type), this function succeeds. Note that the API
+ * restricts the public exponent to a maximum size of 32 bits.
+ *
+ * The encoded private exponent is written in `d` (unsigned big-endian
+ * convention), and the length (in bytes) is returned. If `d` is `NULL`,
+ * then the exponent is not written anywhere, but the length is still
+ * returned. On error, 0 is returned.
+ *
+ * Not all error conditions are detected when `d` is `NULL`; therefore, the
+ * returned value shall be checked also when actually producing the value.
+ *
+ * \param d        destination buffer (or `NULL`).
+ * \param sk       RSA private key.
+ * \param pubexp   the public exponent.
+ * \return  the private exponent length (in bytes), or 0.
+ */
+typedef size_t (*br_rsa_compute_privexp)(void *d,
+	const br_rsa_private_key *sk, uint32_t pubexp);
+
+/**
+ * \brief Recompute RSA private exponent ("i15" engine).
+ *
+ * \see br_rsa_compute_privexp
+ *
+ * \param d        destination buffer (or `NULL`).
+ * \param sk       RSA private key.
+ * \param pubexp   the public exponent.
+ * \return  the private exponent length (in bytes), or 0.
+ */
+size_t br_rsa_i15_compute_privexp(void *d,
+	const br_rsa_private_key *sk, uint32_t pubexp);
+
+/**
+ * \brief Recompute RSA private exponent ("i31" engine).
+ *
+ * \see br_rsa_compute_privexp
+ *
+ * \param d        destination buffer (or `NULL`).
+ * \param sk       RSA private key.
+ * \param pubexp   the public exponent.
+ * \return  the private exponent length (in bytes), or 0.
+ */
+size_t br_rsa_i31_compute_privexp(void *d,
+	const br_rsa_private_key *sk, uint32_t pubexp);
+
+/**
+ * \brief Get "default" RSA implementation (recompute private exponent).
+ *
+ * This returns the preferred implementation of RSA (recompute private
+ * exponent) on the current system.
+ *
+ * \return  the default implementation.
+ */
+br_rsa_compute_privexp br_rsa_compute_privexp_get_default(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

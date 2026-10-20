@@ -101,8 +101,16 @@ jobs:
           ) > /tmp/dxb-${DXB_STEP_NAME:-steps}.log 2>&1
           rc=$?
           echo "==== dxb ${DXB_STEP_NAME:-steps} rc=$rc"
-          grep -nE "error:|\*\*\*|Undefined symbols|No such file" /tmp/dxb-${DXB_STEP_NAME:-steps}.log | grep -v warning | tail -40 || true
-          tail -25 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
+          # show the first real diagnostics with context: xnu's build prints
+          # the failing command, the diagnostic and the caret lines around it
+          grep -nE "fatal error|error:|Undefined symbols|No such file|\*\*\*" \
+            /tmp/dxb-${DXB_STEP_NAME:-steps}.log | grep -v warning | head -25 || true
+          echo "==== diagnostics with context"
+          grep -nE "fatal error|error:" /tmp/dxb-${DXB_STEP_NAME:-steps}.log \
+            | grep -v warning | head -3 | cut -d: -f1 \
+            | while read -r n; do sed -n "$((n > 2 ? n - 2 : 1)),$((n + 6))p" \
+                /tmp/dxb-${DXB_STEP_NAME:-steps}.log; echo "   ---"; done || true
+          tail -15 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
           exit $rc
           SH
           # bootstrap: tools, KDK, pristine xnu, dxb's patches + ours, venv

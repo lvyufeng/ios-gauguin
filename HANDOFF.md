@@ -98,6 +98,10 @@ I started a CMake + host-tool port that needs no dxb and no TAPI:
   run `deps/mirror/xnu/prepare.sh` + `prepare-bearssl.sh` with
   `SWEET_GUARD=0`, then `git apply` every `xnu/patches/*.patch` in order and
   commit. `deps/make-branch.sh` does exactly this.
+- `bsd/sweet_hfs/sweet_hfs_compat.h` and `sweet_hfs_iokit.c` are not
+  created by any patch: they are project files that live in the local
+  patched tree (`.deps-cache/xnu-patched-0082-2/bsd/sweet_hfs/` and
+  `research/tmp/sweet_hfs_partial/`). Land them on the fork branch too.
 - CI step to change afterwards: before dxb runs,
   `git clone --branch gauguin https://github.com/lvyufeng/xnu dxb/xnu`
   (dxb skips its own clone when `dxb/xnu` exists).

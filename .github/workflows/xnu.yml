@@ -103,13 +103,14 @@ jobs:
           echo "==== dxb ${DXB_STEP_NAME:-steps} rc=$rc"
           # show the first real diagnostics with context: xnu's build prints
           # the failing command, the diagnostic and the caret lines around it
-          grep -nE "fatal error|error:|Undefined symbols|No such file|\*\*\*" \
-            /tmp/dxb-${DXB_STEP_NAME:-steps}.log | grep -v warning | head -25 || true
+          # skip the patch step's noise (dxb warns about every patch it skips)
+          BLOG=/tmp/dxb-${DXB_STEP_NAME:-steps}.log
+          awk '/Applying patch:|Skipping patch|already exists in working directory|patch does not apply/{skip=3; next} skip>0{skip--; next} {print}' \
+            "$BLOG" > "$BLOG.clean"
+          grep -nE "fatal error|error:|Undefined symbols|No such file" "$BLOG.clean" | head -20 || true
           echo "==== diagnostics with context"
-          grep -nE "fatal error|error:" /tmp/dxb-${DXB_STEP_NAME:-steps}.log \
-            | grep -v warning | head -3 | cut -d: -f1 \
-            | while read -r n; do sed -n "$((n > 2 ? n - 2 : 1)),$((n + 6))p" \
-                /tmp/dxb-${DXB_STEP_NAME:-steps}.log; echo "   ---"; done || true
+          grep -nE "fatal error|error:" "$BLOG.clean" | grep -v warning | head -3 | cut -d: -f1 \
+            | while read -r n; do sed -n "$((n > 2 ? n - 2 : 1)),$((n + 6))p" "$BLOG.clean"; echo "   ---"; done || true
           tail -15 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
           exit $rc
           SH

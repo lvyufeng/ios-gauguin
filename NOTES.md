@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-10-20 (gauguin port: read this first) <<<
+
+**Goal:** port this tree to a second phone, Redmi Note 9 Pro 5G / Mi 10T Lite
+(`gauguin`, SM7125 "lagoon"), and bring its hardware up. Hardware facts and
+the sweet/gauguin difference list are in `PORT-gauguin.md`; the session
+handoff with exact commands is `HANDOFF.md`.
+
+**Done (repo, `main`):**
+- `fe32fc4` shim reads `/memory`, `cont_splash_region`, `/chosen framebuffer`
+  and `ufshc@1d84000` from the live FDT; page tables cover 64 GB; `tools/mkadt.py
+  --device=gauguin` (DRAM 0x180000000 + 4 GiB, `qcom,sm7125`);
+  `tools/mkbootimg2.py`; `tools/unpack_bootv2.py` dtb size fix.
+- `0082-gauguin-board.patch`: `GAUGUIN` machine config (`-DARM64_BOARD_CONFIG_SWEET
+  -DGAUGUIN`), Focaltech FT5452 touch on QUPv3 SE8 (0x988000, addr 0x38,
+  reset gpio21 / irq gpio22, PM6350 `ldoa6` 1.8 V), PM6350 keys (SID 0, PPID
+  0x4c0), `xiaomi,gauguin` IOKit matches, Y max 2339.
+- Device backups (read-only, TWRP): `backup/{boot,dtbo,vbmeta}.img`,
+  `backup/partitions/{persist,modemst1,modemst2,fsg,fsc}.img` + SHA256SUMS.
+  Nothing was flashed; Android partitions untouched.
+
+**Kernel build (the current blocker, in progress):**
+- CI builds from the **fork** `lvyufeng/xnu` branch **`gauguin`** (upstream
+  xnu-8796.141.3 + the whole `xnu/patches` series + gaugeuin board patches).
+  `.github/workflows/xnu.yml` clones it into `dxb/xnu`; dxb then only builds
+  the Xcode tools/KDK and runs the per-config `build_xnu`.
+- Fixed on the branch so far: `sweet_sample_task` real impl on SWEET + stub
+  elsewhere (`ARM64_BOARD_CONFIG_SWEET`); `libkern/conf` and `bsd/conf`
+  `ifeq ($(CURRENT_MACHINE_CONFIG),SWEET)` -> `ifneq (,$(filter SWEET
+  GAUGUIN,...))` so the BearSSL/HFS/libpthread include paths apply to gauguin.
+- Latest runs: 39366187604, 39368747759, 39371166064, 39373411414 (all fail
+  later than the previous one), current 39376566655. Diagnostic logs are
+  printed inline by the "Build kernel" step (grep + tail) and uploaded as
+  `dxb-logs`; artifact downloads from this host often time out, prefer
+  `gh run view --log-failed`.
+- Local helpers: `deps/make-branch.sh` (rebuild the fork branch),
+  `xnu-port/` (CMake + native config generator experiment, not needed when CI
+  works), `deps/mirror` (pinned BearSSL/hfs/libpthread sources).
+
+**Next:** get a `kernel.development.gauguin` from CI, then
+`tools/mkpayload.py` + `mkadt.py --highmem --device=gauguin` +
+`shim/build.sh payload` -> `fastboot boot shim/out/shim-boot.img`.
+
+
 ### >>> UPDATE 2026-10-18 (read first, then the 10-17 handoff below) <<<
 
 **STATE at end of 2026-10-18 (evening):**

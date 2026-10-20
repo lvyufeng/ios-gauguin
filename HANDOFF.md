@@ -72,14 +72,25 @@ I started a CMake + host-tool port that needs no dxb and no TAPI:
   pseudo-devices from the real `MASTER*` files (the config attribute
   selector resolution needed a fix and is now in place).
 - `xnu-port/host/xconfig.c` + `getword.c`: native (Linux) driver for xnu's
-  generated makefiles (`mkmakefile.c`/`mkheaders.c`/`mkioconf.c` build
-  against glibc with `-fcommon`). **Open bug: the driver segfaults** in
-  `makefile()` or `headers()` (not yet localised; `path()`/`conf_list`
-  initialisation are the first suspects).
+  generated makefiles (`mkmakefile.c`/`mkheaders.c`/`mkioconf.c` linked with
+  `-fcommon` against a stub `parser.h`). **Works** (`b780d64`): run as
+  `xconfig -c <tree>/<comp>/conf <objdir>/config.<KERNEL>_<ARCH>`; it writes
+  `Makefile`, `ioconf.c` and the option headers (39 files for osfmk).
+  Next: the other components, genassym, then the compile.
 - The macOS SDK is at `research/tmp/sdkpkg/.../MacOSX11.3.sdk` (from the
   Apple CLT package, fetched from Apple's CDN, unpacked with `research/tmp/
   sdkpkg/xarpack.py` + `pbzx.py`); the in-repo `xnu-cache/blobs` branch has
   the same SDK + BearSSL/hfs/libpthread for CI.
+
+## Plan A state (fork)
+
+The user chose plan A: a fork of apple-oss xnu under `lvyufeng/xnu` with a
+branch CI can build. `deps/make-branch.sh WORKDIR` prepares it from a clone
+of the fork (real `xnu/patches` + `deps/mirror`, commit made as the user).
+Every SWEET-only source in the series carries `#if defined(
+ARM64_BOARD_CONFIG_SWEET)` (`sweet_sample.c` via 0054, the rest already), so
+a VMAPPLE bootstrap build links. The workflow must then clone
+`--branch gauguin https://github.com/lvyufeng/xnu dxb/xnu` before dxb runs.
 
 ## Next concrete actions
 

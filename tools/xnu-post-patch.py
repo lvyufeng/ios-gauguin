@@ -16,6 +16,7 @@ The repo's patch series leaves these to this script on purpose: the patch
 context would otherwise rot against dxb's own patches for the same files.
 """
 import os
+import shutil
 import sys
 
 
@@ -81,6 +82,26 @@ def sdk_includes(root):
     return 'MakeInc.def: -I$(SDKROOT)/usr/include added'
 
 
+def master_file(root):
+    """Give GAUGUIN its own MASTER file.
+
+    doconf looks for MASTER.<cpu>.<soc>[.<platform>] and falls back to
+    MASTER.<cpu>.<platform> = MASTER.arm64.MacOSX, which builds Apple's closed
+    lib<SOC>.os for the arm64 assembly and pmap. SWEET ships MASTER.arm64.sweet
+    with `nos_arm_asm nos_arm_pmap`; GAUGUIN compiles the same open-source
+    sources, so it needs the same file under its own name.
+    """
+    cfg = os.path.join(root, 'config')
+    dst = os.path.join(cfg, 'MASTER.arm64.gauguin')
+    src = os.path.join(cfg, 'MASTER.arm64.sweet')
+    if os.path.exists(dst):
+        return 'MASTER.arm64.gauguin: present'
+    if not os.path.exists(src):
+        return 'MASTER.arm64.gauguin: no sweet master to copy'
+    shutil.copy2(src, dst)
+    return 'MASTER.arm64.gauguin: copied from the sweet one'
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else '.'
     if not os.path.exists(os.path.join(root, 'bsd/dev/sweet_sample.c')) and \
@@ -89,6 +110,7 @@ def main():
     print(guard_sampler(root))
     print('machine-config gates updated:', allow_gauguin(root) or 'none')
     print(sdk_includes(root))
+    print(master_file(root))
     return 0
 
 

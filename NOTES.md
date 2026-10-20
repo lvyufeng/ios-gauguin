@@ -35,6 +35,31 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-20 23:10: userland long run, and how the debug loop now closes <<<
+
+Run at 23:01 (`shim/out/shim-long.img`, `sweetlogms=250 sweetreboot=300`,
+`boot-long-userland.txt`): the system ran ~3.5 minutes of userland -
+datamigrator, ReportCrash, securityd, CommCenter (its thread-count watermark),
+UserEventAgent - and the reset **before** the 300 s timer, so it is not our
+timer; no panic text is in the log either.
+
+The return path works end to end now: misc carries `boot-recovery`, so the
+reset lands in TWRP and `tools/sweet-log-pull.sh` reads the log without any
+manual step (that is how all these logs were collected). Arms to re-apply
+after a manual `fastboot boot`: misc is overwritten by the bootloader.
+
+Open threads, in order of expected payoff:
+1. the 2-4 min reset (panic not logged: check `panic_reboot`, add a flush in
+   the panic path, or find the reset trigger in the bootloader/watchdog);
+2. the GUI: backboardd finds IOMobileFramebuffer and opens AppleCLCD, but no
+   window server frames yet; `sweetfb_noconsole=1` alone is stable, adding
+   `sweetfb_hz` reset the phone;
+3. USB gadget: kernel DMA must land below 4 GiB, bzero on io-mapped memory
+   panics, and adopting ABL's live controller freezes the SoC (see the 22:10
+   note);
+4. touch: SweetHIDTouch is matched, opened by backboardd, and starts 45 s after
+   boot - needs a visual check once the GUI draws.
+
 ### >>> UPDATE 2026-10-20 22:45: journaled root fixes the HFS corruption; userland runs 2 min <<<
 
 The flashed image was created with `hdiutil create` and **never had a journal**

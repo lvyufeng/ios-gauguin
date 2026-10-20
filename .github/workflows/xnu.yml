@@ -94,16 +94,18 @@ jobs:
           set -o pipefail
           cat > run-dxb.sh <<'SH'
           # dxb's build.sh ends with `main "$@"`; replace main with the steps
-          # this workflow needs (DXB_STEPS), then run it normally.
+          # this workflow needs (DXB_STEPS), then coordinator + run.
           main() {
             for step in $DXB_STEPS; do
               echo "==== dxb step: $step"
               "$step" || return 1
             done
           }
-          source ./build.sh "$@" > /tmp/dxb-${DXB_STEP_NAME:-steps}.log 2>&1
+          # coordinator: exits with the step list's status even with pipefail
+          ( source ./build.sh "$@" ) > /tmp/dxb-${DXB_STEP_NAME:-steps}.log 2>&1
           rc=$?
-          grep -nE "error:|\*\*\*|Undefined symbols|No such file" /tmp/dxb-${DXB_STEP_NAME:-steps}.log | grep -v warning | tail -30 || true
+          echo "==== dxb ${DXB_STEP_NAME:-steps} rc=$rc (log /tmp/dxb-${DXB_STEP_NAME:-steps}.log)"
+          grep -nE "error:|\*\*\*|Undefined symbols|No such file" /tmp/dxb-${DXB_STEP_NAME:-steps}.log | grep -v warning | tail -40 || true
           tail -40 /tmp/dxb-${DXB_STEP_NAME:-steps}.log
           exit $rc
           SH

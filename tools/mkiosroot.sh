@@ -4,6 +4,10 @@
 #
 #   mkiosroot.sh OS.dmg SYSTEMOS.dmg APPOS.dmg OUT.img [SIZE]     (SIZE default 16G)
 #
+#   --reuse  writes into an OUT.img that already holds the HFS+ volume
+#            (created with macOS's hdiutil: that host has APFS/HFS+ natively
+#            but no root for rsync, Linux has root but no mkfs.hfsplus).
+#
 # The IPSW images are raw APFS with LZBITMAP-compressed files: they are read
 # through apfs-fuse (decompressing), so the HFS+ copy is uncompressed. On a
 # device /private/preboot is its own volume holding the cryptexes, which
@@ -18,9 +22,17 @@
 # keybagd reads with /defaults/no-effaceable-storage (tools/mkadt.py).
 set -euo pipefail
 
-[[ $# -ge 4 ]] || { sed -n '2,12p' "$0"; exit 2; }
+reuse=0
+args=()
+for a in "$@"; do [[ $a == --reuse ]] && reuse=1 || args+=("$a"); done
+set -- "${args[@]}"
+[[ $# -ge 4 ]] || { sed -n '2,16p' "$0"; exit 2; }
 os=$(realpath "$1") sysos=$(realpath "$2") appos=$(realpath "$3") out=$4 size=${5:-16G}
-[[ ! -e $out ]] || { echo "refusing to overwrite $out" >&2; exit 1; }
+if [[ $reuse == 1 ]]; then
+	[[ -e $out ]] || { echo "--reuse: $out does not exist" >&2; exit 1; }
+else
+	[[ ! -e $out ]] || { echo "refusing to overwrite $out" >&2; exit 1; }
+fi
 
 work=$(mktemp -d)
 mounts=()
@@ -56,8 +68,12 @@ apfs_mount "$os" os
 apfs_mount "$sysos" sysos
 apfs_mount "$appos" appos
 
-truncate -s "$size" "$out"
-mkfs.hfsplus -s -J -v iOSRoot "$out"
+if [[ $reuse == 1 ]]; then
+	echo "reusing the HFS+ volume already in $out"
+else
+	truncate -s "$size" "$out"
+	mkfs.hfsplus -s -J -v iOSRoot "$out"
+fi
 mkdir "$work/root"
 sudo mount -t hfsplus -o loop,force "$out" "$work/root"
 mounts=("$work/root" "${mounts[@]}")
@@ -116,5 +132,12 @@ df -h "$work/root"
 sudo umount "$work/root"
 # Linux hfsplus decomposes some non-ASCII names (localized Shortcuts examples)
 # differently from Apple's tables; let fsck_hfs rewrite them, then verify.
-fsck.hfsplus -f -y "$out" | grep -v 'Illegal name' || true
-fsck.hfsplus -f -n "$out"
+if command -v fsck.hfsplus > /dev/null; then
+	# Linux hfsplus decomposes some non-ASCII names (localized Shortcuts
+	# examples) differently from Apple's tables; let fsck_hfs rewrite them,
+	# then verify.
+	fsck.hfsplus -f -y "$out" | grep -v 'Illegal name' || true
+	fsck.hfsplus -f -n "$out"
+else
+	echo "fsck.hfsplus not installed: skipping the name-table repair" >&2
+fi

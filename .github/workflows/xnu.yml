@@ -121,6 +121,10 @@ jobs:
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
         run: |
           set -o pipefail
+          # Post-patch fix-ups (see tools/xnu-post-patch.py): the SWEET-only
+          # sources must compile out for other machine configs, and the
+          # GAUGUIN config needs the SWEET build rules in libkern/bsd conf.
+          python3 "$GITHUB_WORKSPACE/tools/xnu-post-patch.py" "$PWD/xnu"
           mkdir -p out
           fail=0
           for mc in $MACHINE_CONFIGS; do

@@ -77,28 +77,34 @@ jobs:
       # steps. The staging scripts' downloads are replaced by the in-repo
       # mirror (deps/mirror): apple-oss-distributions and bearssl.org are
       # still one more network dependency, and the repo is already here.
-      - name: dxb bootstrap (build.sh up to the platform libraries)
+      # dxb only for what it is good at on a Mac: Xcode bootstrap tools
+      # (mig, ctfmerge), KDK, the macOS xnu clone and the build steps. The
+      # staging scripts' downloads are replaced by the in-repo mirror
+      # (deps/mirror), so no apple-oss-distributions/bearssl.org fetch is
+      # needed. build.sh ends in `main "$@"`; main() is redefined here to run
+      # the chosen steps, so build.sh keeps using its own flag parsing.
+      - name: dxb bootstrap (Xcode tools, KDK, xnu clone)
         id: dxb
         working-directory: dxb
         run: |
           set -o pipefail
-          # Run dxb until just before its own `patches` step would download;
-          # the functions are independent, so call them explicitly.
           cat > run-dxb.sh <<'SH'
-          set -eo pipefail
-          source ./build.sh --help >/dev/null 2>&1 || true
-          install_deps
-          setup_xcode_toolchain
-          choose_xnu
-          get_xnu
-          venv
-          build_bootstrap_cmds
-          build_dtrace
-          build_availabilityversions
+          # dxb's build.sh ends with `main "$@"`; replace main with the steps
+          # this workflow needs (DXB_STEPS), then run it normally.
+          main() {
+            for step in $DXB_STEPS; do
+              echo "==== dxb step: $step"
+              "$step" || return 1
+            done
+          }
+          source ./build.sh "$@" 2>&1 | tee /tmp/dxb-${DXB_STEP_NAME:-steps}.log
+          exit ${PIPESTATUS[0]}
           SH
-          # build.sh runs main() at the end; strip that call when sourced.
-          sed -i '$ d' build.sh 2>/dev/null || true
-          bash run-dxb.sh 2>&1 | tee /tmp/dxb-bootstrap.log
+          # the `source` receives dxb's top-level flags (e.g. none). Process
+          # substitution keeps the exit status of the sourced script.
+          DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_xnu venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
+            DXB_STEP_NAME=bootstrap bash run-dxb.sh || { tail -100 /tmp/dxb-bootstrap.log; exit 1; }
+          tail -20 /tmp/dxb-bootstrap.log
           ls -la fakeroot/usr/local/bin | head -20
 
       - name: Patches and staging from the in-repo mirror
@@ -114,13 +120,10 @@ jobs:
       - name: xnu headers, system headers, libplatform, libdispatch
         working-directory: dxb
         run: |
-          set -eo pipefail
-          source ./run-dxb.sh
-          xnu_headers
-          libsystem_headers
-          libsyscall_headers
-          build_libplatform
-          build_libdispatch
+          set -o pipefail
+          DXB_STEPS="xnu_headers libsystem_headers libsyscall_headers build_libplatform build_libdispatch" \
+            DXB_STEP_NAME=headers bash run-dxb.sh || { tail -100 /tmp/dxb-headers.log; exit 1; }
+          tail -20 /tmp/dxb-headers.log
 
       # One dxb invocation per MACHINE_CONFIG: dxb's patch step is complete
       # by then, only fakeroot/Kernels/* differ. gauguin shares the SWEET
@@ -131,14 +134,14 @@ jobs:
           # keep going after errors so one run reports every compile failure
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
         run: |
-          set -eo pipefail
-          source ./run-dxb.sh
+          set -o pipefail
           mkdir -p out
           fail=0
           for mc in $MACHINE_CONFIGS; do
             echo "==== MACHINE_CONFIG=$mc"
             rm -rf fakeroot/System/Library/Kernels
-            MACHINE_CONFIG="$mc" bash -c 'source ./run-dxb.sh; build_xnu' 2>&1 | tail -2000 || fail=1
+            DXB_STEPS="build_xnu" DXB_STEP_NAME="build-$mc" MACHINE_CONFIG="$mc" bash run-dxb.sh || fail=1
+            tail -50 "/tmp/build-$mc.log"
             for k in fakeroot/System/Library/Kernels/*; do
               [ -e "$k" ] && cp "$k" "out/$(basename "$k").$mc"
             done

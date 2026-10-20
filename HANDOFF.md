@@ -128,6 +128,24 @@ ARM64_BOARD_CONFIG_SWEET)` (`sweet_sample.c` via 0054, the rest already), so
 a VMAPPLE bootstrap build links. The workflow must then clone
 `--branch gauguin https://github.com/lvyufeng/xnu dxb/xnu` before dxb runs.
 
+## 2026-10-20 late: built on the Mac, boots into BSD
+
+The kernel is no longer the blocker. `deps/build-macos.sh gauguin` builds it on
+this macOS host (Xcode 26.6 + a writable CLT-SDK copy in
+`.deps-cache/sdkroot-macos`; see the 2026-10-20 entry at the top of NOTES.md for
+the five fix-ups it needed). Output:
+
+- `xnu/out-gauguin-macos/System/Library/Kernels/kernel.development.gauguin`,
+  16,670,728 bytes, SHA256 `59c287f151ad8cc91f5aa5a0574e5337de6ac6ce3abd00e69d9825ed09d25ac5`
+- `shim/out/payload-gauguin.bin` + `shim/out/sweet-gauguin.adt`,
+  `shim/out/shim-boot.img` (17,043,456 bytes, built on 137)
+
+`fastboot boot shim-boot.img` from 137 shows the shim's red screen and then XNU's
+fbcon through BSD init (`1/1 CPUs initialized, SGI1 verified`, MAC framework,
+AMFI/sandbox/HFS registered, Skywalk self-tests) until
+`Waiting on ... Apple_HFS`: there is no iOS root in `userdata` yet, and no IPSW
+or root image exists on either machine.
+
 ## Next concrete actions
 
 1. Fix the `xconfig` segfault (or fall back to the Darwin config tool inside

@@ -14,7 +14,10 @@ machine=$(echo "$machine" | tr '[:lower:]' '[:upper:]')
 repo=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 export MACHINE_CONFIG=$machine MACOS_VERSION=13.5
-bash "$repo/deps/mirror/xnu/prepare.sh" "$root" "$mirror"
+# dxb already put the SDK's TargetConditionals.h into the build tree; the
+# kernel build adds it via build_local_headers, so only the provider sources
+# are staged here.
+SKIP_TARGET_MACROS=1 bash "$repo/deps/mirror/xnu/prepare.sh" "$root" "$mirror"
 bash "$repo/deps/mirror/xnu/prepare-bearssl.sh" "$root" "$mirror"
 for p in "$repo"/xnu/patches/*.patch; do
 	if ! git apply --check "$p" 2> /tmp/apply-err.txt; then

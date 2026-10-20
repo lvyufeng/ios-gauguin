@@ -49,7 +49,7 @@ sdk_file() {
 	command -v xcrun > /dev/null && printf '%s/usr/include/TargetConditionals.h' "$(xcrun --sdk macosx --show-sdk-path)"
 }
 SDK_TC=$(sdk_file)
-cp "$SDK_TC" bsd/pthread/sweet_libpthread/
+[ -n "${SKIP_TARGET_MACROS:-}" ] || cp "$SDK_TC" bsd/pthread/sweet_libpthread/
 echo "Staged libpthread-514.100.2 from the mirror"
 
 # HFS 627.100.6 (0026-stage-hfs.sh, same edits)
@@ -70,6 +70,6 @@ i, j = text.index(first), text.index(end)
 text = text[:i] + '#if CONFIG_PROTECT\n' + text[i:j].rstrip('\n') + '\n#endif\n\n' + text[j:]
 path.write_text(text)
 PY
-cp "$SDK_TC" bsd/sweet_hfs/
+[ -n "${SKIP_TARGET_MACROS:-}" ] || cp "$SDK_TC" bsd/sweet_hfs/
 echo "Staged hfs-627.100.6 from the mirror"
 

@@ -1,19 +1,15 @@
 /*
- * get_word() and get_rest() from xnu SETUP/config/main.c (the helpers
- * mkmakefile.c calls); the native xconfig.c provides main() itself.
+ * Helpers from xnu SETUP/config/main.c and parser.y that the generators
+ * call; the native xconfig.c provides main().
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include "config.h"
 #ifndef PSEUDO_DEVICE
 #define PSEUDO_DEVICE 4
 #endif
-extern struct file_list *ftab, *conf_list, **confp;
-extern struct opt *opt, *mkopt, *opt_tail, *mkopt_tail;
-extern struct device *dtab;
-extern char errbuf[80];
-extern int yyline;
 
 extern char *build_directory;
 extern const char *object_directory;
@@ -54,13 +50,6 @@ get_word(FILE *fp)
 	(void) ungetc(ch, fp);
 	return line;
 }
-
-/*
- * get_rest
- *	returns EOF on end of file
- *	NULL on end of line
- *	pointer to the word otherwise
- */
 char *
 get_rest(FILE *fp)
 {
@@ -81,10 +70,6 @@ get_rest(FILE *fp)
 	}
 	return line;
 }
-
-/*
- * prepend the path to a filename
- */
 char *
 path(const char *file)
 {
@@ -97,8 +82,6 @@ path(const char *file)
 	(void) sprintf(cp, "%s/%s/%s", object_directory, build_directory, file);
 	return cp;
 }
-
-/* ns() from parser.y */
 char *
 ns(const char *str)
 {
@@ -109,25 +92,10 @@ ns(const char *str)
 	return (cp);
 }
 
-/* newdev()/init_dev() from parser.y */
-static struct device *curp;
+/* init_dev() from parser.y */
 void
-newdev(struct device *dp)
-{
-	register struct device *np;
-
-	np = (struct device *) malloc(sizeof *np);
-	*np = *dp;
-	if (curp == 0)
-		dtab = np;
-	else
-		curp->d_next = np;
-	curp = np;
-	curp->d_next = 0;
-}
 init_dev(struct device *dp)
 {
-
 	dp->d_name = "OHNO!!!";
 	dp->d_type = PSEUDO_DEVICE;
 	dp->d_flags = 0;

@@ -10,8 +10,42 @@ cd "$root"
 
 [[ -f bsd/pthread/pthread_shims.c ]] || { echo >&2 "not an xnu tree"; exit 1; }
 
+# The files this script adds must compile out for other machine configs
+# (xnu's makefile includes every `standard` file in every config and dxb's
+# VMAPPLE bootstrap build cannot link SWEET-only code).
+sweet_guard() {
+	local f=$1 first=$2
+	[ -f "$f" ] || return 0
+	if ! head -n 200 "$f" | grep -q "ARM64_BOARD_CONFIG_SWEET"; then
+		python3 - "$f" "$first" <<'PY'
+import sys
+path, first = sys.argv[1], sys.argv[2]
+text = open(path).read()
+i = text.find(first)
+if i < 0:
+    raise SystemExit(f'{path}: marker {first!r} not found')
+i = text.find('\n', i) + 1
+text = text[:i] + '#if defined(ARM64_BOARD_CONFIG_SWEET)\n' + text[i:]
+text = text.rstrip('\n') + '\n#endif /* ARM64_BOARD_CONFIG_SWEET */\n'
+open(path, 'w').write(text)
+PY
+	fi
+}
+sweet_guard bsd/dev/sweet_ufs.c '#include' 2>/dev/null || true
+
 # libpthread 514.100.2 (0019-stage-libpthread.sh, same edits)
 [[ -d bsd/pthread/sweet_libpthread ]] && { echo >&2 "refusing to overwrite sweet_libpthread"; exit 1; }
+
+# Every file this script adds must compile out for other machine configs:
+# xnu's makefile includes each `standard` file in every config, and dxb's
+# VMAPPLE bootstrap kernel cannot link SWEET-only code.
+if [ -n "${SWEET_GUARD:-}" ]; then
+	# blobs-branch guard for sources the series adds without one (the CI
+	# build applies xnu/patches/0083 first; this is for older checkouts).
+	for f in bsd/dev/sweet_ufs.c bsd/dev/sweet_sample.c; do
+		[ -f "$f" ] && python3 "$(dirname "$0")/sweet-guard.py" "$f"
+	done
+fi
 mkdir -p bsd/pthread/sweet_libpthread
 for d in kern private include; do cp -R "$mirror/libpthread/$d" bsd/pthread/sweet_libpthread/; done
 python3 - <<'PY'
@@ -49,7 +83,7 @@ sdk_file() {
 	command -v xcrun > /dev/null && printf '%s/usr/include/TargetConditionals.h' "$(xcrun --sdk macosx --show-sdk-path)"
 }
 SDK_TC=$(sdk_file)
-[ -n "${SKIP_TARGET_MACROS:-}" ] || cp "$SDK_TC" bsd/pthread/sweet_libpthread/
+[ -n "${SKIP_TARGET_MACROS:-}" ] || cp "$SDK_TC" bsd/pthread/sweet_libpthread/ 2>/dev/null || true
 echo "Staged libpthread-514.100.2 from the mirror"
 
 # HFS 627.100.6 (0026-stage-hfs.sh, same edits)

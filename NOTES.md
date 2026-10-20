@@ -35,6 +35,30 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-20 22:17: the boot that reaches userland, and the display knobs <<<
+
+The configuration that reaches iOS userland and stays up (21:03 log,
+`.deps-cache/logs/boot-userland-gauguin.txt`) is
+
+```
+debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress
+rd=ufsroot0 unentitled_ios_sim_launch=1 ignition_level=1 ufsrw=1 rootrw=1
+launchd_unsecure_cache=1 sweetlog=1 ufslogsecs=2
+```
+
+i.e. **no** `sweetusb=2` (gadget), **no** `sweetfb_noconsole=1` and **no**
+`sweetfb_hz=`. Adding the GUI knobs (`sweetfb_noconsole=1 sweetfb_hz=60`,
+`sweetusb=1`) reset the phone into the UEFI on `boot` at 22:15 (misc was not
+armed on that manual boot, so it did not come back to TWRP and the log is
+lost); the reset points at the display path rather than USB. Next: bisect the
+two display boot-args separately, with misc armed so the log survives.
+
+Touch/buttons are already plumbed: `SWEET HID: SweetHIDTouch open by
+IOHIDEventServiceClient -> 1`, `SweetHIDButtons open ... -> 1`, and backboardd
+found `IOMobileFramebuffer`, opened `AppleCLCD` and issued its user-client
+selectors (15/22/29/33/74/79) - so the display user client answers; what is
+missing is the window server producing frames.
+
 ### >>> UPDATE 2026-10-20 22:10: USB on gauguin - what works and what wedges <<<
 
 **Working:** the read-only USB probe, now with SM7125's register map. gauguin's

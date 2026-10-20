@@ -16,6 +16,9 @@ int fdt_b32hex(uintptr_t fdt, uintptr_t node, const char *prop, uint64_t *out, i
 /* Property `prop` of `node` as one decimal number ("width = <1080>;"). */
 int fdt_dec3(uintptr_t fdt, uintptr_t node, const char *prop, uint32_t *out);
 
+/* Property `prop` of `node` as one big-endian 32-bit cell ("width = <1080>;"). */
+int fdt_u32(uintptr_t fdt, uintptr_t node, const char *prop, uint32_t *out);
+
 /* First reg pair, 2/2 cells (root and /soc address space). */
 int fdt_reg2(uintptr_t fdt, uintptr_t node, uint64_t *base, uint64_t *size);
 

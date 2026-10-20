@@ -15,7 +15,8 @@ mirror=${2:?usage: prepare-bearssl.sh XNU_ROOT DEPS_MIRROR}
 inc=libkern/crypto/sweet_bearssl/inc
 src=libkern/crypto/sweet_bearssl/src
 mkdir -p "$inc" "$src/symcipher" "$src/hash" "$src/codec"
-cp "$mirror/BearSSL/inc/bearssl_block.h" "$mirror/BearSSL/inc/bearssl_hash.h" "$inc/"
+# bearssl.h is the umbrella that includes the rest of the public headers.
+cp "$mirror"/BearSSL/inc/*.h "$inc/"
 for f in inner.h config.h; do cp "$mirror/BearSSL/src/$f" "$src/$f"; done
 for f in aes_ct aes_ct_enc aes_ct_dec aes_ct_cbcenc aes_ct_cbcdec; do
 	cp "$mirror/BearSSL/src/symcipher/$f.c" "$src/symcipher/"
@@ -24,4 +25,4 @@ for f in md5 sha1 sha2big; do cp "$mirror/BearSSL/src/hash/$f.c" "$src/hash/"; d
 for f in dec32le enc32le dec32be enc32be dec64be enc64be; do
 	cp "$mirror/BearSSL/src/codec/$f.c" "$src/codec/"
 done
-echo "Staged BearSSL (6 aes/hash + 6 codec files, 2 headers) from the mirror"
+echo "Staged BearSSL (6 aes/hash + 6 codec files, $(ls "$mirror"/BearSSL/inc/*.h | wc -l | tr -d ' ') headers) from the mirror"

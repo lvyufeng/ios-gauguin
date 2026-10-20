@@ -2,6 +2,79 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-10-20 late: built on the Mac, first gauguin boot <<<
+
+**Status: a GAUGUIN XNU kernel exists and boots the phone into BSD.** Built on
+this macOS host (not CI, not the Linux box), booted from 137 with
+`fastboot boot`; nothing was flashed.
+
+**Build (new, `deps/build-macos.sh [gauguin|sweet]`):** Xcode 26.6's clang/ld/mig
+against a writable copy of the CLT SDK. Steps it automates, all in
+`.deps-cache/sdkroot-macos` (`sdkroot-macos` is a real copy, not symlinks:
+`xcodebuild` rejects an SDK outside its platform dir):
+- SDK copy + `AvailabilityVersions-121/availability.pl` (`bsd/sys/make_symbol_aliasing.sh`
+  hardcodes `$SDKROOT/usr/local/libexec/availability.pl`; the SDK ships none).
+- libplatform `include/`+`private/` -> `usr/local/include`.
+- `make installhdrs` -> Kernel.framework/PrivateHeaders + usr/local/include/{os,firehose}
+  (needed by libfirehose_kernel).
+- `libfirehose_kernel.a`: libdispatch's target via `xcodebuild install -target
+  libfirehose_kernel ARCHS=arm64` (xcconfig `$(SDKROOT)` rewritten to our copy,
+  like dxb does) -> `usr/local/lib/kernel/`.
+- `tools/xnu-post-patch.py` (the CI fix-ups) then `make install -jN
+  TARGET_CONFIGS="DEVELOPMENT ARM64 GAUGUIN" KDKROOT= BUILD_WERROR=0 BUILD_LTO=0`.
+  `-k` because the trailing lldbmacros install shadows python's `collections`
+  and always fails; the kernel binary is the success criterion.
+- Xcode 26 has no ctfconvert/ctfmerge/ctfdump: CTF is simply not generated.
+
+**Kernel:** `xnu/out-gauguin-macos/System/Library/Kernels/kernel.development.gauguin`,
+16,670,728 bytes, SHA256 `59c287f151ad8cc91f5aa5a0574e5337de6ac6ce3abd00e69d9825ed09d25ac5`,
+Mach-O arm64 (no PAC), `xiaomi,gauguin` match present, 177 `sweet_*` symbols.
+Payload `shim/out/payload-gauguin.bin` (16,681,696) with ADT
+`shim/out/sweet-gauguin.adt` (9952, `--highmem --device=gauguin`), cmdline
+`debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam`; boot image
+`shim/out/shim-boot.img` 17,043,456 bytes (built on 137: `shim/build.sh
+out/payload-gauguin.bin`).
+
+**Four bugs found and fixed on the way:**
+1. `shim/shim.ld` reserved 2048 L2/L3 *tables* instead of entries: Image was
+   136 MB and ABL parked at the Redmi logo (fastboot boot "OKAY", device never
+   left the loader). Now 4 KB + 16 KB + 16 KB + 2x16 KB, Image 266 KB. The
+   control experiment that proved `fastboot boot` itself works: booting the
+   128 MB TWRP `part-recovery.img` from fastboot does start TWRP.
+2. `con_init` read the splash `reg` with the 1/1-cell helper; gauguin's
+   `/reserved-memory/cont_splash_region` and `/chosen/framebuffer@a0000000` use
+   the root's 2/2 cells, so the base decoded as 0 and the shim fell back to
+   sweet's 0x9c000000 (screen never changed). Now `fdt_reg2` first, and the
+   gauguin node's geometry (width/height/stride as raw u32 cells) via new
+   `fdt_u32`; the shim's red screen appeared, then XNU's fbcon took over.
+3. `tools/mkadt.py` wrote sweet's 0x9c000000 into `sweet-fbcon` for gauguin too.
+   Now `FB_GAUGUIN=0xa0000000/0x2300000` (matches the live DT).
+4. BearSSL staging copied 2 of the 13 `inc/*.h` (`inner.h` includes
+   `bearssl.h`); `deps/mirror/xnu/prepare-bearssl.sh` now copies them all.
+
+**Xcode 16+ iig:** it emits `rpc.kernelContent`, absent from xnu-8796's
+`IORPC`; `tools/xnu-post-patch.py` now adds the field under `#ifdef KERNEL`
+(upstream added it in xnu-11215; nothing here reads it). CI on Xcode 15 is
+unaffected.
+
+**Boot observed (photo `IMG_0715`, OCR):** red shim screen with white text, then
+XNU fbcon: `SWEET FB: AppleCLCD 1080x2400 stride 4320 at 0xa0000000, presented
+as 1125x2436`, `SWEET CPU: requested=1 selected=1 (Limit=8)`, `cpu=0 entered
+initCPU`, `SGI1 OK`, `1/1 CPUs initialized`, MAC framework, `using 5195 buffer
+headers and 4645 cluster 10 buffer headers`, SWEET AMFI platform policy,
+permissive sandbox, `SWEET HFS: hfs-627.100.6 registered`, `ncache: 1 CPU(s)`,
+`mbinit: done [96 MB total pool size, (64/32) split]`, Skywalk self-tests
+PASSED, `bsd_autoconf: calling kminit`, ifnet_attach for lo0/gif0/stf0, then
+`Waiting on <dict ID="0">... I0Media ... Apple_HFS` (no root image),
+`Failed to write boot-picker-bringup-reason to NVRAM`, `SWEET SURF:
+IOCoreSurfaceRoot registered`, `SWEET HID: buttons registered`.
+
+**Next:** there is no iOS root image on either machine (no `.ipsw`, no
+`ios16-root-*`), so the phone stops at the Apple_HFS root wait. Decide where the
+root image comes from (`tools/mkiosroot.sh`/`tools/mkinit.py`) before touching
+`userdata` (sda35, allowed to be wiped). Everything else on the list - USB,
+timer/IRQ, touch - is untested past the BSD console.
+
 ### >>> UPDATE 2026-10-20 (gauguin port: read this first) <<<
 
 **Goal:** port this tree to a second phone, Redmi Note 9 Pro 5G / Mi 10T Lite

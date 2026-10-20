@@ -35,6 +35,10 @@ DEVICES = {
 # /arm-io children are relative to this; it must not be 0 (serial_init bails)
 SOC_BASE = 0x01000000
 
+# ABL splash framebuffer: sweet 0x9c000000, gauguin 0xa0000000 (the DT's
+# /chosen/framebuffer@a0000000: 1080x2400, stride 4320, a8r8g8b8).
+FB_SWEET, FB_SWEET_SIZE = 0x9c000000, 0x1700000
+FB_GAUGUIN, FB_GAUGUIN_SIZE = 0xa0000000, 0x2300000
 GICD, GICD_SIZE = 0x17a00000, 0x10000
 GICR, GICR_SIZE = 0x17a60000, 0x100000
 FB, FB_SIZE = 0x9c000000, 0x1700000
@@ -206,9 +210,10 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             ('canvas-height', u32(2436)),
         ])])
 
+    fb_base, fb_size = (FB_GAUGUIN, FB_GAUGUIN_SIZE) if device == 'gauguin' else (FB_SWEET, FB_SWEET_SIZE)
     fbcon = node('sweet-fbcon', [
         ph(),
-        ('reg', u64(FB, FB_SIZE)),
+        ('reg', u64(fb_base, fb_size)),
         ('width', u32(FB_W)),
         ('height', u32(FB_H)),
         ('stride', u32(FB_STRIDE)),

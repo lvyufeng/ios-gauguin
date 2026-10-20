@@ -16,10 +16,13 @@ SECTIONS
 	 */
 	. = ALIGN(0x4000);
 	.pt (NOLOAD) : {
-		pt_l1 = .; . += 0x1000 * 512;
-		pt_l2lo = .; . += 0x4000 * 2048;
-		pt_l2hi = .; . += 0x4000 * 2048;
-		pt_l3 = .; . += 0x4000 * 2048 * 2;
+		/* Actual array sizes (mmu.c): 512 + 2048 + 2048 + 2*2048 entries
+		 * of 8 bytes. Reserving 2048 tables each made the Image 136 MB
+		 * (ABL copies image_size bytes and stopped booting it). */
+		pt_l1 = .; . += 0x1000;
+		pt_l2lo = .; . += 0x4000;
+		pt_l2hi = .; . += 0x4000;
+		pt_l3 = .; . += 0x4000 * 2;
 	}
 	. = ALIGN(16);
 	_stack_top = .;

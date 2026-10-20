@@ -88,7 +88,9 @@ extern uint64_t pt_l1[], pt_l2lo[], pt_l2hi[], pt_l3[];
 void zero_tables(void)
 {
 	uint64_t *t[] = { pt_l1, pt_l2lo, pt_l2hi, pt_l3 };
-	unsigned n[] = { 512, 2 * NENT, 2 * NENT, 2 * NENT };
+	/* shim.ld reserves exactly these: clearing more would run past .pt into
+	 * the stack that start.S already switched to. */
+	unsigned n[] = { 512, NENT, NENT, 2 * NENT };
 
 	for (unsigned i = 0; i < 4; i++)
 		for (unsigned j = 0; j < n[i]; j++)

@@ -193,6 +193,19 @@ int fdt_b32hex(uintptr_t fdt, uintptr_t node, const char *prop, uint64_t *out, i
 	return n;
 }
 
+int fdt_u32(uintptr_t fdt, uintptr_t node, const char *prop, uint32_t *out)
+{
+	uint32_t len = 0;
+
+	if (!node)
+		return 0;
+	uintptr_t val = find_prop(fdt, node, prop, &len);
+	if (!val || len != 4)
+		return 0;
+	*out = be32(val);
+	return 1;
+}
+
 int fdt_dec3(uintptr_t fdt, uintptr_t node, const char *prop, uint32_t *out)
 {
 	uint32_t len = 0;

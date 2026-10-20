@@ -82,6 +82,41 @@ def sdk_includes(root):
     return 'MakeInc.def: -I$(SDKROOT)/usr/include added'
 
 
+def orpc_kernel_content(root):
+    """Teach xnu-8796's IORPC about Xcode 16+'s iig output.
+
+    iig from Xcode 16 on emits assignments to `rpc.kernelContent`, a field
+    upstream added in xnu-11215; xnu-8796's struct has no such member, so
+    iokit/DriverKit/*.iig.cpp does not compile. Nothing in this tree reads the
+    field, so declaring it keeps the generated code's layout self-consistent.
+    Xcode 15's iig never mentions it, which is why CI did not need this.
+    """
+    path = os.path.join(root, 'iokit/IOKit/IORPC.h')
+    if not os.path.exists(path):
+        return 'IORPC.h: absent'
+    text = open(path).read()
+    if 'kernelContent' in text:
+        return 'IORPC.h: kernelContent present'
+    old = ('struct IORPC {\n'
+           '\tIORPCMessageMach * message;\n'
+           '\tIORPCMessageMach * reply;\n'
+           '\tuint32_t           sendSize;\n'
+           '\tuint32_t           replySize;\n'
+           '};\n')
+    new = ('struct IORPC {\n'
+           '\tIORPCMessageMach * message;\n'
+           '\tIORPCMessageMach * reply;\n'
+           '\tuint32_t           sendSize;\n'
+           '\tuint32_t           replySize;\n'
+           '#ifdef KERNEL\n'
+           '\tIORPCMessage     * kernelContent;\n'
+           '#endif /* KERNEL */\n'
+           '};\n')
+    if text.count(old) != 1:
+        return 'IORPC.h: unexpected layout'
+    open(path, 'w').write(text.replace(old, new))
+    return 'IORPC.h: kernelContent added (Xcode 16+ iig)'
+
 def master_file(root):
     """Give GAUGUIN its own MASTER file.
 
@@ -111,6 +146,7 @@ def main():
     print('machine-config gates updated:', allow_gauguin(root) or 'none')
     print(sdk_includes(root))
     print(master_file(root))
+    print(orpc_kernel_content(root))
     return 0
 
 

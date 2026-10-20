@@ -22,16 +22,30 @@ void con_init(uintptr_t fdt)
 {
 	uint64_t base = 0, size = 0;
 
+	/* sweet: /reserved-memory/cont_splash_region (1/1 cells).
+	 * Try the 2/2-cells form too: gauguin's base DT describes its
+	 * reserved-memory children with the root's 2/2 cells. */
 	uintptr_t n = fdt_find(fdt, "/reserved-memory/cont_splash_region");
-	if (n && fdt_reg1(fdt, n, &base, &size) && base && size) {
+	if (n && ((fdt_reg2(fdt, n, &base, &size) || fdt_reg1(fdt, n, &base, &size))) &&
+	    base && size) {
 		con_fb_base = base;
 	}
-	/* /chosen/framebuffer@0: "width", "height", "stride" (decimal pixels/bytes) */
+	/* /chosen/framebuffer[@unit]: ABL's splash. sweet writes the geometry as
+	 * decimal ASCII, gauguin (framebuffer@a0000000) as raw 32-bit cells. */
 	uintptr_t c = fdt_find(fdt, "/chosen/framebuffer");
 	if (c) {
+		uint64_t fb = 0, sz = 0;
 		uint32_t w = 0, h = 0, st = 0;
-		if (fdt_dec3(fdt, c, "width", &w) && fdt_dec3(fdt, c, "height", &h) &&
-		    fdt_dec3(fdt, c, "stride", &st) && w && h && st) {
+
+		if ((fdt_reg2(fdt, c, &fb, &sz) || fdt_reg1(fdt, c, &fb, &sz)) && fb && sz)
+			con_fb_base = fb;
+		if (!fdt_dec3(fdt, c, "width", &w))
+			fdt_u32(fdt, c, "width", &w);
+		if (!fdt_dec3(fdt, c, "height", &h))
+			fdt_u32(fdt, c, "height", &h);
+		if (!fdt_dec3(fdt, c, "stride", &st))
+			fdt_u32(fdt, c, "stride", &st);
+		if (w && h && st) {
 			con_w = w;
 			con_h = h;
 			con_stride = st;

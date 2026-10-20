@@ -87,7 +87,12 @@ jobs:
           # first, source the function library, and then call only the steps
           # this workflow asks for (DXB_STEPS).
           sed -i.bak 's/^main "\$@"$/:/' ./build.sh
+          # build.sh turns on errexit/nounset for itself; keep them off here so
+          # one failing step is reported instead of killing the runner script.
+          set +e +u
           source ./build.sh
+          echo "sourced build.sh (rc=$?)"
+          set +e +u
           (
             for step in $DXB_STEPS; do
               echo "==== dxb step: $step"

@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-20 22:10: USB on gauguin - what works and what wedges <<<
+
+**Working:** the read-only USB probe, now with SM7125's register map. gauguin's
+GCC is `qcom,gcc-sm6350`, so the USB GDSC is 0x1a004 (SM7150: 0x0f004), the
+clock CBCRs are 0x1a00c/0x1a014/0x1a018/0x1101c/0x3e010/0x1a050/0x8c010, and
+the QUSB2 PHY is at **0x88e3000** (SM7150: 0x88e2000). With that map the probe
+reports the bootloader's hand-off: `cap 0x1587031F`, `GDSC on`, all clocks on,
+`GSNPSID 0x5533330a`, `DCTL 0x10f00000`, `DEVTEN 0x277`, `DALEPENA 0x0f`,
+`GEVNTADR 0xfdc3d000`. Reading these is safe; the earlier silent resets were
+the SM7150 offsets pointing at a gated block.
+
+**The gadget (`sweetusb=2`) does not work yet.** Three failures found:
+1. `kmem_alloc_contig` returns memory above 4 GiB (the kernel bank is
+   0x180000000+). Pointing GEVNTADR/TRBs there makes the STARTTRANSFER doorbell
+   hang: the controller's AXI master does not reach it.
+2. Reusing a low buffer with `bzero()` panics: `Unaligned kernel data abort`,
+   pc `__bzero+68` - `ml_io_map` memory is Device-nGnRnE and bzero uses 16-byte
+   stores. Clear such buffers with 32-bit stores.
+3. After switching to the bootloader's own low buffer (0xfdc3c000/0xfdc3d000)
+   the SoC freezes *hard* right after the takeover print: no further console,
+   no timer, no panic - the debug reboot timer (`sweetreboot=<s>`, new, panics
+   after N s so a hung kernel returns to TWRP) cannot fire either. Only a
+   power cycle recovers, and the persistent log stops at the last flush.
+
+So taking the *live* DWC3 over from ABL's fastboot session is not viable yet.
+Next attempt should bring the controller up from scratch the way Linux does
+(clocks/GDSC reset, QUSB2 PHY power-on and PLL, DWC3 core reset, then EP0),
+instead of inheriting ABL's state - and keep `sweetusb<=1` in the debugging
+loop so a freeze does not cost a manual power cycle.
+
 ### >>> UPDATE 2026-10-20 late night: iOS launchd RUNS on gauguin <<<
 
 **`sweet_usb_probe()` was killing the boot.** With `sweetusb=0` the kernel goes

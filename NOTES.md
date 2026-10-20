@@ -2,6 +2,19 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+**Breadcrumb build (2026-10-20 19:56, cached tree only):** `bsd/dev/sweet_ufs.c`
+now prints on entry to `sweet_ufs_rootdev`, around `ml_io_map` (with HCE/HCS),
+before/after `ufs_take_over_host` and around `ufs_find_partition`. Kernel SHA256
+`f00ecc9eb6578f6c2238e0d30c5ba6f3c1732433abbb16bcb267065381fb5e10`
+(`shim/out/shim-boot-ufs.img`). It reaches the DLIL thread scheduling (i.e. past
+`bsd_autoconf`) but the photo at 12 s had not reached the UFS prints yet, and
+the phone resets to the UEFI on the boot partition ~1 min later. Those prints
+are uncommitted in `.deps-cache/xnu-patched-0082-2` on purpose: they are a
+debug build, not part of the series.
+
+Note: with the boot partition still holding the gauguin-windows UEFI, a reset
+lands in UEFI, not Android/TWRP. `backup/boot.img` (on 137) is the stock image.
+
 **UFS works at the register level on gauguin (2026-10-20 19:52, `shim/out/shim-boot-probe.img`
 = the shim with an empty ramdisk, which runs its own read-only UFS probe):**
 `ver=00000300 cap=1587031F`, `hce=00000001 hcs=0000010F`, `is=00000400`,

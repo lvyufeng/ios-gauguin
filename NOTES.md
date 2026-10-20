@@ -35,6 +35,28 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-21 03:12: the reset is NOT a kernel panic <<<
+
+Two more probes (both with `debug=0x8` to keep corefiles out of the way):
+* `sweetpanicdump=1` writes the last 512 KiB of the console ring into Qualcomm's
+  ramoops at 0xd0000000 (the DT's `ramoops@d0000000`, which TWRP exports as
+  `/sys/fs/pstore`) from the panic path. After a run that ended in the usual
+  reset, `/sys/fs/pstore` is **empty**, so no panic path ran.
+* `IOPlatformExpert::haltRestart` now prints `SWEET: platform restart requested`
+  and flushes for `kPERestartCPU`/`kPEHaltCPU`, and `kdp_machine_reboot_type`
+  flushes too. That trace is **absent** from the log as well.
+
+So the phone resets while userspace is running normally (the log ends in
+`SWEET AKS: securityd ...` with in-flight NAND reads), through a mechanism that
+bypasses both the panic and the IOKit restart paths - a hardware watchdog
+(APSS/PMIC), the Qualcomm `restart-reason` SCM path, or a bus/bus-timeout
+reset. Next: focus on the watchdog and the IMEM `restart_reason` value (the
+shim already knows the code at 0x146aa65c and can print it on the next boot),
+plus try `cpus=1` longer runs with `log collect` disabled.
+
+The 02:59/03:04/03:09 runs are 25,164 / 31,681 / 23,039 lines and all end the
+same way; the logs are in `.deps-cache/logs/boot-*.txt`.
+
 ### >>> UPDATE 2026-10-21 03:00: panic flush hook, and debug=0xc explains the silent resets <<<
 
 Two changes to how the bring-up kernel reports:

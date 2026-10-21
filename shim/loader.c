@@ -145,3 +145,41 @@ const char *loader_boot(uintptr_t dtb)
 	((xnu_entry_t)entry_pa)(ba_pa);
 	return "xnu returned";
 }
+
+/*
+ * The reason the previous boot ended is known only here, in the shim, and the
+ * kernel's console log is the one place that survives: append
+ * " <label><hex>" to the payload's command line, which the kernel prints with
+ * its first boot-args line, so the persistent log carries it.
+ */
+static void
+announce_into(char *line, const char *label, uint32_t value)
+{
+	int n = 0;
+
+	while (n < BOOT_LINE_LENGTH - 1 && line[n])
+		n++;
+	if (n + 12 >= BOOT_LINE_LENGTH)
+		return;
+	line[n++] = ' ';
+	while (*label && n < BOOT_LINE_LENGTH - 12)
+		line[n++] = *label++;
+	static const char hex[] = "0123456789abcdef";
+	for (int sh = 28; sh >= 0; sh -= 4)
+		line[n++] = hex[(value >> sh) & 0xf];
+	line[n] = 0;
+}
+
+void
+loader_announce(uintptr_t dtb, const char *label, uint32_t value)
+{
+	uint64_t rd_start, rd_end;
+
+	if (!fdt_chosen_u64(dtb, "linux,initrd-start", &rd_start) ||
+	    !fdt_chosen_u64(dtb, "linux,initrd-end", &rd_end))
+		return;
+	struct payload *p = (struct payload *)rd_start;
+	if (!magic_ok(p->magic) || p->version != 1)
+		return;
+	announce_into(p->cmdline, label, value);
+}

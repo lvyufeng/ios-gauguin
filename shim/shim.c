@@ -376,6 +376,8 @@ static uint32_t to_us(uint64_t ticks)
 	return ticks * 10 / 192;	/* 19.2 MHz */
 }
 
+static uint32_t restart_reason;
+
 void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
@@ -384,6 +386,15 @@ void shim_main(uint64_t dtb)
 
 	/* Board facts from the live FDT (sweet 0x9c000000, gauguin 0xa0000000...). */
 	con_init(dtb);
+	/*
+	 * Why did the last boot end? Qualcomm's IMEM keeps the restart reason
+	 * (0x146aa65c): 0x77665500 = "booted by the bootloader", anything else is
+	 * a warm/hard reset by the SoC (watchdog, thermal, panic). Print it
+	 * before anything else so a reset loop leaves the answer on screen.
+	 */
+	con_hex("RSTREASON", rd32(IMEM_RESTART_REASON));
+	con_hex2("IMEM", "rst=", rd32(IMEM_RESTART_REASON), "pshold=", rd32(PSHOLD));
+	restart_reason = rd32(IMEM_RESTART_REASON);
 	n = fdt_find(dtb, "/memory");
 	if (n && fdt_reg2(dtb, n, &mem, &memsz)) {
 		con_hex2("MEMORY", "base=", (uint32_t)mem, "lo=", (uint32_t)memsz);
@@ -402,6 +413,10 @@ void shim_main(uint64_t dtb)
 	con_clear(RED);
 	con_str("SHIM", "sweet milestone 4: xnu loader");
 	con_skip();
+	/* Carry the previous boot's restart reason into the kernel's boot-args so
+	 * the persistent console log records it (the screen needs a reader). */
+	loader_announce(dtb, "swrst=", restart_reason);
+	loader_announce(dtb, "swps=", rd32(PSHOLD));
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
 	con_skip();
@@ -409,6 +424,12 @@ void shim_main(uint64_t dtb)
 	/* No payload: probe the internal UFS while the MMU is still off. */
 	stage = "ufs";
 	test_ufs();
+	{
+		/* Persist why the previous boot ended (see ufs_write_reason): the last
+		 * block of userdata, outside the iOS image. */
+		uint32_t rc = ufs_write_reason(restart_reason, rd32(PSHOLD), 0x51a3);
+		con_hex2("RSTSAVE", "imem=", restart_reason, "rc=", rc);
+	}
 	con_skip();
 	/* Keep the probe results on screen (later tests clear it); reset after 3 min. */
 	con_str("UFS", "probe done, reset in ~3 min");

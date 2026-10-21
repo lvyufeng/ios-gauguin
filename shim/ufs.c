@@ -86,6 +86,8 @@ static uint32_t be32(const uint8_t *p)
  * Issue one SCSI command (read direction or no data) in slot 0.
  * Returns 0 on success, otherwise a code describing the failure stage.
  */
+static int ucd_dir_out;	/* 0: device -> memory, 1: memory -> device */
+
 static uint32_t scsi(uint8_t lun, const uint8_t *cdb, unsigned cdb_len, void *buf, uint32_t len,
     uint32_t *ocs_out, uint32_t *status_out)
 {
@@ -95,7 +97,7 @@ static uint32_t scsi(uint8_t lun, const uint8_t *cdb, unsigned cdb_len, void *bu
 
 	/* Command UPIU: header (12 bytes), expected length, CDB. */
 	ucd.cmd[0] = 0x01;			/* transaction type: COMMAND */
-	ucd.cmd[1] = len ? 0x40 : 0x00;		/* flags: R (data in) */
+	ucd.cmd[1] = len ? (ucd_dir_out ? 0x20 : 0x40) : 0x00;	/* flags: W or R */
 	ucd.cmd[2] = lun;
 	ucd.cmd[3] = ++tag;
 	ucd.cmd[12] = len >> 24;
@@ -106,7 +108,7 @@ static uint32_t scsi(uint8_t lun, const uint8_t *cdb, unsigned cdb_len, void *bu
 		ucd.cmd[16 + i] = cdb[i];
 
 	uintptr_t ucd_pa = (uintptr_t)&ucd;
-	utrl[0].dw0 = (1u << 28) | ((len ? 2u : 0u) << 25) | (1u << 24);	/* UFS storage, dev->host */
+	utrl[0].dw0 = (1u << 28) | ((len ? (ucd_dir_out ? 1u : 2u) : 0u) << 25) | (1u << 24);
 	utrl[0].dw2 = 0x0f;			/* OCS: invalid until the host updates it */
 	utrl[0].ucdba = (uint32_t)ucd_pa;
 	utrl[0].ucdbau = (uint32_t)(ucd_pa >> 32);
@@ -145,6 +147,18 @@ static uint32_t read_blocks(uint32_t lba, uint32_t count, void *buf)
 	return scsi(0, cdb, sizeof(cdb), buf, count * BLOCK, &ocs, &st);
 }
 
+/* WRITE(10): only used for the crash-reason page (see ufs_write_reason). */
+static uint32_t write_blocks(uint32_t lba, uint32_t count, void *buf)
+{
+	uint8_t cdb[10] = { 0x2a, 0, lba >> 24, lba >> 16, lba >> 8, lba, 0, count >> 8, count, 0 };
+	uint32_t ocs, st;
+	/* data direction: memory -> device, see the flags byte in scsi() */
+	ucd_dir_out = 1;
+	uint32_t rc = scsi(0, cdb, sizeof(cdb), buf, count * BLOCK, &ocs, &st);
+	ucd_dir_out = 0;
+	return rc;
+}
+
 static uint64_t le64(const uint8_t *p)
 {
 	uint64_t v = 0;
@@ -167,6 +181,9 @@ static const char *fs_type(uint32_t lba)
 }
 
 /* One line per GPT entry of at least 64 MiB: name, first LBA, size in MiB (4K blocks). */
+/* userdata's bounds, captured while listing the GPT (used by ufs_write_reason). */
+static uint32_t userdata_first, userdata_last;
+
 static void list_partitions(uint32_t entry_lba, uint32_t nent)
 {
 	static uint8_t ents[128 * 128] __attribute__((aligned(4096)));
@@ -189,10 +206,47 @@ static void list_partitions(uint32_t entry_lba, uint32_t nent)
 		if (((last - first + 1) >> 8) < 64)	/* keep the screen to the big ones */
 			continue;
 		con_hex2(name, "lba=", (uint32_t)first, "MiB=", (uint32_t)((last - first + 1) >> 8));
+		if (!__builtin_strcmp(name, "userdata")) {
+			userdata_first = (uint32_t)first;
+			userdata_last = (uint32_t)last;
+		}
 		if (!__builtin_strcmp(name, "userdata") || !__builtin_strcmp(name, "cust") ||
 		    !__builtin_strcmp(name, "cache"))
 			con_str(" fs", fs_type((uint32_t)first));
 	}
+}
+
+void
+ufs_userdata_range(uint32_t *first, uint32_t *last)
+{
+	*first = userdata_first;
+	*last = userdata_last;
+}
+
+/*
+ * Persist the boot reason in userdata: the last device block (4 KiB) of the
+ * partition, which the iOS HFS image (16 GiB of a 107 GiB partition) never
+ * touches. "SHIMRST\0" | u32 magic | u32 imem reason | u32 pshold | u32 seq.
+ * Returns 0 on success. Read it back from recovery with
+ * `dd if=/dev/block/by-name/userdata bs=4096 skip=$((size/4096-1)) count=1`.
+ */
+uint32_t
+ufs_write_reason(uint32_t imem, uint32_t pshold, uint32_t seq)
+{
+	if (!userdata_last)
+		return 1;
+	static uint32_t page[BLOCK / 4] __attribute__((aligned(4096)));
+	static const char tag[8] = { 'S', 'H', 'I', 'M', 'R', 'S', 'T', 0 };
+	uint8_t *b = (uint8_t *)page;
+
+	zero(page, sizeof(page));
+	for (int i = 0; i < 8; i++)
+		b[i] = (uint8_t)tag[i];
+	page[2] = 0x5d1ce0c5;			/* magic */
+	page[3] = imem;
+	page[4] = pshold;
+	page[5] = seq;
+	return write_blocks(userdata_last, 1, page);
 }
 
 void test_ufs(void)

@@ -35,6 +35,32 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 16:59: SpringBoard DOES start - it is stuck later <<<
+
+Three samples of the same task, paced by exec count (the probe re-arms itself
+and samples again 20 and then 100 execs later):
+
+| sample | when | threads | main thread |
+| --- | --- | --- | --- |
+| 1 | next exec after its own | 1 | tid 218, state=1 (TH_WAIT), ev=0, wq=0xfffffe1bba42e348 |
+| 2 | +20 execs | 1 | tid 218, same state, **same wq** |
+| 3 | +100 execs | **4** | tid 218 still parked on the same wq; three more threads (285/318/344) on their own wait queues |
+
+So the earlier reading ("blocked before it started anything") was **wrong for
+the long term**: the process does grow threads and become a real process. What
+stays constant is tid 218 (the main thread) sitting in plain TH_WAIT on the
+*same* wait queue from the first instant to the end.
+
+Note also that the label printed for samples 2-3 says `xpcproxy` - that is
+`sweet_later_name` being overwritten with the exec that triggered the sample;
+the task dumped is still SpringBoard (tids 218/285/318/344, one thread count
+growing 1 -> 4).
+
+Next: identify the owner of wq=0xfffffe1bba42e348. A waitq's owner is what the
+main thread is waiting *for*, and that is the last piece of this puzzle - the
+dump should print the waitq's `waiters`/`interlock` owner or resolve it against
+`task->waitq`/`proc` objects.
+
 ### >>> UPDATE 2026-10-22 16:55: SpringBoard is stuck with ONE sleeping thread <<<
 
 Dumping SpringBoard at the next exec after its own (six execs later, a few

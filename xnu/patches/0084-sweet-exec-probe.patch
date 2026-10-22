@@ -229,10 +229,10 @@ index 8f53742..9800db6 100644
  	return true;
  }
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..3349f91 100644
+index 67c5f79..2bc0b2b 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
-@@ -2510,6 +2510,127 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2510,143 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -249,6 +249,8 @@ index 67c5f79..3349f91 100644
 +
 +static task_t sweet_later_task = TASK_NULL;
 +static char sweet_later_name[48];
++static unsigned sweet_dump_round;
++static unsigned sweet_dump_wait_execs;
 +static unsigned sweet_dump_now_tick;
 +static unsigned sweet_dump_target_tick;
 +
@@ -263,10 +265,10 @@ index 67c5f79..3349f91 100644
 +		if (n++ >= 64) {
 +			break;
 +		}
-+		printf("SWEET THREADS: %s tid=%llu run=%d state=%x ev=%llu\n", why,
++		printf("SWEET THREADS: %s tid=%llu run=%d state=%x ev=%llu wq=%p\n", why,
 +		    (unsigned long long)th->thread_id,
 +		    (th->state & TH_RUN) ? 1 : 0, th->state,
-+		    (unsigned long long)th->wait_event);
++		    (unsigned long long)th->wait_event, th->waitq);
 +	}
 +	if (n == 0) {
 +		printf("SWEET THREADS: %s has no threads\n", why);
@@ -305,6 +307,10 @@ index 67c5f79..3349f91 100644
 +	    sweet_dump_count >= 16) {
 +		return;
 +	}
++	if (sweet_later_task != TASK_NULL && sweet_dump_wait_execs > 0) {
++		sweet_dump_wait_execs--;
++		return;
++	}
 +	/*
 +	 * If a target is pending from an earlier exec, dump it now: the exec path
 +	 * is a context where walking a *different* task's threads has been shown
@@ -314,10 +320,20 @@ index 67c5f79..3349f91 100644
 +	if (sweet_later_task != TASK_NULL) {
 +		task_t pending = sweet_later_task;
 +		sweet_later_task = TASK_NULL;
-+		printf("SWEET THREADS: %s now, threads=%d (at %s exec)\n",
-+		    sweet_later_name, pending->thread_count, name);
++		sweet_dump_round++;
++		printf("SWEET THREADS: %s sample %u, threads=%d (at %s exec)\n",
++		    sweet_later_name, sweet_dump_round, pending->thread_count, name);
 +		sweet_dump_walk(pending, sweet_later_name);
-+		task_deallocate(pending);
++		/* Sample again a fixed number of execs later, up to 4 samples. */
++		if (sweet_dump_round < 4) {
++			sweet_later_task = pending;
++			strlcpy(sweet_later_name, name, sizeof(sweet_later_name));
++			sweet_dump_wait_execs = sweet_dump_round == 1 ? 20 :
++			    sweet_dump_round == 2 ? 100 : 260;
++		} else {
++			task_deallocate(pending);
++		}
++		return;
 +	}
 +	const char *t = sweet_dump_names;
 +	bool match = false;

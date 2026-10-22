@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 18:07: port identity is not reachable from the dump <<<
+
+Attempts to name the port the main thread waits on:
+
+* `ip_receiver_name` / `ip_kobject` printed as `4294966820` / `50000` - the
+  first is `0xFFFFFFE4`, i.e. a name in another space, and `ip_kobject` is
+  PAC-signed, so neither is usable from the dump (NOTES does **not** treat them
+  as service names);
+* `imq_msgcount` / `imq_qlimit` came back `0/0`, which cannot be right for a
+  real port (a receiver's port has a qlimit) - so the offset from the waitq to
+  the port object, or the inline-vs-out-of-line layout, is not what the code
+  assumed.
+
+Both are the same class of problem: **the port a thread waits on cannot be
+identified by walking the waitq from here**. Options that would work:
+
+1. hook `ipc_kmsg_receive` / `ipc_mqueue_receive` and record, at the moment a
+   task blocks, the name of the mqueue it blocked on *plus* the `task` and the
+   message id - the kernel already has the port in hand there;
+2. read the target's zone name for the waitq pointer (`zone_element_name`), if
+   exposed, to at least tell "port queue" from "global queue" reliably;
+3. take the userland route: `lsof`-style listing of SpringBoard's ports is not
+   available, but `dtrace`/`ktrace` on `mach_msg_trap` with a kmem read of the
+   destination name is.
+
+Recorded so the next attempt does not repeat the offset math. The useful state
+so far stands: SpringBoard and backboardd's main threads block on a port
+receive while their worker threads run or wait on ordinary queues, and lsd's
+main thread runs - the display stack alone parks.
+
 ### >>> UPDATE 2026-10-22 17:37: THE CONTROL EXPERIMENT - backboardd matches, lsd does not <<<
 
 Same kernel, three daemons tracked at once, sample 2/3:

@@ -229,10 +229,18 @@ index 8f53742..9800db6 100644
  	return true;
  }
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..07f2b1e 100644
+index 67c5f79..02add39 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
-@@ -2510,6 +2510,173 @@ task_clear_corpse(task_t task)
+@@ -109,6 +109,7 @@
+ #include <kern/kern_types.h>
+ #include <kern/mach_param.h>
+ #include <kern/misc_protos.h>
++#include <ipc/ipc_port.h>
+ #include <kern/task.h>
+ #include <kern/thread.h>
+ #include <kern/coalition.h>
+@@ -2510,6 +2511,194 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -293,10 +301,31 @@ index 67c5f79..07f2b1e 100644
 +			 */
 +			kind = wqt == 3 ? "PORT" : wqt == 1 ? "QUEUE" : wqt == 2 ? "TURNSTILE" : "OTHER";
 +		}
-+		printf("SWEET THREADS: %s tid=%llu run=%d state=%x ev=%llu wq=%s mask=%llx\n",
++		/*
++		 * For a port wait the waitq sits inside the ipc_port_t, so the port
++		 * object is at a fixed offset from it. Its receive name and kobject
++		 * identify the service the thread is blocked on.
++		 */
++		bool have_port = false;
++		/*
++		 * For a port wait the waitq sits inside the ipc_port_t. Only the
++		 * *count* of enqueued waiters is printed: ip_kobject is PAC-signed and
++		 * ip_receiver_name is a name in the receiver's space, so neither can
++		 * be dereferenced from here.
++		 */
++		unsigned msgs = 0, qlimit = 0;
++		if (wqt == 3 && th->waitq.wq_q != NULL) {
++			ipc_port_t port = (ipc_port_t)((char *)th->waitq.wq_q -
++			    offsetof(struct ipc_port, ip_messages));
++			msgs = (unsigned)port->ip_messages.imq_msgcount;
++			qlimit = (unsigned)port->ip_messages.imq_qlimit;
++			have_port = true;
++		}
++		printf("SWEET THREADS: %s tid=%llu run=%d state=%x ev=%llu wq=%s mask=%llx%s msgs=%u/%u\n",
 +		    why, (unsigned long long)th->thread_id,
 +		    (th->state & TH_RUN) ? 1 : 0, th->state,
-+		    (unsigned long long)th->wait_event, kind, mask);
++		    (unsigned long long)th->wait_event, kind, mask,
++		    have_port ? " PORT" : "", msgs, qlimit);
 +	}
 +	if (n == 0) {
 +		printf("SWEET THREADS: %s has no threads\n", why);

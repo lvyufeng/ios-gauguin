@@ -210,8 +210,107 @@ index 407a18b..7ef3ca5 100644
  task_t
  proc_task(proc_t proc)
  {
+diff --git a/bsd/vfs/vfs_syscalls.c b/bsd/vfs/vfs_syscalls.c
+index 90e68bb..ef0197c 100644
+--- a/bsd/vfs/vfs_syscalls.c
++++ b/bsd/vfs/vfs_syscalls.c
+@@ -5086,11 +5086,75 @@ openat_nocancel(__unused proc_t p, struct openat_nocancel_args *uap,
+ 	           uap->mode, uap->fd, UIO_USERSPACE, retval);
+ }
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * SWEET bring-up: which directory tree is SpringBoard crawling? getdirentries64
++ * only sees an fd, so remember (fd -> path) for the process we care about and
++ * print it when the directory is enumerated (NOTES 22:03).
++ */
++#define SWEET_DIR_MAX 64
++struct sweet_dir_fd {
++	char path[160];
++	int fd;
++};
++static struct sweet_dir_fd sweet_dirs[SWEET_DIR_MAX];
++static unsigned sweet_dir_next;
++
++static bool
++sweet_watch_proc(proc_t p)
++{
++	static int parsed;
++	static char want[48];
++	if (!parsed) {
++		parsed = 1;
++		if (!PE_parse_boot_argn("sweetdirs", want, sizeof(want))) {
++			want[0] = '\0';
++		}
++	}
++	return want[0] != '\0' && p != PROC_NULL &&
++	    strncmp(p->p_name, want, sizeof(want)) == 0;
++}
++
++void
++sweet_dir_record(proc_t p, int fd, const char *path)
++{
++	if (fd < 0 || !sweet_watch_proc(p)) {
++		return;
++	}
++	struct sweet_dir_fd *e = &sweet_dirs[sweet_dir_next++ % SWEET_DIR_MAX];
++	e->fd = fd;
++	strlcpy(e->path, path, sizeof(e->path));
++}
++
++static const char *
++sweet_dir_lookup(int fd)
++{
++	for (unsigned i = 0; i < SWEET_DIR_MAX; i++) {
++		struct sweet_dir_fd *e = &sweet_dirs[i];
++		if (e->fd == fd && e->path[0] != '\0') {
++			return e->path;
++		}
++	}
++	return "?";
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ int
+ openat(proc_t p, struct openat_args *uap, int32_t *retval)
+ {
+ 	__pthread_testcancel(1);
+-	return openat_nocancel(p, (struct openat_nocancel_args *)uap, retval);
++	int err = openat_nocancel(p, (struct openat_nocancel_args *)uap, retval);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	{
++		if (err == 0 && sweet_watch_proc(p)) {
++			char sweet_path[160] = { 0 };
++			if (copyinstr(uap->path, sweet_path, sizeof(sweet_path), NULL) == 0) {
++				sweet_dir_record(p, *retval, sweet_path);
++			}
++		}
++	}
++#endif
++	return err;
+ }
+ 
+ #define OPEN_BY_ID_ENTITLEMENT  "com.apple.private.vfs.open-by-id"
+@@ -10455,6 +10519,17 @@ getdirentries64(__unused struct proc *p, struct getdirentries64_args *uap, user_
+ 
+ 	AUDIT_ARG(fd, uap->fd);
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	{
++		static unsigned sweet_gd_lines;
++		if (sweet_gd_lines < 40 && sweet_watch_proc(p)) {
++			sweet_gd_lines++;
++			printf("SWEET DIR: %s reads fd %d (%s)\n", p->p_name, uap->fd,
++			    sweet_dir_lookup(uap->fd));
++		}
++	}
++#endif
++
+ 	/*
+ 	 * If the buffer is at least GETDIRENTRIES64_EXTENDED_BUFSIZE large,
+ 	 * then the kernel carves out the last 4 bytes to return extended
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index a62416c..329653b 100644
+index a62416c..3f2a660 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -62,6 +62,17 @@ enum {
@@ -315,7 +414,7 @@ index a62416c..329653b 100644
  	}
  	if (fb->fPowerOff) {
  		/* Fade out: halve every channel each vsync, then black, then idle. */
-@@ -242,7 +308,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -242,7 +308,54 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
  		return;
  	}
@@ -330,14 +429,47 @@ index a62416c..329653b 100644
 +		presents++;
 +	}
 +	if ((count % 600) == 0 || count == 2) {
-+		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u\n",
++		/*
++		 * Sample the panel to say *what* is on screen, not just that frames
++		 * were presented: count non-black samples and how many distinct
++		 * colours they hold. 4,096 evenly spaced pixels is enough to tell a
++		 * black panel from a drawn one and a flat fill from real content.
++		 */
++		unsigned nonblack = 0, distinct = 0, samples = 0;
++		uint32_t seen[16] = { 0 };
++		if (fb->fPixels != 0 && fb->fWidth > 0 && fb->fHeight > 0) {
++			uint32_t step = (uint32_t)(fb->fWidth * fb->fHeight / 4096);
++			if (step == 0) {
++				step = 1;
++			}
++			for (uint32_t i = 0; i < fb->fWidth * fb->fHeight; i += step) {
++				uint32_t px = ((const uint32_t *)fb->fPixels)[i];
++				samples++;
++				if ((px & 0x00ffffffu) != 0) {
++					nonblack++;
++					uint32_t c = px & 0x00ffffffu;
++					unsigned k = 0;
++					for (; k < distinct && k < 16; k++) {
++						if (seen[k] == c) {
++							break;
++						}
++					}
++					if (k == distinct && distinct < 16) {
++						seen[distinct++] = c;
++					}
++				}
++			}
++		}
++		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u "
++		    "px sample %u nonblack=%u distinct=%u\n",
 +		    (unsigned long long)count, fb->fDirty ? 1u : 0u,
-+		    (unsigned long long)presents, fb->fClients->getCount());
++		    (unsigned long long)presents, fb->fClients->getCount(),
++		    samples, nonblack, distinct);
 +	}
  	uint8_t *rec = NULL;
  	if (flush) {
  		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
-@@ -426,6 +506,11 @@ IOReturn
+@@ -426,6 +539,11 @@ IOReturn
  IOMobileFramebufferUserClient::clientClose(void)
  {
  	if (fFB != NULL) {
@@ -349,7 +481,7 @@ index a62416c..329653b 100644
  		fFB->removeClient(this);
  		IOLockLock(fFB->fLock);
  		mach_port_t old = fPort;
-@@ -454,6 +539,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
+@@ -454,6 +572,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
  	return kIOReturnSuccess;
  }
  
@@ -363,7 +495,16 @@ index a62416c..329653b 100644
  /* Called with the framebuffer lock held. */
  void
  IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
-@@ -546,6 +638,56 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -477,7 +602,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+     __unused void *reference)
+ {
+ 	IOReturn ret = kIOReturnSuccess;
+-	uint64_t out[2] = { 0, 0 };
++	uint64_t out[4] = { 0, 0, 0, 0 };
+ 	uint32_t outCount = 0;
+ 
+ 	switch (selector) {
+@@ -546,6 +671,42 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
  		}
  		break;
  	case kSweetFBSwapWait:
@@ -391,35 +532,56 @@ index a62416c..329653b 100644
 +		break;
 +	}
 +	case kSweetFBTimingInfo: {
-+		out[0] = 1;             /* one mode */
-+		outCount = 1;
-+		if (args->structureOutput != NULL && args->structureOutputSize >= 64) {
-+			uint32_t mode[16] = { 0 };
-+			mode[0] = fFB->fLogicalW;
-+			mode[1] = fFB->fLogicalH;
-+			mode[2] = fFB->fRowBytes;
-+			mode[3] = 60;
-+			mode[4] = 0;    /* current mode index */
-+			memcpy(args->structureOutput, mode, 64);
-+		}
++		/* Also all-zero for the same experiment (NOTES 21:44). */
 +		break;
 +	}
 +	case kSweetFBDisplayModes: {
-+		if (args->structureOutput != NULL && args->structureOutputSize >= 64) {
-+			uint32_t hdr[16] = { 0 };
-+			hdr[0] = 1;             /* mode count */
-+			hdr[1] = fFB->fLogicalW;
-+			hdr[2] = fFB->fLogicalH;
-+			hdr[3] = fFB->fRowBytes;
-+			hdr[4] = 60;
-+			hdr[5] = 32;            /* bits per pixel */
-+			memcpy(args->structureOutput, hdr, 64);
-+		}
++		/*
++		 * Deliberately all-zero (the common path bzero()s it anyway): the
++		 * invented header filled "a mode count of 1" and a size that the
++		 * userland may have parsed as a string. Test whether removing it
++		 * moves the crash - NOTES 21:44.
++		 */
 +		break;
 +	}
  	default:
  		break;
  	}
+@@ -556,15 +717,26 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+ 	if (args->structureOutputDescriptor == NULL && args->structureOutput != NULL) {
+ 		bzero(args->structureOutput, args->structureOutputSize);
+ 	}
+-	if (selector >= 64 || !(sweet_fb_logged & (1ULL << selector))) {
+-		if (selector < 64) {
+-			sweet_fb_logged |= 1ULL << selector;
++	{
++		/*
++		 * Log EVERY call with the values we hand back, not just the first of
++		 * each selector: the crash is a 0..15 pointer used as a C string by
++		 * CoreFoundation/IOKit (NOTES 21:55), so the call immediately before
++		 * the fault is the one whose reply is being misused. The first 200
++		 * calls are enough to cover backboardd's whole start-up sequence.
++		 */
++		static unsigned sweet_fb_calls;
++		if (sweet_fb_calls < 200) {
++			sweet_fb_calls++;
++			char name[32];
++			proc_selfname(name, sizeof(name));
++			IOLog("SWEET FB: %u %s sel %u in %u/%u out %u/%u -> "
++			    "0x%x [%llx %llx %llx]\n", sweet_fb_calls, name, selector,
++			    args->scalarInputCount, args->structureInputSize,
++			    args->scalarOutputCount, args->structureOutputSize, ret,
++			    (unsigned long long)out[0], (unsigned long long)out[1],
++			    (unsigned long long)out[2]);
+ 		}
+-		char name[32];
+-		proc_selfname(name, sizeof(name));
+-		IOLog("SWEET FB: %s sel %u in %u/%u out %u/%u -> 0x%x\n", name, selector,
+-		    args->scalarInputCount, args->structureInputSize,
+-		    args->scalarOutputCount, args->structureOutputSize, ret);
+ 	}
+ 	return ret;
+ }
 diff --git a/iokit/Kernel/arm/SweetWatchdog.cpp b/iokit/Kernel/arm/SweetWatchdog.cpp
 index 8f53742..2a89f97 100644
 --- a/iokit/Kernel/arm/SweetWatchdog.cpp

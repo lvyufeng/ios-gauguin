@@ -35,6 +35,26 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:06: directory tracer added; first run hung the boot <<<
+
+Added `sweetdirs=<proc>` (in `bsd/vfs/vfs_syscalls.c`): `openat` records
+`fd -> path` for the watched process, `getdirentries64` prints the path for its
+fd (first 40 lines only). Build clean, but the first boot **did not come back to
+TWRP within 172 s** and the phone fell off USB, so there is no data yet and the
+device needs a power-cycle.
+
+Two lessons worth keeping:
+* the helper block was first inserted **between `int` and the function name**
+  (the anchor matched `openat(proc_t p, ...) {`), giving "cannot combine with
+  previous 'int' declaration specifier" - when anchoring on a function, anchor on
+  the whole `int\nname(` pair or insert after the closing brace;
+* `copyinstr` is already declared in this TU; declaring it again locally
+  conflicted with the real prototype.
+
+Whether the hang is caused by the tracer or is the usual ~110 s reset landing in
+the wrong place is unknown - the next run will say (the tracer prints at most 40
+lines, so it should not be able to flood the console).
+
 ### >>> UPDATE 2026-10-22 22:03: SpringBoard is *scanning directories* in a loop <<<
 
 Syscall histogram for SpringBoard after the display came up:

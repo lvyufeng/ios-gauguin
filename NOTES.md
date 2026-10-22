@@ -35,6 +35,40 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:50: backboardd's exact framebuffer call signatures <<<
+
+From the driver's own log line (`%s sel %u in %u/%u out %u/%u` = scalars
+in/structure in, scalars out/structure out), the full call set is:
+
+| sel | scalars in | struct in | scalars out | struct out | likely meaning |
+| --- | --- | --- | --- | --- | --- |
+| 57 | 0 | 0 | 1 | 0 | query, one u64 back |
+| 15 | 2 | 0 | 1 | 0 | (two args) -> one u64 (e.g. get/set display attribute) |
+| 22 | 1 | 0 | 0 | 0 | setter, one arg, no result |
+| 29 | 0 | 0 | 0 | 8 | returns an 8-byte struct |
+| 33 | 1 | 0 | 0 | 0 | setter, one arg |
+| 79 | 2 | 0 | 0 | **1580** | the *big* one: returns a 1580-byte struct |
+| 74 | 1 | 0 | 1 | 64 | one arg, returns u64 + 64-byte struct |
+
+`MobileGestaltHelper` calls 8 (DisplaySize: 2 scalars out) and 28 (DotPitch: 1
+scalar out), which our enum already implements - consistent with the panel
+geometry being *readable* but the pipeline never starting.
+
+**sel 79 returning a 1580-byte structure is the most promising lead**: that size
+smells like a display-timing / modes description (a list of video modes), and
+`backboardd` asking for it before it ever calls `SwapBegin` fits "I cannot get a
+usable mode list, so I will not drive the display". The 64-byte struct from 74
+is plausibly a per-mode descriptor.
+
+Also known: the dyld shared *cache* on this root image is a dyld4 sub-cache set
+whose index shard carries no image table (`mappingCount=1`, `imagesCount=0`),
+so the selector order **cannot** be recovered by parsing it with the old dyld3
+layout - the signatures above are the better evidence anyway, and they come from
+the device itself.
+
+Next: implement 57/29/74/79 in a first pass (fill plausible values, log what
+backboardd does with them) and see whether it advances to a swap.
+
 ### >>> UPDATE 2026-10-22 21:35: the framebuffer ABI we accept is not the one backboardd uses <<<
 
 `backboardd` **does** open our driver (`IOK backboardd: open AppleCLCD type 0 ->

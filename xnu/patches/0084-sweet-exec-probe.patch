@@ -1,8 +1,53 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 68612db..e9a3ebd 100644
+index 68612db..7e8c649 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7414,6 +7414,17 @@ process_signature(proc_t p, struct image_params *imgp)
+@@ -1998,11 +1998,44 @@ cleanup_rosetta_fp:
+ 			(void) task_suspend_internal(task);
+ 		}
+ 	}
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	if (imgp->ip_px_sa != NULL) {
++		extern void sweet_psx_track(task_t, const char *, int, int);
++		sweet_psx_track(task, p->p_name,
++		    (int)((struct _posix_spawnattr *)imgp->ip_px_sa)->psa_flags, spawn);
++	}
++#endif
+ 
+ 	/*
+ 	 * mark as execed
+ 	 */
+ 	OSBitOrAtomic(P_EXEC, &p->p_flag);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	{
++		/* Stage trace (sweetstage=): one mark per exec, with the pid. */
++		extern void sweet_stage(uint32_t, uint32_t);
++		sweet_stage(0x2000, (uint32_t)p->p_pid);
++	}
++#endif
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * posix_spawn flags of this exec, for sweetpsx=1 (started suspended and
++	 * who resumes it). Also say whether the exec came from a spawn at all.
++	 */
++#endif
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * A thread_block() of this task from here on is reported even if the
++	 * process still runs under its old name (NOTES 2026-10-22 19:34).
++	 * Defined in osfmk/kern/task.c; a no-op unless sweetblock= names it.
++	 */
++	{
++		extern void sweet_fast_exec_arm(task_t, const char *);
++		extern void sweet_fast_exec_later(void);
++		sweet_fast_exec_arm(proc_task(p), p->p_name);
++		sweet_fast_exec_later();
++	}
++#endif
+ 	proc_resetregister(p);
+ 	if (p->p_pptr && (p->p_lflag & P_LPPWAIT)) {
+ 		proc_lock(p);
+@@ -7414,6 +7447,17 @@ process_signature(proc_t p, struct image_params *imgp)
  #if defined(ARM64_BOARD_CONFIG_SWEET)
  			/* SWEET runs every iOS binary this way: one short line per exec. */
  			printf("exec %s\n", p->p_name);
@@ -80,10 +125,10 @@ index 407a18b..49994bf 100644
  proc_task(proc_t proc)
  {
 diff --git a/iokit/Kernel/arm/SweetWatchdog.cpp b/iokit/Kernel/arm/SweetWatchdog.cpp
-index 8f53742..9800db6 100644
+index 8f53742..2a89f97 100644
 --- a/iokit/Kernel/arm/SweetWatchdog.cpp
 +++ b/iokit/Kernel/arm/SweetWatchdog.cpp
-@@ -23,6 +23,162 @@
+@@ -23,6 +23,166 @@
  #include <IOKit/IOLib.h>
  #include <IOKit/IOMemoryDescriptor.h>
  #include <sys/proc.h>
@@ -153,6 +198,7 @@ index 8f53742..9800db6 100644
 +static unsigned sweet_wdt_burst;
 +
 +extern "C" void sweet_dump_tick(void);
++extern "C" void sweet_pstore_tick(void) __attribute__((weak));
 +
 +static void
 +sweet_wdt_sample(thread_call_param_t, thread_call_param_t)
@@ -198,6 +244,9 @@ index 8f53742..9800db6 100644
 +	if (uptime != last_uptime) {
 +		last_uptime = uptime;
 +		sweet_dump_tick();
++		if (sweet_pstore_tick) {
++			sweet_pstore_tick();
++		}
 +		if ((++ticks & 1) == 0 || ticks < 6) {
 +			extern uint32_t sweet_timer_intrs, sweet_timer_expiries, sweet_callout_runs;
 +			IOLog("SWEET HB: %u wdt=%u tick=%u exp=%u call=%u\n", ticks,
@@ -246,7 +295,7 @@ index 8f53742..9800db6 100644
  
  class IOWatchdog : public IOService {
  	OSDeclareDefaultStructors(IOWatchdog);
-@@ -49,6 +205,12 @@ IOWatchdog::start(IOService *provider)
+@@ -49,6 +209,12 @@ IOWatchdog::start(IOService *provider)
  	setProperty(kIOUserClientClassKey, "IOWatchdogUserClient");
  	setProperty("IOPMUPrimary", 1ULL, 32);
  	registerService();
@@ -327,8 +376,38 @@ index 503f025..f68901a 100644
  	waitq_lock(waitq);
  
  	wresult = ipc_mqueue_receive_on_thread_and_unlock(waitq, option64, max_size,
+diff --git a/osfmk/kern/sched_prim.c b/osfmk/kern/sched_prim.c
+index 8e29586..2515837 100644
+--- a/osfmk/kern/sched_prim.c
++++ b/osfmk/kern/sched_prim.c
+@@ -3801,6 +3801,11 @@ thread_block_reason(
+ {
+ 	thread_t        self = current_thread();
+ 	processor_t     processor;
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	extern void sweet_fast_exec_block(thread_t);
++	sweet_fast_exec_block(self);
++#endif
+ 	thread_t        new_thread;
+ 	spl_t           s;
+ 
+@@ -3825,6 +3830,13 @@ thread_block_reason(
+ 	self->continuation = continuation;
+ 	self->parameter = parameter;
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	{
++		extern void sweet_block_trace(thread_t);
++		sweet_block_trace(self);
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	if (self->state & ~(TH_RUN | TH_IDLE)) {
+ 		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 		    MACHDBG_CODE(DBG_MACH_SCHED, MACH_BLOCK),
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..03eb85f 100644
+index 67c5f79..b47e05d 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
 @@ -109,6 +109,7 @@
@@ -339,7 +418,7 @@ index 67c5f79..03eb85f 100644
  #include <kern/task.h>
  #include <kern/thread.h>
  #include <kern/coalition.h>
-@@ -2510,6 +2511,240 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2511,396 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -354,38 +433,53 @@ index 67c5f79..03eb85f 100644
 + * bsd/kern/kern_proc.c, because including <sys/proc.h> here clashes with the
 + * osfmk typedefs.
 + */
-+static char sweet_block_name[48];
-+static bool sweet_block_parsed;
-+static unsigned sweet_block_lines;
++/*
++ * SWEET block ring: scalars only, no console I/O (printing here hung the boot,
++ * NOTES 20:50). thread_block_reason() stores (tid, continuation, waitq type,
++ * event) into a lock-free ring; the dump path empties it later.
++ */
++#define SWEET_BLOCK_RING 256
++struct sweet_block_rec {
++	uint64_t tid;
++	uint64_t cont;
++	uint64_t ev;
++	uint32_t wqt;
++	uint32_t seq;
++};
++static struct sweet_block_rec sweet_block_ring[SWEET_BLOCK_RING];
++static volatile uint32_t sweet_block_head;
 +
 +void
 +sweet_block_trace(thread_t th)
 +{
-+	if (!sweet_block_parsed) {
-+		sweet_block_parsed = true;
-+		if (!PE_parse_boot_argn("sweetblock", sweet_block_name,
-+		    sizeof(sweet_block_name))) {
-+			sweet_block_name[0] = '\0';
-+		}
++	/*
++	 * One store per field, no locks, no printing. If two threads race the
++	 * record is merely overwritten - this is a debug ring, not a journal.
++	 */
++	uint32_t i = __atomic_fetch_add(&sweet_block_head, 1, __ATOMIC_RELAXED);
++	struct sweet_block_rec *r = &sweet_block_ring[i % SWEET_BLOCK_RING];
++	r->tid = th->thread_id;
++	r->cont = (uint64_t)(uintptr_t)th->continuation;
++	r->ev = th->wait_event;
++	r->wqt = (th->waitq.wq_q != NULL) ?
++	    (uint32_t)th->waitq.wq_q->waitq_type : 0;
++	r->seq = i;
++}
++
++/* Called from the dump path: print the ring, newest last. */
++void
++sweet_block_ring_dump(void)
++{
++	uint32_t head = sweet_block_head;
++	uint32_t n = head < SWEET_BLOCK_RING ? head : SWEET_BLOCK_RING;
++	printf("SWEET BLOCKRING: %u blocks total, showing %u\n", head, n);
++	for (uint32_t k = 0; k < n; k++) {
++		struct sweet_block_rec *r = &sweet_block_ring[k % SWEET_BLOCK_RING];
++		printf("SWEET BLOCKRING: seq=%u tid=%llu cont=%llx wqt=%u ev=%llx\n",
++		    r->seq, (unsigned long long)r->tid,
++		    (unsigned long long)r->cont, r->wqt,
++		    (unsigned long long)r->ev);
 +	}
-+	if (sweet_block_name[0] == '\0' || sweet_block_lines >= 40) {
-+		return;
-+	}
-+	extern void sweet_proc_name_from_task(task_t, char *, size_t);
-+	char tname[48] = { 0 };
-+	sweet_proc_name_from_task(get_threadtask(th), tname, sizeof(tname));
-+	if (tname[0] == '\0' ||
-+	    strncmp(tname, sweet_block_name, sizeof(sweet_block_name)) != 0) {
-+		return;
-+	}
-+	sweet_block_lines++;
-+	unsigned wqt = 0;
-+	if (th->waitq.wq_q != NULL) {
-+		wqt = (unsigned)th->waitq.wq_q->waitq_type;
-+	}
-+	printf("SWEET BLOCK: %s tid=%llu cont=%llu wqt=%u ev=%llu\n", tname,
-+	    (unsigned long long)th->thread_id, (unsigned long long)th->continuation,
-+	    wqt, (unsigned long long)th->wait_event);
 +}
 +#endif /* ARM64_BOARD_CONFIG_SWEET */
 +
@@ -458,19 +552,22 @@ index 67c5f79..03eb85f 100644
 +		 * ip_receiver_name is a name in the receiver's space, so neither can
 +		 * be dereferenced from here.
 +		 */
-+		unsigned msgs = 0, qlimit = 0;
++		unsigned msgs = 0, qlimit = 0, port_active = 0, port_msgs_hint = 0;
 +		if (wqt == 3 && th->waitq.wq_q != NULL) {
 +			ipc_port_t port = (ipc_port_t)((char *)th->waitq.wq_q -
 +			    offsetof(struct ipc_port, ip_messages));
 +			msgs = (unsigned)port->ip_messages.imq_msgcount;
 +			qlimit = (unsigned)port->ip_messages.imq_qlimit;
++			/* Is the port the thread waits on still alive? */
++			port_active = ip_active(port) ? 1 : 0;
++			port_msgs_hint = (unsigned)port->ip_messages.imq_seqno;
 +			have_port = true;
 +		}
-+		printf("SWEET THREADS: %s tid=%llu run=%d state=%x ev=%llu wq=%s mask=%llx%s msgs=%u/%u\n",
++		printf("SWEET THREADS: %s tid=%llu run=%d state=%x susp=%d ev=%llu wq=%s mask=%llx%s msgs=%u/%u active=%u seq=%u\n",
 +		    why, (unsigned long long)th->thread_id,
-+		    (th->state & TH_RUN) ? 1 : 0, th->state,
++		    (th->state & TH_RUN) ? 1 : 0, th->state, (int)th->suspend_count,
 +		    (unsigned long long)th->wait_event, kind, mask,
-+		    have_port ? " PORT" : "", msgs, qlimit);
++		    have_port ? " PORT" : "", msgs, qlimit, port_active, port_msgs_hint);
 +	}
 +	if (n == 0) {
 +		printf("SWEET THREADS: %s has no threads\n", why);
@@ -493,6 +590,139 @@ index 67c5f79..03eb85f 100644
 +	    task->thread_count);
 +	sweet_dump_walk(task, sweet_later_name);
 +	task_deallocate(task);
++}
++
++/*
++ * The other half of sweetblock (NOTES 2026-10-22 19:34): a process that blocks
++ * inside its own exec never shows up in the thread_block trace under its
++ * SpringBoard name, because it still runs under the exec'd-away name
++ * (xpcproxy/launchd). Observe the block through the task instead of the name:
++ * at the exec of a sweetblock=Name process, arm the *task* - the next thread of
++ * that task to assert_wait is the one to report, whatever name it has.
++ *
++ * Armed from kern_exec.c right after the image activation, before the exec
++ * syscall returns; a thread call 100 ms later disarms everything, so only the
++ * exec path itself (and a hair after it) is sampled - one atomic, no lock.
++ */
++static unsigned sweet_armed;            /* 1 = armed (see sweet_fast_exec_arm) */
++static unsigned sweet_armed_lines;
++static unsigned long long sweet_armed_tid;
++static char sweet_armed_name[48];
++static thread_call_t sweet_disarm_call;
++
++static void
++sweet_fast_disarm_cb(thread_call_param_t p0 __unused, thread_call_param_t p1 __unused)
++{
++	sweet_armed = 0;
++}
++
++void
++sweet_fast_exec_arm(task_t task, const char *name)
++{
++	if (sweet_armed_name[0] != '\0' || task == TASK_NULL) {
++		return;   /* armed already */
++	}
++	if (!PE_parse_boot_argn("sweetfast", sweet_armed_name,
++	    sizeof(sweet_armed_name))) {
++		return;
++	}
++	if (strncmp(name, sweet_armed_name, sizeof(sweet_armed_name)) != 0) {
++		sweet_armed_name[0] = '\0';
++		return;
++	}
++	strlcpy(sweet_armed_name, name, sizeof(sweet_armed_name));
++	OSCompareAndSwap(0, (uint32_t)(uintptr_t)VM_KERNEL_ADDRPERM((vm_offset_t)(uintptr_t)task), &sweet_armed);
++}
++
++/* Called from the top of thread_block() (osfmk/kern/sched_prim.c). */
++void
++sweet_fast_exec_block(thread_t th)
++{
++	uint32_t armed = sweet_armed;
++	if (armed == 0 || armed != (uint32_t)VM_KERNEL_ADDRPERM((vm_offset_t)(uintptr_t)get_threadtask(th))) {
++		return;
++	}
++	sweet_armed = 0;
++	{
++		/* Stage trace (sweetstage=): the exec block itself was reached. */
++		extern void sweet_stage(uint32_t, uint32_t);
++		sweet_stage(0x3000, (uint32_t)th->thread_id);
++	}
++	if (sweet_disarm_call == NULL) {
++		sweet_disarm_call = thread_call_allocate(sweet_fast_disarm_cb, NULL);
++	}
++	if (sweet_disarm_call != NULL) {
++		thread_call_enter_delayed(sweet_disarm_call, mach_absolute_time() + 1000000000ULL);
++	}
++	if (sweet_armed_lines >= 20) {
++		return;
++	}
++	sweet_armed_lines++;
++	unsigned wqt = 0;
++	if (th->waitq.wq_q != NULL) {
++		wqt = (unsigned)th->waitq.wq_q->waitq_type;
++	}
++	/*
++	 * Caller chain (innermost first; __builtin_return_address needs constant
++	 * levels, and deep frames may be worthless without frame pointers, so
++	 * each is only read while the previous one was non-zero).
++	 */
++	void *ra0 = __builtin_return_address(0);
++	void *ra1 = ra0 ? __builtin_return_address(1) : NULL;
++	void *ra2 = ra1 ? __builtin_return_address(2) : NULL;
++	void *ra3 = ra2 ? __builtin_return_address(3) : NULL;
++	printf("SWEET FASTBLOCK: %s tid=%llu state=%x wqt=%u ev=%llu ra0=%p ra1=%p ra2=%p ra3=%p\n",
++	    sweet_armed_name, (unsigned long long)th->thread_id, th->state, wqt,
++	    (unsigned long long)th->wait_event, ra0, ra1, ra2, ra3);
++}
++
++/*
++ * Called from kern_exec.c right after the arm: the exec syscall normally does
++ * not block again, but the thread call is unarmed if it is missing.
++ */
++void
++sweet_fast_exec_later(void)
++{
++	if (sweet_disarm_call == NULL) {
++		sweet_disarm_call = thread_call_allocate(sweet_fast_disarm_cb, NULL);
++	}
++	if (sweet_disarm_call != NULL) {
++		thread_call_enter_delayed(sweet_disarm_call, mach_absolute_time() + 1000000000ULL);
++	}
++}
++
++/*
++ * Trace of every posix_spawn START_SUSPENDED hook: the launcher suspends the
++ * new task and resumes it through proc_track_child(psa, pid). If the resume
++ * never matches the track entry, the process stays suspended for good - the
++ * one mechanism that fits "thread in TH_WAIT that never blocks" (NOTES
++ * 2026-10-22 19:34). Boot-arg sweetpsx=1.
++ */
++static bool sweet_psx_parsed;
++static unsigned sweet_psx_on;
++
++static void
++sweet_psx_parse(void)
++{
++	if (sweet_psx_parsed) {
++		return;
++	}
++	sweet_psx_parsed = true;
++	if (!PE_parse_boot_argn("sweetpsx", &sweet_psx_on, sizeof(sweet_psx_on))) {
++		sweet_psx_on = 0;
++	}
++}
++
++void
++sweet_psx_track(task_t task, const char *name, int pid, int flags)
++{
++	sweet_psx_parse();
++	if (!sweet_psx_on) {
++		return;
++	}
++	printf("SWEET PSX: exec %s flags=%x spawn=%d threads=%d\n",
++	    name, flags, pid,
++	    task == TASK_NULL ? -1 : task->thread_count);
 +}
 +
 +void
@@ -571,6 +801,11 @@ index 67c5f79..03eb85f 100644
 +		t->round = 0;
 +		t->wait = 0;
 +		printf("SWEET THREADS: tracking %s\n", name);
++		{
++			/* Empty the ring that collected blocks before this exec. */
++			extern void sweet_block_ring_dump(void);
++			sweet_block_ring_dump();
++		}
 +		break;
 +	}
 +}

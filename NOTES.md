@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 20:56: the block ring works, and SpringBoard loops in it <<<
+
+The lock-free ring (`sweet_block_ring`, 256 records, `__atomic_fetch_add`, no
+console I/O in the scheduler) boots fine and, dumped from the exec path, shows:
+
+    SWEET BLOCKRING: 32763 blocks total, showing 256
+    ... tid=218 (SpringBoard main) appears 68 times, 50 of them with the same
+        continuation fffffe0007315900 and wqt=0 (no waitq type)
+
+Key readings:
+
+* SpringBoard's main thread blocks **68 times before the dump point** - it is
+  not sitting in one eternal wait; it wakes and re-blocks in a loop;
+* **50 of those are the same continuation**, which is a *blocking wakeup loop*:
+  something hands it control, it does a little and immediately parks again on
+  the same kernel continuation;
+* that same continuation is also used by tid 188 (22), tid 192 (3) and tid 219
+  (15) - other SpringBoard threads - so it is a shared kernel wait helper, not
+  a service-specific one.
+
+This replaces the earlier "parked forever on a port" reading: the main thread
+is spinning through a wake/block cycle, which is what a retry loop on a
+**not-yet-ready resource** looks like (e.g. waiting for a scene/session that
+never becomes valid, retrying every few ms).
+
+Next: identify `fffffe0007315900` from the kernel link map (it is a kernel text
+address in the KLD range) - that names the wait helper and therefore the
+resource being retried. `.deps-cache/obj-gauguin-macos/.../kernel.link` and
+`nm` on the unstripped binary have it.
+
 ### >>> UPDATE 2026-10-22 20:50: thread_block hook hangs the boot <<<
 
 Wiring `sweet_block_trace()` into `thread_block_reason()` (right after

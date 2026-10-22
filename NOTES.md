@@ -35,6 +35,33 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-21 15:45: the reset is a warm SoC reset, high 16 bits are constant <<<
+
+The shim now hands the previous boot's `restart_reason` to the kernel via
+boot-args, so it lands in the persistent log by itself (`swrst=` in the
+launchd `boot-args` line). Two consecutive boots report
+
+    swrst=f823c2d8   (run 1: 24,599 log lines)
+    swrst=f823e0d8   (run 2: 24,287 log lines)
+
+i.e. **the high 16 bits (`0xf823`) are identical and only the low bits move**.
+Qualcomm resets encode the source in the upper half (the bootloader's
+`restart_reason` set by the SCM/PMIC path), so this is one fixed hardware
+source firing repeatedly, not a random crash - consistent with a watchdog
+expiring (or the PMIC's reset path) while iOS userland is running normally.
+`PSHOLD` reads 1 at boot, so the SoC is not being power-cut.
+
+Also confirmed: the reason page at the end of userdata reads back empty, so
+the shim's WRITE(10) path (or the page address) needs work before it can be
+trusted as a second carrier - the boot-args carrier works and is what the loop
+uses.
+
+Next: identify the authoritative PBL/ABL decode for `0xf823`/`0xf823c2d8`
+(the bootloader logs usually print `Restart reason:`), and cross-check
+against `logs/misc` in `/persist`; then try disabling the APSS watchdog
+before jumping to the payload (the shim can program the watchdog block while
+the MMU is off).
+
 ### >>> UPDATE 2026-10-21 03:12: the reset is NOT a kernel panic <<<
 
 Two more probes (both with `debug=0x8` to keep corefiles out of the way):

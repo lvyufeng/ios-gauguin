@@ -35,6 +35,31 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 15:05: 8/8 identical runs; SpringBoard is alive, not dead <<<
+
+`tools/cycle-loop.sh` ran 8 unattended cycles (`shim-bl.img`): every single one
+exec'd SpringBoard once, ran 8 vsync samples (4,200 ticks), and recorded **0
+swaps**. 237-277 processes per boot. So this is a deterministic stop, not a
+race.
+
+Then `bsd/kern/kern_exit.c` was instrumented to print `exit <name>[pid] rv=`
+for the first 200 exits. Result for the SpringBoard boot:
+
+* `exec SpringBoard` at line 4,254;
+* **zero** `exit` lines in the whole 25,619-line log;
+* the boot continues to `misd`, `healthd`, `fairplayd` - 268 execs in total.
+
+So SpringBoard does **not** die and is not throttled by launchd: it starts,
+never opens the framebuffer, and sits idle while the rest of the system boots.
+backboardd (its sibling and the framebuffer owner) is in the same state: setup
+complete, then no more IOKit calls.
+
+The next instrument has to look at a *running* process's threads. The cheapest
+that fits this kernel: a boot-arg (e.g. `sweetwaitdump=SpringBoard`) that,
+N seconds after the first matching `exec`, walks the process's threads and
+prints each one's saved pc/lr and wait channel, using the same
+`proc_find`/`thread_t` machinery `kdp` already uses.
+
 ### >>> UPDATE 2026-10-22 14:30: SpringBoard is exec'd but silent - where to look next <<<
 
 Facts from the `/backlight` boot:

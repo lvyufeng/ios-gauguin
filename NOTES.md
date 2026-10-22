@@ -35,6 +35,34 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 13:32: backboardd blocks on IOAcceleratorES (no GPU driver) <<<
+
+The log right after backboardd's framebuffer setup shows what it is waiting for:
+
+    IOK backboardd: matching <key>IOProviderClass</key><string>IOAcceleratorES</string>
+    ... x252, the last one 100 lines before the reset ...
+
+`IOAcceleratorES` is the GPU accelerator service. There is **no GPU driver in
+this tree** (no AGX/KGSL/IOAcceleratorES class in `iokit/Kernel/arm/`), so the
+match never succeeds, and backboardd waits for it before it presents anything -
+which is exactly why `presents=0` for the whole boot: not a framebuffer bug,
+the compositor is stuck one layer below.
+
+Hardware for it: the DT has `gpu@3d00000`, `compatible = "qcom,adreno-619.0"`,
+reg-names `kgsl_3d0_reg_memory`/`cx_mem`, a `zap-shader` child and an
+`sm6350-smmu-v2` MMAU/GPU IOMMU. Bringing up a real Adreno 619 driver (KGSL +
+SMMU + firmware/ZAP shader authentication) is a large project of its own.
+
+Cheaper path to a picture first: make the *software* path work. BackBoard needs
+a framebuffer/compositor that does not require IOAcceleratorES - either satisfy
+the match with a CPU-only software renderer node that advertises the minimal
+IOAccelerator protocol, or find the CoreDisplay/SkyLight fallback that iDJ can
+be forced into (a software renderer exists for the simulator, and
+`unentitled_ios_sim_launch=1` is already on this cmdline). Worth checking which
+service backboardd is actually waiting on (it polls, so it may be waiting for
+UI-unlock/display pipeline rather than a hard dependency) before writing a GPU
+driver.
+
 ### >>> UPDATE 2026-10-22 13:25: the display pipeline runs; nobody ever swaps <<<
 
 Counters in `AppleCLCD::vsyncFired` (`SweetFramebuffer.cpp`) give a clean

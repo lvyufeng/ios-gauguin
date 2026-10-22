@@ -35,6 +35,41 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 13:25: the display pipeline runs; nobody ever swaps <<<
+
+Counters in `AppleCLCD::vsyncFired` (`SweetFramebuffer.cpp`) give a clean
+answer for the "no picture" symptom:
+
+    SWEET FB: vsync=2   dirty=0 presents=0 client=0
+    SWEET FB: vsync=600 dirty=0 presents=0 client=0
+    ...
+    SWEET FB: vsync=3000 dirty=0 presents=0 client=1
+    SWEET FB: vsync=4200 dirty=0 presents=0 client=1
+
+* the vsync timer runs the whole boot (4,200+ ticks) - the earlier suspicion
+  that it fires once was wrong;
+* a user client (backboardd) *does* attach (`client=1` from vsync 3000);
+* but the surface is **never dirty and never presented**: backboardd opened
+  the framebuffer and stopped after the query selectors.
+
+What backboardd actually sent (first call per selector):
+
+    sel 57 in 0/0 -> 1/0     (72 = notifications, now skips repeat logging)
+    sel 15 in 2/0 -> 1/0
+    sel 22 in 1/0 -> 0/0
+    sel 29 in 0/0 -> 0/8
+    sel 33 in 1/0 -> 0/0
+    sel 79 in 2/0 -> 0/1580
+    sel 74 in 1/0 -> 1/64
+
+i.e. it queried the default surface / size / notifications and then stopped -
+no `kSweetFBSwapBegin` (4) or `kSweetFBSwapEnd` (5) ever arrives. So the
+blocker is **between backboardd's display setup and its first swap**, not in
+the panel push path (which is idle because nothing asks it to push). Next
+probes: what backboardd does with the surface it was handed (is it a valid
+IOSurface it can map, is the "notifications" refcon path correct), and whether
+SkyLight/BackBoard fails an assertion right after those calls.
+
 ### >>> UPDATE 2026-10-22 13:22: the timer works fine - timers are NOT the bug <<<
 
 Counters (atomics only, no printing in interrupts): `sweet_timer_intrs` and

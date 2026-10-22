@@ -35,6 +35,29 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 13:05: `printf` in pe_identify_machine() hangs the boot <<<
+
+Bisect, one change at a time:
+
+| build | change | result |
+| --- | --- | --- |
+| `shim-hb.img` (12:18) | -- | boots, userland, resets (24,957 lines) |
+| 12:35 / 12:46 | printf inside `rtclock_intr` | hang |
+| 12:49 `shim-clk2` | no rtclock printf, CLOCK print in `pe_identify_machine` + rtclock atomic | hang |
+| 13:04 `shim-stepA` | **CLOCK print only** (rtclock atomic removed) | **hang** |
+
+So the `printf("SWEET CLOCK: timebase=...")` in `pe_identify_machine()` is the
+hang: by the time `pe_identify_machine()` runs, the console cannot be written
+yet (the clock has not been finalised - `gPEClockFrequencyInfo` is exactly what
+is being set up there), and a `printf` that waits on the console takes the boot
+down with it. Lesson for this board: **console output before the clock/timer is
+finalised is unsafe**; the timebase has to be reported some other way (store it
+in a global and have the shim or a later driver print it - e.g. append to the
+payload's boot-args from the shim, or print from the UFS driver once it starts).
+
+Kept: the clk print edit is reverted in the tree; `shim-hb.img`'s kernel is the
+known-good reference to bisect against.
+
 ### >>> UPDATE 2026-10-22 12:52: the print was NOT the cause - three hangs in a row <<<
 
 The print-free build (`shim-clk2.img`, `2408de8`) hung exactly like the two

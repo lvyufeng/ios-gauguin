@@ -1,5 +1,5 @@
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index a62416c..cc5bb00 100644
+index a62416c..3f2a660 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -62,6 +62,17 @@ enum {
@@ -103,7 +103,7 @@ index a62416c..cc5bb00 100644
  	}
  	if (fb->fPowerOff) {
  		/* Fade out: halve every channel each vsync, then black, then idle. */
-@@ -242,7 +308,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -242,7 +308,54 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
  		return;
  	}
@@ -118,14 +118,47 @@ index a62416c..cc5bb00 100644
 +		presents++;
 +	}
 +	if ((count % 600) == 0 || count == 2) {
-+		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u\n",
++		/*
++		 * Sample the panel to say *what* is on screen, not just that frames
++		 * were presented: count non-black samples and how many distinct
++		 * colours they hold. 4,096 evenly spaced pixels is enough to tell a
++		 * black panel from a drawn one and a flat fill from real content.
++		 */
++		unsigned nonblack = 0, distinct = 0, samples = 0;
++		uint32_t seen[16] = { 0 };
++		if (fb->fPixels != 0 && fb->fWidth > 0 && fb->fHeight > 0) {
++			uint32_t step = (uint32_t)(fb->fWidth * fb->fHeight / 4096);
++			if (step == 0) {
++				step = 1;
++			}
++			for (uint32_t i = 0; i < fb->fWidth * fb->fHeight; i += step) {
++				uint32_t px = ((const uint32_t *)fb->fPixels)[i];
++				samples++;
++				if ((px & 0x00ffffffu) != 0) {
++					nonblack++;
++					uint32_t c = px & 0x00ffffffu;
++					unsigned k = 0;
++					for (; k < distinct && k < 16; k++) {
++						if (seen[k] == c) {
++							break;
++						}
++					}
++					if (k == distinct && distinct < 16) {
++						seen[distinct++] = c;
++					}
++				}
++			}
++		}
++		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u "
++		    "px sample %u nonblack=%u distinct=%u\n",
 +		    (unsigned long long)count, fb->fDirty ? 1u : 0u,
-+		    (unsigned long long)presents, fb->fClients->getCount());
++		    (unsigned long long)presents, fb->fClients->getCount(),
++		    samples, nonblack, distinct);
 +	}
  	uint8_t *rec = NULL;
  	if (flush) {
  		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
-@@ -426,6 +506,11 @@ IOReturn
+@@ -426,6 +539,11 @@ IOReturn
  IOMobileFramebufferUserClient::clientClose(void)
  {
  	if (fFB != NULL) {
@@ -137,7 +170,7 @@ index a62416c..cc5bb00 100644
  		fFB->removeClient(this);
  		IOLockLock(fFB->fLock);
  		mach_port_t old = fPort;
-@@ -454,6 +539,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
+@@ -454,6 +572,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
  	return kIOReturnSuccess;
  }
  
@@ -151,7 +184,7 @@ index a62416c..cc5bb00 100644
  /* Called with the framebuffer lock held. */
  void
  IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
-@@ -477,7 +569,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -477,7 +602,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
      __unused void *reference)
  {
  	IOReturn ret = kIOReturnSuccess;
@@ -160,7 +193,7 @@ index a62416c..cc5bb00 100644
  	uint32_t outCount = 0;
  
  	switch (selector) {
-@@ -546,6 +638,42 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -546,6 +671,42 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
  		}
  		break;
  	case kSweetFBSwapWait:
@@ -203,7 +236,7 @@ index a62416c..cc5bb00 100644
  	default:
  		break;
  	}
-@@ -556,15 +684,26 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -556,15 +717,26 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
  	if (args->structureOutputDescriptor == NULL && args->structureOutput != NULL) {
  		bzero(args->structureOutput, args->structureOutputSize);
  	}
@@ -238,19 +271,3 @@ index a62416c..cc5bb00 100644
  	}
  	return ret;
  }
-diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
-index db9d1fb..5fbd226 100644
---- a/iokit/KernelConfigTables.cpp
-+++ b/iokit/KernelConfigTables.cpp
-@@ -76,6 +76,11 @@ const char * gIOKernelConfigTables =
-     "     'IONameMatch'     = 'sweet,display';"
-     "   },"
-     "   {"
-+    "     'IOClass'         = IOAcceleratorES;"
-+    "     'IOProviderClass' = IOResources;"
-+    "     'IOMatchCategory' = IOAcceleratorES;"
-+    "   },"
-+    "   {"
-     "     'IOClass'         = SweetHIDButtons;"
-     "     'IOProviderClass' = IOResources;"
-     "     'IOMatchCategory' = SweetHIDButtons;"

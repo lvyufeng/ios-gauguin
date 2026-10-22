@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:52: the panel now carries real content, not a flat fill <<<
+
+Added pixel sampling to the vsync report (4,096 evenly spaced samples, counts
+non-black ones and distinct colours) to answer "frames are presented - but is
+anything *drawn*?".
+
+    vsync=2    ... presents=0   client=0  px nonblack=513 distinct=1   (boot console)
+    vsync=2400 ... presents=0   client=0  px nonblack=599 distinct=1   (boot console)
+    vsync=3000 ... presents=3   client=2  px nonblack=60  distinct=5   <- SpringBoard
+    vsync=3600 ... presents=94  client=2  px nonblack=60  distinct=5
+    vsync=4200 ... presents=169 client=2  px nonblack=60  distinct=5
+
+Three things this proves:
+
+1. **backboardd really did hand over the surface**: the moment clients appear,
+   the panel stops being the flat single-colour boot console and becomes a
+   **5-colour** framebuffer;
+2. `presents` climbs steadily (169 by vsync 4200) with `dirty=1`, so it is
+   swapping continuously, not once;
+3. the content is *sparse* - only 60/4102 samples non-black - which is what a
+   mostly-black SpringBoard boot screen looks like (black background, a few
+   glyphs/indicators), rather than a solid fill or garbage.
+
+Still 0 backboardd crashes in this run.
+
+Remaining known gap: **SpringBoard itself has not been seen drawing its own
+scene yet** (the 5 colours are consistent with the display coming up under
+backboardd; the next milestone is SpringBoard's UI). Touch, USB and high refresh
+are still untouched after this.
+
 ### >>> UPDATE 2026-10-22 21:49: *** FIRST REAL FRAMES *** - zeroed structures unlock the swap path <<<
 
 Experiment from the 21:44 note: make selectors **79 and 74 return fully zeroed

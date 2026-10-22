@@ -35,6 +35,28 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 15:20: SpringBoard thread probe - blocked by the BSD/Mach split <<<
+
+Goal: see where a live-but-idle process (SpringBoard) is waiting. Started
+`bsd/kern/sweet_probe.c`, a boot-arg probe (`sweetprobe=Name@SECONDS`) that
+walks a process's threads after its exec and prints state/wait event.
+
+Two walls, both worth knowing before anyone retries this:
+
+* `kern/sweet_probe.c` (BSD side) cannot see `struct task`/`struct thread`
+  internals - `task.h` hides the struct behind `MACH_KERNEL_PRIVATE`/`MACH_BSD`
+  and there is no `task_internal.h`/`thread_internal.h` in this tree, so
+  `queue_iterate(&task->threads, ...)` does not compile from `bsd/kern/`;
+* `machine/arm_saved_state.h` is not on the BSD include path either, so user
+  pc/lr are out of reach from there too.
+
+Conclusion: the probe belongs in **osfmk** (`osfmk/kern/xnu` side), where both
+the task/thread internals and the saved-state helpers are visible - e.g. a
+function next to `task_threads()` in `osfmk/kern/task.c` called from the exec
+hook. That is the shape to use next time; the current `bsd/kern/sweet_probe.c`
+is left in the tree but **excluded from the build** (no `conf/files` entry) so
+it cannot break a kernel link.
+
 ### >>> UPDATE 2026-10-22 15:05: 8/8 identical runs; SpringBoard is alive, not dead <<<
 
 `tools/cycle-loop.sh` ran 8 unattended cycles (`shim-bl.img`): every single one

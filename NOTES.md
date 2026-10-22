@@ -35,6 +35,26 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:24: the scanned directory is SpringBoard/System/Library/CoreServices/SpringBoard.app <<<
+
+    SWEET DIR: live path = /System/Library/CoreServices/SpringBoard.app
+
+SpringBoard enumerates **its own bundle directory** over and over (40+ times,
+always fd 3). fd 3 is **inherited** from launchd, not opened by SpringBoard, which
+is why the fd->path table said "?" until the dump resolved it live.
+
+Notable: enumerating its own bundle directory in a loop is what SpringBoard does
+when it is looking for a resource **inside the bundle** it cannot find -
+`Info.plist` siblings, the scene/artifact cache, or the `Assets.car`/`en.lproj`
+entries. Combined with the earlier facts (it sleeps in `mach_wait_until`, does no
+UI work, presents nothing of its own) the picture is consistent: **SpringBoard
+cannot find something in its own app directory and retries forever**.
+
+Next: list the bundle on the device and compare against what a working iOS 16
+install has. The cheap check is whether the directory has entries at all (an
+empty/mangled HFS+ directory would produce exactly this loop) and whether
+`Assets.car` and `Info.plist` are present and readable.
+
 ### >>> UPDATE 2026-10-22 22:16: the directory tracer now takes a safe path to the fd (not yet run) <<<
 
 The first tracer hung two boots in a row. Cause: it **copyin()-ed `uap->path`

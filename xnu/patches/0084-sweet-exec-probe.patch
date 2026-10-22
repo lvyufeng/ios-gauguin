@@ -211,13 +211,37 @@ index 407a18b..7ef3ca5 100644
  proc_task(proc_t proc)
  {
 diff --git a/bsd/vfs/vfs_syscalls.c b/bsd/vfs/vfs_syscalls.c
-index 90e68bb..1b86cef 100644
+index 90e68bb..134e467 100644
 --- a/bsd/vfs/vfs_syscalls.c
 +++ b/bsd/vfs/vfs_syscalls.c
-@@ -5086,11 +5086,95 @@ openat_nocancel(__unused proc_t p, struct openat_nocancel_args *uap,
- 	           uap->mode, uap->fd, UIO_USERSPACE, retval);
+@@ -5078,19 +5078,118 @@ open_nocancel(__unused proc_t p, struct open_nocancel_args *uap,
+ 	           uap->mode, AT_FDCWD, UIO_USERSPACE, retval);
  }
  
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++static void sweet_dir_record_from_fd(proc_t p, int fd);
++#endif
++
+ int
+ openat_nocancel(__unused proc_t p, struct openat_nocancel_args *uap,
+     int32_t *retval)
+ {
+-	return openat_internal(vfs_context_current(), uap->path, uap->flags,
++	int err = openat_internal(vfs_context_current(), uap->path, uap->flags,
+ 	           uap->mode, uap->fd, UIO_USERSPACE, retval);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * The `*_nocancel` entry is separate from openat(), so recording only in
++	 * openat() missed every libc open (which is what SpringBoard uses), which
++	 * is why the tracer printed "fd 3 (?)" - NOTES 22:19.
++	 */
++	if (err == 0 && p != PROC_NULL) {
++		sweet_dir_record_from_fd(p, *retval);
++	}
++#endif
++	return err;
++}
++
 +#if defined(ARM64_BOARD_CONFIG_SWEET)
 +/*
 + * SWEET bring-up: which directory tree is SpringBoard crawling? getdirentries64
@@ -247,7 +271,7 @@ index 90e68bb..1b86cef 100644
 +	    strncmp(p->p_name, want, sizeof(want)) == 0;
 +}
 +
-+void
++static void
 +sweet_dir_record_from_fd(proc_t p, int fd)
 +{
 +	if (fd < 0 || !sweet_watch_proc(p)) {
@@ -276,8 +300,8 @@ index 90e68bb..1b86cef 100644
 +		vnode_put(vp);
 +	}
 +	fp_drop(p, fd, fp, 0);
-+}
-+
+ }
+ 
 +static const char *
 +sweet_dir_lookup(int fd)
 +{
@@ -311,7 +335,7 @@ index 90e68bb..1b86cef 100644
  }
  
  #define OPEN_BY_ID_ENTITLEMENT  "com.apple.private.vfs.open-by-id"
-@@ -10455,6 +10539,17 @@ getdirentries64(__unused struct proc *p, struct getdirentries64_args *uap, user_
+@@ -10455,6 +10554,36 @@ getdirentries64(__unused struct proc *p, struct getdirentries64_args *uap, user_
  
  	AUDIT_ARG(fd, uap->fd);
  
@@ -322,6 +346,25 @@ index 90e68bb..1b86cef 100644
 +			sweet_gd_lines++;
 +			printf("SWEET DIR: %s reads fd %d (%s)\n", p->p_name, uap->fd,
 +			    sweet_dir_lookup(uap->fd));
++			/*
++			 * The table only knows fds this process opened itself; an
++			 * inherited fd (3 at start-up) is missing, so resolve it live
++			 * once to name the tree.
++			 */
++			if (sweet_gd_lines == 1) {
++				struct fileproc *fp = NULL;
++				vnode_t vp = NULLVP;
++				char live[128] = { 0 };
++				if (fp_getfvp(p, uap->fd, &fp, &vp) == 0) {
++					if (vnode_getwithref(vp) == 0) {
++						int len = (int)sizeof(live);
++						vn_getpath(vp, live, &len);
++						vnode_put(vp);
++					}
++					fp_drop(p, uap->fd, fp, 0);
++				}
++				printf("SWEET DIR: live path = %s\n", live);
++			}
 +		}
 +	}
 +#endif

@@ -35,6 +35,33 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:44: the backlight node is NOT the source (correcting 21:39) <<<
+
+Found and fixed a real but unrelated bug in `tools/mkadt.py`: the `backlight`
+node emitted **two** `AAPL,phandle` properties (`ph()` plus a manual
+`('AAPL,phandle', u32(next(phandle)))`), burning a phandle number and producing a
+duplicate property. Fixed; the ADT regenerates at 10,244 bytes.
+
+But the crash **did not change**:
+
+    crash pc-slide = 0x1d1b024c4   (identical to every previous run)
+    13 crashes per boot             (unchanged)
+
+So the hypothesis in the 21:39 note - "the 0..15 pointer comes from the
+backlight device-tree node" - is **wrong**. Recorded here so it is not chased
+again. The ADT fix stands on its own merit (duplicate properties are wrong
+regardless), but it is not the display blocker.
+
+What is still true: the faulting string routine receives a pointer in 0..15,
+the call chain is QuartzCore -> CoreFoundation -> IOKit -> libc++ -> strlen-like
+code, and it happens right after the `IOAcceleratorES` lookup succeeds and the
+`disp0 -> AppleCLCD` match. Since our scalar replies are all self-consistent and
+the DT node change had no effect, the next suspect is the **1580-byte structure**
+of selector 79 (and the 64-byte one of 74): we fill only the first 64 bytes with
+a made-up header and zero the rest, and IOKit/CF may be parsing a *name* out of
+it. That is cheap to test: return an all-zero structure for 79/74 and see if the
+crash point moves.
+
 ### >>> UPDATE 2026-10-22 21:39: the exact call sequence before the crash <<<
 
 Logging every framebuffer call with the values we return (first 200 calls,

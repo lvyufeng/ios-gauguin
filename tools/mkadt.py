@@ -249,13 +249,15 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
     # before drawing anything (see NOTES 14:09). A power-supply-style node is
     # enough for the lookup: brightness itself is done by AppleCLCD the moment
     # backboardd finds a backlight it can talk to.
+    # ph() already emits AAPL,phandle; a second one here would burn a phandle
+    # number for nothing (and a duplicate property is never what the parser
+    # expects).
     backlight = node('backlight', [
         ph(),
         ('compatible', cstr('backlight') + cstr('backlight-digital')),
         ('backlight-control', u32(1)),
         ('name', cstr('backlight')),
         ('reg', u32(0) + u32(0)),
-        ('AAPL,phandle', u32(next(phandle))),
     ])
 
     # Identity of the iPhone X whose userland runs here: compatible[0] is

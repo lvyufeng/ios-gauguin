@@ -35,6 +35,26 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 13:16: timebase is 19.2 MHz (from our own ADT) <<<
+
+`shim-stepB.img` (timebase stored in `pe_identify_machine`, printed later from
+`IOWatchdog::start`, where IOLog is safe) booted normally and reported
+
+    SWEET CLOCK: timebase=19200000 Hz
+
+So `gPEClockFrequencyInfo.timebase_frequency_hz` = 19.2 MHz, i.e.
+`tools/mkadt.py`'s `TIMEBASE = 19200000` (line 49) - the value written into
+the generated ADT's `cpu/timebase-frequency`. That number is the ARM generic
+counter (XO/19.2 MHz) and every tick deadline is converted with it, so a
+"one second" call-out is CNTV_TVAL = 19,200,000.
+
+Consequence: the single-heartbeat symptom is **not** a wrong timebase. Either
+the tick fires once and the call-out queue is never advanced again, or the
+timer call-out code on this build has a one-shot path. Next instrument: put a
+counter in `timer_intr` (not `rtclock_intr` - no printing from interrupts) and
+read it from the watchdog heartbeat to see whether the etimer keeps expiring
+while call-outs stop.
+
 ### >>> UPDATE 2026-10-22 13:05: `printf` in pe_identify_machine() hangs the boot <<<
 
 Bisect, one change at a time:

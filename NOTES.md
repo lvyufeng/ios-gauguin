@@ -35,6 +35,23 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 11:10: the APSS watchdog stays off for the whole run <<<
+
+`iokit/Kernel/arm/SweetWatchdog.cpp` now samples the block once a second and
+logs on change (`SWEET WDT: ctl=0 rst=0 en=0 sts=0 bark=7ffff bite=fffff`).
+Three unattended cycles: the sample is identical from the first second to the
+last line before the reset, i.e. the APSS watchdog is disabled throughout
+(`WDT0_EN=0`) and its bark/bite timers are static. Restart codes from those
+runs: `f823c2d8`, `f823c0d8`, `fa23c2d8` - the low byte `0xd8` and the top
+half `0xf82?` hold again.
+
+So the repeating reset is neither a kernel event (panic/IOKit restart), nor
+the APSS watchdog, nor a PMIC power cut (`PSHOLD`=1). What is left: a watchdog
+in another subsystem (RPM/WCSS), or the secure world's hang detector reacting
+to something iOS does (a register/resource we touch) - the USB takeover and
+the framebuffer are the two candidates, and the loop can now bisect them in
+two-minute steps.
+
 ### >>> UPDATE 2026-10-22 11:00: the debug loop is fully unattended (6 cycles, no human) <<<
 
 `tools/auto-cycle.sh IMAGE N` repeats the whole cycle: TWRP arms `misc` ->

@@ -35,6 +35,28 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 13:22: the timer works fine - timers are NOT the bug <<<
+
+Counters (atomics only, no printing in interrupts): `sweet_timer_intrs` and
+`sweet_timer_expiries` in `timer_intr()` (`osfmk/arm/arm_timer.c`),
+`sweet_callout_runs` in `running_timers_expire()` (`osfmk/kern/timer_call.c`),
+printed by the watchdog heartbeat. First boot with them:
+
+    SWEET HB: 1 wdt=1 tick=117058 exp=116716 call=343
+
+117,058 ticks, 116,716 of which found an expired deadline, 343 call-outs
+executed. The tick interrupt, the timer queue and the call-out machinery all
+work, so "thread_call timers only fire once" was **wrong**: what fired once was
+*our* one-shot `thread_call_enter_delayed(..., +1 s)` - which the heartbeat
+prints as `HB: 1` because that line is the callback's first pass, not the only
+one. So:
+
+* the tick is healthy; the earlier hypothesis chain (timebase -> tick -> call-outs)
+  is closed with no bug found;
+* everything built on "periodic work never repeats here" must be re-checked -
+  in particular the claim that `AppleCLCD` only refreshed one frame. The
+  framebuffer refresh path needs its own counter before any conclusion.
+
 ### >>> UPDATE 2026-10-22 13:16: timebase is 19.2 MHz (from our own ADT) <<<
 
 `shim-stepB.img` (timebase stored in `pe_identify_machine`, printed later from

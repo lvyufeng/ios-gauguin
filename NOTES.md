@@ -35,6 +35,40 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:35: the framebuffer ABI we accept is not the one backboardd uses <<<
+
+`backboardd` **does** open our driver (`IOK backboardd: open AppleCLCD type 0 ->
+0x0`, `IOServiceFirstMatch ... AppleCLCD -> AppleCLCD`), so the service is found
+and opened. But the selectors it actually calls are:
+
+    15, 22, 29, 33, 57, 74, 79   (7 calls, one each)
+
+against our `enum`:
+
+    3 GetLayerDefaultSurface, 4 SwapBegin, 5 SwapEnd, 6 SwapWait, 7 GetID,
+    8 GetDisplaySize, 12 RequestPowerChange, 18 IsMainDisplay, 28 GetDotPitch,
+    72 Notifications
+
+Only **28 and 72** are in our range; **15, 22, 29, 33, 57, 74, 79 are all
+outside it**, and `MobileGestaltHelper` calls 8 and 28 (the two that work).
+
+This explains `presents=0` far better than any scheduling theory: backboardd is
+talking an ABI where the interesting operations live at selectors we do not
+implement, our default case answers harmlessly, and the display pipeline never
+gets a usable surface - so it never calls SwapBegin.
+
+Immediate next step: **find the real IOMobileFramebufferUserClient selector
+table** (the order of external methods in the shipping driver) and implement the
+selectors backboardd actually calls, in the order it calls them. The shipping
+`IOMobileFramebuffer` kext is not in the tree, but the dyld shared cache has
+`/System/Library/Frameworks/IOMobileFramebuffer.framework` and the selector order
+is recoverable from the userland client's `io_connect_method` call sites.
+
+Second, smaller correction now known: the panel is presented as **1125x2436**
+(iPhone X) while the real panel is 1080x2400, and there is a `sweetfb_native=1`
+boot arg to compare - worth one run *after* the selectors are right, because a
+wrong logical size alone cannot explain zero swaps.
+
 ### >>> UPDATE 2026-10-22 21:06: SpringBoard's syscall mix - ordinary daemon work <<<
 
 Histogram of SpringBoard's syscalls (boot-arg `sweetsyscall=SpringBoard`,

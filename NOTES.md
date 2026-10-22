@@ -35,6 +35,32 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 12:06: the reset is time-based, independent of USB and fb <<<
+
+Bisect with the unattended loop (each setting 2-3 cycles):
+
+| cmdline | restart codes | log lines |
+| --- | --- | --- |
+| baseline | f823e2d8 f823c2d8 f823c0d8 ... | 24.6k-27.7k |
+| `sweetusb=0` | f822c3d8 f823c3d8 f823c2d8 | 24.2k-26.7k |
+| `sweetusb=0 sweetfb=0` | f823c0d8 f823c2d8 | 24.4k-24.6k |
+
+Every configuration reaches userland, does the same amount of work (`exec`
+237-271, AKS calls 146-191 per run) and resets with the same code family
+(`xx23y2d8`, low byte `0xd8`). Driving neither USB nor the framebuffer's flush
+changes anything, so the reset is **time-based**: something fires about every
+110 s of SoC uptime regardless of what iOS has brought up. NOTE: `sweetfb=0`
+is **not** a real gate - `AppleCLCD::start()` only looks at
+`sweetfb_noconsole`/`_native`/`_hz`, so the fb driver still starts; only the
+USB half of that pair was really disabled.
+
+That rules out "a driver we wrote wedges a subsystem" as the trigger and
+points at a periodic secure-world / firmware event (hang detector, RPM
+watchdog, or an expiry tied to the boot). The cheapest next probes: read the
+PMIC PON `POFF_REASON`/reset-type registers over I2C from TWRP before and
+after a kernel run, and check whether the timeout moves with
+`mach_absolute_time` (e.g. boot twice with a warm and a cold start).
+
 ### >>> UPDATE 2026-10-22 11:10: the APSS watchdog stays off for the whole run <<<
 
 `iokit/Kernel/arm/SweetWatchdog.cpp` now samples the block once a second and

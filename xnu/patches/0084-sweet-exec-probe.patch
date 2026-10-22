@@ -23,58 +23,625 @@ index 7fd9be1..2104cd3 100644
  	 * sy_narg is inaccurate on ARM if a 64 bit parameter is specified. Since user_addr_t
  	 * is currently a 32 bit type, this is really a long word count. See rdar://problem/6104668.
 diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
-index aa23b64..3667d36 100644
+index aa23b64..5508c79 100644
 --- a/bsd/dev/sweet_touch.c
 +++ b/bsd/dev/sweet_touch.c
-@@ -133,10 +133,25 @@ touch_wr(vm_offset_t base, uint32_t off, uint32_t val)
+@@ -594,7 +594,7 @@ touch_se_init(void)
  static void
- touch_wait(unsigned ms)
+ touch_thread(void *arg, wait_result_t result)
  {
--	uint64_t deadline;
--	clock_interval_to_deadline(ms, NSEC_PER_MSEC, &deadline);
--	(void)assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, deadline);
--	thread_block(THREAD_CONTINUE_NULL);
-+	/*
-+	 * Long waits at this point in boot do not work: a 30 s
-+	 * assert_wait_deadline()+thread_block() never wakes even though the log
-+	 * runs 20 s past the deadline (NOTES 22:38). Sleep in slices using
-+	 * delay(), which spins on the timer and is known good here; a few hundred
-+	 * slices of 50 ms is far cheaper than never starting at all.
-+	 */
-+	/*
-+	 * delay() itself blocks on assert_wait_deadline, and that wakeup does not
-+	 * arrive for a kernel thread started this early (NOTES 22:44: 30 s of log
-+	 * with a 6 s deadline). Spin on mach_absolute_time() instead: it needs no
-+	 * scheduler at all, and a busy-wait on one CPU is acceptable for a
-+	 * bring-up delay.
-+	 */
-+	uint64_t end;
-+	clock_interval_to_deadline(ms, NSEC_PER_MSEC, &end);
-+	while (mach_absolute_time() < end) {
-+		/* spin; the timer advances without us */
-+	}
- }
- 
- static bool
-@@ -603,7 +618,16 @@ touch_thread(void *arg, wait_result_t result)
- 	 */
+-	unsigned delay_s = 45;
++	unsigned delay_s = 3;   /* userland is up by now; only rail settling matters */
+ 	(void)arg;
+ 	(void)result;
+ 	/*
+@@ -604,6 +604,7 @@ touch_thread(void *arg, wait_result_t result)
  	(void)PE_parse_boot_argn("sweettouchdelay", &delay_s, sizeof(delay_s));
  	printf("SWEET TOUCH: starting in %u s\n", delay_s);
-+	/* Prove the thread is scheduled at all before blaming the sleep. */
-+	printf("SWEET TOUCH: thread running, entering wait\n");
-+	/*
-+	 * Prove the deadline actually fires: the earlier logs show this message
-+	 * and then nothing at all, even though the captured window ran past the
-+	 * deadline (NOTES 22:34). If "slept" never appears, touch_wait() is the
-+	 * bug; if it appears, the failure is later and more interesting.
-+	 */
  	touch_wait(delay_s * 1000u);
 +	printf("SWEET TOUCH: slept %u s, continuing\n", delay_s);
  	printf("SWEET TOUCH: mapping GCC/TLMM/SE%u\n",
  	    (unsigned)((TOUCH_SE_PA >> 16) - 0x8cu));
  	st.gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
+diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
+index 6b926fe..1d957bb 100644
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -49,6 +49,8 @@ extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
+ extern void thread_deallocate(thread_t);
+ extern int hz;
+ static void sweet_log_start(void);
++static void sweet_log_sync(void);
++static void sweet_reboot_start(void);
+ extern void sweet_sample_start(void);
+ extern void sweet_keys_init(void);
+ extern void sweet_touch_init(void);
+@@ -96,7 +98,8 @@ struct ucd {
+ #define DMA_UTRL        0x0000                  /* 1 KiB aligned */
+ #define DMA_UCD         0x1000                  /* 128 byte aligned */
+ #define DMA_BOUNCE      0x4000
+-#define DMA_SIZE        (DMA_BOUNCE + BOUNCE_SIZE)
++#define DMA_STAGE       (DMA_BOUNCE + BOUNCE_SIZE)      /* stage block, see sweet_stage() */
++#define DMA_SIZE        (DMA_STAGE + 4096)
+ 
+ static struct {
+ 	vm_offset_t regs;
+@@ -145,12 +148,24 @@ dma_clean(uint32_t off, uint32_t len)
+  * One SCSI command in slot 0, data (if any) to/from the bounce buffer
+  * (to the device when write is set). Returns 0 or an errno.
+  */
++static int ufs_scsi_pa(const uint8_t *cdb, unsigned cdb_len, uint32_t len,
++    bool write, uintptr_t data_pa);
++static int ufs_write_abs(uint64_t lba, uint32_t count, uintptr_t pa);
++
+ static int
+ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
++{
++	return ufs_scsi_pa(cdb, cdb_len, len, write, su.dma_pa + DMA_BOUNCE);
++}
++
++/* Same command with its data at an arbitrary physical address (stage block). */
++static int
++ufs_scsi_pa(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write,
++    uintptr_t data_pa)
+ {
+ 	struct utrd *utrd = (struct utrd *)(su.dma + DMA_UTRL);
+ 	struct ucd *ucd = (struct ucd *)(su.dma + DMA_UCD);
+-	uint64_t ucd_pa = su.dma_pa + DMA_UCD, bounce_pa = su.dma_pa + DMA_BOUNCE;
++	uint64_t ucd_pa = su.dma_pa + DMA_UCD, bounce_pa = data_pa;
+ 
+ 	assert(len <= BOUNCE_SIZE);
+ 	bzero(utrd, sizeof(*utrd));
+@@ -204,6 +219,8 @@ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ 	}
+ 	__builtin_arm_dsb(0xf);
+ 
++	printf("SWEET UFS: scsi cdb 0x%02x len %u, dma 0x%llx, ringing\n",
++	    cdb[0], len, (unsigned long long)su.dma_pa);
+ 	ufs_wr(REG_UTRLDBR, 1);
+ 	uint64_t deadline;
+ 	nanoseconds_to_absolutetime(CMD_TIMEOUT_NS, &deadline);
+@@ -216,8 +233,14 @@ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ 		spin_until += mach_absolute_time();
+ 		nanoseconds_to_absolutetime(CMD_SLEEP_NS, &sleep_interval);
+ 	}
++	unsigned spins = 0;
+ 	while (ufs_rd(REG_UTRLDBR) & 1) {
+ 		uint64_t now = mach_absolute_time();
++		if (++spins == 1000 || (spins & 0xfffff) == 0) {
++			printf("SWEET UFS: still busy after %u spins (now %llu, deadline %llu, db 0x%x)\n",
++			    spins, (unsigned long long)now, (unsigned long long)deadline,
++			    ufs_rd(REG_UTRLDBR));
++		}
+ 		if (now > deadline) {
+ 			ufs_wr(REG_UTRLCLR, ~1u);
+ 			printf("SWEET UFS: command 0x%02x timed out\n", cdb[0]);
+@@ -235,6 +258,7 @@ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ 		}
+ 	}
+ 	__builtin_arm_dsb(0xf);
++	printf("SWEET UFS: scsi 0x%02x completed after %u spins\n", cdb[0], spins);
+ 	ufs_wr(REG_IS, ufs_rd(REG_IS));         /* acknowledge completion status */
+ 
+ 	dma_sync(DMA_UTRL, sizeof(*utrd));
+@@ -292,6 +316,23 @@ ufs_write_blocks(uint64_t lba, uint32_t count)
+ 	return ufs_scsi(cdb, sizeof(cdb), count * UFS_BLOCK, true);
+ }
+ 
++/* WRITE(10) of count blocks straight from a physical address; no partition
++ * bounds (the stage block may sit outside the named partition). Polled like
++ * every command here, so it is safe from panic(). */
++static int
++ufs_write_abs(uint64_t lba, uint32_t count, uintptr_t pa)
++{
++	if (lba + count - 1 > UINT32_MAX) {
++		return EPERM;
++	}
++	uint8_t cdb[10] = {
++		0x2a, 0,
++		(uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8), (uint8_t)lba,
++		0, (uint8_t)(count >> 8), (uint8_t)count, 0
++	};
++	return ufs_scsi_pa(cdb, sizeof(cdb), count * UFS_BLOCK, true, pa);
++}
++
+ static int
+ ufs_sync_cache(void)
+ {
+@@ -307,6 +348,7 @@ ufs_find_partition(const char *want)
+ 	if (error) {
+ 		return error;
+ 	}
++	printf("SWEET UFS: gpt header read, sig %.8s\n", (const char *)b);
+ 	if (memcmp(b, "EFI PART", 8) != 0) {
+ 		printf("SWEET UFS: LUN %u has no GPT\n", su.lun);
+ 		return ENXIO;
+@@ -316,11 +358,14 @@ ufs_find_partition(const char *want)
+ 	memcpy(&entry_lba, b + 72, 8);
+ 	memcpy(&nent, b + 80, 4);
+ 	memcpy(&esz, b + 84, 4);
++	printf("SWEET UFS: entries at lba %llu, %u x %u\n",
++	    (unsigned long long)entry_lba, nent, esz);
+ 	if (esz != 128 || nent == 0 || nent * esz > BOUNCE_SIZE) {
+ 		printf("SWEET UFS: unsupported GPT entries %u x %u\n", nent, esz);
+ 		return ENXIO;
+ 	}
+ 	error = ufs_read_blocks(entry_lba, (nent * esz + UFS_BLOCK - 1) / UFS_BLOCK);
++	printf("SWEET UFS: entries read rc=%d\n", error);
+ 	if (error) {
+ 		return error;
+ 	}
+@@ -583,6 +628,106 @@ static const struct cdevsw sweet_ufs_cdevsw = {
+ 	.d_type       = D_DISK,
+ };
+ 
++/*
++ * Crash-proof stage record ("sweetstage=<MiB>", default off).
++ *
++ * A stuck kernel cannot be diagnosed from the console log: the flush thread is
++ * often the one that stopped, and a panic that never prints says nothing. So
++ * the kernel reports marks here and this writes them, one 4 KiB block, at
++ * partition MiB <n> (64 or later: past the HFS image at the start, before the
++ * 4 MiB log ring at the end). Device lba = su.first_block + n * 256.
++ *
++ *   0:      'S','W','E','E','T','S','T','G' | u32 tick_lo | u32 count
++ *           | { u64 tick, u32 code, u32 arg }[50]
++ *   2048:   'S','W','E','E','T','P','A','N' | u32 code | u32 arg | u32 pid
++ *           | u64 thread | u64 pc | u64 tick | u64 sp | u8 saved_state[272]
++ *   2336:   u8 kernel stack[1024]
++ *
++ * It goes out with polling SCSI from its own DMA block (never the bounce
++ * buffer), so panic() and a wedged thread can both use it.
++ */
++#define SWEET_STAGE_MAX          50
++#define STG_PANIC_OFF            2048
++#define STG_STACK_OFF            2336
++#define STG_STACK_SIZE           1024
++
++static bool sweet_stage_on;
++static uint64_t sweet_stage_lba;
++static uint32_t sweet_stage_count;
++
++#define STG_BLK ((uint8_t *)(su.dma + DMA_STAGE))
++
++static void
++sweet_stage_header(void)
++{
++	static const char magic[8] = { 'S', 'W', 'E', 'E', 'T', 'S', 'T', 'G' };
++	if (sweet_stage_on && memcmp(STG_BLK, magic, 8) != 0) {
++		bzero(STG_BLK, UFS_BLOCK);
++		memcpy(STG_BLK, magic, 8);
++		sweet_stage_count = 0;
++	}
++}
++
++static void
++sweet_stage_commit(void)
++{
++	uint32_t tick = (uint32_t)mach_absolute_time();
++	memcpy(STG_BLK + 8, &tick, 4);
++	clean_dcache64((addr64_t)(su.dma_pa + DMA_STAGE), UFS_BLOCK, TRUE);
++	(void)ufs_write_abs(sweet_stage_lba, 1, (uintptr_t)STG_BLK);
++}
++
++/* Record one stage. Safe from any thread context; not from an interrupt. */
++void
++sweet_stage(uint32_t code, uint32_t arg)
++{
++	if (!sweet_stage_on) {
++		return;
++	}
++	sweet_stage_header();
++	if (sweet_stage_count < SWEET_STAGE_MAX) {
++		uint32_t i = sweet_stage_count++;
++		uint64_t tick = mach_absolute_time();
++		memcpy(STG_BLK + 12, &sweet_stage_count, 4);
++		memcpy(STG_BLK + 16 + i * 16, &tick, 8);
++		memcpy(STG_BLK + 24 + i * 16, &code, 4);
++		memcpy(STG_BLK + 28 + i * 16, &arg, 4);
++	}
++	sweet_stage_commit();
++}
++
++/* Called from panic() (osfmk/kern/debug.c, weak): where and why it died. */
++void sweet_stage_panic(uint32_t code, uint32_t arg, uint64_t thread_id,
++    uint64_t pc, void *saved_state);
++
++void
++sweet_stage_panic(uint32_t code, uint32_t arg, uint64_t thread_id,
++    uint64_t pc, void *saved_state)
++{
++	if (!sweet_stage_on) {
++		return;
++	}
++	sweet_stage_header();
++	uint8_t *p = STG_BLK + STG_PANIC_OFF;
++	uint32_t pid = (uint32_t)proc_selfpid();
++	uint64_t tick = mach_absolute_time();
++	uintptr_t sp;
++	__asm__ volatile ("mov %0, sp" : "=r"(sp));
++	memcpy(p, "SWEETPAN", 8);
++	memcpy(p + 8, &code, 4);
++	memcpy(p + 12, &arg, 4);
++	memcpy(p + 16, &pid, 4);
++	memcpy(p + 24, &thread_id, 8);
++	memcpy(p + 32, &pc, 8);
++	memcpy(p + 40, &tick, 8);
++	memcpy(p + 48, &sp, 8);
++	if (saved_state != NULL) {
++		memcpy(p + 56, saved_state, 272);
++	}
++	memcpy(STG_BLK + STG_STACK_OFF, (void *)sp, STG_STACK_SIZE);
++	sweet_stage_commit();
++}
++
+ static int
+ sweet_ufs_init(void)
+ {
+@@ -607,7 +752,10 @@ sweet_ufs_init(void)
+ 	su.cache = (cache == 1);
+ 	su.wait = (wait == 1);
+ 
++	printf("SWEET UFS: init reg=0x%llx/0x%llx\n", (uint64_t)reg[0], (uint64_t)reg[1]);
+ 	su.regs = ml_io_map(reg[0], reg[1]);
++	printf("SWEET UFS: regs at 0x%llx, hce 0x%x hcs 0x%x\n", (uint64_t)su.regs,
++	    ufs_rd(REG_HCE), ufs_rd(REG_HCS));
+ 	if (kmem_alloc_contig(kernel_map, &su.dma, DMA_SIZE, PAGE_MASK, 0, 0,
+ 	    KMA_DATA | KMA_ZERO | KMA_PERMANENT, VM_KERN_MEMORY_IOKIT) != KERN_SUCCESS) {
+ 		printf("SWEET UFS: no contiguous DMA memory\n");
+@@ -621,8 +769,10 @@ sweet_ufs_init(void)
+ 	su.lun = 0;
+ 	su.secsize = DEV_BSIZE;
+ 
++	printf("SWEET UFS: dma ok, taking over the host\n");
+ 	lck_mtx_lock(&sweet_ufs_lock);
+ 	error = ufs_take_over_host();
++	printf("SWEET UFS: take over rc=%d\n", error);
+ 	if (!error) {
+ 		static const uint8_t tur[6] = { 0x00 };
+ 		/* The first command after the bootloader may report a unit attention. */
+@@ -630,7 +780,9 @@ sweet_ufs_init(void)
+ 		}
+ 	}
+ 	if (!error) {
++		printf("SWEET UFS: looking for partition \"%s\"\n", want);
+ 		error = ufs_find_partition(want);
++		printf("SWEET UFS: find partition rc=%d\n", error);
+ 	}
+ 	lck_mtx_unlock(&sweet_ufs_lock);
+ 	if (error) {
+@@ -654,12 +806,43 @@ sweet_ufs_init(void)
+ 	printf("SWEET UFS: \"%s\" on LUN %u: first block 0x%llx, %llu MiB, %s, DMA at 0x%llx\n",
+ 	    want, su.lun, su.first_block, su.nblocks * UFS_BLOCK >> 20,
+ 	    su.writable ? "read-write" : "read-only", su.dma_pa);
++	{
++		uint32_t stg = 0;
++		PE_parse_boot_argn("sweetstage", &stg, sizeof(stg));
++		if (stg && su.writable && su.nblocks / (1024 * 1024 / UFS_BLOCK) > stg) {
++			sweet_stage_lba = su.first_block + (uint64_t)stg * (1024 * 1024 / UFS_BLOCK);
++			sweet_stage_on = true;
++			sweet_stage_header();
++			sweet_stage_commit();
++			sweet_stage(0x100, stg);
++			printf("SWEET STAGE: stages to device lba 0x%llx\n",
++			    (unsigned long long)sweet_stage_lba);
++		}
++	}
+ 	sweet_log_start();
++	sweet_reboot_start();
++	printf("SWEET UFS: sample_start\n");
++	sweet_log_sync();
+ 	sweet_sample_start();
+-	/* Input drivers (HID services in iokit/Kernel/arm/hid/SweetHID.cpp). */
++	printf("SWEET UFS: sample_start done\n");
++	sweet_log_sync();
++	printf("SWEET UFS: keys_init\n");
++	sweet_log_sync();
+ 	sweet_keys_init();
+-	sweet_touch_init();
++	printf("SWEET UFS: keys_init done\n");
++	sweet_log_sync();
++	/*
++	 * Touch is started from the first userland exec instead of here: a kernel
++	 * thread started this early never wakes from a timed sleep (NOTES 22:47),
++	 * and spinning starves UFS. SweetHelp keeps the call site for the record.
++	 */
++	printf("SWEET UFS: touch_init deferred to first exec\n");
++	sweet_log_sync();
++	printf("SWEET UFS: usb_probe\n");
++	sweet_log_sync();
+ 	sweet_usb_probe();
++	printf("SWEET UFS: init complete\n");
++	sweet_log_sync();
+ 	return 0;
+ }
+ 
+@@ -684,6 +867,7 @@ static char sweet_log_ring[SWEET_LOG_SIZE];
+ static uint64_t _Atomic sweet_log_total;
+ static int sweet_log_chan;
+ static uint32_t sweet_log_secs = SWEET_LOG_SECS;
++static uint32_t sweet_log_ms;            /* sweetlogms: flush interval in ms */
+ 
+ /* Called for all console output, any context: never blocks. */
+ void sweet_log_append(const char *c, int size);
+@@ -736,53 +920,207 @@ struct sweet_log_header {
+ 	uint64_t total, seq;
+ };
+ 
++static int
++sweet_log_flush(uint64_t *flushed, uint64_t *seq)
++{
++	uint64_t base = su.first_block + su.nblocks - SWEET_LOG_BLOCKS;
++	void *bounce = (void *)(su.dma + DMA_BOUNCE);
++	uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
++
++	if (total == *flushed) {
++		return 0;
++	}
++	uint64_t pos = total - *flushed >= SWEET_LOG_SIZE ? total - SWEET_LOG_SIZE : *flushed;
++	int error = 0;
++
++	lck_mtx_lock(&sweet_ufs_lock);
++	while (pos < total && !error) {
++		uint32_t off = (uint32_t)(pos % SWEET_LOG_SIZE);
++		uint32_t blk = off / UFS_BLOCK;
++		uint64_t need = ((uint64_t)off % UFS_BLOCK + (total - pos) + UFS_BLOCK - 1) / UFS_BLOCK;
++		uint32_t n = (uint32_t)MIN(MIN(need, (uint64_t)(SWEET_LOG_SIZE / UFS_BLOCK - blk)),
++		    (uint64_t)(BOUNCE_SIZE / UFS_BLOCK));
++		memcpy(bounce, sweet_log_ring + (uint64_t)blk * UFS_BLOCK, n * UFS_BLOCK);
++		error = ufs_write_blocks(base + 1 + blk, n);
++		pos += (uint64_t)(blk + n) * UFS_BLOCK - off;
++	}
++	if (!error) {
++		struct sweet_log_header h = {
++			.magic = { 'S', 'W', 'E', 'E', 'T', 'L', 'O', 'G' },
++			.version = 1, .size = SWEET_LOG_SIZE, .total = total, .seq = ++*seq,
++		};
++		bzero(bounce, UFS_BLOCK);
++		memcpy(bounce, &h, sizeof(h));
++		error = ufs_write_blocks(base, 1);
++	}
++	if (!error) {
++		error = ufs_sync_cache();
++	}
++	lck_mtx_unlock(&sweet_ufs_lock);
++	if (error) {
++		printf("SWEET LOG: write failed (%d), stopping\n", error);
++	} else {
++		*flushed = total;
++	}
++	return error;
++}
++
++/*
++ * Panic-path flush (osfmk/kern/debug.c calls it weakly): panic() prints the
++ * reason through printf, so one synchronous flush here puts the whole panic
++ * text in the on-disk log before the reboot. The UFS controller can be in any
++ * state by now, so this is best-effort and bounded by ufs_scsi's timeout.
++ */
++/*
++ * Panic -> pstore. Qualcomm's ramoops sits at 0xd0000000 (gauguin DT
++ * ramoops@d0000000, 1 MiB: 128 KiB record, 512 KiB console, 128 KiB ftrace),
++ * and TWRP mounts it at /sys/fs/pstore. Writing the last 512 KiB of the
++ * console log there in the panic path survives a hard reset that never lets
++ * the UFS flush finish, so the panic text can be read from userspace.
++ * Enabled with sweetpanicdump=1 (default off: the region is not ours).
++ */
++/* The region ABL reserved is what TWRP's own kernel prints: 0xb0000000/4 MiB,
++ * console 0x80000 in, and TWRP reads the whole 4 MiB as the area. The flasher
++ * view of it is readable from TWRP with `dd if=/dev/block/sda ...` near 0. */
++#define SWEET_PSTORE_PA         0xb0000000ULL
++#define SWEET_PSTORE_SIZE       0x400000u
++#define SWEET_PSTORE_CONSOLE_OFF 0x80000u
++#define SWEET_PSTORE_CONSOLE_LEN 0x200000u
++
++void sweet_pstore_dump(void)
++{
++	int on = 0;
++	PE_parse_boot_argn("sweetpanicdump", &on, sizeof(on));
++	if (!on) {
++		return;
++	}
++	static volatile uint8_t *ram;           /* mapped once, not from IOWorkLoop */
++	if (ram == NULL) {
++		ram = (volatile uint8_t *)ml_io_map(SWEET_PSTORE_PA, SWEET_PSTORE_SIZE);
++	}
++	if (ram == 0) {
++		return;
++	}
++	uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
++	uint64_t len = MIN(total, (uint64_t)SWEET_PSTORE_CONSOLE_LEN);
++	uint64_t start = total - len;
++	for (uint64_t i = 0; i < len; i++) {
++		ram[SWEET_PSTORE_CONSOLE_OFF + i] =
++		    (uint8_t)sweet_log_ring[(start + i) % SWEET_LOG_SIZE];
++	}
++}
++
++void sweet_log_flush_now(void);
++
++void
++sweet_log_flush_panic(void)
++{
++	if (!su.ready || !su.writable) {
++		return;
++	}
++	sweet_log_flush_now();
++	sweet_pstore_dump();
++}
++
++/* Called from the watchdog thread once a second (ioworkloop context): copies
++ * whatever the console has now into the ramoops console view, so a boot that
++ * just hangs - no panic, no reset, flush thread dead - still leaves the last
++ * lines on the flash where TWRP can read them. Boot-arg sweetpstore=1. */
++/* extern "C": called from IOKit C++ (SweetWatchdog.cpp, weak). */
++extern void sweet_pstore_tick(void);
++void
++sweet_pstore_tick(void)
++{
++	static bool parsed, on;
++	static uint32_t last_total;
++	if (!parsed) {
++		parsed = true;
++		PE_parse_boot_argn("sweetpstore", &on, sizeof(on));
++	}
++	uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
++	if (!on || (uint32_t)total == last_total) {
++		return;
++	}
++	last_total = (uint32_t)total;
++	sweet_pstore_dump();
++}
++
++/* Same flush, callable from other files (bsd/dev/sweet_usb.c). */
++void sweet_log_flush_now(void);
++
++void
++sweet_log_flush_now(void)
++{
++	uint64_t flushed = 0, seq = 0;
++	(void)sweet_log_flush(&flushed, &seq);
++}
++
++/*
++ * Debug reboot timer: with sweetreboot=<seconds> the kernel panics that many
++ * seconds after the root device is up. A hung bring-up kernel cannot signal
++ * anything, and a panic with the default panic_reboot reboots the phone, which
++ * the bootloader then sends to recovery (misc holds boot-recovery), so
++ * tools/fastboot-cycle.sh can pull the log without a human power-cycling it.
++ */
++static void
++sweet_reboot_thread(__unused void *arg, __unused wait_result_t wr)
++{
++	int secs = 0;
++	PE_parse_boot_argn("sweetreboot", &secs, sizeof(secs));
++	if (secs <= 0) {
++		return;
++	}
++	printf("SWEET: debug reboot in %d s\n", secs);
++	(void)tsleep(&sweet_log_chan, PZERO, "sweetreboot", hz * secs);
++	panic("SWEET: debug reboot timer (%d s)", secs);
++}
++
++static void
++sweet_reboot_start(void)
++{
++	int secs = 0;
++	thread_t thread;
++
++	PE_parse_boot_argn("sweetreboot", &secs, sizeof(secs));
++	if (secs <= 0) {
++		return;
++	}
++	if (kernel_thread_start(sweet_reboot_thread, NULL, &thread) == KERN_SUCCESS) {
++		thread_deallocate(thread);
++	}
++}
++
++static void
++sweet_log_sync(void)
++{
++	uint64_t flushed = 0, seq = 0;
++	(void)sweet_log_flush(&flushed, &seq);
++}
++
+ static void
+ sweet_log_thread(__unused void *arg, __unused wait_result_t wr)
+ {
+-	uint64_t base = su.first_block + su.nblocks - SWEET_LOG_BLOCKS;
+ 	uint64_t flushed = 0, seq = 0;
+-	void *bounce = (void *)(su.dma + DMA_BOUNCE);
+ 
+-	printf("SWEET LOG: console log to the last %u KiB of the partition (block 0x%llx)\n",
+-	    SWEET_LOG_BLOCKS * UFS_BLOCK >> 10, base);
++	int once = 0;
++	PE_parse_boot_argn("sweetlogonce", &once, sizeof(once));
++	printf("SWEET LOG: thread running, first flush follows\n");
+ 	for (;;) {
+-		(void)tsleep(&sweet_log_chan, PZERO, "sweetlog", hz * (int)sweet_log_secs);
+-		uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
+-		if (total == flushed) {
+-			continue;
+-		}
+-		uint64_t pos = total - flushed >= SWEET_LOG_SIZE ? total - SWEET_LOG_SIZE : flushed;
+-		int error = 0;
+-
+-		lck_mtx_lock(&sweet_ufs_lock);
+-		while (pos < total && !error) {
+-			uint32_t off = (uint32_t)(pos % SWEET_LOG_SIZE);
+-			uint32_t blk = off / UFS_BLOCK;
+-			uint64_t need = ((uint64_t)off % UFS_BLOCK + (total - pos) + UFS_BLOCK - 1) / UFS_BLOCK;
+-			uint32_t n = (uint32_t)MIN(MIN(need, (uint64_t)(SWEET_LOG_SIZE / UFS_BLOCK - blk)),
+-			    (uint64_t)(BOUNCE_SIZE / UFS_BLOCK));
+-			memcpy(bounce, sweet_log_ring + (uint64_t)blk * UFS_BLOCK, n * UFS_BLOCK);
+-			error = ufs_write_blocks(base + 1 + blk, n);
+-			pos += (uint64_t)(blk + n) * UFS_BLOCK - off;
+-		}
+-		if (!error) {
+-			struct sweet_log_header h = {
+-				.magic = { 'S', 'W', 'E', 'E', 'T', 'L', 'O', 'G' },
+-				.version = 1, .size = SWEET_LOG_SIZE, .total = total, .seq = ++seq,
+-			};
+-			bzero(bounce, UFS_BLOCK);
+-			memcpy(bounce, &h, sizeof(h));
+-			error = ufs_write_blocks(base, 1);
+-		}
+-		if (!error) {
+-			error = ufs_sync_cache();
+-		}
+-		lck_mtx_unlock(&sweet_ufs_lock);
+-		if (error) {
+-			printf("SWEET LOG: write failed (%d), stopping\n", error);
++		if (once) {
++			/* Poll until quiet: a finishing boot settles (sweetlogonce). */
++			for (int i = 0; i < 15; i++) {
++				(void)sweet_log_flush(&flushed, &seq);
++				tsleep(&sweet_log_chan, PZERO, "sweetlog", hz / 10);
++			}
++			printf("SWEETLOG. total=%llu seq=%llu\n",
++			    (unsigned long long)flushed, (unsigned long long)seq);
+ 			return;
+ 		}
+-		flushed = total;
++		(void)sweet_log_flush(&flushed, &seq);
++		/* sweetlogms=<ms> narrows the window a crash can swallow; the flush
++		 * only writes the bytes added since the last one. */
++		int ticks = sweet_log_ms ? (hz * (int)sweet_log_ms) / 1000 : hz * (int)sweet_log_secs;
++		(void)tsleep(&sweet_log_chan, PZERO, "sweetlog", ticks ? ticks : 1);
+ 	}
+ }
+ 
+@@ -800,6 +1138,17 @@ sweet_log_start(void)
+ 	if (sweet_log_secs == 0 || sweet_log_secs > 60) {
+ 		sweet_log_secs = SWEET_LOG_SECS;
+ 	}
++	PE_parse_boot_argn("sweetlogms", &sweet_log_ms, sizeof(sweet_log_ms));
++	if (sweet_log_ms > 2000) {
++		sweet_log_ms = 2000;
++	}
++	/* One synchronous flush now: the boot can reset before the thread runs. */
++	{
++		uint64_t flushed = 0, seq = 0;
++		printf("SWEET LOG: start, on=%d writable=%d nblocks=%llu\n", on, (int)su.writable,
++		    (unsigned long long)su.nblocks);
++		(void)sweet_log_flush(&flushed, &seq);
++	}
+ 	if (kernel_thread_start(sweet_log_thread, NULL, &thread) == KERN_SUCCESS) {
+ 		thread_deallocate(thread);
+ 	}
+@@ -811,8 +1160,10 @@ int sweet_ufs_rootdev(dev_t *dev);
+ int
+ sweet_ufs_rootdev(dev_t *dev)
+ {
++	printf("SWEET UFS: rootdev called (ready=%d)\n", (int)su.ready);
+ 	if (!su.ready) {
+ 		int error = sweet_ufs_init();
++		printf("SWEET UFS: init returned %d\n", error);
+ 		if (error) {
+ 			return error;
+ 		}
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 68612db..7e8c649 100644
+index 68612db..e751320 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
 @@ -1998,11 +1998,44 @@ cleanup_rosetta_fp:
@@ -122,10 +689,34 @@ index 68612db..7e8c649 100644
  	proc_resetregister(p);
  	if (p->p_pptr && (p->p_lflag & P_LPPWAIT)) {
  		proc_lock(p);
-@@ -7414,6 +7447,17 @@ process_signature(proc_t p, struct image_params *imgp)
+@@ -7414,6 +7447,41 @@ process_signature(proc_t p, struct image_params *imgp)
  #if defined(ARM64_BOARD_CONFIG_SWEET)
  			/* SWEET runs every iOS binary this way: one short line per exec. */
  			printf("exec %s\n", p->p_name);
++			{
++				/*
++				 * Start touch now: userland is running, so timed sleeps work
++				 * (NOTES 22:47). One shot, on the first exec after boot.
++				 */
++				/*
++				 * Not on the first exec: that is launchd, while UFS is still
++				 * being hammered mounting the root, and a sleeping kernel
++				 * thread there stalls the boot (NOTES 22:50). Wait until
++				 * userland is established (a later exec) so the touch thread's
++				 * own timed sleep has a working scheduler under it.
++				 */
++				extern void sweet_touch_init(void);
++				static unsigned sweet_execs;
++				static bool sweet_touch_started;
++				int sweet_after = 20;
++				(void)PE_parse_boot_argn("sweettouchafter", &sweet_after,
++				    sizeof(sweet_after));
++				if (!sweet_touch_started && ++sweet_execs >= (unsigned)sweet_after) {
++					sweet_touch_started = true;
++					printf("SWEET TOUCH: starting after %u execs\n", sweet_execs);
++					sweet_touch_init();
++				}
++			}
 +			{
 +				/*
 +				 * SWEET: a process that starts and then goes quiet is

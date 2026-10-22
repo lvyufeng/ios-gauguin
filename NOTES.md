@@ -35,6 +35,40 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:52: moving the start later does not help - the wakeup gap is general <<<
+
+Moved `sweet_touch_init()` out of `sweet_ufs.c` (boot-time) into the exec hook,
+so the touch thread starts once userland is established:
+
+* `sweettouchafter=N` (default 20) - start on the Nth exec, not the first;
+* default touch delay lowered 45 s -> 3 s (userland is up by then).
+
+Two runs:
+
+| when started | result |
+| --- | --- |
+| on **1st exec** (launchd, UFS still busy) | "starting in 3 s", boot **stalled at 3,427 lines** |
+| on **40th exec** (userland established) | "starting after 40 execs", "starting in 3 s", **`slept` never appears**, 123 execs, vsync 1800 (~30 s) elapsed |
+
+So the touch thread's *timed* wait does not resume **even with userland fully
+running**, while userland's own sleeps (backboardd in `mach_wait_until`) work
+fine. That narrows it decisively: the gap is not "too early in boot" and not
+specific to the touch driver - it is **kernel-thread timed waits in this port**,
+i.e. the deadline path of `assert_wait_deadline` for a `kernel_thread_start`
+thread never re-runs it.
+
+That is one concrete kernel bug left between us and working touch, and it is now
+well characterized:
+* thread creation: fine (start markers appear);
+* thread scheduling: fine (it runs until the wait);
+* timer: fine (vsync advances throughout);
+* **timer -> thread wakeup for kernel threads: broken.**
+
+Next, minimal reproduction with nothing else in the picture: a kernel thread
+started from the exec hook that does `assert_wait_deadline(&chan, THREAD_UNINT,
+now + 1 s)` and prints before/after. If it also never wakes, the defect is in
+`waitq_assert_wait64_locked`'s deadline arming and the fix is localized.
+
 ### >>> UPDATE 2026-10-22 22:47: neither sleep nor spin works for the touch thread <<<
 
 Three attempts to get the touch thread past its start-up delay, all measured on

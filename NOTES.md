@@ -35,6 +35,45 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:55: the crash chain, frame by frame <<<
+
+Every frame of `CRASH backboardd bt`, minus the slide `0x216b0000`, resolved
+against the parsed cache (smallest `__TEXT` claim wins):
+
+| frame | image | offset |
+| --- | --- | --- |
+| 0 | AXRuntime | 0x9b20c |
+| 1 | **IOKit** | **0x1a58** |
+| 2-7 | CoreFoundation | 0x74de4, 0x8ffa0, 0x91bb4, 0x75744, 0x79d20, 0xb8bec |
+| 8-9 | QuartzCore | 0x27da70, 0x287418 |
+
+The IOKit frame disassembles as an **inline selector dispatch**:
+
+    0x...a58  lr -->  34000093  CBZ   w19, +0x10
+    0x...a5c          b94002e0  LDR   w0, [x23]      ; arg0 = *x23
+    0x...a60          aa1303e1  MOV   x1, x19        ; arg1 = x19
+    0x...a64          958e9291  BL    0x1948f64a0    ; libc++.1.dylib + 0x1f84a0
+
+so the chain is **QuartzCore -> CoreFoundation -> IOKit -> libc++ ->
+libsystem_platform's vectorised string routine -> fatal `LDR q0,[x1]`**.
+
+`far = 0` plus the `AND x1, x0, #~0xf` prologue pins the argument down: the
+pointer handed to the string routine was **in 0..15**, i.e. effectively null /
+offset-from-null, not a wild address. In this IOKit shape that is the classic
+"call an external method with an **uninitialised or zero output** and treat the
+result as a C string" pattern - and backboardd is talking to *our*
+user client, whose selector semantics we are still guessing at.
+
+That connects the two threads of evidence: our unknown selectors (15, 22, 29,
+33, 57, 72, 73, 74, 79) answer a **plausible-looking but wrong** value, and
+CoreFoundation/IOKit turns one of those into a C-string pointer, which is 0..15
+and faults.
+
+Concrete next step: log, for **every** call, the selector **and the first few
+scalar outputs we hand back**, then diff against the crash timing - the call
+whose reply precedes the crash is the one returning the bogus pointer-scale
+value.
+
 ### >>> UPDATE 2026-10-22 21:45: the crash is an unaligned SIMD load in libsystem_platform <<<
 
 Symbolised the crash by parsing the dyld4 sub-cache on the iOS root image

@@ -1,0 +1,139 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -2003,6 +2003,19 @@
+ 	 * mark as execed
+ 	 */
+ 	OSBitOrAtomic(P_EXEC, &p->p_flag);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * A thread_block() of this task from here on is reported even if the
++	 * process still runs under its old name (NOTES 2026-10-22 19:34).
++	 * Defined in osfmk/kern/task.c; a no-op unless sweetblock= names it.
++	 */
++	{
++		extern void sweet_fast_exec_arm(task_t, const char *);
++		extern void sweet_fast_exec_later(void);
++		sweet_fast_exec_arm(proc_task(p), p->p_name);
++		sweet_fast_exec_later();
++	}
++#endif
+ 	proc_resetregister(p);
+ 	if (p->p_pptr && (p->p_lflag & P_LPPWAIT)) {
+ 		proc_lock(p);
+diff --git a/osfmk/kern/sched_prim.c b/osfmk/kern/sched_prim.c
+--- a/osfmk/kern/sched_prim.c
++++ b/osfmk/kern/sched_prim.c
+@@ -3801,6 +3801,11 @@
+ {
+ 	thread_t        self = current_thread();
+ 	processor_t     processor;
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	extern void sweet_fast_exec_block(thread_t);
++	sweet_fast_exec_block(self);
++#endif
+ 	thread_t        new_thread;
+ 	spl_t           s;
+ 
+diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
+--- a/osfmk/kern/task.c
++++ b/osfmk/kern/task.c
+@@ -2664,9 +2664,97 @@
+ 	    task->thread_count);
+ 	sweet_dump_walk(task, sweet_later_name);
+ 	task_deallocate(task);
++}
++
++/*
++ * The other half of sweetblock (NOTES 2026-10-22 19:34): a process that blocks
++ * inside its own exec never shows up in the thread_block trace under its
++ * SpringBoard name, because it still runs under the exec'd-away name
++ * (xpcproxy/launchd). Observe the block through the task instead of the name:
++ * at the exec of a sweetblock=Name process, arm the *task* - the next thread of
++ * that task to assert_wait is the one to report, whatever name it has.
++ *
++ * Armed from kern_exec.c right after the image activation, before the exec
++ * syscall returns; a thread call 100 ms later disarms everything, so only the
++ * exec path itself (and a hair after it) is sampled - one atomic, no lock.
++ */
++static unsigned sweet_armed;            /* 1 = armed (see sweet_fast_exec_arm) */
++static unsigned sweet_armed_lines;
++static unsigned long long sweet_armed_tid;
++static char sweet_armed_name[48];
++static thread_call_t sweet_disarm_call;
++
++static void
++sweet_fast_disarm_cb(thread_call_param_t p0 __unused, thread_call_param_t p1 __unused)
++{
++	sweet_armed = 0;
++}
++
++void
++sweet_fast_exec_arm(task_t task, const char *name)
++{
++	if (sweet_block_name[0] == '\0' || task == TASK_NULL ||
++	    strncmp(name, sweet_block_name, sizeof(sweet_block_name)) != 0) {
++		return;
++	}
++	strlcpy(sweet_armed_name, name, sizeof(sweet_armed_name));
++	OSCompareAndSwap(0, (uint32_t)(uintptr_t)VM_KERNEL_ADDRPERM((vm_offset_t)(uintptr_t)task), &sweet_armed);
++}
++
++/* Called from the top of thread_block() (osfmk/kern/sched_prim.c). */
++void
++sweet_fast_exec_block(thread_t th)
++{
++	uint32_t armed = sweet_armed;
++	if (armed == 0 || armed != (uint32_t)VM_KERNEL_ADDRPERM((vm_offset_t)(uintptr_t)get_threadtask(th))) {
++		return;
++	}
++	sweet_armed = 0;
++	if (sweet_disarm_call == NULL) {
++		sweet_disarm_call = thread_call_allocate(sweet_fast_disarm_cb, NULL);
++	}
++	if (sweet_disarm_call != NULL) {
++		thread_call_enter_delayed(sweet_disarm_call, mach_absolute_time() + 1000000000ULL);
++	}
++	if (sweet_armed_lines >= 20) {
++		return;
++	}
++	sweet_armed_lines++;
++	unsigned wqt = 0;
++	if (th->waitq.wq_q != NULL) {
++		wqt = (unsigned)th->waitq.wq_q->waitq_type;
++	}
++	unsigned depth = 0;
++	for (__unused void *ra = __builtin_return_address(0); ra != NULL && depth < 12;
++	    ra = __builtin_return_address(depth)) {
++		depth++;
++	}
++	/* Return addresses, outermost last: the syscall path tells which wait it
++	 * is (exec/posix_spawn handshake vs. ordinary wait). */
++	printf("SWEET FASTBLOCK: %s tid=%llu state=%x wqt=%u ev=%llu depth=%u ra0=%p ra1=%p ra2=%p ra3=%p ra4=%p ra5=%p\n",
++	    sweet_armed_name, (unsigned long long)th->thread_id, th->state, wqt,
++	    (unsigned long long)th->wait_event, depth,
++	    __builtin_return_address(0), __builtin_return_address(1),
++	    __builtin_return_address(2), __builtin_return_address(3),
++	    __builtin_return_address(4), __builtin_return_address(5));
+ }
+ 
++/*
++ * Called from kern_exec.c right after the arm: the exec syscall normally does
++ * not block again, but the thread call is unarmed if it is missing.
++ */
+ void
++sweet_fast_exec_later(void)
++{
++	if (sweet_disarm_call == NULL) {
++		sweet_disarm_call = thread_call_allocate(sweet_fast_disarm_cb, NULL);
++	}
++	if (sweet_disarm_call != NULL) {
++		thread_call_enter_delayed(sweet_disarm_call, mach_absolute_time() + 1000000000ULL);
++	}
++}
++
++void
+ sweet_dump_threads_soon(task_t task, const char *name)
+ {
+ 	if (!sweet_dump_parsed) {

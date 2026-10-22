@@ -35,6 +35,28 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 20:50: thread_block hook hangs the boot <<<
+
+Wiring `sweet_block_trace()` into `thread_block_reason()` (right after
+`self->continuation = continuation`) hangs the boot: no recovery after 172 s,
+phone off USB. That is the expected hazard - `thread_block_reason` runs at
+`splsched()` on **every** block in the system, so per-block `printf` to the
+serial console at that rate stalls or deadlocks the boot within seconds.
+
+Rule for this board, now proven three ways (pe_identify_machine printf,
+task-thread walk with a bad pointer, this): **do not print from hot scheduler
+paths.** If block tracing is needed again, it must be
+- a ring buffer of scalars written lock-free (no printf at all), dumped later
+  from the watchdog/`sweet_dump_tick`, or
+- gated by a counter that allows at most a handful of samples, with the gate
+  itself checked before touching the console.
+
+Also worth noting for whoever reads the code: an earlier edit of this hook
+existed and **silently disappeared** - the file had no `sweet_block_trace`
+reference while the log showed "0 lines", which looked like "the kernel never
+blocks". Always `grep` the tree for the hook before concluding anything from an
+empty trace.
+
 ### >>> UPDATE 2026-10-22 19:34: suspend ruled out; the port probes are unreliable <<<
 
 * `state=1` is exactly `TH_WAIT` in this kernel (`thread.h:413`);

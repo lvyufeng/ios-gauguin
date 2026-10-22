@@ -35,6 +35,39 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 23:11: the touch thread blocks correctly and is simply never woken <<<
+
+Made `touch_wait()` report every stage:
+
+    SWEET TOUCH: wait ms=2000 deadline=990761535 now=952361536
+    SWEET TOUCH: armed, blocking
+
+and then **nothing** - the log continues for 1,365 more lines, past `vsync=2400`
+(~40 s of real time), with a 2 s deadline. So this is now fully pinned down:
+
+* `assert_wait_deadline` **accepts** (returns THREAD_WAITING - the "refused"
+  branch did not fire);
+* `thread_block` **blocks** (the thread does not run past that line);
+* the 2 s deadline **never expires for this thread**.
+
+Three variants tried in this same thread, all ending at "armed, blocking":
+event as `static int`, event as `static char`, and the probe's exact idiom. So it
+is not the event address and not the idiom.
+
+Contrast with the same boot: `sweet_wait_probe_start()`'s thread - started from
+the same call site, immediately after - does wake after its 1 s deadline. The
+difference left is that the probe thread **calls `thread_terminate_self()` right
+after waking** and lives for one wait, while the touch thread is long-lived.
+
+Best hypothesis to test next: the touch thread is not actually a **free-running
+kernel thread** by the time it blocks - `kernel_thread_start` threads are expected
+to call `thread_terminate_self()` (or be joined); every other kernel thread in
+this tree that sleeps does so inside a workloop. A cleaner fix than fighting the
+scheduler is to **move touch onto an IOWorkLoop** (which is how the framebuffer
+already does its 60 Hz timer successfully - `AppleCLCD`'s `IOTimerEventSource`
+fires reliably). That would give touch both a working timer and a correct
+thread lifetime.
+
 ### >>> UPDATE 2026-10-22 23:05: 23:00 retracted - the timebase is fine (1.06x, not 1.25x) <<<
 
 Measured it instead of deducing it: the vsync report now prints the implied

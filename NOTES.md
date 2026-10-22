@@ -35,6 +35,23 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 10:50: watchdog registers read back as zero (not the culprit) <<<
+
+`swwd=00000000` in the boot-args of the next run: every one of the first eight
+registers of the APSS watchdog block (0x17c10000, WDT0_CTL/RST/EN/STS/BARK/BITE)
+has a zero **top nibble**, i.e. the block is already disabled - ABL (or the
+secure monitor) turns the APSS watchdog off before booting anything else.
+Third distinct reset code (`f823c3d8`, after `f823c2d8` and `f823e0d8`), still
+the same `0xf823` upper half, `PSHOLD` still 1.
+
+So the repeating reset is not the APSS watchdog and not the PMIC's power cut:
+something else asserts a warm reset. The candidates left are the RPM/WCSS
+watchdogs of the subsystems we touch (the USB gadget and the framebuffer both
+poke clocks/GDSC, and the SoC freezes hard on the USB takeover), and a
+Qualcomm "system hang detector" in the secure world. The next cheap probe is
+to run a boot *without* touching those subsystems (no sweetusb, no fb) and see
+whether the reset interval changes at all.
+
 ### >>> UPDATE 2026-10-22 10:45: APSS watchdog identified and stopped in the shim <<<
 
 The gauge DT has `watchdog@17c10000`, `compatible = "qcom,apss-wdt-sm6350",

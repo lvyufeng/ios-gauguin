@@ -378,6 +378,7 @@ static uint32_t to_us(uint64_t ticks)
 }
 
 static uint32_t restart_reason;
+static uint32_t wdt_nibbles;
 
 void shim_main(uint64_t dtb)
 {
@@ -408,6 +409,16 @@ void shim_main(uint64_t dtb)
 	 */
 	for (uint32_t off = 0; off < 0x20; off += 4) {
 		con_hex2("WDT", "off=", off, "val=", rd32(APSS_WDT_BASE + off));
+	}
+	/*
+	 * The screen is rarely readable (the console scrolls on into userland),
+	 * so pack the same numbers into a boot-args word: nibble i = register
+	 * i*4 >> 28, which is enough to see EN/state/timers changing between
+	 * boots. Announced through loader_announce() below.
+	 */
+	wdt_nibbles = 0;
+	for (uint32_t i = 0; i < 8; i++) {
+		wdt_nibbles |= ((rd32(APSS_WDT_BASE + i * 4) >> 28) & 0xf) << (i * 4);
 	}
 	/* Same SCM the Linux driver uses for SCM_SVC_BOOT/WDOG_DIS: (1, 8, 4). */
 	smc(0x0200000cUL, 0, 0, 0);
@@ -453,6 +464,7 @@ void shim_main(uint64_t dtb)
 	 * the persistent console log records it (the screen needs a reader). */
 	loader_announce(dtb, "swrst=", restart_reason);
 	loader_announce(dtb, "swps=", rd32(PSHOLD));
+	loader_announce(dtb, "swwd=", wdt_nibbles);
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
 	con_skip();

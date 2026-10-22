@@ -1,0 +1,135 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index 68612db..cc5dea6 100644
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -7414,6 +7414,16 @@ process_signature(proc_t p, struct image_params *imgp)
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ 			/* SWEET runs every iOS binary this way: one short line per exec. */
+ 			printf("exec %s\n", p->p_name);
++			{
++				/*
++				 * SWEET: a process that starts and then goes quiet is
++				 * invisible in this log. Dump its threads a moment after the
++				 * exec for the names in sweetdump=Name,Name (once each).
++				 * Implemented in osfmk/kern/task.c (see sweet_dump_threads_soon).
++				 */
++				extern void sweet_dump_threads_soon(struct proc *, const char *);
++				sweet_dump_threads_soon(p, p->p_name);
++			}
+ #else
+ 			printf("Allowing spawn of iOS binary %s since it has "
+ 			    "com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch "
+diff --git a/bsd/kern/kern_exit.c b/bsd/kern/kern_exit.c
+index fde499c..98bb5dd 100644
+--- a/bsd/kern/kern_exit.c
++++ b/bsd/kern/kern_exit.c
+@@ -1791,6 +1791,23 @@ proc_handle_critical_exit(proc_t p, int rv)
+ 
+ 	char *exit_reason_desc = exit_reason_get_string_desc(p->p_exit_reason);
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * Every process that dies is named here. The bring-up log otherwise shows
++	 * only "exec <name>" lines, so a daemon that starts and immediately exits
++	 * (SpringBoard did, silently) looks exactly like one that keeps running.
++	 * Only the first 200 exits are printed; this is a debug build.
++	 */
++	{
++		static unsigned sweet_exit_lines;
++		if (sweet_exit_lines < 200) {
++			sweet_exit_lines++;
++			printf("exit %s[%d] rv=0x%x\n", p->p_name,
++			    proc_getpid(p), rv);
++		}
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	if (p->p_exit_reason == OS_REASON_NULL) {
+ 		printf("pid %d exited -- no exit reason available -- (signal %d, exit %d)\n",
+ 		    proc_getpid(p), WTERMSIG(rv), WEXITSTATUS(rv));
+diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
+index 67c5f79..579242a 100644
+--- a/osfmk/kern/task.c
++++ b/osfmk/kern/task.c
+@@ -2510,6 +2510,54 @@ task_clear_corpse(task_t task)
+ 	task_unlock(task);
+ }
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * SWEET bring-up probe, minimal and safe: named processes are reported once at
++ * exec with their thread count. Walking the thread list from the exec path
++ * hung the boot twice (NOTES 15:28, 15:52) - the exec thread owns that queue
++ * while it runs, so only scalars are read here.
++ */
++static char sweet_dump_names[64];
++static bool sweet_dump_parsed;
++static unsigned sweet_dump_count;
++
++void
++sweet_dump_threads_soon(task_t task, const char *name)
++{
++	if (!sweet_dump_parsed) {
++		sweet_dump_parsed = true;
++		if (!PE_parse_boot_argn("sweetdump", sweet_dump_names,
++		    sizeof(sweet_dump_names))) {
++			sweet_dump_names[0] = '\0';
++		}
++	}
++	if (sweet_dump_names[0] == '\0' || task == TASK_NULL ||
++	    sweet_dump_count >= 16) {
++		return;
++	}
++	const char *t = sweet_dump_names;
++	bool match = false;
++	while (*t) {
++		const char *end = strchr(t, ',');
++		size_t len = end ? (size_t)(end - t) : strlen(t);
++		if (len == strlen(name) && strncmp(t, name, len) == 0) {
++			match = true;
++			break;
++		}
++		if (!end) {
++			break;
++		}
++		t = end + 1;
++	}
++	if (!match) {
++		return;
++	}
++	sweet_dump_count++;
++	printf("SWEET THREADS: %s exec, threads=%d\n", name, task->thread_count);
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
++
+ /*
+  *	task_port_no_senders
+  *
+diff --git a/pexpert/arm/pe_identify_machine.c b/pexpert/arm/pe_identify_machine.c
+index aa75c0a..7c44f05 100644
+--- a/pexpert/arm/pe_identify_machine.c
++++ b/pexpert/arm/pe_identify_machine.c
+@@ -41,6 +41,9 @@ static uint32_t pe_arm_init_timer(void *args);
+ #if DEVELOPMENT || DEBUG
+ decl_simple_lock_data(, panic_hook_lock);
+ #endif
++/* SWEET bring-up: timebase as resolved from the DT, printed later (not here). */
++uint32_t sweet_timebase_hz;
++
+ /*
+  * pe_identify_machine:
+  *
+@@ -95,6 +98,12 @@ pe_identify_machine(boot_args * bootArgs)
+ 			}
+ 		}
+ 		gPEClockFrequencyInfo.dec_clock_rate_hz = gPEClockFrequencyInfo.timebase_frequency_hz;
++		/*
++		 * SWEET: record the resolved timebase for later. Do NOT print here:
++		 * this runs before the clock/timer is finalised and a console write
++		 * at this point hangs the boot (see NOTES, 13:05).
++		 */
++		sweet_timebase_hz = gPEClockFrequencyInfo.timebase_frequency_hz;
+ 
+ 		/* Find the bus frequency next. */
+ 		if (SecureDTGetProperty(cpu, "bus-frequency", &value, &size) == kSuccess) {

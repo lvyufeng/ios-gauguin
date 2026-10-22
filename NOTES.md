@@ -35,6 +35,29 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 15:56: walking a task's thread list hangs this kernel <<<
+
+Both thread-walk variants hung the boot with the same signature (no recovery
+after ~172 s, phone off USB, needs a long power press):
+
+| variant | trigger | result |
+| --- | --- | --- |
+| thread call 15 s after exec | `thread_call_enter_delayed` | hang |
+| inline in the exec thread, no task lock | direct call | hang |
+
+So on this kernel you cannot iterate `task->threads` at all in this context -
+likely the queue is mid-update during exec, or touching `thread->continuation`
+/ `wait_event` of a task being built faults. The probe is now reduced to a
+single scalar read (`task->thread_count`) so the boot stays usable, and its
+output is all that is needed to answer "did the exec create threads".
+
+The general lesson, already learned twice today (pe_identify_machine printf,
+this): **bring-up instrumentation on this board must be scalar-only and
+outside interrupts** until the kernel is better understood.
+
+Patch export: `xnu/patches/0084-sweet-exec-probe.patch` carries this round's
+kernel edits (kern_exec hook, task.c probe, exit logging, the timebase store).
+
 ### >>> UPDATE 2026-10-22 15:28: thread dump implemented in osfmk; its first boot hung <<<
 
 `sweet_dump_task_threads()` now lives in `osfmk/kern/task.c` (where task/thread

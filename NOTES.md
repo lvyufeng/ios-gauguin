@@ -35,6 +35,41 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 14:30: SpringBoard is exec'd but silent - where to look next <<<
+
+Facts from the `/backlight` boot:
+
+* 259 processes are exec'd; the system keeps booting the whole time
+  (backboardd, lsd, powerd, chronod, biomed, apfs_iosd, ..., fmfd last).
+  So this is not a frozen system - it is a **silent SpringBoard**;
+* SpringBoard is exec'd at line 4,615, and the only later line mentioning it is
+  the `exec` itself: **no IOKit call, no crash record, no launchd message**;
+* `launchd`'s own os_log lines stop at "Early boot complete" (timestamps are
+  still 1969, i.e. the wall clock was never set), so launchd's job state is not
+  visible in this log at all.
+
+SpringBoard's executable (`/System/Library/CoreServices/SpringBoard.app/
+SpringBoard`, 112 KB) only trampolines into
+`SpringBoard.framework`, and the framework body lives in the dyld shared cache
+(6.5 GB, `System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64*`), so
+`otool`/`strings` on the on-disk file tells nothing about it.
+
+Concrete next actions, in order of cost:
+
+1. **Look for a crash report in the iOS root**: the boot writes
+   `/.panicked_task` for kernel panics only, but SpringBoard's death would
+   leave `/private/var/mobile/Library/Logs/CrashReporter/*.ips`. That directory
+   was empty when checked at 14:32 - re-check after a run with the persistent
+   log enabled (the image is journaled; the partition can be mounted read-only
+   on the Mac at `/tmp/rootmnt`).
+2. **Split the shared cache** (e.g. `dsc_extractor`, or any
+   `dyld_shared_cache_util`) and `strings` SpringBoard.framework for the
+   Metal/IOKit symbols - this tells whether it goes through Metal at all.
+3. **Sample SpringBoard from the kernel**: add a boot-arg (e.g.
+   `sweetprobe=SpringBoard,20`) that, 20 s after `execve` of that name, dumps
+   the process's thread pcs via `print_task()`-style code. This is the only
+   instrument that sees a process that makes no IOKit calls.
+
 ### >>> UPDATE 2026-10-22 14:20: who actually touches the framebuffer here <<<
 
 In the `/backlight` boot (27,456 lines) the framebuffer user clients are only:

@@ -35,6 +35,27 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 12:30: thread_call timers only fire once per boot <<<
+
+Trying to measure userland lifetime with a kernel heartbeat exposed a real bug
+in the bring-up kernel (not in the test): a `thread_call_enter_delayed()` call
+runs **exactly once per boot**, whether the re-arm happens inside its own
+callback or from `AppleCLCD::vsyncFired`'s chain - 1 s and 10 s intervals both
+give one sample (`SWEET HB: 1`) across five runs. So:
+
+* `SWEET WDT:`/`SWEET PON:` samples are valid at boot but never repeat, which
+  is why the watchdog looked "static" - it may simply never have been sampled
+  twice (earlier reading stands on the `swwd`/shim side, which does read the
+  block at every boot);
+* anything periodic (`AppleCLCD` vsync -> flush chain) only ever runs once.
+
+The device counter (`SWEET HB: n wdt=...`) is now in place to check this.
+Suspicion: `timer_longterm_deadline`/`rtcPop` bookkeeping on this board, or the
+`etimer` arming path being bypassed by the SWEET virtual-timer interrupt - the
+next step is to instrument `rtclock_intr` (`osfmk/arm/rtclock.c`, the common
+ARM path) with a per-second counter and see whether the timer interrupt keeps
+arriving while the call-outs stop.
+
 ### >>> UPDATE 2026-10-22 12:17: PMIC PON says the SoC was POWERED ON, not warm-reset <<<
 
 Read the PMK8350 PON over SPMI (read-only; `sweet_spmi.c` now also allows

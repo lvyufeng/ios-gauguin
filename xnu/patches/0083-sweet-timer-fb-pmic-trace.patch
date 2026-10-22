@@ -1,0 +1,380 @@
+diff --git a/bsd/dev/sweet_spmi.c b/bsd/dev/sweet_spmi.c
+index 1981490..3316dd8 100644
+--- a/bsd/dev/sweet_spmi.c
++++ b/bsd/dev/sweet_spmi.c
+@@ -80,16 +80,43 @@ sweet_spmi_init(void)
+ 	sp_ready = true;
+ 	printf("SWEET BATTERY: SPMI arb=%#x APIDs=%u, observer reads only\n",
+ 	    arb_version, sp_count);
++	/*
++	 * Which peripherals does EE0 own? The battery blocks (0x10-0x13) are
++	 * known to work; the PON (0x08) and PBS (0x0a) blocks are only readable
++	 * if EE0 has a channel for them, and the arbiter's map register is the
++	 * authoritative answer. Print the owned PPIDs once - it is the first
++	 * thing to look at when a PMIC read fails.
++	 */
++	{
++		unsigned shown = 0;
++		for (unsigned i = 0; i < sp_count && shown < 24; ++i) {
++			uint32_t map = sp_rd(sp_core, 0x900u + 4u * i);
++			unsigned owner = sp_rd(sp_cfg, 0x700u + 4u * i) & 7u;
++			if (map && owner == 0) {
++				printf("SWEET BATTERY: SPMI ee0 apid=%u ppid=%#x\n",
++				    i, (map >> 8) & 0xfffu);
++				shown++;
++			}
++		}
++	}
+ 	return 0;
+ }
+ 
+ int
+ sweet_spmi_read(unsigned sid, unsigned addr, uint8_t *out)
+ {
+-	/* Restrict access to the battery blocks; keys retain their own lanes. */
++	/* Restrict access to read-only blocks owned by EE0; keys keep their lanes. */
+ 	unsigned peripheral = addr >> 8;
+-	if (!sp_ready || !out || sid != 0 || addr > 0xffffu ||
+-	    (peripheral != 0x10 && peripheral != 0x11 && peripheral != 0x12 &&
++	/*
++	 * 0x08 is the PMK8350 PON (gauge DT: pony@1300 in the pmk8350 node,
++	 * reg-names "hlos"), and 0x0a is its PBS. Both are read-only here too:
++	 * the PON POFF_REASON/WARM_RESET registers are how the bring-up learns
++	 * which hardware really reset the phone (the SoC's IMEM restart_reason
++	 * only says "warm reset").
++	 */
++	if (!sp_ready || !out || sid > 15 || addr > 0xffffu ||
++	    (peripheral != 0x08 && peripheral != 0x0a &&
++	    peripheral != 0x10 && peripheral != 0x11 && peripheral != 0x12 &&
+ 	    peripheral != 0x13 && peripheral != 0x48)) {
+ 		return -1;
+ 	}
+diff --git a/iokit/Kernel/IOUserClient.cpp b/iokit/Kernel/IOUserClient.cpp
+index 163fce1..8bc52ce 100644
+--- a/iokit/Kernel/IOUserClient.cpp
++++ b/iokit/Kernel/IOUserClient.cpp
+@@ -2778,8 +2778,34 @@ internal_io_service_get_matching_service(
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ 		char sname[32];
+ 		if (sweet_iolog(sname, sizeof(sname))) {
+-			sweet_iolog_dict(sname, "matching1", dict,
++			/*
++			 * "none" here is the interesting case: record how many registry
++			 * entries the dict came close to (same dict without the class
++			 * constraint is not available, so just note the misses), so a
++			 * daemon waiting on a service we never publish is visible.
++			 */
++			static unsigned misses;
++			sweet_iolog_dict(sname, *service ? "matching1" : "matching1 MISS", dict,
+ 			    *service ? (*service)->getMetaClass()->getClassName() : "none");
++			if (*service == NULL) {
++				/* One line per distinct class the daemon could not find. */
++				OSString *wanted = OSDynamicCast(OSString,
++				    dict->getObject("IOProviderClass"));
++				const char *want = wanted ? wanted->getCStringNoCopy() : "";
++				static char seen[8][64];
++				bool known = false;
++				for (unsigned i = 0; i < misses && i < 8; i++) {
++					if (strncmp(seen[i], want, sizeof(seen[i])) == 0) {
++						known = true;
++						break;
++					}
++				}
++				if (!known && misses < 8) {
++					strlcpy(seen[misses], want, sizeof(seen[misses]));
++					IOLog("IOK %s: NEVER FOUND class %s\n", sname, want);
++				}
++				misses++;
++			}
+ 		}
+ #endif
+ 	} else {
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+index a62416c..e859616 100644
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -242,7 +242,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ 		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
+ 		return;
+ 	}
++	/*
++	 * Counters for the bring-up: how many vsyncs actually run, how many of
++	 * them had a dirty surface and how many frames were presented. A GUI
++	 * problem is much easier to place with these three numbers in the log.
++	 */
++	static uint64_t presents;
+ 	bool flush = fb->fDirty && (count % fb->fFlushTicks) == 0;
++	if (flush) {
++		presents++;
++	}
++	if ((count % 600) == 0 || count == 2) {
++		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u\n",
++		    (unsigned long long)count, fb->fDirty ? 1u : 0u,
++		    (unsigned long long)presents, fb->fClients->getCount());
++	}
+ 	uint8_t *rec = NULL;
+ 	if (flush) {
+ 		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
+diff --git a/iokit/Kernel/arm/SweetWatchdog.cpp b/iokit/Kernel/arm/SweetWatchdog.cpp
+index 8f53742..4e5a312 100644
+--- a/iokit/Kernel/arm/SweetWatchdog.cpp
++++ b/iokit/Kernel/arm/SweetWatchdog.cpp
+@@ -23,6 +23,159 @@
+ #include <IOKit/IOLib.h>
+ #include <IOKit/IOMemoryDescriptor.h>
+ #include <sys/proc.h>
++#include <kern/kalloc.h>
++#include <pexpert/pexpert.h>
++#include <machine/machine_routines.h>
++
++/* declared (not exported) by osfmk/arm64/pmap; sweet_ufs.c does the same */
++extern "C" vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
++
++
++void sweet_wdt_thread_start(void);
++void sweet_pon_dump(void);
++
++/*
++ * PMIC PON reset reason (read-only SPMI through sweet_spmi.c): PMK8350 PON at
++ * SPMI slave 0, peripheral 0x08, reg base 0x1300 (gauge DT "pony@1300").
++ * POFF_REASON1/2 (0x1308/0x1309) say what the last power-off was and
++ * WARM_RESET_REASON1/2 (0x1311/0x1312) what the last warm reset was - the
++ * bootloader prints these as "poweroff reason"/"warm reset" and they name a
++ * watchdog/kpdp/PMIC source, unlike the SoC's generic restart_reason.
++ */
++extern "C" int sweet_spmi_init(void);
++extern "C" int sweet_spmi_read(unsigned sid, unsigned addr, uint8_t *out);
++
++void
++sweet_pon_dump(void)
++{
++	static const struct {
++		const char *name;
++		unsigned reg;
++	} regs[] = {
++		{ "poff1", 0x1308 }, { "poff2", 0x1309 },
++		{ "warm1", 0x1311 }, { "warm2", 0x1312 },
++	};
++	uint8_t value;
++
++	if (sweet_spmi_init() != 0) {
++		IOLog("SWEET PON: SPMI unavailable\n");
++		return;
++	}
++	/* gauge DT: the PON lives on pmic@6 (PMK8350, SPMI slave 6) - the other
++	 * PMICs (pm6150l = 4, pm6350 = 0) have no PON node. */
++	for (unsigned i = 0; i < sizeof(regs) / sizeof(regs[0]); i++) {
++		if (sweet_spmi_read(6, regs[i].reg, &value) == 0) {
++			IOLog("SWEET PON: %s=%02x\n", regs[i].name, value);
++		} else {
++			IOLog("SWEET PON: %s read failed\n", regs[i].name);
++		}
++	}
++}
++
++/*
++ * Watchdog sampler: once a second, read the APSS watchdog (0x17c10000,
++ * qcom,apss-wdt-sm6350 in the gauge DT) and log only when something changes,
++ * so the last lines of the persistent log say whether the block was armed
++ * (WDT0_EN, 0x08), whether the timers moved (BARK 0x10 / BITE 0x14) or the
++ * status counter (WDT0_STS, 0x0c) stalled - i.e. whether a watchdog can be the
++ * thing that resets the phone minutes into userland.
++ */
++#define SWEET_APSS_WDT_PA       0x17c10000ULL
++#define SWEET_APSS_WDT_SIZE     0x1000
++#define SWEET_WDT_BURST         10      /* samples per boot (1 s apart) */
++
++static thread_call_t sweet_wdt_call;
++static unsigned sweet_wdt_ticks_total;
++static unsigned sweet_wdt_burst;
++
++static void
++sweet_wdt_sample(thread_call_param_t, thread_call_param_t)
++{
++	static volatile uint32_t *wdt;
++	static uint32_t last[6];
++	static int announced;
++
++	if (wdt == NULL) {
++		wdt = (volatile uint32_t *)ml_io_map(SWEET_APSS_WDT_PA, SWEET_APSS_WDT_SIZE);
++		if (wdt == NULL) {
++			IOLog("SWEET WDT: cannot map 0x%llx, not sampling\n", SWEET_APSS_WDT_PA);
++			return;
++		}
++	}
++	uint32_t now[6];
++	for (int i = 0; i < 6; i++) {
++		now[i] = wdt[i];        /* CTL, RST, EN, STS, BARK, BITE */
++	}
++	if (!announced) {
++		announced = 1;
++		IOLog("SWEET WDT: ctl=%x rst=%x en=%x sts=%x bark=%x bite=%x\n",
++		    now[0], now[1], now[2], now[3], now[4], now[5]);
++	}
++	if (__builtin_memcmp(now, last, sizeof(now)) != 0) {
++		IOLog("SWEET WDT: ctl=%x rst=%x en=%x sts=%x bark=%x bite=%x\n",
++		    now[0], now[1], now[2], now[3], now[4], now[5]);
++		__builtin_memcpy(last, now, sizeof(now));
++	}
++
++	/*
++	 * Heartbeat: one line a second, with a run counter and whether the
++	 * system callout/preemption machinery is still turning. The persistent
++	 * log then ends with the heartbeat itself, so the next boot says how long
++	 * userland really lived, and a gap in the seconds means the SoC stopped
++	 * before resetting instead of being reset while healthy.
++	 */
++	static unsigned ticks;
++	static uint64_t last_uptime;
++	uint64_t uptime = mach_absolute_time();
++	sweet_wdt_ticks_total++;
++
++	if (uptime != last_uptime) {
++		last_uptime = uptime;
++		if ((++ticks & 1) == 0 || ticks < 6) {
++			extern uint32_t sweet_timer_intrs, sweet_timer_expiries, sweet_callout_runs;
++			IOLog("SWEET HB: %u wdt=%u tick=%u exp=%u call=%u\n", ticks,
++			    sweet_wdt_ticks_total, sweet_timer_intrs, sweet_timer_expiries,
++			    sweet_callout_runs);
++		}
++	}
++	/*
++	 * thread_call_callbacks() moves an entered call_out back to the call
++	 * queue before the callback runs, so re-entering here is enough: with
++	 * DELAY_ABS it runs again one second from now.
++	 */
++	/*
++	 * Re-entering a thread call from inside its own callback does not
++	 * reschedule it on this kernel (observed: exactly one heartbeat per boot
++	 * with both the 1 s and the 10 s argument), so the sampler runs as a
++	 * short, self-terminating burst instead - N samples one second apart,
++	 * then stop. Bump the count while bisecting.
++	 */
++	if (sweet_wdt_burst < SWEET_WDT_BURST) {
++		sweet_wdt_burst++;
++		thread_call_enter_delayed(sweet_wdt_call, mach_absolute_time() + 1000000000ULL);
++	}
++}
++
++static void sweet_wdt_schedule(void);
++
++void
++sweet_wdt_thread_start(void)
++{
++	if (sweet_wdt_call != NULL) {
++		return;
++	}
++	sweet_wdt_call = thread_call_allocate(sweet_wdt_sample, NULL);
++	sweet_wdt_schedule();
++}
++
++/* Re-arm one second out, from inside the callback as well as at start. */
++static void
++sweet_wdt_schedule(void)
++{
++	if (sweet_wdt_call != NULL) {
++		thread_call_enter_delayed(sweet_wdt_call, mach_absolute_time() + 1000000000ULL);
++	}
++}
+ 
+ class IOWatchdog : public IOService {
+ 	OSDeclareDefaultStructors(IOWatchdog);
+@@ -49,6 +202,12 @@ IOWatchdog::start(IOService *provider)
+ 	setProperty(kIOUserClientClassKey, "IOWatchdogUserClient");
+ 	setProperty("IOPMUPrimary", 1ULL, 32);
+ 	registerService();
++	/* Sample the SoC watchdog block so the log says whether it comes back to
++	 * life while userland runs (ABL leaves it disabled: see the shim). */
++	extern uint32_t sweet_timebase_hz;      /* pexpert/arm/pe_identify_machine.c */
++	IOLog("SWEET CLOCK: timebase=%u Hz\n", sweet_timebase_hz);
++	sweet_wdt_thread_start();
++	sweet_pon_dump();
+ 	IOLog("SWEET WDT: IOWatchdog registered (accepts check-ins, never fires)\n");
+ 	return true;
+ }
+diff --git a/osfmk/arm/arm_timer.c b/osfmk/arm/arm_timer.c
+index 72f7209..dac9838 100644
+--- a/osfmk/arm/arm_timer.c
++++ b/osfmk/arm/arm_timer.c
+@@ -63,6 +63,8 @@
+  *
+  * XXX a better implementation would use a set of generic callouts and iterate over them
+  */
++uint32_t sweet_timer_intrs, sweet_timer_expiries;   /* SWEET diagnostics */
++
+ void
+ timer_intr(__unused int inuser, __unused uint64_t iaddr)
+ {
+@@ -75,6 +77,16 @@ timer_intr(__unused int inuser, __unused uint64_t iaddr)
+ 	mytimer = &cpu_data_ptr->rtclock_timer; /* Point to the event timer */
+ 	abstime = mach_absolute_time(); /* Get the time now */
+ 
++	/*
++	 * SWEET bring-up counters (no printing: this runs in the tick interrupt).
++	 * intrs counts every etimer tick, expiries counts the ones that actually
++	 * found a deadline to expire, callouts counts the ones the call-out queue
++	 * then produced. Reading them from the IOWatchdog heartbeat distinguishes
++	 * "the tick stops" from "the tick runs but nothing expires" from
++	 * "call-outs are found but never run".
++	 */
++	os_atomic_inc(&sweet_timer_intrs, relaxed);
++
+ 	/* is it time for an idle timer event? */
+ 	if ((cpu_data_ptr->idle_timer_deadline > 0) && (cpu_data_ptr->idle_timer_deadline <= abstime)) {
+ 		cpu_data_ptr->idle_timer_deadline = 0x0ULL;
+@@ -100,6 +112,7 @@ timer_intr(__unused int inuser, __unused uint64_t iaddr)
+ 		                                         * the end of all time
+ 		                                         * in case we have no
+ 		                                         * more events */
++		os_atomic_inc(&sweet_timer_expiries, relaxed);
+ 		mytimer->deadline = timer_queue_expire(&mytimer->queue, abstime);
+ 		mytimer->has_expired = FALSE;
+ 		abstime = mach_absolute_time(); /* Get the time again since we ran a bit */
+diff --git a/osfmk/kern/timer_call.c b/osfmk/kern/timer_call.c
+index f8c8180..851ceb3 100644
+--- a/osfmk/kern/timer_call.c
++++ b/osfmk/kern/timer_call.c
+@@ -2090,6 +2090,8 @@ running_timer_enter(processor_t processor, unsigned int timer,
+ 	running_timers_sync();
+ }
+ 
++uint32_t sweet_callout_runs;        /* SWEET diagnostic: call-outs that ran */
++
+ /*
+  * Call the callback for any running timers that fired for this processor.
+  * Returns true if any timers were past their deadline.
+@@ -2112,6 +2114,7 @@ running_timers_expire(processor_t processor, uint64_t now)
+ 		}
+ 
+ 		expired = true;
++		os_atomic_inc(&sweet_callout_runs, relaxed);   /* SWEET diagnostic */
+ 		timer_call_trace_expire_entry(call);
+ 		call->tc_func(call->tc_param0, call->tc_param1);
+ 		timer_call_trace_expire_return(call);
+diff --git a/pexpert/arm/pe_identify_machine.c b/pexpert/arm/pe_identify_machine.c
+index aa75c0a..7c44f05 100644
+--- a/pexpert/arm/pe_identify_machine.c
++++ b/pexpert/arm/pe_identify_machine.c
+@@ -41,6 +41,9 @@ static uint32_t pe_arm_init_timer(void *args);
+ #if DEVELOPMENT || DEBUG
+ decl_simple_lock_data(, panic_hook_lock);
+ #endif
++/* SWEET bring-up: timebase as resolved from the DT, printed later (not here). */
++uint32_t sweet_timebase_hz;
++
+ /*
+  * pe_identify_machine:
+  *
+@@ -95,6 +98,12 @@ pe_identify_machine(boot_args * bootArgs)
+ 			}
+ 		}
+ 		gPEClockFrequencyInfo.dec_clock_rate_hz = gPEClockFrequencyInfo.timebase_frequency_hz;
++		/*
++		 * SWEET: record the resolved timebase for later. Do NOT print here:
++		 * this runs before the clock/timer is finalised and a console write
++		 * at this point hangs the boot (see NOTES, 13:05).
++		 */
++		sweet_timebase_hz = gPEClockFrequencyInfo.timebase_frequency_hz;
+ 
+ 		/* Find the bus frequency next. */
+ 		if (SecureDTGetProperty(cpu, "bus-frequency", &value, &size) == kSuccess) {

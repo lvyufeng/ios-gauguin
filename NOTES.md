@@ -35,6 +35,22 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 13:52: this round's kernel changes are a patch now <<<
+
+Everything touched in `.deps-cache/xnu-patched-0082-2` during this session is
+exported to `xnu/patches/0083-sweet-timer-fb-pmic-trace.patch` (it is applied
+after the 0082 set like the rest of the series): PMIC PON reads over SPMI,
+etimer/call-out/vsync counters, the timebase report from IOWatchdog, and the
+"NEVER FOUND class" line in the IOKit trace. Until now those edits lived only
+in the gitignored build cache, so a fresh clone could not reproduce the images
+- keep doing this for every round.
+
+Status of the newest probe (`shim/out/shim-iok.img`, boot-arg
+`sweetiolog=backboardd,SpringBoard,WindowServer,skyld`): built, **not booted**
+- the phone dropped off USB at 13:49 and had not come back by 13:54. The log it
+would produce lists, one line per class, everything backboardd looked for and
+never found - the list that says what has to exist before the compositor draws.
+
 ### >>> UPDATE 2026-10-22 13:38: the dependency is an IOKit class, not Metal <<<
 
 Decompiling the userland side narrows the GPU question:

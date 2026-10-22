@@ -211,7 +211,7 @@ index 407a18b..7ef3ca5 100644
  proc_task(proc_t proc)
  {
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index a62416c..a7bc47f 100644
+index a62416c..329653b 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -62,6 +62,17 @@ enum {
@@ -232,7 +232,53 @@ index a62416c..a7bc47f 100644
  };
  
  #define SWEET_FB_SWAP_REC_SIZE          0x46c
-@@ -110,6 +121,7 @@ public:
+@@ -82,6 +93,45 @@ enum {
+ #define SWEET_FB_LOGICAL_H              2436
+ #define SWEET_FB_FORMAT_BGRA            0x42475241
+ 
++/*
++ * SWEET: a *stub* GPU accelerator.
++ *
++ * backboardd looks up IOAcceleratorES, gets "0 found", and then segfaults
++ * (NOTES 21:23, 13 crashes per boot). There is no GPU driver in the tree, so
++ * this publishes the service name only: enough for the lookup to succeed and
++ * for us to learn whether backboardd needs *a real GPU* or merely *the service
++ * to exist*. Every method returns an error, nothing pretends to render.
++ */
++class IOAcceleratorES : public IOService {
++	OSDeclareDefaultStructors(IOAcceleratorES);
++public:
++	bool start(IOService *provider) override;
++	void stop(IOService *provider) override;
++};
++
++OSDefineMetaClassAndStructors(IOAcceleratorES, IOService);
++
++bool
++IOAcceleratorES::start(IOService *provider)
++{
++	if (!IOService::start(provider)) {
++		return false;
++	}
++	setProperty("IOClass", "IOAcceleratorES");
++	setProperty("IOProviderClass", "IOResources");
++	setProperty("stub", true);
++	setProperty("IOGPUFamilyStub", true);
++	registerService();
++	IOLog("SWEET GPU: stub IOAcceleratorES published\n");
++	return true;
++}
++
++void
++IOAcceleratorES::stop(IOService *provider)
++{
++	IOService::stop(provider);
++}
++
+ class IOMobileFramebuffer : public IOService {
+ 	OSDeclareDefaultStructors(IOMobileFramebuffer);
+ };
+@@ -110,6 +160,7 @@ public:
  	IOLock       *fLock;            /* swaps and client list */
  	OSArray      *fClients;
  	uint32_t      fSwapID;
@@ -240,7 +286,7 @@ index a62416c..a7bc47f 100644
  	bool          fConsolePaused;
  	uint8_t       fPending[SWEET_FB_SWAP_REC_SIZE];     /* latest swap, not yet shown */
  	bool          fDirty;
-@@ -145,6 +157,7 @@ public:
+@@ -145,6 +196,7 @@ public:
  	    IOExternalMethodDispatch *dispatch, OSObject *target,
  	    void *reference) APPLE_KEXT_OVERRIDE;
  	void notify(uint32_t type, const uint64_t *values, uint32_t count);
@@ -248,7 +294,7 @@ index a62416c..a7bc47f 100644
  };
  
  OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
-@@ -223,6 +236,20 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -223,6 +275,20 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		IOMobileFramebufferUserClient *client =
  		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
  		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
@@ -269,7 +315,7 @@ index a62416c..a7bc47f 100644
  	}
  	if (fb->fPowerOff) {
  		/* Fade out: halve every channel each vsync, then black, then idle. */
-@@ -242,7 +269,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -242,7 +308,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
  		return;
  	}
@@ -291,7 +337,7 @@ index a62416c..a7bc47f 100644
  	uint8_t *rec = NULL;
  	if (flush) {
  		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
-@@ -426,6 +467,11 @@ IOReturn
+@@ -426,6 +506,11 @@ IOReturn
  IOMobileFramebufferUserClient::clientClose(void)
  {
  	if (fFB != NULL) {
@@ -303,7 +349,7 @@ index a62416c..a7bc47f 100644
  		fFB->removeClient(this);
  		IOLockLock(fFB->fLock);
  		mach_port_t old = fPort;
-@@ -454,6 +500,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
+@@ -454,6 +539,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
  	return kIOReturnSuccess;
  }
  
@@ -317,7 +363,7 @@ index a62416c..a7bc47f 100644
  /* Called with the framebuffer lock held. */
  void
  IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
-@@ -546,6 +599,56 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -546,6 +638,56 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
  		}
  		break;
  	case kSweetFBSwapWait:
@@ -558,6 +604,22 @@ index 8f53742..2a89f97 100644
  	IOLog("SWEET WDT: IOWatchdog registered (accepts check-ins, never fires)\n");
  	return true;
  }
+diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
+index db9d1fb..5fbd226 100644
+--- a/iokit/KernelConfigTables.cpp
++++ b/iokit/KernelConfigTables.cpp
+@@ -76,6 +76,11 @@ const char * gIOKernelConfigTables =
+     "     'IONameMatch'     = 'sweet,display';"
+     "   },"
+     "   {"
++    "     'IOClass'         = IOAcceleratorES;"
++    "     'IOProviderClass' = IOResources;"
++    "     'IOMatchCategory' = IOAcceleratorES;"
++    "   },"
++    "   {"
+     "     'IOClass'         = SweetHIDButtons;"
+     "     'IOProviderClass' = IOResources;"
+     "     'IOMatchCategory' = SweetHIDButtons;"
 diff --git a/osfmk/ipc/ipc_mqueue.c b/osfmk/ipc/ipc_mqueue.c
 index 503f025..f68901a 100644
 --- a/osfmk/ipc/ipc_mqueue.c

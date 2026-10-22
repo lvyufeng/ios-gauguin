@@ -35,6 +35,39 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:29: a stub accelerator is found, but the crash is elsewhere <<<
+
+Published a stub `IOAcceleratorES` (class in `SweetFramebuffer.cpp`, entry in
+`KernelConfigTables.cpp`, `IOResources` provider, every method inert). Result:
+
+    SWEET GPU: stub IOAcceleratorES published
+    IOK backboardd: matching <IOProviderClass=IOAcceleratorES> -> 1 found   (was 0)
+    CRASH backboardd[56] sig 11 ... pc 0x1f31b24c4 slide 0x216b0000
+    (12 crashes - one fewer, but still crashing)
+
+The crash **offset inside the library is identical** across both runs:
+
+    run "cl"  : pc - slide = 0x1d1b024c4
+    run "gpu" : pc - slide = 0x1d1b024c4
+
+So the accelerator lookup was a red herring for the segfault: providing the
+service moves the count of crashes by one and changes nothing about **where** it
+dies. The crash is deterministic and in shared-cache library code
+(`pc - slide` far above the backboardd image), i.e. in a system framework that
+backboardd calls, not in our driver.
+
+Current honest state:
+* backboardd **crash-looping** is the true blocker for `presents=0`;
+* it is **not** caused by the missing GPU accelerator (tested);
+* the crash site is reproducible with a constant library offset, which makes it
+  symbolisable: take `pc - slide = 0x1d1b024c4` and find that address in the
+  dyld shared cache (`dyld_shared_cache_arm64*` on the iOS root image,
+  `/System/Library/Caches/com.apple.dyld/`) - the same address appears in every
+  serial log, so one symbolisation explains all 12-13 crashes.
+
+Keep the stub accelerator: it is harmless, it makes the service graph honest,
+and it removes one legitimate source of "0 found" noise from future logs.
+
 ### >>> UPDATE 2026-10-22 21:23: backboardd is CRASHING (SIGSEGV) - no GPU accelerator <<<
 
 Adding a close log to the framebuffer client exposed what the previous runs

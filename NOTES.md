@@ -35,6 +35,37 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:14: answering the new selectors moved the pipeline forward <<<
+
+First pass at implementing the ABI backboardd actually uses (15, 22, 29, 33, 74,
+79 in `SweetFramebuffer.cpp`, with 72/73 already present as notifications).
+Result of the very next boot, compared with before:
+
+| | before | after |
+| --- | --- | --- |
+| selectors called | 15,22,29,33,57,74,79 | same **plus 72 and 73** |
+| notification registration | none | `notifications type 3 on` |
+| vb clients | 0 | **1** |
+| presents | 0 | 0 (unchanged) |
+
+So answering 74/79 (mode/timing) did **not** unlock swapping, but it did let
+backboardd get far enough to **register a notification (type 3) and issue two
+more calls (72, 73)**, and to keep a client attached. That is real forward
+progress: the driver no longer looks like a dead end to it.
+
+Open questions, in order:
+1. what are 72 and 73 in the real driver? (72 takes 4 scalars - our notification
+   registration matches that shape by luck; 73 takes 2);
+2. **notification type 3** needs to fire *something* - today we only deliver vsync
+   for type 5 (`SWEET_FB_NOTIFY_VSYNC`), so type 3 is registered and never
+   called, which may be exactly why it waits forever for its first frame;
+3. which of 15/22/29/33 is load-bearing - they are still "answer something
+   harmless" stubs.
+
+Question 2 is the cheapest and the most likely: a registered notification that
+never fires is indistinguishable, to userland, from a display that never scans
+out.
+
 ### >>> UPDATE 2026-10-22 21:50: backboardd's exact framebuffer call signatures <<<
 
 From the driver's own log line (`%s sel %u in %u/%u out %u/%u` = scalars

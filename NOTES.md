@@ -35,6 +35,43 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:49: *** FIRST REAL FRAMES *** - zeroed structures unlock the swap path <<<
+
+Experiment from the 21:44 note: make selectors **79 and 74 return fully zeroed
+structures** instead of the invented header. Result:
+
+| | before | after |
+| --- | --- | --- |
+| backboardd crashes | 13/boot | **0** |
+| vb clients | 1 (briefly) | **2** |
+| presents | **0** | **177** |
+| dirty | 0 | **1** |
+
+Serial excerpt:
+
+    SWEET FB: vsync=2400 ... presents=0   client=0
+    SWEET FB: vsync=3000 ... presents=2   client=1
+    SWEET FB: vsync=3600 ... presents=77  client=2
+    SWEET FB: vsync=4200 ... presents=177 client=2 dirty=1
+
+**The display pipeline is now actually presenting.** backboardd stopped crashing
+the moment the invented mode/timing structures were removed, which finally
+identifies the crash cause: the fabricated `hdr[0] = 1` mode-count header made
+the userland parse a **name string** out of a buffer whose contents were not a
+string, giving the 0..15 pointer in `strlen` - exactly the chain resolved in the
+21:55 note.
+
+So the honest summary of the last few hours: the blocker was **our own made-up
+ABI reply**, not a missing kernel facility, not the GPU, not the device tree.
+
+Next steps, in order:
+1. confirm the frames are *correct* (pull a screenshot / check the panel is not
+   showing garbage) - `presents` proves the swap path works, not that the
+   pixels are right;
+2. keep 79/74 zeroed until the real structure layout is known (the real driver's
+   1580-byte mode list), rather than re-inventing it;
+3. that unblocks the remaining goals: SpringBoard drawing, touch, high refresh.
+
 ### >>> UPDATE 2026-10-22 21:44: the backlight node is NOT the source (correcting 21:39) <<<
 
 Found and fixed a real but unrelated bug in `tools/mkadt.py`: the `backlight`

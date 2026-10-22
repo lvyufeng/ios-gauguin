@@ -1,0 +1,256 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+index a62416c..cc5bb00 100644
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -62,6 +62,17 @@ enum {
+ 	kSweetFBIsMainDisplay           = 18,
+ 	kSweetFBGetDotPitch             = 28,
+ 	kSweetFBNotifications           = 72,
++	/*
++	 * Selectors backboardd actually calls on the shipping driver (NOTES
++	 * 21:50); meanings inferred from the call signatures, each logged until
++	 * the boot makes progress.
++	 */
++	kSweetFBUnknown15               = 15,
++	kSweetFBUnknown22               = 22,
++	kSweetFBUnknown29               = 29,
++	kSweetFBUnknown33               = 33,
++	kSweetFBTimingInfo              = 74,
++	kSweetFBDisplayModes            = 79,
+ };
+ 
+ #define SWEET_FB_SWAP_REC_SIZE          0x46c
+@@ -82,6 +93,45 @@ enum {
+ #define SWEET_FB_LOGICAL_H              2436
+ #define SWEET_FB_FORMAT_BGRA            0x42475241
+ 
++/*
++ * SWEET: a *stub* GPU accelerator.
++ *
++ * backboardd looks up IOAcceleratorES, gets "0 found", and then segfaults
++ * (NOTES 21:23, 13 crashes per boot). There is no GPU driver in the tree, so
++ * this publishes the service name only: enough for the lookup to succeed and
++ * for us to learn whether backboardd needs *a real GPU* or merely *the service
++ * to exist*. Every method returns an error, nothing pretends to render.
++ */
++class IOAcceleratorES : public IOService {
++	OSDeclareDefaultStructors(IOAcceleratorES);
++public:
++	bool start(IOService *provider) override;
++	void stop(IOService *provider) override;
++};
++
++OSDefineMetaClassAndStructors(IOAcceleratorES, IOService);
++
++bool
++IOAcceleratorES::start(IOService *provider)
++{
++	if (!IOService::start(provider)) {
++		return false;
++	}
++	setProperty("IOClass", "IOAcceleratorES");
++	setProperty("IOProviderClass", "IOResources");
++	setProperty("stub", true);
++	setProperty("IOGPUFamilyStub", true);
++	registerService();
++	IOLog("SWEET GPU: stub IOAcceleratorES published\n");
++	return true;
++}
++
++void
++IOAcceleratorES::stop(IOService *provider)
++{
++	IOService::stop(provider);
++}
++
+ class IOMobileFramebuffer : public IOService {
+ 	OSDeclareDefaultStructors(IOMobileFramebuffer);
+ };
+@@ -110,6 +160,7 @@ public:
+ 	IOLock       *fLock;            /* swaps and client list */
+ 	OSArray      *fClients;
+ 	uint32_t      fSwapID;
++	uint64_t      fLastSet;      /* last argument of the 22/33 setters */
+ 	bool          fConsolePaused;
+ 	uint8_t       fPending[SWEET_FB_SWAP_REC_SIZE];     /* latest swap, not yet shown */
+ 	bool          fDirty;
+@@ -145,6 +196,7 @@ public:
+ 	    IOExternalMethodDispatch *dispatch, OSObject *target,
+ 	    void *reference) APPLE_KEXT_OVERRIDE;
+ 	void notify(uint32_t type, const uint64_t *values, uint32_t count);
++	bool hasNotification(uint32_t type) const;
+ };
+ 
+ OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
+@@ -223,6 +275,20 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ 		IOMobileFramebufferUserClient *client =
+ 		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
+ 		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
++		/*
++		 * Deliver to every other registered notification type as well: today
++		 * only vsync (5) fires, so a client waiting on type 3 - which is what
++		 * backboardd registers, NOTES 21:14 - never hears anything, and a
++		 * registered notification that never fires looks exactly like a
++		 * display that never scans out. Sending the same payload to all
++		 * registered types costs nothing and tells us whether type 3 is the
++		 * one backboardd is waiting on.
++		 */
++		for (uint32_t t = 0; t < SWEET_FB_NOTIFY_TYPES; t++) {
++			if (t != SWEET_FB_NOTIFY_VSYNC && client->hasNotification(t)) {
++				client->notify(t, values, 6);
++			}
++		}
+ 	}
+ 	if (fb->fPowerOff) {
+ 		/* Fade out: halve every channel each vsync, then black, then idle. */
+@@ -242,7 +308,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ 		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
+ 		return;
+ 	}
++	/*
++	 * Counters for the bring-up: how many vsyncs actually run, how many of
++	 * them had a dirty surface and how many frames were presented. A GUI
++	 * problem is much easier to place with these three numbers in the log.
++	 */
++	static uint64_t presents;
+ 	bool flush = fb->fDirty && (count % fb->fFlushTicks) == 0;
++	if (flush) {
++		presents++;
++	}
++	if ((count % 600) == 0 || count == 2) {
++		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u\n",
++		    (unsigned long long)count, fb->fDirty ? 1u : 0u,
++		    (unsigned long long)presents, fb->fClients->getCount());
++	}
+ 	uint8_t *rec = NULL;
+ 	if (flush) {
+ 		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
+@@ -426,6 +506,11 @@ IOReturn
+ IOMobileFramebufferUserClient::clientClose(void)
+ {
+ 	if (fFB != NULL) {
++		{
++			char name[32];
++			proc_selfname(name, sizeof(name));
++			IOLog("SWEET FB: %s closing its client\n", name);
++		}
+ 		fFB->removeClient(this);
+ 		IOLockLock(fFB->fLock);
+ 		mach_port_t old = fPort;
+@@ -454,6 +539,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
+ 	return kIOReturnSuccess;
+ }
+ 
++bool
++IOMobileFramebufferUserClient::hasNotification(uint32_t type) const
++{
++	return type < SWEET_FB_NOTIFY_TYPES && fFunc[type] != 0 &&
++	    fPort != MACH_PORT_NULL;
++}
++
+ /* Called with the framebuffer lock held. */
+ void
+ IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
+@@ -477,7 +569,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+     __unused void *reference)
+ {
+ 	IOReturn ret = kIOReturnSuccess;
+-	uint64_t out[2] = { 0, 0 };
++	uint64_t out[4] = { 0, 0, 0, 0 };
+ 	uint32_t outCount = 0;
+ 
+ 	switch (selector) {
+@@ -546,6 +638,42 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+ 		}
+ 		break;
+ 	case kSweetFBSwapWait:
++		break;
++	/*
++	 * The ABI backboardd actually uses. Filling these with self-consistent
++	 * values is the cheapest way to learn which one gates the pipeline: if
++	 * swaps start after this, the mode/timing query was the gate.
++	 */
++	case kSweetFBUnknown15:
++		out[0] = args->scalarInputCount >= 2 ? args->scalarInput[1] : 0;
++		outCount = 1;
++		break;
++	case kSweetFBUnknown22:
++	case kSweetFBUnknown33:
++		if (args->scalarInputCount >= 1) {
++			fFB->fLastSet = args->scalarInput[0];
++		}
++		break;
++	case kSweetFBUnknown29: {
++		if (args->structureOutput != NULL && args->structureOutputSize >= 8) {
++			uint32_t pair[2] = { fFB->fLogicalW, fFB->fLogicalH };
++			memcpy(args->structureOutput, pair, sizeof(pair));
++		}
++		break;
++	}
++	case kSweetFBTimingInfo: {
++		/* Also all-zero for the same experiment (NOTES 21:44). */
++		break;
++	}
++	case kSweetFBDisplayModes: {
++		/*
++		 * Deliberately all-zero (the common path bzero()s it anyway): the
++		 * invented header filled "a mode count of 1" and a size that the
++		 * userland may have parsed as a string. Test whether removing it
++		 * moves the crash - NOTES 21:44.
++		 */
++		break;
++	}
+ 	default:
+ 		break;
+ 	}
+@@ -556,15 +684,26 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+ 	if (args->structureOutputDescriptor == NULL && args->structureOutput != NULL) {
+ 		bzero(args->structureOutput, args->structureOutputSize);
+ 	}
+-	if (selector >= 64 || !(sweet_fb_logged & (1ULL << selector))) {
+-		if (selector < 64) {
+-			sweet_fb_logged |= 1ULL << selector;
++	{
++		/*
++		 * Log EVERY call with the values we hand back, not just the first of
++		 * each selector: the crash is a 0..15 pointer used as a C string by
++		 * CoreFoundation/IOKit (NOTES 21:55), so the call immediately before
++		 * the fault is the one whose reply is being misused. The first 200
++		 * calls are enough to cover backboardd's whole start-up sequence.
++		 */
++		static unsigned sweet_fb_calls;
++		if (sweet_fb_calls < 200) {
++			sweet_fb_calls++;
++			char name[32];
++			proc_selfname(name, sizeof(name));
++			IOLog("SWEET FB: %u %s sel %u in %u/%u out %u/%u -> "
++			    "0x%x [%llx %llx %llx]\n", sweet_fb_calls, name, selector,
++			    args->scalarInputCount, args->structureInputSize,
++			    args->scalarOutputCount, args->structureOutputSize, ret,
++			    (unsigned long long)out[0], (unsigned long long)out[1],
++			    (unsigned long long)out[2]);
+ 		}
+-		char name[32];
+-		proc_selfname(name, sizeof(name));
+-		IOLog("SWEET FB: %s sel %u in %u/%u out %u/%u -> 0x%x\n", name, selector,
+-		    args->scalarInputCount, args->structureInputSize,
+-		    args->scalarOutputCount, args->structureOutputSize, ret);
+ 	}
+ 	return ret;
+ }
+diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
+index db9d1fb..5fbd226 100644
+--- a/iokit/KernelConfigTables.cpp
++++ b/iokit/KernelConfigTables.cpp
+@@ -76,6 +76,11 @@ const char * gIOKernelConfigTables =
+     "     'IONameMatch'     = 'sweet,display';"
+     "   },"
+     "   {"
++    "     'IOClass'         = IOAcceleratorES;"
++    "     'IOProviderClass' = IOResources;"
++    "     'IOMatchCategory' = IOAcceleratorES;"
++    "   },"
++    "   {"
+     "     'IOClass'         = SweetHIDButtons;"
+     "     'IOProviderClass' = IOResources;"
+     "     'IOMatchCategory' = SweetHIDButtons;"

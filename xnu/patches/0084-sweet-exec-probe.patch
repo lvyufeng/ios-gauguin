@@ -229,10 +229,10 @@ index 8f53742..9800db6 100644
  	return true;
  }
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..267cc69 100644
+index 67c5f79..07f2b1e 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
-@@ -2510,6 +2510,163 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2510,173 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -247,7 +247,15 @@ index 67c5f79..267cc69 100644
 +static bool sweet_dump_parsed;
 +static unsigned sweet_dump_count;
 +
-+static task_t sweet_later_task = TASK_NULL;
++#define SWEET_TRACK_MAX 4
++struct sweet_track {
++	task_t task;                 /* pending sample, TASK_NULL when free */
++	char name[48];
++	unsigned round;              /* samples taken so far */
++	unsigned wait;               /* execs to skip before the next sample */
++};
++static struct sweet_track sweet_track[SWEET_TRACK_MAX];
++static task_t sweet_later_task = TASK_NULL;   /* unused, kept for clarity */
 +static char sweet_later_name[48];
 +static unsigned sweet_dump_round;
 +static unsigned sweet_dump_wait_execs;
@@ -323,54 +331,30 @@ index 67c5f79..267cc69 100644
 +			sweet_dump_names[0] = '\0';
 +		}
 +	}
-+	if (sweet_dump_names[0] == '\0' || task == TASK_NULL ||
-+	    sweet_dump_count >= 16) {
++	if (sweet_dump_names[0] == '\0' || task == TASK_NULL) {
 +		return;
 +	}
-+	if (sweet_later_task != TASK_NULL && sweet_dump_wait_execs > 0) {
-+		sweet_dump_wait_execs--;
-+		return;
-+	}
-+	/*
-+	 * If a target is pending from an earlier exec, dump it now: the exec path
-+	 * is a context where walking a *different* task's threads has been shown
-+	 * to work, and it happens ~260 more times during boot (NOTES 16:32). The
-+	 * watchdog cannot be used for this - its callback runs once per boot.
-+	 */
-+	if (sweet_later_task != TASK_NULL) {
-+		task_t pending = sweet_later_task;
-+		sweet_later_task = TASK_NULL;
-+		sweet_dump_round++;
++	/* Pace and run every tracked target. */
++	for (int i = 0; i < SWEET_TRACK_MAX; i++) {
++		struct sweet_track *t = &sweet_track[i];
++		if (t->task == TASK_NULL) {
++			continue;
++		}
++		if (t->wait > 0) {
++			t->wait--;
++			continue;
++		}
++		task_t pending = t->task;
++		t->round++;
 +		printf("SWEET THREADS: %s sample %u, threads=%d (at %s exec)\n",
-+		    sweet_later_name, sweet_dump_round, pending->thread_count, name);
-+		sweet_dump_walk(pending, sweet_later_name);
-+		/* Sample again a fixed number of execs later, up to 4 samples. */
-+		if (sweet_dump_round < 4) {
-+			sweet_later_task = pending;
-+			strlcpy(sweet_later_name, name, sizeof(sweet_later_name));
-+			sweet_dump_wait_execs = sweet_dump_round == 1 ? 20 :
-+			    sweet_dump_round == 2 ? 100 : 260;
++		    t->name, t->round, pending->thread_count, name);
++		sweet_dump_walk(pending, t->name);
++		if (t->round < 3) {
++			t->wait = t->round == 1 ? 20 : 120;
 +		} else {
 +			task_deallocate(pending);
++			t->task = TASK_NULL;
 +		}
-+		return;
-+	}
-+	const char *t = sweet_dump_names;
-+	bool match = false;
-+	while (*t) {
-+		const char *end = strchr(t, ',');
-+		size_t len = end ? (size_t)(end - t) : strlen(t);
-+		if (len == strlen(name) && strncmp(t, name, len) == 0) {
-+			match = true;
-+			break;
-+		}
-+		if (!end) {
-+			break;
-+		}
-+		t = end + 1;
-+	}
-+	if (!match) {
-+		return;
 +	}
 +	sweet_dump_count++;
 +	printf("SWEET THREADS: %s exec, threads=%d\n", name, task->thread_count);
@@ -381,13 +365,39 @@ index 67c5f79..267cc69 100644
 +	 * SweetWatchdog thread calls, and that path is a normal blocking-context
 +	 * thread call that is known to work.
 +	 */
-+	if (sweet_later_task == TASK_NULL) {
++	/* Only exact names in the list (a prefix match caught "launchd" for
++	 * "ld" style entries and wasted the sample slots). */
++	{
++		const char *cand = sweet_dump_names;
++		bool hit = false;
++		while (*cand) {
++			const char *end = strchr(cand, ',');
++			size_t len = end ? (size_t)(end - cand) : strlen(cand);
++			if (len == strlen(name) && strncmp(cand, name, len) == 0) {
++				hit = true;
++				break;
++			}
++			if (!end) {
++				break;
++			}
++			cand = end + 1;
++		}
++		if (!hit) {
++			return;
++		}
++	}
++	for (int i = 0; i < SWEET_TRACK_MAX; i++) {
++		struct sweet_track *t = &sweet_track[i];
++		if (t->task != TASK_NULL) {
++			continue;
++		}
 +		task_reference(task);
-+		sweet_later_task = task;
-+		strlcpy(sweet_later_name, name, sizeof(sweet_later_name));
-+		sweet_dump_target_tick = sweet_dump_now_tick + 20;
-+		printf("SWEET THREADS: %s will be dumped at tick %u\n", name,
-+		    sweet_dump_target_tick);
++		t->task = task;
++		strlcpy(t->name, name, sizeof(t->name));
++		t->round = 0;
++		t->wait = 0;
++		printf("SWEET THREADS: tracking %s\n", name);
++		break;
 +	}
 +}
 +#endif /* ARM64_BOARD_CONFIG_SWEET */

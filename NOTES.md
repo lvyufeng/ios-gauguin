@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 17:37: THE CONTROL EXPERIMENT - backboardd matches, lsd does not <<<
+
+Same kernel, three daemons tracked at once, sample 2/3:
+
+| process | threads | main thread | workers |
+| --- | --- | --- | --- |
+| SpringBoard | 3 | tid 219 **PORT** mask=1181180, state=1 | 2 on QUEUE |
+| backboardd | 5 | tid 317 **PORT** mask=1181980, state=1 | **3 RUNNING** (state=4) |
+| lsd | 3 | tid 412 **RUNNING** (state=4) | 2 on QUEUE |
+
+This is the result that matters:
+
+* **lsd's main thread is running** - so a daemon parked on a `WQT_PORT` is *not*
+  "normal idle" in general; it is specifically the *display stack* that parks;
+* SpringBoard and backboardd both block in a **port receive** with
+  near-identical eventmasks (`1181180` vs `1181980` - one bit apart), i.e. both
+  are waiting on the same family of notification ports;
+* backboardd *does* have threads running (3 of them), so it is not dead - it
+  is doing something, and still never swaps.
+
+Interpretation (guess, to be tested): both are parked on a **server/notification
+port whose mach service never becomes available**, so the display pipeline never
+gets its "start" message. The eventmask difference of one bit is a strong hint
+they wait on closely related ports - e.g. the same bootstrap service looked up
+twice by two processes.
+
+Next: resolve the port. `wq - offsetof(ipc_port_t, ip_messages)` is the
+`ipc_port_t`, and for a port wait the port's `ip_kobject` / port_name tells
+which service it is. Printing that turns "a port" into a named service.
+
 ### >>> UPDATE 2026-10-22 17:24: the main thread waits on a PORT, not on a lock <<<
 
 The waitq type is now printed (`wqt`: 1=QUEUE, 2=TURNSTILE, 3=PORT):

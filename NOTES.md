@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 17:24: the main thread waits on a PORT, not on a lock <<<
+
+The waitq type is now printed (`wqt`: 1=QUEUE, 2=TURNSTILE, 3=PORT):
+
+    SpringBoard tid=218  state=1  ev=0  wqt=3  mask=1181180    <- main thread
+    SpringBoard tid=285  state=1  ev=... wqt=1  mask=59bdfe8    <- worker
+    SpringBoard tid=320  state=1  ev=... wqt=1  mask=5aecbf8    <- worker
+    SpringBoard tid=338  state=1  ev=... wqt=1  mask=5ae73d8    <- worker
+
+and this holds for **all three samples** (1 thread, then 4 threads): the main
+thread never leaves its port queue. A `WQT_PORT` wait with a nonzero eventmask
+is `mach_msg_receive`/`kevent`-style waiting on a Mach port - i.e. SpringBoard's
+`main()` is blocked in its first mach_msg receive and none of its own work has
+run: no WindowServer connection, no scene host, no CALayer, hence no framebuffer
+open and no swap.
+
+That reframes the target: SpringBoard is not broken, it is **waiting for an
+IPC message that never arrives**. The next question is *which port* - a port
+wait's waitq lives inside the `ipc_port_t`, so the port object is
+`wq - offsetof(ipc_port_t, ip_messages)`; printing `ip_kobject`/`ip_bits` for it
+identifies the service (e.g. `com.apple.backboardd` bootstrap port).
+
+Beware: this is *also* exactly what a healthy process looks like when it is
+simply idle in its run loop - so the discriminating test is a **sibling that
+works**. run `sweetdump=SpringBoard,backboardd,lsd` and compare: if lsd's main
+thread shows WQT_QUEUE or WQT_TURNSTILE and SpringBoard's shows WQT_PORT, the
+port wait is the anomaly; if every daemon's main thread is on WQT_PORT, this is
+normal idle and the real blocker is elsewhere (most likely soft: the scene
+never becomes foreground because some earlier setup silently failed).
+
 ### >>> UPDATE 2026-10-22 16:59: SpringBoard DOES start - it is stuck later <<<
 
 Three samples of the same task, paced by exec count (the probe re-arms itself

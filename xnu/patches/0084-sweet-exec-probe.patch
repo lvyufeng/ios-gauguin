@@ -229,10 +229,10 @@ index 8f53742..9800db6 100644
  	return true;
  }
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..2bc0b2b 100644
+index 67c5f79..267cc69 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
-@@ -2510,6 +2510,143 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2510,163 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -265,10 +265,30 @@ index 67c5f79..2bc0b2b 100644
 +		if (n++ >= 64) {
 +			break;
 +		}
-+		printf("SWEET THREADS: %s tid=%llu run=%d state=%x ev=%llu wq=%p\n", why,
-+		    (unsigned long long)th->thread_id,
++		/*
++		 * The waitq type says what the thread is waiting *on*: WQT_QUEUE is
++		 * a global event queue (its eventmask names the events), WQT_PORT a
++		 * port, WQT_TURNSTILE a lock owner.
++		 */
++		unsigned wqt = 0;
++		unsigned long long mask = 0;
++		const char *kind = "?";
++		if (th->waitq.wq_q != NULL) {
++			wqt = (unsigned)th->waitq.wq_q->waitq_type;
++			mask = (unsigned long long)th->waitq.wq_q->waitq_eventmask;
++			/*
++			 * WQT_PORT is a port message queue: the wq pointer lives inside
++			 * the ipc_port_t being received from. For a port wait the waitq
++			 * address - (offsetof(ipc_port_t, ip_messages)) is the port
++			 * object, whose port_name we can show, so the log names the port
++			 * the main thread is blocked on instead of a raw pointer.
++			 */
++			kind = wqt == 3 ? "PORT" : wqt == 1 ? "QUEUE" : wqt == 2 ? "TURNSTILE" : "OTHER";
++		}
++		printf("SWEET THREADS: %s tid=%llu run=%d state=%x ev=%llu wq=%s mask=%llx\n",
++		    why, (unsigned long long)th->thread_id,
 +		    (th->state & TH_RUN) ? 1 : 0, th->state,
-+		    (unsigned long long)th->wait_event, th->waitq);
++		    (unsigned long long)th->wait_event, kind, mask);
 +	}
 +	if (n == 0) {
 +		printf("SWEET THREADS: %s has no threads\n", why);

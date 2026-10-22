@@ -35,6 +35,31 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 12:17: PMIC PON says the SoC was POWERED ON, not warm-reset <<<
+
+Read the PMK8350 PON over SPMI (read-only; `sweet_spmi.c` now also allows
+peripheral 0x08/0x0a and honours a real slave id). The gauge DT puts the PON
+on `pmic@6` ("pony@1300", reg-names "hlos"/"pbs"), slave 6 - reading sid 0 (as
+the battery code does) fails with a read error, sid 6 works:
+
+    SWEET PON: poff1=00 poff2=00 warm1=00 warm2=00
+
+All zero means the PMIC has **no power-off reason and no warm-reset reason**
+recorded - i.e. the phone does not see this as a warm reset or a key/PMIC
+shutdown at all; it looks like a fresh **power-on** every time (PON reasons are
+cleared after being read, but a warm reset would leave WARM_RESET_REASONn
+non-zero for the next boot, and ABL does not clear them that early).
+
+Together with `PSHOLD`=1 and the APSS watchdog disabled, the picture is: the
+reset comes from the **always-on (AOSS/co-processor) side**, which can drop
+`PS_HOLD` without a PMIC-visible reason - e.g. an AOSS/XO/SSR event or a
+secure-world watchdog that resets the APSS domain. Next probes: read the AOSS
+XPU / cpr XO shutdown counters, and check `SPMI POFF_REASON` *before* ABL
+(a second read on the same boot is useless because the first read clears it -
+so sample once and immediately print), plus the AOP/RPM fault registers.
+
+Files: `.deps-cache/logs/boot-pon3-userland.txt`.
+
 ### >>> UPDATE 2026-10-22 12:06: the reset is time-based, independent of USB and fb <<<
 
 Bisect with the unattended loop (each setting 2-3 cycles):

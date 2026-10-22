@@ -35,6 +35,47 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:39: the exact call sequence before the crash <<<
+
+Logging every framebuffer call with the values we return (first 200 calls,
+`SWEET FB: <n> <proc> sel ... [out0 out1 out2]`). One full round, verbatim:
+
+    3  backboardd sel 57 in 0/0 out 1/0 -> [0]            ; we answer 0
+    4  backboardd sel 15 in 2/0 out 1/0 -> [10]
+    5  backboardd sel 22 in 1/0 out 0/0 -> []
+    6  backboardd sel 8  in 0/0 out 2/0 -> [465 984]      ; 1125x2436 in hex
+    7  backboardd sel 28 in 0/0 out 1/0 -> [1ca]          ; dot pitch 458
+    8  backboardd sel 29 in 0/0 out 0/8 -> [struct]       ; we fill 8 bytes
+    9  backboardd sel 33 in 1/0 out 0/0 -> []
+   10  backboardd sel 79 in 2/0 out 0/1580 -> [hdr]
+       (IODeviceTree:/chosen, AppleM2ScalerCSCDriver MISS, backlight MISS,
+        disp0 -> AppleCLCD match)
+   11  backboardd sel 74 in 1/0 out 1/64 -> [1]
+       backboardd notifications type 3 on
+   12  backboardd sel 72 in 4/0 out 0/0 -> []
+   13  backboardd sel 73 in 2/0 out 0/0 -> []
+       IODeviceTree:/backlight -> IOPlatformDevice
+       IOAcceleratorES -> 1 found
+    >>> CRASH sig 11, pc-slide 0x1d1b024c4 (same instruction every time)
+
+Two findings that matter:
+
+1. **The crash is not caused by one selector's return value alone** - the same
+   round repeats 3 times per boot (after each relaunch) and dies at the same
+   point, immediately after the accelerator is found and right after the
+   backlight and disp0 nodes are touched. The string pointer that faults
+   (0..15) is being built from device-tree/service *properties*, not from our
+   scalar replies, which are all self-consistent (465/984, 1ca, 1).
+2. **The order is stable**: 57, 15, 22, 8, 28, 29, 33, 79, 74, 72, 73 - so the
+   selectors are a fixed sequence and can be matched one-to-one against the
+   shipping driver's external methods by signature alone (each has a distinct
+   in/out shape in the table above).
+
+Next: the failing string is built after `IODeviceTree:/backlight` is opened,
+which is *our* backlight node from `mkadt.py` (NOTES 14:12). A DT node whose
+`compatible`/`label` properties are malformed is a very plausible source of a
+0..15 pointer. Check what properties that node actually carries on device.
+
 ### >>> UPDATE 2026-10-22 21:55: the crash chain, frame by frame <<<
 
 Every frame of `CRASH backboardd bt`, minus the slide `0x216b0000`, resolved

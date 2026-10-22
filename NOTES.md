@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:30: touch already exists - it is delayed 45 s and never gets there <<<
+
+Important discovery while starting the touch milestone: **a real touch driver is
+already in the tree and already initialised.**
+
+* `bsd/dev/sweet_touch.c` - FIFO I2C touch bring-up on QUPv3 GENI. For gauguin:
+  **SE8 @ 0x988000, TLMM reset gpio21 / irq gpio22 (falling), Focaltech @ 0x38,
+  rail PM6350 LDO6A ("ldoa6", 1.8 V)**, no board enable. (For sweet: SE7, GT9896.)
+  It does clock voting, GPIO, RPMh rail voting, then probes the IC - and feeds
+  `sweet_hid_touch()`.
+* `iokit/Kernel/arm/hid/SweetHID.cpp` - `SweetHIDButtons` and `SweetHIDTouch`
+  (`kHIDPage_Digitizer`/`kHIDUsage_Dig_TouchScreen`), both registered, with
+  `DisplayIntegrated` and 68x151 mm surface properties. The touch service is
+  wired to `sweet_hid_touch()`, which `sweet_touch.c` calls on real reports.
+* `sweet_ufs.c:836` calls `sweet_touch_init()` - so the driver does start.
+
+**The blocker is the start-up delay**: `touch_thread` waits
+`sweettouchdelay` seconds (default **45**), then does the risky part, so that a
+hung bus does not take the GUI down with it. Every serial log so far ends
+*before* that deadline (the ~110 s reset lands first), so the driver prints
+"starting in 45 s" and nothing else - which is exactly what the logs show.
+
+Tried to shorten it (`sweettouchdelay=5`), but that boot stalled much earlier,
+in UFS reads (one line of touch output, 6,533 lines total), so the result is
+inconclusive; the next run has to start from a clean TWRP boot.
+
+So touch is **not** a from-scratch driver task: it is a matter of getting the
+existing one past its 45 s gate inside the boot window, and then reading its
+probe output (`SE8 fw`, `probe xfer`, `probe info`) to see whether the IC answers.
+
 ### >>> UPDATE 2026-10-22 22:27: SpringBoard is a healthy multi-threaded app whose MAIN thread is parked <<<
 
 Thread snapshot at exec of the *next* process (i.e. SpringBoard fully started),

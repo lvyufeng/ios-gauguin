@@ -35,6 +35,32 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 15:28: thread dump implemented in osfmk; its first boot hung <<<
+
+`sweet_dump_task_threads()` now lives in `osfmk/kern/task.c` (where task/thread
+internals are visible) and is triggered from the exec path
+(`bsd/kern/kern_exec.c`), once, 15 s after the first matching exec:
+
+    sweetdump=SpringBoard           boot-arg, comma separated names
+
+It prints `SWEET THREADS: <name> tid=.. run=.. state=.. cont=.. ev=..` per
+thread. Two build-time facts worth keeping:
+
+* `struct thread` has no `priority` member here (use `thread_id`, `state`,
+  `continuation`, `wait_event`); compile error if you assume otherwise;
+* the probe task is kept referenced (`task_reference`) until the thread call
+  fires, otherwise the task could be torn down under the dump.
+
+First boot with it (`shim/out/shim-thr.img`, `sweetdump=SpringBoard`) **hung**:
+no recovery after 172 s, phone off USB until 15:29. Same signature as the
+earlier early-printf hangs, but this one is in a thread call, not in boot code,
+so the cause is not yet known. Two suspects: (a) `thread_call_enter_delayed`
+from the exec path while the task is mid-exec, (b) the dump itself taking
+`task_lock` on a task whose threads are being created, which can deadlock with
+the exec thread. Next attempt: drop the delayed call and dump only *after*
+`exec` has completed (e.g. from `exit1` or from the first syscall of that
+process), or dump with `task_lock` already held by the caller.
+
 ### >>> UPDATE 2026-10-22 15:20: SpringBoard thread probe - blocked by the BSD/Mach split <<<
 
 Goal: see where a live-but-idle process (SpringBoard) is waiting. Started

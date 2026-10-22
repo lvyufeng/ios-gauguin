@@ -35,6 +35,32 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 23:38: thread_call version built and flashed, but the boot window got thin <<<
+
+Replaced the `IOWorkLoop` timer with `thread_call_allocate` +
+`thread_call_enter_delayed` (scheduler-owned call threads, created before
+userland, not parked in the timed wait that never wakes). Also removed the
+`vsyncFired` -> touch call that hung the phone, keeping only
+`sweet_log_flush_now()` every 30 frames, so the console no longer depends on the
+`tsleep`-driven flush thread.
+
+Three runs, none of which reached the touch start:
+
+| run | `sweettouchafter` | outcome |
+| --- | --- | --- |
+| `/tmp/tc` | 40 | 25 execs, vsync 1800 - threshold never reached |
+| `/tmp/tc2` | 12 | boot stalled at 2,506 lines (10 execs) |
+| `/tmp/tc3` | 6 | boot stalled at 1,833 lines (4 execs) |
+
+The last two are the **intermittent early-UFS stall** already recorded (4-6k
+lines, "no recovery after 172 s", same image boots fine another time), not a new
+failure - but it makes short-window experiments expensive.
+
+Next run should keep `sweettouchafter=6` (touch starts early, no dependence on a
+long boot) and simply be retried until the boot gets through. The thing to look
+for is `SWEET TOUCH: thread call ran` - that single line decides whether
+`thread_call` is the working wakeup path.
+
 ### >>> UPDATE 2026-10-22 23:30: running the bring-up inside vsyncFired HANGS the phone <<<
 
 Tried the last obvious shortcut: call `touch_bringup()` synchronously from

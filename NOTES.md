@@ -35,6 +35,28 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 12:40: two hard stops found while measuring the timer <<<
+
+Two things bite anyone continuing from here:
+
+1. **A run can hang instead of resetting.** The build with a counter in
+   `rtclock_intr` (`sweet_rtclock_intrs`, printed in `SWEET RTC:` lines and in
+   the heartbeat) booted and then never came back: no TWRP after 171 s, and the
+   phone is gone from USB entirely (no adb, no fastboot, no USB device). So the
+   bring-up kernel *can* wedge the SoC - watch for it and keep a power-cycle
+   ready. That nullifies the result of that particular probe.
+2. **misc must be re-armed from TWRP, and TWRP clears it a few seconds after
+   it starts.** `tools/fastboot-cycle.sh` now re-arms after pulling the log
+   (`ARM_AFTER=1`, default), which is what makes the unattended loop work; but
+   if a run ends somewhere other than TWRP (hang in kernel, UEFI) the next
+   boot has no `boot-recovery` and a human is needed again.
+
+Instrumentation in place for the timer question: `osfmk/arm/rtclock.c` counts
+interrupts (`sweet_rtclock_intrs`) and prints every 1024th with `now`/`rtcPop`;
+`SweetWatchdog` prints the count in its heartbeat. Reading the next successful
+boot tells whether timer interrupts keep arriving (then the call-out queue /
+`timer_intr` is the bug) or stop (then SWEET's virtual-timer arming is).
+
 ### >>> UPDATE 2026-10-22 12:30: thread_call timers only fire once per boot <<<
 
 Trying to measure userland lifetime with a kernel heartbeat exposed a real bug

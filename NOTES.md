@@ -35,6 +35,21 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 12:52: the print was NOT the cause - three hangs in a row <<<
+
+The print-free build (`shim-clk2.img`, `2408de8`) hung exactly like the two
+before it: no TWRP after 172 s, phone off USB. So the timer-interrupt `printf`
+was a reasonable suspect but not the cause; something else changed at the same
+time (the `SWEET CLOCK:` print in `pe_identify_machine()`, or the atomic in
+`rtclock_intr`) - or the phone's state itself is now different (it only hung
+after the 12:30 boot, and five clean boots preceded that).
+
+Bisect decided: boot `shim/out/shim-hb.img` (12:18, the last build that
+completed a full boot + reset cycle three times). If it hangs too, the phone
+is in a different state and no kernel change is responsible; if it resets
+normally, put the two changes back one at a time (`SWEET CLOCK` print first,
+it is the harmless one).
+
 ### >>> UPDATE 2026-10-22 12:48: the rtclock counter itself hangs the phone - revert it <<<
 
 Two boots after adding `sweet_rtclock_intrs` (a plain atomic increment plus a

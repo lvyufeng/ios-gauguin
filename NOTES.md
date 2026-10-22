@@ -35,6 +35,26 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 10:45: APSS watchdog identified and stopped in the shim <<<
+
+The gauge DT has `watchdog@17c10000`, `compatible = "qcom,apss-wdt-sm6350",
+"qcom,kpss-wdt"`. Android's `watchdog_v2.c` shows what a kernel has to do:
+first `scm_call(SCM_SVC_BOOT, SCM_SVC_SEC_WDOG_DIS=8, {1,4,0})` ("Failed to
+deactivate secure wdog" if it fails), then pet `WDT0_RST` (0x04) twice a second
+with `WDT0_EN` (0x08) set. iOS does neither: it inherits whatever ABL left and
+never pets, which matches a reset that fires minutes into userland with the
+same warm-reset code every time (restart_reason high half `0xf823`,
+`PSHOLD` still 1).
+
+The shim now dumps the 0x17c10000 block to the screen, issues the same
+`0x0200000c` SMC (SMC64 encoding of FUNC=8, SVC=2) and clears `WDT0_EN`.
+
+Run at 10:44 (`shim-nowdt.img`): the same boot reached userland again
+(27,559 log lines vs 24,287) and ended the same way, so stopping *this* block
+was not enough on its own - either the secure side owns the timer that fires,
+or another watchdog (PMIC / RPM) is the one biting. The screen values of the
+`WDT off=../val=..` lines are the next data point.
+
 ### >>> UPDATE 2026-10-21 15:45: the reset is a warm SoC reset, high 16 bits are constant <<<
 
 The shim now hands the previous boot's `restart_reason` to the kernel via

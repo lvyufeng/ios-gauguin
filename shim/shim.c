@@ -18,6 +18,7 @@ extern uint64_t ufs_base;
 #define IMEM_RESTART_REASON	0x146aa65cUL	/* qcom,msm-imem restart_reason@65c */
 #define RESTART_BOOTLOADER	0x77665500U
 #define PSHOLD			0x0c264000UL
+#define APSS_WDT_BASE		0x17c10000UL
 
 #define GICD_BASE		0x17a00000UL
 #define GICR_BASE		0x17a60000UL
@@ -395,6 +396,41 @@ void shim_main(uint64_t dtb)
 	con_hex("RSTREASON", rd32(IMEM_RESTART_REASON));
 	con_hex2("IMEM", "rst=", rd32(IMEM_RESTART_REASON), "pshold=", rd32(PSHOLD));
 	restart_reason = rd32(IMEM_RESTART_REASON);
+	/*
+	 * APSS watchdog (qcom,apss-wdt-sm6350 at 0x17c10000, DT "watchdog@17c10000"
+	 * with interrupts = <0 0 1>). Android's qcom watchdog driver first asks
+	 * the secure monitor to disable the *secure* watchdog (else "Failed to
+	 * deactivate secure wdog"), then pets WDT0_CTL/WDT0_RST two times a
+	 * second. iOS has none of that, and the phone resets a couple of minutes
+	 * into userland with the same warm-reset code every time (restart_reason
+	 * upper half 0xf823 in two runs) - exactly what an un-petted watchdog
+	 * looks like. Read the block out, then stop it before the kernel runs.
+	 */
+	for (uint32_t off = 0; off < 0x20; off += 4) {
+		con_hex2("WDT", "off=", off, "val=", rd32(APSS_WDT_BASE + off));
+	}
+	/* Same SCM the Linux driver uses for SCM_SVC_BOOT/WDOG_DIS: (1, 8, 4). */
+	smc(0x0200000cUL, 0, 0, 0);
+	wr32(APSS_WDT_BASE + 0x08, 0);		/* WDT0_EN: 0 = disabled */
+	wr32(APSS_WDT_BASE + 0x04, 1);		/* WDT_RESET: kick */
+	__asm__ volatile("dsb sy" ::: "memory");
+	con_hex2("WDT", "en=", rd32(APSS_WDT_BASE + 0x08), "sts=", rd32(APSS_WDT_BASE + 0x0c));
+	/*
+	 * The bootloader normally consumes the IMEM reason and stores the real
+	 * source in the "bootstat"/restart-reason property; on this phone the
+	 * APSS watchdog is the prime suspect (the reset fires while userland
+	 * runs normally, no panic, PSHOLD stays 1). Qcom's PMIC PON block keeps
+	 * the last power/RT reset state in POFF_REASON1/2 and the watchdog
+	 * registers in a PMIC peripheral at 0xc264000 (PS_HOLD lives at
+	 * 0xc264000 too); print what is readable so a screen/yesterday's log
+	 * has numbers to compare against the known-good Android boot.
+	 */
+	for (uint32_t off = 0; off < 0x100; off += 0x10) {
+		uint32_t v = rd32(PSHOLD + off);
+		if (v) {
+			con_hex2("PON", "off=", off, "val=", v);
+		}
+	}
 	n = fdt_find(dtb, "/memory");
 	if (n && fdt_reg2(dtb, n, &mem, &memsz)) {
 		con_hex2("MEMORY", "base=", (uint32_t)mem, "lo=", (uint32_t)memsz);

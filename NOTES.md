@@ -35,6 +35,37 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:00: SpringBoard is sleeping in mach_wait_until - a timed retry <<<
+
+Block ring at SpringBoard's exec (31,460 blocks total, 256 shown), main thread
+tid 217 breaks down as:
+
+| kind | count | meaning |
+| --- | --- | --- |
+| `cont=fffffe0007315900 wqt=0` | 60 | `_thread_preempted` - **running**, preempted |
+| `cont=0 wqt=1 ev=fffffe000731aab8` | 14 | **real wait**, on a port waitq |
+| `cont=0 wqt=0` | 4 | other waits |
+| `cont=0 wqt=2` | 1 | turnstile (a lock) |
+
+Resolving `ev=fffffe000731aab8` against the unstripped kernel:
+
+    fffffe000731aaa8  _mach_wait_until_continue   (osfmk/kern/clock.c:1511)
+
+so those 14 blocks are `mach_wait_until` - **`usleep`-style timed sleeps**, each
+returning `KERN_SUCCESS` and coming straight back. That is a retry loop with a
+delay, not a deadlock and not a missing service.
+
+Combined with the pixel evidence (5 colours, presenting at 60 Hz, zero crashes),
+the honest reading is: **the display path is up and SpringBoard is alive and
+looping on a timer**, presumably waiting for something it polls for (a scene, a
+lock state, or a session) that never becomes ready.
+
+Next: the 14 waits are on a **port** waitq, and we now know the dump cannot name
+the port (NOTES 18:07). The cheaper question is *what SpringBoard is polling* -
+and the most direct evidence left is **its own stdout**, which is quiet after the
+`/product` lookups. Capturing its last lines (or the first line after the display
+comes up) is the next step, rather than another kernel probe.
+
 ### >>> UPDATE 2026-10-22 21:57: `/product` now resolves; SpringBoard's loop changed shape <<<
 
 The ADT had **no `/product` node** (`tools/mkadt.py` only emitted one when a

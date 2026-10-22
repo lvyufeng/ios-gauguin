@@ -35,6 +35,43 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 23:20: IOWorkLoop has the SAME defect - it is the same thread mechanism <<<
+
+Rewrote the gate as `IOTimerEventSource` on an `IOWorkLoop`
+(`iokit/Kernel/arm/SweetTouchTimer.cpp`, C-callable `sweet_touch_timer_arm()`,
+`files.arm64` updated). Three runs:
+
+| attempt | output |
+| --- | --- |
+| workloop timer, timer not retained | "armed workloop timer for 2 s", never fires |
+| + `retain()` on workloop and timer | "armed workloop timer for 2 s", never fires |
+
+and in the same runs the log continues ~1,300 lines (~40 s) with a 2 s timer.
+
+Why: `IOWorkLoop::init()` creates its worker with **`kernel_thread_start`**
+(`iokit/Kernel/IOWorkLoop.cpp:180`) and parks it with
+`thread_block_parameter` - **exactly the mechanism that never wakes here**. So a
+fresh `IOWorkLoop` is no better than a bare kernel thread; the framebuffer's timer
+works only because backboardd/AppleCLCD attach during boot and something else
+keeps that loop spinning.
+
+This is the real shape of the remaining bug: **timer-driven wakeups for threads
+created after userland is up do not happen in this port**, regardless of whether
+the thread is hand-made or an `IOWorkLoop` worker.
+
+Options, in order of cost:
+1. **Run the touch poll inside an existing, already-spinning loop.** backboardd
+   proves userland sleeps work (`mach_wait_until`); the framebuffer's own vsync
+   timer already fires reliably *and* runs in kernel - so the cheapest place to
+   poll the touch IC is **from `AppleCLCD::vsyncFired`** (or a second timer
+   attached to the *framebuffer's* existing, working `fWorkLoop`). That needs no
+   new thread and no new timer plumbing.
+2. Fix the kernel wakeup path itself (larger, and it currently has no minimal
+   repro that fails - our probe thread *did* wake).
+
+Given backboardd presents at 60 Hz on the framebuffer's timer, option 1 is the
+pragmatic route and costs one call from a callback that is already proven to run.
+
 ### >>> UPDATE 2026-10-22 23:11: the touch thread blocks correctly and is simply never woken <<<
 
 Made `touch_wait()` report every stage:

@@ -35,6 +35,35 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:24b: the bundle is COMPLETE - the scan is start-up, not a missing file <<<
+
+Checked the bundle on the root image before assuming a missing resource:
+
+    77 entries, including Info.plist, SpringBoard (Mach-O 64-bit executable),
+    Assets.car, _CodeSignature, all the *lproj and the Default*State plists.
+
+So **nothing is missing from the bundle** and the earlier "it cannot find
+something in its own directory" reading is too strong. The timeline shows the 40
+`SWEET DIR` reads clustered between lines 8,213 and 15,174 of a 23,831-line log -
+i.e. a **burst during start-up**, not an endless loop spread over the whole boot.
+The 92 `getdirentries64` in the histogram are the same burst counted.
+
+Meanwhile the display is healthy in this run: `presents=180`, 5 colours,
+backboardd not crashing. The 8 crashes in the log are **CommCenter (3) and
+driverkitd (3)**, unrelated to the display, and **SpringBoard itself never
+crashed**.
+
+Revised picture: SpringBoard enumerates its own bundle once at start-up (normal
+behaviour for an app resolving its resources), then goes quiet and sleeps in
+`mach_wait_until`. **That is not a stall - it may simply be idle**, waiting for a
+task/session that nothing in this environment ever delivers.
+
+Which means the next question is not "what file is missing" but **"what is
+SpringBoard supposed to be displaying, and who tells it to"** - i.e. whether the
+XPC/lockdown-side service that hands SpringBoard its scene is running at all.
+That is a userland-services question, and `sweetdump` on SpringBoard's *threads*
+(after the burst) is a better instrument than more syscall head-counting.
+
 ### >>> UPDATE 2026-10-22 22:24: the scanned directory is SpringBoard/System/Library/CoreServices/SpringBoard.app <<<
 
     SWEET DIR: live path = /System/Library/CoreServices/SpringBoard.app

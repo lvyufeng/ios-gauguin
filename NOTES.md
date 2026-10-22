@@ -35,6 +35,34 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:57: `/product` now resolves; SpringBoard's loop changed shape <<<
+
+The ADT had **no `/product` node** (`tools/mkadt.py` only emitted one when a
+D22AP device tree was present at `research/ipsw-x/d22ap.adt`, which is not in the
+repo), and SpringBoard asked for `IODeviceTree:/product` **12 times a boot**,
+getting `-> none` every time.
+
+Added a minimal `/product` node (product-name/type, regulatory-model-number) used
+only when the real tree is absent. Effect:
+
+| lookup | before | after |
+| --- | --- | --- |
+| `IODeviceTree:/product -> none` | 12 | **0** (12x `-> IOPlatformDevice`) |
+| `IODeviceTree:/arm-io` opens | 13 | **1** |
+
+So the repeated `arm-io` open loop collapsed once `/product` existed, and the
+display keeps presenting (presents 204, still 5 colours, 0 crashes).
+
+Still true: SpringBoard **does not yet draw its own scene**. The next probe
+should be SpringBoard's own view of the world - `sweetdump=SpringBoard` with the
+block ring, now that the display path is healthy, to see what it does after
+`/product` resolves instead of assuming it is stuck on the lookup.
+
+Note for the tool: `mkadt.py` takes the **output path as `sys.argv[1]`** and
+ignores flags' order; calling it as `mkadt.py --device=gauguin out.adt` writes a
+file literally named `--device=gauguin`. That happened here and the stray file
+was removed from git.
+
 ### >>> UPDATE 2026-10-22 21:52: the panel now carries real content, not a flat fill <<<
 
 Added pixel sampling to the vsync report (4,096 evenly spaced samples, counts

@@ -241,8 +241,19 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('opposed-power-vol-buttons', u32(1)),
     ])
 
+    # /product: SpringBoard looks it up 12 times per boot and, with the node
+    # absent, gets "none" every time (NOTES 22:00). The real tree's node comes
+    # from D22AP's device tree, which is not in the repo; publish a minimal one
+    # so the lookup succeeds, and let mkadt add the real properties when the
+    # extracted tree is available.
     product_props = d22ap_product()
-    product = [node('product', [ph()] + product_props)] if product_props else []
+    if product_props is None:
+        product_props = [
+            ('product-name', cstr('iPhone10,3')),
+            ('product-type', cstr('iPhone10,3')),
+            ('regulatory-model-number', cstr('A1865')),
+        ]
+    product = [node('product', [ph()] + product_props)]
 
     # backboardd resolves IODeviceTree:/backlight and, failing that, any node
     # carrying backlight-control=true; with neither it stops its display setup

@@ -211,7 +211,7 @@ index 407a18b..7ef3ca5 100644
  proc_task(proc_t proc)
  {
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index a62416c..645cdcf 100644
+index a62416c..a7bc47f 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -62,6 +62,17 @@ enum {
@@ -240,7 +240,36 @@ index a62416c..645cdcf 100644
  	bool          fConsolePaused;
  	uint8_t       fPending[SWEET_FB_SWAP_REC_SIZE];     /* latest swap, not yet shown */
  	bool          fDirty;
-@@ -242,7 +254,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -145,6 +157,7 @@ public:
+ 	    IOExternalMethodDispatch *dispatch, OSObject *target,
+ 	    void *reference) APPLE_KEXT_OVERRIDE;
+ 	void notify(uint32_t type, const uint64_t *values, uint32_t count);
++	bool hasNotification(uint32_t type) const;
+ };
+ 
+ OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
+@@ -223,6 +236,20 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ 		IOMobileFramebufferUserClient *client =
+ 		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
+ 		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
++		/*
++		 * Deliver to every other registered notification type as well: today
++		 * only vsync (5) fires, so a client waiting on type 3 - which is what
++		 * backboardd registers, NOTES 21:14 - never hears anything, and a
++		 * registered notification that never fires looks exactly like a
++		 * display that never scans out. Sending the same payload to all
++		 * registered types costs nothing and tells us whether type 3 is the
++		 * one backboardd is waiting on.
++		 */
++		for (uint32_t t = 0; t < SWEET_FB_NOTIFY_TYPES; t++) {
++			if (t != SWEET_FB_NOTIFY_VSYNC && client->hasNotification(t)) {
++				client->notify(t, values, 6);
++			}
++		}
+ 	}
+ 	if (fb->fPowerOff) {
+ 		/* Fade out: halve every channel each vsync, then black, then idle. */
+@@ -242,7 +269,21 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
  		return;
  	}
@@ -262,7 +291,33 @@ index a62416c..645cdcf 100644
  	uint8_t *rec = NULL;
  	if (flush) {
  		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
-@@ -546,6 +572,56 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -426,6 +467,11 @@ IOReturn
+ IOMobileFramebufferUserClient::clientClose(void)
+ {
+ 	if (fFB != NULL) {
++		{
++			char name[32];
++			proc_selfname(name, sizeof(name));
++			IOLog("SWEET FB: %s closing its client\n", name);
++		}
+ 		fFB->removeClient(this);
+ 		IOLockLock(fFB->fLock);
+ 		mach_port_t old = fPort;
+@@ -454,6 +500,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
+ 	return kIOReturnSuccess;
+ }
+ 
++bool
++IOMobileFramebufferUserClient::hasNotification(uint32_t type) const
++{
++	return type < SWEET_FB_NOTIFY_TYPES && fFunc[type] != 0 &&
++	    fPort != MACH_PORT_NULL;
++}
++
+ /* Called with the framebuffer lock held. */
+ void
+ IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
+@@ -546,6 +599,56 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
  		}
  		break;
  	case kSweetFBSwapWait:

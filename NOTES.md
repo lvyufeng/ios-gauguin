@@ -35,6 +35,48 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:23: backboardd is CRASHING (SIGSEGV) - no GPU accelerator <<<
+
+Adding a close log to the framebuffer client exposed what the previous runs
+could not show. The sequence, repeated on every boot:
+
+    SWEET FB: backboardd sel 74 ... -> 0x0
+    SWEET FB: backboardd notifications type 3 on
+    SWEET FB: backboardd sel 72 ... -> 0x0
+    SWEET FB: backboardd sel 73 ... -> 0x0
+    IOK backboardd: path IODeviceTree:/backlight -> IOPlatformDevice
+    IOK backboardd: matching <IOProviderClass=IOAcceleratorES> -> **0 found**
+    CRASH backboardd[56] sig 11 code 0x100000001 sub 0x0 slide 0x16cec000
+    CRASH backboardd pc 0x1e87ee4c4 lr 0x19db574f8 far 0x0
+    SWEET FB: backboardd closing its client
+
+**13 crashes per boot**, each followed by a relaunch (pid 56, then 120, ...)
+that reconnects, re-registers and dies again.
+
+So `presents=0` is not a rendering-logic puzzle: **backboardd segfaults before
+it ever gets a surface to present**, and the immediate trigger is the missing
+**GPU accelerator** (`IOAcceleratorES`, i.e. the AGX/IOGPU driver). This matches
+the known fact that there is **no GPU driver in the tree** (DT has
+`gpu@3d00000`, `qcom,adreno-619.0`, `zap-shader`, `sm6350-smmu-v2`, but nothing
+implements it): backboardd looks the accelerator up, gets 0, and dereferences
+something that came back null.
+
+That reframes the whole display blocker:
+
+* the framebuffer ABI work was still necessary (it got backboardd as far as
+  registering a notification), but it cannot be the last step;
+* **the display cannot come up until a GPU accelerator service exists**, even if
+  it is a stub - or until backboardd is tolerant of it being absent.
+
+Cheapest next experiment, in order:
+1. publish a minimal `IOAcceleratorES`-compatible service (even one that returns
+   errors) and see whether backboardd survives past the lookup - that alone
+   separates "needs a real GPU" from "needs the service to exist";
+2. if it survives, the next crash will name the next missing piece.
+
+The crash backtrace is in `/tmp/cl-1.txt` (and every run's serial log) if the
+addresses are worth symbolising against the dyld cache later.
+
 ### >>> UPDATE 2026-10-22 21:14: answering the new selectors moved the pipeline forward <<<
 
 First pass at implementing the ABI backboardd actually uses (15, 22, 29, 33, 74,

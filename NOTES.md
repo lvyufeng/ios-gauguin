@@ -35,6 +35,25 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 16:10: the thread-count probe works (1 thread at exec) <<<
+
+The two hangs above were **not** caused by the walk itself: `kern_exec.c` was
+passing the `struct proc *` where the probe takes a `task_t`, so it read
+`task->thread_count` at the wrong offset (`-832493856`). After
+`task_t sweet_task = proc_task(p);` the probe is safe and prints real data:
+
+    SWEET THREADS: SpringBoard exec, threads=1
+    SWEET THREADS: backboardd exec, threads=1
+
+i.e. both processes start as a single-threaded exec, as expected - they are
+not blocked before they get going.
+
+Left to verify separately (and **do not confuse with the hangs**): whether a
+*correct* `task_t` also allows `queue_iterate(&task->threads, ...)` from the
+exec path. The earlier hangs are now explained by the bad pointer, not by the
+iteration, so the full thread dump may be retried - but only with the task
+pointer fixed, and one step at a time.
+
 ### >>> UPDATE 2026-10-22 15:56: walking a task's thread list hangs this kernel <<<
 
 Both thread-walk variants hung the boot with the same signature (no recovery

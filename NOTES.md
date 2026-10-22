@@ -35,6 +35,73 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 23:30: running the bring-up inside vsyncFired HANGS the phone <<<
+
+Tried the last obvious shortcut: call `touch_bringup()` synchronously from
+`AppleCLCD::vsyncFired` (delay measured in frames, 2 s = 120 frames).
+
+Result: **the phone disappeared from USB entirely** - no TWRP, no fastboot, no
+capture file at all; it needed a 15 s power+vol-up press. Recovery confirmed by
+the user, device back in TWRP.
+
+So `vsyncFired` is **not** a safe context for driver bring-up: it runs as an
+`IOTimerEventSource` callback (interrupt/timer context, and it takes
+`IOLockLock(fb->fLock)` immediately after), so any blocking bus access or
+`ml_io_map` from there wedges the machine. The same applies to polling the touch
+IC from it.
+
+**Boundaries established today, all measured on the phone:**
+
+| context | timed waits wake? | usable for touch bring-up? |
+| --- | --- | --- |
+| kernel thread started at boot | no (30 s wait never returns) | no |
+| kernel thread started at Nth userland exec | no (2 s never returns) | no |
+| `IOWorkLoop` timer (own loop) | no (2 s never fires) | no |
+| `vsyncFired` (framebuffer timer) | callback *does* run | **no - hangs the phone** |
+
+That leaves one sound path: **a thread that is already sleeping successfully**.
+Userland proves timed sleeps work (backboardd lives in `mach_wait_until`), so the
+touch work should run from **a real BSD kernel_proc-style thread created with
+`kernel_thread_start` *after* `bsd_init` has fully started** - i.e. the same
+mechanism the log thread uses, which does flush at least once. Alternatively give
+the touch bring-up a **deferred-call** (`thread_call_allocate`) which runs on a
+timer-call thread that is created by the scheduler itself rather than by us.
+
+Next concrete step: use `thread_call_allocate` + `thread_call_enter_delayed` for
+the initial delay, and run the touch poll loop from the *same* thread call
+re-arming itself. That is the standard, context-safe way to do this in XNU and it
+does not add a thread of our own.
+
+### >>> UPDATE 2026-10-22 23:26: the vsync callback DOES call touch - the console is what is lying <<<
+
+Checked the built image rather than the source: `AppleCLCD::vsyncFired` contains
+`bl sweet_touch_tick` (`+80 -> 0xfffffe00074e5720`), and `sweet_touch_tick`'s
+disassembly does exactly the guard we wrote (`cbz` on the static `kicked`). So the
+call *is* wired up and *is* linked.
+
+It still prints nothing. The reason is in the log path itself:
+`sweet_log_start()` runs a **`tsleep()`-driven** flush loop
+(`bsd/dev/sweet_ufs.c:1120`). `tsleep` parks a thread on a timed wait - **the same
+mechanism that never wakes in this port**. So `printf` output is only readable
+when a flush happens to be batching it, and a callback that runs between flushes
+looks silent even though it ran.
+
+Practical consequences, and they matter for reading every earlier result:
+
+* absence of a log line is **not** evidence that code did not run - only that no
+  flush followed it;
+* the "-186 lines of log after the touch thread blocked" observations remain
+  valid (that output *was* flushed), but "no `sleep`/`tick` marker" is weak;
+* to observe kernel activity reliably, something must **flush on demand** rather
+  than on a `tsleep` tick - e.g. have the vsync callback call `sweet_log_flush()`
+  directly, which runs in a context we have proven executes (it prints its own
+  `SWEET FB: vsync=` lines from that same batched buffer).
+
+Next concrete step: call `sweet_log_flush()` from inside the vsync callback right
+after `sweet_touch_tick()`, and drop the touch thread's dependence on *any*
+timed wait (have `sweet_touch_tick` run the bring-up synchronously on the first
+frame past the delay). That gives an observable, self-flushing kernel context.
+
 ### >>> UPDATE 2026-10-22 23:20: IOWorkLoop has the SAME defect - it is the same thread mechanism <<<
 
 Rewrote the gate as `IOTimerEventSource` on an `IOWorkLoop`

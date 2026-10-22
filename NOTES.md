@@ -35,6 +35,30 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 12:45: prime suspect for "timers fire once": the timebase <<<
+
+Reading the timer path end to end (`rtclock_intr` -> `timer_intr` ->
+`timer_queue_expire` -> `running_timers_expire` -> `timer_resync_deadlines`
+-> `setPop` -> `ml_set_decrementer` -> `CNTV_TVAL_EL0`) shows the tick length
+is computed in **timebase units** (`deadline_to_decrementer`), and the timebase
+comes from `gPEClockFrequencyInfo.timebase_frequency_hz`, which
+`pe_identify_machine()` takes from the DT `cpu/timebase-frequency` node. There
+is no SWEET patch touching it: if that property is missing or not 24 MHz, the
+ARM generic counter and the kernel's notion of a second disagree, so a
+"one second" thread call is programmed as a tick nanoseconds long, fires once,
+and the queue then has nothing to run - exactly the symptom seen (1 heartbeat
+per boot, 1 s and 10 s alike).
+
+`pe_identify_machine()` now prints `SWEET CLOCK: timebase=... Hz dec=... Hz`,
+and `rtclock_intr` counts interrupts (`SWEET RTC:` every 1024th, with
+`now`/`rtcPop`). One boot of `shim/out/shim-clk.img` answers it: a sane
+timebase plus a static interrupt counter means the tick never re-arms; a wrong
+timebase means fix the DT (or override in `pe_identify_machine`, the file
+already defaults to 24 MHz before it looks at the DT).
+
+The phone dropped off USB again between 12:38 and 12:43 (came back for one
+scan, then gone), so the boot is queued for the next time it is reachable.
+
 ### >>> UPDATE 2026-10-22 12:40: two hard stops found while measuring the timer <<<
 
 Two things bite anyone continuing from here:

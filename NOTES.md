@@ -35,6 +35,34 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:05: fffffe0007315900 is _thread_preempted - SpringBoard is RUNNING <<<
+
+Resolving the shared continuation against
+`.deps-cache/obj-gauguin-macos/DEVELOPMENT_ARM64_GAUGUIN/kernel.development.gauguin.unstripped`
+(nm -n, the binary carries absolute kernel virtual addresses):
+
+    fffffe0007315900  _thread_preempted        (osfmk/kern/ast.c:84)
+
+and `thread_preempted()` is `thread_exception_return()` - **the frame a thread
+gets when it is preempted in kernel space and put back on the run queue**.
+
+That rewrites the whole picture:
+
+* the 50 blocks of SpringBoard's main thread on that continuation are **not
+  waits** - each one is "preempted while running in the kernel, later resumed";
+* so SpringBoard is *busy doing kernel work* (syscalls / IPC), not parked;
+* the earlier "one sleeping thread / parked on a port" reading came from
+  sampling a thread that happened to be between two of these preemptions -
+  `state=TH_WAIT` at the instant of the sample only says "not on a CPU right
+  now", which is true of every runnable-but-descheduled thread too.
+
+**Conclusion for the display problem: SpringBoard is alive, running, and making
+progress in kernel code. It simply never asks the framebuffer for a surface.**
+The blocker is therefore in its own userland logic (what it decides to draw),
+not in a missing kernel facility or a dead port - and the next probe should look
+at the syscall mix of tid 218 (what it is actually doing 68 times a boot), not
+at wait queues at all.
+
 ### >>> UPDATE 2026-10-22 20:56: the block ring works, and SpringBoard loops in it <<<
 
 The lock-free ring (`sweet_block_ring`, 256 records, `__atomic_fetch_add`, no

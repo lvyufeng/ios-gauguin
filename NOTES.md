@@ -35,6 +35,35 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 14:09: what backboardd is missing is a SHORT list <<<
+
+`shim-iok.img` booted (25,326 lines) with `sweetiolog` on. The distinct
+classes backboardd asks for and never finds:
+
+    IOK backboardd: NEVER FOUND class ApplePearlSEPDriver     (sec. enclave - harmless)
+    IOK backboardd: NEVER FOUND class AppleM2ScalerCSCDriver  (scaler - image scaling)
+    IOK backboardd: NEVER FOUND class ""                      (the IOPropertyMatch
+                                                               backlight-control=True dict)
+
+Crucially, the 276 `IOAcceleratorES` lines are **not** misses:
+
+    IOK backboardd: matching <dict IOProviderClass=IOAcceleratorES
+                                IOServiceNotificationUser=true> -> notify
+
+That dict carries `IOServiceNotificationUser`, so it is a *registration for a
+future notification*, not a synchronous lookup - backboardd is telling the
+kernel "wake me when a GPU accelerator appears" and moving on. So the GPU is
+NOT what blocks the first frame, which changes the picture completely.
+
+What the trace says backboardd did, in order: open AppleCLCD, `IODeviceTree:
+/arm-io/disp0` found, `AppleCLCD` notification registered, then
+`IODeviceTree:/backlight -> none`, scaler class absent, Pearl absent.
+So the display setup completes up to the *backlight* node, and backboardd
+then has no reason to draw. Next: give `/backlight` a node (and/or the
+`backlight-control` property on a display node) so the backlight path resolves,
+and make `AppleM2ScalerCSCDriver` unnecessary or present, then see whether a
+swap arrives.
+
 ### >>> UPDATE 2026-10-22 13:52: this round's kernel changes are a patch now <<<
 
 Everything touched in `.deps-cache/xnu-patched-0082-2` during this session is

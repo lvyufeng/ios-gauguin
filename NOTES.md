@@ -35,6 +35,47 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:06: SpringBoard's syscall mix - ordinary daemon work <<<
+
+Histogram of SpringBoard's syscalls (boot-arg `sweetsyscall=SpringBoard`,
+counter in `unix_syscall`, printed from the dump path - never from the syscall
+path itself):
+
+| # | syscall | count |
+| --- | --- | --- |
+| 375 | `kevent_id` | 42 |
+| 368 | `workq_kernreturn` | 33 |
+| 478 | `bsdthread_ctl` | 17 |
+| 336 | `proc_info` | 13 |
+| 399 | `close_nocancel` | 10 |
+| 463 | `openat` | 9 |
+| 374 | `kevent_qos` | 8 |
+| 170 | `csops_audittoken` | 7 |
+| 344 | `getdirentries64` | 6 |
+| 346 | `fstatfs64` | 6 |
+| 25 | `geteuid` | 5 |
+| 75 | `madvise` | 5 |
+
+Reading: this is the profile of a process that is **starting up and running its
+work loops normally** - libdispatch event loops (`kevent_id`, `kevent_qos`,
+`workq_kernreturn`), thread management (`bsdthread_ctl`), and file/config
+reads (`openat`, `getdirentries64`, `csops_audittoken`). **Nothing here is a
+stuck or failing operation.**
+
+So SpringBoard is not blocked in the kernel at all: it is a healthy userland
+process doing normal ramp-up work, which never reaches the point of asking the
+framebuffer for a surface. The remaining work is in **userland logic** (why it
+decides there is nothing to draw), not in the kernel - and the kernel-side
+probe budget for this question is now spent.
+
+Concrete next options (userland side):
+1. chase the last thing SpringBoard logs before it goes quiet (NOTES 14:30) and
+   compare against a real device's boot log for the same stage;
+2. check whether it is waiting on a **scene/session** that needs a `BackBoard`
+   connection - i.e. whether `backboardd` ever advertises a display to it;
+3. check `MobileGestalt` values that gate rendering (`main-screen-*`, refresh
+   rate keys) - a wrong value there is a classic "no scene, no frames" cause.
+
 ### >>> UPDATE 2026-10-22 21:05: fffffe0007315900 is _thread_preempted - SpringBoard is RUNNING <<<
 
 Resolving the shared continuation against

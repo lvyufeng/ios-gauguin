@@ -1,3 +1,27 @@
+diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
+index 7fd9be1..2104cd3 100644
+--- a/bsd/dev/arm/systemcalls.c
++++ b/bsd/dev/arm/systemcalls.c
+@@ -112,6 +112,19 @@ unix_syscall(
+ 	syscode = (code < nsysent) ? code : SYS_invalid;
+ 	callp   = &sysent[syscode];
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * SWEET bring-up: count syscalls per process for one named process, no
++	 * console I/O here (this is a hot path). The table is dumped later from
++	 * the exec path - NOTES 21:05 showed SpringBoard is *running* kernel code,
++	 * so its syscall mix is the next thing worth knowing.
++	 */
++	{
++		extern void sweet_syscall_count(struct proc *, unsigned);
++		sweet_syscall_count(proc, syscode);
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	/*
+ 	 * sy_narg is inaccurate on ARM if a 64 bit parameter is specified. Since user_addr_t
+ 	 * is currently a 32 bit type, this is really a long word count. See rdar://problem/6104668.
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 index 68612db..7e8c649 100644
 --- a/bsd/kern/kern_exec.c
@@ -94,13 +118,75 @@ index fde499c..98bb5dd 100644
  		printf("pid %d exited -- no exit reason available -- (signal %d, exit %d)\n",
  		    proc_getpid(p), WTERMSIG(rv), WEXITSTATUS(rv));
 diff --git a/bsd/kern/kern_proc.c b/bsd/kern/kern_proc.c
-index 407a18b..49994bf 100644
+index 407a18b..7ef3ca5 100644
 --- a/bsd/kern/kern_proc.c
 +++ b/bsd/kern/kern_proc.c
-@@ -1533,6 +1533,26 @@ proc_suser(proc_t p)
+@@ -1533,6 +1533,88 @@ proc_suser(proc_t p)
  	return error;
  }
  
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * Syscall histogram for one named process (boot-arg sweetsyscall=Name).
++ * Counting only - no printing from the syscall path.
++ */
++#define SWEET_SYS_MAX 600
++static char sweet_sys_name[48];
++static bool sweet_sys_parsed;
++static uint32_t sweet_sys_count[SWEET_SYS_MAX];
++static uint8_t sweet_sys_seen[SWEET_SYS_MAX];
++
++void
++sweet_syscall_count(proc_t p, unsigned code)
++{
++	if (!sweet_sys_parsed) {
++		sweet_sys_parsed = true;
++		if (!PE_parse_boot_argn("sweetsyscall", sweet_sys_name,
++		    sizeof(sweet_sys_name))) {
++			sweet_sys_name[0] = '\0';
++		}
++	}
++	if (sweet_sys_name[0] == '\0' || p == PROC_NULL || code >= SWEET_SYS_MAX) {
++		return;
++	}
++	if (strncmp(p->p_name, sweet_sys_name, sizeof(sweet_sys_name)) != 0) {
++		return;
++	}
++	__atomic_fetch_add(&sweet_sys_count[code], 1, __ATOMIC_RELAXED);
++}
++
++/* Called from the exec path: print the histogram, then reset it. */
++void
++sweet_syscall_dump(void)
++{
++	if (sweet_sys_name[0] == '\0') {
++		return;
++	}
++	unsigned lines = 0;
++	printf("SWEET SYS: histogram for %s\n", sweet_sys_name);
++	/* Print the most frequent entries first (simple selection). */
++	for (unsigned pass = 0; pass < 12; pass++) {
++		unsigned best = 0, bestn = 0;
++		for (unsigned i = 0; i < SWEET_SYS_MAX; i++) {
++			if (sweet_sys_seen[i]) {
++				continue;
++			}
++			if (sweet_sys_count[i] > bestn) {
++				bestn = sweet_sys_count[i];
++				best = i;
++			}
++		}
++		if (bestn == 0) {
++			break;
++		}
++		printf("SWEET SYS: syscall %u count %u\n", best, bestn);
++		sweet_sys_seen[best] = 1;
++		lines++;
++	}
++	(void)lines;
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
 +#if defined(ARM64_BOARD_CONFIG_SWEET)
 +/*
 + * Name of the process that owns a task, for the osfmk-side bring-up traces
@@ -407,7 +493,7 @@ index 8e29586..2515837 100644
  		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
  		    MACHDBG_CODE(DBG_MACH_SCHED, MACH_BLOCK),
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..b47e05d 100644
+index 67c5f79..4285222 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
 @@ -109,6 +109,7 @@
@@ -418,7 +504,7 @@ index 67c5f79..b47e05d 100644
  #include <kern/task.h>
  #include <kern/thread.h>
  #include <kern/coalition.h>
-@@ -2510,6 +2511,396 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2511,402 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -752,6 +838,10 @@ index 67c5f79..b47e05d 100644
 +		t->round++;
 +		printf("SWEET THREADS: %s sample %u, threads=%d (at %s exec)\n",
 +		    t->name, t->round, pending->thread_count, name);
++		{
++			extern void sweet_syscall_dump(void);
++			sweet_syscall_dump();
++		}
 +		sweet_dump_walk(pending, t->name);
 +		if (t->round < 3) {
 +			t->wait = t->round == 1 ? 20 : 120;
@@ -804,7 +894,9 @@ index 67c5f79..b47e05d 100644
 +		{
 +			/* Empty the ring that collected blocks before this exec. */
 +			extern void sweet_block_ring_dump(void);
++			extern void sweet_syscall_dump(void);
 +			sweet_block_ring_dump();
++			(void)sweet_syscall_dump;
 +		}
 +		break;
 +	}

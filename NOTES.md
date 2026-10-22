@@ -35,6 +35,29 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 19:10: SpringBoard never issues a single mach receive <<<
+
+Hooking `ipc_mqueue_receive()` (the only kernel entry for a blocking receive,
+`mach_msg.c:929`) and tracing by process name (`sweetmsgwait=SpringBoard`,
+40 lines max) produced **zero** lines in a full boot where SpringBoard was
+exec'd and the boot completed normally (8 vsync samples).
+
+So SpringBoard's main thread is parked on a port waitq **without ever having
+called into `ipc_mqueue_receive`** in that boot. Two readings, and they need
+different follow-ups:
+
+* the wait was set up **before** the trace could see it (e.g. it blocks inside
+  the very exec/dyld path via a `thread_block` that is not a message receive),
+  so the "WQT_PORT" in the dump belongs to a port the *kernel* is waiting for -
+  most likely the `exec`/`dyld` "wait for the new process" handshake;
+* or the thread is blocked on a port **set**/`kevent`-style wait that does not
+  go through this function on this kernel.
+
+Either way the earlier framing needs narrowing: it is not "SpringBoard waits
+for an IPC service and the service is missing" - SpringBoard does not even get
+as far as a receive. The next instrument should be a trace at `thread_block`
+for named processes (waitq type + provenance) rather than at the IPC layer.
+
 ### >>> UPDATE 2026-10-22 18:07: port identity is not reachable from the dump <<<
 
 Attempts to name the port the main thread waits on:

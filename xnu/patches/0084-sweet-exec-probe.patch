@@ -228,6 +228,74 @@ index 8f53742..9800db6 100644
  	IOLog("SWEET WDT: IOWatchdog registered (accepts check-ins, never fires)\n");
  	return true;
  }
+diff --git a/osfmk/ipc/ipc_mqueue.c b/osfmk/ipc/ipc_mqueue.c
+index 503f025..f68901a 100644
+--- a/osfmk/ipc/ipc_mqueue.c
++++ b/osfmk/ipc/ipc_mqueue.c
+@@ -86,6 +86,40 @@
+ 
+ #include <ipc/port.h>
+ #include <ipc/ipc_mqueue.h>
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++#include <pexpert/pexpert.h>
++
++/* defined in bsd/kern/kern_proc.c; sys/proc.h clashes with osfmk typedefs */
++extern void proc_selfname(char *buf, int size);
++
++/* Boot-arg sweetmsgwait=Name: trace that process's blocking receives. */
++char sweet_msgwait_needle[48];
++static bool sweet_msgwait_parsed;
++static unsigned sweet_msgwait_lines;
++
++void
++sweet_msgwait_trace(struct waitq *waitq, const char *procname)
++{
++	if (!sweet_msgwait_parsed) {
++		sweet_msgwait_parsed = true;
++		if (!PE_parse_boot_argn("sweetmsgwait", sweet_msgwait_needle,
++		    sizeof(sweet_msgwait_needle))) {
++			sweet_msgwait_needle[0] = '\0';
++		}
++	}
++	if (sweet_msgwait_needle[0] == '\0' || sweet_msgwait_lines >= 40) {
++		return;
++	}
++	if (strncmp(procname, sweet_msgwait_needle, sizeof(sweet_msgwait_needle)) != 0) {
++		return;
++	}
++	sweet_msgwait_lines++;
++	printf("SWEET MSGWAIT: %s wq=%p type=%u\n", procname, (void *)waitq,
++	    (unsigned)waitq_type((waitq_t){ .wq_q = waitq }));
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ #include <ipc/ipc_kmsg.h>
+ #include <ipc/ipc_right.h>
+ #include <ipc/ipc_port.h>
+@@ -877,6 +911,22 @@ ipc_mqueue_receive(
+ 	wait_result_t           wresult;
+ 	thread_t                self = current_thread();
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * SWEET bring-up trace (opt-in, boot-arg sweetmsgwait=1): record which
++	 * queues a named process blocks in. This is the only place the kernel
++	 * still has the port in hand - reading the port back out of the waitq in
++	 * the thread dump did not work (NOTES 18:07).
++	 */
++	{
++		if (sweet_msgwait_needle[0] != '\0') {
++			char sweet_pname[32] = { 0 };
++			proc_selfname(sweet_pname, sizeof(sweet_pname));
++			sweet_msgwait_trace(waitq, sweet_pname);
++		}
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	waitq_lock(waitq);
+ 
+ 	wresult = ipc_mqueue_receive_on_thread_and_unlock(waitq, option64, max_size,
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
 index 67c5f79..02add39 100644
 --- a/osfmk/kern/task.c

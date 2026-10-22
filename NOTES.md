@@ -35,6 +35,25 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 16:19: full thread dump works; exec-time state is boring <<<
+
+With the `task_t` fixed, `queue_iterate(&task->threads, ...)` runs fine from the
+exec path (no hang) and prints per thread `tid / run / state / ev`. At exec time
+both interesting processes are simply "one thread, just starting":
+
+    SWEET THREADS: SpringBoard exec, threads=1
+    SWEET THREADS:   tid=219 run=0 state=9 ev=<waiting>
+    SWEET THREADS: backboardd exec, threads=1
+    SWEET THREADS:   tid=314 run=1 state=4 ev=0
+
+So the interesting moment is *later*: both processes do start correctly and go
+quiet afterwards. A useful dump therefore has to happen seconds after exec, in
+a context that is allowed to take a task reference - which is exactly what the
+very first (delayed thread call) version tried, and that version hung for the
+same bad-pointer reason. **Retry the delayed dump now that the pointer is
+fixed**: `thread_call_enter_delayed` + `task_reference(task)` + the walk 15 s
+later is the next experiment, one step at a time.
+
 ### >>> UPDATE 2026-10-22 16:10: the thread-count probe works (1 thread at exec) <<<
 
 The two hangs above were **not** caused by the walk itself: `kern_exec.c` was

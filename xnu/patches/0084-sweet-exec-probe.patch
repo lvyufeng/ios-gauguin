@@ -1,8 +1,8 @@
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 68612db..cc5dea6 100644
+index 68612db..e9a3ebd 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
-@@ -7414,6 +7414,16 @@ process_signature(proc_t p, struct image_params *imgp)
+@@ -7414,6 +7414,17 @@ process_signature(proc_t p, struct image_params *imgp)
  #if defined(ARM64_BOARD_CONFIG_SWEET)
  			/* SWEET runs every iOS binary this way: one short line per exec. */
  			printf("exec %s\n", p->p_name);
@@ -13,8 +13,9 @@ index 68612db..cc5dea6 100644
 +				 * exec for the names in sweetdump=Name,Name (once each).
 +				 * Implemented in osfmk/kern/task.c (see sweet_dump_threads_soon).
 +				 */
-+				extern void sweet_dump_threads_soon(struct proc *, const char *);
-+				sweet_dump_threads_soon(p, p->p_name);
++				extern void sweet_dump_threads_soon(task_t, const char *);
++				task_t sweet_task = proc_task(p);
++				sweet_dump_threads_soon(sweet_task, p->p_name);
 +			}
  #else
  			printf("Allowing spawn of iOS binary %s since it has "
@@ -48,10 +49,10 @@ index fde499c..98bb5dd 100644
  		printf("pid %d exited -- no exit reason available -- (signal %d, exit %d)\n",
  		    proc_getpid(p), WTERMSIG(rv), WEXITSTATUS(rv));
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..579242a 100644
+index 67c5f79..5458192 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
-@@ -2510,6 +2510,54 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2510,67 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -99,6 +100,19 @@ index 67c5f79..579242a 100644
 +	}
 +	sweet_dump_count++;
 +	printf("SWEET THREADS: %s exec, threads=%d\n", name, task->thread_count);
++	{
++		thread_t th;
++		unsigned n = 0;
++		queue_iterate(&task->threads, th, thread_t, task_threads) {
++			if (n++ >= 64) {
++				break;
++			}
++			printf("SWEET THREADS:   tid=%llu run=%d state=%x ev=%llu\n",
++			    (unsigned long long)th->thread_id,
++			    (th->state & TH_RUN) ? 1 : 0, th->state,
++			    (unsigned long long)th->wait_event);
++		}
++	}
 +}
 +#endif /* ARM64_BOARD_CONFIG_SWEET */
 +

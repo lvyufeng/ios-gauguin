@@ -35,6 +35,37 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 19:15: and it never calls thread_block either <<<
+
+Tracing `thread_block_reason()` for SpringBoard (`sweetblock=SpringBoard`,
+prints name, tid, continuation, waitq type, wait event) produced **zero** lines
+in a healthy boot (8 vsync samples, normal completion).
+
+Put together with the previous round, the picture is now:
+
+| instrument | SpringBoard | result |
+| --- | --- | --- |
+| thread dump at exec / +20 / +120 execs | seen, 1 -> 6 threads | main thread always `state=1` (TH_WAIT), waitq type PORT |
+| `ipc_mqueue_receive` trace | 0 lines | never issues a receive |
+| `thread_block_reason` trace | 0 lines | never blocks through the scheduler |
+
+A thread that reports `TH_WAIT` in its task's thread list but never passes
+through `thread_block_reason` is not parked by the scheduler in any normal way.
+The most likely explanations, in order:
+
+1. the thread is **suspended** (`thread_suspend` / task-suspend state) - it is
+   "waiting" in the sense of `TH_WAIT`-ish bookkeeping but never scheduled to
+   block, which is what `posix_spawn`'s suspended-child flow looks like if the
+   resume never arrives;
+2. the dump is reading a task whose main thread was already terminated and the
+   state is stale bookkeeping;
+3. `state=1` is not TH_WAIT in this kernel for `thread->state` (the scheduling
+   state enum lives in bits 0..3 - worth checking `TH_WAIT`'s value).
+
+Point 3 is cheap to settle and should be settled **before** building any more
+instruments: print `state` in hex next to the known values, and also print
+`thread->suspend_count`. Point 1 then becomes directly testable.
+
 ### >>> UPDATE 2026-10-22 19:10: SpringBoard never issues a single mach receive <<<
 
 Hooking `ipc_mqueue_receive()` (the only kernel entry for a blocking receive,

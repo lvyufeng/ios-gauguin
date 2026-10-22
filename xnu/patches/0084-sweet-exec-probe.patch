@@ -48,6 +48,37 @@ index fde499c..98bb5dd 100644
  	if (p->p_exit_reason == OS_REASON_NULL) {
  		printf("pid %d exited -- no exit reason available -- (signal %d, exit %d)\n",
  		    proc_getpid(p), WTERMSIG(rv), WEXITSTATUS(rv));
+diff --git a/bsd/kern/kern_proc.c b/bsd/kern/kern_proc.c
+index 407a18b..49994bf 100644
+--- a/bsd/kern/kern_proc.c
++++ b/bsd/kern/kern_proc.c
+@@ -1533,6 +1533,26 @@ proc_suser(proc_t p)
+ 	return error;
+ }
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * Name of the process that owns a task, for the osfmk-side bring-up traces
++ * (osfmk/kern/task.c cannot include <sys/proc.h>: the typedefs clash).
++ */
++void
++sweet_proc_name_from_task(task_t task, char *buf, size_t len)
++{
++	if (buf == NULL || len == 0) {
++		return;
++	}
++	buf[0] = '\0';
++	proc_t p = task == TASK_NULL ? PROC_NULL : (proc_t)task_get_proc_raw(task);
++	if (p == PROC_NULL) {
++		return;
++	}
++	strlcpy(buf, p->p_name, len);
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ task_t
+ proc_task(proc_t proc)
+ {
 diff --git a/iokit/Kernel/arm/SweetWatchdog.cpp b/iokit/Kernel/arm/SweetWatchdog.cpp
 index 8f53742..9800db6 100644
 --- a/iokit/Kernel/arm/SweetWatchdog.cpp
@@ -297,7 +328,7 @@ index 503f025..f68901a 100644
  
  	wresult = ipc_mqueue_receive_on_thread_and_unlock(waitq, option64, max_size,
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..02add39 100644
+index 67c5f79..03eb85f 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
 @@ -109,6 +109,7 @@
@@ -308,10 +339,56 @@ index 67c5f79..02add39 100644
  #include <kern/task.h>
  #include <kern/thread.h>
  #include <kern/coalition.h>
-@@ -2510,6 +2511,194 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2511,240 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * Block trace for named processes (boot-arg sweetblock=Name): records, for each
++ * block of that process, the continuation it parks on and the waitq type.
++ * SpringBoard never reaches ipc_mqueue_receive (NOTES 19:10), so the block has
++ * to be observed at thread_block() instead of at the IPC layer.
++ *
++ * The process name is taken from the BSD proc through a helper that lives in
++ * bsd/kern/kern_proc.c, because including <sys/proc.h> here clashes with the
++ * osfmk typedefs.
++ */
++static char sweet_block_name[48];
++static bool sweet_block_parsed;
++static unsigned sweet_block_lines;
++
++void
++sweet_block_trace(thread_t th)
++{
++	if (!sweet_block_parsed) {
++		sweet_block_parsed = true;
++		if (!PE_parse_boot_argn("sweetblock", sweet_block_name,
++		    sizeof(sweet_block_name))) {
++			sweet_block_name[0] = '\0';
++		}
++	}
++	if (sweet_block_name[0] == '\0' || sweet_block_lines >= 40) {
++		return;
++	}
++	extern void sweet_proc_name_from_task(task_t, char *, size_t);
++	char tname[48] = { 0 };
++	sweet_proc_name_from_task(get_threadtask(th), tname, sizeof(tname));
++	if (tname[0] == '\0' ||
++	    strncmp(tname, sweet_block_name, sizeof(sweet_block_name)) != 0) {
++		return;
++	}
++	sweet_block_lines++;
++	unsigned wqt = 0;
++	if (th->waitq.wq_q != NULL) {
++		wqt = (unsigned)th->waitq.wq_q->waitq_type;
++	}
++	printf("SWEET BLOCK: %s tid=%llu cont=%llu wqt=%u ev=%llu\n", tname,
++	    (unsigned long long)th->thread_id, (unsigned long long)th->continuation,
++	    wqt, (unsigned long long)th->wait_event);
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
 +#if defined(ARM64_BOARD_CONFIG_SWEET)
 +/*
 + * SWEET bring-up probe, minimal and safe: named processes are reported once at

@@ -35,6 +35,41 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:03: SpringBoard is *scanning directories* in a loop <<<
+
+Syscall histogram for SpringBoard after the display came up:
+
+| # | syscall | count |
+| --- | --- | --- |
+| 375 | `kevent_id` | 127 |
+| 399 | `close_nocancel` | 96 |
+| **344** | **`getdirentries64`** | **92** |
+| **346** | **`fstatfs64`** | **92** |
+| 368 | `workq_kernreturn` | 72 |
+| 478 | `bsdthread_ctl` | 26 |
+| 153 | `pread` | 22 |
+| 336 | `proc_info` | 15 |
+| 374 | `kevent_qos` | 15 |
+| **340** | **`lstat64`** | **14** |
+| 170 | `csops_audittoken` | 9 |
+| 463 | `openat` | 9 |
+
+Compared with the earlier histogram (before the display came up: no
+`getdirentries64`/`fstatfs64`/`lstat64` at all), the new profile is unmistakable:
+**92 directory enumerations + 92 statfs + 14 lstats**. That is a *filesystem
+walk*, not UI work - SpringBoard (or something it drives) is crawling a directory
+tree over and over.
+
+Combined with the `mach_wait_until` sleeps from the previous note, the shape is
+"scan a directory tree, sleep, scan again" - i.e. **it is polling for files that
+never appear**. The prime candidate is a cache/asset directory on the iOS root:
+`/System/Library/Caches/`, a font asset dir, or the SpringBoard icon/scene
+caches.
+
+Next: find *which* directory. `getdirentries64` takes a file descriptor; logging
+the resolved path per fd (a one-shot map built on `openat`) would name the tree
+being scanned - cheap and decisive.
+
 ### >>> UPDATE 2026-10-22 22:00: SpringBoard is sleeping in mach_wait_until - a timed retry <<<
 
 Block ring at SpringBoard's exec (31,460 blocks total, 256 shown), main thread

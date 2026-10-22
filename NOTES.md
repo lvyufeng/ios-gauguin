@@ -35,6 +35,31 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 14:12: /backlight node helps; SpringBoard never reaches IOKit <<<
+
+Added a `backlight` node to `tools/mkadt.py` (compatible "backlight",
+"backlight-digital", `backlight-control = 1`). Result:
+
+* `IODeviceTree:/backlight -> IOPlatformDevice` - **resolved** now (was `none`);
+* the `IOPropertyMatch backlight-control=true` dict still misses, because it
+  asks for a *service notification* and our node is not published as a service
+  with that property;
+* still `presents=0`, and `dirty=0` for the whole run.
+
+The new information is that **backboardd finishes its whole IOKit display
+setup** (AppleCLCD open, disp0, backlight, AppleCLCD notification registered,
+then `IOAccessoryManager` and `IOAcceleratorES` notification registrations)
+and then stops making IOKit calls at all - no swap, no further queries. In the
+same boot SpringBoard is exec'd (line 4,615) and produces **zero** IOKit calls.
+So the wall is now in userland: backboardd waits for something inside
+BackBoard/CoreDisplay before it first presents, and SpringBoard does not get
+far enough to ask for a display at all.
+
+Next probes: run the same cmdline with `sweetiolog` including more daemons, and
+look for the first process that *does* reach the framebuffer; correlate with
+`launchd` job state (is SpringBoard running, waiting, or exited?) - the
+`SWEET LDM`/xpc trace lines already in the log are the place to look.
+
 ### >>> UPDATE 2026-10-22 14:09: what backboardd is missing is a SHORT list <<<
 
 `shim-iok.img` booted (25,326 lines) with `sweetiolog` on. The distinct

@@ -244,6 +244,20 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
     product_props = d22ap_product()
     product = [node('product', [ph()] + product_props)] if product_props else []
 
+    # backboardd resolves IODeviceTree:/backlight and, failing that, any node
+    # carrying backlight-control=true; with neither it stops its display setup
+    # before drawing anything (see NOTES 14:09). A power-supply-style node is
+    # enough for the lookup: brightness itself is done by AppleCLCD the moment
+    # backboardd finds a backlight it can talk to.
+    backlight = node('backlight', [
+        ph(),
+        ('compatible', cstr('backlight') + cstr('backlight-digital')),
+        ('backlight-control', u32(1)),
+        ('name', cstr('backlight')),
+        ('reg', u32(0) + u32(0)),
+        ('AAPL,phandle', u32(next(phandle))),
+    ])
+
     # Identity of the iPhone X whose userland runs here: compatible[0] is
     # hw.model/hw.target (D22AP), model is hw.machine/hw.product
     # (iPhone10,3). 'xiaomi,<board>' stays for SweetPlatformExpert matching.
@@ -256,7 +270,7 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('manufacturer', cstr('Apple Inc.')),
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
-    ], [chosen, defaults, cpus, arm_io, fbcon, buttons] + product + ([] if qemu else [ufs]))
+    ], [chosen, defaults, cpus, arm_io, fbcon, buttons, backlight] + product + ([] if qemu else [ufs]))
 
 
 if __name__ == '__main__':

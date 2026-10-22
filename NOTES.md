@@ -35,6 +35,37 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 16:32: the probe runs, but the watchdog fires once per boot <<<
+
+`shim-thr9.img` (probe actually linked this time - verified with
+`strings kernel | grep 'SWEET THREADS: tick'` before booting) prints:
+
+    SWEET THREADS: SpringBoard exec, threads=1
+    SWEET THREADS: SpringBoard will be dumped at tick 20
+    SWEET THREADS: tick 1 target 20 pending 1          <- and never tick 2
+
+So the per-second driver does **not** repeat: `sweet_wdt_sample` runs exactly
+once, the same "one thread call per boot" that was seen earlier (NOTES 12:30 -
+which was retracted then, but the tick counter is a *direct* measurement of the
+callback and it says one). That also means the 1 Hz `SWEET HB` heartbeat is
+really a single line; the earlier `tick=117058` numbers came from the timer
+counters, not from this callback.
+
+Consequence: anything scheduled from `sweet_wdt_sample` cannot repeat either.
+The thread dump needs a driver that provably ticks: the cleanest is the
+existing per-second path used by the framebuffer/`thread_call` code that the
+`SWEET HB` line proves works, or simply dump from the **next exec** of any
+process (SpringBoard's exec is followed by ~260 more).
+
+Two build pitfalls worth remembering (both cost a cycle today):
+
+* a probe symbol called from a `.cpp` needs `extern "C"` declared at **file
+  scope** - inside a function block it is a syntax error, and the build then
+  silently keeps the previous kernel (check the kernel mtime and
+  `strings | grep` before booting);
+* `deps/build-macos.sh` exits non-zero on a compile error but the old kernel
+  file stays on disk, so `scp` happily ships a stale kernel. Always verify.
+
 ### >>> UPDATE 2026-10-22 16:19: full thread dump works; exec-time state is boring <<<
 
 With the `task_t` fixed, `queue_iterate(&task->threads, ...)` runs fine from the

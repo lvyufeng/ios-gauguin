@@ -35,6 +35,40 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 23:05: 23:00 retracted - the timebase is fine (1.06x, not 1.25x) <<<
+
+Measured it instead of deducing it: the vsync report now prints the implied
+timebase frequency, computed from the tick delta between two 600-frame reports and
+the programmed 16,667 us period.
+
+    vsync=600  implied_hz=20373769
+    vsync=1200 implied_hz=20373649
+    vsync=1800 implied_hz=20307935
+
+If the counter ran at 24 MHz while the kernel scaled with 19.2 MHz, this number
+would read **24,000,000**. It reads **20.37 million**, i.e. the timer fires
+`20373769/19200000 = 1.061x` later than programmed - a ~6% scheduling/timer
+latency, not a 25% clock error.
+
+**So the 23:00 note was wrong** and is retracted: the timebase is not mismatched,
+kernel time is not 0.8x wall clock, and the 2 s deadline arithmetic
+(38,399,995 ticks = exactly 2 s at 19.2 MHz) is simply correct. The earlier
+"vsync 1800 should take 30 s but took 24 s" reasoning was bad arithmetic on my
+part: 1800 frames at 16,667 us is 30 s of *programmed* time, and a 6% lateness
+cannot turn that into 24 s.
+
+What survives, and is still the useful result:
+
+* the wakeup mechanism **works** (both the probe thread and an inline 1 s wait in
+  the touch thread woke);
+* the touch thread's *own* `touch_wait(ms)` has not yet been shown to return -
+  every run so far ended before its next line, and each run's boot window is only
+  ~150 s while the touch path has several waits stacked (3 s, 10 ms, 2 ms, 300 ms);
+* so the remaining touch question is simply **whether it completes inside the
+  window**, which the next run answers by printing on every step.
+
+Rule to keep: measure a frequency before building a story on it.
+
 ### >>> UPDATE 2026-10-22 23:00: FOUND THE REAL BUG - the timebase is 24 MHz, not 19.2 MHz <<<
 
 Put a probe thread next to the touch thread (identical

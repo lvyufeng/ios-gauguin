@@ -1051,7 +1051,7 @@ index 90e68bb..134e467 100644
  	 * If the buffer is at least GETDIRENTRIES64_EXTENDED_BUFSIZE large,
  	 * then the kernel carves out the last 4 bytes to return extended
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index a62416c..3f2a660 100644
+index a62416c..5d0c4d3 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -62,6 +62,17 @@ enum {
@@ -1155,7 +1155,7 @@ index a62416c..3f2a660 100644
  	}
  	if (fb->fPowerOff) {
  		/* Fade out: halve every channel each vsync, then black, then idle. */
-@@ -242,7 +308,54 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -242,7 +308,73 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
  		return;
  	}
@@ -1201,16 +1201,35 @@ index a62416c..3f2a660 100644
 +				}
 +			}
 +		}
++		/*
++		 * The vsync timer is programmed for 16,667 us, so the tick delta
++		 * between two reports tells us the *real* timebase: if 600 frames
++		 * take 600*16667 us of hardware time, ticks/600/16667us gives Hz.
++		 * NOTES 23:00 suspects 24 MHz is the truth and 19.2 MHz is declared.
++		 */
++		uint64_t ticknow = mach_absolute_time();
++		static uint64_t lastticks, lastcount;
++		uint64_t dhz = 0;
++		if (lastcount != 0 && ticknow > lastticks) {
++			uint64_t dticks = ticknow - lastticks;
++			uint64_t dframes = count - lastcount;
++			if (dframes != 0) {
++				/* declared Hz implied by this delta, in whole Hz */
++				dhz = dticks * 1000000ull / (dframes * 16667ull);
++			}
++		}
++		lastticks = ticknow;
++		lastcount = count;
 +		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u "
-+		    "px sample %u nonblack=%u distinct=%u\n",
++		    "px sample %u nonblack=%u distinct=%u implied_hz=%llu\n",
 +		    (unsigned long long)count, fb->fDirty ? 1u : 0u,
 +		    (unsigned long long)presents, fb->fClients->getCount(),
-+		    samples, nonblack, distinct);
++		    samples, nonblack, distinct, (unsigned long long)dhz);
 +	}
  	uint8_t *rec = NULL;
  	if (flush) {
  		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
-@@ -426,6 +539,11 @@ IOReturn
+@@ -426,6 +558,11 @@ IOReturn
  IOMobileFramebufferUserClient::clientClose(void)
  {
  	if (fFB != NULL) {
@@ -1222,7 +1241,7 @@ index a62416c..3f2a660 100644
  		fFB->removeClient(this);
  		IOLockLock(fFB->fLock);
  		mach_port_t old = fPort;
-@@ -454,6 +572,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
+@@ -454,6 +591,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
  	return kIOReturnSuccess;
  }
  
@@ -1236,7 +1255,7 @@ index a62416c..3f2a660 100644
  /* Called with the framebuffer lock held. */
  void
  IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
-@@ -477,7 +602,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -477,7 +621,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
      __unused void *reference)
  {
  	IOReturn ret = kIOReturnSuccess;
@@ -1245,7 +1264,7 @@ index a62416c..3f2a660 100644
  	uint32_t outCount = 0;
  
  	switch (selector) {
-@@ -546,6 +671,42 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -546,6 +690,42 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
  		}
  		break;
  	case kSweetFBSwapWait:
@@ -1288,7 +1307,7 @@ index a62416c..3f2a660 100644
  	default:
  		break;
  	}
-@@ -556,15 +717,26 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+@@ -556,15 +736,26 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
  	if (args->structureOutputDescriptor == NULL && args->structureOutput != NULL) {
  		bzero(args->structureOutput, args->structureOutputSize);
  	}

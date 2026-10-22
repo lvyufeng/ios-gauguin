@@ -229,10 +229,10 @@ index 8f53742..9800db6 100644
  	return true;
  }
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..f19eb08 100644
+index 67c5f79..3349f91 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
-@@ -2510,6 +2510,115 @@ task_clear_corpse(task_t task)
+@@ -2510,6 +2510,127 @@ task_clear_corpse(task_t task)
  	task_unlock(task);
  }
  
@@ -278,8 +278,6 @@ index 67c5f79..f19eb08 100644
 +sweet_dump_tick(void)
 +{
 +	sweet_dump_now_tick++;
-+	printf("SWEET THREADS: tick %u target %u pending %d\n", sweet_dump_now_tick,
-+	    sweet_dump_target_tick, sweet_later_task != TASK_NULL);
 +	if (sweet_later_task == TASK_NULL || sweet_dump_target_tick == 0 ||
 +	    sweet_dump_now_tick < sweet_dump_target_tick) {
 +		return;
@@ -306,6 +304,20 @@ index 67c5f79..f19eb08 100644
 +	if (sweet_dump_names[0] == '\0' || task == TASK_NULL ||
 +	    sweet_dump_count >= 16) {
 +		return;
++	}
++	/*
++	 * If a target is pending from an earlier exec, dump it now: the exec path
++	 * is a context where walking a *different* task's threads has been shown
++	 * to work, and it happens ~260 more times during boot (NOTES 16:32). The
++	 * watchdog cannot be used for this - its callback runs once per boot.
++	 */
++	if (sweet_later_task != TASK_NULL) {
++		task_t pending = sweet_later_task;
++		sweet_later_task = TASK_NULL;
++		printf("SWEET THREADS: %s now, threads=%d (at %s exec)\n",
++		    sweet_later_name, pending->thread_count, name);
++		sweet_dump_walk(pending, sweet_later_name);
++		task_deallocate(pending);
 +	}
 +	const char *t = sweet_dump_names;
 +	bool match = false;

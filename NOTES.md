@@ -35,6 +35,29 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 16:55: SpringBoard is stuck with ONE sleeping thread <<<
+
+Dumping SpringBoard at the next exec after its own (six execs later, a few
+hundred ms of boot) gives the decisive line:
+
+    SWEET THREADS: SpringBoard exec, threads=1
+    SWEET THREADS: SpringBoard now, threads=1 (at xpcproxy exec)
+    SWEET THREADS: SpringBoard tid=219 run=0 state=1 ev=0
+
+`state=1` is **TH_WAIT and nothing else** (not RUNNABLE, not RUNNING, not
+UNINTERRUPTIBLE), `run=0`, `ev=0`. A thread that is a plain wait with no wait
+event set and that has not yet spawned any second thread means SpringBoard's
+main thread blocked **before it started any of its own work** - no
+dispatch/CFRunLoop thread, no scene graph, no framebuffer open (which matches
+the IOKit trace: zero framebuffer calls).
+
+So the question is no longer "why does SpringBoard not draw" but "what does the
+main thread wait on within its first milliseconds". `ev=0` rules out a named
+wait channel we could grep for; the next step is a second sample at a *later*
+exec (e.g. 200 execs later) to see whether it is the same wait (a real block) or
+a different one (a slow start), plus capturing `waitq` owner data via
+`thread->waitq` instead of just `wait_event`.
+
 ### >>> UPDATE 2026-10-22 16:32: the probe runs, but the watchdog fires once per boot <<<
 
 `shim-thr9.img` (probe actually linked this time - verified with

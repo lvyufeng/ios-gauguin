@@ -19,10 +19,10 @@ out=${2:?usage: fastboot-cycle.sh IMAGE OUT.txt [--boot-now]}
 here=$(cd "$(dirname "$0")" && pwd)
 export PATH=/opt/homebrew/bin:$PATH
 
-adb_wait() {  # wait until adb sees a device, up to $1 seconds
+adb_wait() {  # wait until adb sees a device, up to $1 seconds (also TWRP's adbd)
 	local limit=$1 i=0
 	while [ $i -lt "$limit" ]; do
-		if adb devices | grep -q recovery; then return 0; fi
+		if adb devices | tail -n +2 | grep -q .; then return 0; fi
 		sleep 2; i=$((i + 2))
 	done
 	return 1
@@ -67,3 +67,10 @@ echo "== TWRP after $(( $(date +%s) - start ))s"
 
 sh "$here/sweet-log-pull.sh" "$out" 2>&1 | tail -1
 tail -25 "$out"
+
+# Leave misc armed for the next cycle: the phone may be sitting in UEFI by now
+# (TWRP runs "boot-recovery" a few seconds after start, which clears that
+# string), and an unarmed misc would send the next reset to UEFI instead.
+if [ "${ARM_AFTER:-1}" = 1 ] && adb devices | grep -q recovery; then
+	arm_recovery > /dev/null 2>&1 && echo "== misc re-armed for the next cycle"
+fi

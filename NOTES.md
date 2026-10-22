@@ -35,6 +35,29 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 11:00: the debug loop is fully unattended (6 cycles, no human) <<<
+
+`tools/auto-cycle.sh IMAGE N` repeats the whole cycle: TWRP arms `misc` ->
+`fastboot boot` -> the kernel boots, runs userland, resets -> ABL reads
+`misc` and boots TWRP -> the log is pulled -> `misc` is armed again. ~1 min 50 s
+per cycle. Six cycles ran back to back with nobody touching the phone; every
+one reached userland (24.6k-27.7k log lines) and carried its own reset code.
+
+The restart codes from those six boots:
+
+    f823e2d8   b823e0d8   e823c2d8   f822c2d8   f823e2d8   f823c2d8
+
+The low byte is always `0xd8`, the top word is `0xf823` in four of six, and
+the middle byte is only ever 0xc2/0xe0/0xe2. So the reset source is stable
+(a real reset type, not garbage in IMEM) while a couple of bits wobble - the
+high word probably packs both the reset category and a flag/CPU field. `swwd`
+stays 0 in every boot, so the APSS watchdog is off throughout.
+
+Next probe, now cheap: bisect the cmdline with the loop (each run is 2 min):
+`sweetfb_noconsole=1` vs the framebuffer untouched, and `sweetusb` off, to see
+which subsystem the repeating reset needs. `tools/auto-cycle.sh` also keeps
+`misc` armed, so the phone no longer falls into UEFI between cycles.
+
 ### >>> UPDATE 2026-10-22 10:50: watchdog registers read back as zero (not the culprit) <<<
 
 `swwd=00000000` in the boot-args of the next run: every one of the first eight

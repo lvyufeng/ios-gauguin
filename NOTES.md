@@ -35,6 +35,40 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:47: neither sleep nor spin works for the touch thread <<<
+
+Three attempts to get the touch thread past its start-up delay, all measured on
+the phone:
+
+| attempt | result |
+| --- | --- |
+| `assert_wait_deadline` + `thread_block` (original) | "starting in 30 s", then **nothing** for 50 s of log |
+| `delay()` in 50 ms slices | "thread running, entering wait", then **nothing** for 30 s |
+| busy-wait on `mach_absolute_time()` | boot **wedges at 596 lines** (spin starves UFS on 1 CPU) |
+
+Proof the thread itself is fine: the added `printf("SWEET TOUCH: thread
+running, entering wait")` **does** appear, so `kernel_thread_start` works and the
+thread runs up to the wait. What never happens is the **wakeup**.
+
+`delay()` is not an alternative - `_clock_delay_until_deadline()` uses
+`assert_wait_deadline(event=clock_delay_until)` + `thread_block()` as well, so it
+inherits the same problem. The busy-wait proves the *timer* itself runs (the
+framebuffer vsync keeps counting during those same seconds), so what is missing
+is specifically the **timer-triggered thread wakeup** for a kernel thread that
+was started at this point in boot.
+
+That is a scheduler/timer-integration gap in this port, not a touch bug - and it
+is worth fixing on its own, because any kernel thread that sleeps at start-up
+hits it. The next probe should be a minimal one: a kernel thread started from the
+same place that does `assert_wait_deadline(..., deadline = now + 1 s)` and prints
+before/after, so the failure is reproduced with nothing else involved.
+
+Untried escape hatch if that turns out to be expensive: **start the touch thread
+later**, from the first userland process context (e.g. on the first `exec` of a
+known daemon), where sleeps are known to work - backboardd's own
+`mach_wait_until` sleeps fine (NOTES 22:00), which proves the mechanism works
+once userland is running.
+
 ### >>> UPDATE 2026-10-22 22:38: FOUND IT - the touch thread's sleep never wakes <<<
 
 Added one line after the gate:

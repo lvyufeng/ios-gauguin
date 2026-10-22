@@ -23,13 +23,45 @@ index 7fd9be1..2104cd3 100644
  	 * sy_narg is inaccurate on ARM if a 64 bit parameter is specified. Since user_addr_t
  	 * is currently a 32 bit type, this is really a long word count. See rdar://problem/6104668.
 diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
-index aa23b64..a905d3c 100644
+index aa23b64..3667d36 100644
 --- a/bsd/dev/sweet_touch.c
 +++ b/bsd/dev/sweet_touch.c
-@@ -603,7 +603,14 @@ touch_thread(void *arg, wait_result_t result)
+@@ -133,10 +133,25 @@ touch_wr(vm_offset_t base, uint32_t off, uint32_t val)
+ static void
+ touch_wait(unsigned ms)
+ {
+-	uint64_t deadline;
+-	clock_interval_to_deadline(ms, NSEC_PER_MSEC, &deadline);
+-	(void)assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, deadline);
+-	thread_block(THREAD_CONTINUE_NULL);
++	/*
++	 * Long waits at this point in boot do not work: a 30 s
++	 * assert_wait_deadline()+thread_block() never wakes even though the log
++	 * runs 20 s past the deadline (NOTES 22:38). Sleep in slices using
++	 * delay(), which spins on the timer and is known good here; a few hundred
++	 * slices of 50 ms is far cheaper than never starting at all.
++	 */
++	/*
++	 * delay() itself blocks on assert_wait_deadline, and that wakeup does not
++	 * arrive for a kernel thread started this early (NOTES 22:44: 30 s of log
++	 * with a 6 s deadline). Spin on mach_absolute_time() instead: it needs no
++	 * scheduler at all, and a busy-wait on one CPU is acceptable for a
++	 * bring-up delay.
++	 */
++	uint64_t end;
++	clock_interval_to_deadline(ms, NSEC_PER_MSEC, &end);
++	while (mach_absolute_time() < end) {
++		/* spin; the timer advances without us */
++	}
+ }
+ 
+ static bool
+@@ -603,7 +618,16 @@ touch_thread(void *arg, wait_result_t result)
  	 */
  	(void)PE_parse_boot_argn("sweettouchdelay", &delay_s, sizeof(delay_s));
  	printf("SWEET TOUCH: starting in %u s\n", delay_s);
++	/* Prove the thread is scheduled at all before blaming the sleep. */
++	printf("SWEET TOUCH: thread running, entering wait\n");
 +	/*
 +	 * Prove the deadline actually fires: the earlier logs show this message
 +	 * and then nothing at all, even though the captured window ran past the

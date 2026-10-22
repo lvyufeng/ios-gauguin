@@ -35,6 +35,38 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:27: SpringBoard is a healthy multi-threaded app whose MAIN thread is parked <<<
+
+Thread snapshot at exec of the *next* process (i.e. SpringBoard fully started),
+9 threads:
+
+| tid | run | state | waitq | notes |
+| --- | --- | --- | --- | --- |
+| **220** | 0 | 1 | **PORT** | **main thread, parked** (unchanged across 3 samples) |
+| 287, 325, 481, 491 | 1 | 4 | - | running/on-CPU work-queue threads |
+| 353, 482 | 0 | 0x41 | TURNSTILE | blocked on locks |
+| 483, 492 | 0 | 1 | QUEUE | blocked on queues |
+
+Main thread mask `0x1181180` decodes to **WAITQ | TH_UNINT | TH_RUN | TH_IDLE |
+AS_ARITHM** - and `TH_UNINT` is the important one: the main thread's
+`receive` is **uninterruptible**, so it will sit on that port for as long as
+nobody sends to it. It is *not* spinning, not retrying, and not going to time out.
+
+This is the normal shape of a UIKit app that has finished launching and is
+waiting for its **event loop** to be fed. So the display-side story is now
+complete and consistent end to end:
+
+* our framebuffer presents (180 frames, 5 colours, 0 backboardd crashes);
+* the bundle is intact; the start-up directory scan is a burst, not a loop;
+* 8 worker threads are alive and doing work;
+* **the main thread simply has nothing to draw and no events to process.**
+
+So the remaining gap is not inside SpringBoard - it is whatever is supposed to
+**send it events** (a scene/session from the UI host, or the touch path feeding
+the event queue). That reframes the remaining work: the next real milestone is
+**touch**, not more display probing - a touch that reaches SpringBoard wakes tid
+220 and the pipeline above is already proven ready to present it.
+
 ### >>> UPDATE 2026-10-22 22:24b: the bundle is COMPLETE - the scan is start-up, not a missing file <<<
 
 Checked the bundle on the root image before assuming a missing resource:

@@ -22,6 +22,25 @@ index 7fd9be1..2104cd3 100644
  	/*
  	 * sy_narg is inaccurate on ARM if a 64 bit parameter is specified. Since user_addr_t
  	 * is currently a 32 bit type, this is really a long word count. See rdar://problem/6104668.
+diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
+index aa23b64..a905d3c 100644
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -603,7 +603,14 @@ touch_thread(void *arg, wait_result_t result)
+ 	 */
+ 	(void)PE_parse_boot_argn("sweettouchdelay", &delay_s, sizeof(delay_s));
+ 	printf("SWEET TOUCH: starting in %u s\n", delay_s);
++	/*
++	 * Prove the deadline actually fires: the earlier logs show this message
++	 * and then nothing at all, even though the captured window ran past the
++	 * deadline (NOTES 22:34). If "slept" never appears, touch_wait() is the
++	 * bug; if it appears, the failure is later and more interesting.
++	 */
+ 	touch_wait(delay_s * 1000u);
++	printf("SWEET TOUCH: slept %u s, continuing\n", delay_s);
+ 	printf("SWEET TOUCH: mapping GCC/TLMM/SE%u\n",
+ 	    (unsigned)((TOUCH_SE_PA >> 16) - 0x8cu));
+ 	st.gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
 index 68612db..7e8c649 100644
 --- a/bsd/kern/kern_exec.c

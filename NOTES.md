@@ -35,6 +35,44 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:38: FOUND IT - the touch thread's sleep never wakes <<<
+
+Added one line after the gate:
+
+    touch_wait(delay_s * 1000u);
+    printf("SWEET TOUCH: slept %u s, continuing\n", delay_s);
+
+Run with `sweettouchdelay=30`, captured window reaching **vsync 3000 (~50 s)**:
+
+    SWEET TOUCH: starting in 30 s
+    (nothing - no "slept")
+
+So the touch thread **enters `touch_wait()` and never comes back**, even though the
+deadline is 30 s and the log continues for ~50 s. That is the actual touch
+blocker, and it explains every earlier observation (45 s message, then silence).
+It also means the driver was never broken: it never got past its own sleep.
+
+`touch_wait()` is:
+
+    clock_interval_to_deadline(ms, NSEC_PER_MSEC, &deadline);
+    assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, deadline);
+    thread_block(THREAD_CONTINUE_NULL);
+
+Two candidate causes, and the next run distinguishes them:
+* `assert_wait_deadline` + `thread_block` does not arm the timer the way the code
+  expects (the deadline is silently dropped);
+* the thread is created before the timer subsystem is usable at that point in
+  boot, so the wakeup is never delivered.
+
+Either way the fix is the same and is small: sleep on a **timer that is known to
+work in this tree** (`delay()`/`clock_delay_until()` - the spin/yield path, no
+blocking) or re-create the thread after userland is up. The `sweettouchdelay`
+value is not the problem.
+
+Note: two runs also stalled inside UFS reads (4-6k lines) with *this* image while
+the previous image booted fine twice, so the stall is intermittent and not tied
+to the touch change.
+
 ### >>> UPDATE 2026-10-22 22:30: touch already exists - it is delayed 45 s and never gets there <<<
 
 Important discovery while starting the touch milestone: **a real touch driver is

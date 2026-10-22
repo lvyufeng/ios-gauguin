@@ -35,6 +35,28 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 22:16: the directory tracer now takes a safe path to the fd (not yet run) <<<
+
+The first tracer hung two boots in a row. Cause: it **copyin()-ed `uap->path`
+again** after `openat_nocancel` had already consumed that user pointer - a second
+user access from the syscall return path is exactly the kind of thing that
+faults/hangs under this bring-up. Rewritten to resolve the path through the fd
+table instead, with no user-memory access at all:
+
+    fp_getfvp(p, fd, &fp, &vp)     -> takes the fd lock itself, do not hold it
+    vnode_getwithref(vp)           -> hold a ref while reading the path
+    vn_getpath(vp, buf, &pathlen)  -> pathlen is int*, not size_t
+    vnode_put(vp); fp_drop(p, fd, fp, 0);   -> fp_drop's 4th arg is `locked`, an int
+
+Builds clean. **Not yet verified on device**: the phone dropped off USB right
+after the last flash, so the `SWEET DIR:` lines have not been seen. Next run with
+`sweetdirs=SpringBoard` is the decisive one - if it boots, the 40-line cap will
+name the directory tree SpringBoard keeps re-reading.
+
+Signature traps hit while writing it (all cost a build each):
+`fileproc_guard_t` does not exist in this TU, `vn_getpath`'s length is `int *`,
+`fp_drop`'s last parameter is `int locked` (not a pointer).
+
 ### >>> UPDATE 2026-10-22 22:06: directory tracer added; first run hung the boot <<<
 
 Added `sweetdirs=<proc>` (in `bsd/vfs/vfs_syscalls.c`): `openat` records

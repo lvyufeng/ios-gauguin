@@ -211,10 +211,10 @@ index 407a18b..7ef3ca5 100644
  proc_task(proc_t proc)
  {
 diff --git a/bsd/vfs/vfs_syscalls.c b/bsd/vfs/vfs_syscalls.c
-index 90e68bb..ef0197c 100644
+index 90e68bb..1b86cef 100644
 --- a/bsd/vfs/vfs_syscalls.c
 +++ b/bsd/vfs/vfs_syscalls.c
-@@ -5086,11 +5086,75 @@ openat_nocancel(__unused proc_t p, struct openat_nocancel_args *uap,
+@@ -5086,11 +5086,95 @@ openat_nocancel(__unused proc_t p, struct openat_nocancel_args *uap,
  	           uap->mode, uap->fd, UIO_USERSPACE, retval);
  }
  
@@ -248,14 +248,34 @@ index 90e68bb..ef0197c 100644
 +}
 +
 +void
-+sweet_dir_record(proc_t p, int fd, const char *path)
++sweet_dir_record_from_fd(proc_t p, int fd)
 +{
 +	if (fd < 0 || !sweet_watch_proc(p)) {
 +		return;
 +	}
-+	struct sweet_dir_fd *e = &sweet_dirs[sweet_dir_next++ % SWEET_DIR_MAX];
-+	e->fd = fd;
-+	strlcpy(e->path, path, sizeof(e->path));
++	/*
++	 * vnode_lookup_rdonly-style access without touching user memory: take the
++	 * fileproc and its vnode, then ask the vnode for its path.
++	 */
++	/*
++	 * Same pattern as the rest of this file (see the vnode_getwithref callers
++	 * around line 3950): fp_getfvp takes the fd lock itself, so do not hold it
++	 * here, and hold a reference on the vnode while reading its path.
++	 */
++	struct fileproc *fp = NULL;
++	vnode_t vp = NULLVP;
++	if (fp_getfvp(p, fd, &fp, &vp) != 0) {
++		return;
++	}
++	if (vnode_getwithref(vp) == 0) {
++		struct sweet_dir_fd *e = &sweet_dirs[sweet_dir_next++ % SWEET_DIR_MAX];
++		e->fd = fd;
++		e->path[0] = '\0';
++		int pathlen = (int)sizeof(e->path);
++		vn_getpath(vp, e->path, &pathlen);
++		vnode_put(vp);
++	}
++	fp_drop(p, fd, fp, 0);
 +}
 +
 +static const char *
@@ -278,20 +298,20 @@ index 90e68bb..ef0197c 100644
 -	return openat_nocancel(p, (struct openat_nocancel_args *)uap, retval);
 +	int err = openat_nocancel(p, (struct openat_nocancel_args *)uap, retval);
 +#if defined(ARM64_BOARD_CONFIG_SWEET)
-+	{
-+		if (err == 0 && sweet_watch_proc(p)) {
-+			char sweet_path[160] = { 0 };
-+			if (copyinstr(uap->path, sweet_path, sizeof(sweet_path), NULL) == 0) {
-+				sweet_dir_record(p, *retval, sweet_path);
-+			}
-+		}
++	/*
++	 * Resolve the path through the fd table instead of copyin()-ing uap->path:
++	 * this runs after openat_nocancel already touched the user pointer, and a
++	 * second user access from here is what hung the previous boot (NOTES 22:06).
++	 */
++	if (err == 0 && sweet_watch_proc(p)) {
++		sweet_dir_record_from_fd(p, *retval);
 +	}
 +#endif
 +	return err;
  }
  
  #define OPEN_BY_ID_ENTITLEMENT  "com.apple.private.vfs.open-by-id"
-@@ -10455,6 +10519,17 @@ getdirentries64(__unused struct proc *p, struct getdirentries64_args *uap, user_
+@@ -10455,6 +10539,17 @@ getdirentries64(__unused struct proc *p, struct getdirentries64_args *uap, user_
  
  	AUDIT_ARG(fd, uap->fd);
  

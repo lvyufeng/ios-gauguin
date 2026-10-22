@@ -35,6 +35,49 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 23:00: FOUND THE REAL BUG - the timebase is 24 MHz, not 19.2 MHz <<<
+
+Put a probe thread next to the touch thread (identical
+`assert_wait_deadline`+`thread_block`), then tried the same code inline inside the
+touch thread. Same boot, three results:
+
+    SWEET WAITPROBE: thread running, blocking for 1 s
+    SWEET TOUCH: probe-style wait 1 s
+    SWEET WAITPROBE: woke (wresult=0)          <- probe wakes
+    SWEET TOUCH: probe-style wait woke         <- inline block in touch wakes
+    SWEET TOUCH: wait ms=2000 deadline=904629001 now=866229006
+
+So the mechanism works - and the deadline arithmetic is **correct**:
+
+    deadline - now = 38,399,995 ticks / 2 s = 19,200,000 Hz   (matches the ADT)
+
+Which finally explains everything: `clock_interval_to_deadline` converts using the
+**declared 19.2 MHz** timebase, and `deadline` is therefore 2 s in *declared*
+units. But the hardware counter runs at **24 MHz**, so the kernel believes far
+less time has passed than really has, and a wait that should end in 2 s is
+scheduled ~2.5 "kernel-seconds" away - longer than any boot window.
+
+Independent confirmation from the frame timer: vsync is programmed for **16,667 us**
+(`SWEET_FB_VSYNC_US`) and the log reaches `vsync=1800`. At the declared 19.2 MHz
+that is 30 s of kernel time; measured against the real 24 MHz counter those same
+1800 frames take `1800*16667*19.2/24 = 24.0 s`. **Everything in the kernel runs a
+consistent 0.8x of wall-clock time** - i.e. all kernel timeouts are 1.25x longer
+than intended.
+
+That is one-line fix territory: the SM7125 XO is **19.2 MHz** as declared, so the
+question is whether our platform expert is programming the architected timer with
+the wrong divider, or the ADT value never reaches
+`gPEClockFrequencyInfo.timebase_frequency_hz`. Check what the kernel prints/believes
+for the timebase, then compare against `mach_absolute_time()` deltas measured
+against the framebuffer's own 60 Hz cadence (a clock we control).
+
+Practical consequence for touch: with the real timebase known, the touch delay
+can simply be set in **real** seconds (currently it is inflated 1.25x, which is
+not why it never woke - it never woke because 45 s of kernel time > boot window;
+45 * 1.25 = 56 s of wall clock, still inside 150 s, so the 45 s gate alone did not
+explain it -- the inner `touch_wait` calls each inflating 1.25x on top of a
+*never-bounded* loop is what kept it out of the window).
+
 ### >>> UPDATE 2026-10-22 22:52: moving the start later does not help - the wakeup gap is general <<<
 
 Moved `sweet_touch_init()` out of `sweet_ufs.c` (boot-time) into the exec hook,

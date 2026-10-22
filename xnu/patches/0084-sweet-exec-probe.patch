@@ -23,10 +23,30 @@ index 7fd9be1..2104cd3 100644
  	 * sy_narg is inaccurate on ARM if a 64 bit parameter is specified. Since user_addr_t
  	 * is currently a 32 bit type, this is really a long word count. See rdar://problem/6104668.
 diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
-index aa23b64..5508c79 100644
+index aa23b64..90c82a6 100644
 --- a/bsd/dev/sweet_touch.c
 +++ b/bsd/dev/sweet_touch.c
-@@ -594,7 +594,7 @@ touch_se_init(void)
+@@ -134,9 +134,19 @@ static void
+ touch_wait(unsigned ms)
+ {
+ 	uint64_t deadline;
++	/*
++	 * NOTES 22:58: the identical code written inline with a literal 1000 DOES
++	 * wake in this very thread, while this helper does not. Whatever the
++	 * difference is, it is in this function - print the computed deadline so
++	 * the next run shows whether it is garbage.
++	 */
+ 	clock_interval_to_deadline(ms, NSEC_PER_MSEC, &deadline);
++	printf("SWEET TOUCH: wait ms=%u deadline=%llu now=%llu\n", ms,
++	    (unsigned long long)deadline, (unsigned long long)mach_absolute_time());
+ 	(void)assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, deadline);
+ 	thread_block(THREAD_CONTINUE_NULL);
++	printf("SWEET TOUCH: wait ms=%u returned at %llu\n", ms,
++	    (unsigned long long)mach_absolute_time());
+ }
+ 
+ static bool
+@@ -594,7 +604,7 @@ touch_se_init(void)
  static void
  touch_thread(void *arg, wait_result_t result)
  {
@@ -35,9 +55,23 @@ index aa23b64..5508c79 100644
  	(void)arg;
  	(void)result;
  	/*
-@@ -604,6 +604,7 @@ touch_thread(void *arg, wait_result_t result)
+@@ -603,7 +613,21 @@ touch_thread(void *arg, wait_result_t result)
+ 	 */
  	(void)PE_parse_boot_argn("sweettouchdelay", &delay_s, sizeof(delay_s));
  	printf("SWEET TOUCH: starting in %u s\n", delay_s);
++	/*
++	 * NOTES 22:55: the identical construct in sweet_wait_probe_start() DOES
++	 * wake in the same boot, so test it here with a fixed 1 s value - if this
++	 * one wakes, the difference is the computed argument, not the mechanism.
++	 */
++	{
++		uint64_t d1;
++		printf("SWEET TOUCH: probe-style wait 1 s\n");
++		clock_interval_to_deadline(1000, NSEC_PER_MSEC, &d1);
++		(void)assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, d1);
++		thread_block(THREAD_CONTINUE_NULL);
++		printf("SWEET TOUCH: probe-style wait woke\n");
++	}
  	touch_wait(delay_s * 1000u);
 +	printf("SWEET TOUCH: slept %u s, continuing\n", delay_s);
  	printf("SWEET TOUCH: mapping GCC/TLMM/SE%u\n",
@@ -641,7 +675,7 @@ index 6b926fe..1d957bb 100644
  			return error;
  		}
 diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
-index 68612db..e751320 100644
+index 68612db..7fd0702 100644
 --- a/bsd/kern/kern_exec.c
 +++ b/bsd/kern/kern_exec.c
 @@ -1998,11 +1998,44 @@ cleanup_rosetta_fp:
@@ -689,7 +723,7 @@ index 68612db..e751320 100644
  	proc_resetregister(p);
  	if (p->p_pptr && (p->p_lflag & P_LPPWAIT)) {
  		proc_lock(p);
-@@ -7414,6 +7447,41 @@ process_signature(proc_t p, struct image_params *imgp)
+@@ -7414,6 +7447,43 @@ process_signature(proc_t p, struct image_params *imgp)
  #if defined(ARM64_BOARD_CONFIG_SWEET)
  			/* SWEET runs every iOS binary this way: one short line per exec. */
  			printf("exec %s\n", p->p_name);
@@ -705,6 +739,7 @@ index 68612db..e751320 100644
 +				 * userland is established (a later exec) so the touch thread's
 +				 * own timed sleep has a working scheduler under it.
 +				 */
++				extern void sweet_wait_probe_start(void);
 +				extern void sweet_touch_init(void);
 +				static unsigned sweet_execs;
 +				static bool sweet_touch_started;
@@ -714,6 +749,7 @@ index 68612db..e751320 100644
 +				if (!sweet_touch_started && ++sweet_execs >= (unsigned)sweet_after) {
 +					sweet_touch_started = true;
 +					printf("SWEET TOUCH: starting after %u execs\n", sweet_execs);
++					sweet_wait_probe_start();   /* NOTES 22:52 reproduction */
 +					sweet_touch_init();
 +				}
 +			}
@@ -1586,7 +1622,7 @@ index 8e29586..2515837 100644
  		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
  		    MACHDBG_CODE(DBG_MACH_SCHED, MACH_BLOCK),
 diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
-index 67c5f79..4285222 100644
+index 67c5f79..80eaf01 100644
 --- a/osfmk/kern/task.c
 +++ b/osfmk/kern/task.c
 @@ -109,6 +109,7 @@
@@ -2000,6 +2036,50 @@ index 67c5f79..4285222 100644
  /*
   *	task_port_no_senders
   *
+@@ -9135,3 +9532,43 @@ kdp_task_is_locked(task_t task)
+ {
+ 	return kdp_lck_mtx_lock_spin_is_acquired(&task->lock);
+ }
++
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(GAUGUIN)
++/*
++ * Minimal reproduction for NOTES 22:47-22:52: a kernel thread started from
++ * userland context does assert_wait_deadline(now + 1 s) + thread_block() and
++ * reports whether it ever resumes. Nothing else is involved: no driver, no
++ * MMIO, no locks. If "woke" never appears, the deadline path of
++ * assert_wait_deadline is broken for kernel threads in this port.
++ */
++static char sweet_wait_chan;
++
++static void
++sweet_wait_probe_cont(void *arg, wait_result_t wresult)
++{
++	uint64_t deadline;
++	(void)arg;
++	printf("SWEET WAITPROBE: thread running, blocking for 1 s\n");
++	clock_interval_to_deadline(1000, NSEC_PER_MSEC, &deadline);
++	(void)assert_wait_deadline(&sweet_wait_chan, THREAD_UNINT, deadline);
++	thread_block(THREAD_CONTINUE_NULL);
++	printf("SWEET WAITPROBE: woke (wresult=%d)\n", (int)wresult);
++	thread_terminate_self();
++}
++
++void
++sweet_wait_probe_start(void)
++{
++	thread_t th;
++	static bool started;
++	if (started) {
++		return;
++	}
++	started = true;
++	if (kernel_thread_start(sweet_wait_probe_cont, NULL, &th) == KERN_SUCCESS) {
++		thread_deallocate(th);
++	} else {
++		printf("SWEET WAITPROBE: kernel_thread_start failed\n");
++	}
++}
++#endif
 diff --git a/pexpert/arm/pe_identify_machine.c b/pexpert/arm/pe_identify_machine.c
 index aa75c0a..7c44f05 100644
 --- a/pexpert/arm/pe_identify_machine.c

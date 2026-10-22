@@ -35,6 +35,24 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 12:48: the rtclock counter itself hangs the phone - revert it <<<
+
+Two boots after adding `sweet_rtclock_intrs` (a plain atomic increment plus a
+`printf` every 1024 interrupts inside `rtclock_intr`) **hang instead of
+resetting**: no TWRP after ~170 s and the phone disappears from USB, needing a
+long power press. The 5 boots immediately before it (1d9a8b6's counter-free
+build) all behaved normally, so the change is the suspect - most likely the
+`printf` from the clock interrupt at `spl` level (the console write takes a
+lock the timer path must not touch), not the counter itself.
+
+Before the next boot the counter must come back **without any printing**:
+keep `sweet_rtclock_intrs` (a relaxed atomic add is safe) and read it from the
+watchdog heartbeat / the shim instead of printing inside the interrupt.
+
+Also still open from before: the timebase frequency line
+(`SWEET CLOCK: timebase=... Hz`) never got as far as being read, because both
+boots hung - so the "wrong timebase" hypothesis is **not yet tested**.
+
 ### >>> UPDATE 2026-10-22 12:45: prime suspect for "timers fire once": the timebase <<<
 
 Reading the timer path end to end (`rtclock_intr` -> `timer_intr` ->

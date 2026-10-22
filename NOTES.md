@@ -35,6 +35,33 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 19:34: suspend ruled out; the port probes are unreliable <<<
+
+* `state=1` is exactly `TH_WAIT` in this kernel (`thread.h:413`);
+* `susp=0` for every SpringBoard thread in every sample - **not suspended**;
+* but the port-object probes disagree with reality: `active=0` for *every*
+  thread including ones waiting on ordinary global queues, and `seq` reads
+  garbage for the main thread. So the `waitq -> ipc_port_t` arithmetic used in
+  the dump is still wrong (different container: for queue waits it is not a
+  port at all, and for the port wait the offset is not the one assumed).
+
+**Do not quote `msgs`, `active` or `seq` from the dump.** They are wrong by
+construction. What the dump *does* reliably say is only: thread id, `state`,
+`suspend_count`, `continuation`, and `waitq` type (PORT vs QUEUE) - the type
+comes from the waitq object itself and has been consistent across boots.
+
+The remaining contradiction - a thread in `TH_WAIT` that never passes through
+`thread_block_reason` - has one clean explanation left that fits all data: the
+block trace samples only the *first 40* lines and filters on a **process name
+read from `proc->p_name`**, and for the kernel-side exec handshake the exec'ing
+process may still be running under a different name (`launchd`/`xpcproxy`), so
+SpringBoard's own blocks are filtered out. Both traces (IPC and scheduler) were
+name-filtered; the thread dump was not. That asymmetry, not the kernel, is the
+likely reason for the "never blocks" reading.
+
+Next: run the block trace with `sweetblock=xpcproxy` and `sweetblock=launchd`
+(or drop the filter entirely for the first 40 blocks after SpringBoard's exec).
+
 ### >>> UPDATE 2026-10-22 19:15: and it never calls thread_block either <<<
 
 Tracing `thread_block_reason()` for SpringBoard (`sweetblock=SpringBoard`,

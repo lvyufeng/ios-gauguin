@@ -35,6 +35,39 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 21:45: the crash is an unaligned SIMD load in libsystem_platform <<<
+
+Symbolised the crash by parsing the dyld4 sub-cache on the iOS root image
+(`/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64*`): walk each
+shard for `MH_DYLIB` headers, take the real `__TEXT` claim, and match
+`pc - slide = 0x1d1b024c4`.
+
+    libsystem_platform.dylib  __TEXT @ 0x1d1b01000   ->  offset 0x14c4
+    (libtzupdate/libc++abi/corecapture also "match" only because their
+     __TEXT claims overlap; the hit with the smallest claim is this one)
+
+Disassembly at `0x1d1b024c4`:
+
+    0x1d1b024c0  927cec01   AND   x1, x0, #~0xf     ; round the pointer down
+    0x1d1b024c4  3dc00020   LDR   q0, [x1]          ; 16-byte load, ALIGNED
+    0x1d1b024c8  10fff9c3   ADR   x3, ...
+    0x1d1b024cc  3cc10462   LDR   q2, [x3, #0x10]   ; 16-byte load, ALIGNED
+
+`LDR q` requires a **16-byte aligned** address. With `far=0` in the crash line,
+`x1` rounded down to 0 and the load faulted at address 0.
+
+This is a **libc string/mem routine** (the `AND #~0xf` + vector-load shape is the
+standard 16-byte-at-a-time `strlen`/`memchr`/`strchr` idiom): it took a pointer a
+few bytes below 0 - i.e. **someone passed it a pointer to memory that had already
+been unmapped or shifted backwards**, not a null deref of a big struct.
+
+What that means practically: the crash is **not** in our driver and **not** in
+the display path; it is userland string handling on a dangling pointer, and
+`pc - slide` stays constant because the faulting instruction is constant. The
+useful next step is no longer symbol-chasing but **the caller's argument**:
+enable a userland crash detail dump (or look at the `lr` and frame chain in the
+existing `CRASH ... bt` line) to see which backboardd call feeds it.
+
 ### >>> UPDATE 2026-10-22 21:29: a stub accelerator is found, but the crash is elsewhere <<<
 
 Published a stub `IOAcceleratorES` (class in `SweetFramebuffer.cpp`, entry in

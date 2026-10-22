@@ -35,6 +35,29 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 13:38: the dependency is an IOKit class, not Metal <<<
+
+Decompiling the userland side narrows the GPU question:
+
+* `IOAcceleratorES` appears in exactly one binary on the root image,
+  `GPUToolsCapture.framework` (a debugging tool) - it is an **IOKit C++ class
+  name**, not a userland API;
+* `backboardd` links Metal but imports only `MTLSetShaderCachePath` /
+  `MTLMakeShaderCacheWritableByAllUsers` - it does **not** create a Metal
+  device;
+* `MTLCreateSystemDefaultDevice` is only used by UIKit's color picker, the GPU
+  capture tool and a watch-face snapshot service - i.e. **not** on the
+  home-screen path;
+* `IOAccelerator.framework` on the root image is a header-only private
+  framework (Info.plist, no binary) - it is the protocol declaration.
+
+So the object backboardd keeps matching is the kernel-side graphics
+accelerator service used for display/compositing (SwanSea's drawing path),
+and a picture can in principle be produced without a full Metal driver. The
+remaining question is exactly which part of that service backboardd waits on,
+which needs either a kernel-side instrument (log every IOKit match attempt and
+what class it expects) or a dump of backboardd's wait state.
+
 ### >>> UPDATE 2026-10-22 13:32: backboardd blocks on IOAcceleratorES (no GPU driver) <<<
 
 The log right after backboardd's framebuffer setup shows what it is waiting for:

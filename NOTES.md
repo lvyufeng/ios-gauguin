@@ -35,6 +35,33 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-22 14:20: who actually touches the framebuffer here <<<
+
+In the `/backlight` boot (27,456 lines) the framebuffer user clients are only:
+
+| process | selectors | meaning |
+| --- | --- | --- |
+| `MobileGestaltHelper` | 8, 28 | display size and dot pitch (query only) |
+| `backboardd` | 57, 15, 22, 29, 33, 79, 74 | notifications / surface / size / power path, all queries |
+
+Nobody sends a swap. backboardd does finish its display bring-up and then
+opens `SweetHIDTouch` / `SweetHIDButtons` (so IOHIDEventService works), while
+SpringBoard is exec'd at line 4,615 and produces **no** IOKit calls at all.
+
+So two separate questions, and the second is the real blocker:
+
+1. why backboardd never swaps (its setup completes, then silence);
+2. why SpringBoard - the process that owns the scene graph - never even opens
+   the framebuffer. A process that never queries the display will never draw,
+   so **SpringBoard is the thing to instrument next**, not the kernel.
+
+Cheapest instrument that exists in the tree: the `IOK <proc>: ...` trace uses
+`proc_selfname`, so adding `sweetiolog` names only helps for IOKit *users*.
+For a process that makes no IOKit calls, the next step is a userland-side
+probe (a launchd job or a dtrace-style sampling of SpringBoard's threads) -
+and before writing one, check `launchd`'s view: is the SpringBoard job running,
+throttled, or exited?
+
 ### >>> UPDATE 2026-10-22 14:12: /backlight node helps; SpringBoard never reaches IOKit <<<
 
 Added a `backlight` node to `tools/mkadt.py` (compatible "backlight",

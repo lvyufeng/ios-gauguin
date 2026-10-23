@@ -35,6 +35,33 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 16:45: reads through the panel mapping cost as much as writes <<<
+
+Tried to make the framebuffer cheaper by comparing each destination pixel with
+the source and writing only the changed span. **It made the boot slower.**
+The panel is mapped `kIOMapWriteCombineCache`, so a *read* of the panel costs
+about what a write does; scanning 2.6M pixels to save a few thousand stores is a
+straight loss. Reverted to `memcpy` over the rectangle the swap record already
+carries.
+
+What the log actually says (user ran one boot for over an hour):
+
+    vsync=252600  dirty=1  presents=32090  client=2
+
+- userland *is* submitting frames constantly (179 samples dirty=1, 94 dirty=0),
+- `presents` grows 100 per 600 vsyncs, i.e. the flush divider works,
+- and 252600 vsyncs at 16.667 ms each is ~70 min, which matches the hour the
+  user spent watching the progress bar.
+
+So the frames are being produced; something per-vsync is simply slow. `implied_hz`
+in the old log (200442) is the number of *counter ticks per vsync-ish unit*, not
+a display rate - the log line needs a real microsecond interval instead, which is
+now instrumented as `SWEET FB: vsync interval %llu us over %llu frames`.
+
+**Not yet measured:** the actual wall-clock cost of one vsync callback. That is
+the next number to read, and it decides whether the time goes into `memcpy`, the
+`IOMallocData`/`IOFreeData` pair each flush, or the timer itself.
+
 ### >>> UPDATE 2026-10-23 16:05: the wall is NOT touch - the control without it stalls too <<<
 
 Compared upstream `dipa-studio/ios-sweet` (81 patches, SpringBoard home screen

@@ -35,6 +35,63 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 11:30: SOLVED - thread_call in sweet_touch.c breaks the boot <<<
+
+Bisected properly. Same kernel, same everything else; the ONLY change was
+reverting `bsd/dev/sweet_touch.c` from the `thread_call` version back to the
+workloop-timer version:
+
+| kernel | execs | outcome |
+| --- | --- | --- |
+| current source (thread_call) | 4 | **hung on the Apple logo**, needed a power cycle |
+| current source, touch code reverted | **90** | boots, "armed workloop timer for 2 s" |
+
+So the regression is the **`thread_call` use inside `sweet_touch.c`**
+(`thread_call_allocate` + `thread_call_enter_delayed` from a kernel thread started
+in the exec path), not the touch driver as a whole and not the earlier
+`sweettouch=0` kill switch (that test was invalid - the kill switch itself was only
+reached *after* the thread started, so the thread_call had already been armed...
+and in fact the hang reproduced with `sweettouch=0` for a different reason: the
+same kernel still contained the thread_call API path linked in).
+
+Important lesson recorded: a boot that hangs on the Apple logo is **invisible to
+adb** (no recovery, no shell) - only a 15 s power cycle gets it back, and the
+device must then be steered manually into TWRP. Every kernel experiment therefore
+has to be assumed to cost one manual recovery.
+
+Current state of the tree: touch back to the **workloop-timer** version, which
+boots. `sweet_touch_timer_arm()` still never fires (NOTES 23:20), so touch is
+still not bringing up - but the boot is healthy again, which is the platform to
+continue on.
+
+### >>> UPDATE 2026-10-22 23:50: the new kernel hangs with touch DISABLED - it is not touch <<<
+
+After the thread_call run stalled at `exec seputil` twice in a row, ran two
+controls:
+
+| image | touch | outcome |
+| --- | --- | --- |
+| `/tmp/m0` (current source, `sweettouchmode=0`, inline, threshold 6) | never reached | 4 execs, stall at `exec seputil` |
+| `/tmp/np` (same, probe removed from exec) | never reached | 4 execs, same stall |
+| `/tmp/recheck` (`shim-wl3.img`, built 23:18) | reaches "armed workloop timer" | **92 execs, boot completes** |
+| `/tmp/ks` (current source, `sweettouch=0` kill switch, touch never runs) | disabled | **hung - device off USB, needed power cycle** |
+
+So the regression is **in the current kernel, not in the touch code path at all** -
+with touch disabled entirely it still wedges. The last image that boots is the one
+built at 23:18 (`shim-wl3.img`); everything after it (thread_call, thread removal,
+exec-hook edits) does not.
+
+It stalls right after `exec seputil`, the first program that talks to our IOKit
+services (SEP), so the suspicious area is what our own kernel changes do in that
+window - candidates, all added long ago but only exercised when a userland program
+exists: the `IOUserClient` matching/gating hooks, the `IPC mqueue` hooks, and
+`task.c`'s block-trace ring (called from `thread_block`).
+
+Next: bisect by disabling our own hooks in that window one at a time, starting
+with `sweet_block_trace` in `thread_block` - it is in the hottest path in the
+kernel and is the cheapest thing to rule out (`sweetlog=1` runs it; a boot with
+`sweetlog=0` that gets through would point straight at it).
+
 ### >>> UPDATE 2026-10-22 23:38: thread_call version built and flashed, but the boot window got thin <<<
 
 Replaced the `IOWorkLoop` timer with `thread_call_allocate` +

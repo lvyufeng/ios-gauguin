@@ -35,6 +35,33 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 14:35: touch bring-up stops at the TLMM mapping <<<
+
+Panel markers plus a fresh log (banner 14:31:06 matches the image, so this is a
+real measurement) place the stall exactly:
+
+| stage | result |
+| --- | --- |
+| `AppleCLCD::start` completes | panel turns green |
+| marker -> bring-up entered | panel turns blue |
+| A: `ml_io_map(0x00100000, 0x60000)` (GCC) | `0xfffffe100033c000` |
+| B: read GCC control register | `0xd010003d` - sane |
+| C: `ml_io_map(0x03900000, 0x5b000)` (TLMM) | **stalls; nothing after this line** |
+
+So MMIO mapping and register reads work in this port; the single failing step is
+the **TLMM (GPIO) window**. Everything after it - rail vote, reset, I2C, probe -
+has never run yet.
+
+Next control (already built as `shim-b1.img`): map only the one page that holds
+GPIO21/22 (`0x03950000`, `0x1000`) instead of the 0x5b000 window. If the page
+works, the problem is with the large/cross-page mapping; if it stalls too, the
+TLMM aperture itself is the problem.
+
+Tooling that made this measurable, keep using it: `sweet_fb_mark(colour)` paints
+the whole panel, `AppleCLCD::mark` holds each colour for a visible moment, and
+`sweet_touch.c` paints a colour before/after each stage. The panel is the primary
+witness; the log is corroboration (and only when the banner matches the image).
+
 ### >>> UPDATE 2026-10-23 14:40: THE "HANG" VERDICT WAS WRONG - the kernel runs fine <<<
 
 Built a panel marker instead of relying on the log: `AppleCLCD::start` paints the

@@ -35,6 +35,32 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 21:45: THE TOUCH CHIP ANSWERS <<<
+
+The panel verdict (a green quarter of the screen) says the whole chain works:
+
+    RPMh vote for ldoa6 .............. ok   (rail == 0)
+    TLMM window mapped ............... ok   (gpio != 0)
+    Focaltech chip id 0xA3/0x9F ...... ANSWERS   (0x56 0x62)
+
+So the touch hardware is live: rail, pinmux window and I2C all behave. The
+remaining work is turning reports into HID events, not fixing the hardware.
+
+**How this was finally observed, after six boots of log archaeology:** the ring
+is overwritten by userland output faster than it can be read back, and three
+consecutive runs "stopped" at three different places purely because that is
+where the last flushed line happened to be. The fix is not a better log - it is
+to **answer on the panel**: `sweet_fb_mark()` paints a quarter of the screen
+with the verdict (red = rail failed, blue = no TLMM, yellow = chip silent,
+green = chip answered), and the user reads it off the phone. Use that for every
+bring-up result from now on; it has never lied, while the log has repeatedly.
+
+Ported from `oosexgang/hackios-xnu-kernel` to get here: its bring-up order
+(RPMh vote -> reset GPIO -> poll chip id 5x200 ms expecting 0x56 0x62) and its
+insight that this kernel has no clock/pin/regulator framework, so a driver does
+all of it by hand in the vendor's order. Our RPMh and GENI code was already
+close; the missing piece was the chip handshake and, above all, the order.
+
 ### >>> UPDATE 2026-10-23 17:30: the display is fine - `cpus=1` was the bottleneck <<<
 
 Measured the thing that was actually unknown, with a real microsecond interval:

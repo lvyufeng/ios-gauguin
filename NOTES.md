@@ -35,6 +35,37 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 14:40: THE "HANG" VERDICT WAS WRONG - the kernel runs fine <<<
+
+Built a panel marker instead of relying on the log: `AppleCLCD::start` paints the
+whole panel a colour once the framebuffer is registered (`sweet_fb_mark`).
+
+**Observed on the phone (user watching the screen):**
+
+    screen turns fully GREEN   <- AppleCLCD::start finished, framebuffer is up
+    brief scroll of text
+    Apple logo takes over      <- iOS userland grabbed the display
+
+So the kernel boots, the display driver initialises, and userland comes up. It was
+**never hanging**. `fastboot-cycle.sh`'s `no recovery after 172s` verdict is a
+false negative: it waits for the device to drop off USB and come back into
+recovery, and it reads the persistent ring - and the ring stops being refreshed
+after boot (the 14:00 contradiction), so a perfectly healthy boot reports as a
+hang and the run is abandoned.
+
+**Retracted** - every "context X wedges the boot" conclusion from 12:20, 12:50 and
+14:00. The exec hook, the workloop timer callback and `AppleCLCD::start` are all
+usable; the experiments were reading a stale log and a recovery that does not
+always happen.
+
+**What is still true:** a kernel thread parked on a deadline is still never woken
+(that one was measured directly, with the system demonstrably continuing) - so the
+driver must not sleep. Everything else needs re-testing with the panel as the
+witness.
+
+**New rule: on the panel, green = framebuffer driver up. Apple logo = userland.**
+That pair is the verdict from now on; the log is a supplement, not the judge.
+
 ### >>> UPDATE 2026-10-23 14:00: every start point loses the boot, and one run is unexplained <<<
 
 Tried the remaining plausible start contexts for the touch probe:

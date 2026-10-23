@@ -35,6 +35,42 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 12:12: tree restored, and the log audit settled what is real <<<
+
+**Log audit (important).** I listed every image and every pulled log by the
+`Darwin Kernel Version` stamp inside it. Result: *every* log matches its image
+except the 11:43 batch, which was the stale-ring artefact already described. So
+the conclusions from the 22:47-23:47 runs (wl3, tc, np, m0, ks, tw2, as) are
+**real** - those logs genuinely came from the kernel that was flashed.
+
+**Tree restored.** `xnu/patches/0084-sweet-exec-probe.patch` now applies cleanly
+to the 0082-2 baseline; the residue that 0084 did not carry (the GAUGUIN build
+templates in `bsd/conf/Makefile.template`, `libkern/conf/Makefile.template`,
+`makedefs/MakeInc.def`, plus the `sweet_sample.c` / `IORPC.h` guards) was
+re-applied by hand. The tree builds and boots again: 94 execs, 7886 log lines,
+no STALE.
+
+**The touch state, now trustworthy.** With the exec hook armed at 20 execs:
+
+    SWEET TOUCH: starting after 20 execs
+    SWEET TOUCH: starting in 3 s
+    SWEET TOUCH: armed workloop timer for 3 s
+    SWEET TOUCH: timer fired, running bring-up        <- timer fires
+    SWEET TOUCH: timed-wait experiment, 2 s
+    SWEET TOUCH: wait ms=2000 deadline=907626179 now=869226180
+    SWEET TOUCH: armed abortsafe, blocking            <- and then it stops
+
+The thread is parked in the wait and never returns, **but the system keeps
+running** (94 execs, the rest of the log is normal). So the hang is not caused by
+the wait itself - it is caused by whatever the *bring-up* does when it finally
+runs, and the wait is only the thing that delays it.
+
+That is the experiment to run next: **remove the wait from the bring-up** and
+let the bring-up run immediately in the timer callback. If the phone wedges, the
+bring-up is the killer and we bisect inside it; if it survives, the bring-up is
+fine and the wait is the only broken thing - and then the driver must be written
+to never sleep at all.
+
 ### >>> UPDATE 2026-10-23 11:50: WHOOPS - the log puller was lying, and the tree got reset <<<
 
 Two mistakes worth recording, both mine:

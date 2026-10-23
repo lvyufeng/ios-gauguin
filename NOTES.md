@@ -35,6 +35,34 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 15:00: clock offsets are wrong; panics leave no trace <<<
+
+Fresh log (banner 14:49:19 matches the image). Two hard facts:
+
+1. **The clock step reads the wrong registers.** `gcc vote=0 rcg=0 cfg=0 dfs=0` -
+   all zero. The GCC window itself is fine (control register reads
+   `0xd010003d`), so `TOUCH_GCC_VOTE` / `TOUCH_RCG` are not the APCS branch
+   offsets. The "turn the clock on first" attempt therefore did nothing.
+   A one-shot scan of the GCC aperture is now in the code to find the real
+   offsets instead of guessing again.
+
+2. **With the (ineffective) clock step in between, the TLMM mapping no longer
+   blocks**: `stage D: map TLMM (one page)` is followed by vsync 3000, UFS I/O
+   and the heartbeat, so the kernel keeps running. But the phone then shows a
+   **black screen with white English text - a panic page** - and nothing in the
+   ring explains it, because panics are written to `gPanicBase`, which is a
+   different buffer from the ring.
+
+   Fixed in response: `paniclog_flush()` in `osfmk/arm/model_dep.c` now mirrors
+   the panic text into the ring (`===== PANIC =====` ... `===== END PANIC =====`),
+   so the next panic is readable from TWRP. **Do not spend another cycle without
+   this** - the panic page is the only thing telling us what broke.
+
+Method note - colour legend is now in the code as `RGB(r,g,b)` comments; the
+earlier hand-written names were wrong (see 14:45 exchange with the user). Panel
+order for the current build: cyan (map GCC) -> magenta (read GCC) -> azure
+(clock on) -> spring (map TLMM) -> blue (map SE) -> green (done).
+
 ### >>> UPDATE 2026-10-23 14:35: touch bring-up stops at the TLMM mapping <<<
 
 Panel markers plus a fresh log (banner 14:31:06 matches the image, so this is a

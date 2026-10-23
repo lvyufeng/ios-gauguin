@@ -35,6 +35,38 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 14:00: every start point loses the boot, and one run is unexplained <<<
+
+Tried the remaining plausible start contexts for the touch probe:
+
+| start point | variant | outcome |
+| --- | --- | --- |
+| `AppleCLCD::start` (driver start) | full read-only probe | **no log at all** |
+| `AppleCLCD::start` | `mode=0` (hook runs, prints, returns) | no boot back |
+| top of `bsd_init` | full read-only probe | no log written |
+| top of `bsd_init` | `mode=0` | no boot back |
+| exec hook | anything | no boot back (NOTES 12:50) |
+| workloop timer callback | atomic increment only | no boot back (NOTES 12:20) |
+
+**But there is a contradiction that must be resolved before reading anything into
+the above:** the 13:44:33 build (AppleCLCD hook, `mode=0`) later showed a *complete*
+boot in the persistent ring - 643 execs, "SYSTEM/LOGGER PIPE FOREIGNIP" traffic -
+with `SWEET TOUCH: start_at_init, mode=0` in it. In other words that build **did
+boot**, even though the cycle around it reported a stale log and looked like a hang.
+Also: that run's `start_at_init` printed *before* the kernel banner, and none of
+the later runs wrote the ring at all, so a boot can complete (or progress) without
+the persistence path running.
+
+So the working assumptions from 12:20/12:50 - "new code in context X wedges the
+boot" - are **not established**; what is established is that the cycle's
+`no recovery after 172s` is not a reliable verdict, because the ring is sometimes
+not written even by a boot that got as far as 643 execs.
+
+**Next thing to build, before any more driver work:** a verdict that does not
+depend on the ring. The devices have to tell us they are alive - e.g. the USB
+gadget enumerating (host sees a device) or the framebuffer's vsync counter being
+visible some other way. Until then every "hang" here may be a log artefact.
+
 ### >>> UPDATE 2026-10-23 12:50: running ANY code in the exec hook loses the boot <<<
 
 Four controls, each with a fresh log verified against the image banner:

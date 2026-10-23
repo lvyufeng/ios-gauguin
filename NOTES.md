@@ -35,6 +35,60 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 11:50: WHOOPS - the log puller was lying, and the tree got reset <<<
+
+Two mistakes worth recording, both mine:
+
+1. **I reset the patched tree to the bare upstream commit** (`git checkout -- .`)
+   while trying to "revert to a known-good touch version", which threw away the
+   working tree of 0084 and friends. `deps/apply-patches.sh` could not restage it
+   (`refusing to overwrite sweet_libpthread` - those dirs are tracked in the
+   committed tree), so the tree now holds the **baseline** patch set only: touch
+   is called from `sweet_ufs.c`, `kern_exec.c` has no hook, `files.arm64` has no
+   `SweetTouchTimer`. It builds and boots.
+2. **`sweet-log-pull.sh` reads a persistent ring in `userdata`, not this boot's
+   console.** When a boot dies before `sweet_log_start()` runs, the puller happily
+   returns the *previous* boot's log. That is why several "identical" runs came
+   back byte-identical (`1670d2a5...`) with the banner of an older kernel - and
+   why the last three cycles showed the 11:36 kernel while flashing an 11:43 one.
+
+**Rule to keep: always check the `Darwin Kernel Version` timestamp in the pulled
+log against the image's own banner before believing any result.** The image's banner
+can be read directly:
+
+    python3 - <<'PY'
+    d=open('shim/out/X.img','rb').read(); i=d.find(b'Darwin Kernel Version')
+    print(d[i+22:i+95].decode('utf8','replace'))
+    PY
+
+What is actually established today, after removing the runs that were really
+reading a stale log:
+
+* workloop timer callback **does fire** (observed in a run whose log *was* fresh);
+* timed waits (`assert_wait_deadline`, `delay`, `THREAD_ABORTSAFE`, workloop,
+  `thread_call`) **do not wake** a kernel thread created after userland is up;
+* `thread_call` in `sweet_touch.c` and driving hardware from the vsync/timer
+  callback both produced boots that never came back to recovery.
+
+### >>> UPDATE 2026-10-23 11:40: phased (no-sleep) bring-up still wedges the boot <<<
+
+Rewrote the driver to never sleep: `touch_step()` is called from the repeating
+100 ms `IOTimerEventSource`, advances a phase counter and does one bounded chunk
+(map MMIO / clocks / reset + rail vote / probe / one report read). All `touch_wait`
+calls became "advance N/100 ticks from now".
+
+Result: **the boot wedges again** (Apple logo, no `recovery`, no capture file).
+
+So the hang is **not** caused by sleeping - it is caused by touching the touch
+hardware from that context at all. Combined with 11:30 (thread_call wedged the boot
+even with the bring-up never reached) this points at the **MMIO/GPIO/SE access
+itself** being the killer when it runs after userland is up, i.e. probably a
+register access that never completes (GENI SE or TLMM) with no timeout in the exec
+path.
+
+Action taken afterwards: revert to the last version that boots and stop calling
+hardware from the timer until this is understood.
+
 ### >>> UPDATE 2026-10-23 11:34: the workloop timer DOES fire - but the wait after it still does not wake <<<
 
 Ran the bring-up from the workloop timer callback with a 2 s timed wait as its

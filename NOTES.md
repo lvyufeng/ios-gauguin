@@ -35,6 +35,29 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 22:05: reboot-loop protection is real - cold start clears it <<<
+
+Symptom the user hit repeatedly: the phone flashed a few lines of log and
+rebooted immediately, **with every image, including ones that had booted
+minutes earlier** (`shim-ver`, `shim-iv`). Partitions were checked and are
+clean: `misc` holds exactly `boot-recovery` and nothing else, `oem_misc1` is
+all zeros, and the HFS root (blocks 4096..4198400) does not overlap the log ring
+at block 28055546, so nothing on disk was damaged.
+
+What fixed it: a **full power-off** (power button 15 s+), 10 s off, then cold
+boot into recovery. The same `shim-iv.img` then booted to the Apple logo and the
+progress bar again.
+
+**So: several abnormal reboots in a row put the bootloader into a protection
+state, and a warm restart does not leave it. When the same image suddenly stops
+booting, stop bisecting - power the phone fully off first, wait, cold boot, and
+only then judge the image.**
+
+Also learned the hard way in the same window: a `for (;;)` polling loop placed
+in the UFS init path keeps the UFS thread from ever returning, iOS cannot read
+its root, and the phone reboots. Any long-running driver loop needs a thread of
+its own - never the initialisation path.
+
 ### >>> UPDATE 2026-10-23 21:45: THE TOUCH CHIP ANSWERS <<<
 
 The panel verdict (a green quarter of the screen) says the whole chain works:

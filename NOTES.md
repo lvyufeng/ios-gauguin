@@ -35,6 +35,35 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 16:05: the wall is NOT touch - the control without it stalls too <<<
+
+Compared upstream `dipa-studio/ios-sweet` (81 patches, SpringBoard home screen
+reached, touch working on sweet/SM7150). Three differences worth copying:
+
+1. **Where touch starts.** Upstream calls `sweet_touch_init()` at the end of the
+   UFS init path (the UFS driver's own context), not from a display driver.
+2. **How it gets power.** `sweet_rpmh_vreg_enable("ldoc11", 3200)` - an RPMh
+   vote, not a PMIC write. On gauguin the same call takes `ldoa6`.
+3. **Its GCC offsets are IDENTICAL to ours** (`0x5200c`, `0x18148`), and they
+   work there. So our offsets are not wrong; reading zero means the context is
+   wrong, not the address.
+
+Then the measurement that matters: touch moved to the UFS context, and the boot
+stopped right after `sample_start done` - 172 lines, not even `keys_init`.
+**A control build with no touch call at all stalls in exactly the same place.**
+So the touch driver is not what is blocking; the UFS init tail is.
+
+Suspects in that tail, in order: `keys_init()` (reads SPMI/PMIC), then
+`sweet_log_sync()` calls (each waits on the log thread that is itself expected to
+flush), then `usb_probe()`. Next control: drop `keys_init()` and see whether
+`usb_probe` / `init complete` are reached.
+
+Also fixed on the way (kept, they are independent improvements):
+- `touch_wait()` is now a bounded spin on `mach_absolute_time` - every blocking
+  form was proven never to return (NOTES 22:38).
+- Panel painting is opt-in (`sweetfb_mark=0`), 320x96 when on - full-panel
+  uncached fills were the earlier "hangs".
+
 ### >>> UPDATE 2026-10-23 15:35: "hangs" were uncached full-panel painting <<<
 
 The user watching the panel supplied the missing datapoint: **the Apple progress

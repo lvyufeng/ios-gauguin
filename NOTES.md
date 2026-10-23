@@ -35,6 +35,37 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 12:50: running ANY code in the exec hook loses the boot <<<
+
+Four controls, each with a fresh log verified against the image banner:
+
+| hook does | outcome |
+| --- | --- |
+| nothing (hook compiled out, `sweetdohook` absent) | boots, 94 execs |
+| `printf` + 2 s wait + bring-up, from a workloop timer | timer fires; wait never returns; **system keeps running** |
+| synchronous read-only MMIO probe (map GCC/TLMM/SE, read 3 regs) | boot stalls at 17 execs, **not even the first printf appears** |
+| `sweettouchmode=0`: enter, print, return - no hardware at all | boot stalls |
+| `sweettouchmode=2`: enter, print, return - literally nothing else | boot stalls |
+
+That last row is the whole finding: **a single `printf` on the first call into
+`sweet_touch_init()` from the exec hook wedges the boot.** Not the touch hardware,
+not the timer, not the wait - the *act of running new code at that point*.
+
+Placement facts checked: the hook sits after `proc_unlock(p)` and before the
+`done:` label of the exec path, and the pre-existing per-exec `printf("exec %s")`
+in the same block is harmless, so it is not a lock or a printf-in-lock issue.
+
+Honest status of this hypothesis: it is not explained yet. What it does tell us is
+that this hook is the wrong place to start a driver, and each experiment there
+costs a manual power cycle.
+
+**Change made in response:** `kern_exec.c` now requires `sweetdohook=1` before it
+touches any of this, so a normal boot can never be lost to the hook again. The
+touch path itself is left as the synchronous read-only probe, ready to be started
+from somewhere better (candidates: the framebuffer's `AppleCLCD` workloop at
+init time, or `bsd_init` before userland - both are contexts where a driver is
+normally started).
+
 ### >>> UPDATE 2026-10-23 12:20: the workloop timer callback is the suspect, not the touch hardware <<<
 
 Ran three variants, each verified fresh against the image banner:

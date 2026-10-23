@@ -1,0 +1,3243 @@
+diff --git a/bsd/conf/Makefile.template b/bsd/conf/Makefile.template
+index f2d8bf8..4d80f64 100644
+--- a/bsd/conf/Makefile.template
++++ b/bsd/conf/Makefile.template
+@@ -45,7 +45,7 @@ CFLAGS+= -include meta_features.h -DDRIVER_PRIVATE \
+ SFLAGS+= -include meta_features.h
+ 
+ # This provider is built into SWEET; other boards use their normal kext.
+-ifeq ($(CURRENT_MACHINE_CONFIG),SWEET)
++ifneq (,$(filter SWEET GAUGUIN,$(CURRENT_MACHINE_CONFIG)))
+ SWEET_PTHREAD_ROOT = $(SRCROOT)/bsd/pthread/sweet_libpthread
+ SWEET_PTHREAD_INC = -I$(SWEET_PTHREAD_ROOT) -I$(SWEET_PTHREAD_ROOT)/private -I$(SWEET_PTHREAD_ROOT)/include
+ sweet_pthread_init.o_INCFLAGS = $(SWEET_PTHREAD_INC)
+diff --git a/bsd/dev/arm/systemcalls.c b/bsd/dev/arm/systemcalls.c
+index 7fd9be1..2104cd3 100644
+--- a/bsd/dev/arm/systemcalls.c
++++ b/bsd/dev/arm/systemcalls.c
+@@ -112,6 +112,19 @@ unix_syscall(
+ 	syscode = (code < nsysent) ? code : SYS_invalid;
+ 	callp   = &sysent[syscode];
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * SWEET bring-up: count syscalls per process for one named process, no
++	 * console I/O here (this is a hot path). The table is dumped later from
++	 * the exec path - NOTES 21:05 showed SpringBoard is *running* kernel code,
++	 * so its syscall mix is the next thing worth knowing.
++	 */
++	{
++		extern void sweet_syscall_count(struct proc *, unsigned);
++		sweet_syscall_count(proc, syscode);
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	/*
+ 	 * sy_narg is inaccurate on ARM if a 64 bit parameter is specified. Since user_addr_t
+ 	 * is currently a 32 bit type, this is really a long word count. See rdar://problem/6104668.
+diff --git a/bsd/dev/sweet_sample.c b/bsd/dev/sweet_sample.c
+index b40eccd..d5978c3 100644
+--- a/bsd/dev/sweet_sample.c
++++ b/bsd/dev/sweet_sample.c
+@@ -12,6 +12,7 @@
+  *
+  * First sample 90 s after start, then every 120 s, 40 samples at most.
+  */
++#if defined(ARM64_BOARD_CONFIG_SWEET)
+ #include <sys/param.h>
+ #include <sys/systm.h>
+ #include <sys/proc.h>
+@@ -86,3 +87,4 @@ sweet_sample_start(void)
+ 		thread_deallocate(thread);
+ 	}
+ }
++#endif /* ARM64_BOARD_CONFIG_SWEET */
+diff --git a/bsd/dev/sweet_spmi.c b/bsd/dev/sweet_spmi.c
+index 1981490..3316dd8 100644
+--- a/bsd/dev/sweet_spmi.c
++++ b/bsd/dev/sweet_spmi.c
+@@ -80,16 +80,43 @@ sweet_spmi_init(void)
+ 	sp_ready = true;
+ 	printf("SWEET BATTERY: SPMI arb=%#x APIDs=%u, observer reads only\n",
+ 	    arb_version, sp_count);
++	/*
++	 * Which peripherals does EE0 own? The battery blocks (0x10-0x13) are
++	 * known to work; the PON (0x08) and PBS (0x0a) blocks are only readable
++	 * if EE0 has a channel for them, and the arbiter's map register is the
++	 * authoritative answer. Print the owned PPIDs once - it is the first
++	 * thing to look at when a PMIC read fails.
++	 */
++	{
++		unsigned shown = 0;
++		for (unsigned i = 0; i < sp_count && shown < 24; ++i) {
++			uint32_t map = sp_rd(sp_core, 0x900u + 4u * i);
++			unsigned owner = sp_rd(sp_cfg, 0x700u + 4u * i) & 7u;
++			if (map && owner == 0) {
++				printf("SWEET BATTERY: SPMI ee0 apid=%u ppid=%#x\n",
++				    i, (map >> 8) & 0xfffu);
++				shown++;
++			}
++		}
++	}
+ 	return 0;
+ }
+ 
+ int
+ sweet_spmi_read(unsigned sid, unsigned addr, uint8_t *out)
+ {
+-	/* Restrict access to the battery blocks; keys retain their own lanes. */
++	/* Restrict access to read-only blocks owned by EE0; keys keep their lanes. */
+ 	unsigned peripheral = addr >> 8;
+-	if (!sp_ready || !out || sid != 0 || addr > 0xffffu ||
+-	    (peripheral != 0x10 && peripheral != 0x11 && peripheral != 0x12 &&
++	/*
++	 * 0x08 is the PMK8350 PON (gauge DT: pony@1300 in the pmk8350 node,
++	 * reg-names "hlos"), and 0x0a is its PBS. Both are read-only here too:
++	 * the PON POFF_REASON/WARM_RESET registers are how the bring-up learns
++	 * which hardware really reset the phone (the SoC's IMEM restart_reason
++	 * only says "warm reset").
++	 */
++	if (!sp_ready || !out || sid > 15 || addr > 0xffffu ||
++	    (peripheral != 0x08 && peripheral != 0x0a &&
++	    peripheral != 0x10 && peripheral != 0x11 && peripheral != 0x12 &&
+ 	    peripheral != 0x13 && peripheral != 0x48)) {
+ 		return -1;
+ 	}
+diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
+index aa23b64..b7f9d9e 100644
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -20,6 +20,7 @@
+ #include <kern/clock.h>
+ #include <kern/thread.h>
+ #include <kern/sched_prim.h>
++#include <kern/thread_call.h>
+ #include <machine/machine_routines.h>
+ #include <pexpert/pexpert.h>
+ 
+@@ -112,7 +113,7 @@ static struct {
+ 	unsigned sent, got;
+ 	int x[TOUCH_MAX], y[TOUCH_MAX];
+ } st;
+-static int touch_sleep_chan;
++static char touch_sleep_chan;   /* aligned byte, like the working probe */
+ 
+ static uint32_t
+ touch_rd(vm_offset_t base, uint32_t off)
+@@ -133,10 +134,16 @@ touch_wr(vm_offset_t base, uint32_t off, uint32_t val)
+ static void
+ touch_wait(unsigned ms)
+ {
+-	uint64_t deadline;
+-	clock_interval_to_deadline(ms, NSEC_PER_MSEC, &deadline);
+-	(void)assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, deadline);
+-	thread_block(THREAD_CONTINUE_NULL);
++	/*
++	 * Busy wait on the hardware counter. Every blocking form tried here
++	 * (assert_wait_deadline with THREAD_UNINT and with THREAD_ABORTSAFE) never
++	 * returns in this tree (NOTES 22:38), while short spins are cheap and
++	 * always work. The longest caller waits 300 ms once, at bring-up.
++	 */
++	uint64_t until = mach_absolute_time() + (uint64_t)ms * 1000000ull;
++	while (mach_absolute_time() < until) {
++		;
++	}
+ }
+ 
+ static bool
+@@ -480,6 +487,39 @@ touch_goodix(void)
+ 	return err;
+ }
+ 
++/*
++ * Focaltech health check, ported from hackios (xnu/files/bsd/dev/redwood_goodix.c):
++ * the vendor's fts_wait_tp_to_valid polls the chip-id registers 0xA3/0x9F for up
++ * to 1 s at 200 ms steps and expects { 0x56, 0x62 }. A chip that answers nothing
++ * here is not running, whatever the I2C layer says, so this has to be checked
++ * before any report is read.
++ */
++#define FTS_CHIP_ID_H   0xa3
++#define FTS_CHIP_ID_L   0x9f
++#define FTS_ID_H        0x56
++#define FTS_ID_L        0x62
++
++static bool
++touch_focaltech_valid(void)
++{
++	for (int attempt = 0; attempt < 5; attempt++) {
++		uint8_t h = 0, l = 0;
++		if (touch_read(0x38, FTS_CHIP_ID_H, false, &h, 1) == 0 &&
++		    touch_read(0x38, FTS_CHIP_ID_L, false, &l, 1) == 0) {
++			printf("SWEET TOUCH: focaltech id %02x %02x (attempt %d)\n",
++			    h, l, attempt + 1);
++			if (h == FTS_ID_H && l == FTS_ID_L) {
++				return true;
++			}
++		} else {
++			printf("SWEET TOUCH: focaltech id read failed (attempt %d)\n",
++			    attempt + 1);
++		}
++		touch_wait(200);
++	}
++	return false;
++}
++
+ static int
+ touch_focaltech(void)
+ {
+@@ -591,138 +631,186 @@ touch_se_init(void)
+ 	return true;
+ }
+ 
+-static void
+-touch_thread(void *arg, wait_result_t result)
++/*
++ * A bare kernel thread started from userland context arms its deadline but is
++ * never woken in this port (NOTES 23:11), while IOTimerEventSource on a workloop
++ * fires reliably for the framebuffer at 60 Hz. So the start-up gate is a workloop
++ * timer and the bring-up runs from its callback.
++ */
++void touch_bringup(void);
++
++extern void thread_terminate_self(void);
++extern kern_return_t mach_wait_until_trap(void *args);     /* Mach, not exported to BSD */
++
++/* Implemented in C++ (iokit/Kernel/arm/SweetTouchTimer.cpp). */
++extern int sweet_touch_timer_arm(unsigned seconds);
++extern void sweet_fb_mark(uint32_t colour);
++
++/*
++ * Called from AppleCLCD::vsyncFired (AppleCLCD runs its timer reliably). Waits
++ * for the boot-arg delay to expire in frames, then runs the bring-up once.
++ */
++/*
++ * Synchronous, read-only bring-up.
++ *
++ * Every asynchronous context has failed: a kernel thread parked on a deadline
++ * never wakes, and an IOTimerEventSource callback wedges the boot even when it
++ * only increments a counter (NOTES 12:20). So this runs directly in the exec
++ * hook, takes no lock we do not own, creates nothing, never sleeps, and only
++ * *reads* registers - a read cannot hang the way a write to a clock gate can,
++ * and the result tells us whether the MMIO windows are even reachable.
++ */
++void
++touch_bringup(void)
+ {
+-	unsigned delay_s = 45;
+-	(void)arg;
+-	(void)result;
+ 	/*
+-	 * Start late (boot-arg sweettouchdelay, seconds): if the bus access
+-	 * below hangs the SoC, the persistent log and the GUI got there first.
++	 * Every step is a read, yet the phone reset after the first marker. Paint
++	 * before AND after each step so the panel names the exact culprit:
++	 *   red -> map GCC -> yellow -> read -> purple -> map TLMM -> cyan -> ...
++	 */
++	printf("SWEET TOUCH: stage A: map GCC\n");
++	sweet_fb_mark(0x00ffff00u);             /* RGB(0,255,255) CYAN: map GCC */
++	vm_offset_t gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
++	printf("SWEET TOUCH: gcc=%#lx\n", (unsigned long)gcc);
++	if (gcc == 0) {
++		printf("SWEET TOUCH: GCC map failed\n");
++		sweet_fb_mark(0x0000ffffu);
++		return;
++	}
++
++	printf("SWEET TOUCH: stage B: read GCC\n");
++	sweet_fb_mark(0x00ff00ffu);             /* RGB(255,0,255) MAGENTA: read GCC */
++	uint32_t gcc0 = touch_rd(gcc, 0x0);
++	printf("SWEET TOUCH: GCC control = %#x\n", gcc0);
++
++	/*
++	 * TLMM sits in the NORTH clock domain. Mapping it with no clock running was
++	 * where every previous run stopped (NOTES 14:35), so turn the clock on
++	 * first, using the GCC window that is already known good.
++	 */
++	printf("SWEET TOUCH: stage C: clock on\n");
++	st.gcc = gcc;
++	/*
++	 * Everything from 0x18058 to 0x18188 reads back zero while 0x0000-0x0fe8 is
++	 * populated (NOTES 15:05), which means that part of the aperture is not
++	 * mapped at all rather than having the wrong offset. Walk the 0x60000 window
++	 * one page at a time and print only pages that contain a non-zero word, so
++	 * the real extent of GCC is visible in one boot.
++	 */
++	/*
++	 * Only walk up to 0x19000: the full 0x60000 walk locks up (NOTES 15:08),
++	 * which by itself says some page in the window is not backed. The words at
++	 * 0x18058+ read zero, so find the page where reads stop making sense.
+ 	 */
+-	(void)PE_parse_boot_argn("sweettouchdelay", &delay_s, sizeof(delay_s));
+-	printf("SWEET TOUCH: starting in %u s\n", delay_s);
+-	touch_wait(delay_s * 1000u);
+-	printf("SWEET TOUCH: mapping GCC/TLMM/SE%u\n",
++	/*
++	 * Sparse walk: 4 reads per page instead of 1024. The dense walk cost 6400
++	 * strongly-ordered reads (each with a dmb) and made the boot look dead, so
++	 * this samples the page head, +0x800 and the tail - enough to tell a real
++	 * register page from an unmapped hole.
++	 */
++	printf("SWEET TOUCH: sparse GCC walk\n");
++	for (uint32_t page = 0; page < 0x19000; page += 0x1000) {
++		static const uint32_t sample[3] = { 0x0u, 0x800u, 0xff0u };
++		uint32_t a = touch_rd(gcc, page + sample[0]);
++		uint32_t b = touch_rd(gcc, page + sample[1]);
++		uint32_t c = touch_rd(gcc, page + sample[2]);
++		printf("SWEET TOUCH: %#06x: %#010x %#010x %#010x\n",
++		    page, a, b, c);
++	}
++	printf("SWEET TOUCH: GCC page walk done\n");
++	sweet_fb_mark(0x00ff8000u);             /* AZURE: walk finished */
++	if (!touch_clocks()) {
++		printf("SWEET TOUCH: clocks failed; not touching TLMM\n");
++		sweet_fb_mark(0x00ffffffu);         /* white: clock failure */
++		return;
++	}
++
++	printf("SWEET TOUCH: stage D: map TLMM (one page)\n");
++	sweet_fb_mark(0x0080ff00u);             /* RGB(0,255,128) SPRING: map TLMM */
++	vm_offset_t gpio = ml_io_map(TOUCH_NORTH_PA + 0x50000u, 0x1000);
++	printf("SWEET TOUCH: gpio map returned %#lx\n", (unsigned long)gpio);
++	if (gpio) {
++		uint32_t rst = touch_rd(gpio, TOUCH_GPIO_IO(TOUCH_GPIO_RST) - 0x50000u);
++		uint32_t irq = touch_rd(gpio, TOUCH_GPIO_IO(TOUCH_GPIO_IRQ) - 0x50000u);
++		printf("SWEET TOUCH: RST=%#x IRQ=%#x\n", rst, irq);
++	}
++
++	printf("SWEET TOUCH: stage E: map SE%u\n",
+ 	    (unsigned)((TOUCH_SE_PA >> 16) - 0x8cu));
+-	st.gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
+-	st.gpio = ml_io_map(TOUCH_NORTH_PA, 0x5b000);
+-	st.se = ml_io_map(TOUCH_SE_PA, 0x4000);
+-	if (!st.gcc || !st.gpio || !st.se) {
+-		printf("SWEET TOUCH: MMIO mapping failed\n");
+-		goto out;
+-	}
+-	if (!touch_clocks() || !touch_se_init()) {
+-		goto out;
+-	}
+-	printf("SWEET TOUCH: TLMM reset=%#x irq=%#x; voting %s (%u mV) through RPMh\n",
+-	    touch_rd(st.gpio, TOUCH_GPIO_IO(TOUCH_GPIO_RST)),
+-	    touch_rd(st.gpio, TOUCH_GPIO_IO(TOUCH_GPIO_IRQ)), TOUCH_RAIL, TOUCH_RAIL_MV);
+-	/* Keep the IC in reset while its rail settles; the IRQ stays an input. */
+-	touch_gpio(TOUCH_GPIO_IRQ, 0, 3, 3, false, false);
+-	touch_gpio(TOUCH_GPIO_RST, 0, 3, 3, true, false);
+-	int power_error = sweet_rpmh_vreg_enable(TOUCH_RAIL, TOUCH_RAIL_MV);
+-	if (power_error) {
+-		/* Vendor init is LPM 1.71 V (always-on sleep set): the rail may be
+-		 * powered without the ACTIVE vote. Probe it and report all reads;
+-		 * never report input from an IC that did not answer. */
+-		printf("SWEET TOUCH: %s RPMh ACTIVE vote failed %d; probing anyway\n",
+-		    TOUCH_RAIL, power_error);
+-	}
+-#if !defined(GAUGUIN)
+-	touch_gpio(90, 0, 0, 0, true, true); /* sweet: board digital power enable */
+-#endif
+-	touch_wait(10); /* conservative rail settling; not a DT timing value */
+-	touch_gpio(TOUCH_SDA_PIN, 1, 0, 0, false, false); /* SE SDA/SCL, 2 mA */
+-	touch_gpio(TOUCH_SCL_PIN, 1, 0, 0, false, false);
+-	touch_gpio(TOUCH_GPIO_RST, 0, 3, 3, true, false); /* reset low 2 ms */
+-	touch_wait(2);
+-	touch_gpio(TOUCH_GPIO_RST, 0, 3, 3, true, true);
+-	touch_wait(300); /* exceeds the vendor's 5 ms boot time + post-test wait */
+-	uint8_t gid[32], legacy[32], fid1 = 0, fid2 = 0;
+-	st.probing = true;
+-#if defined(GAUGUIN)
+-	/* Focaltech first: SE8 is its own bus on gauguin. */
+-	int fe1 = touch_read(0x38, 0xa3, false, &fid1, 1);
+-	int fe2 = touch_read(0x38, 0xa4, false, &fid2, 1);
+-	printf("SWEET TOUCH: probe 0x38 a3/a4 err=%d/%d chip-id=%02x:%02x irq=%#x\n",
+-	    fe1, fe2, fid1, fid2, st.irq_status);
+-	touch_probe_info(0x01, gid);	/* touch report buffer (FTS_TOUCH_POINT_NUM at +2) */
+-	int ge = -1;
+-	(void)legacy;
+-#else
+-	int ge = touch_probe_info(GOODIX_PID_REG, gid);
+-	printf("SWEET TOUCH: probe 0x5d err=%d pid=%02x%02x%02x%02x fw=%02x.%02x.%02x.%02x irq=%#x\n",
+-	    ge, gid[0], gid[1], gid[2], gid[3], gid[8], gid[9], gid[10], gid[11], st.irq_status);
+-	(void)touch_probe_info(0x8240, legacy);
+-	int fe1 = touch_read(0x38, 0xa3, false, &fid1, 1);
+-	int fe2 = touch_read(0x38, 0x9f, false, &fid2, 1);
+-	printf("SWEET TOUCH: probe 0x38 err=%d/%d chip-id=%02x:%02x irq=%#x\n",
+-	    fe1, fe2, fid1, fid2, st.irq_status);
+-#endif
+-	st.probing = false;
+-#if defined(GAUGUIN)
+-	bool goodix = false;
+-	bool fts = !fe1 && !fe2 && (((unsigned)fid1 << 8) | fid2) == TOUCH_FTS_CHIP_ID;
+-#else
+-	bool goodix = !ge && gid[0] == '9' && gid[1] == '8' && gid[2] == '9' && gid[3] == '6';
+-	bool fts = !fe1 && !fe2 && fid1 == 0x54 && fid2 == 0x52;
+-#endif
+-	if (st.dead || goodix == fts) {
+-		printf("SWEET TOUCH: no unique supported IC (goodix=%d fts=%d dead=%d); stopping\n",
+-		    goodix, fts, st.dead);
+-		if (!st.dead) {
+-			/* A powered IC with an unsupported ID: dump its report buffer
+-			 * so the next boot brings the protocol evidence. */
+-			printf("SWEET TOUCH: unexpected IC; register dumps follow\n");
+-			for (unsigned i = 0; i < 64; ++i) {
+-				uint8_t q = 0;
+-				int e = touch_read(0x38, 0xa3 + i, false, &q, 1);
+-				printf("SWEET TOUCH: fts reg %#x %02x e=%d\n", 0xa3 + i, q, e);
+-			}
+-			for (unsigned i = 0; i < 64; ++i) {
+-				uint8_t q = 0;
+-				int e = touch_read(0x5d, 0x8000 + i, true, &q, 1);
+-				printf("SWEET TOUCH: gtx reg %#x %02x e=%d\n", 0x8000 + i, q, e);
+-			}
+-		}
+-		goto out;
+-	}
+-	st.kind = goodix ? TOUCH_GOODIX : TOUCH_FTS;
+-	printf("SWEET TOUCH: selected %s, 1080x%u, poll=10ms irq-hint=%d\n",
+-	    goodix ? "GT9896 Yellowstone" : "Focaltech", (unsigned)(TOUCH_Y_MAX + 1), st.irq_hint);
+-	unsigned errors = 0, ticks = 0;
+-	while (!st.dead) {
+-		/* Optional IRQ hint still reads every 100ms, and always while down. */
+-		if (!st.irq_hint || st.active ||
+-		    !(touch_rd(st.gpio, TOUCH_GPIO_IO(TOUCH_GPIO_IRQ)) & 1u) ||
+-		    (++ticks % 10u) == 0) {
+-			int err = st.kind == TOUCH_GOODIX ? touch_goodix() : touch_focaltech();
+-			if (err) {
+-				if ((errors++ % 100u) == 0) {
+-					printf("SWEET TOUCH: report err=%d irq=%#x\n", err, st.irq_status);
+-				}
+-				if (errors == 10) {
+-					touch_report(0, st.x, st.y); /* release after persistent bad reads */
+-				}
+-			} else {
+-				errors = 0;
+-			}
+-		}
++	sweet_fb_mark(0x00ff0000u);             /* RGB(0,0,255) BLUE again: map SE */
++	vm_offset_t se = ml_io_map(TOUCH_SE_PA, 0x4000);
++	if (se) {
++		printf("SWEET TOUCH: GENI status=%#x\n", touch_rd(se, 0x20));
++	}
++	/*
++	 * Power the touch rail, then ask the chip who it is - in that order, the
++	 * same order hackios uses (RPMh vote, then GPIO, then the IC answers).
++	 */
++	printf("SWEET TOUCH: stage F: power rail %s\n", TOUCH_RAIL);
++	int rail = sweet_rpmh_vreg_enable(TOUCH_RAIL, TOUCH_RAIL_MV);
++	printf("SWEET TOUCH: rail %s -> %d\n", TOUCH_RAIL, rail);
++
++	printf("SWEET TOUCH: stage G: release reset, read chip id\n");
++	if (gpio) {
++		uint32_t off = TOUCH_GPIO_CFG(TOUCH_GPIO_RST) - 0x50000u;
++		uint32_t cfg = touch_rd(gpio, off);
++		touch_wr(gpio, off, (cfg & ~0x3ffu) | 0x201u);   /* output, func 0 */
++		touch_wr(gpio, TOUCH_GPIO_IO(TOUCH_GPIO_RST) - 0x50000u, 2u);
+ 		touch_wait(10);
++		printf("SWEET TOUCH: reset released\n");
+ 	}
+-	touch_report(0, st.x, st.y);
+-out:
+-	(void)thread_terminate(current_thread());
+-	thread_block(THREAD_CONTINUE_NULL);
++	bool present = touch_focaltech_valid();
++	printf("SWEET TOUCH: focaltech %s\n", present ? "ANSWERS" : "silent");
++	sweet_fb_mark(present ? 0x0000ff00u : 0x000000ffu);
++
++	printf("SWEET TOUCH: read-only probe complete\n");
++}
++
++
++static int
++gcc_probe(void)
++{
++	vm_offset_t gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
++	if (gcc == 0) {
++		return -1;
++	}
++	(void)touch_rd(gcc, 0x0);
++	return 0;
++}
++
++/*
++ * Entry point for the framebuffer driver's start(): a kernel-boot context, not a
++ * thread, not a timer callback, not the exec hook.
++ */
++void
++sweet_touch_start_at_init(void)
++{
++	int mode = 1;
++	(void)PE_parse_boot_argn("sweettouchmode", &mode, sizeof(mode));
++	printf("SWEET TOUCH: start_at_init, mode=%d\n", mode);
++	if (mode == 0) {
++		printf("SWEET TOUCH: mode 0, nothing to do\n");
++		return;
++	}
++	if (mode == 3) {
++		/* Control: prove the ring still refreshes with no touch work at all. */
++		printf("SWEET TOUCH: mode 3, print-only control\n");
++		return;
++	}
++	/*
++	 * Run the real bring-up. The panel carries the progress (the log does not
++	 * refresh reliably), so each stage paints a colour:
++	 *   blue   = mapping MMIO         cyan  = clocks + SE init
++	 *   magenta= rail vote            yellow= probe result pending
++	 */
++	sweet_fb_mark(0x00ff0000u);     /* RGB(0,0,255) BLUE: bring-up starts */
++	touch_bringup();
+ }
+ 
+ void
+ sweet_touch_init(void)
+ {
+ 	int enabled = 1;
+-	thread_t thread;
+ 	if (st.started) {
+ 		return;
+ 	}
+@@ -733,11 +821,19 @@ sweet_touch_init(void)
+ 		printf("SWEET TOUCH: disabled (sweettouch=0)\n");
+ 		return;
+ 	}
+-	kern_return_t kr = kernel_thread_start(touch_thread, NULL, &thread);
+-	if (kr == KERN_SUCCESS) {
+-		thread_deallocate(thread);
+-	} else {
+-		printf("SWEET TOUCH: kernel_thread_start failed %d\n", kr);
++	/* Synchronous, in the exec hook: no thread, no timer, no wait. */
++	printf("SWEET TOUCH: init entered, calling bring-up\n");
++	{
++		int mode = 1;
++		(void)PE_parse_boot_argn("sweettouchmode", &mode, sizeof(mode));
++		if (mode == 0) {
++			printf("SWEET TOUCH: mode 0, bring-up skipped\n");
++			return;
++		}
++		if (mode == 2) {
++			return;   /* mode 2: init entered (printed above), nothing else */
++		}
+ 	}
++	touch_bringup();
+ }
+ #endif /* ARM64_BOARD_CONFIG_SWEET */
+diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
+index 6b926fe..b3c0b46 100644
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -49,9 +49,12 @@ extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
+ extern void thread_deallocate(thread_t);
+ extern int hz;
+ static void sweet_log_start(void);
++static void sweet_log_sync(void);
++static void sweet_reboot_start(void);
+ extern void sweet_sample_start(void);
+ extern void sweet_keys_init(void);
+ extern void sweet_touch_init(void);
++extern void sweet_touch_start_at_init(void);
+ extern void sweet_usb_probe(void);
+ 
+ #define REG_CAP         0x00
+@@ -96,7 +99,8 @@ struct ucd {
+ #define DMA_UTRL        0x0000                  /* 1 KiB aligned */
+ #define DMA_UCD         0x1000                  /* 128 byte aligned */
+ #define DMA_BOUNCE      0x4000
+-#define DMA_SIZE        (DMA_BOUNCE + BOUNCE_SIZE)
++#define DMA_STAGE       (DMA_BOUNCE + BOUNCE_SIZE)      /* stage block, see sweet_stage() */
++#define DMA_SIZE        (DMA_STAGE + 4096)
+ 
+ static struct {
+ 	vm_offset_t regs;
+@@ -145,12 +149,24 @@ dma_clean(uint32_t off, uint32_t len)
+  * One SCSI command in slot 0, data (if any) to/from the bounce buffer
+  * (to the device when write is set). Returns 0 or an errno.
+  */
++static int ufs_scsi_pa(const uint8_t *cdb, unsigned cdb_len, uint32_t len,
++    bool write, uintptr_t data_pa);
++static int ufs_write_abs(uint64_t lba, uint32_t count, uintptr_t pa);
++
+ static int
+ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
++{
++	return ufs_scsi_pa(cdb, cdb_len, len, write, su.dma_pa + DMA_BOUNCE);
++}
++
++/* Same command with its data at an arbitrary physical address (stage block). */
++static int
++ufs_scsi_pa(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write,
++    uintptr_t data_pa)
+ {
+ 	struct utrd *utrd = (struct utrd *)(su.dma + DMA_UTRL);
+ 	struct ucd *ucd = (struct ucd *)(su.dma + DMA_UCD);
+-	uint64_t ucd_pa = su.dma_pa + DMA_UCD, bounce_pa = su.dma_pa + DMA_BOUNCE;
++	uint64_t ucd_pa = su.dma_pa + DMA_UCD, bounce_pa = data_pa;
+ 
+ 	assert(len <= BOUNCE_SIZE);
+ 	bzero(utrd, sizeof(*utrd));
+@@ -204,6 +220,8 @@ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ 	}
+ 	__builtin_arm_dsb(0xf);
+ 
++	printf("SWEET UFS: scsi cdb 0x%02x len %u, dma 0x%llx, ringing\n",
++	    cdb[0], len, (unsigned long long)su.dma_pa);
+ 	ufs_wr(REG_UTRLDBR, 1);
+ 	uint64_t deadline;
+ 	nanoseconds_to_absolutetime(CMD_TIMEOUT_NS, &deadline);
+@@ -216,8 +234,14 @@ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ 		spin_until += mach_absolute_time();
+ 		nanoseconds_to_absolutetime(CMD_SLEEP_NS, &sleep_interval);
+ 	}
++	unsigned spins = 0;
+ 	while (ufs_rd(REG_UTRLDBR) & 1) {
+ 		uint64_t now = mach_absolute_time();
++		if (++spins == 1000 || (spins & 0xfffff) == 0) {
++			printf("SWEET UFS: still busy after %u spins (now %llu, deadline %llu, db 0x%x)\n",
++			    spins, (unsigned long long)now, (unsigned long long)deadline,
++			    ufs_rd(REG_UTRLDBR));
++		}
+ 		if (now > deadline) {
+ 			ufs_wr(REG_UTRLCLR, ~1u);
+ 			printf("SWEET UFS: command 0x%02x timed out\n", cdb[0]);
+@@ -235,6 +259,7 @@ ufs_scsi(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write)
+ 		}
+ 	}
+ 	__builtin_arm_dsb(0xf);
++	printf("SWEET UFS: scsi 0x%02x completed after %u spins\n", cdb[0], spins);
+ 	ufs_wr(REG_IS, ufs_rd(REG_IS));         /* acknowledge completion status */
+ 
+ 	dma_sync(DMA_UTRL, sizeof(*utrd));
+@@ -292,6 +317,23 @@ ufs_write_blocks(uint64_t lba, uint32_t count)
+ 	return ufs_scsi(cdb, sizeof(cdb), count * UFS_BLOCK, true);
+ }
+ 
++/* WRITE(10) of count blocks straight from a physical address; no partition
++ * bounds (the stage block may sit outside the named partition). Polled like
++ * every command here, so it is safe from panic(). */
++static int
++ufs_write_abs(uint64_t lba, uint32_t count, uintptr_t pa)
++{
++	if (lba + count - 1 > UINT32_MAX) {
++		return EPERM;
++	}
++	uint8_t cdb[10] = {
++		0x2a, 0,
++		(uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8), (uint8_t)lba,
++		0, (uint8_t)(count >> 8), (uint8_t)count, 0
++	};
++	return ufs_scsi_pa(cdb, sizeof(cdb), count * UFS_BLOCK, true, pa);
++}
++
+ static int
+ ufs_sync_cache(void)
+ {
+@@ -307,6 +349,7 @@ ufs_find_partition(const char *want)
+ 	if (error) {
+ 		return error;
+ 	}
++	printf("SWEET UFS: gpt header read, sig %.8s\n", (const char *)b);
+ 	if (memcmp(b, "EFI PART", 8) != 0) {
+ 		printf("SWEET UFS: LUN %u has no GPT\n", su.lun);
+ 		return ENXIO;
+@@ -316,11 +359,14 @@ ufs_find_partition(const char *want)
+ 	memcpy(&entry_lba, b + 72, 8);
+ 	memcpy(&nent, b + 80, 4);
+ 	memcpy(&esz, b + 84, 4);
++	printf("SWEET UFS: entries at lba %llu, %u x %u\n",
++	    (unsigned long long)entry_lba, nent, esz);
+ 	if (esz != 128 || nent == 0 || nent * esz > BOUNCE_SIZE) {
+ 		printf("SWEET UFS: unsupported GPT entries %u x %u\n", nent, esz);
+ 		return ENXIO;
+ 	}
+ 	error = ufs_read_blocks(entry_lba, (nent * esz + UFS_BLOCK - 1) / UFS_BLOCK);
++	printf("SWEET UFS: entries read rc=%d\n", error);
+ 	if (error) {
+ 		return error;
+ 	}
+@@ -583,6 +629,106 @@ static const struct cdevsw sweet_ufs_cdevsw = {
+ 	.d_type       = D_DISK,
+ };
+ 
++/*
++ * Crash-proof stage record ("sweetstage=<MiB>", default off).
++ *
++ * A stuck kernel cannot be diagnosed from the console log: the flush thread is
++ * often the one that stopped, and a panic that never prints says nothing. So
++ * the kernel reports marks here and this writes them, one 4 KiB block, at
++ * partition MiB <n> (64 or later: past the HFS image at the start, before the
++ * 4 MiB log ring at the end). Device lba = su.first_block + n * 256.
++ *
++ *   0:      'S','W','E','E','T','S','T','G' | u32 tick_lo | u32 count
++ *           | { u64 tick, u32 code, u32 arg }[50]
++ *   2048:   'S','W','E','E','T','P','A','N' | u32 code | u32 arg | u32 pid
++ *           | u64 thread | u64 pc | u64 tick | u64 sp | u8 saved_state[272]
++ *   2336:   u8 kernel stack[1024]
++ *
++ * It goes out with polling SCSI from its own DMA block (never the bounce
++ * buffer), so panic() and a wedged thread can both use it.
++ */
++#define SWEET_STAGE_MAX          50
++#define STG_PANIC_OFF            2048
++#define STG_STACK_OFF            2336
++#define STG_STACK_SIZE           1024
++
++static bool sweet_stage_on;
++static uint64_t sweet_stage_lba;
++static uint32_t sweet_stage_count;
++
++#define STG_BLK ((uint8_t *)(su.dma + DMA_STAGE))
++
++static void
++sweet_stage_header(void)
++{
++	static const char magic[8] = { 'S', 'W', 'E', 'E', 'T', 'S', 'T', 'G' };
++	if (sweet_stage_on && memcmp(STG_BLK, magic, 8) != 0) {
++		bzero(STG_BLK, UFS_BLOCK);
++		memcpy(STG_BLK, magic, 8);
++		sweet_stage_count = 0;
++	}
++}
++
++static void
++sweet_stage_commit(void)
++{
++	uint32_t tick = (uint32_t)mach_absolute_time();
++	memcpy(STG_BLK + 8, &tick, 4);
++	clean_dcache64((addr64_t)(su.dma_pa + DMA_STAGE), UFS_BLOCK, TRUE);
++	(void)ufs_write_abs(sweet_stage_lba, 1, (uintptr_t)STG_BLK);
++}
++
++/* Record one stage. Safe from any thread context; not from an interrupt. */
++void
++sweet_stage(uint32_t code, uint32_t arg)
++{
++	if (!sweet_stage_on) {
++		return;
++	}
++	sweet_stage_header();
++	if (sweet_stage_count < SWEET_STAGE_MAX) {
++		uint32_t i = sweet_stage_count++;
++		uint64_t tick = mach_absolute_time();
++		memcpy(STG_BLK + 12, &sweet_stage_count, 4);
++		memcpy(STG_BLK + 16 + i * 16, &tick, 8);
++		memcpy(STG_BLK + 24 + i * 16, &code, 4);
++		memcpy(STG_BLK + 28 + i * 16, &arg, 4);
++	}
++	sweet_stage_commit();
++}
++
++/* Called from panic() (osfmk/kern/debug.c, weak): where and why it died. */
++void sweet_stage_panic(uint32_t code, uint32_t arg, uint64_t thread_id,
++    uint64_t pc, void *saved_state);
++
++void
++sweet_stage_panic(uint32_t code, uint32_t arg, uint64_t thread_id,
++    uint64_t pc, void *saved_state)
++{
++	if (!sweet_stage_on) {
++		return;
++	}
++	sweet_stage_header();
++	uint8_t *p = STG_BLK + STG_PANIC_OFF;
++	uint32_t pid = (uint32_t)proc_selfpid();
++	uint64_t tick = mach_absolute_time();
++	uintptr_t sp;
++	__asm__ volatile ("mov %0, sp" : "=r"(sp));
++	memcpy(p, "SWEETPAN", 8);
++	memcpy(p + 8, &code, 4);
++	memcpy(p + 12, &arg, 4);
++	memcpy(p + 16, &pid, 4);
++	memcpy(p + 24, &thread_id, 8);
++	memcpy(p + 32, &pc, 8);
++	memcpy(p + 40, &tick, 8);
++	memcpy(p + 48, &sp, 8);
++	if (saved_state != NULL) {
++		memcpy(p + 56, saved_state, 272);
++	}
++	memcpy(STG_BLK + STG_STACK_OFF, (void *)sp, STG_STACK_SIZE);
++	sweet_stage_commit();
++}
++
+ static int
+ sweet_ufs_init(void)
+ {
+@@ -607,7 +753,10 @@ sweet_ufs_init(void)
+ 	su.cache = (cache == 1);
+ 	su.wait = (wait == 1);
+ 
++	printf("SWEET UFS: init reg=0x%llx/0x%llx\n", (uint64_t)reg[0], (uint64_t)reg[1]);
+ 	su.regs = ml_io_map(reg[0], reg[1]);
++	printf("SWEET UFS: regs at 0x%llx, hce 0x%x hcs 0x%x\n", (uint64_t)su.regs,
++	    ufs_rd(REG_HCE), ufs_rd(REG_HCS));
+ 	if (kmem_alloc_contig(kernel_map, &su.dma, DMA_SIZE, PAGE_MASK, 0, 0,
+ 	    KMA_DATA | KMA_ZERO | KMA_PERMANENT, VM_KERN_MEMORY_IOKIT) != KERN_SUCCESS) {
+ 		printf("SWEET UFS: no contiguous DMA memory\n");
+@@ -621,8 +770,10 @@ sweet_ufs_init(void)
+ 	su.lun = 0;
+ 	su.secsize = DEV_BSIZE;
+ 
++	printf("SWEET UFS: dma ok, taking over the host\n");
+ 	lck_mtx_lock(&sweet_ufs_lock);
+ 	error = ufs_take_over_host();
++	printf("SWEET UFS: take over rc=%d\n", error);
+ 	if (!error) {
+ 		static const uint8_t tur[6] = { 0x00 };
+ 		/* The first command after the bootloader may report a unit attention. */
+@@ -630,7 +781,9 @@ sweet_ufs_init(void)
+ 		}
+ 	}
+ 	if (!error) {
++		printf("SWEET UFS: looking for partition \"%s\"\n", want);
+ 		error = ufs_find_partition(want);
++		printf("SWEET UFS: find partition rc=%d\n", error);
+ 	}
+ 	lck_mtx_unlock(&sweet_ufs_lock);
+ 	if (error) {
+@@ -654,12 +807,48 @@ sweet_ufs_init(void)
+ 	printf("SWEET UFS: \"%s\" on LUN %u: first block 0x%llx, %llu MiB, %s, DMA at 0x%llx\n",
+ 	    want, su.lun, su.first_block, su.nblocks * UFS_BLOCK >> 20,
+ 	    su.writable ? "read-write" : "read-only", su.dma_pa);
++	{
++		uint32_t stg = 0;
++		PE_parse_boot_argn("sweetstage", &stg, sizeof(stg));
++		if (stg && su.writable && su.nblocks / (1024 * 1024 / UFS_BLOCK) > stg) {
++			sweet_stage_lba = su.first_block + (uint64_t)stg * (1024 * 1024 / UFS_BLOCK);
++			sweet_stage_on = true;
++			sweet_stage_header();
++			sweet_stage_commit();
++			sweet_stage(0x100, stg);
++			printf("SWEET STAGE: stages to device lba 0x%llx\n",
++			    (unsigned long long)sweet_stage_lba);
++		}
++	}
+ 	sweet_log_start();
++	sweet_reboot_start();
++	printf("SWEET UFS: sample_start\n");
++	sweet_log_sync();
+ 	sweet_sample_start();
+-	/* Input drivers (HID services in iokit/Kernel/arm/hid/SweetHID.cpp). */
++	printf("SWEET UFS: sample_start done\n");
++	sweet_log_sync();
++	printf("SWEET UFS: keys_init\n");
++	sweet_log_sync();
+ 	sweet_keys_init();
+-	sweet_touch_init();
++	printf("SWEET UFS: keys_init done\n");
++	sweet_log_sync();
++	/*
++	 * Touch is started from the first userland exec instead of here: a kernel
++	 * thread started this early never wakes from a timed sleep (NOTES 22:47),
++	 * and spinning starves UFS. SweetHelp keeps the call site for the record.
++	 */
++	/*
++	 * Control run: no touch call and no extra sync here. The previous boot
++	 * stopped right after "sample_start done" with not even "keys_init"
++	 * printed, so the first question is whether the original sequence still
++	 * completes (NOTES 16:00).
++	 */
++	printf("SWEET UFS: control, touch not started here\n");
++	printf("SWEET UFS: usb_probe\n");
++	sweet_log_sync();
+ 	sweet_usb_probe();
++	printf("SWEET UFS: init complete\n");
++	sweet_log_sync();
+ 	return 0;
+ }
+ 
+@@ -684,6 +873,7 @@ static char sweet_log_ring[SWEET_LOG_SIZE];
+ static uint64_t _Atomic sweet_log_total;
+ static int sweet_log_chan;
+ static uint32_t sweet_log_secs = SWEET_LOG_SECS;
++static uint32_t sweet_log_ms;            /* sweetlogms: flush interval in ms */
+ 
+ /* Called for all console output, any context: never blocks. */
+ void sweet_log_append(const char *c, int size);
+@@ -736,53 +926,207 @@ struct sweet_log_header {
+ 	uint64_t total, seq;
+ };
+ 
++static int
++sweet_log_flush(uint64_t *flushed, uint64_t *seq)
++{
++	uint64_t base = su.first_block + su.nblocks - SWEET_LOG_BLOCKS;
++	void *bounce = (void *)(su.dma + DMA_BOUNCE);
++	uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
++
++	if (total == *flushed) {
++		return 0;
++	}
++	uint64_t pos = total - *flushed >= SWEET_LOG_SIZE ? total - SWEET_LOG_SIZE : *flushed;
++	int error = 0;
++
++	lck_mtx_lock(&sweet_ufs_lock);
++	while (pos < total && !error) {
++		uint32_t off = (uint32_t)(pos % SWEET_LOG_SIZE);
++		uint32_t blk = off / UFS_BLOCK;
++		uint64_t need = ((uint64_t)off % UFS_BLOCK + (total - pos) + UFS_BLOCK - 1) / UFS_BLOCK;
++		uint32_t n = (uint32_t)MIN(MIN(need, (uint64_t)(SWEET_LOG_SIZE / UFS_BLOCK - blk)),
++		    (uint64_t)(BOUNCE_SIZE / UFS_BLOCK));
++		memcpy(bounce, sweet_log_ring + (uint64_t)blk * UFS_BLOCK, n * UFS_BLOCK);
++		error = ufs_write_blocks(base + 1 + blk, n);
++		pos += (uint64_t)(blk + n) * UFS_BLOCK - off;
++	}
++	if (!error) {
++		struct sweet_log_header h = {
++			.magic = { 'S', 'W', 'E', 'E', 'T', 'L', 'O', 'G' },
++			.version = 1, .size = SWEET_LOG_SIZE, .total = total, .seq = ++*seq,
++		};
++		bzero(bounce, UFS_BLOCK);
++		memcpy(bounce, &h, sizeof(h));
++		error = ufs_write_blocks(base, 1);
++	}
++	if (!error) {
++		error = ufs_sync_cache();
++	}
++	lck_mtx_unlock(&sweet_ufs_lock);
++	if (error) {
++		printf("SWEET LOG: write failed (%d), stopping\n", error);
++	} else {
++		*flushed = total;
++	}
++	return error;
++}
++
++/*
++ * Panic-path flush (osfmk/kern/debug.c calls it weakly): panic() prints the
++ * reason through printf, so one synchronous flush here puts the whole panic
++ * text in the on-disk log before the reboot. The UFS controller can be in any
++ * state by now, so this is best-effort and bounded by ufs_scsi's timeout.
++ */
++/*
++ * Panic -> pstore. Qualcomm's ramoops sits at 0xd0000000 (gauguin DT
++ * ramoops@d0000000, 1 MiB: 128 KiB record, 512 KiB console, 128 KiB ftrace),
++ * and TWRP mounts it at /sys/fs/pstore. Writing the last 512 KiB of the
++ * console log there in the panic path survives a hard reset that never lets
++ * the UFS flush finish, so the panic text can be read from userspace.
++ * Enabled with sweetpanicdump=1 (default off: the region is not ours).
++ */
++/* The region ABL reserved is what TWRP's own kernel prints: 0xb0000000/4 MiB,
++ * console 0x80000 in, and TWRP reads the whole 4 MiB as the area. The flasher
++ * view of it is readable from TWRP with `dd if=/dev/block/sda ...` near 0. */
++#define SWEET_PSTORE_PA         0xb0000000ULL
++#define SWEET_PSTORE_SIZE       0x400000u
++#define SWEET_PSTORE_CONSOLE_OFF 0x80000u
++#define SWEET_PSTORE_CONSOLE_LEN 0x200000u
++
++void sweet_pstore_dump(void)
++{
++	int on = 0;
++	PE_parse_boot_argn("sweetpanicdump", &on, sizeof(on));
++	if (!on) {
++		return;
++	}
++	static volatile uint8_t *ram;           /* mapped once, not from IOWorkLoop */
++	if (ram == NULL) {
++		ram = (volatile uint8_t *)ml_io_map(SWEET_PSTORE_PA, SWEET_PSTORE_SIZE);
++	}
++	if (ram == 0) {
++		return;
++	}
++	uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
++	uint64_t len = MIN(total, (uint64_t)SWEET_PSTORE_CONSOLE_LEN);
++	uint64_t start = total - len;
++	for (uint64_t i = 0; i < len; i++) {
++		ram[SWEET_PSTORE_CONSOLE_OFF + i] =
++		    (uint8_t)sweet_log_ring[(start + i) % SWEET_LOG_SIZE];
++	}
++}
++
++void sweet_log_flush_now(void);
++
++void
++sweet_log_flush_panic(void)
++{
++	if (!su.ready || !su.writable) {
++		return;
++	}
++	sweet_log_flush_now();
++	sweet_pstore_dump();
++}
++
++/* Called from the watchdog thread once a second (ioworkloop context): copies
++ * whatever the console has now into the ramoops console view, so a boot that
++ * just hangs - no panic, no reset, flush thread dead - still leaves the last
++ * lines on the flash where TWRP can read them. Boot-arg sweetpstore=1. */
++/* extern "C": called from IOKit C++ (SweetWatchdog.cpp, weak). */
++extern void sweet_pstore_tick(void);
++void
++sweet_pstore_tick(void)
++{
++	static bool parsed, on;
++	static uint32_t last_total;
++	if (!parsed) {
++		parsed = true;
++		PE_parse_boot_argn("sweetpstore", &on, sizeof(on));
++	}
++	uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
++	if (!on || (uint32_t)total == last_total) {
++		return;
++	}
++	last_total = (uint32_t)total;
++	sweet_pstore_dump();
++}
++
++/* Same flush, callable from other files (bsd/dev/sweet_usb.c). */
++void sweet_log_flush_now(void);
++
++void
++sweet_log_flush_now(void)
++{
++	uint64_t flushed = 0, seq = 0;
++	(void)sweet_log_flush(&flushed, &seq);
++}
++
++/*
++ * Debug reboot timer: with sweetreboot=<seconds> the kernel panics that many
++ * seconds after the root device is up. A hung bring-up kernel cannot signal
++ * anything, and a panic with the default panic_reboot reboots the phone, which
++ * the bootloader then sends to recovery (misc holds boot-recovery), so
++ * tools/fastboot-cycle.sh can pull the log without a human power-cycling it.
++ */
++static void
++sweet_reboot_thread(__unused void *arg, __unused wait_result_t wr)
++{
++	int secs = 0;
++	PE_parse_boot_argn("sweetreboot", &secs, sizeof(secs));
++	if (secs <= 0) {
++		return;
++	}
++	printf("SWEET: debug reboot in %d s\n", secs);
++	(void)tsleep(&sweet_log_chan, PZERO, "sweetreboot", hz * secs);
++	panic("SWEET: debug reboot timer (%d s)", secs);
++}
++
++static void
++sweet_reboot_start(void)
++{
++	int secs = 0;
++	thread_t thread;
++
++	PE_parse_boot_argn("sweetreboot", &secs, sizeof(secs));
++	if (secs <= 0) {
++		return;
++	}
++	if (kernel_thread_start(sweet_reboot_thread, NULL, &thread) == KERN_SUCCESS) {
++		thread_deallocate(thread);
++	}
++}
++
++static void
++sweet_log_sync(void)
++{
++	uint64_t flushed = 0, seq = 0;
++	(void)sweet_log_flush(&flushed, &seq);
++}
++
+ static void
+ sweet_log_thread(__unused void *arg, __unused wait_result_t wr)
+ {
+-	uint64_t base = su.first_block + su.nblocks - SWEET_LOG_BLOCKS;
+ 	uint64_t flushed = 0, seq = 0;
+-	void *bounce = (void *)(su.dma + DMA_BOUNCE);
+ 
+-	printf("SWEET LOG: console log to the last %u KiB of the partition (block 0x%llx)\n",
+-	    SWEET_LOG_BLOCKS * UFS_BLOCK >> 10, base);
++	int once = 0;
++	PE_parse_boot_argn("sweetlogonce", &once, sizeof(once));
++	printf("SWEET LOG: thread running, first flush follows\n");
+ 	for (;;) {
+-		(void)tsleep(&sweet_log_chan, PZERO, "sweetlog", hz * (int)sweet_log_secs);
+-		uint64_t total = os_atomic_load(&sweet_log_total, relaxed);
+-		if (total == flushed) {
+-			continue;
+-		}
+-		uint64_t pos = total - flushed >= SWEET_LOG_SIZE ? total - SWEET_LOG_SIZE : flushed;
+-		int error = 0;
+-
+-		lck_mtx_lock(&sweet_ufs_lock);
+-		while (pos < total && !error) {
+-			uint32_t off = (uint32_t)(pos % SWEET_LOG_SIZE);
+-			uint32_t blk = off / UFS_BLOCK;
+-			uint64_t need = ((uint64_t)off % UFS_BLOCK + (total - pos) + UFS_BLOCK - 1) / UFS_BLOCK;
+-			uint32_t n = (uint32_t)MIN(MIN(need, (uint64_t)(SWEET_LOG_SIZE / UFS_BLOCK - blk)),
+-			    (uint64_t)(BOUNCE_SIZE / UFS_BLOCK));
+-			memcpy(bounce, sweet_log_ring + (uint64_t)blk * UFS_BLOCK, n * UFS_BLOCK);
+-			error = ufs_write_blocks(base + 1 + blk, n);
+-			pos += (uint64_t)(blk + n) * UFS_BLOCK - off;
+-		}
+-		if (!error) {
+-			struct sweet_log_header h = {
+-				.magic = { 'S', 'W', 'E', 'E', 'T', 'L', 'O', 'G' },
+-				.version = 1, .size = SWEET_LOG_SIZE, .total = total, .seq = ++seq,
+-			};
+-			bzero(bounce, UFS_BLOCK);
+-			memcpy(bounce, &h, sizeof(h));
+-			error = ufs_write_blocks(base, 1);
+-		}
+-		if (!error) {
+-			error = ufs_sync_cache();
+-		}
+-		lck_mtx_unlock(&sweet_ufs_lock);
+-		if (error) {
+-			printf("SWEET LOG: write failed (%d), stopping\n", error);
++		if (once) {
++			/* Poll until quiet: a finishing boot settles (sweetlogonce). */
++			for (int i = 0; i < 15; i++) {
++				(void)sweet_log_flush(&flushed, &seq);
++				tsleep(&sweet_log_chan, PZERO, "sweetlog", hz / 10);
++			}
++			printf("SWEETLOG. total=%llu seq=%llu\n",
++			    (unsigned long long)flushed, (unsigned long long)seq);
+ 			return;
+ 		}
+-		flushed = total;
++		(void)sweet_log_flush(&flushed, &seq);
++		/* sweetlogms=<ms> narrows the window a crash can swallow; the flush
++		 * only writes the bytes added since the last one. */
++		int ticks = sweet_log_ms ? (hz * (int)sweet_log_ms) / 1000 : hz * (int)sweet_log_secs;
++		(void)tsleep(&sweet_log_chan, PZERO, "sweetlog", ticks ? ticks : 1);
+ 	}
+ }
+ 
+@@ -800,6 +1144,17 @@ sweet_log_start(void)
+ 	if (sweet_log_secs == 0 || sweet_log_secs > 60) {
+ 		sweet_log_secs = SWEET_LOG_SECS;
+ 	}
++	PE_parse_boot_argn("sweetlogms", &sweet_log_ms, sizeof(sweet_log_ms));
++	if (sweet_log_ms > 2000) {
++		sweet_log_ms = 2000;
++	}
++	/* One synchronous flush now: the boot can reset before the thread runs. */
++	{
++		uint64_t flushed = 0, seq = 0;
++		printf("SWEET LOG: start, on=%d writable=%d nblocks=%llu\n", on, (int)su.writable,
++		    (unsigned long long)su.nblocks);
++		(void)sweet_log_flush(&flushed, &seq);
++	}
+ 	if (kernel_thread_start(sweet_log_thread, NULL, &thread) == KERN_SUCCESS) {
+ 		thread_deallocate(thread);
+ 	}
+@@ -811,8 +1166,10 @@ int sweet_ufs_rootdev(dev_t *dev);
+ int
+ sweet_ufs_rootdev(dev_t *dev)
+ {
++	printf("SWEET UFS: rootdev called (ready=%d)\n", (int)su.ready);
+ 	if (!su.ready) {
+ 		int error = sweet_ufs_init();
++		printf("SWEET UFS: init returned %d\n", error);
+ 		if (error) {
+ 			return error;
+ 		}
+diff --git a/bsd/dev/sweet_usb.c b/bsd/dev/sweet_usb.c
+index b6c1a41..dd27932 100644
+--- a/bsd/dev/sweet_usb.c
++++ b/bsd/dev/sweet_usb.c
+@@ -44,9 +44,32 @@ extern ppnum_t pmap_find_phys(pmap_t pmap, addr64_t va);
+ 
+ #define GCC_PA                  0x00100000
+ #define GCC_SIZE                0x00090000
+-#define GCC_USB30_PRIM_GDSCR    0x0f004         /* bit 31: power on */
+ #define CBCR_CLK_OFF            (1u << 31)
+ 
++/*
++ * Register offsets differ per SoC: sweet is SM7150 (gcc-sm7150.c), gauguin is
++ * SM7125 "lagoon" whose GCC is qcom,gcc-sm6350 (gcc-sm6350.c). Reading the
++ * SM7150 offsets on gauguin returned a register that looked like "USB powered"
++ * while the block was gated, so the DWC3 read hung the bus and reset the phone.
++ * Keep the first four entries in this order: clocks_on indexes master and
++ * cfg-noc-axi by position.
++ */
++#if defined(GAUGUIN)
++#define GCC_USB30_PRIM_GDSCR    0x1a004         /* bit 31: power on */
++static const struct {
++	const char *name;
++	uint32_t    off;
++} usb_cbcr[] = {
++	{ "master", 0x1a00c },
++	{ "sleep", 0x1a014 },
++	{ "utmi", 0x1a018 },
++	{ "cfg-noc-axi", 0x1101c },
++	{ "aggre-axi", 0x3e010 },
++	{ "phy-aux", 0x1a050 },
++	{ "clkref", 0x8c010 },
++};
++#else
++#define GCC_USB30_PRIM_GDSCR    0x0f004         /* bit 31: power on */
+ static const struct {
+ 	const char *name;
+ 	uint32_t    off;
+@@ -59,10 +82,17 @@ static const struct {
+ 	{ "ahb2phy", 0x6a004 },
+ 	{ "clkref", 0x8c010 },
+ };
++#endif
+ 
+ #define DWC3_PA                 0x0a600000
+ #define DWC3_SIZE               0x0000d000
++/* gauguin's DT (qcom,sm6350-qusb2-phy) puts the QUSB2 PHY at 0x88e3000;
++ * sweet (SM7150) has it at 0x88e2000. Reading the wrong block returns zeros. */
++#if defined(GAUGUIN)
++#define QUSB2_PA                0x088e3000
++#else
+ #define QUSB2_PA                0x088e2000
++#endif
+ #define QUSB2_SIZE              0x00000400
+ 
+ static uint32_t
+@@ -73,6 +103,17 @@ usb_rd(vm_offset_t base, uint32_t off)
+ 	return v;
+ }
+ 
++extern void sweet_log_flush_now(void);
++
++/* print a step and get it on disk: a hang in the next register access would
++ * otherwise take the message with it */
++static void
++usb_step(const char *msg)
++{
++	printf("SWEET USB: %s\n", msg);
++	sweet_log_flush_now();
++}
++
+ void
+ sweet_usb_probe(void)
+ {
+@@ -99,6 +140,9 @@ sweet_usb_probe(void)
+ 	}
+ 	/* DWC3 registers need the GDSC, the master clock and the config-NoC path. */
+ 	clocks_on = (gdscr & (1u << 31)) && !(cbcr[0] & CBCR_CLK_OFF) && !(cbcr[3] & CBCR_CLK_OFF);
++#if defined(GAUGUIN)
++	/* lagoon's USB master clock comes from the GDSC + cfg-noc path only */
++#endif
+ 	if (!clocks_on) {
+ 		printf("SWEET USB: controller unpowered or unclocked; DWC3 not read\n");
+ 		return;
+@@ -222,6 +266,7 @@ static struct {
+ 	vm_offset_t dwc;
+ 	vm_offset_t dma;
+ 	uint64_t    dma_pa;
++	bool        reused;         /* dma is the bootloader's low buffer */
+ 	uint32_t    evt_pos;
+ 	int         sleep_chan;
+ 	enum { EP0_SETUP, EP0_DATA, EP0_WAIT_STATUS2, EP0_WAIT_STATUS3, EP0_STATUS } state;
+@@ -272,7 +317,9 @@ ud_epcmd(unsigned ep, uint32_t cmd, uint32_t p0, uint32_t p1, uint32_t p2)
+ 	dwc_wr(DEPCMDPAR0(ep), p0);
+ 	dwc_wr(DEPCMDPAR1(ep), p1);
+ 	dwc_wr(DEPCMDPAR2(ep), p2);
++	usb_step("gadget: epcmd write");
+ 	dwc_wr(DEPCMD(ep), cmd | DEPCMD_CMDACT);
++	usb_step("gadget: epcmd written");
+ 	for (int i = 0; i < 1000; i++) {
+ 		uint32_t v = dwc_rd(DEPCMD(ep));
+ 		if (!(v & DEPCMD_CMDACT)) {
+@@ -305,7 +352,9 @@ ud_start_trb(unsigned ep, uint32_t trb, uint32_t buf, uint32_t len, uint32_t ctl
+ 		ud_sync(buf, len);
+ 	}
+ 	uint64_t tpa = ud.dma_pa + trb;
++	usb_step("gadget: starttransfer doorbell");
+ 	ud_epcmd(ep, DEPCMD_STARTTRANSFER, (uint32_t)(tpa >> 32), (uint32_t)tpa, 0);
++	usb_step("gadget: starttransfer rung");
+ }
+ 
+ static void
+@@ -318,7 +367,9 @@ static void
+ ud_start_setup(void)
+ {
+ 	ud.state = EP0_SETUP;
++	printf("SWEET USB: start_setup: arming EP0\n");
+ 	ud_start(0, UD_SETUP, 8, TRBCTL_SETUP);
++	printf("SWEET USB: start_setup: armed\n");
+ }
+ 
+ static void
+@@ -854,42 +905,92 @@ sweet_usb_gadget_start(vm_offset_t dwc)
+ 	thread_t thread;
+ 
+ 	ud.dwc = dwc;
+-	if (kmem_alloc_contig(kernel_map, &ud.dma, UD_SIZE, PAGE_MASK, 0, 0,
+-	    KMA_DATA | KMA_ZERO | KMA_PERMANENT, VM_KERN_MEMORY_IOKIT) != KERN_SUCCESS) {
+-		printf("SWEET USB: no DMA memory\n");
+-		return;
+-	}
+-	ppnum_t pn = pmap_find_phys(kernel_pmap, (addr64_t)ud.dma);
+-	if (!pn) {
+-		return;
++	usb_step("gadget: dma");
++	/*
++	 * The controller's AXI master only reaches the low 4 GiB: the kernel's
++	 * kmem_alloc_contig memory sits at 0x180000000+, and a TRB there makes the
++	 * STARTTRANSFER doorbell hang the bus (observed on gauguin). Reuse the low
++	 * buffer the bootloader left in GEVNTADR, which the controller already
++	 * points at; fall back to kernel memory where that is absent.
++	 */
++	uint64_t abldma = ((uint64_t)dwc_rd(GEVNTADRHI) << 32) | dwc_rd(GEVNTADRLO);
++	if (abldma && abldma < 0x100000000ULL) {
++		/* Keep the address exactly as the controller reports it (its event
++		 * buffer lives there) and do not clear it: zeroing the live buffer is
++		 * what appeared to wedge the controller on the next access. */
++		ud.dma_pa = abldma;
++		ud.reused = true;
++		ud.dma = ml_io_map(ud.dma_pa, UD_SIZE);
++		printf("SWEET USB: reusing the bootloader's low DMA at 0x%llx\n",
++		    (unsigned long long)ud.dma_pa);
++		if (ud.dma == 0) {
++			return;
++		}
++
++	} else {
++		if (kmem_alloc_contig(kernel_map, &ud.dma, UD_SIZE, PAGE_MASK, 0, 0,
++		    KMA_DATA | KMA_ZERO | KMA_PERMANENT, VM_KERN_MEMORY_IOKIT) != KERN_SUCCESS) {
++			printf("SWEET USB: no DMA memory\n");
++			return;
++		}
++		ppnum_t pn = pmap_find_phys(kernel_pmap, (addr64_t)ud.dma);
++		if (!pn) {
++			return;
++		}
++		ud.dma_pa = ptoa_64(pn);
+ 	}
+-	ud.dma_pa = ptoa_64(pn);
+ 	ud_if_create();
+ 
+-	/* Device controller soft reset (PHY and global setup stay as ABL left them). */
+-	dwc_wr(DCTL, DCTL_CSFTRST);
++	/* Device controller soft reset (PHY and global setup stay as ABL left them).
++	 * On gauguin writing DCTL hangs the AHB (the controller comes straight from
++	 * the bootloader's fastboot session), so it is opt-in: sweetusbreset=1. */
++	int do_reset = 0;
++	PE_parse_boot_argn("sweetusbreset", &do_reset, sizeof(do_reset));
++	if (do_reset) {
++		usb_step("gadget: soft reset");
++		dwc_wr(DCTL, DCTL_CSFTRST);
++	}
+ 	int i;
+-	for (i = 0; i < 500 && (dwc_rd(DCTL) & DCTL_CSFTRST); i++) {
++	for (i = 0; do_reset && i < 500 && (dwc_rd(DCTL) & DCTL_CSFTRST); i++) {
+ 		delay(1000);
+ 	}
+-	printf("SWEET USB: soft reset %s after %d ms, GCTL 0x%08x DCFG 0x%08x\n",
+-	    (dwc_rd(DCTL) & DCTL_CSFTRST) ? "STUCK" : "done", i, dwc_rd(GCTL), dwc_rd(DCFG));
+-	if (dwc_rd(DCTL) & DCTL_CSFTRST) {
+-		return;
++	if (do_reset) {
++		printf("SWEET USB: soft reset %s after %d ms, GCTL 0x%08x DCFG 0x%08x\n",
++		    (dwc_rd(DCTL) & DCTL_CSFTRST) ? "STUCK" : "done", i, dwc_rd(GCTL), dwc_rd(DCFG));
++		if (dwc_rd(DCTL) & DCTL_CSFTRST) {
++			return;
++		}
++	} else {
++		usb_step("gadget: no soft reset, taking the controller over");
+ 	}
+ 
+-	dwc_wr(GEVNTADRLO, (uint32_t)(ud.dma_pa + UD_EVT));
+-	dwc_wr(GEVNTADRHI, (uint32_t)((ud.dma_pa + UD_EVT) >> 32));
+-	dwc_wr(GEVNTSIZ, (1u << 31) | UD_EVT_SIZE);     /* interrupt masked: polled */
+-	dwc_wr(GEVNTCOUNT, dwc_rd(GEVNTCOUNT) & 0xffff);
++	if (!ud.reused) {
++		/* Only rewrite the event buffer when it is our own kernel memory:
++		 * the bootloader already pointed the controller at its buffer, and
++		 * touching GEVNTADR with the controller live hung the bus. */
++		usb_step("gadget: events: adrlo");
++		dwc_wr(GEVNTADRLO, (uint32_t)(ud.dma_pa + UD_EVT));
++		usb_step("gadget: events: adrhi");
++		dwc_wr(GEVNTADRHI, (uint32_t)((ud.dma_pa + UD_EVT) >> 32));
++		usb_step("gadget: events: siz");
++		dwc_wr(GEVNTSIZ, (1u << 31) | UD_EVT_SIZE);
++		usb_step("gadget: events: count");
++		dwc_wr(GEVNTCOUNT, dwc_rd(GEVNTCOUNT) & 0xffff);
++		usb_step("gadget: count written");
++	}
+ 	ud.evt_pos = 0;
+ 
++	usb_step("gadget: dcfg");
+ 	/* High speed, address 0 */
+ 	uint32_t dcfg = dwc_rd(DCFG) & ~(7u | (0x7fu << 3));
+ 	dwc_wr(DCFG, dcfg | 0);
++	usb_step("gadget: dcfg written");
+ 	/* Events: disconnect, USB reset, connect done */
++	usb_step("gadget: devten");
+ 	dwc_wr(DEVTEN, 0x7);
++	usb_step("gadget: devten written");
+ 
++	usb_step("gadget: endpoints");
+ 	/* Endpoint 0 OUT/IN: start config, control type, max packet 512 until connect done. */
+ 	if (ud_epcmd(0, DEPCMD_DEPSTARTCFG, 0, 0, 0) ||
+ 	    ud_epcmd(0, DEPCMD_SETEPCONFIG, (0u << 1) | (512u << 3), (1u << 8) | (1u << 10) | (0u << 25), 0) ||
+@@ -899,9 +1000,12 @@ sweet_usb_gadget_start(vm_offset_t dwc)
+ 		printf("SWEET USB: endpoint 0 setup failed\n");
+ 		return;
+ 	}
++	usb_step("gadget: ep0 done, dalepena");
+ 	dwc_wr(DALEPENA, 0x3);
++	usb_step("gadget: dalepena written");
+ 	ud_start_setup();
+ 
++	usb_step("gadget: qscratch");
+ 	vm_offset_t qs = ml_io_map(QSCRATCH_PA, 0x100);
+ 	if (qs != 0) {
+ 		uint32_t hs = usb_rd(qs, QSCRATCH_HS_PHY_CTRL), ss = usb_rd(qs, QSCRATCH_SS_PHY_CTRL);
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+index bb2a2bf..bd39298 100644
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -477,6 +477,7 @@ void
+ bsd_init(void)
+ {
+ 	struct uthread *ut;
++
+ 	vnode_t init_rootvnode = NULLVP;
+ 	struct proc_ro_data kernproc_ro_data = {
+ 		.p_csflags = CS_VALID,
+@@ -755,7 +756,9 @@ bsd_init(void)
+ 	bsd_init_kprintf("calling nwk_wq_init\n");
+ 	nwk_wq_init();
+ 	bsd_init_kprintf("calling dlil_init\n");
++	printf("SWEET boot: dlil_init\n");
+ 	dlil_init();
++	printf("SWEET boot: dlil_init done\n");
+ #endif /* NETWORKING */
+ #if SOCKETS
+ 	bsd_init_kprintf("calling socketinit\n");
+@@ -798,7 +801,9 @@ bsd_init(void)
+ 	sysctl_mib_init();
+ 
+ 	bsd_init_kprintf("calling bsd_autoconf\n");
++	printf("SWEET boot: bsd_autoconf\n");
+ 	bsd_autoconf();
++	printf("SWEET boot: bsd_autoconf done\n");
+ 
+ #if CONFIG_DTRACE
+ 	dtrace_postinit();
+@@ -879,7 +884,9 @@ bsd_init(void)
+ #endif
+ 
+ 		bsd_init_kprintf("vfs_mountroot\n");
++		printf("SWEET boot: vfs_mountroot\n");
+ 		if (0 == (err = vfs_mountroot())) {
++			printf("SWEET boot: vfs_mountroot ok\n");
+ 			break;
+ 		}
+ 		rootdevice[0] = '\0';
+@@ -1107,6 +1114,7 @@ bsd_autoconf(void)
+ {
+ 	kprintf("bsd_autoconf: calling kminit\n");
+ 	kminit();
++	kprintf("bsd_autoconf: kminit done\n");
+ 
+ 	/*
+ 	 * Early startup for bsd pseudodevices.
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+index 68612db..2c4b5d2 100644
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -1998,11 +1998,44 @@ cleanup_rosetta_fp:
+ 			(void) task_suspend_internal(task);
+ 		}
+ 	}
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	if (imgp->ip_px_sa != NULL) {
++		extern void sweet_psx_track(task_t, const char *, int, int);
++		sweet_psx_track(task, p->p_name,
++		    (int)((struct _posix_spawnattr *)imgp->ip_px_sa)->psa_flags, spawn);
++	}
++#endif
+ 
+ 	/*
+ 	 * mark as execed
+ 	 */
+ 	OSBitOrAtomic(P_EXEC, &p->p_flag);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	{
++		/* Stage trace (sweetstage=): one mark per exec, with the pid. */
++		extern void sweet_stage(uint32_t, uint32_t);
++		sweet_stage(0x2000, (uint32_t)p->p_pid);
++	}
++#endif
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * posix_spawn flags of this exec, for sweetpsx=1 (started suspended and
++	 * who resumes it). Also say whether the exec came from a spawn at all.
++	 */
++#endif
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * A thread_block() of this task from here on is reported even if the
++	 * process still runs under its old name (NOTES 2026-10-22 19:34).
++	 * Defined in osfmk/kern/task.c; a no-op unless sweetblock= names it.
++	 */
++	{
++		extern void sweet_fast_exec_arm(task_t, const char *);
++		extern void sweet_fast_exec_later(void);
++		sweet_fast_exec_arm(proc_task(p), p->p_name);
++		sweet_fast_exec_later();
++	}
++#endif
+ 	proc_resetregister(p);
+ 	if (p->p_pptr && (p->p_lflag & P_LPPWAIT)) {
+ 		proc_lock(p);
+@@ -7414,6 +7447,50 @@ process_signature(proc_t p, struct image_params *imgp)
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ 			/* SWEET runs every iOS binary this way: one short line per exec. */
+ 			printf("exec %s\n", p->p_name);
++			{
++				/*
++				 * Start touch now: userland is running, so timed sleeps work
++				 * (NOTES 22:47). One shot, on the first exec after boot.
++				 */
++				/*
++				 * Not on the first exec: that is launchd, while UFS is still
++				 * being hammered mounting the root, and a sleeping kernel
++				 * thread there stalls the boot (NOTES 22:50). Wait until
++				 * userland is established (a later exec) so the touch thread's
++				 * own timed sleep has a working scheduler under it.
++				 */
++				extern void sweet_touch_init(void);
++				static unsigned sweet_execs;
++				static bool sweet_touch_started;
++				int sweet_after = 20;
++				(void)PE_parse_boot_argn("sweettouchafter", &sweet_after,
++				    sizeof(sweet_after));
++				/*
++				 * Every attempt to run *anything* here loses the boot, including
++				 * a single printf (NOTES 12:47). Keep the hook inert until we
++				 * understand why, and gate it so a boot can never be lost to it.
++				 */
++				int sweet_enable = 0;
++				(void)PE_parse_boot_argn("sweetdohook", &sweet_enable,
++				    sizeof(sweet_enable));
++				if (sweet_enable && !sweet_touch_started &&
++				    ++sweet_execs >= (unsigned)sweet_after) {
++					sweet_touch_started = true;
++					printf("SWEET TOUCH: starting after %u execs\n", sweet_execs);
++					sweet_touch_init();
++				}
++			}
++			{
++				/*
++				 * SWEET: a process that starts and then goes quiet is
++				 * invisible in this log. Dump its threads a moment after the
++				 * exec for the names in sweetdump=Name,Name (once each).
++				 * Implemented in osfmk/kern/task.c (see sweet_dump_threads_soon).
++				 */
++				extern void sweet_dump_threads_soon(task_t, const char *);
++				task_t sweet_task = proc_task(p);
++				sweet_dump_threads_soon(sweet_task, p->p_name);
++			}
+ #else
+ 			printf("Allowing spawn of iOS binary %s since it has "
+ 			    "com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch "
+diff --git a/bsd/kern/kern_exit.c b/bsd/kern/kern_exit.c
+index fde499c..98bb5dd 100644
+--- a/bsd/kern/kern_exit.c
++++ b/bsd/kern/kern_exit.c
+@@ -1791,6 +1791,23 @@ proc_handle_critical_exit(proc_t p, int rv)
+ 
+ 	char *exit_reason_desc = exit_reason_get_string_desc(p->p_exit_reason);
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * Every process that dies is named here. The bring-up log otherwise shows
++	 * only "exec <name>" lines, so a daemon that starts and immediately exits
++	 * (SpringBoard did, silently) looks exactly like one that keeps running.
++	 * Only the first 200 exits are printed; this is a debug build.
++	 */
++	{
++		static unsigned sweet_exit_lines;
++		if (sweet_exit_lines < 200) {
++			sweet_exit_lines++;
++			printf("exit %s[%d] rv=0x%x\n", p->p_name,
++			    proc_getpid(p), rv);
++		}
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	if (p->p_exit_reason == OS_REASON_NULL) {
+ 		printf("pid %d exited -- no exit reason available -- (signal %d, exit %d)\n",
+ 		    proc_getpid(p), WTERMSIG(rv), WEXITSTATUS(rv));
+diff --git a/bsd/kern/kern_proc.c b/bsd/kern/kern_proc.c
+index 407a18b..7ef3ca5 100644
+--- a/bsd/kern/kern_proc.c
++++ b/bsd/kern/kern_proc.c
+@@ -1533,6 +1533,88 @@ proc_suser(proc_t p)
+ 	return error;
+ }
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * Syscall histogram for one named process (boot-arg sweetsyscall=Name).
++ * Counting only - no printing from the syscall path.
++ */
++#define SWEET_SYS_MAX 600
++static char sweet_sys_name[48];
++static bool sweet_sys_parsed;
++static uint32_t sweet_sys_count[SWEET_SYS_MAX];
++static uint8_t sweet_sys_seen[SWEET_SYS_MAX];
++
++void
++sweet_syscall_count(proc_t p, unsigned code)
++{
++	if (!sweet_sys_parsed) {
++		sweet_sys_parsed = true;
++		if (!PE_parse_boot_argn("sweetsyscall", sweet_sys_name,
++		    sizeof(sweet_sys_name))) {
++			sweet_sys_name[0] = '\0';
++		}
++	}
++	if (sweet_sys_name[0] == '\0' || p == PROC_NULL || code >= SWEET_SYS_MAX) {
++		return;
++	}
++	if (strncmp(p->p_name, sweet_sys_name, sizeof(sweet_sys_name)) != 0) {
++		return;
++	}
++	__atomic_fetch_add(&sweet_sys_count[code], 1, __ATOMIC_RELAXED);
++}
++
++/* Called from the exec path: print the histogram, then reset it. */
++void
++sweet_syscall_dump(void)
++{
++	if (sweet_sys_name[0] == '\0') {
++		return;
++	}
++	unsigned lines = 0;
++	printf("SWEET SYS: histogram for %s\n", sweet_sys_name);
++	/* Print the most frequent entries first (simple selection). */
++	for (unsigned pass = 0; pass < 12; pass++) {
++		unsigned best = 0, bestn = 0;
++		for (unsigned i = 0; i < SWEET_SYS_MAX; i++) {
++			if (sweet_sys_seen[i]) {
++				continue;
++			}
++			if (sweet_sys_count[i] > bestn) {
++				bestn = sweet_sys_count[i];
++				best = i;
++			}
++		}
++		if (bestn == 0) {
++			break;
++		}
++		printf("SWEET SYS: syscall %u count %u\n", best, bestn);
++		sweet_sys_seen[best] = 1;
++		lines++;
++	}
++	(void)lines;
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * Name of the process that owns a task, for the osfmk-side bring-up traces
++ * (osfmk/kern/task.c cannot include <sys/proc.h>: the typedefs clash).
++ */
++void
++sweet_proc_name_from_task(task_t task, char *buf, size_t len)
++{
++	if (buf == NULL || len == 0) {
++		return;
++	}
++	buf[0] = '\0';
++	proc_t p = task == TASK_NULL ? PROC_NULL : (proc_t)task_get_proc_raw(task);
++	if (p == PROC_NULL) {
++		return;
++	}
++	strlcpy(buf, p->p_name, len);
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ task_t
+ proc_task(proc_t proc)
+ {
+diff --git a/bsd/vfs/vfs_syscalls.c b/bsd/vfs/vfs_syscalls.c
+index 90e68bb..134e467 100644
+--- a/bsd/vfs/vfs_syscalls.c
++++ b/bsd/vfs/vfs_syscalls.c
+@@ -5078,19 +5078,118 @@ open_nocancel(__unused proc_t p, struct open_nocancel_args *uap,
+ 	           uap->mode, AT_FDCWD, UIO_USERSPACE, retval);
+ }
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++static void sweet_dir_record_from_fd(proc_t p, int fd);
++#endif
++
+ int
+ openat_nocancel(__unused proc_t p, struct openat_nocancel_args *uap,
+     int32_t *retval)
+ {
+-	return openat_internal(vfs_context_current(), uap->path, uap->flags,
++	int err = openat_internal(vfs_context_current(), uap->path, uap->flags,
+ 	           uap->mode, uap->fd, UIO_USERSPACE, retval);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * The `*_nocancel` entry is separate from openat(), so recording only in
++	 * openat() missed every libc open (which is what SpringBoard uses), which
++	 * is why the tracer printed "fd 3 (?)" - NOTES 22:19.
++	 */
++	if (err == 0 && p != PROC_NULL) {
++		sweet_dir_record_from_fd(p, *retval);
++	}
++#endif
++	return err;
++}
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * SWEET bring-up: which directory tree is SpringBoard crawling? getdirentries64
++ * only sees an fd, so remember (fd -> path) for the process we care about and
++ * print it when the directory is enumerated (NOTES 22:03).
++ */
++#define SWEET_DIR_MAX 64
++struct sweet_dir_fd {
++	char path[160];
++	int fd;
++};
++static struct sweet_dir_fd sweet_dirs[SWEET_DIR_MAX];
++static unsigned sweet_dir_next;
++
++static bool
++sweet_watch_proc(proc_t p)
++{
++	static int parsed;
++	static char want[48];
++	if (!parsed) {
++		parsed = 1;
++		if (!PE_parse_boot_argn("sweetdirs", want, sizeof(want))) {
++			want[0] = '\0';
++		}
++	}
++	return want[0] != '\0' && p != PROC_NULL &&
++	    strncmp(p->p_name, want, sizeof(want)) == 0;
++}
++
++static void
++sweet_dir_record_from_fd(proc_t p, int fd)
++{
++	if (fd < 0 || !sweet_watch_proc(p)) {
++		return;
++	}
++	/*
++	 * vnode_lookup_rdonly-style access without touching user memory: take the
++	 * fileproc and its vnode, then ask the vnode for its path.
++	 */
++	/*
++	 * Same pattern as the rest of this file (see the vnode_getwithref callers
++	 * around line 3950): fp_getfvp takes the fd lock itself, so do not hold it
++	 * here, and hold a reference on the vnode while reading its path.
++	 */
++	struct fileproc *fp = NULL;
++	vnode_t vp = NULLVP;
++	if (fp_getfvp(p, fd, &fp, &vp) != 0) {
++		return;
++	}
++	if (vnode_getwithref(vp) == 0) {
++		struct sweet_dir_fd *e = &sweet_dirs[sweet_dir_next++ % SWEET_DIR_MAX];
++		e->fd = fd;
++		e->path[0] = '\0';
++		int pathlen = (int)sizeof(e->path);
++		vn_getpath(vp, e->path, &pathlen);
++		vnode_put(vp);
++	}
++	fp_drop(p, fd, fp, 0);
+ }
+ 
++static const char *
++sweet_dir_lookup(int fd)
++{
++	for (unsigned i = 0; i < SWEET_DIR_MAX; i++) {
++		struct sweet_dir_fd *e = &sweet_dirs[i];
++		if (e->fd == fd && e->path[0] != '\0') {
++			return e->path;
++		}
++	}
++	return "?";
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ int
+ openat(proc_t p, struct openat_args *uap, int32_t *retval)
+ {
+ 	__pthread_testcancel(1);
+-	return openat_nocancel(p, (struct openat_nocancel_args *)uap, retval);
++	int err = openat_nocancel(p, (struct openat_nocancel_args *)uap, retval);
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * Resolve the path through the fd table instead of copyin()-ing uap->path:
++	 * this runs after openat_nocancel already touched the user pointer, and a
++	 * second user access from here is what hung the previous boot (NOTES 22:06).
++	 */
++	if (err == 0 && sweet_watch_proc(p)) {
++		sweet_dir_record_from_fd(p, *retval);
++	}
++#endif
++	return err;
+ }
+ 
+ #define OPEN_BY_ID_ENTITLEMENT  "com.apple.private.vfs.open-by-id"
+@@ -10455,6 +10554,36 @@ getdirentries64(__unused struct proc *p, struct getdirentries64_args *uap, user_
+ 
+ 	AUDIT_ARG(fd, uap->fd);
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	{
++		static unsigned sweet_gd_lines;
++		if (sweet_gd_lines < 40 && sweet_watch_proc(p)) {
++			sweet_gd_lines++;
++			printf("SWEET DIR: %s reads fd %d (%s)\n", p->p_name, uap->fd,
++			    sweet_dir_lookup(uap->fd));
++			/*
++			 * The table only knows fds this process opened itself; an
++			 * inherited fd (3 at start-up) is missing, so resolve it live
++			 * once to name the tree.
++			 */
++			if (sweet_gd_lines == 1) {
++				struct fileproc *fp = NULL;
++				vnode_t vp = NULLVP;
++				char live[128] = { 0 };
++				if (fp_getfvp(p, uap->fd, &fp, &vp) == 0) {
++					if (vnode_getwithref(vp) == 0) {
++						int len = (int)sizeof(live);
++						vn_getpath(vp, live, &len);
++						vnode_put(vp);
++					}
++					fp_drop(p, uap->fd, fp, 0);
++				}
++				printf("SWEET DIR: live path = %s\n", live);
++			}
++		}
++	}
++#endif
++
+ 	/*
+ 	 * If the buffer is at least GETDIRENTRIES64_EXTENDED_BUFSIZE large,
+ 	 * then the kernel carves out the last 4 bytes to return extended
+diff --git a/iokit/IOKit/IORPC.h b/iokit/IOKit/IORPC.h
+index 3ded78c..6b5107c 100644
+--- a/iokit/IOKit/IORPC.h
++++ b/iokit/IOKit/IORPC.h
+@@ -224,6 +224,11 @@ struct IORPC {
+ 	IORPCMessageMach * reply;
+ 	uint32_t           sendSize;
+ 	uint32_t           replySize;
++#ifdef KERNEL
++	/* Xcode 16+ iig emits assignments to this field (upstream xnu-11215+).
++	 * Older iig never referenced it; nothing in xnu-8796 reads it. */
++	IORPCMessage     * kernelContent;
++#endif /* KERNEL */
+ };
+ typedef struct IORPC IORPC;
+ 
+diff --git a/iokit/Kernel/IOPlatformExpert.cpp b/iokit/Kernel/IOPlatformExpert.cpp
+index 7a32a23..d4e7675 100644
+--- a/iokit/Kernel/IOPlatformExpert.cpp
++++ b/iokit/Kernel/IOPlatformExpert.cpp
+@@ -1092,6 +1092,15 @@ PEHaltRestartInternal(unsigned int type, uint32_t details)
+ 	}
+ 
+ skip_to_haltRestart:
++	/* SWEET: a non-panic reboot (userspace shutdown/restart) leaves a trace in
++	 * the persistent log and in pstore, so the bring-up logs say who asked. */
++	if (type == kPERestartCPU || type == kPEHaltCPU) {
++		extern void sweet_log_flush_panic(void) __attribute__((weak));
++		printf("SWEET: platform restart requested (type %u)\n", type);
++		if (sweet_log_flush_panic) {
++			sweet_log_flush_panic();
++		}
++	}
+ 	if (gIOPlatform) {
+ 		// note that this will not necessarily halt or restart the system...
+ 		// Implementors of this function will check the type and take action accordingly
+diff --git a/iokit/Kernel/IOUserClient.cpp b/iokit/Kernel/IOUserClient.cpp
+index 163fce1..8bc52ce 100644
+--- a/iokit/Kernel/IOUserClient.cpp
++++ b/iokit/Kernel/IOUserClient.cpp
+@@ -2778,8 +2778,34 @@ internal_io_service_get_matching_service(
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ 		char sname[32];
+ 		if (sweet_iolog(sname, sizeof(sname))) {
+-			sweet_iolog_dict(sname, "matching1", dict,
++			/*
++			 * "none" here is the interesting case: record how many registry
++			 * entries the dict came close to (same dict without the class
++			 * constraint is not available, so just note the misses), so a
++			 * daemon waiting on a service we never publish is visible.
++			 */
++			static unsigned misses;
++			sweet_iolog_dict(sname, *service ? "matching1" : "matching1 MISS", dict,
+ 			    *service ? (*service)->getMetaClass()->getClassName() : "none");
++			if (*service == NULL) {
++				/* One line per distinct class the daemon could not find. */
++				OSString *wanted = OSDynamicCast(OSString,
++				    dict->getObject("IOProviderClass"));
++				const char *want = wanted ? wanted->getCStringNoCopy() : "";
++				static char seen[8][64];
++				bool known = false;
++				for (unsigned i = 0; i < misses && i < 8; i++) {
++					if (strncmp(seen[i], want, sizeof(seen[i])) == 0) {
++						known = true;
++						break;
++					}
++				}
++				if (!known && misses < 8) {
++					strlcpy(seen[misses], want, sizeof(seen[misses]));
++					IOLog("IOK %s: NEVER FOUND class %s\n", sname, want);
++				}
++				misses++;
++			}
+ 		}
+ #endif
+ 	} else {
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+index a62416c..dda80c6 100644
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -62,6 +62,17 @@ enum {
+ 	kSweetFBIsMainDisplay           = 18,
+ 	kSweetFBGetDotPitch             = 28,
+ 	kSweetFBNotifications           = 72,
++	/*
++	 * Selectors backboardd actually calls on the shipping driver (NOTES
++	 * 21:50); meanings inferred from the call signatures, each logged until
++	 * the boot makes progress.
++	 */
++	kSweetFBUnknown15               = 15,
++	kSweetFBUnknown22               = 22,
++	kSweetFBUnknown29               = 29,
++	kSweetFBUnknown33               = 33,
++	kSweetFBTimingInfo              = 74,
++	kSweetFBDisplayModes            = 79,
+ };
+ 
+ #define SWEET_FB_SWAP_REC_SIZE          0x46c
+@@ -82,6 +93,45 @@ enum {
+ #define SWEET_FB_LOGICAL_H              2436
+ #define SWEET_FB_FORMAT_BGRA            0x42475241
+ 
++/*
++ * SWEET: a *stub* GPU accelerator.
++ *
++ * backboardd looks up IOAcceleratorES, gets "0 found", and then segfaults
++ * (NOTES 21:23, 13 crashes per boot). There is no GPU driver in the tree, so
++ * this publishes the service name only: enough for the lookup to succeed and
++ * for us to learn whether backboardd needs *a real GPU* or merely *the service
++ * to exist*. Every method returns an error, nothing pretends to render.
++ */
++class IOAcceleratorES : public IOService {
++	OSDeclareDefaultStructors(IOAcceleratorES);
++public:
++	bool start(IOService *provider) override;
++	void stop(IOService *provider) override;
++};
++
++OSDefineMetaClassAndStructors(IOAcceleratorES, IOService);
++
++bool
++IOAcceleratorES::start(IOService *provider)
++{
++	if (!IOService::start(provider)) {
++		return false;
++	}
++	setProperty("IOClass", "IOAcceleratorES");
++	setProperty("IOProviderClass", "IOResources");
++	setProperty("stub", true);
++	setProperty("IOGPUFamilyStub", true);
++	registerService();
++	IOLog("SWEET GPU: stub IOAcceleratorES published\n");
++	return true;
++}
++
++void
++IOAcceleratorES::stop(IOService *provider)
++{
++	IOService::stop(provider);
++}
++
+ class IOMobileFramebuffer : public IOService {
+ 	OSDeclareDefaultStructors(IOMobileFramebuffer);
+ };
+@@ -90,6 +140,8 @@ OSDefineMetaClassAndStructors(IOMobileFramebuffer, IOService);
+ 
+ class IOMobileFramebufferUserClient;
+ 
++extern "C" void sweet_log_flush_now(void);
++
+ class AppleCLCD : public IOMobileFramebuffer {
+ 	OSDeclareDefaultStructors(AppleCLCD);
+ 
+@@ -110,6 +162,7 @@ public:
+ 	IOLock       *fLock;            /* swaps and client list */
+ 	OSArray      *fClients;
+ 	uint32_t      fSwapID;
++	uint64_t      fLastSet;      /* last argument of the 22/33 setters */
+ 	bool          fConsolePaused;
+ 	uint8_t       fPending[SWEET_FB_SWAP_REC_SIZE];     /* latest swap, not yet shown */
+ 	bool          fDirty;
+@@ -122,8 +175,11 @@ public:
+ 	void removeClient(IOMobileFramebufferUserClient *client);
+ 	void swap(const uint8_t *rec);
+ 	void present(const uint8_t *rec);
++	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
++static AppleCLCD *gSweetFB;
++
+ OSDefineMetaClassAndStructors(AppleCLCD, IOMobileFramebuffer);
+ 
+ class IOMobileFramebufferUserClient : public IOUserClient {
+@@ -145,10 +201,73 @@ public:
+ 	    IOExternalMethodDispatch *dispatch, OSObject *target,
+ 	    void *reference) APPLE_KEXT_OVERRIDE;
+ 	void notify(uint32_t type, const uint64_t *values, uint32_t count);
++	bool hasNotification(uint32_t type) const;
+ };
+ 
+ OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
+ 
++/* Colour block in the top-left corner of the panel; see sweet_fb_mark callers. */
++void
++AppleCLCD::mark(uint32_t colour)
++{
++	/*
++	 * Disabled by default via sweetfb_mark=0 (see the call site): even a
++	 * 320x96 block costs ~30k uncached stores, and a full panel costs millions -
++	 * measured as "the boot is just very slow", not as a hang (NOTES 15:35).
++	 * Painting is a debugging aid; it must never be on the boot path.
++	 */
++	static int painting = -1;
++	if (painting < 0) {
++		painting = 1;
++		PE_parse_boot_argn("sweetfb_mark", &painting, sizeof(painting));
++	}
++	if (!painting) {
++		return;
++	}
++	if (fPixels == 0 || fWidth == 0 || fHeight == 0 || fRowBytes == 0) {
++		return;
++	}
++	/* Whole panel: a stage colour must be readable at a glance. */
++	/*
++	 * Corner block, not the whole panel: painting 1080x2400 with strongly
++	 * ordered stores at boot is slow enough to look like a hang (NOTES 15:30),
++	 * and it hides everything underneath. 320x96 is plenty to identify a colour.
++	 */
++	uint32_t w = fWidth < 320 ? fWidth : 320;
++	uint32_t h = fHeight < 96 ? fHeight : 96;
++	for (uint32_t y = 0; y < h; y++) {
++		volatile uint32_t *row = (volatile uint32_t *)(fPixels + (uint64_t)y * fRowBytes);
++		for (uint32_t x = 0; x < w; x++) {
++			row[x] = colour;
++		}
++	}
++	/*
++	 * Optional hold so a human can read the colour. OFF by default: the busy
++	 * ring blocks the boot long enough that console output written straight
++	 * after a mark was being lost (NOTES 15:10), which made page walks look
++	 * like hangs. Pass sweetmarkhold=1 when the panel is the only witness.
++	 */
++	static int hold = -1;
++	if (hold < 0) {
++		hold = 0;
++		PE_parse_boot_argn("sweetmarkhold", &hold, sizeof(hold));
++	}
++	if (hold) {
++		for (volatile uint64_t spin = 0; spin < 2000000000ULL; spin++) {
++			;
++		}
++	}
++}
++
++/* Called from C: paint the marker without needing the C++ instance type. */
++extern "C" void
++sweet_fb_mark(uint32_t colour)
++{
++	if (gSweetFB != NULL) {
++		gSweetFB->mark(colour);
++	}
++}
++
+ bool
+ AppleCLCD::start(IOService *provider)
+ {
+@@ -187,6 +306,7 @@ AppleCLCD::start(IOService *provider)
+ 		OSSafeReleaseNULL(fWorkLoop);
+ 		return false;
+ 	}
++	gSweetFB = this;
+ 	fVsync = IOTimerEventSource::timerEventSource(this, &AppleCLCD::vsyncFired);
+ 	if (fVsync == NULL || fWorkLoop->addEventSource(fVsync) != kIOReturnSuccess) {
+ 		IOLog("SWEET FB: no vsync timer\n");
+@@ -203,6 +323,14 @@ AppleCLCD::start(IOService *provider)
+ 	registerService();
+ 	IOLog("SWEET FB: AppleCLCD %ux%u stride %u at 0x%llx, default surface %u, presented as %ux%u\n",
+ 	    fWidth, fHeight, fRowBytes, fPhys, fSurface->id, fLogicalW, fLogicalH);
++	/*
++	 * Panel marker, because the log is not a reliable witness (NOTES 14:00):
++	 * once the framebuffer is fully up, paint a colour block in the top-left
++	 * corner. The colour names the stage a later probe reached, so progress can
++	 * be read off the screen with no console at all.
++	 *    red = AppleCLCD::start finished
++	 */
++	sweet_fb_mark(0x0000ff00u);   /* RGB(0,255,0) green */
+ 	return true;
+ }
+ 
+@@ -223,6 +351,20 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ 		IOMobileFramebufferUserClient *client =
+ 		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
+ 		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
++		/*
++		 * Deliver to every other registered notification type as well: today
++		 * only vsync (5) fires, so a client waiting on type 3 - which is what
++		 * backboardd registers, NOTES 21:14 - never hears anything, and a
++		 * registered notification that never fires looks exactly like a
++		 * display that never scans out. Sending the same payload to all
++		 * registered types costs nothing and tells us whether type 3 is the
++		 * one backboardd is waiting on.
++		 */
++		for (uint32_t t = 0; t < SWEET_FB_NOTIFY_TYPES; t++) {
++			if (t != SWEET_FB_NOTIFY_VSYNC && client->hasNotification(t)) {
++				client->notify(t, values, 6);
++			}
++		}
+ 	}
+ 	if (fb->fPowerOff) {
+ 		/* Fade out: halve every channel each vsync, then black, then idle. */
+@@ -242,7 +384,86 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ 		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
+ 		return;
+ 	}
++	/*
++	 * Counters for the bring-up: how many vsyncs actually run, how many of
++	 * them had a dirty surface and how many frames were presented. A GUI
++	 * problem is much easier to place with these three numbers in the log.
++	 */
++	static uint64_t presents;
+ 	bool flush = fb->fDirty && (count % fb->fFlushTicks) == 0;
++	if (flush) {
++		presents++;
++	}
++	if ((count % 600) == 0 || count == 2) {
++		/*
++		 * Sample the panel to say *what* is on screen, not just that frames
++		 * were presented: count non-black samples and how many distinct
++		 * colours they hold. 4,096 evenly spaced pixels is enough to tell a
++		 * black panel from a drawn one and a flat fill from real content.
++		 */
++		unsigned nonblack = 0, distinct = 0, samples = 0;
++		uint32_t seen[16] = { 0 };
++		if (fb->fPixels != 0 && fb->fWidth > 0 && fb->fHeight > 0) {
++			uint32_t step = (uint32_t)(fb->fWidth * fb->fHeight / 4096);
++			if (step == 0) {
++				step = 1;
++			}
++			for (uint32_t i = 0; i < fb->fWidth * fb->fHeight; i += step) {
++				uint32_t px = ((const uint32_t *)fb->fPixels)[i];
++				samples++;
++				if ((px & 0x00ffffffu) != 0) {
++					nonblack++;
++					uint32_t c = px & 0x00ffffffu;
++					unsigned k = 0;
++					for (; k < distinct && k < 16; k++) {
++						if (seen[k] == c) {
++							break;
++						}
++					}
++					if (k == distinct && distinct < 16) {
++						seen[distinct++] = c;
++					}
++				}
++			}
++		}
++		/*
++		 * The vsync timer is programmed for 16,667 us, so the tick delta
++		 * between two reports tells us the *real* timebase: if 600 frames
++		 * take 600*16667 us of hardware time, ticks/600/16667us gives Hz.
++		 * NOTES 23:00 suspects 24 MHz is the truth and 19.2 MHz is declared.
++		 */
++		uint64_t ticknow = mach_absolute_time();
++		static uint64_t lastticks, lastcount;
++		uint64_t dhz = 0;
++		if (lastcount != 0 && ticknow > lastticks) {
++			uint64_t dticks = ticknow - lastticks;
++			uint64_t dframes = count - lastcount;
++			if (dframes != 0) {
++				/* declared Hz implied by this delta, in whole Hz */
++				dhz = dticks * 1000000ull / (dframes * 16667ull);
++			}
++		}
++		/*
++		 * Wall-clock interval per vsync, in microseconds, straight from the
++		 * counter: if each callback is costing hundreds of ms the number shows
++		 * it directly instead of through the implied_hz ratio (NOTES 16:50).
++		 */
++		if (lastcount != 0 && count > lastcount) {
++			uint64_t dt = ticknow - lastticks;
++			uint64_t nv = count - lastcount;
++			IOLog("SWEET FB: vsync interval %llu us over %llu frames (%llu ticks)\n",
++			    (unsigned long long)(dt * 1000000ull / nv /
++			    (gPEClockFrequencyInfo.timebase_frequency_hz ? gPEClockFrequencyInfo.timebase_frequency_hz : 1)),
++			    (unsigned long long)nv, (unsigned long long)dt);
++		}
++		lastticks = ticknow;
++		lastcount = count;
++		IOLog("SWEET FB: vsync=%llu dirty=%u presents=%llu client=%u "
++		    "px sample %u nonblack=%u distinct=%u implied_hz=%llu\n",
++		    (unsigned long long)count, fb->fDirty ? 1u : 0u,
++		    (unsigned long long)presents, fb->fClients->getCount(),
++		    samples, nonblack, distinct, (unsigned long long)dhz);
++	}
+ 	uint8_t *rec = NULL;
+ 	if (flush) {
+ 		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
+@@ -391,6 +612,13 @@ AppleCLCD::present(const uint8_t *rec)
+ 			src = 0;
+ 		}
+ 		if (src != 0 && bpe == 4) {
++			/*
++			 * Rows of the swap record's dirty rectangle only. Comparing pixels
++			 * one by one was tried and was SLOWER: reads through the write-
++			 * combined panel mapping cost as much as writes, so scanning 2.6M
++			 * pixels to save a few thousand stores is a loss (NOTES 16:35).
++			 * The rectangle is already in the record - use it.
++			 */
+ 			for (int32_t y = 0; y < h; y++) {
+ 				memcpy((void *)(fPixels + (uint64_t)(dy + y) * fRowBytes + (uint64_t)dx * 4),
+ 				    (const void *)(src + s->offset + (uint64_t)(sy + y) * s->bytesPerRow + (uint64_t)sx * 4),
+@@ -426,6 +654,11 @@ IOReturn
+ IOMobileFramebufferUserClient::clientClose(void)
+ {
+ 	if (fFB != NULL) {
++		{
++			char name[32];
++			proc_selfname(name, sizeof(name));
++			IOLog("SWEET FB: %s closing its client\n", name);
++		}
+ 		fFB->removeClient(this);
+ 		IOLockLock(fFB->fLock);
+ 		mach_port_t old = fPort;
+@@ -454,6 +687,13 @@ IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unus
+ 	return kIOReturnSuccess;
+ }
+ 
++bool
++IOMobileFramebufferUserClient::hasNotification(uint32_t type) const
++{
++	return type < SWEET_FB_NOTIFY_TYPES && fFunc[type] != 0 &&
++	    fPort != MACH_PORT_NULL;
++}
++
+ /* Called with the framebuffer lock held. */
+ void
+ IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
+@@ -477,7 +717,7 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+     __unused void *reference)
+ {
+ 	IOReturn ret = kIOReturnSuccess;
+-	uint64_t out[2] = { 0, 0 };
++	uint64_t out[4] = { 0, 0, 0, 0 };
+ 	uint32_t outCount = 0;
+ 
+ 	switch (selector) {
+@@ -546,6 +786,42 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+ 		}
+ 		break;
+ 	case kSweetFBSwapWait:
++		break;
++	/*
++	 * The ABI backboardd actually uses. Filling these with self-consistent
++	 * values is the cheapest way to learn which one gates the pipeline: if
++	 * swaps start after this, the mode/timing query was the gate.
++	 */
++	case kSweetFBUnknown15:
++		out[0] = args->scalarInputCount >= 2 ? args->scalarInput[1] : 0;
++		outCount = 1;
++		break;
++	case kSweetFBUnknown22:
++	case kSweetFBUnknown33:
++		if (args->scalarInputCount >= 1) {
++			fFB->fLastSet = args->scalarInput[0];
++		}
++		break;
++	case kSweetFBUnknown29: {
++		if (args->structureOutput != NULL && args->structureOutputSize >= 8) {
++			uint32_t pair[2] = { fFB->fLogicalW, fFB->fLogicalH };
++			memcpy(args->structureOutput, pair, sizeof(pair));
++		}
++		break;
++	}
++	case kSweetFBTimingInfo: {
++		/* Also all-zero for the same experiment (NOTES 21:44). */
++		break;
++	}
++	case kSweetFBDisplayModes: {
++		/*
++		 * Deliberately all-zero (the common path bzero()s it anyway): the
++		 * invented header filled "a mode count of 1" and a size that the
++		 * userland may have parsed as a string. Test whether removing it
++		 * moves the crash - NOTES 21:44.
++		 */
++		break;
++	}
+ 	default:
+ 		break;
+ 	}
+@@ -556,15 +832,26 @@ IOMobileFramebufferUserClient::externalMethod(uint32_t selector, IOExternalMetho
+ 	if (args->structureOutputDescriptor == NULL && args->structureOutput != NULL) {
+ 		bzero(args->structureOutput, args->structureOutputSize);
+ 	}
+-	if (selector >= 64 || !(sweet_fb_logged & (1ULL << selector))) {
+-		if (selector < 64) {
+-			sweet_fb_logged |= 1ULL << selector;
++	{
++		/*
++		 * Log EVERY call with the values we hand back, not just the first of
++		 * each selector: the crash is a 0..15 pointer used as a C string by
++		 * CoreFoundation/IOKit (NOTES 21:55), so the call immediately before
++		 * the fault is the one whose reply is being misused. The first 200
++		 * calls are enough to cover backboardd's whole start-up sequence.
++		 */
++		static unsigned sweet_fb_calls;
++		if (sweet_fb_calls < 200) {
++			sweet_fb_calls++;
++			char name[32];
++			proc_selfname(name, sizeof(name));
++			IOLog("SWEET FB: %u %s sel %u in %u/%u out %u/%u -> "
++			    "0x%x [%llx %llx %llx]\n", sweet_fb_calls, name, selector,
++			    args->scalarInputCount, args->structureInputSize,
++			    args->scalarOutputCount, args->structureOutputSize, ret,
++			    (unsigned long long)out[0], (unsigned long long)out[1],
++			    (unsigned long long)out[2]);
+ 		}
+-		char name[32];
+-		proc_selfname(name, sizeof(name));
+-		IOLog("SWEET FB: %s sel %u in %u/%u out %u/%u -> 0x%x\n", name, selector,
+-		    args->scalarInputCount, args->structureInputSize,
+-		    args->scalarOutputCount, args->structureOutputSize, ret);
+ 	}
+ 	return ret;
+ }
+diff --git a/iokit/Kernel/arm/SweetWatchdog.cpp b/iokit/Kernel/arm/SweetWatchdog.cpp
+index 8f53742..2a89f97 100644
+--- a/iokit/Kernel/arm/SweetWatchdog.cpp
++++ b/iokit/Kernel/arm/SweetWatchdog.cpp
+@@ -23,6 +23,166 @@
+ #include <IOKit/IOLib.h>
+ #include <IOKit/IOMemoryDescriptor.h>
+ #include <sys/proc.h>
++#include <kern/kalloc.h>
++#include <pexpert/pexpert.h>
++#include <machine/machine_routines.h>
++
++/* declared (not exported) by osfmk/arm64/pmap; sweet_ufs.c does the same */
++extern "C" vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
++
++
++void sweet_wdt_thread_start(void);
++void sweet_pon_dump(void);
++
++/*
++ * PMIC PON reset reason (read-only SPMI through sweet_spmi.c): PMK8350 PON at
++ * SPMI slave 0, peripheral 0x08, reg base 0x1300 (gauge DT "pony@1300").
++ * POFF_REASON1/2 (0x1308/0x1309) say what the last power-off was and
++ * WARM_RESET_REASON1/2 (0x1311/0x1312) what the last warm reset was - the
++ * bootloader prints these as "poweroff reason"/"warm reset" and they name a
++ * watchdog/kpdp/PMIC source, unlike the SoC's generic restart_reason.
++ */
++extern "C" int sweet_spmi_init(void);
++extern "C" int sweet_spmi_read(unsigned sid, unsigned addr, uint8_t *out);
++
++void
++sweet_pon_dump(void)
++{
++	static const struct {
++		const char *name;
++		unsigned reg;
++	} regs[] = {
++		{ "poff1", 0x1308 }, { "poff2", 0x1309 },
++		{ "warm1", 0x1311 }, { "warm2", 0x1312 },
++	};
++	uint8_t value;
++
++	if (sweet_spmi_init() != 0) {
++		IOLog("SWEET PON: SPMI unavailable\n");
++		return;
++	}
++	/* gauge DT: the PON lives on pmic@6 (PMK8350, SPMI slave 6) - the other
++	 * PMICs (pm6150l = 4, pm6350 = 0) have no PON node. */
++	for (unsigned i = 0; i < sizeof(regs) / sizeof(regs[0]); i++) {
++		if (sweet_spmi_read(6, regs[i].reg, &value) == 0) {
++			IOLog("SWEET PON: %s=%02x\n", regs[i].name, value);
++		} else {
++			IOLog("SWEET PON: %s read failed\n", regs[i].name);
++		}
++	}
++}
++
++/*
++ * Watchdog sampler: once a second, read the APSS watchdog (0x17c10000,
++ * qcom,apss-wdt-sm6350 in the gauge DT) and log only when something changes,
++ * so the last lines of the persistent log say whether the block was armed
++ * (WDT0_EN, 0x08), whether the timers moved (BARK 0x10 / BITE 0x14) or the
++ * status counter (WDT0_STS, 0x0c) stalled - i.e. whether a watchdog can be the
++ * thing that resets the phone minutes into userland.
++ */
++#define SWEET_APSS_WDT_PA       0x17c10000ULL
++#define SWEET_APSS_WDT_SIZE     0x1000
++#define SWEET_WDT_BURST         10      /* samples per boot (1 s apart) */
++
++static thread_call_t sweet_wdt_call;
++static unsigned sweet_wdt_ticks_total;
++static unsigned sweet_wdt_burst;
++
++extern "C" void sweet_dump_tick(void);
++extern "C" void sweet_pstore_tick(void) __attribute__((weak));
++
++static void
++sweet_wdt_sample(thread_call_param_t, thread_call_param_t)
++{
++	static volatile uint32_t *wdt;
++	static uint32_t last[6];
++	static int announced;
++
++	if (wdt == NULL) {
++		wdt = (volatile uint32_t *)ml_io_map(SWEET_APSS_WDT_PA, SWEET_APSS_WDT_SIZE);
++		if (wdt == NULL) {
++			IOLog("SWEET WDT: cannot map 0x%llx, not sampling\n", SWEET_APSS_WDT_PA);
++			return;
++		}
++	}
++	uint32_t now[6];
++	for (int i = 0; i < 6; i++) {
++		now[i] = wdt[i];        /* CTL, RST, EN, STS, BARK, BITE */
++	}
++	if (!announced) {
++		announced = 1;
++		IOLog("SWEET WDT: ctl=%x rst=%x en=%x sts=%x bark=%x bite=%x\n",
++		    now[0], now[1], now[2], now[3], now[4], now[5]);
++	}
++	if (__builtin_memcmp(now, last, sizeof(now)) != 0) {
++		IOLog("SWEET WDT: ctl=%x rst=%x en=%x sts=%x bark=%x bite=%x\n",
++		    now[0], now[1], now[2], now[3], now[4], now[5]);
++		__builtin_memcpy(last, now, sizeof(now));
++	}
++
++	/*
++	 * Heartbeat: one line a second, with a run counter and whether the
++	 * system callout/preemption machinery is still turning. The persistent
++	 * log then ends with the heartbeat itself, so the next boot says how long
++	 * userland really lived, and a gap in the seconds means the SoC stopped
++	 * before resetting instead of being reset while healthy.
++	 */
++	static unsigned ticks;
++	static uint64_t last_uptime;
++	uint64_t uptime = mach_absolute_time();
++	sweet_wdt_ticks_total++;
++
++	if (uptime != last_uptime) {
++		last_uptime = uptime;
++		sweet_dump_tick();
++		if (sweet_pstore_tick) {
++			sweet_pstore_tick();
++		}
++		if ((++ticks & 1) == 0 || ticks < 6) {
++			extern uint32_t sweet_timer_intrs, sweet_timer_expiries, sweet_callout_runs;
++			IOLog("SWEET HB: %u wdt=%u tick=%u exp=%u call=%u\n", ticks,
++			    sweet_wdt_ticks_total, sweet_timer_intrs, sweet_timer_expiries,
++			    sweet_callout_runs);
++		}
++	}
++	/*
++	 * thread_call_callbacks() moves an entered call_out back to the call
++	 * queue before the callback runs, so re-entering here is enough: with
++	 * DELAY_ABS it runs again one second from now.
++	 */
++	/*
++	 * Re-entering a thread call from inside its own callback does not
++	 * reschedule it on this kernel (observed: exactly one heartbeat per boot
++	 * with both the 1 s and the 10 s argument), so the sampler runs as a
++	 * short, self-terminating burst instead - N samples one second apart,
++	 * then stop. Bump the count while bisecting.
++	 */
++	if (sweet_wdt_burst < SWEET_WDT_BURST) {
++		sweet_wdt_burst++;
++		thread_call_enter_delayed(sweet_wdt_call, mach_absolute_time() + 1000000000ULL);
++	}
++}
++
++static void sweet_wdt_schedule(void);
++
++void
++sweet_wdt_thread_start(void)
++{
++	if (sweet_wdt_call != NULL) {
++		return;
++	}
++	sweet_wdt_call = thread_call_allocate(sweet_wdt_sample, NULL);
++	sweet_wdt_schedule();
++}
++
++/* Re-arm one second out, from inside the callback as well as at start. */
++static void
++sweet_wdt_schedule(void)
++{
++	if (sweet_wdt_call != NULL) {
++		thread_call_enter_delayed(sweet_wdt_call, mach_absolute_time() + 1000000000ULL);
++	}
++}
+ 
+ class IOWatchdog : public IOService {
+ 	OSDeclareDefaultStructors(IOWatchdog);
+@@ -49,6 +209,12 @@ IOWatchdog::start(IOService *provider)
+ 	setProperty(kIOUserClientClassKey, "IOWatchdogUserClient");
+ 	setProperty("IOPMUPrimary", 1ULL, 32);
+ 	registerService();
++	/* Sample the SoC watchdog block so the log says whether it comes back to
++	 * life while userland runs (ABL leaves it disabled: see the shim). */
++	extern uint32_t sweet_timebase_hz;      /* pexpert/arm/pe_identify_machine.c */
++	IOLog("SWEET CLOCK: timebase=%u Hz\n", sweet_timebase_hz);
++	sweet_wdt_thread_start();
++	sweet_pon_dump();
+ 	IOLog("SWEET WDT: IOWatchdog registered (accepts check-ins, never fires)\n");
+ 	return true;
+ }
+diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
+index db9d1fb..5fbd226 100644
+--- a/iokit/KernelConfigTables.cpp
++++ b/iokit/KernelConfigTables.cpp
+@@ -76,6 +76,11 @@ const char * gIOKernelConfigTables =
+     "     'IONameMatch'     = 'sweet,display';"
+     "   },"
+     "   {"
++    "     'IOClass'         = IOAcceleratorES;"
++    "     'IOProviderClass' = IOResources;"
++    "     'IOMatchCategory' = IOAcceleratorES;"
++    "   },"
++    "   {"
+     "     'IOClass'         = SweetHIDButtons;"
+     "     'IOProviderClass' = IOResources;"
+     "     'IOMatchCategory' = SweetHIDButtons;"
+diff --git a/iokit/conf/files.arm64 b/iokit/conf/files.arm64
+index acc9ae0..040f4df 100644
+--- a/iokit/conf/files.arm64
++++ b/iokit/conf/files.arm64
+@@ -15,6 +15,7 @@ iokit/Kernel/arm/SweetKeyStore.cpp                               optional iokitc
+ iokit/Kernel/arm/SweetWatchdog.cpp                               optional iokitcpp
+ iokit/Kernel/arm/SweetSurface.cpp                                optional iokitcpp
+ iokit/Kernel/arm/SweetFramebuffer.cpp                            optional iokitcpp
++iokit/Kernel/arm/SweetTouchTimer.cpp                             optional iokitcpp
+ iokit/Kernel/arm/SweetBattery.cpp                                optional iokitcpp
+ iokit/Kernel/arm/hid/SweetHID.cpp                                optional iokitcpp
+ iokit/Kernel/arm/hid/IOHIDEvent.cpp                              optional iokitcpp
+diff --git a/libkern/conf/Makefile.template b/libkern/conf/Makefile.template
+index aca295c..3934ef1 100644
+--- a/libkern/conf/Makefile.template
++++ b/libkern/conf/Makefile.template
+@@ -19,7 +19,7 @@ include $(MakeInc_def)
+ CFLAGS+= -include meta_features.h -DLIBKERN_KERNEL_PRIVATE -DOSALLOCDEBUG=1
+ SFLAGS+= -include meta_features.h
+ 
+-ifeq ($(CURRENT_MACHINE_CONFIG),SWEET)
++ifneq (,$(filter SWEET GAUGUIN,$(CURRENT_MACHINE_CONFIG)))
+ SWEET_AES_ROOT = $(SRCROOT)/libkern/crypto/sweet_bearssl
+ SWEET_AES_INC = -I$(SWEET_AES_ROOT)/inc -I$(SWEET_AES_ROOT)/src
+ sweet_aes.o_INCFLAGS = $(SWEET_AES_INC)
+diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
+index 006deec..fff14c0 100644
+--- a/makedefs/MakeInc.def
++++ b/makedefs/MakeInc.def
+@@ -895,7 +895,7 @@ INCFLAGS_IMPORT	= $(patsubst %, -I$(OBJROOT)/EXPORT_HDRS/%, $(COMPONENT_IMPORT_L
+ INCFLAGS_EXTERN	= -I$(SRCROOT)/EXTERNAL_HEADERS
+ INCFLAGS_GEN	= -I$(SRCROOT)/$(COMPONENT) -I$(OBJROOT)/EXPORT_HDRS/$(COMPONENT)
+ INCFLAGS_LOCAL	= -I.
+-INCFLAGS_SDK	= -I$(SDKROOT)/usr/local/include/kernel
++INCFLAGS_SDK	= -I$(SDKROOT)/usr/local/include/kernel -I$(SDKROOT)/usr/include -I$(SDKROOT)/usr/include
+ INCFLAGS_PLATFORM = -I$(SDKROOT)/$(KPINCDIR)/platform
+ 
+ INCFLAGS	= $(INCFLAGS_LOCAL) $(INCFLAGS_GEN) $(INCFLAGS_IMPORT) $(INCFLAGS_EXTERN) $(INCFLAGS_MAKEFILE) $(INCFLAGS_SDK) $(INCFLAGS_PLATFORM)
+diff --git a/osfmk/arm/arm_timer.c b/osfmk/arm/arm_timer.c
+index 72f7209..dac9838 100644
+--- a/osfmk/arm/arm_timer.c
++++ b/osfmk/arm/arm_timer.c
+@@ -63,6 +63,8 @@
+  *
+  * XXX a better implementation would use a set of generic callouts and iterate over them
+  */
++uint32_t sweet_timer_intrs, sweet_timer_expiries;   /* SWEET diagnostics */
++
+ void
+ timer_intr(__unused int inuser, __unused uint64_t iaddr)
+ {
+@@ -75,6 +77,16 @@ timer_intr(__unused int inuser, __unused uint64_t iaddr)
+ 	mytimer = &cpu_data_ptr->rtclock_timer; /* Point to the event timer */
+ 	abstime = mach_absolute_time(); /* Get the time now */
+ 
++	/*
++	 * SWEET bring-up counters (no printing: this runs in the tick interrupt).
++	 * intrs counts every etimer tick, expiries counts the ones that actually
++	 * found a deadline to expire, callouts counts the ones the call-out queue
++	 * then produced. Reading them from the IOWatchdog heartbeat distinguishes
++	 * "the tick stops" from "the tick runs but nothing expires" from
++	 * "call-outs are found but never run".
++	 */
++	os_atomic_inc(&sweet_timer_intrs, relaxed);
++
+ 	/* is it time for an idle timer event? */
+ 	if ((cpu_data_ptr->idle_timer_deadline > 0) && (cpu_data_ptr->idle_timer_deadline <= abstime)) {
+ 		cpu_data_ptr->idle_timer_deadline = 0x0ULL;
+@@ -100,6 +112,7 @@ timer_intr(__unused int inuser, __unused uint64_t iaddr)
+ 		                                         * the end of all time
+ 		                                         * in case we have no
+ 		                                         * more events */
++		os_atomic_inc(&sweet_timer_expiries, relaxed);
+ 		mytimer->deadline = timer_queue_expire(&mytimer->queue, abstime);
+ 		mytimer->has_expired = FALSE;
+ 		abstime = mach_absolute_time(); /* Get the time again since we ran a bit */
+diff --git a/osfmk/arm/model_dep.c b/osfmk/arm/model_dep.c
+index 39daaf8..ba00e42 100644
+--- a/osfmk/arm/model_dep.c
++++ b/osfmk/arm/model_dep.c
+@@ -892,6 +892,19 @@ paniclog_flush()
+ 	 */
+ 	PESavePanicInfo((unsigned char *)gPanicBase, panicbuf_length);
+ 
++	/*
++	 * Mirror the panic text into our own persistent ring. The panic buffer is
++	 * not part of the ring, so a panic page on the panel used to leave no
++	 * evidence at all (NOTES 14:55) - the ring only had lines from before it.
++	 */
++	{
++		extern void sweet_log_append(const char *c, int size);
++		sweet_log_append("\n===== PANIC =====\n", 19);
++		sweet_log_append((const char *)gPanicBase,
++		    panicbuf_length < 3072 ? (int)panicbuf_length : 3072);
++		sweet_log_append("\n===== END PANIC =====\n", 22);
++	}
++
+ 	PE_sync_panic_buffers();
+ }
+ 
+diff --git a/osfmk/ipc/ipc_mqueue.c b/osfmk/ipc/ipc_mqueue.c
+index 503f025..f68901a 100644
+--- a/osfmk/ipc/ipc_mqueue.c
++++ b/osfmk/ipc/ipc_mqueue.c
+@@ -86,6 +86,40 @@
+ 
+ #include <ipc/port.h>
+ #include <ipc/ipc_mqueue.h>
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++#include <pexpert/pexpert.h>
++
++/* defined in bsd/kern/kern_proc.c; sys/proc.h clashes with osfmk typedefs */
++extern void proc_selfname(char *buf, int size);
++
++/* Boot-arg sweetmsgwait=Name: trace that process's blocking receives. */
++char sweet_msgwait_needle[48];
++static bool sweet_msgwait_parsed;
++static unsigned sweet_msgwait_lines;
++
++void
++sweet_msgwait_trace(struct waitq *waitq, const char *procname)
++{
++	if (!sweet_msgwait_parsed) {
++		sweet_msgwait_parsed = true;
++		if (!PE_parse_boot_argn("sweetmsgwait", sweet_msgwait_needle,
++		    sizeof(sweet_msgwait_needle))) {
++			sweet_msgwait_needle[0] = '\0';
++		}
++	}
++	if (sweet_msgwait_needle[0] == '\0' || sweet_msgwait_lines >= 40) {
++		return;
++	}
++	if (strncmp(procname, sweet_msgwait_needle, sizeof(sweet_msgwait_needle)) != 0) {
++		return;
++	}
++	sweet_msgwait_lines++;
++	printf("SWEET MSGWAIT: %s wq=%p type=%u\n", procname, (void *)waitq,
++	    (unsigned)waitq_type((waitq_t){ .wq_q = waitq }));
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ #include <ipc/ipc_kmsg.h>
+ #include <ipc/ipc_right.h>
+ #include <ipc/ipc_port.h>
+@@ -877,6 +911,22 @@ ipc_mqueue_receive(
+ 	wait_result_t           wresult;
+ 	thread_t                self = current_thread();
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	/*
++	 * SWEET bring-up trace (opt-in, boot-arg sweetmsgwait=1): record which
++	 * queues a named process blocks in. This is the only place the kernel
++	 * still has the port in hand - reading the port back out of the waitq in
++	 * the thread dump did not work (NOTES 18:07).
++	 */
++	{
++		if (sweet_msgwait_needle[0] != '\0') {
++			char sweet_pname[32] = { 0 };
++			proc_selfname(sweet_pname, sizeof(sweet_pname));
++			sweet_msgwait_trace(waitq, sweet_pname);
++		}
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	waitq_lock(waitq);
+ 
+ 	wresult = ipc_mqueue_receive_on_thread_and_unlock(waitq, option64, max_size,
+diff --git a/osfmk/kern/exception.c b/osfmk/kern/exception.c
+index a20a764..c29f791 100644
+--- a/osfmk/kern/exception.c
++++ b/osfmk/kern/exception.c
+@@ -1022,7 +1022,21 @@ sweet_sample_task(const char *name, int pid, task_t task)
+ 			continue;
+ 		}
+ 		fp = get_saved_state_fp(ss);
+-		n = snprintf(line, sizeof(line), "SMP %s t%d pc 0x%llx lr 0x%llx sp 0x%llx bt", name, tn++,
++		/*
++		 * Include the kernel wait state: a SpringBoard thread that is blocked
++		 * in ipc_kmsg_send/waitq_wait shows up as state 1/2 plus the syscall,
++		 * which is what separates "waiting on a kernel service that never
++		 * answers" from "spinning" (NOTES 17:30).
++		 */
++		/*
++		 * wait_event is the channel a blocked thread is parked on, and two
++		 * threads printing the same value are waiting for the same thing -
++		 * that is how "everyone is blocked on one service" shows up.
++		 */
++		n = snprintf(line, sizeof(line),
++		    "SMP %s t%d st %d ev 0x%llx wr %d pc 0x%llx lr 0x%llx sp 0x%llx bt",
++		    name, tn++, (int)thread->state, (unsigned long long)thread->wait_event,
++		    (int)thread->wait_result,
+ 		    get_saved_state_pc(ss), get_saved_state_lr(ss), get_saved_state_sp(ss));
+ 		for (int i = 0; i < 16 && fp != 0 && (fp & 7) == 0 && n < (int)sizeof(line) - 20; i++) {
+ 			uint64_t frame[2];
+diff --git a/osfmk/kern/sched_prim.c b/osfmk/kern/sched_prim.c
+index 8e29586..2515837 100644
+--- a/osfmk/kern/sched_prim.c
++++ b/osfmk/kern/sched_prim.c
+@@ -3801,6 +3801,11 @@ thread_block_reason(
+ {
+ 	thread_t        self = current_thread();
+ 	processor_t     processor;
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	extern void sweet_fast_exec_block(thread_t);
++	sweet_fast_exec_block(self);
++#endif
+ 	thread_t        new_thread;
+ 	spl_t           s;
+ 
+@@ -3825,6 +3830,13 @@ thread_block_reason(
+ 	self->continuation = continuation;
+ 	self->parameter = parameter;
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	{
++		extern void sweet_block_trace(thread_t);
++		sweet_block_trace(self);
++	}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
+ 	if (self->state & ~(TH_RUN | TH_IDLE)) {
+ 		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 		    MACHDBG_CODE(DBG_MACH_SCHED, MACH_BLOCK),
+diff --git a/osfmk/kern/task.c b/osfmk/kern/task.c
+index 67c5f79..80eaf01 100644
+--- a/osfmk/kern/task.c
++++ b/osfmk/kern/task.c
+@@ -109,6 +109,7 @@
+ #include <kern/kern_types.h>
+ #include <kern/mach_param.h>
+ #include <kern/misc_protos.h>
++#include <ipc/ipc_port.h>
+ #include <kern/task.h>
+ #include <kern/thread.h>
+ #include <kern/coalition.h>
+@@ -2510,6 +2511,402 @@ task_clear_corpse(task_t task)
+ 	task_unlock(task);
+ }
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * Block trace for named processes (boot-arg sweetblock=Name): records, for each
++ * block of that process, the continuation it parks on and the waitq type.
++ * SpringBoard never reaches ipc_mqueue_receive (NOTES 19:10), so the block has
++ * to be observed at thread_block() instead of at the IPC layer.
++ *
++ * The process name is taken from the BSD proc through a helper that lives in
++ * bsd/kern/kern_proc.c, because including <sys/proc.h> here clashes with the
++ * osfmk typedefs.
++ */
++/*
++ * SWEET block ring: scalars only, no console I/O (printing here hung the boot,
++ * NOTES 20:50). thread_block_reason() stores (tid, continuation, waitq type,
++ * event) into a lock-free ring; the dump path empties it later.
++ */
++#define SWEET_BLOCK_RING 256
++struct sweet_block_rec {
++	uint64_t tid;
++	uint64_t cont;
++	uint64_t ev;
++	uint32_t wqt;
++	uint32_t seq;
++};
++static struct sweet_block_rec sweet_block_ring[SWEET_BLOCK_RING];
++static volatile uint32_t sweet_block_head;
++
++void
++sweet_block_trace(thread_t th)
++{
++	/*
++	 * One store per field, no locks, no printing. If two threads race the
++	 * record is merely overwritten - this is a debug ring, not a journal.
++	 */
++	uint32_t i = __atomic_fetch_add(&sweet_block_head, 1, __ATOMIC_RELAXED);
++	struct sweet_block_rec *r = &sweet_block_ring[i % SWEET_BLOCK_RING];
++	r->tid = th->thread_id;
++	r->cont = (uint64_t)(uintptr_t)th->continuation;
++	r->ev = th->wait_event;
++	r->wqt = (th->waitq.wq_q != NULL) ?
++	    (uint32_t)th->waitq.wq_q->waitq_type : 0;
++	r->seq = i;
++}
++
++/* Called from the dump path: print the ring, newest last. */
++void
++sweet_block_ring_dump(void)
++{
++	uint32_t head = sweet_block_head;
++	uint32_t n = head < SWEET_BLOCK_RING ? head : SWEET_BLOCK_RING;
++	printf("SWEET BLOCKRING: %u blocks total, showing %u\n", head, n);
++	for (uint32_t k = 0; k < n; k++) {
++		struct sweet_block_rec *r = &sweet_block_ring[k % SWEET_BLOCK_RING];
++		printf("SWEET BLOCKRING: seq=%u tid=%llu cont=%llx wqt=%u ev=%llx\n",
++		    r->seq, (unsigned long long)r->tid,
++		    (unsigned long long)r->cont, r->wqt,
++		    (unsigned long long)r->ev);
++	}
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/*
++ * SWEET bring-up probe, minimal and safe: named processes are reported once at
++ * exec with their thread count. Walking the thread list from the exec path
++ * hung the boot twice (NOTES 15:28, 15:52) - the exec thread owns that queue
++ * while it runs, so only scalars are read here.
++ */
++static char sweet_dump_names[64];
++static bool sweet_dump_parsed;
++static unsigned sweet_dump_count;
++
++#define SWEET_TRACK_MAX 4
++struct sweet_track {
++	task_t task;                 /* pending sample, TASK_NULL when free */
++	char name[48];
++	unsigned round;              /* samples taken so far */
++	unsigned wait;               /* execs to skip before the next sample */
++};
++static struct sweet_track sweet_track[SWEET_TRACK_MAX];
++static task_t sweet_later_task = TASK_NULL;   /* unused, kept for clarity */
++static char sweet_later_name[48];
++static unsigned sweet_dump_round;
++static unsigned sweet_dump_wait_execs;
++static unsigned sweet_dump_now_tick;
++static unsigned sweet_dump_target_tick;
++
++/* Print one task's threads (scalars only; no task lock is taken). */
++static void
++sweet_dump_walk(task_t task, const char *why)
++{
++	thread_t th;
++	unsigned n = 0;
++
++	queue_iterate(&task->threads, th, thread_t, task_threads) {
++		if (n++ >= 64) {
++			break;
++		}
++		/*
++		 * The waitq type says what the thread is waiting *on*: WQT_QUEUE is
++		 * a global event queue (its eventmask names the events), WQT_PORT a
++		 * port, WQT_TURNSTILE a lock owner.
++		 */
++		unsigned wqt = 0;
++		unsigned long long mask = 0;
++		const char *kind = "?";
++		if (th->waitq.wq_q != NULL) {
++			wqt = (unsigned)th->waitq.wq_q->waitq_type;
++			mask = (unsigned long long)th->waitq.wq_q->waitq_eventmask;
++			/*
++			 * WQT_PORT is a port message queue: the wq pointer lives inside
++			 * the ipc_port_t being received from. For a port wait the waitq
++			 * address - (offsetof(ipc_port_t, ip_messages)) is the port
++			 * object, whose port_name we can show, so the log names the port
++			 * the main thread is blocked on instead of a raw pointer.
++			 */
++			kind = wqt == 3 ? "PORT" : wqt == 1 ? "QUEUE" : wqt == 2 ? "TURNSTILE" : "OTHER";
++		}
++		/*
++		 * For a port wait the waitq sits inside the ipc_port_t, so the port
++		 * object is at a fixed offset from it. Its receive name and kobject
++		 * identify the service the thread is blocked on.
++		 */
++		bool have_port = false;
++		/*
++		 * For a port wait the waitq sits inside the ipc_port_t. Only the
++		 * *count* of enqueued waiters is printed: ip_kobject is PAC-signed and
++		 * ip_receiver_name is a name in the receiver's space, so neither can
++		 * be dereferenced from here.
++		 */
++		unsigned msgs = 0, qlimit = 0, port_active = 0, port_msgs_hint = 0;
++		if (wqt == 3 && th->waitq.wq_q != NULL) {
++			ipc_port_t port = (ipc_port_t)((char *)th->waitq.wq_q -
++			    offsetof(struct ipc_port, ip_messages));
++			msgs = (unsigned)port->ip_messages.imq_msgcount;
++			qlimit = (unsigned)port->ip_messages.imq_qlimit;
++			/* Is the port the thread waits on still alive? */
++			port_active = ip_active(port) ? 1 : 0;
++			port_msgs_hint = (unsigned)port->ip_messages.imq_seqno;
++			have_port = true;
++		}
++		printf("SWEET THREADS: %s tid=%llu run=%d state=%x susp=%d ev=%llu wq=%s mask=%llx%s msgs=%u/%u active=%u seq=%u\n",
++		    why, (unsigned long long)th->thread_id,
++		    (th->state & TH_RUN) ? 1 : 0, th->state, (int)th->suspend_count,
++		    (unsigned long long)th->wait_event, kind, mask,
++		    have_port ? " PORT" : "", msgs, qlimit, port_active, port_msgs_hint);
++	}
++	if (n == 0) {
++		printf("SWEET THREADS: %s has no threads\n", why);
++	}
++}
++
++/* Called once per second from the watchdog thread (known-good context). */
++void
++sweet_dump_tick(void)
++{
++	sweet_dump_now_tick++;
++	if (sweet_later_task == TASK_NULL || sweet_dump_target_tick == 0 ||
++	    sweet_dump_now_tick < sweet_dump_target_tick) {
++		return;
++	}
++	sweet_dump_target_tick = 0;
++	task_t task = sweet_later_task;
++	sweet_later_task = TASK_NULL;
++	printf("SWEET THREADS: %s now, threads=%d\n", sweet_later_name,
++	    task->thread_count);
++	sweet_dump_walk(task, sweet_later_name);
++	task_deallocate(task);
++}
++
++/*
++ * The other half of sweetblock (NOTES 2026-10-22 19:34): a process that blocks
++ * inside its own exec never shows up in the thread_block trace under its
++ * SpringBoard name, because it still runs under the exec'd-away name
++ * (xpcproxy/launchd). Observe the block through the task instead of the name:
++ * at the exec of a sweetblock=Name process, arm the *task* - the next thread of
++ * that task to assert_wait is the one to report, whatever name it has.
++ *
++ * Armed from kern_exec.c right after the image activation, before the exec
++ * syscall returns; a thread call 100 ms later disarms everything, so only the
++ * exec path itself (and a hair after it) is sampled - one atomic, no lock.
++ */
++static unsigned sweet_armed;            /* 1 = armed (see sweet_fast_exec_arm) */
++static unsigned sweet_armed_lines;
++static unsigned long long sweet_armed_tid;
++static char sweet_armed_name[48];
++static thread_call_t sweet_disarm_call;
++
++static void
++sweet_fast_disarm_cb(thread_call_param_t p0 __unused, thread_call_param_t p1 __unused)
++{
++	sweet_armed = 0;
++}
++
++void
++sweet_fast_exec_arm(task_t task, const char *name)
++{
++	if (sweet_armed_name[0] != '\0' || task == TASK_NULL) {
++		return;   /* armed already */
++	}
++	if (!PE_parse_boot_argn("sweetfast", sweet_armed_name,
++	    sizeof(sweet_armed_name))) {
++		return;
++	}
++	if (strncmp(name, sweet_armed_name, sizeof(sweet_armed_name)) != 0) {
++		sweet_armed_name[0] = '\0';
++		return;
++	}
++	strlcpy(sweet_armed_name, name, sizeof(sweet_armed_name));
++	OSCompareAndSwap(0, (uint32_t)(uintptr_t)VM_KERNEL_ADDRPERM((vm_offset_t)(uintptr_t)task), &sweet_armed);
++}
++
++/* Called from the top of thread_block() (osfmk/kern/sched_prim.c). */
++void
++sweet_fast_exec_block(thread_t th)
++{
++	uint32_t armed = sweet_armed;
++	if (armed == 0 || armed != (uint32_t)VM_KERNEL_ADDRPERM((vm_offset_t)(uintptr_t)get_threadtask(th))) {
++		return;
++	}
++	sweet_armed = 0;
++	{
++		/* Stage trace (sweetstage=): the exec block itself was reached. */
++		extern void sweet_stage(uint32_t, uint32_t);
++		sweet_stage(0x3000, (uint32_t)th->thread_id);
++	}
++	if (sweet_disarm_call == NULL) {
++		sweet_disarm_call = thread_call_allocate(sweet_fast_disarm_cb, NULL);
++	}
++	if (sweet_disarm_call != NULL) {
++		thread_call_enter_delayed(sweet_disarm_call, mach_absolute_time() + 1000000000ULL);
++	}
++	if (sweet_armed_lines >= 20) {
++		return;
++	}
++	sweet_armed_lines++;
++	unsigned wqt = 0;
++	if (th->waitq.wq_q != NULL) {
++		wqt = (unsigned)th->waitq.wq_q->waitq_type;
++	}
++	/*
++	 * Caller chain (innermost first; __builtin_return_address needs constant
++	 * levels, and deep frames may be worthless without frame pointers, so
++	 * each is only read while the previous one was non-zero).
++	 */
++	void *ra0 = __builtin_return_address(0);
++	void *ra1 = ra0 ? __builtin_return_address(1) : NULL;
++	void *ra2 = ra1 ? __builtin_return_address(2) : NULL;
++	void *ra3 = ra2 ? __builtin_return_address(3) : NULL;
++	printf("SWEET FASTBLOCK: %s tid=%llu state=%x wqt=%u ev=%llu ra0=%p ra1=%p ra2=%p ra3=%p\n",
++	    sweet_armed_name, (unsigned long long)th->thread_id, th->state, wqt,
++	    (unsigned long long)th->wait_event, ra0, ra1, ra2, ra3);
++}
++
++/*
++ * Called from kern_exec.c right after the arm: the exec syscall normally does
++ * not block again, but the thread call is unarmed if it is missing.
++ */
++void
++sweet_fast_exec_later(void)
++{
++	if (sweet_disarm_call == NULL) {
++		sweet_disarm_call = thread_call_allocate(sweet_fast_disarm_cb, NULL);
++	}
++	if (sweet_disarm_call != NULL) {
++		thread_call_enter_delayed(sweet_disarm_call, mach_absolute_time() + 1000000000ULL);
++	}
++}
++
++/*
++ * Trace of every posix_spawn START_SUSPENDED hook: the launcher suspends the
++ * new task and resumes it through proc_track_child(psa, pid). If the resume
++ * never matches the track entry, the process stays suspended for good - the
++ * one mechanism that fits "thread in TH_WAIT that never blocks" (NOTES
++ * 2026-10-22 19:34). Boot-arg sweetpsx=1.
++ */
++static bool sweet_psx_parsed;
++static unsigned sweet_psx_on;
++
++static void
++sweet_psx_parse(void)
++{
++	if (sweet_psx_parsed) {
++		return;
++	}
++	sweet_psx_parsed = true;
++	if (!PE_parse_boot_argn("sweetpsx", &sweet_psx_on, sizeof(sweet_psx_on))) {
++		sweet_psx_on = 0;
++	}
++}
++
++void
++sweet_psx_track(task_t task, const char *name, int pid, int flags)
++{
++	sweet_psx_parse();
++	if (!sweet_psx_on) {
++		return;
++	}
++	printf("SWEET PSX: exec %s flags=%x spawn=%d threads=%d\n",
++	    name, flags, pid,
++	    task == TASK_NULL ? -1 : task->thread_count);
++}
++
++void
++sweet_dump_threads_soon(task_t task, const char *name)
++{
++	if (!sweet_dump_parsed) {
++		sweet_dump_parsed = true;
++		if (!PE_parse_boot_argn("sweetdump", sweet_dump_names,
++		    sizeof(sweet_dump_names))) {
++			sweet_dump_names[0] = '\0';
++		}
++	}
++	if (sweet_dump_names[0] == '\0' || task == TASK_NULL) {
++		return;
++	}
++	/* Pace and run every tracked target. */
++	for (int i = 0; i < SWEET_TRACK_MAX; i++) {
++		struct sweet_track *t = &sweet_track[i];
++		if (t->task == TASK_NULL) {
++			continue;
++		}
++		if (t->wait > 0) {
++			t->wait--;
++			continue;
++		}
++		task_t pending = t->task;
++		t->round++;
++		printf("SWEET THREADS: %s sample %u, threads=%d (at %s exec)\n",
++		    t->name, t->round, pending->thread_count, name);
++		{
++			extern void sweet_syscall_dump(void);
++			sweet_syscall_dump();
++		}
++		sweet_dump_walk(pending, t->name);
++		if (t->round < 3) {
++			t->wait = t->round == 1 ? 20 : 120;
++		} else {
++			task_deallocate(pending);
++			t->task = TASK_NULL;
++		}
++	}
++	sweet_dump_count++;
++	printf("SWEET THREADS: %s exec, threads=%d\n", name, task->thread_count);
++	/*
++	 * The interesting state is seconds later. A thread call queued here did
++	 * not fire (NOTES 16:21), so the dump is driven from the watchdog's 1 Hz
++	 * sample instead: osfmk/kern/task.c exposes sweet_dump_tick(), which the
++	 * SweetWatchdog thread calls, and that path is a normal blocking-context
++	 * thread call that is known to work.
++	 */
++	/* Only exact names in the list (a prefix match caught "launchd" for
++	 * "ld" style entries and wasted the sample slots). */
++	{
++		const char *cand = sweet_dump_names;
++		bool hit = false;
++		while (*cand) {
++			const char *end = strchr(cand, ',');
++			size_t len = end ? (size_t)(end - cand) : strlen(cand);
++			if (len == strlen(name) && strncmp(cand, name, len) == 0) {
++				hit = true;
++				break;
++			}
++			if (!end) {
++				break;
++			}
++			cand = end + 1;
++		}
++		if (!hit) {
++			return;
++		}
++	}
++	for (int i = 0; i < SWEET_TRACK_MAX; i++) {
++		struct sweet_track *t = &sweet_track[i];
++		if (t->task != TASK_NULL) {
++			continue;
++		}
++		task_reference(task);
++		t->task = task;
++		strlcpy(t->name, name, sizeof(t->name));
++		t->round = 0;
++		t->wait = 0;
++		printf("SWEET THREADS: tracking %s\n", name);
++		{
++			/* Empty the ring that collected blocks before this exec. */
++			extern void sweet_block_ring_dump(void);
++			extern void sweet_syscall_dump(void);
++			sweet_block_ring_dump();
++			(void)sweet_syscall_dump;
++		}
++		break;
++	}
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET */
++
++
+ /*
+  *	task_port_no_senders
+  *
+@@ -9135,3 +9532,43 @@ kdp_task_is_locked(task_t task)
+ {
+ 	return kdp_lck_mtx_lock_spin_is_acquired(&task->lock);
+ }
++
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(GAUGUIN)
++/*
++ * Minimal reproduction for NOTES 22:47-22:52: a kernel thread started from
++ * userland context does assert_wait_deadline(now + 1 s) + thread_block() and
++ * reports whether it ever resumes. Nothing else is involved: no driver, no
++ * MMIO, no locks. If "woke" never appears, the deadline path of
++ * assert_wait_deadline is broken for kernel threads in this port.
++ */
++static char sweet_wait_chan;
++
++static void
++sweet_wait_probe_cont(void *arg, wait_result_t wresult)
++{
++	uint64_t deadline;
++	(void)arg;
++	printf("SWEET WAITPROBE: thread running, blocking for 1 s\n");
++	clock_interval_to_deadline(1000, NSEC_PER_MSEC, &deadline);
++	(void)assert_wait_deadline(&sweet_wait_chan, THREAD_UNINT, deadline);
++	thread_block(THREAD_CONTINUE_NULL);
++	printf("SWEET WAITPROBE: woke (wresult=%d)\n", (int)wresult);
++	thread_terminate_self();
++}
++
++void
++sweet_wait_probe_start(void)
++{
++	thread_t th;
++	static bool started;
++	if (started) {
++		return;
++	}
++	started = true;
++	if (kernel_thread_start(sweet_wait_probe_cont, NULL, &th) == KERN_SUCCESS) {
++		thread_deallocate(th);
++	} else {
++		printf("SWEET WAITPROBE: kernel_thread_start failed\n");
++	}
++}
++#endif
+diff --git a/osfmk/kern/timer_call.c b/osfmk/kern/timer_call.c
+index f8c8180..851ceb3 100644
+--- a/osfmk/kern/timer_call.c
++++ b/osfmk/kern/timer_call.c
+@@ -2090,6 +2090,8 @@ running_timer_enter(processor_t processor, unsigned int timer,
+ 	running_timers_sync();
+ }
+ 
++uint32_t sweet_callout_runs;        /* SWEET diagnostic: call-outs that ran */
++
+ /*
+  * Call the callback for any running timers that fired for this processor.
+  * Returns true if any timers were past their deadline.
+@@ -2112,6 +2114,7 @@ running_timers_expire(processor_t processor, uint64_t now)
+ 		}
+ 
+ 		expired = true;
++		os_atomic_inc(&sweet_callout_runs, relaxed);   /* SWEET diagnostic */
+ 		timer_call_trace_expire_entry(call);
+ 		call->tc_func(call->tc_param0, call->tc_param1);
+ 		timer_call_trace_expire_return(call);
+diff --git a/pexpert/arm/pe_identify_machine.c b/pexpert/arm/pe_identify_machine.c
+index aa75c0a..7c44f05 100644
+--- a/pexpert/arm/pe_identify_machine.c
++++ b/pexpert/arm/pe_identify_machine.c
+@@ -41,6 +41,9 @@ static uint32_t pe_arm_init_timer(void *args);
+ #if DEVELOPMENT || DEBUG
+ decl_simple_lock_data(, panic_hook_lock);
+ #endif
++/* SWEET bring-up: timebase as resolved from the DT, printed later (not here). */
++uint32_t sweet_timebase_hz;
++
+ /*
+  * pe_identify_machine:
+  *
+@@ -95,6 +98,12 @@ pe_identify_machine(boot_args * bootArgs)
+ 			}
+ 		}
+ 		gPEClockFrequencyInfo.dec_clock_rate_hz = gPEClockFrequencyInfo.timebase_frequency_hz;
++		/*
++		 * SWEET: record the resolved timebase for later. Do NOT print here:
++		 * this runs before the clock/timer is finalised and a console write
++		 * at this point hangs the boot (see NOTES, 13:05).
++		 */
++		sweet_timebase_hz = gPEClockFrequencyInfo.timebase_frequency_hz;
+ 
+ 		/* Find the bus frequency next. */
+ 		if (SecureDTGetProperty(cpu, "bus-frequency", &value, &size) == kSuccess) {

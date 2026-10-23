@@ -35,6 +35,32 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 17:30: the display is fine - `cpus=1` was the bottleneck <<<
+
+Measured the thing that was actually unknown, with a real microsecond interval:
+
+    SWEET FB: vsync interval 17404 us over 600 frames
+
+**17.4 ms per vsync = 57 Hz, rock steady.** The display path is healthy. Every
+earlier theory about the framebuffer being the slow part (full-panel copies,
+pixel compare, timer programming) is therefore wrong for the *observed* speed.
+
+Then the decisive experiment: the cmdline had carried **`cpus=1`** all along.
+Booting with **`cpus=8`** makes the Apple progress bar *dramatically* faster -
+the user's words, and the boots that used to take over an hour now get through
+the same stretch quickly. iOS userland (backboardd/SpringBoard) is heavily
+multithreaded and simply cannot make progress on one core.
+
+**`cpus=8` is the correct configuration for any usability test from now on.**
+
+State after the fast stretch: the progress bar slows again and the home screen
+does not appear, but the sampler shows SpringBoard and backboardd alive (292
+`SMP` lines), so they start and then wait. The sampler now prints each thread's
+kernel `state` (`SMP name tN st <state> pc ...`) so the next run distinguishes
+blocked-on-a-service from spinning without needing user-address symbols - the
+dyld shared cache is split and no `ipsw` binary is available offline, so
+symbolicating user PCs is not currently a cheap path.
+
 ### >>> UPDATE 2026-10-23 16:45: reads through the panel mapping cost as much as writes <<<
 
 Tried to make the framebuffer cheaper by comparing each destination pixel with

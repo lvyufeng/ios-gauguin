@@ -35,6 +35,34 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 15:35: "hangs" were uncached full-panel painting <<<
+
+The user watching the panel supplied the missing datapoint: **the Apple progress
+bar keeps moving, just extremely slowly.** Nothing was hanging.
+
+Cause: `sweet_fb_mark()` filled the whole 1080x2400 panel with `volatile`
+stores through a `VM_WIMG_IO` (uncached, strongly ordered) mapping - about
+2.6 million uncached writes per call, and the probe calls it once per stage.
+That is minutes per colour, which is why:
+
+- a colour appeared, then "nothing" for a long time (the next fill was running),
+- the ring had no new lines (the boot had not reached the log thread yet),
+- `mode=3`, which does no touch work at all, still looked wedged (the red fill
+  before it was the cost).
+
+**Rules from now on:**
+
+1. Never paint the panel pixel-by-pixel on the boot path.
+2. Painting is opt-in: boot-arg `sweetfb_mark=0` disables it entirely, the
+   block is 320x96 when enabled, and `sweetmarkhold` adds a human-readable
+   pause on top (default off).
+3. A slow boot is not a hung boot - check the progress bar before concluding
+   anything, and prefer log evidence over timing.
+
+Still standing from earlier: the touch probe's own reads are fine (GCC maps and
+reads `0xd010003d`); the TLMM step is where the probe stops, and the clock
+offsets read back zero, so the clock step has never actually run.
+
 ### >>> UPDATE 2026-10-23 15:00: clock offsets are wrong; panics leave no trace <<<
 
 Fresh log (banner 14:49:19 matches the image). Two hard facts:

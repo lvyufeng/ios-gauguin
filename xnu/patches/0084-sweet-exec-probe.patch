@@ -91,7 +91,7 @@ index 1981490..3316dd8 100644
  		return -1;
  	}
 diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
-index aa23b64..2fa74fd 100644
+index aa23b64..7e31736 100644
 --- a/bsd/dev/sweet_touch.c
 +++ b/bsd/dev/sweet_touch.c
 @@ -20,6 +20,7 @@
@@ -111,7 +111,7 @@ index aa23b64..2fa74fd 100644
  
  static uint32_t
  touch_rd(vm_offset_t base, uint32_t off)
-@@ -134,9 +135,24 @@ static void
+@@ -134,9 +135,30 @@ static void
  touch_wait(unsigned ms)
  {
  	uint64_t deadline;
@@ -125,19 +125,25 @@ index aa23b64..2fa74fd 100644
 -	(void)assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, deadline);
 +	printf("SWEET TOUCH: wait ms=%u deadline=%llu now=%llu\n", ms,
 +	    (unsigned long long)deadline, (unsigned long long)mach_absolute_time());
-+	wait_result_t wr = assert_wait_deadline(&touch_sleep_chan, THREAD_UNINT, deadline);
++	/*
++	 * mach_wait_until is how userland (backboardd) sleeps successfully in this
++	 * port. It differs from our failing wait in exactly one argument: it passes
++	 * THREAD_ABORTSAFE instead of THREAD_UNINT. Test that difference here.
++	 */
++	wait_result_t wr = assert_wait_deadline_with_leeway((event_t)&touch_sleep_chan,
++	    THREAD_ABORTSAFE, TIMEOUT_URGENCY_USER_NORMAL, deadline, 0);
 +	if (wr != THREAD_WAITING) {
-+		printf("SWEET TOUCH: assert_wait_deadline refused (%d)\n", (int)wr);
++		printf("SWEET TOUCH: assert_wait refused (%d)\n", (int)wr);
 +		return;
 +	}
-+	printf("SWEET TOUCH: armed, blocking\n");
++	printf("SWEET TOUCH: armed abortsafe, blocking\n");
  	thread_block(THREAD_CONTINUE_NULL);
 +	printf("SWEET TOUCH: wait ms=%u returned at %llu\n", ms,
 +	    (unsigned long long)mach_absolute_time());
  }
  
  static bool
-@@ -591,21 +607,46 @@ touch_se_init(void)
+@@ -591,21 +613,55 @@ touch_se_init(void)
  	return true;
  }
  
@@ -149,7 +155,8 @@ index aa23b64..2fa74fd 100644
 + */
 +void touch_bringup(void);
 +
-+extern void thread_terminate_self(void);     /* Mach, not exported to BSD */
++extern void thread_terminate_self(void);
++extern kern_return_t mach_wait_until_trap(void *args);     /* Mach, not exported to BSD */
 +
 +/* Implemented in C++ (iokit/Kernel/arm/SweetTouchTimer.cpp). */
 +extern int sweet_touch_timer_arm(unsigned seconds);
@@ -184,13 +191,21 @@ index aa23b64..2fa74fd 100644
 +void
 +touch_bringup(void)
 +{
++	/*
++	 * First thing: prove a timed wait works in *this* thread, which is now the
++	 * context that calls us. Every earlier context failed to wake (NOTES 22:47
++	 * to 23:20); this one runs at all, so it is the best candidate left.
++	 */
++	printf("SWEET TOUCH: timed-wait experiment, 2 s\n");
++	touch_wait(2000);
++	printf("SWEET TOUCH: timed wait WORKED in this context\n");
  	printf("SWEET TOUCH: mapping GCC/TLMM/SE%u\n",
  	    (unsigned)((TOUCH_SE_PA >> 16) - 0x8cu));
 +	printf("SWEET TOUCH: step map begin\n");
  	st.gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
  	st.gpio = ml_io_map(TOUCH_NORTH_PA, 0x5b000);
  	st.se = ml_io_map(TOUCH_SE_PA, 0x4000);
-@@ -613,15 +654,19 @@ touch_thread(void *arg, wait_result_t result)
+@@ -613,15 +669,19 @@ touch_thread(void *arg, wait_result_t result)
  		printf("SWEET TOUCH: MMIO mapping failed\n");
  		goto out;
  	}

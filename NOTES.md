@@ -35,6 +35,43 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 11:34: the workloop timer DOES fire - but the wait after it still does not wake <<<
+
+Ran the bring-up from the workloop timer callback with a 2 s timed wait as its
+first statement (and tried `THREAD_ABORTSAFE`, the one argument by which
+userland's working `mach_wait_until` differs from our failing `THREAD_UNINT`):
+
+    SWEET TOUCH: armed workloop timer for 2 s
+    SWEET TOUCH: timer fired, running bring-up        <- THE TIMER FIRES
+    SWEET TOUCH: timed-wait experiment, 2 s
+    SWEET TOUCH: wait ms=2000 deadline=982381670 now=943981671
+    SWEET TOUCH: armed abortsafe, blocking
+    (nothing - 1,700 more lines of log)
+
+Two separate conclusions:
+
+1. **The workloop timer works.** It fires, from a thread started in the exec path,
+   ~2 s after arming. The earlier "never fires" runs (NOTES 23:20) must therefore
+   have failed for a different reason - most likely the bring-up they ran hung or
+   died before the next flush, and the console is unreliable (NOTES 23:26). **A
+   workloop timer callback is a usable, live kernel context.**
+2. **The timed wait still never wakes**, even from that live context, and
+   `THREAD_ABORTSAFE` does not change it. So the defect is not about *where* the
+   wait happens, and not about the interruptible flag - it is in the deadline
+   expiry path for kernel threads generally.
+
+Next, and it is now a much narrower question: what does `thread_block` return, and
+does the thread ever come back at all? Instrument `thread_block`'s return in
+`sweet_touch.c` and, more usefully, print `current_thread()->wait_timer_armed` and
+the timer list state from a *second* timer callback while the first thread is
+parked. That distinguishes "timer was never armed" from "timer fired but the wakeup
+was lost".
+
+Also worth testing now that timers are known to work: **poll instead of sleep.**
+Let the workloop timer fire every 100 ms and do one bounded step of the bring-up
+per callback, keeping all state in globals - no waiting at all. That fits the
+proven-good mechanism and avoids the broken one entirely.
+
 ### >>> UPDATE 2026-10-23 11:30: SOLVED - thread_call in sweet_touch.c breaks the boot <<<
 
 Bisected properly. Same kernel, same everything else; the ONLY change was

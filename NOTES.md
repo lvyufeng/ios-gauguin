@@ -35,6 +35,36 @@ prints inside `sweet_ufs_init` (`ml_io_map`, `kmem_alloc_contig`,
 frozen screen, since the framebuffer console is the only log until the UFS
 console log (0047) can write.
 
+### >>> UPDATE 2026-10-23 12:20: the workloop timer callback is the suspect, not the touch hardware <<<
+
+Ran three variants, each verified fresh against the image banner:
+
+| variant | what the timer callback does | outcome |
+| --- | --- | --- |
+| `shim-r84.img` (12:10:46) | `printf` + 2 s wait + bring-up | timer fires, **wait never returns**, system keeps running (94 execs) |
+| `shim-nw.img` / `shim-nw2.img` (12:12:56) | `printf` + bring-up with **no wait** | timer never even prints; log ends at 89 execs, mid-UFS-read |
+| `shim-na.img` (12:14) | `printf` only, **no hardware access at all** | boot does not come back to recovery |
+
+The last row is the important one: a callback that only prints wedges the boot.
+That kills the "touch hardware is the culprit" theory and points at the callback
+**context**.
+
+`IOTimerEventSource::timeout()` runs the action while holding the workloop gate:
+
+    wl->closeGate();
+    ... me->invokeAction(doit, me, me->owner, me->workLoop); ...
+    wl->openGate();
+
+and `printf` goes through `bsd_log_lock()` (`osfmk/kern/printf.c`). So the
+candidate failure is a lock-order / self-deadlock inside the gated callback.
+Next build makes the callback do **nothing but an atomic increment** - no print, no
+lock, no hardware - which cleanly separates "callback context is unusable" from
+"printing inside the gate is unusable".
+
+Note on reading logs: `IOLog` does *not* reach the persistent ring (it goes to the
+serial console), so a callback traced with `IOLog` looks silent even when it ran.
+Use `printf` for anything that must appear in a pulled log.
+
 ### >>> UPDATE 2026-10-23 12:12: tree restored, and the log audit settled what is real <<<
 
 **Log audit (important).** I listed every image and every pulled log by the

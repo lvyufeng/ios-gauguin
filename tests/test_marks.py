@@ -8,6 +8,7 @@ SWEET_LOG_SIZE or SWEET_MARK_BLOCKS cannot silently move the offset that
 sweet-mark-pull.sh uses.
 """
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -87,10 +88,15 @@ def main():
         # the puller's skip must use these numbers, not literals
         with open(PULL, errors="replace") as f:
             pull = f.read()
-        total = log_blocks + mark_blocks
-        check("puller counts 1025+64 blocks",
-              f"- 1025 - 64" in pull or f"- {log_blocks} - {mark_blocks}" in pull,
-              pull[pull.find("skip="):pull.find("skip=") + 60])
+        # The puller must ASK for the sizes rather than repeat them as
+        # literals - a literal here would silently move the offset if the
+        # driver's constants changed (NOTES 2026-11-03 (23)).
+        check("puller asks the parser for the block sizes",
+              "sweet-marks.py" in pull and "--sizes" in pull,
+              pull[pull.find("sizes="):pull.find("sizes=") + 80])
+        check("puller does not hard-code the mark offset",
+              not re.search(r"skip=\\$\{\{?\s*\w+\s*/\s*4096\s*-\s*\d+", pull),
+              pull[pull.find("skip="):pull.find("skip=") + 80])
     else:
         print(f"  skip geometry check (driver source not staged: {UFS_C})")
 

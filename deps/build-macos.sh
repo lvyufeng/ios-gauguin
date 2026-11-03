@@ -111,6 +111,23 @@ fi
 say "post-patch fix-ups"
 python3 "$REPO/tools/xnu-post-patch.py" "$SRC"
 
+# The header that sweet_ufs.c includes is a project file, not part of any
+# patch, so the staged tree needs a copy before every build.
+"$REPO/deps/sync-watchdog.sh"
+
+# Host tests for the diagnostic tools (watchdog decision, bisection verdict,
+# mark parser). They are cheap and they have already caught nine defects; a
+# build that ships a broken one would mislead the next boot. Skip with SKIP_TESTS=1.
+if [ "${SKIP_TESTS:-0}" != 1 ]; then
+	say "host tests"
+	if ! bash "$REPO/tests/run-all.sh" > "$LOG/host-tests.log" 2>&1; then
+		cat "$LOG/host-tests.log" >&2
+		echo "host tests failed (SKIP_TESTS=1 to build anyway)" >&2
+		exit 1
+	fi
+	grep -E "^(all|.* checks? passed)" "$LOG/host-tests.log"
+fi
+
 # ---------------------------------------------------------------- kernel
 say "build: MACHINE_CONFIG=$MACHINE, $(clang --version | head -1)"
 say "source $SRC"

@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (24): one test entry point, wired into the build <<<
+
+The three tool tests (entries (20)-(23)) plus `tests/run-all.sh` now run on
+every kernel build - `deps/build-macos.sh` calls them after the post-patch
+fix-ups and **aborts the build** if any fail (`SKIP_TESTS=1` overrides).
+
+Why gate the build on them: these tools are what will explain the next boot.
+A build that silently ships a broken watchdog or a mis-offset mark reader is
+worse than a build that fails, because the resulting silence would be
+indistinguishable from "the kernel got further than before".
+
+The gate was checked in both directions: injecting a deliberate failure into
+`tests/test_watchdog.py` makes `run-all.sh` exit 1, and restoring it returns 0.
+
+The same build step also runs `deps/sync-watchdog.sh`, so the copy of
+`sweet_init_watchdog.h` in the git-ignored patched tree cannot drift from the
+repo's.
+
+**Running the suite today:** 35 checks across three files, all passing.
+
+```text
+== test_bisect.py     all bisect-verdict checks passed   (16)
+== test_marks.py      all mark checks passed              (11)
+== test_watchdog.py   all watchdog checks passed          (8)
+all host tests passed
+```
+
+One of those 35 caught a stale assertion made by this session itself: after
+`tools/sweet-mark-pull.sh` was changed to read its block geometry from the
+driver source, `tests/test_marks.py` still expected the literals `1025 - 64`
+and failed. That is the suite doing its job on its own author.
+
+Kernel is unchanged by this entry and still `59044a9a...`.
+
+**Twenty-three rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (23): the mark reader is split out and tested <<<
 
 Third tool in a row to get the same treatment (after the watchdog and the

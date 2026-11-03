@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (88): kmsg hook overhead, and the run-order that makes it meaningful <<<
+
+(87) raised the possibility that the short boot was the `ipc_kmsg_send` hook
+itself. That hook sits on the path of *every message in the system*, so its cost
+matters on one core. Two rounds of work cut it:
+
+| version | per-message cost |
+| --- | --- |
+| first | resolve the destination task, read its name, `strncmp` |
+| (85) + | destination filter before slot allocation |
+| round 279 | one-slot verdict cache (covers two ports) |
+| **round 280** | **32-slot direct-mapped verdict cache** |
+
+A boot fans out across dozens of ports, so a single cached "not it" was not
+enough; 32 slots indexed from the port pointer covers the hot set without a scan.
+
+**The order that makes any of this meaningful** - and the reason (87) drew no
+conclusion:
+
+1. **control first**: boot `shim/out/shim-wait4.img` (previous kernel, no kmsg
+   hook) and confirm it reaches `exec SpringBoard` and ~30 k lines
+2. only then run `research/tmp/run-kmsg.sh`
+
+If the control also comes up short, the short boot is not the hook and the kmsg
+build is innocent. If the control is healthy and the kmsg build is not, the hook
+is real overhead and needs to be cut further. **Running the trace first proves
+nothing either way** - which is exactly what happened at round 275.
+
+Also fixed there: `run-kmsg.sh` wrote to a fixed output path, so its second run
+overwrote the first run's log and destroyed the evidence for the 940-line boot.
+Output names now carry a timestamp.
+
+
 ### >>> 2026-11-04 (87): both dual-trace runs failed to produce data; one boot was short <<<
 
 The phone came back for one round and both attempts came to nothing:

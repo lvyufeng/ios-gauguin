@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (87): both dual-trace runs failed to produce data; one boot was short <<<
+
+The phone came back for one round and both attempts came to nothing:
+
+| attempt | what happened |
+| --- | --- |
+| 1 | boot ended early - 940 lines, no `exec SpringBoard`, no `exec backboardd`; `SWEET KMSG: 0 captured, 0 to SpringBoard` is therefore **meaningless**, since the process under test never ran |
+| 2 | ran the full 201 s (`still running after 201s`) but all four log pulls failed and the phone left USB again |
+
+**No conclusion of any kind is drawn from these runs.**
+
+**One thing to check before running the kmsg build again:** the short boot could be
+the new `ipc_kmsg_send` hook itself. It runs for *every message in the system*,
+resolving the destination's process name each time until the 64 slots fill, on a
+single core. The second attempt running the full 201 s argues against a systematic
+break, but that is the same "looked fine once" reasoning that has been wrong
+repeatedly in this project.
+
+**Next experiment is therefore a control, not the trace:** boot the *previous*
+kernel (no kmsg hook) and confirm it reaches `exec SpringBoard` and ~30 k lines.
+Only if that is stable does the kmsg build mean anything.
+
+
 ### >>> 2026-11-04 (86): the send trace is hardened; one boot now answers two questions <<<
 
 (85) rebuilt the send-side trace because the old hook may never have been on the

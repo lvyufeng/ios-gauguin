@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (40): four more hypotheses for the watcher's death, all wrong <<<
+
+Tried to explain why an ordinary `tsleep` kthread stops after ~30 s while
+`vsync` (IOTimerEventSource) keeps firing, `SWEET HB` keeps counting to
+`tick=129502`, and the log thread keeps doing scsi I/O to the end.
+
+| hypothesis | test | result |
+| --- | --- | --- |
+| local `static event_t chan` was a zero-valued event | moved to a file-scope `int` | **still beat=15** |
+| `thread_deallocate` freed a thread that never exits | compared with `sweet_log_thread`, which uses the identical idiom and survives | not it |
+| `proc_list_lock()` deadlocks inside the scan | moved the heartbeat **before** the scan | **still beat=15**, so the loop is what stops, not the scan |
+| the scan itself (even lock-free) is the blocker | replaced the locking walk with a lock-free one | **still beat=15** |
+
+The moved heartbeat is the useful part: with the beat printed *before*
+`sweet_proc_watch()`, exactly one beat (`beat=15`) still appears, so the
+question is "why does the loop stop spinning", not "why does the scan hang".
+That narrows it to the thread itself ceasing to be scheduled after ~15
+iterations.
+
+**Still true and useful:** `SWEET PROC: ... (t=20)` appears in every run, so
+SpringBoard is confirmed alive at that point; and the SYNC CACHE fix from
+entry (39) keeps the ring writing to the end of the boot.
+
+**Not concluded:** whether this is one bug or two. The watcher (our kthread)
+and SpringBoard (a userland process) both stop progressing in the same window,
+but that is a correlation with no mechanism attached yet.
+
+
 ### >>> 2026-11-03 (39): the watcher thread dies around t=30 - measured, not guessed <<<
 
 Entry (38) left the watcher reporting only to `t=20`. Five runs had stopped at

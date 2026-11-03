@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (28): the touch bring-up was starting 45 s too early <<<
+
+Found by reading the working log's root-mount window rather than the init tail
+again:
+
+```text
+BSD root: ufsroot0, major 1, minor 0
+SWEET boot: vfs_mountroot
+SWEET TOUCH: starting in 45 s          <- held back on purpose
+SWEET KEYS: key=1 down=1 pon=0x4 ...
+SWEET HID: key 0xe9 down (0 clients)
+hfs: mounted iOSRoot on device b(1, 0)
+SWEET boot: vfs_mountroot ok
+```
+
+The boot that reaches launchd starts the touch bring-up **45 seconds late**,
+which is also what the old note (2026-10-15, `0060` drivers) recorded: "starts
+45 s after boot". In this session the bring-up was moved onto its own thread
+and started **immediately**, so GENI, the TLMM and an RPMh vote all run
+exactly while the root is being mounted - the window where a stall is fatal
+and hardest to observe.
+
+`touch_bringup_thread` now waits first (`sweettouchdelay`, default 45 s) using
+the same `assert_wait_deadline` idiom as `sweet_keys.c` (`hz` is not visible
+in this translation unit, which cost two build attempts). The wait is in the
+thread, never on the init path.
+
+This is the third change this session that was an unverified departure from
+the working boot - after the init `sweet_log_sync()` calls (restored, entry
+(5)) and the boot line `cpus=8` (restored, entry (6)). The pattern is the same
+each time: the working log is the specification, and anything done differently
+has to be justified by evidence this session does not have.
+
+**Images rebuilt**: `shim-proven.img` = `shim-bisect-on.img` (`44f358d7...`),
+`shim-bisect-off.img` (same except `sweetkeys=0`). Kernel `aeffcfe7...`.
+
+**Twenty-six rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (27): the A/B kernels are checked to differ in ONE instruction <<<
 
 Entry (26) claimed the two variants differ only in the barrier. That claim is

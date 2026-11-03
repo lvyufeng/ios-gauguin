@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (84): NOBODY EVER SENDS TO SpringBoard. That is the answer. <<<
+
+Both outstanding experiments ran. The send-side one is decisive.
+
+**`sweetmsgsend=SpringBoard`, whole boot: zero messages.**
+
+```text
+SWEET MSGSEND: 0 message(s) captured      (reported 34,128 times across the boot)
+```
+
+**Nothing - not launchd, not backboardd, not any daemon - ever sends a message
+to SpringBoard.** That closes the question the last eighty rounds were circling.
+
+**`sweetmsgwait=SpringBoard`, cap 2000, 369 records (cap not reached, so this is
+the complete set):**
+
+| port | waits | share |
+| --- | --- | --- |
+| 0x...4953a8 | 184 | 50 % |
+| 0x...495268 | 76 | 21 % |
+| 0x...ee4688 | 40 | 11 % |
+| 13 others | 69 | 19 % |
+
+All 369 report `owner=SpringBoard`. Recorded between log lines 957 and 30,634 of
+36,093, i.e. essentially the whole boot.
+
+**So the picture is complete:**
+
+```text
+SpringBoard starts
+  -> parks on 16 of its own queues (this is the 33 IOKit calls plus idling)
+  -> opens AppleKeyStore and IOPMrootDomain
+  -> waits
+  -> nothing is ever sent to it
+```
+
+It is not blocked on a dependency, not crashed, not wedged, not waiting for
+input - **it was never asked to do anything.** The bug is upstream: whatever is
+supposed to tell SpringBoard to put up UI never does.
+
+**Note on instrument history, because it matters for trusting this:** the cap
+was 40 when the first version of this experiment was written, and 40 filled up
+in the first third of the boot. Raising it to 200 revealed 11 ports and a
+wait-work-wait pattern; raising it to 2000 showed the cap is not even reached
+(369 total). The first two readings were partial and would have supported the
+wrong conclusion.
+
+
 ### >>> 2026-11-03 (83): what SpringBoard should be providing <<<
 
 Read from `/System/Library/LaunchDaemons/com.apple.SpringBoard.plist` on the

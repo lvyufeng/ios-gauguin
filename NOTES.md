@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (12): the stall is provably inside keys_init, and the init tail is now bracketed <<<
+
+Diffed the init sequence of the working boot and a failing one step by step
+(`SWEET UFS: init ...` lines after `init reg=0x1d84000/0x3000`):
+
+| # | working boot (`boot-journaled-userland.txt`) | failing run |
+| --- | --- | --- |
+| 1-10 | ... | identical |
+| **11** | `SWEET UFS: keys_init` | `SWEET UFS: keys_init` |
+| 12 | `SWEET KEYS: arb=0x50010000 apids=512 ...` | **nothing** |
+| 13 | `SWEET UFS: keys_init done` | - |
+| 14-17 | `touch_init`, `touch_init done`, `usb_probe`, `init complete` | - |
+
+Everything before `keys_init` is byte-for-byte the same, including the boot
+phases (`dlil_init`, `bsd_autoconf`, `rootdev called`, `init reg`). So the
+stall is unambiguously **inside `sweet_keys_init()`** / the PMIC access, not in
+the UFS driver below it and not in touch/USB.
+
+The working boot answered the PMIC on the first read (`pon-apid=308`,
+`gpio-apid=366`, all `*ok=1`). Two changes make the failure mode bounded and
+observable:
+
+1. **`keys_read()` is deadline-bounded.** It polled up to 1000 times with
+   `delay(1)` per call and `keys_init` makes five of them, so a PMIC that never
+   asserts done could park this path for seconds - on the thread that must
+   return before BSD mounts the root. It now also stops after 50 ms wall clock.
+2. **Every init step is bracketed with a mark** (`INIT: entering keys_init`,
+   `INIT: keys_init done`, `INIT: entering touch_init`, ...). Marks are RAM-only
+   and written by the log thread (entries (5) and (10)), so this costs a few
+   dozen byte stores per step and survives the ring being overwritten. Reading
+   them with `tools/sweet-mark-pull.sh` will name the exact step that stalls,
+   even when the console is lost.
+
+**Image: `shim/out/shim-proven.img`** (kernel `1404ed3c...`, boot.img
+`4be40d96...`, kernel saved as `research/k-proven`). Eleven rounds, still no
+phone - this cannot be validated until the device is reachable.
+
+
 ### >>> UPDATE 2026-11-03 (11): where the iOS root image lives (it is NOT on 137) <<<
 
 Checked while the phone is still off USB, because a successful kernel boot is

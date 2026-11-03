@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (25): correction - the dsb->dmb change has no evidence <<<
+
+Entry (14) changed `keys_read()`'s `dsb osh` to `dmb osh`, arguing that a DSB
+on a stalled SPMI fabric would never return. **That argument has no evidence
+either way**, and this entry records it as such rather than letting it pass as
+a finding.
+
+What is actually known:
+
+- `sweet_spmi.c` uses the **same** `dsb osh` idiom after issuing EXT_READL,
+  and it is the older, previously working code path.
+- But the successful boot's log shows
+  `SWEET BATTERY: static fallback, 100% 4200mV` - which is the path taken when
+  `sweet_spmi_init()` **failed early** (`arb_version` out of range), so it never
+  reached its `dsb osh` either. The working log therefore says nothing about
+  whether that barrier is safe on this SoC.
+
+So `dmb osh` stays (it is sufficient for the ordering this code needs: the
+command store must precede the status loads), but it is marked **unverified**
+rather than **fixed**.
+
+**Cheapest experiment if the phone stalls in keys_init again:** build the same
+image with `dsb osh` restored in `keys_read()` and run it. That is a one-line
+A/B against a kernel that differs in nothing else, and it settles the question
+the failed reasoning left open.
+
+
 ### >>> UPDATE 2026-11-03 (24): one test entry point, wired into the build <<<
 
 The three tool tests (entries (20)-(23)) plus `tests/run-all.sh` now run on

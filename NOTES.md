@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (70): injected touch reaches the HID service and SpringBoard ignores it <<<
+
+The one experiment this session could actually run to completion. Five
+conditions held at once, which none of the previous thirteen attempts managed:
+
+| condition | evidence |
+| --- | --- |
+| boot completed | 1638 lines, every milestone |
+| SpringBoard running normally | 33 IOKit calls |
+| touch delivered | `touch 0 down -> dispatched`, then `touch 0 down` from the client - **no `deduped` line** |
+| observation window | 150 lines after the tap |
+| control | round 129: same boot, no tap, identical |
+
+Result:
+
+```text
+SpringBoard IOKit calls before the touch: 33
+SpringBoard IOKit calls after the touch:   0
+panel: distinct=5, unchanged
+```
+
+**SpringBoard receives a real HID touch and does nothing.** No IOKit activity,
+no IOSurface, no framebuffer, no repaint.
+
+So entry (56)'s "SpringBoard is working normally, waiting for an event" is
+**wrong**, and the correction is measured rather than argued.
+
+**How the experiment was made to work**, after thirteen failures:
+
+- the tap gets its own `thread_call` (`sweettapdelay=`), not a slot on the
+  bring-up thread: `sweettapdelay` under ~12 s puts I2C/RPMh work on the bus
+  during vfs_mountroot and the boot stops (measured: 787 lines, presents=0,
+  against 1586 and 177 at the default 45 s)
+- the delay is a `thread_call`, not `IOSleep`: IOSleep in a busy single-core
+  boot stretches far past its nominal value, and an
+  `assert_wait_deadline` + `thread_block(THREAD_CONTINUE_NULL)` pair never woke
+  at all
+- `SweetHIDTouch`'s `fDown[]`/`fX[]`/`fY[]` were never initialised, and
+  `touch()` returns early when `fDown[finger] == down` - an uninitialised true
+  would have swallowed the first touch silently. Now zeroed in `start()`, and
+  the early return logs `-> deduped`
+- `sweetufsquiet=1` silences the per-command UFS line, which was 84 % of the
+  log
+
+**What this rules out:** input as the trigger. Whatever SpringBoard is waiting
+for is not a touch event.
+
+
 ### >>> 2026-11-03 (54): "the image is missing components" was wrong <<<
 
 Entry (53)'s conclusion - that frontboardd and BackBoardServices are absent from

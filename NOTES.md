@@ -194,10 +194,13 @@ com.apple.pegasus
 ```
 
 **`com.apple.frontboard.systemappservices` is a Mach service SpringBoard
-provides itself.** That settles a long-standing question: `frontboardd` is not
-a separate daemon that failed to start - it is SpringBoard's own service. Rounds
-spent looking for a missing `frontboardd` process were looking for something
-that was never meant to exist.
+provides itself.** That does answer the operational question - no separate
+process has to start for FrontBoard to exist - but it does **not** establish that
+a binary named `frontboardd` is absent from the system. Both could be true at
+once. Rounds spent hunting for a missing `frontboardd` were looking in the wrong
+place either way, since the service is SpringBoard's to publish; the stronger
+claim that such a process "was never meant to exist" is not supported by a plist
+entry alone and is withdrawn.
 
 The plist also carries `RunAtLoad`, `KeepAlive`, `ThrottleInterval`,
 `HideUntilCheckIn`, `EnvironmentVariables` and `POSIXSpawnType`, so the job

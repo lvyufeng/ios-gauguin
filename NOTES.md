@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (33): why SpringBoard runs but shows nothing - the GPU is a stub <<<
+
+Analysed `research/breakthrough/boot-reaches-springboard.txt` line by line.
+SpringBoard is genuinely alive, but the screen never gets real content, and the
+reason is visible in one line of the log:
+
+```text
+SWEET GPU: stub IOAcceleratorES published
+```
+
+**The framebuffer timeline** (`SWEET FB: vsync=N ... presents=P client=C`):
+
+| vsync | presents | client | nonblack | distinct |
+| --- | --- | --- | --- | --- |
+| 2 - 2400 | **0** | 0 | 993 -> 493 | 2 -> 1 |
+| 3000 | 26 | 2 | 60 | 5 |
+| 3600 | 105 | 2 | 60 | 5 |
+| 4200 | **110** | 2 | **72** | **5** |
+
+So for the first 2400 vsync intervals **nothing presented at all**; then
+backboardd appeared as `client=2` and started presenting - but the content is
+essentially a single colour (5 distinct, 72 non-black pixels, sampled
+`0x1006` = `#100030`, a dark violet). That is SpringBoard drawing its
+background with no composited UI on top.
+
+**`IOAcceleratorES` is matched 284 times by backboardd and is a stub**
+(`SweetFramebuffer.cpp`, `IOAcceleratorES::start()` sets `stub=true` and just
+publishes the service). iOS composites through Metal/IOGPUSurface; with a stub
+accelerator there is nothing to composite with, so the home screen never
+appears. The comment in that file records the earlier symptom it was added for
+("backboardd looks up IOAcceleratorES, gets 0 found, and then segfaults"), so
+the stub kept `backboardd` alive but cannot draw.
+
+**The iOS root itself is healthy.** Read back over adb from TWRP:
+`dd if=/dev/block/by-name/userdata bs=1024 skip=1 count=1` gives the volume
+header `HX` (HFS+), version 5, attributes `HFSJ` (journaled). TWRP cannot mount
+HFS+, so this signature read is the check.
+
+**So the remaining work is rendering, not boot:** either give iOS a working
+accelerator path, or make backboardd/SpringBoard fall back to software
+compositing. That is a different problem from everything the last 30 rounds
+were chasing, and it is the blocker between "userland runs" and "iOS is
+usable".
+
+Also noted: `CRASH driverkitd[67] sig 9` (killed, not a fault) and
+`UMD_INIT: ... persona ... No such process` (no SEP; expected on this port).
+
+
 ### >>> BREAKTHROUGH 2026-11-03 (32): iOS userland runs, SpringBoard executes <<<
 
 **The phone came back and the boot now reaches SpringBoard.** After 28 rounds

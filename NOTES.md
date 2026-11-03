@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (37): the 400-line trace cap was a red herring - SpringBoard really stops <<<
+
+Entry (36) concluded "SpringBoard stops at line 10866". That conclusion was
+immediately suspect, because `sweet_iolog()` used a **single global budget of
+400 lines**, and backboardd (matching `IOAcceleratorES` in a loop) had used
+369 of them. A silent SpringBoard could have been a starved one.
+
+Checked and fixed the instrument rather than trusting either reading:
+
+- **Measured**: SpringBoard 33 lines, backboardd 369, total 402 - the cap was
+  hit at line 13150, so the suspicion was justified.
+- **Changed** `sweet_iolog()` in `IOUserClient.cpp` to a **per-process** budget
+  (300 lines each, up to 8 tracked names) held in a fixed-size table. The
+  first attempt used a string-packed `name=count,...` buffer and was rewritten
+  before building: `strchr(p, '=') - p` underflows when the `=` is absent.
+- **Re-measured** with kernel `51605ab8`, boot-arg `sweetiolog=SpringBoard,backboardd`:
+
+```text
+SpringBoard IOK:  33 lines   (last at line 9435)
+backboardd  IOK: 302 lines
+```
+
+**SpringBoard still emits exactly 33 lines with the cap no longer shared.** So
+entry (36) was right after all: the process genuinely stops after opening
+`AppleKeyStore` and `IOPMrootDomain` and querying `/arm-io` thirteen times.
+The global cap was a real defect in the instrument, but it was not hiding
+anything.
+
+A side effect worth noting: `presents` rose from 71 to **177** in this run with
+16 swaps still, i.e. backboardd is compositing more often. That is progress
+without any rendering change, so it is likely timing/load variance rather than
+a fix - not evidence of anything.
+
+**Where that leaves the port:** iOS boots, 281 processes exec, SpringBoard
+starts, opens two services, queries the device tree, and stops. The UI stays
+five colours. The next useful instrument is not more device-tree logging but
+the stack SpringBoard is sitting in - the IOK echoes say what it asked for,
+never what it is waiting on.
+
+
 ### >>> 2026-11-03 (36): SpringBoard stops before it ever renders, and the ADT has no GPU node <<<
 
 Entry (35) corrected the claim that "the GPU is the proven root cause". This

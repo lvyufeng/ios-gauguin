@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (86): the send trace is hardened; one boot now answers two questions <<<
+
+(85) rebuilt the send-side trace because the old hook may never have been on the
+path. While the phone has been off USB, the replacement was hardened against
+every failure mode this project has already been bitten by:
+
+| check | result |
+| --- | --- |
+| hook reaches all sends | `ipc_kmsg_send` is called from `ipc_mig`, `mach_msg`, `flipc` |
+| runs under no lock | hook sits above `ip_mq_lock(port)` |
+| filter before slots | destination is resolved first, so unrelated traffic cannot fill the array |
+| needle not clobbered | own buffer; sharing `sweet_msgwait_needle` let `sweet_msgwait_init()` clear it |
+| overhead bounded | report sampled every 4096 receives, not 34,132 times a boot |
+| destination name resolvable | same `get_bsdtask_info` path that already prints `owner=SpringBoard` |
+
+**Also added `ip_destination` to the wait trace**, so one boot now answers two
+questions at once:
+
+- `sweetkmssend=SpringBoard` - does anything send to it?
+- `sweetmsgwait=SpringBoard` - are the ports it parks on its own queues
+  (`dest` = itself or `none`) or services it provides and is waiting to be
+  called on (`dest` = another process)?
+
+That distinction matters: "idling on my own dispatch queues" and "waiting to be
+called by a client" are entirely different diagnoses and the previous trace
+could not tell them apart.
+
+Run with `bash research/tmp/run-kmsg.sh` (both traces, retries the flaky log
+pull). **Not yet run** - the phone has been off USB since round 258.
+
+**Nothing here is a finding.** It is preparation, and the session has produced no
+new measurement in these rounds. Recorded as such.
+
+
 ### >>> 2026-11-04 (85): the "zero messages" result may have been a wrong hook site <<<
 
 (84) concluded "nobody ever sends to SpringBoard" from

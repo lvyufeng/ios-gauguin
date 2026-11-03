@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (27): the A/B kernels are checked to differ in ONE instruction <<<
+
+Entry (26) claimed the two variants differ only in the barrier. That claim is
+now measured instead of asserted: the two kernels are the same length and
+differ in **21 bytes**, in four regions, of which only one is code:
+
+| offset | bytes | what |
+| --- | --- | --- |
+| `0x14a0` | 16 | `LC_UUID` / build identity - differs on every build |
+| `0x3cf71` | 2 | the build-time seconds (`04` vs `12`) |
+| `0x3cff1` | 2 | the same timestamp, second copy |
+| **`0x4e1818`** | **1** | `bf` (dmb osh) vs `9f` (dsb osh) - **the only code difference** |
+
+`tests/test_ab_variants.py` asserts exactly this: it names each differing
+region, accepts the build identity and the timestamp, and **fails on any
+region it cannot explain**. Run against the same kernel twice it fails with
+"the barrier opcode actually differs", which is the check that matters - an A/B
+pair that is secretly identical would waste a whole round.
+
+Suite is now **39 checks** across four files; still wired into the build.
+
+**Twenty-five rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (26): the DSB/DMB A/B is built and ready <<<
 
 Following entry (25), the experiment is prepared so it costs one boot each when

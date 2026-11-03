@@ -2,6 +2,28 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (95): the region-info experiment compared a log against itself <<<
+
+`observe-region.txt.bin` (06:16) and `observe-dump6.txt.bin` (02:06) are **byte
+identical** - same md5 `05610bb8...`, same `flush #141`, same 161,887 bytes.
+
+That makes (94)'s table unsafe. The runs did differ in line and present counts,
+but the ring that was pulled for the region boot still carried the earlier
+kernel's content, so "the panel was identical" is a comparison of one boot with
+itself, not evidence that region-info changes nothing. **The region-info question
+is back to untested.**
+
+**The general trap, now written down because it has bitten twice:** a boot that
+dies before `sweet_log_start()` leaves the PREVIOUS boot in the ring, and
+`tools/sweet-log-pull.sh` returns it looking perfectly healthy. `total` and
+`flush #` come from the ring header, so **compare flush numbers between runs** -
+an unchanged flush means the pull did not see a new boot.
+
+**`research/tmp/three-boots.sh` now enforces this**: it boots baseline, region and
+propreq in sequence, and after each prints the line count, the flush number and
+the banner, so a stale ring is visible instead of being mistaken for a result.
+
+
 ### >>> 2026-11-04 (94): region-info tested and ruled out; the property trace had two real bugs <<<
 
 **`region-info` is not the cause.** With `/product/region-info = "LL/A"` added, a boot

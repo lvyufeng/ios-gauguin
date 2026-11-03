@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (45): the first GPU question was a gate - succeeding opens the rest <<<
+
+Entry (44) got the service opened but backboardd asked **one** question
+(`method 2`, no args, no outputs), got `kIOReturnUnsupported`, and closed the
+connection on the next line. A failing first question proves nothing about the
+ones behind it, so added **`sweetgpuok=1`**: every method returns
+`kIOReturnSuccess` with outputs left zeroed. It is a probe, not a fix.
+
+The difference is decisive. Without it:
+
+```text
+open AGXAccelerator type 1 -> 0x0
+method 2 (0 in, 0 out) -> unsupported
+user client closed                    <- gives up immediately
+```
+
+With `sweetgpuok=1`:
+
+```text
+method 2  (0 in, 0 out) -> ok         <- the gate
+method 0  (0 in, 0 out) -> ok
+method 4  (0 in, 0 out) -> ok
+method 33 (2 in, 0 out) -> ok   x29   <- the real workload
+user client closed: 0 occurrences     <- stays open for the rest of the boot
+```
+
+**So selector 2 is a gate**: answer it and userland proceeds to 0, 4 and 29
+calls of 33. Refuse it and nothing else is ever asked. That is why every
+previous round saw exactly one GPU method call and concluded the GPU was
+unused.
+
+**Still not visible:** `presents` 177, panel still `distinct=5`. The workload is
+now known - 33 is called with two scalars and no outputs, so it is a
+submit/signal call, not a query - but nothing has been implemented behind it.
+
+**Next, concretely:** `method 33` is where the work is. Log its two scalar
+arguments, and find out whether it is arriving per-frame (29 calls in a boot
+with 177 presents is consistent with once per swap or less often) or a one-off
+setup.
+
+
 ### >>> BREAKTHROUGH 2026-11-03 (44): backboardd wanted AGXAccelerator, not IOAcceleratorES <<<
 
 Entry (45) ended without a conclusion because `-> notify` looked like a failed

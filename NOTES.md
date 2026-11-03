@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (17): the keys fix is verified in the built binary, not just the source <<<
+
+Checked the compiled kernel (`research/k-proven`, `5c3907c8...`) rather than
+trusting the source diff, because a barrier that did not actually change would
+look identical in review.
+
+`_keys_read` at `0xfffffe00074e56e4` disassembles to:
+
+```text
+fffffe00074e5730: b9000128   str  w8, [x9]     ; SPMI command
+fffffe00074e5734: d50333bf   dmb  osh          ; DMB, not DSB (was dsb osh)
+fffffe00074e5748:            bl   nanoseconds_to_absolutetime
+fffffe00074e5764: 52807d18   mov  w24, #0x3e8   ; 1000 iterations
+loop:
+fffffe00074e5780:            tbnz w8, #0x0, done_bit   ; status & 1
+fffffe00074e5784:            bl   mach_absolute_time
+fffffe00074e5794:            b.hi deadline_reached     ; now > deadline
+fffffe00074e579c:            bl   _delay                ; delay(1)
+fffffe00074e57a4:            b.ne loop
+```
+
+All three exits are present (done bit, deadline, iteration cap), and the
+barrier is the ordering-only one. So the claim "no unbounded wait is left on
+this path" now has evidence from the binary, not just from the editing.
+
+Also compared the PMIC apid values across **every** working log: all of them
+report `arb=0x50010000 apids=512 pon-apid=308 gpio-apid=366`. The scan result is
+stable hardware topology, so there is no per-boot variance to explain a hang
+in `keys_find_apid()`.
+
+**Sixteen rounds, no phone.** The remaining unknown is the device, not the code.
+
+
 ### >>> UPDATE 2026-11-03 (16): ADT and payload agree with the phone; USB gate logic checked <<<
 
 A consistency audit of the artifacts the bisection images are built from, done

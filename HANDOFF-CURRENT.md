@@ -155,14 +155,47 @@ and test the caller-name change on its own.
 
 ## Device state
 
-The phone dropped off USB after round 142 and did not come back for the rest of
-the session. Host side is fine - `ioreg -p IOUSB` still lists three
-`AppleT8142USBXHCI` controllers, there is simply nothing attached. Not fixable
-from the host; the cable or the phone needs attention.
+The phone has dropped off USB twice: after round 142 (back at 218) and again
+after the round-218 test run, where it has stayed. Host side is fine each time -
+`ioreg -p IOUSB` lists three `AppleT8142USBXHCI` controllers and nothing
+attached. Not fixable from the host.
+
+**Restarting the phone is the only thing that has brought it back.** Pulling the
+cable and replugging did not; a forced power restart did.
 
 When it returns, in order:
 
-1. boot `k-proven` unchanged and confirm the known panel state reproduces
-2. run the colour-coded map (it was lost mid-flight) - it answers whether the
-   centred shape is white, i.e. a boot logo, or coloured, i.e. something else
-3. only then test the GPU caller-name build
+1. `bash research/tmp/next-runs.sh` - the two written-but-unrun experiments:
+   `sweetmsgwait=SpringBoard` with the cap at 200, and
+   `sweetmsgsend=SpringBoard`. One boot each.
+2. boot `k-proven` with no tracing and confirm the known panel state reproduces
+3. run the colour-coded map (lost mid-flight at round 142) - it answers whether
+   the centred shape is white, i.e. a boot logo, or coloured, i.e. something else
+4. only then test the GPU caller-name build
+
+## Traps worth knowing before editing anything
+
+Things that cost rounds in this session, all recorded in `NOTES.md`:
+
+- **`printf` inside a lock.** `ipc_mqueue_send_locked` holds the port lock;
+  logging there takes `sweet_log_lock`, and that pairing can wedge a
+  single-core boot. Buffer into a fixed array and print outside.
+- **`IOSleep` is not a delay you can reason about** on a busy single core - it
+  stretches far past its nominal value. `assert_wait_deadline` +
+  `thread_block(THREAD_CONTINUE_NULL)` here never woke at all.
+- **Bring-up timing matters.** `sweettouchdelay` below ~12 s puts I2C/RPMh work
+  on the bus during `vfs_mountroot` and the boot stops at ~787 lines with
+  `presents=0`, against 1586/177 at the default 45 s.
+- **The log ring has no timestamps in order of time** unless you check. `vsync`
+  monotonic means line order is time order; if it is not monotonic, the ring
+  overwrote and earlier lines are gone.
+- **`nonblack` understates the panel.** It samples at a 632-pixel stride; the
+  ASCII map samples ~5x denser inside the region. Use the map.
+- **`sweetiolog`/`sweetmsgwait` caps fill early.** A 40-record cap used itself up
+  in the first third of a boot and made the rest invisible.
+- **Map sizes need converting back through the sampling step.** A 600x250 px
+  reading of a 4 px-per-column map was really 180x168 - counted twice wrong
+  before it was counted right.
+- **`grep SpringBoard` matches `IOK backboardd` lines** if the pattern is not
+  anchored with `^IOK SpringBoard:`. It caused a wrong reading of which process
+  queried what.

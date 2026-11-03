@@ -2,6 +2,80 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (5): the earlier "deadlock" diagnosis was WRONG - see the logs <<<
+
+**Corrects the 2026-11-03 (1) entry. Read this before believing that one.**
+
+`.deps-cache/logs/` holds ~20 boots from 2026-10-20/22, and **every one of them
+mounted the iOS root** (`mounted iOSRoot`, `exec launchd`). One is a complete
+worked example of the exact sequence this bring-up is trying to reproduce -
+`boot-journaled-userland.txt`:
+
+```text
+SWEET UFS: sample_start -> sample_start done -> keys_init
+SWEET KEYS: arb=0x50010000 apids=512 pon-apid=308 gpio-apid=366
+SWEET UFS: keys_init done -> touch_init -> touch_init done
+SWEET USB: GDSC usb30_prim on ... DWC3 GSNPSID 0x5533330a
+SWEET UFS: usb_probe -> init complete -> init returned 0
+BSD root: ufsroot0, major 1, minor 0
+```
+
+Three things follow, and the first two mean the earlier fixes were solving
+non-problems:
+
+1. **`sweet_log_sync()` on the init path is fine.** Every step in that log is
+   followed by its own `scsi 0x2a` + `0x35` write - the synchronous flush ran
+   and returned, repeatedly, on a boot that reached userland. The claim that it
+   deadlocked on `sweet_ufs_lock` (2026-11-03 (1)) is **wrong** and the calls
+   are **restored**. What *was* different on the failing runs is not yet known;
+   it was not this.
+2. **`sweet_usb_probe()` reading registers is fine on gauguin** with the
+   SM7125/lagoon register map (2026-10-20 22:10 note). The old "USB probe kills
+   the boot" only applied before that map was corrected, so `sweetusb=0` is
+   **not** the fix and was not used.
+3. **The real regression was mine: `sweet_log_mark()` did synchronous SCSI
+   writes inside the init path.** Eleven of them sit in `sweet_keys_init()`
+   alone. Each is a full 4 KiB write round trip, and `keys_init` is a
+   sub-second step when it is not doing that. The runs that stopped on the
+   `SWEET UFS: keys_init` line are consistent with exactly that.
+   `sweet_log_mark()` is now **memory only** (64 slots in `sweet_mark_ram` +
+   a dirty bitmap) and `sweet_log_mark_flush()` writes the pending blocks from
+   the log thread, never from init.
+
+**Also changed:** the init tail calls `sweet_touch_init()` again (start the
+touch thread, ~7 lines of log) instead of `sweet_touch_start_at_init()` (run
+the whole bring-up inline). The touch bring-up itself still runs on its own
+thread - that part stands and is a genuine improvement.
+
+**Built: `shim/out/shim-restored.img`** (kernel `3c401b69...`, boot.img
+`b27379ce...`; kernel also saved as `research/k-restored`). This is the first
+image whose init path matches a boot that is *known* to reach userland.
+**Not yet booted - the phone has been off USB since the `sweetlog=0` run.**
+
+
+### >>> UPDATE 2026-11-03 (4): QEMU cannot verify the gauguin path - stop trying <<<
+
+Measured this round, so nobody spends another cycle on it. QEMU boots the
+kernel only as far as `VM bootstrap done` + `IOKit IOMD setownership ENABLED`
+and then takes an **Undefined Instruction** exception at `0xfffffe0007482000`
+(QEMU `virt` lacks the SM7225 ISA bits).
+
+- **Both kernels do it**, including the pre-change `shim-safe` payload: that
+  one dies with the same Undefined Instruction and never decodes a frame.
+- So the panic is a QEMU limitation, **not** a regression from the UFS slot or
+  touch-thread work.
+- QEMU never reaches UFS at all, and the phone's stop is *after* UFS (at
+  `sample_start` / the log thread), so QEMU cannot validate anything in the
+  range this bring-up is stuck in.
+
+Practical rule: `tools/qemu-sweet.py` is only useful for changes above BSD
+init (platform/VM/framebuffer). For UFS, log, keys, touch or USB, the phone is
+the only witness. `--fail-on-panic` also requires `--kernel`, and the kernel
+binary is overwritten by each build, so a comparison against an older kernel
+needs that binary saved first (e.g. copy `kernel.development.gauguin` to
+`research/k-<tag>` before rebuilding).
+
+
 ### >>> UPDATE 2026-11-03 (3): touch bring-up leaves the UFS init path <<<
 
 `sweet_touch_start_at_init()` ran the **whole** touch bring-up synchronously

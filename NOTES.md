@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (80): sweetmsgwait ran at last - SpringBoard waits on its own ports <<<
+
+The instrument from round 82 had never once been enabled, despite 128 rounds of
+asking what SpringBoard was waiting for. The phone came back, and it was the
+first thing run:
+
+```text
+sweetmsgwait=SpringBoard
+```
+
+Result, 40 records (the cap) over 7 distinct ports:
+
+| port | waits |
+| --- | --- |
+| 0xfffffe200f72f9c8 | 15 |
+| 0xfffffe200f72f888 | 13 |
+| 0xfffffe200f6f2028 | 5 |
+| 0xfffffe200f72fb08 | 2 |
+| 0xfffffe200f717608 | 2 |
+| 0xfffffe200f6f20c8 | 2 |
+| 0xfffffe200f716f28 | 1 |
+
+**Every one reports `owner=SpringBoard`, all `type=3` (`WQT_PORT`).**
+
+Two conclusions, both measured for the first time:
+
+1. **No missing external dependency.** SpringBoard is not blocked on a service
+   somebody else should be providing - it is parked on message queues it owns.
+2. Two ports carry 28 of the 40 waits, which is the shape of libdispatch idle
+   queues rather than a protocol stall.
+
+This rules out the whole family of "a daemon it needs never started" theories,
+including the `frontboardd` line that ran for many rounds.
+
+**What it does not answer:** whether anything ever sends to those ports. A
+port with no sender and a port whose sender is late look identical from the
+receiving side, so a send-side trace was added (`sweetmsgsend=<receiver>`,
+noted in `ipc_mqueue_send_locked`). It builds and is in the kernel, but the
+test boot could not be read - the log pull failed and the phone left USB again.
+**That experiment is still outstanding.**
+
+
 ### >>> 2026-11-03 (79): SpringBoard's 33 calls, enumerated, and its threads, decoded <<<
 
 Two things that had been described loosely are now exact.

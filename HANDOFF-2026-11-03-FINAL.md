@@ -136,6 +136,52 @@ Route 2 is far cheaper if it exists. **It has not been shown to exist.**
 
 ---
 
+## 5a. What rounds 53-96 added, and what it ruled out
+
+The investigation after entry (52) narrowed the problem from the display stack
+to SpringBoard's own startup, and ruled out several plausible causes **with
+measurements**, not reasoning.
+
+**SpringBoard never touches graphics at all.** Not once:
+
+```
+grep 'IOK SpringBoard' | grep -ciE 'acceler|gpu|framebuff|surface|clcd|metal'  ->  0
+```
+
+It opens exactly two IOKit services, `AppleKeyStore` and `IOPMrootDomain`, makes
+33 IOKit calls in total, and after line 7664 of the log makes none for the
+remaining 7,600 lines. It is not failing to render; **it never reaches rendering**.
+
+**It is not waiting on anything external.** The `sweetmsgwait` tracer (fixed in
+this session - it could never fire, see section 7) shows 40 blocking receives
+across 8 ports, and every one of those ports is **owned by SpringBoard itself**.
+They are its own libdispatch queues, idle. No external dependency is missing.
+
+**It does not crash.** The iOS root holds 127 crash reports in
+`/private/var/mobile/Library/Logs/CrashReporter/`; SpringBoard is not among them.
+It is alive, quiet, and scheduling normally.
+
+**Ruled out one by one:**
+
+| Hypothesis | How it was tested | Result |
+| --- | --- | --- |
+| SpringBoard waits for a GPU node under `/arm-io` | added one to the ADT | **no change**: 33 IOKit calls, 13 `/arm-io` queries, same stop |
+| A missing device tree node | ADT compare | `arm-io` only had gic/wdt/disp0, but adding gpu changed nothing |
+| SpringBoard restarted / is in a degraded state | process presence records | `backboardd` shows the same `gone (t=1)` - it is a log-start artefact, not a crash |
+| Permission denial | searched the log | no EACCES/EPERM for SpringBoard |
+| Stop caused by the GPU service | timestamps | `driverkitd` crashes at line 7152, the GPU service opens at 9796 |
+| The image is incomplete | `find frontboardd` | **retracted**: the real path is a `.framework`, and 32 board frameworks are present |
+
+**The single fact that survives all of it:** SpringBoard completes its early
+init, then stops, *before* any graphics initialisation. Everything downstream
+(black surface, empty compositor, unattempted GPU command buffers) follows from
+that, not the other way round.
+
+**To go further needs something this session did not have**: userland debugging
+(attach to SpringBoard and see its instruction pointer), or executing AGX
+command streams (a real GPU driver). Neither is a parameter change.
+
+---
 ## 6. Corrections to earlier claims
 
 Kept because several were repeated across many rounds before being measured
@@ -149,6 +195,15 @@ again:
 | "`sweetgpuok` reaching presents=185 is progress" | **wrong**: it inflates the counter and changes no pixels |
 | "driverkitd crash is on the GPU path" | **not supported**: it crashes at line 7152, the GPU service opens at 9796 |
 | "the panel's 5 colours are our debug marker" | **wrong**: disabling `sweetfb_mark` left the numbers identical |
+| "a GPU node under /arm-io will let SpringBoard proceed" | **wrong**: added one; IOKit call count, `/arm-io` query count and stop point all unchanged |
+| "driverkitd's crash is on the GPU path" | **wrong**: crash at line 7152, GPU service opens at 9796 |
+| "the image is missing frontboardd / BackBoardServices" | **retracted**: those are `.framework` paths; 32 board frameworks are present. A bare-name search misses every framework |
+| "prefer counters as progress" | **wrong twice**: `sweetgpuok` and the ADT node each moved `presents` without moving a pixel |
+
+**The recurring failure mode across all of these:** treating a query that
+returned nothing as proof that the thing was absent, and treating a counter that
+moved as proof that something happened. Both need a second, independent check
+before a conclusion is drawn from them.
 
 ---
 

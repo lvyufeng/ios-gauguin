@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (74): the centred shape is ~180x168 px, and it took three tries <<<
+
+Measured from the ASCII map of entry (72), counting the actual columns and rows
+per line rather than eyeballing them:
+
+| quantity | value |
+| --- | --- |
+| size | **180 x 168 px** (16.7 % x 7.0 % of the 1080x2400 panel) |
+| centre | x=544 vs panel 540, y=1184 vs panel 1200 - centred |
+| profile | widest at row 8 (45 columns), narrowing to 27 by the last row |
+
+Widths per row: 41, 42, 41, 40, 40, 40, 41, 42, 45, 44, 41, 38, 33, 27. It is
+wider at the top than the bottom, so not a rounded rectangle - something with
+content inside it.
+
+**Three attempts to get this number, and the first two were wrong:**
+
+- (72) said "about 600x250 px" - I read map *columns* as pixels and forgot the
+  4 px step
+- (73) said "200x156" - still estimated the extent instead of counting it
+- here: counted every row, 180x168
+
+The lesson repeats the one from the instrument defects: **a number that comes
+from a map has to be converted back through the sampling step, and counted, not
+eyeballed.** Do not quote a size from the map without doing both.
+
+**Resolution caveat:** the map samples 4 px per column and 12 px per row, so
+the height carries +-12 px of error. A finer map is needed to pin it down, and
+that needs the phone.
+
+
 ### >>> 2026-11-03 (73): the ASCII map sees the screen; the nonblack counter does not <<<
 
 Following (72): five independent boots, same final colours every time

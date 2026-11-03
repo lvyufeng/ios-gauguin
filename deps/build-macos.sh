@@ -18,6 +18,11 @@
 #
 # KDKROOT is empty on purpose: the SWEET series stubs the closed KDK libs
 # (0007/0008), so nothing links against Apple's kernel support libraries.
+#
+# For the A/B variant of the keys barrier (NOTES 2026-11-03 (25)) XNU's build
+# has no "extra CFLAGS" variable that reaches bsd/dev, so the switch is done by
+# editing the #ifdef in sweet_keys.c; deps/ab-keys-barrier.sh does that and
+# restores it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO=$PWD

@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (26): the DSB/DMB A/B is built and ready <<<
+
+Following entry (25), the experiment is prepared so it costs one boot each when
+the phone returns.
+
+`keys_read()`'s barrier is now `#ifdef SWEET_KEYS_USE_DSB ... #else dmb ...`
+and **`deps/ab-keys-barrier.sh`** builds both variants, flipping the define in
+the source (XNU has no extra-CFLAGS variable that reaches `bsd/dev`) and
+restoring the file afterwards, even on failure.
+
+Verified in the disassembly - the two `_keys_read` bodies differ by exactly one
+instruction:
+
+```text
+dmb variant:  dmb oshst ; str w8,[x9] ; dmb osh  ; ... dmb oshld
+dsb variant:  dmb oshst ; str w8,[x9] ; dsb osh  ; ... dmb oshld
+```
+
+| file | kernel | image |
+| --- | --- | --- |
+| `shim/out/shim-ab-dmb.img` | `6f54350a...` | `53508056...` |
+| `shim/out/shim-ab-dsb.img` | `e7a429db...` | `a6d3f085...` |
+
+Both use the working boot line and the working init sequence, so the only
+variable is the barrier.
+
+**How to use it:** boot each with `tools/fastboot-cycle.sh` and compare where
+the init tail stops:
+
+- both stop on `INIT: entering keys_init` -> the barrier is not the problem,
+  and entry (14)'s reasoning was wrong; look elsewhere (SPMI ownership,
+  arbiter state).
+- `-dsb` stops there and `-dmb` does not -> keep `dmb` and the reasoning in
+  (14) was right after all.
+- `-dmb` stops there and `-dsb` does not -> restore `dsb`; the change made in
+  (14) was a regression.
+
+**Twenty-four rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (25): correction - the dsb->dmb change has no evidence <<<
 
 Entry (14) changed `keys_read()`'s `dsb osh` to `dmb osh`, arguing that a DSB

@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (49): HFS+ reader - works for listing, still wrong for records <<<
+
+`tools/hfs-read.py` (uncommitted): reads the iOS root straight off
+`/dev/block/by-name/userdata` over `adb dd`, because TWRP on this phone has no
+HFS support. Useful as it stands for one thing - locating a file:
+
+```text
+python3 tools/hfs-read.py find dyld_shared_cache_arm64
+  -> cnid=326127 parent=322858
+python3 tools/hfs-read.py list /private/var
+```
+
+A full catalog walk returns **323,281 entries in 17 s**.
+
+**What is proven about the format:**
+- volume header at byte 1024; block size 4096; 16 GiB
+- catalog file: start block 181633, 32768 blocks; nodeSize 8192 (`hdr[32:34]`)
+- root node 264, height 3
+- node kinds: 0 = index, 255 (-1) = leaf
+- record k of a node spans `[offs[nrec-1-k], offs[nrec-k]]`
+- the key is followed by the data *directly* - there is no 4-byte offset field
+- index records carry the child node as 4 bytes right after the key
+- leaf keys: parentID(4) + nameLen(2) + UTF-16BE name
+
+**What is proven WRONG:** the file-size field. `.journal` reads 4194304 at
+`+56` and that looked like a rule, so the size was taken from there - but the
+`dyld_shared_cache_arm64` record then showed ASCII `hlnkhfs+` at `+48` and
+`0x0100000000000000` at `+56`. That string cannot occur inside a catalog file
+record, so **for that node the 248-byte record boundaries are wrong too**.
+Conclusion: record slicing is only verified on the leaf node that holds the
+HFS+ private files (12490); elsewhere it is unproven, and `cat` must not be
+trusted until this is settled.
+
+**Performance note, because it cost five rounds:** reading one node per
+`adb dd` made a full walk look like a hang or an infinite loop. Batching 256
+nodes per read turned it into 17 s. Before concluding a loop is broken, time a
+minimal case - the earlier "no output" runs were timeouts, not logic errors.
+
+**Guesses, marked as guesses:** that `+40` is allocated bytes; that the
+dataFork logicalSize is somewhere in 88..96 per the public struct layout. Both
+contradicted by the data above. Do not build on either.
+
+**Status of the objective itself:** unchanged by any of this. The iOS system
+boots and runs on hardware (see entry (47)); the panel shows no UI because
+`method 33` command buffers are submitted and never executed.
+
+
 ### >>> 2026-11-03 (46): selector 33 is a command-buffer submission, and that is a wall <<<
 
 Logged the scalar arguments of the GPU methods (entry 45 guessed at what 33

@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (30): the A/B images were stale - rebuilt, and a test-gate conflict fixed <<<
+
+Auditing the artifacts against the notes turned up a real problem: the two
+`shim-ab-*` images were built in entry (26), **before** the touch delay was
+restored in entry (28). Booting them would have started the touch bring-up
+immediately again, adding a second variable to an experiment whose whole point
+is that only one thing differs.
+
+Two fixes:
+
+1. **Rebuilt both variants** with the current tree. They now carry the touch
+   delay (`SWEET TOUCH: starting in` is present in both kernels) and
+   `tests/test_ab_variants.py` confirms they still differ only in the barrier
+   opcode at `0x4e1818`.
+2. **`deps/ab-keys-barrier.sh` now builds with `SKIP_TESTS=1`.** The build gate
+   added in entry (24) runs `tests/test_ab_variants.py`, which compares the two
+   A/B kernels - so it can only pass once both exist. Building the second
+   variant therefore failed on a test whose subject was the build in progress.
+   The script checks the pair itself after the second build and fails if they
+   are byte-identical, so the protection is kept, just moved to where it can
+   work.
+
+| file | kernel | image |
+| --- | --- | --- |
+| `shim/out/shim-proven.img` = `shim-bisect-on.img` | `aeffcfe7` | `44f358d7` |
+| `shim/out/shim-bisect-off.img` (`sweetkeys=0`) | `aeffcfe7` | `bea2aa03` |
+| `shim/out/shim-ab-dmb.img` | `9fa9c82b` | `0d271de2` |
+| `shim/out/shim-ab-dsb.img` | `ac057dbb` | `f1e2d8e8` |
+
+All four use the working boot line; the three non-`bisect-off` kernels agree on
+everything except the one variable each pair is testing.
+
+**Lesson worth keeping:** artifacts decay when the tree moves under them. The
+notes recorded image hashes, but nothing checked them against the kernel they
+were built from - that check is what caught this, and it is now part of the
+audit rather than an accident.
+
+**Twenty-eight rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (29): the working log has been swept end to end <<<
 
 Entry (28) found one real departure (the touch start delay) by reading a

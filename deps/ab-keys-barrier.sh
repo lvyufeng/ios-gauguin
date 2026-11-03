@@ -41,7 +41,10 @@ build_one() {
 		return 1
 	fi
 	echo "== building $tag"
-	if ! bash deps/build-macos.sh gauguin > "research/tmp/ab-$tag.log" 2>&1; then
+	# SKIP_TESTS=1: tests/test_ab_variants.py compares the two A/B kernels, so
+	# it can only pass once BOTH exist. The script checks the pair at the end
+	# instead (and fails if they are byte-identical).
+	if ! SKIP_TESTS=1 bash deps/build-macos.sh gauguin > "research/tmp/ab-$tag.log" 2>&1; then
 		echo "  build failed, see research/tmp/ab-$tag.log" >&2
 		return 1
 	fi

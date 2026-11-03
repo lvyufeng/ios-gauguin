@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> BREAKTHROUGH 2026-11-03 (32): iOS userland runs, SpringBoard executes <<<
+
+**The phone came back and the boot now reaches SpringBoard.** After 28 rounds
+without a device, `tools/bisect-keys.sh` was run against the staged pair and
+**both images mounted the root and reached userland**:
+
+```text
+sweetkeys=0  reached: userland
+default      reached: userland
+verdict: both_mount
+```
+
+Log preserved as `research/breakthrough/boot-reaches-springboard.txt`
+(15,987 lines, 778 KB).
+
+**What the boot does now**, in order:
+
+| stage | evidence in the log |
+| --- | --- |
+| UFS init tail | `sample_start` -> `keys_init` -> `touch_init` -> `usb_probe` -> `init complete` |
+| root mount | `BSD root: ufsroot0`, `hfs: mounted iOSRoot on device b(1, 0)`, `vfs_mountroot ok` |
+| exec | `exec launchd`, `Darwin Bootstrapper Version 7.0.0` |
+| ignition | `ignition sequence complete`, dyld shared cache opened from `/System/Library/Caches/com.apple.dyld` |
+| launchd tasks | mount-phase-1/2, data-protection, finish-obliteration, MSUEarlyBootTask |
+| **processes** | **281 `exec` lines**, incl. `backboardd`, **`exec SpringBoard`** |
+| **framebuffer** | `SWEET FB: ... nonblack=72 distinct=5 presents=110 client=2` - **pixels are being drawn** |
+
+SpringBoard is not merely spawned: it opens `AppleKeyStore` (AKS selects 0/35/7
+all return 0x0), `IOPMrootDomain`, and `IODeviceTree:/buttons`.
+
+**This means the `keys_init` stall that defined the last 30 rounds is gone.**
+The most likely cause is the touch-bring-up delay restored in entry (28): the
+bring-up had been starting immediately, putting GENI/TLMM/RPMh traffic on the
+buses during `vfs_mountroot`. That is consistent with the log, which now shows
+`SWEET TOUCH: starting in 45 s` while the root mounts.
+
+**Both `sweetkeys=0` and the default work**, so the keys driver was never the
+blocker - correct diagnosis, wrong suspect.
+
+Remaining rough edges, all non-fatal:
+- `shared_region: ... 'dyld_shared_cache_arm64' : not in trust cache` (expected: SWEET has no trust cache; the cache still maps and dyld runs)
+- `ERROR: BindFS bindfs_mount: lookup of /private/preboot/... failed error: 2` (no preboot volume)
+- `mount: data volume missing, but not required in env: 0`
+- `libignition: ignition level insufficient: actual = 1, required >= 2/3` for preboot, cryptex1, graft (intended: `ignition_level=1`)
+
+**Next:** confirm SpringBoard actually reaches a visible home screen / setup
+screen rather than spinning, then work the remaining userland errors.
+
+
 ### >>> UPDATE 2026-11-03 (31): `shim-boot.img` was silently carrying the DSB variant <<<
 
 Adding a provenance check to the toolchain (`tools/image-audit.py`, below)

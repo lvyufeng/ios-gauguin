@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (8): init tail now matches the working log line for line <<<
+
+Diffed the current `sweet_ufs_rootdev()` tail against
+`boot-journaled-userland.txt` (the boot that reaches `exec launchd`),
+*including* the `scsi` lines that the synchronous `sweet_log_sync()` calls
+produce. Two of those calls had gone missing while the earlier entries were
+experimenting:
+
+    printf("keys_init") -> sync -> keys_init() -> printf("keys_init done") -> sync
+
+The working log shows a `scsi 0x2a`/`0x35` pair immediately after
+`SWEET UFS: keys_init` and another pair after `keys_init done`; the tree had
+neither, so `keys_init()` ran with no flush either side. Both are restored.
+
+The tail now reproduces the working sequence exactly:
+
+```text
+sample_start -> sync -> sample_done -> sync -> keys_init -> sync
+  keys_init() -> keys_init done -> sync -> touch_init -> touch_init done
+  -> sync -> usb_probe -> usb_probe() -> init complete [-> sync]
+```
+
+**Image: `shim/out/shim-proven.img`** (kernel `5fe0afd7...`, boot.img
+`b082ba8a...`, kernel saved as `research/k-proven`).
+
+**Six rounds without the phone.** Every change from round 1 onwards is
+compiled and packaged but unverified on hardware. The single blocking action
+is physical: full power-off (15 s), 10 s wait, cold boot into TWRP. Until then
+no further code change can be validated, and each additional speculative edit
+carries the risk this entry is undoing - drift away from the sequence that is
+known to work.
+
+
 ### >>> UPDATE 2026-11-03 (7): the split slots needed an atomic tag; layout audited <<<
 
 Two checks on the per-slot request queue (2026-11-03 (2)), one of which found

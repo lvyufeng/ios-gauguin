@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (91): gauguin never showed an interface - the milestones were another board <<<
+
+**This corrects a misreading that shaped many rounds.** NOTES (2026-10-17/18) records
+Setup's "Hello" screen (057u, v12) and the **SpringBoard home screen** (0069s,
+v14) as milestones. Both were on **Sweet - the D22AP (iPhone X) bring-up**, not
+on gauguin. The gauguin board port only started 2026-10-19; the `/product` node
+that SpringBoard looks up twelve times per boot was added 2026-10-22
+(`1057d24`).
+
+So on gauguin nothing regressed from working to broken. **There was never an
+interface to regress from.** That removes "some change between v12 and now broke
+it" as a hypothesis, and with it the plan to bisect against old images.
+
+### What is actually known on gauguin, all measured here
+
+| observation | evidence |
+| --- | --- |
+| kernel boots, 268 execs, no crash | `observe-dump6.txt` counts |
+| UFS, HFS+, launchd, ignition complete | progress markers |
+| SpringBoard present t=3..t=20, 9 threads | `sweetdump` samples |
+| every thread's queue `msgs=0/0` | same |
+| SpringBoard does 33 IOKit lookups, 0 GPU matches | `sweetiolog` |
+| `/product` x12 and `/arm-io` x13 - polling | `observe-wait4.txt` |
+| Setup / buddy never executes | 3 logs incl. the 36,093-line one |
+| no `purplebuddy.plist`, no activation record | `hfs-read.py` |
+
+### The narrowest open question
+
+**`/product` carries three properties** (`product-name`, `product-type`,
+`regulatory-model-number`) because `mkadt.py` falls back to a minimal node when
+`research/ipsw-x/d22ap.adt` is absent - and it is absent, and the device tree
+inside the local IPSW is compressed (`IM4P`/`dtre` payload is not plaintext, so
+it cannot be mined for property names). **A real D22AP product node has dozens.**
+
+SpringBoard re-opening that node twelve times is consistent with wanting a
+property that is not there. **It is not proof** - the same polling could be
+harmless - and (86)/(90) are reminders that a scary-looking absence is often
+benign.
+
+**Next concrete step, once the phone is back:** read the property names SpringBoard
+actually asks for, with the already-built `sweetpropreq=SpringBoard` trace
+(image `shim/out/shim-prop.img`). That turns "twelve lookups" into a list of names
+and a list of NULLs, and the fix - if there is one - is then a few lines in
+`mkadt.py` rather than a driver.
+
+
 ### >>> 2026-11-04 (90): SpringBoard is idle, not stuck - and the kmsg hook was removed <<<
 
 **The expensive send trace is gone.** `sweet_kmsg_note` was removed from

@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (20): the watchdog itself was wrong twice - simulated first <<<
+
+The init watchdog from entry (19) had two defects, both caught by simulating it
+offline before any phone was involved (a small model of the loop, driving
+`sweet_init_step`/`sweet_init_done` on a fake timeline):
+
+1. **It reported on a healthy boot.** The first version printed whenever the
+   step changed *and* the grace period had passed, but the two conditions were
+   OR-ed the wrong way round, so a tail finishing in 3.2 s produced four
+   "still inside the init tail" lines. Fixed: **nothing is reported before
+   ~8 s**, so a fast tail is silent by construction.
+2. **The step name was not read atomically.** `sweet_init_step` was a plain
+   `const char *` written by the init thread and read by the log thread; the
+   loader could keep a stale copy, which would name the wrong step exactly
+   when it matters. It is now `_Atomic` with `os_atomic_store/load`.
+
+After both fixes the simulation gives:
+
+| scenario | output |
+| --- | --- |
+| healthy tail (done at 3.2 s) | **silent** |
+| stalled in `keys_init` | `~8s step=keys_init`, then every 10 s |
+| stalled in `touch_init` | `~8s step=touch_init`, then every 10 s |
+| slow but moving | reports each step as it advances |
+
+That last row is what separates "hung" from "slow", which the earlier
+single-shot marks could not do.
+
+**Images rebuilt**: `shim/out/shim-proven.img` = `shim-bisect-on.img`
+(`685e00dc...`), `shim-bisect-off.img` (`c16c1432...`, adds `sweetkeys=0`).
+
+**Nineteen rounds, no phone.** Twenty commits this session; nothing verified on
+hardware.
+
+
 ### >>> UPDATE 2026-11-03 (19): a device read cannot be bounded, so the log thread reports it <<<
 
 `keys_read()` now has two exits and the barrier is DMB (entries (12), (14),

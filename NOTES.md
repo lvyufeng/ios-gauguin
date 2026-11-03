@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (82): SpringBoard waits first, then calls - the order is not what I assumed <<<
+
+Reading the successful `sweetmsgwait` log again, with the ordering checked against
+the ring first (vsync runs 2 -> 4200 strictly monotonic, no overwrite, so line
+order is time order here):
+
+| event | log lines |
+| --- | --- |
+| 40 port waits | 620 - 777 |
+| 33 IOKit calls | 1002 - 1041 |
+
+**No overlap.** SpringBoard parks on its own queues *before* it enumerates the
+platform, not after.
+
+So the earlier phrasing "it makes 33 calls and then goes quiet" described the
+end of the sequence, not the whole of it. The sequence is:
+
+```text
+start -> park on its own ports -> (woken) -> 33 platform calls -> nothing
+```
+
+That matters because it means SpringBoard **is** woken: something did reach it
+early. The failure is not "no message ever arrives" - it is that after handling
+what arrived it does 33 lookups, opens two services, and stops.
+
+**What is still unseen:** whether it parks again after the 33 calls. The 40-record
+cap filled during the early burst, so the later behaviour is invisible. The cap is
+now 200 and one boot would show it - that boot has not happened (phone off USB).
+
+**Why this is "waits on its own ports" and not something else:** every one of the
+40 records reports `owner=SpringBoard`, `type=3` (`WQT_PORT`). Those are message
+queues SpringBoard owns, i.e. its own libdispatch side, not a service it is
+waiting for somebody to provide.
+
+
 ### >>> 2026-11-03 (81): the wait cap hid most of the data; tools fixed, not yet re-run <<<
 
 (80) reported 7 ports and 40 records, but the record cap is 40 and it filled

@@ -119,15 +119,27 @@ no UART.
 
 ## Honest scale of what remains
 
-Two paths, both weeks of work rather than sessions:
+Two paths, weeks of work each rather than sessions. **They are not
+interchangeable, and they are not sequential - one is necessary and the other is
+the root cause.**
 
-1. **Execute GPU commands.** Implement `AGXAccelerator`'s method 2 and whatever
-   follows so backboardd gets a real accelerator. The command interface is the
-   hard part; `shim/out/shim-proven.img` plus `sweetgpuok` shows the plumbing
-   around it already works.
-2. **Get a debugger into SpringBoard.** Would settle the "why" directly. Needs
-   a kernel-side debug stub or a userland backtrace hook, neither of which
-   exists here.
+**The root cause is SpringBoard.** Even with a perfect GPU driver, SpringBoard
+makes zero GPU matches and never creates a surface - it would still produce
+nothing for backboardd to composite. Settling *why it stops after its 33 calls*
+is the only route that ends with frames. It needs a debugger inside the process:
+a kernel debug stub or a userland backtrace hook, neither of which exists here.
+The two experiments in `research/tmp/next-runs.sh` are the cheap next step and
+should be run before building any of that.
+
+**The GPU driver is necessary but not sufficient.** backboardd does ask for an
+accelerator 213 times and is refused at `method 2`, so a real
+`AGXAccelerator` implementation is genuinely needed for compositing to do work -
+`shim/out/shim-proven.img` plus `sweetgpuok` shows the plumbing around it already
+works, and the command interface is the hard part. But it does not by itself make
+SpringBoard draw.
+
+So: do the two experiments, then build the debugging path. Write GPU command
+execution when there is a frame to composite, not before.
 
 ## Tooling worth knowing about
 

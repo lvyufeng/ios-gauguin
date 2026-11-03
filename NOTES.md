@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (3): touch bring-up leaves the UFS init path <<<
+
+`sweet_touch_start_at_init()` ran the **whole** touch bring-up synchronously
+from `sweet_ufs_rootdev()` - on the one thread that has to return before BSD
+can mount the root and start launchd. That bring-up walks 25 GCC pages with
+strongly-ordered reads, votes an RPMh rail, reprograms a GENI SE and polls the
+I2C chip for its ID (5 x 200 ms in the worst case). Any stall there means iOS
+never gets a root.
+
+Touch is not needed for iOS to boot, so it now gets its own
+`kernel_thread_start()` thread (`touch_bringup_thread`), and the init path
+returns immediately after queueing it. If the thread cannot be created the old
+inline behaviour is kept. New state: `st.thread_started`.
+
+Checked at the same time and found safe: `sweet_usb_probe()` only reads
+registers (no waits). The `delay(1000)` loops in the USB path are inside
+`sweet_usb_gadget_start()`, which only runs with `sweetusb=2` - the boot
+command line does not set it.
+
+Also verified the on-disk layout does not collide: the HFS root occupies the
+start of `userdata` (16 GiB image), the mark area and log ring sit at the very
+end (lba 28055482.. / 28055566.. of a 96 GiB partition).
+
+**Built: `shim/out/shim-touchthread.img` (kernel `fb8346ea...`,
+boot.img `25283433...`). Still NOT booted - the phone has been off USB since
+the `sweetlog=0` run.** Pending phone access, in order:
+1. `adb devices`; if empty, a manual full power-off (15 s) + 10 s + cold boot
+   into TWRP is required (2026-10-23 22:05).
+2. `tools/fastboot-cycle.sh shim/out/shim-touchthread.img out.txt`
+3. `tools/sweet-mark-pull.sh marks.txt` - the first `UFS step:` / `KEYS:` /
+   `TOUCH:` / `USB:` marks will show how far the init tail now gets.
+
+
 ### >>> UPDATE 2026-11-03 (2): one UFS request slot per writer, and a panic-safe log <<<
 
 Continuation of the SM7225 entry below. Three things were rewritten in

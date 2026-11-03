@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (19): a device read cannot be bounded, so the log thread reports it <<<
+
+`keys_read()` now has two exits and the barrier is DMB (entries (12), (14),
+(17)), but one class of stall is beyond the reach of any in-code deadline: the
+MMIO load itself. `keys_rd()` is a bare `*(volatile uint32_t *)...`; a load from
+an unresponsive SPMI window never returns, and there is no way to interrupt it
+from the same thread. If that is what the phone does, no amount of polling
+bounds will help and the marks will simply stop.
+
+So the **log thread now watches the init tail**. It runs every `sweetlogms`
+(200 ms) regardless of what init is doing, and if `sweet_init_done` is still
+clear after ~5 s it prints, once, and then every ~50 s:
+
+```
+SWEET INIT: still inside the init tail after ~5 s (last step: keys_init) - look at the mark blocks
+```
+
+`sweet_init_step` is set on entry to each step (`sample_start`, `keys_init`,
+`touch_init`, `usb_probe`) and `sweet_init_done` on the last line. This turns
+"the boot stopped somewhere" into a named step in the console itself, without
+needing the mark blocks to survive.
+
+**Not done on purpose:** `sweet_spmi.c` and `sweet_keys.c` each map the same
+three SPMI windows (`0x2000`/`0x1000`/`0x10000` at `0xc440000`/`0xc40a000`/
+`0xe600000`). Sharing one mapping would save 24 KiB of a very empty
+`io_submap`, but it would couple keys to the battery driver's init order and
+add a failure mode. The duplication is kept.
+
+**Images rebuilt** (`shim-proven.img` = `shim-bisect-on.img`, `9f4c4973...`;
+`shim-bisect-off.img`, `ff56cba5...`). Eighteen rounds, no phone.
+
+
 ### >>> UPDATE 2026-11-03 (18): session handoff written to HANDOFF-2026-11-03.md <<<
 
 `HANDOFF-2026-11-03.md` is the short version of this session: what is proven

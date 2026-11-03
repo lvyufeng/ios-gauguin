@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (96): the intermittent short boots are UFS read failures, not the ADT <<<
+
+A panic screen supplied by the user shows what the last several rounds were
+guessing at:
+
+```text
+exec launchd_cache_loader
+SWEET UFS: command 0x28 failed: ocs 0xf uplu 0x21 response 0x0 status 0x0
+exit launchd_cache_loader[22] rv=0x0
+panic(cpu 0 caller 0xfffffe0007afbcf0): launchd_cache_loader[22] exited
+```
+
+with, just above it:
+
+```text
+kern.prng.user_reseed_count: (-1) (2) No such file or directory
+hfs_mark_inconsistent: Runtime corruption detected on iOSRoot, fsck will be forced
+failed to load kernel prng seed: (-76) (22) Invalid argument
+failed to store kernel prng seed: (-76) (22) Invalid argument
+```
+
+**`command 0x28` is SCSI READ(10) and `ocs 0xf` is a UFS out-of-context status -
+this is a read failing in hardware, not a software bug in the ADT.** The chain is
+consistent: a failed read makes HFS+ mark the volume inconsistent, the seed files
+cannot be read or written, and `launchd_cache_loader` exits, which panics.
+
+**This reframes the short boots.** Rounds 275 and 311 saw 940/941-line boots and
+several later runs stopped at ~550-565 lines; all of them were treated as
+tracking-code overhead or ADT problems. They are far more likely the same UFS
+read failure. The page-count evidence fits: a boot that found only 76,128 free
+pages (297 MB) rather than 258,735 (1 GB) is one whose memory scan did not finish,
+which is what a storage stall during bring-up would look like.
+
+**What still needs separating:** whether the failing reads correlate with a
+particular boot image or are purely a property of the device at the time. Two
+`shim-verify` boots (01:50 kernel) both gave 258,735 pages and full logs; two
+`shim-regclean` boots (06:54 kernel) both gave 76,128 and stopped early. That looks
+like a kernel correlation but is more likely timing luck on a flaky UFS path -
+**the next run must interleave the two images** rather than run each twice.
+
+
 ### >>> 2026-11-04 (95): the region-info experiment compared a log against itself <<<
 
 `observe-region.txt.bin` (06:16) and `observe-dump6.txt.bin` (02:06) are **byte

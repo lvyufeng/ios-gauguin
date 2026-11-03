@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (18): session handoff written to HANDOFF-2026-11-03.md <<<
+
+`HANDOFF-2026-11-03.md` is the short version of this session: what is proven
+vs merely reasoned, the sixteen commits and why each one exists, the offline
+audits, the artifact list with hashes, and the exact next action when a phone
+is reachable (`tools/bisect-keys.sh`).
+
+The key distinction it draws, which the inline notes above do not make clear
+in one place:
+
+- **Proven**: the stall is inside `sweet_keys_init()` (step-by-step diff
+  against a boot that reached launchd).
+- **Reasoned, not yet observed**: everything else this session changed - the
+  SM7225 TLMM address, the per-slot UFS queue, the threaded touch bring-up,
+  the boot line, the DSB fix.
+
+**Seventeen rounds, no phone.** If the device stays unavailable, this document
+plus `NOTES.md` is the complete state; nothing else is pending.
+
+
 ### >>> UPDATE 2026-11-03 (17): the keys fix is verified in the built binary, not just the source <<<
 
 Checked the compiled kernel (`research/k-proven`, `5c3907c8...`) rather than

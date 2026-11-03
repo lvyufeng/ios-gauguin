@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (15): a two-image bisection is staged for the next boot <<<
+
+The stall is proven to be in `sweet_keys_init()` (entry (12)), and every cheap
+cause inside it has been excluded (entry (14)). Rather than keep guessing at
+the PMIC code, the next hardware access should **measure** whether that path is
+the problem, with a difference of exactly one boot-arg:
+
+| image | boot-arg | what it proves |
+| --- | --- | --- |
+| `shim/out/shim-bisect-off.img` | `sweetkeys=0` | `sweet_keys_init()` returns before **any** MMIO access, so this image's init tail cannot stall in the keys driver |
+| `shim/out/shim-bisect-on.img` | (default) | the driver runs as normal |
+
+Both are otherwise the same kernel (`5c3907c8...`) and the same command line,
+which is the one from the working log (`debug=0xc cpus=1 sweetlogms=200`).
+
+`tools/bisect-keys.sh` runs both unattended and prints a verdict:
+
+- **`-off` passes `keys_init done` and `-on` does not** -> the stall is the
+  keys/PMIC path, and the per-step marks narrow it further.
+- **both pass** -> the stall is later (touch or USB); the marks say which step.
+- **neither passes** -> the boot-arg is not what differs, and if both stop on
+  the same mark the stall is before `sweet_keys_init()` or in the log path
+  itself.
+
+That last case is worth keeping in mind: it is the outcome that would put the
+blame back on the UFS/log machinery rather than on the PMIC.
+
+**Fourteen rounds, no phone.** Everything above is staged, nothing is measured.
+
+
 ### >>> UPDATE 2026-11-03 (14): ruled out the cheap causes of the keys_init stall <<<
 
 Follow-up to entry (12), which proved the stall is inside `sweet_keys_init()`.

@@ -135,6 +135,10 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         # of the A11 that the iPhone X userland expects.
         ('unique-chip-id', struct.pack('<Q', SWEET_ECID)),
         ('chip-id', u32(0x8015)),
+        # iOS 16 references chip-revision; A11 (D22AP) silicon reports 0x10.
+        # Added alongside region-info but tested separately so the two cannot be
+        # confused (NOTES (93)).
+        ('chip-revision', u32(0x10)),
         # Security status as on a dev-fused, undemoted board (tuple 0,0,1,1):
         # MobileGestalt reads these from /chosen, and mobileactivationd's
         # DeviceType then takes its native "Hactivation" branch (state
@@ -253,6 +257,12 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             ('product-name', cstr('iPhone10,3')),
             ('product-type', cstr('iPhone10,3')),
             ('regulatory-model-number', cstr('A1865')),
+            # iOS 16 reads region-info (it is a MobileGestalt key; the ObjC
+            # property encoding in the shared cache is
+            # T@"NSString",R,C,N,V_regionInfo, so the value is a string, not a
+            # blob). It is the only identity property iOS references that had no
+            # value anywhere in the tree. RouteLL/A is a real Apple region code.
+            ('region-info', cstr('LL/A')),
         ]
     product = [node('product', [ph()] + product_props)]
 

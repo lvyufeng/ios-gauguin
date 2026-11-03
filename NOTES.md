@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (54): "the image is missing components" was wrong <<<
+
+Entry (53)'s conclusion - that frontboardd and BackBoardServices are absent from
+the iOS root, so the image is incomplete - **does not hold**.
+
+`find BackBoardServices` returns nothing, but the actual path is
+`/System/Library/PrivateFrameworks/BackBoardServices.framework/`. Searching for
+a bare binary name misses every framework, and there are 32 board-related
+frameworks present, including `FrontBoard.framework` and
+`BackBoardServices.framework`.
+
+**Lesson, the same one as entry ()'s instrument defects:** a negative result
+from a name search means "that exact name is not there", not "that component is
+absent". The find command should be used to test presence only after the
+expected path form is known.
+
+Whether `frontboardd` itself exists remains **unknown**: iOS ships many daemons
+only inside `dyld_shared_cache_arm64`, and the reader cannot read that file -
+its records do not use the +104 extent offset that `.journal` does (same failure
+as the .tracev3 files in entry (52)).
+
+**So the state after (53)-(54) is:** the absence of frontboardd is unproven,
+not established. Do not treat the image as incomplete on this evidence.
+
+
 ### >>> 2026-11-03 (52): adding a GPU node to /arm-io changed nothing, and posts over again <<<
 
 Entry (51) left one specific lead: SpringBoard's last act is **thirteen

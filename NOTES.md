@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (11): where the iOS root image lives (it is NOT on 137) <<<
+
+Checked while the phone is still off USB, because a successful kernel boot is
+useless without a root to mount.
+
+The iOS root images are on **the Linux workstation** at
+`/run/media/dipa/android/ios-sweet-ipsw/ios16-root-20H392-v15.img` (+ `.simg`,
+v14 as fallback) - not on this Mac and **not on 137**. Verified: no
+`ios16-root*` under `~` on either host, and 137 has no removable media mounted.
+
+So the recovery picture has two separate pieces:
+
+| piece | where | verified |
+| --- | --- | --- |
+| phone firmware/partition backups (`abl`, `boot`, `dtbo`, `vbmeta*`, `persist`, `modemst1/2`, `fsg`, `fsc`, `misc`, `recovery`, GPT, all LUNs) | 137 `~/backup/gauguin/`, with `SHA256SUMS` | yes, this session |
+| iOS root image (16 GiB HFS+, `userdata`) | the Linux workstation's removable media | **not reachable from here** |
+
+That matters if the phone ever has to be re-flashed: restoring the firmware is
+possible from 137, but putting iOS back on `userdata` needs the workstation
+(or a fresh `tools/mkiosroot.sh` run from an IPSW, ~7 min flash). The phone
+currently holds image v15, so a normal boot does not need any of this.
+
+
 ### >>> UPDATE 2026-11-03 (10): marks cost nothing on the init path now <<<
 
 `sweet_log_mark()` was already memory-only (2026-11-03 (5)), but each call

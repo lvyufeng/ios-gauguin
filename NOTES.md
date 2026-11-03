@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (46): selector 33 is a command-buffer submission, and that is a wall <<<
+
+Logged the scalar arguments of the GPU methods (entry 45 guessed at what 33
+was; this measures it). One boot, 22 calls:
+
+```text
+method 33 (2 in, 0 out) in0=1104320000 in1=320000
+method 33 (2 in, 0 out) in0=1104640000 in1=320000
+method 33 (2 in, 0 out) in0=1104960000 in1=320000
+method 33 (2 in, 0 out) in0=1105280000 in1=320000
+...
+method 33 (2 in, 0 out) in0=1603840000 in1=320000
+```
+
+**`in1` is 320000 (0x4E200) on every single call**, and `in0` is monotonically
+increasing from 1,104,320,000 to 1,603,840,000 - a 500 MB span. The first three
+deltas are *exactly* `in1`.
+
+That is not a query and not a frame. `in0` is a low user-space address
+(`0x41d29600`-class, nothing like the kernel's `0xfffffe…`), `in1` is a fixed
+320 KiB, and the addresses advance by the allocation size: this is userland
+handing the driver a **command buffer** and asking for it to be executed.
+
+**Consequence, stated plainly:** making the UI appear now requires *executing*
+AGX command streams - parsing the queue format, decoding the commands and
+rendering them. That is a real GPU driver, not a shim. Nothing in this session
+- and nothing in the tree - gets close to it; the whole display path so far
+works because the panel is a linear framebuffer that CoreAnimation's CPU
+renderer can write directly.
+
+**What is *not* proven:** that accepting selector 33 and doing nothing is
+harmless, which is what `sweetgpuok=1` currently does. It reports success while
+discarding the work, so userland believes every buffer was executed. That is
+acceptable as a probe but must not ship as a default.
+
+**Where the port stands, without overstating it:**
+
+| layer | state |
+| --- | --- |
+| kernel, UFS, HFS+, launchd, 281 processes | works, verified on hardware |
+| SpringBoard | runs; threads park normally (block ring: 319,295 blocks, no deadlock) |
+| framebuffer + IOSurface + swap | works - 16 full-panel BGRA swaps per boot |
+| AGX service, connection, selector gate | works (entries 44, 45) |
+| **command-buffer execution** | **absent - this is the wall** |
+
+
 ### >>> 2026-11-03 (45): the first GPU question was a gate - succeeding opens the rest <<<
 
 Entry (44) got the service opened but backboardd asked **one** question

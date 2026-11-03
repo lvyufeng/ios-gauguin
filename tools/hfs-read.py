@@ -11,10 +11,21 @@ phone has no HFS support, so the volume could only be read as raw blocks. This
 reads it directly over adb (dd) - enough to look at what userland actually
 executes, which is where the answers about CoreAnimation and the GPU live.
 
-Deliberately small: read-only, catalog B-tree only, single-segment extents for
-file bodies. That is all that is needed to pull a binary or a plist out of the
-volume, and it avoids the failure mode of a half-written general-purpose
-driver.
+Deliberately small: read-only, catalog B-tree only.
+
+WHAT WORKS: listing a directory and locating a file by name. A full catalog
+walk returns 323,281 entries in about 17 s.
+
+WHAT DOES NOT: `cat`, and the `size` column. The catalog record layout on this
+volume does not match the textbook HFSPlusCatalogFile, and the fork's
+logicalSize has not been located - the values printed for size are garbage.
+The one offset that was proven is the first extent: for `.journal` the pair at
++104 names block 3168598, and that block really holds the journal header
+(784c4e4a78563412). See NOTES (49)-(51). Do not build on the size field.
+
+PERFORMANCE TRAP, recorded because it cost several rounds: reading one node
+per `adb dd` made a walk look hung or infinitely looping. Batch reads are
+required; a walk is subprocess-bound, not logic-bound.
 """
 import struct
 import subprocess

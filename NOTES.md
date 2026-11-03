@@ -2,6 +2,58 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (36): SpringBoard stops before it ever renders, and the ADT has no GPU node <<<
+
+Entry (35) corrected the claim that "the GPU is the proven root cause". This
+round located where SpringBoard actually stops, using the 180 s observation
+(`research/breakthrough/observe-180s.txt`, 16,764 lines).
+
+**SpringBoard's whole visible life** is lines 10,546-10,866. It opens exactly
+two services and then goes silent:
+
+```text
+open AppleKeyStore            -> 0x0
+open IOPMrootDomain           -> 0x0
+path IODeviceTree:/arm-io     -> IOPlatformDevice     x13
+path IODeviceTree:/product    -> IOPlatformDevice     x12
+path IODeviceTree:/buttons    -> IOPlatformDevice
+path IODeviceTree:/arm-io/pearl-sep -> none
+path IODeviceTree:/product/camera   -> none
+```
+
+Nothing after line 10,866 mentions SpringBoard. Meanwhile the rest of the
+system keeps running: `securityd`, `accountsd`, `mobileactivationd`, `tccd`
+all start later, and `SWEET HB: 1 wdt=1 tick=132654 ... call=321` shows the
+heartbeat thread is alive. So SpringBoard is not a crashed system - it is a
+process that stopped making progress **before** submitting any render work.
+
+**The ADT has no GPU node.** Parsed `shim/out/sweet-gauguin-new.adt`:
+
+```text
+device-tree
+  chosen / defaults / cpus(cpu0..7)
+  arm-io:   gic, wdt, disp0          <- no accelerator
+  sweet-fbcon, buttons, backlight, product, sweet-ufs
+```
+
+So the `IOAcceleratorES` stub is not merely "missing a UserClient" (entry 34):
+**there is no device-tree node for it either**. SpringBoard queries `/arm-io`
+thirteen times and every lookup returns the generic `IOPlatformDevice`, because
+`SweetPlatformExpert::createNubs()` publishes every ADT node under that single
+class.
+
+**What this changes:** a software compositor behind `IOAcceleratorES` would
+still not address why SpringBoard is silent. The specific unanswered question
+is *which* node/service SpringBoard is looking for and not finding - the
+repeated identical `/arm-io` lookup is the strongest lead, and it needs a
+strace-equivalent rather than more inference from device-tree echoes.
+
+**Honest status:** iOS boots, 281 processes exec, SpringBoard starts and stops
+before rendering. The UI is blank. The root cause is narrowed but **not
+established**, and the two theories so far (missing accelerator, missing ADT
+node) are hypotheses that the log does not yet separate.
+
+
 ### >>> 2026-11-03 (35): measured with a 180 s window - the system keeps running <<<
 
 `tools/fastboot-cycle.sh` waits 20 s and then treats "TWRP appeared" as "the

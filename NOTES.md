@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (2): one UFS request slot per writer, and a panic-safe log <<<
+
+Continuation of the SM7225 entry below. Three things were rewritten in
+`bsd/dev/sweet_ufs.c`; the first is the actual fix for "the boot stops after
+`sample_start`", the other two are correctness around it.
+
+1. **The UFS had one request slot for everybody.** `ufs_scsi_pa()` built every
+   command in UTRL slot 0, used `DMA_BOUNCE` for the data, rang doorbell bit 0
+   and then polled `UTRLDBR & 1`. With two callers in flight the second
+   overwrites the first's UTRD and then polls a bit the hardware already
+   cleared for the other one - it waits forever. The log thread is started from
+   `sweet_ufs_rootdev()` and its first flush runs *while init is still in there*,
+   which is exactly the pair that collided.
+   Now: `ufs_scsi_slot(..., slot)` with three independent slots, each with its
+   own UCD, data buffer and lock (all still one contiguous allocation):
+
+   | slot | users | data buffer | lock |
+   | --- | --- | --- | --- |
+   | 0 `UFS_SLOT_MAIN` | root device, file system, partition scan, stage | `DMA_BOUNCE` | `sweet_ufs_lock` |
+   | 1 `UFS_SLOT_LOG` | persistent log flush thread, `sweet_log_sync{,cache}` | `DMA_BOUNCE_LOG` | `sweet_log_lock` |
+   | 2 `UFS_SLOT_MARK` | `sweet_log_mark()` checkpoints | `DMA_MARK` | `sweet_mark_lock` |
+
+   Doorbell and completion now use `1u << slot` instead of a literal 1, and
+   every `dma_clean`/`dma_sync` is indexed by the slot's offsets.
+   `sweet_log_mark()` also stopped using `DMA_BOUNCE` (it would have scribbled
+   over an in-flight file-system transfer).
+2. **The panic path could deadlock on the new lock.** `sweet_log_flush()` grew
+   a `panic_mode` argument: `sweet_log_flush_panic()` passes `true` and the
+   flush then uses `lck_mtx_try_lock()`, giving up if the log thread owns the
+   slot (that thread's own write is already carrying the bytes out). Every
+   other caller - the log thread, `sweet_log_sync()`, `sweet_log_flush_now()`
+   and `sweet_log_start()`'s first flush - passes `false`.
+3. `/dev` of the init tail still has no `sweet_log_sync()` (previous entry);
+   that removal stands.
+
+**Built, NOT yet booted - the phone went off USB after the `sweetlog=0` run
+and has not come back.** Image ready: `shim/out/shim-slots2.img`
+(kernel `d9fa12f7e2b7...`, boot.img `9877539ee2a7...`). The earlier
+`shim/out/shim-slots.img` is the same change without the panic-mode argument.
+
+**When the phone is back, the first thing to do is:**
+`adb devices` - if empty, the phone needs a manual **full power-off (15 s),
+10 s wait, then cold boot into TWRP/fastboot**; the 2026-10-23 22:05 entry
+calls this the reboot-loop protection state and a warm reset does not clear it.
+Then `tools/fastboot-cycle.sh shim/out/shim-slots2.img out.txt` followed by
+`tools/sweet-mark-pull.sh marks.txt`, and read `UFS step: keys_init enter`,
+`KEYS: ...`, `TOUCH: ...`, `USB: ...` - those would be the first marks ever
+written, and they say how far the init tail now gets.
+
+
 ### >>> UPDATE 2026-11-03: gauguin is SM7225 - the TLMM constant and the init-path log deadlock <<<
 
 **READ THIS FIRST. The port was planned on the wrong SoC.**

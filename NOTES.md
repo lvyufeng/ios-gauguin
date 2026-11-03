@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (21): the watchdog is now a tested pure function <<<
+
+Entry (20) found two watchdog defects with a throwaway simulation. This round
+made that permanent and found **two more** that the throwaway script had not:
+
+- **`xnu/sweet_init_watchdog.h`** holds the decision as a pure inline
+  function, `sweet_wd_should_report(&state, step)`. `sweet_ufs.c` calls it and
+  the host tests compile the *same header*, so the tests exercise the kernel's
+  code rather than a copy of it.
+- **`tests/test_watchdog.py`** compiles the header with the host compiler and
+  drives it over simulated timelines: 8 checks, all passing.
+- **`deps/sync-watchdog.sh`** copies the header into the patched tree (which is
+  git-ignored and rebuilt from patches, and no patch carries this file).
+
+The two new defects, both real and both fixed:
+
+1. **A one-tick false alarm at the boundary.** The check was `ticks <
+   GRACE`, so at exactly `GRACE` it warned - and a tail finishing one tick
+   later (8.2 s) got a "still inside the init tail" line for no reason. Now
+   `ticks <= GRACE`, i.e. strictly after.
+2. **Back-to-back reports.** The first warning landed on a tick that also
+   satisfied the repeat condition, so it printed at 40 and again at 50, ten
+   ticks apart instead of fifty. The repeat countdown now restarts after every
+   report (`since` field).
+
+The checks that pin the behaviour:
+
+| check | what it pins |
+| --- | --- |
+| healthy boot is silent | no warning for a 3.2 s tail |
+| finishes just past grace is silent | the strict boundary |
+| stall reports the stalled step | the warning names `keys_init`, not a sibling |
+| first warning comes after grace | tick 41, not 40 |
+| repeats steadily while stuck | gaps are exactly `SWEET_WD_REPEAT_TICKS` |
+| step change reported at once | slow-but-moving is visible |
+| nothing printed before grace | the original false-alarm regression |
+| last report names the current step | the stale-pointer regression |
+
+**Images rebuilt**: `shim-proven.img` = `shim-bisect-on.img` (`7b91041c...`),
+`shim-bisect-off.img` (`356046d2...`). Kernel `59044a9a...`.
+
+**Twenty rounds, no phone.** The instrumentation that will diagnose the next
+boot is now itself tested, which is the most useful thing that can be done
+without the device.
+
+
 ### >>> UPDATE 2026-11-03 (20): the watchdog itself was wrong twice - simulated first <<<
 
 The init watchdog from entry (19) had two defects, both caught by simulating it

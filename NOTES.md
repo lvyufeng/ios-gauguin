@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (50): the measuring tools were lying, twice <<<
+
+Neither entry changed a pixel. Both changed how much the other entries can be
+trusted.
+
+**1. `shim-proven.img` did not contain the current kernel.** Its banner was
+`19:01:48` while the tree built `19:43`. Every boot I called "proven" from that
+file was running a kernel 40 minutes older than the source being edited.
+Rebuilt; `shim-proven.img` and `shim-bisect-on.img` now both read
+`c721b54dc8a162c2`, banner `19:43:28`.
+
+**2. `tools/sweet-observe.sh` could report a previous boot as this one's.**
+The log pull ended in `|| true`, so a failed pull left `$out` holding the
+*earlier* log, and every counter printed afterwards (`progress markers`,
+`panel counters`, `GPU lookups`, `log lines`) was computed from it - silently.
+That is the worst failure mode for an instrument: the output looks like
+evidence.
+
+Fix: `rm -f "$out"` before pulling; exit 4 if the pull fails or produces an
+empty file; and compare the kernel banner in the log against the banner inside
+the image (the check `fastboot-cycle.sh` already had and this script did not),
+exiting 3 on mismatch.
+
+`tests/test_observe.py` (7 checks) asserts all of that from the source so it
+cannot regress unnoticed; `tests/run-all.sh` picks it up automatically.
+
+**Why this matters more than it looks:** several earlier entries concluded
+things from these tools - "the panel never changes", "presents climbed to 98",
+"the GPU is never opened". Those conclusions were drawn from logs I cannot now
+prove came from the run they were attributed to. They should be re-measured
+before anyone builds on them.
+
+
 ### >>> 2026-11-03 (49): HFS+ reader - works for listing, still wrong for records <<<
 
 `tools/hfs-read.py` (uncommitted): reads the iOS root straight off

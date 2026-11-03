@@ -58,7 +58,43 @@ done
 
 # Pull whatever the ring holds. When the kernel is still running this reads the
 # ring as it stands, which is what the panel counters below are taken from.
-sh "$here/sweet-log-pull.sh" "$out" >/dev/null 2>&1 || true
+#
+# The pull used to end in `|| true`, so a failed pull left OUT holding the
+# *previous* boot's log and every counter below was then computed from it -
+# silently. Stale output is worse than none: it makes a run look like it
+# produced evidence it did not. Remove OUT first, and fail loudly if it did
+# not come back.
+rm -f "$out"
+if ! sh "$here/sweet-log-pull.sh" "$out" >/dev/null 2>&1; then
+	echo "sweet-observe: log pull failed; OUT removed so a stale log cannot" >&2
+	echo "  be mistaken for this run's output" >&2
+	exit 4
+fi
+if [ ! -s "$out" ]; then
+	echo "sweet-observe: pull produced an empty log" >&2
+	exit 4
+fi
+
+# The banner must belong to the kernel inside IMAGE. Entry (68) found
+# shim-proven.img carrying a kernel 40 minutes older than the tree, so a log
+# that looks fine can still be from the wrong build.
+have=$(grep -m1 -o 'Darwin Kernel Version [0-9.]*: [^;]*' "$out" 2>/dev/null)
+want=$(python3 - "$img" <<'PY2'
+import sys, re
+d = open(sys.argv[1], 'rb').read()
+m = re.search(rb'Darwin Kernel Version [0-9.]+: [^;]*', d)
+print(m.group(0).decode('utf-8', 'replace') if m else '')
+PY2
+)
+if [ -n "$want" ]; then
+	if [ "$have" = "$want" ]; then
+		say "banner matches the image"
+	else
+		say "BANNER MISMATCH - the log is from another build"
+		printf '  log:   %s\n  image: %s\n' "${have:-<none>}" "$want"
+		exit 3
+	fi
+fi
 
 echo
 say "progress markers"

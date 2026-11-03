@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (77): the display path is healthy end to end; it is fed blanks <<<
+
+The other half of (76), from the same log. The display controller side is not
+the problem:
+
+```text
+93   SWEET FB: AppleCLCD 1080x2400 stride 4320 at 0xa0000000,
+                default surface 1, presented as 1125x2436     (initialised)
+819  backboardd open AppleCLCD type 0 -> 0x0                  (opened)
+835  backboardd matching1 AppleCLCD -> AppleCLCD              (matched)
+```
+
+and it is fed: 16 panel submissions, 8 per surface. What they contain is the
+finding:
+
+| surface | swaps | nonblack | distinct | first pixel |
+| --- | --- | --- | --- | --- |
+| id=2 | 8 | 10 | 1 | 0xff000000 |
+| id=3 | 8 | 13 | 2 | 0xff000000 |
+
+13 non-black out of 4096 samples is 99.7 % black. **backboardd is compositing
+and submitting on a working controller - it is being handed empty surfaces.**
+
+This corrects the wording in (76) that said the compositor "spins" with
+`sweetgpuok`: it does not spin, it submits blanks normally. The input is empty,
+the output is honest.
+
+**Full chain, settled:**
+
+```text
+SpringBoard   0 GPU matches - produces nothing
+     |
+backboardd    2 blank surfaces, 99.7 % black
+     |
+AppleCLCD     healthy, 16 submissions
+     |
+panel         the centred 180x168 shape plus black
+```
+
+So nothing below SpringBoard needs fixing. The missing piece is entirely "produce
+a frame", which needs the GPU command path from (76).
+
+
 ### >>> 2026-11-03 (76): the GPU chain, traced end to end from an existing log <<<
 
 Assembled from `research/tmp/observe-hid2.txt` while the phone was offline (round

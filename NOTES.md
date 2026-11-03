@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> BREAKTHROUGH 2026-11-03 (44): backboardd wanted AGXAccelerator, not IOAcceleratorES <<<
+
+Entry (45) ended without a conclusion because `-> notify` looked like a failed
+match and I refused to build on that without checking it. Reading the code
+settled it, and the answer was not what either of us assumed.
+
+**`notify` is not a match result at all.** In
+`internal_io_service_get_notification_matching`, `sweet_iolog_dict(...,
+"notify")` is a *hard-coded* label printed when a notification is registered -
+it says nothing about whether a service was found. The real signal is the pair
+`matching1` (found) / `matching1 MISS` (not found), produced by
+`internal_io_service_get_matching_services`.
+
+With the right vocabulary, a boot shows exactly six failed lookups:
+
+```text
+IOK backboardd: matching1 MISS IOProviderClass=AGXAccelerator      -> none
+IOK backboardd: NEVER FOUND class AGXAccelerator
+IOK backboardd: matching1 MISS IOProviderClass=ApplePearlSEPDriver -> none
+IOK backboardd: NEVER FOUND class AppleM2ScalerCSCDriver
+```
+
+**backboardd asks for `AGXAccelerator`.** `IOAcceleratorES` - the name the
+earlier investigation settled on, and which entry (34) built a UserClient for -
+is matched 218 times and opened **zero** times, because it is simply not what
+anything looks for. It was never the blocker.
+
+Fix, in two places:
+
+- `class AGXAccelerator : public IOAcceleratorES` in `SweetFramebuffer.cpp`,
+  inheriting the stub unchanged (io class name AGXAccelerator, every user
+  method still returns an error)
+- an entry in `iokit/KernelConfigTables.cpp` so the class is instantiated
+
+Result (`research/breakthrough/agx-found.txt`):
+
+```text
+SWEET GPU: AGXAccelerator published (stub)
+IOK backboardd: matching1 ... IOProviderClass=AGXAccelerator -> AGXAccelerator
+SWEET GPU: user client opened
+IOK backboardd: open AGXAccelerator type 1 -> 0x0
+SWEET GPU: method 2 (0 in, 0 out) -> unsupported
+```
+
+**NEVER FOUND is gone, the service opens, and userland issues method 2.** That
+is the first time anything has opened a GPU service on this port.
+
+**Still not visible:** `presents` rose to 217 (from ~104-155) but the panel is
+still `distinct=5`, one colour. Now that the method calls are logged, the next
+step is concrete: implement the handful of selectors that actually appear
+instead of guessing which ones matter.
+
+
 ### >>> 2026-11-03 (43): the block ring resolves - no deadlock, the machine is just idle <<<
 
 The block ring (`sweet_block_trace`, entry 41) had been recording all along but

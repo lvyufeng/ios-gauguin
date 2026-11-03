@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (10): marks cost nothing on the init path now <<<
+
+`sweet_log_mark()` was already memory-only (2026-11-03 (5)), but each call
+still did a 4 KiB `memset` plus an `snprintf`, and `sweet_keys_init()` carries
+eleven of them. It now formats the line with single-byte stores and no
+clearing - the newline is what the reader keys on, and the flush writes the
+whole block anyway. The output is byte-identical to what
+`tools/sweet-mark-pull.sh` expects (`MARK %05u %s\n`), checked by simulating
+the writer against the reader's `split(b'\n')[0]` / `split(' ')[1]` logic.
+
+Total added work per mark: one atomic increment, one atomic OR, and ~30 byte
+stores. That is nothing next to the SCSI round trip the old version paid.
+
+**Image: `shim/out/shim-proven.img`** (kernel `157f5090...`, boot.img
+`d9118ae7...`).
+
+**Nine rounds, still no phone.** Nothing since round 1 has run on hardware.
+The code is at its best-known state - the init sequence and boot line match
+the log that reached `exec launchd`, every base address and mapping window is
+verified against the device tree, and the DMA layout is audited - but that is
+all offline reasoning. The backup on 137 can restore the phone if it is
+bricked; the only missing thing is physical access to it.
+
+
 ### >>> UPDATE 2026-11-03 (9): every gauguin hardware constant checked against the device tree <<<
 
 The phone is still off USB (both hosts checked: this Mac and 192.168.201.137

@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (89): the system never learns which app is in the foreground <<<
+
+Found by grepping an existing 43,808-line boot log for error patterns rather
+than by adding instrumentation. This is the most direct evidence yet that
+SpringBoard has nothing to show, and it sits upstream of every IOKit and IPC
+observation in this file.
+
+```text
+MKBUserSessionID         = 501          (mobile, Foreground = 1)
+UMD_INIT: failed to read nextsession dict
+UMD_INIT: Unable to Obtained foreground, curFG:502, nextID:-1
+UMD_INIT: Failed to get next session, booting with default id to be Loginwindow UID
+UMD_INIT: FAILED to Set Foreground ID + multiuser in commpage successfully
+```
+
+`nextID:-1` is the whole story in one number: **the system cannot name the next
+session**, so it falls back to `Loginwindow UID`, and the write of the
+foreground ID into the commpage **fails**.
+
+**Why this matters more than the earlier findings:** every previous result
+described *behaviour* (no GPU matches, idle queues, blank surfaces). This one
+describes a *missing input to the compositor's decision*: if the foreground ID
+is not in the commpage, SpringBoard has no answer to "what should be on screen",
+and doing 33 platform lookups and then idling is exactly what that would look
+like.
+
+**Where it comes from:** `UMD_INIT` is dyld code, not kernel code - grepping the
+kernel tree finds nothing. So the file it fails to read lives on the iOS root
+and can be inspected from the host with `tools/hfs-read.py` without any new
+instrumentation.
+
+**Next step when the phone is back:** locate the session configuration the
+`nextsession` dictionary would come from (candidates: `/var/db/` session
+plists, `/Library/Preferences/com.apple.loginwindow.plist`) and check whether
+it exists and what it says. A missing or malformed session file would be a
+one-file fix rather than a driver.
+
+**Not yet verified:** that this is causal rather than a benign fallback. The
+counter-argument is the same one used for `not in trust cache` (86) - that
+warning looked fatal and was proved harmless. **Do not treat this as the root
+cause until the file is inspected.**
+
+
 ### >>> 2026-11-04 (88): kmsg hook overhead, and the run-order that makes it meaningful <<<
 
 (87) raised the possibility that the short boot was the `ipc_kmsg_send` hook

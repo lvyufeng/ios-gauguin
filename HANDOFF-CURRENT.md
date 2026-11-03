@@ -1,31 +1,40 @@
-# gauguin port: current state (2026-11-03, latest)
+# gauguin port: current state (2026-11-04)
 
 > **Completion criterion (agreed with the user, 2026-11-04): a usable iOS
 > interface is visible on the panel - lock screen, home screen or system UI -
 > verifiable by screenshot. Not "SpringBoard renders something"; not "the GPU
 > works". The interface, or the goal is not done.**
 >
-> **Status at handoff: iOS boots and runs; it does not reach a usable
-> interface.** The blocking question is why SpringBoard stops after 33 platform
-> calls, and the two cheap experiments that would narrow it are written and
-> never run because the phone went off USB at round 218. Read "What is not
-> known" before doing anything else - it is one paragraph and it is the
-> shortest path into the remaining work.
-
-Successor to `HANDOFF.md` (which describes the port before any kernel existed
-and is now historical), `HANDOFF-2026-11-03.md` and
-`HANDOFF-2026-11-03-FINAL.md`. This file is the state as of the long offline
-stretch at the end of the 2026-11-03 session.
+> **Status: iOS boots, 268 processes start, nothing crashes, and no interface
+> appears - on gauguin it never has.** The Setup "Hello" and home-screen
+> milestones recorded in NOTES were on **Sweet (D22AP)**, a different board.
+> gauguin's port began 2026-10-19. There is nothing to bisect: this is "never
+> worked", not "used to work".
+>
+> **The single open question** is why SpringBoard, which runs and stays alive,
+> produces no UI. The narrowest lead: it re-opens `IODeviceTree:/product` twelve
+> times per boot, and that node carries only three properties. The experiment
+> that turns that into a list of property names and NULLs is **built and
+> packaged** (`shim/out/shim-prop.img`, boot-arg `sweetpropreq=SpringBoard`);
+> it has never run because the phone is off USB.
 
 ## Where this actually stands
 
 **iOS boots and runs on the phone.** Kernel, UFS, HFS+ mount, launchd and
-~140 userland processes all come up on a real Redmi Note 9 Pro 5G
-(`gauguin`, SM7225 / snapdragon 750G, DT compatible `qcom,lagoon`).
+**268 userland execs** come up on a real Redmi Note 9 Pro 5G (`gauguin`,
+SM7225 / Snapdragon 750G, DT compatible `qcom,lagoon`). That is more than the
+236 in the older log that was treated as healthy, so the boot is complete, not
+truncated.
 
-**It does not reach a usable interface.** SpringBoard starts, lives for 20 s
-and more, and stops before it makes a single graphics call. The panel shows the
+**It does not reach a usable interface.** SpringBoard starts, stays `present`
+through t=20, builds **nine threads**, and all nine sit with empty queues
+(`msgs=0/0`). It makes **0 GPU calls**. Setup/`buddy` never executes at all
+(confirmed in three logs including a 36,093-line one). The panel shows the
 centred shape described in NOTES (72) plus black - not a home screen.
+
+**SpringBoard is idle, not wedged.** An earlier reading said it "stops after 33
+platform calls"; the thread samples show a process that finished initialising
+and is waiting for input.
 
 That is the whole state. Everything below is evidence for it, and the list of
 things already ruled out.

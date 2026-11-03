@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (6): match the boot line of a boot that provably worked <<<
+
+The successful boots in `.deps-cache/logs/` all ran with a command line that
+differs from every image built this session. `boot-journaled-userland.txt`
+(which reaches `exec launchd`) has:
+
+    debug=0xc serial=3 cpus=1 ... sweetlog=1 sweetlogms=200 sweetfb_noconsole=1
+
+while this session's images used `debug=0x8 cpus=8 sweetlogms=250
+sweetfb_hz=30`. Both differences matter:
+
+- **`cpus=1`.** Every log that mounted the root is `cpus=1`. `cpus=8` is the
+  right setting for *usability* (2026-10-23 17:30 - it makes the SpringBoard
+  stretch fast) but it was measured after the root already mounted, and it has
+  never been in a boot line that got that far. It brings up seven secondary
+  cores on this SoC, and any of them hanging takes the system with it.
+- **`debug=0xc`, not `0x8`.** `0x8` is `DB_KPRT` only; `0xc` adds 0x400
+  (`DB_KERN_DUMP_ON_PANIC`), so a panic keeps its information instead of a
+  silent reset (2026-10-21 03:00: "debug=0xc explains the silent resets").
+
+**Second fix:** `sweet_touch_init()` was still running the whole bring-up
+inline. In the successful log, `touch_init` and `touch_init done` are
+*adjacent* with no other output between them - that function only started a
+thread. It now calls `sweet_touch_start_at_init()`, which queues the bring-up
+on its own kernel thread (the one added in 2026-11-03 (3)) and returns.
+
+**Image ready: `shim/out/shim-restored.img` is superseded by
+`shim/out/shim-proven.img`** (kernel `bcbdb25c...`, boot.img `8ae7f6d2...`,
+kernel saved as `research/k-proven`). Its boot line is byte-for-byte the one
+from the working log apart from nothing at all - it is the same string. Its
+init path is the proven order, its marks are RAM-only, and its only additions
+over the 2026-10-20 kernel are the SM7225 corrections (TLMM `0x00f100000`, ADT
+`qcom,sm7225`), the per-slot request queue and the threaded touch bring-up.
+
+**Still not booted - the phone has been off USB since the `sweetlog=0` run
+four rounds ago and has not re-enumerated.** That is the only thing blocking
+verification now.
+
+**Phase comparison, for whoever runs it:** in the working log `rootdev called`
+is line 102 and `init complete` line 189; a failing run stops on the
+`SWEET UFS: keys_init` line (~line 157 of a 202-line ring). Getting past
+`init complete` and to `BSD root: ufsroot0` is the success criterion for the
+next boot.
+
+
 ### >>> UPDATE 2026-11-03 (5): the earlier "deadlock" diagnosis was WRONG - see the logs <<<
 
 **Corrects the 2026-11-03 (1) entry. Read this before believing that one.**

@@ -55,22 +55,5 @@ sleep 3
 run_one on  "$repo/shim/out/shim-bisect-on.img"
 
 echo
-echo "=== verdict"
-off_ok=0; on_ok=0
-grep -q "keys_init done" "$out/off.log.txt" 2>/dev/null && off_ok=1
-grep -q "keys_init done" "$out/on.log.txt"  2>/dev/null && on_ok=1
-if [ "$off_ok" = 1 ] && [ "$on_ok" = 0 ]; then
-	echo "sweetkeys=0 gets past keys_init and the default does not:"
-	echo "the stall is in the keys/PMIC path. Next: bisect inside sweet_keys_init()"
-	echo "with the marks in $out/on.marks.txt."
-elif [ "$off_ok" = 1 ] && [ "$on_ok" = 1 ]; then
-	echo "both get past keys_init - the stall is later (touch or usb)."
-	echo "Read $out/*.marks.txt to see which step is missing."
-elif [ "$off_ok" = 0 ] && [ "$on_ok" = 0 ]; then
-	echo "neither gets past keys_init: the boot-arg is not what differs."
-	echo "Compare $out/off.marks.txt with $out/on.marks.txt - if both stop on the"
-	echo "same mark, the stall is before sweet_keys_init() or in the log path."
-else
-	echo "the default image got further than sweetkeys=0, which makes no sense"
-	echo "unless the two runs saw different hardware state. Re-run before trusting it."
-fi
+echo "=== verdict (tools/bisect-verdict.py, tested by tests/test_bisect.py)"
+python3 "$here/bisect-verdict.py" "$out/off.log.txt" "$out/on.log.txt"

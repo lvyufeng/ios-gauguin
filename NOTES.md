@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (22): the bisection verdict is now tested too - three bugs found <<<
+
+`tools/bisect-keys.sh` decided its verdict with four `grep -q "keys_init done"`
+checks. That is too coarse to separate the cases that actually matter, so the
+decision moved into **`tools/bisect-verdict.py`** (pure: two logs in, one
+verdict out) with **`tests/test_bisect.py`** covering it: 16 checks, all
+passing, two of them driving the *real* logs (the boot that reached
+`exec launchd` and the run that stopped on the `keys_init` line).
+
+Writing those tests found three bugs that would each have produced a wrong
+conclusion on the next boot:
+
+1. **Both runs succeeding was reported as `keys_blocks`.** The `off` case was
+   checked before the "both" case, so two healthy boots would have been blamed
+   on the keys driver.
+2. **The prefix check contradicted itself.** `reached_keys_init_prefix()`
+   matched only `sample_start done` and `keys_init`, so a log that reached
+   `init complete` was reported as "(did not even reach the keys_init line)" -
+   and the verdict then said the stall was *before* `keys_init`, the opposite
+   of the truth. It now also counts any later phase as having passed.
+3. **Depth was not compared.** "`off` passed `keys_init`" was treated as
+   proof that keys blocks the boot even when the default run had gone further
+   (`usb_probe`), which is contradictory. The phases are now ordered and the
+   deeper run wins before any conclusion is drawn.
+
+The verdict vocabulary is now explicit - `keys_blocks`, `both_mount`,
+`before_keys`, `before_keys_both`, `same_phase`, `inconsistent`, `unclear` -
+so the script, the tests and whoever reads the output all use the same words.
+
+Example, using the two real logs:
+
+```text
+  sweetkeys=0  reached: userland
+  default      reached: nothing past sample_start
+
+ROOT MOUNTED with sweetkeys=0 (phase: userland) but not with the default
+(phase: nothing past keys_init). The keys driver is what blocks the boot.
+verdict: keys_blocks
+```
+
+**Twenty-one rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (21): the watchdog is now a tested pure function <<<
 
 Entry (20) found two watchdog defects with a throwaway simulation. This round

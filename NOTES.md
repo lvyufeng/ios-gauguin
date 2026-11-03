@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (81): the wait cap hid most of the data; tools fixed, not yet re-run <<<
+
+(80) reported 7 ports and 40 records, but the record cap is 40 and it filled
+between log lines 620 and 777 of a 1649-line boot. **Everything after that is
+invisible**, so "7 ports" means "the first 7 ports", not the whole set.
+
+Fixed, built, not yet run (the phone has been off USB since round 218):
+
+- **cap 40 -> 200**, so a boot's later waits are not simply dropped
+- **`sweetmsgsend=<receiver>`**, a send-side trace, so the quiet side can be
+  read the other way: does anything ever send *to* SpringBoard?
+- the send trace is **lock-safe**: it is called from
+  `ipc_mqueue_send_locked` with the port lock held, so it only writes a fixed
+  16-slot array behind an atomic counter and never logs there.
+  `sweet_msgsend_report()` prints afterwards, outside the lock. Logging inside
+  that lock takes `sweet_log_lock` and is the kind of pairing that wedges a
+  single-core boot - the first version did exactly that and is replaced
+- the send trace also **checks before incrementing**: once full it exits on an
+  atomic read, since the path runs for every message in the system
+
+**Two experiments outstanding, both one boot each:**
+
+1. `sweetmsgwait=SpringBoard` with the cap at 200 - the full wait pattern
+2. `sweetmsgsend=SpringBoard` on its own - whether anything sends to it
+
+Between them they split the problem in two: if messages do arrive, whatever
+SpringBoard does next is where it stops; if none arrive, it was never asked to
+do anything. Neither has been measured yet.
+
+**Address pattern, noted but not conclusive:** three of the seven ports sit
+160-320 bytes apart (one allocation), the rest are far apart. That is the shape
+of a few independently created queues, i.e. libdispatch, which fits (80)'s
+"idle queues" reading. It is a hint, not evidence.
+
+
 ### >>> 2026-11-03 (80): sweetmsgwait ran at last - SpringBoard waits on its own ports <<<
 
 The instrument from round 82 had never once been enabled, despite 128 rounds of

@@ -13,7 +13,7 @@ conditions held at once, which none of the previous thirteen attempts managed:
 | SpringBoard running normally | 33 IOKit calls |
 | touch delivered | `touch 0 down -> dispatched`, then `touch 0 down` from the client - **no `deduped` line** |
 | observation window | 150 lines after the tap |
-| control | round 129: same boot, no tap, identical |
+| control | matched run with no tap: 1577 lines, 33 IOKit calls, distinct=5 - identical to the tap run |
 
 Result:
 

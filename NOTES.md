@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (72): what is actually on the panel, for the first time <<<
+
+For ~100 rounds the panel was described by three numbers - `nonblack`,
+`distinct`, `presents` - and nobody knew what any of it looked like. Printing
+the colours and then an ASCII map settled it.
+
+**The colours change when the first swap happens**, which pins the content to
+backboardd rather than to the bootloader:
+
+```text
+vsync=2     presents=0    distinct=2   ffffff 00ff00          (ABL splash + our mark)
+vsync=1800  presents=0    distinct=1   ffffff
+vsync=3000  presents=5    distinct=5   ffffff b7b7b7 818181 bfbfbf 4d4d4d
+vsync=4200  presents=122  distinct=5   (same)
+```
+
+The greys are not a smooth ramp (steps of 52/54/8/64), so they are not
+antialiasing - they are separate elements.
+
+**Whole-panel map** (`#` bright, `+` dim,`.` black), 64x40 over 1080x2400:
+
+```text
+... 18 all-black rows ...
+                                  :
+                          ##########
+                           ###########
+                              #...*+
+... 18 all-black rows ...
+```
+
+**Zoomed to the band (x 240..840, y 1100..1400, 128 columns):** one solid
+rounded mass about 600x250 px near the vertical centre, with a separate
+full-width dim line at y~1300.
+
+**So the screen is not blank and not noise**: iOS is drawing a real filled
+shape, centred, black everywhere else. It is equally clearly *not* a home
+screen, lock screen or app.
+
+**What this does not tell us:** what the shape is. Resolution and the lack of
+colour channel information are not enough to identify it, and I have no
+reference image to compare against. The round-142 attempt to add colour was
+lost when the phone dropped off USB (see below), so that is still open.
+
+**Tooling added for this** (all off by default, one-shot): colour list on the
+`vsync=` line, `nonblack` bounding box, and an ASCII luminance map driven by
+the same counters. The map is the most useful thing this session built for
+looking at the display; it answers "did anything draw?" in one boot.
+
+
 ### >>> 2026-11-03 (70): injected touch reaches the HID service and SpringBoard ignores it <<<
 
 The one experiment this session could actually run to completion. Five

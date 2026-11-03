@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (85): the "zero messages" result may have been a wrong hook site <<<
+
+(84) concluded "nobody ever sends to SpringBoard" from
+`sweetmsgsend=SpringBoard` reporting `0 message(s) captured` for a whole boot.
+**That conclusion is now suspect, because the hook may not be on the path.**
+
+The trace sits in `ipc_mqueue_send_locked`. Checked where sends actually go:
+
+| function | callers |
+| --- | --- |
+| `ipc_mqueue_send` | essentially none outside flipc.c |
+| **`ipc_kmsg_send`** | `ipc_mig.c:164`, `ipc_mig.c:398`, **`mach_msg.c:854`** (the ordinary mach_msg syscall), `flipc.c:276`, `flipc.c:636` |
+
+So **`ipc_kmsg_send` is the rendezvous every send passes through**, and the
+message-queue function is a leaf that most traffic never touches. A zero from a
+leaf proves nothing about the system.
+
+**What was built in response** (`sweetkmssend=<destination>`):
+
+- hook moved to `ipc_kmsg_send` right after `port = hdr->msgh_remote_port`
+- lockless: one port pointer per slot behind an atomic counter, bounded at 64
+- **filtered by destination before recording** - without it the 64 slots fill
+  with whatever the boot sends first and a later match is invisible, which is
+  exactly the mistake (81) made with the wait-queue cap
+- the filter needle has **its own storage**: the first version reused
+  `sweet_msgwait_needle`, and `sweet_msgwait_init()` clears that whenever
+  `sweetmsgwait` is absent, so the trace silently did nothing
+
+It builds and links; one boot decides it. **Not yet run** - the phone left USB
+again after the build.
+
+**Either way this matters:** if the new hook also reports zero, "nothing is sent
+to SpringBoard" is real and the search goes upstream to launchd. If it reports
+messages, (84) was wrong and the question returns to SpringBoard not acting on
+what it receives.
+
+
 ### >>> 2026-11-04 (84): NOBODY EVER SENDS TO SpringBoard. That is the answer. <<<
 
 Both outstanding experiments ran. The send-side one is decisive.

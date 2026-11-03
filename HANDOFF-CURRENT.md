@@ -1,5 +1,12 @@
 # gauguin port: current state (2026-11-03, latest)
 
+> **Status at handoff: iOS boots and runs; it does not reach a usable
+> interface.** The blocking question is why SpringBoard stops after 33 platform
+> calls, and the two cheap experiments that would narrow it are written and
+> never run because the phone went off USB at round 218. Read "What is not
+> known" before doing anything else - it is one paragraph and it is the
+> shortest path into the remaining work.
+
 Successor to `HANDOFF.md` (which describes the port before any kernel existed
 and is now historical), `HANDOFF-2026-11-03.md` and
 `HANDOFF-2026-11-03-FINAL.md`. This file is the state as of the long offline

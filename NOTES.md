@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (76): the GPU chain, traced end to end from an existing log <<<
+
+Assembled from `research/tmp/observe-hid2.txt` while the phone was offline (round
+143 on). Nothing here is new measurement - it is the same log read with the
+right prefixes, and it settles where the GPU path actually stops.
+
+**SpringBoard and backboardd do not behave alike at all:**
+
+| process | IOKit calls | of which device-tree | of which GPU match |
+| --- | --- | --- | --- |
+| backboardd | **300** | 51 | **213** |
+| SpringBoard | **33** | 25 | **0** |
+
+33 is a hard constant: identical in all 19 boots on disk, across ADT changes and
+`sweetgpuok`. SpringBoard enumerates the platform (25 tree lookups + keystore +
+power + two failed nodes) and then stops - it never asks for a GPU at all.
+
+**backboardd does ask, and the chain is complete up to one call:**
+
+```text
+110  SWEET GPU: AGXAccelerator published (stub)
+864  backboardd matching1 AGXAccelerator -> AGXAccelerator      (found)
+870  backboardd open AGXAccelerator type 1 -> 0x0                (opened)
+869  SWEET GPU: user client opened
+871  SWEET GPU: method 2 (0 in, 0 out) -> unsupported             <- stops here
+872  SWEET GPU: user client closed
+```
+
+All 213 `IOAcceleratorES` matches **succeed** - 0 MISS. So the class name is
+fine; an earlier note suspecting a name mismatch was wrong.
+
+**method 2's failure is a switch, not a bug** (`SweetFramebuffer.cpp:240`):
+
+```c
+return sweet_gpu_ok ? kIOReturnSuccess : kIOReturnUnsupported;
+```
+
+and `sweet_gpu_ok` comes from boot-arg `sweetgpuok`. **Turning it on does not
+help** - measured:
+
+| build | presents | distinct | nonblack |
+| --- | --- | --- | --- |
+| `sweetgpuok=1` | 177 | 5 | 60 |
+| default | 132 | 5 | 60 |
+
+34 % more submits, byte-identical content. The compositor spins; nothing is
+drawn.
+
+**So the gap is precise now:** not discovery, not naming, not permission -
+**the GPU commands are never executed.** That is a driver to write, not a flag
+to flip, and it is the reason SpringBoard has nothing to composite.
+
+
 ### >>> 2026-11-03 (75): device offline since round 143; what is saved and what is not <<<
 
 The phone dropped off USB after the round-142 colour-map run and has not come

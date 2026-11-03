@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (52): adding a GPU node to /arm-io changed nothing, and posts over again <<<
+
+Entry (51) left one specific lead: SpringBoard's last act is **thirteen
+consecutive queries of `IODeviceTree:/arm-io`**, after which it makes no IOKit
+call at all for the remaining ~7,000 log lines. `arm-io` published only gic,
+wdt and disp0 even though the device tree carries `gpu@3d00000`
+(`qcom,adreno-619.0`). Hypothesis: SpringBoard walks /arm-io looking for an
+accelerator, does not find one, and stops.
+
+Added a `gpu` node to `tools/mkadt.py` with no kernel driver behind it, so the
+only thing that could change is whether the walk succeeds.
+
+**It changed nothing:**
+
+| | without the node | with the node |
+| --- | --- | --- |
+| SpringBoard IOKit calls | 33 | **33** |
+| `/arm-io` queries | 13 | **13** |
+| last SpringBoard log line | 14050 / 15554 | 13918 / 15455 |
+
+`presents` did move, 36 → 75. **That is noise.** Entry (51) proved
+`sweetgpuok=1` moves the same counter 36 → 88 while changing no pixel, so a
+rising presents value on its own is not evidence of anything, and this entry
+would have said "progress" if the call counts had not been compared.
+
+The node was reverted; `tools/mkadt.py` is unchanged.
+
+**What this rules out:** SpringBoard is not waiting for a GPU node under
+/arm-io. Its 13 queries succeed - the log shows `arm-io -> IOPlatformDevice`,
+not `-> none` - so whatever it wants is something else, or nothing it looks
+for in IOKit is the blocker at all.
+
+**Standing rule, earned twice now:** compare *behaviour* (call sequences,
+thread states), never counters alone. presents/`nonblack`/`distinct` have each
+misled at least one conclusion.
+
+
 ### >>> 2026-11-03 (51): sweetgpuok inflates presents and changes no pixels <<<
 
 Controlled A/B with the now-trustworthy observer (banner-checked both runs),

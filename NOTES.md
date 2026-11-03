@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (41): sweetdump was already in the tree - and SpringBoard is running, not stuck <<<
+
+Spent three rounds (38-40) building a process watcher to answer "is SpringBoard
+alive?", then found that **`sweetdump=Name` already existed** in
+`osfmk/kern/task.c` and does the job far better:
+
+- `sweet_dump_threads_soon()` arms a task at exec (from `kern_exec.c`)
+- `sweet_block_trace()` records each `thread_block` into a lock-free 256-entry
+  ring (tid, continuation, waitq type, event) - note in its comment: "printing
+  here hung the boot (NOTES 20:50)"
+- `sweet_dump_tick()`, called once a second from the watchdog, walks the task's
+  threads and prints `tid`, `run`, `state`, `wq` and the wait message count
+
+Booted with `sweetdump=SpringBoard`. The answer contradicts what the last three
+rounds assumed:
+
+```text
+SWEET THREADS: SpringBoard sample 1, threads=1
+SWEET THREADS: SpringBoard sample 2, threads=1
+SWEET THREADS: SpringBoard sample 3, threads=10
+SWEET THREADS: SpringBoard tid=222 run=0 state=1 wq=PORT mask=1181c80 msgs=0/0
+SWEET THREADS: SpringBoard tid=289 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=327 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=344 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=529 run=0 state=41 wq=TURNSTILE
+SWEET THREADS: SpringBoard tid=530 run=0 state=1 wq=QUEUE mask=69d1fe8
+SWEET THREADS: SpringBoard tid=531 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=533 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=535 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=536 run=1 state=4     <- running
+```
+
+**Six of its ten threads are `run=1 state=4` (running).** Thread count went
+1 -> 10. Only `tid=222` (the main thread) parks on `PORT` with an empty
+message queue, which is what a main thread waiting for the first UI event
+looks like.
+
+**So SpringBoard is not stalled and not crashed - it is doing work.** That
+invalidates the framing of entries (36)-(40), which all assumed it stopped
+making progress. What it is *not* doing is presenting UI, and the earlier
+finding that `IOAcceleratorES` is a stub with no UserClient (entry 34) remains
+the best explanation for that.
+
+**Lesson for the next round:** before building an instrument, grep the tree for
+one. `sweetdump`, `sweetblock`, `sweetiolog` and the block ring were all
+already here; rounds 38-40 rebuilt a worse version of the first.
+
+
 ### >>> 2026-11-03 (40): four more hypotheses for the watcher's death, all wrong <<<
 
 Tried to explain why an ordinary `tsleep` kthread stops after ~30 s while

@@ -1,0 +1,130 @@
+# gauguin port: current state (2026-11-03, latest)
+
+Successor to `HANDOFF.md` (which describes the port before any kernel existed
+and is now historical), `HANDOFF-2026-11-03.md` and
+`HANDOFF-2026-11-03-FINAL.md`. This file is the state as of the long offline
+stretch at the end of the 2026-11-03 session.
+
+## Where this actually stands
+
+**iOS boots and runs on the phone.** Kernel, UFS, HFS+ mount, launchd and
+~140 userland processes all come up on a real Redmi Note 9 Pro 5G
+(`gauguin`, SM7225 / snapdragon 750G, DT compatible `qcom,lagoon`).
+
+**It does not reach a usable interface.** SpringBoard starts, lives for 20 s
+and more, and stops before it makes a single graphics call. The panel shows the
+centred shape described in NOTES (72) plus black - not a home screen.
+
+That is the whole state. Everything below is evidence for it, and the list of
+things already ruled out.
+
+## The proven part
+
+Verified on hardware unless marked:
+
+| what | evidence |
+| --- | --- |
+| kernel boots, banner-checked | every run via `tools/sweet-observe.sh` |
+| UFS, HFS+ mount, `vfs_mountroot ok` | NOTES (1)-(20) |
+| launchd reaches `ignition sequence complete` | 292 exec calls, 140 distinct processes |
+| SpringBoard starts and stays alive | `SWEET PROC: SpringBoard present (t=20)` |
+| SpringBoard makes exactly **33** IOKit calls | identical in **19** boots - hard constant |
+| SpringBoard opens **2** services, both platform basics | `AppleKeyStore`, `IOPMrootDomain` only |
+| SpringBoard makes **0** GPU matches | never asks for one |
+| backboardd finds the GPU **213** times | all succeed, 0 MISS |
+| backboardd's GPU chain stops at `method 2 -> unsupported` | one call, then closes |
+| `method 2`'s failure is a **switch, not a bug** | `SweetFramebuffer.cpp:240` |
+| turning that switch on does **not** help | presents 177 vs 132, content identical |
+| display controller is healthy end to end | `AppleCLCD` opens, matches, 16 submissions |
+| what it submits is blank | 99.7 % black, first pixel 0xff000000 |
+| the centred shape is ~180x168 px, centred | measured from the ASCII map, NOTES (74) |
+| an injected HID touch does **not** wake SpringBoard | five-condition-clean experiment, NOTES (70) |
+
+## The chain, settled
+
+```text
+SpringBoard    2 opens, 33 IOKit calls, 0 GPU matches  -> produces nothing
+     |
+backboardd     finds the GPU 213x, method 2 refused   -> composites blanks
+     |
+AppleCLCD      healthy, 16 submissions                -> passes them on
+     |
+panel          centred 180x168 shape + black
+```
+
+**Nothing below SpringBoard is broken.** The missing piece is a produced frame,
+which needs the GPU command path executed - a driver to write, not a flag.
+
+## What is explicitly ruled out
+
+Each of these was a hypothesis that got tested and failed:
+
+- GPU discovery or class-name mismatch - 213 matches, all succeed
+- permission / entitlement on the GPU path
+- the framebuffer, swap chain or panel
+- ADT contents (a GPU node under `arm-io` changed nothing)
+- missing daemons - `frontboardd` is a SpringBoard-provided Mach service
+- SpringBoard crashing - 127 crash reports, none is SpringBoard
+- SpringBoard waiting on another process - its 8 ports are all its own queues
+- input as the trigger - injected touch is delivered and ignored
+- "SpringBoard only runs briefly" - it lives past t=20; the log looked short
+  because of ring overwrite, not a short boot
+- "distinct=5 means something is drawn" - it does, but `nonblack` was
+  understating it; use the ASCII map, not the counter
+
+## What is not known
+
+**Why SpringBoard stops.** It is alive, not crashed, not blocked on another
+process, and does not react to input. It makes 33 calls clustered around t=10
+and then goes quiet. Answering this needs a debugger inside the process, which
+this setup does not have - there is no ptrace server and no UART.
+
+## Honest scale of what remains
+
+Two paths, both weeks of work rather than sessions:
+
+1. **Execute GPU commands.** Implement `AGXAccelerator`'s method 2 and whatever
+   follows so backboardd gets a real accelerator. The command interface is the
+   hard part; `shim/out/shim-proven.img` plus `sweetgpuok` shows the plumbing
+   around it already works.
+2. **Get a debugger into SpringBoard.** Would settle the "why" directly. Needs
+   a kernel-side debug stub or a userland backtrace hook, neither of which
+   exists here.
+
+## Tooling worth knowing about
+
+All in `NOTES.md` in more detail; sources preserved in `xnu/instrumentation/`.
+
+- `tools/sweet-observe.sh IMAGE OUT [SECONDS]` - the only script that waits long
+  enough for userland. Banner-checks and deletes OUT before pulling, so a failed
+  pull cannot be mistaken for this run's log.
+- `tools/hfs-read.py` - read-only HFS+ reader over adb. `list`/`find`/`cat`.
+- `tools/sweet-log-pull.sh` - pulls the 4 MiB persistent ring from the end of
+  userdata.
+- Boot args that matter: `sweetlog=1 sweetlogms=200 sweetufsquiet=1
+  sweetfb_noconsole=1`, plus `sweettap=1 sweettapdelay=N` for the injected tap
+  and `sweetiolog=Name` for the per-process IOKit trace.
+
+## Two kernels exist and they are not the same
+
+| kernel | verified on hardware |
+| --- | --- |
+| `research/k-proven` | **yes** - the last one that booted |
+| build tree (`xnu/out-gauguin-macos/...`) | no - carries an untested GPU caller-name change |
+
+Same size, different hash. Boot `k-proven` first to reproduce the known state,
+and test the caller-name change on its own.
+
+## Device state
+
+The phone dropped off USB after round 142 and did not come back for the rest of
+the session. Host side is fine - `ioreg -p IOUSB` still lists three
+`AppleT8142USBXHCI` controllers, there is simply nothing attached. Not fixable
+from the host; the cable or the phone needs attention.
+
+When it returns, in order:
+
+1. boot `k-proven` unchanged and confirm the known panel state reproduces
+2. run the colour-coded map (it was lost mid-flight) - it answers whether the
+   centred shape is white, i.e. a boot logo, or coloured, i.e. something else
+3. only then test the GPU caller-name build

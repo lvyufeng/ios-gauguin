@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (23): the mark reader is split out and tested <<<
+
+Third tool in a row to get the same treatment (after the watchdog and the
+bisect verdict). `tools/sweet-mark-pull.sh` embedded its parser in a heredoc
+and had two defects that tests caught:
+
+1. **The block geometry was a literal.** `skip=$((bytes/4096 - 1025 - 64))`
+   hard-codes "4 MiB ring + 1 header" and "64 marks". Change `SWEET_LOG_SIZE`
+   or `SWEET_MARK_BLOCKS` in the driver and the offset silently moves - the
+   tool would read an unrelated part of `userdata` and report "no MARK blocks",
+   which reads exactly like a boot that never marked anything.
+   The parser now reads both constants out of `sweet_ufs.c`
+   (`ring_blocks_from_source`), and the shell asks for them with
+   `sweet-marks.py --sizes SRC`, falling back to 1025/64 only when the patched
+   tree is not staged.
+2. **A malformed slot killed the whole run.** `line.split(" ")[1]` and
+   `int(seq)` raise on a block that starts with `MARK ` but is not well formed
+   (a torn write mid-flush is exactly when that happens). Such blocks are now
+   skipped, and a duplicate sequence number - which can only come from a torn
+   write - is de-duplicated so the ordering stays stable.
+
+`tools/sweet-marks.py` holds the parsing; `tests/test_marks.py` checks it with
+10 cases including the two geometry constants read from the real driver source.
+
+Checked end to end with a dump built the way the kernel writes it (single-byte
+stores, tail left uncleared) for a boot that stalls inside `keys_init`:
+
+```text
+MARK 00001 INIT: sample_start done
+MARK 00002 INIT: entering keys_init
+```
+
+The last line is the stalled step, which is the whole point of the marks.
+
+**Twenty-two rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (22): the bisection verdict is now tested too - three bugs found <<<
 
 `tools/bisect-keys.sh` decided its verdict with four `grep -q "keys_init done"`

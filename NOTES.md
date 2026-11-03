@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (13): the init marks were still hostage to the log thread <<<
+
+Entry (12) bracketed every init step with a mark, but `sweet_log_mark()` only
+fills RAM - the write happens in the log thread, which calls
+`sweet_log_mark_flush()` on its own loop. For a boot that is healthy that is
+fine. For the case marks exist to diagnose - **a stall inside keys_init** - it
+is exactly backwards: if init is stuck, the flush may never run, and the marks
+stay in RAM.
+
+`extern void sweet_log_mark_sync(const char *)` now records the mark and then
+flushes it **on the caller's thread**. It uses `UFS_SLOT_MARK` (slot 2), which
+no other caller touches, so it cannot collide with the main I/O slot even if
+the caller holds `sweet_ufs_lock`. Verified: the three `lck_mtx_lock(
+&sweet_ufs_lock)` sites are at lines 581, 654 and 876 and none of them covers
+the init tail, and the lock order between `sweet_log_lock` and
+`sweet_mark_lock` is the same in both paths (log flush takes mark flush while
+holding the log lock; `sweet_log_mark_sync` takes only the mark lock), so
+there is no lock-order inversion.
+
+Every init step now pays exactly one 4 KiB SCSI write for the privilege of
+being visible after a hang:
+
+```text
+INIT: sample_start done
+INIT: entering keys_init      <- last one written if keys_init hangs
+INIT: keys_init done
+INIT: entering touch_init / INIT: touch_init done
+INIT: entering usb_probe  / INIT: usb_probe done
+```
+
+**Image: `shim/out/shim-proven.img`** (kernel `30dd6621...`, boot.img
+`a35f7e6b...`, kernel saved as `research/k-proven`).
+
+**Twelve rounds, still no phone.** This is the first image that can tell us
+*where* keys_init hangs without relying on the console ring at all - which is
+the only thing that has been unavailable all session.
+
+
 ### >>> UPDATE 2026-11-03 (12): the stall is provably inside keys_init, and the init tail is now bracketed <<<
 
 Diffed the init sequence of the working boot and a failing one step by step

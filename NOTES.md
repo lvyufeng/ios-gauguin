@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (90): SpringBoard is idle, not stuck - and the kmsg hook was removed <<<
+
+**The expensive send trace is gone.** `sweet_kmsg_note` was removed from
+`ipc_kmsg_send`. Measured on the same kernel: **614 lines and no SpringBoard with
+it, 1616 lines and a healthy boot without it.** Resolving a destination's owner
+per message on one core is enough to stop the boot at launchd's "Early boot
+complete". A hook on the hottest path in the system cannot be made cheap enough;
+this is recorded rather than reverted silently so nobody re-adds it.
+
+**What replaced it, and what it shows.** Two existing, cheap traces were finally
+used:
+
+`sweetdirs=SpringBoard` - 41 records, only two directories:
+`/System/Library/Caches/com.apple.dyld` ×38 and `/private/var/` ×2.
+
+`sweetdump=SpringBoard sweetdumprounds=14 sweetdumpevery=12` - **thread count
+over one boot: 1,1,1,1,1,2,2,3,4,4,9,9,9,9.** It grows to nine and settles.
+
+Final snapshot, all nine threads:
+
+| tid | state | waitq | meaning |
+| --- | --- | --- | --- |
+| 222 | 1 `TH_WAIT` | PORT | main thread, seq=1972184400 (was once active) |
+| 288, 343, 512-515 | 1 | QUEUE | parked, seq=0 - never fired |
+| 327 | 4 `TH_RUN` | - | running at sample time |
+| 511 | 41 | TURNSTILE | exiting (`TH_WAIT\|TH_UNINT\|TH_TERMINATE2`) |
+
+**Every thread's queue is `msgs=0/0`.**
+
+**The correction that matters:** (previous rounds described SpringBoard as
+"stopped after 33 platform calls"). It is not stopped. It builds nine threads and
+then all of them idle with empty queues. That is the normal signature of a
+process waiting for input, not a wedged one. Combined with 268 exec calls (more
+than the 236 in the older "healthy" log) and both SpringBoard and backboardd
+staying `present` through t=20, the system is fully booted. **Nothing crashes and
+nothing fails to start.**
+
+**Also checked and dismissed:**
+
+- `/var` symlink -> `private/var` exists and is correct (a round earlier claimed
+  it was missing; that was a truncated `head` listing, withdrawn)
+- dyld cache files present; `not in trust cache` is a warning and the code
+  continues past it; the 40+ shared-cache mappings are done by launchd and
+  inherited
+- `/private/preboot` contains only `Cryptexes/`; the `.roots-installed` cookie
+  launchd looks for is absent. Noted, **not** claimed as causal - 268 processes
+  started anyway, the same pattern as the trust-cache warning.
+
+**So the question is no longer "why did SpringBoard stop" but "what was supposed
+to tell it to display something, and why did that never arrive".**
+`sweetmsgwait` already proved the queues stay empty for a whole boot.
+
+
 ### >>> 2026-11-04 (89): the system never learns which app is in the foreground <<<
 
 Found by grepping an existing 43,808-line boot log for error patterns rather

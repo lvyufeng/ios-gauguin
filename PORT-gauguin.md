@@ -1,7 +1,11 @@
 # sweet → gauguin port: what differs (hardware facts)
 
 Date: 2026-10-19. Device: Redmi Note 9 Pro 5G / Mi 10T Lite, `gauguin`, Qualcomm
-**SM7125** (platform `lagoip`, DT compatible `qcom,lagoon-qrd` / `qcom,lagoon`).
+**SM7225** (Snapdragon 750G; platform `lito`, DT compatible `qcom,lagoon-qrd` /
+`qcom,lagoon`). **Not** SM7125 - the original version of this file said SM7125,
+which is the 720G in `curtana`/`excalibur` and a different chip. Confirmed on the
+device: `ro.board.platform` = `lito`, `cpuinfo` `Hardware ... SM7225`, and the
+TLMM is at `0x0f100000` (`qcom,lagoon-pinctrl`), not SM7150's `0x3900000`.
 Bootloader unlocked, currently running TWRP (recovery, not flashed by us).
 
 Sources (all read-only, captured 2026-10-19):
@@ -36,7 +40,7 @@ Observations are marked with the source; guesses are marked *guess*.
 
 | Item | sweet | gauguin | Where it is hardcoded |
 | --- | --- | --- | --- |
-| Chip name | SM7150 (`xiaomi,sweet`) | SM7125 / `lagoip` (`qcom,lagoon`) | `mkadt.py` root `compatible`, XNU `SWEET` machine config strings, README |
+| Chip name | SM7150 (`xiaomi,sweet`) | **SM7225** / `lito` (`qcom,lagoon`) | `mkadt.py` root `compatible`, XNU `SWEET` machine config strings, README |
 | CPUs (big) | 2× Cortex-A76? (sweet: 2 A76 + 6 A55) | cpu6/cpu7 = Cortex-A77-style Kryo 465 Gold, cluster1 | cosmetic (`compatible`, clock-frequency) |
 | RAM (memory node) | `<0x80000000 2G>`, `<0x100000000 0xfcc00000>` | `<0x80000000 0x3bb00000>`, `<0x180000000 0x100000000>`, `<0xc0000000 0xc0000000>` (last one dropped by `mem-offline`/`removed_region@c0000000`) | `mkadt.py` `HIGH_PHYS_BASE/HIGH_MEM_SIZE`, swapped by this port to match |
 | Kernel RAM bank | upper bank at `0x100000000`, 0xfcc00000 | upper bank at **`0x180000000`**, 0x100000000 (4 GiB) | `mkadt.py`, `shim/loader.c` (takes it from the payload header — unchanged code) |
@@ -68,7 +72,7 @@ Observations are marked with the source; guesses are marked *guess*.
    base/size and the fbcon block come from the phone instead of sweet constants. Keep the
    payload header as the source of phys_base (mkadt writes it).
 2. **mkadt.py**: `--device gauguin` with the gauguin dram-base `0x180000000` / size
-   `0x100000000`, SoC compatible `qcom,sm7125`, and the same iPhone X identity.
+   `0x100000000`, SoC compatible `qcom,sm7225`, and the same iPhone X identity.
 3. **XNU drivers**: keys PPID 0x4c0 on SID 0; Focaltech touch on SE8 (`0x988000`) with the
    FT5452 protocol; RPMh LDO6 (L6A) vote for the touch rail; everything else unchanged.
 4. **CI build**, QEMU smoke test, then `fastboot boot` (slow-boot header disabled for now).

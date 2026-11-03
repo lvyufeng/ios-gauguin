@@ -2,6 +2,81 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03: gauguin is SM7225 - the TLMM constant and the init-path log deadlock <<<
+
+**READ THIS FIRST. The port was planned on the wrong SoC.**
+
+`lvyufeng/UniXNU-gauguin` and `PORT-gauguin.md` called this phone "SM7125
+`lagoip`". It is **SM7225 (Snapdragon 750G, `lagoip`/"lito" family)**, confirmed by
+the phone itself: `getprop ro.board.platform` = `lito`, and the TWRP `cpuinfo`
+`Hardware: Qualcomm Technologies, Inc SM7225`. SM7125 (720G, `curtana`/
+`excalibur`) is a different chip with an Adreno 618 and is an easy pair to
+confuse. Everything below follows from that.
+
+**Fixes made and measured this session:**
+
+1. **TLMM (GPIO) base was SM7150's address.** `bsd/dev/sweet_touch.c` used
+   `TOUCH_NORTH_PA 0x03900000` for gauguin - that is *sweet*'s pinctrl. The live
+   DT (`/sys/firmware/devicetree/base/soc/pinctrl@f100000`,
+   compatible `qcom,lagoon-pinctrl`, reg `<0x0f100000 0x30000>`) says the
+   TLMM is at **`0x00f100000`**. `0x03900000` is unmapped address space here, so
+   `ml_io_map()` + the first GPIO read hung - which is exactly the "stops after
+   `stage D: map TLMM`" repeated in the 2026-10-23 14:35 entry. The map now
+   starts at `TOUCH_NORTH_PA + TOUCH_GPIO_CFG(pin)` instead of a fixed
+   `+0x50000`, and `TOUCH_NORTH_PA` is `0x00f100000`.
+   **Verified-good addresses from the phone's DT** (all confirmed present):
+   GCC `0x00100000` (`qcom,lagoon-gcc`), GENI SE8 `0x00988000`
+   (`i2c@988000`), UFS `0x01d84000`, SPMI core/obs/cnfg
+   `0x0c440000`/`0x0e600000`/`0x0c40a000`. So only the TLMM was wrong.
+2. **`tools/mkadt.py` now emits `qcom,sm7225`** for gauguin (was `sm7125`).
+   Regenerated ADT is otherwise byte-identical apart from the random seed.
+3. **The log flush deadlocked the init path.** `sweet_ufs_rootdev()` called
+   `sweet_log_sync()` between `sample_start`, `keys_init`, `touch` and
+   `usb_probe`. `sweet_log_flush()` takes `sweet_ufs_lock` and then waits on a
+   SCSI completion using the **single UTRL/UCD slot**, which the log *thread*
+   holds at the same moment. The boot therefore stopped right after
+   `SWEET UFS: sample_start done` (two consecutive `shim-safe` runs, and
+   `shim-ver` stopped identically on two retries - so it is deterministic, not
+   the "bootloader protection" state from 2026-10-23 22:05). All
+   `sweet_log_sync()` calls are now removed from the init tail; the ring still
+   receives those lines through `__cnputs()` and the thread flushes them.
+
+**New instrumentation (keep it):** `sweet_log_mark()` checkpoints in
+`keys_init`, `touch` and `usb_probe` (`UFS step: ...`, `KEYS: ...`,
+`TOUCH: ...`, `USB: ...`), written to the 64 blocks just below the log ring so
+they survive the ring being overwritten. Read them with
+`tools/sweet-mark-pull.sh OUT.txt`. The mark area grew 16 -> 64 blocks
+(`SWEET_MARK_BLOCKS`).
+
+**Where it stands after all of the above (measured):** the boot still stops
+right after `SWEET UFS: sample_start` / `SWEET LOG: thread running, first
+flush follows`. With `sweetlog=0` the phone resets without reaching the Apple
+logo. So the remaining stop is **in or just after the log thread's first
+flush**, not in the SoC constants and not in the init-path syncs (those are
+fixed and stay fixed).
+
+**Build/tooling notes:** `deps/shim-macos.sh` is new - it builds the shim on
+macOS with Xcode clang + Homebrew LLVM (`ld.lld`, `llvm-objcopy`,
+`llvm-readelf`, `llvm-nm`) because there is no `aarch64-linux-gnu-gcc` on this
+host. It needs `-fno-jump-tables`: clang turns the `switch` in `exc_handler`
+into a table of string pointers in `.rodata`, violating the "no absolute
+relocations" rule the shim is linked by. `shim/ufs.c` uses a local
+`shim_strcmp()` for the same reason (`__builtin_strcmp` folds to a libc call
+under clang). Kernel builds: `deps/build-macos.sh gauguin` (~4 min).
+Images this session: `shim/out/shim-sm7225.img` (TLMM+ADT fixed),
+`shim/out/shim-nosync.img` (also the syncs removed),
+`shim/out/shim-nolog.img` (`sweetlog=0` probe).
+
+**Next concrete action:** the log thread. `sweet_log_start()` does one
+`kernel_thread_start(sweet_log_thread)`; the thread prints and then loops on
+`sweet_log_flush()` + `tsleep()`. Either the first flush in that thread
+deadlocks on `sweet_ufs_lock`/the single UTRL slot, or the thread never gets
+scheduled. Cheap discriminator: give `sweet_log_flush()` its own DMA bounce
+buffer and its own UTRL slot (or make the log thread the only UFS writer until
+`init complete`), and mark each step of the log thread with
+`sweet_log_mark()` *before* the first flush.
+
+
 **Breadcrumb build (2026-10-20 19:56, cached tree only):** `bsd/dev/sweet_ufs.c`
 now prints on entry to `sweet_ufs_rootdev`, around `ml_io_map` (with HCE/HCS),
 before/after `ufs_take_over_host` and around `ufs_find_partition`. Kernel SHA256

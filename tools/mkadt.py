@@ -18,7 +18,7 @@ MEM_SIZE = 0x4d000000
 # limited below 4G.
 HIGH_PHYS_BASE = 0x100000000
 HIGH_MEM_SIZE = 0xfcc00000
-# gaugeuin (Redmi Note 9 Pro 5G / Mi 10T Lite, SM7125 "lagoip"): the live FDT
+# gauguin (Redmi Note 9 Pro 5G / Mi 10T Lite, SM7225 "lito" platform, lagoon): the live FDT
 # memory node is <0x80000000 0x3bb00000>, <0x180000000 0x100000000>,
 # <0xc0000000 0xc0000000> (the last one is removed_region@c0000000, i.e.
 # offline). Same rule: firmware carve-outs (modem 0x8b800000 + 248 MiB,
@@ -30,7 +30,8 @@ DEVICES = {
     # name: (low DDR bank start, root compatible tags, cpu compatible)
     # name: (low DDR start, root tags, cpu tag, big-core clock Hz)
     'sweet': (0x80000000, ('xiaomi,sweet', 'qcom,sm7150'), 'qcom,kryo470', 2304000000),
-    'gauguin': (0x80000000, ('xiaomi,gauguin', 'qcom,sm7125'), 'qcom,kryo465', 2200000000),
+    # SM7225 (lito / lagoon), NOT SM7125 (the earlier note mixed the two up).
+    'gauguin': (0x80000000, ('xiaomi,gauguin', 'qcom,sm7225'), 'qcom,kryo465', 2200000000),
 }
 # /arm-io children are relative to this; it must not be 0 (serial_init bails)
 SOC_BASE = 0x01000000
@@ -89,7 +90,7 @@ def node(name, props=(), children=()):
 
 def build(seed=None, qemu=False, highmem=False, device='sweet'):
     """qemu=True: same tree, but with QEMU virt's GIC addresses and CNTFRQ (tools/qemu-sweet.py).
-    device: 'sweet' (SM7150) or 'gauguin' (SM7125): DRAM layout and SoC tags."""
+    device: 'sweet' (SM7150) or 'gauguin' (SM7225): DRAM layout and SoC tags."""
     if device not in DEVICES:
         raise SystemExit(f'unknown device {device}')
     dram_low, soc_tags, cpu_tag, big_hz = DEVICES[device]

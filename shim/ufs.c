@@ -184,6 +184,16 @@ static const char *fs_type(uint32_t lba)
 /* userdata's bounds, captured while listing the GPT (used by ufs_write_reason). */
 static uint32_t userdata_first, userdata_last;
 
+static int
+shim_strcmp(const char *a, const char *b)
+{
+	while (*a && *a == *b) {
+		a++;
+		b++;
+	}
+	return (unsigned char)*a - (unsigned char)*b;
+}
+
 static void list_partitions(uint32_t entry_lba, uint32_t nent)
 {
 	static uint8_t ents[128 * 128] __attribute__((aligned(4096)));
@@ -206,13 +216,19 @@ static void list_partitions(uint32_t entry_lba, uint32_t nent)
 		if (((last - first + 1) >> 8) < 64)	/* keep the screen to the big ones */
 			continue;
 		con_hex2(name, "lba=", (uint32_t)first, "MiB=", (uint32_t)((last - first + 1) >> 8));
-		if (!__builtin_strcmp(name, "userdata")) {
+		/*
+		 * A plain string compare, not __builtin_strcmp: GCC folds the builtin
+		 * into a libc call here (the shim links no libc), clang keeps it
+		 * inline. ufs_name_is() expands to the same compare in both.
+		 */
+#define ufs_name_is(n) (name[0] == (n)[0] && !shim_strcmp(name, (n)))
+		if (ufs_name_is("userdata")) {
 			userdata_first = (uint32_t)first;
 			userdata_last = (uint32_t)last;
 		}
-		if (!__builtin_strcmp(name, "userdata") || !__builtin_strcmp(name, "cust") ||
-		    !__builtin_strcmp(name, "cache"))
+		if (ufs_name_is("userdata") || ufs_name_is("cust") || ufs_name_is("cache"))
 			con_str(" fs", fs_type((uint32_t)first));
+#undef ufs_name_is
 	}
 }
 

@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (92): the real iOS filesystem can be mounted locally <<<
+
+After 370 rounds of reading the iOS root through `tools/hfs-read.py` over adb - a
+path that truncates large files at 4096 bytes and needs the phone - the system
+disk was mounted straight from the IPSW on this machine:
+
+```
+unzip ... "087-86698-044.dmg" -d research/ipsw-x/
+hdiutil attach -readonly -mountpoint /tmp/ipsw-mnt   research/ipsw-x/087-86698-044.dmg   # 4.4G, root fs
+hdiutil attach -readonly -mountpoint /tmp/ipsw-mnt2  research/ipsw-x/087-86593-047.dmg   # 2.6G, cryptex
+```
+
+`/tmp/ipsw-mnt2/System/Library/Caches/com.apple.dyld/` is the 2.4 GB shared cache
+- the place where iOS 16.7 actually keeps framework code. **Everything is readable
+without a device.**
+
+### What that answered
+
+**SpringBoard's launchd plist, read in full for the first time** (`plistlib`, no
+truncation): `MachServices` has **33 entries** - UIKit statusserver, frontboard
+systemappservices, springboard.services, bulletinboard, siri activation,
+usernotifications and so on. `KeepAlive` and `RunAtLoad` are both true.
+
+**DT property names iOS actually references**, found in the shared cache:
+`chip-id` (3), `unique-chip-id` (2), `product-name` (2),
+`certificate-security-mode` (2), **`region-info` (2, shard .09)**.
+`region-info` sits next to `development-cert` among MobileGestalt keys. Of those,
+**`mkadt.py` publishes all but `region-info`** - `chip-id`, `unique-chip-id` and
+`certificate-security-mode` are in `/chosen`.
+
+**Icon layout resources are complete**: `DefaultIconState.plist` plus
+`~iphone` / `375w-667h` / `414w-736h` variants, so the home screen is not missing
+its configuration.
+
+### What it did not answer
+
+Nothing here says *why* SpringBoard draws nothing. The device-tree payload inside
+the IPSW (`Firmware/all_flash/DeviceTree.d22ap.im4p`) is **compressed** - the
+`IM4P`/`dtre` header is plaintext, the rest is not - so the real D22AP `/product`
+node still cannot be recovered that way, which is exactly what `mkadt.py`'s
+comment says. `region-info` remains the only referenced property with no value
+anywhere; given (86) and (90), **a missing property is not evidence of a fault**.
+
+**Rule going forward: mount the IPSW for filesystem and binary questions; only the
+device can answer runtime questions.**
+
+
 ### >>> 2026-11-04 (91): gauguin never showed an interface - the milestones were another board <<<
 
 **This corrects a misreading that shaped many rounds.** NOTES (2026-10-17/18) records

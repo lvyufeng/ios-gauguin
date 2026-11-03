@@ -52,6 +52,7 @@ class Volume:
         self.extents = self._fork(112 + 80)
         self._nodesize = None
         self._cache = {}
+        self._catalog = None
 
     def _fork(self, off):
         logical, clump, blocks = struct.unpack(">QII", self.header[off:off + 16])
@@ -102,22 +103,43 @@ class Volume:
         start = node * self._nodesize
         return self._read_fork(self.catalog, start, count * self._nodesize)
 
-    def _node(self, n):
-        if n in self._cache:
-            return self._cache[n]
+    # Reading a fixed 256-node window per miss is wrong when node numbers are
+    # visited out of order - which they are: a B-tree walk follows children in
+    # key order, and those numbers are scattered. Each miss then re-read a
+    # window that largely overlapped the last one, and a full walk thrashed
+    # (measured: minutes, mistaken for a hang). Slice the catalog once and
+    # serve every node from it instead.
+    SLICE = 8 << 20            # 8 MiB per dd call
+
+    def _load_catalog(self):
+        if self._catalog is not None:
+            return
         if self._nodesize is None:
             hdr = self._read_fork(self.catalog, 0, 512)
             # BTHeaderRec follows the 14-byte node descriptor:
             #   treeDepth(2) rootNode(4) leafRecords(4) firstLeaf(4)
             #   lastLeaf(4) nodeSize(2) - nodeSize sits at 14+18 = 32
             self._nodesize = struct.unpack(">H", hdr[32:34])[0]
-        if self._nodesize in (0, None):
-            return b""
-        blob = self._fetch_range(n, self.BATCH)
-        per = self._nodesize
-        for i in range(len(blob) // per):
-            self._cache[n + i] = blob[i * per:(i + 1) * per]
-        return self._cache.get(n, b"")
+        if not self._nodesize:
+            self._catalog = b""
+            return
+        total = self.catalog["logical"]
+        parts = []
+        off = 0
+        while off < total:
+            want = min(self.SLICE, total - off)
+            parts.append(self._read_fork(self.catalog, off, want))
+            off += want
+        self._catalog = b"".join(parts)
+
+    def _node(self, n):
+        if n in self._cache:
+            return self._cache[n]
+        self._load_catalog()
+        off = n * self._nodesize
+        raw = self._catalog[off:off + self._nodesize]
+        self._cache[n] = raw
+        return raw
 
     def _records(self, n):
         """Yield (key, data) for node n."""

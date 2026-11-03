@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (75): device offline since round 143; what is saved and what is not <<<
+
+The phone dropped off USB after the round-142 colour-map run and has not come
+back for 22 rounds. Host side checked: `ioreg -p IOUSB` still lists three
+`AppleT8142USBXHCI` controllers, so the host is fine and simply has no device
+attached. Nothing here can fix that.
+
+**Two kernels exist and they are not the same. Do not mix them up:**
+
+| kernel | time | GPU caller name | verified on hardware |
+| --- | --- | --- | --- |
+| `research/k-proven` | 23:06 | no | **yes** - this is the last one that booted |
+| `xnu/out-gauguin-macos/.../kernel.development.gauguin` | 23:17 | yes | **no** - links, never ran |
+
+Same size, different hash. When the phone returns, boot `k-proven` first to
+reproduce the known state, and test the GPU caller name as its own change -
+otherwise a new observation cannot be attributed to either.
+
+**What is saved:**
+
+- `xnu/instrumentation/` holds byte-identical copies of the four instrumented
+  sources (verified against the build tree in round 163), with a README that
+  separates verified from unverified instrumentation
+- every conclusion, retraction and measurement is in this file
+- `research/k-proven` is the working kernel
+
+**What is not, and cannot be:** the boot images themselves. They are 17 MB,
+regenerate in four minutes, and differ every build, so they are deliberately
+not tracked. `research/tmp/observe-*.txt` device dumps stay out of git too.
+
+**First things to do when the phone is back:**
+
+1. boot `k-proven` unchanged, confirm the known panel state still reproduces
+2. run the colour-coded map, which was lost mid-flight - it answers "is the
+   centred 180x168 px shape white (a boot logo) or coloured (something else?)"
+3. only then test the GPU caller-name build
+
+
 ### >>> 2026-11-03 (74): the centred shape is ~180x168 px, and it took three tries <<<
 
 Measured from the ASCII map of entry (72), counting the actual columns and rows

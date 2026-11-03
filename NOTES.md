@@ -2,6 +2,42 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (29): the working log has been swept end to end <<<
+
+Entry (28) found one real departure (the touch start delay) by reading a
+different window of `boot-journaled-userland.txt`. This round the remaining
+windows were swept the same way, so that the next session does not repeat it.
+
+**Early boot (lines 60-105)** - platform expert, AKS, WDT, SURF, HID, battery,
+framebuffer, CPU bring-up, MAC/AMFI/Sandbox, `dlil_init`, `bsd_autoconf`,
+`rootdev called`, `init reg`, host takeover. **No departure found**; the
+current tree produces the same sequence and the same messages.
+
+**Root mount to launchd** - `vfs_mountroot`, the touch delay (fixed in (28)),
+a key event and its HID delivery, the HFS hotfile btree creation,
+`hfs: mounted iOSRoot on device b(1, 0)`, `vfs_mountroot ok`,
+`root volume is not authenticated (error 25); continuing unsealed`,
+`VM Swap Subsystem is ON`, `load_init_program` x2, `exec launchd`,
+`shared_region`, `SWEET Sandbox: launchd op 2`, libignition.
+
+- The root-auth message comes from `bsd_init.c`'s `ARM64_BOARD_CONFIG_SWEET`
+  branch, which reports and continues instead of panicking; the current tree
+  has the same code and the same behaviour.
+- `SWEET HID: buttons registered` / `touch registered` appear **before** the
+  UFS init tail, i.e. the HID services match and start during platform
+  bring-up, not from `sweet_keys_init()`. The current tree has the same
+  structure (`SweetHIDButtons::start()` calls `registerService()`).
+- The display identity (`1125x2436`, presented as the iPhone X panel over a
+  1080x2400 framebuffer) is unchanged.
+
+So after this sweep the known departures from the working boot are exactly
+three, all now reverted: the init `sweet_log_sync()` calls (entry (5)), the
+`cpus=8` boot line (entry (6)), and the immediate touch bring-up (entry (28)).
+Everything else in the log's path matches the tree.
+
+**Twenty-seven rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (28): the touch bring-up was starting 45 s too early <<<
 
 Found by reading the working log's root-mount window rather than the init tail

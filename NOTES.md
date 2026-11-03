@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (51): sweetgpuok inflates presents and changes no pixels <<<
+
+Controlled A/B with the now-trustworthy observer (banner-checked both runs),
+identical cmdline except for the switch:
+
+| | GPU methods | presents | distinct |
+| --- | --- | --- | --- |
+| no `sweetgpuok` | `2` -> unsupported, **connection closed** | **36** | 5 |
+| `sweetgpuok=1` | 2, 0, 4 ok, then 33 x22 | **88** | 5 |
+
+**Same picture, more than twice the submissions.** `sweetgpuok=1` tells
+backboardd its GPU calls succeeded, so it submits the same already-black image
+more often. The counter rises; no pixel changes.
+
+So entry (45)'s "selector 2 is a gate" is true in the narrow sense - userland
+does go further - and **had no bearing on the picture**. "Goes further" was
+never "moves toward an image", and earlier entries implied otherwise.
+
+**Consequence for the images:** `shim-proven.img` had been built with
+`sweetgpuok=1`, i.e. the "proven" configuration was the one with the fake
+success in it. It now carries the honest build (`c78ef4e2c6d0ef99`, no
+sweetgpuok); `shim-bisect-on.img` keeps the probe.
+
+**Standing fact, now measured with a trustworthy instrument:** with the GPU
+service opened and every call answered either way, the panel stays at
+`distinct=5` and `presents` between 36 and 88. The GPU is not what is drawing,
+and answering its methods success does not make it draw.
+
+
 ### >>> 2026-11-03 (50): the measuring tools were lying, twice <<<
 
 Neither entry changed a pixel. Both changed how much the other entries can be

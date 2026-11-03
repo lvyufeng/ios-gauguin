@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (42): correction - SpringBoard runs, *then* stops; 20 samples say when <<<
+
+Entry (41) concluded "SpringBoard is running, not stuck" from **three**
+samples. That was too few to see the rest of the boot. `sweet_dump_threads_soon()`
+stopped after `round < 3`, so made the count and the pacing boot-args
+(`sweetdumprounds`, `sweetdumpevery`; defaults reproduce the old behaviour) and
+ran 20 samples:
+
+```text
+thread count per sample:
+1 1 1 1 1 2 2 2 3 5 5 8 8 8 6 6 5 5 5 5
+```
+
+It climbs to 8, then **falls to 5 and stays there**, and in the final sample
+**every thread is `run=0`**:
+
+```text
+tid=222 run=0 state=1  wq=PORT
+tid=338 run=0 state=1  wq=QUEUE
+tid=462 run=0 state=1  wq=QUEUE
+tid=466 run=0 state=41 wq=TURNSTILE
+tid=474 run=0 state=1  wq=QUEUE
+```
+
+| sample | threads running |
+| --- | --- |
+| 3 (what entry (41) saw) | 6 of 10 |
+| **20 (end of boot)** | **0 of 5** |
+
+So the correct statement is: **SpringBoard starts up, creates threads, then all
+of them go to sleep on QUEUE/TURNSTILE/PORT and none wakes.** Entry (41)'s
+"running, not stuck" is right only for the middle of the boot; the end state is
+stalled. The earlier framing was not wrong, it was **sampled too early**.
+
+`tid=466` sitting on a `TURNSTILE` is the most specific lead so far: that is a
+thread waiting on a lock or an IPC turnstile, not on a plain queue.
+
+**Method note:** three samples 20 s apart looked conclusive and were not. The
+round count is now a boot-arg so this cannot happen silently again.
+
+
 ### >>> 2026-11-03 (41): sweetdump was already in the tree - and SpringBoard is running, not stuck <<<
 
 Spent three rounds (38-40) building a process watcher to answer "is SpringBoard

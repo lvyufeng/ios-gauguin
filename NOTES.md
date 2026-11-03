@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (31): `shim-boot.img` was silently carrying the DSB variant <<<
+
+Adding a provenance check to the toolchain (`tools/image-audit.py`, below)
+immediately found a live hazard: **`shim/out/shim-boot.img` held the DSB
+kernel**, left there by `deps/ab-keys-barrier.sh`. `deps/shim-macos.sh` always
+writes that filename, and it is the name a person types into `fastboot`, so
+the most natural way to boot the "current" image would have run the A/B
+*variant* - quietly adding the very variable the experiment isolates.
+
+Fixed in three places:
+
+1. `deps/ab-keys-barrier.sh` now restores `shim-boot.img` from
+   `shim-proven.img` when it finishes.
+2. `shim-boot.img` was restored by hand (it equals `shim-proven.img`,
+   `44f358d7`).
+3. `tools/image-audit.py` prints each live image's kernel build banner, read
+   out of the packaged file, and with `--check KERNEL` fails when
+   `shim-proven` / `shim-bisect-on` / `shim-bisect-off` were built from a
+   different kernel than the one given.
+
+The audit deliberately does **not** flag `shim-ab-dmb` / `shim-ab-dsb` for
+being built from different kernels - that difference is the experiment, and
+`tests/test_ab_variants.py` checks it is the *only* difference. It also only
+looks at the five live images: `shim/out` holds 100+ historical ones, and
+listing them buried the answer.
+
+`tests/test_image_audit.py` pins all of this (5 checks), including that a
+genuinely stale bisect image still fails.
+
+**Twenty-nine rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (30): the A/B images were stale - rebuilt, and a test-gate conflict fixed <<<
 
 Auditing the artifacts against the notes turned up a real problem: the two

@@ -59,6 +59,14 @@ build_one() {
 build_one dmb dmb || exit 1
 build_one dsb dsb || exit 1
 
+# deps/shim-macos.sh always writes shim/out/shim-boot.img, so the last variant
+# built is left there. That name is what people type into fastboot, so put the
+# proven image back rather than leaving a variant that looks like the default.
+if [ -f shim/out/shim-proven.img ]; then
+	cp shim/out/shim-proven.img shim/out/shim-boot.img
+	echo "restored shim/out/shim-boot.img to the proven image"
+fi
+
 echo
 echo "the two kernels differ only in the barrier before the status poll:"
 for t in dmb dsb; do

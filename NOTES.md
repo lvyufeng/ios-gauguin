@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (16): ADT and payload agree with the phone; USB gate logic checked <<<
+
+A consistency audit of the artifacts the bisection images are built from, done
+by parsing the generated ADT instead of trusting the generator:
+
+| property | ADT value | payload header | matches |
+| --- | --- | --- | --- |
+| `dram-base` | `0x180000000` | `phys_base 0x180000000` | yes |
+| `dram-size` | `0x100000000` (4 GiB) | `mem_size 0x100000000` | yes |
+| `dram-base-low` | `0x80000000` | - | matches PORT-gauguin.md |
+| root `compatible` | `D22AP`, `iPhone10,3`, `xiaomi,gauguin`, **`qcom,sm7225`**, `AppleARM...` | - | SM7225 correction is in |
+| CPU `compatible` | `qcom,kryo465`, `ARM,v8` (all 8) | - | |
+
+Both bisection payloads carry the same values, so the two images really do
+differ only by `sweetkeys`.
+
+Also checked the USB gate logic against the register values in the working
+log: `GDSC 0xf822f000` has bit 31 set (on) and every CBCR in
+`master/sleep/utmi/cfg-noc-axi/aggre-axi/phy-aux/clkref` has bit 31 clear
+(on), which is exactly what `clocks_on = (gdscr & (1<<31)) && !(cbcr[0] &
+CLK_OFF) && !(cbcr[3] & CLK_OFF)` evaluates to. So the probe's decision
+matches the hardware that actually booted; `sweetusb=0` is not needed and
+must not be used as the workaround.
+
+The complete post-`keys_init` sequence in the working boot is:
+`keys_init done` -> `touch_init` -> `touch_init done` -> `usb_probe` ->
+(SWEET USB 12 lines) -> `init complete`. Nothing else happens between them.
+
+**Fifteen rounds, no phone.**
+
+
 ### >>> UPDATE 2026-11-03 (15): a two-image bisection is staged for the next boot <<<
 
 The stall is proven to be in `sweet_keys_init()` (entry (12)), and every cheap

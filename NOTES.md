@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (43): the block ring resolves - no deadlock, the machine is just idle <<<
+
+The block ring (`sweet_block_trace`, entry 41) had been recording all along but
+was only ever *cleared*, never printed, because printing from the block path
+hung the boot. Added `sweet_block_ring_report()`, gated by `sweetblockring=1`,
+and drove it from the **log thread** - after first trying the watchdog tick and
+finding the same trap as everywhere else: `sweet_dump_tick()`'s callback ran
+**exactly once** per boot even though `tick=130732`. The log thread reaches the
+last line of the log (13,094 scsi ops), so it is the only reliable 1 Hz context
+this boot has.
+
+Output (`research/breakthrough/block-ring.txt`):
+
+```text
+SWEET BLOCKRING: 319295 blocks total, showing 256
+```
+
+**319,295 thread blocks** - the system is very much doing work. Resolving the
+last 256 continuations against `llvm-nm -n` of the kernel:
+
+| continuation | meaning |
+| --- | --- |
+| `_ipc_mqueue_receive_continue` | waiting for an IPC message |
+| `_thread_preempted` | preempted by the scheduler |
+| `_mpsc_queue_thread_continue` | parked waiting for work |
+| `_workq_unpark_continue` | kernel workqueue thread idle |
+| `_thread_call_thread` | kernel thread_call idle |
+| `_serial_keyboard_poll` | hardware polling |
+
+**Every one is an ordinary park point. There is no deadlock, no stuck lock, no
+missing wakeup.** SpringBoard's threads sitting on `QUEUE`/`TURNSTILE` in entry
+(42) are waiting for work that would arrive if anything produced any - the
+renderer has nothing to composite because `IOAcceleratorES` is still a stub
+(entry 34).
+
+**So the architecture is sound and the remaining gap is exactly what entry (34)
+said it was:** a UserClient behind `IOAcceleratorES`. The last five entries were
+chasing a stall that does not exist.
+
+**Method note worth keeping:** the watchdog tick *looked* alive (`SWEET HB` with
+`tick=130732`) but its callback fired once. Two rounds were spent hooking things
+onto it. Before trusting a periodic hook, count how many times it actually runs.
+
+
 ### >>> 2026-11-03 (42): correction - SpringBoard runs, *then* stops; 20 samples say when <<<
 
 Entry (41) concluded "SpringBoard is running, not stuck" from **three**

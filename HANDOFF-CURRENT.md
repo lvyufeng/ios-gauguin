@@ -160,8 +160,10 @@ after the round-218 test run, where it has stayed. Host side is fine each time -
 `ioreg -p IOUSB` lists three `AppleT8142USBXHCI` controllers and nothing
 attached. Not fixable from the host.
 
-**Restarting the phone is the only thing that has brought it back.** Pulling the
-cable and replugging did not; a forced power restart did.
+**Evidence on how it comes back is thin: one observation.** A forced power
+restart succeeded at round 218 (the user reported doing it); the phone has been
+off USB again since round 219 and has not returned. That is not enough to say a
+restart is the fix - only that it worked once.
 
 When it returns, in order:
 

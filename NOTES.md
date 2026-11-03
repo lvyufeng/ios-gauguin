@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (39): the watcher thread dies around t=30 - measured, not guessed <<<
+
+Entry (38) left the watcher reporting only to `t=20`. Five runs had stopped at
+the same tick, so instead of trying a sixth wait idiom, an **unconditional
+heartbeat** was added to distinguish "thread dead" from "nothing to report":
+
+```c
+static uint32_t beat;
+if ((++beat % 15) == 0) {
+	printf("SWEET PW: alive beat=%u\n", beat);
+}
+```
+
+Result (`research/tmp/observe-beat.txt`): **exactly one heartbeat, `beat=15`**,
+i.e. the thread ran to about 30 s and then stopped - while the system kept
+running `exec` for another ~70 s, with no panic, no assert, no exception.
+
+So the thread does not "fall silent"; it **ends**. And it is not the wait
+idiom: four variants behaved identically.
+
+| wait used | last report |
+| --- | --- |
+| `assert_wait_deadline` + `thread_block`, 2 s | t=20 |
+| same, 2000 ms corrected | t=20 |
+| same, `THREAD_UNINT` | t=20 |
+| `tsleep(&chan, PZERO, "sweetpw", hz*2)` | beat=15 (~30 s) |
+
+**Also fixed and kept:** `sweet_log_sync_cache()` no longer aborts the flush
+when SYNC CACHE (`0x35`) fails with OCS `0xf`. That failure used to stop the
+ring at line ~4660 of every boot, exactly when the boot became interesting;
+the data is already in the controller cache and TWRP only needs that, so the
+error is now reported once and ignored. The ring now writes to the end.
+
+**What this rules out for SpringBoard's stall too:** the watcher and
+SpringBoard both stop making progress within the first ~30 s, and the watcher
+is under our control with no userland involvement. That makes "something in
+the kernel stops scheduling kthreads after ~30 s" a live hypothesis, separate
+from anything in the GPU or the device tree.
+
+
 ### >>> 2026-11-03 (38): a process watcher that actually keeps running <<<
 
 SpringBoard's silence could mean "crashed" or "alive and stuck", and the log

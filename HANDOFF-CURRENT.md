@@ -17,6 +17,17 @@
 > that turns that into a list of property names and NULLs is **built and
 > packaged** (`shim/out/shim-prop.img`, boot-arg `sweetpropreq=SpringBoard`);
 > it has never run because the phone is off USB.
+>
+> **Two candidate fixes are also built and waiting**, each a single-variable change
+> to `tools/mkadt.py`, to be tested one at a time:
+>
+> | image | change |
+> | --- | --- |
+> | `shim/out/shim-region.img` | `/product/region-info = "LL/A"` - the only identity property iOS references in the shared cache that had no value anywhere; its type is NSString (`T@"NSString",R,C,N,V_regionInfo`) |
+> | `shim/out/shim-ident.img` | the above **plus** `/chosen/chip-revision = 0x10` |
+>
+> Test `shim-region.img` first. **Baseline to compare against:** 1,591 log lines,
+> presents ~109, `research/tmp/observe-verify.txt`.
 
 ## Where this actually stands
 

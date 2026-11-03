@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (9): every gauguin hardware constant checked against the device tree <<<
+
+The phone is still off USB (both hosts checked: this Mac and 192.168.201.137
+report no device in `adb`, `fastboot` or `lsusb`). The backup on 137
+(`~/backup/gauguin/`, with `dt/` = the full live device tree and
+`SHA256SUMS`) is complete: abl/ablbak, boot, dtbo, vbmeta*, persist,
+modemst1/2, fsg, fsc, misc, recovery, GPT and all LUNs. So a hard recovery is
+possible if it ever comes to that.
+
+With the DT available offline, all nine base addresses in the drivers were
+decoded from `dt/soc/*/reg` and compared:
+
+| constant | code | device tree | |
+| --- | --- | --- | --- |
+| `TOUCH_GCC_PA` | `0x100000` | `0x100000` (`qcom,gcc@100000`, `0x1f0000`) | ok |
+| `TOUCH_SE_PA` | `0x988000` | `0x988000` (`i2c@988000`) | ok |
+| `TOUCH_NORTH_PA` | `0xf100000` | `0xf100000` (`pinctrl@f100000`, `0x30000`) | ok |
+| `KEYS_CORE_PA` | `0xc440000` | `0xc440000` (spmi `core`, `0x1100`) | ok |
+| `KEYS_CNFG_PA` | `0xc40a000` | `0xc40a000` (spmi `cnfg`) | ok |
+| `KEYS_OBS_PA` | `0xe600000` | `0xe600000` (spmi `obsrvr`, `0x100000`) | ok |
+| `DWC3_PA` | `0xa600000` | `0xa600000` (`ssusb@a600000`) | ok |
+| `QUSB2_PA` | `0x88e3000` | `0x88e3000` (`qusb@88e3000`, `0x400`) | ok |
+| UFS | `0x1d84000` | `0x1d84000` (`ufshc@1d84000`, `0x3000`) | ok |
+
+Every `ml_io_map()` window was also checked against the highest offset the
+code actually reads: KEYS core `0x1700<=0x2000`, cnfg `0xf00<=0x1000`, obs
+`0xff98<=0x10000`, GCC `0x19000<=0x60000`, SE `0x1000<=0x4000`, DWC3
+`0xc124<=0xd000`, QUSB2 `0x258<=0x400`. No window is short.
+
+**Conclusion: the address map is not a remaining source of the stall.** The
+SM7225 corrections from the first entry (TLMM) were the only address that was
+ever wrong; everything else matches the phone.
+
+
 ### >>> UPDATE 2026-11-03 (8): init tail now matches the working log line for line <<<
 
 Diffed the current `sweet_ufs_rootdev()` tail against

@@ -1,6 +1,24 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
 ## Agent handoff / active work (2026-10-15, latest)
+### >>> 2026-11-04 (93): four more ruled out from the local mount; ADT structure is sound <<<
+
+All checked against the mounted IPSW, no device needed.
+
+| candidate | result |
+| --- | --- |
+| iOS version mismatch | build `20H392` / 16.7.16 on disk, in `mkadt.py`, and in the device's `_SBLastSystemVersion` - all three agree |
+| SpringBoard resources missing | 11 plists in `SpringBoard.app`, every one non-zero, plus `Assets.car`; `DefaultIconState.plist` and its `~iphone` / `375w-667h` / `414w-736h` variants all present |
+| Clarity mode confusion | iOS has two shells: `ClarityBoard` (`_LimitLoadToClarityMode: True`, `EmbeddedHomeScreen: True`) and `SpringBoard`. Only SpringBoard runs on gauguin, which is correct for an iPhone10,3 identity - so the board is in standard mode and ClarityBoard's absence is expected, not a fault |
+| ADT structure wrong | generated and re-parsed the tree: `device-tree > {chosen, defaults, cpus, arm-io, sweet-fbcon, buttons, backlight, product, sweet-ufs}`. `/product` exists where iOS looks for it; the lookups succeed and return `IOPlatformDevice`, so the node is found - only its contents are thin |
+
+**Identity properties the ADT publishes:** `/chosen` has `unique-chip-id`, `chip-id`,
+`certificate-production-status`, `certificate-security-mode`; the root has `model`,
+`target-type`, `target-sub-type`; `/product` has `product-name`, `product-type`,
+`regulatory-model-number`. Against the names iOS references in the shared cache,
+**`region-info` is the only one with no value anywhere** - and (86)/(90) say a
+missing property is not evidence of a fault, so this stays a lead, not a cause.
+
 
 ### >>> 2026-11-04 (92): the real iOS filesystem can be mounted locally <<<
 

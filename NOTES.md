@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (35): measured with a 180 s window - the system keeps running <<<
+
+`tools/fastboot-cycle.sh` waits 20 s and then treats "TWRP appeared" as "the
+kernel died", which is the wrong assumption for a kernel that reaches
+userland. Added **`tools/sweet-observe.sh IMAGE OUT [SECONDS]`**, which boots
+the image and then watches for the full window, reporting the progress markers
+and the panel counters at the end.
+
+Run for 180 s (`research/breakthrough/observe-180s.txt`, 16,764 lines):
+
+| marker | |
+| --- | --- |
+| `init complete` | yes |
+| `BSD root` / `mounted iOSRoot` | yes |
+| `exec launchd` / `ignition sequence complete` | yes |
+| `exec SpringBoard` / `exec backboardd` | yes |
+
+The phone came back to TWRP at **100 s**, i.e. the kernel did stop on its own
+rather than being cut short by the script.
+
+**But "stopped logging" is not "stopped running".** After the last
+`vsync=4200` line there are still **154 `scsi 0x28` reads** plus `0x2a` writes
+and `0x35` syncs - the system keeps doing filesystem I/O right up to the end of
+the ring. The ring did not wrap (it starts at the kernel banner), so those
+lines are genuinely later in time.
+
+That fits entry (34) exactly: the machine is alive and working, the compositor
+submits full-panel BGRA swaps (`presents=71`, 16 swaps), and the content is
+still five colours because there is no accelerator to draw with. vsync stops
+printing because the panel stops changing, not because the kernel died.
+
+**So the state of the port is: iOS boots, launches 281 processes, runs
+SpringBoard, and has nothing to render with.** The next real step is a
+UserClient behind `IOAcceleratorES` (a software compositor is the tractable
+option; AGX for this Adreno class is not).
+
+
 ### >>> 2026-11-03 (34): the GPU stub is never *opened* - it has no UserClient <<<
 
 Following entry (33), the decisive evidence is what backboardd opens versus

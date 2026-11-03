@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (7): the split slots needed an atomic tag; layout audited <<<
+
+Two checks on the per-slot request queue (2026-11-03 (2)), one of which found
+a real bug.
+
+1. **Command tags were not unique under concurrency.** `ufs_scsi_slot()` did
+   `ucd->cmd[3] = ++su.tag` - a read-modify-write with no atomicity. Splitting
+   the slots made concurrent callers real, so two of them could stamp the same
+   tag, and the controller may then attribute a completion to the wrong
+   command. It is now `os_atomic_inc_orig(&su.tag, relaxed)` masked to 1..31.
+   This cannot be observed in the old logs (the working boots never overlapped
+   a command - 0 `still busy`, 0 timeouts, 0 failures in 33,947 lines), so it
+   is a latent bug that only became reachable once the slots were separated.
+2. **The DMA layout was audited arithmetically** (no overlaps, all three UCDs
+   fit below `DMA_BOUNCE`):
+
+   | region | range | note |
+   | --- | --- | --- |
+   | UTRL | `0x0`..`0x400` | 32 slots x 32 B; slots 0/1/2 used |
+   | UCD (main) | `0x1000`..`0x1440` | |
+   | UCD log | `0x2000`..`0x2440` | |
+   | UCD mark | `0x3000`..`0x3440` | ends before `DMA_BOUNCE` |
+   | BOUNCE | `0x4000`..`0x104000` | slot 0 |
+   | STAGE | `0x104000`..`0x105000` | |
+   | MARK | `0x105000`..`0x106000` | slot 2 |
+   | BOUNCE_LOG | `0x106000`..`0x206000` | slot 1 |
+
+   total `0x206000` = 2.02 MiB (was 1.02 MiB); the phone has 4 GiB.
+
+**Also confirmed from the logs:** the successful run that reaches userland
+does not end in a crash - the ring simply stops where the log was pulled, with
+backboardd still polling for `IOAcceleratorES`. So a working boot does not by
+itself knock the phone off USB.
+
+**Image: `shim/out/shim-proven.img`** (kernel `50397b51...`, boot.img
+`6b64b32a...`, kernel saved as `research/k-proven`). Same proven boot line as
+the previous entry. Still not booted; the phone has now been off USB for five
+rounds.
+
+
 ### >>> UPDATE 2026-11-03 (6): match the boot line of a boot that provably worked <<<
 
 The successful boots in `.deps-cache/logs/` all ran with a command line that

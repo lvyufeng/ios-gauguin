@@ -1,5 +1,10 @@
 # gauguin port: current state (2026-11-03, latest)
 
+> **Completion criterion (agreed with the user, 2026-11-04): a usable iOS
+> interface is visible on the panel - lock screen, home screen or system UI -
+> verifiable by screenshot. Not "SpringBoard renders something"; not "the GPU
+> works". The interface, or the goal is not done.**
+>
 > **Status at handoff: iOS boots and runs; it does not reach a usable
 > interface.** The blocking question is why SpringBoard stops after 33 platform
 > calls, and the two cheap experiments that would narrow it are written and

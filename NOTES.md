@@ -1,6 +1,37 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
 ## Agent handoff / active work (2026-10-15, latest)
+
+### >>> 2026-11-04 (94): region-info tested and ruled out; the property trace had two real bugs <<<
+
+**`region-info` is not the cause.** With `/product/region-info = "LL/A"` added, a boot
+produced 2217 lines and presents=128 against the 1591/109 baseline - but the panel
+content was **identical**: distinct=5, colours `ffffff b7b7b7 818181 bfbfbf 4d4d4d`,
+and `Setup` still never executed. Line and present counts drift between boots; the
+panel did not change. The guess is disproved.
+
+**The property trace did not work, for two reasons, both now understood:**
+
+1. it matched on `proc_selfname()`, which in the `IORegistryEntry::getProperty`
+   path is not the calling BSD process - so `strncmp(me, "SpringBoard")` never
+   matched and the trace printed nothing for a whole boot
+2. the attempted fix, `get_bsdtask_info(current_task())`, **crashed before
+   `sweet_log_start()`** - the ring still held the previous boot's banner
+   (01:53 vs the image's 06:31). `getProperty` is reached very early in IOKit
+   bring-up, where no BSD process sits behind the task yet.
+
+**Current form** (`sweetpropreq=<key prefix>`) filters on the **property key**
+instead of the process, which sidesteps both: the key is a plain string on the
+object actually read, and the question "which property does it want" is about the
+key anyway. It prints `SWEET PROP: [proc] node.key -> FOUND|NULL`.
+
+**Not yet measured.** The key-filtered build booted and ran the full 200 s
+(`still running after 201s`), but every log pull failed and the phone left USB;
+the cached ring from that run still contains the 01:53 kernel, so it says nothing
+either way. **Open question: did that boot write the ring at all, or did the
+over-broad `product` prefix cost enough on one core to matter?** First thing to
+do when the phone returns: pull the ring and look at the banner.
+
 ### >>> 2026-11-04 (93): four more ruled out from the local mount; ADT structure is sound <<<
 
 All checked against the mounted IPSW, no device needed.

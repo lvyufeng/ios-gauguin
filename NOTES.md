@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> UPDATE 2026-11-03 (14): ruled out the cheap causes of the keys_init stall <<<
+
+Follow-up to entry (12), which proved the stall is inside `sweet_keys_init()`.
+Each candidate was checked against the source rather than guessed at:
+
+| candidate | verdict |
+| --- | --- |
+| `ml_io_map()` running out of the IO submap | **ruled out**: `IO_MAP_SIZE` is 8 MiB on arm (32 MiB on i386), and the whole boot path - UFS 0x4000 twice, GCC 0x60000/0x90000, TLMM, SE8, three KEYS windows, DWC3, QUSB2 - sums to **1.55 MiB, 19 %** |
+| apid offset past the mapped window | **ruled out**: the working boot's `pon-apid=308` and `gpio-apid=366` index `0x9a00`/`0xb700`, and the highest access is `+0x18` -> `0x9a18`/`0xb718`, well inside the 0x10000 window |
+| `io_map()`'s linear `virtual_space_start` allocator overlapping | **ruled out**: that branch only runs before `STARTUP_SUB_KMEM`, and `sweet_ufs_init()` runs after `bsd_autoconf` |
+| **the `DSB` in `keys_read()`** | **fixed**: a DSB only returns when every outstanding access in its shareability domain has completed. If the SPMI fabric stalls, the barrier itself never returns - and the 50 ms deadline added in entry (12) cannot help, because it is checked inside the loop that the barrier *precedes*. It is now `dmb osh`, which orders the command write against the status reads (all the code needs) without waiting for completion. |
+
+`dsb osh` was also the only unbounded wait left on this path: every other
+poll has both an iteration cap and a wall-clock deadline.
+
+**Image: `shim/out/shim-proven.img`** (kernel `5c3907c8...`, boot.img
+`3c09428a...`, kernel saved as `research/k-proven`). Thirteen rounds, no phone.
+
+
 ### >>> UPDATE 2026-11-03 (13): the init marks were still hostage to the log thread <<<
 
 Entry (12) bracketed every init step with a mark, but `sweet_log_mark()` only

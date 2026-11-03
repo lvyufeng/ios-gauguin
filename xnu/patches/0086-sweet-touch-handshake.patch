@@ -2629,24 +2629,46 @@ index 503f025..f68901a 100644
 +static bool sweet_msgwait_parsed;
 +static unsigned sweet_msgwait_lines;
 +
++/*
++ * Parse the boot-arg.
++ *
++ * Callable from the call site, not only from inside the trace: that site gates
++ * on `sweet_msgwait_needle[0] != '\0'`, so a tracer that parses only on its own
++ * first invocation can never be reached - the needle stays empty, the gate stays
++ * shut, and the trace never runs. That is why sweetmsgwait=SpringBoard produced
++ * no output at all until this was moved out (NOTES (53)).
++ */
++void
++sweet_msgwait_init(void)
++{
++	if (sweet_msgwait_parsed) {
++		return;
++	}
++	sweet_msgwait_parsed = true;
++	if (!PE_parse_boot_argn("sweetmsgwait", sweet_msgwait_needle,
++	    sizeof(sweet_msgwait_needle))) {
++		sweet_msgwait_needle[0] = '\0';
++	}
++}
++
 +void
 +sweet_msgwait_trace(struct waitq *waitq, const char *procname)
 +{
-+	if (!sweet_msgwait_parsed) {
-+		sweet_msgwait_parsed = true;
-+		if (!PE_parse_boot_argn("sweetmsgwait", sweet_msgwait_needle,
-+		    sizeof(sweet_msgwait_needle))) {
-+			sweet_msgwait_needle[0] = '\0';
-+		}
-+	}
++	sweet_msgwait_init();
 +	if (sweet_msgwait_needle[0] == '\0' || sweet_msgwait_lines >= 40) {
 +		return;
 +	}
-+	if (strncmp(procname, sweet_msgwait_needle, sizeof(sweet_msgwait_needle)) != 0) {
++	/*
++	 * Prefix match on the needle's own length. Comparing sizeof(needle)
++	 * (48) bytes against a char[32] name reads past the name's terminator
++	 * and never matches a shorter needle.
++	 */
++	if (strncmp(procname, sweet_msgwait_needle,
++	    strnlen(sweet_msgwait_needle, sizeof(sweet_msgwait_needle))) != 0) {
 +		return;
 +	}
 +	sweet_msgwait_lines++;
-+	printf("SWEET MSGWAIT: %s wq=%p type=%u\n", procname, (void *)waitq,
++	printf("SWEET MSGWAIT: %s port=%p type=%u\n", procname, (void *)waitq,
 +	    (unsigned)waitq_type((waitq_t){ .wq_q = waitq }));
 +}
 +#endif /* ARM64_BOARD_CONFIG_SWEET */
@@ -2666,6 +2688,8 @@ index 503f025..f68901a 100644
 +	 * the thread dump did not work (NOTES 18:07).
 +	 */
 +	{
++		extern void sweet_msgwait_init(void);
++		sweet_msgwait_init();
 +		if (sweet_msgwait_needle[0] != '\0') {
 +			char sweet_pname[32] = { 0 };
 +			proc_selfname(sweet_pname, sizeof(sweet_pname));

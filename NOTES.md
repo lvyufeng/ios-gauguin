@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (79): SpringBoard's 33 calls, enumerated, and its threads, decoded <<<
+
+Two things that had been described loosely are now exact.
+
+**The 33 calls, de-duplicated - 10 distinct kinds, nothing graphic:**
+
+| call | count |
+| --- | --- |
+| path IODeviceTree:/arm-io -> IOPlatformDevice | 13 |
+| path IODeviceTree:/product -> IOPlatformDevice | 12 |
+| match <IOProviderClass=AppleKeyStore> -> AppleKeyStore | 1 |
+| open AppleKeyStore | 1 |
+| open IOPMrootDomain | 1 |
+| path IODeviceTree:/buttons | 1 |
+| path IOPower:/IOPowerConnection/IOPMrootDomain | 1 |
+| path IOService:/IOResources/AppleKeyStore | 1 |
+| path IODeviceTree:/arm-io/pearl-sep -> none | 1 |
+| path IODeviceTree:/product/camera -> none | 1 |
+
+Not one is display, surface or accelerator. The single `matching1` is the
+keystore.
+
+**The final thread states, decoded against `thread.h`** (`TH_WAIT 0x01`,
+`TH_UNINT 0x08`, `TH_TERMINATE2 0x20`):
+
+| thread | waitq | state | meaning |
+| --- | --- | --- | --- |
+| tid 222 (main) | PORT | 1 | TH_WAIT - parked on a port |
+| tid 338 | QUEUE | 1 | TH_WAIT |
+| tid 462 | QUEUE | 1 | TH_WAIT |
+| tid 466 | TURNSTILE | 41 | TH_WAIT+TH_UNINT+TH_TERMINATE2 - **exiting** |
+| tid 474 | QUEUE | 1 | TH_WAIT |
+
+**Correction:** (56)'s "the block ring shows a deadlock" reading of `tid=466`
+was wrong. `state=41` is a thread on its way out, not a stuck one. Every thread
+is in an ordinary state; the process is **idle**, not wedged. Four wait for
+work, one is terminating.
+
+That is the honest characterisation of SpringBoard at the end of the log: a
+healthy, idle app that has finished its platform enumeration and is waiting.
+It has not failed. Nothing is going to arrive.
+
+**Also corrected:** (56) is cited elsewhere as "8 ports, all owned by
+SpringBoard". That came from a thread dump, not a port listing, and the counts
+do not match - different samples show 3 and 5 threads. Only the *states* above
+are established; the port-ownership claim was never measured and should not be
+relied on.
+
+
 ### >>> 2026-11-03 (78): SpringBoard stops after two opens <<<
 
 The sharpest statement of where SpringBoard halts. Both processes open

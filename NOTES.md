@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (83): what SpringBoard should be providing <<<
+
+Read from `/System/Library/LaunchDaemons/com.apple.SpringBoard.plist` on the
+HFS+ root with `tools/hfs-read.py cat`. Its `MachServices` list includes:
+
+```text
+com.apple.frontboard.systemappservices
+com.apple.springboard.services
+com.apple.springboard.statusbarservices
+com.apple.springboard.backgroundappservices
+com.apple.springboard.blockableservices
+com.apple.UIKit.statusbarservice
+com.apple.systemstatus.publisher
+com.apple.pegasus
+```
+
+**`com.apple.frontboard.systemappservices` is a Mach service SpringBoard
+provides itself.** That settles a long-standing question: `frontboardd` is not
+a separate daemon that failed to start - it is SpringBoard's own service. Rounds
+spent looking for a missing `frontboardd` process were looking for something
+that was never meant to exist.
+
+The plist also carries `RunAtLoad`, `KeepAlive`, `ThrottleInterval`,
+`HideUntilCheckIn`, `EnvironmentVariables` and `POSIXSpawnType`, so the job
+itself is configured normally.
+
+**Not knowable from the kernel:** whether these services ever get registered or
+looked up. The kernel log records IOKit lookups, not Mach service registration;
+a `grep` of the service names over a boot returns zero and that zero is
+inconclusive, not evidence. Registration happens in userland launchd.
+
+So the open question downstream of (80) is: SpringBoard owns the queues from
+(80) and would publish these services - did anything ever ask for one?
+
+
 ### >>> 2026-11-03 (82): SpringBoard waits first, then calls - the order is not what I assumed <<<
 
 Reading the successful `sweetmsgwait` log again, with the ordering checked against

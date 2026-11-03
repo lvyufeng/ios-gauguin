@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (38): a process watcher that actually keeps running <<<
+
+SpringBoard's silence could mean "crashed" or "alive and stuck", and the log
+could not tell the two apart. Built a watcher that walks `allproc` and reports
+whether the interesting processes exist, and had to fix **three** broken
+placements before it ran continuously:
+
+| placement | what went wrong |
+| --- | --- |
+| UFS log thread | `SWEET LOG: write failed (5), stopping` - the thread exits for good on the first EIO, taking the watcher with it |
+| watchdog heartbeat (`sweet_wdt_sample`) | the hook was only ever observed to fire **once** per boot (`SWEET HB: 1 ... tick=132004`), so the watcher reported at `t=1` and never again |
+| **own kernel thread** | works: reports at `t=3, 10, 20, ...` from a 2 s sleep loop it controls |
+
+Result (`research/breakthrough/proc-watch-works.txt`):
+
+```text
+SWEET PROC: SpringBoard gone    (t=1)
+SWEET PROC: backboardd gone     (t=1)
+SWEET PROC: SpringBoard present (t=3)
+SWEET PROC: backboardd present  (t=5)
+SWEET PROC: SpringBoard present (t=10)
+SWEET PROC: backboardd present  (t=10)
+SWEET PROC: SpringBoard present (t=20)
+SWEET PROC: backboardd present  (t=20)
+```
+
+**So SpringBoard is alive, not crashed.** It exists from `t=3` onward and stays
+in `allproc`. Combined with entry (36)/(37) - it opens `AppleKeyStore` and
+`IOPMrootDomain`, queries `/arm-io` thirteen times, then produces no further
+tracer output - the picture is a process **blocked**, not a process gone.
+
+Also worth recording, because it cost the most time this round: while moving
+the watcher around, `sweet_ufs.c` was cut down to 269 lines by a bad
+line-range edit (the file lives in the git-ignored `.deps-cache` tree, whose
+git copy is only the 823-line patch baseline). It was reassembled from a
+`/tmp` copy plus the git baseline and a rebuilt tail, and then repaired function
+by function (`dma_sync`, `ufs_wr`, `ufs_rd` had to be re-inserted). The file
+now compiles clean, but **the lesson is to copy a file before any line-range
+surgery on it** - `cp` is cheaper than reconstruction.
+
+**Next:** the watcher gives liveness but not a stack. To see *what* SpringBoard
+is blocked on needs either a `proc`-level stack sample from the kernel or an
+equivalent traced syscall.
+
+
 ### >>> 2026-11-03 (37): the 400-line trace cap was a red herring - SpringBoard really stops <<<
 
 Entry (36) concluded "SpringBoard stops at line 10866". That conclusion was

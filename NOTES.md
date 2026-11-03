@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (78): SpringBoard stops after two opens <<<
+
+The sharpest statement of where SpringBoard halts. Both processes open
+`AppleKeyStore` and `IOPMrootDomain`; then they part:
+
+| service | SpringBoard | backboardd |
+| --- | --- | --- |
+| AppleKeyStore | yes | yes |
+| IOPMrootDomain | yes | yes |
+| SweetHIDTouch | - | yes |
+| SweetHIDButtons | - | yes |
+| AppleCLCD | - | yes |
+| IOCoreSurfaceRoot | - | yes |
+| IOAcceleratorES | - (0 matches) | yes (213 matches) |
+
+**SpringBoard opens exactly two services, both platform basics, and no
+graphics-related service at all.** backboardd opens six, the whole display kit.
+
+So it is not that SpringBoard "cannot draw" - it never reaches the step where
+drawing would begin. The normal order after keystore and power would be display
+service, surface creation, GPU, frame; none of it happens.
+
+Combined with (76)-(77) the picture is consistent: nothing below SpringBoard is
+broken, and SpringBoard itself stops before its first graphics call. What is
+not established is *why* it stops there - that needs a debugger inside the
+process, which this setup does not have.
+
+
 ### >>> 2026-11-03 (77): the display path is healthy end to end; it is fed blanks <<<
 
 The other half of (76), from the same log. The display controller side is not

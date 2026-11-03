@@ -2,6 +2,32 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (73): the ASCII map sees the screen; the nonblack counter does not <<<
+
+Following (72): five independent boots, same final colours every time
+(`ffffff b7b7b7 818181 bfbfbf 4d4d4d`) and the same non-black bounding box
+(`x=200..832 y=1037..1378`), but `nonblack` itself was 60 in one run and 13 in
+the other four.
+
+The counter is the problem, not the screen. `nonblack` samples the panel with
+a **632-pixel stride** (4096 points over 1080x2400). The box is 8.3 % of the
+panel, so a solid fill there should register ~341 hits; 60 is 18 % of that and
+13 is 4 %. The ASCII map, by contrast, samples 128x24 points *inside* the box,
+about five times denser, and shows a solid rounded mass.
+
+**So the content is real and `nonblack` has been badly understating it.** That
+counter has been quoted since round 71 as evidence that "the panel shows almost
+nothing"; it never meant that. Do not use it to judge how much is drawn - use
+the map.
+
+The bounding box *is* reliable (identical across all five boots), so it is the
+right thing to check content against.
+
+**Still open, and needs the phone:** what the shape is. The colour-coded map
+that would have said (white? blue? an icon?) was lost when the device dropped
+off USB, and it has not come back.
+
+
 ### >>> 2026-11-03 (72): what is actually on the panel, for the first time <<<
 
 For ~100 rounds the panel was described by three numbers - `nonblack`,

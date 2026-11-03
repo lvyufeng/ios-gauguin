@@ -39,6 +39,15 @@ Verified on hardware unless marked:
 | what it submits is blank | 99.7 % black, first pixel 0xff000000 |
 | the centred shape is ~180x168 px, centred | measured from the ASCII map, NOTES (74) |
 | an injected HID touch does **not** wake SpringBoard | five-condition-clean experiment, NOTES (70) |
+| SpringBoard parks on **its own** message queues | `sweetmsgwait=SpringBoard`: 40 records, 7 ports, every one `owner=SpringBoard`, `WQT_PORT` |
+| it parks *before* the 33 calls, not after | waits occupy log lines 620-777, calls 1002-1041, no overlap; vsync monotonic so line order is time order |
+| its 33 calls de-duplicate to 10 kinds, none graphic | 13 `/arm-io`, 12 `/product`, one keystore match, two opens |
+| every thread ends in an ordinary state, process idle | state 1 (TH_WAIT) x4, one at 41 (TH_WAIT+TH_UNINT+TH_TERMINATE2, exiting) - not a deadlock |
+
+**The single most useful measurement of the session** is the `sweetmsgwait` one:
+SpringBoard is not blocked on a service somebody else should provide. It sits on
+queues it owns, which rules out the whole "a daemon it needs never started"
+family that earlier rounds spent a long time on.
 
 ## The chain, settled
 
@@ -89,10 +98,24 @@ Checked again while the phone was offline, all ruled out against existing logs:
 
 ## What is not known
 
-**Why SpringBoard stops.** It is alive, not crashed, not blocked on another
-process, and does not react to input. It makes 33 calls clustered around t=10
-and then goes quiet. Answering this needs a debugger inside the process, which
-this setup does not have - there is no ptrace server and no UART.
+**Why SpringBoard stops.** Established: it parks on its own queues, is woken,
+makes 33 platform calls, opens two services and then goes silent for at least
+10 s while staying alive and idle (threads in TH_WAIT, none stuck). It does not
+reach for a GPU at any point.
+
+Two experiments would narrow this further, both one boot each and both written
+but never run (the phone left USB at round 218):
+
+1. `sweetmsgwait=SpringBoard` with the cap at 200 - the 40-record cap filled
+   during the early burst, so whether it parks *again* after the 33 calls is
+   still unseen
+2. `sweetmsgsend=SpringBoard` - whether anything ever sends *to* those queues.
+   If messages arrive, the stop is in what SpringBoard does next; if none
+   arrive, it was never asked to do anything
+
+`research/tmp/next-runs.sh` runs both. Beyond that, answering "why" needs a
+debugger inside the process, which this setup does not have - no ptrace server,
+no UART.
 
 ## Honest scale of what remains
 

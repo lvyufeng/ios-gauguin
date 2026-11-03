@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-03 (34): the GPU stub is never *opened* - it has no UserClient <<<
+
+Following entry (33), the decisive evidence is what backboardd opens versus
+what it only matches by name.
+
+**Services backboardd actually opens** (`IOK backboardd: open X -> 0x0`):
+
+```text
+AppleCLCD            <- the framebuffer, works
+AppleKeyStore        <- works
+IOCoreSurfaceRoot    <- IOSurface root, works
+IOPMrootDomain       <- power, works
+SweetHIDButtons      <- works
+SweetHIDTouch        <- works
+```
+
+**Services backboardd only *matches*** (`IOServiceFirstMatch ... -> found`):
+`IOAcceleratorES`, 284 times, and never an `open`.
+
+That asymmetry is the answer. `IOService::registerService()` on a bare
+`IOService` publishes the *name*, so `IOServiceFirstMatch` finds it - that is
+what stopped the old segfault. But every familyd/backboardd GPU path needs a
+**UserClient** to talk to the driver, and `IOAcceleratorES` declares none
+(`class IOAcceleratorES : public IOService` with only `start`/`stop`). So
+backboardd never opens it and the render server has nowhere to submit work.
+
+**The framebuffer path is not the problem.** All 16 swaps in the log are full
+panel `1125x2436 BGRA`, `bpe == 4`, and the copy loop in
+`IOMobileFramebufferUserClient` runs. The pixels arrive; they are just empty.
+The `nonblack` count tells the story:
+
+| vsync | nonblack | distinct | meaning |
+| --- | --- | --- | --- |
+| 2 | 993 | 2 | the boot logo |
+| 1800 | 488 | 1 | logo fading out |
+| 4200 | 72 | 5 | background only - no UI |
+
+**What this rules out:** the display pipeline, the swap record, the surface
+plumbing and the colour format are all fine. **What it leaves:** either a real
+accelerator (`AGXAccelerator` for this Adreno 619 class, a very large job), or
+a UserClient-based software compositor behind `IOAcceleratorES`.
+
+Note for whoever picks this up: adding a UserClient that returns errors is
+*not* automatically better than none - the current stub at least keeps
+backboardd from crashing. Any change here needs to be measured against the
+`presents`/`nonblack` counters, which is what these two entries did.
+
+
 ### >>> 2026-11-03 (33): why SpringBoard runs but shows nothing - the GPU is a stub <<<
 
 Analysed `research/breakthrough/boot-reaches-springboard.txt` line by line.

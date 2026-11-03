@@ -72,6 +72,21 @@ Each of these was a hypothesis that got tested and failed:
 - "distinct=5 means something is drawn" - it does, but `nonblack` was
   understating it; use the ASCII map, not the counter
 
+Checked again while the phone was offline, all ruled out against existing logs:
+
+- display size wrong - the `disp0` ADT node supplies 1125x2436 and the kernel
+  presents at that size over a 1080x2400 panel, which is the intended design
+- touch coordinate mapping inverted - `fOffX = (1125-1080)/2 = 22` and the tap
+  maps `(x + 22) / 1125`, i.e. centred, correct
+- surface/panel size mismatch - surface is 1125x2436 bpr 4608 for 11,239,424
+  bytes, exactly 1125*2436*4; internally consistent
+- SpringBoard crashed or deadlocked - thread count runs 1 -> 11 -> 5 and stays
+  at 5 across the last four of 21 samples: an orderly release, not a fault
+- thread samples unreliable - 21 samples across the whole boot, each labelled
+  with the exec happening at that moment; the curve is clean
+- locked screen holding it back - `SWEET AKS: AppleKeyStore registered (no
+  passcode, unlocked)`; the system believes it is unlocked
+
 ## What is not known
 
 **Why SpringBoard stops.** It is alive, not crashed, not blocked on another

@@ -16,16 +16,20 @@ Deliberately small: read-only, catalog B-tree only.
 WHAT WORKS: listing a directory and locating a file by name. A full catalog
 walk returns 323,281 entries in about 17 s.
 
-WHAT DOES NOT: `cat`, and the `size` column. The catalog record layout on this
-volume does not match the textbook HFSPlusCatalogFile, and the fork's
-logicalSize has not been located - the values printed for size are garbage.
-The one offset that was proven is the first extent: for `.journal` the pair at
-+104 names block 3168598, and that block really holds the journal header
-(784c4e4a78563412). See NOTES (49)-(51). Do not build on the size field.
+`cat` works too, via the first extent: for `.journal` the pair at +104 names
+block 3168598, and that block holds the journal header (784c4e4a78563412), so
+the offset is proven rather than guessed. Only four extent pairs are read per
+file, so heavily fragmented files are truncated - a short read, not a wrong
+one.
 
-PERFORMANCE TRAP, recorded because it cost several rounds: reading one node
-per `adb dd` made a walk look hung or infinitely looping. Batch reads are
-required; a walk is subprocess-bound, not logic-bound.
+WHAT DOES NOT: the `size` column. The fork's logicalSize was never located and
+the values printed for it are garbage. Do not build on that field.
+
+PERFORMANCE TRAP, recorded because it cost several rounds: `_node()` used to
+pull a 256-node window starting at the wanted node. B-tree walks visit nodes in
+key order with scattered numbers, so each miss re-read a nearly identical
+window and the walk thrashed - it looked hung. The catalog is now sliced once
+(128 MiB in 8 MiB reads) and a full walk takes 6 s for 323,290 entries.
 """
 import struct
 import subprocess
@@ -235,25 +239,43 @@ class Volume:
             cur = nxt[0]
         return cur, idx.get(cur, (0, "", False, 0))[2]
 
-    def read_file(self, cnid):
-        """Read a file's first fork, following its extents."""
-        for parent, name, c, is_dir, size in self.walk():
-            if c == cnid and not is_dir:
-                # find the record again to get its extents
-                for k, data in self._leaf_records():
-                    p2, n2 = self._key(k)
-                    if struct.unpack(">h", data[0:2])[0] == 2 and \
-                            struct.unpack(">I", data[8:12])[0] == cnid:
-                        logical = struct.unpack(">Q", data[40:48])[0]
-                        ext = []
-                        for i in range(8):
-                            base = 88 + 8 * i
-                            st, ct = struct.unpack(">II", data[base:base + 8])
-                            if ct:
-                                ext.append((st, ct))
-                        fork = {"logical": logical, "extents": ext}
-                        return self._read_fork(fork, 0, logical)
+    # Where a file record's first extent sits. Proven, not assumed: the pair
+    # at +104 for .journal names block 3168598, and that block holds
+    # 784c4e4a78563412 - the HFS+ journal header. Textbook offsets (+88, +96)
+    # returned zeros or nonsense. Only four extent pairs are read; files that
+    # need more are truncated, which is visible as a short read.
+    FORK_EXTENT = 104
+
+    def _file_record(self, cnid):
+        for _k, data in self._leaf_records():
+            if len(data) >= 12 and struct.unpack(">h", data[0:2])[0] == 2 \
+                    and struct.unpack(">I", data[8:12])[0] == cnid:
+                return data
         return None
+
+    def extents_of(self, cnid):
+        data = self._file_record(cnid)
+        if data is None:
+            return None
+        ext = []
+        for i in range(4):
+            base = self.FORK_EXTENT + 8 * i
+            if base + 8 > len(data):
+                break
+            st, ct = struct.unpack(">II", data[base:base + 8])
+            if 0 < st < self.total_blocks and 0 < ct < self.total_blocks:
+                ext.append((st, ct))
+        return ext or None
+
+    def read_file(self, cnid, limit=None):
+        """Read a file's data fork, following its extents."""
+        ext = self.extents_of(cnid)
+        if ext is None:
+            return None
+        total = sum(ct for _st, ct in ext) * self.block_size
+        if limit is not None:
+            total = min(total, limit)
+        return self._read_fork({"logical": total, "extents": ext}, 0, total)
 
     def _leaf_records(self):
         def rec(node):

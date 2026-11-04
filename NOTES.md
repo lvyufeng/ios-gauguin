@@ -2,6 +2,75 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (104): /product must stay child-less; the crash loop is paired <<<
+
+Two additions to the ADT were tried and **both are now known to be wrong**:
+
+- **`/product/haptics`** (a child node, which the real D22AP tree has with
+  `closed-loop` and `supports-3rd-party-haptics`). SpringBoard does read
+  `IODeviceTree:/product` 42 times per boot, which made this look like the missing
+  piece. Adding it is **actively harmful**: SpringBoard and backboardd then die
+  together every ten seconds -
+
+  ```text
+  SWEET PROC: SpringBoard gone (t=250)
+  SWEET PROC: backboardd gone (t=250)
+  ... repeated at 260, 270, 280, 290 ...
+  SWEET FB: vsync=30000 ... presents=0 client=0
+  ```
+
+  Ten seconds is launchd's ThrottleInterval plus startup. Without the node the same
+  root and kernel give a stable SpringBoard with **97 IOKit calls, client=2,
+  presents=2, 3 swaps and no `gone` line at all**. So `/product` stays child-less
+  and the 42 `/product` reads are normal behaviour, not a retry loop.
+
+- **`/options`** (the node SpringBoard reads for boot-args, `-> none` in the boot
+  log). Adding it **panics immediately**: `IONVRAMController` matches it and then
+  fails in `getNVRAMProperties` - `Unable to find nvram-bank-size property`,
+  `IONVRAMCHRPhandler creation failed`, `panic(cpu 0)` at `IONVRAM.cpp:1380`
+  (photo IMG_1102). Apple's own `/options` carries only `name` and `AAPL,phandle`;
+  leaving it absent is strictly better than the panic.
+
+**A user observation that reframes the whole failure:** with the crash-looping
+image the phone is *not* hung - **pressing a button prints kernel log**. The panel
+shows `SWEET KEYS: key=0 down=1 pon=0x5 gpio:c110=0` and `SWEET HID: key 0x30 down
+(0 clients)`. So the kernel, timers, vsync and input are all healthy; what is
+broken is only the userspace GUI layer, and the HID events reach **zero clients**
+because nothing has subscribed.
+
+**Attempts that did not help this stretch:** a spin lock around the UFS command
+path (the driver already serialises slot 0 with `sweet_io_serial_lock`; reverted),
+and `StandardOutPath` for SpringBoard and backboardd (both logs stay at 0 bytes -
+iOS does not write to stdout, so an empty log is not evidence of a hang).
+
+### >>> 2026-11-04 (103): root rebuilt from the IPSW, and what it took <<<
+
+The macOS rebuild path now works end to end, which removes the dependency on a
+Linux host with `apfs-fuse`:
+
+- `hdiutil attach` mounts Apple's APFS images natively - no `apfs-fuse` needed.
+- `hdiutil create -fs "Case-sensitive HFS+"` produces **APFS**, not HFS+. Create a
+  raw file, attach it with `hdiutil attach -nomount`, then `newfs_hfs -v iOSRoot -J
+  -s /dev/diskN`. Only then is the signature `HX`.
+- **Ownership needs `sudo chmod`/`sudo chown` with `hdiutil attach -owners on`**;
+  without `-owners on` the chown silently does nothing and every file stays at
+  501:20. That, not the format, was why the first rebuild died:
+  `map('dyld_shared_cache_arm64'): owned by uid=501 instead of 0` ->
+  `Library not loaded: /usr/lib/libSystem.B.dylib` -> `initproc failed to start`.
+- The cryptexes must go to `private/preboot/Cryptexes/{OS,App}`; the
+  `System/Cryptexes/*` names there are symlinks and `mkdir` does not follow them.
+- Upstream's `copy()` uses `rsync -aH --numeric-ids`. Without `--numeric-ids` rsync
+  re-owns everything to the invoking user, which is the trap above.
+
+The rebuilt volume still stalls around 100 s: `SWEET HB: 1 wdt=1 tick=273122
+exp=269081 call=4044` - the heartbeat callback did not run for ~100 s, after 363
+execs. The volume built from the OS/cryptex images alone also lacks the container
+directories a first boot creates; the `mobileactivationd` container and its
+`-ActivationState: Activated` ark were copied over from the older volume to match
+(a fresh image logs `CRASH mobileactivation[132] sig 5` without it). Work stayed on
+the older, already-booted volume, which is what reaches SpringBoard.
+
+
 ### >>> 2026-11-04 (103): the render chain is complete except the one link in userspace <<<
 
 Three diagnostics narrowed (102)'s "two clients, one frame" to a single missing

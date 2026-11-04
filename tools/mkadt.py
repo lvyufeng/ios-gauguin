@@ -292,7 +292,17 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             ('device-perf-memory-class', u32(4)),
             ('artwork-scale-factor', u32(3)),
         ]
+    # /product must stay child-less. Adding a /product/haptics child (as the real
+    # D22AP tree has) sent SpringBoard and backboardd into a paired 10-second
+    # crash/relaunch loop - "SpringBoard gone" and "backboardd gone" at t=250,
+    # 260, 270... with client=0 and no presents at all, versus a stable SpringBoard
+    # with 97 IOKit calls and client=2 without it (NOTES (103), IMG_1103).
     product = [node('product', [ph()] + product_props)]
+    # /options is deliberately NOT created: IONVRAMController matches it and then
+    # panics in getNVRAMProperties("Unable to find nvram-bank-size property")
+    # because we do not publish one. Apple's own /options carries only name and
+    # AAPL,phandle, and SpringBoard tolerates its absence, so leaving it out is
+    # strictly better than the panic (NOTES (103), photo IMG_1102).
 
     # backboardd resolves IODeviceTree:/backlight and, failing that, any node
     # carrying backlight-control=true; with neither it stops its display setup
@@ -322,7 +332,8 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('manufacturer', cstr('Apple Inc.')),
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
-    ], [chosen, defaults, cpus, arm_io, fbcon, buttons, backlight] + product + ([] if qemu else [ufs]))
+    ], [chosen, defaults, cpus, arm_io, fbcon, buttons, backlight] +
+        product + ([] if qemu else [ufs]))
 
 
 if __name__ == '__main__':

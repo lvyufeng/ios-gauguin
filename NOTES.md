@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (100): the real iPhone device tree is readable, and /product was nearly empty <<<
+
+**Apple ships `DeviceTree.<board>.im4p` as an IM4P wrapper around an **LZFSE**
+stream (magic `bvx2`). Nothing in this repo could read it, so for hundreds of
+rounds the port ran on a `/product` node with four properties while the real
+D22AP node carries dozens. `tools/extract-devicetree.sh` now unpacks it with
+macOS `libcompression` (verified: byte-identical 186,084 bytes on repeat runs).
+
+**The properties that matter, read straight out of the dump** (hexdump, not a
+parser guess):
+
+| property | real value |
+| --- | --- |
+| `graphics-featureset-class` | `"APPLE4"` |
+| `graphics-featureset-fallbacks` | `"APPLE3:APPLE3v1:APPLE2:APPLE1:GLES2,0"` |
+| `artwork-device-idiom` | `"phone"` |
+| `compatible-app-variant` | `"0"` |
+| `artwork-dynamic-displaymode` | `"0"` |
+| `device-color-policy` | `0x0` |
+| `siri-gesture` | `0x1` |
+| `watch-companion` | `0x1` |
+
+**`graphics-featureset-class` is read by iOS** - the string appears once across the
+44 shared-cache shards. That is how the renderer is told what the GPU can do, and
+it is exactly the shape of the observed failure: SpringBoard opens
+`/product` twelve times per boot, gets nothing useful, and never draws.
+
+All eight are now in `tools/mkadt.py`. **Not yet measured** - the phone has been
+off USB, and `shim/out/shim-gfx2.img` (class + fallbacks) is built and waiting.
+
+**Also from this stretch, all ruled out on hardware:** the whole provisioning set
+(purplebuddy/notbackedup/BKNoWatchdogs), `EmbeddedHomeScreen`, `region-info`,
+`chip-revision`, the GPU `stub`/`IOGPUFamilyStub` markers, and clearing a stale
+`/var/run` to revive `logd`. **`logd` is granted `GLOBAL_PROC_INFO` now** - it was
+being denied by our all-deny sandbox - but it still writes no `.tracev3`, so the
+os_log channel stays closed and a silent process still cannot be distinguished
+from an idle one.
+
+**A correction worth keeping:** SpringBoard makes **zero GPU calls in a healthy
+iOS too** - it delegates to backboardd's render server. "SpringBoard doesn't call
+the GPU" was never an anomaly; the anomaly is that it never submits a layer. And
+present counts are not a progress signal: adding the backlight service and
+removing the stub markers each dropped presents 222 -> 5 with nothing else changed.
+
+
 ### >>> 2026-11-04 (99): the GPU stub markers are not the blocker either <<<
 
 `IOAcceleratorES` publishes `stub=true` and `IOGPUFamilyStub=true`. If

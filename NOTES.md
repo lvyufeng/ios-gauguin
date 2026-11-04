@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (99): the GPU stub markers are not the blocker either <<<
+
+`IOAcceleratorES` publishes `stub=true` and `IOGPUFamilyStub=true`. If
+SpringBoard/RenderBox reads either, it would know the accelerator cannot render
+and could skip render set-up - a plausible reason for never submitting a layer.
+**Removed both markers and booted: no change.** 434 execs, **still 33 SpringBoard
+IOKit calls**, still `exec Setup` = 0, same five-colour panel.
+
+**Markers restored**, because they are the honest description of a service that
+never draws, and removing them bought nothing.
+
+**A measurement worth remembering:** present counts are not a progress signal.
+Adding the backlight service and removing the stub markers each dropped presents
+from ~222 to **5**, both times with the panel unchanged and SpringBoard unchanged.
+A stable, complete service table seems to let backboardd stop re-submitting, so
+a *low* present count can mean "nothing left to poll", not "less rendering".
+Compare panel content and SpringBoard's call count, never presents alone.
+
+**Also confirmed this round:** the entire system has exactly three
+`NEVER FOUND` classes - `ApplePearlSEPDriver`, `AppleM2ScalerCSCDriver` and one
+empty name - i.e. Face ID and a video scaler that this board does not have. **There
+is no remaining IOKit service gap to fill.**
+
+**And a correction to how "silence" should be read.** `com.apple.oslog` exists in
+the kernel and `test_oslog_handleOSLogCtl` is wired up, but userland `os_log` goes
+through `logd`, which asserts continuously (`logd + 90880 ... : 0x2`) and wrote no
+new `.tracev3` even after `Persist/` was cleared for a clean capture. So **a process
+that emits nothing in our logs is not necessarily idle** - its channel may be
+broken. `SWEET MSGSEND: 0 message(s) captured` on every boot says the same for the
+message tracer: that trace never worked, and `msgs=0/0` remains meaningful only
+because it reads the port structure directly.
+
+
 ### >>> 2026-11-04 (98): the iOS os_log exists - 312 MB of it - and backlight is ruled out <<<
 
 **A data source missed for ~270 rounds.** iOS keeps `os_log` for every process under

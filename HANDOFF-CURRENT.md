@@ -1,4 +1,4 @@
-# gauguin port: current state (2026-11-04, updated round 480)
+# gauguin port: current state (2026-11-04, updated round 524)
 
 > **Completion criterion (agreed with the user): a usable iOS interface is
 > visible on the panel - lock screen, home screen or system UI - verifiable by
@@ -20,6 +20,17 @@
 > `arm64/saved_state.h`, so the thread dump cannot print a userspace PC; `log
 > show` refuses the device's `.tracev3` directory as an archive. Both routes to
 > "where is it stuck" are closed in this port.
+>
+> **The one untested change with a real mechanism behind it** is now built:
+> `shim/out/shim-gfx3.img` publishes **fourteen** `/product` properties read out
+> of Apple's own `DeviceTree.d22ap` (decompressed from the IPSW - see
+> `tools/extract-devicetree.sh`), including `graphics-featureset-class=APPLE4`,
+> its fallback chain, and **`artwork-scale-factor=3`**. Until round 492 the node
+> had four properties and none of them described the GPU or the screen. iOS does
+> read `graphics-featureset-class`, and SpringBoard re-opens `/product` a dozen
+> times per boot before going quiet - so "it asked for a capability nobody
+> published" is the best-supported hypothesis left. **It has never been booted:
+> the phone has been off USB since it was built.**
 
 ## Current boot recipe (use this, it is the best measured configuration)
 

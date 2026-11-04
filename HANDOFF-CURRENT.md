@@ -1,33 +1,65 @@
-# gauguin port: current state (2026-11-04)
+# gauguin port: current state (2026-11-04, updated round 480)
 
-> **Completion criterion (agreed with the user, 2026-11-04): a usable iOS
-> interface is visible on the panel - lock screen, home screen or system UI -
-> verifiable by screenshot. Not "SpringBoard renders something"; not "the GPU
-> works". The interface, or the goal is not done.**
+> **Completion criterion (agreed with the user): a usable iOS interface is
+> visible on the panel - lock screen, home screen or system UI - verifiable by
+> screenshot.** Not "SpringBoard renders something"; not "the GPU works".
 >
-> **Status: iOS boots, 268 processes start, nothing crashes, and no interface
-> appears - on gauguin it never has.** The Setup "Hello" and home-screen
-> milestones recorded in NOTES were on **Sweet (D22AP)**, a different board.
-> gauguin's port began 2026-10-19. There is nothing to bisect: this is "never
-> worked", not "used to work".
+> **Status: iOS boots fully - 433 userland execs, SpringBoard and backboardd
+> both alive - and no interface appears. On gauguin it never has.** The Setup
+> "Hello" and home-screen milestones in NOTES are from **Sweet (D22AP)**, a
+> different board; gauguin's port began 2026-10-19, so there is nothing to
+> bisect.
 >
-> **The single open question** is why SpringBoard, which runs and stays alive,
-> produces no UI. The narrowest lead: it re-opens `IODeviceTree:/product` twelve
-> times per boot, and that node carries only three properties. The experiment
-> that turns that into a list of property names and NULLs is **built and
-> packaged** (`shim/out/shim-prop.img`, boot-arg `sweetpropreq=SpringBoard`);
-> it has never run because the phone is off USB.
+> **Everything observable is correct.** SpringBoard makes exactly 33 IOKit
+> calls (the same 33 at 1 core and at 8), states `TH_RUN` or waits on an empty
+> queue (`msgs=0/0`), and never calls the GPU. It then does nothing at all that
+> reaches any log we can read.
 >
-> **Two candidate fixes are also built and waiting**, each a single-variable change
-> to `tools/mkadt.py`, to be tested one at a time:
->
-> | image | change |
-> | --- | --- |
-> | `shim/out/shim-region.img` | `/product/region-info = "LL/A"` - the only identity property iOS references in the shared cache that had no value anywhere; its type is NSString (`T@"NSString",R,C,N,V_regionInfo`) |
-> | `shim/out/shim-ident.img` | the above **plus** `/chosen/chip-revision = 0x10` |
->
-> Test `shim-region.img` first. **Baseline to compare against:** 1,591 log lines,
-> presents ~109, `research/tmp/observe-verify.txt`.
+> **What is needed next is a userspace view of SpringBoard.** The XNU tree used
+> here has no `saved_state` in `struct thread` and contains no
+> `arm64/saved_state.h`, so the thread dump cannot print a userspace PC; `log
+> show` refuses the device's `.tracev3` directory as an archive. Both routes to
+> "where is it stuck" are closed in this port.
+
+## Current boot recipe (use this, it is the best measured configuration)
+
+```text
+debug=0x8 serial=3 cpus=8 keepsyms=1 -noprogress rd=ufsroot0
+unentitled_ios_sim_launch=1 ignition_level=1 ufsrw=1 rootrw=1
+launchd_unsecure_cache=1 sweetlog=1 sweetlogms=500
+sweetfb_noconsole=1 sweetufsquiet=1
+```
+
+`cpus=8` matters: 268 execs / 1591 lines / 109 presents at `cpus=1` became
+**433 execs / 1782-2677 lines / 198-225 presents**. Do not add
+`-enable_kprintf_spam` or `debug=0xc` at 8 cores; the console flood costs more
+than it shows.
+
+Build: `bash deps/build-macos.sh gauguin`, then `cp
+xnu/out-gauguin-macos/System/Library/Kernels/kernel.development.gauguin
+research/k-proven`, `python3 tools/mkpayload.py research/k-proven
+shim/out/sweet-gauguin-new.adt OUT.bin --cmdline "$CMD"`, `bash
+deps/shim-macos.sh OUT.bin`.
+
+**Always check the log ring advanced.** A boot that dies before
+`sweet_log_start()` leaves the *previous* boot in the ring and the pull returns
+it looking healthy - this silently invalidated a whole experiment once. Compare
+`flush #` between runs.
+
+## Writing to the iOS root (works, and is reusable)
+
+The HFS+ volume occupies only the front of `sda35`: 17.18 GB of a 114.9 GB
+partition, 4,194,304 blocks of 4096.
+
+```sh
+adb exec-out "dd if=/dev/block/sda35 bs=4096 count=4194304" > iosroot.img  # ~9 min
+hdiutil attach -readwrite -noverify -mountpoint /mnt iosroot.img
+# ...edit...
+hdiutil detach /mnt
+adb exec-in "dd of=/dev/block/sda35 bs=4096 count=4194304" < iosroot.img     # ~9 min
+```
+
+Ownership survives as `501:20`, so edited files are accepted by iOS.
 
 ## Where this actually stands
 
@@ -127,6 +159,44 @@ Checked again while the phone was offline, all ruled out against existing logs:
   with the exec happening at that moment; the curve is clean
 - locked screen holding it back - `SWEET AKS: AppleKeyStore registered (no
   passcode, unlocked)`; the system believes it is unlocked
+
+Ruled out in rounds 464-480, on hardware:
+
+- **the whole provisioning set.** Writing `com.apple.purplebuddy.plist`
+  (`SetupDone`, `SetupFinishedAllSteps`, `SetupVersion` 11,
+  `daemonizeNeedsToRun` false), both `.notbackedup` files, and
+  `BKNoWatchdogs` + `FBLaunchWatchdogExceptions` +
+  `MCForceShowCloudConfigurationUI` into `com.apple.springboard.plist` gives
+  **433 execs and still no `exec Setup`, still 33 SpringBoard IOKit calls, still
+  the same five-colour panel.** These are exactly what `sweet-root-tweaks.py`
+  writes for the Sweet images: necessary there, **not sufficient here.**
+- `EmbeddedHomeScreen` in the SpringBoard launchd job - removed, behaviour
+  byte-for-byte identical (429 execs / 33 IOKit / 0 Setup). Restored.
+- **backlight.** backboardd matches a *service* with `backlight-control=true`;
+  `/backlight` was only a device-tree node, so it got `0 found` and stopped its
+  display set-up. `SweetBacklight` (an `IOService` with the property, registered
+  in `KernelConfigTables.cpp`) fixes the lookup - it now reports
+  **`-> SweetBacklight`, `-> 1 found`** - and changes nothing else. The service
+  is kept because iOS should have it; **it is not the blocker.**
+- MobileGestalt - answers `sel 8` with `[0x465, 0x984]` = **1125x2436**, the
+  panel's real geometry, then closes its client normally.
+- `/product/region-info = "LL/A"` - the one identity property iOS references and
+  nothing supplied. Added, booted, no change (and the first attempt at this was
+  invalid: the ring it compared had not advanced).
+- `/chosen/chip-revision = 0x10` - same, no change.
+- the three `NEVER FOUND` classes - `ApplePearlSEPDriver` (Face ID) and
+  `AppleM2ScalerCSCDriver` (a video scaler), i.e. hardware that does not exist
+  here, plus one empty class-name string.
+- `runningboardd` - starts normally and the boot continues 200+ execs past it.
+- SpringBoard's `Info.plist` requirements - `UIRequiredDeviceCapabilities` is
+  just `arm64`.
+
+**Log noise examined and found harmless:** `not in trust cache` (43x, code
+continues), `check_np ... vm_shared_region_start_address() failed` (exactly 2x
+every boot, at the moment launchd forks its first child - a probe that falls
+back), `GetMasterBlock: Error 16` (EBUSY on `ufsroot0`, expected while mounted),
+`hfs_mark_inconsistent` (HFS+ metadata; every file read still has correct Mach-O
+magic).
 
 ## What is not known
 

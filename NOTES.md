@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (105): **always pass --highmem** - the 76k-page failures were my own flag <<<
+
+`tools/mkadt.py X.adt --device=gauguin` without `--highmem` produces a tree whose
+`/chosen` says `dram-base 0xb0000000`, `dram-size 0x4cf00000`. XNU then bootstraps
+with **76,058-76,123 free pages** and dies at 10-13 execs. That is not a device
+fault and not the intermittent "low memory state" earlier notes blamed: the
+correct invocation
+
+```sh
+python3 tools/mkadt.py OUT.adt --device=gauguin --highmem
+```
+
+gives `dram-base 0x180000000`, `dram-size 0xfff00000` and **258,664 free pages /
+419 execs**. Several forced power cycles were spent chasing this. **Every gauguin
+ADT must be built with `--highmem`**; the size check is
+`dram-base == 0x180000000`.
+
+**State of the port after this fix (image `shim/out/shim-fx2.img`):** correct high
+memory, `embedded-panic-log-size = 0x100000` in `/chosen` (this alone fixes
+`debug_log_init: gPanicBase is still not initialized`), **no `/pram` node**,
+`_PanicOnCrash` injected into the launchd cache for SpringBoard and backboardd so a
+crash panics instead of being swallowed by `_PanicOnCrasX`, and `sweethidtest=30`
+for periodic synthetic key events. Boot result: 419 execs, no `SpringBoard gone`
+loop, `client=2`, presents=3, `driverkitd` SIGKILL only (harmless, 274 execs follow
+it).
+
+**Two ADT additions proved harmful and are reverted in `tools/mkadt.py`:**
+
+- `/product/haptics` - SpringBoard and backboardd then die together every 10 s
+  (`SpringBoard gone` / `backboardd gone` at t=10..400, client=0, presents=0).
+- `/options` - `IONVRAMController` panic: `Unable to find nvram-bank-size`.
+
+**Kernel-side chain is now fully verified:** SweetHID delivers key events to a real
+client (`key 0x40 down (1 clients)`, previously always 0), backboardd opens
+IOMobileFramebuffer, obtains a surface and performs complete SwapBegin/SwapEnd
+cycles (its swaps are logged as `by kernel_task` because the user client runs on a
+kernel thread - not evidence that userspace never submits). What remains is only
+that SpringBoard never submits its own layer.
+
+
 ### >>> 2026-11-04 (104): /product must stay child-less; the crash loop is paired <<<
 
 Two additions to the ADT were tried and **both are now known to be wrong**:

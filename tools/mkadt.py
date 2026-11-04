@@ -16,6 +16,13 @@ MEM_SIZE = 0x4d000000
 # node is <0x80000000 2G>, <0x1_00000000 0xfcc00000>; every fixed
 # reserved-memory carve-out is in the low bank and the dynamic pools are
 # limited below 4G.
+# Panic log buffer, carved from the TOP of the dram range and exposed to XNU as
+# /pram + /chosen/embedded-panic-log-size. Without it, pe_init.c's
+# check_for_panic_log() leaves gPanicBase == 0 and debug_log_init() bails out
+# twice ("gPanicBase is still not initialized") - exactly what this port logged
+# before. Upstream commit 1664d638, reproduced on QEMU and ios-fajita.
+PANIC_LOG_SIZE = 0x100000
+
 HIGH_PHYS_BASE = 0x100000000
 HIGH_MEM_SIZE = 0xfcc00000
 # gauguin (Redmi Note 9 Pro 5G / Mi 10T Lite, SM7225 "lito" platform, lagoon): the live FDT
@@ -101,6 +108,9 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             phys_base, mem_size = HIGH_PHYS_BASE, HIGH_MEM_SIZE
     else:
         phys_base, mem_size = PHYS_BASE, MEM_SIZE
+    # Carve the panic log off the top so the kernel never allocates over it.
+    panic_base = phys_base + mem_size - PANIC_LOG_SIZE
+    mem_size -= PANIC_LOG_SIZE
     gicd, gicr, timebase = (QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE) if qemu else (GICD, GICR, TIMEBASE)
     seed = seed if seed is not None else os.urandom(64)
     phandle = iter(range(1, 1000))
@@ -114,6 +124,7 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('dram-base-low', u64(dram_low)),
         ('random-seed', seed),
         ('debug-enabled', u32(1)),
+        ('embedded-panic-log-size', u32(PANIC_LOG_SIZE)),
         ('firmware-version', cstr('sweet-shim')),
         ('system-firmware-version', cstr('sweet-shim')),
         # iBoot's SHA-384 of the boot manifest; /sbin/mount -P 1 exits unless
@@ -319,6 +330,13 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('name', cstr('backlight')),
         ('reg', u32(0) + u32(0)),
     ])
+
+    # The panic log itself is NOT published. Upstream's 1664d638 also adds a
+    # /pram node holding this region; on gauguin that puts SpringBoard and
+    # backboardd into a paired ten-second relaunch loop that ran to t=400 with
+    # client=0 and no presents, while the same root and kernel with only the
+    # embedded-panic-log-size property keeps both alive (client=2, gone=0).
+    # Keep the property, drop the node until the difference is understood.
 
     # Identity of the iPhone X whose userland runs here: compatible[0] is
     # hw.model/hw.target (D22AP), model is hw.machine/hw.product

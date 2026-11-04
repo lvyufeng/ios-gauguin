@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (102): the upstream README was the missing manual <<<
+
+Read `dipa-studio/ios-sweet`'s own README for the first time. It settles two things
+this port had wrong and hands over the step that was never run.
+
+**1. There is no GPU in the working configuration - at all.**
+
+> No GPU. Everything is drawn by the CPU at roughly 20-30 fps.
+> CoreAnimation renders in software
+
+Hundreds of rounds went into the GPU stub, `IOAcceleratorES`, `AGXAccelerator` and
+`sweetgpuok`. **None of it was ever the problem**, and `AGXAccelerator` being a stub
+that cannot draw is expected on the working board too.
+
+**2. `tools/sweet-root-tweaks.py` had never been run.** It was in the tree the whole
+time; every previous round applied only its Setup/preferences part by hand. Run
+against the mounted root it changes seven things, and the first boot afterwards
+looked different from any boot before it:
+
+| change | effect |
+| --- | --- |
+| `launchd.plist` `_PanicOnCrash` -> `_PanicOnCrasX` (7 jobs) | a crashing daemon no longer takes the system down |
+| CommCenter jobs removed (2) | no baseband, no crash loop |
+| `-ActivationState: Activated` in the mobileactivationd ark | the activation branch is taken |
+| MediaToolbox `StartRecorderServer=false` (3 variants) | avoids the NULL OpenGL prewarm crash without a GPU |
+| VirtualAudio plug-in disabled | mediaserverd stops crash-looping |
+| containers dirs, migration `LastSystemVersion` | DataMigration does not run for an hour |
+| SpringBoard `BKNoWatchdogs`, Setup skip | (already done by hand in earlier rounds) |
+
+**Measured, `cpus=8` with the patched root:**
+
+| | before | after |
+| --- | --- | --- |
+| SpringBoard IOKit calls | **33** | **97** |
+| SpringBoard's furthest point | `/product` polling | **network/Wi-Fi lookups, then `/chosen`** |
+| render clients | **0** | **2** |
+| panel | 5 colours | 4 colours (`4d4d4d` gone) |
+| presents | 0 | **1** |
+| console ASCII map (`SWEET FB: \|`) | drawing | **silent - `sweetfb_noconsole` finally takes effect** |
+
+`cpus=6` instead of 8 gives 100 IOKit calls rather than 97, and the same panel.
+
+**What is still wrong, precisely:** two render clients connect, one frame is
+presented, and nothing is ever presented again. On a working iOS, SpringBoard
+re-presents continuously (animations, status bar). So SpringBoard attaches to the
+render server and then never submits a second frame - it has no scene that redraws.
+Injecting a touch (`sweettap=1 sweettapdelay=60`) raises the IOKit count to 103 and
+changes nothing, so it is not waiting for input either.
+
+**Ruled out this stretch:** the fourteen `/product` properties from Apple's real tree
+(they make the boot die at **76,121 free pages** instead of 258,729 - reproducible,
+and removing them one group at a time did not fix it, so the whole set is abandoned),
+`cpus=6` vs 8, the hardware watchdog (our `IOWatchdog` accepts check-ins and never
+fires), and `driverkitd`'s SIGKILL (274 execs happen after it).
+
+**Crashes now reach the console** (`CRASH driverkitd[67] sig 9`, `CRASH
+useractivityd[187] sig 10`) because `_PanicOnCrash` is renamed. Symbolicating needs
+`ipsw dyld a2s`, which is not installed here - that is the next tool to add.
+
+
 ### >>> 2026-11-04 (101): ADT integers are little-endian, Apple's tree is big-endian <<<
 
 A trap worth writing down before someone "fixes" it. Apple's `DeviceTree.d22ap`

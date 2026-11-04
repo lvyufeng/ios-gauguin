@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (103): the render chain is complete except the one link in userspace <<<
+
+Three diagnostics narrowed (102)'s "two clients, one frame" to a single missing
+step. All measured on the patched root, `cpus=8`, 500 s:
+
+**1. The only two swaps come from `kernel_task`, not from SpringBoard.**
+
+```text
+SWEET FB: swap 1 by kernel_task layer 0 surface 2 1125x2436 fmt 0x42475241 bpr 4608
+SWEET FB: swap 2 by kernel_task layer 0 surface 3 ...
+```
+
+Those are the boot splash the kernel itself draws. **Neither SpringBoard nor
+backboardd has ever swapped a frame.**
+
+**2. The surface contents are a black field with a white centre.**
+
+```text
+SWEET FB: corners 1125x2436 bpr 4608: ff000000 ff000000 / ff000000 ff000000 / mid ffffffff
+```
+
+All four corners opaque black, centre opaque white - the Apple logo fading out,
+which is exactly what the user sees on the panel before the reboot. So the blit
+path and the surface format are correct; there is simply nothing else to show.
+
+**3. Every process that opens the display is named, and SpringBoard is not one of
+them.**
+
+```text
+framebuffer opened by IOMFB_FDR_Loader (type 0)
+framebuffer opened by MobileGestaltHelper (type 0)
+framebuffer opened by backboardd (type 0)
+framebuffer opened by thermalmonitord (type 0)
+framebuffer opened by aggregated (type 0)
+```
+
+backboardd opening it is correct and expected - SpringBoard is supposed to reach
+the display through CoreAnimation, not directly. **backboardd opens the display
+successfully and then never swaps.**
+
+**So the chain is complete end to end except one link:** framebuffer driver works,
+AppleCLCD matches, backboardd opens it, both render clients attach - and
+**SpringBoard never submits a layer to the render server.** Everything on the
+kernel side of that boundary is healthy, and the failing step is in userspace
+CoreAnimation/RenderBox, which this port has no way to observe.
+
+**A user report worth keeping with this:** on the panel the Apple logo appears,
+fades, **the top-left quarter turns magenta**, and the phone reboots. Magenta is
+not a UI colour and the surface is black-and-white, so that magenta is almost
+certainly an uninitialised surface being scanned out during teardown - consistent
+with SpringBoard dying rather than drawing.
+
+
 ### >>> 2026-11-04 (102): the upstream README was the missing manual <<<
 
 Read `dipa-studio/ios-sweet`'s own README for the first time. It settles two things

@@ -279,6 +279,18 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             ('device-color-policy', u32(0)),
             ('siri-gesture', u32(1)),
             ('watch-companion', u32(1)),
+            # The fallback chain the real tree lists, worst-first: if APPLE4 is
+            # not what this GPU can do, iOS drops to the next class instead of
+            # giving up. Without it there is nothing to fall back to.
+            ('graphics-featureset-fallbacks',
+             cstr('APPLE3:APPLE3v1:APPLE2:APPLE1:GLES2,0')),
+            # Both read out of the same property table in the shared cache
+            # (shard .09) as the graphics keys above, and both were absent.
+            # artwork-scale-factor is the one that catches the eye: iPhone X is a
+            # @3x device (1125x2436 for a 375x812 point grid), so an iOS that
+            # cannot find this cannot pick which artwork to load.
+            ('device-perf-memory-class', u32(4)),
+            ('artwork-scale-factor', u32(3)),
         ]
     product = [node('product', [ph()] + product_props)]
 

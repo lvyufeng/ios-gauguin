@@ -280,25 +280,37 @@ and test the caller-name change on its own.
 
 ## Device state
 
-The phone has dropped off USB twice: after round 142 (back at 218) and again
-after the round-218 test run, where it has stayed. Host side is fine each time -
-`ioreg -p IOUSB` lists three `AppleT8142USBXHCI` controllers and nothing
-attached. Not fixable from the host.
+The phone has gone off USB repeatedly through this work - most recently after
+round 492, where it has stayed for 30+ rounds. Host side is fine each time:
+`ioreg -p IOUSB` shows nothing attached and `adb`/`fastboot` both list nothing.
 
-**Evidence on how it comes back is thin: one observation.** A forced power
-restart succeeded at round 218 (the user reported doing it); the phone has been
-off USB again since round 219 and has not returned. That is not enough to say a
-restart is the fix - only that it worked once.
+**A forced power restart is the only thing that has ever brought it back**, and it
+has worked many times (rounds 218, 426, 461, 464...). When it is gone this long,
+the things worth trying first are the physical ones: **charge it for a few
+minutes** (a kernel that stalls burns power fast), reseat the cable, then hold
+power 15 s and go to recovery with volume-down + power.
 
-When it returns, in order:
+**When it returns, do exactly this and nothing else first:**
 
-1. `bash research/tmp/next-runs.sh` - the two written-but-unrun experiments:
-   `sweetmsgwait=SpringBoard` with the cap at 200, and
-   `sweetmsgsend=SpringBoard`. One boot each.
-2. boot `k-proven` with no tracing and confirm the known panel state reproduces
-3. run the colour-coded map (lost mid-flight at round 142) - it answers whether
-   the centred shape is white, i.e. a boot logo, or coloured, i.e. something else
-4. only then test the GPU caller-name build
+```sh
+# 1. is it in recovery, and did the ring advance?
+adb devices -l                       # want: recovery ... device:gauguin
+# 2. the experiment that has never run - 14 /product properties
+bash tools/sweet-observe.sh shim/out/shim-gfx3.img research/tmp/gfx3.txt 400
+# 3. compare against the known-good baseline, not against a memory
+grep -c '^exec Setup$'        research/tmp/gfx3.txt   # baseline 0
+grep -c '^IOK SpringBoard:'   research/tmp/gfx3.txt   # baseline 33
+grep 'SWEET FB: vsync' research/tmp/gfx3.txt | tail -1
+```
+
+Baseline for the three lines above: `0` Setup, `33` SpringBoard IOKit calls, and a
+panel of **five colours** `ffffff b7b7b7 818181 bfbfbf 4d4d4d`. **Anything that
+changes the panel is the result; anything else is noise**, including present counts
+(which drop from 222 to 5 for unrelated reasons - see NOTES (99)).
+
+If that boot is unchanged, the next cheapest discriminator is to publish only
+`artwork-scale-factor` and only `graphics-featureset-class`, one at a time, since
+the 14 properties went in together.
 
 ## Traps worth knowing before editing anything
 

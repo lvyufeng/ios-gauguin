@@ -263,6 +263,22 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             # blob). It is the only identity property iOS references that had no
             # value anywhere in the tree. RouteLL/A is a real Apple region code.
             ('region-info', cstr('LL/A')),
+            # The real D22AP /product node carries ~130 properties and this
+            # node had four. The values below are read out of Apple's own
+            # DeviceTree.d22ap from the IPSW (IM4P -> LZFSE -> 186 KB tree,
+            # decompressed with libcompression), NOT guessed.
+            #
+            # graphics-featureset-class is the one that matters most: it is how
+            # the renderer is told what the GPU can do. SpringBoard re-opens
+            # /product a dozen times per boot and never draws; a missing
+            # featureset class is exactly the shape of "ask, get NULL, give up".
+            ('graphics-featureset-class', cstr('APPLE4')),
+            ('artwork-device-idiom', cstr('phone')),
+            ('compatible-app-variant', cstr('0')),
+            ('artwork-dynamic-displaymode', cstr('0')),
+            ('device-color-policy', u32(0)),
+            ('siri-gesture', u32(1)),
+            ('watch-companion', u32(1)),
         ]
     product = [node('product', [ph()] + product_props)]
 

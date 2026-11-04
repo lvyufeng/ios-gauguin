@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (98): the iOS os_log exists - 312 MB of it - and backlight is ruled out <<<
+
+**A data source missed for ~270 rounds.** iOS keeps `os_log` for every process under
+`/private/var/db/diagnostics/Persist/*.tracev3`. After a few boots this was 1001
+files, 312 MB, **3669 records mentioning SpringBoard**. Everything until now read
+only the kernel console, so "SpringBoard goes silent after 33 IOKit calls" was
+measured on the wrong log. `.tracev3` is a private binary format and `log show`
+refuses the directory as an archive (no index), so `strings` fragments are all that
+can be had for now - but they already show:
+
+- `springboard.hasBlankedScreen` (7), `springboard.lockstate` (5),
+  `springboard.SBRenderer` (2), `springboard.SBRendererService` (1)
+- `failed lookup: com.apple.accessibility.AXSpringBoardServer ... No such process`
+- `logd[24]: assertion failed` repeatedly - **logd itself is unhealthy**, which is
+  why clearing `Persist/` produced no new files on the next boot
+
+**Backlight was a real gap, and filling it changes nothing.** backboardd looks for a
+*service* with `backlight-control=true`, but `/backlight` was only a device-tree
+node, so the property match returned `0 found` and backboardd stopped its display
+set-up. `SweetBacklight` (an `IOService` with the property, registered in
+`KernelConfigTables.cpp`) fixes that: the lookup now reports
+**`-> SweetBacklight`, `-> 1 found`**. SpringBoard still makes exactly 33 IOKit
+calls, still draws nothing, and presents actually dropped from 222 to 5. **The
+service is kept - iOS should have it - but it is not the blocker.**
+
+**Also checked and clean this round:** backboardd's three `NEVER FOUND` classes are
+Face ID and a video scaler (no such hardware); SpringBoard's `Info.plist` requires
+only `arm64`; `/product` is polled 12x by SpringBoard and 38x by backboardd, which
+is normal; `runningboardd` starts and the boot continues past it for another 200+
+execs.
+
+**Where this leaves the question:** every configuration, device-tree and IOKit
+requirement checked so far is satisfied or ruled out. What remains is knowing where
+SpringBoard's main thread actually is, which needs either a symbolised userspace PC
+in the thread dump or in-process debugging - neither exists in this port yet.
+
+
 ### >>> 2026-11-04 (97): 8 cores plus the IPSW write path, and provisioning ruled out <<<
 
 **Two capabilities gained, one hypothesis killed.**

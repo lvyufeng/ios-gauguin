@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (97): 8 cores plus the IPSW write path, and provisioning ruled out <<<
+
+**Two capabilities gained, one hypothesis killed.**
+
+**8 cores.** `cpus=8` (with `sweetlogms=500`, `debug=0x8`, no
+`-enable_kprintf_spam`) is now the default boot line: **418-429 execs, 1937-2677
+log lines, presents 198-225**, against 268 execs / 1591 lines / 109 presents at
+`cpus=1`. The system finally runs about as fully as this port allows.
+
+**The iOS root is now writable from the host, end to end:** pull the HFS+ volume
+(`dd if=/dev/block/sda35 bs=4096 count=4194304`, 17.18 GB - the volume is only the
+front of a 114.9 GB partition, so counting blocks matters), `hdiutil attach
+-readwrite`, edit, then stream it back with
+`adb exec-in "dd of=/dev/block/sda35 ..." < image` (9 minutes). Ownership survives
+as `501:20`, so the files are accepted.
+
+**Provisioning is ruled out.** With `com.apple.purplebuddy.plist`
+(SetupDone/SetupFinishedAllSteps/SetupVersion 11/daemonizeNeedsToRun false), both
+`.notbackedup` files, and `BKNoWatchdogs` + `FBLaunchWatchdogExceptions` +
+`MCForceShowCloudConfigurationUI` merged into `com.apple.springboard.plist`, a boot
+gives **429 execs and still 33 SpringBoard IOKit calls, still no `exec Setup`, still
+the same five-colour panel.** These are exactly the files `sweet-root-tweaks.py`
+writes for the Sweet images - **they are necessary there and not sufficient here.**
+
+**Also ruled out this round:** MobileGestalt is healthy - `MobileGestaltHelper`
+answers `sel 8` with `[0x465, 0x984]` = **1125x2436**, the panel's real geometry,
+and then closes its client normally.
+
+**What is left.** SpringBoard emits nothing at all after its 33 IOKit lookups -
+`exec SpringBoard` and those 33 lines are the only trace of it in a 1781-line log,
+where a working SpringBoard is famously verbose. It is not crashing; it is waiting
+somewhere that produces no output. Answering that needs in-process debugging of a
+userspace binary, which this port has no channel for.
+
+
 ### >>> 2026-11-04 (96): the intermittent short boots are UFS read failures, not the ADT <<<
 
 A panic screen supplied by the user shows what the last several rounds were

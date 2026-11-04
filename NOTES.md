@@ -2,6 +2,22 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### >>> 2026-11-04 (101): ADT integers are little-endian, Apple's tree is big-endian <<<
+
+A trap worth writing down before someone "fixes" it. Apple's `DeviceTree.d22ap`
+stores integers **big-endian** (`artwork-scale-factor` = `00 00 00 03`,
+`device-perf-memory-class` = `00 00 00 04`). The ADT we generate does not: XNU
+parses ADT lengths and values little-endian, and `tools/mkadt.py`'s
+`u32 = struct.pack('<I')` matches that. The known-good properties prove it -
+`sweet-fbcon`'s `width` is `38 04 00 00` = 1080 and `height` is `60 09 00 00` =
+2400 only when read little-endian.
+
+So the values lifted out of Apple's tree must be written with `u32(3)` and
+`u32(4)`, **not** copied as their big-endian bytes. Copying the raw bytes would
+make `artwork-scale-factor` read back as 50,331,648 - wrong in a way that is
+silent, since nothing rejects it.
+
+
 ### >>> 2026-11-04 (100): the real iPhone device tree is readable, and /product was nearly empty <<<
 
 **Apple ships `DeviceTree.<board>.im4p` as an IM4P wrapper around an **LZFSE**

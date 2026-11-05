@@ -2,6 +2,112 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — physical SPI/full firmware readback works; native CRC gate fix0108 ready
+
+User confirms0107 remains at iOS lock screen with no touch, then manually
+returned to TWRP. Observer59631 ended181s/exit4; no live observer/CI. First pull
+briefly saw no USB, retry succeeded after enumeration without user action.
+Fresh log p1-nvt-0107-recovered-20261105.txt matches complete xnu-93babaf... ID:
+3751lines,ring283996B/flush256,PET230 at4592702331ticks (~239.20s).
+SHA256a5c9597f074cf6b67e057aecdc7c21d20ad1d500356fd0db3097b7ab7ff444cc.
+
+Actual new hardware milestone: assetSHA verified; bus/config/pins and raw SPI
+work. Realtrim0c0000726603;96936bytes written AND entirely read back in3.206132s,
+9160transfers. CRCbefore0/status4 (DONE, no error), resetA1; ILM15fe9c6d matches.
+Post-start R_DLM reads b0183db6, equal to the file's Info12 CRC rather than the
+initial DLM golden90fe20f8.0107 aborts atphase15/result-8,validc3f BEFORE reading
+post golden/FWINFO/PID or polling/HID. No physical touch report was delivered.
+PIO0/callback0; final restore-8 is expected quarantine from explicit upper-layer
+abort, not evidence of a new SPI error. One UFS1000-spin busy notice, but no
+captured transfer timeout/poison/panic. This is not fault-recovery qualification.
+
+Pinned native fw_update.c939-1001 breaks on reset-ready success; R/G checksums
+are read only in failure diagnostics after retry exhaustion. They have no
+source-established post-start stability contract. Firmware reuse of the DLM
+result slot is a plausible interpretation of the Info12 match, not proved.
+Two independent reviews verified addresses, raw RX+2, little endian and actual
+preboot bank programming; no offset/partition mix-up was found.
+
+0108 removes ONLY unsupported post-start R/G equality gates, retaining actual
+reads/validity logs and all SPI-error handling. It does NOT whitelist Info12.
+PinnedSHA/full SRAM comparison/preboot bank readback/CRC status/reset/FWINFO/
+version/type/PID gates remain. Fresh source108102patches differs from107 only
+in bootstrap C, SHA0d82ffb3e741665ba38098d16e7cc6eea8f009dcc78e38f28a5803a84edb8ae7.
+Full host suite and staged real-file bootstrap tests pass. New test permits
+arbitrary later R/G observations but still rejects actual preboot corruption,
+CRC errors/unready/FWINFO/PID errors; the old0107 fails this regression control.
+Real changed ARM64 TU passes in crc108-compile/run-clk08lp_, object32104B
+SHA78b23cbd63f51325d7984c14b9369ce1e51cd6816aafbc451bf454903ea47882.
+
+User questioned Actions instead of local builds. Response committed to local
+full/incremental builds for this debugging loop, CI for stable regressions.
+Use existing deps/build-macos.sh with source108 and isolated
+.deps-cache/p0-20261105/build, separate output p1-native-0108-20261105-out.
+This will update the old native99 generated context: agents must NOT run old
+HsArvW crosscompile helpers concurrently; wait for the new successful manifest.
+Phone currently TWRP. Next: commit, local full build, identity/geometry check,
+temporary0108 boot. Preserve0104/0107 images and all previous source trees.
+
+Separate future P2 VFS helper integration is frozen only in ignored
+p2-vfs-test-20261105/candidate-p2-vfs-after-root.patch;3files, defaultoff,
+full report integration-qualification.json. It has NOT been included in108.
+P3 owned-GPU buffer adapter is being prepared offline in p3-gpu-abi-20261105;
+no real GPU activity. Neither task establishes additional hardware milestones.
+
+
+### 2026-11-05 — first0107 real-input temporary boot accepted; observer live
+
+0107 image9593097b... was temporarily booted: fastboot send16796KB0.392s,
+boot0.134s,total0.534s. Observer **59631** is observing180s, still live at the
+latest check. Cycle research/tmp/p1-nvt-0107-cycle-20261105.log; evidence
+p1-nvt-0107-evidence-20261105.json. Do NOT duplicate a boot or replace its log.
+No actual SPI/firmware/input result is available until the screen is checked
+and fresh log recovered. No automatic recovery has been detected so far.
+CI42021243212 is already completedSUCCESS, not a live job. Preserve0104 fallback.
+
+
+### 2026-11-05 — 0107 complete CI passes; first physical-input image prepared
+
+CI **42021243212** succeeded at exact public headb7d836a1a0c294721fa417228ea911dd783683dd.
+101patches/allhosttests/make_exit0;5245source entries match source107 except
+four exactly reproduced pinned dxb path adaptations. Ten required linked
+symbols include actual bootstrap/bus/PIO/runtime and whole-frame HID. Full
+qualification: research/tmp/p1-ci-0107-artifacts/qualification.json. No CI live.
+Kernel17284168B SHA2566a11f250c79f3b9edafb7f2696f8a0c09f44b07fa696e9262d3c957d11d82ccc.
+Complete build IDxnu-93babafdaaa64b119359ccf984e658a3; banner matches manifest and image.
+
+Prepared shim/out/shim-p1-nvt-0107-20261105.img (17199104B),
+SHA2569593097b74ce48fc467e861a85573a0fe0f04f0d8a1e74faa2e3c43f53f86ed9. PayloadSHA2561bf7204ade0fba3ec6314f8cdd5701b94fc5f8fac12ab4174eb1bb8922fb39fe.
+Exact tested0104 shim/DTB/header geometry retained; baseline ADT plus reserved
+NovatekFirmware. Asset PA0x18252c000, raw139264/reserve147456; boundaries,
+actual asset bytes/zero padding and full image banner independently checked.
+Baseline args plus sweetnvt=1, with sweetnvtprobe=0/sweettouchmode=0. No synthetic
+input flags. Evidence research/tmp/p1-nvt-0107-evidence-20261105.json.
+Image has NOT booted yet. Next: one temporary180s observation, user screen/
+touch report, manual TWRP recovery and fresh exact-ID log. First physical SPI/
+firmware/gesture result is unknown; do not infer input from these build checks.
+
+
+### 2026-11-05 — 0107 pushed; complete kernel CI42021243212 running
+
+Local3a317bf (23files) is published as sanitized public snapshot
+b7d836a1a0c294721fa417228ea911dd783683dd, parent1f988a6. Push succeeded.
+Exactly one gh workflow dispatch: CI **42021243212**, currently in the Build
+kernel step, not yet qualified:
+https://github.com/lvyufeng/ios-gauguin/actions/runs/42021243212
+Artifacts/expected source and input snapshots: research/tmp/p1-ci-0107-artifacts/.
+Do not dispatch a duplicate or use previous successful0104 output. Phone stays
+TWRP, no observer or newer image boot. pack_ci107.py is prepared but must only
+run after matching successful CI qualification. Latest hardware baseline0104.
+
+Final integration single-TU report:
+gauguin-nvt-p1/integration-compile/qualification.json. Eight ARM64 MH_OBJECTs
+pass;70 distinct undefined symbols have providers in tested CI104, new objects
+and the verified matching SweetHID object. This is still not a full kernel link.
+Independent integration review confirms GAUGUIN-only bus/runtime, exclusive
+startup, actual export/include paths, final status lifetime and valid-bit logs.
+
+
 ### 2026-11-05 — real NVT stack staged; complete local tests and eight ARM64 TUs pass
 
 HID/asset tooling local commitbcc0a63 was published safely as

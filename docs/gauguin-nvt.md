@@ -1,8 +1,8 @@
 # Gauguin Novatek input bring-up
 
 This driver is specific to the observed Redmi Note 9 Pro 5G controller and
-boot state. Register access has been verified on hardware. SPI transactions,
-firmware initialization and physical input still require hardware qualification.
+boot state. Register access has been verified on hardware. SPI transactions and full firmware SRAM readback have now succeeded.
+Firmware readiness and physical input still require hardware qualification.
 See `NOTES.md` for the current tested image and results.
 
 The default is disabled. `sweetnvt=1` selects a separate worker after a 30 second
@@ -51,9 +51,15 @@ The implementation uses these observed/native contracts:
 | Readback | Read and compare all 96936 bytes before starting firmware | Native optional SRAM dump supports these reads before CRC setup |
 | CRC banks | Destination 3 bytes, raw size 3 bytes with 17 significant bits, golden CRC 4 bytes | `nvt_set_bld_hw_crc` |
 | Start | Enable bootloader/FW CRC, write BOOT_READY, poll bounded reset/CRC state | `nvt_bld_crc_enable`, `nvt_fw_crc_enable`, `nvt_boot_ready` |
-| Verification | Actual CRC_DONE, no bank error, ILM/DLM result equality, reset A0–AF, version 16, type 1, PID 5937 | Native status/FWINFO/PID reads; values observed in recovery |
+| Verification | Actual CRC_DONE, no bank error, reset A0–AF, version 16, type 1, PID 5937 | Native status/FWINFO/PID reads; values observed in recovery |
 
-CRC history before loading is recorded, not assumed to clear on reset. Info-12
+CRC history before loading is recorded, not assumed to clear on reset.
+Post-start R/G checksum registers are diagnostic observations, not stable
+loader results: the native hardware-CRC success path checks reset readiness
+and reads those registers only on failure. On the first hardware run, DLM's
+result matched Info-12's CRC after reset A1 and complete SRAM readback. Reuse
+by running firmware is an inference; no special value is accepted as a
+substitute for the retained integrity/readiness gates. Info-12
 has no third hardware CRC bank, so its complete byte readback matters. No trim,
 PID, geometry, CRC or readiness response is synthesized. All bootstrap
 transactions fit 64 wire bytes; subsequent point samples use 67 wire bytes.

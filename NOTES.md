@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — P2 CI passes, image prepared; mode2 log still pending
+
+Local a7ce787 (UFS0103/0104) and17b4aeb (build identity) are published together
+as sanitized snapshot7b6f72db1d99b4938700d3364e30cdf415aaf061, parent5ca5e7a.
+Push succeeded. CI **42004257034** succeeded for that exact head:
+https://github.com/lvyufeng/ios-gauguin/actions/runs/42004257034
+Dispatch file `research/tmp/p2-ci-dispatch-0104-20261105.txt`; artifact target
+`research/tmp/p2-ci-42004257034-artifacts/`.98patches/allhosttests/make_exit0;
+source104's5230entries qualify with only the same four exactly reproduced dxb
+path changes. UFS SHA52d9e171... matches. Kernel17313240B SHA256
+45a9b2f3a683b73043bae509d766bb2d55616941930c60099ffa3265025f959f.
+Actual complete banner and manifest share ID
+`xnu-fa92111953af4c2a9940d24a7c73578b`; same-date historical log is rejected with
+exit3. Fresh CI had no old link targets; incremental preservation remains
+host-fixture verified, not an actual cached CI build. Mach-O/payload static
+qualification passes. No CI or device observer remains live; do not duplicate.
+
+Prepared `shim/out/shim-p2-ufs-0104-20261105.img`, SHA256
+363113537421a1c67d476d1b02adb8b25e8c3220991e762caf6e024fa823fba7.
+Evidence JSON `research/tmp/p2-ufs-0104-evidence-20261105.json`. Preserved
+shim/DTB/ADT and baseline args, explicitly sweetnvtprobe=0/sweettouchmode=0.
+This image has NOT booted. No filesystem capacity or metadata change has been
+performed by0103/0104 on the device; current root is still the16GiB volume.
+
+Phone's0102 mode2 experiment was observed for181seconds; user recovery/screen
+confirmation is still pending and latest adb had no device. Do not boot the
+P2 image until the mode2 log has been collected. Next P2 hardware regression
+should use the established lock-screen args with sweetnvtprobe=0, so storage
+behavior is tested independently of new controller accesses.
+
+The HID whole-frame candidate remains ignored under
+`research/tmp/gauguin-nvt-p1/hid-frame/`; reset_evidence is preparing final
+factory-allocation/publication-lifetime corrections after its first real C++
+TU pass. Do not treat its old hash as the final candidate without checking the
+agent's latest report. No HID frame patch is integrated and no real touch
+input has been verified.
+
 ### 2026-11-05 — storage fixes committed; unique build identity ready for integration build
 
 Local **a7ce787** commits0103/0104 and their host fixtures; source104 is the

@@ -25,8 +25,9 @@ SECTIONS
 		pt_l3 = .; . += 0x4000 * 2;
 	}
 	. = ALIGN(16);
-	_stack_top = .;
+	/* AArch64 SP grows down into this reserved32KiB, not into pt_l3. */
 	. += 0x8000;
+	_stack_top = .;
 	. = ALIGN(4096);
 	_sec_stacks = .;
 	. += 8 * 0x1000;

@@ -32,6 +32,10 @@ segment and kernel_end reserve zero-padded16K pages. This does not upload or
 execute firmware. Payload v1 has no permission bits; a future kernel consumer
 must map the asset as data/NX and independently verify the actual touch chip.
 """
+# Optional --pas-reservation appends a non-loadable2MiB zero tail WITHIN the
+# initrd. Its pending ADT slots are deliberately not kernel pmap/owner names.
+# Only the new loader may validate actual ABL handoff and publish a1MiB owned
+# subrange. This performs no physical allocation, firmware load or secure call.
 import argparse, hashlib, os, struct, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -270,9 +274,106 @@ def append_nvt_firmware(pieces, adt_blob, kernel_end, virt_base, phys_base, mem_
                              sha256=NVT_FIRMWARE_SHA256, top_of_kernel_data=hex(top))
 
 
-def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None):
+PAS_TAIL_BYTES = 0x200000
+PAS_REGION_BYTES = 0x100000
+PAS_ALIGNMENT = 0x100000
+PAS_MAX_PAYLOAD = 0x20000000
+
+
+def pas_adt(adt_blob):
+    """Validate the untrusted byte layout before using the ordinary ADT model."""
+    if not adt_blob or len(adt_blob) > 0x100000:
+        raise ValueError('PAS ADT extent is not bounded')
+    nodes = props = 0
+    def walk(offset, depth):
+        nonlocal nodes, props
+        if depth >= 16 or offset + 8 > len(adt_blob):
+            raise ValueError('PAS ADT depth/truncation')
+        np, nc = struct.unpack_from('<II', adt_blob, offset)
+        nodes += 1; props += np; offset += 8
+        if nodes > 4096 or nc > 4096 or props > 16384:
+            raise ValueError('PAS ADT work bound')
+        names = {}
+        for _ in range(np):
+            if offset + 36 > len(adt_blob):
+                raise ValueError('PAS ADT property header')
+            raw = adt_blob[offset:offset + 32]
+            if b'\0' not in raw:
+                raise ValueError('PAS ADT property name')
+            name = raw.split(b'\0', 1)[0]
+            raw_length = struct.unpack_from('<I', adt_blob, offset + 32)[0]
+            length = raw_length & 0x7fffffff
+            value = adt_blob[offset + 36:offset + 36 + length]
+            # Existing gauguin ADT has two identical backlight/name entries.
+            # Only byte-identical node names may repeat; no ambiguous identity.
+            if name in names and not (name == b'name' and names[name] == (raw_length, value)):
+                raise ValueError('PAS ADT duplicate property')
+            names[name] = (raw_length, value)
+            offset += 36 + ((length + 3) & ~3)
+            if offset > len(adt_blob):
+                raise ValueError('PAS ADT property extent')
+        if b'name' not in names:
+            raise ValueError('PAS ADT missing node name')
+        for _ in range(nc):
+            offset = walk(offset, depth + 1)
+        return offset
+    if walk(0, 0) != len(adt_blob):
+        raise ValueError('PAS ADT trailing bytes')
+    root, _ = adt.parse(adt_blob)
+    if root.name != 'device-tree':
+        raise ValueError('PAS ADT root')
+    def unique(parent, name):
+        found = [n for n in parent.children if n.name == name]
+        if len(found) != 1:
+            raise ValueError(f'PAS ADT requires exactly one {name}')
+        return found[0]
+    chosen = unique(root, 'chosen')
+    unique(chosen, 'memory-map')
+    defaults = [n for n in root.children if n.name == 'defaults']
+    if len(defaults) > 1:
+        raise ValueError('PAS ADT duplicate defaults')
+    if not defaults:
+        default = adt.Node(); default.props = [('name', 0, b'defaults\0')]
+        root.children.append(default)
+    else:
+        default = defaults[0]
+    for name in ('dram-base', 'dram-size'):
+        values = [(flags, value) for key, flags, value in chosen.props if key == name]
+        if len(values) != 1 or values[0][0] or len(values[0][1]) != 8:
+            raise ValueError('PAS ADT DRAM property')
+    if any(key in ('LowPASRequest', 'LowPASReservation') for key, _, _ in chosen.props):
+        raise ValueError('PAS ADT already contains ownership metadata')
+    if any(key in ('LowPASIOPending', 'pmap-io-ranges') for key, _, _ in default.props):
+        raise ValueError('PAS refuses to merge/replace existing pmap-io-ranges')
+    return root, chosen, default
+
+
+def pas_pending_adt(adt_blob, pieces, kernel_end, virt_base, phys_base, mem_size):
+    root, chosen, default = pas_adt(adt_blob)
+    if not pieces or len(pieces) > ASSET_MAX_SEGMENTS or phys_base % 0x2000000 or mem_size % PAGE or not mem_size:
+        raise ValueError('PAS invalid managed range/segment table')
+    dram_end = checked_end(phys_base, mem_size, label='PAS managed DRAM')
+    previous = virt_base
+    for va, vm, data in pieces:
+        if not vm or va < previous or (va | vm) & 7 or ((len(data) + 7) & ~7) > vm:
+            raise ValueError('PAS invalid ordered copy/zero range')
+        previous = checked_end(va, vm, label='PAS segment')
+        checked_end(phys_base + va - virt_base, vm, dram_end, 'PAS segment DRAM')
+    if kernel_end < previous or kernel_end % PAGE:
+        raise ValueError('PAS invalid kernel end')
+    chosen.props.append(('LowPASRequest', 0, bytes(128)))
+    default.props.append(('LowPASIOPending', 0, bytes(24)))
+    size = len(adt.serialize(root))
+    if size > 0x100000:
+        raise ValueError('PAS enlarged ADT too large')
+    end = checked_end(phys_base + kernel_end - virt_base, size, dram_end, 'PAS ADT DRAM')
+    top = checked_end((end + PAGE - 1) & ~(PAGE - 1), PAGE, dram_end, 'PAS boot_args DRAM')
+    return root, chosen, size, top
+
+
+def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None, pas_reservation=False):
     buf = bytearray(open(kernel_path, 'rb').read())
-    executable = validate_asset_macho(buf) if nvt_firmware_path is not None else None
+    executable = validate_asset_macho(buf) if nvt_firmware_path is not None or pas_reservation else None
     m = parse_macho(buf)
     if nvt_firmware_path is not None and sum(bool(s['vmsize']) for s in m['segs']) + bool(ramdisk_path) + 1 > ASSET_MAX_SEGMENTS:
         raise ValueError('asset segment table exceeds one16K page')
@@ -310,6 +411,12 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
         adt_blob, kernel_end, nvt = append_nvt_firmware(
             pieces, adt_blob, kernel_end, virt_base, PHYS_BASE, MEM_SIZE, nvt_firmware_path)
 
+    pas = None
+    if pas_reservation:
+        pas_root, pas_chosen, _, pas_top = pas_pending_adt(
+            adt_blob, pieces, kernel_end, virt_base, PHYS_BASE, MEM_SIZE)
+        adt_blob = adt.serialize(pas_root)
+
     hdr_size = SEG_TABLE + 32 * len(pieces)
     out = bytearray(hdr_size)
     seg_table = []
@@ -319,8 +426,26 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
         out += b'\0' * (-len(out) & 0xf)
         seg_table.append((vmaddr, vmsize, off, len(data)))
     adt_off = len(out)
+    if pas_reservation:
+        tail = (adt_off + len(adt_blob) + PAGE - 1) & ~(PAGE - 1)
+        total = tail + PAS_TAIL_BYTES
+        if total > PAS_MAX_PAYLOAD:
+            raise ValueError('PAS total payload exceeds512MiB')
+        request = struct.pack('<8sII6Q', b'LPASREQ1', 1, 0, tail,
+                              PAS_TAIL_BYTES, PAS_REGION_BYTES, PAS_ALIGNMENT, total, 0) + bytes(64)
+        pas_chosen.props[-1] = ('LowPASRequest', 0, request)
+        updated = adt.serialize(pas_root)
+        if len(updated) != len(adt_blob):
+            raise ValueError('PAS fixed request changed ADT size')
+        adt_blob = updated
+        pas = dict(tail_offset=tail, tail_bytes=PAS_TAIL_BYTES,
+                   region_bytes=PAS_REGION_BYTES, alignment=PAS_ALIGNMENT,
+                   runtime_pa=None, top_of_kernel_data=hex(pas_top),
+                   state='pending-runtime-validation')
     out += adt_blob
     out += b'\0' * (-len(out) & 0xf)
+    if pas_reservation:
+        out += bytes(total - len(out))
 
     struct.pack_into('<8sII', out, 0, b'SWEETXNU', 1, len(pieces))
     struct.pack_into('<7Q', out, 0x10, virt_base, m['entry'], adt_off, len(adt_blob), kernel_end,
@@ -334,6 +459,10 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
                 segs=[(s['name'], hex(s['vmaddr']), hex(s['vmsize'])) for s in segs])
     if nvt is not None:
         info['nvt_firmware'] = nvt
+    if pas is not None:
+        info['low_pas_request'] = pas
+        if nvt is not None:
+            nvt['top_of_kernel_data'] = hex(pas_top)
     return bytes(out), info
 
 
@@ -343,8 +472,9 @@ if __name__ == '__main__':
     ap.add_argument('--cmdline', default='debug=0xc serial=3 cpus=1 keepsyms=1')
     ap.add_argument('--ramdisk', help='root image for md0 (boot with rd=md0)')
     ap.add_argument('--nvt-firmware', help='pinned Novatek firmware data asset; does not upload it')
+    ap.add_argument('--pas-reservation', action='store_true', help='request runtime-validated unmanaged low-PA ownership; no PAS operation')
     a = ap.parse_args()
-    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware)
+    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware, a.pas_reservation)
     open(a.out, 'wb').write(blob)
     for k, v in info.items():
         if k != 'segs':

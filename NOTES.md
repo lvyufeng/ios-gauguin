@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — low-PAS loader integrated; default-only image qualified
+
+Integrated optional pending-request/owned-initrd-tail contract in mkpayload
+and shim loader, plus corrected downward stack placement. Both Linux/macOS
+shim build lists include the parser; macOS supports isolated --out and --dtb.
+Runtime accepts lagoon or the exact gauguin/SM7225 pair. It never accesses
+the selected PAS bytes or performs firmware/PAS/GPU operations. Invalid
+input stops explicitly instead of entering the old UFS diagnostic fallback.
+The existing qualified images remain intact.
+
+Verification: full hostsuite on source110 passes; committed portable suite
+has 86 ASan/UBSan actual-C metadata cases and actual-loader segment/zero-fill/
+ADT/boot_args checks, with 10 malformed/default stop cases. Pre-integration
+audit also compared old/new valid-loader destinations byte for byte (87 cases
+including optional saved recovery metadata). Eight synthetic default packer
+goldens and real109 payload identity pass. Original wrapper tree with only
+synthetic memory/initrd handoff values passes bounded parsing; this is a host
+test, not evidence of actual ABL handoff values. ARM64 links with no undefined
+symbols or C ABS64 relocations; measured conservative stack bound 4736B/32KiB.
+
+Prepared default-only trial: shim/out/shim-p3-low-pas-default-20261106.img,
+17289216B SHA a8fb8907ea070a20dd4b2bc70746ff5481cb676b8531b73e57f2eed1087b1797.
+New shim 233472B; kernel110 and NVT firmware unchanged. No PAS request/tail/
+pmap reservation enabled. SCM/GCC probes off, touch on, software-copy cap30.
+Require actual log marker sweettrial=lpdefault-20261106-a1 as well as full
+xnu-b89c8584e8904e069641abfe9a973a8b banner. Package/qualification evidence:
+research/tmp/p3-low-pas-default-20261106-package.json. No new boot yet;
+phone last read as recovery. Next temporary 180s boot, touch confirmation,
+manual TWRP and fresh log before optional reservation/readonly kernel check.
+
 ### 2026-11-06 — resumed: fix low-PAS board matching before integration
 
 Phone is in TWRP (fresh `adb get-state`: recovery). No kernel build, CI or

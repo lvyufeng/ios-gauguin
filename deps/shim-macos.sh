@@ -1,7 +1,8 @@
 #!/bin/bash
 # Build the shim on a Mac that has no aarch64-linux-gnu-gcc.
 #
-#   deps/shim-macos.sh PAYLOAD   -> shim/out/shim-boot.img
+#   deps/shim-macos.sh PAYLOAD [--out DIR] [--dtb FILE]
+# The optional output directory keeps qualified rollback images intact.
 #
 # shim/build.sh is written for a Linux cross compiler. On macOS the same
 # sources build with Xcode's clang; what differs is only the linker and the
@@ -25,7 +26,18 @@
 # by shim.ld and the boot.img v2 header comes from the repo's own packer.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-payload=${1:?usage: deps/shim-macos.sh PAYLOAD}
+payload=${1:?usage: deps/shim-macos.sh PAYLOAD [--out DIR] [--dtb FILE]}
+shift
+OUT=shim/out
+DTB=dtb/boot_unpacked/dtb
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		--out) OUT=${2:?missing --out directory}; shift 2 ;;
+		--dtb) DTB=${2:?missing --dtb file}; shift 2 ;;
+		*) echo "unknown option: $1" >&2; exit 2 ;;
+	esac
+done
+[ -s "$payload" ] && [ -s "$DTB" ] || { echo "payload/DTB missing or empty" >&2; exit 1; }
 LLVM=$({
 	if [ -x /opt/homebrew/opt/llvm/bin/clang ]; then echo /opt/homebrew/opt/llvm/bin
 	elif [ -x /usr/local/opt/llvm/bin/clang ]; then echo /usr/local/opt/llvm/bin
@@ -37,12 +49,11 @@ RES=$($CLANG -print-resource-dir)
 CFLAGS="-O2 -ffreestanding -nostdlibinc -isystem $RES/include -fno-pic \
 	-mgeneral-regs-only -mstrict-align -fno-stack-protector -fno-jump-tables \
 	-Wall -Wextra -target aarch64-none-elf"
-OUT=shim/out
-mkdir -p "$OUT" shim/out
-for f in start.S shim.c console.c mmu.c fdt.c loader.c ufs.c; do
+mkdir -p "$OUT"
+for f in start.S shim.c console.c mmu.c fdt.c loader.c pas_reservation.c ufs.c; do
 	$CLANG $CFLAGS -c "shim/$f" -o "$OUT/${f%.*}.o"
 done
-objs="start shim console mmu fdt loader ufs"
+objs="start shim console mmu fdt loader pas_reservation ufs"
 # No relocations are resolved by the shim itself: it runs wherever ABL puts it.
 # The one allowed exception is start.S's image_size header field, which is the
 # linked-at-0 size of _end (build.sh checks the C objects only).
@@ -61,7 +72,7 @@ size=$(llvm-nm "$OUT/shim.elf" | awk '$3=="_end"{print $1}')
 truncate -s "$((16#$size))" "$OUT/Image"
 cp "$payload" "$OUT/ramdisk.bin"
 python3 tools/mkbootimg2.py "$OUT/shim-boot.img" --kernel "$OUT/Image" --ramdisk "$OUT/ramdisk.bin" \
-	--dtb dtb/boot_unpacked/dtb --kernel-offset 0x8000 --ramdisk-offset 0x1000000 \
+	--dtb "$DTB" --kernel-offset 0x8000 --ramdisk-offset 0x1000000 \
 	--tags-offset 0x100 --dtb-offset 0x1f00000 --page-size 4096 \
 	--os-version 17.0.0 --os-patch-level 2035-06 --cmdline "console=null"
 python3 tools/unpack_bootv2.py "$OUT/shim-boot.img" "$OUT/check-shim" >/dev/null

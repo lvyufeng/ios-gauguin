@@ -100,3 +100,5 @@
 0102-gauguin-nvt-controller-access-probe.patch
 0103-sweet-ufs-dma-ownership-quarantine.patch
 0104-sweet-ufs-reserve-diagnostic-tail.patch
+0105-sweet-hid-atomic-touch-frames.patch
+0106-sweet-hid-client-close-without-allocation.patch

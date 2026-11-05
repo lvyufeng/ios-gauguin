@@ -1,0 +1,133 @@
+[
+  {
+    "sha256": "7f86c84fac8386b14ebe7c98dc07dd72185b256e86eaaabab4f6797c2fe22ad6",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007010000",
+      "ramdisk": null,
+      "size": 25584,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "sha256": "4b5d74faa9ebfea219c0229da66f88e7af797914246df85ae4bf3bb3ff4565f3",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007010000",
+      "ramdisk": null,
+      "size": 25584,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "sha256": "0a4dd7417aa4646b3d8e652aed8107c20dd2f3612f0db913ebb589c190467ee6",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007018000",
+      "ramdisk": [
+        "0x181010000",
+        "0x8000"
+      ],
+      "size": 45664,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "sha256": "4250fbc954c0aabdc518dfcf5278b9179c94da1d435457ec4043236e1a92177a",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007018000",
+      "ramdisk": [
+        "0x181010000",
+        "0x8000"
+      ],
+      "size": 45664,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "sha256": "bf96de40e21cc4dbd3336901d77e3adaea3759863a8fde7ce4c862902b61512a",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007010000",
+      "ramdisk": null,
+      "size": 25632,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  }
+]

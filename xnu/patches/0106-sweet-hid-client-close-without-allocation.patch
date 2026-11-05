@@ -1,0 +1,111 @@
+--- a/iokit/Kernel/arm/hid/SweetHID.cpp
++++ b/iokit/Kernel/arm/hid/SweetHID.cpp
+@@ -144,15 +144,18 @@
+ {
+ 	IOHIDEventServiceClient *data = OSDynamicCast(IOHIDEventServiceClient, (OSObject *)argument);
+ 	bool ok = false;
+-
+-	if (!data) {
+-		return false;
+-	}
++	if (!data || !client || data->client != client) return false;
+ 	IOLockLock(_clientLock);
+ 	if (!handleIsOpenLocked(client)) {
+-		/* Copy on write: dispatchEvent iterates a snapshot without the lock. */
+-		OSArray *next = OSArray::withArray(_clients, _clients->getCount() + 1);
+-		if (next && next->setObject(data)) {
++		/* Only open allocates. Published arrays stay immutable while a
++		 * dispatcher holds a snapshot; omit records tombstoned by close. */
++		OSArray *next = OSArray::withCapacity(_clients->getCount() + 1);
++		bool copied = next != NULL;
++		for (unsigned int i = 0; copied && i < _clients->getCount(); i++) {
++			IOHIDEventServiceClient *prior = (IOHIDEventServiceClient *)_clients->getObject(i);
++			if (prior->client && !next->setObject(prior)) copied = false;
++		}
++		if (copied && next->setObject(data)) {
+ 			_clients->release();
+ 			_clients = next;
+ 			ok = true;
+@@ -160,10 +163,11 @@
+ 			OSSafeReleaseNULL(next);
+ 		}
+ 	}
++	bool opened = handleIsOpenLocked(client);
+ 	int ncl = _clients ? (int)_clients->getCount() : -1;
+ 	IOLockUnlock(_clientLock);
+ 	IOLog("SWEET HID: handleOpen data=%p ok=%d locked=%d clients=%d\n",
+-	    data, (int)ok, (int)handleIsOpenLocked(client), ncl);
++	    data, (int)ok, (int)opened, ncl);
+ 	return ok;
+ }
+ 
+@@ -171,16 +175,16 @@
+ IOHIDEventService::handleClose(IOService *client, IOOptionBits options __unused)
+ {
+ 	IOLockLock(_clientLock);
+-	OSArray *next = OSArray::withCapacity(_clients->getCount());
+-	if (next) {
+-		for (unsigned int i = 0; i < _clients->getCount(); i++) {
+-			IOHIDEventServiceClient *data = (IOHIDEventServiceClient *)_clients->getObject(i);
+-			if (data->client != client) {
+-				next->setObject(data);
+-			}
++	/* Revocation must not allocate. Snapshots retain the record, and all
++	 * record fields are inspected under this lock before target retention.
++	 * A dispatcher that already retained its target can safely finish. */
++	for (unsigned int i = 0; i < _clients->getCount(); i++) {
++		IOHIDEventServiceClient *data = (IOHIDEventServiceClient *)_clients->getObject(i);
++		if (data->client == client) {
++			data->client = NULL;
++			data->action = NULL;
++			data->context = NULL;
+ 		}
+-		_clients->release();
+-		_clients = next;
+ 	}
+ 	IOLockUnlock(_clientLock);
+ }
+@@ -190,9 +194,7 @@
+ {
+ 	for (unsigned int i = 0; i < _clients->getCount(); i++) {
+ 		IOHIDEventServiceClient *data = (IOHIDEventServiceClient *)_clients->getObject(i);
+-		if (client == NULL || data->client == client) {
+-			return true;
+-		}
++		if (data->client && (client == NULL || data->client == client)) return true;
+ 	}
+ 	return false;
+ }
+@@ -210,7 +212,6 @@
+ IOHIDEventService::dispatchEvent(IOHIDEvent *event, IOOptionBits options)
+ {
+ 	OSArray *clients;
+-
+ 	event->setSenderID(getRegistryEntryID());
+ 	IOLockLock(_clientLock);
+ 	clients = _clients;
+@@ -219,8 +220,22 @@
+ 
+ 	for (unsigned int i = 0; i < clients->getCount(); i++) {
+ 		IOHIDEventServiceClient *data = (IOHIDEventServiceClient *)clients->getObject(i);
+-		if (data->action) {
+-			(*data->action)(data->client, this, data->context, event, options);
++		IOService *target = NULL;
++		Action action = NULL;
++		void *context = NULL;
++		IOLockLock(_clientLock);
++		if (data->client && data->action) {
++			target = data->client;
++			action = data->action;
++			context = data->context;
++			target->retain();
++		}
++		IOLockUnlock(_clientLock);
++		/* No client mutex or arbitration lock is held through callbacks or
++		 * target release. Only these in-flight references retain clients. */
++		if (target) {
++			(*action)(target, this, context, event, options);
++			target->release();
+ 		}
+ 	}
+ 	clients->release();

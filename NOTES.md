@@ -2,6 +2,81 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — whole-frame HID and firmware packaging integrated locally
+
+0104 remains the latest hardware-qualified normal-I/O lock-screen baseline;
+phone is in TWRP after the confirmed manual return. No CI/observer is live.
+
+0105 adds atomic whole-frame digitizer delivery and allocation failure handling;
+0106 makes client close allocation-free and protects admitted callback targets.
+The shared C ABI is now iokit/IOKit/SweetHIDTouchFrame.h, exported by the actual
+IOKit header build and listed as private, rather than copied into BSD. Fresh
+source106-export replays100patches and differs from source104 in exactly four
+files (two HID C++ files, the new header and IOKit/Makefile). Comparison report:
+research/tmp/p1-hid-source106-export-comparison-20261105.json. Final SweetHID
+SHA256ddcaf8b03fb6c0b1e83a919c79abd73bcbf5a7a69427688589fbff339ffbc9a7;
+actual ARM64 C++ TU passes in hid-frame/kernel-crosscompile/run-wlz0w1ia,
+object382240B SHA9185ca4c302ca2f5f8eaffeb4c1e57538ffe9def708f540aecd821e4f889fb4c.
+IOHIDEvent TU was separately qualified unchanged. Full host suite passes in
+p1-host-tests-0106-export-20261105.log, including real-method OOM/concurrency/
+release/reentry negative controls. No synthetic gesture or physical input is
+activated by these patches. Full kernel CI and hardware regression are pending.
+
+mkpayload now optionally accepts --nvt-firmware, pinning local raw139264bytes
+SHA256007143e7d0a816e4ef228b5a08bf3132285230a5cd16164e8086696115d60f88.
+It reserves147456bytes in16K pages and sets NovatekFirmware=<PA,rawsize>;
+default output is byte-identical to the prior packer. Nine host test groups
+pass using synthetic data, with pre-change output hash/info golden fixtures.
+The firmware binary remains ignored. Actual CI104/local-asset packing was
+qualified at PA0x182524000/top0x182550000, not booted. Payloadv1 has no mapping
+permissions; the kernel consumer must verify bounds/hash and use the existing
+RWNX reserved RAM mapping. No firmware flashing or partition change occurred.
+
+Real NVT driver integration is in progress in ignored gauguin-nvt-p1 candidates:
+bounded PIO, qualified bus ownership, native reset/trim, all-segment SRAM
+write/readback96936bytes, CRC/reset/FWINFO/PID gates, then real67byte polling.
+Actual bus and setup TUs pass; bootstrap/runtime final reviews and staged build
+are pending. These host checks do not establish real SPI communication or touch.
+
+
+### 2026-11-05 — controller access verified; P2 storage kernel passes normal-I/O baseline
+
+Both pending hardware logs are now recovered after user-confirmed lock screens
+and manual TWRP returns. Phone is currently TWRP; no CI/observer is live.
+
+0102 mode2 log `research/tmp/p1-nvt-stage1-0102-recovered-20261105.txt`:
+8666lines, ring518411bytes/flush2740, PET2740 at~2751.68s. Stage1 completed and
+GCC added bits4c0 restored from9c000003 back to9c000003; no captured panic,
+shutdown or UFS errors. Log SHA25665792124111042c1a071c96dee3bf6c1e74390aa90005e2ae7362e0865a7deec.
+Observed wrapper20070000 (v2.7), SE FW/SFW101 (SPI1), STATUS0, FIFO_DISABLE0,
+HW_PARAM0=201029e4/HW_PARAM1=20104800 (16words/32bits), TX/RX empty.
+MCLK11/CLKSEL0 with qualified XO19.2MHz means inherited SCK19.2MHz, exceeding
+the touch device10MHz limit. WORD_LEN0/PACK0=7f807 also need8-bit configuration.
+PACK1=ffefe, DMA_MODE0, CPHA/CPOL/CS_SEL/CS_INV0, externalIRQf, GSI0,
+M_IRQ_EN33c0007e. This proves access to those registers, not SPI communication.
+RST21 remains GPIO input/pulldown/low; no chip identity or firmware upload yet.
+
+0104 storage regression log `research/tmp/p2-ufs-0104-recovered-20261105.txt`:
+5251lines, ring351364bytes/flush1043, PET1020 at~1030.04s; exact new build ID
+xnu-fa92111953af4c2a9940d24a7c73578b matches image. No captured UFS/log errors,
+panic or shutdown. Actual runtime logs physical28056571/exposed28055482,
+reserved1089blocks and HFS17179869184B. Thus the new geometry is actually in
+use and normal lock-screen IO survives; timeout recovery and data-integrity
+stress are NOT hardware-qualified by this. Log SHA256
+5ce9f10d8a5d830f09dddce048925003eb9eae94a70eb667a4af9f0f58d3100d.
+Read-only block at exposed_end-4096 has zero at expected alternate VH offset;
+no alternate-VH write was observed, so do not claim that on-disk write path was
+exercised. Existing HFS volume remains16GiB; no format/resize/GPT change.
+0104 image36311353... is now a verified normal-IO lock-screen baseline.
+
+0105 (whole-frame HID API plus digitizer factory NULL handling) and host fixtures
+are being staged into fresh source105; no input is enabled. Independent review
+found baseline handleClose could leave a raw target after allocation failure;
+a separate no-allocation client-close candidate is frozen for0106. These input
+interfaces still need full-kernel CI and physical event evidence.
+SPI setup and bounded firmware parser/plan candidates remain ignored; payload
+asset packaging is being prepared without changing default image output.
+
 ### 2026-11-05 — P2 CI passes, image prepared; mode2 log still pending
 
 Local a7ce787 (UFS0103/0104) and17b4aeb (build identity) are published together

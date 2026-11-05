@@ -93,3 +93,5 @@
 0095-sweet-shutdown-entry-record.patch
 0096-gauguin-pon-charger-evidence.patch
 0097-gauguin-touch-probe-opt-in.patch
+0098-lldb-syntax-isolated-python.patch
+0099-sweet-ipc-label-c11.patch

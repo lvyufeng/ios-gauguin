@@ -502,11 +502,13 @@ void shim_main(uint64_t dtb)
 	for (uint32_t i = 0; i < 8; i++) {
 		wdt_nibbles |= ((rd32(APSS_WDT_BASE + i * 4) >> 28) & 0xf) << (i * 4);
 	}
+	loader_announce(dtb, "wdtpre=", rd32(APSS_WDT_BASE + 0x08));
 	disable_secure_watchdog(dtb);
 	wr32(APSS_WDT_BASE + 0x08, 0);		/* WDT0_EN: 0 = disabled */
 	wr32(APSS_WDT_BASE + 0x04, 1);		/* WDT_RESET: kick */
 	__asm__ volatile("dsb sy" ::: "memory");
 	con_hex2("WDT", "en=", rd32(APSS_WDT_BASE + 0x08), "sts=", rd32(APSS_WDT_BASE + 0x0c));
+	loader_announce(dtb, "wdtpost=", rd32(APSS_WDT_BASE + 0x08));
 	/*
 	 * The bootloader normally consumes the IMEM reason and stores the real
 	 * source in the "bootstat"/restart-reason property; on this phone the

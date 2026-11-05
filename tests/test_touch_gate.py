@@ -20,8 +20,8 @@ typedef void (*thread_continue_t)(void *, int);
 typedef void *thread_t;
 static struct { bool started, thread_started; int irq_hint; } st;
 static bool mode_present, enable_present, fail_create;
-static int selected_mode, selected_enable;
-static unsigned creates, hardware_ops, inline_probes, taps, deallocations, nvt_inits;
+static int selected_mode, selected_enable, physical_mode;
+static unsigned creates, hardware_ops, inline_probes, taps, deallocations, nvt_inits, physical_inits;
 
 static bool PE_parse_boot_argn(const char *name, void *value, int size)
 {
@@ -33,6 +33,10 @@ static bool PE_parse_boot_argn(const char *name, void *value, int size)
     if (strcmp(name, "sweettouch") == 0) {
         if (enable_present) { *(int *)value = selected_enable; }
         return enable_present;
+    }
+    if (strcmp(name, "sweetnvt") == 0) {
+        *(int *)value = physical_mode;
+        return physical_mode != 0;
     }
     assert(strcmp(name, "sweettouchirq") == 0);
     return false;
@@ -49,6 +53,7 @@ static void sweet_log_mark(const char *text) { (void)text; }
 void sweet_tap_arm(void) { taps++; }
 /* The independent probe's real opt-in/lifecycle is covered by test_nvt_probe.py. */
 void sweet_nvt_probe_init(void) { nvt_inits++; }
+void sweet_nvt_start(void) { physical_inits++; }
 static int kernel_thread_start(thread_continue_t function, void *arg, thread_t *thread)
 {
     assert(function == touch_bringup_thread && arg == NULL);
@@ -71,8 +76,8 @@ static void reset(void)
 {
     memset(&st, 0, sizeof(st));
     mode_present = enable_present = fail_create = false;
-    selected_mode = selected_enable = 0;
-    creates = hardware_ops = inline_probes = taps = deallocations = nvt_inits = 0;
+    selected_mode = selected_enable = physical_mode = 0;
+    creates = hardware_ops = inline_probes = taps = deallocations = nvt_inits = physical_inits = 0;
 }
 static void expect_idle(void)
 {
@@ -88,7 +93,14 @@ int main(void)
     sweet_touch_init();
     assert(nvt_inits == 1);
     expect_idle();
-    assert(taps == 0 && !st.thread_started);
+    assert(taps == 0 && !st.thread_started && physical_inits == 0);
+    for (int mode = 0; mode <= 3; mode++) {
+        reset(); physical_mode = 1; mode_present = true; selected_mode = mode;
+        sweet_touch_init(); sweet_touch_init();
+        assert(physical_inits == 1 && nvt_inits == 0);
+        assert(taps == 0 && !st.thread_started);
+        expect_idle(); /* Even conflicting legacy arguments never fall through. */
+    }
     reset();
     sweet_touch_start_at_init(); /* framebuffer/direct entry also stays idle */
     expect_idle();

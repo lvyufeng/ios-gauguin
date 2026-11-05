@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — real NVT stack staged; complete local tests and eight ARM64 TUs pass
+
+HID/asset tooling local commitbcc0a63 was published safely as
+1f988a686337add3f822fc9fdad879e9093588a5 (parent e42a664). No private history
+was pushed. New0107 now integrates the actual protocol/PIO/setup/kernel-bus/
+firmware/bootstrap/runtime modules and exclusive startup hook. Driver default
+is off. sweetnvt=1 takes the init path before probes/legacy and never falls
+through; runtime rejects conflicting flags before creating its worker.
+
+Fresh source107 applies101patches;5245files. Exact comparison with
+source106-export shows only14new module files plusbsd/conf/files and
+bsd/dev/sweet_touch.c; report p1-source107-comparison-20261105.json. Existing
+storage/HID code is unchanged from the prior qualified stages. Source/input
+snapshots are prepared in research/tmp/p1-ci-0107-artifacts/ for the next CI.
+Full host suite passed (p1-host-tests-0107-20261105.log). Separate staged
+bootstrap/parser/runtime tests with the exact local firmware also passed;
+logs p1-staged-{bootstrap,firmware,runtime}-real-20261105.log. Public CI uses
+synthetic bytes: runtime first proves the unchanged production pin rejects
+those bytes, then tests a clearly labeled temporary synthetic-pin copy with
+actual XNU SHA code; there is no production hash override or digest stub.
+
+All eight actual changed/new BSD C TUs compile for ARM64 from source107,
+including the runtime and hook, with the canonical IOKit header. Reports under
+gauguin-nvt-p1/integration-compile/. Native generated build inputs were not
+modified. Full-kernel CI/link and first physical SPI/input boot remain pending.
+
+The bus rechecks the observed XO19.2MHz profile, configures960kHz SPI and owns
+clocks/pins across bootstrap/polling. Fixed-file SHA/bounds precede hardware;
+actual trim must match before SRAM loading. Native reset sequence,96936bytes
+written and entirely read back, CRC/reset/FWINFO/version16/type1/PID5937 gates
+precede67byte physical packets. Type1 is observed in recovery, not invented.
+Bootstrap valid bits distinguish unread fields from actual zero responses;
+compact final reports include actual CRCs, phases and PIO/setup fault state.
+Failure stops SPI, attempts bounded release of previously accepted HID contacts,
+then quarantines the bus; no automatic reset/reupload. No synthetic tap/unlock.
+Documentation: docs/gauguin-nvt.md. Firmware/raw device evidence stay ignored.
+
+Phone remains TWRP, read-only connection/battery check succeeded (100%). No
+image has been booted since0104 and no observer/CI is live. Next: commit/push
+sanitized0107 snapshot, run gh kernel CI, verify exact source and build identity,
+pack the pinned firmware as reserved data and temporarily boot sweetnvt=1.
+Physical touch, unlock, GPU, full memory/storage and high refresh remain unproven.
+
+
 ### 2026-11-05 — whole-frame HID and firmware packaging integrated locally
 
 0104 remains the latest hardware-qualified normal-I/O lock-screen baseline;

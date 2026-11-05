@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — implementation PAUSED by user; comparative architecture review
+
+User explicitly paused device/driver work to compare the current port, UniXNU
+and HakiOS against GPU acceleration, complete RAM/storage, high refresh and
+daily phone operation. Goal status is paused. Phone remains in TWRP; do not
+resume boots, firmware or implementation until the user resumes. Completed
+stable-default/PON changes are committed as **e04033a**, UI milestone as570ba62.
+
+Reproducibility work was stopped with uncommitted changes: explicit91-patch
+series through0097, aggregate baseline, patch/SDK tools, build/CI scripts,
+source-path test plumbing and two new tests. Fresh isolated replay97 and its
+full host suite passed exit0. Complete source-byte comparison, clean kernel
+build and CI execution were NOT completed. Keep this pending work distinct
+from the successfully built main cache and known UI-producing kernel.
+
+The user requested GitHub examples with actual reported hardware success.
+Read-only review verified HakiOS redwood/A642L (87bf4851, current spelling
+hakios-xnu-kernel), ios-flame/A640 (745c4341), ios-topaz/A610 (e4772911, branch
+is topaz; main README is old), UniXNU-sheng/A740 (46017956) and community
+UniXNU-tb128fu/A610 (a9c3863d). These have GPU source and author-reported device
+results, but do not establish complete daily-phone functionality on gauguin.
+Flame explicitly integrates UniXNU Metal frontend/bridge and Mesa into an
+ios-sweet/ABL boot chain. Thus borrowing the graphics stack does not require
+replacing the currently working gauguin boot chain with UEFI. Current local
+UniXNU-gauguin BRINGUP retracts old arm_init claims; it lacks post-MMU/UI proof
+and selected GPU/input/display drivers. No A619 complete hardware success was
+verified in the reviewed sources. Recommendation will distinguish retaining
+the current device baseline from reusing mature external driver components.
+
 ### 2026-11-05 — UI run recovered: >409 seconds, presentation active; real touch is Novatek SPI
 
 User manually returned to TWRP after the successful UI run. Observer ended at

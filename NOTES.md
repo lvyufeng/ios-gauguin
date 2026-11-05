@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — P0 lock-screen baseline passes; opt-in NVT stage0 ready for CI
+
+Public handoff snapshot **b7a266d830c1f6b0e59cf7cd233e05d3dd615a43** (local
+057bd51) was pushed successfully after the user's explicit authorization.
+This documentation update does not replace the tested CI kernel head6a6fe42.
+User confirmed the CI0100 image has reached the iOS **lock screen**. Observer
+22696 ended after660s without automatic recovery (exit4 because USB/log pull
+is unavailable while XNU runs). User then manually returned to TWRP. Fresh
+`p0-ci-0100-recovered-20261105.txt` has the exact image banner,4129lines,
+ring277297bytes/flush671, PET710 at13817295132ticks (~719.65s at19.2MHz),
+60presents/client2. No captured panic/shutdown or UFS failure/timeout. Evidence
+JSON `p0-ci-0100-evidence-20261105.json`; log SHA256
+7b5a08a8993e1ad5b965a7f397e89e6f55cd3482a4ecb6e69bf18017d5252368.
+Together with the native clean0099 regression, P0's reproducible lock-screen
+baseline gate passes. Unlock/home, real input, GPU and daily use remain open.
+Phone is now in TWRP; no observer remains live.
+
+0101 adds `bsd/dev/gauguin_nvt_probe.c`, its build entry and a call from touch
+initialization. Only `sweetnvtprobe=1` queues an independent worker delayed30s;
+the default does not map or read hardware. Thread creation failure never runs
+inline. The probe performs named GCC reads (vote,5CBCRs, bounded selected
+DFS/RCG tuple, selected GPLL raw fields) and CFG/IO reads for pins0/1/2/3/21/22.
+It does not map wrapper/SE or write MMIO, call RPMh, issue SPI, reset touch or
+publish HID. Persistent phase markers use the existing UFS logging path.
+Invalid/changed clock selections stop the dependent sampling; observed PLL
+values are not called a verified rate or a proof that SE MMIO is accessible.
+
+Independent native source audit separates QUP0/core and DDR bandwidth votes
+from the CPU-to-QUP CNOC path; no supported single GCC/TLMM predicate proves
+SE accessibility. Thus this first probe deliberately samples only GCC/TLMM.
+Source/reference report is `research/tmp/gauguin-nvt-p1/bus-preconditions.txt`.
+TLMM is confirmed by recovery, not yet by this XNU probe.
+
+Fresh upstream `.deps-cache/p0-20261105/source101` replays95patches. Full
+comparison with source100 shows only new probe, bsd/conf/files and sweet_touch.c
+changes (`p1-source101-comparison-20261105.json`). Actual ARM64 kernel single-TU
+compiles pass for both the probe and changed hook using the successful native
+build flags. Candidate SHA256879b7ae33791f47bd196537396ba93d7c6e10bbd248e8d83fb9afd54acdf7eda.
+ASan/UBSan fixtures cover actual stage0 control flow with only MMIO load/barrier
+and XNU services mocked: disabled/noIO, one-shot and thread-failure behavior,
+30second delay, named register/map allowlist, DFS/mode/PLL invalid or changing
+states and map failures. Initial full-suite failure was the existing touch-gate
+fixture lacking the new independent init dependency; its mock was added and
+one-shot call checked, while test_nvt_probe tests the real diagnostic path.
+Full host suite now passes in `p1-host-tests-0101-retry-20261105.log`. Crosscompile
+script and argv/log evidence are in ignored `gauguin-nvt-p1/kernel-crosscompile/`.
+All12undefined probe dependencies resolve in the known native kernel. A full
+CI build is next; this is diagnostic groundwork, not working physical input.
+
 ### 2026-11-05 — remote push authorized; third CI succeeds
 
 User explicitly authorized pushing code to the remote. Continue publishing only
@@ -307,7 +356,7 @@ complete sleep/resume follows working storage, GPU and display suspend paths.
 
 | Phase | Work | Exit evidence required | Current state |
 | --- | --- | --- | --- |
-| P0 Reproducible baseline | Freeze rollback artifacts, complete source replay and compare, review build/CI changes, build clean, temporary-boot regression | All source differences explained; tracked inputs/toolchain; passing host checks; successful clean kernel build with run/log/hash; repeated UI with continuous logging for at least10minutes and no new panic/UFS faults; recovery still usable; distinguish lock screen from verified unlock/home | Native clean0099 and869.8second lock-screen log pass;94-patch replay and CI41989463747 pass; CI0100 artifact hardware regression in progress |
+| P0 Reproducible baseline | Freeze rollback artifacts, complete source replay and compare, review build/CI changes, build clean, temporary-boot regression | All source differences explained; tracked inputs/toolchain; passing host checks; successful clean kernel build with run/log/hash; repeated UI with continuous logging for at least10minutes and no new panic/UFS faults; recovery still usable; distinguish lock screen from verified unlock/home | PASS for lock-screen baseline: native clean0099 with869.8s log and CI41989463747/0100 with719.65s log; manual recovery preserved; no verified unlock/input |
 | P1 Input and observability | Correct Novatek SPI driver and HID delivery; keys; live logs/status and preferably file transfer through a runtime channel | Chip/FW identity verified, bounded SPI including67-byte frames, contact down/move/up and multitouch, correct coordinates/edge gestures, no stuck contacts or UI regressions in30minutes of exercised use; successful live diagnostic read, with UFS fallback retained | Native hardware/protocol audited; no working XNU touch driver yet |
 | P2a Memory/DMA/storage correctness | Verified reserved regions, CPU/GPU DMA mappings, cache ownership, UFS bounds/errors/flush and journal behavior | Pattern/hash checks on owned buffers and bounded filesystem test files; synchronized restart retains data; error/timeout paths terminate; no out-of-partition or reserved-memory access | Existing UFS boots real root; recent bounds/cacheline fixes need broader qualification |
 | P3a Real A619 GPU | Board-correct clocks/power/firmware/SMMU/GMU/CP; owned buffers, submission, completion and recovery | A command really executes on A619, fence completes, known pixels/hash read back correctly; repeated submissions and error recovery work; kernel/UI survives; basic temperature/frequency monitoring active before stress | Source/firmware/ABI research only |

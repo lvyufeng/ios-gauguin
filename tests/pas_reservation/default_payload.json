@@ -1,0 +1,266 @@
+[
+  {
+    "ramdisk": false,
+    "firmware": false,
+    "command_bytes": 0,
+    "sha256": "7f86c84fac8386b14ebe7c98dc07dd72185b256e86eaaabab4f6797c2fe22ad6",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007010000",
+      "ramdisk": null,
+      "size": 25584,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "ramdisk": false,
+    "firmware": false,
+    "command_bytes": 800,
+    "sha256": "4b5d74faa9ebfea219c0229da66f88e7af797914246df85ae4bf3bb3ff4565f3",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007010000",
+      "ramdisk": null,
+      "size": 25584,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "ramdisk": false,
+    "firmware": true,
+    "command_bytes": 0,
+    "sha256": "d97bdbef1ba26713bcf472375a900a70fa47e477376cf18b62c56177c7d0f6bd",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007034000",
+      "ramdisk": null,
+      "size": 173120,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ],
+      "nvt_firmware": {
+        "phys": "0x181010000",
+        "size": 139264,
+        "reserved": 147456,
+        "sha256": "d9a81dcb9efe586f263c5f0b248c87803878f8bb44ea3afc1be7cc503054f9fb",
+        "top_of_kernel_data": "0x18103c000"
+      }
+    }
+  },
+  {
+    "ramdisk": false,
+    "firmware": true,
+    "command_bytes": 800,
+    "sha256": "191095e48726f519ed219ba99f70cded463342d63506a9a83053a736f1c0ebc9",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007034000",
+      "ramdisk": null,
+      "size": 173120,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ],
+      "nvt_firmware": {
+        "phys": "0x181010000",
+        "size": 139264,
+        "reserved": 147456,
+        "sha256": "d9a81dcb9efe586f263c5f0b248c87803878f8bb44ea3afc1be7cc503054f9fb",
+        "top_of_kernel_data": "0x18103c000"
+      }
+    }
+  },
+  {
+    "ramdisk": true,
+    "firmware": false,
+    "command_bytes": 0,
+    "sha256": "012ae50c9aec4517ca404823ae64c0fa07c528fd0586d1210f6cb40ad7aaebbb",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007018000",
+      "ramdisk": [
+        "0x181010000",
+        "0x8000"
+      ],
+      "size": 42672,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "ramdisk": true,
+    "firmware": false,
+    "command_bytes": 800,
+    "sha256": "2ffe255235baa156d3fa5ab6d09cd3699a71f8b7165c7182b7f53d5e09f754eb",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe0007018000",
+      "ramdisk": [
+        "0x181010000",
+        "0x8000"
+      ],
+      "size": 42672,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ]
+    }
+  },
+  {
+    "ramdisk": true,
+    "firmware": true,
+    "command_bytes": 0,
+    "sha256": "c2c6958ceab0e1330cfaa13abc4a838e162101924c80decc58f882eb352f5e35",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe000703c000",
+      "ramdisk": [
+        "0x181010000",
+        "0x8000"
+      ],
+      "size": 190224,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ],
+      "nvt_firmware": {
+        "phys": "0x181018000",
+        "size": 139264,
+        "reserved": 147456,
+        "sha256": "d9a81dcb9efe586f263c5f0b248c87803878f8bb44ea3afc1be7cc503054f9fb",
+        "top_of_kernel_data": "0x181044000"
+      }
+    }
+  },
+  {
+    "ramdisk": true,
+    "firmware": true,
+    "command_bytes": 800,
+    "sha256": "4292aa48967a24443912ff5a79cee516abc89c50d62e5b6bd1260bbd1c650223",
+    "info": {
+      "cputype": "0x100000c",
+      "cpusub": 0,
+      "fixups": 0,
+      "virt_base": "0xfffffe0006000000",
+      "entry": "0xfffffe0007005000",
+      "kernel_end": "0xfffffe000703c000",
+      "ramdisk": [
+        "0x181010000",
+        "0x8000"
+      ],
+      "size": 190224,
+      "segs": [
+        [
+          "__TEXT",
+          "0xfffffe0007004000",
+          "0x4000"
+        ],
+        [
+          "__DATA",
+          "0xfffffe0007008000",
+          "0x8000"
+        ]
+      ],
+      "nvt_firmware": {
+        "phys": "0x181018000",
+        "size": 139264,
+        "reserved": 147456,
+        "sha256": "d9a81dcb9efe586f263c5f0b248c87803878f8bb44ea3afc1be7cc503054f9fb",
+        "top_of_kernel_data": "0x181044000"
+      }
+    }
+  }
+]

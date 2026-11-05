@@ -11,6 +11,9 @@
 #include "console.h"
 #include "fdt.h"
 #include "loader.h"
+#include "pas_reservation.h"
+
+extern const uint8_t _head[], _end[];
 
 #define BOOT_LINE_LENGTH	608
 #define PAGE_16K		0x4000UL
@@ -74,22 +77,46 @@ static int magic_ok(const char *m)
 	return 1;
 }
 
+/* Returning would enter shim_main's old UFS diagnostic path. Invalid supplied
+ * input (including non-XNU cpio) therefore stops here before any load/copy. */
+static __attribute__((noreturn)) void loader_stop(const char *reason, int status)
+{
+    con_str("LOAD STOP", reason);
+    con_hex("STATUS", (uint64_t)(int64_t)status);
+    for (;;) __asm__ volatile("wfe" ::: "memory");
+}
+
 typedef void (*xnu_entry_t)(uint64_t boot_args_pa);
 
 const char *loader_boot(uintptr_t dtb)
 {
 	uint64_t rd_start, rd_end;
 
-	if (!fdt_chosen_u64(dtb, "linux,initrd-start", &rd_start) ||
-	    !fdt_chosen_u64(dtb, "linux,initrd-end", &rd_end))
-		return "no initrd in /chosen";
+	size_t fdt_bytes = pas_fdt_header_size((const uint8_t *)dtb);
+	int handoff = pas_initrd((const uint8_t *)dtb, fdt_bytes, &rd_start, &rd_end);
+	if (handoff || rd_end <= rd_start || rd_end - rd_start < sizeof(struct payload) || (rd_start & 7))
+		loader_stop("invalid FDT/initrd", handoff);
+	if ((rd_start < dtb + fdt_bytes && dtb < rd_end) ||
+	    (rd_start < (uintptr_t)_end && (uintptr_t)_head < rd_end))
+		loader_stop("initrd overlaps loader/FDT", PAS_OVERLAP);
 	con_hex2("INITRD", "lo=", rd_start, "hi=", rd_end);
 
 	const struct payload *p = (const struct payload *)rd_start;
 	if (!magic_ok(p->magic))
-		return "no SWEETXNU payload";
+		loader_stop("no SWEETXNU payload", PAS_BAD_PAYLOAD);
 	if (p->version != 1 || (p->adt_off & 7) || (rd_start & 7))
-		return "bad payload header";
+		loader_stop("bad payload header", PAS_BAD_PAYLOAD);
+
+	struct pas_context context = {
+		.payload = (const uint8_t *)p, .fdt = (const uint8_t *)dtb,
+		.payload_bytes = rd_end - rd_start, .fdt_bytes = fdt_bytes,
+		.payload_pa = rd_start, .fdt_pa = dtb,
+		.shim_pa = (uintptr_t)_head, .shim_bytes = (uintptr_t)_end - (uintptr_t)_head,
+	};
+	struct pas_plan reservation;
+	int reservation_status = pas_prepare(&context, &reservation);
+	if (reservation_status < 0)
+		loader_stop("payload preflight", reservation_status);
 
 	uint64_t pa_of_va_base = p->phys_base - p->virt_base;	/* pa = va + this */
 	con_hex2("PHYS", "base=", p->phys_base, "size=", p->mem_size);
@@ -98,7 +125,7 @@ const char *loader_boot(uintptr_t dtb)
 
 	/* The payload must not overlap where the kernel goes. */
 	if (rd_end > p->phys_base && rd_start < p->phys_base + p->mem_size)
-		return "ramdisk overlaps kernel memory";
+		loader_stop("ramdisk overlaps kernel memory", PAS_OVERLAP);
 
 	for (uint32_t i = 0; i < p->nsegs; i++) {
 		const struct payload_seg *s = &p->segs[i];
@@ -112,6 +139,13 @@ const char *loader_boot(uintptr_t dtb)
 	/* ADT, then boot_args, behind the kernel; everything below topOfKernelData is ours. */
 	uintptr_t adt_pa = p->kernel_end + pa_of_va_base;
 	copy64(adt_pa, rd_start + p->adt_off, p->adt_size);
+	if (reservation_status == PAS_READY) {
+		int status = pas_commit((uint8_t *)adt_pa, p->adt_size, &reservation);
+		if (status != PAS_READY)
+			loader_stop("PAS metadata commit", status);
+		con_hex2("PAS OWNED", "pa=", reservation.pa, "bytes=", reservation.bytes);
+		/* No read, write, map, firmware load or SMC using this range. */
+	}
 	uintptr_t ba_pa = (adt_pa + p->adt_size + PAGE_16K - 1) & ~(PAGE_16K - 1);
 	uintptr_t top = ba_pa + PAGE_16K;
 
@@ -143,7 +177,7 @@ const char *loader_boot(uintptr_t dtb)
 	/* Everything was written with the MMU and caches off; drop any stale I-cache lines too. */
 	__asm__ volatile("dsb sy; ic iallu; dsb sy; isb" ::: "memory");
 	((xnu_entry_t)entry_pa)(ba_pa);
-	return "xnu returned";
+	loader_stop("xnu returned", PAS_BAD_INPUT);
 }
 
 /*
@@ -175,11 +209,25 @@ loader_announce(uintptr_t dtb, const char *label, uint32_t value)
 {
 	uint64_t rd_start, rd_end;
 
-	if (!fdt_chosen_u64(dtb, "linux,initrd-start", &rd_start) ||
-	    !fdt_chosen_u64(dtb, "linux,initrd-end", &rd_end))
+	size_t fdt_bytes = pas_fdt_header_size((const uint8_t *)dtb);
+	if (pas_initrd((const uint8_t *)dtb, fdt_bytes, &rd_start, &rd_end) ||
+	    rd_end <= rd_start || rd_end - rd_start < sizeof(struct payload) ||
+	    (rd_start & 7) || (rd_start < dtb + fdt_bytes && dtb < rd_end) ||
+	    (rd_start < (uintptr_t)_end && (uintptr_t)_head < rd_end))
 		return;
 	struct payload *p = (struct payload *)rd_start;
 	if (!magic_ok(p->magic) || p->version != 1)
+		return;
+	/* Diagnostics also write the input command line. Do not modify an input
+	 * whose geometry/ownership check would later stop the actual boot. */
+	struct pas_context context = {
+		.payload = (const uint8_t *)p, .fdt = (const uint8_t *)dtb,
+		.payload_bytes = rd_end - rd_start, .fdt_bytes = fdt_bytes,
+		.payload_pa = rd_start, .fdt_pa = dtb,
+		.shim_pa = (uintptr_t)_head, .shim_bytes = (uintptr_t)_end - (uintptr_t)_head,
+	};
+	struct pas_plan reservation;
+	if (pas_prepare(&context, &reservation) < 0)
 		return;
 	announce_into(p->cmdline, label, value);
 }

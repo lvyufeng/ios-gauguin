@@ -2,6 +2,131 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — low-PAS loader integrated; default-only image qualified
+
+Integrated optional pending-request/owned-initrd-tail contract in mkpayload
+and shim loader, plus corrected downward stack placement. Both Linux/macOS
+shim build lists include the parser; macOS supports isolated --out and --dtb.
+Runtime accepts lagoon or the exact gauguin/SM7225 pair. It never accesses
+the selected PAS bytes or performs firmware/PAS/GPU operations. Invalid
+input stops explicitly instead of entering the old UFS diagnostic fallback.
+The existing qualified images remain intact.
+
+Verification: full hostsuite on source110 passes; committed portable suite
+has 86 ASan/UBSan actual-C metadata cases and actual-loader segment/zero-fill/
+ADT/boot_args checks, with 10 malformed/default stop cases. Pre-integration
+audit also compared old/new valid-loader destinations byte for byte (87 cases
+including optional saved recovery metadata). Eight synthetic default packer
+goldens and real109 payload identity pass. Original wrapper tree with only
+synthetic memory/initrd handoff values passes bounded parsing; this is a host
+test, not evidence of actual ABL handoff values. ARM64 links with no undefined
+symbols or C ABS64 relocations; measured conservative stack bound 4736B/32KiB.
+
+Prepared default-only trial: shim/out/shim-p3-low-pas-default-20261106.img,
+17289216B SHA a8fb8907ea070a20dd4b2bc70746ff5481cb676b8531b73e57f2eed1087b1797.
+New shim 233472B; kernel110 and NVT firmware unchanged. No PAS request/tail/
+pmap reservation enabled. SCM/GCC probes off, touch on, software-copy cap30.
+Require actual log marker sweettrial=lpdefault-20261106-a1 as well as full
+xnu-b89c8584e8904e069641abfe9a973a8b banner. Package/qualification evidence:
+research/tmp/p3-low-pas-default-20261106-package.json. No new boot yet;
+phone last read as recovery. Next temporary 180s boot, touch confirmation,
+manual TWRP and fresh log before optional reservation/readonly kernel check.
+
+### 2026-11-06 — resumed: fix low-PAS board matching before integration
+
+Phone is in TWRP (fresh `adb get-state`: recovery). No kernel build, CI or
+boot observer is running. Latest verified kernel remains native0110,
+xnu-b89c8584e8904e069641abfe9a973a8b; no actual PAS operation or GPU execution.
+
+Review found a concrete candidate compatibility blocker: the tested wrapper
+DTB has `xiaomi,gauguin\0qcom,sm7225\0`, whereas the candidate accepted only
+`qcom,lagoon`. Root is correcting the ignored candidate to also require that
+exact board/SoC pair, with positive and malformed/unpaired negative cases.
+Do not infer the static wrapper memory size (zero placeholder) is the ABL
+handoff size; ABL supplies actual memory/initrd values. First hardware trial
+will retain kernel110 and disable PAS reservation, with a unique `sweettrial`
+boot argument required in the recovered log. A previous same-kernel banner
+alone cannot identify this new loader trial.
+
+Optional Linux KGSL reference proposal is complete under ignored
+p3-kgsl-reference-20261106/PROPOSAL.md. It has not been implemented or run.
+Opening KGSL can start GPU/GMU/PAS; submission errors may still queue work,
+and context destruction does not independently prove quiescence. Keep this
+optional experiment separate from the XNU GPU qualification path.
+
+### 2026-11-05 —0110 SCM64/PAS API availability VERIFIED; lowPAS contractnext
+
+Userconfirms0110physicaltouchunlockstillworks, manuallyreturnedTWRP.
+PhoneTWRP; noobserver/nativebuild/CI live. Observer58937 terminal181s/exit4;
+fastbootsend16868KB0.397s,boot0.134s,total0.539s. Freshlog
+p3-scm-0110-native-recovered-20261105.txt matches fullxnu-b89c8584... ID:
+6659lines,ring362481B/flush2109,SHAfc887acb22ae672035b7042cdd4e15a7b62ac4e7ca7dbfc55ea4d655fdad9dd9.
+PET2130 at41107987449ticks (~2141.04s);
+NVTlast[205428, 205428, 0],bootstrapREADY/fff/PID5937/1080x2400v16type1.
+
+AllfiveINFOcallsreturnedfirstattempt/resume0: x0=0,x1=1,x2=0,x3=0.
+Self:c2000601 query82000601 validatedSMC64. NormalINFO42000601 queried
+02000201/02000202/02000205/02000206, availability_mask=f. These aregeneric
+APIcapabilities, NOTPAS13authorization/authentication, DMAapertureproof orGPU
+firmwareexecution. No actualPAS/reset/poweroperationwasperformed.
+
+Currentlocalcode95cbf8c/publicbc7f72d; local0bdfae6handoffwasfoldedinto95cb.
+SCM/GCCdiagnosticsemanticallyqualified; keepold images/110kernelunchanged.
+Nextreview/integration: newshim correctedstack+defaultloader behavior before
+optionalLowPASReservation. Candidateandseparatelinkerfix frozen in
+p3-low-pas-memory-20261105/CANDIDATE.md,candidate-freeze.json;
+latestcontractSHAe9e190f7bcc1b005e4eaa2d19f931a434db16c9c433a324463e3d6af6cf4306a,
+stackSHA bb91fea6c9802e40e3d29044fec18655d5fd3f33c92cf49afae193e1f2862df2.
+Independentreviewfoundpre-derefRAMcheckgap;fixedbeforefreeze.79ASan/UBSan
+cases,actual-loader10stop/defaultcomparisons,real109defaultpayloadbyteidentity,
+isolatedARM64shimlink and4736Bstackbound pass. No trackedshimchangesyet.
+Validdefault behaviorretained; givenmalformed/non-XNUinitrdnewcandidatehalts
+beforelegacyUFSfallback. Featurefailurealsohaltsbeforecopies/ownedpublication.
+Oldshim ignorespendingrequest andcannotpublishactualownership.
+
+CommandDBparser/ARCpolicy frozen in p3-gpu-resources-20261105/cmd-db/.
+No rawbinarycapture wasobtained; native8KiBtextexportisreferenceonly. NoARC
+writesapprovedasready: inheritedDRV2aggregatefloorunknown. Conservative
+boot-lifetime maximumcorner ownershipis a conditionalresearchroute, notyet
+qualifiedforwrites (sameboottable/completebounds/DRVexclusive/constraints).
+P3 ownedbuffer,CPpacket/oracle andfirmwareloadplan remainofflineonly.
+
+
+### 2026-11-05 —native0110 SCM-query build passes; imageprepared
+
+Local95cbf8c published safely asbc7f72dbd81283b5a24913bd768e6eeb0d457a91,
+parent3cc8ef8. Nativebuild5043 terminalexit0; noCI. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.liFpTf/build-manifest.json,
+104patches/5247sourcefiles, exactsource/allinputs match, onlypreservedmkadt
+trackededit, make0/ARM64, INFOprobeandpriorNVT/GCC symbolslinked.
+Kernel16798400B SHAb3635652da961f911fb7856f9c8140981ede32b00a4d6f66fa84af17c849ae26.
+FullbuildIDxnu-b89c8584e8904e069641abfe9a973a8b checkedinmanifest/kernel/image.
+Qualificationp3-native-0110-qualification-20261105.json; hosttestsseparately
+passed(p3-host-tests-0110-retry-20261105.log),SKIP_TESTS1avoidsduplicate.
+Nativecontext now110/liFpTf, oldtY4dndrecipecontextstaleforfutureTUchecks.
+
+Preparedshim/out/shim-p3-scm-0110-native-20261105.img,17272832B,
+SHA574b4c46d31088b97f845c62e882eeb0c88e49887dfa1abccee2b8701dad5567;payloadSHA278e554f896b7f71a39ac50bd6115565cfa0c35cdce1952e828ae49c6b42ce9f.
+Exactknownshim/DTB/header and NVTassetPA0x182540000 retained. FlagsNVT1,
+hz30,GPUprobe0,SCMprobe1. No PAS operations/buffers orGPUregisteraccess.
+Notyetbooted; phoneTWRP. Nexttemporary180s observationandfreshlog.
+
+Native readonlycmd_db export successfullycaptured in
+p3-gpu-inventory-20261105/cmd-db-native.txt(8187B). ARCcx30000levels0,16,64,
+128,192,256,384;mx30010adds320;gfx30050levels0,64,128,192,256,320,384,416.
+Otheridsinfile. Debugfs*.molauxisUNTRUSTWORTHY: showfunctionlosesentrybank
+foraddress0 andreadswrongdataoffset, unlikeget_header/read_aux_data. NoMOL
+or inheritedvotefloor inferredfromit. Attemptedboundedread ofactualDT128KiB
+cmdDBvia/dev/mem failedbecause/dev/memabsent; toolreturnedtextdespiteexit0,
+strictlength/magic validationrejectedandNO.binwaswritten. Neveruseitassnapshot.
+No newdevice/registerwrites beyondvirtualdebugfsmount andnormaltemporaryboot.
+
+LowPAS candidate addsoptionalownedinitrdtail contract; independentlynoticed
+shim.ld `_stack_top` before32KiBstackallocation. Proposedseparatecandidate
+movesstack_toptoitsend(samesectionsize/_end),requiresstack/framevalidation
+anddefaultvalidbootregression. No trackedshim/payloadchangesyet.
+
+
 ### 2026-11-05 —0109 GCC snapshot verified;~68min touch stability;0110 SCM query ready
 
 User confirms0109 stillphysicallyunlocks, manuallyreturnedTWRP. PhoneTWRP;

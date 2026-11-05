@@ -2,6 +2,99 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — same-native108 hz30 comparison started; observer35148 live
+
+Image71937a60... temporarily accepted: send16868KB0.395s,boot0.134s,total0.538s.
+Observer **35148** now observes180seconds. Cycle
+research/tmp/p1-nvt-0108-native-hz30-cycle-20261105.log. Onlynewargument
+sweetfb_hz=30, exactsamekernel/firmware and otherwiseidenticalpayload. No UI/
+performance report orfreshlog yet. Preserve this boot until userchecks and
+logrecovery; verify bootargs because buildID is shared with baseline108.
+Physicaltouchunlock/HOME is already verified on the preceding default-hz108.
+No CI/nativebuild is live. Do not accidentally repeat old0107 CRC experiment.
+
+
+### 2026-11-05 — P1 physical swipe unlock/HOME VERIFIED; severe lag is next blocker
+
+User explicitly confirms native0108 physical touch swipe unlocked to HOME;
+both clicks and animations are extremely laggy. User tried settings/return/
+swipes, then manually returnedTWRP. Observer87761 terminal181s/exit4; noCI or
+nativebuild live. Fresh log matches fullxnu-4b17c6ad... ID:4339lines,
+ring314707B/flush422, PET350 at6898054722ticks (~359.27s).
+Log research/tmp/p1-nvt-0108-native-recovered-20261105.txt
+SHA25604ccad12d883e39c7d6e3f8d52ebce57bdf4b77862607ad24c9badfdf0454495.
+
+Hardware now confirms fullbootstrapREADY/validfff/result0/callback0,
+96936bytes written/readback,9170transfers,3.171824s. ActualCRCstatus4,
+resetA1,PID5937,FWINFO1080x2400/version16/type1. Bothpost R_DLM andG_DLM now
+readb0183db6 while ILM remains15fe9c6d. Bank reuse remains interpretation;
+unsupported post-start identity check was the obstacle, not failed data upload.
+Realcontact mask down/up events and userunlock provide end-to-end input proof.
+Lastpacket28915/accepted28915/rejected0, typically996–998samples/10s. accepted
+includes no-change and does NOT prove every event queued/consumed. Multitouch,
+latency, suspend/recovery and endurance are still unqualified.
+
+Known display limit: SweetFramebuffer.cpp523 defaults sweetfb_hz10 => one
+flush every6timer callbacks. Existing args omit it. Timer callbacks around
+17.6ms; present attempts may be far belowcap (latecounts18to36 over~100s), so
+this cap alone is not established as the dominant lag cause. Actualcopy is
+CPU dirty-rect memcpy; physicalpanelWC, IOBuffer source cached. NoGPU/Metal.
+SMP sampling interrupts/stops threads every10s for16rounds and producesheavy
+logs; it is a finite overhead, not proof of ongoing late-frame stalls.
+An independent log/DSC analysis is finding earlySpringBoard fence/EDR waits;
+exact causality remains under review, not a verified patch.
+
+Prepared samekernel one-variablecontrol: shim/out/shim-p1-nvt-0108-native-hz30-20261105.img
+SHA25671937a6024d6b4ad126b869d2643ec2d0867ae4c93c2c68749186b0a0ac53f19. Only extraargument sweetfb_hz=30;
+payload bytes outside command-line field EXACTLY identical to previous108.
+No samplersetting/driver/code/GPU flag change. SamebuildID cannot distinguish
+these boots: require freshcycle/log and actualboot-args sweetfb_hz=30 as well.
+Next: temporary180s control; userperformswipes and report relative latency;
+collectfreshlog before anotherboot. Changing softwarecopycap is not hardware
+90/120Hz support. PhonecurrentlyTWRP, control not yetbooted.
+
+
+### 2026-11-05 — local0108 temporary boot accepted; observer87761 live
+
+Native0108 image493cdf7e... temporarily started: send16868KB0.391s,
+boot0.135s,total0.532s.180s observer **87761** live; cycle
+research/tmp/p1-nvt-0108-native-cycle-20261105.log. No screen/touch/fresh log
+result yet. Do not duplicate the boot; phone currently owns XNU/USB.
+Native build1043 and CI42021243212 are completed, not live. Next user check:
+try actual touch/swipe then returnTWRP to recover this exact build's log.
+
+
+### 2026-11-05 — local0108 full build passes; image ready for second physical-input trial
+
+Local1f51599 was published safely asd51a9c25960c133746ad852c67c76ab6598e3202,
+parentb7d836a. No CI dispatched. Full nativebuildsession1043 is terminalexit0.
+Manifest .deps-cache/p0-20261105/build/runs/gauguin.KBwKVM/build-manifest.json:
+make0/ARM64/5245sourcefiles, sourceSHA42ad8af3d1c1967c040b277cb7e60066a55ec88e2e637099670823e720e7eeb0.
+Source and all captured build inputs match after build; only known mkadt.py
+worktree edit. All host tests passed separately on exact source108, so this
+invocation usedSKIP_TESTS=1. Previous link/version.o were preserved and relinked;
+unique IDxnu-4b17c6ad3770401b95f86c3750d8ed82 is in manifest/kernel/image.
+Native generated build context now belongs to source108/new manifest, not99.
+Kernel16798048B SHA8501ee056cd49869e240c1752085d84534156f5da037f278842e3adfa81e08dc.
+Output research/tmp/p1-native-0108-20261105-out/; qualification
+p1-native-0108-qualification-20261105.json. Build log356172340B has interleaved
+compiler warnings/source strings containing 'error:'; use make/manifest result,
+not broad grep of those echoed source lines, for the build verdict.
+
+Prepared shim/out/shim-p1-nvt-0108-native-20261105.img,17272832B,
+SHA256493cdf7e521dd83b024b93f4926de2db903400874f5a4ed7aac50c1a0af9c76b; payloadSHA2563b94ed3c7906c689c451c24aa163e36692d396007dade0ead5ac4bc8f81a429a.
+Exact0104shim/DTB/header geometry retained. AssetPA0x182540000,raw139264,
+reserve147456; bytes/padding/bounds and fullbanner checked. Same0107 arguments
+(sweetnvt=1,probes/legacy0). Not booted yet; nextone180s temporary observation.
+Evidence p1-nvt-0108-native-evidence-20261105.json. PhonecurrentlyTWRP.
+
+Offline GPU owned-buffer candidate is now frozen and independently reviewed:
+p3-gpu-abi-20261105/buffer-freeze.json,buffer-compile-qualification.json,
+OWNED_BUFFER.md. Host fixtures and two actualARM64TUs using new108contextpass,
+9external dependencies supplied; no generated files changed. Still noGPU/SMMU
+activity, service, import or realhardwarecache/quiescence proof. Not in108.
+
+
 ### 2026-11-05 — physical SPI/full firmware readback works; native CRC gate fix0108 ready
 
 User confirms0107 remains at iOS lock screen with no touch, then manually

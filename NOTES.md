@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — UI run recovered: >409 seconds, presentation active; real touch is Novatek SPI
+
+User manually returned to TWRP after the successful UI run. Observer ended at
+363seconds without recovery; its attempted pull failed and removed OUT as
+intended. Fresh recovery pull saved as
+`research/tmp/ui-touch-off-recovered-20261105.txt` (+.bin), banner13:38:21
+matches known UI kernel. Ring total301640bytes/flush421/4151lines. It confirms
+`SWEET TOUCH: mode 0, bring-up skipped`, no captured panic/shutdown entry,
+PET400 at7859599836ticks (**409.354seconds**), framebuffer57swaps/52presents/
+client2 near the end. Key/HID events were delivered while the user returned to
+recovery. This is sustained rendering evidence alongside the user's lock/home
+visual confirmation. Exact total runtime is not inferred beyond recorded ticks.
+
+Real recovery input is **NVTCapacitiveTouchScreen**, event4; spi2.0 is bound to
+PA0x880000. Current native dmesg identifies trim0c0000726603 and selects
+`novatek_nt36672c_j17_fw01.bin`; download completes, FWversion16, PID5937.
+Live DT SPI CS0/mode0/10MHz; RST21/IRQ22, swrst0x3f0fe/fast-read0x3f310.
+The prior Focaltech/I2C variant assumption does not match this unit. Fixed
+Lineage source includes the Novatek firmware as ihex; no firmware/device dump
+is committed. Read-only interface inventory is
+`research/tmp/ui-nvt-recovery-interfaces-20261105.txt`. Vendor recovery files
+named novatek_ts_tianma_fw.bin etc are139264bytes; do not assume they equal the
+actual built-in fw01 merely from panel name. Hardware/firmware audits ongoing.
+
+Patches0096(PON/charger evidence) and0097(default touch probe off, blind GCC
+scan removed) compile successfully with all hosttests, makeexit0, log
+`research/tmp/ui-stable-default-build-20261105.log`. Saved new kernel
+`research/k-ui-stable-default-20261105`, SHA256
+`cdca3c7fd9127164082d7456b4a7fec9381964bae63047965ea1fbd669294298`.
+This newer build has not yet booted; retain the proven7baffcae kernel/image.
+Phone is now TWRP. Next work is correct Novatek SPI input, preserving the UI
+baseline and not enabling the known-wrong experimental Focaltech path.
+
 ### 2026-11-05 — USER CONFIRMS iOS LOCK/HOME UI with touch probe skipped
 
 **Milestone: user reports an iOS lock/home interface on the actual gauguin.**

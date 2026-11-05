@@ -1,0 +1,155 @@
+--- a/bsd/dev/sweet_spmi.c
++++ b/bsd/dev/sweet_spmi.c
+@@ -1,9 +1,10 @@
+ /*
+- * Battery-only adaptation of input/sweet_keys.c, observer EXT_READL.
++ * Battery and one-shot boot diagnostics, observer EXT_READL.
+  * PMIC READ ONLY. The only MMIO store issues a one-byte read command.
+  * No interrupt clear, peripheral enable, charger config, or PMIC writes.
+  * Init is serialized by the single built-in SweetBattery personality.
+- * Battery APIDs are disjoint from the existing keys' 008/4c1 APIDs.
++ * Battery APIDs are disjoint from the keys' APIDs. The PON boot diagnostic
++ * shares the keys' 008 lane and must run before keys polling starts.
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ #include <sys/param.h>
+@@ -105,19 +106,22 @@
+ int
+ sweet_spmi_read(unsigned sid, unsigned addr, uint8_t *out)
+ {
+-	/* Restrict access to read-only blocks owned by EE0; keys keep their lanes. */
++	/* Restrict diagnostic reads; the one-shot PON dump precedes keys polling. */
+ 	unsigned peripheral = addr >> 8;
+ 	/*
+-	 * 0x08 is the PMK8350 PON (gauge DT: pony@1300 in the pmk8350 node,
+-	 * reg-names "hlos"), and 0x0a is its PBS. Both are read-only here too:
+-	 * the PON POFF_REASON/WARM_RESET registers are how the bring-up learns
+-	 * which hardware really reset the phone (the SoC's IMEM restart_reason
+-	 * only says "warm reset").
++	 * Gauguin's primary PON is SID0/base0x800, not PMK8350 SID6/base0x1300.
++	 * Peripheral 0x0a remains in the legacy allowlist without an identity
++	 * claim. PON reasons name PMIC inputs; IMEM restart_reason is a software
++	 * reboot-command mailbox, not a reliable previous-reset cause register.
++	 * Charger evidence is limited to four SID2 MISC identity/config bytes;
++	 * do not open the whole peripheral or include its watchdog pet command.
+ 	 */
++	bool charger_diag = sid == 2 &&
++	    (addr == 0x1604 || addr == 0x1605 || addr == 0x1651 || addr == 0x1653);
+ 	if (!sp_ready || !out || sid > 15 || addr > 0xffffu ||
+ 	    (peripheral != 0x08 && peripheral != 0x0a &&
+ 	    peripheral != 0x10 && peripheral != 0x11 && peripheral != 0x12 &&
+-	    peripheral != 0x13 && peripheral != 0x48)) {
++	    peripheral != 0x13 && peripheral != 0x48 && !charger_diag)) {
+ 		return -1;
+ 	}
+ 	IOLockLock(sp_lock);
+--- a/iokit/Kernel/arm/SweetWatchdog.cpp
++++ b/iokit/Kernel/arm/SweetWatchdog.cpp
+@@ -36,12 +36,11 @@
+ void sweet_pon_dump(void);
+ 
+ /*
+- * PMIC PON reset reason (read-only SPMI through sweet_spmi.c): PMK8350 PON at
+- * SPMI slave 0, peripheral 0x08, reg base 0x1300 (gauge DT "pony@1300").
+- * POFF_REASON1/2 (0x1308/0x1309) say what the last power-off was and
+- * WARM_RESET_REASON1/2 (0x1311/0x1312) what the last warm reset was - the
+- * bootloader prints these as "poweroff reason"/"warm reset" and they name a
+- * watchdog/kpdp/PMIC source, unlike the SoC's generic restart_reason.
++ * Read-only boot evidence. Gauguin's live recovery DT identifies the primary
++ * PON as PM6350 SID0/base0x800. Reason offsets depend on PON subtype; use the
++ * same supported subtype groups as native qpnp-power-on.c. Values are raw:
++ * PS_HOLD, for example, names a PMIC input, not its software/firmware caller.
++ * The one-shot runs before sweet_keys_init starts polling the same PON lane.
+  */
+ extern "C" int sweet_spmi_init(void);
+ extern "C" int sweet_spmi_read(unsigned sid, unsigned addr, uint8_t *out);
+@@ -49,6 +48,66 @@
+ void
+ sweet_pon_dump(void)
+ {
++#if defined(GAUGUIN)
++	const unsigned sid = 0, base = 0x800;
++	uint8_t revision = 0, type = 0, subtype = 0;
++	if (sweet_spmi_init() != 0) {
++		IOLog("SWEET PON: sid=0 base=0x800 SPMI unavailable\n");
++		return;
++	}
++	int revision_rc = sweet_spmi_read(sid, base + 1, &revision);
++	int type_rc = sweet_spmi_read(sid, base + 4, &type);
++	int subtype_rc = sweet_spmi_read(sid, base + 5, &subtype);
++	IOLog("SWEET PON: sid=0 base=0x800 dt-pmic=pm6350 revision2=%02x rc=%d type=%02x rc=%d subtype=%02x rc=%d\n",
++	    revision, revision_rc, type, type_rc, subtype, subtype_rc);
++	static const struct {
++		const char *name;
++		unsigned gen1, gen2;
++	} regs[] = {
++		{ "pon1", 0x08, 0xc0 }, { "pon2", 0x09, 0 },
++		{ "warm1", 0x0a, 0xc2 }, { "warm2", 0x0b, 0 },
++		{ "poff1", 0x0c, 0xc5 }, { "poff2", 0x0d, 0 },
++		{ "soft1", 0x0e, 0xcb }, { "soft2", 0x0f, 0 },
++		{ "off-sequence", 0, 0xc7 },
++		{ "fault1", 0, 0xc8 }, { "fault2", 0, 0xc9 },
++		{ "s3", 0, 0xca },
++	};
++	bool gen1 = subtype >= 1 && subtype <= 3;
++	bool gen2 = subtype == 4 || subtype == 5;
++	if (subtype_rc != 0 || (!gen1 && !gen2)) {
++		IOLog("SWEET PON: sid=0 base=0x800 reason layout unavailable; no reason reads\n");
++	} else {
++		for (unsigned i = 0; i < sizeof(regs) / sizeof(regs[0]); ++i) {
++			unsigned offset = gen1 ? regs[i].gen1 : regs[i].gen2;
++			if (offset == 0) {
++				continue;
++			}
++			uint8_t value = 0;
++			int rc = sweet_spmi_read(sid, base + offset, &value);
++			IOLog("SWEET PON: sid=%u base=%#x reg=%#x %s=%02x rc=%d\n",
++			    sid, base, base + offset, regs[i].name, value, rc);
++		}
++	}
++	/* Native SMB5 uses PM7250b SID2 MISC@0x1600. Record identity and raw
++	 * configuration only: no inference about unknown subtype or AFP wiring.
++	 * Native init clears WD_CFG bit7 (WATCHDOG_TRIGGER_AFP_EN) and sets
++	 * bits6/1. SNARL_BARK_BITE_WD_CFG contains the timeout configuration. */
++	static const struct {
++		const char *name;
++		unsigned reg;
++	} charger_regs[] = {
++		{ "type", 0x1604 }, { "subtype", 0x1605 },
++		{ "wd-cfg-raw", 0x1651 }, { "snarl-bark-bite-cfg-raw", 0x1653 },
++	};
++	for (unsigned i = 0; i < sizeof(charger_regs) / sizeof(charger_regs[0]); ++i) {
++		uint8_t value = 0;
++		int rc = sweet_spmi_read(2, charger_regs[i].reg, &value);
++		IOLog("SWEET CHARGER WDT: sid=2 base=0x1600 reg=%#x %s=%02x rc=%d\n",
++		    charger_regs[i].reg, charger_regs[i].name, value, rc);
++	}
++#else
++	/* Unverified legacy mapping retained for SWEET, not gauguin evidence.
++	 * Neither this SID6/base0x1300 identity nor its reason layout is validated. */
+ 	static const struct {
+ 		const char *name;
+ 		unsigned reg;
+@@ -62,15 +121,16 @@
+ 		IOLog("SWEET PON: SPMI unavailable\n");
+ 		return;
+ 	}
+-	/* gauge DT: the PON lives on pmic@6 (PMK8350, SPMI slave 6) - the other
+-	 * PMICs (pm6150l = 4, pm6350 = 0) have no PON node. */
+ 	for (unsigned i = 0; i < sizeof(regs) / sizeof(regs[0]); i++) {
+ 		if (sweet_spmi_read(6, regs[i].reg, &value) == 0) {
+-			IOLog("SWEET PON: %s=%02x\n", regs[i].name, value);
++			IOLog("SWEET PON: unverified-legacy sid=6 base=0x1300 reg=%#x %s=%02x\n",
++			    regs[i].reg, regs[i].name, value);
+ 		} else {
+-			IOLog("SWEET PON: %s read failed\n", regs[i].name);
+-		}
+-	}
++			IOLog("SWEET PON: unverified-legacy sid=6 base=0x1300 reg=%#x %s read failed\n",
++			    regs[i].reg, regs[i].name);
++		}
++	}
++#endif
+ }
+ 
+ /*

@@ -32,7 +32,7 @@ nothing is drawn.
 | Display path | works | surface → swap → present → panel, verified end to end (below) |
 | AGX service | opens | `open AGXAccelerator type 1 -> 0x0` |
 
-Reported on real hardware: `d25f844e`, TWRP recovery, no UART. Console goes to
+Reported on real hardware: `<device-id-redacted>`, TWRP recovery, no UART. Console goes to
 the ABL framebuffer and a 4 MiB ring at the end of `userdata`, read back with
 `tools/sweet-log-pull.sh`.
 

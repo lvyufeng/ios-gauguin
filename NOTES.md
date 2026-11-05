@@ -2,6 +2,108 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 —0109 GCC snapshot verified;~68min touch stability;0110 SCM query ready
+
+User confirms0109 stillphysicallyunlocks, manuallyreturnedTWRP. PhoneTWRP;
+noobserver/nativebuild/CI live. Fresh p3-gcc-0109-native-recovered-20261105.txt
+matches fullxnu-a948... ID:12551lines,ring647684B/flush4347,
+SHAf92cbdc77c2e62cd4c48c47a0f85aab910a93525977508a77d84015fe077510d.
+PET4060 at78200473955ticks (~4072.94s/67.88min), NVT398634packets,
+accepted398634/rejected0; bootstrapREADY/fff,PID5937,geometry/version/typeOK.
+No capturedpanic/UFS/logtransfererror; genericbootgPanicBasewarnings and
+execDumpPanic arenotcrashes. Raw multi-slot masksappear,butnoexplicitmulti-
+touchgesturequalification. Userunlockafterlongrun isconfirmed.
+
+AllfiveGCCreadscomplete:52008GPU_GPLL0_VOTES=0000001e (GPUbits7/8clear),
+45004GPU_CFG_AHB=00000009,4500cGPU_MEMNOC_GFX=80004220,
+45014GPU_SNOC_DVM_GFX=80000000,2d038DDRSS_GPU_AXI=80000000.
+These namedregisteraccessesarenowhardwareverified;threebranchCLK_OFFbitsset.
+This doesnotqualifyGPUCC/GDSC/GMU/SMMU/GX orparentrailownership. Do notenable
+anythingbasedonlyontheseclockvalues.
+
+0110 integratesdefaultoff sweetscmprobe1 worker,45safterroot. Only INFO self/
+ABI detection thenINFOqueriesofPAS APIcmd1/2/5/6 availability; PAS13operations
+areNOTinvoked,noDMA/buffers/GPU MMIO/powervotes/watchdogcalls. NativeSMC64/32
+x0..x6continuationsbounded8entries, freshEBUSYretrybounded4; unfinishedresume
+neverfallsback32. Rawx0..x3persistedaftereachreturn. Scalarcapabilitydoesnot
+provePAS13authorization orhigh-PA support. SourceSHA1ac17e40f73906e6af6900b147f1d44cd7dd47819a6cb1e7da372aa6cfc68841.
+ActualARM64TU20608B and14kerneldependenciespass using109context; independent
+ABI/ASM reviewpassed. Freshsource110104patches/5247files differsfrom109only
+newSCM C+bsd/conf/files+bsd_init. Fullhostsuitepasses onretry: initialfailure
+wasGPUtestrequiringitsdeclaration/calltobealoneinsharedGAUGUINblock; testnow
+checksactualguardmembershipanduniquenesswithoutrejectingtheSCMneighbor.
+Reportsp3-source110-comparison-20261105.json,p3-host-tests-0110-retry-20261105.log.
+Nextcommit/localbuild,thenquery-onlybootwithGPUprobeoff tokeepresultsseparate.
+
+LowPASowner candidate inprogress (ignoredp3-low-pas-memory-20261105/candidate):
+optionalzero-tail WITHIN ABL-ownedinitrd, runtimechecked1MiBsubregion<4GiB;
+actualFDT/shim/reservationsoverlapvalidation andADTownership/cachehandoff.
+No fixedPA,managedRAMexpansion,PASoperationorbufferusage. Defaultcompatibility
+andfailure-stopbeforeoldshimfallback required. Notintegratedorbooted.
+
+
+### 2026-11-05 —0109 GPU clock observation ended; manual TWRP/log pending
+
+Native0109 imagecc180743... was temporarily accepted (send16868KB0.392s,
+boot0.135s,total0.533s). Observer97197 ended182s/exit4 withoutrecovery; no
+observer/nativebuild/CI live. Userhasbeenasked toconfirmtouchunlock andreturn
+TWRP. This answer/freshlog is PENDING. Do not bootanotherimage ormistake the
+previous30Hz TWRPreplyforconfirmationofthis109trial. Cycle
+p3-gcc-0109-native-cycle-20261105.log; evidencep3-gcc-0109-native-evidence-20261105.json.
+No GPUregistersnapshotresult knownyet. Lastverifiedinputbaselineis108.
+
+Next offlinework: reset_evidence preparingdefaultoff scalarSCM capability
+probe (INFOqueriesonly, neverPASactions) perSCM-RPMH-AUDIT. patch_repro auditing
+lowPAownership; liveDTremoved_region@c0000000 is123MiB [C0000000,C7B00000),
+so blindlymovingmanagedbaseC0000000 wouldincludeexplicitno-mapregion. NoPA
+selected/reserved/written andnoADT/RAMexpansionchange. Firmwareloadplan now
+frozenunderp3-gpu-firmware-20261105:16hosttests,all7stockhasheschecked;
+SQEskip4,GMUlegacywhole32KiB,ZAPonly1984Bsegment withMDT6860B and1MiBdynamic
+allocation/4KiBauthspan. No realfirmwareloading/PASauth/GPUexecutionoccurred.
+
+
+### 2026-11-05 — native0109 full build/qualification passes; firstGCC image prepared
+
+Nativebuild81419 terminalexit0; manifest
+.deps-cache/p0-20261105/build/runs/gauguin.tY4dnd/build-manifest.json.
+103patches/5246sourcefiles, exactsource/allcapturedinputhashes unchanged,
+make0/ARM64, requiredsweet_gpu_probe_init linkedalongwithexistingNVT/HID.
+Unique buildIDxnu-a94808142aa743bbac89d9c04b2ef0c9 matchesmanifest/kernel/image.
+Kernel16798272B SHAb203e1f068d9f335ff8554fb620c18db6c6dcfdf7272fca71c6877c6e1f1c9fa.
+Qualification research/tmp/p3-native-0109-qualification-20261105.json;
+outputp3-native-0109-20261105-out; sharednativecontext now109/tY4dnd.
+
+Prepared shim/out/shim-p3-gcc-0109-native-20261105.img17272832B,
+SHAcc180743ec84dc12e2b7c06375ba0b5fcdd579548f6e67f292c95595ddccf4df;payloadSHAac79e42135ee74ddba5f612cbd1897b5c6943deb3e163e6baeecacbfbe9e4de4.
+Testedshim/DTB/headergeometryretained, NVTassetPA0x182540000/raw139264/
+reserve147456 unchanged; bounds/bytes/padding/fullbannerpass. Bootargsretain
+workingNVT+sweetfb_hz30 andaddsweetgpuprobe1. NoGPUFWloaded/intialized/commands.
+NoCIorobserverliveyet; phoneTWRP. Nexttemporary180sobservation, manualrecovery
+forfiveGCCnamedrawvalues. This image doesnotyettestGPUCC/GMU/SMMU/GXaccess.
+
+SCM sourceaudit correction: oldbootargsstep3/abi40/rc-2/ret-4belong specifically
+tosecurewatchdogdisable. The shim firstsuccessfully detectedSMC64 andperformed
+INFOavailabilityquery. Do not labelallSCMbroken. ExistingXNU RPMhMMIOonly
+supportsldoa6VRM; it isnot a CX/MX/GX ARC corner-voter. Furtherauditcontinues.
+
+
+### 2026-11-05 — local0109 build running; current phone TWRP
+
+Local232bc24 (GCC-onlyGPUprobe) published as sanitized snapshot
+3cc8ef8499e07baeba4f55f3097bed95c5cb7c4d, parent402e272. Pushsucceeded.
+Fullnativebuild **session81419** is running withsource109 andexistingisolated
+buildroot, outputresearch/tmp/p3-native-0109-20261105-out/; log
+research/tmp/p3-native-0109-build-20261105.log. NoCI dispatched. Hosttests
+already passed onexactsource109;SKIP_TESTS=1 avoidsrepeat. Generatednative
+context is busy until this build terminates; no concurrent oldKBwKVM TU runs.
+No GPUprobeimage packaged/booted yet. PhoneisTWRP aftercaptured30Hzcomparison.
+
+Parallel firmwareaudit correction: existing8KiB gpu_region mustnotbeassumed
+PILtarget. The actualpil_gpu node doesnotreferencethatpool; nativeZAP loader
+requests1MiB contiguous dynamicregion for4KiB authenticatedspan. ExactPIL
+allocation/relocation/cache/SCMcontract stillbeingchecked, noimagesloaded.
+
+
 ### 2026-11-05 — hz30 only slightly helps; user prioritizes real A619/Metal;0109 ready
 
 User reports same-native108 hz30 control somewhatbetter butstillunresponsive,

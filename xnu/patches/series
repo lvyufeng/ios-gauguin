@@ -105,3 +105,4 @@
 0107-gauguin-novatek-physical-input.patch
 0108-nvt-native-post-start-crc-semantics.patch
 0109-gauguin-gpu-gcc-handoff-probe.patch
+0110-gauguin-scm-capability-probe.patch

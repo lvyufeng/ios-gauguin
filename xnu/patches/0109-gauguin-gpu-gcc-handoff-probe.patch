@@ -1,0 +1,169 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_probe.c
+@@ -0,0 +1,132 @@
++/*
++ * Gauguin GPU handoff diagnostic: sweetgpuprobe=1, one worker after root mount.
++ * Reads five named GCC registers once, after a 45 second delay. No GPUCC,
++ * GDSC, GMU, SMMU, GX, clock vote, reset or other MMIO writes.
++ * Register definitions: drivers/clk/qcom/gcc-lagoon.c at
++ * https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/
++ * 19b63c8192b1c9b7c4d931d7d3be92024bc2d778/drivers/clk/qcom/gcc-lagoon.c
++ * Base/extent: actual recovery /soc/qcom,gcc@100000, reg=<0x100000 0x1f0000>.
++ * These observations do not establish GPU rail, fabric or register readiness.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
++extern void thread_terminate_self(void);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++void sweet_gpu_probe_init(void);
++
++#define GPU_PROBE_GCC_PA 0x00100000u
++#define GPU_PROBE_MAP_BYTES 0x1000u
++
++static unsigned gpu_probe_started;
++
++struct gpu_probe_register {
++    const char *name;
++    uint32_t offset;
++    unsigned page;
++};
++
++/* Page indices are explicit: no range scanning or derived register selection. */
++static const uint32_t gpu_probe_pages[] = {0x52000u, 0x45000u, 0x2d000u};
++static const struct gpu_probe_register gpu_probe_registers[] = {
++    {"GPU_GPLL0_VOTES", 0x52008u, 0},
++    {"GPU_CFG_AHB_CBCR", 0x45004u, 1},
++    {"GPU_MEMNOC_GFX_CBCR", 0x4500cu, 1},
++    {"GPU_SNOC_DVM_GFX_CBCR", 0x45014u, 1},
++    {"DDRSS_GPU_AXI_CBCR", 0x2d038u, 2},
++};
++
++static void
++gpu_probe_record(const char *line)
++{
++    printf("%s\n", line);
++    /* Existing best-effort persistent paths; called only by our worker. */
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++static bool
++gpu_probe_context(void)
++{
++    return ml_get_interrupts_enabled() && !ml_at_interrupt_context() &&
++        get_preemption_level() == 0;
++}
++
++static uint32_t
++gpu_probe_read(vm_offset_t base, uint32_t offset)
++{
++    uint32_t value = *(volatile uint32_t *)(base + offset);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++
++static void
++gpu_probe_run(void)
++{
++    vm_offset_t pages[3] = {0};
++    char line[192];
++
++    for (unsigned i = 0; i < sizeof(gpu_probe_registers) / sizeof(gpu_probe_registers[0]); ++i) {
++        const struct gpu_probe_register *reg = &gpu_probe_registers[i];
++        uint32_t pa = GPU_PROBE_GCC_PA + reg->offset;
++        if (!pages[reg->page]) {
++            uint32_t page_pa = GPU_PROBE_GCC_PA + gpu_probe_pages[reg->page];
++            snprintf(line, sizeof(line), "SWEET GPU PROBE: map GCC pa=%08x size=%x",
++                page_pa, GPU_PROBE_MAP_BYTES);
++            gpu_probe_record(line);
++            pages[reg->page] = ml_io_map(page_pa, GPU_PROBE_MAP_BYTES);
++            if (!pages[reg->page]) {
++                snprintf(line, sizeof(line), "SWEET GPU PROBE: map failed pa=%08x; stopped", page_pa);
++                gpu_probe_record(line);
++                return;
++            }
++        }
++        snprintf(line, sizeof(line), "SWEET GPU PROBE: before read %s pa=%08x", reg->name, pa);
++        gpu_probe_record(line);
++        uint32_t value = gpu_probe_read(pages[reg->page], reg->offset - gpu_probe_pages[reg->page]);
++        snprintf(line, sizeof(line), "SWEET GPU PROBE: read %s pa=%08x raw=%08x", reg->name, pa, value);
++        gpu_probe_record(line);
++    }
++    gpu_probe_record("SWEET GPU PROBE: complete reads=5; GCC snapshot only, GPU access unqualified");
++}
++
++static void
++gpu_probe_worker(void *argument, wait_result_t result)
++{
++    (void)argument; (void)result;
++    if (!gpu_probe_context()) {
++        printf("SWEET GPU PROBE: invalid worker context; stopped\n");
++        thread_terminate_self();
++        return;
++    }
++    gpu_probe_record("SWEET GPU PROBE: worker delay=45s; GCC reads only");
++    for (unsigned i = 0; i < 45; ++i) IOSleep(1000);
++    if (gpu_probe_context()) gpu_probe_run();
++    else printf("SWEET GPU PROBE: invalid context after delay; stopped\n");
++    thread_terminate_self();
++}
++
++void
++sweet_gpu_probe_init(void)
++{
++    int enabled = 0;
++    thread_t thread;
++    (void)PE_parse_boot_argn("sweetgpuprobe", &enabled, sizeof(enabled));
++    if (enabled != 1) return;
++    if (__atomic_exchange_n(&gpu_probe_started, 1, __ATOMIC_ACQ_REL)) return;
++    kern_return_t result = kernel_thread_start(gpu_probe_worker, NULL, &thread);
++    if (result == KERN_SUCCESS) thread_deallocate(thread);
++    else printf("SWEET GPU PROBE: worker creation failed=%d; no inline fallback\n", result);
++}
++#endif /* GAUGUIN */
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -109,6 +109,7 @@
+ bsd/dev/sweet_keys.c			standard
+ bsd/dev/sweet_touch.c			standard
+ bsd/dev/gauguin_nvt_probe.c		standard
++bsd/dev/gauguin_gpu_probe.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -403,6 +403,9 @@
+ void (*mountroot_post_hook)(void);
+ void (*unmountroot_pre_hook)(void);
+ #endif
++#if defined(GAUGUIN)
++extern void sweet_gpu_probe_init(void);
++#endif
+ void set_rootvnode(vnode_t);
+ 
+ extern lck_rw_t rootvnode_rw_lock;
+@@ -1064,6 +1067,11 @@
+ 	}
+ #endif
+ 
++#if defined(GAUGUIN)
++	/* Opt-in diagnostic creates its own delayed worker; no inline MMIO. */
++	sweet_gpu_probe_init();
++#endif
++
+ #if 0 /* not yet */
+ 	consider_zone_gc(FALSE);
+ #endif

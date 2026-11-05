@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — hz30 only slightly helps; user prioritizes real A619/Metal;0109 ready
+
+User reports same-native108 hz30 control somewhatbetter butstillunresponsive,
+and wantsGPU/Metal mainline. ReconfirmedTWRP, freshlog matchesbuildID AND
+actualsweetfb_hz=30 bootargs. Observer35148 terminal181s/exit4; noobservers,
+CI ornativebuild live. PhoneTWRP. Log
+research/tmp/p1-nvt-0108-native-hz30-recovered-20261105.txt:4288lines,
+SHA256d06785e3b98558427760e87ff705c950318938f7e6f4d28bdbb34b1700fd6854,
+PET500 at9781269844ticks (~509.44s). BootstrapREADY/validfff,9165transfers,
+resetA0,PID5937,1080x2400/version16/type1. Lastpackets43874/accepted43874/
+rejected0. Hz30 remains softwarecopycap, not hardwarehighrefresh orGPUproof.
+
+Current localHEAD829e733 / public402e272191456a2585a2b42ae41bde04617285d8
+are documentationchildren of tested108 code1f51599 / publicd51a9c2.
+No newCI needed for debugging; use localbuild. Main nextphaseP3a: realA619
+CP_MEM_WRITE+canary/timestamp readback, thenMetal/IOSurface+composition. P1
+basicphysicalunlock/HOME nowpasses; multitouch/latency/endurance remainopen.
+P2fullcapacity/memory work also remains; do not markoverallgoalcomplete.
+
+Separatelag evidence frozen in ui-perf-0108-20261105/FINDINGS.md,freeze.json
+andnotification-rootfs-audit.txt. EarlySB fence/BBDrender threads wait behind
+EDR client mutex; EDRGetDefaultMinScalingFactor sends customrequest0x12 with
+5000msMach timeout tocom.apple.libEDR.Notification. Existingofflinejob/cache
+assignthatservice tobackboardd itself. This is a serverresponse question, not
+proofanindependentdaemonisabsent. EmptylateSMPstacks coincidewithdisplayoff;
+nointeraction samplescoverlaterdisplayon. Exactelapsedtimeout notmeasured.
+NotificationsABI72/fourinputs andcallbackshapearecorrect;68isSetParameter.
+TheobservedCADisplayTimer/Machtimer path legitimatelyhasno72registration.
+Do not change72orforcefakeGPU/SDRsuccess. RealGPUaloneisnotprovedtofixEDRwait.
+
+Read-only nativeGPU inventory: p3-gpu-inventory-20261105/. Adreno619v1,DT
+chipid06010900. Mountedvirtualdebugfs, readclk/regulator summaries. Vendor
+ext4wasmountedro,noload andmodemvfat ro undernew/tmp paths, filescopied toignored
+inventory/firmware, thenbothunmountedsuccessfully. No partitiondata/regwrites.
+a630_sqe.fw32304B SHAa0e1b583f620fabe32729ce367959d1960638663244d7d0cfc21b9a5215a018b;
+a619_gmu.bin32768B SHA9ef10b2b179054fb57af25008e29feb24300c2eaaeabf907bd741786bbacbf2e;
+a615_zap.elf14272B SHAd1e0dbbfe4a9c68935d38eadaf9a508e3b43c48e5c7f15e9580dd583cd2c0652,
+plusmdt/b00..b02. Completeprovenance firmware-capture.json. GPUcfgAHB/GPUCCAHB
+nativeprepare/enablecounts2;otherGPUnodesmostly0. CachedPLLratesandLinux
+regulatorcountsareNOT XNUhandoffpower/fabric proof. Parentrailvoteisrequired
+by native evenforGDSC reads; no GPUCC/GMU/SMMU/GX reads authorizedbyclockbits.
+A619 nativeprofilehasADRENO_64BIT: initial<4GiB IOVAisconservativepolicy,
+not a provenhardwarelimit. Data coherence andnoncoherenttablewalksdiffer.
+
+0109 nowstages firstGPUhandoffprobe: defaultoff sweetgpuprobe=1, independent
+post-rootworker45s,exact5namedGCCreads/3maps,markersbeforeeachoperation. No
+MMIOwrites/votes/rangescan orotherGPUbankaccess. ActualCprobeTU/15symbols
+pass usingnative108context; sourceSHA564b9da4baca335872e6694b57d2bf65e139a8c5385c3c5b77b569881000e0fe.
+Freshsource109replays103patches/5246files, exact3changes (bsd/conf/files,
+bsd/kern/bsd_init.c,newgpu_probe);fullhostsuitepasses. Reports
+p3-source109-comparison-20261105.json,p3-host-tests-0109-20261105.log and
+p3-gpu-resources-20261105/probe/qualification.json. Nextcommit/localbuild,
+thenoneGCCsnapshotboot. NoGPUexecutionqualificationexpectedfromthisprobe.
+
+Parallelofflinecandidates: owned16K-buffer adapterandA6CPpacket/oracle under
+p3-gpu-abi-20261105 (realTUs/hostpass, notintegrated). ExistingABI1backendis
+A740specific andcannotbechipid-renamedtoA619. Firmwareformat/PAS13loadplan
+isbeingprepared in p3-gpu-firmware-20261105; no loading orsecurecalls.
+
+
 ### 2026-11-05 — same-native108 hz30 comparison started; observer35148 live
 
 Image71937a60... temporarily accepted: send16868KB0.395s,boot0.134s,total0.538s.

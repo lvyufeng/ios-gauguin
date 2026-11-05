@@ -6,7 +6,8 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / '.deps-cache/xnu-patched-0082-2/osfmk/kern/debug.c'
+XNU_SOURCE = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/xnu-patched-0082-2'))
+SOURCE = XNU_SOURCE / 'osfmk/kern/debug.c'
 
 HARNESS = r'''
 #include <assert.h>

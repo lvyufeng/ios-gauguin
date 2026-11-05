@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.join(REPO, "tools"))
 import importlib
 sm = importlib.import_module("sweet-marks")
 
-UFS_C = os.path.join(REPO, ".deps-cache", "xnu-patched-0082-2", "bsd", "dev",
-                     "sweet_ufs.c")
+XNU_SOURCE = os.environ.get("XNU_SOURCE", os.path.join(REPO, ".deps-cache", "xnu-patched-0082-2"))
+UFS_C = os.path.join(XNU_SOURCE, "bsd", "dev", "sweet_ufs.c")
 PULL = os.path.join(REPO, "tools", "sweet-mark-pull.sh")
 
 

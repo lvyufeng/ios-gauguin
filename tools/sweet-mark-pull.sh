@@ -21,7 +21,8 @@ bytes=$(adb shell blockdev --getsize64 "$dev" | tr -d '\r')
 # The mark area sits immediately below the log ring. Both sizes are defined by
 # the driver; read them from its source when the patched tree is staged so the
 # offset cannot drift if SWEET_LOG_SIZE or SWEET_MARK_BLOCKS change.
-src=$(dirname "$here")/.deps-cache/xnu-patched-0082-2/bsd/dev/sweet_ufs.c
+source_root=${XNU_SOURCE:-$(dirname "$here")/.deps-cache/xnu-patched-0082-2}
+src=$source_root/bsd/dev/sweet_ufs.c
 sizes=$(python3 "$here/sweet-marks.py" --sizes "$src")
 log_blocks=$(echo "$sizes" | cut -d' ' -f1)
 mark_blocks=$(echo "$sizes" | cut -d' ' -f2)

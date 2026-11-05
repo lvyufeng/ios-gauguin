@@ -2,15 +2,90 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — P0 fresh replay passes; first clean build exposes host SDK mixing
+
+Final fresh staging into `.deps-cache/p0-20261105/source` starts from Git object
+1b191cb58250d0705d8a51287127505aa4bc0789, tree
+5c0fc728332a322c2fb8fde61dfc6152a34c9ad6; Apple GitHub API independently matched
+both IDs. All91patches, fixedSDKheader, post-patch and watchdog staging pass.
+The new tree's5229files equal frozen0097 in content/type/executable bits with
+the documented three cached-only exclusions. Final report is
+`research/tmp/patch-repro-audit-20261105/p0-final-source-comparison-20261105.json`;
+source manifest SHA256 b399d8e00ec76217f7a8c43c58fa0f8c8e8170bd6692b40b1db6552f0ff55911.
+
+The first genuinely isolated native build FAILED, makeexit2. It correctly did
+not publish a kernel. Log `research/tmp/p0-clean-native-build-20261105.log`,
+failed manifest `.deps-cache/p0-20261105/build/runs/gauguin.j373g4/build-manifest.json`.
+The failure is in HOST SETUP tools, not a newly identified kernel bug:
+installhdrs replaces sys/cdefs.h in the kernel SDK copy with XNU's older header,
+while modern SDK libc headers still require __alloc_align and
+__swift_nonisolated_unsafe. build-macos incorrectly points HOST_SDKROOT_RESOLVED
+at this mixed kernel SDK. Original system SDK has the macros. Old and new
+kernel SDK headers match; old cached SETUP binaries had hidden the problem.
+Fix implemented and nine build fixtures pass: host tools use the pristine
+system SDK; target kernel retains the isolated staged SDK. The manifest records
+both SDK identities/cdefs hashes; CI also hashes generated framework headers.
+No per-header macro workaround or copied old binary. Failed target object/symbol
+directories were moved to obj-failed-sdk-mix/sym-failed-sdk-mix inside the P0
+build root, so the retry will rebuild all target objects.
+
+Host checks on final replay passed in
+`research/tmp/p0-build-script-host-tests-20261105.log`;8build fixtures also test
+stale-output rejection and propagation of a failing CI installhdrs before its
+success marker. CI profile13.5/source pins, strict staging, unique publication
+stage and input manifests are implemented but not yet committed or CI-qualified.
+Review also requested a digest of generated framework/private headers, not just
+fakeroot/usr/local. Real native build is being used to close actual gaps.
+
+Recovery was read-only checked: TWRP3.6.2.1B-gauguin, battery100%,31.8C. No
+new boot has been performed. Original UI artifacts remain hash-verified.
+Parallel GPU audit is saved as `research/tmp/ui-gpu-abi-audit-20261105.txt`:
+flame uses NativeAdreno ABI1 while current UniXNU hasABI2; the exact Mesa/m2v
+patch set must be pinned. First headless GPU memory-write/fence test can avoid
+the full Rust/Metal toolchain. No GPU implementation or hardware test yet.
+
+### 2026-11-05 — revised app goal ACTIVE; P0 source equivalence verified
+
+The user set the revised objective in the app and resumed it. get_goal confirms
+active status. The preceding planning turn made progress by committing the
+staged plan622ef08; no no-progress blocker applies. P0 is now executing, on
+branch `codex/gauguin-p0-repro-20261105`. Remote main is ancestor fef77ed;
+local work is128commits ahead,0behind before this P0 implementation.
+
+The known UI kernel/image/ADT and0097 kernel were SHA-256 checked and match
+the recorded full hashes. Cached0097 source is frozen under
+`research/tmp/patch-repro-audit-20261105/frozen0097/`.
+Full bidirectional tree scan found **5229common files with identical bytes**,
+no replay-only files and no symlinks. All executable bits match.5184ordinary
+mode differences are cache group-write bits (664/644 or775/755); watchdog
+header is600/644. These access permissions are explicitly normalized, not
+claimed byte-for-byte filesystem metadata identity.
+
+Three cache-only files are explained: .patch-set local tag, generated lldb
+Python bytecode, and unreferenced bsd/kern/sweet_probe.c. A full source search
+finds that probe only in itself; nm of0097kernel contains none of its symbols.
+Raw manifests and qualified report are under the audit directory as
+`p0-{cached,replay97}-source-manifest-20261105.json`,
+`p0-source-compare-{raw,qualified}-20261105.json`. The qualified result passes
+with those explicit non-build exclusions. This supersedes the old0091-only
+full-source-compare.json; clean compilation and device regression are pending.
+
+Build/CI work is being corrected to isolate all SDK/obj/sym/log/install paths,
+reject stale kernel success, record inputs, and reject unsupported profiles.
+Independent review found prepare.sh wrongly resolves SDK headers even when
+SKIP_TARGET_MACROS=1, breaking Linux staging; that fix is included in P0 scope.
+No CI run is live: most recent39957353555 ended failure at3a2f529. No new device
+operation has started. GPU ABI/source audit proceeds read-only in parallel.
+
 ### 2026-11-05 — revised engineering goal and staged implementation plan
 
 The user approved the comparative recommendation and requested an updated goal
 and a plan for staged implementation. This entry is the current engineering
 scope and supersedes earlier next-action/paused-work prose for planning.
-The app-managed goal still has its original objective and paused status: the
-available goal tools cannot edit objective text or resume it. Do not mark the
-old objective complete to replace it. No new build or device operation was
-started during this planning turn.
+At planning time the app-managed goal was still paused and the available
+tools could not edit its objective or resume it. The user has since updated the
+objective and activated it; see the newer P0 entries and verify with get_goal.
+No new build or device operation was started during the planning turn itself.
 
 **Revised goal text (ready for the app's goal field):**
 

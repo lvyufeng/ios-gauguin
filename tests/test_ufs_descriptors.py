@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-CACHE = ROOT / '.deps-cache/xnu-patched-0082-2'
+CACHE = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/xnu-patched-0082-2'))
 SOURCE = CACHE / 'bsd/dev/sweet_ufs.c'
 
 HARNESS = r'''

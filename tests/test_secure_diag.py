@@ -11,7 +11,8 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / '.deps-cache/xnu-patched-0082-2/iokit/Kernel/arm/SweetWatchdog.cpp'
+XNU_SOURCE = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/xnu-patched-0082-2'))
+SOURCE = XNU_SOURCE / 'iokit/Kernel/arm/SweetWatchdog.cpp'
 
 HARNESS = r'''
 #include <cassert>

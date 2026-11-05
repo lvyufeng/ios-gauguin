@@ -7,7 +7,7 @@
 #include <string.h>
 
 enum fault { NONE, BAD_TRIM, DROP_ILM, DROP_DLM, DROP_HEADER, BAD_BANK,
-    BAD_CRC_ILM_FLAG, BAD_CRC_DLM_FLAG, BAD_ILM_RESULT, BAD_DLM_RESULT,
+    BAD_CRC_ILM_FLAG, BAD_CRC_DLM_FLAG, LATE_ILM_RESULT, LATE_DLM_RESULT, OBSERVED_DLM_RESULT, LATE_GOLDEN,
     NO_CRC_DONE, NO_RESET_READY, BAD_FW_COMPLEMENT, BAD_FW_GEOMETRY,
     BAD_FW_VERSION, BAD_FW_TYPE, BAD_PID, CLOCK_BACKWARD, CLOCK_TIMEOUT, SHORT_DELAY };
 struct model {
@@ -90,8 +90,10 @@ static int mock_xfer(void *cookie,const uint8_t *tx,uint8_t *rx,size_t n)
             assert(m->ram[0x3f30e]==0xa3 && m->ram[0x22d50]==0xae && !m->ram[0x22d60]);
             assert(m->verified==96936);m->boot=true;
             /* Test fixture supplies hardware responses; no CRC polynomial is claimed. */
-            put32(m->ram+0x3f120,m->fault==BAD_ILM_RESULT?0:0x15fe9c6d);
-            put32(m->ram+0x3f124,m->fault==BAD_DLM_RESULT?0:0x90fe20f8);
+            put32(m->ram+0x3f120,m->fault==LATE_ILM_RESULT?0:0x15fe9c6d);
+            put32(m->ram+0x3f124,m->fault==LATE_DLM_RESULT?0:
+                m->fault==OBSERVED_DLM_RESULT?0xb0183db6:0x90fe20f8);
+            if(m->fault==LATE_GOLDEN){put32(m->ram+0x3f100,0x12345678);put32(m->ram+0x3f104,0x87654321);}
         }else assert(false);
         memcpy(m->ram+address,tx+1,n-1);return 0;
     }
@@ -193,7 +195,7 @@ int main(int argc,char **argv)
     const struct {enum fault fault;int result;} cases[]={
         {BAD_TRIM,NBS_IDENTITY},{DROP_ILM,NBS_READBACK},{DROP_DLM,NBS_READBACK},{DROP_HEADER,NBS_READBACK},
         {BAD_BANK,NBS_READBACK},{BAD_CRC_ILM_FLAG,NBS_CRC},{BAD_CRC_DLM_FLAG,NBS_CRC},
-        {BAD_ILM_RESULT,NBS_CRC},{BAD_DLM_RESULT,NBS_CRC},{NO_CRC_DONE,NBS_TIMEOUT},{NO_RESET_READY,NBS_TIMEOUT},
+        {NO_CRC_DONE,NBS_TIMEOUT},{NO_RESET_READY,NBS_TIMEOUT},
         {BAD_FW_COMPLEMENT,NBS_FWINFO},{BAD_FW_GEOMETRY,NBS_FWINFO},{BAD_FW_VERSION,NBS_FWINFO},
         {BAD_FW_TYPE,NBS_FWINFO},{BAD_PID,NBS_IDENTITY},{CLOCK_BACKWARD,NBS_CLOCK},
         {CLOCK_TIMEOUT,NBS_TIMEOUT},{SHORT_DELAY,NBS_CLOCK}
@@ -205,13 +207,26 @@ int main(int argc,char **argv)
         if(cases[i].fault==NO_CRC_DONE||cases[i].fault==NO_RESET_READY)assert(m->polls==11);
         if(cases[i].fault==BAD_CRC_ILM_FLAG||cases[i].fault==BAD_CRC_DLM_FLAG)
             assert((session.report.valid&NBS_VALID_CRC_STATUS)&&!(session.report.valid&NBS_VALID_RESET_STATE));
-        if(cases[i].fault==BAD_ILM_RESULT)assert((session.report.valid&NBS_VALID_ILM_CRC)&&session.report.ilm_crc==0);
         if(cases[i].fault==BAD_FW_COMPLEMENT||cases[i].fault==BAD_FW_GEOMETRY)assert(!(session.report.valid&NBS_VALID_FWINFO));
         if(cases[i].fault==BAD_FW_VERSION||cases[i].fault==BAD_FW_TYPE)assert(session.report.valid&NBS_VALID_FWINFO);
         if(cases[i].fault==BAD_PID)assert((session.report.valid&NBS_VALID_PID)&&session.report.pid==0x5936);
     }
+    /* Post-start registers have no native stability contract. The hardware
+     * observation is one case, not a whitelist: other changed results/goldens
+     * are recorded while every pre-start integrity/readiness gate still runs. */
+    const enum fault observations[]={LATE_ILM_RESULT,LATE_DLM_RESULT,OBSERVED_DLM_RESULT,LATE_GOLDEN};
+    for(size_t i=0;i<sizeof(observations)/sizeof(observations[0]);i++){
+        init(m,&session);m->fault=observations[i];
+        assert(run(m,&session,firmware,NBS_FIRMWARE_BYTES)==NBS_OK);
+        assert(session.report.ready&&session.report.valid==0xfff&&session.report.bytes_verified==96936);
+        assert(session.report.crc_status==4&&session.report.pid==0x5937&&session.report.fwinfo.version==16);
+        if(m->fault==LATE_ILM_RESULT)assert(session.report.ilm_crc==0);
+        if(m->fault==LATE_DLM_RESULT)assert(session.report.dlm_crc==0);
+        if(m->fault==OBSERVED_DLM_RESULT)assert(session.report.dlm_crc==0xb0183db6);
+        if(m->fault==LATE_GOLDEN)assert(session.report.ilm_golden==0x12345678&&session.report.dlm_golden==0x87654321);
+    }
     /* No invented clear-on-reset property: stale baseline4 is recorded, but
-     * full real-model SRAM readback and post-start CRC gates remain required. */
+     * full real-model SRAM readback and CRC status/reset gates remain required. */
     init(m,&session);m->stale_crc_before=true;assert(!run(m,&session,firmware,NBS_FIRMWARE_BYTES));
     assert(session.report.crc_before==4&&session.report.bytes_verified==96936);
     init(m,&session);m->stale_crc_before=true;m->fault=DROP_ILM;failed(m,&session,firmware,NBS_READBACK);assert(!m->boot);

@@ -2,6 +2,90 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — P0 device gate passes; CI platform guard fix ready; P1 active resources captured
+
+After user manually returned to TWRP, fresh log is
+`research/tmp/p0-clean-0099-recovered-20261105.txt` (+.bin): banner14:58:55,
+332430bytes/flush887/4903lines, PET860 at16700073482ticks (~869.8s at19.2MHz),
+130presents/client2. No captured panic/shutdown or UFS OCS/timeout/write error.
+User explicitly confirms lock screen, with no touch/unlock. This passes the
+native clean-build/ten-minute lock-screen regression portion of P0; it does
+not prove home-screen operation or any GPU/input capability. Battery read in
+recovery100%,33.4C. Correct PON subtype4 registers now read successfully;
+charger WD_CFG raw0, so the earlier charger-watchdog conjecture is not supported
+by this run. Device returned manually, not automatically.
+
+Second CI41984003767 is terminal FAILURE at final link, missing
+_iBoot_Stage_2_version. Both real compiler commands set XNU_TARGET_OS_OSX,
+but pe_init.c lacks SDK TargetConditionals while model_dep.c includes it via
+corecrypto. New local clang predefines TARGET_OS_OSX; CI clang15 does not.
+0100 fixes all five related guards to the build-wide XNU_TARGET_OS_OSX, keeping
+ARM64 restriction and real definition/DT fill/logging, not adding a stub.
+Independent-TU regression22macro combinations compile/link/nm/run successfully.
+Fresh `.deps-cache/p0-20261105/source100` replays94patches; only the expected two
+files differ from source99, all other5227bytesets/paths are unchanged. Evidence:
+`p0-source100-comparison-20261105.json`, `p0-replay100-20261105.log`,
+`p0-ci-41984003767-artifacts/audit/macro-audit.json`. New CI still to dispatch.
+
+P1 protocol+PIO candidates in ignored research/tmp/gauguin-nvt-p1 pass sanitizer
+host fixtures, including actual combined67byte transfer, FIFO contention,
+malformed contact snapshots and timeout/cancel. These are NOT kernel drivers
+or hardware communication proof. Source99 SweetHID already clamps1079/2399;
+NVT IDs1..10 map toslots0..9. It dispatches after each individual finger update,
+so a future frame-level API is preferable to intermediate all-up snapshots.
+
+Recovery SPI is normally suspended with SE0 source rate100MHz, gatecount0.
+First printf-based PM writes reportedEINVAL; exact single-write behavior was
+not proven (strace unavailable). Ordinary-file bytes were correct. A subsequent
+single-block dd write of the same on value succeeded; native runtime PM reached
+active, and both captures restored **auto+suspended**. No SPI command, reset,
+raw-register scan or firmware write was performed by these captures.
+Active snapshot files: `p1-nvt-recovery-active-dd-20261105.txt` and
+`p1-nvt-recovery-active-gpio-20261105.txt`:
+- M_AHB/S_AHB andSE0 enable/prepare1, SE0/source100MHz; wrappercore/core2x0.
+- GPIO0 in/high func2, GPIO1 out/low func2, GPIO2 in/low func1:6mA,pulldown.
+- GPIO3 in/high func1:6mA,no pull.
+- RST21 out/high func0:16mA,pullup; IRQ22 in/low func0:16mA,pulldown.
+These replace guessed board settings. Native PM changes were temporary and
+verified restored. Board candidate may only touch native-confirmed clock bits
+6/7/10 and SPI pin fields; do not enable unused core bits8/9 or reset21.
+First future XNU stage is bounded resource/protocol/clock-state qualification,
+then inherited-FW metadata reads when ready; do not publish HID on guesses.
+
+### 2026-11-05 — P0 native clean build passes; lock screen confirmed, touch pending
+
+Local commit **c0f200a** adds0098/0099. Full native target rebuild from source99
+completed **makeexit0**, all host checks passed, and the output was published
+only after validation. Manifest
+`.deps-cache/p0-20261105/build/runs/gauguin.HsArvW/build-manifest.json` records
+that commit and only the preserved tools/mkadt.py tracked dirty edit. Kernel
+16761424bytes, saved `research/k-p0-clean-0099-20261105`, SHA256
+`a748836a3f311cf2879ac51a65432bd869c65e141c896b98cacdfd2fc679f7c6`.
+Native log `research/tmp/p0-clean-native-retry2-20261105.log`.
+
+Temporary image `shim/out/shim-p0-clean-0099-20261105.img`, SHA256
+`48d70b18704328e79dde1d0fb7fd54fbd74318cb3a77f14a0d07ac301f2657ec`, uses the
+same saved ADT and UI commandline, including cpus8/sweettouchmode0. Send16688KB
+0.397s,boot0.134s,total0.537s. Observer660seconds is running, session55785,
+cycle `research/tmp/p0-clean-0099-cycle-20261105.log`; no log pull yet.
+User confirmed UI at~3minutes, then clarified **LOCK SCREEN ONLY; touch does
+not work and cannot unlock**. Do not claim the home screen/unlock is verified.
+The old probe remains intentionally disabled; physical Novatek input is P1.
+
+CI public branch now has snapshot **b69e4313af8bc6f427241011848c8212997fe70a**,
+parentdf02d30, same tracked tree asc0f200a. New run **41984003767** was dispatched
+and is being monitored; do not mistake prior failed41982348666 for this run.
+https://github.com/lvyufeng/ios-gauguin/actions/runs/41984003767
+No device test of a CI-produced kernel has yet occurred. P0 ten-minute device
+log gate and final CI qualification remain pending.
+
+During the device wait, P1 protocol/PIO candidates are being prepared only in
+ignored `research/tmp/gauguin-nvt-p1/`, with host fixtures. No P1 kernel code or
+hardware operation has been enabled. Native point packets have no established
+checksum in this driver's source; do not invent one. FWINFO complement check
+is real. NativeSPI choosesDMA above64bytes; our proposed67byte PIO service must
+be independently validated, not described as a proven native code path.
+
 ### 2026-11-05 — P0 build gaps fixed by0098/0099; fresh93-patch replay verified
 
 CI41982348666 completed FAILURE, makeexit2. Its reported compiler root cause is

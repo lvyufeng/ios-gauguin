@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — 0107 complete CI passes; first physical-input image prepared
+
+CI **42021243212** succeeded at exact public headb7d836a1a0c294721fa417228ea911dd783683dd.
+101patches/allhosttests/make_exit0;5245source entries match source107 except
+four exactly reproduced pinned dxb path adaptations. Ten required linked
+symbols include actual bootstrap/bus/PIO/runtime and whole-frame HID. Full
+qualification: research/tmp/p1-ci-0107-artifacts/qualification.json. No CI live.
+Kernel17284168B SHA2566a11f250c79f3b9edafb7f2696f8a0c09f44b07fa696e9262d3c957d11d82ccc.
+Complete build IDxnu-93babafdaaa64b119359ccf984e658a3; banner matches manifest and image.
+
+Prepared shim/out/shim-p1-nvt-0107-20261105.img (17199104B),
+SHA2569593097b74ce48fc467e861a85573a0fe0f04f0d8a1e74faa2e3c43f53f86ed9. PayloadSHA2561bf7204ade0fba3ec6314f8cdd5701b94fc5f8fac12ab4174eb1bb8922fb39fe.
+Exact tested0104 shim/DTB/header geometry retained; baseline ADT plus reserved
+NovatekFirmware. Asset PA0x18252c000, raw139264/reserve147456; boundaries,
+actual asset bytes/zero padding and full image banner independently checked.
+Baseline args plus sweetnvt=1, with sweetnvtprobe=0/sweettouchmode=0. No synthetic
+input flags. Evidence research/tmp/p1-nvt-0107-evidence-20261105.json.
+Image has NOT booted yet. Next: one temporary180s observation, user screen/
+touch report, manual TWRP recovery and fresh exact-ID log. First physical SPI/
+firmware/gesture result is unknown; do not infer input from these build checks.
+
+
+### 2026-11-05 — 0107 pushed; complete kernel CI42021243212 running
+
+Local3a317bf (23files) is published as sanitized public snapshot
+b7d836a1a0c294721fa417228ea911dd783683dd, parent1f988a6. Push succeeded.
+Exactly one gh workflow dispatch: CI **42021243212**, currently in the Build
+kernel step, not yet qualified:
+https://github.com/lvyufeng/ios-gauguin/actions/runs/42021243212
+Artifacts/expected source and input snapshots: research/tmp/p1-ci-0107-artifacts/.
+Do not dispatch a duplicate or use previous successful0104 output. Phone stays
+TWRP, no observer or newer image boot. pack_ci107.py is prepared but must only
+run after matching successful CI qualification. Latest hardware baseline0104.
+
+Final integration single-TU report:
+gauguin-nvt-p1/integration-compile/qualification.json. Eight ARM64 MH_OBJECTs
+pass;70 distinct undefined symbols have providers in tested CI104, new objects
+and the verified matching SweetHID object. This is still not a full kernel link.
+Independent integration review confirms GAUGUIN-only bus/runtime, exclusive
+startup, actual export/include paths, final status lifetime and valid-bit logs.
+
+
 ### 2026-11-05 — real NVT stack staged; complete local tests and eight ARM64 TUs pass
 
 HID/asset tooling local commitbcc0a63 was published safely as

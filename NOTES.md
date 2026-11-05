@@ -2,6 +2,77 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — P0 build gaps fixed by0098/0099; fresh93-patch replay verified
+
+CI41982348666 completed FAILURE, makeexit2. Its reported compiler root cause is
+ipc_mqueue.c:228: matched label directly precedes uint32_t declaration, accepted
+as a C23 extension by local clang but rejected by Xcode15.0.1 in CI. Full failed
+step log: `research/tmp/p0-ci-41982348666-failed.log`. The run is terminal; no
+CI remains live until a new run is dispatched. Do not poll/restart it as a wait.
+
+0098 changes only host LLDB installation: python3 -I prevents stdlib shadowing;
+syntax validation happens before INSTALL so failure leaves no target. Regression
+uses the actual invocation and actual Make template: valid input passes,
+invalid syntax/TAB fail and create no output.0099 inserts a null statement after
+the diagnostic label, preserving behavior under C11. Its extracted real tail
+fails -std=c11 -pedantic-errors before the patch and passes afterwards.
+
+Both patches were appended to series and replayed from the pinned upstream into
+`.deps-cache/p0-20261105/source99`: **93patches pass** and source-state is recorded
+under `.deps-cache/p0-20261105/build/source-state`. Complete source comparison
+has5229files: only makedefs/MakeInc.rule and osfmk/ipc/ipc_mqueue.c differ from
+frozen0097; all other5227files and executable modes match. Report
+`research/tmp/patch-repro-audit-20261105/p0-source99-comparison-20261105.json`.
+Tests/test_lldb_syntax.py passes against source99.
+
+For a full target recompile, failed retry object/symbol directories were moved
+to `build/obj-pre0098` and `build/sym-pre0098`. No old object kernel was copied
+or published. The isolated SDK and dependency build remain; these two changes
+do not alter their header inputs. Original authoritative cache/frozen0097 and
+UI-producing artifacts are unchanged. Next native run must explicitly select
+source99 and keep --build-root at the isolated P0 build directory.
+
+### 2026-11-05 — P0 scripts committed; isolated kernel links; Python install fix pending
+
+P0 reproducibility changes are committed on local branch
+`codex/gauguin-p0-repro-20261105` as **4d2a01f**. SDK host/target separation and
+nine build fixtures passed. Subsequent privacy cleanup is **94278f7**.
+**Do not push the local development branch/history:** publication audit found a
+device identifier in an old unpublished handoff commit. Current tree was
+redacted, but history remains local. CI uses a sanitized snapshot commit
+**df02d30db0c429fcc25a33a15f6c6fc333159e1f**, parent remote main fef77ed, on
+`codex/gauguin-p0-ci-20261105`. It has the same final tree as94278f7 and no new
+identifier. Only this snapshot branch was pushed. Future CI updates must remain
+children of this public snapshot branch, not expose the private local history.
+
+CI **41982348666** was dispatched with gh, profile13.5/DEVELOPMENT/gauguin.
+Latest authoritative poll: job127095123216 in_progress at Build kernel,
+setup/checkout/profile/deps passed. URL:
+https://github.com/lvyufeng/ios-gauguin/actions/runs/41982348666
+This is not yet a successful build; keep polling this run rather than duplicate it.
+
+Native retry log `research/tmp/p0-clean-native-retry1-20261105.log` (352MiB)
+shows full compile/link produced an approximately16MiB object kernel under
+`.deps-cache/p0-20261105/build/obj-gauguin-macos/DEVELOPMENT_ARM64_GAUGUIN/`.
+But make still returned2, and publication correctly failed: LLDB macro syntax
+checking starts Python with its script directory on sys.path, shadowing stdlib
+collections with tools/lldbmacros/core/collections.py. The failure is ImportError,
+not permission to copy the object kernel and call the build successful.
+
+0098 is being implemented only in fresh P0 source makedefs/MakeInc.rule:
+explicit python3 -I isolates the host syntax checker, and validation precedes
+INSTALL so failure cannot leave a target that later mtime checks skip. Original
+command failed under3.14; isolated command passed under3.14/3.9/3.15 and still
+rejects invalid syntax. Regression fixture and patch are pending. Old cache and
+frozen0097 remain unchanged. Remove the failed P0 dSYM Python install targets
+or use fresh objects before retry; none of these failed builds is a boot image.
+
+A raw `git diff --cached --check` flags required unified-diff context whitespace
+inside the new6063-line0083patch. Script/source whitespace checks exclude
+*.patch, while patch validity is covered by strict replay/hunk validation and
+complete resulting-source comparison. Do not strip patch context to silence it.
+The pre-existing tools/mkadt.py edit remains uncommitted and out of CI snapshot.
+
 ### 2026-11-05 — P0 fresh replay passes; first clean build exposes host SDK mixing
 
 Final fresh staging into `.deps-cache/p0-20261105/source` starts from Git object

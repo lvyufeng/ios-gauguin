@@ -23,11 +23,13 @@ source_root = args.source.resolve().parents[2]
 entries = (source_root / 'bsd/conf/files').read_text()
 assert entries.count('bsd/dev/gauguin_gpu_probe.c\t\tstandard') == 1
 init = (source_root / 'bsd/kern/bsd_init.c').read_text()
-assert 'void (*unmountroot_pre_hook)(void);\n#endif\n#if defined(GAUGUIN)\nextern void sweet_gpu_probe_init(void);\n#endif' in init
+declarations = re.search(r'void \(\*unmountroot_pre_hook\)\(void\);\n#endif\n#if defined\(GAUGUIN\)\n([^#]+)#endif', init)
+assert declarations and 'extern void sweet_gpu_probe_init(void);\n' in declarations.group(1)
 old_hook = '\tif (mountroot_post_hook != NULL) {\n\t\tmountroot_post_hook();\n\t}\n#endif\n'
 assert init.count(old_hook) == 1
 after = init.split(old_hook)[1]
-assert re.match(r'\s*#if defined\(GAUGUIN\)\n\s*/\*[^*]*\*/\n\s*sweet_gpu_probe_init\(\);\n#endif', after)
+guarded_calls = re.match(r'\s*#if defined\(GAUGUIN\)\n([^#]+)#endif', after)
+assert guarded_calls and re.search(r'^\s*sweet_gpu_probe_init\(\);\s*$', guarded_calls.group(1), re.M)
 assert init.count('sweet_gpu_probe_init();') == 1
 old = 'uint32_t value = *(volatile uint32_t *)(base + offset);'
 assert source.count(old) == 1

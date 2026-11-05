@@ -57,8 +57,11 @@ build_project_xnu() (
 		--source "$SRCROOT" --sdk "$PROJECT_SDK" --build-root "$BUILD_DIR" --staging "$PROJECT_STAGE" \
 		--output "$PROJECT_MANIFEST" --machine "$MACHINE_CONFIG" --configuration "$KERNEL_CONFIG" \
 		"${PROJECT_INPUTS[@]}" || exit 1
+	KERNEL_BUILD_OBJROOT=$(python3 "$GITHUB_WORKSPACE/tools/xnu-build-manifest.py" prepare-build \
+		--manifest "$PROJECT_MANIFEST" --objroot "$OBJROOT") || exit 1
+	export KERNEL_BUILD_OBJROOT
 	cd "$SRCROOT" || exit 1
-	if make install -j8 VERBOSE=YES "${CTF_TOOL_OVERRIDES[@]}" SDKROOT=macosx \
+	if make install -j8 KERNEL_BUILD_OBJROOT="$KERNEL_BUILD_OBJROOT" VERBOSE=YES "${CTF_TOOL_OVERRIDES[@]}" SDKROOT=macosx \
 		TARGET_CONFIGS="$KERNEL_CONFIG $ARCH_CONFIG $MACHINE_CONFIG" CONCISE=0 LOGCOLORS=y \
 		BUILD_WERROR=0 BUILD_LTO=0 SRCROOT="$SRCROOT" OBJROOT="$OBJROOT" SYMROOT="$SYMROOT" \
 		DSTROOT="$PROJECT_STAGE" FAKEROOT_DIR="$FAKEROOT_DIR" KDKROOT="$KDKROOT" \

@@ -170,9 +170,12 @@ for dependency in "AvailabilityVersions-$AVV_TAG" libplatform libdispatch; do
 done
 python3 "$REPO/tools/xnu-build-manifest.py" capture --source "$SRC" --sdk "$SDK" --host-sdk "$HOST_SDK" \
 	--build-root "$CACHE" --staging "$STAGING" --output "$MANIFEST" --machine "$MACHINE" "${INPUTS[@]}"
+KERNEL_BUILD_OBJROOT=$(python3 "$REPO/tools/xnu-build-manifest.py" prepare-build \
+	--manifest "$MANIFEST" --objroot "$CACHE/obj-$MACHINE-macos")
+export KERNEL_BUILD_OBJROOT
 set +e
 (cd "$SRC" && SDKROOT_RESOLVED="$SDK" HOST_SDKROOT_RESOLVED="$HOST_SDK" SDKVERSION="$SDKVERSION" PLATFORM=MacOSX \
-	make install -j"$JOBS" -k \
+	make install -j"$JOBS" -k KERNEL_BUILD_OBJROOT="$KERNEL_BUILD_OBJROOT" \
 	VERBOSE=NO CONCISE=0 \
 	BUILD_WERROR=0 BUILD_LTO=0 \
 	TARGET_CONFIGS="DEVELOPMENT ARM64 $MACHINE" \

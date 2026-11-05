@@ -2,6 +2,88 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — storage fixes committed; unique build identity ready for integration build
+
+Local **a7ce787** commits0103/0104 and their host fixtures; source104 is the
+fresh98-patch tree and differs from source102 only in bsd/dev/sweet_ufs.c.
+Report `research/tmp/p2-source104-comparison-20261105.json`; full host suite
+passes in `p2-host-tests-0104-retry-20261105.log`. These storage fixes have not
+been built as a full kernel or booted yet. The mode2 phone log is still pending
+manual TWRP recovery; do not replace that boot before collecting its evidence.
+
+Build tooling now assigns each manifest a unique xnu-UUID32 identity through
+the real KERNEL_BUILD_OBJROOT/newvers path. Native/CI/Linux adapters explicitly
+pass it. prepare-build preserves the selected old unstripped kernel/version.o
+under the new run and removes those exact link targets so even same-tick,
+unchanged-source incremental builds relink. Published known kernels are untouched.
+finish refuses a missing, mixed or different-ID complete banner despite make0.
+Observer/cycle/image-audit use one complete-banner parser instead of date-only
+or75/120-byte comparisons. Observer wording no longer claims that missing TWRP
+proves the kernel is running. This identifies a build, not repeated boots of
+the same image. It deliberately changes output bytes between invocations.
+Actual newvers/version.o incremental negative controls and all host fixtures
+passed; the first full CI build with the new identity remains pending.
+
+### 2026-11-05 — 0102 mode2 observation ended; storage fixes ready for CI
+
+Local71785a1 was published as sanitized snapshot
+5ca5e7a56eaafb3b413b8e3cce911ee12cf5241a (parenta6ffd47). CI **41998969266**
+succeeded, 13.5/DEVELOPMENT/gauguin:
+https://github.com/lvyufeng/ios-gauguin/actions/runs/41998969266
+96patches/allhosttests/make_exit0; source102's5230entries match except the four
+exactly reproduced dxb path adaptations. Artifact directory
+`research/tmp/p1-ci-41998969266-artifacts/` includes qualification.json.
+Kernel17313240B SHA2561cc6a95a8930b656921287bd52c27dfa1934bd467b2ea5988021418c0ead784b;
+Mach-O/mkpayload boundaries pass. No CI is live now; do not duplicate dispatch.
+Mode2 image `shim/out/shim-p1-nvt-stage1-0102-20261105.img`, SHA256
+a8ec6c4126a1cc94d027fb1436bce9dd666bb4eff3e7b262453c2e2c62749b7f, preserves
+baseline shim/DTB/ADT and args except sweetnvtprobe=2, with old sweettouchmode=0.
+Temporary observer63560 ended after181s without recovery (exit4); send16616KB
+0.387s,boot0.134s,total0.527s. Cycle
+`research/tmp/p1-nvt-stage1-0102-cycle-20261105.log`. User was asked to manually
+return to TWRP and report the screen; reply is pending, latest adb reports no
+device. Do not boot another image before recovering this log. No mode2
+hardware result is known yet.
+
+P2 now has0103/0104 ready for CI, not hardware-qualified.0103 holds global DMA
+ownership after the slot-owner mutex through bounce preparation/command/result;
+panic uses try-lock only. A timeout permanently quarantines DMA for this boot,
+retains its allocation and rejects reuse; host/device recovery is not implemented.
+All sync-cache errors propagate. Old sweetstage UFS writes are disabled, keeping
+no-op exported interfaces.0104 reserves1089physical4K blocks from BSD exposure,
+keeps original GPT bounds/log addresses, validates HFS geometry before mount,
+and checks signed/large sector numbers before multiplication. No resize/format
+or GPT write occurs in that code. This does not yet expand the16GiB filesystem.
+
+The first sequential-only candidate was insufficient; independent review caught
+admission/completion races and a legacy stage bypass. Final actual-flow threaded
+ASan/UBSan tests cover waiting root/log/mark owners, timeout/bounce quarantine,
+panic busy-owner skip, and independent completion/OCS/UPIU/cache/sync failures.
+Root completed the revision after the parallel UFS task was interrupted by a
+tool content check. Final source SHA256
+52d9e171135755aceb02e1bfd9d97b49b0890ea4575999207e384cae33842582.
+Real ARM64 UFS single-TU passes (`p2-dma-audit-20261105/kernel-crosscompile/run-cqb6pu9r`).
+Fresh source104 replays98patches; full host suite passes after adapting old
+descriptor/mark fixtures to their new ownership dependencies.
+Known tradeoff: global owner spans an entire mark/log batch, delaying root IO;
+a contended panic flush is skipped. Future optimization/recovery needs its own
+qualification. Old source101 and known boot artifacts remain unchanged.
+
+Current partition-tail bytes do
+not contain a VH signature; this does not prove a corruption event or erase
+the demonstrated potential same-LBA conflict in the code paths.
+
+P3a **preparatory audit and address planner only** are done in ignored
+`research/tmp/p3-gpu-abi-20261105/`. NativeAdreno's old PA>>12 CPU cache-attribute
+calls are invalid for this16K XNU; use owned16K backing split into4K SMMU leaves,
+with low32bit GPUVA separate from high physical addresses. No real GPU submit,
+fence, Metal or rendering is implemented or verified by these host fixtures.
+Live memory inventory: DT banks total8517582848B, recovery MemTotal7742418944B,
+current XNU high bank4293918720B at0x180000000. Raw maps remain ignored under
+`p2-recovery-memory-map-20261105.txt`; summary `p2-memory-inventory-20261105.json`.
+Linux runtime allocations/reservations must not be mistaken wholesale for
+permanent firmware holes. No RAM expansion has been attempted.
+
 ### 2026-11-05 — stage0 succeeds on hardware; reset/SPI state must be initialized
 
 User confirmed the0101 diagnostic image still showed iOS lock screen before

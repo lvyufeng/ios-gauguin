@@ -15,7 +15,7 @@ images were rebuilt after that kernel.
 """
 import hashlib
 import os
-import re
+from kernel_banner import one_banner
 import struct
 import sys
 
@@ -23,7 +23,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 OUT = os.path.join(REPO, "shim", "out")
 
-BANNER = re.compile(rb"Darwin Kernel Version[^\x00]{0,120}")
 PAYLOAD_MAGIC = b"SWEETXNU"
 
 
@@ -38,9 +37,10 @@ def describe_image(path):
         "kernel_banner": None,
         "kernel_sha_guess": None,
     }
-    m = BANNER.search(data)
-    if m:
-        info["kernel_banner"] = m.group().decode("utf-8", "replace")
+    try:
+        info["kernel_banner"] = one_banner(data).decode("utf-8", "replace")
+    except ValueError:
+        pass
     i = data.find(PAYLOAD_MAGIC)
     if i >= 0:
         try:
@@ -53,8 +53,10 @@ def describe_image(path):
 
 def banner_of_kernel(path):
     with open(path, "rb") as f:
-        m = BANNER.search(f.read())
-    return m.group().decode("utf-8", "replace") if m else None
+        try:
+            return one_banner(f.read()).decode("utf-8", "replace")
+        except ValueError:
+            return None
 
 
 def main(argv):

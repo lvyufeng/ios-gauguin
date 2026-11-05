@@ -168,7 +168,9 @@ def main():
     end = source.index('\n}\n', start) + 3
     takeover = source[start:end]
     start = source.index('\nufs_scsi_slot(')
-    start = source.index('\n{\n', start) + 3
+    # This fixture isolates descriptor layout; actual admission/ownership and
+    # completion are exercised by test_ufs_ownership/test_ufs_completion.
+    start = source.index('\tstruct utrd *utrd', start)
     end = source.index('\n\tif (su.cache)', start)
     prepare = source[start:end]
     harness = HARNESS.replace('@DEFINITIONS@', definitions).replace(

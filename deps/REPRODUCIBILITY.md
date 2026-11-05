@@ -47,6 +47,16 @@ The manifest records actual source hashes, patch/mirror inputs, tool versions,
 SDK metadata, generated link inputs, build exit and kernel SHA-256. It is a
 provenance record, not proof of bit-identical output or successful hardware boot.
 
+Each invocation also receives a unique `xnu-...` build ID in
+`KERNEL_BUILD_OBJROOT`, recorded in the manifest and the complete kernel banner.
+The three build entry points preserve the selected configuration's old final
+unstripped kernel and `version.o` in the new run before rebuilding that link.
+This forces the new ID into incremental builds even when sources are unchanged.
+Publication checks that the staged kernel contains this invocation's exact ID.
+The ID intentionally changes the binary between invocations; it identifies a
+build, not two separate boots of the same image. Device observation compares
+the full banner rather than the date alone, since CI dates can be fixed.
+
 CI uses only the 13.5 dependency profile and the pinned XNU revision. The pinned
 dxb supplies bootstrap tools and six path adjustments; the project applies its
 own strict series and runs the kernel make with explicit error propagation.

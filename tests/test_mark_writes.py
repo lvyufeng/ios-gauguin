@@ -34,7 +34,8 @@ static struct {
     uint64_t first_block, nblocks, dma_pa;
     uintptr_t dma;
 } su;
-static unsigned sweet_mark_lock;
+static unsigned sweet_mark_lock, sweet_dma_owner_lock;
+static bool poisoned;
 static uint8_t bounce[UFS_BLOCK];
 static uint8_t sweet_mark_ram[SWEET_MARK_BLOCKS * UFS_BLOCK];
 static uint32_t sweet_mark_dirty[SWEET_MARK_BLOCKS / 32];
@@ -42,8 +43,25 @@ static unsigned calls;
 static uint64_t addresses[SWEET_MARK_BLOCKS];
 static bool fail_write, publish_during_write;
 
-static void lck_mtx_lock(unsigned *lock) { assert(!*lock); *lock = 1; }
-static void lck_mtx_unlock(unsigned *lock) { assert(*lock); *lock = 0; }
+static void lck_mtx_lock(unsigned *lock)
+{
+    assert(!*lock);
+    if (lock == &sweet_dma_owner_lock) assert(sweet_mark_lock == 1);
+    else assert(sweet_dma_owner_lock == 0);
+    *lock = 1;
+}
+static void lck_mtx_unlock(unsigned *lock)
+{
+    assert(*lock);
+    if (lock == &sweet_mark_lock) assert(sweet_dma_owner_lock == 0);
+    else assert(sweet_mark_lock == 1);
+    *lock = 0;
+}
+static bool ufs_dma_available(void)
+{
+    assert(sweet_mark_lock == 1 && sweet_dma_owner_lock == 1);
+    return !poisoned;
+}
 static void clean_dcache64(addr64_t pa, uint32_t length, int physical)
 {
     assert(pa == su.dma_pa && length == UFS_BLOCK && physical);
@@ -55,7 +73,7 @@ static int ufs_scsi_slot(const uint8_t *cdb, unsigned cdb_len, uint32_t len,
     assert(cdb[1] == 0 && cdb[6] == 0 && cdb[7] == 0);
     assert(cdb[8] == 1 && cdb[9] == 0);
     assert(len == UFS_BLOCK && write && pa == su.dma_pa);
-    assert(slot == UFS_SLOT_MARK && sweet_mark_lock == 1);
+    assert(slot == UFS_SLOT_MARK && sweet_mark_lock == 1 && sweet_dma_owner_lock == 1);
     uint64_t lba = (uint32_t)cdb[2] << 24 | (uint32_t)cdb[3] << 16 |
         (uint32_t)cdb[4] << 8 | cdb[5];
     assert(calls < SWEET_MARK_BLOCKS);
@@ -74,6 +92,8 @@ static int ufs_scsi_slot(const uint8_t *cdb, unsigned cdb_len, uint32_t len,
 
 static void reset(void)
 {
+    assert(!sweet_mark_lock && !sweet_dma_owner_lock);
+    poisoned = false;
     memset(&su, 0, sizeof(su));
     memset(sweet_mark_dirty, 0, sizeof(sweet_mark_dirty));
     memset(sweet_mark_ram, 0, sizeof(sweet_mark_ram));
@@ -89,7 +109,7 @@ static void expect_rejected(void)
 {
     sweet_mark_dirty[0] = 1;
     assert(sweet_log_mark_flush() == 0 && calls == 0);
-    assert(sweet_mark_dirty[0] == 1 && sweet_mark_lock == 0);
+    assert(sweet_mark_dirty[0] == 1 && sweet_mark_lock == 0 && sweet_dma_owner_lock == 0);
 }
 int main(void)
 {
@@ -107,6 +127,7 @@ int main(void)
 
     reset(); su.ready = false; expect_rejected();
     reset(); su.writable = false; expect_rejected();
+    reset(); poisoned = true; expect_rejected();
     reset(); su.nblocks = 0; expect_rejected();
     reset(); su.nblocks = 1088; expect_rejected();
     reset(); su.first_block = 0; expect_rejected();

@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — stage0 succeeds on hardware; reset/SPI state must be initialized
+
+User confirmed the0101 diagnostic image still showed iOS lock screen before
+manually returning to TWRP. Fresh log
+`research/tmp/p1-nvt-stage0-0101-recovered-20261105.txt` has4380lines,
+ring293626bytes/flush677, PET690 at13433092793ticks (~699.64s). No captured panic,
+shutdown or UFS error. Stage0 snapshot and worker-finished markers are present.
+Log SHA256705d69f9c2888b52ede7779a030e88f6af89e5dbbc119e4f9496fd772a67f53d.
+Phone is now TWRP, no boot/observer/CI is live. Public head for the latest
+handoff is a6ffd4709859076ff8146d98a41205be95341e22 (local91fa519); tested code
+head remains3b2e3987. Never push the private development ancestry.
+
+Observed raw XNU handoff state (not the earlier recovery active state):
+- GCC vote52000=9c000003. M_AHB21004=0, S_AHB21008=8000000a;
+  core2100c/core2x21014=4220 (CLK_OFF31 clear), S0 CBCR21144=80004220.
+- RCG_CMD21148=80000000, DFS2115c=21, selected level0 CFG21164=1,
+  stable on repeat. Parent0/XO and HID1 imply19.2MHz from the pinned clock
+  model, not the recovery100MHz cached rate. SPI divider remains unread.
+- GPIO0 cfg1/io1; GPIO1 cfg200/io0; GPIO2/3/21/22 cfg1/io0.
+  All are GPIO mux0. RST21 is input with pull-down and low observed level;
+  do not assume the touch chip retained its running firmware across reboot.
+These named GCC and TLMM accesses are now hardware-verified. Wrapper/SE access
+and real touch input remain unverified. No touch pin or reset was written.
+
+Next P1 candidate is mode2 controller-only access: temporarily vote only GCC
+bits6/7/10, use native bounded branch checks, persist markers before wrapper
+HW_VERSION and SE FW/status reads, collect named idle-SPI config if qualified,
+restore only added vote bits. No GPIO, SE configuration, SPI or HID writes.
+This is a controlled first peripheral-access experiment, not a guarantee that
+clock readback proves fabric access.0102 now contains this mode2 implementation;
+the default remains off, mode1 remains read-only stage0. Fresh source102 replays
+96patches and differs from source101 only in bsd/dev/gauguin_nvt_probe.c.
+Actual ARM64 single-TU compile and all host tests pass. Probe source SHA256
+ecad5b2aee182b81cd4fd9c95e07472827a05903464d4239db0fa6541a88fa68;
+crosscompile report `gauguin-nvt-p1/kernel-crosscompile/run-8xokbtv_/compile.json`.
+Actual-flow ASan/UBSan tests cover all initial vote subsets, peer-bit changes,
+three gate timeouts, vote rejection, mapping/identity/busy failures and failed
+restore reporting.2ms gate polling is deliberately longer than native200us;
+neither can bound a synchronous MMIO stall. No other XNU QUP0 owner is allowed
+during this bring-up probe; this is not a refcounted shared clock driver.
+Full CI and mode2 hardware access are pending. Keep old touchmode1 off.
+
+Parallel P2 audit reproduced two real defects using actual functions: UFS timeout
+clears a list bit without ownership quarantine then reuses descriptor/bounce;
+filesystem GETBLOCKCOUNT exposes physical tail used by log/marks, placing HFS
+partition-end alternate VH in the last log block. Candidates are not integrated.
+Read-only real HFSX header capture (ignored) proves allocation block4096,
+total4194304=16GiB, free708124; physical userdata114919714816B. Reserving current
+log+64mark blocks would not truncate this volume. Future driver guard must still
+validate geometry before mounting other/full-sized volumes. No resize, format
+or partition change was performed. Repro/geometry evidence under
+`research/tmp/p2-dma-audit-20261105/` and `p2-hfs-geometry-20261105.json`.
+
 ### 2026-11-05 — 0101 CI passes; stage0 observation ended, awaiting recovery
 
 0101 and its tests are committed locally as74bbe29 and published as sanitized

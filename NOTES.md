@@ -2,6 +2,144 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — three boots reset around 100 s while UI initialization progresses
+
+User confirmed the first return to TWRP was automatic. The second image,
+`shim-ui-icons-20261105.img`, omitted `sweetreboot` and returned after 101 s.
+Log `research/tmp/ui-icons-boot-20261105.txt` has three SMP rounds. SpringBoard
+main changes from allocation to MobileGestalt/ISDefaults initialization to a
+synchronous CFPreferences write. This does not show a fixed IconServices hang.
+Symbols `research/tmp/ui-icons-sb-symbols-20261105.txt`.
+
+Third controlled image changes debug=0x8 to debug=0xc, enabling ARM64 DB_NMI
+panic debugging per `osfmk/kern/debug.c:panic_init`. It also has no sweetreboot.
+`shim/out/shim-ui-panic-hold-20261105.img`, SHA256
+`348775d4b7ee54d0b2f6fcc6a9c158fb1bbdc3697659882c9c8ca9729c549481`, returned to
+TWRP after 100 s. Log `research/tmp/ui-panic-hold-boot-20261105.txt` again has
+no panic/MACH Reboot/platform-restart line. APSS WDT sample around 52 s reports
+en=0. Panic-debugging activation itself has no runtime confirmation yet, so
+these observations narrow the reset investigation without proving a source.
+
+Recovery dmesg after boot two is saved in
+`research/tmp/ui-recovery-dmesg-20261105.txt`. PM6350 SID0 reports PS_HOLD/MSM
+controlled shutdown; PM7250B SID2 and PM6150L SID4 report SOFT. This identifies
+the PMIC reset category, not its initiating caller. Existing SweetWatchdog
+PON diagnostics use SID6/base0x1300, incompatible with the observed PMIC map.
+Existing shim `swwd` also stores only register top nibbles, so en=1 and en=0
+both appear as zero there.
+
+Next candidate is the secure-watchdog SCM call. Current shim calls
+`smc(0x0200000c,0,0,0)` and ignores the result. Exact gauguin Linux reference
+`LineageOS/android_kernel_xiaomi_gauguin` lineage-23.2 watchdog_v2/scm sources
+use BOOT service1, command7, arginfo1, arg0=1 with SCM ABI detection. References
+downloaded under `research/tmp/gauguin-scm-reference/`. A candidate with ABI
+probe, availability check and persisted return status is being prepared for
+review. No changed SCM command has been booted yet.
+
+PosterBoard's earlier trap is independently symbolicated to
+`PBFPosterExtensionDataStore _stateLock_setupSwitcherConfigurationForFirstTime`,
+assertion `!_stateLock_switcherConfiguration` at source line3431. It is a first
+setup call on an already-present configuration object. Its contribution to the
+missing interface remains unproven.
+
+### 2026-11-05 — current stacks pass shell check-in, investigating IconServices
+
+First fresh boot completed, returning to TWRP after 100 seconds, with the new
+kernel banner verified. Log `research/tmp/ui-sample-safe-boot-20261105.txt`
+contains two full sampler rounds, rather than the planned six. The log records
+`sweetreboot=160` but ends without a panic/restart reason. User was asked whether
+the recovery transition was automatic or by keys; answer still pending.
+
+Current SpringBoard has progressed beyond the historical `_checkIn` wait.
+Sample 0 is in `BKSDisplayGetMainScreenInfo`, initializing the system shell.
+Sample 1 is in `ISIconManager _init`, sending a synchronous NSXPC request while
+`SBHGetApplicationIconImage` initializes icons. `exec iconservicesagent` occurs
+immediately before sample 1, so this single wait can be normal startup. It is
+not yet evidence of a persistent IconServices deadlock. Symbolicated SB stacks
+are in `research/tmp/ui-sb-symbols-20261105.txt`.
+
+backboardd main progresses from a `CAWindowServerDisplay.uniqueId` mutex wait
+to the CFRunLoop. Its dispatch-group waiter at executable offset 0x18a78 is
+`BKButtonHapticsController._controllerReadyGroup`, verified by ObjC metadata
+and `_configureAsyncWithBlock:` disassembly. That waiter does not establish a
+DataMigration dependency. The log does execute `com.apple.datamigrator` at line
+817, which has no later SMP snapshot. PowerLog permission requests account for
+the matching background waits in SB, backboardd and runningboardd. Details in
+`research/tmp/ui-bbd-symbols-20261105.txt`. PosterBoard also has a SIGTRAP at
+line 1636, under investigation.
+
+Marker fix verified on hardware after this boot. First 8192 disk bytes exactly
+match the pre-boot backup, and 31 `MARK` blocks occur in the reserved userdata
+region starting at relative block 28055482. Evidence files are
+`research/tmp/ui-sda-head-after-20261105.bin` and `ui-marks-after-20261105.bin`.
+
+Second temporary boot is running with the same corrected kernel and ADT.
+Image `shim/out/shim-ui-icons-20261105.img`, SHA256
+`82ec6069f22360e971cf3295e1af650ea1611192762b19893e3cf441bf66badd`.
+Samples `SpringBoard,iconservicesagent,cfprefsd,PosterBoard,backboardd`, delay
+20 seconds, interval 10 seconds, 8 rounds. The diagnostic `sweetreboot` argument
+is omitted for this run. Output `research/tmp/ui-icons-boot-20261105.txt` and
+cycle transcript `research/tmp/ui-icons-cycle-20261105.log`. Verify the sampled
+names as well as the banner, since both images use the same kernel.
+
+### 2026-11-05 — marker write bug fixed, first fresh sampling boot
+
+User reconnected the gauguin in recovery. A pre-boot audit found that the local
+`sweet_log_mark_flush()` calculated a destination `base` but issued a WRITE(10)
+CDB with LBA zero for every marker. `ufs_scsi_slot()` copies that address into
+the command directly on `su.lun`. The actual previous boot log selects LUN 0,
+userdata first block `0x2c1000`, length 28056571 blocks.
+
+Read-only device evidence is saved in ignored
+`research/tmp/ui-sda-head-20261105.bin` (first 8192 bytes of `/dev/block/sda`).
+LBA 0 really begins with `MARK `. The protective MBR signature is 55aa, partition
+type ee, and the LBA 1 GPT signature and header CRC are valid. Existing disk
+contents still require care; any restoration must follow the user approval rule.
+
+**Fix committed as `d02486d`**, patch 0088. Marker writes encode `base + i` and
+reject invalid/overflowing/out-of-partition ranges before issuing SCSI. A failed
+write retains its dirty bit, and an update published during an in-flight write
+stays pending. `tests/test_mark_writes.py` compiles the actual extracted C
+function with a fake SCSI target. All 64 destinations, invalid ranges, failed
+write/retry and concurrent publication pass. The same harness fails against the
+saved original at the LBA-zero assertion. Original source saved under
+`research/tmp/ui-marks-before-20261105/`.
+
+Native rebuild passed (make exit 0), including all host tests. Log
+`research/tmp/ui-sampler-marks-build-20261105.log`. Kernel saved as
+`research/k-ui-sample-marks-20261105`, banner 22.6.0, Nov 5 11:47:15 CST 2026,
+SHA256 `55ffc6c850024c4ad475d6767919ec9edfee8ba175a331a984b624b3bc04415c`.
+**Use `shim/out/shim-ui-sample-safe-20261105.img`** (17068032 bytes), SHA256
+`52949301538bbbb7102974d39823fd446e22fda0ba516d36bf82df591092c946`.
+The earlier `shim-ui-sample-20261105.img` still contains the defective marker
+writer. Payload is `research/tmp/ui-sample-safe-20261105.bin`, byte-verified
+against the packaged ramdisk. ADT and 8-CPU setup match the preceding experiment.
+
+Sampling uses exact process names, including `com.apple.datamigrator` (the
+earlier bare `datamigrator` token does not match `proc_name`). Additional name
+`com.apple.migrationpluginwrapper`; delay 20 s, interval 20 s, 6 rounds,
+`sweetreboot=160`. The device was temporarily booted through
+`tools/sweet-observe.sh` with a 260-second recovery observation limit. Send
+16668 KB OKAY (0.390 s), boot OKAY (0.134 s), total 0.532 s. Pending fresh log
+`research/tmp/ui-sample-safe-boot-20261105.txt`; cycle transcript same prefix
+with `cycle` instead of `boot` and `.log` extension.
+
+Timing corrections from source and old logs must guide interpretation.
+`SweetWatchdog.cpp` adds 1000000000 raw absolute ticks, giving about 52.08 s at
+19.2 MHz, although its comment says one second. PW `t=20` is iteration 20 of a
+two-second sleep loop. `observe-tap9.txt` actually contains HB 1/2/3 and PW
+15/30/45/60/75. In `ui-current`, the first 3600 vsyncs span about 63.43 s, and
+the old 90-second sampler is due after about 111 s. Display power-off suppresses
+vsync log output while rescheduling the timer. Missing later vsync/HB/SMP lines
+therefore cannot establish that timers stopped. `sweet_callout_runs` counts
+processor running timers, rather than general thread-call callbacks.
+
+Firmware confirms backboardd exposes `com.apple.backboard.system-app-server`
+and BackBoardServices contains `checkInAndWaitForDataMigration:completionBlock:`.
+DataMigration reads `LastSystemVersion` in `com.apple.migration` under
+CurrentUser/CurrentHost, after synchronizing preferences. Fresh stacks should
+also consider cfprefsd if the migration process waits there.
+
 ### 2026-11-05 — userspace stack audit, diagnostic image ready, phone offline
 
 Read the actual saved stacks before using the older claims that SpringBoard is

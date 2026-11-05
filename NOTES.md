@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — USER CONFIRMS iOS LOCK/HOME UI with touch probe skipped
+
+**Milestone: user reports an iOS lock/home interface on the actual gauguin.**
+At >160seconds after the touch-off boot, host still had no recovery; user then
+answered "出现 iOS 界面" and clarified "锁屏或主屏幕". This is user visual
+confirmation, not a captured screenshot. Physical touch functionality has NOT
+been established: the unfinished hardware probe is disabled. Full-iOS goal
+remains active; do not call complete or assume networking/audio/camera works.
+
+Preserve the known UI-producing artifacts unchanged:
+- kernel `research/k-ui-shutdown-entry-20261105`, SHA256
+  `7baffcae773ba7f15549f1c02cc26cad48e7d67c34152a8530f1bb2fb55e3233`;
+- image `shim/out/shim-ui-touch-off-20261105.img`, SHA256
+  `d5235255e1d7b449497570469ec77c34690ae1e51e125ea0afed0d71eb5b2c8e`;
+- ADT `research/tmp/ui-sampler-20261105.adt`, SHA256
+  `7d6d93bea46bb80331d76238be295137ea33bbe8e3109789c68f4f0e45a291ff`;
+- payload `research/tmp/ui-touch-off-20261105.bin`;
+- send16688KB0.394s, boot0.135s, total0.534s;
+- commandline (before shim's appended hardware fields):
+  `debug=0x8 serial=3 cpus=8 keepsyms=1 -noprogress rd=ufsroot0 unentitled_ios_sim_launch=1 ignition_level=1 ufsrw=1 rootrw=1 launchd_unsecure_cache=1 sweetlog=1 sweetlogms=500 sweetfb_noconsole=1 sweetufsquiet=1 sweetsample=SpringBoard,backboardd,iconservicesagent,cfprefsd sweetsampledelay=20 sweetsampleinterval=10 sweetsamplecount=16 sweetwdtpet=1 sweettzsample=1 sweettouchmode=0`.
+
+Commits7c09029(UFS/TZ),7ea5cb9(normal reboot entry) underpin this build. The
+360second observer is still pending; it cannot read the ring while iOS owns
+USB. User was told to keep running. Later recovery/log pull must preserve this
+run separately and compare banner. No automatic forced reboot is performed.
+
+Next code prepared:0096 fixes PON evidence and reads charger WD config only;
+0097 makes gauguin's unfinished touch probe opt-in and deletes the proven bad
+GCC blind walk. These are not yet in the UI-producing kernel. Touch audit also
+found incorrect clock offsets/vote bits, invalid stageG GPIO offsets, unset
+st.se/st.gpio, incorrect timer units and Focaltech protocol. Do not simply turn
+probe back on after removing the walk; restore touch against native sources
+in a separately validated change. User-visible UI is an intermediate milestone.
+
 ### 2026-11-05 — captured touch GCC data abort; no-touch control running
 
 Patch0095 native build passed, kernel `research/k-ui-shutdown-entry-20261105`,

@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — remote push authorized; third CI succeeds
+
+User explicitly authorized pushing code to the remote. Continue publishing only
+sanitized snapshots on `codex/gauguin-p0-ci-20261105`; the private development
+branch's historical device identifier must still remain local.
+
+Local commit f378f37 (0100 platform guards and handoff) is published as snapshot
+6a6fe426781a0327a96e89c3383f3129c21964ca, parent b69e431. Third CI
+**41989463747 succeeded** on that exact head:
+https://github.com/lvyufeng/ios-gauguin/actions/runs/41989463747
+Artifacts are in ignored `research/tmp/p0-ci-41989463747-artifacts/`.
+Downloaded kernel17313000bytes, SHA256
+`6c258c443d5dc986ae403ad480bce7cdc3c514bfed3100194fdb46aa9f8ac1d6`.
+Manifest make_exit0 and artifact hash pass. All5229 source entries were compared
+against source100:5225 match, with only the four documented dxb path-adapter
+files different.0100's two C files match. Mach-O and mkpayload checks pass;
+the linker rename_segment warning produces no new nonempty segment-name
+difference against native0099. Report: `payload-qualification.json` in the
+artifact directory. This does not yet qualify the CI kernel on hardware.
+
+Prepared temporary image `shim/out/shim-p0-ci-0100-20261105.img`, SHA256
+`27d8bb2a7207d5032a059e76c3e07c1a654f7a306e33e6bda37e28be419fc9a5`,
+with the exact shim, DTB, ADT and boot arguments from the successful native0099
+image. Only the XNU kernel changes. Before boot the device was in TWRP3.6.2.1B;
+SPI power/control=auto and runtime_status=suspended. Temporary fastboot boot
+succeeded: send16616KB0.394s, boot0.134s,total0.540s.660second observer is now
+running, exec session22696; cycle log `p0-ci-0100-cycle-20261105.log`, intended
+recovered log `p0-ci-0100-observe-20261105.txt`. Do not boot another image while
+this observation is running. No CI-kernel UI confirmation or recovered log yet.
+
+P1 board candidate and sanitizer fixtures now exist only under ignored
+`research/tmp/gauguin-nvt-p1/`. Resource probe restores its pin/vote masks on
+exit and defaults unknown parent clocks to CLOCK_UNVERIFIED. Native interconnect
+votes precede clock enabling; inherited fabric access remains under review.
+Do not assume a software timeout can rescue a stalled peripheral MMIO read.
+Protocol/PIO/board host passes are not physical touch or unlock evidence.
+
 ### 2026-11-05 — P0 device gate passes; CI platform guard fix ready; P1 active resources captured
 
 After user manually returned to TWRP, fresh log is
@@ -270,7 +307,7 @@ complete sleep/resume follows working storage, GPU and display suspend paths.
 
 | Phase | Work | Exit evidence required | Current state |
 | --- | --- | --- | --- |
-| P0 Reproducible baseline | Freeze rollback artifacts, complete source replay and compare, review build/CI changes, build clean, temporary-boot regression | All source differences explained; tracked inputs/toolchain; passing host checks; successful clean kernel build with run/log/hash; repeated lock/home UI with continuous logging for at least10minutes and no new panic/UFS faults; recovery still usable | Partial:91-patch replay and host suite pass; full0097 comparison, clean build and device regression pending |
+| P0 Reproducible baseline | Freeze rollback artifacts, complete source replay and compare, review build/CI changes, build clean, temporary-boot regression | All source differences explained; tracked inputs/toolchain; passing host checks; successful clean kernel build with run/log/hash; repeated UI with continuous logging for at least10minutes and no new panic/UFS faults; recovery still usable; distinguish lock screen from verified unlock/home | Native clean0099 and869.8second lock-screen log pass;94-patch replay and CI41989463747 pass; CI0100 artifact hardware regression in progress |
 | P1 Input and observability | Correct Novatek SPI driver and HID delivery; keys; live logs/status and preferably file transfer through a runtime channel | Chip/FW identity verified, bounded SPI including67-byte frames, contact down/move/up and multitouch, correct coordinates/edge gestures, no stuck contacts or UI regressions in30minutes of exercised use; successful live diagnostic read, with UFS fallback retained | Native hardware/protocol audited; no working XNU touch driver yet |
 | P2a Memory/DMA/storage correctness | Verified reserved regions, CPU/GPU DMA mappings, cache ownership, UFS bounds/errors/flush and journal behavior | Pattern/hash checks on owned buffers and bounded filesystem test files; synchronized restart retains data; error/timeout paths terminate; no out-of-partition or reserved-memory access | Existing UFS boots real root; recent bounds/cacheline fixes need broader qualification |
 | P3a Real A619 GPU | Board-correct clocks/power/firmware/SMMU/GMU/CP; owned buffers, submission, completion and recovery | A command really executes on A619, fence completes, known pixels/hash read back correctly; repeated submissions and error recovery work; kernel/UI survives; basic temperature/frequency monitoring active before stress | Source/firmware/ABI research only |

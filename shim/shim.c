@@ -105,6 +105,88 @@ static void delay_ms(unsigned ms)
 		;
 }
 
+
+/* Qualcomm SCM ABI from gauguin kernel commit
+ * 19b63c8192b1c9b7c4d931d7d3be92024bc2d778:
+ * https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/19b63c8192b1c9b7c4d931d7d3be92024bc2d778/drivers/soc/qcom/scm.c
+ * https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/19b63c8192b1c9b7c4d931d7d3be92024bc2d778/drivers/soc/qcom/watchdog_v2.c
+ * All calls here take one scalar argument, encoded as x1=SCM_ARGS(1).
+ * This helper is separate from PSCI's different argument convention.
+ */
+struct scm_result {
+	uint64_t status;
+	uint64_t value;
+};
+
+static struct scm_result scm_call_one(uint32_t fn, uint32_t arg)
+{
+	struct scm_result result = { 0, 0 };
+	for (unsigned busy = 0; busy < 8; busy++) {
+		register uint64_t x0 __asm__("x0") = fn;
+		register uint64_t x1 __asm__("x1") = 1;
+		register uint64_t x2 __asm__("x2") = arg;
+		register uint64_t x3 __asm__("x3") = 0;
+		register uint64_t x4 __asm__("x4") = 0;
+		register uint64_t x5 __asm__("x5") = 0;
+		register uint64_t x6 __asm__("x6") = 0;
+		for (unsigned resume = 0; resume < 64; resume++) {
+			__asm__ volatile("smc #0"
+			    : "+r"(x0), "+r"(x1), "+r"(x2), "+r"(x3),
+			      "+r"(x4), "+r"(x5), "+r"(x6)
+			    :
+			    : "x7", "x8", "x9", "x10", "x11", "x12", "x13",
+			      "x14", "x15", "x16", "x17", "memory");
+			if ((int32_t)x0 != 1) { /* SCM_INTERRUPTED resumes these registers */
+				break;
+			}
+		}
+		result.status = x0;
+		result.value = x1;
+		if ((int32_t)x0 != -12 || busy == 7) { /* SCM_V2_EBUSY */
+			return result;
+		}
+		delay_ms(30);
+	}
+	return result;
+}
+
+static void disable_secure_watchdog(uintptr_t dtb)
+{
+	/* Capability probe matches is_scm_armv8(), including its queried ID. */
+	uint32_t abi = 0, mask = 0, step = 1;
+	struct scm_result result = scm_call_one(0xc2000601U, 0x82000601U);
+	if ((int32_t)result.status == 0 && result.value != 0) {
+		abi = 64;
+		mask = 0x40000000U;
+	} else {
+		result = scm_call_one(0x82000601U, 0x82000601U);
+		if ((int32_t)result.status != 0 || result.value == 0) {
+			goto done;
+		}
+		abi = 32;
+	}
+	/* Probe service BOOT(1), SEC_WDOG_DIS(7) before invoking it. */
+	step = 2;
+	result = scm_call_one(0x02000601U | mask, 0x02000107U);
+	if ((int32_t)result.status != 0 || result.value == 0) {
+		goto done;
+	}
+	step = 3;
+	result = scm_call_one(0x02000107U | mask, 1);
+
+done:
+	/* step 1=ABI probe, 2=availability probe, 3=disable attempted.
+	 * rc is signed SCM transport status encoded in hex; ret is service x1.
+	 * Only step=3 and rc=0 establishes completion of the disable call. */
+	con_hex2("SCM WDT", "step=", step, "abi=", abi);
+	con_hex2("SCM WDT", "rc=", (uint32_t)result.status,
+	    "ret=", (uint32_t)result.value);
+	loader_announce(dtb, "scmstep=", step);
+	loader_announce(dtb, "scmabi=", abi);
+	loader_announce(dtb, "scmrc=", (uint32_t)result.status);
+	loader_announce(dtb, "scmret=", (uint32_t)result.value);
+}
+
 static void __attribute__((noreturn)) reset(unsigned after_s)
 {
 	con_skip();
@@ -420,8 +502,7 @@ void shim_main(uint64_t dtb)
 	for (uint32_t i = 0; i < 8; i++) {
 		wdt_nibbles |= ((rd32(APSS_WDT_BASE + i * 4) >> 28) & 0xf) << (i * 4);
 	}
-	/* Same SCM the Linux driver uses for SCM_SVC_BOOT/WDOG_DIS: (1, 8, 4). */
-	smc(0x0200000cUL, 0, 0, 0);
+	disable_secure_watchdog(dtb);
 	wr32(APSS_WDT_BASE + 0x08, 0);		/* WDT0_EN: 0 = disabled */
 	wr32(APSS_WDT_BASE + 0x04, 1);		/* WDT_RESET: kick */
 	__asm__ volatile("dsb sy" ::: "memory");

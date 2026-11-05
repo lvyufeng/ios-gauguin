@@ -1,0 +1,111 @@
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -20,6 +20,7 @@
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ #include <sys/param.h>
++#include <stdarg.h>
+ #include <sys/systm.h>
+ #include <sys/buf.h>
+ #include <sys/conf.h>
+@@ -167,6 +168,30 @@
+ static const char *_Atomic sweet_init_step = "not started";
+ static struct sweet_wd_state sweet_init_wd;    /* see xnu/sweet_init_watchdog.h */
+ 
++extern void sweet_log_append(const char *, int);
++
++static void sweet_ufs_log(const char *, ...) __printflike(1, 2);
++
++/* Polled panic I/O can run before the normal console is suspended. Its
++ * diagnostics must enter the lock-free log directly when IRQs are disabled. */
++static void
++sweet_ufs_log(const char *format, ...)
++{
++	char line[256];
++	va_list args;
++	va_start(args, format);
++	int length = vsnprintf(line, sizeof(line), format, args);
++	va_end(args);
++	if (length <= 0) {
++		return;
++	}
++	if (ml_get_interrupts_enabled()) {
++		printf("%s", line);
++	} else {
++		sweet_log_append(line, MIN(length, (int)sizeof(line) - 1));
++	}
++}
++
+ static inline uint32_t
+ ufs_rd(uint32_t off)
+ {
+@@ -289,7 +314,7 @@
+ 	}
+ 	if (ufs_budget > 0) {
+ 		ufs_budget--;
+-		printf("SWEET UFS: scsi cdb 0x%02x len %u, slot %u, ringing\n",
++		sweet_ufs_log("SWEET UFS: scsi cdb 0x%02x len %u, slot %u, ringing\n",
+ 		    cdb[0], len, slot);
+ 	}
+ 	ufs_wr(REG_UTRLDBR, bit);
+@@ -308,13 +333,13 @@
+ 	while (ufs_rd(REG_UTRLDBR) & bit) {
+ 		uint64_t now = mach_absolute_time();
+ 		if (++spins == 1000 || (spins & 0xfffff) == 0) {
+-			printf("SWEET UFS: still busy after %u spins (now %llu, deadline %llu, db 0x%x)\n",
++			sweet_ufs_log("SWEET UFS: still busy after %u spins (now %llu, deadline %llu, db 0x%x)\n",
+ 			    spins, (unsigned long long)now, (unsigned long long)deadline,
+ 			    ufs_rd(REG_UTRLDBR));
+ 		}
+ 		if (now > deadline) {
+ 			ufs_wr(REG_UTRLCLR, ~bit);
+-			printf("SWEET UFS: command 0x%02x timed out\n", cdb[0]);
++			sweet_ufs_log("SWEET UFS: command 0x%02x timed out\n", cdb[0]);
+ 			return ETIMEDOUT;
+ 		}
+ 		if (sleepable && now >= spin_until) {
+@@ -344,7 +369,7 @@
+ 			PE_parse_boot_argn("sweetufsquiet", &quiet, sizeof(quiet));
+ 		}
+ 		if (!quiet) {
+-			printf("SWEET UFS: scsi 0x%02x completed after %u spins\n", cdb[0], spins);
++			sweet_ufs_log("SWEET UFS: scsi 0x%02x completed after %u spins\n", cdb[0], spins);
+ 		}
+ 	}
+ 	ufs_wr(REG_IS, ufs_rd(REG_IS));         /* acknowledge completion status */
+@@ -361,7 +386,7 @@
+ 
+ 	uint32_t ocs = utrd->dw2 & 0xff;
+ 	if (ocs || ucd->resp[0] != 0x21 || ucd->resp[6] || ucd->resp[7]) {
+-		printf("SWEET UFS: command 0x%02x failed: ocs 0x%x upiu 0x%x response 0x%x status 0x%x\n",
++		sweet_ufs_log("SWEET UFS: command 0x%02x failed: ocs 0x%x upiu 0x%x response 0x%x status 0x%x\n",
+ 		    cdb[0], ocs, ucd->resp[0], ucd->resp[6], ucd->resp[7]);
+ 		return EIO;
+ 	}
+@@ -415,7 +440,7 @@
+ 	if (!su.writable || !su.nblocks || count == 0 || count > BOUNCE_SIZE / UFS_BLOCK ||
+ 	    lba < su.first_block || lba - su.first_block >= su.nblocks ||
+ 	    count > su.nblocks - (lba - su.first_block) || lba + count - 1 > UINT32_MAX) {
+-		printf("SWEET LOG: refusing write of %u blocks at 0x%llx\n", count, lba);
++		sweet_ufs_log("SWEET LOG: refusing write of %u blocks at 0x%llx\n", count, lba);
+ 		return EPERM;
+ 	}
+ 	uint8_t cdb[10] = {
+@@ -459,7 +484,7 @@
+ 		static bool warned;
+ 		if (!warned) {
+ 			warned = true;
+-			printf("SWEET LOG: sync cache failed (%d), continuing unflushed\n", rc);
++			sweet_ufs_log("SWEET LOG: sync cache failed (%d), continuing unflushed\n", rc);
+ 		}
+ 	}
+ 	return 0;
+@@ -1287,7 +1312,7 @@
+ 	}
+ 	lck_mtx_unlock(&sweet_log_lock);
+ 	if (error) {
+-		printf("SWEET LOG: write failed (%d), stopping\n", error);
++		sweet_ufs_log("SWEET LOG: write failed (%d), stopping\n", error);
+ 	} else {
+ 		*flushed = total;
+ 	}

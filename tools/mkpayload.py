@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Pack an xnu kernel Mach-O + ADT into the payload the sweet shim boots.
 
-  mkpayload.py KERNEL ADT OUT [--cmdline "..."] [--ramdisk IMAGE]
+  mkpayload.py KERNEL ADT OUT [--cmdline "..."] [--ramdisk IMAGE] [--nvt-firmware FILE]
 
 The kernel is linked as a PIE with LC_DYLD_CHAINED_FIXUPS. Nobody else
 (no kmutil, no iBoot) resolves those for us, and xnu only rebases static
@@ -25,8 +25,14 @@ kernel_end past it, so the shim needs no changes: the image lands below the
 ADT and boot_args, inside topOfKernelData (never handed to the VM), and the
 ADT gets /chosen/memory-map "RAMDisk" = <phys, size> for IOFindBSDRoot to
 turn into md0 (boot with rd=md0).
+
+--nvt-firmware appends the pinned Novatek image as reserved data after any
+ramdisk. NovatekFirmware records its physical address and RAW file size; the
+segment and kernel_end reserve zero-padded16K pages. This does not upload or
+execute firmware. Payload v1 has no permission bits; a future kernel consumer
+must map the asset as data/NX and independently verify the actual touch chip.
 """
-import argparse, os, struct, sys
+import argparse, hashlib, os, struct, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import adt  # noqa: E402
@@ -36,6 +42,12 @@ PAGE = 0x4000
 BOOT_LINE_LENGTH = 608
 CMDLINE = 0x48
 SEG_TABLE = CMDLINE + BOOT_LINE_LENGTH	# 0x2a8
+NVT_FIRMWARE_SIZE = 139264
+NVT_FIRMWARE_SHA256 = '007143e7d0a816e4ef228b5a08bf3132285230a5cd16164e8086696115d60f88'
+U64_LIMIT = 1 << 64
+# New asset-path policy: keep the complete segment table in the first16K page.
+# This is a packer bound, not a hardware capacity advertised by the shim.
+ASSET_MAX_SEGMENTS = (PAGE - SEG_TABLE) // 32
 
 
 def parse_macho(buf):
@@ -140,9 +152,132 @@ def adt_dram(adt_blob):
             struct.unpack('<Q', chosen.prop('dram-size'))[0])
 
 
-def build(kernel_path, adt_path, cmdline, ramdisk_path=None):
+def checked_end(start, size, limit=U64_LIMIT, label='range'):
+    if start < 0 or size < 0 or start >= limit or size > limit - start:
+        raise ValueError(f'{label} exceeds address range')
+    if start + size >= U64_LIMIT:
+        raise ValueError(f'{label} overflows uint64 address')
+    return start + size
+
+
+def validate_asset_macho(buf):
+    """Bound the original load commands before parsing an asset-bearing image."""
+    if len(buf) < 32:
+        raise ValueError('truncated Mach-O header')
+    magic, cpu, _, _, count, length, _, _ = struct.unpack_from('<8I', buf)
+    if magic != 0xfeedfacf or cpu != 0x100000c or not count or count > length // 8:
+        raise ValueError('asset requires bounded ARM64 Mach-O commands')
+    end = checked_end(32, length, len(buf) + 1, 'load commands')
+    if end > len(buf):
+        raise ValueError('truncated load commands')
+    off, threads, executable = 32, 0, []
+    for _ in range(count):
+        if off > end - 8:
+            raise ValueError('truncated load command')
+        cmd, size = struct.unpack_from('<II', buf, off)
+        if size < 8 or size % 8 or size > end - off:
+            raise ValueError('invalid load command size')
+        if cmd == LC_SEGMENT_64:
+            if size < 72:
+                raise ValueError('truncated segment command')
+            va, vm, fileoff, filesz = struct.unpack_from('<4Q', buf, off + 24)
+            _, prot, sections, _ = struct.unpack_from('<4I', buf, off + 56)
+            if sections > (size - 72) // 80 or size != 72 + sections * 80:
+                raise ValueError('invalid segment section table')
+            if (vm and filesz > vm) or fileoff > len(buf) or filesz > len(buf) - fileoff:
+                raise ValueError('segment file bytes exceed range')
+            if vm and (va % 8 or vm % 8 or ((filesz + 7) & ~7) > vm):
+                raise ValueError('segment copy/zero range is not word aligned')
+            checked_end(va, vm, label='segment VA')
+            if vm and prot & 4 and filesz:
+                executable.append((va, va + filesz))
+        elif cmd == LC_UNIXTHREAD:
+            if size != 16 + 68 * 4 or struct.unpack_from('<2I', buf, off + 8) != (6, 68):
+                raise ValueError('unsupported ARM64 entry state')
+            threads += 1
+        elif cmd == LC_DYLD_CHAINED_FIXUPS:
+            if size != 16:
+                raise ValueError('invalid fixup load command')
+            position, amount = struct.unpack_from('<2I', buf, off + 8)
+            if position > len(buf) or amount > len(buf) - position:
+                raise ValueError('fixup bytes exceed file')
+        off += size
+    if off != end or threads != 1:
+        raise ValueError('load command count/entry mismatch')
+    return executable
+
+
+def asset_adt(adt_blob):
+    root, end = adt.parse(adt_blob)
+    if end != len(adt_blob):
+        raise ValueError('ADT length mismatch')
+    def child(parent, name):
+        matches = [n for n in parent.children if n.name == name]
+        if len(matches) != 1:
+            raise ValueError(f'ADT needs exactly one {name} node')
+        return matches[0]
+    chosen = child(root, 'chosen')
+    mmap = child(chosen, 'memory-map')
+    for name in ('dram-base', 'dram-size'):
+        values = [(flags, value) for n, flags, value in chosen.props if n == name]
+        if len(values) != 1 or values[0][0] or len(values[0][1]) != 8:
+            raise ValueError(f'invalid or duplicate ADT {name}')
+    if any(name == 'NovatekFirmware' for name, _, _ in mmap.props):
+        raise ValueError('ADT already has NovatekFirmware')
+    return root, mmap
+
+
+def append_nvt_firmware(pieces, adt_blob, kernel_end, virt_base, phys_base, mem_size, path):
+    with open(path, 'rb') as firmware:
+        image = firmware.read(NVT_FIRMWARE_SIZE + 1)
+    if len(image) != NVT_FIRMWARE_SIZE or hashlib.sha256(image).hexdigest() != NVT_FIRMWARE_SHA256:
+        raise ValueError('Novatek firmware does not match pinned size/SHA256')
+    root, mmap = asset_adt(adt_blob)
+    if not mem_size or phys_base % PAGE:
+        raise ValueError('invalid DRAM base/size')
+    dram_end = checked_end(phys_base, mem_size, label='DRAM')
+    if not pieces or len(pieces) + 1 > ASSET_MAX_SEGMENTS:
+        raise ValueError('asset segment table exceeds one16K page')
+    previous_end = virt_base
+    for va, size, data in sorted(pieces, key=lambda p: p[0]):
+        if not size or va < previous_end or va < virt_base or len(data) > size:
+            raise ValueError('overlapping/invalid payload segments')
+        previous_end = checked_end(va, size, label='payload segment')
+        checked_end(phys_base + va - virt_base, size, dram_end, 'segment DRAM')
+    if kernel_end % PAGE or kernel_end < previous_end:
+        raise ValueError('invalid aligned kernel end')
+    reserved = (len(image) + PAGE - 1) & ~(PAGE - 1)
+    end = checked_end(kernel_end, reserved, label='firmware VA')
+    pa = phys_base + kernel_end - virt_base
+    pa_end = checked_end(pa, reserved, dram_end, 'firmware DRAM')
+    for name, _, value in mmap.props:
+        if name != 'name' and len(value) == 16:
+            other, length = struct.unpack('<2Q', value)
+            other_end = checked_end(other, length, label='ADT memory-map range')
+            if length and pa < other_end and other < pa_end:
+                raise ValueError(f'firmware overlaps ADT memory-map property {name}')
+    mmap.props.append(('NovatekFirmware', 0, struct.pack('<2Q', pa, len(image))))
+    updated = adt.serialize(root)
+    if len(updated) > 0xffffffff:
+        raise ValueError('ADT does not fit boot_args length')
+    # loader.c puts ADT at kernel_end, then one page for boot_args. Include its
+    # rounding so an apparently fitting firmware cannot push metadata past RAM.
+    adt_end = checked_end(pa_end, len(updated), dram_end, 'ADT DRAM')
+    boot_args = (adt_end + PAGE - 1) & ~(PAGE - 1)
+    top = checked_end(boot_args, PAGE, dram_end, 'boot_args DRAM')
+    pieces.append((kernel_end, reserved, image + b'\0' * (reserved - len(image))))
+    return updated, end, dict(phys=hex(pa), size=len(image), reserved=reserved,
+                             sha256=NVT_FIRMWARE_SHA256, top_of_kernel_data=hex(top))
+
+
+def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None):
     buf = bytearray(open(kernel_path, 'rb').read())
+    executable = validate_asset_macho(buf) if nvt_firmware_path is not None else None
     m = parse_macho(buf)
+    if nvt_firmware_path is not None and sum(bool(s['vmsize']) for s in m['segs']) + bool(ramdisk_path) + 1 > ASSET_MAX_SEGMENTS:
+        raise ValueError('asset segment table exceeds one16K page')
+    if executable is not None and not any(start <= m['entry'] < end for start, end in executable):
+        raise ValueError('kernel entry is outside original executable file bytes')
     nfix = apply_chained_fixups(buf, m)
     segs = [s for s in m['segs'] if s['vmsize']]
     text = m['segs'][0]
@@ -154,6 +289,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None):
     kernel_end = (kernel_end + PAGE - 1) & ~(PAGE - 1)
 
     adt_blob = open(adt_path, 'rb').read()
+    if nvt_firmware_path is not None:
+        asset_adt(adt_blob)
     # The ADT decides where the kernel's RAM is (mkadt.py --highmem).
     PHYS_BASE, MEM_SIZE = adt_dram(adt_blob)
     pieces = [(s['vmaddr'], s['vmsize'], buf[s['fileoff']:s['fileoff'] + s['filesize']]) for s in segs]
@@ -167,6 +304,11 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None):
         pieces.append((rd_va, rd_size, image))
         adt_blob = add_ramdisk_to_adt(adt_blob, rd_pa, rd_size)
         ramdisk = (hex(rd_pa), hex(rd_size))
+
+    nvt = None
+    if nvt_firmware_path is not None:
+        adt_blob, kernel_end, nvt = append_nvt_firmware(
+            pieces, adt_blob, kernel_end, virt_base, PHYS_BASE, MEM_SIZE, nvt_firmware_path)
 
     hdr_size = SEG_TABLE + 32 * len(pieces)
     out = bytearray(hdr_size)
@@ -190,6 +332,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None):
     info = dict(cputype=hex(m['cputype']), cpusub=m['cpusub'], fixups=nfix, virt_base=hex(virt_base),
                 entry=hex(m['entry']), kernel_end=hex(kernel_end), ramdisk=ramdisk, size=len(out),
                 segs=[(s['name'], hex(s['vmaddr']), hex(s['vmsize'])) for s in segs])
+    if nvt is not None:
+        info['nvt_firmware'] = nvt
     return bytes(out), info
 
 
@@ -198,8 +342,9 @@ if __name__ == '__main__':
     ap.add_argument('kernel'); ap.add_argument('adt'); ap.add_argument('out')
     ap.add_argument('--cmdline', default='debug=0xc serial=3 cpus=1 keepsyms=1')
     ap.add_argument('--ramdisk', help='root image for md0 (boot with rd=md0)')
+    ap.add_argument('--nvt-firmware', help='pinned Novatek firmware data asset; does not upload it')
     a = ap.parse_args()
-    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk)
+    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware)
     open(a.out, 'wb').write(blob)
     for k, v in info.items():
         if k != 'segs':

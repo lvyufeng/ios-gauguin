@@ -1,0 +1,287 @@
+--- a/iokit/Kernel/arm/SweetWatchdog.cpp
++++ b/iokit/Kernel/arm/SweetWatchdog.cpp
+@@ -196,6 +196,276 @@
+ 	thread_call_enter_delayed(sweet_wdt_pet_call, deadline);
+ }
+ 
++/*
++ * Bounded live secure/HYP diagnostic snapshots for gauguin bring-up.
++ * Enable explicitly with sweettzsample=1. No firmware calls or MMIO writes.
++ *
++ * Layout reference, gauguin kernel commit 19b63c8192b1c9b7c4d931d7d3be92024bc2d778:
++ * drivers/firmware/qcom/tz_log.c and arch/arm64/boot/dts/vendor/qcom/lagoon.dtsi.
++ * This port observed plaintext TZ 9.1, magic 0x747a6461, and HYP 0x6879706d.
++ * Read-only physical mappings still require firmware to expose these buffers
++ * to HLOS. Bounds validation cannot establish access permission by itself.
++ */
++
++#define SWEET_DIAG_IMEM_PA 0x146aa720ULL
++#define SWEET_DIAG_IMEM_SIZE 0x418u
++#define SWEET_DIAG_MAX_SIZE 0x10000u
++#define SWEET_TZ_DIAG_SIZE 0x3000u
++#define SWEET_DIAG_TAIL_SIZE 192u
++#define SWEET_DIAG_ROUNDS 300u
++
++struct sweet_diag_buffer {
++	const char *name;
++	volatile uint8_t *bytes;
++	uint32_t physical;
++	uint32_t size;
++	bool stopped;
++	bool reported;
++	uint32_t last_position;
++	uint32_t last_faults;
++};
++
++static thread_call_t sweet_secure_diag_call;
++static volatile uint32_t *sweet_secure_diag_imem;
++static struct sweet_diag_buffer sweet_tz_buffer;
++static struct sweet_diag_buffer sweet_hyp_buffer;
++static unsigned sweet_secure_diag_round;
++
++/* Gauguin's recorded low DRAM bank is 0x80000000 + 0x3bb00000.
++ * Accept that bank and the observed TZ SRAM extent. All diagnostic pointers
++ * in this firmware interface are 32-bit. */
++static bool
++sweet_diag_phys_range(uint32_t physical, uint32_t size)
++{
++	/* The firmware also publishes its 12 KiB TZ diagnostic in this SRAM
++	 * window. Its pointer was observed on hardware and the native tz_log
++	 * driver exposes the matching TZ 9.1 header through debugfs. */
++	if (physical == 0x14696000u && size == SWEET_TZ_DIAG_SIZE) {
++		return true;
++	}
++	return size >= 40 && size <= SWEET_DIAG_MAX_SIZE &&
++	       (physical & 0xfffu) == 0 && physical >= 0x80000000u &&
++	       physical <= 0xbbb00000u - size;
++}
++
++static bool
++sweet_diag_region(uint32_t offset, uint32_t length, uint32_t size)
++{
++	return offset <= size && length <= size - offset;
++}
++
++static bool
++sweet_diag_stop(struct sweet_diag_buffer *buffer, const char *reason)
++{
++	IOLog("SWEET SECLOG: %s stopped: %s\n", buffer->name, reason);
++	buffer->stopped = true;
++	return false;
++}
++
++static bool
++sweet_diag_map(struct sweet_diag_buffer *buffer, uint32_t physical, uint32_t size)
++{
++	if (buffer->stopped) {
++		return false;
++	}
++	if (!sweet_diag_phys_range(physical, size)) {
++		IOLog("SWEET SECLOG: %s rejected pa=%x size=%x\n",
++		    buffer->name, physical, size);
++		return sweet_diag_stop(buffer, "outside verified diagnostic memory windows");
++	}
++	if (buffer->bytes != NULL) {
++		if (physical != buffer->physical || size != buffer->size) {
++			return sweet_diag_stop(buffer, "firmware buffer moved");
++		}
++		return true;
++	}
++	buffer->bytes = (volatile uint8_t *)ml_io_map(physical, size);
++	if (buffer->bytes == NULL) {
++		return sweet_diag_stop(buffer, "mapping failed");
++	}
++	buffer->physical = physical;
++	buffer->size = size;
++	IOLog("SWEET SECLOG: %s mapped pa=%x size=%x\n",
++	    buffer->name, physical, size);
++	return true;
++}
++
++static uint32_t
++sweet_diag_read32(const struct sweet_diag_buffer *buffer, uint32_t offset)
++{
++	return *(volatile uint32_t *)(buffer->bytes + offset);
++}
++
++/* Called only after validating ring and position. Firmware can write while
++ * sampled, so text is best-effort. Two short lines stay below console limits.
++ * Output is sanitized printable text, never used as an IOLog format string. */
++static void
++sweet_diag_tail(const struct sweet_diag_buffer *buffer, uint32_t ring,
++    uint32_t length, uint32_t position)
++{
++	uint32_t wrap = position & 0xffffu;
++	uint32_t offset = position >> 16;
++	uint32_t available = wrap ? length : offset;
++	uint32_t count = available < SWEET_DIAG_TAIL_SIZE ? available : SWEET_DIAG_TAIL_SIZE;
++	uint32_t start = (offset + length - count) % length;
++	char line[97];
++	unsigned used = 0;
++	for (uint32_t i = 0; i < count; i++) {
++		uint8_t value = buffer->bytes[ring + (start + i) % length];
++		line[used++] = value >= 32 && value <= 126 ? (char)value : '.';
++		if (used == sizeof(line) - 1 || i + 1 == count) {
++			line[used] = '\0';
++			IOLog("SWEET SECLOG: %s tail %s\n", buffer->name, line);
++			used = 0;
++		}
++	}
++}
++
++static void
++sweet_diag_tz(void)
++{
++	struct sweet_diag_buffer *buffer = &sweet_tz_buffer;
++	if (!sweet_diag_map(buffer, sweet_secure_diag_imem[0], SWEET_TZ_DIAG_SIZE)) {
++		return;
++	}
++	uint32_t magic = sweet_diag_read32(buffer, 0);
++	uint32_t version = sweet_diag_read32(buffer, 4);
++	uint32_t cpus = sweet_diag_read32(buffer, 8);
++	uint32_t reset = sweet_diag_read32(buffer, 20);
++	uint32_t ring = sweet_diag_read32(buffer, 28);
++	uint32_t length = sweet_diag_read32(buffer, 32);
++	if (magic != 0x747a6461u || version != 0x00090001u || cpus == 0 || cpus > 8) {
++		IOLog("SWEET SECLOG: TZ header magic=%x version=%x cpus=%u\n", magic, version, cpus);
++		sweet_diag_stop(buffer, "unsupported TZ header");
++		return;
++	}
++	if ((reset & 3u) || reset < 40 ||
++	    !sweet_diag_region(reset, cpus * 8, buffer->size) ||
++	    (ring & 3u) || ring < 44 || length == 0 ||
++	    !sweet_diag_region(ring, length, buffer->size) ||
++	    reset + cpus * 8 > ring - 4) {
++		IOLog("SWEET SECLOG: TZ offsets reset=%x ring=%x len=%x size=%x\n",
++		    reset, ring, length, buffer->size);
++		sweet_diag_stop(buffer, "invalid TZ offsets");
++		return;
++	}
++	uint32_t position = sweet_diag_read32(buffer, ring - 4);
++	if ((position >> 16) >= length) {
++		sweet_diag_stop(buffer, "invalid TZ ring position");
++		return;
++	}
++	bool changed = !buffer->reported || position != buffer->last_position;
++	if (changed || sweet_secure_diag_round % 10 == 0) {
++		IOLog("SWEET SECLOG: TZ round=%u at=%llu pos=%x\n",
++		    sweet_secure_diag_round, mach_absolute_time(), position);
++	}
++	for (uint32_t cpu = 0; cpu < cpus; cpu++) {
++		uint32_t type = sweet_diag_read32(buffer, reset + cpu * 8);
++		uint32_t count = sweet_diag_read32(buffer, reset + cpu * 8 + 4);
++		if (type != 0 || count != 0) {
++			IOLog("SWEET SECLOG: TZ cpu=%u reset_type=%x reset_count=%u\n", cpu, type, count);
++		}
++	}
++	if (changed) {
++		sweet_diag_tail(buffer, ring, length, position);
++	}
++	buffer->reported = true;
++	buffer->last_position = position;
++	if (sweet_diag_read32(buffer, ring - 4) != position) {
++		IOLog("SWEET SECLOG: TZ ring advanced during snapshot\n");
++	}
++}
++
++static void
++sweet_diag_hyp(void)
++{
++	struct sweet_diag_buffer *buffer = &sweet_hyp_buffer;
++	uint32_t physical = sweet_secure_diag_imem[0x410 / 4];
++	uint32_t size = sweet_secure_diag_imem[0x414 / 4];
++	if (!sweet_diag_map(buffer, physical, size)) {
++		return;
++	}
++	uint32_t magic = sweet_diag_read32(buffer, 0);
++	uint32_t cpus = sweet_diag_read32(buffer, 4);
++	uint32_t ring = sweet_diag_read32(buffer, 8);
++	uint32_t position = sweet_diag_read32(buffer, 12);
++	uint32_t declared_length = sweet_diag_read32(buffer, 16);
++	uint32_t faults = sweet_diag_read32(buffer, 20);
++	if (magic != 0x6879706du || cpus == 0 || cpus > 8) {
++		IOLog("SWEET SECLOG: HYP header magic=%x cpus=%u\n", magic, cpus);
++		sweet_diag_stop(buffer, "unsupported HYP header");
++		return;
++	}
++	/* Linux uses mapped size minus ring offset for the HYP ring capacity. */
++	if (ring < 24 + cpus * 8 || ring >= size ||
++	    declared_length > size - ring || (position >> 16) >= size - ring) {
++		IOLog("SWEET SECLOG: HYP offsets ring=%x len=%x pos=%x size=%x s2_faults=%u\n",
++		    ring, declared_length, position, size, faults);
++		sweet_diag_stop(buffer, "invalid HYP offsets");
++		return;
++	}
++	bool changed = !buffer->reported || position != buffer->last_position;
++	if (changed || faults != buffer->last_faults || sweet_secure_diag_round % 10 == 0) {
++		IOLog("SWEET SECLOG: HYP round=%u at=%llu s2_faults=%u pos=%x len=%u\n",
++		    sweet_secure_diag_round, mach_absolute_time(), faults, position, declared_length);
++	}
++	if (changed) {
++		sweet_diag_tail(buffer, ring, size - ring, position);
++	}
++	buffer->reported = true;
++	buffer->last_position = position;
++	buffer->last_faults = faults;
++	if (sweet_diag_read32(buffer, 12) != position) {
++		IOLog("SWEET SECLOG: HYP ring advanced during snapshot\n");
++	}
++}
++
++static void
++sweet_secure_diag_sample(thread_call_param_t, thread_call_param_t)
++{
++	sweet_secure_diag_round++;
++	sweet_diag_tz();
++	sweet_diag_hyp();
++	if ((sweet_tz_buffer.stopped && sweet_hyp_buffer.stopped) ||
++	    sweet_secure_diag_round >= SWEET_DIAG_ROUNDS) {
++		IOLog("SWEET SECLOG: sampling finished after %u rounds\n", sweet_secure_diag_round);
++		return;
++	}
++	uint64_t deadline;
++	clock_interval_to_deadline(1, NSEC_PER_SEC, &deadline);
++	thread_call_enter_delayed(sweet_secure_diag_call, deadline);
++}
++
++static void
++sweet_secure_diag_start(void)
++{
++	int enabled = 0;
++	PE_parse_boot_argn("sweettzsample", &enabled, sizeof(enabled));
++	if (enabled != 1 || sweet_secure_diag_call != NULL) {
++		return;
++	}
++#if !defined(GAUGUIN)
++	IOLog("SWEET SECLOG: physical window is verified only for gauguin\n");
++	return;
++#endif
++	sweet_tz_buffer.name = "TZ";
++	sweet_hyp_buffer.name = "HYP";
++	sweet_secure_diag_imem = (volatile uint32_t *)ml_io_map(SWEET_DIAG_IMEM_PA, SWEET_DIAG_IMEM_SIZE);
++	if (sweet_secure_diag_imem == NULL) {
++		IOLog("SWEET SECLOG: IMEM mapping failed\n");
++		return;
++	}
++	sweet_secure_diag_call = thread_call_allocate(sweet_secure_diag_sample, NULL);
++	if (sweet_secure_diag_call == NULL) {
++		IOLog("SWEET SECLOG: callout allocation failed\n");
++		return;
++	}
++	IOLog("SWEET SECLOG: enabled, 1-second interval, at most %u rounds\n", SWEET_DIAG_ROUNDS);
++	uint64_t deadline;
++	clock_interval_to_deadline(1, NSEC_PER_SEC, &deadline);
++	thread_call_enter_delayed(sweet_secure_diag_call, deadline);
++}
++
+ void
+ sweet_wdt_thread_start(void)
+ {
+@@ -204,6 +474,7 @@
+ 	}
+ 	sweet_wdt_call = thread_call_allocate(sweet_wdt_sample, NULL);
+ 	sweet_wdt_schedule();
++	sweet_secure_diag_start();
+ 	int pet = 0;
+ 	PE_parse_boot_argn("sweetwdtpet", &pet, sizeof(pet));
+ 	if (pet == 1) {

@@ -7,6 +7,7 @@ published while the previous version is in flight.
 """
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 
@@ -24,7 +25,7 @@ HARNESS = r'''
 #define SWEET_LOG_BLOCKS 1025u
 #define SWEET_MARK_BLOCKS 64u
 #define DMA_MARK 0u
-#define UFS_SLOT_MARK 2u
+@SLOT_DEFINITION@
 #define TRUE 1
 typedef uintptr_t addr64_t;
 static struct {
@@ -155,9 +156,11 @@ def main():
     start = source.index('static uint32_t\nsweet_log_mark_flush(void)\n{')
     end = source.index('\nstatic int\nsweet_log_flush(', start)
     function = source[start:end]
+    slot_definition = re.search(r'^#define UFS_SLOT_MARK\s+[^\n]+', source, re.M)[0]
     with tempfile.TemporaryDirectory(prefix='gauguin-mark-writes-') as directory:
         path = Path(directory)
-        (path / 'test.c').write_text(HARNESS.replace('@FUNCTION@', function))
+        (path / 'test.c').write_text(HARNESS.replace('@FUNCTION@', function).replace(
+            '@SLOT_DEFINITION@', slot_definition))
         subprocess.run([os.environ.get('CC', 'cc'), '-std=c11', '-Wall', '-Wextra',
                         '-Werror', str(path / 'test.c'), '-o', str(path / 'test')],
                        check=True)

@@ -2,6 +2,147 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — UFS fix hardware result and single-core control
+
+Patches0093/0094 were compiled together and booted successfully. Native build
+`research/tmp/ui-ufs-isolation-build-20261105.log` exited0 with all host tests
+passing. Kernel `research/k-ui-ufs-isolated-20261105`, SHA256
+`888970aec301f3762e5d4ec18dda6a3d8c0208cfcd7ffd0373260520695d0c57`.
+Eight-core image `shim/out/shim-ui-ufs-isolated-20261105.img`, SHA256
+`7053c4a212fb793f01cea748cf950465ab09b8f6809092979eff9dd044625f81`.
+Cycle `research/tmp/ui-ufs-isolated-cycle-20261105.log`: send16688KB0.395s,
+boot0.135s, total0.538s, automatic recovery **101s**. Log
+`research/tmp/ui-ufs-isolated-boot-20261105.txt` contains1955lines and no UFS
+OCS/timeout/write failures. TZ SRAM14696000/3000 maps successfully, empty ring
+through70samples. HYP801fc000/2000 has S2faults0 and unchanged ring. No first
+panic record. These observations do not identify the reset source.
+
+The identical kernel and ADT were then booted with only cpus8 changed to cpus1.
+Image `shim/out/shim-ui-onecpu-20261105.img`, SHA256
+`148fd58684fe970d7eda0c9c9646d236c3742b6533d3254df274e3c7e566a553`.
+Cycle `research/tmp/ui-onecpu-cycle-20261105.log`: send16688KB0.397s,
+boot0.134s, total0.538s, recovery again **101s**. Log
+`research/tmp/ui-onecpu-boot-20261105.txt` confirms requested1/selected1 and
+1/1 initialized, contains1586lines, reaches launchd/SpringBoard/backboardd.
+User reports return to TWRP. UI remains unavailable; panel has no connected
+client. Single-core runtime did not change the observed reset time. No panic
+record or UFS completion error was captured; best-effort final flush can still
+miss events. Normal reboot/powerdown entry points are now being audited.
+
+No new GitHub Actions build was dispatched. All images were temporary fastboot
+boots. No partition restoration or repartitioning was performed. Previous
+notes below describe earlier stages; the two tests above supersede their
+pending hardware/build statements.
+
+### 2026-11-05 — panic capture validated; live firmware logs and UFS descriptor fix
+
+Commits **355f099** (early FB) and **0e9ceeb** (panic entry and safe polled-I/O
+logging) are complete. The first controlled panic was recovered after the user
+manually returned to TWRP. `ui-panic-control-recovered-20261105.txt` contains
+66727 bytes, flush1, matching the new banner, and the exact first panic
+`SWEET: debug reboot timer (15 s)` plus debug8/hold0/caller. This validates the
+capture path, although its initial version caused a second console panic while
+flushing with IRQs disabled. User photo `/Users/baai/Downloads/IMG_1109.HEIC`
+shows `Console I/O from interrupt-disabled context @serial_console.c:168`.
+Patch0092 routes all eight reachable UFS flush diagnostics directly to the
+lock-free ring in IRQ-off context. Tests verify routing, format safety, bounds
+and the actual callsites. The photo and conversions stay outside git.
+
+The subsequent normal image `shim-ui-earlyfb-safe-20261105.img` still returned
+to recovery at **100s** according to its cycle transcript, with no first-panic
+record. An interim chat update based on message timing incorrectly suggested
+longer runtime; use the cycle timer. Kernel
+`research/k-earlyfb-panic-safe-20261105`, SHA256
+`5b69056333004a64c8bab7fa9535a09bfcc602b23d10533e50accf3b043587ee`.
+Image SHA256 `ede7a3f9a87d6d1dffb4592e103f20c8a96e698b934bc00002dd6d7bac7a96a7`.
+Raw log `research/tmp/ui-earlyfb-safe-boot-20261105.txt`. A busy panic flush
+trylock can still lose the last record, so this remains qualified evidence.
+
+Optional live secure diagnostics are prepared in patch0093. First hardware run
+`shim-ui-tz-20261105.img` returned101s. HYP buffer at0x801fc000/0x2000 was valid,
+with S2faultcounter0 and unchanged log tail over seven10s samples. TZ pointer
+was0x14696000/0x3000, rejected by the initial DRAM-only guard. Native tz_log
+exposes TZ9.1 from the same firmware-published pointer interface. The revised
+guard adds exactly this SRAM extent; direct recovery /dev/mem read yielded no
+bytes. Revised code polls1s, prints status on change/every10, tail on change,
+and caps300rounds. tests/test_secure_diag.py extracts real code and tests bounds,
+SRAMwhitelist, headers, positions, quiet logging and scheduling. No SRAM-inclusive
+hardware run yet. `ui-tz-boot-20261105.txt` is the initial DRAM-only run.
+
+**Current build includes a concrete UFS fix, patch0094.** 32-byte UTRDs for
+MAIN0/LOG1 share one64-byte cacheline. XNU's actual MMU_CLINE=6 maintenance
+cleans wholelines, allowing stale OCS0xf to overwrite an adjacent DMA completion.
+New slots0/2/4 occupy separate lines; CAP must expose at least5 before takeover
+writes. UPIU tasktags equal their hardware slots, matching pinned native gauguin
+ufshcd.c; the rotating shared counter was incorrect. The old layout corruption
+is demonstrated by a host negative control. tests/test_ufs_descriptors.py checks
+the actual preparation/takeover, all six slot pairs, CAP bounds and tag reuse.
+Marker tests now derive the actual slot macro. Saved driver baseline
+`research/tmp/ufs-descriptors-before-20261105.c`. Hardware causality is pending.
+Build in progress `research/tmp/ui-ufs-isolation-build-20261105.log`.
+
+Reproducibility audit also found a viable isolated replay: 0001–0082 (0026 needs
+hunk count correction), then complete cached legacy delta, then0090 onward.
+Candidate `research/tmp/patch-repro-audit-20261105/candidate-pre0090.patch`
+reproduces5215tracked sources plus3required files when staged with the existing
+SDK inputs. Current0083/0084/0086 are overlapping cumulative patches, not an
+incremental sequence. Adoption still needs path fixes in sync-watchdog/tests
+and a clean build; no active series files have been replaced by that audit.
+
+### 2026-11-05 — active full-iOS goal, correcting early framebuffer and panic capture
+
+The active user objective is complete iOS operation on Redmi Note9 Pro5G
+gauguin. GUI bring-up is an intermediate milestone. The previous continuation
+made progress through verified writes/SMC/reset evidence; no completion claim
+has been made. The goal remains active.
+
+Re-auditing the authoritative binary and source found two concrete defects.
+
+1. `start.s` has two early framebuffer constants, `arm_vm_init.c` installs its
+   alias, and `sweet_early.c` initializes its pointer at sweet PA0x9c000000.
+   Gauguin splash is PA0xa0000000. Actual old kernel disassembly confirms its
+   stage stripe writes0x9c9c1800. Patch0090 selects0xa0000000 for GAUGUIN and
+   retains0x9c000000 otherwise. New disassembly writes0xa09c1800. Pixel range
+   [0xa0000000,0xa09e3400), map range[0xa0000000,0xa2000000) fit the actual
+   reserved splash[0xa0000000,0xa2300000). The incorrect old range overlaps no
+   named fixed reserved region in saved stock DTB; its dynamic use is unknown.
+2. `panic_trap_to_debugger` never called `sweet_log_flush_panic`. The existing
+   early panic display is disabled after serial initialization. Moreover,
+   current boot logs still report gPanicBase uninitialized, contrary to an older
+   note claiming the size property alone fixed it. `SavePanicInfo` waits forever
+   with missing panic info. Thus the absence of persistent panic records and
+   prior debug=0xc result do not exclude XNU panic.
+
+Patch0091 writes a bounded first-panic record directly to the console ring
+before machine panic/rendezvous, then best-effort flushes with IRQs disabled.
+It logs caller/reason/options/debug/hold and formats a va_copy of the original
+arguments. Atomic recursion guard and bounded511-byte body protect this path.
+`tests/test_panic_record.py` passes six cases (bounds,varargs,IRQ restore,
+missing callbacks,nested entry). Normal panic handling still follows the hook.
+
+Native build of both changes passed, makeexit0, all existing hosttests passed,
+log `research/tmp/ui-earlyfb-panic-build-20261105.log`. Kernel saved as
+`research/k-earlyfb-panic-20261105`, SHA256
+`0bad4c547b102e912d2763c0e3a7a41eed1ff2a4a7f05e1910bfb1d12172fe48`.
+Original files are under `research/tmp/earlyfb-before-20261105/` and
+`research/tmp/panic-entry-before-20261105/`.
+
+**Controlled validation running**: temporary image
+`shim/out/shim-ui-panic-control-20261105.img`, SHA256
+`b43d5bb2eade239b07047c520e45ef46a8508a66cc5bd5a8e5dbd577b9fff556`, uses
+`sweetreboot=15` to deliberately panic after root-device initialization. Same
+highmem ADT, cpus8 and sweetwdtpet1. Send16668KB OKAY0.391s, bootOKAY0.135s.
+Pending log `research/tmp/ui-panic-control-boot-20261105.txt`, cycle transcript
+`research/tmp/ui-panic-control-cycle-20261105.log`. Confirm the known deliberate
+panic text persists before interpreting a later natural-failure boot.
+
+Additional read-only work found TZ/HYP diagnostics can be sampled before reset.
+Exact reference `tz_log.c` is under `research/tmp/gauguin-scm-reference/`.
+Recovery HYP header was read and saved as `ui-tz-hyp-general-20261105.txt`,
+magic6879706d, CPUs8, S2fault0. An optional bounded live sampler is under review.
+The IMEM restart_reason mailbox is overwritten by the intervening recovery-to-
+bootloader reboot; previous swrst values cannot name the original XNU reset.
+
 ### 2026-11-05 — sixth boot closes the APSS enable-state lead
 
 Commit `be2588b` adds full `wdtpre` / `wdtpost` values to the shim log. The final

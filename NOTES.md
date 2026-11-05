@@ -2,6 +2,127 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — sixth boot closes the APSS enable-state lead
+
+Commit `be2588b` adds full `wdtpre` / `wdtpost` values to the shim log. The final
+controlled boot used these records,
+using the fifth boot's kernel, ADT, sampling args and opt-in reset-only pet.
+Both values are **00000000**. Thus APSS EN was already zero before the shim's
+secure-watchdog attempt, and clearing it did not change that boot's state.
+The proposed preserve-EN experiment has no demonstrated difference to test on
+this setup. PET again reaches count70 with EN=0/STS=0.
+
+Image `shim/out/shim-ui-wdtstate-20261105.img`, SHA256
+`69a1fa63bf909a7d99c5d6b0eb7f9c5609fe66d6f4b3f452ff3e17ba7914f124`.
+Send16668KB OKAY0.393s, bootOKAY0.134s, total0.532s, back in TWRP100s.
+Log `research/tmp/ui-wdtstate-boot-20261105.txt`, transcript
+`research/tmp/ui-wdtstate-cycle-20261105.log`. The full shim announcements and
+boot args total499 bytes, within608. Shim rebuild/ramdisk byte comparison and
+SCM host tests passed.
+
+**End-of-session state**: phone in recovery, six automatic returns at roughly
+100–101 seconds, no usable interface verified. Native Linux and the shim both
+reject the secure-watchdog disable operation with the same x0=-2/x1=-4.
+Reset-only APSS petting and the panic-debug boot did not extend the observed
+runtime. The reset source remains unidentified; these results do not prove a
+secure watchdog is responsible. Better previous-boot firmware/reset evidence is
+needed before selecting another hardware control change. Recovery's current
+TZ/pstore interfaces did not preserve a usable prior cause. Disk first-block
+restoration, if needed, requires separate user approval and a verified baseline.
+
+### 2026-11-05 — five controlled boots, UI still unavailable, automatic reset unresolved
+
+**Current device state is TWRP/recovery. No usable UI has been verified.** Five
+temporary boots reached launchd, SpringBoard and backboardd, then automatically
+returned to recovery after 100, 101, 100, 101 and 101 seconds respectively.
+The user confirmed automatic restart. The latter tests omit the diagnostic
+reboot timer. Changing user stacks demonstrate initialization progress; the
+historical check-in wait cannot describe the current failure by itself.
+
+Fifth experiment `sweetwdtpet=1` is committed as **`9ff59ba`**, patch0089. Its
+independent callout writes only APSS WDT0_RST=1 each second. EN and thresholds
+come from the existing setup. It uses clock_interval_to_deadline, logs counts,
+timestamps, EN and STS, and preserves the old status sampler's cadence. An
+extracted-function host simulation checked default-off behavior, 20 callbacks,
+one-second deadlines, RESET-only writes, continued scheduling and log frequency
+(`research/tmp/ui-wdtpet-simulation.cpp`). The final code uses DMB OSHST for
+store ordering. Kernel rebuild and all host tests passed, make exit0, log
+`research/tmp/ui-wdtpet-build-20261105.log`.
+
+Kernel `research/k-ui-wdtpet-20261105`, SHA256
+`e0e2d3863df11eac0328c79fc462649c5d19980b521a195033f3087184eb707c`.
+Image `shim/out/shim-ui-wdtpet-20261105.img`, SHA256
+`f8c6a40a65d63c794c0dc536c7cff53626810d6e772141c55586b1dce7963a22`.
+Send16668KB OKAY0.390s, bootOKAY0.134s, total0.531s, recovery101s.
+Log `research/tmp/ui-wdtpet-boot-20261105.txt`, ring119656 bytes, flush75,
+420 execs. PET counts1..5,10,20,...70 show ~1.001 seconds per callback,
+always EN=0/STS=0; the last count70 is at absolute ticks1516753604. This proves
+the pet callback runs, but it did not extend the boot. It does not establish
+whether the secure watchdog is serviced by this RESET register when EN=0.
+
+**Native Linux control test confirms the same firmware rejection.** Recovery
+has `/sys/devices/platform/soc/17c10000.qcom,wdt/disable`, initially0. Writing1
+through the driver's normal interface returned I/O error and left it0. Recovery
+dmesg records `func id 0x42000107, ret: -2, syscall returns:
+0xfffffffffffffffc,0x0,0x0` and `Failed to deactivate secure wdog`. Saved in
+`research/tmp/ui-recovery-wdt-disable-20261105.txt`. Thus the current SCM shim
+matches the native driver's failed operation; arbitrary alternative argument
+values are not justified. This still does not identify the reset initiator.
+
+Recovery CONFIG_DEBUG_FS and CONFIG_MSM_TZ_LOG are enabled. Mounting the
+debugfs virtual filesystem exposed `/sys/kernel/debug/tzdbg`. Bounded reads
+saved `research/tmp/ui-tz-{reset,general,boot,log,hyp_log}-20261105.txt`.
+Reset counters are allzero, TZ log returned no bytes, hyp log is current boot
+initialization. `/sys/fs/pstore` is empty, `/proc/last_kmsg` absent. These do
+not recover the previous XNU reset cause. debugfs was a temporary recovery mount.
+
+Commits this continuation are `d02486d` (out-of-partition marker write fix),
+`ed913c9` (intermediate hardware handoff), `fcb4840` (SCM ABI/results), and
+`9ff59ba` (opt-in RESET probe). No new CI run was launched. Clean patch-series
+reproduction remains blocked by the older 0084/0086 duplicate/corrupt patches,
+as documented below. `tools/mkadt.py` has the pre-existing uncommitted edit.
+
+**Next work requires better reset-source evidence.** One concrete source-level
+lead is error handling: native Linux aborts watchdog disable if the secure call
+fails, while the shim still clears APSS EN. A controlled test would first need
+full EN values at shim entry/exit and preservation of the existing timer setup,
+with a verified pet path; `swwd` high-nibble packing cannot supply this evidence.
+Alternatively capture previous-boot secure/reset diagnostics before recovery
+clears them. Do not present an unproven watchdog hypothesis as the root cause.
+Keep the first-block backups and obtain approval before any disk restoration.
+
+### 2026-11-05 — SCM call verified, firmware rejected secure-watchdog disable
+
+SCM fix committed as `fcb4840`. Shim detects 64/32-bit SCM ABI, queries BOOT
+service1/SEC_WDOG_DIS command7, and logs transport/service results. PSCI has its
+own helper. New mocked-monitor regression test extracts the actual shim control
+flow and covers register arguments, ABI fallbacks, unsupported calls, bounded
+busy/interrupted retries and the observed failure response. All host tests pass
+(`research/tmp/ui-final-host-tests-20261105.log`).
+
+Fourth boot used unchanged UI-icons kernel/payload/ADT with the corrected shim,
+image `shim/out/shim-ui-scm-20261105.img`, SHA256
+`2f01a43bea3a2c1519d6dd8b2c63bfedccd9c4968b8b084c845ceab133508f68`.
+Send 16668 KB OKAY 0.388 s, boot OKAY 0.134 s, total0.529 s. Recovery after101 s.
+Log `research/tmp/ui-scm-boot-20261105.txt` proves
+
+```
+scmstep=00000003 scmabi=00000040 scmrc=fffffffe scmret=fffffffc
+```
+
+The 64-bit ABI and availability checks passed; disable itself returned x0=-2
+(SCM_EINVAL_ARG in the reference driver), x1=-4 (meaning undocumented in the
+retrieved source). This **did not disable the secure watchdog**. The repeated
+reset still has no established cause. Do not try arbitrary SCM argument values.
+
+Next bounded experiment under preparation is an opt-in `sweetwdtpet=1` which
+periodically writes only APSS WDT0_RST=1 using the exact Linux pet operation,
+with actual timestamps/EN/status in the log. EN and timeout register values are
+retained for this comparison. Source does not prove that this operation pets a
+secure watchdog while EN=0, so an unchanged reset time would not exclude it.
+References are pinned in shim source to gauguin commit
+`19b63c8192b1c9b7c4d931d7d3be92024bc2d778`.
+
 ### 2026-11-05 — three boots reset around 100 s while UI initialization progresses
 
 User confirmed the first return to TWRP was automatic. The second image,

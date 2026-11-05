@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — captured touch GCC data abort; no-touch control running
+
+Patch0095 native build passed, kernel `research/k-ui-shutdown-entry-20261105`,
+SHA256 `7baffcae773ba7f15549f1c02cc26cad48e7d67c34152a8530f1bb2fb55e3233`.
+The extracted-function shutdown test passes eight scenarios, including IRQ
+restore, recursive/duplicate entry, missing proc/thread, bounded nonterminated
+name and opt-in normal reboot. Controlled image
+`shim/out/shim-ui-shutdown-control-20261105.img`, SHA256
+`b59c06c3d4c41137c5e7e19458b65071a1395a3053ffa5a50fbcb2d29007d5a6`,
+send16688KB0.392s/boot0.134s/total0.533s, returned to TWRP101s. User confirmed.
+Log `research/tmp/ui-shutdown-control-boot-20261105.txt` **validates both new
+records**: reboot_kernel howto0 at1037688627ticks, platform type1 at1105066911.
+Launchd receives SIGTERM and completes shutdown through MACH Reboot; kernel
+periodic threads continue afterwards. There is no implemented platform reset
+hook found, so a completed software reboot is not established by this test.
+
+**New decisive observation in this control:** the independent touch bring-up
+thread (default45second delay after root init) starts late, scans GCC pages,
+and raises Kernel data abort. PC0xfffffe00074ef6d8 is actual kernel
+_touch_bringup+0xc8, `ldr w9,[x8]`; LR74ef700 is the loop's printf return.
+Last completed page0x9000, fault x8=0xfffffe4017d56000, mapping
+VA0xfffffe4017d4c000: next page0xa000, PA **0x0010a000**. It is within the
+mapped0x60000 span; enlarging the mapping is not a fix. The probe blindly
+reads unsupported hardware registers. Natural runs had the same45s probe
+queued but did not preserve its tail, so common causality awaits a control.
+
+Current temporary no-touch image `shim/out/shim-ui-touch-off-20261105.img`,
+SHA256 `d5235255e1d7b449497570469ec77c34690ae1e51e125ea0afed0d71eb5b2c8e`,
+uses identical0095kernel+ADT, normal8CPU boot, no deliberate reboot timer,
+`sweettouchmode=0` and16process samples to cover longer operation. Observer
+360seconds: `research/tmp/ui-touch-off-cycle-20261105.log`, pending log
+`research/tmp/ui-touch-off-boot-20261105.txt`. Do not interpret absence of adb
+as continued kernel execution without later device/log confirmation.
+
+### 2026-11-05 — correcting reset-evidence assumptions; normal shutdown trace
+
+Completed UFS/live diagnostic work is committed as **7c09029**. Subsequent
+read-only recovery evidence is in `research/tmp/ui-onecpu-recovery-dmesg-20261105.txt`.
+Immediately after this XNU-to-recovery cycle, the native driver reports SID0
+PM6350 PON at0x800, power-off from **PS_HOLD (MSM controlled shutdown)**;
+SID2 PM7250b and SID4 PM6150l report SOFT. This names the PMIC input, not the
+software/firmware caller; it does not establish a userland reboot.
+
+Fresh actual recovery FDT saved as `research/tmp/ui-recovery-live-20261105.dtb`
+(588757bytes), decompiled alongside it. Root is Qualcomm Gauguin/lagoon-qrd.
+Current XNU PON code wrongly reads SID6 PMK8350 at0x1300; its zero values are
+not evidence about the active primary PMIC. The old unpacked mainline-style
+DTS also contains the correct SID0 pon@800 plus an unrelated SID6 pon@1300;
+the earlier claim that PM6350 had no PON node is false. Actual SPMI controller
+base0xc440000 already matches the port: the logged0x50010000 is its **version**,
+not its address. Raw DT and recovery state remain ignored and must not enter git.
+
+Patch0095 adds first-entry persistent records before reboot_kernel waits/locks
+and before platform halt/restart notifications. This closes a real diagnostic
+gap: old output only appeared late, and ARM64 has no observed registered
+PE_halt_restart implementation, so normal shutdown can stall without a panic.
+This is a source-level possibility, not a captured cause. Optional control uses
+`sweetreboot=15 sweetrebootnormal=1` for normal sync reboot; default timer still
+panics. Build log `research/tmp/ui-shutdown-entry-build-20261105.log`, pending.
+
 ### 2026-11-05 — UFS fix hardware result and single-core control
 
 Patches0093/0094 were compiled together and booted successfully. Native build

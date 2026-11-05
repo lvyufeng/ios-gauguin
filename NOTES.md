@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — 0101 CI passes; stage0 observation ended, awaiting recovery
+
+0101 and its tests are committed locally as74bbe29 and published as sanitized
+snapshot3b2e3987dbc9a39ff1ba186bfe1bd31fdeec259b, parentb7a266d.
+CI **41992972330** succeeded for that head (13.5/DEVELOPMENT/gauguin):
+https://github.com/lvyufeng/ios-gauguin/actions/runs/41992972330
+95patches/allhosttests/make_exit0. All5230source entries compare to source101,
+apart from the same four exactly reproduced dxb path-adapter files. Probe
+symbol is linked; payload layout and bounds qualify. Report:
+`research/tmp/p1-ci-41992972330-artifacts/qualification.json`. Downloaded kernel
+17296776bytes, SHA256cc34cae7d20b179c7f24461e4589800d94d832dad0ec1b9bf23f51e8573871d1.
+Do not dispatch another run or confuse this with successful baseline41989463747.
+
+Temporary image `shim/out/shim-p1-nvt-stage0-0101-20261105.img`, SHA256
+29a9f4856243a579526eba731cd803e87eb68e510f947e0ace67d300fb55f051, uses preserved
+shim/DTB/ADT and baseline arguments plus sweetnvtprobe=1.180second device
+observer90557 ended after181s without recovery; expected exit4 because XNU
+does not expose the recovery log channel. Cycle
+`research/tmp/p1-nvt-stage0-0101-cycle-20261105.log`; evidence JSON
+`p1-nvt-stage0-0101-evidence-20261105.json`. User asked whether a manual reboot
+is needed and was instructed to return to TWRP, retaining pre-reboot screen
+observation. That confirmation is pending. No stage0 register result yet.
+Fastboot send16616KB0.394s,boot0.134s,total0.534s. Latest adb get-state reports
+no device; do not treat an absent USB connection as proof of a hang or crash.
+Next: read fresh log and interpret named register snapshots. Do not boot
+another image until that log is captured; keep old sweettouchmode1 and host-only
+SPI candidates disabled. This build still cannot accept physical touch.
+
 ### 2026-11-05 — P0 lock-screen baseline passes; opt-in NVT stage0 ready for CI
 
 Public handoff snapshot **b7a266d830c1f6b0e59cf7cd233e05d3dd615a43** (local

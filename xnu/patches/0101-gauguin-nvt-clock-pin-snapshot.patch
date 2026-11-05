@@ -1,0 +1,261 @@
+diff --git a/bsd/conf/files b/bsd/conf/files
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -108,6 +108,7 @@
+ bsd/dev/sweet_sample.c			standard
+ bsd/dev/sweet_keys.c			standard
+ bsd/dev/sweet_touch.c			standard
++bsd/dev/gauguin_nvt_probe.c		standard
+ bsd/dev/sweet_rpmh.c			standard
+ bsd/dev/sweet_spmi.c			standard
+ bsd/dev/sweet_usb.c			standard
+diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -992,6 +992,11 @@
+ 		return;
+ 	}
+ 	st.started = true;
++#if defined(GAUGUIN)
++	/* Independent opt-in stage0; default returns before mapping hardware. */
++	extern void sweet_nvt_probe_init(void);
++	sweet_nvt_probe_init();
++#endif
+ 	(void)PE_parse_boot_argn("sweettouch", &enabled, sizeof(enabled));
+ 	(void)PE_parse_boot_argn("sweettouchirq", &st.irq_hint, sizeof(st.irq_hint));
+ 	if (!enabled) {
+diff --git a/bsd/dev/gauguin_nvt_probe.c b/bsd/dev/gauguin_nvt_probe.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt_probe.c
+@@ -0,0 +1,230 @@
++/*
++ * Gauguin NVT stage0 diagnostic.
++ * Opt-in sweetnvtprobe=1: one worker, delayed30seconds, named GCC/TLMM reads.
++ * No wrapper/SE map or access, register writes, RPMh, SPI, touch reset or HID.
++ * Source: https://github.com/LineageOS/android_kernel_xiaomi_gauguin/tree/
++ * 19b63c8192b1c9b7c4d931d7d3be92024bc2d778
++ * drivers/clk/qcom/{gcc-lagoon.c,clk-rcg2.c,clk-alpha-pll.c},
++ * drivers/pinctrl/qcom/pinctrl-lagoon.c; addresses checked against live DT.
++ * Successful reads establish only this snapshot, never SE/fabric readiness.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
++extern void thread_terminate_self(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++void sweet_nvt_probe_init(void);
++
++#define NVT_PROBE_GCC_PA 0x00100000u
++#define NVT_PROBE_TLMM_PA 0x0f100000u
++#define NVT_PROBE_GCC_CLOCK_PAGE 0x21000u
++#define NVT_PROBE_GCC_VOTE_PAGE 0x52000u
++#define NVT_PROBE_RCG 0x21148u
++#define NVT_PROBE_DFS 0x2115cu
++
++static unsigned nvt_probe_started;
++
++static void
++nvt_probe_phase(const char *phase)
++{
++    char line[112];
++    snprintf(line, sizeof(line), "SWEET NVT PROBE: stage0 %s", phase);
++    printf("%s\n", line);
++    /* Both persistent marker and console ring are best-effort existing paths.
++     * This is a worker context; never invoke it inline in mount/root setup. */
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++static uint32_t
++nvt_probe_read(vm_offset_t base, uint32_t offset)
++{
++    uint32_t value = *(volatile uint32_t *)(base + offset);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++
++struct nvt_probe_clock {
++    uint32_t cmd, dfs, cfg, m, n;
++    uint32_t cfg_offset, m_offset, n_offset;
++};
++
++static bool
++nvt_probe_clock_first(vm_offset_t clock_page, struct nvt_probe_clock *s)
++{
++    nvt_probe_phase("GCC source first");
++    s->cmd = nvt_probe_read(clock_page, NVT_PROBE_RCG - NVT_PROBE_GCC_CLOCK_PAGE);
++    s->dfs = nvt_probe_read(clock_page, NVT_PROBE_DFS - NVT_PROBE_GCC_CLOCK_PAGE);
++    printf("SWEET NVT PROBE: GCC cmd@21148=%08x dfs@2115c=%08x\n", s->cmd, s->dfs);
++    if (s->dfs & 1u) {
++        unsigned level = (s->dfs >> 1) & 15u;
++        if (level >= 8) {
++            printf("SWEET NVT PROBE: invalid DFS level=%u; stop\n", level);
++            return false;
++        }
++        s->cfg_offset = 0x21164u + 4u * level;
++        s->m_offset = 0x211a4u + 4u * level;
++        s->n_offset = 0x211e4u + 4u * level;
++    } else {
++        s->cfg_offset = 0x2114cu;
++        s->m_offset = 0x21150u;
++        s->n_offset = 0x21154u;
++    }
++    nvt_probe_phase("GCC selected tuple first");
++    s->cfg = nvt_probe_read(clock_page, s->cfg_offset - NVT_PROBE_GCC_CLOCK_PAGE);
++    s->m = 0; s->n = 0;
++    unsigned mode = (s->cfg >> 12) & 3u;
++    if (mode != 0 && mode != 2) {
++        printf("SWEET NVT PROBE: cfg@%x=%08x unsupported mode=%u; stop\n",
++            s->cfg_offset, s->cfg, mode);
++        return false;
++    }
++    if (mode == 2) {
++        s->m = nvt_probe_read(clock_page, s->m_offset - NVT_PROBE_GCC_CLOCK_PAGE);
++        s->n = nvt_probe_read(clock_page, s->n_offset - NVT_PROBE_GCC_CLOCK_PAGE);
++    }
++    printf("SWEET NVT PROBE: GCC cfg@%x=%08x fractional=%u m@%x=%08x n@%x=%08x\n",
++        s->cfg_offset, s->cfg, (s->cfg >> 12) & 3u,
++        s->m_offset, s->m, s->n_offset, s->n);
++    return true;
++}
++
++static bool
++nvt_probe_clock_stable(vm_offset_t clock_page, const struct nvt_probe_clock *s)
++{
++    uint32_t cmd, dfs, cfg, m = 0, n = 0;
++    nvt_probe_phase("GCC source second");
++    cmd = nvt_probe_read(clock_page, NVT_PROBE_RCG - NVT_PROBE_GCC_CLOCK_PAGE);
++    dfs = nvt_probe_read(clock_page, NVT_PROBE_DFS - NVT_PROBE_GCC_CLOCK_PAGE);
++    if (cmd != s->cmd || dfs != s->dfs) {
++        printf("SWEET NVT PROBE: GCC changed cmd=%08x dfs=%08x; stop\n", cmd, dfs);
++        return false;
++    }
++    nvt_probe_phase("GCC selected tuple second");
++    cfg = nvt_probe_read(clock_page, s->cfg_offset - NVT_PROBE_GCC_CLOCK_PAGE);
++    if (cfg != s->cfg) {
++        printf("SWEET NVT PROBE: GCC changed cfg@%x=%08x; stop\n", s->cfg_offset, cfg);
++        return false;
++    }
++    if (((s->cfg >> 12) & 3u) == 2) {
++        m = nvt_probe_read(clock_page, s->m_offset - NVT_PROBE_GCC_CLOCK_PAGE);
++        n = nvt_probe_read(clock_page, s->n_offset - NVT_PROBE_GCC_CLOCK_PAGE);
++    }
++    bool stable = m == s->m && n == s->n;
++    printf("SWEET NVT PROBE: GCC repeated cfg=%08x m=%08x n=%08x stable=%u\n",
++        cfg, m, n, (unsigned)stable);
++    return stable;
++}
++
++static bool
++nvt_probe_parent(unsigned selector)
++{
++    static const uint32_t offsets[5] = {0x0, 0x4, 0xc, 0x2c, 0x38};
++    uint32_t pll_offset, first[5], second[5];
++    bool stable = true;
++    if (selector == 0) {
++        printf("SWEET NVT PROBE: parent selector=0 XO; no PLL read\n");
++        return true;
++    }
++    if (selector == 1 || selector == 6) pll_offset = 0;
++    else if (selector == 2) pll_offset = 0x6000u;
++    else {
++        printf("SWEET NVT PROBE: parent selector=%u unqualified; no PLL read\n", selector);
++        return true;
++    }
++    nvt_probe_phase("map selected GCC PLL");
++    vm_offset_t pll = ml_io_map(NVT_PROBE_GCC_PA + pll_offset, 0x1000);
++    if (!pll) {
++        printf("SWEET NVT PROBE: selected PLL mapping failed; stop\n");
++        return false;
++    }
++    nvt_probe_phase("selected GCC PLL first");
++    for (unsigned i = 0; i < 5; ++i) first[i] = nvt_probe_read(pll, offsets[i]);
++    nvt_probe_phase("selected GCC PLL second");
++    for (unsigned i = 0; i < 5; ++i) {
++        second[i] = nvt_probe_read(pll, offsets[i]);
++        if (first[i] != second[i]) stable = false;
++    }
++    printf("SWEET NVT PROBE: PLL base=%x selector=%u first mode=%08x L=%08x user=%08x opmode=%08x frac=%08x\n",
++        pll_offset, selector, first[0], first[1], first[2], first[3], first[4]);
++    printf("SWEET NVT PROBE: PLL second mode=%08x L=%08x user=%08x opmode=%08x frac=%08x stable=%u\n",
++        second[0], second[1], second[2], second[3], second[4], (unsigned)stable);
++    return stable;
++}
++
++static void
++nvt_probe_run(void)
++{
++    static const uint32_t branches[5] = {0x21004, 0x21008, 0x2100c, 0x21014, 0x21144};
++    static const unsigned pins[6] = {0, 1, 2, 3, 21, 22};
++    struct nvt_probe_clock source = {0};
++    nvt_probe_phase("map GCC named windows");
++    vm_offset_t vote = ml_io_map(NVT_PROBE_GCC_PA + NVT_PROBE_GCC_VOTE_PAGE, 0x1000);
++    vm_offset_t clocks = ml_io_map(NVT_PROBE_GCC_PA + NVT_PROBE_GCC_CLOCK_PAGE, 0x1000);
++    if (!vote || !clocks) {
++        printf("SWEET NVT PROBE: GCC mapping failed; stop\n");
++        return;
++    }
++    nvt_probe_phase("GCC vote and five CBCRs");
++    printf("SWEET NVT PROBE: GCC vote@52000=%08x\n", nvt_probe_read(vote, 0));
++    for (unsigned i = 0; i < 5; ++i) {
++        uint32_t value = nvt_probe_read(clocks, branches[i] - NVT_PROBE_GCC_CLOCK_PAGE);
++        printf("SWEET NVT PROBE: GCC CBCR@%x=%08x\n", branches[i], value);
++    }
++    if (!nvt_probe_clock_first(clocks, &source) || !nvt_probe_clock_stable(clocks, &source)) return;
++    if (!nvt_probe_parent((source.cfg >> 8) & 7u)) return;
++    for (unsigned i = 0; i < 6; ++i) {
++        char phase[64];
++        snprintf(phase, sizeof(phase), "map TLMM GPIO%u", pins[i]);
++        nvt_probe_phase(phase);
++        vm_offset_t pin = ml_io_map(NVT_PROBE_TLMM_PA + pins[i] * 0x1000u, 0x1000);
++        if (!pin) {
++            printf("SWEET NVT PROBE: GPIO%u mapping failed; stop\n", pins[i]);
++            return;
++        }
++        snprintf(phase, sizeof(phase), "read TLMM GPIO%u cfg/io", pins[i]);
++        nvt_probe_phase(phase);
++        uint32_t cfg = nvt_probe_read(pin, 0), io = nvt_probe_read(pin, 4);
++        printf("SWEET NVT PROBE: GPIO%u cfg=%08x io=%08x\n", pins[i], cfg, io);
++    }
++    printf("SWEET NVT PROBE: stage0 snapshot complete; SE/fabric and touch remain unqualified\n");
++}
++
++static void
++nvt_probe_thread(void *argument, wait_result_t result)
++{
++    (void)argument; (void)result;
++    printf("SWEET NVT PROBE: worker delayed30s, GCC/TLMM reads only\n");
++    for (unsigned i = 0; i < 30; ++i) IOSleep(1000);
++    nvt_probe_run();
++    nvt_probe_phase("worker finished");
++    thread_terminate_self();
++}
++
++void
++sweet_nvt_probe_init(void)
++{
++    int enabled = 0;
++    thread_t thread;
++    (void)PE_parse_boot_argn("sweetnvtprobe", &enabled, sizeof(enabled));
++    if (enabled != 1) return; /* Default and every other value: no IO or worker. */
++    if (__atomic_exchange_n(&nvt_probe_started, 1, __ATOMIC_ACQ_REL)) return;
++    kern_return_t result = kernel_thread_start(nvt_probe_thread, NULL, &thread);
++    if (result == KERN_SUCCESS) {
++        thread_deallocate(thread);
++    } else {
++        /* Keep one-shot guard latched. A later call must not run work inline. */
++        printf("SWEET NVT PROBE: worker start failed=%d; skipped\n", result);
++    }
++}
++#endif /* GAUGUIN */

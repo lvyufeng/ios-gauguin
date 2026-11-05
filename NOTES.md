@@ -2,6 +2,100 @@
 
 ## Agent handoff / active work (2026-10-15, latest)
 
+### 2026-11-05 — userspace stack audit, diagnostic image ready, phone offline
+
+Read the actual saved stacks before using the older claims that SpringBoard is
+idle or that userspace PCs cannot be obtained. `research/tmp/observe-tap2.txt`
+(kernel banner 2026-11-03 22:02:34) and `observe-tap9.txt` both contain `SMP`
+records. After subtracting each boot's shared-cache slide, their SpringBoard
+main-thread stacks match. Symbolication against the local iOS 16.7.16 cache gives
+
+```
+SBSystemAppMain
+  FBSystemShellInitialize
+    -[BKSSystemShellService _checkIn]
+      BSXPCServiceConnectionMessage sendSynchronouslyWithError:
+        xpc_connection_send_message_with_reply_sync
+          _dispatch_mach_send_and_wait_for_reply
+            mach_msg2_trap
+```
+
+This is a synchronous registration waiting for a reply. Receiving on a port
+owned by SpringBoard cannot exclude an outstanding request to another process.
+In the same historical sample, backboardd is waiting in `DMPerformMigration`
+through `DMConnection migrateCheckingNecessity:...`; another thread is waiting
+in `RBSConnection handleForPredicate:error:`. These samples predate the Nov 4
+root tweaks. They identify a concrete dependency chain, but **do not establish
+the current blocker after those tweaks**. Raw and symbolicated results are in
+`research/tmp/ui-historical-symbols-20261105.txt` (ignored).
+
+Two diagnostic defects were found in the local cached `osfmk/kern/task.c`.
+The new user-PC probe passes count 34 to `machine_thread_get_state`, while
+`ARM_THREAD_STATE64_COUNT` is measured in uint32_t units (68). The port probe
+subtracts `offsetof(ipc_port, ip_messages)` from a waitq pointer, although that
+pointer is `ip_waitq` and XNU supplies `ip_from_waitq()`. Its `msgs=0/0`, active
+and sequence values cannot establish the queue state. The existing process
+sampler already uses `find_user_regs()` from `osfmk/arm/thread.h` successfully.
+
+Current read-only device pull is `research/tmp/ui-current-20261105.txt` and
+`.bin`, 125835 bytes of console, flush #79, kernel banner 2026-11-05 00:32:43.
+The phone is gauguin in recovery. This log has 3 presents, 2 clients, and an
+OCS 0xf error for SCSI 0x35. A separate latest log, `r12.txt`, has an OCS 0xf
+read error (0x28) followed by launchd exit and `initproc failed to start`.
+
+Installed the official `ipsw` v3.1.741 binary only under ignored
+`research/tools/ipsw-3.1.741/`; archive SHA256 verified against the release
+checksums (`546af036b81c957ac7ddc71098ef65d2a8efebb70c81cce65bac4b9499091e8a`).
+Cache input is `/private/tmp/m-86593/System/Library/Caches/com.apple.dyld/`.
+Use `--cache research/tmp/ios16.a2s` with `dyld a2s` and subtract the logged
+slide, or pass `--slide`. Public/private symbols parsed. ObjC metadata parsing
+reported an EOF, so inspect function ranges when a method is unresolved.
+
+**Committed sampler change `fd9bcd3`**, patch
+`0087-sweet-configurable-process-sampler.patch`, adds configurable sampling
+delay/interval/count with the prior defaults. It snapshots referenced threads,
+releases the task lock before reading user memory, obtains registers through
+`thread_getstatus(... ARM_THREAD_STATE64_COUNT ...)`, and splits long backtraces
+into console-sized lines. Running-thread stacks are best-effort after the
+register snapshot. The old `sweetdump` probe is omitted from the test boot args.
+
+Native incremental build **passed, make exit 0**, all existing host tests
+passed. Log `research/tmp/ui-sampler-build-20261105.log`. Built kernel banner
+`Darwin Kernel Version 22.6.0: Thu Nov 5 11:33:59 CST 2026`, SHA256
+`0b4736225113bfd18b3fd332926ba82785c5d291f62c8f0db9fec0a0d218a853`.
+Build used the existing cached source tree, which has many prior local changes
+absent from CI. Patch 0087 applies cleanly to the saved pre-change copies in
+`research/tmp/ui-sampler-before-20261105/` and reproduces both compiled sources
+byte-for-byte. A replay of the older tracked series exposed a pre-existing
+corrupt hunk in 0086 at line 2709; `--recount` also hits changes duplicated from
+0084. A clean series build is still unverified. `PATCH_SET` stays at 0082-2 to
+retain the current source tree. Do not regenerate that tree during diagnosis.
+`gh run list` shows latest CI run **39957353555** failed at commit `3a2f529`;
+no CI build launched in this session.
+
+**Prepared image** `shim/out/shim-ui-sample-20261105.img`, 17068032 bytes,
+SHA256 `799a42d1eed9c7c16b53048bb337cb865f06b9ff03f7ad1e1d1fe93072a12342`.
+Payload `research/tmp/ui-sampler-20261105.bin`; ADT same basename with `.adt`.
+The shim packer unpacked and byte-compared its ramdisk with the payload.
+ADT extracted from the latest `shim-safe.img`/`shim-r12.img` to hold that
+configuration fixed, with base `0x180000000`, size `0xfff00000`, SHA256
+`7d6d93bea46bb80331d76238be295137ea33bbe8e3109789c68f4f0e45a291ff`.
+It includes the earlier uncommitted `/chosen` additions from `tools/mkadt.py`.
+The test keeps cpus=8 and the previous root boot args, plus
+
+```
+sweetsample=SpringBoard,backboardd,runningboardd,datamigrator
+sweetsampledelay=45 sweetsampleinterval=30 sweetsamplecount=4 sweetreboot=160
+```
+
+**No new device boot has been performed.** Before sending the image, the phone
+disappeared from USB. Unsandboxed `adb devices` and `fastboot devices` both
+returned no devices. User was asked to reconnect in recovery or fastboot.
+Next action is temporary `fastboot boot shim/out/shim-ui-sample-20261105.img`
+once reachable, then pull the console in recovery, verify the new kernel banner
+and `SMP armed` configuration, and symbolicate the fresh stacks. The startup
+dependency observed in the old logs may have changed after Nov 4's root tweaks.
+
 ### >>> 2026-11-04 (105): **always pass --highmem** - the 76k-page failures were my own flag <<<
 
 `tools/mkadt.py X.adt --device=gauguin` without `--highmem` produces a tree whose

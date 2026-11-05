@@ -97,3 +97,4 @@
 0099-sweet-ipc-label-c11.patch
 0100-arm64-iboot-stage2-platform-guard.patch
 0101-gauguin-nvt-clock-pin-snapshot.patch
+0102-gauguin-nvt-controller-access-probe.patch

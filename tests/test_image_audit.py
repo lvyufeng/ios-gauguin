@@ -73,7 +73,7 @@ def main():
         # 1. A stale non-A/B image is reported.
         kernel = os.path.join(backup, "kernel-a")
         with open(kernel, "wb") as f:
-            f.write(BANNER_A)
+            f.write(BANNER_A + b"\x00")
         make_image(os.path.join(OUT, "shim-proven.img"), BANNER_B)
         code, out = run("--check", kernel)
         check("stale proven image is reported", code == 1 and "STALE" in out, out)

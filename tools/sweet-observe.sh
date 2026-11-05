@@ -9,11 +9,12 @@
 # than 20 s, and the cycle's "TWRP showed up" is indistinguishable from "the
 # kernel kept running".
 #
-# This script boots the image and then polls the panel counters over the
-# persistent log ring until either
+# This script boots the image and polls USB recovery availability until either
 #   * the phone returns to TWRP by itself (the kernel really did stop), or
 #   * SECONDS (default 180) elapse.
-# The log is pulled at the end either way.
+# It then attempts to pull the log. With XNU owning USB, recovery adb is absent;
+# manual recovery is needed before a fresh log can be read. No recovery alone
+# does not prove that the kernel is still making progress.
 set -uo pipefail
 img=${1:?usage: sweet-observe.sh IMAGE OUT.txt [SECONDS]}
 out=${2:?usage: sweet-observe.sh IMAGE OUT.txt [SECONDS]}
@@ -50,14 +51,14 @@ while :; do
 		break
 	fi
 	if [ "$elapsed" -ge "$observe" ]; then
-		say "still running after ${elapsed}s (no TWRP) - that is the good case"
+		say "no recovery detected after ${elapsed}s; screen and log confirmation needed"
 		break
 	fi
 	sleep 5
 done
 
-# Pull whatever the ring holds. When the kernel is still running this reads the
-# ring as it stands, which is what the panel counters below are taken from.
+# Pull the ring if recovery adb is available. If it is not, fail explicitly and
+# retain the need for manual recovery; never substitute an earlier log.
 #
 # The pull used to end in `|| true`, so a failed pull left OUT holding the
 # *previous* boot's log and every counter below was then computed from it -
@@ -78,23 +79,11 @@ fi
 # The banner must belong to the kernel inside IMAGE. Entry (68) found
 # shim-proven.img carrying a kernel 40 minutes older than the tree, so a log
 # that looks fine can still be from the wrong build.
-have=$(grep -m1 -o 'Darwin Kernel Version [0-9.]*: [^;]*' "$out" 2>/dev/null)
-want=$(python3 - "$img" <<'PY2'
-import sys, re
-d = open(sys.argv[1], 'rb').read()
-m = re.search(rb'Darwin Kernel Version [0-9.]+: [^;]*', d)
-print(m.group(0).decode('utf-8', 'replace') if m else '')
-PY2
-)
-if [ -n "$want" ]; then
-	if [ "$have" = "$want" ]; then
-		say "banner matches the image"
-	else
-		say "BANNER MISMATCH - the log is from another build"
-		printf '  log:   %s\n  image: %s\n' "${have:-<none>}" "$want"
-		exit 3
-	fi
+if ! python3 "$here/kernel_banner.py" "$img" "$out"; then
+	say "BANNER MISMATCH - missing, ambiguous or stale build identity"
+	exit 3
 fi
+say "banner matches the image"
 
 echo
 say "progress markers"

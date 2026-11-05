@@ -2,6 +2,28 @@
 
 ## Agent handoff / active work
 
+### 2026-11-05 — storage fixes committed; unique build identity ready for integration build
+
+Local **a7ce787** commits0103/0104 and their host fixtures; source104 is the
+fresh98-patch tree and differs from source102 only in bsd/dev/sweet_ufs.c.
+Report `research/tmp/p2-source104-comparison-20261105.json`; full host suite
+passes in `p2-host-tests-0104-retry-20261105.log`. These storage fixes have not
+been built as a full kernel or booted yet. The mode2 phone log is still pending
+manual TWRP recovery; do not replace that boot before collecting its evidence.
+
+Build tooling now assigns each manifest a unique xnu-UUID32 identity through
+the real KERNEL_BUILD_OBJROOT/newvers path. Native/CI/Linux adapters explicitly
+pass it. prepare-build preserves the selected old unstripped kernel/version.o
+under the new run and removes those exact link targets so even same-tick,
+unchanged-source incremental builds relink. Published known kernels are untouched.
+finish refuses a missing, mixed or different-ID complete banner despite make0.
+Observer/cycle/image-audit use one complete-banner parser instead of date-only
+or75/120-byte comparisons. Observer wording no longer claims that missing TWRP
+proves the kernel is running. This identifies a build, not repeated boots of
+the same image. It deliberately changes output bytes between invocations.
+Actual newvers/version.o incremental negative controls and all host fixtures
+passed; the first full CI build with the new identity remains pending.
+
 ### 2026-11-05 — 0102 mode2 observation ended; storage fixes ready for CI
 
 Local71785a1 was published as sanitized snapshot

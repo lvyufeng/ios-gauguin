@@ -241,8 +241,11 @@ python3 "$REPO/tools/xnu-build-manifest.py" capture --source "$SRCROOT" --sdk "$
 	--input "versions=$REPO/deps/versions.env" --input "patches=$REPO/xnu/patches" \
 	--input "mirror=$MIRROR" --input "build-script=$REPO/deps/build-local.sh" --input "host-tools=$TOOLCHAIN" \
 	--input "provenance-tool=$REPO/tools/xnu-build-manifest.py" --input "staging-state=$CACHE/source-state"
+KERNEL_BUILD_OBJROOT=$(python3 "$REPO/tools/xnu-build-manifest.py" prepare-build \
+	--manifest "$MANIFEST" --objroot "$OBJROOT")
+export KERNEL_BUILD_OBJROOT
 set +e
-(cd "$SRCROOT" && . "$RUN/make-env.sh" && make -j"$(nproc)" VERBOSE=YES CONCISE=0 BUILD_WERROR=0 BUILD_LTO=0 \
+(cd "$SRCROOT" && . "$RUN/make-env.sh" && make -j"$(nproc)" KERNEL_BUILD_OBJROOT="$KERNEL_BUILD_OBJROOT" VERBOSE=YES CONCISE=0 BUILD_WERROR=0 BUILD_LTO=0 \
 	SDKROOT="$SDKROOT" RC_DARWIN_KERNEL_VERSION=${RC_DARWIN_KERNEL_VERSION:-23.5.0} \
 	SYSCTL_HW_PHYSICALCPU="$(nproc)" SYSCTL_HW_LOGICALCPU="$(nproc)" \
 	MEMORY_SIZE="$MEMORY_SIZE_OVERRIDE" KERNEL_BUILDS_IN_PARALLEL=1 \

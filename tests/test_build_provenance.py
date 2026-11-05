@@ -118,12 +118,14 @@ if 'installhdrs' in sys.argv:
 if os.environ.get('FAKE_NO_KERNEL') != '1':
     target = pathlib.Path(args['DSTROOT']) / 'System/Library/Kernels/kernel.development.gauguin'
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(bytes.fromhex('cffaedfe0c000001') + b'fresh fixture kernel')
+    identity = os.environ.get('FAKE_KERNEL_ID', args['KERNEL_BUILD_OBJROOT'])
+    banner = ('Darwin Kernel Version 22.6.0: fixed date; fixture:' + identity).encode()
+    target.write_bytes(bytes.fromhex('cffaedfe0c000001') + banner + bytes([0]))
 sys.exit(int(os.environ.get('FAKE_MAKE_RC', '0')))
 ''')
         make.chmod(0o755)
         for name, body in {
-            'sysctl': 'echo 1', 'clang': 'echo fixture-clang', 'xcodebuild': 'echo fixture-xcode',
+            'nproc': 'echo 1', 'sysctl': 'echo 1', 'clang': 'echo fixture-clang', 'xcodebuild': 'echo fixture-xcode',
             'xcrun': 'case "$*" in *show-sdk-path*) echo "$FIXTURE_SDK";; *) echo fixture-tool;; esac',
         }.items():
             tool = binaries / name

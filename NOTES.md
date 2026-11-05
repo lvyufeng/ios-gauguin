@@ -1,6 +1,116 @@
-# iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
+# iOS 16 on gauguin (Redmi Note 9 Pro 5G, SM7225) - working notes
 
-## Agent handoff / active work (2026-10-15, latest)
+## Agent handoff / active work
+
+### 2026-11-05 — revised engineering goal and staged implementation plan
+
+The user approved the comparative recommendation and requested an updated goal
+and a plan for staged implementation. This entry is the current engineering
+scope and supersedes earlier next-action/paused-work prose for planning.
+The app-managed goal still has its original objective and paused status: the
+available goal tools cannot edit objective text or resume it. Do not mark the
+old objective complete to replace it. No new build or device operation was
+started during this planning turn.
+
+**Revised goal text (ready for the app's goal field):**
+
+> 在红米 Note 9 Pro 5G（gauguin，SM7225／Adreno 619）上，保留已验证的原厂引导＋shim＋XNU／iOS 16 基线，复用已有实机成功的开源组件，分阶段实现真实 GPU／Metal 加速、全部安全可用 RAM 与可靠持久存储、触摸及手机外设、90／120 Hz 高刷，以及联网、通话、充电、休眠等日常功能。以本机实测的稳定性、帧率、功耗和应用兼容性验收；未完成的关键功能保持未完成状态，不以进入主屏幕、虚拟容量或占位驱动代替完成。保留恢复能力和备份，任何破坏性写入逐次确认。
+
+**Architecture decision:** keep this device's working ABL/shim/XNU path. GPU
+integration first follows ios-flame's iOS16-compatible UniXNU Metal frontend,
+metal2vulkan and Mesa Turnip, backed by a real A619 kernel driver. HakiOS is a
+reference for A6xx hardware and display/presentation; its direct Metal path can
+be a later measured alternative. Do not wholesale migrate to UEFI merely to
+obtain GPU support. Reconsider that decision only for a demonstrated blocking
+interface that cannot reasonably be solved in this baseline.
+
+**Evidence baseline:** real iOS lock/home UI was user-confirmed and its log
+records at least409.354seconds,57swaps/52presents/client2. Working kernel
+7baffcae... and image d5235255... are preserved with full hashes below.
+New0097 kernel cdca3c7f... has compiled and passed host tests but has NOT booted.
+True touch is Novatek SPI, not the old Focaltech I2C probe. GPU is currently a
+stub, display is CPU copied, and all-RAM/high-refresh/daily use are unverified.
+
+**Dependency order:** P0 -> P2a -> P3a -> P3b -> P4. P1 runs alongside P2a;
+GPU source/ABI/firmware audit starts during P0/P1. P2b and independent P5 work
+can run alongside the GPU work. A usable runtime debug channel is desirable,
+but USB completion must not indefinitely block GPU experiments: retain the
+verified UFS log path. Basic temperature/power limits precede GPU stress;
+complete sleep/resume follows working storage, GPU and display suspend paths.
+
+| Phase | Work | Exit evidence required | Current state |
+| --- | --- | --- | --- |
+| P0 Reproducible baseline | Freeze rollback artifacts, complete source replay and compare, review build/CI changes, build clean, temporary-boot regression | All source differences explained; tracked inputs/toolchain; passing host checks; successful clean kernel build with run/log/hash; repeated lock/home UI with continuous logging for at least10minutes and no new panic/UFS faults; recovery still usable | Partial:91-patch replay and host suite pass; full0097 comparison, clean build and device regression pending |
+| P1 Input and observability | Correct Novatek SPI driver and HID delivery; keys; live logs/status and preferably file transfer through a runtime channel | Chip/FW identity verified, bounded SPI including67-byte frames, contact down/move/up and multitouch, correct coordinates/edge gestures, no stuck contacts or UI regressions in30minutes of exercised use; successful live diagnostic read, with UFS fallback retained | Native hardware/protocol audited; no working XNU touch driver yet |
+| P2a Memory/DMA/storage correctness | Verified reserved regions, CPU/GPU DMA mappings, cache ownership, UFS bounds/errors/flush and journal behavior | Pattern/hash checks on owned buffers and bounded filesystem test files; synchronized restart retains data; error/timeout paths terminate; no out-of-partition or reserved-memory access | Existing UFS boots real root; recent bounds/cacheline fixes need broader qualification |
+| P3a Real A619 GPU | Board-correct clocks/power/firmware/SMMU/GMU/CP; owned buffers, submission, completion and recovery | A command really executes on A619, fence completes, known pixels/hash read back correctly; repeated submissions and error recovery work; kernel/UI survives; basic temperature/frequency monitoring active before stress | Source/firmware/ABI research only |
+| P3b Metal and iOS rendering | Port flame/UniXNU frontend and Turnip ABI; compile shaders on device; integrate IOSurface and system compositor | Standalone clear/triangle/texture/compute checks, cross-client buffer lifetime/fences, correct pixels, then backboardd/SpringBoard and representative stock/third-party apps demonstrably use GPU; failures are reported instead of fake success | Not implemented |
+| P2b Full usable capacity | Describe all safe RAM banks; make intended userdata capacity available; improve storage throughput/recovery | XNU's real allocatable RAM reconciles with physical banks minus documented reservations; filesystem/block capacity and read/write addressing agree; pressure/reboot checks pass | Deferred behind GPU correctness, not forgotten; resizing/reformatting needs specific approval |
+| P4 Presentation and high refresh | Correct native-panel60Hz presentation, then90/120Hz DPU/DSI/DSC modes and synchronization | Measure actual scan period independently from timer callbacks; report rendered/presented fps, p50/p95/p99 frame times, dropped/torn frames, temperature and power on fixed workloads; normal and warm sustained runs; touch survives modes and display resets | No real high-refresh implementation |
+| P5 Daily phone functions | Wi-Fi/BT, RTC, audio/calls, media decode, camera, sensors/GNSS/haptics, battery/charging/thermal, modem/SIM/network/voice/SMS/data, sleep/resume, application/service compatibility | Separate per-function device tests, actual outputs and recovery; modem registration is separate from SIM detection and voice/IMS/data; charging verified with measurements; full-device sleep/wake restores storage/GPU/display/input/radio | Mostly absent/unverified; interface feasibility audit starts early |
+| P6 Daily-use qualification | Integrated endurance and usability against an explicit capability matrix | Target24hours mixed operation,8hours screen-off idle, repeated cold/warm boots and at least50sleep/wake cycles, charging/network/call tests, data integrity, stable representative apps and repeatable high-refresh measurements; no unexplained failures | Not started |
+
+P4 target is genuine high-refresh operation at native panel resolution, with
+60fps as the initial performance gate and90/120Hz as subsequent targets.
+A panel advertising120Hz or reduced-resolution short benchmark does not pass
+120fps qualification. Sustained120fps, if not achieved, remains an open result;
+do not silently rename a lower-frame-rate mode as meeting that target. Record
+workload, resolution, governor, wallpaper configuration and test duration.
+The endurance counts above are planned engineering gates, not completed tests
+or a prediction that the hardware will meet them without further work.
+
+**Important device-specific prerequisites:**
+
+- A619 may require a below4GiB GPU virtual-address space; do not copy A640's
+  high GPU-VA layout. This does not imply a4GiB physical-RAM limit. Verify
+  XNU16KiB CPU pages -> SMMU4KiB mapping, >4GiB physical backing, cache aliases,
+  IOSurface pin/unpin and process isolation before compositor integration.
+- The actual Novatek unit matches NT36675_memory_map (event buffer0x22d00)
+  despite NT36672C firmware naming. Use captured identity, not marketing name.
+  SPI transfer67bytes exceeds the64-byte FIFO; preserve CS and drain final RX.
+  Firmware downloads, when needed, target volatile SRAM via the native protocol.
+- Live Tianma display configuration lists120/90/60/50/48/30Hz; preferred mode
+  is60Hz. DSI porch/clock switching and shared touch/display reset need real
+  implementation. Software vsync rate alone is not evidence.
+- Baseband/IMS, camera/ISP, sleep and secure storage/platform services receive
+  early feasibility reviews. Unsupported Apple services or missing security
+  hardware stay explicit limitations; do not claim iPhone-equivalent security
+  or daily completion by substituting stubs. Any accepted scope exception
+  requires the user's decision, not an agent redefining success.
+
+**First concrete implementation batch: P0 only.**
+
+1. Preserve working artifacts and snapshot0097 source; inventory the pending
+   changes without mixing the pre-existing tools/mkadt.py edit.
+2. Compare fresh replay97 against the full authoritative0097 source tree after
+   identical post-patch/SDK/watchdog staging, in both directions. Track modes
+   and symlinks as well as content. List explicit generated-file exclusions.
+   The old full-source-compare.json covers0091, NOT0097.
+3. Review source pins and all build entry points. build-macos --xnu/--out does
+   not isolate OBJROOT/SYMROOT/SDK/logs; use a separate checkout/build root or
+   add an explicit isolated root while retaining current defaults.
+4. Validate and commit only the finished reproducibility changes. Use gh for
+   the clean GitHub Actions build; record commit, runID, exact inputs, logs and
+   artifact hashes. Any CODEQL=1 dxb path fixups must be documented as such.
+5. Boot that new artifact temporarily with the known UI parameters and disabled
+   old touch probe, then collect matching logs and verify P0's device criteria.
+   A failed regression returns to the preserved image; it does not overwrite it.
+
+**Execution rules:** one hardware subsystem/change per controlled experiment;
+relevant host checks plus device evidence; keep observation separate from
+inference. At every milestone update this handoff with commit/run/image/log
+identities and remaining work. Do not mark a stage complete from a screenshot,
+API success, host test or stub alone. Keep dumps, serials, Apple files and
+firmware outside git. Preserve bootloaders/recovery/modem/persist/backups;
+confirm each destructive write before running it. No device is rebooted merely
+to satisfy a wall-clock progress update.
+
+**Pinned starting references from the completed review:**
+
+- ios-flame745c4341: https://github.com/NWylynko/ios-flame/tree/745c4341af86089efb0df851fa8a27fb8face624
+- HakiOS87bf4851: https://github.com/oosexgang/hakios-xnu-kernel/tree/87bf4851bcc9cbb24fd79997820aa3661abe4ea5
+- UniXNU-sheng46017956: https://github.com/UniXNU/UniXNU-sheng/tree/460179565a018c741b93e0b1efa07c55d4de497a
+- UniXNU-tb128fua9c3863d: https://github.com/xVanTuring/UniXNU-tb128fu/tree/a9c3863dedbee6f319bff16d3b609ec6cef409bf
 
 ### 2026-11-05 — implementation PAUSED by user; comparative architecture review
 

@@ -2,7 +2,9 @@
 
 This driver is specific to the observed Redmi Note 9 Pro 5G controller and
 boot state. Register access has been verified on hardware. SPI transactions and full firmware SRAM readback have now succeeded.
-Firmware readiness and physical input still require hardware qualification.
+Native0108 completed firmware readiness checks and physical swipe unlock to
+the home screen. Clicks and animations remain slow; latency, multitouch and
+long-term operation still require qualification.
 See `NOTES.md` for the current tested image and results.
 
 The default is disabled. `sweetnvt=1` selects a separate worker after a 30 second

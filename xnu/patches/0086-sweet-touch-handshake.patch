@@ -2629,25 +2629,77 @@ index 503f025..f68901a 100644
 +static bool sweet_msgwait_parsed;
 +static unsigned sweet_msgwait_lines;
 +
++/*
++ * Parse the boot-arg.
++ *
++ * Callable from the call site, not only from inside the trace: that site gates
++ * on `sweet_msgwait_needle[0] != '\0'`, so a tracer that parses only on its own
++ * first invocation can never be reached - the needle stays empty, the gate stays
++ * shut, and the trace never runs. That is why sweetmsgwait=SpringBoard produced
++ * no output at all until this was moved out (NOTES (53)).
++ */
++void
++sweet_msgwait_init(void)
++{
++	if (sweet_msgwait_parsed) {
++		return;
++	}
++	sweet_msgwait_parsed = true;
++	if (!PE_parse_boot_argn("sweetmsgwait", sweet_msgwait_needle,
++	    sizeof(sweet_msgwait_needle))) {
++		sweet_msgwait_needle[0] = '\0';
++	}
++}
++
 +void
 +sweet_msgwait_trace(struct waitq *waitq, const char *procname)
 +{
-+	if (!sweet_msgwait_parsed) {
-+		sweet_msgwait_parsed = true;
-+		if (!PE_parse_boot_argn("sweetmsgwait", sweet_msgwait_needle,
-+		    sizeof(sweet_msgwait_needle))) {
-+			sweet_msgwait_needle[0] = '\0';
-+		}
-+	}
++	sweet_msgwait_init();
 +	if (sweet_msgwait_needle[0] == '\0' || sweet_msgwait_lines >= 40) {
 +		return;
 +	}
-+	if (strncmp(procname, sweet_msgwait_needle, sizeof(sweet_msgwait_needle)) != 0) {
++	/*
++	 * Prefix match on the needle's own length. Comparing sizeof(needle)
++	 * (48) bytes against a char[32] name reads past the name's terminator
++	 * and never matches a shorter needle.
++	 */
++	if (strncmp(procname, sweet_msgwait_needle,
++	    strnlen(sweet_msgwait_needle, sizeof(sweet_msgwait_needle))) != 0) {
 +		return;
 +	}
 +	sweet_msgwait_lines++;
-+	printf("SWEET MSGWAIT: %s wq=%p type=%u\n", procname, (void *)waitq,
-+	    (unsigned)waitq_type((waitq_t){ .wq_q = waitq }));
++	/*
++	 * The waitq handed in is &port->ip_waitq, which shares storage with
++	 * &port->ip_messages.imq_waitq (union in ipc_port.h), so the owning port
++	 * is recoverable. From there ip_receiver -> is_task gives the *receiving*
++	 * task: who the process is waiting for, which the thread dump could not
++	 * answer (NOTES (53)).
++	 *
++	 * No kotype check: a message queue port is not a kobject, so ip_kotype()
++	 * rejects the very ports of interest. ip_receiver is a signed pointer,
++	 * so a bogus port panics rather than returning nonsense.
++	 */
++	{
++		ipc_port_t port = (ipc_port_t)((char *)waitq -
++		    offsetof(struct ipc_port, ip_waitq));
++		const char *owner = "?";
++		ipc_space_t space = port->ip_receiver;
++
++		if (space != IPC_SPACE_NULL && space->is_task != TASK_NULL) {
++			extern void *get_bsdtask_info(task_t);
++			extern char *proc_name_address(void *p);
++			void *p = get_bsdtask_info(space->is_task);
++			if (p != NULL) {
++				char *nm = proc_name_address(p);
++				if (nm != NULL && nm[0] != '\0') {
++					owner = nm;
++				}
++			}
++		}
++		printf("SWEET MSGWAIT: %s port=%p owner=%s type=%u\n", procname,
++		    (void *)waitq, owner,
++		    (unsigned)waitq_type((waitq_t){ .wq_q = waitq }));
++	}
 +}
 +#endif /* ARM64_BOARD_CONFIG_SWEET */
 +
@@ -2666,6 +2718,8 @@ index 503f025..f68901a 100644
 +	 * the thread dump did not work (NOTES 18:07).
 +	 */
 +	{
++		extern void sweet_msgwait_init(void);
++		sweet_msgwait_init();
 +		if (sweet_msgwait_needle[0] != '\0') {
 +			char sweet_pname[32] = { 0 };
 +			proc_selfname(sweet_pname, sizeof(sweet_pname));

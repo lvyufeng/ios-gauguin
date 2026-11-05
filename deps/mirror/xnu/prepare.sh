@@ -82,8 +82,10 @@ sdk_file() {
 	done
 	command -v xcrun > /dev/null && printf '%s/usr/include/TargetConditionals.h' "$(xcrun --sdk macosx --show-sdk-path)"
 }
-SDK_TC=$(sdk_file)
-[ -n "${SKIP_TARGET_MACROS:-}" ] || cp "$SDK_TC" bsd/pthread/sweet_libpthread/ 2>/dev/null || true
+if [ -z "${SKIP_TARGET_MACROS:-}" ]; then
+	SDK_TC=$(sdk_file)
+	cp "$SDK_TC" bsd/pthread/sweet_libpthread/
+fi
 echo "Staged libpthread-514.100.2 from the mirror"
 
 # HFS 627.100.6 (0026-stage-hfs.sh, same edits)

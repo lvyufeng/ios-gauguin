@@ -1,0 +1,131 @@
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -28,6 +28,7 @@
+ #include <sys/errno.h>
+ #include <sys/proc.h>
+ #include <sys/proc_internal.h>
++#include <sys/reboot.h>
+ #include <sys/uio.h>
+ #include <miscfs/devfs/devfs.h>
+ /* Kept identical to xnu/sweet_init_watchdog.h in the repo (deps/sync-watchdog.sh). */
+@@ -1388,6 +1389,48 @@
+ 	sweet_pstore_dump();
+ }
+ 
++/* Record before normal shutdown takes locks, waits or notifies drivers.
++ * Stage 0 is reboot_kernel; stage 1 also catches direct platform requests.
++ * Use only current-process fields: process lookup/name APIs may take locks.
++ * A flush can fail or recurse into panic, so it is best-effort and guarded. */
++void
++sweet_record_shutdown(unsigned stage, unsigned options, unsigned details, uintptr_t caller)
++{
++	static unsigned active, recorded;
++	char line[256];
++	if (stage > 1 || __atomic_exchange_n(&active, 1, __ATOMIC_ACQUIRE)) {
++		return;
++	}
++	unsigned bit = 1u << stage;
++	if (__atomic_fetch_or(&recorded, bit, __ATOMIC_RELAXED) & bit) {
++		__atomic_store_n(&active, 0, __ATOMIC_RELEASE);
++		return;
++	}
++	struct proc *p = current_thread() != THREAD_NULL ? current_proc() : NULL;
++	char name[sizeof(p->p_comm) + 1];
++	if (p != NULL) {
++		memcpy(name, p->p_comm, sizeof(p->p_comm));
++		name[sizeof(p->p_comm)] = '\0';
++	} else {
++		strlcpy(name, "<none>", sizeof(name));
++	}
++	boolean_t interrupts = ml_get_interrupts_enabled();
++	int length = snprintf(line, sizeof(line),
++	    "\nSWEET SHUTDOWN ENTRY: stage=%s pid=%d proc=%s %s=0x%x details=0x%x at=%llu caller=0x%llx irq=%u\n",
++	    stage == 0 ? "reboot_kernel" : "platform", p != NULL ? p->p_pid : -1, name,
++	    stage == 0 ? "howto" : "type", options, details,
++	    (unsigned long long)mach_absolute_time(), (unsigned long long)caller,
++	    (unsigned)interrupts);
++	if (length > 0) {
++		sweet_log_append(line, MIN(length, (int)sizeof(line) - 1));
++	}
++	/* Keep UFS polling non-sleeping, including when entered with IRQs off. */
++	interrupts = ml_set_interrupts_enabled(FALSE);
++	sweet_log_flush_panic();
++	ml_set_interrupts_enabled(interrupts);
++	__atomic_store_n(&active, 0, __ATOMIC_RELEASE);
++}
++
+ /* Called from the watchdog thread once a second (ioworkloop context): copies
+  * whatever the console has now into the ramoops console view, so a boot that
+  * just hangs - no panic, no reset, flush thread dead - still leaves the last
+@@ -1423,7 +1466,9 @@
+ 
+ /*
+  * Debug reboot timer: with sweetreboot=<seconds> the kernel panics that many
+- * seconds after the root device is up. A hung bring-up kernel cannot signal
++ * seconds after the root device is up. sweetrebootnormal=1 instead exercises
++ * the normal synchronous reboot path, to validate its persistent entry log.
++ * A hung bring-up kernel cannot signal
+  * anything, and a panic with the default panic_reboot reboots the phone, which
+  * the bootloader then sends to recovery (misc holds boot-recovery), so
+  * tools/fastboot-cycle.sh can pull the log without a human power-cycling it.
+@@ -1438,6 +1483,12 @@
+ 	}
+ 	printf("SWEET: debug reboot in %d s\n", secs);
+ 	(void)tsleep(&sweet_log_chan, PZERO, "sweetreboot", hz * secs);
++	int normal = 0;
++	PE_parse_boot_argn("sweetrebootnormal", &normal, sizeof(normal));
++	if (normal == 1) {
++		(void)reboot_kernel(RB_AUTOBOOT, NULL);
++		return;
++	}
+ 	panic("SWEET: debug reboot timer (%d s)", secs);
+ }
+ 
+--- a/bsd/kern/kern_shutdown.c
++++ b/bsd/kern/kern_shutdown.c
+@@ -178,6 +178,12 @@
+ {
+ 	int hostboot_option = 0;
+ 	uint64_t startTime;
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	extern void sweet_record_shutdown(unsigned, unsigned, unsigned, uintptr_t);
++	sweet_record_shutdown(0, (unsigned)howto, 0,
++	    (uintptr_t)__builtin_return_address(0));
++#endif
+ 
+ 	if ((howto & (RB_PANIC | RB_QUICK)) == (RB_PANIC | RB_QUICK)) {
+ 		panic_kernel(howto, message);
+--- a/iokit/Kernel/IOPlatformExpert.cpp
++++ b/iokit/Kernel/IOPlatformExpert.cpp
+@@ -992,6 +992,14 @@
+ 	uint32_t          timeout = kShutdownTimeout;
+ 	static boolean_t  panic_begin_called = FALSE;
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	if (type == kPEHaltCPU || type == kPERestartCPU || type == kPEUPSDelayHaltCPU) {
++		extern void sweet_record_shutdown(unsigned, unsigned, unsigned, uintptr_t);
++		sweet_record_shutdown(1, type, details,
++		    (uintptr_t)__builtin_return_address(0));
++	}
++#endif
++
+ 	if (type == kPEHaltCPU || type == kPERestartCPU || type == kPEUPSDelayHaltCPU) {
+ 		/* If we're in the panic path, the locks and memory allocations required below
+ 		 *  could fail. So just try to reboot instead of risking a nested panic.
+@@ -1092,15 +1100,6 @@
+ 	}
+ 
+ skip_to_haltRestart:
+-	/* SWEET: a non-panic reboot (userspace shutdown/restart) leaves a trace in
+-	 * the persistent log and in pstore, so the bring-up logs say who asked. */
+-	if (type == kPERestartCPU || type == kPEHaltCPU) {
+-		extern void sweet_log_flush_panic(void) __attribute__((weak));
+-		printf("SWEET: platform restart requested (type %u)\n", type);
+-		if (sweet_log_flush_panic) {
+-			sweet_log_flush_panic();
+-		}
+-	}
+ 	if (gIOPlatform) {
+ 		// note that this will not necessarily halt or restart the system...
+ 		// Implementors of this function will check the type and take action accordingly

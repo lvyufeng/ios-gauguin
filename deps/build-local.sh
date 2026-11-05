@@ -1,7 +1,9 @@
 #!/bin/bash
 # Build the SWEET/gauguin XNU kernel on Linux without CI and without a Mac.
 #
-#   deps/build-local.sh [gauguin|sweet] [--xnu PATH] [--out DIR]
+#   deps/build-local.sh [gauguin|sweet] [--xnu PATH] [--out DIR] [--build-root DIR]
+# --build-root isolates writable SDK/tool copies, source, objects, logs and output.
+# The installed osxcross toolchain remains an external read-only input.
 #
 # Why not GitHub Actions: every run re-clones apple-oss-distributions xnu,
 # dtrace, Libsystem, libdispatch, libplatform, AvailabilityVersions and the
@@ -25,21 +27,34 @@ cd "$(dirname "$0")/.."
 REPO=$PWD
 MACHINE=${1:-gauguin}
 shift || true
-OUT=$REPO/xnu/out-$MACHINE
+OUT=
 XNU_DIR=
+BUILD_ROOT=
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--out) OUT=$2; shift 2;;
 	--xnu) XNU_DIR=$2; shift 2;;
+	--build-root) BUILD_ROOT=$2; shift 2;;
 	*) echo "unknown argument $1" >&2; exit 2;;
 	esac
 done
 # shellcheck source=deps/versions.env
 . "$REPO/deps/versions.env"
-CACHE=$REPO/.deps-cache
+case "$MACHINE" in gauguin|sweet) ;; *) echo "unsupported machine: $MACHINE" >&2; exit 2;; esac
+CACHE=${BUILD_ROOT:-$REPO/.deps-cache}
+CACHE=$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$CACHE")
+if [ -z "$OUT" ]; then
+	if [ -n "$BUILD_ROOT" ]; then OUT=$CACHE/out-$MACHINE; else OUT=$REPO/xnu/out-$MACHINE; fi
+fi
+OUT=$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$OUT")
+[ -z "$XNU_DIR" ] || XNU_DIR=$(cd "$XNU_DIR" && pwd)
 SRC=$CACHE/$XNU_TAG
 LOG=$CACHE/logs
-mkdir -p "$CACHE" "$LOG" "$OUT"
+mkdir -p "$CACHE" "$LOG" "$CACHE/runs"
+RUN=$(mktemp -d "$CACHE/runs/$MACHINE.XXXXXX")
+STAGING=$RUN/install
+mkdir "$STAGING"
+MANIFEST=$RUN/build-manifest.json
 
 say() { printf '\n== %s\n' "$*"; }
 
@@ -75,67 +90,54 @@ fetch() {
 }
 
 say "sources (pinned in deps/versions.env)"
-fetch xnu "https://github.com/apple-oss-distributions/xnu.git" "$XNU_REV" "$SRC"
+if [ -z "$XNU_DIR" ]; then
+	fetch xnu "https://github.com/apple-oss-distributions/xnu.git" "$XNU_REV" "$SRC"
+fi
 for tree in dtrace dtrace-$DTRACE_TAG AvailabilityVersions AvailabilityVersions-$AVV_TAG \
 	Libsystem Libsystem-$LIBSYSTEM_TAG libplatform libplatform-$LIBPLATFORM_TAG \
 	libdispatch libdispatch-$LIBDISPATCH_TAG; do
 	[ -d "$CACHE/$tree/.git" ] && echo "  $tree: cached"
 done
 
-say "deps mirror (tiny trees, from the 'blobs' branch)"
-MIRROR=$CACHE/mirror
-if [ ! -d "$MIRROR/libpthread/kern" ] || [ ! -d "$MIRROR/hfs/core" ] || [ ! -d "$MIRROR/BearSSL/inc" ]; then
-	rm -rf "$MIRROR"
-	mkdir -p "$MIRROR"
-	git -C "$MIRROR" init -q
-	git -C "$MIRROR" remote add origin "$REPO_URL"
-	git -C "$MIRROR" -c protocol.version=2 fetch -q --depth 1 origin blobs
-	git -C "$MIRROR" archive FETCH_HEAD deps/mirror | tar -x -C "$MIRROR" --strip-components=2
-else
-	echo "  mirror: cached"
-fi
+say "deps mirror (tracked project inputs)"
+MIRROR=$REPO/deps/mirror
 
 # ---------------------------------------------------------------- patches
 # $PATCHED/$SRC holds the upstream tag with the whole series applied (see
 # deps/README.md for how it is seeded). Re-applying only happens when the
 # checkout is clean at the tag again.
-PATCHED=$CACHE/$XNU_TAG
-if [ -e "$PATCHED/.patch-set" ] && [ "$(cat "$PATCHED/.patch-set")" = "$PATCH_SET" ]; then
+PATCHED=$CACHE/xnu-patched-$PATCH_SET
+if [ -n "$XNU_DIR" ]; then
+	PATCHED=$XNU_DIR
+elif [ -e "$PATCHED/.patch-set" ] && [ "$(cat "$PATCHED/.patch-set")" = "$PATCH_SET" ]; then
 	echo "patched tree cached: $PATCHED ($PATCH_SET)"
 else
-	say "applying the patch series ($(ls "$REPO"/xnu/patches/*.patch | wc -l) patches)"
-	WORK=$CACHE/xnu-patched-$PATCH_SET
-	rm -rf "$WORK"
+	n=$(python3 "$REPO/tools/xnu-patches.py" list | wc -l | tr -d ' ')
+	say "applying the patch series ($n patches)"
+	WORK=$PATCHED
+	[ ! -e "$WORK" ] || {
+		echo "refusing to replace existing source tree: $WORK (use --xnu or a new PATCH_SET)" >&2
+		exit 1
+	}
 	git clone -q "$SRC" "$WORK"
 	cd "$WORK"
 	git checkout -q "$XNU_REV"
-	export MACHINE_CONFIG=$MACHINE MACOS_VERSION=13.5
-	n=0
-	for s in "$REPO"/xnu/patches/*.sh; do
-		# The two downloads dxb runs here are served by deps/mirror instead.
-		case "$(basename "$s")" in
-		*stage-*) if grep -q "apple-oss-distributions\|bearssl.org" "$s"; then continue; fi;;
-		esac
-		bash "$s" > "$LOG/$(basename "$s").log" 2>&1 || {
-			echo "  $(basename "$s") failed (see $LOG/$(basename "$s").log)" >&2; exit 1; }
-	done
-	bash "$REPO"/deps/mirror/xnu/prepare.sh "$WORK" "$MIRROR"
-	bash "$REPO"/deps/mirror/xnu/prepare-bearssl.sh "$WORK" "$MIRROR"
-	for p in "$REPO"/xnu/patches/*.patch; do
-		if git apply --check "$p" 2> "$LOG/apply-$(basename "$p").err"; then
-			git apply "$p"
-			n=$((n + 1))
-		else
-			echo "  FAILED: $(basename "$p") (see $LOG/apply-$(basename "$p").err)" >&2
-			exit 1
-		fi
-	done
-	git add -A
+	bash "$REPO/deps/apply-patches.sh" "$WORK" "$MIRROR" "$MACHINE" "$CACHE/source-state"
+	git add -A -- . ':!bsd/pthread/sweet_libpthread/TargetConditionals.h' \
+	    ':!bsd/sweet_hfs/TargetConditionals.h'
 	git -c user.email=build@local -c user.name=build commit -qm "sweet/gauguin patch set $PATCH_SET" >/dev/null
 	echo "$PATCH_SET" > .patch-set
 	echo "  $n patches applied"
 	PATCHED=$WORK
 	cd "$REPO"
+fi
+python3 "$REPO/tools/xnu-source-state.py" check "$PATCHED" --state-root "$CACHE/source-state"
+python3 "$REPO/tools/xnu-post-patch.py" "$PATCHED"
+bash "$REPO/deps/sync-watchdog.sh" "$PATCHED"
+if [ "${SKIP_TESTS:-0}" != 1 ]; then
+	XNU_SOURCE="$PATCHED" bash "$REPO/tests/run-all.sh" > "$LOG/host-tests.log" 2>&1 || {
+		cat "$LOG/host-tests.log" >&2; exit 1;
+	}
 fi
 
 # ---------------------------------------------------------------- build
@@ -146,25 +148,31 @@ if [ ! -x "$OSX/bin/aarch64-apple-darwin20.4-clang" ]; then
 	exit 3
 fi
 # osxcross tools; their runtime libraries include miniconda's libicu.
-export PATH=$REPO/deps/toolchain/hostbin:$REPO/osxcross/bin2:$REPO/osxcross/llvmbin:/usr/lib/llvm-17/bin:$OSX/bin:$PATH
+TOOLCHAIN=$CACHE/toolchain
+mkdir -p "$TOOLCHAIN"
+rsync -a "$REPO/deps/toolchain/" "$TOOLCHAIN/"
+export PATH=$TOOLCHAIN/hostbin:$REPO/osxcross/bin2:$REPO/osxcross/llvmbin:/usr/lib/llvm-17/bin:$OSX/bin:$PATH
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}/home/lvyufeng/miniconda3/lib
 # xnu's header generators look for DSTROOT/usr/local/libexec/availability.pl
 # (dxb installs it with AvailabilityVersions): keep it beside the SDK and
 # prepend it to the SDK root.
 SDKROOT=$OSX/SDK/MacOSX11.3.sdk
-DT=$REPO/osxcross/darwin-tools
+DT=$CACHE/darwin-tools
 mkdir -p "$DT/usr/local/libexec"
 [ -f "$DT/usr/local/libexec/availability.pl" ] || \
 	cp "$REPO/osxcross/dev/AvailabilityVersions/availability.pl" "$DT/usr/local/libexec/" 2>/dev/null || true
 # make_symbol_aliasing.sh takes one SDK path; the scripts only resolve
 # $SDKROOT/usr/local/libexec/availability.pl, so mirror the SDK into a
 # combined root with that file added.
-COMBINED=$REPO/.deps-cache/sdkroot
+COMBINED=$CACHE/sdkroot
+if [ -L "$COMBINED/usr" ]; then
+	echo "legacy SDK symlink would write into the toolchain; use a new --build-root" >&2
+	exit 1
+fi
 if [ ! -e "$COMBINED/usr/local/libexec/availability.pl" ]; then
 	mkdir -p "$COMBINED"
-	for e in "$OSX/SDK/MacOSX11.3.sdk"/*; do
-		ln -sfn "$e" "$COMBINED/$(basename "$e")"
-	done
+	rsync -a "$OSX/SDK/MacOSX11.3.sdk/" "$COMBINED/"
+	chmod -R u+w "$COMBINED"
 	mkdir -p "$COMBINED/usr/local/libexec"
 	cp "$DT/usr/local/libexec/availability.pl" "$COMBINED/usr/local/libexec/"
 fi
@@ -177,7 +185,7 @@ export LIBTOOL=$OSX/bin/$TC-libtool
 # host programs built by the kernel make (genassym): host clang
 # Host tools for the build machine (xnu SETUP: config, installfile, ...):
 # a wrapper adding the Darwin libc pieces glibc lacks (deps/toolchain).
-export HOST_CC=$REPO/deps/toolchain/host-cc HOST_CXX=clang++ HOST_SDKROOT=$SDKROOT
+export HOST_CC=$TOOLCHAIN/host-cc HOST_CXX=clang++ HOST_SDKROOT=$SDKROOT
 # MakeInc.cmd resolves SDKROOT through xcrun unless these are set, and the
 # recipes (bsd/sys/make_symbol_aliasing.sh) receive SDKROOT on the make line.
 export SDKROOT_RESOLVED=$COMBINED HOST_SDKROOT_RESOLVED=$COMBINED
@@ -194,18 +202,17 @@ export KERNEL_BUILDS_IN_PARALLEL=1
 # mig/iig are only used to install libsyscall headers (not the kernel)
 # installfile (SETUP) is rebuilt for Linux: the Darwin one uses fcopyfile
 # with setattrlist semantics glibc does not provide (deps/toolchain/compat).
-"$REPO/deps/toolchain/compat/build.sh" > /dev/null
-export MIG=$REPO/deps/toolchain/mig/mig
+"$TOOLCHAIN/compat/build.sh" > /dev/null
+export MIG=$TOOLCHAIN/mig/mig
 # migcom (libsyscall) and iig (DriverKit) only install those frameworks'
 # headers; the kernel does not use them. The stand-ins emit placeholders.
 export MIGCOM= IIG=$REPO/deps/toolchain/mig/iig
 SRCROOT=${XNU_DIR:-$PATCHED}
-export SRCROOT OBJROOT="$CACHE/obj-$MACHINE" SYMROOT="$CACHE/sym-$MACHINE" DSTROOT="$OUT"
+export SRCROOT OBJROOT="$CACHE/obj-$MACHINE" SYMROOT="$CACHE/sym-$MACHINE" DSTROOT="$STAGING"
 export RC_DARWIN_KERNEL_VERSION=${RC_DARWIN_KERNEL_VERSION:-23.5.0} RC_ProjectName=${RC_ProjectName:-xnu}
-mkdir -p "$OUT"
 # newvers.pl runs from the object directory and needs the stages' variables
 # from the environment (xnu's Make invocations re-export them per sub-make).
-cat > "$REPO/deps/toolchain/make-env.sh" <<ENVEOF
+cat > "$RUN/make-env.sh" <<ENVEOF
 export SRCROOT="$SRCROOT" OBJROOT="$OBJROOT" SYMROOT="$SYMROOT" DSTROOT="$DSTROOT"
 export SDKROOT="$SDKROOT" KDKROOT="" RC_DARWIN_KERNEL_VERSION="${RC_DARWIN_KERNEL_VERSION:-23.5.0}"
 export CURRENT_KERNEL_CONFIG=DEVELOPMENT CURRENT_ARCH_CONFIG=ARM64 CURRENT_MACHINE_CONFIG=$MACHINE
@@ -226,20 +233,30 @@ done
 # compiled `config`): use the Python port + stand-ins in deps/toolchain/mig
 # (the patched checkout is ours, so replacing it is safe).
 if ! head -1 "$SRCROOT/SETUP/config/doconf" | grep -q "python3"; then
-	cp "$REPO/deps/toolchain/mig/doconf" "$SRCROOT/SETUP/config/doconf"
+	cp "$TOOLCHAIN/mig/doconf" "$SRCROOT/SETUP/config/doconf"
 fi
 chmod +x "$SRCROOT/SETUP/config/doconf"
+python3 "$REPO/tools/xnu-build-manifest.py" capture --source "$SRCROOT" --sdk "$COMBINED" \
+	--build-root "$CACHE" --staging "$STAGING" --output "$MANIFEST" --machine "$MACHINE" \
+	--input "versions=$REPO/deps/versions.env" --input "patches=$REPO/xnu/patches" \
+	--input "mirror=$MIRROR" --input "build-script=$REPO/deps/build-local.sh" --input "host-tools=$TOOLCHAIN" \
+	--input "provenance-tool=$REPO/tools/xnu-build-manifest.py" --input "staging-state=$CACHE/source-state"
 set +e
-(cd "$SRCROOT" && . "$REPO/deps/toolchain/make-env.sh" && make -j"$(nproc)" VERBOSE=YES CONCISE=0 BUILD_WERROR=0 BUILD_LTO=0 \
+(cd "$SRCROOT" && . "$RUN/make-env.sh" && make -j"$(nproc)" VERBOSE=YES CONCISE=0 BUILD_WERROR=0 BUILD_LTO=0 \
 	SDKROOT="$SDKROOT" RC_DARWIN_KERNEL_VERSION=${RC_DARWIN_KERNEL_VERSION:-23.5.0} \
 	SYSCTL_HW_PHYSICALCPU="$(nproc)" SYSCTL_HW_LOGICALCPU="$(nproc)" \
 	MEMORY_SIZE="$MEMORY_SIZE_OVERRIDE" KERNEL_BUILDS_IN_PARALLEL=1 \
 	TARGET_CONFIGS="DEVELOPMENT ARM64 $MACHINE" \
-	OBJROOT="$CACHE/obj-$MACHINE" SYMROOT="$CACHE/sym-$MACHINE" DSTROOT="$OUT" install) \
+	OBJROOT="$CACHE/obj-$MACHINE" SYMROOT="$CACHE/sym-$MACHINE" DSTROOT="$STAGING" install) \
 	2>&1 | tee "$LOG/build-$MACHINE.log"
 rc=${PIPESTATUS[0]}
 set -e
 echo "  make exit $rc (log $LOG/build-$MACHINE.log)"
+cp "$LOG/build-$MACHINE.log" "$RUN/build.log"
 grep -n -E "error:|Error [0-9]|No rule|not found" "$LOG/build-$MACHINE.log" | head -20 || true
-ls -la "$OUT" || true
-exit $rc
+python3 "$REPO/tools/xnu-build-manifest.py" finish --manifest "$MANIFEST" --make-exit "$rc" \
+	--kernel "$STAGING/System/Library/Kernels/kernel.development.$MACHINE"
+mkdir -p "$OUT"
+cp -R "$STAGING/." "$OUT/"
+cp "$MANIFEST" "$OUT/build-manifest.json"
+echo "  build manifest: $MANIFEST"

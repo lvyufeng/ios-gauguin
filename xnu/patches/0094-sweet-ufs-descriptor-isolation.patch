@@ -1,0 +1,99 @@
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -76,6 +76,7 @@
+ 
+ #define HCS_DP          (1u << 0)
+ #define HCS_UTRLRDY     (1u << 1)
++#define CAP_NUTRS_MASK  0x1fu                   /* transfer slots, zero based */
+ #define CAP_64AS        (1u << 24)              /* 64-bit DMA addressing */
+ 
+ #define UFS_BLOCK       4096u
+@@ -118,8 +119,8 @@
+  * from the init path and its first flush runs while init is still inside
+  * sweet_ufs_rootdev(), which is where the boot stopped (NOTES 2026-11-03).
+  *
+- * Slot 1 + DMA_UCD_LOG + DMA_BOUNCE_LOG let the log write while any one other
+- * command is in flight, without taking the other caller's slot.
++ * A dedicated slot + DMA_UCD_LOG + DMA_BOUNCE_LOG let the log write while any
++ * one other command is in flight, without taking the other caller's slot.
+  */
+ #define DMA_UCD_LOG     0x2000
+ #define DMA_UCD_MARK    0x3000
+@@ -127,16 +128,19 @@
+ #define DMA_BOUNCE_LOG  (DMA_MARK + 4096)
+ #define DMA_SIZE        (DMA_BOUNCE_LOG + BOUNCE_SIZE)
+ 
++/* UTRDs have a fixed 32-byte hardware stride. CPU cache maintenance covers
++ * whole 64-byte lines on SWEET/GAUGUIN, so independently owned descriptors
++ * must skip alternate slots. Otherwise cleaning one descriptor can overwrite
++ * the adjacent descriptor's DMA-written OCS with a stale cached value. */
+ #define UFS_SLOT_MAIN   0u
+-#define UFS_SLOT_LOG    1u
+-#define UFS_SLOT_MARK   2u
++#define UFS_SLOT_LOG    2u
++#define UFS_SLOT_MARK   4u
+ 
+ static struct {
+ 	vm_offset_t regs;
+ 	vm_offset_t dma;                        /* kernel VA of the DMA allocation */
+ 	uint64_t dma_pa;
+ 	uint8_t lun;
+-	uint8_t tag;				/* atomic: command tag, see ufs_scsi_slot() */
+ 	uint64_t first_block, nblocks;          /* partition, in 4 KiB device blocks */
+ 	uint32_t secsize;                       /* logical sector size for the BSD layer */
+ 	bool writable;                          /* boot-arg ufsrw=1 */
+@@ -152,8 +156,8 @@
+ /*
+  * One lock per request slot. sweet_io_serial_lock still serialises everything that
+  * uses slot 0 and DMA_BOUNCE (root device, file system, partition scan); the
+- * persistent log takes sweet_log_lock and slot 1, so the two never wait on
+- * each other's completion. See the DMA_SLOT comment for why sharing was a
++ * persistent log takes sweet_log_lock and UFS_SLOT_LOG, so the two never wait on
++ * each other's completion. See the DMA layout comment for why sharing was a
+  * deadlock.
+  */
+ static LCK_MTX_DECLARE(sweet_log_lock, &sweet_ufs_grp);
+@@ -250,14 +254,9 @@
+ 	ucd->cmd[0] = 0x01;                     /* COMMAND UPIU */
+ 	ucd->cmd[1] = len ? (write ? 0x20 : 0x40) : 0x00;      /* W: data out, R: data in */
+ 	ucd->cmd[2] = su.lun;
+-	/*
+-	 * The tag must be unique among commands the controller is running at the
+-	 * same time, and since the request slots were split the callers really can
+-	 * be concurrent. Plain ++ is a read-modify-write with no atomicity, so two
+-	 * slots could stamp the same tag and a completion could be attributed to
+-	 * the wrong command. Atomic fetch-add, 1..31 (0 is reserved/not used here).
+-	 */
+-	ucd->cmd[3] = (uint8_t)((os_atomic_inc_orig(&su.tag, relaxed) & 0x1f) + 1);
++	/* Match the native UFS driver's UPIU tag to its hardware request slot.
++	 * Per-slot locks keep outstanding tags unique without counter wraparound. */
++	ucd->cmd[3] = (uint8_t)slot;
+ 	ucd->cmd[12] = (uint8_t)(len >> 24);
+ 	ucd->cmd[13] = (uint8_t)(len >> 16);
+ 	ucd->cmd[14] = (uint8_t)(len >> 8);
+@@ -430,7 +429,7 @@
+ }
+ 
+ /*
+- * The same two writes for the persistent log: slot 1 and DMA_BOUNCE_LOG, so a
++ * The same two writes for the log: UFS_SLOT_LOG and DMA_BOUNCE_LOG, so a
+  * flush does not disturb - and is not disturbed by - the root device's I/O.
+  * Callers already hold sweet_log_lock.
+  */
+@@ -584,8 +583,15 @@
+ 		printf("SWEET UFS: requests outstanding from the bootloader\n");
+ 		return EBUSY;
+ 	}
++	uint32_t cap = ufs_rd(REG_CAP);
++	uint32_t slots = (cap & CAP_NUTRS_MASK) + 1;
++	if (slots <= UFS_SLOT_MARK) {
++		printf("SWEET UFS: host has %u transfer slots, need %u\n",
++		    slots, UFS_SLOT_MARK + 1);
++		return ENXIO;
++	}
+ 	/* With RAM above 4 GiB (mkadt.py --highmem) the DMA memory can be there too. */
+-	if (((su.dma_pa + DMA_SIZE - 1) >> 32) && !(ufs_rd(REG_CAP) & CAP_64AS)) {
++	if (((su.dma_pa + DMA_SIZE - 1) >> 32) && !(cap & CAP_64AS)) {
+ 		printf("SWEET UFS: DMA memory at 0x%llx but the host has no 64-bit addressing\n",
+ 		    su.dma_pa);
+ 		return ENXIO;

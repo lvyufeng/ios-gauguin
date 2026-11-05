@@ -16,9 +16,16 @@ MEM_SIZE = 0x4d000000
 # node is <0x80000000 2G>, <0x1_00000000 0xfcc00000>; every fixed
 # reserved-memory carve-out is in the low bank and the dynamic pools are
 # limited below 4G.
+# Panic log buffer, carved from the TOP of the dram range and exposed to XNU as
+# /pram + /chosen/embedded-panic-log-size. Without it, pe_init.c's
+# check_for_panic_log() leaves gPanicBase == 0 and debug_log_init() bails out
+# twice ("gPanicBase is still not initialized") - exactly what this port logged
+# before. Upstream commit 1664d638, reproduced on QEMU and ios-fajita.
+PANIC_LOG_SIZE = 0x100000
+
 HIGH_PHYS_BASE = 0x100000000
 HIGH_MEM_SIZE = 0xfcc00000
-# gaugeuin (Redmi Note 9 Pro 5G / Mi 10T Lite, SM7125 "lagoip"): the live FDT
+# gauguin (Redmi Note 9 Pro 5G / Mi 10T Lite, SM7225 "lito" platform, lagoon): the live FDT
 # memory node is <0x80000000 0x3bb00000>, <0x180000000 0x100000000>,
 # <0xc0000000 0xc0000000> (the last one is removed_region@c0000000, i.e.
 # offline). Same rule: firmware carve-outs (modem 0x8b800000 + 248 MiB,
@@ -30,7 +37,8 @@ DEVICES = {
     # name: (low DDR bank start, root compatible tags, cpu compatible)
     # name: (low DDR start, root tags, cpu tag, big-core clock Hz)
     'sweet': (0x80000000, ('xiaomi,sweet', 'qcom,sm7150'), 'qcom,kryo470', 2304000000),
-    'gauguin': (0x80000000, ('xiaomi,gauguin', 'qcom,sm7125'), 'qcom,kryo465', 2200000000),
+    # SM7225 (lito / lagoon), NOT SM7125 (the earlier note mixed the two up).
+    'gauguin': (0x80000000, ('xiaomi,gauguin', 'qcom,sm7225'), 'qcom,kryo465', 2200000000),
 }
 # /arm-io children are relative to this; it must not be 0 (serial_init bails)
 SOC_BASE = 0x01000000
@@ -89,7 +97,7 @@ def node(name, props=(), children=()):
 
 def build(seed=None, qemu=False, highmem=False, device='sweet'):
     """qemu=True: same tree, but with QEMU virt's GIC addresses and CNTFRQ (tools/qemu-sweet.py).
-    device: 'sweet' (SM7150) or 'gauguin' (SM7125): DRAM layout and SoC tags."""
+    device: 'sweet' (SM7150) or 'gauguin' (SM7225): DRAM layout and SoC tags."""
     if device not in DEVICES:
         raise SystemExit(f'unknown device {device}')
     dram_low, soc_tags, cpu_tag, big_hz = DEVICES[device]
@@ -100,6 +108,9 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             phys_base, mem_size = HIGH_PHYS_BASE, HIGH_MEM_SIZE
     else:
         phys_base, mem_size = PHYS_BASE, MEM_SIZE
+    # Carve the panic log off the top so the kernel never allocates over it.
+    panic_base = phys_base + mem_size - PANIC_LOG_SIZE
+    mem_size -= PANIC_LOG_SIZE
     gicd, gicr, timebase = (QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE) if qemu else (GICD, GICR, TIMEBASE)
     seed = seed if seed is not None else os.urandom(64)
     phandle = iter(range(1, 1000))
@@ -113,6 +124,7 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('dram-base-low', u64(dram_low)),
         ('random-seed', seed),
         ('debug-enabled', u32(1)),
+        ('embedded-panic-log-size', u32(PANIC_LOG_SIZE)),
         ('firmware-version', cstr('sweet-shim')),
         ('system-firmware-version', cstr('sweet-shim')),
         # iBoot's SHA-384 of the boot manifest; /sbin/mount -P 1 exits unless
@@ -134,6 +146,10 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         # of the A11 that the iPhone X userland expects.
         ('unique-chip-id', struct.pack('<Q', SWEET_ECID)),
         ('chip-id', u32(0x8015)),
+        # iOS 16 references chip-revision; A11 (D22AP) silicon reports 0x10.
+        # Added alongside region-info but tested separately so the two cannot be
+        # confused (NOTES (93)).
+        ('chip-revision', u32(0x10)),
         # Security status as on a dev-fused, undemoted board (tuple 0,0,1,1):
         # MobileGestalt reads these from /chosen, and mobileactivationd's
         # DeviceType then takes its native "Hactivation" branch (state
@@ -252,8 +268,52 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
             ('product-name', cstr('iPhone10,3')),
             ('product-type', cstr('iPhone10,3')),
             ('regulatory-model-number', cstr('A1865')),
+            # iOS 16 reads region-info (it is a MobileGestalt key; the ObjC
+            # property encoding in the shared cache is
+            # T@"NSString",R,C,N,V_regionInfo, so the value is a string, not a
+            # blob). It is the only identity property iOS references that had no
+            # value anywhere in the tree. RouteLL/A is a real Apple region code.
+            ('region-info', cstr('LL/A')),
+            # The real D22AP /product node carries ~130 properties and this
+            # node had four. The values below are read out of Apple's own
+            # DeviceTree.d22ap from the IPSW (IM4P -> LZFSE -> 186 KB tree,
+            # decompressed with libcompression), NOT guessed.
+            #
+            # graphics-featureset-class is the one that matters most: it is how
+            # the renderer is told what the GPU can do. SpringBoard re-opens
+            # /product a dozen times per boot and never draws; a missing
+            # featureset class is exactly the shape of "ask, get NULL, give up".
+            ('graphics-featureset-class', cstr('APPLE4')),
+            ('artwork-device-idiom', cstr('phone')),
+            ('compatible-app-variant', cstr('0')),
+            ('artwork-dynamic-displaymode', cstr('0')),
+            ('device-color-policy', u32(0)),
+            ('siri-gesture', u32(1)),
+            ('watch-companion', u32(1)),
+            # The fallback chain the real tree lists, worst-first: if APPLE4 is
+            # not what this GPU can do, iOS drops to the next class instead of
+            # giving up. Without it there is nothing to fall back to.
+            ('graphics-featureset-fallbacks',
+             cstr('APPLE3:APPLE3v1:APPLE2:APPLE1:GLES2,0')),
+            # Both read out of the same property table in the shared cache
+            # (shard .09) as the graphics keys above, and both were absent.
+            # artwork-scale-factor is the one that catches the eye: iPhone X is a
+            # @3x device (1125x2436 for a 375x812 point grid), so an iOS that
+            # cannot find this cannot pick which artwork to load.
+            ('device-perf-memory-class', u32(4)),
+            ('artwork-scale-factor', u32(3)),
         ]
+    # /product must stay child-less. Adding a /product/haptics child (as the real
+    # D22AP tree has) sent SpringBoard and backboardd into a paired 10-second
+    # crash/relaunch loop - "SpringBoard gone" and "backboardd gone" at t=250,
+    # 260, 270... with client=0 and no presents at all, versus a stable SpringBoard
+    # with 97 IOKit calls and client=2 without it (NOTES (103), IMG_1103).
     product = [node('product', [ph()] + product_props)]
+    # /options is deliberately NOT created: IONVRAMController matches it and then
+    # panics in getNVRAMProperties("Unable to find nvram-bank-size property")
+    # because we do not publish one. Apple's own /options carries only name and
+    # AAPL,phandle, and SpringBoard tolerates its absence, so leaving it out is
+    # strictly better than the panic (NOTES (103), photo IMG_1102).
 
     # backboardd resolves IODeviceTree:/backlight and, failing that, any node
     # carrying backlight-control=true; with neither it stops its display setup
@@ -271,6 +331,13 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('reg', u32(0) + u32(0)),
     ])
 
+    # The panic log itself is NOT published. Upstream's 1664d638 also adds a
+    # /pram node holding this region; on gauguin that puts SpringBoard and
+    # backboardd into a paired ten-second relaunch loop that ran to t=400 with
+    # client=0 and no presents, while the same root and kernel with only the
+    # embedded-panic-log-size property keeps both alive (client=2, gone=0).
+    # Keep the property, drop the node until the difference is understood.
+
     # Identity of the iPhone X whose userland runs here: compatible[0] is
     # hw.model/hw.target (D22AP), model is hw.machine/hw.product
     # (iPhone10,3). 'xiaomi,<board>' stays for SweetPlatformExpert matching.
@@ -283,7 +350,8 @@ def build(seed=None, qemu=False, highmem=False, device='sweet'):
         ('manufacturer', cstr('Apple Inc.')),
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
-    ], [chosen, defaults, cpus, arm_io, fbcon, buttons, backlight] + product + ([] if qemu else [ufs]))
+    ], [chosen, defaults, cpus, arm_io, fbcon, buttons, backlight] +
+        product + ([] if qemu else [ufs]))
 
 
 if __name__ == '__main__':

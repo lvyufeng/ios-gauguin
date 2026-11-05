@@ -1,6 +1,4159 @@
-# iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
+# iOS 16 on gauguin (Redmi Note 9 Pro 5G, SM7225) - working notes
 
-## Agent handoff / active work (2026-10-15, latest)
+## Agent handoff / active work
+
+### 2026-11-05 — P0 fresh replay passes; first clean build exposes host SDK mixing
+
+Final fresh staging into `.deps-cache/p0-20261105/source` starts from Git object
+1b191cb58250d0705d8a51287127505aa4bc0789, tree
+5c0fc728332a322c2fb8fde61dfc6152a34c9ad6; Apple GitHub API independently matched
+both IDs. All91patches, fixedSDKheader, post-patch and watchdog staging pass.
+The new tree's5229files equal frozen0097 in content/type/executable bits with
+the documented three cached-only exclusions. Final report is
+`research/tmp/patch-repro-audit-20261105/p0-final-source-comparison-20261105.json`;
+source manifest SHA256 b399d8e00ec76217f7a8c43c58fa0f8c8e8170bd6692b40b1db6552f0ff55911.
+
+The first genuinely isolated native build FAILED, makeexit2. It correctly did
+not publish a kernel. Log `research/tmp/p0-clean-native-build-20261105.log`,
+failed manifest `.deps-cache/p0-20261105/build/runs/gauguin.j373g4/build-manifest.json`.
+The failure is in HOST SETUP tools, not a newly identified kernel bug:
+installhdrs replaces sys/cdefs.h in the kernel SDK copy with XNU's older header,
+while modern SDK libc headers still require __alloc_align and
+__swift_nonisolated_unsafe. build-macos incorrectly points HOST_SDKROOT_RESOLVED
+at this mixed kernel SDK. Original system SDK has the macros. Old and new
+kernel SDK headers match; old cached SETUP binaries had hidden the problem.
+Fix implemented and nine build fixtures pass: host tools use the pristine
+system SDK; target kernel retains the isolated staged SDK. The manifest records
+both SDK identities/cdefs hashes; CI also hashes generated framework headers.
+No per-header macro workaround or copied old binary. Failed target object/symbol
+directories were moved to obj-failed-sdk-mix/sym-failed-sdk-mix inside the P0
+build root, so the retry will rebuild all target objects.
+
+Host checks on final replay passed in
+`research/tmp/p0-build-script-host-tests-20261105.log`;8build fixtures also test
+stale-output rejection and propagation of a failing CI installhdrs before its
+success marker. CI profile13.5/source pins, strict staging, unique publication
+stage and input manifests are implemented but not yet committed or CI-qualified.
+Review also requested a digest of generated framework/private headers, not just
+fakeroot/usr/local. Real native build is being used to close actual gaps.
+
+Recovery was read-only checked: TWRP3.6.2.1B-gauguin, battery100%,31.8C. No
+new boot has been performed. Original UI artifacts remain hash-verified.
+Parallel GPU audit is saved as `research/tmp/ui-gpu-abi-audit-20261105.txt`:
+flame uses NativeAdreno ABI1 while current UniXNU hasABI2; the exact Mesa/m2v
+patch set must be pinned. First headless GPU memory-write/fence test can avoid
+the full Rust/Metal toolchain. No GPU implementation or hardware test yet.
+
+### 2026-11-05 — revised app goal ACTIVE; P0 source equivalence verified
+
+The user set the revised objective in the app and resumed it. get_goal confirms
+active status. The preceding planning turn made progress by committing the
+staged plan622ef08; no no-progress blocker applies. P0 is now executing, on
+branch `codex/gauguin-p0-repro-20261105`. Remote main is ancestor fef77ed;
+local work is128commits ahead,0behind before this P0 implementation.
+
+The known UI kernel/image/ADT and0097 kernel were SHA-256 checked and match
+the recorded full hashes. Cached0097 source is frozen under
+`research/tmp/patch-repro-audit-20261105/frozen0097/`.
+Full bidirectional tree scan found **5229common files with identical bytes**,
+no replay-only files and no symlinks. All executable bits match.5184ordinary
+mode differences are cache group-write bits (664/644 or775/755); watchdog
+header is600/644. These access permissions are explicitly normalized, not
+claimed byte-for-byte filesystem metadata identity.
+
+Three cache-only files are explained: .patch-set local tag, generated lldb
+Python bytecode, and unreferenced bsd/kern/sweet_probe.c. A full source search
+finds that probe only in itself; nm of0097kernel contains none of its symbols.
+Raw manifests and qualified report are under the audit directory as
+`p0-{cached,replay97}-source-manifest-20261105.json`,
+`p0-source-compare-{raw,qualified}-20261105.json`. The qualified result passes
+with those explicit non-build exclusions. This supersedes the old0091-only
+full-source-compare.json; clean compilation and device regression are pending.
+
+Build/CI work is being corrected to isolate all SDK/obj/sym/log/install paths,
+reject stale kernel success, record inputs, and reject unsupported profiles.
+Independent review found prepare.sh wrongly resolves SDK headers even when
+SKIP_TARGET_MACROS=1, breaking Linux staging; that fix is included in P0 scope.
+No CI run is live: most recent39957353555 ended failure at3a2f529. No new device
+operation has started. GPU ABI/source audit proceeds read-only in parallel.
+
+### 2026-11-05 — revised engineering goal and staged implementation plan
+
+The user approved the comparative recommendation and requested an updated goal
+and a plan for staged implementation. This entry is the current engineering
+scope and supersedes earlier next-action/paused-work prose for planning.
+At planning time the app-managed goal was still paused and the available
+tools could not edit its objective or resume it. The user has since updated the
+objective and activated it; see the newer P0 entries and verify with get_goal.
+No new build or device operation was started during the planning turn itself.
+
+**Revised goal text (ready for the app's goal field):**
+
+> 在红米 Note 9 Pro 5G（gauguin，SM7225／Adreno 619）上，保留已验证的原厂引导＋shim＋XNU／iOS 16 基线，复用已有实机成功的开源组件，分阶段实现真实 GPU／Metal 加速、全部安全可用 RAM 与可靠持久存储、触摸及手机外设、90／120 Hz 高刷，以及联网、通话、充电、休眠等日常功能。以本机实测的稳定性、帧率、功耗和应用兼容性验收；未完成的关键功能保持未完成状态，不以进入主屏幕、虚拟容量或占位驱动代替完成。保留恢复能力和备份，任何破坏性写入逐次确认。
+
+**Architecture decision:** keep this device's working ABL/shim/XNU path. GPU
+integration first follows ios-flame's iOS16-compatible UniXNU Metal frontend,
+metal2vulkan and Mesa Turnip, backed by a real A619 kernel driver. HakiOS is a
+reference for A6xx hardware and display/presentation; its direct Metal path can
+be a later measured alternative. Do not wholesale migrate to UEFI merely to
+obtain GPU support. Reconsider that decision only for a demonstrated blocking
+interface that cannot reasonably be solved in this baseline.
+
+**Evidence baseline:** real iOS lock/home UI was user-confirmed and its log
+records at least409.354seconds,57swaps/52presents/client2. Working kernel
+7baffcae... and image d5235255... are preserved with full hashes below.
+New0097 kernel cdca3c7f... has compiled and passed host tests but has NOT booted.
+True touch is Novatek SPI, not the old Focaltech I2C probe. GPU is currently a
+stub, display is CPU copied, and all-RAM/high-refresh/daily use are unverified.
+
+**Dependency order:** P0 -> P2a -> P3a -> P3b -> P4. P1 runs alongside P2a;
+GPU source/ABI/firmware audit starts during P0/P1. P2b and independent P5 work
+can run alongside the GPU work. A usable runtime debug channel is desirable,
+but USB completion must not indefinitely block GPU experiments: retain the
+verified UFS log path. Basic temperature/power limits precede GPU stress;
+complete sleep/resume follows working storage, GPU and display suspend paths.
+
+| Phase | Work | Exit evidence required | Current state |
+| --- | --- | --- | --- |
+| P0 Reproducible baseline | Freeze rollback artifacts, complete source replay and compare, review build/CI changes, build clean, temporary-boot regression | All source differences explained; tracked inputs/toolchain; passing host checks; successful clean kernel build with run/log/hash; repeated lock/home UI with continuous logging for at least10minutes and no new panic/UFS faults; recovery still usable | Partial:91-patch replay and host suite pass; full0097 comparison, clean build and device regression pending |
+| P1 Input and observability | Correct Novatek SPI driver and HID delivery; keys; live logs/status and preferably file transfer through a runtime channel | Chip/FW identity verified, bounded SPI including67-byte frames, contact down/move/up and multitouch, correct coordinates/edge gestures, no stuck contacts or UI regressions in30minutes of exercised use; successful live diagnostic read, with UFS fallback retained | Native hardware/protocol audited; no working XNU touch driver yet |
+| P2a Memory/DMA/storage correctness | Verified reserved regions, CPU/GPU DMA mappings, cache ownership, UFS bounds/errors/flush and journal behavior | Pattern/hash checks on owned buffers and bounded filesystem test files; synchronized restart retains data; error/timeout paths terminate; no out-of-partition or reserved-memory access | Existing UFS boots real root; recent bounds/cacheline fixes need broader qualification |
+| P3a Real A619 GPU | Board-correct clocks/power/firmware/SMMU/GMU/CP; owned buffers, submission, completion and recovery | A command really executes on A619, fence completes, known pixels/hash read back correctly; repeated submissions and error recovery work; kernel/UI survives; basic temperature/frequency monitoring active before stress | Source/firmware/ABI research only |
+| P3b Metal and iOS rendering | Port flame/UniXNU frontend and Turnip ABI; compile shaders on device; integrate IOSurface and system compositor | Standalone clear/triangle/texture/compute checks, cross-client buffer lifetime/fences, correct pixels, then backboardd/SpringBoard and representative stock/third-party apps demonstrably use GPU; failures are reported instead of fake success | Not implemented |
+| P2b Full usable capacity | Describe all safe RAM banks; make intended userdata capacity available; improve storage throughput/recovery | XNU's real allocatable RAM reconciles with physical banks minus documented reservations; filesystem/block capacity and read/write addressing agree; pressure/reboot checks pass | Deferred behind GPU correctness, not forgotten; resizing/reformatting needs specific approval |
+| P4 Presentation and high refresh | Correct native-panel60Hz presentation, then90/120Hz DPU/DSI/DSC modes and synchronization | Measure actual scan period independently from timer callbacks; report rendered/presented fps, p50/p95/p99 frame times, dropped/torn frames, temperature and power on fixed workloads; normal and warm sustained runs; touch survives modes and display resets | No real high-refresh implementation |
+| P5 Daily phone functions | Wi-Fi/BT, RTC, audio/calls, media decode, camera, sensors/GNSS/haptics, battery/charging/thermal, modem/SIM/network/voice/SMS/data, sleep/resume, application/service compatibility | Separate per-function device tests, actual outputs and recovery; modem registration is separate from SIM detection and voice/IMS/data; charging verified with measurements; full-device sleep/wake restores storage/GPU/display/input/radio | Mostly absent/unverified; interface feasibility audit starts early |
+| P6 Daily-use qualification | Integrated endurance and usability against an explicit capability matrix | Target24hours mixed operation,8hours screen-off idle, repeated cold/warm boots and at least50sleep/wake cycles, charging/network/call tests, data integrity, stable representative apps and repeatable high-refresh measurements; no unexplained failures | Not started |
+
+P4 target is genuine high-refresh operation at native panel resolution, with
+60fps as the initial performance gate and90/120Hz as subsequent targets.
+A panel advertising120Hz or reduced-resolution short benchmark does not pass
+120fps qualification. Sustained120fps, if not achieved, remains an open result;
+do not silently rename a lower-frame-rate mode as meeting that target. Record
+workload, resolution, governor, wallpaper configuration and test duration.
+The endurance counts above are planned engineering gates, not completed tests
+or a prediction that the hardware will meet them without further work.
+
+**Important device-specific prerequisites:**
+
+- A619 may require a below4GiB GPU virtual-address space; do not copy A640's
+  high GPU-VA layout. This does not imply a4GiB physical-RAM limit. Verify
+  XNU16KiB CPU pages -> SMMU4KiB mapping, >4GiB physical backing, cache aliases,
+  IOSurface pin/unpin and process isolation before compositor integration.
+- The actual Novatek unit matches NT36675_memory_map (event buffer0x22d00)
+  despite NT36672C firmware naming. Use captured identity, not marketing name.
+  SPI transfer67bytes exceeds the64-byte FIFO; preserve CS and drain final RX.
+  Firmware downloads, when needed, target volatile SRAM via the native protocol.
+- Live Tianma display configuration lists120/90/60/50/48/30Hz; preferred mode
+  is60Hz. DSI porch/clock switching and shared touch/display reset need real
+  implementation. Software vsync rate alone is not evidence.
+- Baseband/IMS, camera/ISP, sleep and secure storage/platform services receive
+  early feasibility reviews. Unsupported Apple services or missing security
+  hardware stay explicit limitations; do not claim iPhone-equivalent security
+  or daily completion by substituting stubs. Any accepted scope exception
+  requires the user's decision, not an agent redefining success.
+
+**First concrete implementation batch: P0 only.**
+
+1. Preserve working artifacts and snapshot0097 source; inventory the pending
+   changes without mixing the pre-existing tools/mkadt.py edit.
+2. Compare fresh replay97 against the full authoritative0097 source tree after
+   identical post-patch/SDK/watchdog staging, in both directions. Track modes
+   and symlinks as well as content. List explicit generated-file exclusions.
+   The old full-source-compare.json covers0091, NOT0097.
+3. Review source pins and all build entry points. build-macos --xnu/--out does
+   not isolate OBJROOT/SYMROOT/SDK/logs; use a separate checkout/build root or
+   add an explicit isolated root while retaining current defaults.
+4. Validate and commit only the finished reproducibility changes. Use gh for
+   the clean GitHub Actions build; record commit, runID, exact inputs, logs and
+   artifact hashes. Any CODEQL=1 dxb path fixups must be documented as such.
+5. Boot that new artifact temporarily with the known UI parameters and disabled
+   old touch probe, then collect matching logs and verify P0's device criteria.
+   A failed regression returns to the preserved image; it does not overwrite it.
+
+**Execution rules:** one hardware subsystem/change per controlled experiment;
+relevant host checks plus device evidence; keep observation separate from
+inference. At every milestone update this handoff with commit/run/image/log
+identities and remaining work. Do not mark a stage complete from a screenshot,
+API success, host test or stub alone. Keep dumps, serials, Apple files and
+firmware outside git. Preserve bootloaders/recovery/modem/persist/backups;
+confirm each destructive write before running it. No device is rebooted merely
+to satisfy a wall-clock progress update.
+
+**Pinned starting references from the completed review:**
+
+- ios-flame745c4341: https://github.com/NWylynko/ios-flame/tree/745c4341af86089efb0df851fa8a27fb8face624
+- HakiOS87bf4851: https://github.com/oosexgang/hakios-xnu-kernel/tree/87bf4851bcc9cbb24fd79997820aa3661abe4ea5
+- UniXNU-sheng46017956: https://github.com/UniXNU/UniXNU-sheng/tree/460179565a018c741b93e0b1efa07c55d4de497a
+- UniXNU-tb128fua9c3863d: https://github.com/xVanTuring/UniXNU-tb128fu/tree/a9c3863dedbee6f319bff16d3b609ec6cef409bf
+
+### 2026-11-05 — implementation PAUSED by user; comparative architecture review
+
+User explicitly paused device/driver work to compare the current port, UniXNU
+and HakiOS against GPU acceleration, complete RAM/storage, high refresh and
+daily phone operation. Goal status is paused. Phone remains in TWRP; do not
+resume boots, firmware or implementation until the user resumes. Completed
+stable-default/PON changes are committed as **e04033a**, UI milestone as570ba62.
+
+Reproducibility work was stopped with uncommitted changes: explicit91-patch
+series through0097, aggregate baseline, patch/SDK tools, build/CI scripts,
+source-path test plumbing and two new tests. Fresh isolated replay97 and its
+full host suite passed exit0. Complete source-byte comparison, clean kernel
+build and CI execution were NOT completed. Keep this pending work distinct
+from the successfully built main cache and known UI-producing kernel.
+
+The user requested GitHub examples with actual reported hardware success.
+Read-only review verified HakiOS redwood/A642L (87bf4851, current spelling
+hakios-xnu-kernel), ios-flame/A640 (745c4341), ios-topaz/A610 (e4772911, branch
+is topaz; main README is old), UniXNU-sheng/A740 (46017956) and community
+UniXNU-tb128fu/A610 (a9c3863d). These have GPU source and author-reported device
+results, but do not establish complete daily-phone functionality on gauguin.
+Flame explicitly integrates UniXNU Metal frontend/bridge and Mesa into an
+ios-sweet/ABL boot chain. Thus borrowing the graphics stack does not require
+replacing the currently working gauguin boot chain with UEFI. Current local
+UniXNU-gauguin BRINGUP retracts old arm_init claims; it lacks post-MMU/UI proof
+and selected GPU/input/display drivers. No A619 complete hardware success was
+verified in the reviewed sources. Recommendation will distinguish retaining
+the current device baseline from reusing mature external driver components.
+
+### 2026-11-05 — UI run recovered: >409 seconds, presentation active; real touch is Novatek SPI
+
+User manually returned to TWRP after the successful UI run. Observer ended at
+363seconds without recovery; its attempted pull failed and removed OUT as
+intended. Fresh recovery pull saved as
+`research/tmp/ui-touch-off-recovered-20261105.txt` (+.bin), banner13:38:21
+matches known UI kernel. Ring total301640bytes/flush421/4151lines. It confirms
+`SWEET TOUCH: mode 0, bring-up skipped`, no captured panic/shutdown entry,
+PET400 at7859599836ticks (**409.354seconds**), framebuffer57swaps/52presents/
+client2 near the end. Key/HID events were delivered while the user returned to
+recovery. This is sustained rendering evidence alongside the user's lock/home
+visual confirmation. Exact total runtime is not inferred beyond recorded ticks.
+
+Real recovery input is **NVTCapacitiveTouchScreen**, event4; spi2.0 is bound to
+PA0x880000. Current native dmesg identifies trim0c0000726603 and selects
+`novatek_nt36672c_j17_fw01.bin`; download completes, FWversion16, PID5937.
+Live DT SPI CS0/mode0/10MHz; RST21/IRQ22, swrst0x3f0fe/fast-read0x3f310.
+The prior Focaltech/I2C variant assumption does not match this unit. Fixed
+Lineage source includes the Novatek firmware as ihex; no firmware/device dump
+is committed. Read-only interface inventory is
+`research/tmp/ui-nvt-recovery-interfaces-20261105.txt`. Vendor recovery files
+named novatek_ts_tianma_fw.bin etc are139264bytes; do not assume they equal the
+actual built-in fw01 merely from panel name. Hardware/firmware audits ongoing.
+
+Patches0096(PON/charger evidence) and0097(default touch probe off, blind GCC
+scan removed) compile successfully with all hosttests, makeexit0, log
+`research/tmp/ui-stable-default-build-20261105.log`. Saved new kernel
+`research/k-ui-stable-default-20261105`, SHA256
+`cdca3c7fd9127164082d7456b4a7fec9381964bae63047965ea1fbd669294298`.
+This newer build has not yet booted; retain the proven7baffcae kernel/image.
+Phone is now TWRP. Next work is correct Novatek SPI input, preserving the UI
+baseline and not enabling the known-wrong experimental Focaltech path.
+
+### 2026-11-05 — USER CONFIRMS iOS LOCK/HOME UI with touch probe skipped
+
+**Milestone: user reports an iOS lock/home interface on the actual gauguin.**
+At >160seconds after the touch-off boot, host still had no recovery; user then
+answered "出现 iOS 界面" and clarified "锁屏或主屏幕". This is user visual
+confirmation, not a captured screenshot. Physical touch functionality has NOT
+been established: the unfinished hardware probe is disabled. Full-iOS goal
+remains active; do not call complete or assume networking/audio/camera works.
+
+Preserve the known UI-producing artifacts unchanged:
+- kernel `research/k-ui-shutdown-entry-20261105`, SHA256
+  `7baffcae773ba7f15549f1c02cc26cad48e7d67c34152a8530f1bb2fb55e3233`;
+- image `shim/out/shim-ui-touch-off-20261105.img`, SHA256
+  `d5235255e1d7b449497570469ec77c34690ae1e51e125ea0afed0d71eb5b2c8e`;
+- ADT `research/tmp/ui-sampler-20261105.adt`, SHA256
+  `7d6d93bea46bb80331d76238be295137ea33bbe8e3109789c68f4f0e45a291ff`;
+- payload `research/tmp/ui-touch-off-20261105.bin`;
+- send16688KB0.394s, boot0.135s, total0.534s;
+- commandline (before shim's appended hardware fields):
+  `debug=0x8 serial=3 cpus=8 keepsyms=1 -noprogress rd=ufsroot0 unentitled_ios_sim_launch=1 ignition_level=1 ufsrw=1 rootrw=1 launchd_unsecure_cache=1 sweetlog=1 sweetlogms=500 sweetfb_noconsole=1 sweetufsquiet=1 sweetsample=SpringBoard,backboardd,iconservicesagent,cfprefsd sweetsampledelay=20 sweetsampleinterval=10 sweetsamplecount=16 sweetwdtpet=1 sweettzsample=1 sweettouchmode=0`.
+
+Commits7c09029(UFS/TZ),7ea5cb9(normal reboot entry) underpin this build. The
+360second observer is still pending; it cannot read the ring while iOS owns
+USB. User was told to keep running. Later recovery/log pull must preserve this
+run separately and compare banner. No automatic forced reboot is performed.
+
+Next code prepared:0096 fixes PON evidence and reads charger WD config only;
+0097 makes gauguin's unfinished touch probe opt-in and deletes the proven bad
+GCC blind walk. These are not yet in the UI-producing kernel. Touch audit also
+found incorrect clock offsets/vote bits, invalid stageG GPIO offsets, unset
+st.se/st.gpio, incorrect timer units and Focaltech protocol. Do not simply turn
+probe back on after removing the walk; restore touch against native sources
+in a separately validated change. User-visible UI is an intermediate milestone.
+
+### 2026-11-05 — captured touch GCC data abort; no-touch control running
+
+Patch0095 native build passed, kernel `research/k-ui-shutdown-entry-20261105`,
+SHA256 `7baffcae773ba7f15549f1c02cc26cad48e7d67c34152a8530f1bb2fb55e3233`.
+The extracted-function shutdown test passes eight scenarios, including IRQ
+restore, recursive/duplicate entry, missing proc/thread, bounded nonterminated
+name and opt-in normal reboot. Controlled image
+`shim/out/shim-ui-shutdown-control-20261105.img`, SHA256
+`b59c06c3d4c41137c5e7e19458b65071a1395a3053ffa5a50fbcb2d29007d5a6`,
+send16688KB0.392s/boot0.134s/total0.533s, returned to TWRP101s. User confirmed.
+Log `research/tmp/ui-shutdown-control-boot-20261105.txt` **validates both new
+records**: reboot_kernel howto0 at1037688627ticks, platform type1 at1105066911.
+Launchd receives SIGTERM and completes shutdown through MACH Reboot; kernel
+periodic threads continue afterwards. There is no implemented platform reset
+hook found, so a completed software reboot is not established by this test.
+
+**New decisive observation in this control:** the independent touch bring-up
+thread (default45second delay after root init) starts late, scans GCC pages,
+and raises Kernel data abort. PC0xfffffe00074ef6d8 is actual kernel
+_touch_bringup+0xc8, `ldr w9,[x8]`; LR74ef700 is the loop's printf return.
+Last completed page0x9000, fault x8=0xfffffe4017d56000, mapping
+VA0xfffffe4017d4c000: next page0xa000, PA **0x0010a000**. It is within the
+mapped0x60000 span; enlarging the mapping is not a fix. The probe blindly
+reads unsupported hardware registers. Natural runs had the same45s probe
+queued but did not preserve its tail, so common causality awaits a control.
+
+Current temporary no-touch image `shim/out/shim-ui-touch-off-20261105.img`,
+SHA256 `d5235255e1d7b449497570469ec77c34690ae1e51e125ea0afed0d71eb5b2c8e`,
+uses identical0095kernel+ADT, normal8CPU boot, no deliberate reboot timer,
+`sweettouchmode=0` and16process samples to cover longer operation. Observer
+360seconds: `research/tmp/ui-touch-off-cycle-20261105.log`, pending log
+`research/tmp/ui-touch-off-boot-20261105.txt`. Do not interpret absence of adb
+as continued kernel execution without later device/log confirmation.
+
+### 2026-11-05 — correcting reset-evidence assumptions; normal shutdown trace
+
+Completed UFS/live diagnostic work is committed as **7c09029**. Subsequent
+read-only recovery evidence is in `research/tmp/ui-onecpu-recovery-dmesg-20261105.txt`.
+Immediately after this XNU-to-recovery cycle, the native driver reports SID0
+PM6350 PON at0x800, power-off from **PS_HOLD (MSM controlled shutdown)**;
+SID2 PM7250b and SID4 PM6150l report SOFT. This names the PMIC input, not the
+software/firmware caller; it does not establish a userland reboot.
+
+Fresh actual recovery FDT saved as `research/tmp/ui-recovery-live-20261105.dtb`
+(588757bytes), decompiled alongside it. Root is Qualcomm Gauguin/lagoon-qrd.
+Current XNU PON code wrongly reads SID6 PMK8350 at0x1300; its zero values are
+not evidence about the active primary PMIC. The old unpacked mainline-style
+DTS also contains the correct SID0 pon@800 plus an unrelated SID6 pon@1300;
+the earlier claim that PM6350 had no PON node is false. Actual SPMI controller
+base0xc440000 already matches the port: the logged0x50010000 is its **version**,
+not its address. Raw DT and recovery state remain ignored and must not enter git.
+
+Patch0095 adds first-entry persistent records before reboot_kernel waits/locks
+and before platform halt/restart notifications. This closes a real diagnostic
+gap: old output only appeared late, and ARM64 has no observed registered
+PE_halt_restart implementation, so normal shutdown can stall without a panic.
+This is a source-level possibility, not a captured cause. Optional control uses
+`sweetreboot=15 sweetrebootnormal=1` for normal sync reboot; default timer still
+panics. Build log `research/tmp/ui-shutdown-entry-build-20261105.log`, pending.
+
+### 2026-11-05 — UFS fix hardware result and single-core control
+
+Patches0093/0094 were compiled together and booted successfully. Native build
+`research/tmp/ui-ufs-isolation-build-20261105.log` exited0 with all host tests
+passing. Kernel `research/k-ui-ufs-isolated-20261105`, SHA256
+`888970aec301f3762e5d4ec18dda6a3d8c0208cfcd7ffd0373260520695d0c57`.
+Eight-core image `shim/out/shim-ui-ufs-isolated-20261105.img`, SHA256
+`7053c4a212fb793f01cea748cf950465ab09b8f6809092979eff9dd044625f81`.
+Cycle `research/tmp/ui-ufs-isolated-cycle-20261105.log`: send16688KB0.395s,
+boot0.135s, total0.538s, automatic recovery **101s**. Log
+`research/tmp/ui-ufs-isolated-boot-20261105.txt` contains1955lines and no UFS
+OCS/timeout/write failures. TZ SRAM14696000/3000 maps successfully, empty ring
+through70samples. HYP801fc000/2000 has S2faults0 and unchanged ring. No first
+panic record. These observations do not identify the reset source.
+
+The identical kernel and ADT were then booted with only cpus8 changed to cpus1.
+Image `shim/out/shim-ui-onecpu-20261105.img`, SHA256
+`148fd58684fe970d7eda0c9c9646d236c3742b6533d3254df274e3c7e566a553`.
+Cycle `research/tmp/ui-onecpu-cycle-20261105.log`: send16688KB0.397s,
+boot0.134s, total0.538s, recovery again **101s**. Log
+`research/tmp/ui-onecpu-boot-20261105.txt` confirms requested1/selected1 and
+1/1 initialized, contains1586lines, reaches launchd/SpringBoard/backboardd.
+User reports return to TWRP. UI remains unavailable; panel has no connected
+client. Single-core runtime did not change the observed reset time. No panic
+record or UFS completion error was captured; best-effort final flush can still
+miss events. Normal reboot/powerdown entry points are now being audited.
+
+No new GitHub Actions build was dispatched. All images were temporary fastboot
+boots. No partition restoration or repartitioning was performed. Previous
+notes below describe earlier stages; the two tests above supersede their
+pending hardware/build statements.
+
+### 2026-11-05 — panic capture validated; live firmware logs and UFS descriptor fix
+
+Commits **355f099** (early FB) and **0e9ceeb** (panic entry and safe polled-I/O
+logging) are complete. The first controlled panic was recovered after the user
+manually returned to TWRP. `ui-panic-control-recovered-20261105.txt` contains
+66727 bytes, flush1, matching the new banner, and the exact first panic
+`SWEET: debug reboot timer (15 s)` plus debug8/hold0/caller. This validates the
+capture path, although its initial version caused a second console panic while
+flushing with IRQs disabled. User photo `/Users/baai/Downloads/IMG_1109.HEIC`
+shows `Console I/O from interrupt-disabled context @serial_console.c:168`.
+Patch0092 routes all eight reachable UFS flush diagnostics directly to the
+lock-free ring in IRQ-off context. Tests verify routing, format safety, bounds
+and the actual callsites. The photo and conversions stay outside git.
+
+The subsequent normal image `shim-ui-earlyfb-safe-20261105.img` still returned
+to recovery at **100s** according to its cycle transcript, with no first-panic
+record. An interim chat update based on message timing incorrectly suggested
+longer runtime; use the cycle timer. Kernel
+`research/k-earlyfb-panic-safe-20261105`, SHA256
+`5b69056333004a64c8bab7fa9535a09bfcc602b23d10533e50accf3b043587ee`.
+Image SHA256 `ede7a3f9a87d6d1dffb4592e103f20c8a96e698b934bc00002dd6d7bac7a96a7`.
+Raw log `research/tmp/ui-earlyfb-safe-boot-20261105.txt`. A busy panic flush
+trylock can still lose the last record, so this remains qualified evidence.
+
+Optional live secure diagnostics are prepared in patch0093. First hardware run
+`shim-ui-tz-20261105.img` returned101s. HYP buffer at0x801fc000/0x2000 was valid,
+with S2faultcounter0 and unchanged log tail over seven10s samples. TZ pointer
+was0x14696000/0x3000, rejected by the initial DRAM-only guard. Native tz_log
+exposes TZ9.1 from the same firmware-published pointer interface. The revised
+guard adds exactly this SRAM extent; direct recovery /dev/mem read yielded no
+bytes. Revised code polls1s, prints status on change/every10, tail on change,
+and caps300rounds. tests/test_secure_diag.py extracts real code and tests bounds,
+SRAMwhitelist, headers, positions, quiet logging and scheduling. No SRAM-inclusive
+hardware run yet. `ui-tz-boot-20261105.txt` is the initial DRAM-only run.
+
+**Current build includes a concrete UFS fix, patch0094.** 32-byte UTRDs for
+MAIN0/LOG1 share one64-byte cacheline. XNU's actual MMU_CLINE=6 maintenance
+cleans wholelines, allowing stale OCS0xf to overwrite an adjacent DMA completion.
+New slots0/2/4 occupy separate lines; CAP must expose at least5 before takeover
+writes. UPIU tasktags equal their hardware slots, matching pinned native gauguin
+ufshcd.c; the rotating shared counter was incorrect. The old layout corruption
+is demonstrated by a host negative control. tests/test_ufs_descriptors.py checks
+the actual preparation/takeover, all six slot pairs, CAP bounds and tag reuse.
+Marker tests now derive the actual slot macro. Saved driver baseline
+`research/tmp/ufs-descriptors-before-20261105.c`. Hardware causality is pending.
+Build in progress `research/tmp/ui-ufs-isolation-build-20261105.log`.
+
+Reproducibility audit also found a viable isolated replay: 0001–0082 (0026 needs
+hunk count correction), then complete cached legacy delta, then0090 onward.
+Candidate `research/tmp/patch-repro-audit-20261105/candidate-pre0090.patch`
+reproduces5215tracked sources plus3required files when staged with the existing
+SDK inputs. Current0083/0084/0086 are overlapping cumulative patches, not an
+incremental sequence. Adoption still needs path fixes in sync-watchdog/tests
+and a clean build; no active series files have been replaced by that audit.
+
+### 2026-11-05 — active full-iOS goal, correcting early framebuffer and panic capture
+
+The active user objective is complete iOS operation on Redmi Note9 Pro5G
+gauguin. GUI bring-up is an intermediate milestone. The previous continuation
+made progress through verified writes/SMC/reset evidence; no completion claim
+has been made. The goal remains active.
+
+Re-auditing the authoritative binary and source found two concrete defects.
+
+1. `start.s` has two early framebuffer constants, `arm_vm_init.c` installs its
+   alias, and `sweet_early.c` initializes its pointer at sweet PA0x9c000000.
+   Gauguin splash is PA0xa0000000. Actual old kernel disassembly confirms its
+   stage stripe writes0x9c9c1800. Patch0090 selects0xa0000000 for GAUGUIN and
+   retains0x9c000000 otherwise. New disassembly writes0xa09c1800. Pixel range
+   [0xa0000000,0xa09e3400), map range[0xa0000000,0xa2000000) fit the actual
+   reserved splash[0xa0000000,0xa2300000). The incorrect old range overlaps no
+   named fixed reserved region in saved stock DTB; its dynamic use is unknown.
+2. `panic_trap_to_debugger` never called `sweet_log_flush_panic`. The existing
+   early panic display is disabled after serial initialization. Moreover,
+   current boot logs still report gPanicBase uninitialized, contrary to an older
+   note claiming the size property alone fixed it. `SavePanicInfo` waits forever
+   with missing panic info. Thus the absence of persistent panic records and
+   prior debug=0xc result do not exclude XNU panic.
+
+Patch0091 writes a bounded first-panic record directly to the console ring
+before machine panic/rendezvous, then best-effort flushes with IRQs disabled.
+It logs caller/reason/options/debug/hold and formats a va_copy of the original
+arguments. Atomic recursion guard and bounded511-byte body protect this path.
+`tests/test_panic_record.py` passes six cases (bounds,varargs,IRQ restore,
+missing callbacks,nested entry). Normal panic handling still follows the hook.
+
+Native build of both changes passed, makeexit0, all existing hosttests passed,
+log `research/tmp/ui-earlyfb-panic-build-20261105.log`. Kernel saved as
+`research/k-earlyfb-panic-20261105`, SHA256
+`0bad4c547b102e912d2763c0e3a7a41eed1ff2a4a7f05e1910bfb1d12172fe48`.
+Original files are under `research/tmp/earlyfb-before-20261105/` and
+`research/tmp/panic-entry-before-20261105/`.
+
+**Controlled validation running**: temporary image
+`shim/out/shim-ui-panic-control-20261105.img`, SHA256
+`b43d5bb2eade239b07047c520e45ef46a8508a66cc5bd5a8e5dbd577b9fff556`, uses
+`sweetreboot=15` to deliberately panic after root-device initialization. Same
+highmem ADT, cpus8 and sweetwdtpet1. Send16668KB OKAY0.391s, bootOKAY0.135s.
+Pending log `research/tmp/ui-panic-control-boot-20261105.txt`, cycle transcript
+`research/tmp/ui-panic-control-cycle-20261105.log`. Confirm the known deliberate
+panic text persists before interpreting a later natural-failure boot.
+
+Additional read-only work found TZ/HYP diagnostics can be sampled before reset.
+Exact reference `tz_log.c` is under `research/tmp/gauguin-scm-reference/`.
+Recovery HYP header was read and saved as `ui-tz-hyp-general-20261105.txt`,
+magic6879706d, CPUs8, S2fault0. An optional bounded live sampler is under review.
+The IMEM restart_reason mailbox is overwritten by the intervening recovery-to-
+bootloader reboot; previous swrst values cannot name the original XNU reset.
+
+### 2026-11-05 — sixth boot closes the APSS enable-state lead
+
+Commit `be2588b` adds full `wdtpre` / `wdtpost` values to the shim log. The final
+controlled boot used these records,
+using the fifth boot's kernel, ADT, sampling args and opt-in reset-only pet.
+Both values are **00000000**. Thus APSS EN was already zero before the shim's
+secure-watchdog attempt, and clearing it did not change that boot's state.
+The proposed preserve-EN experiment has no demonstrated difference to test on
+this setup. PET again reaches count70 with EN=0/STS=0.
+
+Image `shim/out/shim-ui-wdtstate-20261105.img`, SHA256
+`69a1fa63bf909a7d99c5d6b0eb7f9c5609fe66d6f4b3f452ff3e17ba7914f124`.
+Send16668KB OKAY0.393s, bootOKAY0.134s, total0.532s, back in TWRP100s.
+Log `research/tmp/ui-wdtstate-boot-20261105.txt`, transcript
+`research/tmp/ui-wdtstate-cycle-20261105.log`. The full shim announcements and
+boot args total499 bytes, within608. Shim rebuild/ramdisk byte comparison and
+SCM host tests passed.
+
+**End-of-session state**: phone in recovery, six automatic returns at roughly
+100–101 seconds, no usable interface verified. Native Linux and the shim both
+reject the secure-watchdog disable operation with the same x0=-2/x1=-4.
+Reset-only APSS petting and the panic-debug boot did not extend the observed
+runtime. The reset source remains unidentified; these results do not prove a
+secure watchdog is responsible. Better previous-boot firmware/reset evidence is
+needed before selecting another hardware control change. Recovery's current
+TZ/pstore interfaces did not preserve a usable prior cause. Disk first-block
+restoration, if needed, requires separate user approval and a verified baseline.
+
+### 2026-11-05 — five controlled boots, UI still unavailable, automatic reset unresolved
+
+**Current device state is TWRP/recovery. No usable UI has been verified.** Five
+temporary boots reached launchd, SpringBoard and backboardd, then automatically
+returned to recovery after 100, 101, 100, 101 and 101 seconds respectively.
+The user confirmed automatic restart. The latter tests omit the diagnostic
+reboot timer. Changing user stacks demonstrate initialization progress; the
+historical check-in wait cannot describe the current failure by itself.
+
+Fifth experiment `sweetwdtpet=1` is committed as **`9ff59ba`**, patch0089. Its
+independent callout writes only APSS WDT0_RST=1 each second. EN and thresholds
+come from the existing setup. It uses clock_interval_to_deadline, logs counts,
+timestamps, EN and STS, and preserves the old status sampler's cadence. An
+extracted-function host simulation checked default-off behavior, 20 callbacks,
+one-second deadlines, RESET-only writes, continued scheduling and log frequency
+(`research/tmp/ui-wdtpet-simulation.cpp`). The final code uses DMB OSHST for
+store ordering. Kernel rebuild and all host tests passed, make exit0, log
+`research/tmp/ui-wdtpet-build-20261105.log`.
+
+Kernel `research/k-ui-wdtpet-20261105`, SHA256
+`e0e2d3863df11eac0328c79fc462649c5d19980b521a195033f3087184eb707c`.
+Image `shim/out/shim-ui-wdtpet-20261105.img`, SHA256
+`f8c6a40a65d63c794c0dc536c7cff53626810d6e772141c55586b1dce7963a22`.
+Send16668KB OKAY0.390s, bootOKAY0.134s, total0.531s, recovery101s.
+Log `research/tmp/ui-wdtpet-boot-20261105.txt`, ring119656 bytes, flush75,
+420 execs. PET counts1..5,10,20,...70 show ~1.001 seconds per callback,
+always EN=0/STS=0; the last count70 is at absolute ticks1516753604. This proves
+the pet callback runs, but it did not extend the boot. It does not establish
+whether the secure watchdog is serviced by this RESET register when EN=0.
+
+**Native Linux control test confirms the same firmware rejection.** Recovery
+has `/sys/devices/platform/soc/17c10000.qcom,wdt/disable`, initially0. Writing1
+through the driver's normal interface returned I/O error and left it0. Recovery
+dmesg records `func id 0x42000107, ret: -2, syscall returns:
+0xfffffffffffffffc,0x0,0x0` and `Failed to deactivate secure wdog`. Saved in
+`research/tmp/ui-recovery-wdt-disable-20261105.txt`. Thus the current SCM shim
+matches the native driver's failed operation; arbitrary alternative argument
+values are not justified. This still does not identify the reset initiator.
+
+Recovery CONFIG_DEBUG_FS and CONFIG_MSM_TZ_LOG are enabled. Mounting the
+debugfs virtual filesystem exposed `/sys/kernel/debug/tzdbg`. Bounded reads
+saved `research/tmp/ui-tz-{reset,general,boot,log,hyp_log}-20261105.txt`.
+Reset counters are allzero, TZ log returned no bytes, hyp log is current boot
+initialization. `/sys/fs/pstore` is empty, `/proc/last_kmsg` absent. These do
+not recover the previous XNU reset cause. debugfs was a temporary recovery mount.
+
+Commits this continuation are `d02486d` (out-of-partition marker write fix),
+`ed913c9` (intermediate hardware handoff), `fcb4840` (SCM ABI/results), and
+`9ff59ba` (opt-in RESET probe). No new CI run was launched. Clean patch-series
+reproduction remains blocked by the older 0084/0086 duplicate/corrupt patches,
+as documented below. `tools/mkadt.py` has the pre-existing uncommitted edit.
+
+**Next work requires better reset-source evidence.** One concrete source-level
+lead is error handling: native Linux aborts watchdog disable if the secure call
+fails, while the shim still clears APSS EN. A controlled test would first need
+full EN values at shim entry/exit and preservation of the existing timer setup,
+with a verified pet path; `swwd` high-nibble packing cannot supply this evidence.
+Alternatively capture previous-boot secure/reset diagnostics before recovery
+clears them. Do not present an unproven watchdog hypothesis as the root cause.
+Keep the first-block backups and obtain approval before any disk restoration.
+
+### 2026-11-05 — SCM call verified, firmware rejected secure-watchdog disable
+
+SCM fix committed as `fcb4840`. Shim detects 64/32-bit SCM ABI, queries BOOT
+service1/SEC_WDOG_DIS command7, and logs transport/service results. PSCI has its
+own helper. New mocked-monitor regression test extracts the actual shim control
+flow and covers register arguments, ABI fallbacks, unsupported calls, bounded
+busy/interrupted retries and the observed failure response. All host tests pass
+(`research/tmp/ui-final-host-tests-20261105.log`).
+
+Fourth boot used unchanged UI-icons kernel/payload/ADT with the corrected shim,
+image `shim/out/shim-ui-scm-20261105.img`, SHA256
+`2f01a43bea3a2c1519d6dd8b2c63bfedccd9c4968b8b084c845ceab133508f68`.
+Send 16668 KB OKAY 0.388 s, boot OKAY 0.134 s, total0.529 s. Recovery after101 s.
+Log `research/tmp/ui-scm-boot-20261105.txt` proves
+
+```
+scmstep=00000003 scmabi=00000040 scmrc=fffffffe scmret=fffffffc
+```
+
+The 64-bit ABI and availability checks passed; disable itself returned x0=-2
+(SCM_EINVAL_ARG in the reference driver), x1=-4 (meaning undocumented in the
+retrieved source). This **did not disable the secure watchdog**. The repeated
+reset still has no established cause. Do not try arbitrary SCM argument values.
+
+Next bounded experiment under preparation is an opt-in `sweetwdtpet=1` which
+periodically writes only APSS WDT0_RST=1 using the exact Linux pet operation,
+with actual timestamps/EN/status in the log. EN and timeout register values are
+retained for this comparison. Source does not prove that this operation pets a
+secure watchdog while EN=0, so an unchanged reset time would not exclude it.
+References are pinned in shim source to gauguin commit
+`19b63c8192b1c9b7c4d931d7d3be92024bc2d778`.
+
+### 2026-11-05 — three boots reset around 100 s while UI initialization progresses
+
+User confirmed the first return to TWRP was automatic. The second image,
+`shim-ui-icons-20261105.img`, omitted `sweetreboot` and returned after 101 s.
+Log `research/tmp/ui-icons-boot-20261105.txt` has three SMP rounds. SpringBoard
+main changes from allocation to MobileGestalt/ISDefaults initialization to a
+synchronous CFPreferences write. This does not show a fixed IconServices hang.
+Symbols `research/tmp/ui-icons-sb-symbols-20261105.txt`.
+
+Third controlled image changes debug=0x8 to debug=0xc, enabling ARM64 DB_NMI
+panic debugging per `osfmk/kern/debug.c:panic_init`. It also has no sweetreboot.
+`shim/out/shim-ui-panic-hold-20261105.img`, SHA256
+`348775d4b7ee54d0b2f6fcc6a9c158fb1bbdc3697659882c9c8ca9729c549481`, returned to
+TWRP after 100 s. Log `research/tmp/ui-panic-hold-boot-20261105.txt` again has
+no panic/MACH Reboot/platform-restart line. APSS WDT sample around 52 s reports
+en=0. Panic-debugging activation itself has no runtime confirmation yet, so
+these observations narrow the reset investigation without proving a source.
+
+Recovery dmesg after boot two is saved in
+`research/tmp/ui-recovery-dmesg-20261105.txt`. PM6350 SID0 reports PS_HOLD/MSM
+controlled shutdown; PM7250B SID2 and PM6150L SID4 report SOFT. This identifies
+the PMIC reset category, not its initiating caller. Existing SweetWatchdog
+PON diagnostics use SID6/base0x1300, incompatible with the observed PMIC map.
+Existing shim `swwd` also stores only register top nibbles, so en=1 and en=0
+both appear as zero there.
+
+Next candidate is the secure-watchdog SCM call. Current shim calls
+`smc(0x0200000c,0,0,0)` and ignores the result. Exact gauguin Linux reference
+`LineageOS/android_kernel_xiaomi_gauguin` lineage-23.2 watchdog_v2/scm sources
+use BOOT service1, command7, arginfo1, arg0=1 with SCM ABI detection. References
+downloaded under `research/tmp/gauguin-scm-reference/`. A candidate with ABI
+probe, availability check and persisted return status is being prepared for
+review. No changed SCM command has been booted yet.
+
+PosterBoard's earlier trap is independently symbolicated to
+`PBFPosterExtensionDataStore _stateLock_setupSwitcherConfigurationForFirstTime`,
+assertion `!_stateLock_switcherConfiguration` at source line3431. It is a first
+setup call on an already-present configuration object. Its contribution to the
+missing interface remains unproven.
+
+### 2026-11-05 — current stacks pass shell check-in, investigating IconServices
+
+First fresh boot completed, returning to TWRP after 100 seconds, with the new
+kernel banner verified. Log `research/tmp/ui-sample-safe-boot-20261105.txt`
+contains two full sampler rounds, rather than the planned six. The log records
+`sweetreboot=160` but ends without a panic/restart reason. User was asked whether
+the recovery transition was automatic or by keys; answer still pending.
+
+Current SpringBoard has progressed beyond the historical `_checkIn` wait.
+Sample 0 is in `BKSDisplayGetMainScreenInfo`, initializing the system shell.
+Sample 1 is in `ISIconManager _init`, sending a synchronous NSXPC request while
+`SBHGetApplicationIconImage` initializes icons. `exec iconservicesagent` occurs
+immediately before sample 1, so this single wait can be normal startup. It is
+not yet evidence of a persistent IconServices deadlock. Symbolicated SB stacks
+are in `research/tmp/ui-sb-symbols-20261105.txt`.
+
+backboardd main progresses from a `CAWindowServerDisplay.uniqueId` mutex wait
+to the CFRunLoop. Its dispatch-group waiter at executable offset 0x18a78 is
+`BKButtonHapticsController._controllerReadyGroup`, verified by ObjC metadata
+and `_configureAsyncWithBlock:` disassembly. That waiter does not establish a
+DataMigration dependency. The log does execute `com.apple.datamigrator` at line
+817, which has no later SMP snapshot. PowerLog permission requests account for
+the matching background waits in SB, backboardd and runningboardd. Details in
+`research/tmp/ui-bbd-symbols-20261105.txt`. PosterBoard also has a SIGTRAP at
+line 1636, under investigation.
+
+Marker fix verified on hardware after this boot. First 8192 disk bytes exactly
+match the pre-boot backup, and 31 `MARK` blocks occur in the reserved userdata
+region starting at relative block 28055482. Evidence files are
+`research/tmp/ui-sda-head-after-20261105.bin` and `ui-marks-after-20261105.bin`.
+
+Second temporary boot is running with the same corrected kernel and ADT.
+Image `shim/out/shim-ui-icons-20261105.img`, SHA256
+`82ec6069f22360e971cf3295e1af650ea1611192762b19893e3cf441bf66badd`.
+Samples `SpringBoard,iconservicesagent,cfprefsd,PosterBoard,backboardd`, delay
+20 seconds, interval 10 seconds, 8 rounds. The diagnostic `sweetreboot` argument
+is omitted for this run. Output `research/tmp/ui-icons-boot-20261105.txt` and
+cycle transcript `research/tmp/ui-icons-cycle-20261105.log`. Verify the sampled
+names as well as the banner, since both images use the same kernel.
+
+### 2026-11-05 — marker write bug fixed, first fresh sampling boot
+
+User reconnected the gauguin in recovery. A pre-boot audit found that the local
+`sweet_log_mark_flush()` calculated a destination `base` but issued a WRITE(10)
+CDB with LBA zero for every marker. `ufs_scsi_slot()` copies that address into
+the command directly on `su.lun`. The actual previous boot log selects LUN 0,
+userdata first block `0x2c1000`, length 28056571 blocks.
+
+Read-only device evidence is saved in ignored
+`research/tmp/ui-sda-head-20261105.bin` (first 8192 bytes of `/dev/block/sda`).
+LBA 0 really begins with `MARK `. The protective MBR signature is 55aa, partition
+type ee, and the LBA 1 GPT signature and header CRC are valid. Existing disk
+contents still require care; any restoration must follow the user approval rule.
+
+**Fix committed as `d02486d`**, patch 0088. Marker writes encode `base + i` and
+reject invalid/overflowing/out-of-partition ranges before issuing SCSI. A failed
+write retains its dirty bit, and an update published during an in-flight write
+stays pending. `tests/test_mark_writes.py` compiles the actual extracted C
+function with a fake SCSI target. All 64 destinations, invalid ranges, failed
+write/retry and concurrent publication pass. The same harness fails against the
+saved original at the LBA-zero assertion. Original source saved under
+`research/tmp/ui-marks-before-20261105/`.
+
+Native rebuild passed (make exit 0), including all host tests. Log
+`research/tmp/ui-sampler-marks-build-20261105.log`. Kernel saved as
+`research/k-ui-sample-marks-20261105`, banner 22.6.0, Nov 5 11:47:15 CST 2026,
+SHA256 `55ffc6c850024c4ad475d6767919ec9edfee8ba175a331a984b624b3bc04415c`.
+**Use `shim/out/shim-ui-sample-safe-20261105.img`** (17068032 bytes), SHA256
+`52949301538bbbb7102974d39823fd446e22fda0ba516d36bf82df591092c946`.
+The earlier `shim-ui-sample-20261105.img` still contains the defective marker
+writer. Payload is `research/tmp/ui-sample-safe-20261105.bin`, byte-verified
+against the packaged ramdisk. ADT and 8-CPU setup match the preceding experiment.
+
+Sampling uses exact process names, including `com.apple.datamigrator` (the
+earlier bare `datamigrator` token does not match `proc_name`). Additional name
+`com.apple.migrationpluginwrapper`; delay 20 s, interval 20 s, 6 rounds,
+`sweetreboot=160`. The device was temporarily booted through
+`tools/sweet-observe.sh` with a 260-second recovery observation limit. Send
+16668 KB OKAY (0.390 s), boot OKAY (0.134 s), total 0.532 s. Pending fresh log
+`research/tmp/ui-sample-safe-boot-20261105.txt`; cycle transcript same prefix
+with `cycle` instead of `boot` and `.log` extension.
+
+Timing corrections from source and old logs must guide interpretation.
+`SweetWatchdog.cpp` adds 1000000000 raw absolute ticks, giving about 52.08 s at
+19.2 MHz, although its comment says one second. PW `t=20` is iteration 20 of a
+two-second sleep loop. `observe-tap9.txt` actually contains HB 1/2/3 and PW
+15/30/45/60/75. In `ui-current`, the first 3600 vsyncs span about 63.43 s, and
+the old 90-second sampler is due after about 111 s. Display power-off suppresses
+vsync log output while rescheduling the timer. Missing later vsync/HB/SMP lines
+therefore cannot establish that timers stopped. `sweet_callout_runs` counts
+processor running timers, rather than general thread-call callbacks.
+
+Firmware confirms backboardd exposes `com.apple.backboard.system-app-server`
+and BackBoardServices contains `checkInAndWaitForDataMigration:completionBlock:`.
+DataMigration reads `LastSystemVersion` in `com.apple.migration` under
+CurrentUser/CurrentHost, after synchronizing preferences. Fresh stacks should
+also consider cfprefsd if the migration process waits there.
+
+### 2026-11-05 — userspace stack audit, diagnostic image ready, phone offline
+
+Read the actual saved stacks before using the older claims that SpringBoard is
+idle or that userspace PCs cannot be obtained. `research/tmp/observe-tap2.txt`
+(kernel banner 2026-11-03 22:02:34) and `observe-tap9.txt` both contain `SMP`
+records. After subtracting each boot's shared-cache slide, their SpringBoard
+main-thread stacks match. Symbolication against the local iOS 16.7.16 cache gives
+
+```
+SBSystemAppMain
+  FBSystemShellInitialize
+    -[BKSSystemShellService _checkIn]
+      BSXPCServiceConnectionMessage sendSynchronouslyWithError:
+        xpc_connection_send_message_with_reply_sync
+          _dispatch_mach_send_and_wait_for_reply
+            mach_msg2_trap
+```
+
+This is a synchronous registration waiting for a reply. Receiving on a port
+owned by SpringBoard cannot exclude an outstanding request to another process.
+In the same historical sample, backboardd is waiting in `DMPerformMigration`
+through `DMConnection migrateCheckingNecessity:...`; another thread is waiting
+in `RBSConnection handleForPredicate:error:`. These samples predate the Nov 4
+root tweaks. They identify a concrete dependency chain, but **do not establish
+the current blocker after those tweaks**. Raw and symbolicated results are in
+`research/tmp/ui-historical-symbols-20261105.txt` (ignored).
+
+Two diagnostic defects were found in the local cached `osfmk/kern/task.c`.
+The new user-PC probe passes count 34 to `machine_thread_get_state`, while
+`ARM_THREAD_STATE64_COUNT` is measured in uint32_t units (68). The port probe
+subtracts `offsetof(ipc_port, ip_messages)` from a waitq pointer, although that
+pointer is `ip_waitq` and XNU supplies `ip_from_waitq()`. Its `msgs=0/0`, active
+and sequence values cannot establish the queue state. The existing process
+sampler already uses `find_user_regs()` from `osfmk/arm/thread.h` successfully.
+
+Current read-only device pull is `research/tmp/ui-current-20261105.txt` and
+`.bin`, 125835 bytes of console, flush #79, kernel banner 2026-11-05 00:32:43.
+The phone is gauguin in recovery. This log has 3 presents, 2 clients, and an
+OCS 0xf error for SCSI 0x35. A separate latest log, `r12.txt`, has an OCS 0xf
+read error (0x28) followed by launchd exit and `initproc failed to start`.
+
+Installed the official `ipsw` v3.1.741 binary only under ignored
+`research/tools/ipsw-3.1.741/`; archive SHA256 verified against the release
+checksums (`546af036b81c957ac7ddc71098ef65d2a8efebb70c81cce65bac4b9499091e8a`).
+Cache input is `/private/tmp/m-86593/System/Library/Caches/com.apple.dyld/`.
+Use `--cache research/tmp/ios16.a2s` with `dyld a2s` and subtract the logged
+slide, or pass `--slide`. Public/private symbols parsed. ObjC metadata parsing
+reported an EOF, so inspect function ranges when a method is unresolved.
+
+**Committed sampler change `fd9bcd3`**, patch
+`0087-sweet-configurable-process-sampler.patch`, adds configurable sampling
+delay/interval/count with the prior defaults. It snapshots referenced threads,
+releases the task lock before reading user memory, obtains registers through
+`thread_getstatus(... ARM_THREAD_STATE64_COUNT ...)`, and splits long backtraces
+into console-sized lines. Running-thread stacks are best-effort after the
+register snapshot. The old `sweetdump` probe is omitted from the test boot args.
+
+Native incremental build **passed, make exit 0**, all existing host tests
+passed. Log `research/tmp/ui-sampler-build-20261105.log`. Built kernel banner
+`Darwin Kernel Version 22.6.0: Thu Nov 5 11:33:59 CST 2026`, SHA256
+`0b4736225113bfd18b3fd332926ba82785c5d291f62c8f0db9fec0a0d218a853`.
+Build used the existing cached source tree, which has many prior local changes
+absent from CI. Patch 0087 applies cleanly to the saved pre-change copies in
+`research/tmp/ui-sampler-before-20261105/` and reproduces both compiled sources
+byte-for-byte. A replay of the older tracked series exposed a pre-existing
+corrupt hunk in 0086 at line 2709; `--recount` also hits changes duplicated from
+0084. A clean series build is still unverified. `PATCH_SET` stays at 0082-2 to
+retain the current source tree. Do not regenerate that tree during diagnosis.
+`gh run list` shows latest CI run **39957353555** failed at commit `3a2f529`;
+no CI build launched in this session.
+
+**Prepared image** `shim/out/shim-ui-sample-20261105.img`, 17068032 bytes,
+SHA256 `799a42d1eed9c7c16b53048bb337cb865f06b9ff03f7ad1e1d1fe93072a12342`.
+Payload `research/tmp/ui-sampler-20261105.bin`; ADT same basename with `.adt`.
+The shim packer unpacked and byte-compared its ramdisk with the payload.
+ADT extracted from the latest `shim-safe.img`/`shim-r12.img` to hold that
+configuration fixed, with base `0x180000000`, size `0xfff00000`, SHA256
+`7d6d93bea46bb80331d76238be295137ea33bbe8e3109789c68f4f0e45a291ff`.
+It includes the earlier uncommitted `/chosen` additions from `tools/mkadt.py`.
+The test keeps cpus=8 and the previous root boot args, plus
+
+```
+sweetsample=SpringBoard,backboardd,runningboardd,datamigrator
+sweetsampledelay=45 sweetsampleinterval=30 sweetsamplecount=4 sweetreboot=160
+```
+
+**No new device boot has been performed.** Before sending the image, the phone
+disappeared from USB. Unsandboxed `adb devices` and `fastboot devices` both
+returned no devices. User was asked to reconnect in recovery or fastboot.
+Next action is temporary `fastboot boot shim/out/shim-ui-sample-20261105.img`
+once reachable, then pull the console in recovery, verify the new kernel banner
+and `SMP armed` configuration, and symbolicate the fresh stacks. The startup
+dependency observed in the old logs may have changed after Nov 4's root tweaks.
+
+### >>> 2026-11-04 (105): **always pass --highmem** - the 76k-page failures were my own flag <<<
+
+`tools/mkadt.py X.adt --device=gauguin` without `--highmem` produces a tree whose
+`/chosen` says `dram-base 0xb0000000`, `dram-size 0x4cf00000`. XNU then bootstraps
+with **76,058-76,123 free pages** and dies at 10-13 execs. That is not a device
+fault and not the intermittent "low memory state" earlier notes blamed: the
+correct invocation
+
+```sh
+python3 tools/mkadt.py OUT.adt --device=gauguin --highmem
+```
+
+gives `dram-base 0x180000000`, `dram-size 0xfff00000` and **258,664 free pages /
+419 execs**. Several forced power cycles were spent chasing this. **Every gauguin
+ADT must be built with `--highmem`**; the size check is
+`dram-base == 0x180000000`.
+
+**State of the port after this fix (image `shim/out/shim-fx2.img`):** correct high
+memory, `embedded-panic-log-size = 0x100000` in `/chosen` (this alone fixes
+`debug_log_init: gPanicBase is still not initialized`), **no `/pram` node**,
+`_PanicOnCrash` injected into the launchd cache for SpringBoard and backboardd so a
+crash panics instead of being swallowed by `_PanicOnCrasX`, and `sweethidtest=30`
+for periodic synthetic key events. Boot result: 419 execs, no `SpringBoard gone`
+loop, `client=2`, presents=3, `driverkitd` SIGKILL only (harmless, 274 execs follow
+it).
+
+**Two ADT additions proved harmful and are reverted in `tools/mkadt.py`:**
+
+- `/product/haptics` - SpringBoard and backboardd then die together every 10 s
+  (`SpringBoard gone` / `backboardd gone` at t=10..400, client=0, presents=0).
+- `/options` - `IONVRAMController` panic: `Unable to find nvram-bank-size`.
+
+**Kernel-side chain is now fully verified:** SweetHID delivers key events to a real
+client (`key 0x40 down (1 clients)`, previously always 0), backboardd opens
+IOMobileFramebuffer, obtains a surface and performs complete SwapBegin/SwapEnd
+cycles (its swaps are logged as `by kernel_task` because the user client runs on a
+kernel thread - not evidence that userspace never submits). What remains is only
+that SpringBoard never submits its own layer.
+
+
+### >>> 2026-11-04 (104): /product must stay child-less; the crash loop is paired <<<
+
+Two additions to the ADT were tried and **both are now known to be wrong**:
+
+- **`/product/haptics`** (a child node, which the real D22AP tree has with
+  `closed-loop` and `supports-3rd-party-haptics`). SpringBoard does read
+  `IODeviceTree:/product` 42 times per boot, which made this look like the missing
+  piece. Adding it is **actively harmful**: SpringBoard and backboardd then die
+  together every ten seconds -
+
+  ```text
+  SWEET PROC: SpringBoard gone (t=250)
+  SWEET PROC: backboardd gone (t=250)
+  ... repeated at 260, 270, 280, 290 ...
+  SWEET FB: vsync=30000 ... presents=0 client=0
+  ```
+
+  Ten seconds is launchd's ThrottleInterval plus startup. Without the node the same
+  root and kernel give a stable SpringBoard with **97 IOKit calls, client=2,
+  presents=2, 3 swaps and no `gone` line at all**. So `/product` stays child-less
+  and the 42 `/product` reads are normal behaviour, not a retry loop.
+
+- **`/options`** (the node SpringBoard reads for boot-args, `-> none` in the boot
+  log). Adding it **panics immediately**: `IONVRAMController` matches it and then
+  fails in `getNVRAMProperties` - `Unable to find nvram-bank-size property`,
+  `IONVRAMCHRPhandler creation failed`, `panic(cpu 0)` at `IONVRAM.cpp:1380`
+  (photo IMG_1102). Apple's own `/options` carries only `name` and `AAPL,phandle`;
+  leaving it absent is strictly better than the panic.
+
+**A user observation that reframes the whole failure:** with the crash-looping
+image the phone is *not* hung - **pressing a button prints kernel log**. The panel
+shows `SWEET KEYS: key=0 down=1 pon=0x5 gpio:c110=0` and `SWEET HID: key 0x30 down
+(0 clients)`. So the kernel, timers, vsync and input are all healthy; what is
+broken is only the userspace GUI layer, and the HID events reach **zero clients**
+because nothing has subscribed.
+
+**Attempts that did not help this stretch:** a spin lock around the UFS command
+path (the driver already serialises slot 0 with `sweet_io_serial_lock`; reverted),
+and `StandardOutPath` for SpringBoard and backboardd (both logs stay at 0 bytes -
+iOS does not write to stdout, so an empty log is not evidence of a hang).
+
+### >>> 2026-11-04 (103): root rebuilt from the IPSW, and what it took <<<
+
+The macOS rebuild path now works end to end, which removes the dependency on a
+Linux host with `apfs-fuse`:
+
+- `hdiutil attach` mounts Apple's APFS images natively - no `apfs-fuse` needed.
+- `hdiutil create -fs "Case-sensitive HFS+"` produces **APFS**, not HFS+. Create a
+  raw file, attach it with `hdiutil attach -nomount`, then `newfs_hfs -v iOSRoot -J
+  -s /dev/diskN`. Only then is the signature `HX`.
+- **Ownership needs `sudo chmod`/`sudo chown` with `hdiutil attach -owners on`**;
+  without `-owners on` the chown silently does nothing and every file stays at
+  501:20. That, not the format, was why the first rebuild died:
+  `map('dyld_shared_cache_arm64'): owned by uid=501 instead of 0` ->
+  `Library not loaded: /usr/lib/libSystem.B.dylib` -> `initproc failed to start`.
+- The cryptexes must go to `private/preboot/Cryptexes/{OS,App}`; the
+  `System/Cryptexes/*` names there are symlinks and `mkdir` does not follow them.
+- Upstream's `copy()` uses `rsync -aH --numeric-ids`. Without `--numeric-ids` rsync
+  re-owns everything to the invoking user, which is the trap above.
+
+The rebuilt volume still stalls around 100 s: `SWEET HB: 1 wdt=1 tick=273122
+exp=269081 call=4044` - the heartbeat callback did not run for ~100 s, after 363
+execs. The volume built from the OS/cryptex images alone also lacks the container
+directories a first boot creates; the `mobileactivationd` container and its
+`-ActivationState: Activated` ark were copied over from the older volume to match
+(a fresh image logs `CRASH mobileactivation[132] sig 5` without it). Work stayed on
+the older, already-booted volume, which is what reaches SpringBoard.
+
+
+### >>> 2026-11-04 (103): the render chain is complete except the one link in userspace <<<
+
+Three diagnostics narrowed (102)'s "two clients, one frame" to a single missing
+step. All measured on the patched root, `cpus=8`, 500 s:
+
+**1. The only two swaps come from `kernel_task`, not from SpringBoard.**
+
+```text
+SWEET FB: swap 1 by kernel_task layer 0 surface 2 1125x2436 fmt 0x42475241 bpr 4608
+SWEET FB: swap 2 by kernel_task layer 0 surface 3 ...
+```
+
+Those are the boot splash the kernel itself draws. **Neither SpringBoard nor
+backboardd has ever swapped a frame.**
+
+**2. The surface contents are a black field with a white centre.**
+
+```text
+SWEET FB: corners 1125x2436 bpr 4608: ff000000 ff000000 / ff000000 ff000000 / mid ffffffff
+```
+
+All four corners opaque black, centre opaque white - the Apple logo fading out,
+which is exactly what the user sees on the panel before the reboot. So the blit
+path and the surface format are correct; there is simply nothing else to show.
+
+**3. Every process that opens the display is named, and SpringBoard is not one of
+them.**
+
+```text
+framebuffer opened by IOMFB_FDR_Loader (type 0)
+framebuffer opened by MobileGestaltHelper (type 0)
+framebuffer opened by backboardd (type 0)
+framebuffer opened by thermalmonitord (type 0)
+framebuffer opened by aggregated (type 0)
+```
+
+backboardd opening it is correct and expected - SpringBoard is supposed to reach
+the display through CoreAnimation, not directly. **backboardd opens the display
+successfully and then never swaps.**
+
+**So the chain is complete end to end except one link:** framebuffer driver works,
+AppleCLCD matches, backboardd opens it, both render clients attach - and
+**SpringBoard never submits a layer to the render server.** Everything on the
+kernel side of that boundary is healthy, and the failing step is in userspace
+CoreAnimation/RenderBox, which this port has no way to observe.
+
+**A user report worth keeping with this:** on the panel the Apple logo appears,
+fades, **the top-left quarter turns magenta**, and the phone reboots. Magenta is
+not a UI colour and the surface is black-and-white, so that magenta is almost
+certainly an uninitialised surface being scanned out during teardown - consistent
+with SpringBoard dying rather than drawing.
+
+
+### >>> 2026-11-04 (102): the upstream README was the missing manual <<<
+
+Read `dipa-studio/ios-sweet`'s own README for the first time. It settles two things
+this port had wrong and hands over the step that was never run.
+
+**1. There is no GPU in the working configuration - at all.**
+
+> No GPU. Everything is drawn by the CPU at roughly 20-30 fps.
+> CoreAnimation renders in software
+
+Hundreds of rounds went into the GPU stub, `IOAcceleratorES`, `AGXAccelerator` and
+`sweetgpuok`. **None of it was ever the problem**, and `AGXAccelerator` being a stub
+that cannot draw is expected on the working board too.
+
+**2. `tools/sweet-root-tweaks.py` had never been run.** It was in the tree the whole
+time; every previous round applied only its Setup/preferences part by hand. Run
+against the mounted root it changes seven things, and the first boot afterwards
+looked different from any boot before it:
+
+| change | effect |
+| --- | --- |
+| `launchd.plist` `_PanicOnCrash` -> `_PanicOnCrasX` (7 jobs) | a crashing daemon no longer takes the system down |
+| CommCenter jobs removed (2) | no baseband, no crash loop |
+| `-ActivationState: Activated` in the mobileactivationd ark | the activation branch is taken |
+| MediaToolbox `StartRecorderServer=false` (3 variants) | avoids the NULL OpenGL prewarm crash without a GPU |
+| VirtualAudio plug-in disabled | mediaserverd stops crash-looping |
+| containers dirs, migration `LastSystemVersion` | DataMigration does not run for an hour |
+| SpringBoard `BKNoWatchdogs`, Setup skip | (already done by hand in earlier rounds) |
+
+**Measured, `cpus=8` with the patched root:**
+
+| | before | after |
+| --- | --- | --- |
+| SpringBoard IOKit calls | **33** | **97** |
+| SpringBoard's furthest point | `/product` polling | **network/Wi-Fi lookups, then `/chosen`** |
+| render clients | **0** | **2** |
+| panel | 5 colours | 4 colours (`4d4d4d` gone) |
+| presents | 0 | **1** |
+| console ASCII map (`SWEET FB: \|`) | drawing | **silent - `sweetfb_noconsole` finally takes effect** |
+
+`cpus=6` instead of 8 gives 100 IOKit calls rather than 97, and the same panel.
+
+**What is still wrong, precisely:** two render clients connect, one frame is
+presented, and nothing is ever presented again. On a working iOS, SpringBoard
+re-presents continuously (animations, status bar). So SpringBoard attaches to the
+render server and then never submits a second frame - it has no scene that redraws.
+Injecting a touch (`sweettap=1 sweettapdelay=60`) raises the IOKit count to 103 and
+changes nothing, so it is not waiting for input either.
+
+**Ruled out this stretch:** the fourteen `/product` properties from Apple's real tree
+(they make the boot die at **76,121 free pages** instead of 258,729 - reproducible,
+and removing them one group at a time did not fix it, so the whole set is abandoned),
+`cpus=6` vs 8, the hardware watchdog (our `IOWatchdog` accepts check-ins and never
+fires), and `driverkitd`'s SIGKILL (274 execs happen after it).
+
+**Crashes now reach the console** (`CRASH driverkitd[67] sig 9`, `CRASH
+useractivityd[187] sig 10`) because `_PanicOnCrash` is renamed. Symbolicating needs
+`ipsw dyld a2s`, which is not installed here - that is the next tool to add.
+
+
+### >>> 2026-11-04 (101): ADT integers are little-endian, Apple's tree is big-endian <<<
+
+A trap worth writing down before someone "fixes" it. Apple's `DeviceTree.d22ap`
+stores integers **big-endian** (`artwork-scale-factor` = `00 00 00 03`,
+`device-perf-memory-class` = `00 00 00 04`). The ADT we generate does not: XNU
+parses ADT lengths and values little-endian, and `tools/mkadt.py`'s
+`u32 = struct.pack('<I')` matches that. The known-good properties prove it -
+`sweet-fbcon`'s `width` is `38 04 00 00` = 1080 and `height` is `60 09 00 00` =
+2400 only when read little-endian.
+
+So the values lifted out of Apple's tree must be written with `u32(3)` and
+`u32(4)`, **not** copied as their big-endian bytes. Copying the raw bytes would
+make `artwork-scale-factor` read back as 50,331,648 - wrong in a way that is
+silent, since nothing rejects it.
+
+
+### >>> 2026-11-04 (100): the real iPhone device tree is readable, and /product was nearly empty <<<
+
+**Apple ships `DeviceTree.<board>.im4p` as an IM4P wrapper around an **LZFSE**
+stream (magic `bvx2`). Nothing in this repo could read it, so for hundreds of
+rounds the port ran on a `/product` node with four properties while the real
+D22AP node carries dozens. `tools/extract-devicetree.sh` now unpacks it with
+macOS `libcompression` (verified: byte-identical 186,084 bytes on repeat runs).
+
+**The properties that matter, read straight out of the dump** (hexdump, not a
+parser guess):
+
+| property | real value |
+| --- | --- |
+| `graphics-featureset-class` | `"APPLE4"` |
+| `graphics-featureset-fallbacks` | `"APPLE3:APPLE3v1:APPLE2:APPLE1:GLES2,0"` |
+| `artwork-device-idiom` | `"phone"` |
+| `compatible-app-variant` | `"0"` |
+| `artwork-dynamic-displaymode` | `"0"` |
+| `device-color-policy` | `0x0` |
+| `siri-gesture` | `0x1` |
+| `watch-companion` | `0x1` |
+
+**`graphics-featureset-class` is read by iOS** - the string appears once across the
+44 shared-cache shards. That is how the renderer is told what the GPU can do, and
+it is exactly the shape of the observed failure: SpringBoard opens
+`/product` twelve times per boot, gets nothing useful, and never draws.
+
+All eight are now in `tools/mkadt.py`. **Not yet measured** - the phone has been
+off USB, and `shim/out/shim-gfx2.img` (class + fallbacks) is built and waiting.
+
+**Also from this stretch, all ruled out on hardware:** the whole provisioning set
+(purplebuddy/notbackedup/BKNoWatchdogs), `EmbeddedHomeScreen`, `region-info`,
+`chip-revision`, the GPU `stub`/`IOGPUFamilyStub` markers, and clearing a stale
+`/var/run` to revive `logd`. **`logd` is granted `GLOBAL_PROC_INFO` now** - it was
+being denied by our all-deny sandbox - but it still writes no `.tracev3`, so the
+os_log channel stays closed and a silent process still cannot be distinguished
+from an idle one.
+
+**A correction worth keeping:** SpringBoard makes **zero GPU calls in a healthy
+iOS too** - it delegates to backboardd's render server. "SpringBoard doesn't call
+the GPU" was never an anomaly; the anomaly is that it never submits a layer. And
+present counts are not a progress signal: adding the backlight service and
+removing the stub markers each dropped presents 222 -> 5 with nothing else changed.
+
+
+### >>> 2026-11-04 (99): the GPU stub markers are not the blocker either <<<
+
+`IOAcceleratorES` publishes `stub=true` and `IOGPUFamilyStub=true`. If
+SpringBoard/RenderBox reads either, it would know the accelerator cannot render
+and could skip render set-up - a plausible reason for never submitting a layer.
+**Removed both markers and booted: no change.** 434 execs, **still 33 SpringBoard
+IOKit calls**, still `exec Setup` = 0, same five-colour panel.
+
+**Markers restored**, because they are the honest description of a service that
+never draws, and removing them bought nothing.
+
+**A measurement worth remembering:** present counts are not a progress signal.
+Adding the backlight service and removing the stub markers each dropped presents
+from ~222 to **5**, both times with the panel unchanged and SpringBoard unchanged.
+A stable, complete service table seems to let backboardd stop re-submitting, so
+a *low* present count can mean "nothing left to poll", not "less rendering".
+Compare panel content and SpringBoard's call count, never presents alone.
+
+**Also confirmed this round:** the entire system has exactly three
+`NEVER FOUND` classes - `ApplePearlSEPDriver`, `AppleM2ScalerCSCDriver` and one
+empty name - i.e. Face ID and a video scaler that this board does not have. **There
+is no remaining IOKit service gap to fill.**
+
+**And a correction to how "silence" should be read.** `com.apple.oslog` exists in
+the kernel and `test_oslog_handleOSLogCtl` is wired up, but userland `os_log` goes
+through `logd`, which asserts continuously (`logd + 90880 ... : 0x2`) and wrote no
+new `.tracev3` even after `Persist/` was cleared for a clean capture. So **a process
+that emits nothing in our logs is not necessarily idle** - its channel may be
+broken. `SWEET MSGSEND: 0 message(s) captured` on every boot says the same for the
+message tracer: that trace never worked, and `msgs=0/0` remains meaningful only
+because it reads the port structure directly.
+
+
+### >>> 2026-11-04 (98): the iOS os_log exists - 312 MB of it - and backlight is ruled out <<<
+
+**A data source missed for ~270 rounds.** iOS keeps `os_log` for every process under
+`/private/var/db/diagnostics/Persist/*.tracev3`. After a few boots this was 1001
+files, 312 MB, **3669 records mentioning SpringBoard**. Everything until now read
+only the kernel console, so "SpringBoard goes silent after 33 IOKit calls" was
+measured on the wrong log. `.tracev3` is a private binary format and `log show`
+refuses the directory as an archive (no index), so `strings` fragments are all that
+can be had for now - but they already show:
+
+- `springboard.hasBlankedScreen` (7), `springboard.lockstate` (5),
+  `springboard.SBRenderer` (2), `springboard.SBRendererService` (1)
+- `failed lookup: com.apple.accessibility.AXSpringBoardServer ... No such process`
+- `logd[24]: assertion failed` repeatedly - **logd itself is unhealthy**, which is
+  why clearing `Persist/` produced no new files on the next boot
+
+**Backlight was a real gap, and filling it changes nothing.** backboardd looks for a
+*service* with `backlight-control=true`, but `/backlight` was only a device-tree
+node, so the property match returned `0 found` and backboardd stopped its display
+set-up. `SweetBacklight` (an `IOService` with the property, registered in
+`KernelConfigTables.cpp`) fixes that: the lookup now reports
+**`-> SweetBacklight`, `-> 1 found`**. SpringBoard still makes exactly 33 IOKit
+calls, still draws nothing, and presents actually dropped from 222 to 5. **The
+service is kept - iOS should have it - but it is not the blocker.**
+
+**Also checked and clean this round:** backboardd's three `NEVER FOUND` classes are
+Face ID and a video scaler (no such hardware); SpringBoard's `Info.plist` requires
+only `arm64`; `/product` is polled 12x by SpringBoard and 38x by backboardd, which
+is normal; `runningboardd` starts and the boot continues past it for another 200+
+execs.
+
+**Where this leaves the question:** every configuration, device-tree and IOKit
+requirement checked so far is satisfied or ruled out. What remains is knowing where
+SpringBoard's main thread actually is, which needs either a symbolised userspace PC
+in the thread dump or in-process debugging - neither exists in this port yet.
+
+
+### >>> 2026-11-04 (97): 8 cores plus the IPSW write path, and provisioning ruled out <<<
+
+**Two capabilities gained, one hypothesis killed.**
+
+**8 cores.** `cpus=8` (with `sweetlogms=500`, `debug=0x8`, no
+`-enable_kprintf_spam`) is now the default boot line: **418-429 execs, 1937-2677
+log lines, presents 198-225**, against 268 execs / 1591 lines / 109 presents at
+`cpus=1`. The system finally runs about as fully as this port allows.
+
+**The iOS root is now writable from the host, end to end:** pull the HFS+ volume
+(`dd if=/dev/block/sda35 bs=4096 count=4194304`, 17.18 GB - the volume is only the
+front of a 114.9 GB partition, so counting blocks matters), `hdiutil attach
+-readwrite`, edit, then stream it back with
+`adb exec-in "dd of=/dev/block/sda35 ..." < image` (9 minutes). Ownership survives
+as `501:20`, so the files are accepted.
+
+**Provisioning is ruled out.** With `com.apple.purplebuddy.plist`
+(SetupDone/SetupFinishedAllSteps/SetupVersion 11/daemonizeNeedsToRun false), both
+`.notbackedup` files, and `BKNoWatchdogs` + `FBLaunchWatchdogExceptions` +
+`MCForceShowCloudConfigurationUI` merged into `com.apple.springboard.plist`, a boot
+gives **429 execs and still 33 SpringBoard IOKit calls, still no `exec Setup`, still
+the same five-colour panel.** These are exactly the files `sweet-root-tweaks.py`
+writes for the Sweet images - **they are necessary there and not sufficient here.**
+
+**Also ruled out this round:** MobileGestalt is healthy - `MobileGestaltHelper`
+answers `sel 8` with `[0x465, 0x984]` = **1125x2436**, the panel's real geometry,
+and then closes its client normally.
+
+**What is left.** SpringBoard emits nothing at all after its 33 IOKit lookups -
+`exec SpringBoard` and those 33 lines are the only trace of it in a 1781-line log,
+where a working SpringBoard is famously verbose. It is not crashing; it is waiting
+somewhere that produces no output. Answering that needs in-process debugging of a
+userspace binary, which this port has no channel for.
+
+
+### >>> 2026-11-04 (96): the intermittent short boots are UFS read failures, not the ADT <<<
+
+A panic screen supplied by the user shows what the last several rounds were
+guessing at:
+
+```text
+exec launchd_cache_loader
+SWEET UFS: command 0x28 failed: ocs 0xf uplu 0x21 response 0x0 status 0x0
+exit launchd_cache_loader[22] rv=0x0
+panic(cpu 0 caller 0xfffffe0007afbcf0): launchd_cache_loader[22] exited
+```
+
+with, just above it:
+
+```text
+kern.prng.user_reseed_count: (-1) (2) No such file or directory
+hfs_mark_inconsistent: Runtime corruption detected on iOSRoot, fsck will be forced
+failed to load kernel prng seed: (-76) (22) Invalid argument
+failed to store kernel prng seed: (-76) (22) Invalid argument
+```
+
+**`command 0x28` is SCSI READ(10) and `ocs 0xf` is a UFS out-of-context status -
+this is a read failing in hardware, not a software bug in the ADT.** The chain is
+consistent: a failed read makes HFS+ mark the volume inconsistent, the seed files
+cannot be read or written, and `launchd_cache_loader` exits, which panics.
+
+**This reframes the short boots.** Rounds 275 and 311 saw 940/941-line boots and
+several later runs stopped at ~550-565 lines; all of them were treated as
+tracking-code overhead or ADT problems. They are far more likely the same UFS
+read failure. The page-count evidence fits: a boot that found only 76,128 free
+pages (297 MB) rather than 258,735 (1 GB) is one whose memory scan did not finish,
+which is what a storage stall during bring-up would look like.
+
+**What still needs separating:** whether the failing reads correlate with a
+particular boot image or are purely a property of the device at the time. Two
+`shim-verify` boots (01:50 kernel) both gave 258,735 pages and full logs; two
+`shim-regclean` boots (06:54 kernel) both gave 76,128 and stopped early. That looks
+like a kernel correlation but is more likely timing luck on a flaky UFS path -
+**the next run must interleave the two images** rather than run each twice.
+
+
+### >>> 2026-11-04 (95): the region-info experiment compared a log against itself <<<
+
+`observe-region.txt.bin` (06:16) and `observe-dump6.txt.bin` (02:06) are **byte
+identical** - same md5 `05610bb8...`, same `flush #141`, same 161,887 bytes.
+
+That makes (94)'s table unsafe. The runs did differ in line and present counts,
+but the ring that was pulled for the region boot still carried the earlier
+kernel's content, so "the panel was identical" is a comparison of one boot with
+itself, not evidence that region-info changes nothing. **The region-info question
+is back to untested.**
+
+**The general trap, now written down because it has bitten twice:** a boot that
+dies before `sweet_log_start()` leaves the PREVIOUS boot in the ring, and
+`tools/sweet-log-pull.sh` returns it looking perfectly healthy. `total` and
+`flush #` come from the ring header, so **compare flush numbers between runs** -
+an unchanged flush means the pull did not see a new boot.
+
+**`research/tmp/three-boots.sh` now enforces this**: it boots baseline, region and
+propreq in sequence, and after each prints the line count, the flush number and
+the banner, so a stale ring is visible instead of being mistaken for a result.
+
+
+### >>> 2026-11-04 (94): region-info tested and ruled out; the property trace had two real bugs <<<
+
+**`region-info` is not the cause.** With `/product/region-info = "LL/A"` added, a boot
+produced 2217 lines and presents=128 against the 1591/109 baseline - but the panel
+content was **identical**: distinct=5, colours `ffffff b7b7b7 818181 bfbfbf 4d4d4d`,
+and `Setup` still never executed. Line and present counts drift between boots; the
+panel did not change. The guess is disproved.
+
+**The property trace did not work, for two reasons, both now understood:**
+
+1. it matched on `proc_selfname()`, which in the `IORegistryEntry::getProperty`
+   path is not the calling BSD process - so `strncmp(me, "SpringBoard")` never
+   matched and the trace printed nothing for a whole boot
+2. the attempted fix, `get_bsdtask_info(current_task())`, **crashed before
+   `sweet_log_start()`** - the ring still held the previous boot's banner
+   (01:53 vs the image's 06:31). `getProperty` is reached very early in IOKit
+   bring-up, where no BSD process sits behind the task yet.
+
+**Current form** (`sweetpropreq=<key prefix>`) filters on the **property key**
+instead of the process, which sidesteps both: the key is a plain string on the
+object actually read, and the question "which property does it want" is about the
+key anyway. It prints `SWEET PROP: [proc] node.key -> FOUND|NULL`.
+
+**Not yet measured.** The key-filtered build booted and ran the full 200 s
+(`still running after 201s`), but every log pull failed and the phone left USB;
+the cached ring from that run still contains the 01:53 kernel, so it says nothing
+either way. **Open question: did that boot write the ring at all, or did the
+over-broad `product` prefix cost enough on one core to matter?** First thing to
+do when the phone returns: pull the ring and look at the banner.
+
+### >>> 2026-11-04 (93): four more ruled out from the local mount; ADT structure is sound <<<
+
+All checked against the mounted IPSW, no device needed.
+
+| candidate | result |
+| --- | --- |
+| iOS version mismatch | build `20H392` / 16.7.16 on disk, in `mkadt.py`, and in the device's `_SBLastSystemVersion` - all three agree |
+| SpringBoard resources missing | 11 plists in `SpringBoard.app`, every one non-zero, plus `Assets.car`; `DefaultIconState.plist` and its `~iphone` / `375w-667h` / `414w-736h` variants all present |
+| Clarity mode confusion | iOS has two shells: `ClarityBoard` (`_LimitLoadToClarityMode: True`, `EmbeddedHomeScreen: True`) and `SpringBoard`. Only SpringBoard runs on gauguin, which is correct for an iPhone10,3 identity - so the board is in standard mode and ClarityBoard's absence is expected, not a fault |
+| ADT structure wrong | generated and re-parsed the tree: `device-tree > {chosen, defaults, cpus, arm-io, sweet-fbcon, buttons, backlight, product, sweet-ufs}`. `/product` exists where iOS looks for it; the lookups succeed and return `IOPlatformDevice`, so the node is found - only its contents are thin |
+
+**Identity properties the ADT publishes:** `/chosen` has `unique-chip-id`, `chip-id`,
+`certificate-production-status`, `certificate-security-mode`; the root has `model`,
+`target-type`, `target-sub-type`; `/product` has `product-name`, `product-type`,
+`regulatory-model-number`. Against the names iOS references in the shared cache,
+**`region-info` is the only one with no value anywhere** - and (86)/(90) say a
+missing property is not evidence of a fault, so this stays a lead, not a cause.
+
+
+### >>> 2026-11-04 (92): the real iOS filesystem can be mounted locally <<<
+
+After 370 rounds of reading the iOS root through `tools/hfs-read.py` over adb - a
+path that truncates large files at 4096 bytes and needs the phone - the system
+disk was mounted straight from the IPSW on this machine:
+
+```
+unzip ... "087-86698-044.dmg" -d research/ipsw-x/
+hdiutil attach -readonly -mountpoint /tmp/ipsw-mnt   research/ipsw-x/087-86698-044.dmg   # 4.4G, root fs
+hdiutil attach -readonly -mountpoint /tmp/ipsw-mnt2  research/ipsw-x/087-86593-047.dmg   # 2.6G, cryptex
+```
+
+`/tmp/ipsw-mnt2/System/Library/Caches/com.apple.dyld/` is the 2.4 GB shared cache
+- the place where iOS 16.7 actually keeps framework code. **Everything is readable
+without a device.**
+
+### What that answered
+
+**SpringBoard's launchd plist, read in full for the first time** (`plistlib`, no
+truncation): `MachServices` has **33 entries** - UIKit statusserver, frontboard
+systemappservices, springboard.services, bulletinboard, siri activation,
+usernotifications and so on. `KeepAlive` and `RunAtLoad` are both true.
+
+**DT property names iOS actually references**, found in the shared cache:
+`chip-id` (3), `unique-chip-id` (2), `product-name` (2),
+`certificate-security-mode` (2), **`region-info` (2, shard .09)**.
+`region-info` sits next to `development-cert` among MobileGestalt keys. Of those,
+**`mkadt.py` publishes all but `region-info`** - `chip-id`, `unique-chip-id` and
+`certificate-security-mode` are in `/chosen`.
+
+**Icon layout resources are complete**: `DefaultIconState.plist` plus
+`~iphone` / `375w-667h` / `414w-736h` variants, so the home screen is not missing
+its configuration.
+
+### What it did not answer
+
+Nothing here says *why* SpringBoard draws nothing. The device-tree payload inside
+the IPSW (`Firmware/all_flash/DeviceTree.d22ap.im4p`) is **compressed** - the
+`IM4P`/`dtre` header is plaintext, the rest is not - so the real D22AP `/product`
+node still cannot be recovered that way, which is exactly what `mkadt.py`'s
+comment says. `region-info` remains the only referenced property with no value
+anywhere; given (86) and (90), **a missing property is not evidence of a fault**.
+
+**Rule going forward: mount the IPSW for filesystem and binary questions; only the
+device can answer runtime questions.**
+
+
+### >>> 2026-11-04 (91): gauguin never showed an interface - the milestones were another board <<<
+
+**This corrects a misreading that shaped many rounds.** NOTES (2026-10-17/18) records
+Setup's "Hello" screen (057u, v12) and the **SpringBoard home screen** (0069s,
+v14) as milestones. Both were on **Sweet - the D22AP (iPhone X) bring-up**, not
+on gauguin. The gauguin board port only started 2026-10-19; the `/product` node
+that SpringBoard looks up twelve times per boot was added 2026-10-22
+(`1057d24`).
+
+So on gauguin nothing regressed from working to broken. **There was never an
+interface to regress from.** That removes "some change between v12 and now broke
+it" as a hypothesis, and with it the plan to bisect against old images.
+
+### What is actually known on gauguin, all measured here
+
+| observation | evidence |
+| --- | --- |
+| kernel boots, 268 execs, no crash | `observe-dump6.txt` counts |
+| UFS, HFS+, launchd, ignition complete | progress markers |
+| SpringBoard present t=3..t=20, 9 threads | `sweetdump` samples |
+| every thread's queue `msgs=0/0` | same |
+| SpringBoard does 33 IOKit lookups, 0 GPU matches | `sweetiolog` |
+| `/product` x12 and `/arm-io` x13 - polling | `observe-wait4.txt` |
+| Setup / buddy never executes | 3 logs incl. the 36,093-line one |
+| no `purplebuddy.plist`, no activation record | `hfs-read.py` |
+
+### The narrowest open question
+
+**`/product` carries three properties** (`product-name`, `product-type`,
+`regulatory-model-number`) because `mkadt.py` falls back to a minimal node when
+`research/ipsw-x/d22ap.adt` is absent - and it is absent, and the device tree
+inside the local IPSW is compressed (`IM4P`/`dtre` payload is not plaintext, so
+it cannot be mined for property names). **A real D22AP product node has dozens.**
+
+SpringBoard re-opening that node twelve times is consistent with wanting a
+property that is not there. **It is not proof** - the same polling could be
+harmless - and (86)/(90) are reminders that a scary-looking absence is often
+benign.
+
+**Next concrete step, once the phone is back:** read the property names SpringBoard
+actually asks for, with the already-built `sweetpropreq=SpringBoard` trace
+(image `shim/out/shim-prop.img`). That turns "twelve lookups" into a list of names
+and a list of NULLs, and the fix - if there is one - is then a few lines in
+`mkadt.py` rather than a driver.
+
+
+### >>> 2026-11-04 (90): SpringBoard is idle, not stuck - and the kmsg hook was removed <<<
+
+**The expensive send trace is gone.** `sweet_kmsg_note` was removed from
+`ipc_kmsg_send`. Measured on the same kernel: **614 lines and no SpringBoard with
+it, 1616 lines and a healthy boot without it.** Resolving a destination's owner
+per message on one core is enough to stop the boot at launchd's "Early boot
+complete". A hook on the hottest path in the system cannot be made cheap enough;
+this is recorded rather than reverted silently so nobody re-adds it.
+
+**What replaced it, and what it shows.** Two existing, cheap traces were finally
+used:
+
+`sweetdirs=SpringBoard` - 41 records, only two directories:
+`/System/Library/Caches/com.apple.dyld` ×38 and `/private/var/` ×2.
+
+`sweetdump=SpringBoard sweetdumprounds=14 sweetdumpevery=12` - **thread count
+over one boot: 1,1,1,1,1,2,2,3,4,4,9,9,9,9.** It grows to nine and settles.
+
+Final snapshot, all nine threads:
+
+| tid | state | waitq | meaning |
+| --- | --- | --- | --- |
+| 222 | 1 `TH_WAIT` | PORT | main thread, seq=1972184400 (was once active) |
+| 288, 343, 512-515 | 1 | QUEUE | parked, seq=0 - never fired |
+| 327 | 4 `TH_RUN` | - | running at sample time |
+| 511 | 41 | TURNSTILE | exiting (`TH_WAIT\|TH_UNINT\|TH_TERMINATE2`) |
+
+**Every thread's queue is `msgs=0/0`.**
+
+**The correction that matters:** (previous rounds described SpringBoard as
+"stopped after 33 platform calls"). It is not stopped. It builds nine threads and
+then all of them idle with empty queues. That is the normal signature of a
+process waiting for input, not a wedged one. Combined with 268 exec calls (more
+than the 236 in the older "healthy" log) and both SpringBoard and backboardd
+staying `present` through t=20, the system is fully booted. **Nothing crashes and
+nothing fails to start.**
+
+**Also checked and dismissed:**
+
+- `/var` symlink -> `private/var` exists and is correct (a round earlier claimed
+  it was missing; that was a truncated `head` listing, withdrawn)
+- dyld cache files present; `not in trust cache` is a warning and the code
+  continues past it; the 40+ shared-cache mappings are done by launchd and
+  inherited
+- `/private/preboot` contains only `Cryptexes/`; the `.roots-installed` cookie
+  launchd looks for is absent. Noted, **not** claimed as causal - 268 processes
+  started anyway, the same pattern as the trust-cache warning.
+
+**So the question is no longer "why did SpringBoard stop" but "what was supposed
+to tell it to display something, and why did that never arrive".**
+`sweetmsgwait` already proved the queues stay empty for a whole boot.
+
+
+### >>> 2026-11-04 (89): the system never learns which app is in the foreground <<<
+
+Found by grepping an existing 43,808-line boot log for error patterns rather
+than by adding instrumentation. This is the most direct evidence yet that
+SpringBoard has nothing to show, and it sits upstream of every IOKit and IPC
+observation in this file.
+
+```text
+MKBUserSessionID         = 501          (mobile, Foreground = 1)
+UMD_INIT: failed to read nextsession dict
+UMD_INIT: Unable to Obtained foreground, curFG:502, nextID:-1
+UMD_INIT: Failed to get next session, booting with default id to be Loginwindow UID
+UMD_INIT: FAILED to Set Foreground ID + multiuser in commpage successfully
+```
+
+`nextID:-1` is the whole story in one number: **the system cannot name the next
+session**, so it falls back to `Loginwindow UID`, and the write of the
+foreground ID into the commpage **fails**.
+
+**Why this matters more than the earlier findings:** every previous result
+described *behaviour* (no GPU matches, idle queues, blank surfaces). This one
+describes a *missing input to the compositor's decision*: if the foreground ID
+is not in the commpage, SpringBoard has no answer to "what should be on screen",
+and doing 33 platform lookups and then idling is exactly what that would look
+like.
+
+**Where it comes from:** `UMD_INIT` is dyld code, not kernel code - grepping the
+kernel tree finds nothing. So the file it fails to read lives on the iOS root
+and can be inspected from the host with `tools/hfs-read.py` without any new
+instrumentation.
+
+**Next step when the phone is back:** locate the session configuration the
+`nextsession` dictionary would come from (candidates: `/var/db/` session
+plists, `/Library/Preferences/com.apple.loginwindow.plist`) and check whether
+it exists and what it says. A missing or malformed session file would be a
+one-file fix rather than a driver.
+
+**Not yet verified:** that this is causal rather than a benign fallback. The
+counter-argument is the same one used for `not in trust cache` (86) - that
+warning looked fatal and was proved harmless. **Do not treat this as the root
+cause until the file is inspected.**
+
+
+### >>> 2026-11-04 (88): kmsg hook overhead, and the run-order that makes it meaningful <<<
+
+(87) raised the possibility that the short boot was the `ipc_kmsg_send` hook
+itself. That hook sits on the path of *every message in the system*, so its cost
+matters on one core. Two rounds of work cut it:
+
+| version | per-message cost |
+| --- | --- |
+| first | resolve the destination task, read its name, `strncmp` |
+| (85) + | destination filter before slot allocation |
+| round 279 | one-slot verdict cache (covers two ports) |
+| **round 280** | **32-slot direct-mapped verdict cache** |
+
+A boot fans out across dozens of ports, so a single cached "not it" was not
+enough; 32 slots indexed from the port pointer covers the hot set without a scan.
+
+**The order that makes any of this meaningful** - and the reason (87) drew no
+conclusion:
+
+1. **control first**: boot `shim/out/shim-wait4.img` (previous kernel, no kmsg
+   hook) and confirm it reaches `exec SpringBoard` and ~30 k lines
+2. only then run `research/tmp/run-kmsg.sh`
+
+If the control also comes up short, the short boot is not the hook and the kmsg
+build is innocent. If the control is healthy and the kmsg build is not, the hook
+is real overhead and needs to be cut further. **Running the trace first proves
+nothing either way** - which is exactly what happened at round 275.
+
+Also fixed there: `run-kmsg.sh` wrote to a fixed output path, so its second run
+overwrote the first run's log and destroyed the evidence for the 940-line boot.
+Output names now carry a timestamp.
+
+
+### >>> 2026-11-04 (87): both dual-trace runs failed to produce data; one boot was short <<<
+
+The phone came back for one round and both attempts came to nothing:
+
+| attempt | what happened |
+| --- | --- |
+| 1 | boot ended early - 940 lines, no `exec SpringBoard`, no `exec backboardd`; `SWEET KMSG: 0 captured, 0 to SpringBoard` is therefore **meaningless**, since the process under test never ran |
+| 2 | ran the full 201 s (`still running after 201s`) but all four log pulls failed and the phone left USB again |
+
+**No conclusion of any kind is drawn from these runs.**
+
+**One thing to check before running the kmsg build again:** the short boot could be
+the new `ipc_kmsg_send` hook itself. It runs for *every message in the system*,
+resolving the destination's process name each time until the 64 slots fill, on a
+single core. The second attempt running the full 201 s argues against a systematic
+break, but that is the same "looked fine once" reasoning that has been wrong
+repeatedly in this project.
+
+**Next experiment is therefore a control, not the trace:** boot the *previous*
+kernel (no kmsg hook) and confirm it reaches `exec SpringBoard` and ~30 k lines.
+Only if that is stable does the kmsg build mean anything.
+
+
+### >>> 2026-11-04 (86): the send trace is hardened; one boot now answers two questions <<<
+
+(85) rebuilt the send-side trace because the old hook may never have been on the
+path. While the phone has been off USB, the replacement was hardened against
+every failure mode this project has already been bitten by:
+
+| check | result |
+| --- | --- |
+| hook reaches all sends | `ipc_kmsg_send` is called from `ipc_mig`, `mach_msg`, `flipc` |
+| runs under no lock | hook sits above `ip_mq_lock(port)` |
+| filter before slots | destination is resolved first, so unrelated traffic cannot fill the array |
+| needle not clobbered | own buffer; sharing `sweet_msgwait_needle` let `sweet_msgwait_init()` clear it |
+| overhead bounded | report sampled every 4096 receives, not 34,132 times a boot |
+| destination name resolvable | same `get_bsdtask_info` path that already prints `owner=SpringBoard` |
+
+**Also added `ip_destination` to the wait trace**, so one boot now answers two
+questions at once:
+
+- `sweetkmssend=SpringBoard` - does anything send to it?
+- `sweetmsgwait=SpringBoard` - are the ports it parks on its own queues
+  (`dest` = itself or `none`) or services it provides and is waiting to be
+  called on (`dest` = another process)?
+
+That distinction matters: "idling on my own dispatch queues" and "waiting to be
+called by a client" are entirely different diagnoses and the previous trace
+could not tell them apart.
+
+Run with `bash research/tmp/run-kmsg.sh` (both traces, retries the flaky log
+pull). **Not yet run** - the phone has been off USB since round 258.
+
+**Nothing here is a finding.** It is preparation, and the session has produced no
+new measurement in these rounds. Recorded as such.
+
+
+### >>> 2026-11-04 (85): the "zero messages" result may have been a wrong hook site <<<
+
+(84) concluded "nobody ever sends to SpringBoard" from
+`sweetmsgsend=SpringBoard` reporting `0 message(s) captured` for a whole boot.
+**That conclusion is now suspect, because the hook may not be on the path.**
+
+The trace sits in `ipc_mqueue_send_locked`. Checked where sends actually go:
+
+| function | callers |
+| --- | --- |
+| `ipc_mqueue_send` | essentially none outside flipc.c |
+| **`ipc_kmsg_send`** | `ipc_mig.c:164`, `ipc_mig.c:398`, **`mach_msg.c:854`** (the ordinary mach_msg syscall), `flipc.c:276`, `flipc.c:636` |
+
+So **`ipc_kmsg_send` is the rendezvous every send passes through**, and the
+message-queue function is a leaf that most traffic never touches. A zero from a
+leaf proves nothing about the system.
+
+**What was built in response** (`sweetkmssend=<destination>`):
+
+- hook moved to `ipc_kmsg_send` right after `port = hdr->msgh_remote_port`
+- lockless: one port pointer per slot behind an atomic counter, bounded at 64
+- **filtered by destination before recording** - without it the 64 slots fill
+  with whatever the boot sends first and a later match is invisible, which is
+  exactly the mistake (81) made with the wait-queue cap
+- the filter needle has **its own storage**: the first version reused
+  `sweet_msgwait_needle`, and `sweet_msgwait_init()` clears that whenever
+  `sweetmsgwait` is absent, so the trace silently did nothing
+
+It builds and links; one boot decides it. **Not yet run** - the phone left USB
+again after the build.
+
+**Either way this matters:** if the new hook also reports zero, "nothing is sent
+to SpringBoard" is real and the search goes upstream to launchd. If it reports
+messages, (84) was wrong and the question returns to SpringBoard not acting on
+what it receives.
+
+
+### >>> 2026-11-04 (84): NOBODY EVER SENDS TO SpringBoard. That is the answer. <<<
+
+Both outstanding experiments ran. The send-side one is decisive.
+
+**`sweetmsgsend=SpringBoard`, whole boot: zero messages.**
+
+```text
+SWEET MSGSEND: 0 message(s) captured      (reported 34,128 times across the boot)
+```
+
+**Nothing - not launchd, not backboardd, not any daemon - ever sends a message
+to SpringBoard.** That closes the question the last eighty rounds were circling.
+
+**`sweetmsgwait=SpringBoard`, cap 2000, 369 records (cap not reached, so this is
+the complete set):**
+
+| port | waits | share |
+| --- | --- | --- |
+| 0x...4953a8 | 184 | 50 % |
+| 0x...495268 | 76 | 21 % |
+| 0x...ee4688 | 40 | 11 % |
+| 13 others | 69 | 19 % |
+
+All 369 report `owner=SpringBoard`. Recorded between log lines 957 and 30,634 of
+36,093, i.e. essentially the whole boot.
+
+**So the picture is complete:**
+
+```text
+SpringBoard starts
+  -> parks on 16 of its own queues (this is the 33 IOKit calls plus idling)
+  -> opens AppleKeyStore and IOPMrootDomain
+  -> waits
+  -> nothing is ever sent to it
+```
+
+It is not blocked on a dependency, not crashed, not wedged, not waiting for
+input - **it was never asked to do anything.** The bug is upstream: whatever is
+supposed to tell SpringBoard to put up UI never does.
+
+**Note on instrument history, because it matters for trusting this:** the cap
+was 40 when the first version of this experiment was written, and 40 filled up
+in the first third of the boot. Raising it to 200 revealed 11 ports and a
+wait-work-wait pattern; raising it to 2000 showed the cap is not even reached
+(369 total). The first two readings were partial and would have supported the
+wrong conclusion.
+
+
+### >>> 2026-11-03 (83): what SpringBoard should be providing <<<
+
+Read from `/System/Library/LaunchDaemons/com.apple.SpringBoard.plist` on the
+HFS+ root with `tools/hfs-read.py cat`. Its `MachServices` list includes:
+
+```text
+com.apple.frontboard.systemappservices
+com.apple.springboard.services
+com.apple.springboard.statusbarservices
+com.apple.springboard.backgroundappservices
+com.apple.springboard.blockableservices
+com.apple.UIKit.statusbarservice
+com.apple.systemstatus.publisher
+com.apple.pegasus
+```
+
+**`com.apple.frontboard.systemappservices` is a Mach service SpringBoard
+provides itself.** That does answer the operational question - no separate
+process has to start for FrontBoard to exist - but it does **not** establish that
+a binary named `frontboardd` is absent from the system. Both could be true at
+once. Rounds spent hunting for a missing `frontboardd` were looking in the wrong
+place either way, since the service is SpringBoard's to publish; the stronger
+claim that such a process "was never meant to exist" is not supported by a plist
+entry alone and is withdrawn.
+
+The plist also carries `RunAtLoad`, `KeepAlive`, `ThrottleInterval`,
+`HideUntilCheckIn`, `EnvironmentVariables` and `POSIXSpawnType`, so the job
+itself is configured normally.
+
+**Not knowable from the kernel:** whether these services ever get registered or
+looked up. The kernel log records IOKit lookups, not Mach service registration;
+a `grep` of the service names over a boot returns zero and that zero is
+inconclusive, not evidence. Registration happens in userland launchd.
+
+So the open question downstream of (80) is: SpringBoard owns the queues from
+(80) and would publish these services - did anything ever ask for one?
+
+
+### >>> 2026-11-03 (82): SpringBoard waits first, then calls - the order is not what I assumed <<<
+
+Reading the successful `sweetmsgwait` log again, with the ordering checked against
+the ring first (vsync runs 2 -> 4200 strictly monotonic, no overwrite, so line
+order is time order here):
+
+| event | log lines |
+| --- | --- |
+| 40 port waits | 620 - 777 |
+| 33 IOKit calls | 1002 - 1041 |
+
+**No overlap.** SpringBoard parks on its own queues *before* it enumerates the
+platform, not after.
+
+So the earlier phrasing "it makes 33 calls and then goes quiet" described the
+end of the sequence, not the whole of it. The sequence is:
+
+```text
+start -> park on its own ports -> (woken) -> 33 platform calls -> nothing
+```
+
+That matters because it means SpringBoard **is** woken: something did reach it
+early. The failure is not "no message ever arrives" - it is that after handling
+what arrived it does 33 lookups, opens two services, and stops.
+
+**What is still unseen:** whether it parks again after the 33 calls. The 40-record
+cap filled during the early burst, so the later behaviour is invisible. The cap is
+now 200 and one boot would show it - that boot has not happened (phone off USB).
+
+**Why this is "waits on its own ports" and not something else:** every one of the
+40 records reports `owner=SpringBoard`, `type=3` (`WQT_PORT`). Those are message
+queues SpringBoard owns, i.e. its own libdispatch side, not a service it is
+waiting for somebody to provide.
+
+
+### >>> 2026-11-03 (81): the wait cap hid most of the data; tools fixed, not yet re-run <<<
+
+(80) reported 7 ports and 40 records, but the record cap is 40 and it filled
+between log lines 620 and 777 of a 1649-line boot. **Everything after that is
+invisible**, so "7 ports" means "the first 7 ports", not the whole set.
+
+Fixed, built, not yet run (the phone has been off USB since round 218):
+
+- **cap 40 -> 200**, so a boot's later waits are not simply dropped
+- **`sweetmsgsend=<receiver>`**, a send-side trace, so the quiet side can be
+  read the other way: does anything ever send *to* SpringBoard?
+- the send trace is **lock-safe**: it is called from
+  `ipc_mqueue_send_locked` with the port lock held, so it only writes a fixed
+  16-slot array behind an atomic counter and never logs there.
+  `sweet_msgsend_report()` prints afterwards, outside the lock. Logging inside
+  that lock takes `sweet_log_lock` and is the kind of pairing that wedges a
+  single-core boot - the first version did exactly that and is replaced
+- the send trace also **checks before incrementing**: once full it exits on an
+  atomic read, since the path runs for every message in the system
+
+**Two experiments outstanding, both one boot each:**
+
+1. `sweetmsgwait=SpringBoard` with the cap at 200 - the full wait pattern
+2. `sweetmsgsend=SpringBoard` on its own - whether anything sends to it
+
+Between them they split the problem in two: if messages do arrive, whatever
+SpringBoard does next is where it stops; if none arrive, it was never asked to
+do anything. Neither has been measured yet.
+
+**Address pattern, noted but not conclusive:** three of the seven ports sit
+160-320 bytes apart (one allocation), the rest are far apart. That is the shape
+of a few independently created queues, i.e. libdispatch, which fits (80)'s
+"idle queues" reading. It is a hint, not evidence.
+
+
+### >>> 2026-11-03 (80): sweetmsgwait ran at last - SpringBoard waits on its own ports <<<
+
+The instrument from round 82 had never once been enabled, despite 128 rounds of
+asking what SpringBoard was waiting for. The phone came back, and it was the
+first thing run:
+
+```text
+sweetmsgwait=SpringBoard
+```
+
+Result, 40 records (the cap) over 7 distinct ports:
+
+| port | waits |
+| --- | --- |
+| 0xfffffe200f72f9c8 | 15 |
+| 0xfffffe200f72f888 | 13 |
+| 0xfffffe200f6f2028 | 5 |
+| 0xfffffe200f72fb08 | 2 |
+| 0xfffffe200f717608 | 2 |
+| 0xfffffe200f6f20c8 | 2 |
+| 0xfffffe200f716f28 | 1 |
+
+**Every one reports `owner=SpringBoard`, all `type=3` (`WQT_PORT`).**
+
+Two conclusions, both measured for the first time:
+
+1. **No missing external dependency.** SpringBoard is not blocked on a service
+   somebody else should be providing - it is parked on message queues it owns.
+2. Two ports carry 28 of the 40 waits, which is the shape of libdispatch idle
+   queues rather than a protocol stall.
+
+This rules out the whole family of "a daemon it needs never started" theories,
+including the `frontboardd` line that ran for many rounds.
+
+**What it does not answer:** whether anything ever sends to those ports. A
+port with no sender and a port whose sender is late look identical from the
+receiving side, so a send-side trace was added (`sweetmsgsend=<receiver>`,
+noted in `ipc_mqueue_send_locked`). It builds and is in the kernel, but the
+test boot could not be read - the log pull failed and the phone left USB again.
+**That experiment is still outstanding.**
+
+
+### >>> 2026-11-03 (79): SpringBoard's 33 calls, enumerated, and its threads, decoded <<<
+
+Two things that had been described loosely are now exact.
+
+**The 33 calls, de-duplicated - 10 distinct kinds, nothing graphic:**
+
+| call | count |
+| --- | --- |
+| path IODeviceTree:/arm-io -> IOPlatformDevice | 13 |
+| path IODeviceTree:/product -> IOPlatformDevice | 12 |
+| match <IOProviderClass=AppleKeyStore> -> AppleKeyStore | 1 |
+| open AppleKeyStore | 1 |
+| open IOPMrootDomain | 1 |
+| path IODeviceTree:/buttons | 1 |
+| path IOPower:/IOPowerConnection/IOPMrootDomain | 1 |
+| path IOService:/IOResources/AppleKeyStore | 1 |
+| path IODeviceTree:/arm-io/pearl-sep -> none | 1 |
+| path IODeviceTree:/product/camera -> none | 1 |
+
+Not one is display, surface or accelerator. The single `matching1` is the
+keystore.
+
+**The final thread states, decoded against `thread.h`** (`TH_WAIT 0x01`,
+`TH_UNINT 0x08`, `TH_TERMINATE2 0x20`):
+
+| thread | waitq | state | meaning |
+| --- | --- | --- | --- |
+| tid 222 (main) | PORT | 1 | TH_WAIT - parked on a port |
+| tid 338 | QUEUE | 1 | TH_WAIT |
+| tid 462 | QUEUE | 1 | TH_WAIT |
+| tid 466 | TURNSTILE | 41 | TH_WAIT+TH_UNINT+TH_TERMINATE2 - **exiting** |
+| tid 474 | QUEUE | 1 | TH_WAIT |
+
+**Correction:** (56)'s "the block ring shows a deadlock" reading of `tid=466`
+was wrong. `state=41` is a thread on its way out, not a stuck one. Every thread
+is in an ordinary state; the process is **idle**, not wedged. Four wait for
+work, one is terminating.
+
+That is the honest characterisation of SpringBoard at the end of the log: a
+healthy, idle app that has finished its platform enumeration and is waiting.
+It has not failed. Nothing is going to arrive.
+
+**Also corrected:** (56) is cited elsewhere as "8 ports, all owned by
+SpringBoard". That came from a thread dump, not a port listing, and the counts
+do not match - different samples show 3 and 5 threads. Only the *states* above
+are established; the port-ownership claim was never measured and should not be
+relied on.
+
+
+### >>> 2026-11-03 (78): SpringBoard stops after two opens <<<
+
+The sharpest statement of where SpringBoard halts. Both processes open
+`AppleKeyStore` and `IOPMrootDomain`; then they part:
+
+| service | SpringBoard | backboardd |
+| --- | --- | --- |
+| AppleKeyStore | yes | yes |
+| IOPMrootDomain | yes | yes |
+| SweetHIDTouch | - | yes |
+| SweetHIDButtons | - | yes |
+| AppleCLCD | - | yes |
+| IOCoreSurfaceRoot | - | yes |
+| IOAcceleratorES | - (0 matches) | yes (213 matches) |
+
+**SpringBoard opens exactly two services, both platform basics, and no
+graphics-related service at all.** backboardd opens six, the whole display kit.
+
+So it is not that SpringBoard "cannot draw" - it never reaches the step where
+drawing would begin. The normal order after keystore and power would be display
+service, surface creation, GPU, frame; none of it happens.
+
+Combined with (76)-(77) the picture is consistent: nothing below SpringBoard is
+broken, and SpringBoard itself stops before its first graphics call. What is
+not established is *why* it stops there - that needs a debugger inside the
+process, which this setup does not have.
+
+
+### >>> 2026-11-03 (77): the display path is healthy end to end; it is fed blanks <<<
+
+The other half of (76), from the same log. The display controller side is not
+the problem:
+
+```text
+93   SWEET FB: AppleCLCD 1080x2400 stride 4320 at 0xa0000000,
+                default surface 1, presented as 1125x2436     (initialised)
+819  backboardd open AppleCLCD type 0 -> 0x0                  (opened)
+835  backboardd matching1 AppleCLCD -> AppleCLCD              (matched)
+```
+
+and it is fed: 16 panel submissions, 8 per surface. What they contain is the
+finding:
+
+| surface | swaps | nonblack | distinct | first pixel |
+| --- | --- | --- | --- | --- |
+| id=2 | 8 | 10 | 1 | 0xff000000 |
+| id=3 | 8 | 13 | 2 | 0xff000000 |
+
+13 non-black out of 4096 samples is 99.7 % black. **backboardd is compositing
+and submitting on a working controller - it is being handed empty surfaces.**
+
+This corrects the wording in (76) that said the compositor "spins" with
+`sweetgpuok`: it does not spin, it submits blanks normally. The input is empty,
+the output is honest.
+
+**Full chain, settled:**
+
+```text
+SpringBoard   0 GPU matches - produces nothing
+     |
+backboardd    2 blank surfaces, 99.7 % black
+     |
+AppleCLCD     healthy, 16 submissions
+     |
+panel         the centred 180x168 shape plus black
+```
+
+So nothing below SpringBoard needs fixing. The missing piece is entirely "produce
+a frame", which needs the GPU command path from (76).
+
+
+### >>> 2026-11-03 (76): the GPU chain, traced end to end from an existing log <<<
+
+Assembled from `research/tmp/observe-hid2.txt` while the phone was offline (round
+143 on). Nothing here is new measurement - it is the same log read with the
+right prefixes, and it settles where the GPU path actually stops.
+
+**SpringBoard and backboardd do not behave alike at all:**
+
+| process | IOKit calls | of which device-tree | of which GPU match |
+| --- | --- | --- | --- |
+| backboardd | **300** | 51 | **213** |
+| SpringBoard | **33** | 25 | **0** |
+
+33 is a hard constant: identical in all 19 boots on disk, across ADT changes and
+`sweetgpuok`. SpringBoard enumerates the platform (25 tree lookups + keystore +
+power + two failed nodes) and then stops - it never asks for a GPU at all.
+
+**backboardd does ask, and the chain is complete up to one call:**
+
+```text
+110  SWEET GPU: AGXAccelerator published (stub)
+864  backboardd matching1 AGXAccelerator -> AGXAccelerator      (found)
+870  backboardd open AGXAccelerator type 1 -> 0x0                (opened)
+869  SWEET GPU: user client opened
+871  SWEET GPU: method 2 (0 in, 0 out) -> unsupported             <- stops here
+872  SWEET GPU: user client closed
+```
+
+All 213 `IOAcceleratorES` matches **succeed** - 0 MISS. So the class name is
+fine; an earlier note suspecting a name mismatch was wrong.
+
+**method 2's failure is a switch, not a bug** (`SweetFramebuffer.cpp:240`):
+
+```c
+return sweet_gpu_ok ? kIOReturnSuccess : kIOReturnUnsupported;
+```
+
+and `sweet_gpu_ok` comes from boot-arg `sweetgpuok`. **Turning it on does not
+help** - measured:
+
+| build | presents | distinct | nonblack |
+| --- | --- | --- | --- |
+| `sweetgpuok=1` | 177 | 5 | 60 |
+| default | 132 | 5 | 60 |
+
+34 % more submits, byte-identical content. The compositor spins; nothing is
+drawn.
+
+**So the gap is precise now:** not discovery, not naming, not permission -
+**the GPU commands are never executed.** That is a driver to write, not a flag
+to flip, and it is the reason SpringBoard has nothing to composite.
+
+
+### >>> 2026-11-03 (75): device offline since round 143; what is saved and what is not <<<
+
+The phone dropped off USB after the round-142 colour-map run and has not come
+back for 22 rounds. Host side checked: `ioreg -p IOUSB` still lists three
+`AppleT8142USBXHCI` controllers, so the host is fine and simply has no device
+attached. Nothing here can fix that.
+
+**Two kernels exist and they are not the same. Do not mix them up:**
+
+| kernel | time | GPU caller name | verified on hardware |
+| --- | --- | --- | --- |
+| `research/k-proven` | 23:06 | no | **yes** - this is the last one that booted |
+| `xnu/out-gauguin-macos/.../kernel.development.gauguin` | 23:17 | yes | **no** - links, never ran |
+
+Same size, different hash. When the phone returns, boot `k-proven` first to
+reproduce the known state, and test the GPU caller name as its own change -
+otherwise a new observation cannot be attributed to either.
+
+**What is saved:**
+
+- `xnu/instrumentation/` holds byte-identical copies of the four instrumented
+  sources (verified against the build tree in round 163), with a README that
+  separates verified from unverified instrumentation
+- every conclusion, retraction and measurement is in this file
+- `research/k-proven` is the working kernel
+
+**What is not, and cannot be:** the boot images themselves. They are 17 MB,
+regenerate in four minutes, and differ every build, so they are deliberately
+not tracked. `research/tmp/observe-*.txt` device dumps stay out of git too.
+
+**First things to do when the phone is back:**
+
+1. boot `k-proven` unchanged, confirm the known panel state still reproduces
+2. run the colour-coded map, which was lost mid-flight - it answers "is the
+   centred 180x168 px shape white (a boot logo) or coloured (something else?)"
+3. only then test the GPU caller-name build
+
+
+### >>> 2026-11-03 (74): the centred shape is ~180x168 px, and it took three tries <<<
+
+Measured from the ASCII map of entry (72), counting the actual columns and rows
+per line rather than eyeballing them:
+
+| quantity | value |
+| --- | --- |
+| size | **180 x 168 px** (16.7 % x 7.0 % of the 1080x2400 panel) |
+| centre | x=544 vs panel 540, y=1184 vs panel 1200 - centred |
+| profile | widest at row 8 (45 columns), narrowing to 27 by the last row |
+
+Widths per row: 41, 42, 41, 40, 40, 40, 41, 42, 45, 44, 41, 38, 33, 27. It is
+wider at the top than the bottom, so not a rounded rectangle - something with
+content inside it.
+
+**Three attempts to get this number, and the first two were wrong:**
+
+- (72) said "about 600x250 px" - I read map *columns* as pixels and forgot the
+  4 px step
+- (73) said "200x156" - still estimated the extent instead of counting it
+- here: counted every row, 180x168
+
+The lesson repeats the one from the instrument defects: **a number that comes
+from a map has to be converted back through the sampling step, and counted, not
+eyeballed.** Do not quote a size from the map without doing both.
+
+**Resolution caveat:** the map samples 4 px per column and 12 px per row, so
+the height carries +-12 px of error. A finer map is needed to pin it down, and
+that needs the phone.
+
+
+### >>> 2026-11-03 (73): the ASCII map sees the screen; the nonblack counter does not <<<
+
+Following (72): five independent boots, same final colours every time
+(`ffffff b7b7b7 818181 bfbfbf 4d4d4d`) and the same non-black bounding box
+(`x=200..832 y=1037..1378`), but `nonblack` itself was 60 in one run and 13 in
+the other four.
+
+The counter is the problem, not the screen. `nonblack` samples the panel with
+a **632-pixel stride** (4096 points over 1080x2400). The box is 8.3 % of the
+panel, so a solid fill there should register ~341 hits; 60 is 18 % of that and
+13 is 4 %. The ASCII map, by contrast, samples 128x24 points *inside* the box,
+about five times denser, and shows a solid rounded mass.
+
+**So the content is real and `nonblack` has been badly understating it.** That
+counter has been quoted since round 71 as evidence that "the panel shows almost
+nothing"; it never meant that. Do not use it to judge how much is drawn - use
+the map.
+
+The bounding box *is* reliable (identical across all five boots), so it is the
+right thing to check content against.
+
+**Still open, and needs the phone:** what the shape is. The colour-coded map
+that would have said (white? blue? an icon?) was lost when the device dropped
+off USB, and it has not come back.
+
+
+### >>> 2026-11-03 (72): what is actually on the panel, for the first time <<<
+
+For ~100 rounds the panel was described by three numbers - `nonblack`,
+`distinct`, `presents` - and nobody knew what any of it looked like. Printing
+the colours and then an ASCII map settled it.
+
+**The colours change when the first swap happens**, which pins the content to
+backboardd rather than to the bootloader:
+
+```text
+vsync=2     presents=0    distinct=2   ffffff 00ff00          (ABL splash + our mark)
+vsync=1800  presents=0    distinct=1   ffffff
+vsync=3000  presents=5    distinct=5   ffffff b7b7b7 818181 bfbfbf 4d4d4d
+vsync=4200  presents=122  distinct=5   (same)
+```
+
+The greys are not a smooth ramp (steps of 52/54/8/64), so they are not
+antialiasing - they are separate elements.
+
+**Whole-panel map** (`#` bright, `+` dim,`.` black), 64x40 over 1080x2400:
+
+```text
+... 18 all-black rows ...
+                                  :
+                          ##########
+                           ###########
+                              #...*+
+... 18 all-black rows ...
+```
+
+**Zoomed to the band (x 240..840, y 1100..1400, 128 columns):** one solid
+rounded mass about 600x250 px near the vertical centre, with a separate
+full-width dim line at y~1300.
+
+**So the screen is not blank and not noise**: iOS is drawing a real filled
+shape, centred, black everywhere else. It is equally clearly *not* a home
+screen, lock screen or app.
+
+**What this does not tell us:** what the shape is. Resolution and the lack of
+colour channel information are not enough to identify it, and I have no
+reference image to compare against. The round-142 attempt to add colour was
+lost when the phone dropped off USB (see below), so that is still open.
+
+**Tooling added for this** (all off by default, one-shot): colour list on the
+`vsync=` line, `nonblack` bounding box, and an ASCII luminance map driven by
+the same counters. The map is the most useful thing this session built for
+looking at the display; it answers "did anything draw?" in one boot.
+
+
+### >>> 2026-11-03 (70): injected touch reaches the HID service and SpringBoard ignores it <<<
+
+The one experiment this session could actually run to completion. Five
+conditions held at once, which none of the previous thirteen attempts managed:
+
+| condition | evidence |
+| --- | --- |
+| boot completed | 1638 lines, every milestone |
+| SpringBoard running normally | 33 IOKit calls |
+| touch delivered | `touch 0 down -> dispatched`, then `touch 0 down` from the client - **no `deduped` line** |
+| observation window | 150 lines after the tap |
+| control | matched run with no tap: 1577 lines, 33 IOKit calls, distinct=5 - identical to the tap run |
+
+Result:
+
+```text
+SpringBoard IOKit calls before the touch: 33
+SpringBoard IOKit calls after the touch:   0
+panel: distinct=5, unchanged
+```
+
+**SpringBoard receives a real HID touch and does nothing.** No IOKit activity,
+no IOSurface, no framebuffer, no repaint.
+
+So entry (56)'s "SpringBoard is working normally, waiting for an event" is
+**wrong**, and the correction is measured rather than argued.
+
+**How the experiment was made to work**, after thirteen failures:
+
+- the tap gets its own `thread_call` (`sweettapdelay=`), not a slot on the
+  bring-up thread: `sweettapdelay` under ~12 s puts I2C/RPMh work on the bus
+  during vfs_mountroot and the boot stops (measured: 787 lines, presents=0,
+  against 1586 and 177 at the default 45 s)
+- the delay is a `thread_call`, not `IOSleep`: IOSleep in a busy single-core
+  boot stretches far past its nominal value, and an
+  `assert_wait_deadline` + `thread_block(THREAD_CONTINUE_NULL)` pair never woke
+  at all
+- `SweetHIDTouch`'s `fDown[]`/`fX[]`/`fY[]` were never initialised, and
+  `touch()` returns early when `fDown[finger] == down` - an uninitialised true
+  would have swallowed the first touch silently. Now zeroed in `start()`, and
+  the early return logs `-> deduped`
+- `sweetufsquiet=1` silences the per-command UFS line, which was 84 % of the
+  log
+
+**What this rules out:** input as the trigger. Whatever SpringBoard is waiting
+for is not a touch event.
+
+
+### >>> 2026-11-03 (54): "the image is missing components" was wrong <<<
+
+Entry (53)'s conclusion - that frontboardd and BackBoardServices are absent from
+the iOS root, so the image is incomplete - **does not hold**.
+
+`find BackBoardServices` returns nothing, but the actual path is
+`/System/Library/PrivateFrameworks/BackBoardServices.framework/`. Searching for
+a bare binary name misses every framework, and there are 32 board-related
+frameworks present, including `FrontBoard.framework` and
+`BackBoardServices.framework`.
+
+**Lesson, the same one as entry ()'s instrument defects:** a negative result
+from a name search means "that exact name is not there", not "that component is
+absent". The find command should be used to test presence only after the
+expected path form is known.
+
+Whether `frontboardd` itself exists remains **unknown**: iOS ships many daemons
+only inside `dyld_shared_cache_arm64`, and the reader cannot read that file -
+its records do not use the +104 extent offset that `.journal` does (same failure
+as the .tracev3 files in entry (52)).
+
+**So the state after (53)-(54) is:** the absence of frontboardd is unproven,
+not established. Do not treat the image as incomplete on this evidence.
+
+
+### >>> 2026-11-03 (52): adding a GPU node to /arm-io changed nothing, and posts over again <<<
+
+Entry (51) left one specific lead: SpringBoard's last act is **thirteen
+consecutive queries of `IODeviceTree:/arm-io`**, after which it makes no IOKit
+call at all for the remaining ~7,000 log lines. `arm-io` published only gic,
+wdt and disp0 even though the device tree carries `gpu@3d00000`
+(`qcom,adreno-619.0`). Hypothesis: SpringBoard walks /arm-io looking for an
+accelerator, does not find one, and stops.
+
+Added a `gpu` node to `tools/mkadt.py` with no kernel driver behind it, so the
+only thing that could change is whether the walk succeeds.
+
+**It changed nothing:**
+
+| | without the node | with the node |
+| --- | --- | --- |
+| SpringBoard IOKit calls | 33 | **33** |
+| `/arm-io` queries | 13 | **13** |
+| last SpringBoard log line | 14050 / 15554 | 13918 / 15455 |
+
+`presents` did move, 36 → 75. **That is noise.** Entry (51) proved
+`sweetgpuok=1` moves the same counter 36 → 88 while changing no pixel, so a
+rising presents value on its own is not evidence of anything, and this entry
+would have said "progress" if the call counts had not been compared.
+
+The node was reverted; `tools/mkadt.py` is unchanged.
+
+**What this rules out:** SpringBoard is not waiting for a GPU node under
+/arm-io. Its 13 queries succeed - the log shows `arm-io -> IOPlatformDevice`,
+not `-> none` - so whatever it wants is something else, or nothing it looks
+for in IOKit is the blocker at all.
+
+**Standing rule, earned twice now:** compare *behaviour* (call sequences,
+thread states), never counters alone. presents/`nonblack`/`distinct` have each
+misled at least one conclusion.
+
+
+### >>> 2026-11-03 (51): sweetgpuok inflates presents and changes no pixels <<<
+
+Controlled A/B with the now-trustworthy observer (banner-checked both runs),
+identical cmdline except for the switch:
+
+| | GPU methods | presents | distinct |
+| --- | --- | --- | --- |
+| no `sweetgpuok` | `2` -> unsupported, **connection closed** | **36** | 5 |
+| `sweetgpuok=1` | 2, 0, 4 ok, then 33 x22 | **88** | 5 |
+
+**Same picture, more than twice the submissions.** `sweetgpuok=1` tells
+backboardd its GPU calls succeeded, so it submits the same already-black image
+more often. The counter rises; no pixel changes.
+
+So entry (45)'s "selector 2 is a gate" is true in the narrow sense - userland
+does go further - and **had no bearing on the picture**. "Goes further" was
+never "moves toward an image", and earlier entries implied otherwise.
+
+**Consequence for the images:** `shim-proven.img` had been built with
+`sweetgpuok=1`, i.e. the "proven" configuration was the one with the fake
+success in it. It now carries the honest build (`c78ef4e2c6d0ef99`, no
+sweetgpuok); `shim-bisect-on.img` keeps the probe.
+
+**Standing fact, now measured with a trustworthy instrument:** with the GPU
+service opened and every call answered either way, the panel stays at
+`distinct=5` and `presents` between 36 and 88. The GPU is not what is drawing,
+and answering its methods success does not make it draw.
+
+
+### >>> 2026-11-03 (50): the measuring tools were lying, twice <<<
+
+Neither entry changed a pixel. Both changed how much the other entries can be
+trusted.
+
+**1. `shim-proven.img` did not contain the current kernel.** Its banner was
+`19:01:48` while the tree built `19:43`. Every boot I called "proven" from that
+file was running a kernel 40 minutes older than the source being edited.
+Rebuilt; `shim-proven.img` and `shim-bisect-on.img` now both read
+`c721b54dc8a162c2`, banner `19:43:28`.
+
+**2. `tools/sweet-observe.sh` could report a previous boot as this one's.**
+The log pull ended in `|| true`, so a failed pull left `$out` holding the
+*earlier* log, and every counter printed afterwards (`progress markers`,
+`panel counters`, `GPU lookups`, `log lines`) was computed from it - silently.
+That is the worst failure mode for an instrument: the output looks like
+evidence.
+
+Fix: `rm -f "$out"` before pulling; exit 4 if the pull fails or produces an
+empty file; and compare the kernel banner in the log against the banner inside
+the image (the check `fastboot-cycle.sh` already had and this script did not),
+exiting 3 on mismatch.
+
+`tests/test_observe.py` (7 checks) asserts all of that from the source so it
+cannot regress unnoticed; `tests/run-all.sh` picks it up automatically.
+
+**Why this matters more than it looks:** several earlier entries concluded
+things from these tools - "the panel never changes", "presents climbed to 98",
+"the GPU is never opened". Those conclusions were drawn from logs I cannot now
+prove came from the run they were attributed to. They should be re-measured
+before anyone builds on them.
+
+
+### >>> 2026-11-03 (49): HFS+ reader - works for listing, still wrong for records <<<
+
+`tools/hfs-read.py` (uncommitted): reads the iOS root straight off
+`/dev/block/by-name/userdata` over `adb dd`, because TWRP on this phone has no
+HFS support. Useful as it stands for one thing - locating a file:
+
+```text
+python3 tools/hfs-read.py find dyld_shared_cache_arm64
+  -> cnid=326127 parent=322858
+python3 tools/hfs-read.py list /private/var
+```
+
+A full catalog walk returns **323,281 entries in 17 s**.
+
+**What is proven about the format:**
+- volume header at byte 1024; block size 4096; 16 GiB
+- catalog file: start block 181633, 32768 blocks; nodeSize 8192 (`hdr[32:34]`)
+- root node 264, height 3
+- node kinds: 0 = index, 255 (-1) = leaf
+- record k of a node spans `[offs[nrec-1-k], offs[nrec-k]]`
+- the key is followed by the data *directly* - there is no 4-byte offset field
+- index records carry the child node as 4 bytes right after the key
+- leaf keys: parentID(4) + nameLen(2) + UTF-16BE name
+
+**What is proven WRONG:** the file-size field. `.journal` reads 4194304 at
+`+56` and that looked like a rule, so the size was taken from there - but the
+`dyld_shared_cache_arm64` record then showed ASCII `hlnkhfs+` at `+48` and
+`0x0100000000000000` at `+56`. That string cannot occur inside a catalog file
+record, so **for that node the 248-byte record boundaries are wrong too**.
+Conclusion: record slicing is only verified on the leaf node that holds the
+HFS+ private files (12490); elsewhere it is unproven, and `cat` must not be
+trusted until this is settled.
+
+**Performance note, because it cost five rounds:** reading one node per
+`adb dd` made a full walk look like a hang or an infinite loop. Batching 256
+nodes per read turned it into 17 s. Before concluding a loop is broken, time a
+minimal case - the earlier "no output" runs were timeouts, not logic errors.
+
+**Guesses, marked as guesses:** that `+40` is allocated bytes; that the
+dataFork logicalSize is somewhere in 88..96 per the public struct layout. Both
+contradicted by the data above. Do not build on either.
+
+**Status of the objective itself:** unchanged by any of this. The iOS system
+boots and runs on hardware (see entry (47)); the panel shows no UI because
+`method 33` command buffers are submitted and never executed.
+
+
+### >>> 2026-11-03 (46): selector 33 is a command-buffer submission, and that is a wall <<<
+
+Logged the scalar arguments of the GPU methods (entry 45 guessed at what 33
+was; this measures it). One boot, 22 calls:
+
+```text
+method 33 (2 in, 0 out) in0=1104320000 in1=320000
+method 33 (2 in, 0 out) in0=1104640000 in1=320000
+method 33 (2 in, 0 out) in0=1104960000 in1=320000
+method 33 (2 in, 0 out) in0=1105280000 in1=320000
+...
+method 33 (2 in, 0 out) in0=1603840000 in1=320000
+```
+
+**`in1` is 320000 (0x4E200) on every single call**, and `in0` is monotonically
+increasing from 1,104,320,000 to 1,603,840,000 - a 500 MB span. The first three
+deltas are *exactly* `in1`.
+
+That is not a query and not a frame. `in0` is a low user-space address
+(`0x41d29600`-class, nothing like the kernel's `0xfffffe…`), `in1` is a fixed
+320 KiB, and the addresses advance by the allocation size: this is userland
+handing the driver a **command buffer** and asking for it to be executed.
+
+**Consequence, stated plainly:** making the UI appear now requires *executing*
+AGX command streams - parsing the queue format, decoding the commands and
+rendering them. That is a real GPU driver, not a shim. Nothing in this session
+- and nothing in the tree - gets close to it; the whole display path so far
+works because the panel is a linear framebuffer that CoreAnimation's CPU
+renderer can write directly.
+
+**What is *not* proven:** that accepting selector 33 and doing nothing is
+harmless, which is what `sweetgpuok=1` currently does. It reports success while
+discarding the work, so userland believes every buffer was executed. That is
+acceptable as a probe but must not ship as a default.
+
+**Where the port stands, without overstating it:**
+
+| layer | state |
+| --- | --- |
+| kernel, UFS, HFS+, launchd, 281 processes | works, verified on hardware |
+| SpringBoard | runs; threads park normally (block ring: 319,295 blocks, no deadlock) |
+| framebuffer + IOSurface + swap | works - 16 full-panel BGRA swaps per boot |
+| AGX service, connection, selector gate | works (entries 44, 45) |
+| **command-buffer execution** | **absent - this is the wall** |
+
+
+### >>> 2026-11-03 (45): the first GPU question was a gate - succeeding opens the rest <<<
+
+Entry (44) got the service opened but backboardd asked **one** question
+(`method 2`, no args, no outputs), got `kIOReturnUnsupported`, and closed the
+connection on the next line. A failing first question proves nothing about the
+ones behind it, so added **`sweetgpuok=1`**: every method returns
+`kIOReturnSuccess` with outputs left zeroed. It is a probe, not a fix.
+
+The difference is decisive. Without it:
+
+```text
+open AGXAccelerator type 1 -> 0x0
+method 2 (0 in, 0 out) -> unsupported
+user client closed                    <- gives up immediately
+```
+
+With `sweetgpuok=1`:
+
+```text
+method 2  (0 in, 0 out) -> ok         <- the gate
+method 0  (0 in, 0 out) -> ok
+method 4  (0 in, 0 out) -> ok
+method 33 (2 in, 0 out) -> ok   x29   <- the real workload
+user client closed: 0 occurrences     <- stays open for the rest of the boot
+```
+
+**So selector 2 is a gate**: answer it and userland proceeds to 0, 4 and 29
+calls of 33. Refuse it and nothing else is ever asked. That is why every
+previous round saw exactly one GPU method call and concluded the GPU was
+unused.
+
+**Still not visible:** `presents` 177, panel still `distinct=5`. The workload is
+now known - 33 is called with two scalars and no outputs, so it is a
+submit/signal call, not a query - but nothing has been implemented behind it.
+
+**Next, concretely:** `method 33` is where the work is. Log its two scalar
+arguments, and find out whether it is arriving per-frame (29 calls in a boot
+with 177 presents is consistent with once per swap or less often) or a one-off
+setup.
+
+
+### >>> BREAKTHROUGH 2026-11-03 (44): backboardd wanted AGXAccelerator, not IOAcceleratorES <<<
+
+Entry (45) ended without a conclusion because `-> notify` looked like a failed
+match and I refused to build on that without checking it. Reading the code
+settled it, and the answer was not what either of us assumed.
+
+**`notify` is not a match result at all.** In
+`internal_io_service_get_notification_matching`, `sweet_iolog_dict(...,
+"notify")` is a *hard-coded* label printed when a notification is registered -
+it says nothing about whether a service was found. The real signal is the pair
+`matching1` (found) / `matching1 MISS` (not found), produced by
+`internal_io_service_get_matching_services`.
+
+With the right vocabulary, a boot shows exactly six failed lookups:
+
+```text
+IOK backboardd: matching1 MISS IOProviderClass=AGXAccelerator      -> none
+IOK backboardd: NEVER FOUND class AGXAccelerator
+IOK backboardd: matching1 MISS IOProviderClass=ApplePearlSEPDriver -> none
+IOK backboardd: NEVER FOUND class AppleM2ScalerCSCDriver
+```
+
+**backboardd asks for `AGXAccelerator`.** `IOAcceleratorES` - the name the
+earlier investigation settled on, and which entry (34) built a UserClient for -
+is matched 218 times and opened **zero** times, because it is simply not what
+anything looks for. It was never the blocker.
+
+Fix, in two places:
+
+- `class AGXAccelerator : public IOAcceleratorES` in `SweetFramebuffer.cpp`,
+  inheriting the stub unchanged (io class name AGXAccelerator, every user
+  method still returns an error)
+- an entry in `iokit/KernelConfigTables.cpp` so the class is instantiated
+
+Result (`research/breakthrough/agx-found.txt`):
+
+```text
+SWEET GPU: AGXAccelerator published (stub)
+IOK backboardd: matching1 ... IOProviderClass=AGXAccelerator -> AGXAccelerator
+SWEET GPU: user client opened
+IOK backboardd: open AGXAccelerator type 1 -> 0x0
+SWEET GPU: method 2 (0 in, 0 out) -> unsupported
+```
+
+**NEVER FOUND is gone, the service opens, and userland issues method 2.** That
+is the first time anything has opened a GPU service on this port.
+
+**Still not visible:** `presents` rose to 217 (from ~104-155) but the panel is
+still `distinct=5`, one colour. Now that the method calls are logged, the next
+step is concrete: implement the handful of selectors that actually appear
+instead of guessing which ones matter.
+
+
+### >>> 2026-11-03 (43): the block ring resolves - no deadlock, the machine is just idle <<<
+
+The block ring (`sweet_block_trace`, entry 41) had been recording all along but
+was only ever *cleared*, never printed, because printing from the block path
+hung the boot. Added `sweet_block_ring_report()`, gated by `sweetblockring=1`,
+and drove it from the **log thread** - after first trying the watchdog tick and
+finding the same trap as everywhere else: `sweet_dump_tick()`'s callback ran
+**exactly once** per boot even though `tick=130732`. The log thread reaches the
+last line of the log (13,094 scsi ops), so it is the only reliable 1 Hz context
+this boot has.
+
+Output (`research/breakthrough/block-ring.txt`):
+
+```text
+SWEET BLOCKRING: 319295 blocks total, showing 256
+```
+
+**319,295 thread blocks** - the system is very much doing work. Resolving the
+last 256 continuations against `llvm-nm -n` of the kernel:
+
+| continuation | meaning |
+| --- | --- |
+| `_ipc_mqueue_receive_continue` | waiting for an IPC message |
+| `_thread_preempted` | preempted by the scheduler |
+| `_mpsc_queue_thread_continue` | parked waiting for work |
+| `_workq_unpark_continue` | kernel workqueue thread idle |
+| `_thread_call_thread` | kernel thread_call idle |
+| `_serial_keyboard_poll` | hardware polling |
+
+**Every one is an ordinary park point. There is no deadlock, no stuck lock, no
+missing wakeup.** SpringBoard's threads sitting on `QUEUE`/`TURNSTILE` in entry
+(42) are waiting for work that would arrive if anything produced any - the
+renderer has nothing to composite because `IOAcceleratorES` is still a stub
+(entry 34).
+
+**So the architecture is sound and the remaining gap is exactly what entry (34)
+said it was:** a UserClient behind `IOAcceleratorES`. The last five entries were
+chasing a stall that does not exist.
+
+**Method note worth keeping:** the watchdog tick *looked* alive (`SWEET HB` with
+`tick=130732`) but its callback fired once. Two rounds were spent hooking things
+onto it. Before trusting a periodic hook, count how many times it actually runs.
+
+
+### >>> 2026-11-03 (42): correction - SpringBoard runs, *then* stops; 20 samples say when <<<
+
+Entry (41) concluded "SpringBoard is running, not stuck" from **three**
+samples. That was too few to see the rest of the boot. `sweet_dump_threads_soon()`
+stopped after `round < 3`, so made the count and the pacing boot-args
+(`sweetdumprounds`, `sweetdumpevery`; defaults reproduce the old behaviour) and
+ran 20 samples:
+
+```text
+thread count per sample:
+1 1 1 1 1 2 2 2 3 5 5 8 8 8 6 6 5 5 5 5
+```
+
+It climbs to 8, then **falls to 5 and stays there**, and in the final sample
+**every thread is `run=0`**:
+
+```text
+tid=222 run=0 state=1  wq=PORT
+tid=338 run=0 state=1  wq=QUEUE
+tid=462 run=0 state=1  wq=QUEUE
+tid=466 run=0 state=41 wq=TURNSTILE
+tid=474 run=0 state=1  wq=QUEUE
+```
+
+| sample | threads running |
+| --- | --- |
+| 3 (what entry (41) saw) | 6 of 10 |
+| **20 (end of boot)** | **0 of 5** |
+
+So the correct statement is: **SpringBoard starts up, creates threads, then all
+of them go to sleep on QUEUE/TURNSTILE/PORT and none wakes.** Entry (41)'s
+"running, not stuck" is right only for the middle of the boot; the end state is
+stalled. The earlier framing was not wrong, it was **sampled too early**.
+
+`tid=466` sitting on a `TURNSTILE` is the most specific lead so far: that is a
+thread waiting on a lock or an IPC turnstile, not on a plain queue.
+
+**Method note:** three samples 20 s apart looked conclusive and were not. The
+round count is now a boot-arg so this cannot happen silently again.
+
+
+### >>> 2026-11-03 (41): sweetdump was already in the tree - and SpringBoard is running, not stuck <<<
+
+Spent three rounds (38-40) building a process watcher to answer "is SpringBoard
+alive?", then found that **`sweetdump=Name` already existed** in
+`osfmk/kern/task.c` and does the job far better:
+
+- `sweet_dump_threads_soon()` arms a task at exec (from `kern_exec.c`)
+- `sweet_block_trace()` records each `thread_block` into a lock-free 256-entry
+  ring (tid, continuation, waitq type, event) - note in its comment: "printing
+  here hung the boot (NOTES 20:50)"
+- `sweet_dump_tick()`, called once a second from the watchdog, walks the task's
+  threads and prints `tid`, `run`, `state`, `wq` and the wait message count
+
+Booted with `sweetdump=SpringBoard`. The answer contradicts what the last three
+rounds assumed:
+
+```text
+SWEET THREADS: SpringBoard sample 1, threads=1
+SWEET THREADS: SpringBoard sample 2, threads=1
+SWEET THREADS: SpringBoard sample 3, threads=10
+SWEET THREADS: SpringBoard tid=222 run=0 state=1 wq=PORT mask=1181c80 msgs=0/0
+SWEET THREADS: SpringBoard tid=289 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=327 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=344 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=529 run=0 state=41 wq=TURNSTILE
+SWEET THREADS: SpringBoard tid=530 run=0 state=1 wq=QUEUE mask=69d1fe8
+SWEET THREADS: SpringBoard tid=531 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=533 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=535 run=1 state=4     <- running
+SWEET THREADS: SpringBoard tid=536 run=1 state=4     <- running
+```
+
+**Six of its ten threads are `run=1 state=4` (running).** Thread count went
+1 -> 10. Only `tid=222` (the main thread) parks on `PORT` with an empty
+message queue, which is what a main thread waiting for the first UI event
+looks like.
+
+**So SpringBoard is not stalled and not crashed - it is doing work.** That
+invalidates the framing of entries (36)-(40), which all assumed it stopped
+making progress. What it is *not* doing is presenting UI, and the earlier
+finding that `IOAcceleratorES` is a stub with no UserClient (entry 34) remains
+the best explanation for that.
+
+**Lesson for the next round:** before building an instrument, grep the tree for
+one. `sweetdump`, `sweetblock`, `sweetiolog` and the block ring were all
+already here; rounds 38-40 rebuilt a worse version of the first.
+
+
+### >>> 2026-11-03 (40): four more hypotheses for the watcher's death, all wrong <<<
+
+Tried to explain why an ordinary `tsleep` kthread stops after ~30 s while
+`vsync` (IOTimerEventSource) keeps firing, `SWEET HB` keeps counting to
+`tick=129502`, and the log thread keeps doing scsi I/O to the end.
+
+| hypothesis | test | result |
+| --- | --- | --- |
+| local `static event_t chan` was a zero-valued event | moved to a file-scope `int` | **still beat=15** |
+| `thread_deallocate` freed a thread that never exits | compared with `sweet_log_thread`, which uses the identical idiom and survives | not it |
+| `proc_list_lock()` deadlocks inside the scan | moved the heartbeat **before** the scan | **still beat=15**, so the loop is what stops, not the scan |
+| the scan itself (even lock-free) is the blocker | replaced the locking walk with a lock-free one | **still beat=15** |
+
+The moved heartbeat is the useful part: with the beat printed *before*
+`sweet_proc_watch()`, exactly one beat (`beat=15`) still appears, so the
+question is "why does the loop stop spinning", not "why does the scan hang".
+That narrows it to the thread itself ceasing to be scheduled after ~15
+iterations.
+
+**Still true and useful:** `SWEET PROC: ... (t=20)` appears in every run, so
+SpringBoard is confirmed alive at that point; and the SYNC CACHE fix from
+entry (39) keeps the ring writing to the end of the boot.
+
+**Not concluded:** whether this is one bug or two. The watcher (our kthread)
+and SpringBoard (a userland process) both stop progressing in the same window,
+but that is a correlation with no mechanism attached yet.
+
+
+### >>> 2026-11-03 (39): the watcher thread dies around t=30 - measured, not guessed <<<
+
+Entry (38) left the watcher reporting only to `t=20`. Five runs had stopped at
+the same tick, so instead of trying a sixth wait idiom, an **unconditional
+heartbeat** was added to distinguish "thread dead" from "nothing to report":
+
+```c
+static uint32_t beat;
+if ((++beat % 15) == 0) {
+	printf("SWEET PW: alive beat=%u\n", beat);
+}
+```
+
+Result (`research/tmp/observe-beat.txt`): **exactly one heartbeat, `beat=15`**,
+i.e. the thread ran to about 30 s and then stopped - while the system kept
+running `exec` for another ~70 s, with no panic, no assert, no exception.
+
+So the thread does not "fall silent"; it **ends**. And it is not the wait
+idiom: four variants behaved identically.
+
+| wait used | last report |
+| --- | --- |
+| `assert_wait_deadline` + `thread_block`, 2 s | t=20 |
+| same, 2000 ms corrected | t=20 |
+| same, `THREAD_UNINT` | t=20 |
+| `tsleep(&chan, PZERO, "sweetpw", hz*2)` | beat=15 (~30 s) |
+
+**Also fixed and kept:** `sweet_log_sync_cache()` no longer aborts the flush
+when SYNC CACHE (`0x35`) fails with OCS `0xf`. That failure used to stop the
+ring at line ~4660 of every boot, exactly when the boot became interesting;
+the data is already in the controller cache and TWRP only needs that, so the
+error is now reported once and ignored. The ring now writes to the end.
+
+**What this rules out for SpringBoard's stall too:** the watcher and
+SpringBoard both stop making progress within the first ~30 s, and the watcher
+is under our control with no userland involvement. That makes "something in
+the kernel stops scheduling kthreads after ~30 s" a live hypothesis, separate
+from anything in the GPU or the device tree.
+
+
+### >>> 2026-11-03 (38): a process watcher that actually keeps running <<<
+
+SpringBoard's silence could mean "crashed" or "alive and stuck", and the log
+could not tell the two apart. Built a watcher that walks `allproc` and reports
+whether the interesting processes exist, and had to fix **three** broken
+placements before it ran continuously:
+
+| placement | what went wrong |
+| --- | --- |
+| UFS log thread | `SWEET LOG: write failed (5), stopping` - the thread exits for good on the first EIO, taking the watcher with it |
+| watchdog heartbeat (`sweet_wdt_sample`) | the hook was only ever observed to fire **once** per boot (`SWEET HB: 1 ... tick=132004`), so the watcher reported at `t=1` and never again |
+| **own kernel thread** | works: reports at `t=3, 10, 20, ...` from a 2 s sleep loop it controls |
+
+Result (`research/breakthrough/proc-watch-works.txt`):
+
+```text
+SWEET PROC: SpringBoard gone    (t=1)
+SWEET PROC: backboardd gone     (t=1)
+SWEET PROC: SpringBoard present (t=3)
+SWEET PROC: backboardd present  (t=5)
+SWEET PROC: SpringBoard present (t=10)
+SWEET PROC: backboardd present  (t=10)
+SWEET PROC: SpringBoard present (t=20)
+SWEET PROC: backboardd present  (t=20)
+```
+
+**So SpringBoard is alive, not crashed.** It exists from `t=3` onward and stays
+in `allproc`. Combined with entry (36)/(37) - it opens `AppleKeyStore` and
+`IOPMrootDomain`, queries `/arm-io` thirteen times, then produces no further
+tracer output - the picture is a process **blocked**, not a process gone.
+
+Also worth recording, because it cost the most time this round: while moving
+the watcher around, `sweet_ufs.c` was cut down to 269 lines by a bad
+line-range edit (the file lives in the git-ignored `.deps-cache` tree, whose
+git copy is only the 823-line patch baseline). It was reassembled from a
+`/tmp` copy plus the git baseline and a rebuilt tail, and then repaired function
+by function (`dma_sync`, `ufs_wr`, `ufs_rd` had to be re-inserted). The file
+now compiles clean, but **the lesson is to copy a file before any line-range
+surgery on it** - `cp` is cheaper than reconstruction.
+
+**Next:** the watcher gives liveness but not a stack. To see *what* SpringBoard
+is blocked on needs either a `proc`-level stack sample from the kernel or an
+equivalent traced syscall.
+
+
+### >>> 2026-11-03 (37): the 400-line trace cap was a red herring - SpringBoard really stops <<<
+
+Entry (36) concluded "SpringBoard stops at line 10866". That conclusion was
+immediately suspect, because `sweet_iolog()` used a **single global budget of
+400 lines**, and backboardd (matching `IOAcceleratorES` in a loop) had used
+369 of them. A silent SpringBoard could have been a starved one.
+
+Checked and fixed the instrument rather than trusting either reading:
+
+- **Measured**: SpringBoard 33 lines, backboardd 369, total 402 - the cap was
+  hit at line 13150, so the suspicion was justified.
+- **Changed** `sweet_iolog()` in `IOUserClient.cpp` to a **per-process** budget
+  (300 lines each, up to 8 tracked names) held in a fixed-size table. The
+  first attempt used a string-packed `name=count,...` buffer and was rewritten
+  before building: `strchr(p, '=') - p` underflows when the `=` is absent.
+- **Re-measured** with kernel `51605ab8`, boot-arg `sweetiolog=SpringBoard,backboardd`:
+
+```text
+SpringBoard IOK:  33 lines   (last at line 9435)
+backboardd  IOK: 302 lines
+```
+
+**SpringBoard still emits exactly 33 lines with the cap no longer shared.** So
+entry (36) was right after all: the process genuinely stops after opening
+`AppleKeyStore` and `IOPMrootDomain` and querying `/arm-io` thirteen times.
+The global cap was a real defect in the instrument, but it was not hiding
+anything.
+
+A side effect worth noting: `presents` rose from 71 to **177** in this run with
+16 swaps still, i.e. backboardd is compositing more often. That is progress
+without any rendering change, so it is likely timing/load variance rather than
+a fix - not evidence of anything.
+
+**Where that leaves the port:** iOS boots, 281 processes exec, SpringBoard
+starts, opens two services, queries the device tree, and stops. The UI stays
+five colours. The next useful instrument is not more device-tree logging but
+the stack SpringBoard is sitting in - the IOK echoes say what it asked for,
+never what it is waiting on.
+
+
+### >>> 2026-11-03 (36): SpringBoard stops before it ever renders, and the ADT has no GPU node <<<
+
+Entry (35) corrected the claim that "the GPU is the proven root cause". This
+round located where SpringBoard actually stops, using the 180 s observation
+(`research/breakthrough/observe-180s.txt`, 16,764 lines).
+
+**SpringBoard's whole visible life** is lines 10,546-10,866. It opens exactly
+two services and then goes silent:
+
+```text
+open AppleKeyStore            -> 0x0
+open IOPMrootDomain           -> 0x0
+path IODeviceTree:/arm-io     -> IOPlatformDevice     x13
+path IODeviceTree:/product    -> IOPlatformDevice     x12
+path IODeviceTree:/buttons    -> IOPlatformDevice
+path IODeviceTree:/arm-io/pearl-sep -> none
+path IODeviceTree:/product/camera   -> none
+```
+
+Nothing after line 10,866 mentions SpringBoard. Meanwhile the rest of the
+system keeps running: `securityd`, `accountsd`, `mobileactivationd`, `tccd`
+all start later, and `SWEET HB: 1 wdt=1 tick=132654 ... call=321` shows the
+heartbeat thread is alive. So SpringBoard is not a crashed system - it is a
+process that stopped making progress **before** submitting any render work.
+
+**The ADT has no GPU node.** Parsed `shim/out/sweet-gauguin-new.adt`:
+
+```text
+device-tree
+  chosen / defaults / cpus(cpu0..7)
+  arm-io:   gic, wdt, disp0          <- no accelerator
+  sweet-fbcon, buttons, backlight, product, sweet-ufs
+```
+
+So the `IOAcceleratorES` stub is not merely "missing a UserClient" (entry 34):
+**there is no device-tree node for it either**. SpringBoard queries `/arm-io`
+thirteen times and every lookup returns the generic `IOPlatformDevice`, because
+`SweetPlatformExpert::createNubs()` publishes every ADT node under that single
+class.
+
+**What this changes:** a software compositor behind `IOAcceleratorES` would
+still not address why SpringBoard is silent. The specific unanswered question
+is *which* node/service SpringBoard is looking for and not finding - the
+repeated identical `/arm-io` lookup is the strongest lead, and it needs a
+strace-equivalent rather than more inference from device-tree echoes.
+
+**Honest status:** iOS boots, 281 processes exec, SpringBoard starts and stops
+before rendering. The UI is blank. The root cause is narrowed but **not
+established**, and the two theories so far (missing accelerator, missing ADT
+node) are hypotheses that the log does not yet separate.
+
+
+### >>> 2026-11-03 (35): measured with a 180 s window - the system keeps running <<<
+
+`tools/fastboot-cycle.sh` waits 20 s and then treats "TWRP appeared" as "the
+kernel died", which is the wrong assumption for a kernel that reaches
+userland. Added **`tools/sweet-observe.sh IMAGE OUT [SECONDS]`**, which boots
+the image and then watches for the full window, reporting the progress markers
+and the panel counters at the end.
+
+Run for 180 s (`research/breakthrough/observe-180s.txt`, 16,764 lines):
+
+| marker | |
+| --- | --- |
+| `init complete` | yes |
+| `BSD root` / `mounted iOSRoot` | yes |
+| `exec launchd` / `ignition sequence complete` | yes |
+| `exec SpringBoard` / `exec backboardd` | yes |
+
+The phone came back to TWRP at **100 s**, i.e. the kernel did stop on its own
+rather than being cut short by the script.
+
+**But "stopped logging" is not "stopped running".** After the last
+`vsync=4200` line there are still **154 `scsi 0x28` reads** plus `0x2a` writes
+and `0x35` syncs - the system keeps doing filesystem I/O right up to the end of
+the ring. The ring did not wrap (it starts at the kernel banner), so those
+lines are genuinely later in time.
+
+That fits entry (34) exactly: the machine is alive and working, the compositor
+submits full-panel BGRA swaps (`presents=71`, 16 swaps), and the content is
+still five colours because there is no accelerator to draw with. vsync stops
+printing because the panel stops changing, not because the kernel died.
+
+**So the state of the port is: iOS boots, launches 281 processes, runs
+SpringBoard, and has nothing to render with.** The next real step is a
+UserClient behind `IOAcceleratorES` (a software compositor is the tractable
+option; AGX for this Adreno class is not).
+
+
+### >>> 2026-11-03 (34): the GPU stub is never *opened* - it has no UserClient <<<
+
+Following entry (33), the decisive evidence is what backboardd opens versus
+what it only matches by name.
+
+**Services backboardd actually opens** (`IOK backboardd: open X -> 0x0`):
+
+```text
+AppleCLCD            <- the framebuffer, works
+AppleKeyStore        <- works
+IOCoreSurfaceRoot    <- IOSurface root, works
+IOPMrootDomain       <- power, works
+SweetHIDButtons      <- works
+SweetHIDTouch        <- works
+```
+
+**Services backboardd only *matches*** (`IOServiceFirstMatch ... -> found`):
+`IOAcceleratorES`, 284 times, and never an `open`.
+
+That asymmetry is the answer. `IOService::registerService()` on a bare
+`IOService` publishes the *name*, so `IOServiceFirstMatch` finds it - that is
+what stopped the old segfault. But every familyd/backboardd GPU path needs a
+**UserClient** to talk to the driver, and `IOAcceleratorES` declares none
+(`class IOAcceleratorES : public IOService` with only `start`/`stop`). So
+backboardd never opens it and the render server has nowhere to submit work.
+
+**The framebuffer path is not the problem.** All 16 swaps in the log are full
+panel `1125x2436 BGRA`, `bpe == 4`, and the copy loop in
+`IOMobileFramebufferUserClient` runs. The pixels arrive; they are just empty.
+The `nonblack` count tells the story:
+
+| vsync | nonblack | distinct | meaning |
+| --- | --- | --- | --- |
+| 2 | 993 | 2 | the boot logo |
+| 1800 | 488 | 1 | logo fading out |
+| 4200 | 72 | 5 | background only - no UI |
+
+**What this rules out:** the display pipeline, the swap record, the surface
+plumbing and the colour format are all fine. **What it leaves:** either a real
+accelerator (`AGXAccelerator` for this Adreno 619 class, a very large job), or
+a UserClient-based software compositor behind `IOAcceleratorES`.
+
+Note for whoever picks this up: adding a UserClient that returns errors is
+*not* automatically better than none - the current stub at least keeps
+backboardd from crashing. Any change here needs to be measured against the
+`presents`/`nonblack` counters, which is what these two entries did.
+
+
+### >>> 2026-11-03 (33): why SpringBoard runs but shows nothing - the GPU is a stub <<<
+
+Analysed `research/breakthrough/boot-reaches-springboard.txt` line by line.
+SpringBoard is genuinely alive, but the screen never gets real content, and the
+reason is visible in one line of the log:
+
+```text
+SWEET GPU: stub IOAcceleratorES published
+```
+
+**The framebuffer timeline** (`SWEET FB: vsync=N ... presents=P client=C`):
+
+| vsync | presents | client | nonblack | distinct |
+| --- | --- | --- | --- | --- |
+| 2 - 2400 | **0** | 0 | 993 -> 493 | 2 -> 1 |
+| 3000 | 26 | 2 | 60 | 5 |
+| 3600 | 105 | 2 | 60 | 5 |
+| 4200 | **110** | 2 | **72** | **5** |
+
+So for the first 2400 vsync intervals **nothing presented at all**; then
+backboardd appeared as `client=2` and started presenting - but the content is
+essentially a single colour (5 distinct, 72 non-black pixels, sampled
+`0x1006` = `#100030`, a dark violet). That is SpringBoard drawing its
+background with no composited UI on top.
+
+**`IOAcceleratorES` is matched 284 times by backboardd and is a stub**
+(`SweetFramebuffer.cpp`, `IOAcceleratorES::start()` sets `stub=true` and just
+publishes the service). iOS composites through Metal/IOGPUSurface; with a stub
+accelerator there is nothing to composite with, so the home screen never
+appears. The comment in that file records the earlier symptom it was added for
+("backboardd looks up IOAcceleratorES, gets 0 found, and then segfaults"), so
+the stub kept `backboardd` alive but cannot draw.
+
+**The iOS root itself is healthy.** Read back over adb from TWRP:
+`dd if=/dev/block/by-name/userdata bs=1024 skip=1 count=1` gives the volume
+header `HX` (HFS+), version 5, attributes `HFSJ` (journaled). TWRP cannot mount
+HFS+, so this signature read is the check.
+
+**So the remaining work is rendering, not boot:** either give iOS a working
+accelerator path, or make backboardd/SpringBoard fall back to software
+compositing. That is a different problem from everything the last 30 rounds
+were chasing, and it is the blocker between "userland runs" and "iOS is
+usable".
+
+Also noted: `CRASH driverkitd[67] sig 9` (killed, not a fault) and
+`UMD_INIT: ... persona ... No such process` (no SEP; expected on this port).
+
+
+### >>> BREAKTHROUGH 2026-11-03 (32): iOS userland runs, SpringBoard executes <<<
+
+**The phone came back and the boot now reaches SpringBoard.** After 28 rounds
+without a device, `tools/bisect-keys.sh` was run against the staged pair and
+**both images mounted the root and reached userland**:
+
+```text
+sweetkeys=0  reached: userland
+default      reached: userland
+verdict: both_mount
+```
+
+Log preserved as `research/breakthrough/boot-reaches-springboard.txt`
+(15,987 lines, 778 KB).
+
+**What the boot does now**, in order:
+
+| stage | evidence in the log |
+| --- | --- |
+| UFS init tail | `sample_start` -> `keys_init` -> `touch_init` -> `usb_probe` -> `init complete` |
+| root mount | `BSD root: ufsroot0`, `hfs: mounted iOSRoot on device b(1, 0)`, `vfs_mountroot ok` |
+| exec | `exec launchd`, `Darwin Bootstrapper Version 7.0.0` |
+| ignition | `ignition sequence complete`, dyld shared cache opened from `/System/Library/Caches/com.apple.dyld` |
+| launchd tasks | mount-phase-1/2, data-protection, finish-obliteration, MSUEarlyBootTask |
+| **processes** | **281 `exec` lines**, incl. `backboardd`, **`exec SpringBoard`** |
+| **framebuffer** | `SWEET FB: ... nonblack=72 distinct=5 presents=110 client=2` - **pixels are being drawn** |
+
+SpringBoard is not merely spawned: it opens `AppleKeyStore` (AKS selects 0/35/7
+all return 0x0), `IOPMrootDomain`, and `IODeviceTree:/buttons`.
+
+**This means the `keys_init` stall that defined the last 30 rounds is gone.**
+The most likely cause is the touch-bring-up delay restored in entry (28): the
+bring-up had been starting immediately, putting GENI/TLMM/RPMh traffic on the
+buses during `vfs_mountroot`. That is consistent with the log, which now shows
+`SWEET TOUCH: starting in 45 s` while the root mounts.
+
+**Both `sweetkeys=0` and the default work**, so the keys driver was never the
+blocker - correct diagnosis, wrong suspect.
+
+Remaining rough edges, all non-fatal:
+- `shared_region: ... 'dyld_shared_cache_arm64' : not in trust cache` (expected: SWEET has no trust cache; the cache still maps and dyld runs)
+- `ERROR: BindFS bindfs_mount: lookup of /private/preboot/... failed error: 2` (no preboot volume)
+- `mount: data volume missing, but not required in env: 0`
+- `libignition: ignition level insufficient: actual = 1, required >= 2/3` for preboot, cryptex1, graft (intended: `ignition_level=1`)
+
+**Next:** confirm SpringBoard actually reaches a visible home screen / setup
+screen rather than spinning, then work the remaining userland errors.
+
+
+### >>> UPDATE 2026-11-03 (31): `shim-boot.img` was silently carrying the DSB variant <<<
+
+Adding a provenance check to the toolchain (`tools/image-audit.py`, below)
+immediately found a live hazard: **`shim/out/shim-boot.img` held the DSB
+kernel**, left there by `deps/ab-keys-barrier.sh`. `deps/shim-macos.sh` always
+writes that filename, and it is the name a person types into `fastboot`, so
+the most natural way to boot the "current" image would have run the A/B
+*variant* - quietly adding the very variable the experiment isolates.
+
+Fixed in three places:
+
+1. `deps/ab-keys-barrier.sh` now restores `shim-boot.img` from
+   `shim-proven.img` when it finishes.
+2. `shim-boot.img` was restored by hand (it equals `shim-proven.img`,
+   `44f358d7`).
+3. `tools/image-audit.py` prints each live image's kernel build banner, read
+   out of the packaged file, and with `--check KERNEL` fails when
+   `shim-proven` / `shim-bisect-on` / `shim-bisect-off` were built from a
+   different kernel than the one given.
+
+The audit deliberately does **not** flag `shim-ab-dmb` / `shim-ab-dsb` for
+being built from different kernels - that difference is the experiment, and
+`tests/test_ab_variants.py` checks it is the *only* difference. It also only
+looks at the five live images: `shim/out` holds 100+ historical ones, and
+listing them buried the answer.
+
+`tests/test_image_audit.py` pins all of this (5 checks), including that a
+genuinely stale bisect image still fails.
+
+**Twenty-nine rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (30): the A/B images were stale - rebuilt, and a test-gate conflict fixed <<<
+
+Auditing the artifacts against the notes turned up a real problem: the two
+`shim-ab-*` images were built in entry (26), **before** the touch delay was
+restored in entry (28). Booting them would have started the touch bring-up
+immediately again, adding a second variable to an experiment whose whole point
+is that only one thing differs.
+
+Two fixes:
+
+1. **Rebuilt both variants** with the current tree. They now carry the touch
+   delay (`SWEET TOUCH: starting in` is present in both kernels) and
+   `tests/test_ab_variants.py` confirms they still differ only in the barrier
+   opcode at `0x4e1818`.
+2. **`deps/ab-keys-barrier.sh` now builds with `SKIP_TESTS=1`.** The build gate
+   added in entry (24) runs `tests/test_ab_variants.py`, which compares the two
+   A/B kernels - so it can only pass once both exist. Building the second
+   variant therefore failed on a test whose subject was the build in progress.
+   The script checks the pair itself after the second build and fails if they
+   are byte-identical, so the protection is kept, just moved to where it can
+   work.
+
+| file | kernel | image |
+| --- | --- | --- |
+| `shim/out/shim-proven.img` = `shim-bisect-on.img` | `aeffcfe7` | `44f358d7` |
+| `shim/out/shim-bisect-off.img` (`sweetkeys=0`) | `aeffcfe7` | `bea2aa03` |
+| `shim/out/shim-ab-dmb.img` | `9fa9c82b` | `0d271de2` |
+| `shim/out/shim-ab-dsb.img` | `ac057dbb` | `f1e2d8e8` |
+
+All four use the working boot line; the three non-`bisect-off` kernels agree on
+everything except the one variable each pair is testing.
+
+**Lesson worth keeping:** artifacts decay when the tree moves under them. The
+notes recorded image hashes, but nothing checked them against the kernel they
+were built from - that check is what caught this, and it is now part of the
+audit rather than an accident.
+
+**Twenty-eight rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (29): the working log has been swept end to end <<<
+
+Entry (28) found one real departure (the touch start delay) by reading a
+different window of `boot-journaled-userland.txt`. This round the remaining
+windows were swept the same way, so that the next session does not repeat it.
+
+**Early boot (lines 60-105)** - platform expert, AKS, WDT, SURF, HID, battery,
+framebuffer, CPU bring-up, MAC/AMFI/Sandbox, `dlil_init`, `bsd_autoconf`,
+`rootdev called`, `init reg`, host takeover. **No departure found**; the
+current tree produces the same sequence and the same messages.
+
+**Root mount to launchd** - `vfs_mountroot`, the touch delay (fixed in (28)),
+a key event and its HID delivery, the HFS hotfile btree creation,
+`hfs: mounted iOSRoot on device b(1, 0)`, `vfs_mountroot ok`,
+`root volume is not authenticated (error 25); continuing unsealed`,
+`VM Swap Subsystem is ON`, `load_init_program` x2, `exec launchd`,
+`shared_region`, `SWEET Sandbox: launchd op 2`, libignition.
+
+- The root-auth message comes from `bsd_init.c`'s `ARM64_BOARD_CONFIG_SWEET`
+  branch, which reports and continues instead of panicking; the current tree
+  has the same code and the same behaviour.
+- `SWEET HID: buttons registered` / `touch registered` appear **before** the
+  UFS init tail, i.e. the HID services match and start during platform
+  bring-up, not from `sweet_keys_init()`. The current tree has the same
+  structure (`SweetHIDButtons::start()` calls `registerService()`).
+- The display identity (`1125x2436`, presented as the iPhone X panel over a
+  1080x2400 framebuffer) is unchanged.
+
+So after this sweep the known departures from the working boot are exactly
+three, all now reverted: the init `sweet_log_sync()` calls (entry (5)), the
+`cpus=8` boot line (entry (6)), and the immediate touch bring-up (entry (28)).
+Everything else in the log's path matches the tree.
+
+**Twenty-seven rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (28): the touch bring-up was starting 45 s too early <<<
+
+Found by reading the working log's root-mount window rather than the init tail
+again:
+
+```text
+BSD root: ufsroot0, major 1, minor 0
+SWEET boot: vfs_mountroot
+SWEET TOUCH: starting in 45 s          <- held back on purpose
+SWEET KEYS: key=1 down=1 pon=0x4 ...
+SWEET HID: key 0xe9 down (0 clients)
+hfs: mounted iOSRoot on device b(1, 0)
+SWEET boot: vfs_mountroot ok
+```
+
+The boot that reaches launchd starts the touch bring-up **45 seconds late**,
+which is also what the old note (2026-10-15, `0060` drivers) recorded: "starts
+45 s after boot". In this session the bring-up was moved onto its own thread
+and started **immediately**, so GENI, the TLMM and an RPMh vote all run
+exactly while the root is being mounted - the window where a stall is fatal
+and hardest to observe.
+
+`touch_bringup_thread` now waits first (`sweettouchdelay`, default 45 s) using
+the same `assert_wait_deadline` idiom as `sweet_keys.c` (`hz` is not visible
+in this translation unit, which cost two build attempts). The wait is in the
+thread, never on the init path.
+
+This is the third change this session that was an unverified departure from
+the working boot - after the init `sweet_log_sync()` calls (restored, entry
+(5)) and the boot line `cpus=8` (restored, entry (6)). The pattern is the same
+each time: the working log is the specification, and anything done differently
+has to be justified by evidence this session does not have.
+
+**Images rebuilt**: `shim-proven.img` = `shim-bisect-on.img` (`44f358d7...`),
+`shim-bisect-off.img` (same except `sweetkeys=0`). Kernel `aeffcfe7...`.
+
+**Twenty-six rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (27): the A/B kernels are checked to differ in ONE instruction <<<
+
+Entry (26) claimed the two variants differ only in the barrier. That claim is
+now measured instead of asserted: the two kernels are the same length and
+differ in **21 bytes**, in four regions, of which only one is code:
+
+| offset | bytes | what |
+| --- | --- | --- |
+| `0x14a0` | 16 | `LC_UUID` / build identity - differs on every build |
+| `0x3cf71` | 2 | the build-time seconds (`04` vs `12`) |
+| `0x3cff1` | 2 | the same timestamp, second copy |
+| **`0x4e1818`** | **1** | `bf` (dmb osh) vs `9f` (dsb osh) - **the only code difference** |
+
+`tests/test_ab_variants.py` asserts exactly this: it names each differing
+region, accepts the build identity and the timestamp, and **fails on any
+region it cannot explain**. Run against the same kernel twice it fails with
+"the barrier opcode actually differs", which is the check that matters - an A/B
+pair that is secretly identical would waste a whole round.
+
+Suite is now **39 checks** across four files; still wired into the build.
+
+**Twenty-five rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (26): the DSB/DMB A/B is built and ready <<<
+
+Following entry (25), the experiment is prepared so it costs one boot each when
+the phone returns.
+
+`keys_read()`'s barrier is now `#ifdef SWEET_KEYS_USE_DSB ... #else dmb ...`
+and **`deps/ab-keys-barrier.sh`** builds both variants, flipping the define in
+the source (XNU has no extra-CFLAGS variable that reaches `bsd/dev`) and
+restoring the file afterwards, even on failure.
+
+Verified in the disassembly - the two `_keys_read` bodies differ by exactly one
+instruction:
+
+```text
+dmb variant:  dmb oshst ; str w8,[x9] ; dmb osh  ; ... dmb oshld
+dsb variant:  dmb oshst ; str w8,[x9] ; dsb osh  ; ... dmb oshld
+```
+
+| file | kernel | image |
+| --- | --- | --- |
+| `shim/out/shim-ab-dmb.img` | `6f54350a...` | `53508056...` |
+| `shim/out/shim-ab-dsb.img` | `e7a429db...` | `a6d3f085...` |
+
+Both use the working boot line and the working init sequence, so the only
+variable is the barrier.
+
+**How to use it:** boot each with `tools/fastboot-cycle.sh` and compare where
+the init tail stops:
+
+- both stop on `INIT: entering keys_init` -> the barrier is not the problem,
+  and entry (14)'s reasoning was wrong; look elsewhere (SPMI ownership,
+  arbiter state).
+- `-dsb` stops there and `-dmb` does not -> keep `dmb` and the reasoning in
+  (14) was right after all.
+- `-dmb` stops there and `-dsb` does not -> restore `dsb`; the change made in
+  (14) was a regression.
+
+**Twenty-four rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (25): correction - the dsb->dmb change has no evidence <<<
+
+Entry (14) changed `keys_read()`'s `dsb osh` to `dmb osh`, arguing that a DSB
+on a stalled SPMI fabric would never return. **That argument has no evidence
+either way**, and this entry records it as such rather than letting it pass as
+a finding.
+
+What is actually known:
+
+- `sweet_spmi.c` uses the **same** `dsb osh` idiom after issuing EXT_READL,
+  and it is the older, previously working code path.
+- But the successful boot's log shows
+  `SWEET BATTERY: static fallback, 100% 4200mV` - which is the path taken when
+  `sweet_spmi_init()` **failed early** (`arb_version` out of range), so it never
+  reached its `dsb osh` either. The working log therefore says nothing about
+  whether that barrier is safe on this SoC.
+
+So `dmb osh` stays (it is sufficient for the ordering this code needs: the
+command store must precede the status loads), but it is marked **unverified**
+rather than **fixed**.
+
+**Cheapest experiment if the phone stalls in keys_init again:** build the same
+image with `dsb osh` restored in `keys_read()` and run it. That is a one-line
+A/B against a kernel that differs in nothing else, and it settles the question
+the failed reasoning left open.
+
+
+### >>> UPDATE 2026-11-03 (24): one test entry point, wired into the build <<<
+
+The three tool tests (entries (20)-(23)) plus `tests/run-all.sh` now run on
+every kernel build - `deps/build-macos.sh` calls them after the post-patch
+fix-ups and **aborts the build** if any fail (`SKIP_TESTS=1` overrides).
+
+Why gate the build on them: these tools are what will explain the next boot.
+A build that silently ships a broken watchdog or a mis-offset mark reader is
+worse than a build that fails, because the resulting silence would be
+indistinguishable from "the kernel got further than before".
+
+The gate was checked in both directions: injecting a deliberate failure into
+`tests/test_watchdog.py` makes `run-all.sh` exit 1, and restoring it returns 0.
+
+The same build step also runs `deps/sync-watchdog.sh`, so the copy of
+`sweet_init_watchdog.h` in the git-ignored patched tree cannot drift from the
+repo's.
+
+**Running the suite today:** 35 checks across three files, all passing.
+
+```text
+== test_bisect.py     all bisect-verdict checks passed   (16)
+== test_marks.py      all mark checks passed              (11)
+== test_watchdog.py   all watchdog checks passed          (8)
+all host tests passed
+```
+
+One of those 35 caught a stale assertion made by this session itself: after
+`tools/sweet-mark-pull.sh` was changed to read its block geometry from the
+driver source, `tests/test_marks.py` still expected the literals `1025 - 64`
+and failed. That is the suite doing its job on its own author.
+
+Kernel is unchanged by this entry and still `59044a9a...`.
+
+**Twenty-three rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (23): the mark reader is split out and tested <<<
+
+Third tool in a row to get the same treatment (after the watchdog and the
+bisect verdict). `tools/sweet-mark-pull.sh` embedded its parser in a heredoc
+and had two defects that tests caught:
+
+1. **The block geometry was a literal.** `skip=$((bytes/4096 - 1025 - 64))`
+   hard-codes "4 MiB ring + 1 header" and "64 marks". Change `SWEET_LOG_SIZE`
+   or `SWEET_MARK_BLOCKS` in the driver and the offset silently moves - the
+   tool would read an unrelated part of `userdata` and report "no MARK blocks",
+   which reads exactly like a boot that never marked anything.
+   The parser now reads both constants out of `sweet_ufs.c`
+   (`ring_blocks_from_source`), and the shell asks for them with
+   `sweet-marks.py --sizes SRC`, falling back to 1025/64 only when the patched
+   tree is not staged.
+2. **A malformed slot killed the whole run.** `line.split(" ")[1]` and
+   `int(seq)` raise on a block that starts with `MARK ` but is not well formed
+   (a torn write mid-flush is exactly when that happens). Such blocks are now
+   skipped, and a duplicate sequence number - which can only come from a torn
+   write - is de-duplicated so the ordering stays stable.
+
+`tools/sweet-marks.py` holds the parsing; `tests/test_marks.py` checks it with
+10 cases including the two geometry constants read from the real driver source.
+
+Checked end to end with a dump built the way the kernel writes it (single-byte
+stores, tail left uncleared) for a boot that stalls inside `keys_init`:
+
+```text
+MARK 00001 INIT: sample_start done
+MARK 00002 INIT: entering keys_init
+```
+
+The last line is the stalled step, which is the whole point of the marks.
+
+**Twenty-two rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (22): the bisection verdict is now tested too - three bugs found <<<
+
+`tools/bisect-keys.sh` decided its verdict with four `grep -q "keys_init done"`
+checks. That is too coarse to separate the cases that actually matter, so the
+decision moved into **`tools/bisect-verdict.py`** (pure: two logs in, one
+verdict out) with **`tests/test_bisect.py`** covering it: 16 checks, all
+passing, two of them driving the *real* logs (the boot that reached
+`exec launchd` and the run that stopped on the `keys_init` line).
+
+Writing those tests found three bugs that would each have produced a wrong
+conclusion on the next boot:
+
+1. **Both runs succeeding was reported as `keys_blocks`.** The `off` case was
+   checked before the "both" case, so two healthy boots would have been blamed
+   on the keys driver.
+2. **The prefix check contradicted itself.** `reached_keys_init_prefix()`
+   matched only `sample_start done` and `keys_init`, so a log that reached
+   `init complete` was reported as "(did not even reach the keys_init line)" -
+   and the verdict then said the stall was *before* `keys_init`, the opposite
+   of the truth. It now also counts any later phase as having passed.
+3. **Depth was not compared.** "`off` passed `keys_init`" was treated as
+   proof that keys blocks the boot even when the default run had gone further
+   (`usb_probe`), which is contradictory. The phases are now ordered and the
+   deeper run wins before any conclusion is drawn.
+
+The verdict vocabulary is now explicit - `keys_blocks`, `both_mount`,
+`before_keys`, `before_keys_both`, `same_phase`, `inconsistent`, `unclear` -
+so the script, the tests and whoever reads the output all use the same words.
+
+Example, using the two real logs:
+
+```text
+  sweetkeys=0  reached: userland
+  default      reached: nothing past sample_start
+
+ROOT MOUNTED with sweetkeys=0 (phase: userland) but not with the default
+(phase: nothing past keys_init). The keys driver is what blocks the boot.
+verdict: keys_blocks
+```
+
+**Twenty-one rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (21): the watchdog is now a tested pure function <<<
+
+Entry (20) found two watchdog defects with a throwaway simulation. This round
+made that permanent and found **two more** that the throwaway script had not:
+
+- **`xnu/sweet_init_watchdog.h`** holds the decision as a pure inline
+  function, `sweet_wd_should_report(&state, step)`. `sweet_ufs.c` calls it and
+  the host tests compile the *same header*, so the tests exercise the kernel's
+  code rather than a copy of it.
+- **`tests/test_watchdog.py`** compiles the header with the host compiler and
+  drives it over simulated timelines: 8 checks, all passing.
+- **`deps/sync-watchdog.sh`** copies the header into the patched tree (which is
+  git-ignored and rebuilt from patches, and no patch carries this file).
+
+The two new defects, both real and both fixed:
+
+1. **A one-tick false alarm at the boundary.** The check was `ticks <
+   GRACE`, so at exactly `GRACE` it warned - and a tail finishing one tick
+   later (8.2 s) got a "still inside the init tail" line for no reason. Now
+   `ticks <= GRACE`, i.e. strictly after.
+2. **Back-to-back reports.** The first warning landed on a tick that also
+   satisfied the repeat condition, so it printed at 40 and again at 50, ten
+   ticks apart instead of fifty. The repeat countdown now restarts after every
+   report (`since` field).
+
+The checks that pin the behaviour:
+
+| check | what it pins |
+| --- | --- |
+| healthy boot is silent | no warning for a 3.2 s tail |
+| finishes just past grace is silent | the strict boundary |
+| stall reports the stalled step | the warning names `keys_init`, not a sibling |
+| first warning comes after grace | tick 41, not 40 |
+| repeats steadily while stuck | gaps are exactly `SWEET_WD_REPEAT_TICKS` |
+| step change reported at once | slow-but-moving is visible |
+| nothing printed before grace | the original false-alarm regression |
+| last report names the current step | the stale-pointer regression |
+
+**Images rebuilt**: `shim-proven.img` = `shim-bisect-on.img` (`7b91041c...`),
+`shim-bisect-off.img` (`356046d2...`). Kernel `59044a9a...`.
+
+**Twenty rounds, no phone.** The instrumentation that will diagnose the next
+boot is now itself tested, which is the most useful thing that can be done
+without the device.
+
+
+### >>> UPDATE 2026-11-03 (20): the watchdog itself was wrong twice - simulated first <<<
+
+The init watchdog from entry (19) had two defects, both caught by simulating it
+offline before any phone was involved (a small model of the loop, driving
+`sweet_init_step`/`sweet_init_done` on a fake timeline):
+
+1. **It reported on a healthy boot.** The first version printed whenever the
+   step changed *and* the grace period had passed, but the two conditions were
+   OR-ed the wrong way round, so a tail finishing in 3.2 s produced four
+   "still inside the init tail" lines. Fixed: **nothing is reported before
+   ~8 s**, so a fast tail is silent by construction.
+2. **The step name was not read atomically.** `sweet_init_step` was a plain
+   `const char *` written by the init thread and read by the log thread; the
+   loader could keep a stale copy, which would name the wrong step exactly
+   when it matters. It is now `_Atomic` with `os_atomic_store/load`.
+
+After both fixes the simulation gives:
+
+| scenario | output |
+| --- | --- |
+| healthy tail (done at 3.2 s) | **silent** |
+| stalled in `keys_init` | `~8s step=keys_init`, then every 10 s |
+| stalled in `touch_init` | `~8s step=touch_init`, then every 10 s |
+| slow but moving | reports each step as it advances |
+
+That last row is what separates "hung" from "slow", which the earlier
+single-shot marks could not do.
+
+**Images rebuilt**: `shim/out/shim-proven.img` = `shim-bisect-on.img`
+(`685e00dc...`), `shim-bisect-off.img` (`c16c1432...`, adds `sweetkeys=0`).
+
+**Nineteen rounds, no phone.** Twenty commits this session; nothing verified on
+hardware.
+
+
+### >>> UPDATE 2026-11-03 (19): a device read cannot be bounded, so the log thread reports it <<<
+
+`keys_read()` now has two exits and the barrier is DMB (entries (12), (14),
+(17)), but one class of stall is beyond the reach of any in-code deadline: the
+MMIO load itself. `keys_rd()` is a bare `*(volatile uint32_t *)...`; a load from
+an unresponsive SPMI window never returns, and there is no way to interrupt it
+from the same thread. If that is what the phone does, no amount of polling
+bounds will help and the marks will simply stop.
+
+So the **log thread now watches the init tail**. It runs every `sweetlogms`
+(200 ms) regardless of what init is doing, and if `sweet_init_done` is still
+clear after ~5 s it prints, once, and then every ~50 s:
+
+```
+SWEET INIT: still inside the init tail after ~5 s (last step: keys_init) - look at the mark blocks
+```
+
+`sweet_init_step` is set on entry to each step (`sample_start`, `keys_init`,
+`touch_init`, `usb_probe`) and `sweet_init_done` on the last line. This turns
+"the boot stopped somewhere" into a named step in the console itself, without
+needing the mark blocks to survive.
+
+**Not done on purpose:** `sweet_spmi.c` and `sweet_keys.c` each map the same
+three SPMI windows (`0x2000`/`0x1000`/`0x10000` at `0xc440000`/`0xc40a000`/
+`0xe600000`). Sharing one mapping would save 24 KiB of a very empty
+`io_submap`, but it would couple keys to the battery driver's init order and
+add a failure mode. The duplication is kept.
+
+**Images rebuilt** (`shim-proven.img` = `shim-bisect-on.img`, `9f4c4973...`;
+`shim-bisect-off.img`, `ff56cba5...`). Eighteen rounds, no phone.
+
+
+### >>> UPDATE 2026-11-03 (18): session handoff written to HANDOFF-2026-11-03.md <<<
+
+`HANDOFF-2026-11-03.md` is the short version of this session: what is proven
+vs merely reasoned, the sixteen commits and why each one exists, the offline
+audits, the artifact list with hashes, and the exact next action when a phone
+is reachable (`tools/bisect-keys.sh`).
+
+The key distinction it draws, which the inline notes above do not make clear
+in one place:
+
+- **Proven**: the stall is inside `sweet_keys_init()` (step-by-step diff
+  against a boot that reached launchd).
+- **Reasoned, not yet observed**: everything else this session changed - the
+  SM7225 TLMM address, the per-slot UFS queue, the threaded touch bring-up,
+  the boot line, the DSB fix.
+
+**Seventeen rounds, no phone.** If the device stays unavailable, this document
+plus `NOTES.md` is the complete state; nothing else is pending.
+
+
+### >>> UPDATE 2026-11-03 (17): the keys fix is verified in the built binary, not just the source <<<
+
+Checked the compiled kernel (`research/k-proven`, `5c3907c8...`) rather than
+trusting the source diff, because a barrier that did not actually change would
+look identical in review.
+
+`_keys_read` at `0xfffffe00074e56e4` disassembles to:
+
+```text
+fffffe00074e5730: b9000128   str  w8, [x9]     ; SPMI command
+fffffe00074e5734: d50333bf   dmb  osh          ; DMB, not DSB (was dsb osh)
+fffffe00074e5748:            bl   nanoseconds_to_absolutetime
+fffffe00074e5764: 52807d18   mov  w24, #0x3e8   ; 1000 iterations
+loop:
+fffffe00074e5780:            tbnz w8, #0x0, done_bit   ; status & 1
+fffffe00074e5784:            bl   mach_absolute_time
+fffffe00074e5794:            b.hi deadline_reached     ; now > deadline
+fffffe00074e579c:            bl   _delay                ; delay(1)
+fffffe00074e57a4:            b.ne loop
+```
+
+All three exits are present (done bit, deadline, iteration cap), and the
+barrier is the ordering-only one. So the claim "no unbounded wait is left on
+this path" now has evidence from the binary, not just from the editing.
+
+Also compared the PMIC apid values across **every** working log: all of them
+report `arb=0x50010000 apids=512 pon-apid=308 gpio-apid=366`. The scan result is
+stable hardware topology, so there is no per-boot variance to explain a hang
+in `keys_find_apid()`.
+
+**Sixteen rounds, no phone.** The remaining unknown is the device, not the code.
+
+
+### >>> UPDATE 2026-11-03 (16): ADT and payload agree with the phone; USB gate logic checked <<<
+
+A consistency audit of the artifacts the bisection images are built from, done
+by parsing the generated ADT instead of trusting the generator:
+
+| property | ADT value | payload header | matches |
+| --- | --- | --- | --- |
+| `dram-base` | `0x180000000` | `phys_base 0x180000000` | yes |
+| `dram-size` | `0x100000000` (4 GiB) | `mem_size 0x100000000` | yes |
+| `dram-base-low` | `0x80000000` | - | matches PORT-gauguin.md |
+| root `compatible` | `D22AP`, `iPhone10,3`, `xiaomi,gauguin`, **`qcom,sm7225`**, `AppleARM...` | - | SM7225 correction is in |
+| CPU `compatible` | `qcom,kryo465`, `ARM,v8` (all 8) | - | |
+
+Both bisection payloads carry the same values, so the two images really do
+differ only by `sweetkeys`.
+
+Also checked the USB gate logic against the register values in the working
+log: `GDSC 0xf822f000` has bit 31 set (on) and every CBCR in
+`master/sleep/utmi/cfg-noc-axi/aggre-axi/phy-aux/clkref` has bit 31 clear
+(on), which is exactly what `clocks_on = (gdscr & (1<<31)) && !(cbcr[0] &
+CLK_OFF) && !(cbcr[3] & CLK_OFF)` evaluates to. So the probe's decision
+matches the hardware that actually booted; `sweetusb=0` is not needed and
+must not be used as the workaround.
+
+The complete post-`keys_init` sequence in the working boot is:
+`keys_init done` -> `touch_init` -> `touch_init done` -> `usb_probe` ->
+(SWEET USB 12 lines) -> `init complete`. Nothing else happens between them.
+
+**Fifteen rounds, no phone.**
+
+
+### >>> UPDATE 2026-11-03 (15): a two-image bisection is staged for the next boot <<<
+
+The stall is proven to be in `sweet_keys_init()` (entry (12)), and every cheap
+cause inside it has been excluded (entry (14)). Rather than keep guessing at
+the PMIC code, the next hardware access should **measure** whether that path is
+the problem, with a difference of exactly one boot-arg:
+
+| image | boot-arg | what it proves |
+| --- | --- | --- |
+| `shim/out/shim-bisect-off.img` | `sweetkeys=0` | `sweet_keys_init()` returns before **any** MMIO access, so this image's init tail cannot stall in the keys driver |
+| `shim/out/shim-bisect-on.img` | (default) | the driver runs as normal |
+
+Both are otherwise the same kernel (`5c3907c8...`) and the same command line,
+which is the one from the working log (`debug=0xc cpus=1 sweetlogms=200`).
+
+`tools/bisect-keys.sh` runs both unattended and prints a verdict:
+
+- **`-off` passes `keys_init done` and `-on` does not** -> the stall is the
+  keys/PMIC path, and the per-step marks narrow it further.
+- **both pass** -> the stall is later (touch or USB); the marks say which step.
+- **neither passes** -> the boot-arg is not what differs, and if both stop on
+  the same mark the stall is before `sweet_keys_init()` or in the log path
+  itself.
+
+That last case is worth keeping in mind: it is the outcome that would put the
+blame back on the UFS/log machinery rather than on the PMIC.
+
+**Fourteen rounds, no phone.** Everything above is staged, nothing is measured.
+
+
+### >>> UPDATE 2026-11-03 (14): ruled out the cheap causes of the keys_init stall <<<
+
+Follow-up to entry (12), which proved the stall is inside `sweet_keys_init()`.
+Each candidate was checked against the source rather than guessed at:
+
+| candidate | verdict |
+| --- | --- |
+| `ml_io_map()` running out of the IO submap | **ruled out**: `IO_MAP_SIZE` is 8 MiB on arm (32 MiB on i386), and the whole boot path - UFS 0x4000 twice, GCC 0x60000/0x90000, TLMM, SE8, three KEYS windows, DWC3, QUSB2 - sums to **1.55 MiB, 19 %** |
+| apid offset past the mapped window | **ruled out**: the working boot's `pon-apid=308` and `gpio-apid=366` index `0x9a00`/`0xb700`, and the highest access is `+0x18` -> `0x9a18`/`0xb718`, well inside the 0x10000 window |
+| `io_map()`'s linear `virtual_space_start` allocator overlapping | **ruled out**: that branch only runs before `STARTUP_SUB_KMEM`, and `sweet_ufs_init()` runs after `bsd_autoconf` |
+| **the `DSB` in `keys_read()`** | **fixed**: a DSB only returns when every outstanding access in its shareability domain has completed. If the SPMI fabric stalls, the barrier itself never returns - and the 50 ms deadline added in entry (12) cannot help, because it is checked inside the loop that the barrier *precedes*. It is now `dmb osh`, which orders the command write against the status reads (all the code needs) without waiting for completion. |
+
+`dsb osh` was also the only unbounded wait left on this path: every other
+poll has both an iteration cap and a wall-clock deadline.
+
+**Image: `shim/out/shim-proven.img`** (kernel `5c3907c8...`, boot.img
+`3c09428a...`, kernel saved as `research/k-proven`). Thirteen rounds, no phone.
+
+
+### >>> UPDATE 2026-11-03 (13): the init marks were still hostage to the log thread <<<
+
+Entry (12) bracketed every init step with a mark, but `sweet_log_mark()` only
+fills RAM - the write happens in the log thread, which calls
+`sweet_log_mark_flush()` on its own loop. For a boot that is healthy that is
+fine. For the case marks exist to diagnose - **a stall inside keys_init** - it
+is exactly backwards: if init is stuck, the flush may never run, and the marks
+stay in RAM.
+
+`extern void sweet_log_mark_sync(const char *)` now records the mark and then
+flushes it **on the caller's thread**. It uses `UFS_SLOT_MARK` (slot 2), which
+no other caller touches, so it cannot collide with the main I/O slot even if
+the caller holds `sweet_ufs_lock`. Verified: the three `lck_mtx_lock(
+&sweet_ufs_lock)` sites are at lines 581, 654 and 876 and none of them covers
+the init tail, and the lock order between `sweet_log_lock` and
+`sweet_mark_lock` is the same in both paths (log flush takes mark flush while
+holding the log lock; `sweet_log_mark_sync` takes only the mark lock), so
+there is no lock-order inversion.
+
+Every init step now pays exactly one 4 KiB SCSI write for the privilege of
+being visible after a hang:
+
+```text
+INIT: sample_start done
+INIT: entering keys_init      <- last one written if keys_init hangs
+INIT: keys_init done
+INIT: entering touch_init / INIT: touch_init done
+INIT: entering usb_probe  / INIT: usb_probe done
+```
+
+**Image: `shim/out/shim-proven.img`** (kernel `30dd6621...`, boot.img
+`a35f7e6b...`, kernel saved as `research/k-proven`).
+
+**Twelve rounds, still no phone.** This is the first image that can tell us
+*where* keys_init hangs without relying on the console ring at all - which is
+the only thing that has been unavailable all session.
+
+
+### >>> UPDATE 2026-11-03 (12): the stall is provably inside keys_init, and the init tail is now bracketed <<<
+
+Diffed the init sequence of the working boot and a failing one step by step
+(`SWEET UFS: init ...` lines after `init reg=0x1d84000/0x3000`):
+
+| # | working boot (`boot-journaled-userland.txt`) | failing run |
+| --- | --- | --- |
+| 1-10 | ... | identical |
+| **11** | `SWEET UFS: keys_init` | `SWEET UFS: keys_init` |
+| 12 | `SWEET KEYS: arb=0x50010000 apids=512 ...` | **nothing** |
+| 13 | `SWEET UFS: keys_init done` | - |
+| 14-17 | `touch_init`, `touch_init done`, `usb_probe`, `init complete` | - |
+
+Everything before `keys_init` is byte-for-byte the same, including the boot
+phases (`dlil_init`, `bsd_autoconf`, `rootdev called`, `init reg`). So the
+stall is unambiguously **inside `sweet_keys_init()`** / the PMIC access, not in
+the UFS driver below it and not in touch/USB.
+
+The working boot answered the PMIC on the first read (`pon-apid=308`,
+`gpio-apid=366`, all `*ok=1`). Two changes make the failure mode bounded and
+observable:
+
+1. **`keys_read()` is deadline-bounded.** It polled up to 1000 times with
+   `delay(1)` per call and `keys_init` makes five of them, so a PMIC that never
+   asserts done could park this path for seconds - on the thread that must
+   return before BSD mounts the root. It now also stops after 50 ms wall clock.
+2. **Every init step is bracketed with a mark** (`INIT: entering keys_init`,
+   `INIT: keys_init done`, `INIT: entering touch_init`, ...). Marks are RAM-only
+   and written by the log thread (entries (5) and (10)), so this costs a few
+   dozen byte stores per step and survives the ring being overwritten. Reading
+   them with `tools/sweet-mark-pull.sh` will name the exact step that stalls,
+   even when the console is lost.
+
+**Image: `shim/out/shim-proven.img`** (kernel `1404ed3c...`, boot.img
+`4be40d96...`, kernel saved as `research/k-proven`). Eleven rounds, still no
+phone - this cannot be validated until the device is reachable.
+
+
+### >>> UPDATE 2026-11-03 (11): where the iOS root image lives (it is NOT on 137) <<<
+
+Checked while the phone is still off USB, because a successful kernel boot is
+useless without a root to mount.
+
+The iOS root images are on **the Linux workstation** at
+`/run/media/dipa/android/ios-sweet-ipsw/ios16-root-20H392-v15.img` (+ `.simg`,
+v14 as fallback) - not on this Mac and **not on 137**. Verified: no
+`ios16-root*` under `~` on either host, and 137 has no removable media mounted.
+
+So the recovery picture has two separate pieces:
+
+| piece | where | verified |
+| --- | --- | --- |
+| phone firmware/partition backups (`abl`, `boot`, `dtbo`, `vbmeta*`, `persist`, `modemst1/2`, `fsg`, `fsc`, `misc`, `recovery`, GPT, all LUNs) | 137 `~/backup/gauguin/`, with `SHA256SUMS` | yes, this session |
+| iOS root image (16 GiB HFS+, `userdata`) | the Linux workstation's removable media | **not reachable from here** |
+
+That matters if the phone ever has to be re-flashed: restoring the firmware is
+possible from 137, but putting iOS back on `userdata` needs the workstation
+(or a fresh `tools/mkiosroot.sh` run from an IPSW, ~7 min flash). The phone
+currently holds image v15, so a normal boot does not need any of this.
+
+
+### >>> UPDATE 2026-11-03 (10): marks cost nothing on the init path now <<<
+
+`sweet_log_mark()` was already memory-only (2026-11-03 (5)), but each call
+still did a 4 KiB `memset` plus an `snprintf`, and `sweet_keys_init()` carries
+eleven of them. It now formats the line with single-byte stores and no
+clearing - the newline is what the reader keys on, and the flush writes the
+whole block anyway. The output is byte-identical to what
+`tools/sweet-mark-pull.sh` expects (`MARK %05u %s\n`), checked by simulating
+the writer against the reader's `split(b'\n')[0]` / `split(' ')[1]` logic.
+
+Total added work per mark: one atomic increment, one atomic OR, and ~30 byte
+stores. That is nothing next to the SCSI round trip the old version paid.
+
+**Image: `shim/out/shim-proven.img`** (kernel `157f5090...`, boot.img
+`d9118ae7...`).
+
+**Nine rounds, still no phone.** Nothing since round 1 has run on hardware.
+The code is at its best-known state - the init sequence and boot line match
+the log that reached `exec launchd`, every base address and mapping window is
+verified against the device tree, and the DMA layout is audited - but that is
+all offline reasoning. The backup on 137 can restore the phone if it is
+bricked; the only missing thing is physical access to it.
+
+
+### >>> UPDATE 2026-11-03 (9): every gauguin hardware constant checked against the device tree <<<
+
+The phone is still off USB (both hosts checked: this Mac and 192.168.201.137
+report no device in `adb`, `fastboot` or `lsusb`). The backup on 137
+(`~/backup/gauguin/`, with `dt/` = the full live device tree and
+`SHA256SUMS`) is complete: abl/ablbak, boot, dtbo, vbmeta*, persist,
+modemst1/2, fsg, fsc, misc, recovery, GPT and all LUNs. So a hard recovery is
+possible if it ever comes to that.
+
+With the DT available offline, all nine base addresses in the drivers were
+decoded from `dt/soc/*/reg` and compared:
+
+| constant | code | device tree | |
+| --- | --- | --- | --- |
+| `TOUCH_GCC_PA` | `0x100000` | `0x100000` (`qcom,gcc@100000`, `0x1f0000`) | ok |
+| `TOUCH_SE_PA` | `0x988000` | `0x988000` (`i2c@988000`) | ok |
+| `TOUCH_NORTH_PA` | `0xf100000` | `0xf100000` (`pinctrl@f100000`, `0x30000`) | ok |
+| `KEYS_CORE_PA` | `0xc440000` | `0xc440000` (spmi `core`, `0x1100`) | ok |
+| `KEYS_CNFG_PA` | `0xc40a000` | `0xc40a000` (spmi `cnfg`) | ok |
+| `KEYS_OBS_PA` | `0xe600000` | `0xe600000` (spmi `obsrvr`, `0x100000`) | ok |
+| `DWC3_PA` | `0xa600000` | `0xa600000` (`ssusb@a600000`) | ok |
+| `QUSB2_PA` | `0x88e3000` | `0x88e3000` (`qusb@88e3000`, `0x400`) | ok |
+| UFS | `0x1d84000` | `0x1d84000` (`ufshc@1d84000`, `0x3000`) | ok |
+
+Every `ml_io_map()` window was also checked against the highest offset the
+code actually reads: KEYS core `0x1700<=0x2000`, cnfg `0xf00<=0x1000`, obs
+`0xff98<=0x10000`, GCC `0x19000<=0x60000`, SE `0x1000<=0x4000`, DWC3
+`0xc124<=0xd000`, QUSB2 `0x258<=0x400`. No window is short.
+
+**Conclusion: the address map is not a remaining source of the stall.** The
+SM7225 corrections from the first entry (TLMM) were the only address that was
+ever wrong; everything else matches the phone.
+
+
+### >>> UPDATE 2026-11-03 (8): init tail now matches the working log line for line <<<
+
+Diffed the current `sweet_ufs_rootdev()` tail against
+`boot-journaled-userland.txt` (the boot that reaches `exec launchd`),
+*including* the `scsi` lines that the synchronous `sweet_log_sync()` calls
+produce. Two of those calls had gone missing while the earlier entries were
+experimenting:
+
+    printf("keys_init") -> sync -> keys_init() -> printf("keys_init done") -> sync
+
+The working log shows a `scsi 0x2a`/`0x35` pair immediately after
+`SWEET UFS: keys_init` and another pair after `keys_init done`; the tree had
+neither, so `keys_init()` ran with no flush either side. Both are restored.
+
+The tail now reproduces the working sequence exactly:
+
+```text
+sample_start -> sync -> sample_done -> sync -> keys_init -> sync
+  keys_init() -> keys_init done -> sync -> touch_init -> touch_init done
+  -> sync -> usb_probe -> usb_probe() -> init complete [-> sync]
+```
+
+**Image: `shim/out/shim-proven.img`** (kernel `5fe0afd7...`, boot.img
+`b082ba8a...`, kernel saved as `research/k-proven`).
+
+**Six rounds without the phone.** Every change from round 1 onwards is
+compiled and packaged but unverified on hardware. The single blocking action
+is physical: full power-off (15 s), 10 s wait, cold boot into TWRP. Until then
+no further code change can be validated, and each additional speculative edit
+carries the risk this entry is undoing - drift away from the sequence that is
+known to work.
+
+
+### >>> UPDATE 2026-11-03 (7): the split slots needed an atomic tag; layout audited <<<
+
+Two checks on the per-slot request queue (2026-11-03 (2)), one of which found
+a real bug.
+
+1. **Command tags were not unique under concurrency.** `ufs_scsi_slot()` did
+   `ucd->cmd[3] = ++su.tag` - a read-modify-write with no atomicity. Splitting
+   the slots made concurrent callers real, so two of them could stamp the same
+   tag, and the controller may then attribute a completion to the wrong
+   command. It is now `os_atomic_inc_orig(&su.tag, relaxed)` masked to 1..31.
+   This cannot be observed in the old logs (the working boots never overlapped
+   a command - 0 `still busy`, 0 timeouts, 0 failures in 33,947 lines), so it
+   is a latent bug that only became reachable once the slots were separated.
+2. **The DMA layout was audited arithmetically** (no overlaps, all three UCDs
+   fit below `DMA_BOUNCE`):
+
+   | region | range | note |
+   | --- | --- | --- |
+   | UTRL | `0x0`..`0x400` | 32 slots x 32 B; slots 0/1/2 used |
+   | UCD (main) | `0x1000`..`0x1440` | |
+   | UCD log | `0x2000`..`0x2440` | |
+   | UCD mark | `0x3000`..`0x3440` | ends before `DMA_BOUNCE` |
+   | BOUNCE | `0x4000`..`0x104000` | slot 0 |
+   | STAGE | `0x104000`..`0x105000` | |
+   | MARK | `0x105000`..`0x106000` | slot 2 |
+   | BOUNCE_LOG | `0x106000`..`0x206000` | slot 1 |
+
+   total `0x206000` = 2.02 MiB (was 1.02 MiB); the phone has 4 GiB.
+
+**Also confirmed from the logs:** the successful run that reaches userland
+does not end in a crash - the ring simply stops where the log was pulled, with
+backboardd still polling for `IOAcceleratorES`. So a working boot does not by
+itself knock the phone off USB.
+
+**Image: `shim/out/shim-proven.img`** (kernel `50397b51...`, boot.img
+`6b64b32a...`, kernel saved as `research/k-proven`). Same proven boot line as
+the previous entry. Still not booted; the phone has now been off USB for five
+rounds.
+
+
+### >>> UPDATE 2026-11-03 (6): match the boot line of a boot that provably worked <<<
+
+The successful boots in `.deps-cache/logs/` all ran with a command line that
+differs from every image built this session. `boot-journaled-userland.txt`
+(which reaches `exec launchd`) has:
+
+    debug=0xc serial=3 cpus=1 ... sweetlog=1 sweetlogms=200 sweetfb_noconsole=1
+
+while this session's images used `debug=0x8 cpus=8 sweetlogms=250
+sweetfb_hz=30`. Both differences matter:
+
+- **`cpus=1`.** Every log that mounted the root is `cpus=1`. `cpus=8` is the
+  right setting for *usability* (2026-10-23 17:30 - it makes the SpringBoard
+  stretch fast) but it was measured after the root already mounted, and it has
+  never been in a boot line that got that far. It brings up seven secondary
+  cores on this SoC, and any of them hanging takes the system with it.
+- **`debug=0xc`, not `0x8`.** `0x8` is `DB_KPRT` only; `0xc` adds 0x400
+  (`DB_KERN_DUMP_ON_PANIC`), so a panic keeps its information instead of a
+  silent reset (2026-10-21 03:00: "debug=0xc explains the silent resets").
+
+**Second fix:** `sweet_touch_init()` was still running the whole bring-up
+inline. In the successful log, `touch_init` and `touch_init done` are
+*adjacent* with no other output between them - that function only started a
+thread. It now calls `sweet_touch_start_at_init()`, which queues the bring-up
+on its own kernel thread (the one added in 2026-11-03 (3)) and returns.
+
+**Image ready: `shim/out/shim-restored.img` is superseded by
+`shim/out/shim-proven.img`** (kernel `bcbdb25c...`, boot.img `8ae7f6d2...`,
+kernel saved as `research/k-proven`). Its boot line is byte-for-byte the one
+from the working log apart from nothing at all - it is the same string. Its
+init path is the proven order, its marks are RAM-only, and its only additions
+over the 2026-10-20 kernel are the SM7225 corrections (TLMM `0x00f100000`, ADT
+`qcom,sm7225`), the per-slot request queue and the threaded touch bring-up.
+
+**Still not booted - the phone has been off USB since the `sweetlog=0` run
+four rounds ago and has not re-enumerated.** That is the only thing blocking
+verification now.
+
+**Phase comparison, for whoever runs it:** in the working log `rootdev called`
+is line 102 and `init complete` line 189; a failing run stops on the
+`SWEET UFS: keys_init` line (~line 157 of a 202-line ring). Getting past
+`init complete` and to `BSD root: ufsroot0` is the success criterion for the
+next boot.
+
+
+### >>> UPDATE 2026-11-03 (5): the earlier "deadlock" diagnosis was WRONG - see the logs <<<
+
+**Corrects the 2026-11-03 (1) entry. Read this before believing that one.**
+
+`.deps-cache/logs/` holds ~20 boots from 2026-10-20/22, and **every one of them
+mounted the iOS root** (`mounted iOSRoot`, `exec launchd`). One is a complete
+worked example of the exact sequence this bring-up is trying to reproduce -
+`boot-journaled-userland.txt`:
+
+```text
+SWEET UFS: sample_start -> sample_start done -> keys_init
+SWEET KEYS: arb=0x50010000 apids=512 pon-apid=308 gpio-apid=366
+SWEET UFS: keys_init done -> touch_init -> touch_init done
+SWEET USB: GDSC usb30_prim on ... DWC3 GSNPSID 0x5533330a
+SWEET UFS: usb_probe -> init complete -> init returned 0
+BSD root: ufsroot0, major 1, minor 0
+```
+
+Three things follow, and the first two mean the earlier fixes were solving
+non-problems:
+
+1. **`sweet_log_sync()` on the init path is fine.** Every step in that log is
+   followed by its own `scsi 0x2a` + `0x35` write - the synchronous flush ran
+   and returned, repeatedly, on a boot that reached userland. The claim that it
+   deadlocked on `sweet_ufs_lock` (2026-11-03 (1)) is **wrong** and the calls
+   are **restored**. What *was* different on the failing runs is not yet known;
+   it was not this.
+2. **`sweet_usb_probe()` reading registers is fine on gauguin** with the
+   SM7125/lagoon register map (2026-10-20 22:10 note). The old "USB probe kills
+   the boot" only applied before that map was corrected, so `sweetusb=0` is
+   **not** the fix and was not used.
+3. **The real regression was mine: `sweet_log_mark()` did synchronous SCSI
+   writes inside the init path.** Eleven of them sit in `sweet_keys_init()`
+   alone. Each is a full 4 KiB write round trip, and `keys_init` is a
+   sub-second step when it is not doing that. The runs that stopped on the
+   `SWEET UFS: keys_init` line are consistent with exactly that.
+   `sweet_log_mark()` is now **memory only** (64 slots in `sweet_mark_ram` +
+   a dirty bitmap) and `sweet_log_mark_flush()` writes the pending blocks from
+   the log thread, never from init.
+
+**Also changed:** the init tail calls `sweet_touch_init()` again (start the
+touch thread, ~7 lines of log) instead of `sweet_touch_start_at_init()` (run
+the whole bring-up inline). The touch bring-up itself still runs on its own
+thread - that part stands and is a genuine improvement.
+
+**Built: `shim/out/shim-restored.img`** (kernel `3c401b69...`, boot.img
+`b27379ce...`; kernel also saved as `research/k-restored`). This is the first
+image whose init path matches a boot that is *known* to reach userland.
+**Not yet booted - the phone has been off USB since the `sweetlog=0` run.**
+
+
+### >>> UPDATE 2026-11-03 (4): QEMU cannot verify the gauguin path - stop trying <<<
+
+Measured this round, so nobody spends another cycle on it. QEMU boots the
+kernel only as far as `VM bootstrap done` + `IOKit IOMD setownership ENABLED`
+and then takes an **Undefined Instruction** exception at `0xfffffe0007482000`
+(QEMU `virt` lacks the SM7225 ISA bits).
+
+- **Both kernels do it**, including the pre-change `shim-safe` payload: that
+  one dies with the same Undefined Instruction and never decodes a frame.
+- So the panic is a QEMU limitation, **not** a regression from the UFS slot or
+  touch-thread work.
+- QEMU never reaches UFS at all, and the phone's stop is *after* UFS (at
+  `sample_start` / the log thread), so QEMU cannot validate anything in the
+  range this bring-up is stuck in.
+
+Practical rule: `tools/qemu-sweet.py` is only useful for changes above BSD
+init (platform/VM/framebuffer). For UFS, log, keys, touch or USB, the phone is
+the only witness. `--fail-on-panic` also requires `--kernel`, and the kernel
+binary is overwritten by each build, so a comparison against an older kernel
+needs that binary saved first (e.g. copy `kernel.development.gauguin` to
+`research/k-<tag>` before rebuilding).
+
+
+### >>> UPDATE 2026-11-03 (3): touch bring-up leaves the UFS init path <<<
+
+`sweet_touch_start_at_init()` ran the **whole** touch bring-up synchronously
+from `sweet_ufs_rootdev()` - on the one thread that has to return before BSD
+can mount the root and start launchd. That bring-up walks 25 GCC pages with
+strongly-ordered reads, votes an RPMh rail, reprograms a GENI SE and polls the
+I2C chip for its ID (5 x 200 ms in the worst case). Any stall there means iOS
+never gets a root.
+
+Touch is not needed for iOS to boot, so it now gets its own
+`kernel_thread_start()` thread (`touch_bringup_thread`), and the init path
+returns immediately after queueing it. If the thread cannot be created the old
+inline behaviour is kept. New state: `st.thread_started`.
+
+Checked at the same time and found safe: `sweet_usb_probe()` only reads
+registers (no waits). The `delay(1000)` loops in the USB path are inside
+`sweet_usb_gadget_start()`, which only runs with `sweetusb=2` - the boot
+command line does not set it.
+
+Also verified the on-disk layout does not collide: the HFS root occupies the
+start of `userdata` (16 GiB image), the mark area and log ring sit at the very
+end (lba 28055482.. / 28055566.. of a 96 GiB partition).
+
+**Built: `shim/out/shim-touchthread.img` (kernel `fb8346ea...`,
+boot.img `25283433...`). Still NOT booted - the phone has been off USB since
+the `sweetlog=0` run.** Pending phone access, in order:
+1. `adb devices`; if empty, a manual full power-off (15 s) + 10 s + cold boot
+   into TWRP is required (2026-10-23 22:05).
+2. `tools/fastboot-cycle.sh shim/out/shim-touchthread.img out.txt`
+3. `tools/sweet-mark-pull.sh marks.txt` - the first `UFS step:` / `KEYS:` /
+   `TOUCH:` / `USB:` marks will show how far the init tail now gets.
+
+
+### >>> UPDATE 2026-11-03 (2): one UFS request slot per writer, and a panic-safe log <<<
+
+Continuation of the SM7225 entry below. Three things were rewritten in
+`bsd/dev/sweet_ufs.c`; the first is the actual fix for "the boot stops after
+`sample_start`", the other two are correctness around it.
+
+1. **The UFS had one request slot for everybody.** `ufs_scsi_pa()` built every
+   command in UTRL slot 0, used `DMA_BOUNCE` for the data, rang doorbell bit 0
+   and then polled `UTRLDBR & 1`. With two callers in flight the second
+   overwrites the first's UTRD and then polls a bit the hardware already
+   cleared for the other one - it waits forever. The log thread is started from
+   `sweet_ufs_rootdev()` and its first flush runs *while init is still in there*,
+   which is exactly the pair that collided.
+   Now: `ufs_scsi_slot(..., slot)` with three independent slots, each with its
+   own UCD, data buffer and lock (all still one contiguous allocation):
+
+   | slot | users | data buffer | lock |
+   | --- | --- | --- | --- |
+   | 0 `UFS_SLOT_MAIN` | root device, file system, partition scan, stage | `DMA_BOUNCE` | `sweet_ufs_lock` |
+   | 1 `UFS_SLOT_LOG` | persistent log flush thread, `sweet_log_sync{,cache}` | `DMA_BOUNCE_LOG` | `sweet_log_lock` |
+   | 2 `UFS_SLOT_MARK` | `sweet_log_mark()` checkpoints | `DMA_MARK` | `sweet_mark_lock` |
+
+   Doorbell and completion now use `1u << slot` instead of a literal 1, and
+   every `dma_clean`/`dma_sync` is indexed by the slot's offsets.
+   `sweet_log_mark()` also stopped using `DMA_BOUNCE` (it would have scribbled
+   over an in-flight file-system transfer).
+2. **The panic path could deadlock on the new lock.** `sweet_log_flush()` grew
+   a `panic_mode` argument: `sweet_log_flush_panic()` passes `true` and the
+   flush then uses `lck_mtx_try_lock()`, giving up if the log thread owns the
+   slot (that thread's own write is already carrying the bytes out). Every
+   other caller - the log thread, `sweet_log_sync()`, `sweet_log_flush_now()`
+   and `sweet_log_start()`'s first flush - passes `false`.
+3. `/dev` of the init tail still has no `sweet_log_sync()` (previous entry);
+   that removal stands.
+
+**Built, NOT yet booted - the phone went off USB after the `sweetlog=0` run
+and has not come back.** Image ready: `shim/out/shim-slots2.img`
+(kernel `d9fa12f7e2b7...`, boot.img `9877539ee2a7...`). The earlier
+`shim/out/shim-slots.img` is the same change without the panic-mode argument.
+
+**When the phone is back, the first thing to do is:**
+`adb devices` - if empty, the phone needs a manual **full power-off (15 s),
+10 s wait, then cold boot into TWRP/fastboot**; the 2026-10-23 22:05 entry
+calls this the reboot-loop protection state and a warm reset does not clear it.
+Then `tools/fastboot-cycle.sh shim/out/shim-slots2.img out.txt` followed by
+`tools/sweet-mark-pull.sh marks.txt`, and read `UFS step: keys_init enter`,
+`KEYS: ...`, `TOUCH: ...`, `USB: ...` - those would be the first marks ever
+written, and they say how far the init tail now gets.
+
+
+### >>> UPDATE 2026-11-03: gauguin is SM7225 - the TLMM constant and the init-path log deadlock <<<
+
+**READ THIS FIRST. The port was planned on the wrong SoC.**
+
+`lvyufeng/UniXNU-gauguin` and `PORT-gauguin.md` called this phone "SM7125
+`lagoip`". It is **SM7225 (Snapdragon 750G, `lagoip`/"lito" family)**, confirmed by
+the phone itself: `getprop ro.board.platform` = `lito`, and the TWRP `cpuinfo`
+`Hardware: Qualcomm Technologies, Inc SM7225`. SM7125 (720G, `curtana`/
+`excalibur`) is a different chip with an Adreno 618 and is an easy pair to
+confuse. Everything below follows from that.
+
+**Fixes made and measured this session:**
+
+1. **TLMM (GPIO) base was SM7150's address.** `bsd/dev/sweet_touch.c` used
+   `TOUCH_NORTH_PA 0x03900000` for gauguin - that is *sweet*'s pinctrl. The live
+   DT (`/sys/firmware/devicetree/base/soc/pinctrl@f100000`,
+   compatible `qcom,lagoon-pinctrl`, reg `<0x0f100000 0x30000>`) says the
+   TLMM is at **`0x00f100000`**. `0x03900000` is unmapped address space here, so
+   `ml_io_map()` + the first GPIO read hung - which is exactly the "stops after
+   `stage D: map TLMM`" repeated in the 2026-10-23 14:35 entry. The map now
+   starts at `TOUCH_NORTH_PA + TOUCH_GPIO_CFG(pin)` instead of a fixed
+   `+0x50000`, and `TOUCH_NORTH_PA` is `0x00f100000`.
+   **Verified-good addresses from the phone's DT** (all confirmed present):
+   GCC `0x00100000` (`qcom,lagoon-gcc`), GENI SE8 `0x00988000`
+   (`i2c@988000`), UFS `0x01d84000`, SPMI core/obs/cnfg
+   `0x0c440000`/`0x0e600000`/`0x0c40a000`. So only the TLMM was wrong.
+2. **`tools/mkadt.py` now emits `qcom,sm7225`** for gauguin (was `sm7125`).
+   Regenerated ADT is otherwise byte-identical apart from the random seed.
+3. **The log flush deadlocked the init path.** `sweet_ufs_rootdev()` called
+   `sweet_log_sync()` between `sample_start`, `keys_init`, `touch` and
+   `usb_probe`. `sweet_log_flush()` takes `sweet_ufs_lock` and then waits on a
+   SCSI completion using the **single UTRL/UCD slot**, which the log *thread*
+   holds at the same moment. The boot therefore stopped right after
+   `SWEET UFS: sample_start done` (two consecutive `shim-safe` runs, and
+   `shim-ver` stopped identically on two retries - so it is deterministic, not
+   the "bootloader protection" state from 2026-10-23 22:05). All
+   `sweet_log_sync()` calls are now removed from the init tail; the ring still
+   receives those lines through `__cnputs()` and the thread flushes them.
+
+**New instrumentation (keep it):** `sweet_log_mark()` checkpoints in
+`keys_init`, `touch` and `usb_probe` (`UFS step: ...`, `KEYS: ...`,
+`TOUCH: ...`, `USB: ...`), written to the 64 blocks just below the log ring so
+they survive the ring being overwritten. Read them with
+`tools/sweet-mark-pull.sh OUT.txt`. The mark area grew 16 -> 64 blocks
+(`SWEET_MARK_BLOCKS`).
+
+**Where it stands after all of the above (measured):** the boot still stops
+right after `SWEET UFS: sample_start` / `SWEET LOG: thread running, first
+flush follows`. With `sweetlog=0` the phone resets without reaching the Apple
+logo. So the remaining stop is **in or just after the log thread's first
+flush**, not in the SoC constants and not in the init-path syncs (those are
+fixed and stay fixed).
+
+**Build/tooling notes:** `deps/shim-macos.sh` is new - it builds the shim on
+macOS with Xcode clang + Homebrew LLVM (`ld.lld`, `llvm-objcopy`,
+`llvm-readelf`, `llvm-nm`) because there is no `aarch64-linux-gnu-gcc` on this
+host. It needs `-fno-jump-tables`: clang turns the `switch` in `exc_handler`
+into a table of string pointers in `.rodata`, violating the "no absolute
+relocations" rule the shim is linked by. `shim/ufs.c` uses a local
+`shim_strcmp()` for the same reason (`__builtin_strcmp` folds to a libc call
+under clang). Kernel builds: `deps/build-macos.sh gauguin` (~4 min).
+Images this session: `shim/out/shim-sm7225.img` (TLMM+ADT fixed),
+`shim/out/shim-nosync.img` (also the syncs removed),
+`shim/out/shim-nolog.img` (`sweetlog=0` probe).
+
+**Next concrete action:** the log thread. `sweet_log_start()` does one
+`kernel_thread_start(sweet_log_thread)`; the thread prints and then loops on
+`sweet_log_flush()` + `tsleep()`. Either the first flush in that thread
+deadlocks on `sweet_ufs_lock`/the single UTRL slot, or the thread never gets
+scheduled. Cheap discriminator: give `sweet_log_flush()` its own DMA bounce
+buffer and its own UTRL slot (or make the log thread the only UFS writer until
+`init complete`), and mark each step of the log thread with
+`sweet_log_mark()` *before* the first flush.
+
 
 **Breadcrumb build (2026-10-20 19:56, cached tree only):** `bsd/dev/sweet_ufs.c`
 now prints on entry to `sweet_ufs_rootdev`, around `ml_io_map` (with HCE/HCS),

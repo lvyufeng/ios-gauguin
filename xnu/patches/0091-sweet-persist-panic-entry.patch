@@ -1,0 +1,59 @@
+--- a/osfmk/kern/debug.c
++++ b/osfmk/kern/debug.c
+@@ -1064,6 +1064,47 @@
+ }
+ #endif /* defined (__x86_64__) */
+ 
++#if defined(SWEET)
++extern void sweet_log_append(const char *, int) __attribute__((weak));
++extern void sweet_log_flush_panic(void) __attribute__((weak));
++
++/* Capture the first panic before CPU rendezvous or debugger setup can fail.
++ * Append directly to the console ring, without acquiring printf locks. */
++static void
++sweet_record_panic(const char *format, va_list *args, unsigned int reason,
++    uint64_t options, unsigned long caller)
++{
++	static unsigned recorded;
++	char line[512];
++	int length;
++	va_list copy;
++
++	if (sweet_log_append == NULL ||
++	    __atomic_exchange_n(&recorded, 1, __ATOMIC_RELAXED)) {
++		return;
++	}
++	length = snprintf(line, sizeof(line),
++	    "\nSWEET PANIC ENTRY: caller=0x%lx reason=%u options=0x%llx debug=0x%x hold=%u\n",
++	    caller, reason, options, debug_boot_arg, panicDebugging);
++	if (length > 0) {
++		sweet_log_append(line, MIN(length, (int)sizeof(line) - 1));
++	}
++	va_copy(copy, *args);
++	length = vsnprintf(line, sizeof(line), format, copy);
++	va_end(copy);
++	if (length > 0) {
++		sweet_log_append(line, MIN(length, (int)sizeof(line) - 1));
++	}
++	sweet_log_append("\n", 1);
++	if (sweet_log_flush_panic != NULL) {
++		/* Its trylock may fail. Keep its UFS completion polling non-sleeping. */
++		boolean_t interrupts = ml_set_interrupts_enabled(FALSE);
++		sweet_log_flush_panic();
++		ml_set_interrupts_enabled(interrupts);
++	}
++}
++#endif
++
+ #pragma clang diagnostic push
+ #pragma clang diagnostic ignored "-Wmissing-noreturn"
+ void
+@@ -1075,6 +1116,8 @@
+ #if defined(SWEET)
+ 	/* No CPU/thread/debugger state is required for this first panic copy. */
+ 	sweet_early_panic(panic_format_str, panic_args);
++	sweet_record_panic(panic_format_str, panic_args, reason, panic_options_mask,
++	    panic_caller);
+ #endif
+ 
+ #if defined(__x86_64__) && (DEVELOPMENT || DEBUG)

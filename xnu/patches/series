@@ -98,3 +98,5 @@
 0100-arm64-iboot-stage2-platform-guard.patch
 0101-gauguin-nvt-clock-pin-snapshot.patch
 0102-gauguin-nvt-controller-access-probe.patch
+0103-sweet-ufs-dma-ownership-quarantine.patch
+0104-sweet-ufs-reserve-diagnostic-tail.patch

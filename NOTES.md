@@ -2,50 +2,58 @@
 
 ## Agent handoff / active work
 
-### 2026-11-06 - 0112 CPU staging: reviewed descriptor fix committed; native build pending
+### 2026-11-06 - 0112 CPU staging: build qualified, image packaged, NOT booted
 
-Review status: the current narrow0112 correction and its tests are APPROVED by
-the parent Codex review (research/tmp/dsh-0112/narrow-contract.txt,
-narrow-final-fixes.txt). User preference recorded: DSH runs with
+Status: native build succeeded, parent qualification passed and the0112 staging
+image is packaged and waiting for the parent's review before any
+temporary `fastboot boot`. User preference retained: DSH runs with
 danger-full-access for implementation/build, Codex plans and reviews.
 
-The fix: the packer emits the A615ZapMDT descriptor second word as the reserved
-descriptor page size,16KiB, not the raw6860 metadata length. The consumer
-(`bsd/dev/gauguin_pas_stage.c` in xnu/patches/0112-gauguin-pas-cpu-staging.patch)
-therefore accepts `reserved_bytes == PST_PAGE` (16KiB, page-aligned, bounds
-unchanged) and keeps pinning the first raw6860 bytes by SHA256; raw6860 remains
-ZAP_MDT_SIZE. Linked regression added: tests/test_pas_staging.py now runs the
-real packer (tools/mkpayload.py, synthetic MDT bytes) and feeds its emitted
-16-byte /chosen/memory-map/A615ZapMDT property and last16KiB segment to the
-host fixture tests/fixtures/gauguin_pas_stage_host.c, which stages the emitted
-descriptor and rejects raw6860/16383/16385; a mutant consumer requiring
-PST_BYTES aborts at the first positive case (runtime proof, not text match).
+Code (commit65c12fbd623dbd2a030e547debd5b06aa45658e5): the packer emits the
+A615ZapMDT descriptor second word as the reserved16KiB descriptor page, not the
+raw6860 MDT length. The consumer in xnu/patches/0112-gauguin-pas-cpu-staging.patch
+accepts `reserved_bytes == PST_PAGE` (same alignment/bounds) and still pins the
+first raw6860 bytes by SHA256. Corrected contract tests: tests/test_pas_staging.py
+runs the real packer on synthetic MDT bytes and feeds its emitted descriptor and
+16KiB page to tests/fixtures/gauguin_pas_stage_host.c, which stages the emitted
+descriptor and rejects raw6860/16383/16385 before mapping; a mutant consumer
+requiring PST_BYTES aborts at its first positive case. Focused3/3, payload2+9
+and the full41-file host suite pass on source112-dsh-contract (5249 files, SHA
+7b408015fc035412822c2b87d4d3a7f7fc2b2f538614fa8643617de83fe97283): logs
+contract-focused-stage.log, contract-payload.log, contract-full-host.log
+(contract-result.json). Only tracked change left: the original mkadt.py edit.
 
-Contract source: .deps-cache/p0-20261105/source112-dsh-contract, fresh strict
-replay of pristine1b191cb +106 patches,5249 files, canonical
-tools/xnu-build-manifest.py snapshot SHA
-7b408015fc035412822c2b87d4d3a7f7fc2b2f538614fa8643617de83fe97283
-(contract-parent-hashes.json); old source112-dsh / source112-c003dc1c is
-23b0fb38d7792ff920be58b8966e036b1fda4b8a460c338e9e0f1e671d8846b2; diff -r is
-only bsd/dev/gauguin_pas_stage.c. Full host suite passes (41 files) on that
-source (contract-full-host.log); focused3/3 and payload2+9 pass
-(contract-focused-stage.log, contract-payload.log; contract-result.json).
-Committed here: 0112 patch, test_pas_staging.py, guard-page fixture and this
-NOTES. The user's 7-line tools/mkadt.py edit stays uncommitted (unchanged).
+Build: run gauguin.fbWj14 (unique invocation ID; build IDs are not source-config
+hashes), standard `deps/build-macos.sh` in the user-approved danger-full-access
+mode, no BUILD_DSYM=0 and no manual strip. make exit0, state built, dSYM and
+strip ran normally. Manifest .deps-cache/p0-20261105/build/runs/gauguin.fbWj14/build-manifest.json
+captured HEAD65c12fbd; kernel16798800B SHA
+8267eb949254736ba5cc7583c13ad25a16a166e98b77cc0829855e1d42419fdc, ARM64,
+ID xnu-dc38b2a01c6f471fa523f9f9cdab1f4e, banner "Darwin Kernel Version 22.6.0:
+Fri Nov  6 11:51:35 CST 2026; baai:xnu-dc38b2a01c6f471fa523f9f9cdab1f4e". The
+current generated native context is this112-contract/fbWj14 build, not the old
+111 manifest. Earlier run gauguin.Qz3IuF was an earlier0112 compile attempt (not
+111) that failed at make2; it stays as history, manifest unchanged (ad7d22d0...,
+failed) with its unstripped object in ignored
+research/tmp/dsh-0112/contract-preserve/failed-Qz3IuF-kernel.unstripped.
+Parent qualification: research/tmp/p3-native-0112-fullaccess-qualification-20261106.json.
 
-Native build: the old run gauguin.Qz3IuF permanently failed (make exit2: the
-dSYM rule's `2> >(grep ...)` hit the old DSH sandbox's /dev/fd denial). Keep it
-as history; its manifest (SHA ad7d22d0...33a7f13, state failed) is unchanged and
-its unstripped20547000B link object (SHA 53b050be...7eecf742, banner
-xnu-39930ab6, NOT0112) is preserved in ignored
-research/tmp/dsh-0112/contract-preserve/failed-Qz3IuF-kernel.unstripped. A new
-standard build run (no BUILD_DSYM=0, no manual strip, no manifest relabel) with
-the user-approved danger-full-access tool mode is now the next step:
-`SKIP_TESTS=1 bash deps/build-macos.sh gauguin --xnu $PWD/.deps-cache/p0-20261105/source112-dsh-contract
---build-root $PWD/.deps-cache/p0-20261105/build --out $PWD/research/tmp/p3-native-0112-20261106-fullaccess-out --jobs 8`
-logging to research/tmp/p3-native-0112-fullaccess-build-20261106.log. It
-should finish the normal dSYM/strip/install path; build result pending.
-Phone remains TWRP; nothing packaged or booted for0112; no PAS/GPU op.
+Image (NOT BOOTED): shim/out/shim-p3-passtage-0112-native-20261106.img,
+19415040B SHA 17af66bf150a20a62673d5d0593512d6ae9478dd79598e8dc5cff6ab04e0e847;
+payload research/tmp/p3-passtage-0112-native-20261106.bin SHA
+27947b6e431416e46c3cb80f37c7843032be91081e50d92964c66911a47869b6; evidence
+research/tmp/p3-passtage-0112-native-evidence-20261106.json. Proven shim
+b5ba7764..., original DTB, base ADT7d6d93be..., NVT007143e7... (PA
+0x182540000,147456 reserved), raw MDT6860 pin6f2a...16ac7b in a16KiB page
+(PA0x182564000, zero padding), pending PAS request with a 2MiB zero tail
+(runtime selects1MiB); flags NVT1/hz30, GCC/SCM0, pasprobe1/passtage1; marker
+sweettrial=passtage-0112-20261106-dsh-a1; cmdline527B. Packed by
+research/tmp/dsh-0112/pack_native0112_fullaccess.py (parent-corrected copy; the
+original helper is preserved). The real low-PAS PA is unknown until boot.
+
+Phone last confirmed TWRP; this image has NOT been booted; no GPU/PAS operation
+has run. Next step is the parent's image review, which must authorize any
+temporary `fastboot boot` separately.
 
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 

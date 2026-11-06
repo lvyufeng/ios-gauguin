@@ -1,0 +1,94 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -328,6 +328,14 @@
+     (void)cookie;if(!gmb_ram||word>=GGM_HFI_RESERVED/4)return false;
+     gfw_store32(gmb_ram+0x8c000-GMB_PAGE+4*word,value);return true;
+ }
++static void gfw_hidden_records(void)
++{
++    for(unsigned i=0;i<3;i++)if(gfw_context.hidden_valid&(1u<<i)){
++        char line[192];
++        snprintf(line,sizeof(line),"SWEET GMU FW IMPL: off=%05x requested=00000000 readback=%08x policy=native-write; equality unqualified",0x1034+8*i,gfw_context.hidden_readback[i]);
++        gmb_record(line);
++    }
++}
+ static enum gmb_result gfw_fail(enum gmb_result rc,const char *why)
+ {
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+@@ -348,6 +356,7 @@
+         snprintf(line,sizeof(line),"SWEET GMU FW READBACK: phase=%u check=%u window=%u off=%05x mask=%08x expected=%08x actual=%08x",d->phase,d->check,d->window,d->offset,d->mask,d->expected,d->actual);
+         gmb_record(line);
+     }
++    gfw_hidden_records();
+     return rc;
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+@@ -386,6 +395,7 @@
+     if(gfw_work.result!=GMF_OK)return gfw_fail(GMB_FIRMWARE,"native firmware/HFI bootstrap");
+     if(!sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_DONE))return gfw_fail(GMB_MEMORY,"final firmware owner/phase predicates");
+     *out=gfw_work;__atomic_store_n(&gfw_lifecycle,GMB_READY,__ATOMIC_RELEASE);
++    gfw_hidden_records();
+     gmb_record("SWEET GMU FW: complete native FW result and INIT/version ACKs; no normal HFI_ON/GPU/Metal qualification");
+     return GMB_OK;
+ }
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -55,6 +55,19 @@
+ }
+ static enum gmf_result store(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t v)
+ {uint32_t actual;if(!wr(c,w,off,v)||!barrier(c)||!rd(c,w,off,&actual))return GMF_IO;return actual==v?GMF_OK:mismatch(c,GMFD_STORE32,w,off,UINT32_MAX,v,actual);}
++static enum gmf_result hidden_address(struct gmf_context *c,unsigned index)
++{
++    if(index>=3)return GMF_ARGUMENT;
++    /* Native19b63c8 writes zero to these three addresses, with no equality
++     * check. Actual130 read82204514 at the first address. Its bit semantics
++     * are undocumented: no inferred mask or claim of successful bitwise RW.
++     * Retain the same write/barrier/read/guards and all-ones refusal. */
++    uint32_t actual,off=R(0xd+2*index);
++    if(!wr(c,GMF_AO,off,0)||!barrier(c)||!rd(c,GMF_AO,off,&actual))return GMF_IO;
++    if(actual==UINT32_MAX)return mismatch(c,GMFD_STORE32,GMF_AO,off,UINT32_MAX,0,actual);
++    c->hidden_readback[index]=actual;c->hidden_valid|=1u<<index;
++    return GMF_OK;
++}
+ static enum gmf_result mask(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t set)
+ {uint32_t old;if(!rd(c,w,off,&old)||old==UINT32_MAX)return GMF_IO;return store(c,w,off,old|set);}
+ static enum gmf_result poll(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t mask_bits,uint32_t value,uint32_t *out)
+@@ -89,7 +102,12 @@
+         {0x180,0xa7a506a0},{0x181,0xa1e6a6e7},{0x182,0xa2e081e1},
+         {0x183,0xe9a982e2},{0x184,0x0020e8a8}
+     };
+-    for(unsigned i=0;i<sizeof(rsc)/sizeof(*rsc);i++){rc=store(c,GMF_AO,R(rsc[i][0]),rsc[i][1]);if(rc)return rc;}
++    for(unsigned i=0;i<sizeof(rsc)/sizeof(*rsc);i++){
++        uint32_t word=rsc[i][0];
++        if(word==0xd||word==0xf||word==0x11)rc=hidden_address(c,(word-0xd)/2);
++        else rc=store(c,GMF_AO,R(word),rsc[i][1]);
++        if(rc)return rc;
++    }
+     static const uint32_t seq[]={0xfebea1e1,0xa5a4a3a2,0x8382a6e0,0xbce3e284,0x002081fc};
+     for(unsigned i=0;i<5;i++){rc=store(c,GMF_SEQ,4*i,seq[i]);if(rc)return rc;}
+     for(unsigned n=0;n<2;n++){
+@@ -243,6 +261,7 @@
+     if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMF_ALREADY;
+     c->ops=copy;c->plan=p;c->phase=GMF_RESET;
+     memset(&c->diagnostic,0,sizeof(c->diagnostic));
++    c->hidden_valid=0;memset(c->hidden_readback,0,sizeof(c->hidden_readback));
+     const uint8_t *asset=NULL;size_t bytes=0;enum gmf_result rc=GMF_OK;
+     if(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
+        (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1))rc=GMF_ASSET;
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -38,7 +38,10 @@
+ struct gmf_diagnostic {uint32_t valid,phase,check,window,offset,mask,expected,actual;};
+ struct gmf_context {uint32_t state;enum gmf_phase phase;struct gmf_ops ops;
+     struct gmf_plan plan;struct ggh_channel hfi;struct gmf_receipt work;
+-    struct gmf_diagnostic diagnostic;};
++    struct gmf_diagnostic diagnostic;
++    /* Native fixed-zero HIDDEN_TCS_CMDn_ADDR writes, not bitwise-qualified.
++     * Cache only the existing read; no public success receipt is changed. */
++    uint32_t hidden_valid,hidden_readback[3];};
+ /* One cold native bootstrap: PDC/RSC/TCM/power/version -> reset release and
+  * fresh FW result -> A619 boot-slumber OOB -> HFI init and INIT/version ACKs.
+  * Exact pinned legacy asset + native family rules select v1 transport; the

@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0120 local full build, package and independent image review PASS
+
+Code919a6a1ec79784d89a154456d04e5dc6726c5f72; sanitized public
+63b693ad2666a6987d18151a38496fe65884f3e5 (singleparent051a0bd...,10textpaths).
+Normal local build/dSYM/strip/install/qualification/package succeeded in native
+gauguin.gKuZ8y. Source120-v2 SHAdebd4b4edf9648071570b18fca0291aed3a0886eb0eeb9e47bc055d0d72b436b,
+5270 files, already passed53 host files. Manifest SHA
+52fdd5db7b24beffe9460ac3c63bdff5935b304a023c4e0bf421c682b6dd894d.
+Kernel16869040B SHA99c241436cba4873a8fd9693c1e71c005936a443cbfdc585ddb85956b2e2a2a5,
+IDxnu-e9c9211bdc96471489b2cd0fd06e7d86, Nov6 20:49:30CST banner.
+
+Image shim/out/shim-p3-gmuc-0120-native-20261106.img19480576B SHA
+12dfc3ef94c2746830b7b0713716b9e0239f5ef80aa061dd87a50c4f84dfde28;
+payload19152896B SHA0f267efac6825ba8f2367a84773931e093ecf775c90cd5e8d57a2fd28590b400.
+Actual526-byte0x48/608 command line sweetgmuclk/CXpower/busvote/PASprobe/PASstage1,
+PASinit/mem/otherprobes/PET/reboot/wdttest/touchmode0, NVT1/hz30/cpus8/sweetsample=-,
+unique sweettrial=gmuc-0120-20261106-a1. NVTasset182550000/MDTasset182574000;
+runtime low reservation remains dynamically selected, these are package sources.
+Independent image-parent-review.json PASS: exact wrapper/actual cmdline/ADT,
+10 native segments/assets/2MiB zero tail, original mkadt diff and113–118 pins.
+Reports native120-execution-result.json, p3-native-0120-qualification-20261106.json,
+p3-gmuc-0120-native-evidence-20261106.json. DSH19923/23130 terminal0.
+
+Codex authored verify_gmu120.py, retaining118 identity/CPU/CMDDB/WDT/BCM/CX
+checks with source5270/new flags/RW map/new terminal; adds before/after16 GMC
+registers, native tuple/parent/root/branch requests, direct-vs-shared accounting,
+HWCG request vs observed ON and configured-vs-measured limits. Parser host
+4 valid/93 rejected cases PASS, runtime-parser-result.json; DSH74820 terminal0.
+VerifierSHAa16b3449f7a64dcc44b5f669c657b45223b1d34555ab0123f4eafbc13a5672ad.
+No0120 hardware result yet; phone previouslyTWRP. Next: boot120.py once with
+fresh recovery preflight/180s observer, then read-only verifier/extractor. Require
+THIS0120 reset attribution. Never reuse118 confirmation or qualify GPU/Metal.
+Full goal active; original mkadt edit and all qualified artifacts preserved.
+
 ### 2026-11-06 — 0120 GMU clock implementation, native TUs and all53 host files PASS
 
 119 prerequisite committed97c6bfc039a9ca709923e7f3cf0589f8a1d166cb, sanitized

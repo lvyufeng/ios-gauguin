@@ -1,0 +1,83 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -34,6 +34,14 @@
+ {return ml_get_interrupts_enabled()&&!ml_at_interrupt_context()&&!get_preemption_level();}
+ static void gmb_record(const char *line)
+ {printf("%s\n",line);if(gmb_thread()){sweet_log_mark_sync(line);sweet_log_flush_now();}}
++static void gmb_impl_record(void)
++{
++    const struct gsm_impl_sample *s=&gmb_context.implementation;
++    if(!s->valid)return;
++    char line[192];
++    snprintf(line,sizeof(line),"SWEET GMU SMMU IMPL: off=06b68 requested=%08x readback=%08x policy=native-write; equality unqualified",s->requested,s->readback);
++    gmb_record(line);
++}
+ enum gmb_state sweet_gmu_board_state(void)
+ {return (enum gmb_state)__atomic_load_n(&gmb_lifecycle,__ATOMIC_ACQUIRE);}
+ static enum gmb_result gmb_fail(enum gmb_result rc,const char *why)
+@@ -48,6 +56,7 @@
+         snprintf(line,sizeof(line),"SWEET GMU SMMU FAIL: phase=%u check=%u off=%05x mask=%016llx expected=%016llx actual=%016llx",d->phase,d->check,d->offset,d->mask,d->expected,d->actual);gmb_record(line);
+         snprintf(line,sizeof(line),"SWEET GMU SMMU FAIL: id=%08x/%08x/%08x cr0=%08x/%08x micro=%08x/%08x ias=%u oas=%u writes=%u polls=%u atos=%u",s->id0,s->id1,s->id2,s->cr0_before,s->cr0_after,s->micro_before,s->micro_after,s->ias,s->oas,s->writes,s->polls,s->translations);gmb_record(line);
+     }
++    gmb_impl_record();
+     return rc;
+ }
+ static bool gmb_outer(void)
+@@ -350,6 +359,7 @@
+     if(!gauguin_wdt_lease_check_budget(13u*GAUGUIN_WDT_CLOCK_HZ)||
+        !sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_RESET))return gfw_fail(GMB_BUDGET,"firmware initial13s/live predicates");
+     char line[192];const struct gsm_receipt *s=&gmb_work.smmu;
++    gmb_impl_record();
+     snprintf(line,sizeof(line),"SWEET GMU SMMU: id=%08x/%08x/%08x cr0=%08x ias=%u oas=%u mapped=%u atos=%u",s->id0,s->id1,s->id2,s->cr0_after,s->ias,s->oas,s->mapped_pages,s->translations);gmb_record(line);
+     for(unsigned n=0;n<2;n++){
+         snprintf(line,sizeof(line),"SWEET GMU SMMU: stream%u slot=%u bank=%u asid=%u smr=%08x s2cr=%08x sctlr=%08x ttbr0=%016llx ttbr1=%016llx",4+n,s->slot[n],s->bank[n],s->asid[n],s->smr_after[n],s->s2cr_after[n],s->sctlr[n],s->ttbr0[n],s->ttbr1[n]);gmb_record(line);
+diff --git a/bsd/dev/gauguin_gmu_smmu.c b/bsd/dev/gauguin_gmu_smmu.c
+--- a/bsd/dev/gauguin_gmu_smmu.c
++++ b/bsd/dev/gauguin_gmu_smmu.c
+@@ -182,7 +182,22 @@
+         /* Unlike a blind DT replay, retain our halt request until EVERY
+          * implementation register and context has been programmed/verified. */
+         uint32_t value=impl[i][1]|(impl[i][0]==MICRO?HALT:0);
+-        r=store(c,impl[i][0],value,impl[i][0]==MICRO?~IDLE:UINT32_MAX);if(r)return r;
++        if(impl[i][0]==0x6b68){
++            /* qsmmuv2_device_reset at pinned19b63c8 issues the DT write,
++             * without assuming this opaque register echoes all32 bits.
++             * Real125 read9a82a382 back as0a800082. There is no documented
++             * writable mask here: do NOT invent one from that difference.
++             * Preserve the exact native write and SAME guarded I/O sequence;
++             * retain its readback without claiming bitwise qualification.
++             * Contexts/routes/faults and all140 ATOS checks remain mandatory.
++             */
++            uint32_t observed;
++            if(!w32(c,impl[i][0],value)||!sync_memory(c)||!r32(c,impl[i][0],&observed))return GSM_IO;
++            c->implementation=(struct gsm_impl_sample){1,value,observed};
++            if(observed==UINT32_MAX)return mismatch(c,GSD_STORE32,impl[i][0],UINT32_MAX,value,observed);
++        }else{
++            r=store(c,impl[i][0],value,impl[i][0]==MICRO?~IDLE:UINT32_MAX);if(r)return r;
++        }
+     }
+     uint32_t fsr;if(!r32(c,0x48,&fsr)||!w32(c,0x48,fsr)||!sync_memory(c))return GSM_IO;
+     if(!r32(c,0x48,&fsr))return GSM_IO;if(fsr)return mismatch(c,GSD_FAULT32,0x48,UINT32_MAX,0,fsr);
+diff --git a/bsd/dev/gauguin_gmu_smmu.h b/bsd/dev/gauguin_gmu_smmu.h
+--- a/bsd/dev/gauguin_gmu_smmu.h
++++ b/bsd/dev/gauguin_gmu_smmu.h
+@@ -40,6 +40,10 @@
+ enum gsm_check {GSD_NONE,GSD_STORE32,GSD_STORE64,GSD_POLL32,GSD_CONFIG,
+     GSD_FINAL32,GSD_FAULT32,GSD_MICRO32};
+ struct gsm_diagnostics {uint32_t phase,check,offset;uint64_t mask,expected,actual;};
++/* Opaque DT implementation register: the pinned native driver writes it
++ * without a readback-equality contract. Retain our guarded read as an
++ * observation, never as proof that all requested bits took effect. */
++struct gsm_impl_sample {uint32_t valid,requested,readback;};
+ /* Zero-initialized, single private board instance. Cold initialization only:
+  * all existing context SCTLR.M and stalled faults must be zero. Unrelated
+  * streams/banks are preserved; GMU stream4(user)/5(kernel) are uniquely
+@@ -59,6 +63,7 @@
+     uint32_t smrs[GSM_STREAMS],s2crs[GSM_STREAMS];
+     uint32_t sctlr[GSM_BANKS],fsr[GSM_BANKS];
+     struct gsm_diagnostics diagnostic;
++    struct gsm_impl_sample implementation;
+ };
+ enum gsm_result gsm_configure_once(struct gsm_context *,const struct gsm_ops *,
+     const struct ggm_plan *,struct gsm_receipt *);

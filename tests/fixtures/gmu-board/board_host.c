@@ -24,7 +24,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned owner_calls,owner_fail,budgets,budget_fail,expire,allocs,frees,alloc_fail,smmu_calls,smmu_fail,barriers,corrupt;
     unsigned clock_bad,irq_bad,context,quarantine,reads,writes,writes64;bool live;uint64_t now;
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
-        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines;} h;
+        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -36,6 +36,11 @@ static int host_printf(const char *s,...)
     if(strstr(text,"SWEET GMU SMMU IMPL:")){
         CHECK(!strcmp(text,"SWEET GMU SMMU IMPL: off=06b68 requested=9a82a382 readback=0a800082 policy=native-write; equality unqualified\n"));
         CHECK(h.live?!h.quarantine:h.quarantine==1);++h.impl_lines;
+    }
+    if(strstr(text,"SWEET GMU ATOS FAIL:")){
+        CHECK(h.quarantine==1&&!h.live);
+        CHECK(!strcmp(text,"SWEET GMU ATOS FAIL: stream=5 bank=4 iova=00000000 expected=ffffffffffffffff par=0000000300000211 mapped=131 level=3\n"));
+        ++h.atos_lines;
     }
     return n;
 }
@@ -131,6 +136,11 @@ enum gsm_result gsm_configure_once(struct gsm_context *ctx,const struct gsm_ops 
     CHECK(reads==h.reads&&writes==h.writes&&writes64==h.writes64);
     ctx->implementation=(struct gsm_impl_sample){1,0x9a82a382,0x0a800082};
     if(h.smmu_fail==2){ctx->diagnostic=(struct gsm_diagnostics){GSP_USER,GSD_STORE32,0xe000,UINT32_MAX,0xc01067,0};return GSM_READBACK;}
+    if(h.smmu_fail==3){
+        ctx->diagnostic.phase=GSP_ATOS;
+        ctx->translation=(struct gsm_atos_sample){UINT64_MAX,UINT64_C(0x300000211),1,5,4,0,131,3};
+        ctx->work.translations=132;ctx->work.mapped_pages=131;return GSM_TRANSLATION;
+    }
     memset(out,0,sizeof(*out));out->mapped_pages=131;out->translations=140;
     if(h.firmware){
         out->banks=8;out->groups=128;out->stream_match=1;out->micro_after=0x2378;
@@ -301,6 +311,7 @@ int main(void)
     reset();*(uint32_t *)(void *)(reset_page+0x2000)=0;failed();CHECK(h.maps==1&&!h.smmu_calls);
     reset();*(uint32_t *)(void *)(reset_page+0x2000)=UINT32_MAX;failed();CHECK(h.maps==1&&!h.smmu_calls);
     reset();h.smmu_fail=1;failed();CHECK(!h.nc_maps&&!h.impl_lines);reset();h.smmu_fail=2;failed();CHECK(h.diag_lines==2&&h.impl_lines==1);
+    reset();h.smmu_fail=3;failed();CHECK(h.diag_lines==2&&h.impl_lines==1&&h.atos_lines==1);
     reset();h.alloc_fail=1;failed();CHECK(h.allocs==1&&!h.frees);
     reset();h.corrupt=1;failed();CHECK(h.allocs==1&&h.frees==1);
     reset();h.expire=10;failed();

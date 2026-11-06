@@ -122,3 +122,5 @@
 0124-gauguin-gmu-native-bootstrap.patch
 0125-gauguin-gmu-smmu-failure-diagnostics.patch
 0126-gauguin-smmu-native-implementation-write.patch
+0127-gauguin-smmu-atos-failure-diagnostics.patch
+0128-gauguin-smmu-architected-par-faults.patch

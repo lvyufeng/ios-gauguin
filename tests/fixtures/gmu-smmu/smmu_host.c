@@ -42,6 +42,10 @@ static uint64_t reg64(struct fake *f,unsigned off)
 {return (uint64_t)f->regs[off/4]|(uint64_t)f->regs[off/4+1]<<32;}
 static void set64(struct fake *f,unsigned off,uint64_t v)
 {f->regs[off/4]=(uint32_t)v;f->regs[off/4+1]=(uint32_t)(v>>32);}
+/* Independent Arm IHI0062D.c PAR fault producer. Walk level comes from
+ * the actual missing descriptor, not the driver's expected-hole list. */
+static uint64_t model_fault(unsigned level,unsigned flags)
+{return ((uint64_t)level<<32)|(2u<<8)|flags|1u;}
 static uint64_t walk(struct fake *f,unsigned bank,uint32_t va)
 {
     unsigned b=CB(bank);CHECK(f->regs[0x6000/4]&4); /* ATOS while halted */
@@ -52,12 +56,12 @@ static uint64_t walk(struct fake *f,unsigned bank,uint32_t va)
     uint64_t table=reg64(f,b+0x20)&UINT64_C(0x0000ffffffffffff);
     CHECK((reg64(f,b+0x20)>>48)==bank+1);
     for(unsigned level=1;level<=3;level++){
-        if(table<f->plan.owner_pa+0x4000||table+4096>f->plan.owner_pa+0xc000)return 1|(0x10<<1);
+        if(table<f->plan.owner_pa+0x4000||table+4096>f->plan.owner_pa+0xc000)return model_fault(level,1u<<4);
         unsigned shift=level==1?30:level==2?21:12;
         unsigned offset=(unsigned)(table-f->plan.owner_pa-0x4000)+8*((va>>shift)&511);
         uint64_t entry=get64(f->tables+offset);
-        if(!(entry&1))return 1|((4+level)<<1);
-        if((entry&3)!=3)return 1|(0x10<<1);
+        if(!(entry&1))return model_fault(level,1u<<1);
+        if((entry&3)!=3)return model_fault(level,1u<<4);
         if(level==3)return entry&UINT64_C(0x0000fffffffff000);
         table=entry&UINT64_C(0x0000fffffffff000);
     }
@@ -90,9 +94,27 @@ static bool write64(void *cookie,uint32_t off,uint64_t value)
     if((off&0xfff)==0x800){
         unsigned bank=(off-0x8000)/4096;uint64_t par=walk(f,bank,(uint32_t)value);++f->atos;
         if(f->wrong_par==1&&!(par&1))par+=4096;
-        if(f->wrong_par==2&&(par&1))par=1|(0x10<<1); /* external abort is not a hole */
-        if(f->wrong_par==3&&(par&1))par=UINT64_MAX;
-        if(f->wrong_par==4&&(par&1))par=0;
+        if(par&1)switch(f->wrong_par){
+        case 2:par=model_fault(3,1u<<4);break; /* external abort, NOT a hole */
+        case 3:par=UINT64_MAX;break;
+        case 4:par=0;break;
+        case 5:par=model_fault(3,0);break; /* F with no reason */
+        case 6:par|=1u<<31;break; /* terminated, even with TF */
+        case 7:par|=1u<<2;break; /* mixed access flag fault */
+        case 8:par&=~UINT64_C(0x300);break; /* short descriptor */
+        case 9:par=model_fault(2,1u<<1);break; /* wrong missing level */
+        case 10:par|=UINT64_C(1)<<35;break; /* stage2 */
+        case 11:par=model_fault(3,1u<<2);break;
+        case 12:par=model_fault(3,1u<<3);break;
+        case 13:par=model_fault(3,1u<<5);break;
+        case 14:par=model_fault(3,1u<<6);break;
+        case 15:par=model_fault(3,1u<<7);break;
+        case 16:par|=1u<<29;break; /* invalid context */
+        case 17:par=0xf;break; /* OLD fake CPU FST7 must now be rejected */
+        case 18:par|=0x100;break; /* reserved format3 */
+        case 19:par=(par&~UINT64_C(0x300))|0x100;break; /* AArch32 long */
+        case 20:par=model_fault(3,1u<<31);break;
+        }
         set64(f,CB(bank)+0x50,par);
     }
     return true;
@@ -145,9 +167,11 @@ static void stopped(struct fake *f)
     unsigned step=f->step;struct gsm_receipt r,b;memset(&r,0x64,sizeof(r));b=r;
     struct gsm_diagnostics diagnostic=f->channel.diagnostic;
     struct gsm_impl_sample implementation=f->channel.implementation;
+    struct gsm_atos_sample translation=f->channel.translation;
     CHECK(run(f,&r)==GSM_ALREADY);CHECK(f->step==step&&!memcmp(&r,&b,sizeof(r)));
     CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));
     CHECK(!memcmp(&implementation,&f->channel.implementation,sizeof(implementation)));
+    CHECK(!memcmp(&translation,&f->channel.translation,sizeof(translation)));
 }
 static void happy(void)
 {
@@ -163,6 +187,7 @@ static void happy(void)
         CHECK(r.writes==f->writes&&f->prepared==1&&!(f->regs[0x6000/4]&4));
         CHECK(f->channel.diagnostic.phase==GSP_DONE&&f->channel.diagnostic.check==GSD_NONE);
         CHECK(f->channel.implementation.valid==1&&f->channel.implementation.requested==0x9a82a382&&f->channel.implementation.readback==0x9a82a382);
+        CHECK(!f->channel.translation.valid);
         for(unsigned i=0;i<r.groups;i++)if(i!=r.slot[0]&&i!=r.slot[1]){
             CHECK(f->regs[(0xc00+4*i)/4]==original[(0xc00+4*i)/4]);
             if(match)CHECK(f->regs[(0x800+4*i)/4]==original[(0x800+4*i)/4]);
@@ -215,10 +240,17 @@ static void bad(void)
         struct fake *f=fresh(true);f->stuck=kind;struct gsm_receipt r,b;memset(&r,0xa3,sizeof(r));b=r;
         CHECK(run(f,&r)==GSM_TIMEOUT);CHECK(!memcmp(&r,&b,sizeof(r)));stopped(f);free(f);
     }
-    for(unsigned kind=1;kind<=4;kind++){
+    for(unsigned kind=1;kind<=20;kind++){
         struct fake *f=fresh(true);f->wrong_par=kind;struct gsm_receipt r,b;memset(&r,0xa3,sizeof(r));b=r;
-        CHECK(run(f,&r)==GSM_TRANSLATION);CHECK(!memcmp(&r,&b,sizeof(r)));stopped(f);free(f);
+        CHECK(run(f,&r)==GSM_TRANSLATION);CHECK(!memcmp(&r,&b,sizeof(r)));
+        const struct gsm_atos_sample *a=&f->channel.translation;
+        CHECK(a->valid==1&&a->stream==5&&a->bank==4&&a->iova==(kind==1?0x4000u:0));
+        CHECK(a->expected==(kind==1?f->plan.owner_pa+0x10000:UINT64_MAX)&&a->par==reg64(f,CB(4)+0x50));
+        CHECK(a->level==(kind==1?0:3));
+        CHECK(a->mapped==(kind==1?0:131)&&f->channel.work.translations==(kind==1?1:132));
+        stopped(f);free(f);
     }
+    printf("SMMU PAR: architected S1/AArch64 TF levels,20 mapped/hole fault variants and old CPU-shaped code rejection PASS\n");
     const unsigned ignore[]={0x6000,0x6060,0x1800+4*6,0x1000+4*6,CB(6)+0x10,CB(6)+0x20,CB(6)+4,CB(6)};
     const uint64_t wanted[]={4,0x1055,1,0x1f300,0x38011,((uint64_t)7<<48)|0xaa20a000,0x70000000,0x00c01067};
     for(unsigned i=0;i<sizeof(ignore)/sizeof(*ignore);i++){

@@ -125,3 +125,41 @@ The coherent firmware adapter and opt-in coordinator are described in
 cold transaction before any GMU reset release. GPU commands, native-point
 ZAP, normal HFI_ON, Metal/rendering and high refresh remain separate required
 stages toward the unchanged daily-use objective.
+
+## Failed translation capture
+
+The real0126 trial reached phase7 with132 completed ATOS reads and stopped
+with GSM_TRANSLATION. From the pinned loop order, all131 positive leaf checks
+precede the first hole at IOVA0. This is source-bound inference; the old cached
+zero comparison tuple does not contain that operation's PAR value.
+
+Patch0127 retains the PAR already read by a rejected translation, stream,
+bank, IOVA, expected physical address (all-ones denotes a hole), and preceding
+accepted-leaf count. It adds no probe, changes no comparison or callback, and
+leaves the public receipt untouched. `SWEET GMU ATOS FAIL` prints this private
+sample after quarantine, before the opaque implementation row. A repeat call
+cannot replace it. Synthetic host fault samples are not real0126 PAR values.
+
+Separately, inspection of
+[Arm IHI0062D.c section16.5.14, pages16-308–309](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb#page=308)
+revealed that the old `(PAR >> 1) & 63` CPU-style fault-code check is unsuitable
+for SMMU PAR. SMMU fault information has separate flags plus format, stage and
+page-level fields. The current hole predicate therefore needs an architectural
+correction;0127 only captures evidence and deliberately preserves its behavior.
+The exact0126 PAR and whether this explains the physical failure remain unknown.
+
+Patch0128 applies that correction. A hole requires stage1, generated AArch64
+format2, F and TF, and the exact expected descriptor level; other documented
+fault flags must be clear. It checks documented fields with mask0x0000000ba00003ff
+and ignores reserved bits. The first four kernel holes miss at level3, the
+last two at level1; the three empty-user-root probes miss at level1. Positive
+physical-address checks and the131+9 probe list remain unchanged. Failed-PAR
+diagnostics additionally retain the requested fault level.
+
+The host page walker now generates SMMU PAR fields from the actual missing
+descriptor. Its old CPU-shaped fault values were incorrect fixtures. Regression
+coverage includes wrong stage/format/level, missing or mixed reasons, external
+faults, termination, invalid context, size/access/permission/TLB faults, no
+fault, all-ones and the previous CPU-shaped value. The same corrected model
+must expose127's rejection at132 and let128 check all140. This is a software
+regression demonstration; it does not reconstruct the unknown0126 PAR.

@@ -2,7 +2,7 @@
 
 ## Agent handoff / active work
 
-### 2026-11-07 — complete134 native kernel qualified; packaging and strict CM3 reader validation next
+### 2026-11-07 — complete134 native image and strict CM3 runtime readers qualified; one physical trial next
 
 DSH83746 CLOSED0; actual standard local build134.py build0/qualification0,
 gauguin.I9eLz1, captured HEADdf6cdb7f6fb4021150de59b0c485d8724d23bef4.
@@ -24,8 +24,26 @@ complete131-page strings before adding narrow CM3 requirements. Reader
 requires exactly one CM3 row after AO/PDC6/hidden3 before adapter completion:
 off20b4/request4052/mask200/expected0, non-all-ones and NMI9 clear; every
 other bit UNQUALIFIED. Existing FW/INIT/version/reset/OOB checks remain.
-Next DSH9407 package/review running; then all three runtime suites, ONE
-temporary134 boot. No134 phone proof yet. Last phoneTWRP after133; no new
+DSH9407 CLOSED0; actual package0/independent image review0, normal report,
+all inputs unchanged. Image shim/out/shim-p3-gmuf-0134-native-20261107.img
+19546112B SHA f05112f035a286d1deadbb6047fc85ae83a3d5c2ee6025dd0668ebb0578bf797;
+payload19218432B SHAfe47bfb76b57c26539fb15b13f896a2d9f533a3498807d3145de3cf4134c1570.
+Evidence SHA6d4a3b1996e1e75419cdc81cccbf3d38651002268e129b3315d0dd02dc48bb8a.
+Unique sweettrial=gmuf-0134-20261107-a1,539bytes. Asset source PAs unchanged:
+NVT182558000/MDT18257c000/GMU182580000. All prior image pins preserved.
+
+DSH92954 CLOSED0; actual runtime_validate134.py0, three normal zero results,
+inputs unchanged. Clock4/95, FW19/291, explicitly SYNTHETIC full14/50. Reader
+SHA0a2d744a7956d82cab339d2464e6648eee69621b729b1a94a6cbba55fddc0154.
+CM3 cases52/4052/synthetic high bit pass; NMI252/4252/all-ones refuse. Wrong
+offset/request/mask/expected/policy, false-qualified, missing/duplicate/order
+records and false source-bound qualifier refuse. All earlier acceptance
+checks including AO fullffffffff retained. No synthetic test is phone proof.
+Reviewed boot134.py/run_hardware134.py prepared for ONE temporary boot,
+image-hash pinned, unique gauguin recovery/gauguinpro fastboot, routine latch
+readback, same180s observer/freshpull/banner check and full strict reader.
+NEXT execute execute-hardware.txt via DSH. No134 phone proof yet. PhoneTWRP
+last observed after133; no new
 UI/touch/reset-attribution facts. Full goal ACTIVE; original mkadt seven-line
 diff intact, no flash/format/GPT/destructive action.
 

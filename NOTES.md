@@ -41,7 +41,12 @@ board72888B SHA39550f49ee5795e0895ea8ed3b1b5c58c54f69c332377ab07b3f3413935956bd,
 CURRENT136 yLkhEV recipe/source. No137 full build/image/readers/phone IO yet.
 All owned handles CLOSED; phoneTWRP after136, no new user UI/touch/reset fact.
 
-NEXT sanitized137 push, full standard local build retaining every136 qualifier,
+Sanitized137 source/notes pushed and ls-remote verified
+f3264abe96010ff84c321d0f2434c8aef799acf1, sole parent3fdea4b, eight text
+paths, same tree as private493bf59. Publisher72331 CLOSED0; report
+research/tmp/dsh-0137/public-snapshot-0137.json. Private ancestry/raw logs/
+assets/dumps/serials not pushed.
+NEXT full standard local build retaining every136 qualifier,
 requiring both installed HFI REPLY/HFI WORD formats/source-bound diagnostic
 flag. Pack/review/readers: all previous success rules unchanged, failure-only
 HFI diagnostics must NEVER be accepted as successful full traces. Add false

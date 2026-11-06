@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0136 native boot-config observations committed; all61 hosts/two native TUs pass; full build next
+
+Previous goal turn was progress: complete134/135 builds/images/readers and
+ONE physical trial each;135 source order corrected but SYS_BUS1 reads0 under
+reset. THIS turn Codex wrote136 matching the native three-register fixed-
+write protocol, DSH validated it. Whole daily-use/GPU/Metal/RAM/storage/
+peripheral/high-refresh objective stays ACTIVE/incomplete. No136 hardware,
+firmware execution/ACKs or GPU/Metal qualification yet.
+
+Private core00f5ea4 adds130th patch
+0136-gauguin-gmu-native-boot-config-observations.patch. Fresh136 source5282files
+SHAfcd7f7d74f314d7ba66df41cfba616fb90112bc1b9b7a0f094d86bc6c6cccdc9.
+Exactly firmware.c/h and board.c differ from frozen13562a4bf7d...c3ad8e.
+ONLY native SYS_BUS/ICACHE/DCACHE config words retain135 order/fixed1 and
+identical guarded write/barrier/read, cache non-all-ones raw values with
+equality/effects UNQUALIFIED. No mask invention or claim of write acceptance/
+cache disable. All-ones remains full-width READBACK refusal; all IO/guards
+and EVERY other config/reset/GX/IRQ/fault/deadline/TCM/ACK check unchanged.
+Public success receipt unchanged. Private boot_config_valid/readback[3]
+cleared only after first successful CAS, preserved on repeat. Three BOOT CFG
+records follow CM3 on completion or AFTER gmb/WDT quarantine on failure;
+no extra MMIO/retry. Failed slot is absent from valid mask, cached refusal
+tuple remains available. Physical134 ICACHE0/135 SYS_BUS0 do not prove a
+universal bit-level rule; DCACHE raw remains unobserved on hardware.
+
+DSH50996 CLOSED0, actual validate136.py0, normal FIVE zero results: pristine
+replay, full61 hosts, unchanged ORIGINAL129-model I/O equivalence, real native
+firmware/board TUs. Inputs/source/baseline unchanged. Added source-pin for
+native kgsl_gmu_core.c SHAab67cf5b4720bd617644566b406a79230df84e74892259d6c51ffda5fe8d3b4b,
+along with existing a6xx_reg/a6xx_gmu/adreno/PDC/AO references. ASan/UBSan GMF
+1,744,840 checks; board2840+93. Tests native fixed1 order, per-slot0/1/other
+raw values, per-slot all-ones refusal before release, partial cache/output/
+repeat preservation and all original callback failures. Successful ignored
+write is explicitly unqualified (different from failed callback); missing
+fresh result or INIT ACK still refuses even with all-zero observations.
+Board seam tests complete/partial cached rows only after completion/quarantine.
+Frozen135/136 original-model1,009,420 requests identical, digest42c8a43275281f5b.
+Native firmware50960B SHA77f162b3e00cbdb42d4e7cb6a9fccc677b089306492d6922aa295da49db1ca27;
+board70816B SHAbaeb246f0d951fb4110e7c765d08cb421894e515e43b0245c93a2c85a4055dda,
+CURRENT135 fzguBO recipe/source. All owned handles CLOSED; no CI used.
+
+NEXT sanitized136 source/notes push, full136 standard local build/qualification
+retaining every135 check; installed BOOT CFG format and source-bound native
+boot-config observations flag required. Pack/review, unique136 trial; full
+reader requires exactly three ordered BOOT CFG rows AFTER CM3/AO/PDC6/hidden3
+and BEFORE adapter completion: offsets103c/1000/1004, requested1,raw!=ffffffff,
+policy native-write/equality UNQUALIFIED. Keep ALL existing FW-result/copy/
+INIT/version/reset/OOB and other all-ones checks. Test0/1/synthetic other bits,
+all-ones per row, wrong request/offset/false-qualified/missing/duplicate/order
+records, false qualifier, and one coherent tempboot. Preserve numeric data,
+131-page strings and old SHA pins during metadata migration. No136 full
+build/image/readers/phone IO yet. Phone lastTWRP after135; no new user UI/
+touch/reset attribution. Original seven-line mkadt diff untouched; no flash/
+format/GPT/destructive action. Codex core/review/Git, DSH exact full-access
+compile/test/boot execution.
+
 ### 2026-11-07 — actual135 native-order SYS_BUS store62 still reads0; firmware remains under reset
 
 THIS goal turn made progress: complete134 and135 native builds/images/readers

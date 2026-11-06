@@ -293,3 +293,22 @@ unqualified instead of inventing per-bit masks. Such records cannot prove
 write acceptance or cache state. Actual fresh firmware-result and INIT/version
 replies remain the required execution evidence; all other control/fault/
 IRQ/reset/deadline checks must remain intact. No0136 candidate exists yet.
+
+Patch0136 applies that native protocol only to SYS_BUS_CONFIG, ICACHE_CONFIG
+and DCACHE_CONFIG, in0135 order. The fixed1 writes and existing guarded
+write/barrier/read calls stay identical. Each non-all-ones raw read is cached
+privately, with no invented field mask or claim of write acceptance/cache
+state; all-ones remains a full-width refusal. Other registers' comparisons,
+reset/GX/IRQ/fault/deadline guards and the public success receipt stay intact.
+Three `SWEET GMU BOOT CFG` records follow the CM3 record after completion or
+quarantine, in byte-offset order0x103c/0x1000/0x1004, requested1 and equality
+explicitly unqualified. No diagnostic performs extra MMIO or a retry.
+
+Host cases retain native order and cover raw0/1/synthetic other bits, each
+all-ones slot, partial raw-cache preservation and output/repeat behavior.
+An ignored write is explicitly an unqualified observation, distinct from a
+failed I/O callback; all original callback failures still refuse. Separately,
+zero observations plus missing fresh firmware result or missing INIT ACK
+must fail. Mock replies and board callback seams remain software evidence;
+only a real boot's fresh result and INIT/version replies can qualify the
+execution stage. No0136 hardware evidence exists yet.

@@ -265,3 +265,14 @@ full-width readback comparison, value and guard. There is no evidence for
 self-clearing or read-only cache-bit semantics, and a zero read must still
 refuse before reset release. Only actual firmware-result/ACK evidence can
 qualify the later execution stage.
+
+Patch0135 restores only that three-write order: SYS_BUS_CONFIG, then ICACHE
+and DCACHE, each with the original fixed1 value and unchanged guarded
+write/barrier/read/full-width comparison. It adds no MMIO, retry or relaxed
+comparison. Host coverage checks this native order before reset release,
+each zero/other/all-ones read, each ignored write, output/repeat preservation
+and the existing failure at every I/O callback. A separate frozen original
+fixture compares all1,009,420 requests against0134: the only difference is
+the predicted CSR address rotation across those three stores/reads. This is
+source fidelity and software validation; no0135 physical result exists yet,
+and the reason0134 read zero remains unproven.

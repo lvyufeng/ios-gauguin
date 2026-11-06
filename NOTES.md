@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0135 native bus/cache order fix committed; all61 hosts/two native TUs pass
+
+THIS turn is progress: complete134 build/image/readers passed, ONE real134
+boot passed CM3 NMI-clear then refused ICACHE store62. Primary native source
+establishes BUS-before-ICACHE/DCACHE; causal explanation remains unproven.
+Codex wrote135, DSH validated it. Full daily-use/GPU/Metal/RAM/storage/
+peripherals/high-refresh goal remains ACTIVE; no firmware execution or ACKs.
+
+Private core2764a93 adds129th patch0135-gauguin-gmu-native-bus-cache-order.patch.
+Fresh135 source5282files SHA
+62a4bf7dd543bd017d39c3798c4b43e41de2075ec1211825d679ca643dc3ad8e.
+ONLY bsd/dev/gauguin_gmu_firmware.c differs from frozen1349d388676...9e9b51:
+the three fixed1 entries now SYS_BUS(word1f40f),ICACHE(1f400),DCACHE(1f401).
+All full-width readback comparisons, guards, values, count and later reset/
+FW/INIT/version checks unchanged. No new MMIO, retry, cache-bit mask or claim
+of hardware acceptance. Header/board/public receipt/log format unchanged.
+
+DSH12717 CLOSED0, actual validate135.py0, normal FIVE zero results: pristine
+129-patch replay, full61 hosts, predicted I/O-order audit, real firmware/
+board native TUs. Source/baseline/inputs unchanged. Primary a6xx_reg.h and
+adreno_a6xx_gmu.c source-pinned with earlier references. ASan/UBSan GMF
+1,688,558 checks; actual board2840+91. Fixture requires exact BUS/ICACHE/DCACHE
+order before release; each zero/other/all-ones read and each ignored write
+still refuses with full-width tuple after8192 copy, before reset/doorbells,
+preserving output/repeat. All original callback failures remain covered.
+Frozen ORIGINAL129 fixture against134/135 has1,009,420 I/O requests:
+baseline rawf8383376e7a1a07b, predicted/native42c8a43275281f5b. Exactly3870
+read/write address arguments rotate across the three CSR locations over all
+original cases; every guard/value/barrier/count/other operation stays equal.
+Native firmware48784B SHAf6f7c25fbd97c4b38862aa0ec2f1df6807d9c747fda5a869fd6101344b526e4e;
+board68312B SHA04623e35bbd722f5ae691b8c454a27ec6984220a0888375e48cf5c7ddbbd8105,
+using CURRENT134 I9eLz1 recipe/source. All owned handles closed.
+
+NEXT sanitized source/notes push, full135 standard local build/qualification;
+retain every134 check and source-bind BUS-before-cache order, independent
+pack/review and strict runtime suites, then ONE temporary135 boot. No135 full
+image/phone IO yet. PhoneTWRP after134; no new user UI/touch/reset attribution.
+Original seven-line mkadt diff untouched; no flash/format/GPT/destructive
+action. Codex critical code/review/Git, DSH exact full-access compile/test/boot.
+
 ### 2026-11-07 — actual134 passes CM3 NMI check, refuses ICACHE store62; native bus/cache order differs
 
 DSH98645 CLOSED0; actual ONE temporary134 observer0/full reader2 (original

@@ -520,7 +520,26 @@ sequence-only correlation, generic positive status, debug traffic, malformed/
 stale/failed replies and all1743 callback-failure boundaries. Board and
 coordinator tests cover opt-in dependencies, shared once-state, mapping,
 deadline/fault/IRQ guards and post-quarantine diagnostics. The default path's
-original-model I/O trace matches0139 exactly. This software validation is not
-an actual firmware PERF ACK: a complete qualified kernel/image and coherent
-physical0140 trial are still required. BW and TEST must follow later before
+original-model I/O trace matches0139 exactly. These software checks alone
+cannot establish an actual firmware PERF ACK; the physical trial below
+supplies that evidence. BW and TEST must follow later before
 normal HFI_ON, GPU command execution, rendering or Metal can be qualified.
+
+Physical0140 now qualifies this PERF transaction. One temporary image with
+SHA256 `b97e7e426191d7e2b8f2b0de0d91410b08072df869166b0e9721ed04599faedd`
+and kernel `xnu-aa4e8ab8b2454236b70976571a9edd48` booted with the unique
+`gmuf-0140-20261107-a1` marker. The unchanged strict reader bound the exact
+source, manifest, qualification, image, banner, options and fresh logs.
+The43-word request got a4-word/type2 ACK with echoed sequence3/status0.
+Both earlier INIT and VERSION replies still pass, with reported0x10110000;
+all8192 TCM words compare, firmware result is fresh0xbabeface,84 controller
+stores/6 polls complete and no refused-packet diagnostic appears. Required
+SMMU, clock, CX/controller and final guard evidence also passes.
+
+The observer ran2026-11-06T23:41:53.039220Z to23:44:04.876856Z and observed
+TWRP after131s. The full reader's exit3 records unknown manual-reset
+attribution for this0140 run separately from its accepted technical evidence.
+The earlier0138 user attribution does not apply to this run. No new UI/touch
+or daily stability conclusion follows. PERF acceptance proves the table
+transaction; bandwidth, TEST, normal HFI_ON, live DVFS, GPU commands,
+rendering and Metal remain later requirements.

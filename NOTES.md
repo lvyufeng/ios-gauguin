@@ -2,6 +2,134 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual140 native PERF table ACK PASS; next bandwidth table and TEST
+
+THIS goal turn is progress:140 opt-in engine/board/coordinator implemented,
+all61 hosts/three ARM64 TUs and full native kernel/image/readers qualified,
+ONE physical temporary boot accepted native PERF after INIT/VERSION. Whole
+daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh objective stays ACTIVE
+and INCOMPLETE. PERF table ACK is not live DVFS, selected/measured GPU rate,
+normal HFI_ON, SQE/CP execution, ZAP, rendering or Metal qualification.
+
+DSH9068 CLOSED0; actual run_hardware140.py0, observer0, unchanged strict
+full verifier3 (all technical checks PASS, THIS140 reset attribution unknown).
+Normal result state full-technical-verification-finished; no retry/duplicate
+boot. Start2026-11-06T23:41:53.039220Z,finish23:44:04.876856Z. Send19088KB
+0.447s/Boot0.134s,total0.584s. Observer TWRP131s includes boot/logging/recovery;
+not an independent hardware reset-cause measurement. Only THIS138 has an
+explicit no-manual-reset user confirmation. No new140 user UI/touch/reset
+fact; no attribution question needed to advance the technically proven stage.
+
+Actual raw PERF record: request00302b04,words43,ACK0022047e/00300004/00000000.
+Header announces4/type2, echoed sequence3 and status0; only public3-word
+prefix is cached/logged, extra payload and other echo bits unqualified.
+INIT0002047e/00100000/0 and VERSION0012047e/00200001/0/10110000 also pass.
+FWphase6/FWbabeface,copy8192/8192,writes84,polls6,debug0. Reset0/GXf8222000,
+release1/OOB1/HFI0->1, no refused-packet diagnostics. Existing SMMU131/140,
+BCM/ARC/CX/clock/guard evidence passed. Strict source/manifest/qualification/
+image/banner/trial/freshpull bindings accepted; Codex rechecked ALL report
+input hashes. Full state
+verified-GMU-firmware-PERF-HFI-SMMU-clock-CX-controller-reset-attribution-unverified,
+gmu_perf_result verified-native-performance-table-reply, GPU/Metal unqualified.
+
+Raw4074lines/457630B at research/tmp/p3-gmuf-0140-native-observer-20261107.txt
+SHA0ef9398935a89ef8e3aa770a4f76fa70386f5a612df9327e7ff1a990834da643;
+cycle991B SHAf669ae523a443140c6d20f03a6286808239cf2ac5df3a0937a0b282e28cade18.
+Full report26651B SHA
+b8fceb11d89d976768d501380bf2d92433de82c8b249ff7c57e63c0ab6becb18
+at research/tmp/dsh-0140/hardware-full-verification.json. Native build
+P3pyBC/HEADbd0dc75/kernel82059183...8d59a; imageb97e7e42...99faedd preserved.
+Evidence3976B SHA4bfecf2e0c8730f7e8bc809fefbab9fac9701183e5676aff35bb76c5caf266b3;
+runtime parser2330B SHA85c32d2abd9a3add89c468c3d70af61766df8186557c25566deda4298528cdb3.
+Preparation milestones39729a9 and5ee8636. Current native recipe/source140
+P3pyBC. Phone observedTWRP, all owned handles CLOSED. Original7-line mkadt
+diff intact. No flash/format/GPT/destructive action or CI run.
+
+NEXT141: derive bounded native BW table from exact active DT usecases and
+same-boot CMDDB, then extend this qualified140 transaction to BW and TEST in
+native order before normal HFI_ON. Do not rework the accepted PERF contract
+or reuse saturated BOOT BCM commands as bandwidth vectors. Preserve140 as
+reproducible physical PERF baseline. New READ-ONLY topology findings under
+research/tmp/dsh-0140/bw-topology-findings.txt use exact139 live FDT
+SHA0b73e7af...fcc08d2. Unique route GPU26->DDR512:
+GPU(width32,agg2)->slvLLCC770(width16,agg1,SH0)->masLLCC129(width4,agg2)->
+EBI512(width4,agg2,MC0+ACV). GPU26->CNOC10036:
+GPU->slvGEMNOC/SNOC10071(width8,agg1)->masGEMNOC161(width8,agg1,SN10)->
+slvCNOC10036(width8,agg1). CNOC BCM is SN10, not an assumed CN0/CN1 or SN0.
+Old captured CMDDB text SN10addr50054/unit530000/width8/vcd3; MUST confirm
+fresh binary CMDDB before runtime planner use. DDR13 usecases/CNOC2 observed
+in DT; full legacy HFI BW struct is160 words (header+counts/waits+fixed arrays).
+Native query and TCS ordering/arithmetic still need a pinned-source oracle.
+Do not claim numeric vectors already qualified. Source quirks to audit:
+kgsl_gmu.c build_rpmh_bw_votes uses BIT(i) inside i==0 loop; tcs_cmd_gen in
+native-msm_bus_fabric_rpmh.c sets addr/data but NOT wait; determine zero-init
+contract before deciding mask. bcm_query_bus_req max_query_ib/ab declared
+outside per-BCM loop (carry/division may affect width0 ACV after MC0); compile
+exact helper rather than assume independent per-BCM arithmetic. Cached native
+sources under research/tmp/gauguin-nvt-p1/native-msm_bus_{arb,fabric,of}_rpmh.c;
+bind exact19b63c8 provenance/hashes before using. No new device I/O for this
+research. Continue Codex core/review/plans and DSH compile/test/build/boot.
+
+### 2026-11-07 — complete140 image and strict PERF runtime readers qualified; ONE phone trial next
+
+Full native run140 P3pyBC/HEADbd0dc75 is qualified (previous entry). Manifest
+SHA5284d9d41109245b52111be69c9ae3b100be551499cac56417b2cbf99cf87f3b;
+qualification11124B SHA656888627e48996334ea0f0e6030f26df142087f8f92e5098951d18d68a43704.
+DSH84491 CLOSED0; actual package0/independent review0, normal result,
+inputs unchanged. Image19546112B SHA
+b97e7e426191d7e2b8f2b0de0d91410b08072df869166b0e9721ed04599faedd;
+payload19218432B SHA6b9a5f950698ea6a94a84e3215854a275776c5940a09e719bf2c6800dadc2821.
+Unique sweettrial=gmuf-0140-20261107-a1 with sweetgmuperf1. Source assets
+unchanged NVT182558000/MDT18257c000/GMU182580000; all old image pins preserved.
+DSH10888 CLOSED0; actual runtime_validate140.py0, normal three zero results,
+inputs unchanged: clock4/95,FW58/342,explicitly SYNTHETIC full21/76. Strict
+reader SHA5704e05024828ca9b647a8d4af89c8881d458c2d931fa2038098db02087e8f36.
+New PERF required record/source flag and size/type/sequence/status rules tested;
+missing/duplicate/partial/out-of-order/wrong request/word count/flag refuse.
+All inherited138 diagnostic/power/SMMU/clock/ABI checks remain. No fixture
+qualifies phone evidence. Native recipe/source CURRENT140 P3pyBC.
+
+Reviewed boot140/run_hardware140 prepared for ONE image-hash-pinned tempboot,
+same products/routine13-byte recovery latch/180s observer/freshpull/banner,
+then unchanged strict full140 reader. Script owns recovery-to-fastboot;
+DSH must not add an initial fastboot preflight. NEXT execute execute-hardware.txt.
+No140 hardware/accepted PERF ACK/reset attribution/UI/touch fact yet. Only
+THIS138 has user-confirmed autonomous diagnostic reset. Last observed phone
+TWRP. Whole objective ACTIVE/incomplete; original mkadt diff intact; no flash/
+format/GPT/destructive action.
+
+### 2026-11-07 — complete140 local native PERF kernel qualified; packaging/runtime reader next
+
+DSH94562 CLOSED0; actual build140.py build0/qualification0. Run
+gauguin.P3pyBC, captured HEADbd0dc75d8e929c463f226c97fba8f36d77fa7c1d.
+Exact134-patch source140ab8fdb34...a0a7a1f,5282files. All138 qualifiers
+retained; new native_perf_transaction_source_bound TRUE plus constructor/
+engine/board symbols and actual kernel PERF complete/partial formats checked.
+Default/opt-in dispatch, post-VERSION sequence3, flag prerequisites and original
+public firmware receipt layout independently checked against frozen139.
+Kernel16905984B SHA
+820591830680e30853669f10b75546ea1f423dd02a814ba482a035c704a8d59a,
+IDxnu-aa4e8ab8b2454236b70976571a9edd48. No CI used. Current generated native
+recipe/source NOW140 P3pyBC;138 HLxJKk is historical and cannot be used for
+future single-file compile recipes. Qualification at
+research/tmp/p3-native-0140-qualification-20261107.json. All owned handles
+CLOSED. Phone remainsTWRP, no new phone I/O/UI/touch/reset fact.
+
+Codex prepared140 pack/readers from138 with metadata-only numeric/pin/131-page
+invariants checked BEFORE explicit new PERF rules. Add sweetgmuperf1 and source
+qualifier required by pack, independent review and runtime binding. Preserve
+all old image pins and add138 baseline. Strict reader requires one ordered
+actual PERF request00302b04/43-word/3..19 ACK/type2/sequence3/status!=ffffffff
+record, new final marker and source flag; partial/missing/duplicate/out-of-
+order/malformed/refused/conflicting records fail. New static bounds84..174
+writes/6..6000 polls/debug<=135; all other138 rules remain. Fixtures explicitly
+SYNTHETIC, with new actual-package command options adapted in the copied125
+prefix (raw125 unchanged). No parser tests/package/image/140 phone proof yet.
+NEXT execute reviewed package_and_review140.py with QUALIFIED HEADbd0dc75,
+then runtime_validate140.py. No relaxed success based on138 handshake only.
+Whole objective ACTIVE/incomplete; mkadt user diff untouched; no destructive
+action. Firmware/GPU/Metal hardware qualification is NOT asserted by build.
+
 ### 2026-11-07 —140 opt-in PERF transaction implemented; all61 hosts and three ARM64 TUs PASS
 
 Previous goal turn was progress: physical138 FW/INIT/VERSION and attributed
@@ -74,6 +202,13 @@ Last observed phoneTWRP after139 readonly capture; no new phone UI/touch/reset
 facts. All owned handles CLOSED. Original seven-line mkadt diff intact. No
 flash/format/GPT/destructive action. Codex core/review/Git; DSH compile/test/
 build/boot. No140 whole kernel/image/CI/hardware trial yet.
+
+Validated140 source/notes pushed and ls-remote verified
+50dc49c006fb083447f76606caac403a806a9186, sole parentbcb1cbd, ten text
+paths, same tree as private57192ae1775b94d1fcdab63b7322caa02f14395f.
+Report research/tmp/dsh-0140/public-snapshot-0140.json. No private ancestry,
+raw device/firmware/Apple assets/binaries/serials pushed. Local full native
+build is next; this source publication does not trigger a CI run.
 
 ### 2026-11-07 — pure139 native PERF builder validated;138 autonomous reset explicitly confirmed
 

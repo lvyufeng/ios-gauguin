@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0128 architected PAR decoder passes independent regression, all61 host files and two native TUs
+
+THIS turn is concrete progress: actual126 stopped at ATOS132;127 diagnostics
+committeddf9e6c2098e13d3b68e4a3cea2a22ed72f18d1f6; primary Arm fault-format
+bug identified and128 correction committed79aa204479ac089c1960e2da4dda2c4a56f8150c.
+No127 full build/image/phone trial was spent. Exact real126 PAR remains UNKNOWN;
+do not retroactively invent it from the architectural model. PhoneTWRP after126;
+THIS126 and125 reset-attribution questions still pending. Full goal ACTIVE.
+
+128 accepts a hole only when documented SMMU PAR fields show S1,generated
+AArch64 Format2,F1/TF1,other named fault flags0 and the exact expected PLVL.
+Mask0x0000000ba00003ff comes from IHI0062D.c16.5.14, not a hardware readback.
+Reserved bits are ignored. First four kernel holes must be L3, last two L1;
+all three empty user roots L1. Positive physical-address checks and131+9
+probe list unchanged.127 cached rejected PAR/IOVA/stream/bank/mapped fields
+retained, plus requested expected level in128. Opaque06b68 fields still
+bitwise UNQUALIFIED; no other acceptance, MMIO, clock, owner or retry change.
+
+DSH95172 actual validation0: fresh122-patch source128-codex5282files SHA
+ea4f87af1ec6eeb3f0ebbd1bcb27eb15325b319b6b8d2410512f1e815dd20cbc,
+only board.c/smmu.c/h differ from frozen127. All61 host files passed, SMMU
+3,509,619 ASan/UBSan checks including20 wrong mapped/hole variants; board2840+75.
+Both actual128 ARM64 TUs compiled against CURRENT qualified126 EXvD1e recipe.
+Independent software page walker generates SMMU PAR flags/level from actual
+missing descriptors. Same model against ORIGINAL127 code returns GSM9,
+mapped131/ATOS132; against128 returns GSM0,mapped131/ATOS140. This proves
+the software predicate regression, NOT real126's missing PAR or GPU readiness.
+Unlike diagnostic-only127,128 intentionally changes hole acceptance, so no
+unchanged128 IO-sequence claim. Source127 unchanged; all current128 input pins
+unchanged in research/tmp/dsh-0128/validation-result.json. DSH handle closed0.
+
+Next standard full128 local kernel build/qualification, preserving every126
+provenance/defined-symbol/archive check plus actual linked ATOS-level diagnostics
+and new fault-decoder source pin. Then package and strict unique128 runtime
+reader with ATOS-failure namespace rejection, no relaxation of140 checks or
+fresh FW/INIT/version replies; ONE temporary boot. No128 build/image/phone IO
+yet at this checkpoint. Preserve124/125/126 raw failures and all old images.
+Keep recovery/bootloader/modem/persist/backups and original7-line mkadt diff.
+No format/flash/GPT changes. Codex critical code/Git/audit, DSH execution.
+
 ### 2026-11-07 — actual0126 reaches ATOS132;0127 cached-PAR diagnostics tested; architectural decoder bug found
 
 Previous turn was progress: source126/image/full reader qualified, public

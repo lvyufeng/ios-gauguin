@@ -1,0 +1,69 @@
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -335,6 +335,41 @@
+ {return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
+ static bool overlap(const void *a,size_t an,const void *b,size_t bn)
+ {uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++static bool arc_vote(const struct gmf_plan *p,unsigned primary,uint16_t wanted,uint32_t *out)
++{
++    unsigned k=0,j=0;
++    while(k<p->count[primary]&&p->levels[primary][k]<wanted)++k;
++    if(k==p->count[primary])return false;
++    uint32_t level=p->levels[primary][k];
++    /* Native setup_volt_dependency_tbl selects the first sufficient MX
++     * level, capped at its final entry. No physical voltage is measured. */
++    while(j+1<p->count[GMF_MX]&&p->levels[GMF_MX][j]<level)++j;
++    *out=(level<<16)|(j<<8)|k;return true;
++}
++bool gmf_perf_table_build(const struct gmf_plan *plan,uint32_t sequence,
++    struct gmf_perf_table *out)
++{
++    if(!span(plan,sizeof(*plan))||!span(out,sizeof(*out))||
++       overlap(plan,sizeof(*plan),out,sizeof(*out))||!sequence||sequence>4095||
++       !gmf_plan_valid(plan))return false;
++    /* Live recovery frequency list uniquely matches DT bin169; reverse
++     * its descending active rows and prepend native frequency0/off.
++     * These VLVLs come from matching OPP entries, not from Hz arithmetic
++     * or an assumption that every device uses the highest850MHz bin. */
++    static const uint32_t khz[]={0,253000,355000,430000,565000,650000,800000};
++    static const uint16_t vlvl[]={0,64,128,192,256,320,384};
++    struct gmf_perf_table table={0};
++    table.word[0]=(sequence<<20)|(GMF_PERF_WORDS<<8)|4u;
++    table.word[1]=7;table.word[2]=2;
++    for(unsigned i=0;i<7;i++){
++        if(!arc_vote(plan,GMF_GFX,vlvl[i],&table.word[3+2*i]))return false;
++        table.word[4+2*i]=khz[i];
++    }
++    if(!arc_vote(plan,GMF_CX,0,&table.word[35])||
++       !arc_vote(plan,GMF_CX,48,&table.word[37]))return false;
++    table.word[38]=200000;
++    *out=table;return true;
++}
+ enum gmf_result gmf_bootstrap_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,struct gmf_receipt *out)
+ {
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -14,6 +14,20 @@
+ struct gmf_plan {uint32_t address[4],count[4],selector[4],level[4];uint16_t levels[4][16];};
+ bool gmf_plan_build(const struct ndb_entry *,struct gmf_plan *);
+ bool gmf_plan_valid(const struct gmf_plan *);
++/* Fixed gauguin active800MHz bin, native legacy v1 PERF layout: header,
++ * GPU/GMU counts,16 GX and4 CX pairs (ARC vote,kHz), unused pairs zero.
++ * The captured six active frequencies plus native off entry give7 GX rows.
++ * Caller supplies the already validated same-boot ARC plan; this function
++ * only constructs ordinary RAM bytes. No send/MMIO/clock/voltage action.
++ * Native MIN_SVS=48 rounds up to the first captured CX level64 and MX64.
++ * Sequence must be1..4095. Output/plan must be private ordinary RAM and
++ * cannot overlap; all failure paths preserve output. A constructed table
++ * is NOT proof of a firmware ACK, a changed frequency or normal HFI_ON.
++ */
++#define GMF_PERF_WORDS 43u
++struct gmf_perf_table {uint32_t word[GMF_PERF_WORDS];};
++bool gmf_perf_table_build(const struct gmf_plan *,uint32_t sequence,
++    struct gmf_perf_table *);
+ /* Byte offsets from the fixed private board mappings, NOT native word
+  * offsets: CSR03d7c000, AO/RSC03d8c000, PDCcfg0b294000, PDCseq0b490000,
+  * TCM03d6c000. Native GPU-relative register names are converted in this TU. */

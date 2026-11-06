@@ -491,4 +491,63 @@ static void native_ack_compatibility(void)
     CHECK(run(f,&out)==GMF_TRANSPORT&&!memcmp(&out,&before,sizeof(out))&&!f->channel.reply_diagnostic.valid);stopped(f);free(f);
     printf("Native ACK compatibility: observed INIT4 shape,3..19/4..19 prefixes, sequence-only echo and opaque tail; short/oversize/type/sequence/status/queue failures preserve output/cache PASS (host only)\n");
 }
-int main(void){native_ack_compatibility();hfi_reply_diagnostics();native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}
+static void native_perf_table(void)
+{
+    /* Independent fixed wire oracle: native hfi_dcvstable_v1_cmd has16 GX
+     * pairs then4 CX pairs, even though only7/2 are active. The live800MHz
+     * curve includes off; CX wanted MIN_SVS48 rounds to ARC64/MX64 index2. */
+    const uint32_t golden[43]={
+        0x00302b04,7,2,
+        0,0,0x00400201,253000,0x00800302,355000,0x00c00403,430000,
+        0x01000504,565000,0x01400605,650000,0x01800706,800000,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0x00400202,200000,0,0,0,0
+    };
+    CHECK(GMF_PERF_WORDS==43&&sizeof(struct gmf_perf_table)==172);
+    struct fake *f=fresh();const struct gmf_plan p=f->plan;
+    struct {uint32_t before;struct gmf_perf_table table;uint32_t after;} boxed;
+    memset(&boxed,0xa6,sizeof(boxed));
+    CHECK(gmf_perf_table_build(&p,3,&boxed.table));
+    CHECK(!memcmp(boxed.table.word,golden,sizeof(golden)));
+    CHECK(boxed.before==0xa6a6a6a6&&boxed.after==0xa6a6a6a6&&!memcmp(&p,&f->plan,sizeof(p)));
+    for(uint32_t seq=1;seq<=4095;seq++){
+        CHECK(gmf_perf_table_build(&p,seq,&boxed.table));
+        CHECK(boxed.table.word[0]==((seq<<20)|0x2b04));
+        CHECK(!memcmp(boxed.table.word+1,golden+1,sizeof(golden)-4));
+    }
+    const uint32_t invalid[]={0,4096,0x10000,0x80000000,UINT32_MAX};
+    for(unsigned i=0;i<sizeof(invalid)/sizeof(*invalid);i++){
+        struct gmf_perf_table before=boxed.table;
+        CHECK(!gmf_perf_table_build(&p,invalid[i],&boxed.table));
+        CHECK(!memcmp(&before,&boxed.table,sizeof(before)));
+    }
+    for(unsigned i=0;i<sizeof(p);i++){
+        struct gmf_plan bad=p;((uint8_t *)&bad)[i]^=1;
+        struct gmf_perf_table before=boxed.table;
+        CHECK(!gmf_perf_table_build(&bad,3,&boxed.table));
+        CHECK(!memcmp(&before,&boxed.table,sizeof(before)));
+    }
+    struct gmf_perf_table before=boxed.table;
+    CHECK(!gmf_perf_table_build(NULL,3,&boxed.table));
+    CHECK(!gmf_perf_table_build((const struct gmf_plan *)(uintptr_t)(UINTPTR_MAX-4),3,&boxed.table));
+    CHECK(!memcmp(&before,&boxed.table,sizeof(before)));
+    CHECK(!gmf_perf_table_build(&p,3,NULL));
+    CHECK(!gmf_perf_table_build(&p,3,(struct gmf_perf_table *)(uintptr_t)(UINTPTR_MAX-4)));
+    /* Every aligned overlap, including output beginning before the input. */
+    for(unsigned off=0;off<sizeof(p);off+=4){
+        union {uint32_t align;uint8_t bytes[768];} arena,saved;
+        memset(&arena,0x91,sizeof(arena));memcpy(arena.bytes+256,&p,sizeof(p));saved=arena;
+        CHECK(!gmf_perf_table_build((const struct gmf_plan *)(arena.bytes+256),3,(struct gmf_perf_table *)(arena.bytes+256+off)));
+        CHECK(!memcmp(&arena,&saved,sizeof(arena)));
+    }
+    for(unsigned off=4;off<sizeof(struct gmf_perf_table);off+=4){
+        union {uint32_t align;uint8_t bytes[768];} arena,saved;
+        memset(&arena,0x91,sizeof(arena));memcpy(arena.bytes+256,&p,sizeof(p));saved=arena;
+        CHECK(!gmf_perf_table_build((const struct gmf_plan *)(arena.bytes+256),3,(struct gmf_perf_table *)(arena.bytes+256-off)));
+        CHECK(!memcmp(&arena,&saved,sizeof(arena)));
+    }
+    CHECK(!f->step&&!f->writes&&!f->doorbells&&!f->reset_writes&&!f->asset_calls&&!f->copy_calls);
+    free(f);
+    printf("Native v1 PERF bytes: captured800MHz/off curve,43-word golden,4095 sequences, invalid plan/sequence/span/alias preservation PASS (pure host construction, not firmware ACK)\n");
+}
+int main(void){native_perf_table();native_ack_compatibility();hfi_reply_diagnostics();native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}

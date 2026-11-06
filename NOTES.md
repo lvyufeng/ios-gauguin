@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete134 native kernel qualified; packaging and strict CM3 reader validation next
+
+DSH83746 CLOSED0; actual standard local build134.py build0/qualification0,
+gauguin.I9eLz1, captured HEADdf6cdb7f6fb4021150de59b0c485d8724d23bef4.
+Exact128-patch source1349d388676...9e9b51,5282files; all133 qualifiers retained
+and installed CM3 CFG format plus cm3_nmi_clear_source_bound TRUE required.
+Native installed kernel16905568B SHA
+fa457584c62371a19a536c51be8376b9bfd44825c03836c6fd79993cb06fc959,
+IDxnu-c87753798429479e9993baddca8c0374. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.I9eLz1/build-manifest.json SHA
+f64c2696afd9d1eaab560bfa6229f63c657e2845a61537d0b92cfca94d48aff6.
+Qualificationp3-native-0134-qualification-20261107.json SHA
+53b8ca39050c1188d5df0f6073683c025049f3817266b9be871faf8eb77f3894.
+No CI used. Current generated native recipe/source now134 I9eLz1, not133
+F4oxTo. All61 prior hosts and source pins rebound before build.
+
+Codex prepared134 package/review and strict runtime readers. Metadata-only
+migration checked identical numeric AST constants, existing SHA pins and
+complete131-page strings before adding narrow CM3 requirements. Reader
+requires exactly one CM3 row after AO/PDC6/hidden3 before adapter completion:
+off20b4/request4052/mask200/expected0, non-all-ones and NMI9 clear; every
+other bit UNQUALIFIED. Existing FW/INIT/version/reset/OOB checks remain.
+Next DSH9407 package/review running; then all three runtime suites, ONE
+temporary134 boot. No134 phone proof yet. Last phoneTWRP after133; no new
+UI/touch/reset-attribution facts. Full goal ACTIVE; original mkadt seven-line
+diff intact, no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0134 CM3 NMI-clear candidate committed; all61 hosts/two native TUs pass; full build next
 
 THIS goal turn is progress: complete133 native build/image/readers passed;

@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0118 native CX ARC completion, PWR_ON and autonomous reset VERIFIED
+
+THIS118 user explicitly confirmed: “是，自行重启，我没有操作”. Authoritative
+research/tmp/dsh-0118/hardware-framed-verification.json and
+hardware-framed-execution.json PASS: original identity/CPUstage/CMDDB/WDT/BCM
+checks plus CX ARC and GDSCR receipt checks, actual observer131s recovery and
+new user attribution. Full GPU/Metal/RAM/storage/peripherals/90–120Hz/daily-use
+goal remains active. This trial does not execute GMU/GX/PAS/GPU or prove voltage,
+bandwidth, frame rate, arbitrary-MMIO/secure-hang containment or touch regression.
+
+One temporary19008KB boot, send0.444s/boot0.134s/total0.582s; observer0, no timeout.
+Start12:09:40.133799Z, finish12:11:56.719557Z. Unique cxpower-0118-20261106-a1 and
+banner xnu-bdef4e55eb0049fdb45ba87361ca914c match qualified image dc883ec6...3c461a.
+Fresh4021-line/451794B log research/tmp/p3-cxpower-0118-native-observer-20261106.txt
+SHAb4179c9491326e474b1fb86e1db08d92114265941273dc292adf01a605414646;
+cycle1037B SHA5f0cd139b207df52882413af47c5ca2b4af21cf0ecbf5f92e99d9f24af7593da.
+CMDDB131072B extracted SHA9ad405cafa24f0bf1c8a65fe3cca48c4a2e6e448973726f8adf9c2997edd7306,
+path research/tmp/p3-cxpower-0118-native-cmd-db-20261106.bin. Same-boot CX32-byte
+table and all6 BCM/four ARC rows validated. CPU stageAA200000/6860/16384,
+64 unmanaged NC pages; WDT EN3/BARK655300/BITE753595, arm1759668925,
+ready1778973746/count32941,19.2MHz CPU timebase. Bootreason properties empty.
+
+BCM complete slot1/config80008104/IRQ1→1/new2; statuses10101,10101,00101,
+10101,10101,10101hex. CX ARC reused the same mapping/owner after BCM cleanup:
+selector6/level384, WAIT0/ENABLE1 with response required, freshIRQ2/status10101,
+ownIRQ restored1, held request retained. GCC CFG_AHB00000009. CX GDSCR
+before00222001 (PWR_ON0/collapse1), configured00228001 (wait8), finalf8228000
+(PWR_ON1/collapse0/mode0/wait8); finalAHB00000001. Two masked writes, one poll.
+OFF-to-ON was observed during this sequence; exclusive causal ownership is not
+claimed. Helper and coordinator raw fields agree. No failure/PET/PAS/survived30.
+
+Strict verifier first exited2 because complete BCM receipt at line3836 follows
+one255-byte unterminated IOK SpringBoard fragment. Preserve that original
+hardware-data-verification.json and raw log. New verify_cx118_framed.py only
+recognizes this exact prefix plus complete strict receipt, records original
+line/line number, rejects other embedded core diagnostics and changes no input
+bytes or fields. Independent review found no blocker;3 valid/11 rejected framing
+cases passed before the full verifier0. Both script hashes, original failed
+report and unchanged actual inputs are recorded. Sessions83214/2326/11788 terminal;
+no observer/build/phone task remains. Phone leftTWRP; no subsequent device IO.
+
+Code59f4986, pretrialhandoff6bdec10, nativeY1TL15. Public pretrial snapshot
+7c33f51cbc3830f0f344d694fb3d909a6e1df3ce had soleparentc90545f... and13textpaths;
+post-result snapshot IDs are in dsh-0118/public-result-snapshot-0118.json.
+Preserve all113–118 qualified images, fresh evidence and original mkadt edit.
+
+Next concrete action: implement the reviewed GMU200MHz clock path from
+research/tmp/dsh-0118/gmuc-clock-next-plan.md, repeating BCM→CX ARC→CX power
+in the SAME future boot before guarded parent/RCG/branch operations. Read live
+rate/ownership predicates and act in that one bounded trial; no probe-only reboot.
+First resolve mapping ownership: reuse retained GPUCC, share the GCC144000 page
+deliberately for MEMNOC RW, and reuse NVT's existing GCC152000 mapping for152008/10
+votes rather than creating aliases. Do not expose unrestricted MMIO pointers.
+Pinned Fabia L1f/FRAC+38=4000 and XO76.8MHz/4 imply GPLL0 600MHz; divider raw1
+means /2; RCG mask10371f/value602 gives200MHz. Unsupported live tuples/modes or
+active siblings must stop, never retune shared PLLs. Exact clock files are bound
+by dsh-0118/native-clock/pins.json. CM3 inherited/reset state remains a separate
+boundary before firmware/DMA. Codex authors/reviews; DSH runs reviewed commands.
+
 ### 2026-11-06 — 0118 local full build and independent image review PASS
 
 Code59f4986df940f32bb1a6437fcddf1dc8b0686999; normal local make/dSYM/strip/install

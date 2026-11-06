@@ -3,6 +3,47 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0117 normal native build and independent image review PASS
+
+Code8c527d79caf7b69cac148c9a3102952c0fba5e96; full49 host files passed on fresh
+source117-codex5263 files SHA7fc320d69c15d3e2f548f0e20d10ec14644b30eaf3fcb295d5178c5e15a1139d.
+DSH standard local make/dSYM/strip/install succeeded, run gauguin.7tVAmW.
+Manifest SHAfc2c4d220301a2bb92b93a730b480ec85c835644eef0963e53e2413c86b0678d;
+installed kernel16850744B SHA0db53c680525f7e93183b05bd33a440540a96c2b301dc75efe627306094f5335.
+BuildID xnu-119adf637ad14a8d9a6b2c692ab94838, banner Nov6 19:01:58CST.
+Qualification preserved all source/input/SDK recorded-input/revision/original
+mkadt/kernel/archiveversion.o checks and adds the three MEM API defined symbols.
+
+Image shim/out/shim-p3-pasmem-0117-native-20261106.img19464192B SHA
+ aa2e6fa6e235e3fc41e746cbbf76c7e4e1babcfc86a916d5c1996b4649bc79e9;
+payload19136512B SHA90e16aa6d847442084e13cae2725354883bb8070442228a46ffc3c205ac7df29.
+Actual0x48/608 command line499B: unique sweettrial=pasmem-0117-20261106-a1,
+sweetbusvote/sweetpasinit/sweetpasmem/PASprobe/PASstage=1, other probes/PET/reboot/
+wdttest/touchmode=0, NVT1/hz30/cpus8, sweetsample=- with three sampler timings
+removed. This is an intentional complete-token change; core log/UI/root flags
+retained. Loader optional diagnostics now have room again. Do not require them
+as runtime qualifications for the new worker.
+
+Old shim/DTB/baseADT/NVT/MDT pins intact; independent boot/header/actual cmdline,
+ADT,10 native segments, asset pads and2MiB zero tail checked. Baselines113–116
+preserved. NVTasset18254c000/MDTasset182570000 remain package sources, not runtime
+low reservation claims. Records research/tmp/dsh-0117/native117-execution-result.json,
+research/tmp/p3-native-0117-qualification-20261106.json,
+research/tmp/p3-pasmem-0117-native-evidence-20261106.json,
+research/tmp/dsh-0117/image-parent-review.json PASS. Build73083 terminal0; independent
+image checker finishedPASS. No117 boot or MEM_SETUP hardware call yet; phoneTWRP.
+
+Next: sanitized7path single-parent snapshot from public22a18e... and one temporary
+boot with180s observer. Prepared verify_pas117.py binds the exact tested source,
+image/log/trial and both native PAS phases; bounded BUSY/continuation behavior is
+checked from per-fresh raw chain records/counters, finalfull64 x0/x1=0 and matching
+coordinator receipts. Intermediate continuation registers remain bound-code evidence.
+Only user evidence for THIS117 trial can qualify autonomous reset; 116 confirmation
+cannot be reused. No b02 load/AUTH_RESET/GPU/Metal/high-refresh proof in this phase.
+Keep the full goal active and original mkadt edit untouched.
+
+
+
 ### 2026-11-06 — 0117 MEM_SETUP implementation, native TUs and full 49-file suite PASS
 
 Previous goal turn made real progress: 0115 native BCM completion and 0116 PAS

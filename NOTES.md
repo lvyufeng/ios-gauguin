@@ -3,6 +3,44 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0116 normal native build and independent image review PASS; trial next
+
+Code aebabc2ad551020e6860163b92e2a682cd557be9. DSH normal local build
+run gauguin.XShBw1 make0/dSYM/strip/install, source116-codex5263files
+SHA978ca9142745ed6f3bdcae1ba52a8df544169e361a6e448218e89cb7e0fa86e4.
+Manifest SHAe296e3faf9d53349962cc714bd3e276630cbc053070e1d1379429648cef30b09;
+installedkernel16850456B SHA6aa0674cd4909a6475ee5f1c540b10070560d1b3835de00d3af19c857fedc553.
+IDxnu-cbe548b930ef405d997c9827399f659d, banner Nov6 18:29:25CST.
+Source/input/SDKrecordedinputs/HEAD/originalmkadt/kernel/archiveversion.o/defined
+symbols qualified including3newPASINITAPI symbols. Full49hostfilesPASS beforehand.
+
+Image shim/out/shim-p3-pasinit-0116-native-20261106.img19464192B SHA
+8bb846dc1e2e5be6ceb1c9385b3a65251a1f3e2486792da46297e95eb339bb9b;
+payload19136512B SHA816dcaec7f99a9513545328114f2557a24f15030d5a06a474e121791bb94a510.
+Actual0x48/608cmdline597B hasuniquetrialpasinit-0116-20261106-a1 andsweetpasinit1,
+busvote1, PASprobe/stage1, otherprobes/PET/reboot/wdttest/touchmode0, NVT1/hz30/cpus8.
+No optionalloaderwdtpre/SCM tokensfit; thisisboundedomission, nottruncatedtrial.
+Oldshim/DTB/baseADT/NVT/MDT pinsunchanged;10kernelsegmentscompared, assetpads/
+2MiBtailzero,115(and113/114)imagespreserved. No dynamicruntimePAclaim frompackage.
+
+Records research/tmp/dsh-0116/native116-execution-result.json,
+research/tmp/p3-native-0116-qualification-20261106.json,
+research/tmp/p3-pasinit-0116-native-evidence-20261106.json and
+research/tmp/dsh-0116/image-parent-review.json PASS. Build23221terminal0;
+independentimagecheckscriptfinishedPASS. No116bootornewSMCyet, phoneTWRP.
+Next sanitized7textpathpublicsnapshot parent41ea3be... thenone180s temporaryboot.
+No destructivepartitionchange; originalmkadteditpreserved.
+
+Verifierprepared/readreviewed: research/tmp/dsh-0116/verify_pas116.py
+SHAe986aeb737bb3a36f53f118691b207de2a8d567a7c608450be3f24230faedba2.
+Itbindsfreshimage/log/CMDDB/CPUstage/WDT/BCM andcertifiesonly1fresh/1SMC/0continuation
+withfull64x0/x1bothzero, exactPAS13/PA/precall/terminal/coordrecords. Anyotheroutcome
+isrejectedwithactualPASdiagnosticsretainedforseparateanalysis. Resetattribution
+requiresTHIS116userconfirmation, neverreuse115answer. INITsuccessisnotAUTH_RESET,
+GPU/Metal ormeasuredBW. NonreturningSMCcontainment remainsunproven. Goalactive.
+
+
+
 ### 2026-11-06 — 0116 PAS INIT_IMAGE offline implementation and full49 host suite PASS
 
 No116 image or hardware trial yet. Phone remainsTWRP after the verified115 trial.

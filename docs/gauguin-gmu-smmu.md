@@ -163,3 +163,19 @@ faults, termination, invalid context, size/access/permission/TLB faults, no
 fault, all-ones and the previous CPU-shaped value. The same corrected model
 must expose127's rejection at132 and let128 check all140. This is a software
 regression demonstration; it does not reconstruct the unknown0126 PAR.
+
+The real0128 trial subsequently completed all140 ATOS checks and reached
+phase8. It stopped before final route publication/resume because context-bank
+FSR at offset0x8058 read0x400 after W1C, while the implementation required the
+whole register to be zero. This does not establish complete SMMU or firmware
+startup. Individual successful PAR values were not logged.
+
+[Arm section16.5.9, pages16-299–300](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb#page=299)
+defines FSR Format[10:9] as generated read-only information. The observed
+0x400 is AArch64 Format2; its named fault flags are zero. Pinned native
+`FSR_FAULT` covers0xc00001fe, excluding format. The final check and the firmware
+adapter's context-FSR check both currently mistake nonzero format for a fault.
+The next change must distinguish format from fault flags while retaining real
+fault/stall checks, raw diagnostic data and all140 probes. It must also correct
+the host model's missing read-only format behavior, not merely change the
+physical trial's expected value.

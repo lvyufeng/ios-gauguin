@@ -3,6 +3,47 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0115 normal native build and package PASS; hardware trial pending
+
+Code fb8041b941f1dd92229590eaef79240bf6678a1c; source115-codex5261files
+SHAa6634f4a8913181ab29ee477ed31abf0b0de92bbfc479428e0e7d70130d35cc8.
+All48hostfiles passed before fullbuild. DSH executed reviewed build115.py once,
+normal make0/dSYM/strip/install, run gauguin.MRqCtP. Manifest SHA
+ a21a22d9a106400d0c5826cfb0b0c90d297e03639dba6556b17498becf0112c0.
+Installed kernel16850240bytes SHA
+ dc7d872f0c6c8f0f9effd91869e773f0f9e39c37322b86eec69d1abc576a44f4,
+buildID xnu-754aa35e66a84ffa8cfc01e09ea7b7b6, banner Nov6 17:55:18CST.
+All original qualification checks and new PASclaim/lease/CMDDBprepare/GIC/
+transport/coordinator definedsymbols passed. Source/input/SDK recordedinputs,
+installedkernel/archiveversion.o/committedHEAD/originalmkadtdiff qualified.
+
+Image shim/out/shim-p3-bcmsubmit-0115-native-20261106.img19464192bytes
+SHA83b0bf1bf8d469af87ed227919ab34bd8bb9df0fb573b4485696c76dadb92a2b;
+payload19136512bytes SHAb87bb135775772b8ed9523875634eaa0cdee390084476d7e93ecc54b1689ca85.
+Initialcmdline584bytes contains unique sweettrial=bcmsubmit-0115-20261106-a1:
+busvote1, PASprobe/stage1; wdttest/PET/reboot/busprobe/GPUprobe/SCMprobe/
+touchmode0, NVT1/hz30/cpus8. Optional later SCM diagnostic tokens may be omitted
+for space; initial marker is preserved. Baseline shim secure-WDT attempt remains.
+No new worker PAS/SMC/GPU call. Runtimeclaims dynamic lowCPUstage; packagedMDT
+at182570000 is a sourceasset, NOT the lowclaimedPA. NVT sourceasset18254c000.
+
+Records research/tmp/dsh-0115/native115-{execution,dsh}-result.json,
+research/tmp/p3-native-0115-qualification-20261106.json,
+research/tmp/p3-bcmsubmit-0115-native-evidence-20261106.json.
+DSHprocess88269 terminal0; no build remains live. Phone lastTWRP; no115bootyet.
+Independent read-only image review PASS: boot-v2/rawpayload0x48/608/ADT,
+10native kernelsegments, allpinnedassets, zero2MiBtail, unchanged113/114baselines
+andoriginalmkadtdiff. Report research/tmp/dsh-0115/image-parent-review.json;
+DSH reviewedscript oneexecution exit0 (image-review115-dsh-result.json).
+Next: sanitized16textpath publicsnapshot with parent
+ d3cd94b0b771ea8403ca92ed76adc8592363ade9, one temporaryboot with180s observer.
+Retain originalmkadtedit and113/114images. Require fresh trial/banner, CPUclaim,
+fullCMDDB, WDTready, nativecompletion/receipt + explicit actualrecovery evidence.
+Controller completion is not measured bandwidth or GPU/Metal execution.
+Normal-runtime114 autonomousreset verified; broadergoal remainsactive.
+
+
+
 ### 2026-11-06 — 0115 strict replay + full host suite PASS on fresh source115-codex (DSH)
 
 DSH executed the reviewed `research/tmp/dsh-0115/execute-replay-full-tests.txt`

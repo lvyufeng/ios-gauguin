@@ -2,7 +2,8 @@
 
 The packer, native asset reader, bounded bootstrap engine, physical callback
 adapter and opt-in coordinator are implemented. Host controller seams exercise
-the engine and actual HFI rings; physical firmware execution remains unqualified.
+the engine and actual HFI rings. Physical0138 now qualifies fresh GMU firmware
+execution and INIT/version replies; GPU command execution remains unqualified.
 The adapter reuses the retained0122 board owner's CSR, SMMU and low-memory
 mappings without exporting pointers or creating aliases.
 
@@ -53,7 +54,9 @@ The sequence follows the native cold path:
    A619 boot-slumber OOB: HOST2GMU bit22, fresh GMU2HOST bit30, then clear ACK.
 5. Start HFI, send the native INIT request with dump IOVA60006000/size4000/
    cold-state1, then query GMU1.11. Consume actual ring packets, require v1
-   ACK type2 and an exact echoed request header. INIT rejects the native
+   ACK type2, a bounded3/4-word required prefix within19 received words and
+   matching12-bit request sequence. Other echo bits and extra payload remain
+   unqualified. INIT rejects the native
    0xffffffff error sentinel; version status must be zero and report major1,
    minor>=11. Bounded known debug messages may be drained; errors/stale ACKs,
    corrupt queues, wrong echoes, timeouts or lost guards stop permanently.
@@ -103,8 +106,8 @@ before loading it. Success logs raw SMMU identity, TCM metadata, copy counts,
 firmware result, INIT/version replies and reset/GX/IRQ observations, and awaits
 the diagnostic watchdog reset. Failure consumes no poisoned receipt and never
 retries. Host typed board models do not constitute physical firmware ACKs.
-Software timeouts cannot cancel hung fabric IO. A full kernel/image and one
-coherent temporary-boot trial still require qualification.
+Software timeouts cannot cancel hung fabric IO. The full0138 kernel/image and
+one coherent temporary-boot trial qualify this bootstrap stage only.
 
 ## First physical firmware-stage refusal and cached comparisons
 
@@ -400,3 +403,35 @@ Tests also check that an extra INIT word cannot spill into the VERSION
 receipt, and retain full19-word refused-packet diagnostics using a sequence
 failure. This is protocol compatibility and software validation; physical
 complete INIT and VERSION replies are still required for0138.
+
+## Physical0138: firmware and INIT/version handshake qualified
+
+One temporary0138 boot used the independently reviewed19546112-byte image
+SHA256 `0550c64cc5e0e9c67282384de63f44380f8b97315645e3bfba8f9e2c04fe5a5a`,
+kernel `xnu-f19772512a1d4117b143ce75e7c2cd4c`, and unique trial
+`gmuf-0138-20261107-a1`. The unchanged strict runtime reader bound the source,
+manifest, qualification, image, kernel banner, command line and fresh logs.
+Its full technical checks passed; exit3 records pending manual-reset
+attribution, separately from the accepted firmware evidence.
+
+The hardware completed all8192 TCM writes/comparisons, fresh0xbabeface,
+boot-slumber OOB and HFI-ready transition0->1. Both replies were accepted:
+INIT header announces4 words, sequence1/status0; VERSION announces4 words,
+sequence2/status0 and reports0x10110000. Only the required public receipt
+prefixes are retained; the extra INIT payload remains unqualified. Source-
+bound guards,131 SMMU mappings/140 ATOS checks, clock and CX/controller stages
+also passed. No refused-packet diagnostic was emitted.
+
+The observer ran2026-11-06T22:56:28.482093Z to22:58:40.256573Z and observed
+recovery after130s. This includes boot, logging and recovery; it does not
+independently establish reset cause. The coordinator deliberately awaits its
+diagnostic watchdog after completing the handshake. This run adds no user
+confirmation of UI, touch, autonomous reset or daily stability.
+
+Next follow the pinned native legacy `hfi_start` ordering: v1 PERF table,
+bandwidth table, then TEST when HFI_USE_REG applies. Derive tables from the
+exact device frequency/voltage policy and same-boot CMDDB data before sending
+them. Do not mark normal HFI_ON, GPU command execution, ZAP, rendering, Metal
+or high refresh as qualified by INIT/version success. Keep the0138 bootstrap
+as a reproducible baseline and test each new command's refusal and success
+paths before a coherent temporary hardware trial.

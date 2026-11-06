@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual138 fresh GMU firmware plus INIT and VERSION handshake PASS
+
+Milestone source private8a0fcff and validated handoff8e2b893, public
+2ecc3ff2c033724bcfe168ef8b8a5346550edd29. Image/runtime preparation committed
+c0db003. DSH hardware task CLOSED/completed; actual run_hardware138.py0,
+boot observer0 and UNCHANGED strict full verifier3: technical checks PASS,
+manual/reset attribution pending. Normal hardware-execution-result.json
+state full-technical-verification-finished. No duplicate boot/retry.
+
+ONE image-hash-pinned temporary138 boot, start2026-11-06T22:56:28.482093Z,
+finish22:58:40.256573Z, observed TWRP130s. Send19088KB0.440s/Boot0.135s,
+total0.578s. Full kernel/source/manifest/qualification/image/banner/trial/
+freshpull bindings checked; every report input hash rechecked by Codex.
+Raw4105lines/459473B SHA
+a6f28623f9ab0ce7fd639a38fdafdf65910bb3923a18d5f71898613180f2c07a;
+cycle1077B SHAe379f018bd7f93986f8bc08388ac8258f9ff15b74c24d70bd58abfc3dbf66ad2.
+Full report26275B SHA9ba7a69e9caee0b1f1ae69fe2386b512d9ce8cf9db981349332e4937547c93b8
+at research/tmp/dsh-0138/hardware-full-verification.json.
+
+Actual firmware phase6, FWbabeface/version10110000,copy8192/8192,writes82,
+polls5,debug0. INIT header0002047e,echo00100000,status0; VERSION header0012047e,
+echo00200001,status0,version10110000. Both header-announced4-word ACKs pass
+native bounded-prefix/sequence checks; INIT extra word remains unqualified.
+Reset0/GXf8222000/release1/OOB1,HFI0->1,OOBinfo0->40000000,NS IRQ0/0/0;
+all131 SMMU mappings/140 ATOS,TCM/ARC/BCM/CX/clock/guard evidence retained.
+No HFI refusal record. Full state
+verified-GMU-firmware-HFI-SMMU-clock-CX-controller-reset-attribution-unverified.
+No normal HFI_ON/DCVS/BW/TEST/SQE/CP/ZAP/GPU command/rendering/Metal proof.
+
+138 manual/autonomous-reset attribution UNKNOWN; old0124 reply does not
+apply. Requested a THIS138 attribution separately; no new user UI/touch fact.
+Diagnostic coordinator awaits watchdog after handshake. 130s is observer
+elapsed including boot/logging/recovery, not independent reset-cause proof.
+Phone observed TWRP. Original seven-line mkadt diff intact. No flash/format/
+GPT/destructive action. Whole daily-use goal remains ACTIVE/incomplete.
+
+NEXT native legacy hfi_start sequence after successful VERSION: v1 PERF
+table -> BW table -> HFI_USE_REG TEST -> HFI_ON. Read exact pinned native
+table construction and captured gauguin power/frequency/CMDDB resources;
+implement bounded typed messages with refusal tests before hardware writes.
+0138 is now the preserved qualified bootstrap baseline. Current local native
+recipe/source138 HLxJKk. Codex core/review/Git; DSH compile/test/build/boot.
+
 ### 2026-11-07 — complete138 ACK-compatible native image and strict readers qualified; one physical trial next
 
 DSH12854 CLOSED0; actual standard local build138.py build0/qualification0,

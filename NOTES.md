@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0130 complete local kernel/image/readers qualified; one physical cached-readback trial next
+
+DSH46985 actual build0/qualification0, standard local gauguin.xs5x0H.
+Captured HEAD38365e5fc8c0aaa69e05e6ed5651cfc10765aae4; source130 exact9eb26716...8a42b.
+Installed kernel16905368B SHAec3fb0fa7e0428a1ab8104e0961317108735f38e8ad1e5fd1b994c2a0859b1d1,
+IDxnu-911401120c7f4ba49496a32cb26052f1. Manifest SHA
+3e91d339835249003566415ed620e26b616c6bdd84680a5780a57c20c7e5aca7.
+Qualification SHA0c25505fba58b1fcd10df208d2be94e5faa9f6c918224b89b2b4b194ef183178,
+retains every129 check plus cached_firmware_readback_diagnostics_linked TRUE.
+Uses authoritative130 validation-result-v2.json SHA62e9f82199029ccc55ba68e720c312be2e1c5d44b6a22a3d365d435a28f92278.
+Future native probes must use CURRENT130 xs5x0H recipe/source.
+No CI build used. Sanitized public89f11c676099c7f7e155a4b4a8222ff6d81b15a9
+pushed/verified on a45b92575fd3c5cf54d798480479f44396f75f62, nine text paths.
+
+DSH60227 package0/independent review0, all pins unchanged. Image
+shim/out/shim-p3-gmuf-0130-native-20261107.img19546112B SHA
+3a8edd99f69ca099e26e6f628e0e5585fa36ba74ce3cf52f890227e3888bd194;
+payload19218432B SHA5a6fc933eba086f6395a2c0c9a1dec94ae40e8d95779d80406eafacf12b5ee3b.
+Evidence SHA0d2f36bbba597d0aee6bfe77270da879782795916866e314fa6524fe1816717e.
+Unique sweettrial=gmuf-0130-20261107-a1,539bytes. Kernel grew16KiB, so
+packaged source assets move16KiB: NVT182558000/MDT18257c000/GMU182580000;
+same-kernel no-GMU control, all old assets/image pins and ten segments pass.
+
+DSH8380 runtime tests clock0/FW0/full1: synthetic125-derived fixture retained
+old PAS payload extent. DSH45243 v2 clock0/FW0/full1: extent corrected, but
+synthetic old GMU asset marker was still stale. BOTH failures/logs/scripts/
+inputs retained unchanged. No kernel or production verifier relaxation.
+DSH6785 runtime_validate130_v3.py actual0/all inputs unchanged: clock4/95,
+FW10/199,full explicitly SYNTHETIC4/20. v3 fixture adapts payload extent/input
+and GMU source placement from actual130 package; tests reject stale fields.
+Authoritative runtime-parser-result-v3.json has three actual zero exits and
+pins previous failures. Strict verify_gmuf130.py requires new diagnostic flag
+and rejects READBACK namespace in full-success traces. No firmware/GPU proof.
+
+All these handles CLOSED. Phone last TWRP; boot130.py and run_hardware130.py
+prepared for ONE image-pinned temporary boot, unique recoverygauguin / fastboot
+gauguinpro, routine recovery-latch readback, unchanged180s observer/freshpull.
+No130 phone IO yet. Next execute reviewed execute-hardware.txt via DSH, bind
+fresh log/tuple and preserve strict full result. Whole goal ACTIVE, no flash/
+format/GPT. Original seven-line mkadt diff still untouched.
+
 ### 2026-11-07 — 0130 cached firmware refusal diagnostics validated and committed; full kernel build next
 
 Private code bffa9d9183e30ed86040e8ad8f7361e45d7bd5dd adds124th patch,

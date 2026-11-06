@@ -2,6 +2,71 @@
 
 ## Agent handoff / active work
 
+
+### 2026-11-06 — 0113 read-only bus qualification in progress; division of work updated
+
+Latest user instruction supersedes the older DSH-authoring preference below:
+**Codex writes critical drivers and reviews; DSH executes compilation, tests and
+boots**, with danger-full-access retained. Baseline remains the verified0112
+image/source above; phone last confirmed in TWRP. No0113 boot, bandwidth vote,
+PAS call or GPU execution has occurred. The active goal remains unfinished.
+
+Current work is a default-off, one-shot `sweetbusprobe=1` worker: copy reserved
+CMDDB80860000+20000 twice using aligned read-only loads, validate the six BCM
+rows/four ARC tables from normal memory, then inspect only the native-backed
+DRV2 register whitelist at18220000+4000. It emits a complete bounded RAW dump
+and a PLAN ONLY result. Empty/idle TCS observations cannot recover inherited
+bandwidth votes and do not grant ownership. No commands are submitted.
+
+Source review and focused execution now PASS. Codex removed the uninitialized
+offsets comparison and corrected exclusive end to20cc. Worker SHA256
+8e71b4e9f7e19c8b71e6861af0399b66c6b21348a3fbb5835c4a02ab3ba13eea;
+DSH native ARM64 single-TU exit0, object48896B/e49f4f6b48dcf42efd2a5fe26208aadf94582e7990ff79dbbc03512c2740cd81,
+report research/tmp/gauguin-nvt-p1/cmddb113-worker-codex-compile/run-rrv95zgc/compile.json.
+The parser and planner separately passed the same112/fbWj14 build context.
+DSH ran70 actual-worker host cases with ASan/UBSan and strict platform seams;
+actual worker RAW -> real image/trial-bound extractor -> exact131072B synthetic
+fixture succeeded (sha72ef88e51effc3c7e832816e4390299909deddd6dd8ec036917351e2af7d80b3).
+Report research/tmp/dsh-0113/flash-high-worker/logs/worker-run-ha_z9vlu/result.json.
+Native crypto is seamed in host tests, not independently exercised there.
+Earlier j5fa7iug run aborted before entering tests because Apple arm64 lacks
+LeakSanitizer; platform-corrected runner retains ASan/UBSan. No object rewriting.
+Extractor66tests PASS after Codex corrected fixture/expectation bugs; strict
+production extractor stayed unchanged. Earlier19failure records are preserved.
+
+0113 patch now integrates five new source/header files plus three build entries
+and one GAUGUIN init hook. Public tools/tests contain only synthetic fixtures.
+Fresh strict replay to source113-codex PASSED:107 patches,5254 files, SHA256
+25e512230ac39005af541a11cc57add56b7bb7222d07a9ec1a87dcdf4fcc9f8e. Exactly the
+seven intended source paths differ from112, which remains unchanged. DSH full
+host suite PASSED all44 test files, including70 worker cases and66 extractor
+tests; tested source unchanged. No full113 build/image exists yet. Results live in ignored
+research/tmp/dsh-0113/replay-full-host-result.json and full-host113.log.
+Active candidate code is flash-high-worker/bsd/dev/; the other older
+candidate/bsd/dev/gauguin_bus_probe.c remains a rejected draft.
+Future max-vote/PAS work still needs reset qualification: current WDT EN=0;
+stopping PET is not a proven reset, and a software timeout cannot cancel a
+secure call that never returns. Maximum numeric BOOT plan is not a daily
+thermal/power policy and is NOT submitted by0113.
+
+DSH execution policy: use the private provider-flash-high and local-tools-only
+patches in /private/tmp/ios-gauguin-dsh-nPDRPy. Unrelated remote tools are disabled
+after an out-of-scope read-only probe (no observed remote modification; no
+remote inventory belongs in Git). A prior generated test attempted assembly/
+object rewriting and is rejected; no successful runtime proof came from it.
+No hand crypto, object rewriting or sanitizer bypass is permitted. Codex now
+owns code changes; DSH receives reviewed exact local execution commands and
+must stop on failures. Old Pro/Flash authoring jobs are terminal. Completed focused execution is recorded in ignored worker-tu-dsh-result.json,
+worker-host-codex-dsh-v2-result.json and extractor-codex-dsh-result.json.
+
+Next: commit this reviewed/tested0113 change, then run the normal local full
+build/qualification and temporary read-only hardware trial. Preserve original unstaged tools/mkadt.py seven-line
+edit. Local HEAD at entry d81fde38b7575af28177b1443215ac59ff5b9b63;
+public branch codex/gauguin-p0-ci-20261105 at4f254bee8c295f1b522e6c2c7ea985a77a7897c7
+(tree108df7f1d52559cb1f96233d5cd4df7b18e771b3). Never push private ancestry;
+continue sanitized single-parent snapshots only. No new CI run was started.
+
+
 ### 2026-11-06 - 0112 CPU staging: fresh-log VERIFIED; probe + stage gates pass
 
 Next concrete action: treat0112 as the working baseline and preserve it. Do the

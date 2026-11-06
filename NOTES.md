@@ -2,6 +2,83 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 - 0112 CPU staging: build qualified, image packaged, NOT booted
+
+Status: native build succeeded, parent qualification passed and the0112 staging
+image is packaged and waiting for the parent's review before any
+temporary `fastboot boot`. User preference retained: DSH runs with
+danger-full-access for implementation/build, Codex plans and reviews.
+
+Code (commit65c12fbd623dbd2a030e547debd5b06aa45658e5): the packer emits the
+A615ZapMDT descriptor second word as the reserved16KiB descriptor page, not the
+raw6860 MDT length. The consumer in xnu/patches/0112-gauguin-pas-cpu-staging.patch
+accepts `reserved_bytes == PST_PAGE` (same alignment/bounds) and still pins the
+first raw6860 bytes by SHA256. Corrected contract tests: tests/test_pas_staging.py
+runs the real packer on synthetic MDT bytes and feeds its emitted descriptor and
+16KiB page to tests/fixtures/gauguin_pas_stage_host.c, which stages the emitted
+descriptor and rejects raw6860/16383/16385 before mapping; a mutant consumer
+requiring PST_BYTES aborts at its first positive case. Focused3/3, payload2+9
+and the full41-file host suite pass on source112-dsh-contract (5249 files, SHA
+7b408015fc035412822c2b87d4d3a7f7fc2b2f538614fa8643617de83fe97283): logs
+contract-focused-stage.log, contract-payload.log, contract-full-host.log
+(contract-result.json). Only tracked change left: the original mkadt.py edit.
+
+Build: run gauguin.fbWj14 (unique invocation ID; build IDs are not source-config
+hashes), standard `deps/build-macos.sh` in the user-approved danger-full-access
+mode, no BUILD_DSYM=0 and no manual strip. make exit0, state built, dSYM and
+strip ran normally. Manifest .deps-cache/p0-20261105/build/runs/gauguin.fbWj14/build-manifest.json
+captured HEAD65c12fbd; kernel16798800B SHA
+8267eb949254736ba5cc7583c13ad25a16a166e98b77cc0829855e1d42419fdc, ARM64,
+ID xnu-dc38b2a01c6f471fa523f9f9cdab1f4e, banner "Darwin Kernel Version 22.6.0:
+Fri Nov  6 11:51:35 CST 2026; baai:xnu-dc38b2a01c6f471fa523f9f9cdab1f4e". The
+current generated native context is this112-contract/fbWj14 build, not the old
+111 manifest. Earlier run gauguin.Qz3IuF was an earlier0112 compile attempt (not
+111) that failed at make2; it stays as history, manifest unchanged (ad7d22d0...,
+failed) with its unstripped object in ignored
+research/tmp/dsh-0112/contract-preserve/failed-Qz3IuF-kernel.unstripped.
+Parent qualification: research/tmp/p3-native-0112-fullaccess-qualification-20261106.json.
+
+Image (NOT BOOTED): shim/out/shim-p3-passtage-0112-native-20261106.img,
+19415040B SHA 17af66bf150a20a62673d5d0593512d6ae9478dd79598e8dc5cff6ab04e0e847;
+payload research/tmp/p3-passtage-0112-native-20261106.bin SHA
+27947b6e431416e46c3cb80f37c7843032be91081e50d92964c66911a47869b6; evidence
+research/tmp/p3-passtage-0112-native-evidence-20261106.json. Proven shim
+b5ba7764..., original DTB, base ADT7d6d93be..., NVT007143e7... (PA
+0x182540000,147456 reserved), raw MDT6860 pin6f2a...16ac7b in a16KiB page
+(PA0x182564000, zero padding), pending PAS request with a 2MiB zero tail
+(runtime selects1MiB); flags NVT1/hz30, GCC/SCM0, pasprobe1/passtage1; marker
+sweettrial=passtage-0112-20261106-dsh-a1; cmdline527B. Packed by
+research/tmp/dsh-0112/pack_native0112_fullaccess.py (parent-corrected copy; the
+original helper is preserved). The real low-PAS PA is unknown until boot.
+
+Phone last confirmed TWRP; this image has NOT been booted; no GPU/PAS operation
+has run. Next step is the parent's image review, which must authorize any
+temporary `fastboot boot` separately.
+
+### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
+
+User confirms physical touch unlock; manually returned TWRP. First pull
+preceded USB enumeration (no device); fresh get-state then returned recovery,
+retry pull and full banner verification succeeded. No observer/build/CI live.
+Log p3-low-pas-0111-native-recovered-20261106.txt matches full ca43a06c... ID
+and unique sweettrial=pasowner-0111-20261106-a1. Actual runtime record:
+selectedAA200000+100000, inputA91CF000+1230000, tail offset1030000;
+FDT A8FCE000+44137, shimA2480000+39000. All64 pages unmanaged, raw pmap cache
+attribute d0000006; exact complete marker present. This PA is a result of
+this boot's ABL allocation, NOT a fixed address for later boots.
+
+Last PET3330 at64307117566 ticks; NVT325084 accepted325084/rejected0;
+no captured panic(cpu...) line. Hash/counters/probe lines saved in ignored
+p3-low-pas-0111-native-evidence-20261106.json. Actual buffer bytes have not
+been mapped/read/written; secure firmware/PAS/GPU remain untested. Touch
+confirmation belongs to this111 trial, unlike earlier pending entries.
+
+Next: source-backed WC mapping/lifetime and CPU staging/readback, plus actual
+recovery config/native bus-provider audit for the crypto-to-DDR bandwidth
+prerequisite. Do not issue PAS immediately merely because owner metadata
+passed. Phone currently TWRP; preserve all qualified images and original
+unstaged mkadt edit. Latest public handoff2084afa, code publice665e50.
+
 ### 2026-11-06 —0111 enabled trial booted; manual TWRP/fresh log PENDING
 
 Current phone state UNKNOWN: temporary0111 image was accepted (send18944KB

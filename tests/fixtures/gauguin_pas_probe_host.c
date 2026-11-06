@@ -27,9 +27,9 @@ unsigned long gPhysBase, real_phys_size;
 static uint8_t owner[128], tuple[24];
 static uint64_t selected;
 static struct {
-    int enabled, thread_error, bad_context, after_delay, missing, pending;
+    int enabled, stage_enabled, thread_error, bad_context, after_delay, missing, pending;
     unsigned starts, deallocations, terminations, sleeps, properties;
-    unsigned valid_calls, attr_calls, managed_page, wrong_attr_page, markers, flushes;
+    unsigned valid_calls, attr_calls, managed_page, wrong_attr_page, markers, flushes, stage_calls;
     thread_continue_t worker;
     char log[8192]; size_t used;
 } mock;
@@ -41,7 +41,17 @@ static int test_printf(const char *format, ...)
     mock.used += (size_t)n; return n;
 }
 bool PE_parse_boot_argn(const char *name, void *out, size_t bytes)
-{ assert(!strcmp(name,"sweetpasprobe") && bytes==sizeof(int)); *(int *)out=mock.enabled; return true; }
+{
+    assert(bytes==sizeof(int));
+    if(!strcmp(name,"sweetpasprobe"))*(int *)out=mock.enabled;
+    else { assert(!strcmp(name,"sweetpasstage")); *(int *)out=mock.stage_enabled; }
+    return true;
+}
+void sweet_pas_stage_once(uint64_t pa, uint64_t bytes)
+{
+    assert(mock.attr_calls==64 && mock.valid_calls==64 && !mock.bad_context);
+    assert(pa==selected && bytes==0x100000); ++mock.stage_calls;
+}
 kern_return_t kernel_thread_start(thread_continue_t fn, void *arg, thread_t *thread)
 {
     assert(!arg); ++mock.starts; if(mock.thread_error)return mock.thread_error;
@@ -112,6 +122,13 @@ int main(int argc,char **argv)
     reset(); mock.enabled=1; execute(); assert(mock.attr_calls==64 && mock.valid_calls==64);
     assert(strstr(mock.log,"complete unmanaged_pages=64") && mock.markers==mock.flushes);
     sweet_pas_probe_init(); assert(mock.starts==1);
+#ifdef PAS_STAGE_CALL_TEST
+    reset();mock.enabled=1;mock.stage_enabled=1;execute();assert(mock.stage_calls==1);
+    reset();mock.enabled=0;mock.stage_enabled=1;sweet_pas_probe_init();assert(!mock.starts && !mock.stage_calls);
+    for(unsigned n=1;n<=64;n++) {
+        reset();mock.enabled=1;mock.stage_enabled=1;mock.wrong_attr_page=n;execute();assert(!mock.stage_calls);
+    }
+#endif
     reset(); mock.enabled=1; mock.thread_error=3; sweet_pas_probe_init(); assert(!mock.worker && !mock.properties);
     for(int i=1;i<=3;i++) for(int late=0;late<2;late++) {
         reset();mock.enabled=1;if(late)mock.after_delay=i;else mock.bad_context=i;

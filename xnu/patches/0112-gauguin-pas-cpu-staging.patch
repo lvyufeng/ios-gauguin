@@ -1,0 +1,232 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -0,0 +1,197 @@
++/* One-time CPU staging/readback, sweetpasprobe=1 AND sweetpasstage=1.
++ * Internal caller supplies the region only after complete LowPASReservation
++ * and 64-page pmap validation, so ownership and cache attributes are checked
++ * before any byte of the reserved buffer is accessed.
++ *
++ * Exactly one attempt per boot. The first16KiB are mapped NC/RW with
++ * ml_io_map_wcomb (an unmanaged PCIe-style mapping: it never sets pmap
++ * "managed" or a cache attribute on the physical pages, and it is not freed
++ * on success or failure). The mapping and the whole reservation stay valid
++ * until reboot. No unmapping, retry, secure call, power/clock/GPU register
++ * access or GPU execution happens here; the staged region remains untrusted.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <vm/vm_map.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <pexpert/device_tree.h>
++#include <pexpert/arm64/boot.h>
++#include <libkern/crypto/sha2.h>
++
++/* Canonical MACH/PEXPERT-private declarations, hidden from the BSD exported
++ * header view (as in gauguin_pas_probe.c for its pmap APIs). */
++extern vm_offset_t ml_io_map_wcomb(vm_offset_t phys_addr, vm_size_t size);
++extern vm_offset_t ml_vtophys(vm_offset_t vaddr);
++
++extern unsigned long gPhysBase, real_phys_size;
++extern vm_offset_t arm_vm_kernelcache_phys_end;
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++extern int get_preemption_level(void);
++
++void sweet_pas_stage_once(uint64_t pa, uint64_t region_bytes);
++
++#define PST_PAGE UINT64_C(0x4000)
++#define PST_BYTES 6860u
++#define PST_REGION UINT64_C(0x100000)
++
++_Static_assert(PAGE_SHIFT == 14, "staging requires16KiB CPU pages");
++_Static_assert(PST_BYTES < PST_PAGE, "metadata must fit one staging page");
++
++static unsigned pst_attempted;
++static vm_offset_t pst_mapping;
++/* SHA256 of the pinned A615ZapMDT raw6860-byte asset, used for BOTH the
++ * immutable high-bank asset and the low readback's first6860 bytes. The
++ * padding/tail is not part of this pin; it is checked separately as zero. */
++static const uint8_t pst_expected[SHA256_DIGEST_LENGTH] = {
++    0x6f,0x2a,0x0e,0x35,0x32,0x50,0x97,0xf9,0x8f,0xde,0xd6,0x12,0x3d,0x75,0x52,0x66,
++    0xcd,0xbb,0x44,0xca,0xa9,0x32,0xbe,0x61,0x25,0x1b,0x65,0xb5,0xc5,0x16,0xac,0x7b
++};
++
++static void
++pst_record(const char *line)
++{
++    printf("%s\n", line);
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++/* SHA256 of exactly PST_BYTES(6860) starting at bytes: the raw MDT, with no
++ * padding. Used for the asset before mapping and for the low readback. */
++static bool
++pst_hash(const uint8_t *bytes, uint8_t digest[SHA256_DIGEST_LENGTH])
++{
++    SHA256_CTX ctx;
++    SHA256_Init(&ctx);
++    SHA256_Update(&ctx, bytes, PST_BYTES);
++    SHA256_Final(digest, &ctx);
++    return memcmp(digest, pst_expected, sizeof(pst_expected)) == 0;
++}
++
++static void
++pst_hex(const char *label, const uint8_t digest[SHA256_DIGEST_LENGTH], char *line)
++{
++    static const char digits[] = "0123456789abcdef";
++    char hex[2 * SHA256_DIGEST_LENGTH + 1];
++    for (unsigned i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
++        hex[2 * i] = digits[digest[i] >> 4];
++        hex[2 * i + 1] = digits[digest[i] & 15];
++    }
++    hex[2 * SHA256_DIGEST_LENGTH] = 0;
++    (void)snprintf(line, 192, "%s sha256=%s", label, hex);
++}
++
++/* Locate the loader-pinned A615ZapMDT page from the real boot_args and ADT.
++ * The descriptor is a physical address plus a byte count like every other
++ * /chosen/memory-map entry, and for this asset the count is the reserved
++ * descriptor PAGE(16KiB), not the metadata size: the packer maps one16KiB
++ * page for a 6860-byte image, and the raw6860 is pinned separately by its
++ * SHA256 below. The page is page-aligned, strictly above the kernelcache,
++ * below topOfKernelData and entirely inside DRAM (the boot_args checks above
++ * establish top <= physBase + memSize with no overflow), and both endpoints
++ * must be in the direct map. Only the first6860 bytes are hashed against the
++ * production pin before they are copied. A page ending exactly at
++ * topOfKernelData is legal. */
++static const uint8_t *
++pst_asset(void)
++{
++    DTEntry node;
++    const void *property = NULL;
++    unsigned length = 0;
++    uint64_t range[2];
++    const boot_args *args = PE_state.bootArgs;
++    if (!args || args->Version != kBootArgsVersion2 || args->physBase != gPhysBase ||
++        !real_phys_size || !args->memSize || args->memSize > real_phys_size ||
++        args->physBase > UINT64_MAX - real_phys_size ||
++        (args->topOfKernelData & (PST_PAGE - 1)) ||
++        args->topOfKernelData < args->physBase ||
++        args->topOfKernelData > args->physBase + args->memSize ||
++        arm_vm_kernelcache_phys_end < args->physBase ||
++        arm_vm_kernelcache_phys_end > args->topOfKernelData ||
++        SecureDTLookupEntry(NULL, "/chosen/memory-map", &node) != kSuccess ||
++        SecureDTGetProperty(node, "A615ZapMDT", &property, &length) != kSuccess ||
++        !property || length != sizeof(range)) {
++        return NULL;
++    }
++    memcpy(range, property, sizeof(range));
++    uint64_t pa = range[0], reserved_bytes = range[1];
++    /* Every bound is checked before any arithmetic or address translation so
++     * a corrupted descriptor can never wrap into a mapped kernel address. */
++    if (!pa || reserved_bytes != PST_PAGE || (pa & (PST_PAGE - 1)) ||
++        pa < arm_vm_kernelcache_phys_end || pa >= args->topOfKernelData ||
++        PST_PAGE > args->topOfKernelData - pa ||
++        PST_PAGE > args->physBase + args->memSize - pa) {
++        return NULL;
++    }
++    vm_offset_t first = ml_static_ptovirt((vm_offset_t)pa);
++    if (!first || first > UINTPTR_MAX - (PST_PAGE - 1)) {
++        return NULL;
++    }
++    vm_offset_t last = ml_static_ptovirt((vm_offset_t)(pa + PST_PAGE - 1));
++    if (last != first + PST_PAGE - 1) {
++        return NULL;
++    }
++    uint8_t digest[SHA256_DIGEST_LENGTH];
++    const uint8_t *image = (const uint8_t *)first;
++    return pst_hash(image, digest) ? image : NULL;
++}
++
++void
++sweet_pas_stage_once(uint64_t pa, uint64_t region_bytes)
++{
++    if (__atomic_exchange_n(&pst_attempted, 1, __ATOMIC_ACQ_REL)) {
++        return;
++    }
++    if (!ml_get_interrupts_enabled() || ml_at_interrupt_context() || get_preemption_level() ||
++        !region_bytes || region_bytes != PST_REGION || !pa || (pa & (PST_REGION - 1)) ||
++        pa > UINT64_C(0x100000000) - PST_REGION) {
++        printf("SWEET PAS STAGE: invalid entry/context; stopped\n");
++        return;
++    }
++    const uint8_t *image = pst_asset();
++    if (!image) {
++        pst_record("SWEET PAS STAGE: missing/invalid pinned MDT asset; no low mapping");
++        return;
++    }
++    pst_record("SWEET PAS STAGE: pinned MDT verified; mapping first16KiB NC/RW only");
++    pst_mapping = ml_io_map_wcomb((vm_offset_t)pa, (vm_size_t)PST_PAGE);
++    /* Never unmap, retry or release a possibly acquired alias on failure. */
++    if (!pst_mapping || (pst_mapping & (PST_PAGE - 1)) ||
++        ml_vtophys(pst_mapping) != (vm_offset_t)pa ||
++        ml_vtophys(pst_mapping + PST_PAGE - 1) != (vm_offset_t)(pa + PST_PAGE - 1)) {
++        pst_record("SWEET PAS STAGE: mapping/translation failed; retained until reboot");
++        return;
++    }
++    pst_record("SWEET PAS STAGE: before zero/copy; reserved first16KiB only");
++    volatile uint8_t *dst = (volatile uint8_t *)pst_mapping;
++    for (unsigned i = 0; i < PST_PAGE; ++i) {
++        dst[i] = 0;
++    }
++    for (unsigned i = 0; i < PST_BYTES; ++i) {
++        dst[i] = image[i];
++    }
++    __asm__ volatile("dsb sy" ::: "memory");
++    uint8_t digest[SHA256_DIGEST_LENGTH];
++    bool match = pst_hash((const uint8_t *)pst_mapping, digest);
++    /* The readback pin covers only the6860 metadata bytes; require the
++     * remaining9524 bytes to be zero separately. */
++    for (unsigned i = PST_BYTES; i < PST_PAGE; ++i) {
++        if (dst[i]) {
++            match = false;
++        }
++    }
++    char line[192];
++    if (!match) {
++        pst_record("SWEET PAS STAGE: readback/tail mismatch; retained until reboot");
++        return;
++    }
++    pst_hex("SWEET PAS STAGE: complete metadata_bytes=6860 zero_tail_bytes=9524", digest, line);
++    pst_record(line);
++}
++
++#endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_pas_probe.c
++++ b/bsd/dev/gauguin_pas_probe.c
+@@ -96,6 +96,7 @@
+ extern void sweet_log_mark_sync(const char *);
+ extern void sweet_log_flush_now(void);
+ void sweet_pas_probe_init(void);
++extern void sweet_pas_stage_once(uint64_t pa, uint64_t region_bytes);
+ static unsigned psr_started;
+ static void psr_record(const char *line)
+ {
+@@ -149,6 +150,11 @@
+     snprintf(line, sizeof(line), "SWEET PAS PROBE: complete unmanaged_pages=%u wimg=%08x; metadata only, buffer/PAS/GPU untested",
+         pages, PSR_WIMG);
+     psr_record(line);
++    int stage = 0;
++    (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
++    if (stage == 1) {
++        sweet_pas_stage_once(o.selected.pa, o.selected.bytes);
++    }
+ }
+ static bool psr_context(void)
+ {
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -112,6 +112,7 @@
+ bsd/dev/gauguin_gpu_probe.c		standard
+ bsd/dev/gauguin_scm_probe.c		standard
+ bsd/dev/gauguin_pas_probe.c		standard
++bsd/dev/gauguin_pas_stage.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard

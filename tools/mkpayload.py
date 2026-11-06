@@ -211,7 +211,7 @@ def validate_asset_macho(buf):
     return executable
 
 
-def asset_adt(adt_blob):
+def asset_adt(adt_blob, asset_name='NovatekFirmware'):
     root, end = adt.parse(adt_blob)
     if end != len(adt_blob):
         raise ValueError('ADT length mismatch')
@@ -226,17 +226,36 @@ def asset_adt(adt_blob):
         values = [(flags, value) for n, flags, value in chosen.props if n == name]
         if len(values) != 1 or values[0][0] or len(values[0][1]) != 8:
             raise ValueError(f'invalid or duplicate ADT {name}')
-    if any(name == 'NovatekFirmware' for name, _, _ in mmap.props):
-        raise ValueError('ADT already has NovatekFirmware')
+    if any(name == asset_name for name, _, _ in mmap.props):
+        raise ValueError(f'ADT already has {asset_name}')
     return root, mmap
 
 
 def append_nvt_firmware(pieces, adt_blob, kernel_end, virt_base, phys_base, mem_size, path):
+    return append_firmware_asset(pieces, adt_blob, kernel_end, virt_base, phys_base,
+                                 mem_size, path, 'NovatekFirmware', NVT_FIRMWARE_SIZE,
+                                 NVT_FIRMWARE_SHA256, 'Novatek firmware')
+
+
+ZAP_MDT_SIZE = 6860
+ZAP_MDT_SHA256 = '6f2a0e35325097f98fded6123d755266cdbb44caa932be61251b65b5c516ac7b'
+
+
+def append_firmware_asset(pieces, adt_blob, kernel_end, virt_base, phys_base,
+                          mem_size, path, asset_name, expected_size, expected_sha, label,
+                          adt_bytes=None):
+    # Larger assets (Novatek firmware) describe their full extent; small
+    # page-staged assets (A615ZapMDT) describe their reserved descriptor page.
+    if adt_bytes is None:
+        adt_bytes = expected_size
+    elif not (expected_size < adt_bytes <= expected_size + PAGE and
+              adt_bytes % PAGE == 0):
+        raise ValueError(f'{label} ADT range must be the next page above the pinned asset')
     with open(path, 'rb') as firmware:
-        image = firmware.read(NVT_FIRMWARE_SIZE + 1)
-    if len(image) != NVT_FIRMWARE_SIZE or hashlib.sha256(image).hexdigest() != NVT_FIRMWARE_SHA256:
-        raise ValueError('Novatek firmware does not match pinned size/SHA256')
-    root, mmap = asset_adt(adt_blob)
+        image = firmware.read(expected_size + 1)
+    if len(image) != expected_size or hashlib.sha256(image).hexdigest() != expected_sha:
+        raise ValueError(f'{label} does not match pinned size/SHA256')
+    root, mmap = asset_adt(adt_blob, asset_name)
     if not mem_size or phys_base % PAGE:
         raise ValueError('invalid DRAM base/size')
     dram_end = checked_end(phys_base, mem_size, label='DRAM')
@@ -260,7 +279,7 @@ def append_nvt_firmware(pieces, adt_blob, kernel_end, virt_base, phys_base, mem_
             other_end = checked_end(other, length, label='ADT memory-map range')
             if length and pa < other_end and other < pa_end:
                 raise ValueError(f'firmware overlaps ADT memory-map property {name}')
-    mmap.props.append(('NovatekFirmware', 0, struct.pack('<2Q', pa, len(image))))
+    mmap.props.append((asset_name, 0, struct.pack('<2Q', pa, adt_bytes)))
     updated = adt.serialize(root)
     if len(updated) > 0xffffffff:
         raise ValueError('ADT does not fit boot_args length')
@@ -271,7 +290,7 @@ def append_nvt_firmware(pieces, adt_blob, kernel_end, virt_base, phys_base, mem_
     top = checked_end(boot_args, PAGE, dram_end, 'boot_args DRAM')
     pieces.append((kernel_end, reserved, image + b'\0' * (reserved - len(image))))
     return updated, end, dict(phys=hex(pa), size=len(image), reserved=reserved,
-                             sha256=NVT_FIRMWARE_SHA256, top_of_kernel_data=hex(top))
+                             sha256=expected_sha, top_of_kernel_data=hex(top))
 
 
 PAS_TAIL_BYTES = 0x200000
@@ -371,11 +390,13 @@ def pas_pending_adt(adt_blob, pieces, kernel_end, virt_base, phys_base, mem_size
     return root, chosen, size, top
 
 
-def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None, pas_reservation=False):
+def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None,
+          pas_reservation=False, zap_mdt_path=None):
     buf = bytearray(open(kernel_path, 'rb').read())
-    executable = validate_asset_macho(buf) if nvt_firmware_path is not None or pas_reservation else None
+    executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or pas_reservation else None
     m = parse_macho(buf)
-    if nvt_firmware_path is not None and sum(bool(s['vmsize']) for s in m['segs']) + bool(ramdisk_path) + 1 > ASSET_MAX_SEGMENTS:
+    asset_count = int(nvt_firmware_path is not None) + int(zap_mdt_path is not None)
+    if asset_count and sum(bool(s['vmsize']) for s in m['segs']) + bool(ramdisk_path) + asset_count > ASSET_MAX_SEGMENTS:
         raise ValueError('asset segment table exceeds one16K page')
     if executable is not None and not any(start <= m['entry'] < end for start, end in executable):
         raise ValueError('kernel entry is outside original executable file bytes')
@@ -392,6 +413,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
     adt_blob = open(adt_path, 'rb').read()
     if nvt_firmware_path is not None:
         asset_adt(adt_blob)
+    if zap_mdt_path is not None:
+        asset_adt(adt_blob, 'A615ZapMDT')
     # The ADT decides where the kernel's RAM is (mkadt.py --highmem).
     PHYS_BASE, MEM_SIZE = adt_dram(adt_blob)
     pieces = [(s['vmaddr'], s['vmsize'], buf[s['fileoff']:s['fileoff'] + s['filesize']]) for s in segs]
@@ -410,6 +433,17 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
     if nvt_firmware_path is not None:
         adt_blob, kernel_end, nvt = append_nvt_firmware(
             pieces, adt_blob, kernel_end, virt_base, PHYS_BASE, MEM_SIZE, nvt_firmware_path)
+
+    zap = None
+    if zap_mdt_path is not None:
+        # The kernel stages one16KiB page; its single ADT range therefore
+        # describes the reserved page, while the pinned raw asset stays6860.
+        adt_blob, kernel_end, zap = append_firmware_asset(
+            pieces, adt_blob, kernel_end, virt_base, PHYS_BASE, MEM_SIZE,
+            zap_mdt_path, 'A615ZapMDT', ZAP_MDT_SIZE, ZAP_MDT_SHA256,
+            'A615 ZAP metadata', 16384)
+        if nvt is not None:
+            nvt['top_of_kernel_data'] = zap['top_of_kernel_data']
 
     pas = None
     if pas_reservation:
@@ -459,10 +493,14 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
                 segs=[(s['name'], hex(s['vmaddr']), hex(s['vmsize'])) for s in segs])
     if nvt is not None:
         info['nvt_firmware'] = nvt
+    if zap is not None:
+        info['zap_metadata'] = zap
     if pas is not None:
         info['low_pas_request'] = pas
         if nvt is not None:
             nvt['top_of_kernel_data'] = hex(pas_top)
+        if zap is not None:
+            zap['top_of_kernel_data'] = hex(pas_top)
     return bytes(out), info
 
 
@@ -473,8 +511,10 @@ if __name__ == '__main__':
     ap.add_argument('--ramdisk', help='root image for md0 (boot with rd=md0)')
     ap.add_argument('--nvt-firmware', help='pinned Novatek firmware data asset; does not upload it')
     ap.add_argument('--pas-reservation', action='store_true', help='request runtime-validated unmanaged low-PA ownership; no PAS operation')
+    ap.add_argument('--zap-mdt', help='pinned A615 ZAP metadata data asset; does not authenticate or execute it')
     a = ap.parse_args()
-    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware, a.pas_reservation)
+    blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware,
+                       a.pas_reservation, a.zap_mdt)
     open(a.out, 'wb').write(blob)
     for k, v in info.items():
         if k != 'segs':

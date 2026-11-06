@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Execute actual PAS INIT helper with explicit SMC/DSB and CPU-platform seams.
+"""Execute actual PAS INIT/MEM helper with explicit SMC/DSB and CPU-platform seams.
 
 No real SMC, MMIO, firmware, device, sleeping, network or assembly execution.
 Checks register constraints in the native wrapper before replacing that single
@@ -19,7 +19,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-COMPONENT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source116-codex'))) / 'bsd/dev'
+COMPONENT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source117-codex'))) / 'bsd/dev'
 BASELINE = COMPONENT
 FIXTURE = HERE / 'fixtures/gauguin_pas_init_host.c'
 
@@ -44,9 +44,22 @@ def prepare(source_path):
     source = source.replace(barrier, 'fake_dsb();')
     assert '__asm__' not in source
     assert not re.search(r'\b(?:IOMalloc|IOFree|ml_io_map\w*|ml_vtophys|sweet_pas_stage_once)\s*\(', source)
-    assert set(re.findall(r'0x420002[0-9a-fA-F]+', source)) == {'0x42000201'}
+    assert set(re.findall(r'0x420002[0-9a-fA-F]+', source)) == {'0x42000201', '0x42000202'}
     finish = source.split('static enum gpi_rc gpi_finish', 1)[1].split('enum gpi_rc\nsweet_pas_init_image_once', 1)[0]
     assert finish.index('*out = *receipt;') < finish.index('__atomic_store_n(&gpi_lifecycle')
+    assert finish.index('gpi_success_pa = receipt->stage_pa;') < finish.index('__atomic_store_n(&gpi_lifecycle')
+    assert source.count('gpi_success_pa =') == 1
+    assert 'rc == GPI_OK) gpi_success_pa = receipt->stage_pa;' in finish
+    assert source.count('gpi_invoke(&r);') == 1, 'one actual shared SMC engine'
+    assert '__atomic_load_n(&gpi_lifecycle, __ATOMIC_ACQUIRE)' in source
+    mem_entry = source.split('sweet_pas_mem_setup_once(struct gpm_receipt *out)', 1)[1]
+    assert mem_entry.index('sweet_pas_init_state() != GPI_COMPLETE') < mem_entry.index('receipt.stage_pa = gpi_success_pa;')
+    mem_finish = source.split('static enum gpi_rc gpm_finish', 1)[1].split('sweet_pas_mem_setup_once', 1)[0]
+    assert mem_finish.index('*out = (struct gpm_receipt)') < mem_finish.index('__atomic_store_n(&gpm_lifecycle')
+    assert '__atomic_store_n(&gpi_lifecycle' not in mem_entry + mem_finish
+    assert 'gpi_transaction(false, &receipt)' in source and 'gpi_transaction(true, &receipt)' in source
+    header = source_path.with_suffix('.h').read_text()
+    assert 'sweet_pas_mem_setup_once(struct gpm_receipt *out);' in header
     fixture = FIXTURE.read_text()
     assert fixture.count('\n@SOURCE@\n') == 1
     return fixture.replace('\n@SOURCE@\n', '\n' + source + '\n')
@@ -64,7 +77,7 @@ def main(temporary):
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     build = Path(temporary)
     unit, binary, log_path = build / 'test.c', build / 'test', build / 'run.log'
-    report = {'state':'running','inputs':hashes,'scope':'actual PAS INIT C; explicit CPU/SMC/DSB seams; no hardware qualification'}
+    report = {'state':'running','inputs':hashes,'scope':'actual INIT69 + INIT-to-MEM publication/transaction; explicit CPU/SMC/DSB seams; no hardware qualification'}
     env = os.environ.copy()
     env['ASAN_OPTIONS'] = 'halt_on_error=1'
     env['UBSAN_OPTIONS'] = 'halt_on_error=1:print_stacktrace=1'
@@ -94,10 +107,10 @@ def main(temporary):
     finally:
         (build/'result.json').write_text(json.dumps(report,indent=2)+'\n')
     print(log_path.read_text().splitlines()[-2])
-    print(f'PASS: PAS INIT host fixture; {build / "result.json"}')
+    print(f'PASS: PAS INIT/MEM host fixture; {build / "result.json"}')
     return 0
 
 
 if __name__ == '__main__':
-    with tempfile.TemporaryDirectory(prefix="gauguin-pas-init-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="gauguin-pas-init-mem-") as temporary:
         raise SystemExit(main(temporary))

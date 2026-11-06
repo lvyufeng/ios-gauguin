@@ -2,12 +2,90 @@
 
 ## Agent handoff / active work
 
-### 2026-11-06 - 0112 CPU staging: build qualified, image packaged, NOT booted
+### 2026-11-06 - 0112 CPU staging: fresh-log VERIFIED; probe + stage gates pass
 
-Status: native build succeeded, parent qualification passed and the0112 staging
-image is packaged and waiting for the parent's review before any
-temporary `fastboot boot`. User preference retained: DSH runs with
-danger-full-access for implementation/build, Codex plans and reviews.
+Next concrete action: treat0112 as the working baseline and preserve it. Do the
+next work offline: audit and prepare a bounded, read-only, same-boot CMDDB
+identity/bank-bounds check plus the actual DRV2 inherited state/ownership/
+aggregation, BEFORE any new RPMh/BCM vote or PAS INIT_IMAGE. Native
+msm_bus_fabric_rpmh.c does read BCM aux data and the real prior recovery cmd-db
+text already carries BCM aux, so do NOT claim aux is absent; the open questions
+are bank identity/version/bounds and inherited DRV2 floor at the same boot. Base
+facts are verified in ignored research/tmp/dsh-gpu-bus-audit/REPORT.md; its old
+numeric models are withdrawn and NO executable vectors are approved (any vote
+needs a reviewed numeric vector first). A successful CPU stage does NOT qualify
+PAS authentication or any GPU operation. User DSH fullaccess for implementation
+and Codex plans/reviews remains.
+
+Status: PASS on a fresh log. The published0112 image was temporarily booted
+once, the user confirmed physical touch unlock in THAT trial, then manually
+returned the phone to TWRP; the fresh read-only pull now shows the exact build
+identity, the complete owner record (64 pages, wimg=d0000006) and the complete
+stage record (6860/9524, pinned sha256). The parent's independent hardware log
+review PASSED (research/tmp/dsh-0112/hardware-parent-review.json). No new
+boot/flash/build/code/push was done for this verification; no observer or build
+is live. Phone is currently TWRP. User preference retained:
+DSH runs with danger-full-access for implementation/build, Codex plans and
+reviews. Broader goal unchanged: real GPU/Metal is NOT implemented.
+
+Fresh log (this boot only; the observer removed its failed output, so nothing
+was reused): research/tmp/p3-passtage-0112-native-recovered-20261106.txt,
+3750lines, 275714B, SHA256 201e59867baafe4feee97d19b105f7c02878e0ff1c40f93836d704514477334b,
+ring4194304/total275959/flush235, read-only dd from /dev/block/sda35
+(userdata114919714816B, blocks28055546..). `adb get-state` was recovery on the
+first check (no retries). identity: tools/kernel_banner.py against the image
+returned0; line1 carries the full xnu-dc38b2a01c6f471fa523f9f9cdab1f4e and
+boot-args on line411 contains exactly one
+sweettrial=passtage-0112-20261106-dsh-a1 (the only sweettrial= anywhere), with
+sweetpasprobe=1 sweetpasstage=1. This is the actual boot-args of this boot, not
+a reused banner.
+
+Raw records (no failures, in order):
+- `SWEET PAS PROBE: owner pa=00000000aa200000 bytes=100000 input=00000000a91cb000+1234000 tail=1034000`
+- `SWEET PAS PROBE: provenance fdt=00000000a8fca000+44137 shim=00000000a2480000+39000`
+- `SWEET PAS PROBE: complete unmanaged_pages=64 wimg=d0000006; metadata only, buffer/PAS/GPU untested`
+- `SWEET PAS STAGE: pinned MDT verified; mapping first16KiB NC/RW only`
+- `SWEET PAS STAGE: before zero/copy; reserved first16KiB only`
+- `SWEET PAS STAGE: complete metadata_bytes=6860 zero_tail_bytes=9524 sha256=6f2a0e35325097f98fded6123d755266cdbb44caa932be61251b65b5c516ac7b`
+(lines1947-1952). None of the invalid/mapping-failed/readback-mismatch/
+missing-asset stops appear. Last PET `count=200 at=4151740440 en=0 sts=0`; last
+NVT `packets=13960 accepted=13960 rejected=0 mask=0`; strict `panic(cpu` count0
+(the gPanicBase/exec DumpPanic strings are not panics); last HB
+`4 wdt=4 tick=875229 exp=859984 call=15250`. PET units are ticks; a conversion to
+seconds is NOT assumed.
+
+The owner PA this boot is whatever the shim placed (0xaa200000 here); it is a
+result of this boot, not a fixed address. Hard limits: the probe line itself says
+metadata only, buffer/PAS/GPU untested; the stage covers only the first16KiB
+metadata page (zero/copy + readback+tail equality in the consumer). This0112
+staging path invokes no PAS auth/reset, no SCM call and no GPU/power vote; the
+prior0110 SCM64 query probe exists in the source but was disabled for this trial
+(sweetscmprobe=0), and the RPMh/touch code is unrelated to staging. GPU/Metal
+execution is not implemented. User touch
+unlock is USER-confirmed; the log does not independently prove touch.
+Record research/tmp/dsh-0112/hardware-recovered-result.json (supersedes the
+earlier interim hardware-trial-result.json).
+
+Publish (this session): local HEAD764cd9d8c68d4a5a9049f4e2901197e9c61eab7f
+with only the preserved original tools/mkadt.py edit dirty. Sanitized public
+snapshot 0e38d207d7089b2cbe657fc290d175b3ca7a6838, single parent public
+2084afaf556e57623cf92b7ed48add5c86815509 (verified both local ref and remote
+ls-remote before the push; no force, no private ancestry, not HEAD), tree
+20c9e36e... identical to HEAD^{tree}. Exactly9 changed files, all text, no
+firmware/dumps/serials: NOTES.md; tests/fixtures/gauguin_pas_probe_host.c;
+tests/fixtures/gauguin_pas_stage_host.c; tests/test_pas_owner_probe.py;
+tests/test_pas_staging.py; tests/test_payload_zap_asset.py; tools/mkpayload.py;
+xnu/patches/0112-gauguin-pas-cpu-staging.patch; xnu/patches/series. Pushed only
+the new SHA to refs/heads/codex/gauguin-p0-ci-20261105, remote re-verified at
+the new SHA and the local branch ref moved2084afa->0e38d20 (guarded). Public
+push targets only `main` for workflow, so NO CI was dispatched. Record:
+research/tmp/dsh-0112/public-snapshot-0112.json.
+
+Image identity re-verified before the boot: shim/out/shim-p3-passtage-0112-native-20261106.img,
+exact19415040B, SHA256 17af66bf150a20a62673d5d0593512d6ae9478dd79598e8dc5cff6ab04e0e847,
+full kernel ID xnu-dc38b2a01c6f471fa523f9f9cdab1f4e and one occurrence of
+sweettrial=passtage-0112-20261106-dsh-a1 in the cmdline. No earlier0112 boot
+and no pre-existing output files.
 
 Code (commit65c12fbd623dbd2a030e547debd5b06aa45658e5): the packer emits the
 A615ZapMDT descriptor second word as the reserved16KiB descriptor page, not the
@@ -38,7 +116,7 @@ failed) with its unstripped object in ignored
 research/tmp/dsh-0112/contract-preserve/failed-Qz3IuF-kernel.unstripped.
 Parent qualification: research/tmp/p3-native-0112-fullaccess-qualification-20261106.json.
 
-Image (NOT BOOTED): shim/out/shim-p3-passtage-0112-native-20261106.img,
+Image: shim/out/shim-p3-passtage-0112-native-20261106.img,
 19415040B SHA 17af66bf150a20a62673d5d0593512d6ae9478dd79598e8dc5cff6ab04e0e847;
 payload research/tmp/p3-passtage-0112-native-20261106.bin SHA
 27947b6e431416e46c3cb80f37c7843032be91081e50d92964c66911a47869b6; evidence
@@ -49,11 +127,33 @@ b5ba7764..., original DTB, base ADT7d6d93be..., NVT007143e7... (PA
 (runtime selects1MiB); flags NVT1/hz30, GCC/SCM0, pasprobe1/passtage1; marker
 sweettrial=passtage-0112-20261106-dsh-a1; cmdline527B. Packed by
 research/tmp/dsh-0112/pack_native0112_fullaccess.py (parent-corrected copy; the
-original helper is preserved). The real low-PAS PA is unknown until boot.
+original helper is preserved). The real low-PAS PA was unknown at packaging
+time; this boot selected AA200000+100000 as recorded above, which is that
+boot's allocation, not a fixed address.
 
-Phone last confirmed TWRP; this image has NOT been booted; no GPU/PAS operation
-has run. Next step is the parent's image review, which must authorize any
-temporary `fastboot boot` separately.
+Hardware trial (EXACT once; no second boot, no flash/format/partition writes):
+preflight `adb get-state` returned recovery. tools/sweet-observe.sh was run
+unmodified, which armed misc boot-recovery, rebooted to the bootloader and issued
+the temporary `fastboot boot` (send18960KB0.438s, boot0.134s, total0.579s - the
+image was ACCEPTED). At181s the observer exited4 ("no recovery detected after
+181s") and its log pull failed, so it removed OUT by design; an `adb get-state`
+right after reported no device, which was only "no ADB observed" and was NOT
+proof of progress or of the kernel being stuck. The user later confirmed touch
+unlock and returned TWRP, and the subsequent fresh pull (above) identified this
+trial and passed both gates. Cycle log
+research/tmp/p3-passtage-0112-native-cycle-20261106.log (finish2026-11-06T04:03:18Z,
+12:03:18 CST). No GPU/PAS/SMC operation was invoked by this trial.
+
+Local commit: only this NOTES.md handoff (parent9946819); original tools/mkadt.py
+edit untouched and left uncommitted. Prior public sanitized snapshot
+0e38d207d7089b2cbe657fc290d175b3ca7a6838 on codex/gauguin-p0-ci-20261105 was
+pushed before this handoff. Native build context is still source112-dsh-contract
+/ gauguin.fbWj14 (kernel16798800B SHA8267eb94...9fdc, ID
+xnu-dc38b2a01c6f471fa523f9f9cdab1f4e).
+
+Reminder for the next stage: the staged16KiB metadata page is not firmware
+loaded and is not PAS owned-for-execution. Real PAS authentication/reset is a
+separate step needing its own review and must not start with a naive secure call.
 
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 

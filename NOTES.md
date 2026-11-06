@@ -51,6 +51,12 @@ retained. firmware_boot TRUE; init_ack_port_accepted/hfi_handshake_complete/
 gpu_execution/metal FALSE. All handles CLOSED; phoneTWRP. Current native
 recipe/source137 ggv3Il. No flash/format/GPT/destructive action.
 
+Physical137 handoff pushed and ls-remote verified
+ceb649eb3ff2e70ec88804c27156f52cf2fdb410, sole parentf3264ab, exactly
+NOTES/docs text paths, same tree as privatef991386. Publisher55525 CLOSED0;
+reportresearch/tmp/dsh-0137/public-handoff-0137.json. Private ancestry and
+raw logs/packet dumps/assets/serials remain local.
+
 NEXT138: implement native ACK compatibility in request ONLY: accept received
 length >=required prefix (INIT3,VERSION4), bounded by existing19-word GGH
 capacity; copy only the existing public receipt prefix, leave extra words

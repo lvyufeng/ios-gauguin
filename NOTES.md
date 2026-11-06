@@ -3,6 +3,64 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0113 real CMDDB/DRV2 readback VERIFIED; touch unlock retained
+
+Next concrete action: preserve0113 and qualify an actual enforced reset path
+before any maximum BCM vote/PAS INIT_IMAGE. The previous WDT PET path only
+writes RST while EN=0; stopping it is NOT a proven timeout. Audit all writers,
+use an exclusive opt-in watchdog test with native-sourced configuration and
+counter/readback evidence, and require an observed automatic recovery plus
+fresh same-trial logs before calling a later stateful operation time-bounded.
+Then implement the bounded BCM transport/SCM READY interface per
+research/tmp/dsh-0113/next-pas-parent-plan.json. Idle TCS state is not a current
+vote floor or controller lease. No BCM submission, PAS authentication/reset,
+GPU execution, Metal acceleration or high-refresh qualification is complete.
+
+0113 trial accepted once (send18976KB0.442s, boot0.134s,total0.582s).
+Observer finished182s/exit4, no recovery detected and removed failed log output.
+The user then explicitly confirmed THIS trial still touch-unlocks and manually
+returned TWRP. DSH fresh read-only pull succeeded; parent independently verified
+full banner xnu-966ac3a2b60d46a49c0f2124f4a1f028 AND the unique actual
+sweettrial=cmddb-0113-20261106-a1. No stale observer output was reused.
+Phone currently TWRP; no observer/build/DSH job remains live.
+
+Fresh log research/tmp/p3-cmddb-0113-native-recovered-20261106.txt,
+597248B/5715lines, SHA4df4747997a44ffacdedf52fb99e17e55a915e6b33fbd0c22c509348356fc66d.
+Complete RAW extraction131072B at
+research/tmp/p3-cmddb-0113-native-cmd-db-20261106.bin,
+SHA76634d6f254ff6436b10ce723550edc5b7d2f5e675b5cee38e01339b820ba441.
+All2048 contiguous chunks and BEGIN/END hashes verified. CMDDB both copies
+matched after65536 aligned loads; pmap/readonly map gates passed on8 CMDDB
+pages and1 RSC page. All6 BCM rows exactly match the reviewed board constants;
+BCM bank version is observed0x1000. Actual banks: ARC3/count22/version1000,
+ARC3/count9/version1000, BCM5/count40/version1000, VRM4/count65/version0100.
+The four ARC tables match the prior recovery text. No checksum validation was
+invented (native CMDDB parser ignores that field).
+
+DRV2 config80008104 => count8,ncpt16,end20cc; irq_enable1,irq_status0.
+Both full whitelist captures matched. All TCS0..7: WAIT0/CONTROL0/STATUS1/ENABLE0;
+therefore ACTIVE0/1 are two **candidate** idle slots, no ownership established.
+Six PLAN ONLY data words:6fffffff,6fffffff,2fffffff,6fffffff,6fffffff,60000008;
+waitmask3b. Terminal exact record says no bandwidth submitted/no GPU execution.
+0112 CPU staging still completed6860 MDT/9524zero-tail with the pinned SHA.
+Last NVT17952accepted/0rejected; last PETcount240 en0/sts0; no captured panic(cpu).
+Physical touch is user-confirmed, not inferred solely from these counters.
+Reports: research/tmp/dsh-0113/hardware-recovered-result.json and
+hardware-parent-review.json (PASS); cycle p3-cmddb-0113-native-cycle-20261106.log.
+
+Code commit f805edadc44f8a71302201f26b6428076dfca3ec, native source/build
+source113-codex/gauguin.67UNbi; exact qualified image/hashes are below.
+Published sanitized snapshot586ae424ef8aea7b0a7a75b5220b7c86c857d9b1,
+single parent4f254bee8c295f1b522e6c2c7ea985a77a7897c7, treefa97560663f1c163deb3015799915ded57b2b4e2
+matched private handoff8bf51773a1f37d9a1912f5bbccbd50c4fc33594a's tree. Only10
+reviewed text files; no private ancestry, firmware, dumps or device serials.
+No CI. Original tools/mkadt.py seven-line edit remains uncommitted.
+User's current division: Codex writes critical drivers/tests; DSH executes
+reviewed commands with full filesystem access and local-tools-only overlay.
+Active daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh goal unfinished.
+
+
+
 ### 2026-11-06 — 0113 native build/image qualified; hardware pending
 
 Code f805edadc44f8a71302201f26b6428076dfca3ec; all44 host files PASS on fresh

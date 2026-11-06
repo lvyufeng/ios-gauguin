@@ -1,10 +1,10 @@
 # A619 firmware asset and bootstrap
 
-The packer, native asset reader and bounded bootstrap engine are implemented.
-The engine runs against host controller seams and the actual HFI ring code;
-physical firmware execution is still unqualified. There is no new boot hook.
-The next integration must bind it to the retained0122 board owner, not create
-aliases of that owner's CSR, SMMU or low-memory mappings.
+The packer, native asset reader, bounded bootstrap engine, physical callback
+adapter and opt-in coordinator are implemented. Host controller seams exercise
+the engine and actual HFI rings; physical firmware execution remains unqualified.
+The adapter reuses the retained0122 board owner's CSR, SMMU and low-memory
+mappings without exporting pointers or creating aliases.
 
 Primary sources are the fixed gauguin kernel commit
 [19b63c8192b1c9b7c4d931d7d3be92024bc2d778](https://github.com/LineageOS/android_kernel_xiaomi_gauguin/tree/19b63c8192b1c9b7c4d931d7d3be92024bc2d778),
@@ -64,7 +64,7 @@ matching replies are required to qualify execution when this runs on hardware.
 No DCVS/BW tables, TEST, normal HFI_ON, SQE/CP commands, ZAP or Metal readiness
 are claimed by this bootstrap result. Those remain required later stages.
 
-## Board adapter still required
+## Physical adapter and opt-in coordinator
 
 | Engine window | Mapping base/bytes | Ownership |
 | --- | --- | --- |
@@ -76,11 +76,32 @@ are claimed by this bootstrap result. Those remain required later stages.
 | GBIF | 03d0c000 / 4000 | New narrow owner |
 | HFI shared RAM | owner+8c000 / 8000 CPU reservation | Reuse0122 NC owner |
 
-Callbacks must enforce fresh deadlines/WDT, same-boot clocks/CX/SMMU ownership,
-phase-specific reset/GX predicates, fault checks and masked NS IRQ delivery.
-Before GX power, also check the GPU core IRQ INTID332 (word10 bit12), beyond
-0122's existing GMU/SMMU masks. The old reset1/GX-off guard cannot be reused
-after an owned reset release or GX request. Capture uncertainty before a store
-and quarantine on failure; no retry, rollback or watchdog pet. Software timeouts
-cannot cancel hung fabric IO. Integrate and validate these callbacks and the
-coordinator before building one coherent temporary-boot trial.
+The physical adapter remains inside the sole board-owner translation unit.
+It invokes the cold SMMU transaction, retains its actual NC image and private
+CSR/SMMU mappings, then maps only the five new apertures above. An additional
+eight-second CPU deadline and initial13s WDT margin are fresh observations;
+the hardware watchdog is never rearmed or petted. Per-access live guards keep
+at least3s, check thread context, current fixed clocks/CX, masked NS IRQs and
+owned SMMU global/CB fault, route, TTBR, TCR, MAIR and context controls. GPU core
+INTID332 (word10 bit12) is checked before SMMU mapping and throughout bootstrap.
+
+Reset-release and GX-request intent are latched before their single stores.
+Before release, CM3 reset must remain1; after our release it must remain0.
+GX power/branch transitions are allowed only after our own boot-slumber OOB
+store. The old quiet clock helper keeps its stricter behavior for cold users.
+Firmware copy writes only TCM[1000,9000), rechecks guards around each1KiB chunk,
+and compares all8192 words. HFI uses the original NC reservation without a new
+alias. Failure quarantines both owners and the shared lease before synchronous
+logs; partial issued/compared counts are diagnostic evidence, not success.
+
+`sweetgmufw=1` requires `sweetgmuclk=1`, `sweetcxpower=1` and the existing BCM/
+PAS CPU-stage prerequisites, with PAS INIT/MEM disabled. Default0 calls no new
+firmware APIs. The coordinator validates the exact same-boot ARC plan and
+pinned asset before watchdog/RSC writes, then serializes BCM, ARC, CX, clocks,
+SMMU and firmware bootstrap. A fresh native reader revalidates the asset again
+before loading it. Success logs raw SMMU identity, TCM metadata, copy counts,
+firmware result, INIT/version replies and reset/GX/IRQ observations, and awaits
+the diagnostic watchdog reset. Failure consumes no poisoned receipt and never
+retries. Host typed board models do not constitute physical firmware ACKs.
+Software timeouts cannot cancel hung fabric IO. A full kernel/image and one
+coherent temporary-boot trial still require qualification.

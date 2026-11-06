@@ -3,9 +3,10 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source122-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source124-codex')))/'bsd/dev'
 S=D/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 inputs=[S,F,D/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
+inputs += [D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
 source=re.sub(r'^#include .*\n','',S.read_text(),flags=re.M)
 seams={
@@ -13,9 +14,11 @@ seams={
     '*v=*(volatile uint32_t *)(gmb_smmu+off);':'*v=mmio_read32(gmb_smmu+off);',
     '*(volatile uint32_t *)(gmb_smmu+off)=v;':'mmio_write32(gmb_smmu+off,v);',
     '*v=*(volatile uint64_t *)(gmb_smmu+off);':'*v=mmio_read64(gmb_smmu+off);',
-    '*(volatile uint64_t *)(gmb_smmu+off)=v;':'mmio_write64(gmb_smmu+off,v);'}
+    '*(volatile uint64_t *)(gmb_smmu+off)=v;':'mmio_write64(gmb_smmu+off,v);',
+    'uint32_t value=*(volatile uint32_t *)address;':'uint32_t value=fw_read32(address);',
+    '*(volatile uint32_t *)address=value;':'fw_write32(address,value);'}
 for old,new in seams.items():assert source.count(old)==1;source=source.replace(old,new)
-for asm,n in [('dmb oshld',3),('dmb oshst',2),('dsb sy',2)]:
+for asm,n in [('dmb oshld',4),('dmb oshst',3),('dsb sy',3)]:
     old='__asm__ volatile("'+asm+'" ::: "memory");';assert source.count(old)==n
     source=source.replace(old,'host_dsb();' if asm=='dsb sy' else 'host_barrier();')
 assert '__asm__' not in source

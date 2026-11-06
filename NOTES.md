@@ -2,6 +2,130 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0124 full local kernel/package/independent image review PASS; runtime verifier next
+
+Codea26328873f64b0ffb55e18408e9e29db54d8d49e, build-captured/handoff commit
+4803df62ac1d14b7f0e1c84cc8516b4206054f5b. Normal local build/dSYM/strip/install
+and extended strict artifact qualification both actualexit0 in gauguin.dNjjd4.
+No CI run, manual object repair, substitute stripping or warning bypass. Source
+is the exact118-patch5282-file host-tested54ead7a4...19f92 tree below; full61
+suite was already passed, so standard builder SKIP_TESTS1 was explicitly gated
+on unchanged test/source evidence. Kernel includes all20 new required defined
+symbols and exactly one of each actual memory/HFI/SMMU/board/asset/firmware
+archive member. These are BUILD proofs, not firmware/GPU hardware evidence.
+
+Native installed kernel16888944B SHA
+07670bfbd5f68272b3d9d5a2b61f9e36bb2056477ed552cf86a721529956c2bc;
+IDxnu-3cd3c8e985a94570bdd8c654f4515c98, Nov7 01:00:07CST banner. Manifest SHA
+3fa3202837ffa37db8526acb47d030324ddfb5a94b388c56a3aee2719d6eb096.
+Artifacts under .deps-cache/p0-20261105/build/runs/gauguin.dNjjd4/install and
+research/tmp/p3-native-0124-20261107-out. Qualification
+research/tmp/p3-native-0124-qualification-20261107.json SHA
+54465cb56bbe8d4d55e657e25871926749a2a70bd11abb587081b02d3704405b;
+DSH41408 terminal0 and native124-execution-result.json qualified-not-packaged.
+
+Subsequent separate DSH1772 package+independent review BOTH actualexit0,
+package-review-execution-result.json passed/inputs unchanged. Image
+shim/out/shim-p3-gmuf-0124-native-20261107.img19529728B SHA
+7f156ffd38f1b8d0b999734ca2410394e50548885531a902082ddd66460066bc;
+payload19202048B SHA
+0e1f6c925061f9cab4e452d088ad84308229a4a7cefa058bf52d02c106bf899f.
+Actual539-byte0x48/608 command line adds sweetgmufw1 and unique
+sweettrial=gmuf-0124-20261107-a1 to the existing clock/CX/BCM diagnostic flags.
+PAS INIT/MEM/otherprobes/PET/reboot remain0, NVT1/hz30/cpus8/sampler disabled.
+NVT sourcePA182554000/MDT182578000/GMU18257c000; same-kernel no-GMU control
+preserves earlier NVT/MDT placement/content exactly. Private pinned GMU32KiB
+is two16KiB pages after MDT. These are package source addresses, not the low
+runtime1MiB owner or GPU virtual addresses. No binary/dump/serial is in Git.
+
+Independent image-parent-review.json PASS, SHA
+186062f19416d1dfa6e60b105a6881a0405a3f08d3b8c66ec8259139cee2fcbb:
+exact proven wrapper/actual commandline,10 normalized native kernel segments,
+three pinned assets/ADT descriptors, pending PAS slots and2MiB zero tail;
+all113–118 and120 baseline pins preserved. Original mkadt seven-line diff
+still SHAa74a0418...454860. DSH36768 integration and1772 package handles closed0.
+
+Phone has NOT been accessed/booted in0124; last observedTWRP. Highest physical
+result remains0120 clock profile, not SMMU/FW/HFI/GPU/Metal. Full goal ACTIVE
+and incomplete. Next author/test strict verify_gmuf124.py retaining120's actual
+identity/image/CPUstage/CMDDB/WDT/BCM/CX/clock checks, updating exact source/
+flag/terminal, and adding real SMMU mapping/ATOS/routes/context and firmware
+reset/copy/OOB/HFI INIT/version receipts. Reject partial/failure/duplicate/stale
+logs; no parser relaxation to accept a failed hardware trial. Review that
+failure diagnostics will identify the first rejected hardware stage. Only then
+execute one already-authorized temporary fastboot boot with the exact image
+pin and bounded observer; NEVER flash/format. Attribution of a future recovery
+requires THIS-trial user confirmation, not0120's answer. No user action yet.
+Sanitized publication outcome/new SHA goes into
+research/tmp/dsh-0124/public-snapshot-0124.json; sole public parent713a869aa...
+e046d, never private ancestry. Codex authors/reviews/interprets, DSH executes.
+
+### 2026-11-07 — 0124 native firmware adapter/coordinator pass all61 host files; full local build next
+
+Previous goal turn was progress:0123 code259a27f/handoffa05a605, sanitized
+public713a869aa5772f9674fefe8a2f62fcecb6ee046d pushed/verified with soleparent
+8a7c7ed2...b62da. Full daily-use/GPU/Metal/RAM/storage/peripherals/90–120Hz goal
+remains ACTIVE/incomplete. Highest hardware remains0120 configured200MHz/
+native branchesON and user-confirmed autonomous recovery131s. No0121–0124
+physical SMMU/firmware/HFI/GPU/Metal result yet. Last observed phoneTWRP;
+no device IO this turn. Original mkadt diff/all113–120 artifacts preserved.
+
+Codex code commit a26328873f64b0ffb55e18408e9e29db54d8d49e adds118th patch,
+five changed native paths, no new native TU. Firmware adapter stays INSIDE
+the sole board TU, calls existing cold SMMU transaction and reuses private
+CSR/SMMU/NC aliases. Adds only narrow AO/RSC/PDCcfg/PDCseq/TCM/GBIF apertures
+specified in docs/gauguin-gmu-firmware.md. Revalidates real asset before board
+maps and again before TCM load. Fresh8s CPU deadline/initial13s WDT margin,
+3s per-access budgets; never rearm/PET. Checks NS IRQ policy including core332
+before SMMU mapping and throughout execution. Live clock helper preserves
+strict quiet behavior; allows GX power/branch changes only after owned OOB.
+
+Phase checks latch reset-release/OOB intent BEFORE each single Device store,
+complete write barriers before post-checks, enforce reset1 before own release
+and reset0 after. Every live guard checks current SMMU global/CB faults,
+micro-MMU, routes, SCTLR/ACTLR, TTBRs, TCRs, MAIRs and CBAR/CBA2R. Actual TCM
+copy touches only[1000,9000), compares8192 words with guards each1KiB chunk;
+HFI uses retained NC reservation, no aliases/raw pointer exports. Failure
+quarantines both owners/shared WDT BEFORE synchronous logs and records partial
+issued/compared counts; no retry/reset assertion/rollback. Public outputs are
+unchanged on failure. Software timeouts cannot cancel stalled MMIO.
+
+New sweetgmufw=1 coordinator mode requires gmuclk/CX/BCM/CPU-stage prerequisites,
+PAS INIT/MEM disabled. Actual immutable CMDDB ARC entries and pinned GMU asset
+are checked BEFORE watchdog/RSC writes. Then BCM/ARC/CX/clocks -> coherent
+SMMU/firmware/HFI bootstrap; raw receipts logged, bounded reset wait retained.
+Default0 invokes no new firmware APIs. Unstarted refusal also consumes WDT
+authorization. Success means only FW result + INIT/version replies, not DCVS/
+BW/TEST/normal HFI_ON/SQE/CP/ZAP/GPU commands/Metal. Do not claim host modeled
+receipts as physical firmware ACKs.
+
+DSH board-validation.json/V2 passed before later review changes; originals
+retained. Final integration-validation.json PASS: actual board2839 old+75 new
+map/copy/IRQ/phase/ignored-reset/fault/owner/budget cases; actual retained clock
+162 cases; actual coordinator261 retained+24 firmware cases (285 total); three
+real ARM64 TUs (board/CX/coordinator), qualified0120 make context. Source remains
+frozen after final six checks. No DSH edits/repairs/hand-written results/warning
+bypass. All61 host files then PASS on fresh strict118-patch replay5282 files:
+.deps-cache/p0-20261105/source124-codex SHA
+54ead7a46a93affcfbc97e73ff30d3f627631a9585ba5a35cd7d1a8195a19f92.
+Exact five native paths match reviewed combined; tested source/source123 baseline
+unchanged in research/tmp/dsh-0124/replay-full-host-result.json. DSH36768 final
+integration handle; earlier89038/27761/35016 closed0, actual reports audited.
+
+Prepared reviewed local build124.py and strict qualify_native0124.py under
+research/tmp/dsh-0124. Qualifier retains EVERY120 artifact/provenance/SDK/
+identity/install/archive check, adds20 required defined symbols and six actual
+GMU archive members, exact tested source/all61 host evidence. Next execute ONE
+normal deps/build-macos.sh run with committed head, then qualify; no manual
+object repair/strip substitute. Exact run/results go into
+research/tmp/dsh-0124/native124-execution-result.json when executed. No CI run.
+Then pinned GMU-asset package, independent image review and strict fresh runtime
+verifier BEFORE a single already-authorized temporary boot. Preserve proven
+loader/wrapper/NVT/MDT/storage boundaries; add only the GMU asset/flag/unique
+trial. No flash/format/GPT changes. Codex authors/reviews; DSH executes scripts
+in full access with existing0121 relay/local-tools overlays. Public parent is
+713a869aa...e046d; never push private ancestry. No user action required yet.
+
 ### 2026-11-07 — 0123 pinned GMU asset and native firmware/HFI engine pass all61 host files
 
 Previous0122 milestone completed at private21a8487; sanitized public

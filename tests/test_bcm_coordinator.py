@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual120 coordinator C: all149 old cases plus typed BCM -> ARC -> CX cases. No real waits or hardware."""
+"""Actual coordinator: retained legacy/CX/clock cases and native firmware ordering; typed seams, no hardware."""
 import argparse
 import hashlib
 import json
@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source120-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source124-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
@@ -42,6 +42,9 @@ def main(temporary):
              bus / 'gauguin_bus_probe.h', shared / 'gauguin_cx_rail.h', power / 'gauguin_cx_power.h', power / 'gauguin_gmu_clock.h',
              *(header_dev / name for name in ('gauguin_pas_stage.h', 'gauguin_bcm_transport.h',
                  'gauguin_wdt_lease.h', 'gauguin_bcm_plan.h'))]
+    files += [dev/name for name in ('gauguin_gmu_board.h','gauguin_gmu_asset.h',
+        'gauguin_gmu_firmware.h','gauguin_gmu_hfi.h','gauguin_gmu_memory.h',
+        'gauguin_gmu_smmu.h','cmd_db_snapshot.h')]
     for path in files:
         if not path.is_file():
             raise SystemExit(f'missing input: {path}')
@@ -83,8 +86,13 @@ def main(temporary):
         assert 'PASS: 100 retained + 49 MEM coordinator cases (149 total);' in output
         counts = re.search(r'PASS: 149 retained \+ (\d+) CX coordinator cases \((\d+) total\);', output)
         assert counts and int(counts[2]) == 149 + int(counts[1])
+        clock = re.search(r'PASS: 241 retained \+ (\d+) GMU clock coordinator cases \((\d+) total\)', output)
+        firmware = re.search(r'PASS: (\d+) retained \+ (\d+) GMU firmware coordinator cases \((\d+) total\)', output)
+        assert clock and firmware and int(clock[2]) == int(firmware[1])
+        assert int(firmware[2]) == 24 and int(firmware[3]) == int(firmware[1]) + 24
         report.update(state='passed', original_cases=58, init_cases=42, mem_cases=49,
-                      cx_cases=int(counts[1]), total_cases=int(counts[2]))
+                      cx_cases=int(counts[1]), clock_cases=int(clock[1]),
+                      firmware_cases=int(firmware[2]), total_cases=int(firmware[3]))
     except Exception as error:
         report.update(state='failed', error=str(error))
         print(f'FAIL: {error}; {log_path}', file=sys.stderr)

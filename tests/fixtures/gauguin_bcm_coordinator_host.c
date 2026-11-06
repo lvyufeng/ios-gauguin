@@ -15,6 +15,9 @@
 #include "gauguin_cx_rail.h"
 #include "gauguin_cx_power.h"
 #include "gauguin_gmu_clock.h"
+#include "gauguin_gmu_board.h"
+#include "gauguin_gmu_asset.h"
+#include "cmd_db_snapshot.h"
 #define GAUGUIN 1
 #define KERN_SUCCESS 0
 #define NSEC_PER_SEC UINT64_C(1000000000)
@@ -40,7 +43,9 @@ static struct {
     enum gpi_rc mem_result;
     enum gpm_state mem_state;
     struct gpm_receipt mem_receipt;
-    int cxpower,after_rail_context,after_power_context,gmuclk;
+    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw;
+    unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
+    enum gmb_result fw_result;struct gmf_plan fw_plan;struct gmb_firmware_receipt fw_receipt;
     unsigned clock_queries,clock_calls,clock_states;enum gcx_rc clock_result;enum gcx_state clock_state;struct gmc_receipt clock_receipt;
     unsigned cx_requested_queries,cx_plans,rail_calls,rail_state_queries,power_calls,power_state_queries;
     enum gbcmt_rc rail_result;
@@ -75,6 +80,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     if(!strcmp(key,"sweetpasinit")){*(int*)out=mock.pasinit;return true;}
     if(!strcmp(key,"sweetpasmem")){*(int*)out=mock.pasmem;return true;}
     if(!strcmp(key,"sweetgmuclk")){*(int*)out=mock.gmuclk;return true;}
+    if(!strcmp(key,"sweetgmufw")){*(int*)out=mock.gmufw;return true;}
     if(!strcmp(key,"sweetcxpower")){*(int*)out=mock.cxpower;return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,off_flags[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known flag");return false;
@@ -112,6 +118,7 @@ void IOSleep(unsigned ms)
             "enabled MEM must complete once before post-transfer reset wait");
         CHECK(mock.cxpower==0 || (mock.rail_calls==1 && mock.rail_result==GBCMT_OK &&
             mock.power_calls==1 && mock.power_result==GCX_OK),"CX mode waits only after both ARC/CX complete");
+        CHECK(mock.gmufw==0||(mock.fw_calls==1&&mock.fw_result==GMB_OK),"firmware mode waits only after successful typed bootstrap");
         CHECK(mock.after_sleeps<30,"bounded30 requested seconds");++mock.after_sleeps;mock.now+=NSEC_PER_SEC;
     }
 }
@@ -153,7 +160,8 @@ void gauguin_wdt_lease_quarantine(void)
     CHECK(mock.tx_result!=GBCMT_OK || (mock.init_calls==1 && mock.init_result!=GPI_OK) ||
         (mock.mem_calls==1 && mock.mem_result!=GPI_OK) ||
         (mock.rail_calls==1 && mock.rail_result!=GBCMT_OK) ||
-        (mock.power_calls==1 && mock.power_result!=GCX_OK) || (mock.clock_calls==1 && mock.clock_result!=GCX_OK) || mock.after_sleeps==30,
+        (mock.power_calls==1 && mock.power_result!=GCX_OK) || (mock.clock_calls==1 && mock.clock_result!=GCX_OK) ||
+        (mock.fw_calls==1 && mock.fw_result!=GMB_OK) || mock.after_sleeps==30,
         "quarantine after TX/INIT/MEM/ARC/CX failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
@@ -311,6 +319,32 @@ enum gcx_rc sweet_gmu_clock_once(struct gmc_receipt *out){
  return mock.clock_result;
 }
 enum gcx_state sweet_gmu_clock_state(void){CHECK(mock.clock_calls==1 && mock.clock_result!=GCX_OK && mock.quarantines==1,"clock state only after failed result and quarantine");++mock.clock_states;return mock.clock_state;}
+bool sweet_bus_arc_entries(struct ndb_entry *out)
+{
+ CHECK(mock.gmufw==1&&mock.plans==1&&!mock.arms&&!mock.arc_calls,"ARC view after immutable plan, before WDT");
+ ++mock.arc_calls;if(mock.fw_fail_step==1)return false;memset(out,0,4*sizeof(*out));out[0].address=0x30000;return true;
+}
+bool gmf_plan_build(const struct ndb_entry *in,struct gmf_plan *out)
+{
+ CHECK(in&&out&&mock.arc_calls==1&&!mock.arms&&!mock.fwplan_calls&&in[0].address==0x30000,"real ARC output passed once before WDT");
+ ++mock.fwplan_calls;if(mock.fw_fail_step==2)return false;*out=mock.fw_plan;return true;
+}
+bool sweet_gmu_asset_view(struct gma_view *out)
+{
+ CHECK(out&&mock.fwplan_calls==1&&!mock.arms&&!mock.asset_calls,"asset verified after real plan, before WDT");
+ ++mock.asset_calls;if(mock.fw_fail_step==3)return false;*out=(struct gma_view){(const uint8_t *)(uintptr_t)0xb0000000,0xb0000000,32768};return true;
+}
+enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
+{
+ CHECK(s&&p&&out&&mock.gmufw==1&&mock.clock_calls==1&&mock.clock_result==GCX_OK&&!mock.fw_calls&&!mock.quarantines&&!strcmp(mock.order,"RPWTACG"),"firmware after completed clock only");
+ CHECK(!memcmp(s,&mock.ready,sizeof(*s))&&!memcmp(p,&mock.fw_plan,sizeof(*p)),"exact claimed owner and same-boot firmware plan");
+ ++mock.fw_calls;order('F');
+ if(mock.fw_result==GMB_OK)*out=mock.fw_receipt;
+ else {memset(out,0xa5,sizeof(*out));if(mock.fw_result>=GMB_CONTEXT)gauguin_wdt_lease_quarantine();}
+ return mock.fw_result;
+}
+enum gmb_state sweet_gmu_firmware_state(void)
+{CHECK(mock.fw_calls==1&&mock.fw_result!=GMB_OK,"state only after refused firmware return");++mock.fw_state_queries;return mock.fw_result>=GMB_CONTEXT?GMB_QUARANTINED:GMB_IDLE;}
 #define printf test_printf
 @SOURCE@
 #undef printf
@@ -362,6 +396,7 @@ static void run_worker(void)
         "MEM off preserves 116 with no MEM helper/state access");
     if(mock.init_result!=GPI_OK || !mock.init_calls) CHECK(!mock.mem_requested_queries && !mock.mem_calls && !mock.mem_state_queries,
         "no MEM option query or API before successful INIT");
+    if(!mock.gmufw)CHECK(!mock.arc_calls&&!mock.fwplan_calls&&!mock.asset_calls&&!mock.fw_calls&&!mock.fw_state_queries,"firmware default0 makes no new API calls");
 }
 static void success(void)
 {
@@ -710,6 +745,41 @@ static void clock_cases(void){
  reset_cx("CX error prevents clock");mock.gmuclk=1;mock.power_result=GCX_READBACK;run_worker();CHECK(!mock.clock_queries&&!mock.clock_calls,"no clock before successful CX");
  for(int context=1;context<=3;++context){reset_cx("clock refuses lost context");mock.gmuclk=1;mock.after_power_context=context;mock.clock_result=GCX_CONTEXT;run_worker();CHECK(!mock.after_sleeps&&mock.clock_calls==1&&mock.markers==mock.flushes,"context failure stops");}
 }
+static void reset_fw(const char *name)
+{
+ reset_cx(name);mock.gmuclk=mock.gmufw=1;mock.fw_plan.address[0]=0x30000;
+ mock.fw_plan.selector[GMF_GFX]=mock.fw_plan.selector[GMF_MX]=7;
+ mock.fw_receipt.phase=GMF_DONE;mock.fw_receipt.firmware.fw_result=0xbabeface;
+ mock.fw_receipt.firmware.reported_version=0x100b0000;
+ mock.fw_receipt.firmware.tcm_written=mock.fw_receipt.firmware.tcm_checked=8192;
+}
+static void firmware_cases(void)
+{
+ for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_fw("invalid firmware flag");mock.gmufw=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.arc_calls,"flag exact1");}
+ reset_fw("firmware requires clocks");mock.gmuclk=0;run_worker();CHECK(!mock.claims&&!mock.arms,"clock prerequisite checked before wait");
+ reset_fw("firmware requires CX");mock.cxpower=0;run_worker();CHECK(!mock.claims&&!mock.arms,"CX prerequisite checked before wait");
+ for(unsigned n=1;n<=3;n++){
+  reset_fw("pre-arm asset/plan failure");mock.fw_fail_step=n;run_worker();
+  CHECK(!strcmp(mock.order,"RP")&&!mock.arms&&!mock.transactions&&!mock.fw_calls&&!mock.quarantines,"all firmware preflight failures precede watchdog/RSC");
+  CHECK(has("real ARC plan/pinned asset unavailable")&&!has("a5a5"),"failed preflight output never consumed");
+ }
+ for(int n=1;n<=3;n++){
+  reset_fw("context lost before preflight");mock.after_plan_context=n;run_worker();
+  CHECK(!mock.arc_calls&&!mock.asset_calls&&!mock.arms&&!mock.fw_calls,"lost context cannot acquire asset/plan or WDT");
+ }
+ reset_fw("full firmware order");run_worker();
+ CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.fw_calls==1&&!mock.fw_state_queries&&mock.after_sleeps==30,"current plan/asset before WDT, real firmware API after clock, bounded reset wait");
+ CHECK(mock.arc_calls==1&&mock.fwplan_calls==1&&mock.asset_calls==1,"one same-boot preflight");
+ CHECK(has("firmware complete phase=6 fw=babeface version=100b0000 copy=8192/8192")&&count("tcm_version")==5,"exact dynamic helper receipt logged");
+ CHECK(has("INIT/version diagnostic done")&&!has("GMU clock trial done"),"correct final stage marker");
+ reset_fw("clock failure forbids firmware");mock.clock_result=GCX_READBACK;run_worker();CHECK(!mock.fw_calls&&!mock.after_sleeps,"no firmware after failed clock");
+ reset_fw("watchdog failure forbids all stores");mock.arm_fail=1;run_worker();CHECK(!mock.transactions&&!mock.fw_calls&&mock.asset_calls==1,"preflight cannot bypass watchdog failure");
+ for(unsigned n=GMB_ARGUMENT;n<=GMB_FIRMWARE;n++){
+  reset_fw("every firmware refusal terminal");mock.fw_result=(enum gmb_result)n;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.fw_calls==1&&mock.fw_state_queries==1&&!mock.after_sleeps&&mock.quarantines==1,"one helper refusal, no retry/cleanup/wait or duplicate quarantine");
+  CHECK(has("firmware stopped")&&!has("firmware complete")&&!has("a5a5"),"failed receipt never consumed");
+ }
+}
 int main(void)
 {
     legacy_cases();
@@ -729,5 +799,7 @@ int main(void)
         cases-before_cx,cases);
     CHECK(cases==241,"all241 coordinator cases retained");unsigned before_clock=cases;clock_cases();
     printf("PASS: 241 retained + %u GMU clock coordinator cases (%u total)\n",cases-before_clock,cases);
+    unsigned before_fw=cases;firmware_cases();
+    printf("PASS: %u retained + %u GMU firmware coordinator cases (%u total); typed seams only\n",before_fw,cases-before_fw,cases);
     return 0;
 }

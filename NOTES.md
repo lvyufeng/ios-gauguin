@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual135 native-order SYS_BUS store62 still reads0; firmware remains under reset
+
+THIS goal turn made progress: complete134 and135 native builds/images/readers
+passed; ONE physical trial each,134 CM3 check passes/ICACHE refuses,135
+restores proven native BUS-before-cache order but BUS itself refuses. The
+order fix is valid source fidelity, NOT a demonstrated fix for zero readback.
+Full daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh goal stays ACTIVE.
+No firmware execution/reset release/ACKs/GPU/Metal qualification.
+
+DSH54863 CLOSED0; actual135 observer0/full verifier2. Start
+2026-11-06T21:52:07.340602Z,finish21:54:19.123160Z; Send19088KB0.445s,
+Boot0.134s/total0.581s. Recovery observed131s, manual reset attribution UNKNOWN,
+no new user UI/touch fact. Fresh4096lines/460885B raw
+p3-gmuf-0135-native-observer-20261107.txt SHA
+3f91a42a76c30baab9daa3c3e3421b9a52f6872280ff6ee3c1c0976fa00d3088;
+cycle1077B SHA639deb20fe899eeee280820c1776c6515fa526d5152405747e39109465fea08e.
+Same-boot CMDDB131072B SHA4b026f223fdf794c06f46f82f7ddda6d9902512feb132ff7aa840ff374ecebc5.
+SMMU131/140,PDC6,8192 TCM copy/readback,AO3f/check3b,CM3raw52/NMI-clear
+again complete. Exact refusal: phase0/check1/CSR off0103c/PA03d7d03c,
+native GMU_SYS_BUS_CONFIG word1f40f, maskffffffff, requested1/actual0.
+Writes62/polls0, reset1/release0/OOB0,FW0/version0,GFSR0,FSR400/400 with
+named faults0,AOstatus0/info0. ICACHE/DCACHE entries not yet attempted in135.
+DSH81956 CLOSED0, actual audit_failed_trial135.py0, state
+bound-TCM-copy-CM3-NMI-clear-native-order-SYSBUS-refusal, inputs unchanged.
+This binds source order and the strict-reader SMMU stage prefix/cached raw
+records as a subset ONLY; original hardware-full-verification.json rejection
+is retained. All owned handles (including runtime56803) CLOSED; phoneTWRP.
+
+Pinned native adreno_a6xx_gmu.c312-322 writes all three fixed1 values with
+no equality-read check; kgsl_gmu_core.c221-245 confirms guarded offset/wmb/
+raw write, not readback verification. Registers' per-bit/readback semantics
+remain undocumented. Web search also found A630 snapshots reading1, so do
+NOT infer universal read-only/zero/self-clearing semantics or invented mask.
+Actual134 ICACHE0 and135 SYS_BUS0 prove only these immediate samples.
+
+NEXT: prepare a narrow136 experiment matching that native three-register
+write protocol: retain135 order/fixed1 and existing guarded write/barrier/read,
+refuse all-ones/IO/guard failures, privately cache all three raw observations
+with equality explicitly UNQUALIFIED. It must not claim those writes were
+accepted or caches disabled. Preserve EVERY other config/reset/GX/IRQ/fault/
+deadline/TCM/ACK check; genuine fresh FW result and INIT/version replies are
+still required, never replaced by raw observations. No new MMIO/retry or
+field-mask invention. Test0/1/synthetic other bits, all-ones per slot, cache/
+repeat/output preservation, failure at all callbacks and partial post-
+quarantine records; distinguish ignored-write observations from callback
+failure. Compare unchanged original-model I/O against frozen135, all61 hosts
+and CURRENT135 fzguBO native TUs. No136 code yet. Original seven-line mkadt
+diff untouched; no flash/format/GPT/destructive action. Codex critical code/
+review/Git, DSH exact full-access compile/test/boot execution.
+
 ### 2026-11-07 — complete135 native image and strict runtime readers qualified; one physical trial next
 
 DSH34635 CLOSED0; actual standard local build135.py build0/qualification0,

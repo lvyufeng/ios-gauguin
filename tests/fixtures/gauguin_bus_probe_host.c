@@ -285,7 +285,7 @@ static void set_both(unsigned offset,uint32_t value)
 static unsigned tcs(unsigned t,unsigned off) { return 0xd00+t*0x2a0+off; }
 static void reset(const char *name)
 {
-    free(mock.allocation); memset(&mock,0,sizeof(mock)); bus_work=NULL; bus_started=0;
+    free(mock.allocation); memset(&mock,0,sizeof(mock)); bus_work=NULL; bus_started=0;bus_plan_ready=0;
     case_name=name; ++cases; mock.enabled=1;
     memcpy(db[0],positive_db,DB_BYTES); memcpy(db[1],positive_db,DB_BYTES);
     memset(rsc,0,sizeof(rsc)); mock.initial_config=(8u<<12)|(8u<<27);
@@ -514,6 +514,31 @@ static void cx_cases(const char *log_path)
     mock.vote=1;cx_success();
 }
 
+static void arc_cases(void)
+{
+    cx_reset("ARC export uses published CPU copies only");
+    struct ndb_entry entries[4],before[4];memset(entries,0xa7,sizeof(entries));memcpy(before,entries,sizeof(before));
+    CHECK(!sweet_bus_arc_entries(entries)&&!memcmp(entries,before,sizeof(entries))&&!mock.map_count,
+        "unpublished export leaves output/hardware untouched");
+    cx_success();unsigned maps=mock.map_count,loads=mock.db_loads;
+    db[0][144]^=1;db[1][144]^=1; /* Change the fake device after capture. */
+    CHECK(sweet_bus_arc_entries(entries),"export already captured immutable entries");
+    const char *names[]={"cx.lvl","mx.lvl","gfx.lvl","xo.lvl"};
+    const uint32_t address[]={0x30000,0x30010,0x30050,0x300a0};
+    for(unsigned i=0;i<4;i++)CHECK(!strcmp(entries[i].name,names[i])&&entries[i].address==address[i],"exact ordered ARC resources");
+    memset(entries,0xa7,sizeof(entries));memcpy(before,entries,sizeof(before));
+    bus_work->raw[1][DB_BYTES-1]^=1;
+    CHECK(!sweet_bus_arc_entries(entries)&&!memcmp(entries,before,sizeof(entries)),"changed retained copy rejects atomically");
+    bus_work->raw[1][DB_BYTES-1]^=1;
+    bus_work->raw[0][144+72]='q';bus_work->raw[1][144+72]='q';
+    CHECK(!sweet_bus_arc_entries(entries)&&!memcmp(entries,before,sizeof(entries)),"last failed lookup publishes no earlier entries");
+    memcpy(bus_work->raw[0],positive_cx_db,DB_BYTES);memcpy(bus_work->raw[1],positive_cx_db,DB_BYTES);
+    for(int context=1;context<=3;context++){mock.context=context;CHECK(!sweet_bus_arc_entries(entries)&&!memcmp(entries,before,sizeof(entries)),"invalid export context");}
+    mock.context=0;CHECK(!sweet_bus_arc_entries(NULL),"NULL export rejected");
+    CHECK(sweet_bus_arc_entries(entries)&&mock.map_count==maps&&mock.db_loads==loads&&!mock.rsc_loads,
+        "no recapture/map/RSC access");
+    cx_no_hardware();
+}
 int main(int argc,char **argv)
 {
     make_positive_db();
@@ -644,6 +669,7 @@ int main(int argc,char **argv)
     const unsigned retained=cases;
     cx_cases(argv[4]);
     printf("PASS: 106 retained + %u CX prepare cases (%u total); real parser/planners, one CMDDB snapshot, no RSC\n",cases-retained,cases);
+    arc_cases();
     free(mock.allocation); mock.allocation=NULL; bus_work=NULL;
     printf("PASS: %u worker cases; ASan/UBSan; read-only mappings, exact MMIO whitelist, actual RAW log exported; SHA itself is a seam\n",cases);
     return 0;

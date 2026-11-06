@@ -20,7 +20,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-BASELINE = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source118-codex')))
+BASELINE = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source123-codex')))
 CFLAGS = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-pedantic',
           '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-g', '-O1']
 

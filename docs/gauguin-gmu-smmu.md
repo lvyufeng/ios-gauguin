@@ -186,5 +186,7 @@ bits, clearable faults, sticky faults, read-only stalled status and all-ones
 reads. The firmware adapter model retains raw0x400 for both healthy contexts;
 its old reserved-bit0 fault injection now uses actual TF bit1. Under the same
 updated model,128 stops after140 with READBACK while129 completes the cold
-transaction. These are software regressions; physical129 and firmware startup
-remain to be tested.
+transaction. Physical129 subsequently completed the cold transaction, published
+the two owned routes and resumed the micro-MMU, then stopped during the initial
+firmware RSC configuration. Firmware startup remains unqualified; see the
+[firmware contract](gauguin-gmu-firmware.md).

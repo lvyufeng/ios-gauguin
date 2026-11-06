@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source123-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source130-codex')))/'bsd/dev'
 names=['gauguin_gmu_firmware','gauguin_gmu_hfi','gauguin_gmu_memory','cmd_db_snapshot']
 sources=[D/(n+'.c') for n in names];fixture=R/'tests/fixtures/gmu-firmware/firmware_host.c'
 inputs=sources+[D/(n+'.h') for n in names]+[fixture]

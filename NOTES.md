@@ -3,6 +3,45 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0113 native build/image qualified; hardware pending
+
+Code f805edadc44f8a71302201f26b6428076dfca3ec; all44 host files PASS on fresh
+source113-codex,5254files, SHA25625e512230ac39005af541a11cc57add56b7bb7222d07a9ec1a87dcdf4fcc9f8e.
+DSH normal native build gauguin.67UNbi finished make0/statebuilt, normal dSYM,
+strip/install. Manifest SHA06d8539c8a86d72fb0a8b06a498b1834a9ac6f6bbd42a7db569dc9fd5d4fc0d9.
+Kernel16815816B SHA26694e5d88e9c29495c317adb14f48a9f6688622390d802c34bb0b645334e906,
+ID xnu-966ac3a2b60d46a49c0f2124f4a1f028, banner Nov6 14:45:30 CST.
+Qualification research/tmp/p3-native-0113-qualification-20261106.json verifies
+source/all recorded inputs, HEAD/original mkadt diff, installed ARM64 kernel,
+defined0113/NVT/PAS/SHA symbols and matching archive version.o. No hardware claim.
+
+Image shim/out/shim-p3-cmddb-0113-native-20261106.img,19431424B,
+SHA7615dd2a0295760f8b76d50c661c0023a66079aa961fb1fa8f5780c32523fe73;
+payload research/tmp/p3-cmddb-0113-native-20261106.bin,
+SHA83fc542aa9f5e41b49e8e87b31924cd80c1b35e7b00c6218aff64d96629dff77.
+Same verified shim/DTB/baseADT/NVT/MDT pins. NVT PA182544000/raw139264/res147456;
+MDT PA182568000/raw6860/res16384; all padding and runtime request bounds checked.
+Actual payload command-line field536B (not an ADT boot-args property):
+sweetbusprobe1, sweettouchmode0, NVT1/hz30, GCC/SCM0, PASprobe/stage1, cpus8,
+sweettrial=cmddb-0113-20261106-a1. Parent independent image/command-line review
+PASS (research/tmp/dsh-0113/image-parent-review.json); baseline112 image unchanged.
+Initial packaging stopped before writing because its report path still named112;
+protection preserved112 evidence. Codex corrected only the path; DSH repack exit0
+(native113-repackage-result.json). The failed pipeline record remains unchanged;
+no rebuild was required. Full image evidence: p3-cmddb-0113-native-evidence-20261106.json.
+
+Phone last confirmed TWRP; **0113 NOT BOOTED yet**. Next: sanitized public
+snapshot (never private ancestry), temporary boot once/180s observation, user
+touch check/manual TWRP, then fresh log matched by full banner plus unique trial.
+Use tools/extract_cmd_db_snapshot.py on that fresh log and inspect actual BCM/ARC
+metadata plus DRV2. This image submits no bandwidth, PAS call or GPU operation.
+Native generated context now source113-codex/gauguin.67UNbi, not112/fbWj14.
+Codex writes critical code; DSH executes reviewed build/test/boot commands with
+full filesystem access and local-tools-only overlay. Original mkadt edit remains
+uncommitted; no CI run. Broader GPU/Metal/daily-use goal remains active.
+
+
+
 ### 2026-11-06 — 0113 native build+qualification PASS; packaging FAILED (path collision)
 
 DSH ran the reviewed `research/tmp/dsh-0113/build113.py` exactly once from the

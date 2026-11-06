@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source115-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source116-codex'))) / 'bsd/dev'
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
 
@@ -25,7 +25,7 @@ def main(temporary):
     source = dev / 'gauguin_bcm_coordinator.c'
     staged = dev.parents[1]
     entries = (staged / 'bsd/conf/files').read_text()
-    for name in ('gauguin_bcm_transport.c', 'gauguin_bcm_coordinator.c'):
+    for name in ('gauguin_bcm_transport.c', 'gauguin_bcm_coordinator.c', 'gauguin_pas_init.c'):
         assert entries.count('bsd/dev/' + name + '\t\tstandard') == 1
     init = (staged / 'bsd/kern/bsd_init.c').read_text()
     blocks = re.findall(r'#if defined\(GAUGUIN\)\n([^#]+)#endif', init)
@@ -33,7 +33,7 @@ def main(temporary):
     assert any('\tsweet_bcm_vote_init();\n' in block for block in blocks)
     assert any('extern void sweet_bcm_vote_init(void);\n' in block for block in blocks)
     files = [source, FIXTURE, *(dev / name for name in (
-        'gauguin_pas_stage.h', 'gauguin_bus_probe.h', 'gauguin_bcm_transport.h', 'gauguin_wdt_lease.h')),
+        'gauguin_pas_stage.h', 'gauguin_bus_probe.h', 'gauguin_bcm_transport.h', 'gauguin_wdt_lease.h', 'gauguin_pas_init.h')),
         baseline / 'gauguin_bcm_plan.h']
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     build = Path(temporary)
@@ -61,7 +61,10 @@ def main(temporary):
                     raise RuntimeError(f'{command[0]} exited {result.returncode}')
         if {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in files} != hashes:
             raise RuntimeError('inputs changed during run')
-        report['state'] = 'passed'
+        output = log_path.read_text()
+        assert 'PASS: retained 58 original coordinator cases with INIT disabled' in output
+        assert 'PASS: 58 original + 42 INIT coordinator cases (100 total);' in output
+        report.update(state='passed', original_cases=58, init_cases=42, total_cases=100)
     except Exception as error:
         report.update(state='failed', error=str(error))
         print(f'FAIL: {error}; {log_path}', file=sys.stderr)

@@ -80,12 +80,12 @@ static int host_printf(const char *s,...)
         CHECK(h.quarantine==1&&!h.live&&h.fw_reply_lines++==0&&h.fw_bootcfg_lines==3);
         const char *expected=h.engine_fail==13?
             "SWEET GMU HFI REPLY: phase=5 site=1 reason=7 queue=2 request=00100500 expected=3 words=0 captured=0\n":
-            "SWEET GMU HFI REPLY: phase=5 site=2 reason=3 queue=1 request=00100500 expected=3 words=19 captured=19\n";
+            "SWEET GMU HFI REPLY: phase=5 site=2 reason=4 queue=1 request=00100500 expected=3 words=19 captured=19\n";
         CHECK(!strcmp(text,expected));
     }
     if(strstr(text,"SWEET GMU HFI WORD:")){
         unsigned index=h.fw_word_lines++;CHECK(h.quarantine==1&&!h.live&&h.fw_reply_lines==1&&index<19&&h.engine_fail==12);
-        uint32_t raw=index==0?0x0012137e:index==1?0x00100500:0xa5000000u+index;char expected[192];
+        uint32_t raw=index==0?0x0012137e:index==1?0x00000500:0xa5000000u+index;char expected[192];
         snprintf(expected,sizeof(expected),"SWEET GMU HFI WORD: index=%u value=%08x\n",index,raw);CHECK(!strcmp(text,expected));
     }
     return n;
@@ -336,8 +336,8 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     if(h.engine_fail==4)return GMF_FAULT;
     if(h.engine_fail==12||h.engine_fail==13){
         struct gmf_reply_diagnostic *d=&ctx->reply_diagnostic;
-        *d=(struct gmf_reply_diagnostic){.valid=1,.phase=GMF_HANDSHAKE,.site=h.engine_fail==13?GMFR_DRAIN:GMFR_REQUEST,.reason=h.engine_fail==13?GMFR_LIMIT:GMFR_SIZE,.queue=h.engine_fail==13?2:1,.request_header=0x00100500,.expected_words=3,.words=h.engine_fail==13?0:19,.captured=h.engine_fail==13?0:19};
-        for(unsigned i=0;i<d->captured;i++)d->data[i]=i==0?0x0012137e:i==1?0x00100500:0xa5000000u+i;
+        *d=(struct gmf_reply_diagnostic){.valid=1,.phase=GMF_HANDSHAKE,.site=h.engine_fail==13?GMFR_DRAIN:GMFR_REQUEST,.reason=h.engine_fail==13?GMFR_LIMIT:GMFR_ECHO,.queue=h.engine_fail==13?2:1,.request_header=0x00100500,.expected_words=3,.words=h.engine_fail==13?0:19,.captured=h.engine_fail==13?0:19};
+        for(unsigned i=0;i<d->captured;i++)d->data[i]=i==0?0x0012137e:i==1?0x00000500:0xa5000000u+i;
         return GMF_ACK;
     }
     CHECK(!o->guard(NULL,GMF_RESET)&&!o->guard(NULL,GMF_DONE+1));

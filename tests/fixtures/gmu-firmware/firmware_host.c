@@ -15,6 +15,8 @@ struct fake {struct gmf_context channel;struct gmf_plan plan;
     unsigned cache_stores,cache_bad,cache_override;uint32_t cache_readback,cache_raw[3];
     unsigned inject_queue,inject_words,flood_queue,response_flood,response_wide,version_status,drain_sticky,after_init_drain;
     uint32_t inject_data[19];
+    unsigned native_ack,native_words[2],native_echo,native_bad_seq,native_bad_type,native_bad_queue;
+    uint32_t native_status[2];
     bool nested;};
 static bool tick(struct fake *f){return ++f->step!=f->fail;}
 static bool guard(void *cookie,enum gmf_phase phase)
@@ -76,9 +78,22 @@ static void response(struct fake *f)
     if(f->timeout==4+id)return;
     if(f->debug){uint32_t msg=0x10165;reply(f,1,&msg,1);}
     if(f->response_flood){uint32_t msg=0x10165;for(unsigned i=0;i<16;i++)reply(f,1,&msg,1);return;}
+    if(f->native_ack){
+        unsigned n=f->native_words[id];CHECK(n<=20);uint32_t raw[20];
+        for(unsigned i=0;i<20;i++)raw[i]=0xc5000000u+i;
+        raw[0]=(2u<<16)|(n<<8)|126u;raw[1]=header&GMF_ACK_SEQUENCE_MASK;
+        if(f->native_echo==1)raw[1]=header;
+        if(f->native_echo==2)raw[1]|=0x000fffffu; /* Other echoed bits unqualified. */
+        if(f->native_bad_seq)raw[1]^=0x100000;
+        if(f->native_bad_type)raw[0]^=3u<<16;
+        raw[2]=f->native_status[id];raw[3]=id?0x100b0000u:0xabcd1234u; /* Synthetic INIT tail. */
+        reply(f,1,raw,n?n:1);
+        if(f->native_bad_queue)f->shared[28]=1024;
+        return;
+    }
     if(f->response_wide){
         uint32_t wide[19];for(unsigned i=0;i<19;i++)wide[i]=0xa5000000u+i;
-        wide[0]=((id+1)<<20)|(2<<16)|(19<<8)|126;wide[1]=header;
+        wide[0]=((id+1)<<20)|(2<<16)|(19<<8)|126;wide[1]=header^0x100000;
         reply(f,1,wide,19);return;
     }
     unsigned n=id?4:3;
@@ -168,6 +183,7 @@ static struct fake *fresh(void)
 {
     struct fake *f=calloc(1,sizeof(*f));CHECK(f);f->regs[GMF_CSR][0x2000/4]=1;
     f->regs[GMF_GBIF][0x3114/4]=3;
+    f->native_words[0]=f->native_words[1]=4;
     for(unsigned i=0;i<32736;i++)f->image[i]=(uint8_t)(i*17);
     static const uint32_t address[]={0x30000,0x30010,0x30050,0x300a0},count[]={7,8,8,4};
     static const uint16_t level[4][16]={{0,16,64,128,192,256,384},{0,16,64,128,192,256,320,384},{0,64,128,192,256,320,384,416},{0,32,80,128}};
@@ -403,8 +419,8 @@ static void hfi_reply_diagnostics(void)
     const uint32_t version_bad[]={0x0022047e,0x00200201,1,0x100b0000};
     reply_failed(f,GMFR_REQUEST,GMFR_VERSION_STATUS,1,0x00200201,4,version_bad,4);CHECK(f->doorbells==2);free(f);
     f=fresh();f->response_wide=1;uint32_t wide[19];for(unsigned i=0;i<19;i++)wide[i]=0xa5000000u+i;
-    wide[0]=0x0012137e;wide[1]=0x00100500;
-    reply_failed(f,GMFR_REQUEST,GMFR_SIZE,1,0x00100500,3,wide,19);free(f);
+    wide[0]=0x0012137e;wide[1]=0x00000500;
+    reply_failed(f,GMFR_REQUEST,GMFR_ECHO,1,0x00100500,3,wide,19);free(f);
     for(unsigned queue=1;queue<=2;queue++){
         f=fresh();f->flood_queue=queue;uint32_t debug=0x10165;
         reply_failed(f,GMFR_DRAIN,GMFR_LIMIT,queue,0x00100500,3,&debug,1);CHECK(!f->doorbells&&f->channel.work.debug_messages==16);free(f);
@@ -421,4 +437,58 @@ static void hfi_reply_diagnostics(void)
     f->plan.selector[GMF_MX]++;CHECK(run(f,&out)==GMF_OK&&!memcmp(&zero,&f->channel.reply_diagnostic,sizeof(zero)));stopped(f);free(f);
     printf("HFI refused-packet diagnostics: both sites/queues, each reason,19-word/short/no-packet bounds, first-claim clear, repeat/output and no success cache PASS (host only)\n");
 }
-int main(void){hfi_reply_diagnostics();native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}
+static void native_ack_compatibility(void)
+{
+    CHECK(GMF_ACK_SEQUENCE_MASK==0xfff00000u);
+    /* Captured137 packet shape: type2/INIT4/sequence-only echo/status0.
+     * Its opaque fourth word here is synthetic and is never interpreted. */
+    for(unsigned mode=0;mode<3;mode++)for(unsigned words=3;words<=19;words++){
+        struct fake *f=fresh();f->native_ack=1;f->native_echo=mode;
+        f->native_words[0]=words;f->native_words[1]=words<4?4:words;
+        struct gmf_receipt out;CHECK(run(f,&out)==GMF_OK&&!f->channel.reply_diagnostic.valid);
+        CHECK(out.phase==GMF_DONE&&out.init_ack[2]==0&&out.version_ack[2]==0&&out.reported_version==0x100b0000);
+        CHECK(((out.init_ack[0]>>8)&255)==words&&((out.version_ack[0]>>8)&255)==f->native_words[1]);
+        CHECK((out.init_ack[1]&GMF_ACK_SEQUENCE_MASK)==0x00100000&&(out.version_ack[1]&GMF_ACK_SEQUENCE_MASK)==0x00200000);
+        CHECK(f->doorbells==2&&f->reset_writes==1);stopped(f);free(f);
+    }
+    struct fake *f=fresh();f->native_ack=1;f->native_status[0]=7;struct gmf_receipt out;
+    CHECK(run(f,&out)==GMF_OK&&out.init_ack[2]==7&&out.version_ack[2]==0&&!f->channel.reply_diagnostic.valid);stopped(f);free(f);
+    for(unsigned command=0;command<2;command++)for(unsigned words=0;words<(command?4u:3u);words++){
+        f=fresh();f->native_ack=1;f->native_words[command]=words;struct gmf_receipt before;
+        memset(&out,0x71,sizeof(out));before=out;
+        CHECK(run(f,&out)==(words?GMF_ACK:GMF_TRANSPORT)&&!memcmp(&out,&before,sizeof(out)));
+        if(words){
+            const struct gmf_reply_diagnostic *d=&f->channel.reply_diagnostic;
+            CHECK(d->valid&&d->site==GMFR_REQUEST&&d->reason==GMFR_SIZE&&d->words==words&&d->captured==words);
+            CHECK(d->request_header==(command?0x00200201u:0x00100500u)&&d->expected_words==(command?4u:3u));
+        }else CHECK(!f->channel.reply_diagnostic.valid);
+        /* No extra INIT payload may spill into the VERSION public prefix. */
+        for(unsigned i=0;i<4;i++)CHECK(f->channel.work.version_ack[i]==0);
+        stopped(f);free(f);
+    }
+    for(unsigned command=0;command<2;command++){
+        f=fresh();f->native_ack=1;f->native_words[command]=20;struct gmf_receipt before;
+        memset(&out,0x71,sizeof(out));before=out;
+        CHECK(run(f,&out)==GMF_TRANSPORT&&!memcmp(&out,&before,sizeof(out))&&!f->channel.reply_diagnostic.valid);stopped(f);free(f);
+    }
+    f=fresh();f->native_ack=1;f->native_bad_seq=1;
+    const uint32_t wrong_seq[]={0x0002047e,0,0,0xabcd1234};
+    reply_failed(f,GMFR_REQUEST,GMFR_ECHO,1,0x00100500,3,wrong_seq,4);free(f);
+    f=fresh();f->native_ack=1;f->native_status[0]=UINT32_MAX;
+    const uint32_t bad_init[]={0x0002047e,0x00100000,UINT32_MAX,0xabcd1234};
+    reply_failed(f,GMFR_REQUEST,GMFR_STATUS,1,0x00100500,3,bad_init,4);free(f);
+    f=fresh();f->native_ack=1;f->native_status[1]=1;
+    const uint32_t bad_version[]={0x0002047e,0x00200000,1,0x100b0000};
+    reply_failed(f,GMFR_REQUEST,GMFR_VERSION_STATUS,1,0x00200201,4,bad_version,4);free(f);
+    f=fresh();f->native_ack=1;f->native_status[1]=UINT32_MAX;
+    const uint32_t failed_version[]={0x0002047e,0x00200000,UINT32_MAX,0x100b0000};
+    reply_failed(f,GMFR_REQUEST,GMFR_STATUS,1,0x00200201,4,failed_version,4);free(f);
+    f=fresh();f->native_ack=1;f->native_bad_type=1;
+    const uint32_t wrong_type[]={0x0001047e,0x00100000,0,0xabcd1234};
+    reply_failed(f,GMFR_REQUEST,GMFR_UNEXPECTED_MESSAGE,1,0x00100500,3,wrong_type,4);free(f);
+    f=fresh();f->native_ack=1;f->native_bad_queue=1;struct gmf_receipt before;
+    memset(&out,0x71,sizeof(out));before=out;
+    CHECK(run(f,&out)==GMF_TRANSPORT&&!memcmp(&out,&before,sizeof(out))&&!f->channel.reply_diagnostic.valid);stopped(f);free(f);
+    printf("Native ACK compatibility: observed INIT4 shape,3..19/4..19 prefixes, sequence-only echo and opaque tail; short/oversize/type/sequence/status/queue failures preserve output/cache PASS (host only)\n");
+}
+int main(void){native_ack_compatibility();hfi_reply_diagnostics();native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}

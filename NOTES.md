@@ -3,6 +3,76 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0116 PAS INIT_IMAGE success and autonomous normal-running reset VERIFIED
+
+User confirmed THIS116 trial: “是，自行重启，我没有操作”. Parent rechecked all
+technicalinputhashes and combined this newfact in
+research/tmp/dsh-0116/hardware-parent-verification.json. Authoritative outcome:
+one PAS13 INIT_IMAGE request,3nativecontinuations/4SMCentries, finalfull64x0=0
+ANDx1=0; controllercompletion andactualautonomous131s recoveryverified. This is
+INIT_IMAGE acceptance only, NOT MEM_SETUP/AUTH_RESET/GPU/Metal/measuredbandwidth.
+Resetoccurred afterthecallreturned; arbitrarynonreturningSMCcontainmentunproven.
+
+One temporaryboot accepted19008KB/send0.446s/boot0.135s,total0.588s. Observer0,
+explicitbackTWRPafter131s/no timeout; start10:31:49.861156Z,
+finish10:34:06.729807Z. Fresh4422line/490785B log
+research/tmp/p3-pasinit-0116-native-observer-20261106.txt SHA
+bd72b9c44729b6046dba67754d9aeec090477df180bf704d5d9e9952807fd715.
+Cycle1123B SHAc6064d9384b5a416f7808e9f8ce9678900dc7b1cf61bd08780e59c8c36e307a7.
+Fullbannerxnu-cbe548b930ef405d997c9827399f659d anduniquetrialpasinit-0116-20261106-a1
+matchqualifiedimage8bb846dc...339bb9b. Allsevenbootprogressmarkersyes;
+no touchinteractionrequested onthis deliberateexpirytrial. Bootreasonpropsempty.
+
+SamebootCPUclaimAA200000/metadata6860/reserved16384,64unmanagedNCpages andpinnedMDT
+hash/zero-tail valid beforecall. CMDDB131072B SHA
+2cc33dbb89e0f18e7d9f9b13ece29c61ee00f614c760e1e6e126fea24e50f1d0; nativebanks/
+6BCM/4ARC validated. Extractedbinary preserved at
+research/tmp/p3-pasinit-0116-native-cmd-db-20261106.bin. Comparedwith115,2598bytes
+differonlyoutsidealldeclaredheader/entry/auxextents; declaredtablesunchanged.
+WDTEN3/BARK655300/BITE753595; arm_at1763637454,readback1763637548,
+ready_at1782946490,count32948,timebase19200000Hz. BCMslot1 config80008104,
+IRQbefore1/after1/completed2 andsixstatuses10101,10101,00101,10101,10101,10101hex.
+Successfulcleanup/heldrequestsmarkerspresent. No failure/PET/panic/survived30.
+
+PASrawlines4037-4041: beforefresh1 fn42000201 arginfo82 pas13 paAA200000;
+terminalrawcalls4 hasALLx0..x6zero, fresh1/continuations3; terminalrc0/returned1;
+coordinatorPASsuccesscalls4 andretainedbuffer/resetwait. This isONEfreshrequest,
+not4INITrequests. The3intermediatefullx0==1 results/full7registerpreservation are
+boundreviewedcode+countercontrolflow evidence, notindividuallyrawlogged traces.
+The69hosttests hadalreadyvalidatedtightcontinuation andglobal8bound. Independent
+Codexreview checkedactualboundC/image/manifest/log andthesequalificationlimits.
+
+Original verify_pas116.py deliberatelyacceptedONLY1SMC/0continuation; DSH ranit
+unchanged, exit2scope rejection saved in hardware-data-verification.json. No input,
+source oroldreportwasaltered toforcePASS. Separate Codex-authored/reviewed
+verify_pas116_continuation.py accepts1fresh+1..8continuations withcalls=1+count,
+exactraw/terminal/coordagreement, fullx0/x1zero andallpreviousidentity/resource
+checks. DSHactualexit3 (manualunknownthen) inhardware-continuation-verification.json;
+parentconfirmednewuserfactabove. Originalrejection remainsvalidforitsnarrow scope.
+DSHextractor exit0. Allbuild/observer/verification/extractor sessions terminal;
+phoneleftTWRP. No furtherdeviceactionafterautomaticpull.
+
+Codeaebabc2; localpretrialhandoff329a084. Publicsnapshot
+22a18e463155bbaeac52620899893f1d040ba2d0 singleparent
+41ea3be0b21ca3a887315820a08d1455a8025fa5,7textpaths/privateancestryexcluded.
+Currentnativecontextsource116-codex/gauguin.XShBw1. Preserve113/114/115/116images,
+allfreshlogs, original7-linemkadtedit. Codexauthors/interprets; DSHonlyexecutes
+reviewedcommands andusesmachine-generatedreports, nohandwrittenNOTES/results.
+
+Next concretework: implement a separatelyopted-in PAS MEM_SETUP stage after THIS
+BOOT successfulINITreceipt +sameclaimedregion+freshWDTbudget. Pinnednative
+subsys-pil-tz.c:656-677 usesx0=42000202,x1=3,x2=PAS13,x3=dynamicbase,x4=size+
+extra_size,x5=x6=0. Reconfirm nativeELFspan4096 andextra_size0 fromsavedfirmware/DT
+beforeuse; preserve full64return/continuation/BUSY semantics. KeepfirstMEM_SETUP
+trial freeof b02load/AUTH_RESET/GPUoperations. Laterb02is1984bytes atsamebase,
+onlyaftersuccessfulINIT/MEM_SETUP; do not overwrite/re-stage pendingSCM_RWbuffer.
+116cmdlinealready597/608bytes: addinganotherflagrequires intentionallyremoving
+unneededwhole sampleroptions or anotherreviewedcompactmode, nevertruncatingtrial.
+Normal-runtime reset isqualified; requirefreshbudgets, noPET/rearm/cleanup guesses.
+BroaderGPU/Metal/highrefresh/peripheral/daily-usegoalremainsactive andunfulfilled.
+
+
+
 ### 2026-11-06 — 0116 normal native build and independent image review PASS; trial next
 
 Code aebabc2ad551020e6860163b92e2a682cd557be9. DSH normal local build

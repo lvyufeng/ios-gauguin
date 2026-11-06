@@ -41,7 +41,12 @@ board72888B SHA99051e4e73d430732a2e1e89c5bbddf79b3d424d831a032f8be154a069744d50,
 CURRENT137 ggv3Il recipe/source. No138 full build/image/readers/phone IO yet.
 All owned handles CLOSED; phoneTWRP after137, no new user UI/touch/reset facts.
 
-NEXT sanitized138 source/notes push; standard full native build retaining all
+Sanitized138 source/notes pushed and ls-remote verified
+2ecc3ff2c033724bcfe168ef8b8a5346550edd29, sole parentceb649e, eight text
+paths, same tree as private8e2b893. Publisher71573 CLOSED0; report
+research/tmp/dsh-0138/public-snapshot-0138.json. Private ancestry/raw logs/
+packet dumps/assets/serials remain local.
+NEXT standard full native build retaining all
 137 checks, new native_ack_prefix_sequence_source_bound qualifier. Pack/
 independent review and strict runtime reader MUST adopt same bounded-prefix/
 sequence/type/status/version rules: INIT header words3..19,VERS4..19, echoed

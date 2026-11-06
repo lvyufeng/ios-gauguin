@@ -39,7 +39,7 @@ static int host_printf(const char *s,...)
     }
     if(strstr(text,"SWEET GMU ATOS FAIL:")){
         CHECK(h.quarantine==1&&!h.live);
-        CHECK(!strcmp(text,"SWEET GMU ATOS FAIL: stream=5 bank=4 iova=00000000 expected=ffffffffffffffff par=0000000000000021 mapped=131\n"));
+        CHECK(!strcmp(text,"SWEET GMU ATOS FAIL: stream=5 bank=4 iova=00000000 expected=ffffffffffffffff par=0000000300000211 mapped=131 level=3\n"));
         ++h.atos_lines;
     }
     return n;
@@ -138,7 +138,7 @@ enum gsm_result gsm_configure_once(struct gsm_context *ctx,const struct gsm_ops 
     if(h.smmu_fail==2){ctx->diagnostic=(struct gsm_diagnostics){GSP_USER,GSD_STORE32,0xe000,UINT32_MAX,0xc01067,0};return GSM_READBACK;}
     if(h.smmu_fail==3){
         ctx->diagnostic.phase=GSP_ATOS;
-        ctx->translation=(struct gsm_atos_sample){UINT64_MAX,0x21,1,5,4,0,131};
+        ctx->translation=(struct gsm_atos_sample){UINT64_MAX,UINT64_C(0x300000211),1,5,4,0,131,3};
         ctx->work.translations=132;ctx->work.mapped_pages=131;return GSM_TRANSLATION;
     }
     memset(out,0,sizeof(*out));out->mapped_pages=131;out->translations=140;

@@ -1,0 +1,82 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -57,7 +57,7 @@
+         snprintf(line,sizeof(line),"SWEET GMU SMMU FAIL: id=%08x/%08x/%08x cr0=%08x/%08x micro=%08x/%08x ias=%u oas=%u writes=%u polls=%u atos=%u",s->id0,s->id1,s->id2,s->cr0_before,s->cr0_after,s->micro_before,s->micro_after,s->ias,s->oas,s->writes,s->polls,s->translations);gmb_record(line);
+         if(gmb_context.translation.valid){
+             const struct gsm_atos_sample *a=&gmb_context.translation;
+-            snprintf(line,sizeof(line),"SWEET GMU ATOS FAIL: stream=%u bank=%u iova=%08x expected=%016llx par=%016llx mapped=%u",a->stream,a->bank,a->iova,a->expected,a->par,a->mapped);gmb_record(line);
++            snprintf(line,sizeof(line),"SWEET GMU ATOS FAIL: stream=%u bank=%u iova=%08x expected=%016llx par=%016llx mapped=%u level=%u",a->stream,a->bank,a->iova,a->expected,a->par,a->mapped,a->level);gmb_record(line);
+         }
+     }
+     gmb_impl_record();
+diff --git a/bsd/dev/gauguin_gmu_smmu.c b/bsd/dev/gauguin_gmu_smmu.c
+--- a/bsd/dev/gauguin_gmu_smmu.c
++++ b/bsd/dev/gauguin_gmu_smmu.c
+@@ -233,7 +233,7 @@
+     r=poll(c,base+0x7f4,1,0,100,10);if(r)return r;
+     w->sctlr[n]=SCTLR;w->actlr[n]=ACTLR;return GSM_OK;
+ }
+-static enum gsm_result translate(struct gsm_context *c,unsigned n,uint32_t va,uint64_t expected)
++static enum gsm_result translate(struct gsm_context *c,unsigned n,uint32_t va,uint64_t expected,unsigned level)
+ {
+     unsigned base=CB(c->work.bank[n]);enum gsm_result r;uint64_t par;
+     /* Native qsmmuv2 ATOS requires local halt; we have held it since init.
+@@ -244,12 +244,21 @@
+     ++c->work.translations;
+     bool accepted=false;
+     if(par!=UINT64_MAX){
+-        if(expected==UINT64_MAX){unsigned fault=(unsigned)(par>>1)&63;
+-            accepted=(par&1)&&fault>=4&&fault<=7;
++        if(expected==UINT64_MAX){
++            /* Arm IHI0062D.c16.5.14,p16-308/309: SMMU PAR fault format,
++             * NOT a CPU FST code. Named fields are STAGE35,PLVL33:32,
++             * ATOT31,ICF29,Format9:8,ASF7,TLBLKF6,TLBMCF5,EF4,PF3,
++             * AFF2,TF1,F0. Ignore reserved bits, not defined fault flags.
++             * Require ONLY S1/AArch64 translation fault at the expected
++             * missing descriptor level. Never accept another fault as a hole.
++             */
++            const uint64_t mask=UINT64_C(0x0000000ba00003ff);
++            const uint64_t wanted=((uint64_t)level<<32)|UINT64_C(0x203);
++            accepted=level>=1&&level<=3&&(par&mask)==wanted;
+         }else accepted=!(par&1)&&(par&UINT64_C(0x0000fffffffff000))==expected;
+     }
+     if(accepted)return GSM_OK;
+-    c->translation=(struct gsm_atos_sample){expected,par,1,4+n,c->work.bank[n],va,c->work.mapped_pages};
++    c->translation=(struct gsm_atos_sample){expected,par,1,4+n,c->work.bank[n],va,c->work.mapped_pages,level};
+     return GSM_TRANSLATION;
+ }
+ static enum gsm_result verify_translations(struct gsm_context *c)
+@@ -258,14 +267,17 @@
+     for(unsigned n=0;n<GGM_COUNT;n++){
+         const struct ggm_region *m=&c->plan.region[n];
+         for(unsigned off=0;off<m->bytes;off+=4096){
+-            r=translate(c,1,m->iova+off,c->plan.owner_pa+m->offset+off);if(r)return r;
++            r=translate(c,1,m->iova+off,c->plan.owner_pa+m->offset+off,0);if(r)return r;
+             ++c->work.mapped_pages;
+         }
+     }
+     static const uint32_t holes[]={0,0x40000,0x80000,0x6000b000,0x80000000,0xfffff000};
+-    for(unsigned i=0;i<sizeof(holes)/sizeof(*holes);i++){r=translate(c,1,holes[i],UINT64_MAX);if(r)return r;}
++    /* First four lie in allocated L3 tables; last two miss in the L1 root.
++     * User TTBR0 is wholly empty, so every user probe must miss at L1. */
++    static const unsigned levels[]={3,3,3,3,1,1};
++    for(unsigned i=0;i<sizeof(holes)/sizeof(*holes);i++){r=translate(c,1,holes[i],UINT64_MAX,levels[i]);if(r)return r;}
+     static const uint32_t user[]={0x4000,0x60000000,0x60001000};
+-    for(unsigned i=0;i<sizeof(user)/sizeof(*user);i++){r=translate(c,0,user[i],UINT64_MAX);if(r)return r;}
++    for(unsigned i=0;i<sizeof(user)/sizeof(*user);i++){r=translate(c,0,user[i],UINT64_MAX,1);if(r)return r;}
+     return GSM_OK;
+ }
+ static enum gsm_result finalize(struct gsm_context *c)
+diff --git a/bsd/dev/gauguin_gmu_smmu.h b/bsd/dev/gauguin_gmu_smmu.h
+--- a/bsd/dev/gauguin_gmu_smmu.h
++++ b/bsd/dev/gauguin_gmu_smmu.h
+@@ -47,7 +47,7 @@
+ /* Exact PAR already read by a rejected translation; never issue another
+  * probe just for diagnostics. expected==UINT64_MAX denotes an intended hole.
+  * mapped is the number of preceding accepted kernel leaves, not ATOS count. */
+-struct gsm_atos_sample {uint64_t expected,par;uint32_t valid,stream,bank,iova,mapped;};
++struct gsm_atos_sample {uint64_t expected,par;uint32_t valid,stream,bank,iova,mapped,level;};
+ /* Zero-initialized, single private board instance. Cold initialization only:
+  * all existing context SCTLR.M and stalled faults must be zero. Unrelated
+  * streams/banks are preserved; GMU stream4(user)/5(kernel) are uniquely

@@ -147,3 +147,19 @@ for SMMU PAR. SMMU fault information has separate flags plus format, stage and
 page-level fields. The current hole predicate therefore needs an architectural
 correction;0127 only captures evidence and deliberately preserves its behavior.
 The exact0126 PAR and whether this explains the physical failure remain unknown.
+
+Patch0128 applies that correction. A hole requires stage1, generated AArch64
+format2, F and TF, and the exact expected descriptor level; other documented
+fault flags must be clear. It checks documented fields with mask0x0000000ba00003ff
+and ignores reserved bits. The first four kernel holes miss at level3, the
+last two at level1; the three empty-user-root probes miss at level1. Positive
+physical-address checks and the131+9 probe list remain unchanged. Failed-PAR
+diagnostics additionally retain the requested fault level.
+
+The host page walker now generates SMMU PAR fields from the actual missing
+descriptor. Its old CPU-shaped fault values were incorrect fixtures. Regression
+coverage includes wrong stage/format/level, missing or mixed reasons, external
+faults, termination, invalid context, size/access/permission/TLB faults, no
+fault, all-ones and the previous CPU-shaped value. The same corrected model
+must expose127's rejection at132 and let128 check all140. This is a software
+regression demonstration; it does not reconstruct the unknown0126 PAR.

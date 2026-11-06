@@ -2,6 +2,139 @@
 
 ## Agent handoff / active work
 
+
+### 2026-11-06 — 0113 native build/image qualified; hardware pending
+
+Code f805edadc44f8a71302201f26b6428076dfca3ec; all44 host files PASS on fresh
+source113-codex,5254files, SHA25625e512230ac39005af541a11cc57add56b7bb7222d07a9ec1a87dcdf4fcc9f8e.
+DSH normal native build gauguin.67UNbi finished make0/statebuilt, normal dSYM,
+strip/install. Manifest SHA06d8539c8a86d72fb0a8b06a498b1834a9ac6f6bbd42a7db569dc9fd5d4fc0d9.
+Kernel16815816B SHA26694e5d88e9c29495c317adb14f48a9f6688622390d802c34bb0b645334e906,
+ID xnu-966ac3a2b60d46a49c0f2124f4a1f028, banner Nov6 14:45:30 CST.
+Qualification research/tmp/p3-native-0113-qualification-20261106.json verifies
+source/all recorded inputs, HEAD/original mkadt diff, installed ARM64 kernel,
+defined0113/NVT/PAS/SHA symbols and matching archive version.o. No hardware claim.
+
+Image shim/out/shim-p3-cmddb-0113-native-20261106.img,19431424B,
+SHA7615dd2a0295760f8b76d50c661c0023a66079aa961fb1fa8f5780c32523fe73;
+payload research/tmp/p3-cmddb-0113-native-20261106.bin,
+SHA83fc542aa9f5e41b49e8e87b31924cd80c1b35e7b00c6218aff64d96629dff77.
+Same verified shim/DTB/baseADT/NVT/MDT pins. NVT PA182544000/raw139264/res147456;
+MDT PA182568000/raw6860/res16384; all padding and runtime request bounds checked.
+Actual payload command-line field536B (not an ADT boot-args property):
+sweetbusprobe1, sweettouchmode0, NVT1/hz30, GCC/SCM0, PASprobe/stage1, cpus8,
+sweettrial=cmddb-0113-20261106-a1. Parent independent image/command-line review
+PASS (research/tmp/dsh-0113/image-parent-review.json); baseline112 image unchanged.
+Initial packaging stopped before writing because its report path still named112;
+protection preserved112 evidence. Codex corrected only the path; DSH repack exit0
+(native113-repackage-result.json). The failed pipeline record remains unchanged;
+no rebuild was required. Full image evidence: p3-cmddb-0113-native-evidence-20261106.json.
+
+Phone last confirmed TWRP; **0113 NOT BOOTED yet**. Next: sanitized public
+snapshot (never private ancestry), temporary boot once/180s observation, user
+touch check/manual TWRP, then fresh log matched by full banner plus unique trial.
+Use tools/extract_cmd_db_snapshot.py on that fresh log and inspect actual BCM/ARC
+metadata plus DRV2. This image submits no bandwidth, PAS call or GPU operation.
+Native generated context now source113-codex/gauguin.67UNbi, not112/fbWj14.
+Codex writes critical code; DSH executes reviewed build/test/boot commands with
+full filesystem access and local-tools-only overlay. Original mkadt edit remains
+uncommitted; no CI run. Broader GPU/Metal/daily-use goal remains active.
+
+
+
+### 2026-11-06 — 0113 native build+qualification PASS; packaging FAILED (path collision)
+
+DSH ran the reviewed `research/tmp/dsh-0113/build113.py` exactly once from the
+repo root at HEAD f805eda with only `M tools/mkadt.py` dirty; wrapper exit1;
+NOT retried and NOT fixed. Exact codes from native113-execution-result.json:
+build_exit0 (`gauguin.67UNbi`, manifest state built, make_exit0, created
+06:43:10Z/finished06:45:41Z, verified0113 source 25e51223..., committed head
+f805eda), qualification_exit0 (BUILD QUALIFIED, final_kernel_produced true;
+kernel 16815816B SHA256
+26694e5d88e9c29495c317adb14f48a9f6688622390d802c34bb0b645334e906),
+package_exit1, final state `package-failed`.
+
+Failure: `AssertionError: preserve any prior images` at
+pack_native0113.py:50. Verified cause: OUT and PAYLOAD are absent, but
+EVIDENCE (line15) points at the pre-existing qualified0112 file
+research/tmp/p3-passtage-0112-native-evidence-20261106.json (mtime11:56,
+untouched); line177 would write the0113 report there. That is the only tripped
+term; the qualification-prefixed asserts passed. No0113 image/payload was
+written, nothing was deleted, and the shim/baseline/ADT/MDT hash asserts were
+never reached (DSH checked those four separately: all match). No boot, no
+device access, no CI/network, no source edits. Build output of67UNbi is
+preserved and reusable. DSH record research/tmp/dsh-0113/native113-dsh-result.json
+(ignored, like all research/). Next: Codex repoints EVIDENCE to a new0113 path,
+then reissue the executor task. Approved hardware-trial command
+(EXACT once, no second boot, no flash/format/partition writes):
+`fastboot boot shim/out/shim-p3-cmddb-0113-native-20261106.img`. After the
+temporary boot, ask the user to confirm touch unlock and manually return to
+TWRP, then pull a fresh log; treat the result only as read-only evidence.
+
+### 2026-11-06 — 0113 read-only bus qualification in progress; division of work updated
+
+Latest user instruction supersedes the older DSH-authoring preference below:
+**Codex writes critical drivers and reviews; DSH executes compilation, tests and
+boots**, with danger-full-access retained. Baseline remains the verified0112
+image/source above; phone last confirmed in TWRP. No0113 boot, bandwidth vote,
+PAS call or GPU execution has occurred. The active goal remains unfinished.
+
+Current work is a default-off, one-shot `sweetbusprobe=1` worker: copy reserved
+CMDDB80860000+20000 twice using aligned read-only loads, validate the six BCM
+rows/four ARC tables from normal memory, then inspect only the native-backed
+DRV2 register whitelist at18220000+4000. It emits a complete bounded RAW dump
+and a PLAN ONLY result. Empty/idle TCS observations cannot recover inherited
+bandwidth votes and do not grant ownership. No commands are submitted.
+
+Source review and focused execution now PASS. Codex removed the uninitialized
+offsets comparison and corrected exclusive end to20cc. Worker SHA256
+8e71b4e9f7e19c8b71e6861af0399b66c6b21348a3fbb5835c4a02ab3ba13eea;
+DSH native ARM64 single-TU exit0, object48896B/e49f4f6b48dcf42efd2a5fe26208aadf94582e7990ff79dbbc03512c2740cd81,
+report research/tmp/gauguin-nvt-p1/cmddb113-worker-codex-compile/run-rrv95zgc/compile.json.
+The parser and planner separately passed the same112/fbWj14 build context.
+DSH ran70 actual-worker host cases with ASan/UBSan and strict platform seams;
+actual worker RAW -> real image/trial-bound extractor -> exact131072B synthetic
+fixture succeeded (sha72ef88e51effc3c7e832816e4390299909deddd6dd8ec036917351e2af7d80b3).
+Report research/tmp/dsh-0113/flash-high-worker/logs/worker-run-ha_z9vlu/result.json.
+Native crypto is seamed in host tests, not independently exercised there.
+Earlier j5fa7iug run aborted before entering tests because Apple arm64 lacks
+LeakSanitizer; platform-corrected runner retains ASan/UBSan. No object rewriting.
+Extractor66tests PASS after Codex corrected fixture/expectation bugs; strict
+production extractor stayed unchanged. Earlier19failure records are preserved.
+
+0113 patch now integrates five new source/header files plus three build entries
+and one GAUGUIN init hook. Public tools/tests contain only synthetic fixtures.
+Fresh strict replay to source113-codex PASSED:107 patches,5254 files, SHA256
+25e512230ac39005af541a11cc57add56b7bb7222d07a9ec1a87dcdf4fcc9f8e. Exactly the
+seven intended source paths differ from112, which remains unchanged. DSH full
+host suite PASSED all44 test files, including70 worker cases and66 extractor
+tests; tested source unchanged. No full113 build/image exists yet. Results live in ignored
+research/tmp/dsh-0113/replay-full-host-result.json and full-host113.log.
+Active candidate code is flash-high-worker/bsd/dev/; the other older
+candidate/bsd/dev/gauguin_bus_probe.c remains a rejected draft.
+Future max-vote/PAS work still needs reset qualification: current WDT EN=0;
+stopping PET is not a proven reset, and a software timeout cannot cancel a
+secure call that never returns. Maximum numeric BOOT plan is not a daily
+thermal/power policy and is NOT submitted by0113.
+
+DSH execution policy: use the private provider-flash-high and local-tools-only
+patches in /private/tmp/ios-gauguin-dsh-nPDRPy. Unrelated remote tools are disabled
+after an out-of-scope read-only probe (no observed remote modification; no
+remote inventory belongs in Git). A prior generated test attempted assembly/
+object rewriting and is rejected; no successful runtime proof came from it.
+No hand crypto, object rewriting or sanitizer bypass is permitted. Codex now
+owns code changes; DSH receives reviewed exact local execution commands and
+must stop on failures. Old Pro/Flash authoring jobs are terminal. Completed focused execution is recorded in ignored worker-tu-dsh-result.json,
+worker-host-codex-dsh-v2-result.json and extractor-codex-dsh-result.json.
+
+Next: commit this reviewed/tested0113 change, then run the normal local full
+build/qualification and temporary read-only hardware trial. Preserve original unstaged tools/mkadt.py seven-line
+edit. Local HEAD at entry d81fde38b7575af28177b1443215ac59ff5b9b63;
+public branch codex/gauguin-p0-ci-20261105 at4f254bee8c295f1b522e6c2c7ea985a77a7897c7
+(tree108df7f1d52559cb1f96233d5cd4df7b18e771b3). Never push private ancestry;
+continue sanitized single-parent snapshots only. No new CI run was started.
+
+
 ### 2026-11-06 - 0112 CPU staging: fresh-log VERIFIED; probe + stage gates pass
 
 Next concrete action: treat0112 as the working baseline and preserve it. Do the

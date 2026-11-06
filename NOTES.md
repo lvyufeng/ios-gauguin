@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual0126 reaches ATOS132;0127 cached-PAR diagnostics tested; architectural decoder bug found
+
+Previous turn was progress: source126/image/full reader qualified, public
+9398974ba5e6fa3fed1cb270045eefe07fb78af6 Notes handoff pushed on944f4c3.
+THIS turn DSH51951 actual observer0/full verifier2 after ONE exact126 temporary
+boot. Send19072KB0.441s/Boot0.134s/total0.578s; started2026-11-06T18:56:27.811355Z,
+finished18:58:39.602999Z, recovery131s. Identity/latch checks passed. Phone now
+TWRP; THIS126 autonomous/manual attribution question pending, do not reuse124
+or still-pending125 answer. No flash/format/GPT, GPU/Metal still unqualified.
+Raw4014lines/451228B SHA356a6184377b1062493084d0d73e5311bda7477545e7d478d206a7db2fc5aa2f;
+same-trial CMDDB131072 SHA32333cf7c607ca244c90ccc9b8f05c420bb9e1354a7bc3b526dfe29bf940dd95.
+Original hardware-full-verification.json stays evidence-rejected. Separate
+audit_failed_trial126.py / failed-trial-audit.json binds actual image/banner/
+marker/source/CMDDB and exactfailure, all original inputs unchanged.
+
+Actual GMB9/GSM9=TRANSLATION, phase7/check0/unset zero comparison tuple,
+id48016605/20008005/00007511, cr0before00200626/after00e01e36,
+microbefore00002378/afterUNSET0, IAS39/OAS36,writes178,polls136,ATOS132.
+Opaque06b68 requested9a82a382/read0a800082 remains bitwise UNQUALIFIED.
+Pinned source loop has131 positive leaf checks before holes, so counts/phase
+infer first131 accepted and failing IOVA0. This is source-bound inference,
+not a logged PAR or explicit mapped counter. Exact126 PAR is UNKNOWN. No final
+SMMU route publication/resume or firmware path occurred. PMIC cause unproven.
+
+Codex authored127 diagnostics only in board.c/smmu.c/h: retain already-read
+rejected PAR, expected address, stream/bank/IOVA and prior mapped count in a
+private sample; log after quarantine. No extra MMIO, changed hole predicate,
+timeout, retry or public receipt. DSH74220 audit0 + validation0: fresh121-patch
+source127-codex5282 files SHA
+971a22d0d851f9ffe5462f8df725707bbeac39b3496aaad04486d58018e4c232,
+all61 host files, SMMU3,491,581 ASan/UBSan checks, board2840+75, both actual
+ARM64 TUs against CURRENT qualified126 EXvD1e recipe. Baseline126 unchanged.
+Original126-fixture IO trace6,497,973 callbacks/equal digestf4c607ba64593379.
+No127 full kernel/image/device trial. All current handles closed.
+
+Primary-source research found a DEFINITE software error in old hole predicate:
+SMMU PAR does not use CPU-style six-bit FST. Arm IHI0062D.c16.5.14 pages16-308/
+309 defines separate F/TF/AFF/PF/EF/TLB/ASF/ICF/ATOT flags, format[9:8],
+PLVL[33:32],STAGE[35]. Downloaded official public PDF2344855B SHA
+5f12c28c3a449381913112ac15cc914cfe2ea1a98ce3685f3ef079b247ca7e9d,
+ignored research/tmp/dsh-0127/arm-ihi0062dc.pdf. Read both full rendered pages
+with bundled PDF runtime; no system installation. This source proves the
+predicate bug, NOT the missing real126 PAR or sole physical failure cause.
+Next128 should keep127 diagnostics, replace ONLY hole decoding with documented
+S1/AArch64 pure TF and expected table level, update independent host walk
+model, retain every mapped/foreign-route/fault/lease check, then full build and
+one real128 boot. No need to spend a127 diagnostic-only boot first. Do not
+invent observed PAR or relax to any fault. Whole daily-use goal ACTIVE.
+
 ### 2026-11-07 — 0126 complete local native kernel/image and strict full runtime reader qualified; exact boot next
 
 THIS goal turn made concrete progress: physical125 failure identified at

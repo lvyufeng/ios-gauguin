@@ -125,3 +125,25 @@ The coherent firmware adapter and opt-in coordinator are described in
 cold transaction before any GMU reset release. GPU commands, native-point
 ZAP, normal HFI_ON, Metal/rendering and high refresh remain separate required
 stages toward the unchanged daily-use objective.
+
+## Failed translation capture
+
+The real0126 trial reached phase7 with132 completed ATOS reads and stopped
+with GSM_TRANSLATION. From the pinned loop order, all131 positive leaf checks
+precede the first hole at IOVA0. This is source-bound inference; the old cached
+zero comparison tuple does not contain that operation's PAR value.
+
+Patch0127 retains the PAR already read by a rejected translation, stream,
+bank, IOVA, expected physical address (all-ones denotes a hole), and preceding
+accepted-leaf count. It adds no probe, changes no comparison or callback, and
+leaves the public receipt untouched. `SWEET GMU ATOS FAIL` prints this private
+sample after quarantine, before the opaque implementation row. A repeat call
+cannot replace it. Synthetic host fault samples are not real0126 PAR values.
+
+Separately, inspection of
+[Arm IHI0062D.c section16.5.14, pages16-308–309](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb#page=308)
+revealed that the old `(PAR >> 1) & 63` CPU-style fault-code check is unsuitable
+for SMMU PAR. SMMU fault information has separate flags plus format, stage and
+page-level fields. The current hole predicate therefore needs an architectural
+correction;0127 only captures evidence and deliberately preserves its behavior.
+The exact0126 PAR and whether this explains the physical failure remain unknown.

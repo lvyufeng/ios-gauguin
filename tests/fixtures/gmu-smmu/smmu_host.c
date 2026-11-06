@@ -93,6 +93,9 @@ static bool write64(void *cookie,uint32_t off,uint64_t value)
         if(f->wrong_par==2&&(par&1))par=1|(0x10<<1); /* external abort is not a hole */
         if(f->wrong_par==3&&(par&1))par=UINT64_MAX;
         if(f->wrong_par==4&&(par&1))par=0;
+        if(f->wrong_par==5&&(par&1))par=1; /* no decoded FST */
+        if(f->wrong_par==6&&(par&1))par=1|(0x3f<<1);
+        if(f->wrong_par==7&&(par&1))par=1|(0x9<<1); /* access flag, not translation */
         set64(f,CB(bank)+0x50,par);
     }
     return true;
@@ -145,9 +148,11 @@ static void stopped(struct fake *f)
     unsigned step=f->step;struct gsm_receipt r,b;memset(&r,0x64,sizeof(r));b=r;
     struct gsm_diagnostics diagnostic=f->channel.diagnostic;
     struct gsm_impl_sample implementation=f->channel.implementation;
+    struct gsm_atos_sample translation=f->channel.translation;
     CHECK(run(f,&r)==GSM_ALREADY);CHECK(f->step==step&&!memcmp(&r,&b,sizeof(r)));
     CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));
     CHECK(!memcmp(&implementation,&f->channel.implementation,sizeof(implementation)));
+    CHECK(!memcmp(&translation,&f->channel.translation,sizeof(translation)));
 }
 static void happy(void)
 {
@@ -163,6 +168,7 @@ static void happy(void)
         CHECK(r.writes==f->writes&&f->prepared==1&&!(f->regs[0x6000/4]&4));
         CHECK(f->channel.diagnostic.phase==GSP_DONE&&f->channel.diagnostic.check==GSD_NONE);
         CHECK(f->channel.implementation.valid==1&&f->channel.implementation.requested==0x9a82a382&&f->channel.implementation.readback==0x9a82a382);
+        CHECK(!f->channel.translation.valid);
         for(unsigned i=0;i<r.groups;i++)if(i!=r.slot[0]&&i!=r.slot[1]){
             CHECK(f->regs[(0xc00+4*i)/4]==original[(0xc00+4*i)/4]);
             if(match)CHECK(f->regs[(0x800+4*i)/4]==original[(0x800+4*i)/4]);
@@ -215,9 +221,15 @@ static void bad(void)
         struct fake *f=fresh(true);f->stuck=kind;struct gsm_receipt r,b;memset(&r,0xa3,sizeof(r));b=r;
         CHECK(run(f,&r)==GSM_TIMEOUT);CHECK(!memcmp(&r,&b,sizeof(r)));stopped(f);free(f);
     }
-    for(unsigned kind=1;kind<=4;kind++){
+    for(unsigned kind=1;kind<=7;kind++){
         struct fake *f=fresh(true);f->wrong_par=kind;struct gsm_receipt r,b;memset(&r,0xa3,sizeof(r));b=r;
-        CHECK(run(f,&r)==GSM_TRANSLATION);CHECK(!memcmp(&r,&b,sizeof(r)));stopped(f);free(f);
+        CHECK(run(f,&r)==GSM_TRANSLATION);CHECK(!memcmp(&r,&b,sizeof(r)));
+        const struct gsm_atos_sample *a=&f->channel.translation;
+        const uint64_t observed[]={0,UINT64_C(0xaa211000),0x21,UINT64_MAX,0,1,0x7f,0x13};
+        CHECK(a->valid==1&&a->stream==5&&a->bank==4&&a->iova==(kind==1?0x4000u:0));
+        CHECK(a->expected==(kind==1?f->plan.owner_pa+0x10000:UINT64_MAX)&&a->par==observed[kind]);
+        CHECK(a->mapped==(kind==1?0:131)&&f->channel.work.translations==(kind==1?1:132));
+        stopped(f);free(f);
     }
     const unsigned ignore[]={0x6000,0x6060,0x1800+4*6,0x1000+4*6,CB(6)+0x10,CB(6)+0x20,CB(6)+4,CB(6)};
     const uint64_t wanted[]={4,0x1055,1,0x1f300,0x38011,((uint64_t)7<<48)|0xaa20a000,0x70000000,0x00c01067};

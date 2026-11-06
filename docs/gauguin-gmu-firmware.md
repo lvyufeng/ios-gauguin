@@ -117,7 +117,7 @@ not establish firmware or GPU execution.
 
 The frozen instruction order infers the fifth store as AO byte offset0x1034,
 physical0x03d8d034, RSC HIDDEN_TCS_CMD0_ADDR, requested0. That offset/value is
-source-bound inference from the count; the actual readback is still unknown.
+source-bound inference from the count;0129 did not log the actual readback.
 
 Patch0130 caches the existing rejected comparison. Its private sample records
 validity, phase, check, mapping window, byte offset, mask, expected and actual.
@@ -131,5 +131,20 @@ tests and must never be reported as the physical0129 readback.
 
 Source0130 passes the full host suite and native firmware/board compilation.
 The frozen original0129 model produces identical I/O request counts and digests
-with both versions. A complete0130 kernel/image and coherent physical trial
-are still required to capture the real rejected value and continue debugging.
+with both versions. The complete0130 native kernel/image then booted once:
+SMMU again completed131 mapped pages/140 ATOS checks, and its cached rejected
+comparison was phase0/check1/windowAO/byte offset0x1034, full mask, requested0,
+actual0x82204514. Only five stores completed; no TCM copy, reset release or
+firmware execution. The full success verifier rejected the trial, as required.
+
+The native mapping independently gives the same physical0x03d8d034: GMU
+resource0x03d6a000 plus raw RSCC byte offset0x23000 plus register word0xd*4.
+Native initialization writes zero to all three HIDDEN_TCS_CMDn_ADDR registers
+(words0xd/0xf/0x11) without checking equality. Neither the pinned definitions
+nor upstream v6.12 XML establishes their per-bit readback semantics. The
+physical mismatch alone does not prove an unsuccessful write or justify an
+invented mask. The next candidate will use the native fixed-write policy for
+only those three addresses, record their existing readbacks as equality
+unqualified, and retain all-ones/IO/guard refusals plus every other store,
+TCM, reset, fault and firmware ACK check. This is a bounded experiment, not
+hardware qualification of those fields or proof of firmware/GPU operation.

@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual0130 captures RSC address readback82204514; native three-address policy next
+
+DSH64473 ONE physical130 temporary boot: observer0/full verifier2, original
+hardware-full-verification.json remains evidence-rejected. Start
+2026-11-06T20:15:28.542239Z,finish20:17:45.340473Z; Send19088KB0.444s,
+Boot0.134s,total0.580s, recovery observed135s. Unique recoverygauguin /
+fastbootgauguinpro and routine recovery latch readback passed. Raw log
+research/tmp/p3-gmuf-0130-native-observer-20261107.txt4046lines/454374B SHA
+2f6298d4547211b759e8c8b8d64b49933a3a6ccde4ed7f7bb015d52602e7b2ef;
+cycle991B SHA9c5335f0feece67aa7514c2212eb4e2854ad3f4a8efab1280de83614c6cac08c.
+Same-boot CMDDB131072B SHA7506468c005bd57778fb2152806b81fc0bc00d3da8a14eb8a5508233cc2b6f49.
+
+Real cold SMMU again completes131 mapped/140 ATOS, owned stream4/5 routes and
+resume. GMF6/phase0,writes5,polls0,copy0/0,reset1,release0/OOB0; no firmware
+execution or INIT/version ACKs. NEW physical row3937:
+SWEET GMU FW READBACK: phase=0 check=1 window=1 off=01034 mask=ffffffff expected=00000000 actual=82204514
+WindowAO03d8c000 yields PA03d8d034, native RSC HIDDEN_TCS_CMD0_ADDR. This is
+the actual cached failed sample, not synthetic12340000. FSR400/400 has zero
+named fault flags; no new hardware reset-cause, secure ownership or UI claim.
+DSH65209 audit_failed_trial130.py actual0 -> failed-trial-audit.json state
+bound-native-SMMU-complete-cached-firmware-READBACK, all inputs unchanged.
+Strict reader SHA1a41e64b5ac68e67545046d0924080dc0c9afafd13f49153bd3aa8b377e29103.
+Stage-subset evidence only; whole failed result kept. All handles CLOSED.
+
+Address derivation checked against pinned native kgsl_gmu.c/gmu_core.c:
+resource03d6a000 maps directly; raw rscc=reg_virt+23000 BYTES, then word0xd*4,
+so current PA matches native path. Native19b63c8 a6xx_load_rsc_ucode performs
+fixed zero writes to HIDDEN_TCS_CMD0_ADDR/+2/+4 with no equality requirement.
+Neither native header nor upstream v6.12 XML documents per-bit echo semantics.
+Do NOT invent a mask, claim these registers read-only, or infer a hardware
+write failure solely from mismatch.131 proposed next: only these three fixed
+zero address writes use explicit native-write/equality-UNQUALIFIED policy,
+cache existing reads for logs, reject all-ones/IO/guards, retain every other
+readback/TCM/reset/fault/ACK check. Validate original-model I/O equivalence,
+focused negatives/all61 hosts and current130 xs5x0H native TUs before commit.
+No131 code/build/phone yet. PhoneTWRP.130 manual reset attribution unknown;
+older125/126/128/129 questions remain pending. Goal ACTIVE, no flash/format/
+GPT, original seven-line mkadt diff unchanged.
+
 ### 2026-11-07 — 0130 complete local kernel/image/readers qualified; one physical cached-readback trial next
 
 DSH46985 actual build0/qualification0, standard local gauguin.xs5x0H.

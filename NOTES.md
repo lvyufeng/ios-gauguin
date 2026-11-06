@@ -2,6 +2,79 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0120 autonomous reset confirmed; 0121 memory/HFI modules validated locally
+
+THIS0120 user explicitly answered “是，自行重启，我没有操作” to question
+call_fbc0f6320a4142dcbca7ca51884f69ee. New machine-generated parent record
+research/tmp/dsh-0121/hardware0120-attribution.json binds that answer to the
+original0120 technical report SHA58301c6a...bcf97 and rehashes ALL10 unchanged
+inputs. Original unknown-attribution report is preserved. Thus131s recovery is
+user-confirmed autonomous; no PMIC cause is available, so reset cause itself is
+not independently proven. Configured200MHz/branch ON remain the highest actual
+hardware result, not measured frequency or firmware/GPU/Metal execution.
+
+Codex authored CPU-only gauguin_gmu_memory.c/.h and gauguin_gmu_hfi.c/.h,
+now in0121-gauguin-gmu-memory-hfi.patch with two standard build entries. No
+runtime hook or boot flag is added. Exact native reference remains19b63c8192b1c9b7c4d931d7d3be92024bc2d778;
+new kgsl_hfi.c/h and io-pgtable-arm.c Git blobs independently verified in
+research/tmp/dsh-0121/native/pins.json. Public design contract is
+docs/gauguin-gmu-memory-hfi.md. No firmware binary/dump/serial in this change.
+
+Memory image uses the existing1MiB low owner, protects its first16KiB PAS page,
+and distinguishes CPU16KiB reservations from SMMU4KiB granules. Eight table
+pages map exactly131 cache/dummy/HFI/dump/log pages with native NC/RW/AF/nG/
+outer-shareable and IOMMU_PRIV permissions; separate user roots are empty.
+No metadata/table/gap/padding page is mapped. HFI keeps native216-byte table,
+224-byte ring start, four legacy IDs0/4/5/1 and disabled fourth queue. Pure
+emitters validate fixed ranges/overlaps/IAS/OAS before writing; they confer no
+physical ownership, coherency or SMMU authority.
+
+HFI channel binds once, serializes host ownership by CAS, sends only queue0,
+receives1/2, explicitly selects qualified major1/2, checks table/header/indices,
+reserves one DWORD and uses native v2 four-DWORD padding. Guarded NC RAM
+callbacks order payload/index/readback; receive output appears only after
+successful consumption publication. IO/corruption permanently quarantines;
+partial index publication may already have happened. Board adapter must retain
+the lease through its later doorbell. No IRQ/ACK/firmware qualification here.
+
+DSH memory-validation.json PASS: 7,936,295 independent walker/policy/failure
+checks with ASan/UBSan, actual ARM64 TU against qualified0120/gKuZ8y context.
+DSH hfi-validation-v2.json PASS:22,084 checks, fail-every-callback bind165/send69/
+receive66 boundaries, both protocol layouts/wrap/max packet/full/empty/capacity/
+quarantine and real ARM64 TU. Initial HFI fixture incorrectly used read index10
+in its protocol2 success case; Codex corrected it to aligned12. Production
+source was unchanged; original failed hfi-validation.json/logs are retained.
+No warning bypass, object repair or DSH source edits.
+
+Fresh strict115-patch replay source121-codex5274 files SHA
+4f866fc0f1b82b203b5e6204c7cde9cf8a54c3489bb7511df5242da9f4b4e87c;
+exact five native paths equal reviewed bytes, qualified source120 unchanged.
+Complete55-file host suite PASS via DSH47927: actual host_exit0, tested source
+unchanged and qualified source120 unchanged in replay-full-host-result.json.
+No0121 full kernel,
+CI run, image or device trial; phone has stayedTWRP throughout this work.
+
+DSH old /private/tmp overlays no longer exist. Failed launches stopped before
+any test execution. Reconstructed ignored overlays under research/tmp/dsh-0121
+disable remote MCP/web/subagent tools and use the existing configured relay's
+credential reference (no credential copied). NativeLAN route failed transport;
+existing relay works. Current invocation uses provider-existing-relay.patch.yml
+and local-tools-only.patch.yml with DSH_PERMISSION_MODE=danger-full-access.
+Sessions45441(memory) and71993(HFIv2) terminal0. Codex writes/reviews, DSH executes.
+
+Completed code committed a3a426f (seven text paths); private16c001f at start.
+Sanitized single-parent publication uses previous public
+1f1b3bc5892d7a257b1415c7149a82cc94e7bcfb; exact new commit/push outcome is
+recorded by research/tmp/dsh-0121/public-snapshot-0121.json. Never push private
+ancestry. Preserve original seven-line mkadt diff SHAa74a0418...
+454860 and all113–120 artifacts. Then implement the actual board adapter:
+narrow controller/reset/IRQ ownership, runtime SMMU stream/context/IDR
+qualification, page-table publication, native PDC/RSC, pinned legacy32768-byte
+ITCM image and reset/boot/version/HFI handshake in ONE bounded initialization.
+Do not assume DT stream4/5 are CB4/5 or firmware zero version words mean v1.
+Avoid extra mapping/copy-only reboots. Full daily-use/GPU/Metal/RAM/storage/
+peripherals/90–120Hz goal remains incomplete; user resumed with “继续”.
+
 ### 2026-11-06 — 0120 native GMU clock/CX technical verification PASS; reset attribution PENDING
 
 Full strict research/tmp/dsh-0120/hardware-data-verification.json passed all

@@ -2,7 +2,7 @@
 
 ## Agent handoff / active work
 
-### 2026-11-07 — full135 native kernel qualified; image and unchanged strict FW runtime checks next
+### 2026-11-07 — complete135 native image and strict runtime readers qualified; one physical trial next
 
 DSH34635 CLOSED0; actual standard local build135.py build0/qualification0,
 gauguin.fzguBO, captured HEAD7022e8310023687aa79f0a73f3d41492b3733a48.
@@ -15,10 +15,23 @@ IDxnu-51654419c294412984e4b08a888cb65f. Manifest
 2f09606fd64ab932da265ec46f9a806b78d6649538ddec9b7014bc6ca1236058;
 qualification SHA4661442fcde90899a0836ecd015be3cc6efb1eb11ff6f6c87208ebab40f5f78a.
 No CI used. Current generated native recipe/source now135 fzguBO, not134
-I9eLz1. DSH22581 packaging/review running. Readers migrated with numeric data,
-old pins and131-page strings preserved; additionally require native-order
-qualifier, retain every CM3/AO/PDC/SMMU and FW/ACK/reset/OOB check. Next runtime
-suites then ONE temporary135 boot. No135 phone proof. Last phoneTWRP after134;
+I9eLz1. DSH22581 CLOSED0; actual package0/independent review0, normal report
+and all inputs unchanged. Image19546112B SHA
+b3b1a283ac31a432492ea042807dd65b4c29ba62e52e847832372c235ec08706;
+payload19218432B SHA3d4c81874b8a816202e6fbff6a6334d60d5d330fb6aa35d170efb1cd2aa9eb75.
+Evidence SHA8cbdec89b2a368b1b56874c662195fbddb01a9ac1c2d246db196d5961e181d50.
+Unique sweettrial=gmuf-0135-20261107-a1,539bytes, source assets unchanged at
+NVT182558000/MDT18257c000/GMU182580000. All earlier image pins preserved.
+Readers migrated with numeric data, old pins and131-page strings preserved;
+additionally require native-order qualifier, retain every CM3/AO/PDC/SMMU
+and FW/ACK/reset/OOB check. DSH56803 actual runtime_validate135.py0, normal
+three zero results/inputs unchanged: clock4/95, FW19/292, explicitly SYNTHETIC
+full14/50. Reader SHAdbc33a00f83b22ea9550bf8bb9325f40ea8827323daaa4d182e141429a875b5b.
+Added false native-order qualifier rejection; all previous cases retained.
+Reviewed boot135/run_hardware135 prepared for ONE exact image-hash-pinned
+temporary boot, same unique products, routine latch readback,180s observer,
+freshpull/banner and full strict reader. NEXT execute execute-hardware.txt.
+No135 phone proof. Last phoneTWRP after134;
 no new UI/touch/reset attribution. Full goal ACTIVE; original mkadt seven-line
 diff untouched, no flash/format/GPT/destructive action.
 

@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-COMPONENT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source118-codex'))) / 'bsd/dev'
+COMPONENT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source120-codex'))) / 'bsd/dev'
 SHARED = BASELINE = COMPONENT
 FIXTURE = HERE / 'fixtures/gauguin_cx_power_host.c'
 
@@ -25,7 +25,12 @@ def replace_once(source, old, new):
 
 
 def prepare(source_path):
-    source = re.sub(r'^#include .*\n', '', source_path.read_text(), flags=re.M)
+    text = source_path.read_text()
+    marker = '/* Same translation unit as CX:'
+    assert text.count(marker) == 1
+    core, clocks = text.split(marker, 1)
+    assert 'sweet_gmu_clock_once' in clocks
+    source = re.sub(r'^#include .*\n', '', core + '#endif /* GAUGUIN */\n', flags=re.M)
     source = replace_once(source, 'uint32_t value = *(volatile uint32_t *)(mapping + offset);',
                           'uint32_t value = fake_read(mapping, offset);')
     source = replace_once(source, '*(volatile uint32_t *)(gcx_gpucc + GCX_GDSCR) = value;',

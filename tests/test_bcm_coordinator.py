@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual118 coordinator C: all149 old cases plus typed BCM -> ARC -> CX cases. No real waits or hardware."""
+"""Actual120 coordinator C: all149 old cases plus typed BCM -> ARC -> CX cases. No real waits or hardware."""
 import argparse
 import hashlib
 import json
@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source118-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source120-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
@@ -39,7 +39,7 @@ def main(temporary):
     shared = dev if (dev / 'gauguin_cx_rail.h').is_file() else args.shared.resolve()
     power = dev if (dev / 'gauguin_cx_power.h').is_file() else args.cx_power_dir.resolve()
     files = [Path(__file__).resolve(), source, FIXTURE, api / 'gauguin_pas_init.h',
-             bus / 'gauguin_bus_probe.h', shared / 'gauguin_cx_rail.h', power / 'gauguin_cx_power.h',
+             bus / 'gauguin_bus_probe.h', shared / 'gauguin_cx_rail.h', power / 'gauguin_cx_power.h', power / 'gauguin_gmu_clock.h',
              *(header_dev / name for name in ('gauguin_pas_stage.h', 'gauguin_bcm_transport.h',
                  'gauguin_wdt_lease.h', 'gauguin_bcm_plan.h'))]
     for path in files:
@@ -53,7 +53,7 @@ def main(temporary):
             files.append(shadow)
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     build = Path(temporary)
-    report = {'state': 'running', 'inputs': hashes, 'scope': 'actual118 coordinator + actual headers; retained149 + typed ARC/CX dependency/platform seams; no SMC/hardware'}
+    report = {'state': 'running', 'inputs': hashes, 'scope': 'actual120 coordinator + actual headers; retained149 + typed ARC/CX dependency/platform seams; no SMC/hardware'}
     log_path = build / 'run.log'
     try:
         code = re.sub(r'^#include .*\n', '', source.read_text(), flags=re.M)

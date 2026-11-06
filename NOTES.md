@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0120 GMU clock implementation, native TUs and all53 host files PASS
+
+119 prerequisite committed97c6bfc039a9ca709923e7f3cf0589f8a1d166cb, sanitized
+public051a0bd97037d156427c2bf6736cb4b39a049a42 with soleparentcaf7c3b...;
+9text paths, no private ancestry. 119 deliberately had no mapping-only boot.
+118 remains the highest real hardware result. Full original goal stays active.
+
+Codex implemented the complete fixed clock path in the SAME CX translation
+unit to reuse private GPUCC/GCC mappings; new gauguin_gmu_clock.h receipt/API.
+sweetgmuclk1 requiresCX1/PASoff and chooses GCC144000 RW once (old CX mode still
+RO). New PLL100000 RO/AXI12c000 RW pages have unmanagedDevice7/endpoint checks;
+shared GCC150000 uses119's owner, never an overlapping NVT alias. Runtime
+requires same-boot BCM/ARC/CX COMPLETE, fresh8s lease entry,3s later guards and
+one5s CPU deadline. Fixed GPLL0 FSM600MHz L1f/FRAC4000/divider1 is checked,
+no PLL retune; parent holds then RCG602/UPDATE then native CX_GMU/CXO/AXI/MEMNOC
+requests. Inherited active CX/GX sibling, root force/update/unknown dirty/mode,
+unsupported rate or lost access must stop; no retry/rollback/PET/branch disable.
+No explicit GMU firmware/reset release/PAS/GX/DMA/SMMU operation is added.
+Enabling clocks does not prove inherited CM3 state or absence of execution.
+
+Shared GPU hold API now requires the caller guard before store and following
+readback; delayed reads cannot bypass the clock deadline/WDT margin. GPU
+uncertainty remains separate from touch. Receipt direct_writes excludes shared
+owner stores; hold_requests counts its two calls (already-held votes may skip
+stores). Configured200MHz follows the native tuple, NOT frequency measurement.
+Before/after16-register snapshots and coordinator fields form later raw proof.
+
+Focused host results: shared GCC25 cases, actual GMU clock73, coordinator261
+(all241 retained+20 clock), CX104 (all103 retained+RW-map opt-in). Original
+NVT/BCM/PAS/ARC regressions retained. Real native TUs for clock/CX, guarded-GCC
+and coordinator PASS against qualified118/Y1TL15 context. Reports under
+research/tmp/dsh-0120/{guard-host-result.json,coordinator-validation-result.json,
+native-tu-v2-result.json,v2-execution-result.json}. DSH53453/2753/7513/39593 terminal.
+
+Initial source120-codex SHA54f3f212e2cb771548ad2630a268b5aea3722e8c30b335073981dece5808a01e
+and its53-file PASS are retained as history. Subsequent source review found
+DIRTY_CFG must be allowed AFTER OUR OWN CFG write before UPDATE, while other
+dirty/force fields remain rejected. V2 adds a clean-CMD check before consumers
+and dirty/no-dirty/ignored-UPDATE tests. Self-clear plus raw controls does not
+prove a measured or effective frequency; ignored writes with indistinguishable
+register observations remain outside that guarantee.
+
+Fresh strict114-patch V2 replay source120-v2-codex5270 files SHA
+debd4b4edf9648071570b18fca0291aed3a0886eb0eeb9e47bc055d0d72b436b;
+exactly5 native paths match reviewed combined bytes vs unchanged119. All53 host
+files PASS and tested source unchanged. Machine replay-full-host-v2-result.json.
+No0120 full kernel/image/device trial yet. Phone remainsTWRP; no new device IO.
+
+Next concrete action: commit/push tested0120 text paths, execute the prepared
+standard local research/tmp/dsh-0120/build120.py using that commit; source pin
+now bound. qualify_native0120.py adds all GMC/GCC defined symbols. pack/review
+scripts are ported with sweetgmuclk1 and sweettrial=gmuc-0120-20261106-a1,
+preserved113–118 assets/baselines, but must be reviewed before execution.
+Prepare an identity/CMDDB/WDT/BCM/CX+GMU16-register runtime verifier before one
+integrated temporary boot. It must accept the new GCC RW map, no old CX terminal
+marker, parse configured vs measured rate/hold_requests precisely, and use only
+THIS0120 user reset attribution. Existing118 verifier cannot qualify0120.
+Keep original mkadt diff and all113–118 images/data. Full objective unchanged.
+
 ### 2026-11-06 — 0119 shared GCC vote owner and NVT migration PASS; no device boot
 
 Previous goal turn was progress:118 actually qualified CX ARC/PWR_ON and

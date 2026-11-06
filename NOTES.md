@@ -2,6 +2,89 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual135 native-order SYS_BUS store62 still reads0; firmware remains under reset
+
+THIS goal turn made progress: complete134 and135 native builds/images/readers
+passed; ONE physical trial each,134 CM3 check passes/ICACHE refuses,135
+restores proven native BUS-before-cache order but BUS itself refuses. The
+order fix is valid source fidelity, NOT a demonstrated fix for zero readback.
+Full daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh goal stays ACTIVE.
+No firmware execution/reset release/ACKs/GPU/Metal qualification.
+
+DSH54863 CLOSED0; actual135 observer0/full verifier2. Start
+2026-11-06T21:52:07.340602Z,finish21:54:19.123160Z; Send19088KB0.445s,
+Boot0.134s/total0.581s. Recovery observed131s, manual reset attribution UNKNOWN,
+no new user UI/touch fact. Fresh4096lines/460885B raw
+p3-gmuf-0135-native-observer-20261107.txt SHA
+3f91a42a76c30baab9daa3c3e3421b9a52f6872280ff6ee3c1c0976fa00d3088;
+cycle1077B SHA639deb20fe899eeee280820c1776c6515fa526d5152405747e39109465fea08e.
+Same-boot CMDDB131072B SHA4b026f223fdf794c06f46f82f7ddda6d9902512feb132ff7aa840ff374ecebc5.
+SMMU131/140,PDC6,8192 TCM copy/readback,AO3f/check3b,CM3raw52/NMI-clear
+again complete. Exact refusal: phase0/check1/CSR off0103c/PA03d7d03c,
+native GMU_SYS_BUS_CONFIG word1f40f, maskffffffff, requested1/actual0.
+Writes62/polls0, reset1/release0/OOB0,FW0/version0,GFSR0,FSR400/400 with
+named faults0,AOstatus0/info0. ICACHE/DCACHE entries not yet attempted in135.
+DSH81956 CLOSED0, actual audit_failed_trial135.py0, state
+bound-TCM-copy-CM3-NMI-clear-native-order-SYSBUS-refusal, inputs unchanged.
+This binds source order and the strict-reader SMMU stage prefix/cached raw
+records as a subset ONLY; original hardware-full-verification.json rejection
+is retained. All owned handles (including runtime56803) CLOSED; phoneTWRP.
+
+Pinned native adreno_a6xx_gmu.c312-322 writes all three fixed1 values with
+no equality-read check; kgsl_gmu_core.c221-245 confirms guarded offset/wmb/
+raw write, not readback verification. Registers' per-bit/readback semantics
+remain undocumented. Web search also found A630 snapshots reading1, so do
+NOT infer universal read-only/zero/self-clearing semantics or invented mask.
+Actual134 ICACHE0 and135 SYS_BUS0 prove only these immediate samples.
+
+NEXT: prepare a narrow136 experiment matching that native three-register
+write protocol: retain135 order/fixed1 and existing guarded write/barrier/read,
+refuse all-ones/IO/guard failures, privately cache all three raw observations
+with equality explicitly UNQUALIFIED. It must not claim those writes were
+accepted or caches disabled. Preserve EVERY other config/reset/GX/IRQ/fault/
+deadline/TCM/ACK check; genuine fresh FW result and INIT/version replies are
+still required, never replaced by raw observations. No new MMIO/retry or
+field-mask invention. Test0/1/synthetic other bits, all-ones per slot, cache/
+repeat/output preservation, failure at all callbacks and partial post-
+quarantine records; distinguish ignored-write observations from callback
+failure. Compare unchanged original-model I/O against frozen135, all61 hosts
+and CURRENT135 fzguBO native TUs. No136 code yet. Original seven-line mkadt
+diff untouched; no flash/format/GPT/destructive action. Codex critical code/
+review/Git, DSH exact full-access compile/test/boot execution.
+
+### 2026-11-07 — complete135 native image and strict runtime readers qualified; one physical trial next
+
+DSH34635 CLOSED0; actual standard local build135.py build0/qualification0,
+gauguin.fzguBO, captured HEAD7022e8310023687aa79f0a73f3d41492b3733a48.
+Exact129-patch source13562a4bf7d...c3ad8e,5282files. All134 qualifiers
+retained; installed native SYS_BUS/ICACHE/DCACHE fixed1 table checked and
+native_bus_cache_order_source_bound TRUE required. Kernel16905568B SHA
+3f339c05188ef3af19bbfd45ee575a3fc6a156fc131bddc1fd5479f0a622bf17,
+IDxnu-51654419c294412984e4b08a888cb65f. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.fzguBO/build-manifest.json SHA
+2f09606fd64ab932da265ec46f9a806b78d6649538ddec9b7014bc6ca1236058;
+qualification SHA4661442fcde90899a0836ecd015be3cc6efb1eb11ff6f6c87208ebab40f5f78a.
+No CI used. Current generated native recipe/source now135 fzguBO, not134
+I9eLz1. DSH22581 CLOSED0; actual package0/independent review0, normal report
+and all inputs unchanged. Image19546112B SHA
+b3b1a283ac31a432492ea042807dd65b4c29ba62e52e847832372c235ec08706;
+payload19218432B SHA3d4c81874b8a816202e6fbff6a6334d60d5d330fb6aa35d170efb1cd2aa9eb75.
+Evidence SHA8cbdec89b2a368b1b56874c662195fbddb01a9ac1c2d246db196d5961e181d50.
+Unique sweettrial=gmuf-0135-20261107-a1,539bytes, source assets unchanged at
+NVT182558000/MDT18257c000/GMU182580000. All earlier image pins preserved.
+Readers migrated with numeric data, old pins and131-page strings preserved;
+additionally require native-order qualifier, retain every CM3/AO/PDC/SMMU
+and FW/ACK/reset/OOB check. DSH56803 actual runtime_validate135.py0, normal
+three zero results/inputs unchanged: clock4/95, FW19/292, explicitly SYNTHETIC
+full14/50. Reader SHAdbc33a00f83b22ea9550bf8bb9325f40ea8827323daaa4d182e141429a875b5b.
+Added false native-order qualifier rejection; all previous cases retained.
+Reviewed boot135/run_hardware135 prepared for ONE exact image-hash-pinned
+temporary boot, same unique products, routine latch readback,180s observer,
+freshpull/banner and full strict reader. NEXT execute execute-hardware.txt.
+No135 phone proof. Last phoneTWRP after134;
+no new UI/touch/reset attribution. Full goal ACTIVE; original mkadt seven-line
+diff untouched, no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0135 native bus/cache order fix committed; all61 hosts/two native TUs pass
 
 THIS turn is progress: complete134 build/image/readers passed, ONE real134
@@ -35,7 +118,11 @@ Native firmware48784B SHAf6f7c25fbd97c4b38862aa0ec2f1df6807d9c747fda5a869fd61013
 board68312B SHA04623e35bbd722f5ae691b8c454a27ec6984220a0888375e48cf5c7ddbbd8105,
 using CURRENT134 I9eLz1 recipe/source. All owned handles closed.
 
-NEXT sanitized source/notes push, full135 standard local build/qualification;
+Sanitized135 source/notes pushed and ls-remote verified
+df54ac0614196b04bdca3f9525d38459d19548db, sole parent89f38b7, seven text
+paths, same tree as privatec93bd70. Reportdsh-0135/public-snapshot-0135.json;
+private ancestry, dumps/serials and binary/downloaded assets not pushed.
+NEXT full135 standard local build/qualification;
 retain every134 check and source-bind BUS-before-cache order, independent
 pack/review and strict runtime suites, then ONE temporary135 boot. No135 full
 image/phone IO yet. PhoneTWRP after134; no new user UI/touch/reset attribution.

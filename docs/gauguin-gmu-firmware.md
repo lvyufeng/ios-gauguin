@@ -276,3 +276,20 @@ fixture compares all1,009,420 requests against0134: the only difference is
 the predicted CSR address rotation across those three stores/reads. This is
 source fidelity and software validation; no0135 physical result exists yet,
 and the reason0134 read zero remains unproven.
+
+Physical0135 stops at the first entry in the restored native sequence:
+store62, SYS_BUS_CONFIG word0x1f40f, CSR offset0x103c/PA0x03d7d03c,
+requested1/read0. ICACHE/DCACHE have not yet been attempted in that run.
+Complete8192-word copy/readback, CM3 NMI-clear, PDC/AO and SMMU checks pass;
+reset stays1/release0, with no firmware execution or ACKs. Restoring native
+order alone therefore does not resolve the non-echoing configuration read.
+
+The pinned native driver issues these three fixed1 writes without equality
+verification. That is a native programming protocol, not documentation that
+the fields are read-only, self-clearing or accepted on this device. A later
+narrow experiment can preserve the same writes/order/guards and existing raw
+reads, reject all-ones/IO failures, and record the entire values as explicitly
+unqualified instead of inventing per-bit masks. Such records cannot prove
+write acceptance or cache state. Actual fresh firmware-result and INIT/version
+replies remain the required execution evidence; all other control/fault/
+IRQ/reset/deadline checks must remain intact. No0136 candidate exists yet.

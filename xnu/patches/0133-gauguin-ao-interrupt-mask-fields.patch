@@ -1,0 +1,96 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -344,6 +344,14 @@
+         gmb_record(line);
+     }
+ }
++static void gfw_ao_record(void)
++{
++    if(gfw_context.ao_mask_valid){
++        char line[192];
++        snprintf(line,sizeof(line),"SWEET GMU AO MASK: off=02c18 requested=ffffffff readback=%08x checked_mask=%08x policy=native-write; other bits unqualified",gfw_context.ao_mask_readback,GMF_AO_IRQ_FIELDS);
++        gmb_record(line);
++    }
++}
+ static enum gmb_result gfw_fail(enum gmb_result rc,const char *why)
+ {
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+@@ -366,6 +374,7 @@
+     }
+     gfw_hidden_records();
+     gfw_pdc_records();
++    gfw_ao_record();
+     return rc;
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+@@ -406,6 +415,7 @@
+     *out=gfw_work;__atomic_store_n(&gfw_lifecycle,GMB_READY,__ATOMIC_RELEASE);
+     gfw_hidden_records();
+     gfw_pdc_records();
++    gfw_ao_record();
+     gmb_record("SWEET GMU FW: complete native FW result and INIT/version ACKs; no normal HFI_ON/GPU/Metal qualification");
+     return GMB_OK;
+ }
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -82,6 +82,19 @@
+     if((actual&GMF_PDC_MSGID_FIELDS)!=GMF_PDC_MSGID_FIELDS)
+         return mismatch(c,GMFD_STORE32,GMF_PDC,off,GMF_PDC_MSGID_FIELDS,GMF_PDC_MSGID_FIELDS,actual);
+     c->pdc_msgid_readback[index]=actual;c->pdc_msgid_valid|=1u<<index;
++    return GMF_OK;
++}
++static enum gmf_result ao_irq_mask(struct gmf_context *c)
++{
++    uint32_t actual,off=A(0x23b06);
++    /* Preserve the full mask write; actual132 reads3f. Require every named
++     * AO source masked, leaving other bits unqualified. UINT32_MAX is a
++     * valid read for this requested mask and was accepted by the old store.
++     * All other inaccessible-register/status/IRQ guards remain unchanged. */
++    if(!wr(c,GMF_AO,off,UINT32_MAX)||!barrier(c)||!rd(c,GMF_AO,off,&actual))return GMF_IO;
++    if((actual&GMF_AO_IRQ_FIELDS)!=GMF_AO_IRQ_FIELDS)
++        return mismatch(c,GMFD_STORE32,GMF_AO,off,GMF_AO_IRQ_FIELDS,GMF_AO_IRQ_FIELDS,actual);
++    c->ao_mask_readback=actual;c->ao_mask_valid=1;
+     return GMF_OK;
+ }
+ static enum gmf_result poll(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t mask_bits,uint32_t value,uint32_t *out)
+@@ -161,7 +174,7 @@
+     /* Keep host delivery masked; native message bit0 is polled even when
+      * masked. NS GIC predicates stay quiet. Clear inherited status under reset. */
+     rc=store(c,GMF_CSR,C(0x1f993),UINT32_MAX);if(rc)return rc;
+-    rc=store(c,GMF_AO,A(0x23b06),UINT32_MAX);if(rc)return rc;
++    rc=ao_irq_mask(c);if(rc)return rc;
+     if(!wr(c,GMF_CSR,C(0x1f991),UINT32_MAX)||!wr(c,GMF_AO,A(0x23b04),UINT32_MAX)||!barrier(c))return GMF_IO;
+     static const uint32_t config[][3]={
+         {GMF_CSR,C(0x1f81c),0},{GMF_CSR,C(0x1f801),2},
+@@ -277,6 +290,7 @@
+     memset(&c->diagnostic,0,sizeof(c->diagnostic));
+     c->hidden_valid=0;memset(c->hidden_readback,0,sizeof(c->hidden_readback));
+     c->pdc_msgid_valid=0;memset(c->pdc_msgid_readback,0,sizeof(c->pdc_msgid_readback));
++    c->ao_mask_valid=0;c->ao_mask_readback=0;
+     const uint8_t *asset=NULL;size_t bytes=0;enum gmf_result rc=GMF_OK;
+     if(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
+        (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1))rc=GMF_ASSET;
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -6,6 +6,8 @@
+ /* Pinned rpmh-rsc.c: WRITE bit16 and RESP_REQ bit8. PDC length and other
+  * bits have no qualified readback semantics; retain the native10108 write. */
+ #define GMF_PDC_MSGID_FIELDS ((1u<<16)|(1u<<8))
++/* All five named kgsl_gmu.h AO sources, not an inferred register width. */
++#define GMF_AO_IRQ_FIELDS ((1u<<0)|(1u<<1)|(1u<<3)|(1u<<4)|(1u<<5))
+ enum gmf_domain {GMF_CX,GMF_MX,GMF_GFX,GMF_XO,GMF_DOMAINS};
+ struct gmf_plan {uint32_t address[4],count[4],selector[4],level[4];uint16_t levels[4][16];};
+ bool gmf_plan_build(const struct ndb_entry *,struct gmf_plan *);
+@@ -45,7 +47,8 @@
+     /* Native fixed-zero HIDDEN_TCS_CMDn_ADDR writes, not bitwise-qualified.
+      * Cache only the existing read; no public success receipt is changed. */
+     uint32_t hidden_valid,hidden_readback[3];
+-    uint32_t pdc_msgid_valid,pdc_msgid_readback[6];};
++    uint32_t pdc_msgid_valid,pdc_msgid_readback[6];
++    uint32_t ao_mask_valid,ao_mask_readback;};
+ /* One cold native bootstrap: PDC/RSC/TCM/power/version -> reset release and
+  * fresh FW result -> A619 boot-slumber OOB -> HFI init and INIT/version ACKs.
+  * Exact pinned legacy asset + native family rules select v1 transport; the

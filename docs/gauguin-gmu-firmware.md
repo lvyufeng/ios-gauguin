@@ -213,3 +213,16 @@ implemented register width or read-only behavior. Full0xffffffff readback is
 also valid for this requested mask; the separate CSR mask and other register
 guards retain their existing checks. Actual firmware completion remains the
 required later evidence.
+
+Patch0133 changes only the AO mask word's comparison. It keeps the full
+0xffffffff write and the existing guarded write/barrier/read sequence,
+requires all five named bits in `GMF_AO_IRQ_FIELDS` (0x3b), and caches the raw
+sample privately. `SWEET GMU AO MASK` records follow the six PDC records after
+completion or quarantine, explicitly leaving other bits unqualified. A full
+0xffffffff read remains valid for the requested mask, preserving the earlier
+behavior. The CSR mask, status/fault checks, GIC delivery policy, deadlines,
+one-shot lifetime, public receipt and later FW/INIT/version checks remain.
+Host cases include physical0x3f,0x3b, the full mask and explicitly synthetic
+other bits, plus each named mask bit missing and zero. Rejections occur after
+the required copy but before reset release; repeat/output/cache preservation
+and the original I/O-boundary coverage remain required.

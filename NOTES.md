@@ -2,6 +2,71 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual136 first fresh GMU BABEFACE, GX on, HFI-ready path; handshake ACK refusal next
+
+THIS goal turn is progress: complete136 native build/image/readers qualified;
+ONE physical136 boot FIRST proves fresh GMU firmware execution (BABEFACE),
+observes GX on, and reaches HANDSHAKE after source-bound boot-slumber/HFI-ready
+polls. It then refuses GMF_ACK. Full handshake/INIT/version completion is NOT
+qualified; GPU command execution/Metal/daily-use/RAM/storage/peripherals/high-
+refresh objective remains ACTIVE/incomplete. This is CM3 firmware execution,
+not GPU rendering. No relaxed ACK/type/size/echo/status checks or fake success.
+
+DSH64889 CLOSED0 initially stopped BEFORE reviewed executor: it incorrectly
+required fastboot enumeration although phone starts in recovery. No image
+boot or latch in that job; original events-hardware.jsonl kept. Corrected
+execute-hardware-v2.txt tells DSH to run only the reviewed script, which owns
+recovery/ADB/product/latch/fastboot preflight. DSH65131 CLOSED0 then actual
+observer0/full verifier2; ONE actual136 boot, not a repeated physical trial.
+Use this v2 task wording for later boots; no separate initial-fastboot gate.
+
+Start2026-11-06T22:12:20.778853Z,finish22:14:32.502031Z. Send19088KB0.447s,
+Boot0.134s/total0.584s. Recovery observed131s; no new user manual/reset/UI/
+touch attribution. Fresh4112lines/460613B log
+p3-gmuf-0136-native-observer-20261107.txt SHA
+169fd01cb334aafb028ab0a5ab13464aa9112bb4577158cce500c905030d5fd8;
+cycle1077B SHA0f479efcc3c785efef02ab001b518383ce5ef4c648c4693d95ce98be64a247de.
+Same-boot CMDDB131072B SHA55adb65aa0193b36fd76abb8e7a1cbb0ae97184b7318777334ab1a377dbdd4fc.
+SMMU131/140,PDC6,8192-word copy/readback,AO3f/CM3raw52 all pass. Three
+BOOT CFG raws now all0 (including first physical DCACHE sample); equality/
+write acceptance/cache state remain UNQUALIFIED despite later firmware boot.
+
+Exact cached stop: phase5/engine10(GMF_ACK), reset0,GXf8222000 (power-on bit
+set), release1/OOB1,GFSR0,FSR400/400/named faults0,AOstatus0/info0. Partial
+work phase5,writes80,polls4,copy8192/8192,FWbabeface,reported version0. No
+READBACK refusal. Native code clears FW_INIT_RESULT0 before owned release,
+requires freshBABEFACE then boot-slumber ACK/clear and HFI-ready poll before
+setting HANDSHAKE. Those latter passes are source-bound, not separate raw
+success records. GMF_ACK can come from draining a queued packet before/after
+INIT or request reply size/echo/status/type;136 captures none of the packet.
+INIT send/validation is UNKNOWN; do not assert actual invalid INIT status or
+guess a protocol mismatch from phase5/writes80 alone. No version ACK qualified.
+
+DSH20171 CLOSED0, actual audit_failed_trial136.py0 -> failed-trial-audit.json,
+state bound-fresh-GMU-boot-GX-HFI-ready-handshake-refusal, inputs unchanged.
+Strict reader940721ad...7b866a and actual source snapshotfcd7f7d7...cccdc9 bound.
+Audit reuses UNCHANGED SMMU prefix and records raw boot/GX + explicitly
+source-bound transitions as a stage subset. Full original rejection retained.
+firmware_boot TRUE, hfi_handshake_complete FALSE, gpu_execution/metal FALSE.
+All owned handles CLOSED; phoneTWRP. Current native recipe/source136 yLkhEV.
+
+NEXT137: diagnostic-only capture of FIRST rejected already-read HFI packet,
+covering BOTH drain_debug and request GMF_ACK exits. Cache phase/site/reason,
+queue, request header/expected size if applicable, received word count and
+bounded complete payload (max19 words). Distinguish unexpected/stale ACK,
+wrong type/id, ACK size/echo/status and exhausted16-debug budget. No extra
+MMIO/shared reads, retries, ACK-policy relaxation, ring/public receipt or
+native initialization changes. Clear cache after first successful CAS only;
+repeat/output preservation. Log cache only AFTER gmb/WDT quarantine, with
+bounded header and indexed raw-word records; no packet log can claim success.
+Host cases exercise every reason/site/full max packet, no cache on success,
+repeat/all callback failures/output preservation and partial board diagnostics.
+Compare original-model I/O against frozen136, all61 hosts and CURRENT136
+yLkhEV native TUs; full image/tempboot then use real packet to choose protocol
+fix. Preserve original mkadt seven-line diff and every existing check. No137
+code yet; no flash/format/GPT/destructive action. Codex core/review/Git, DSH
+exact full-access compile/test/boot execution.
+
 ### 2026-11-07 — complete136 native image and three-record strict runtime readers qualified; one physical trial next
 
 DSH91065 CLOSED0; actual standard local build136.py build0/qualification0,

@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0125 physical failure identified; 0126 native-write experiment passes61 host files and two native TUs
+
+Previous checkpoint was progress:125 complete local kernel/image and strict
+runtime readers qualified. THIS turn DSH48522 closed0 after ONE actual125
+temporary boot: Send19072KB0.447s/Boot0.134s/total0.583s, start
+2026-11-06T18:31:35.476737Z, finish18:33:47.526698Z, recovery131s/observer0.
+Unique recovery productgauguin / fastboot productgauguinpro and13-byte routine
+recovery latch readback all passed. Phone nowTWRP. No flash/format/GPT change.
+Strict hardware-full-verification.json remains evidence-rejected/exit2.
+Separate hardware-diagnostic-verification.json exit0 means ONLY a verified
+failed-predicate capture, never firmware/SMMU/GPU success. Original logs kept.
+Fresh4026lines/450423B p3-gmuf-0125-native-observer-20261107.txt SHA
+63098de2bf563afa83a3392f57622140f8659ab04ef2d00a46b1f0517ce7cdc1;
+991B cycle SHAea28838a95260deb510fc30a65555c60e5feb453f08ef34587de0ab958a2208e.
+BuildIDxnu-35e8ee3b79544eba9a9ed80d8d3bccb3, gmuf-0125-20261107-a1 and
+e545fa47...541c9 image match the qualified125 package. Same-trial CMDDB131072B
+SHA64dfc9cee0e4f102ebe6a8381ada050f91ddd7aada4477a7b85ffdbfb909f5cc.
+
+Exact real failure: phase4/global check1/store32 off06b68, PA03d46b68,
+mask00000000ffffffff, requested000000009a82a382, actual000000000a800082.
+Cached id48016605/20008005/00007511, cr0before00200626, microbefore00002378,
+IAS39/OAS36, writes13/polls1/ATOS0. Zero after fields are UNSET, not observed.
+Contexts/ATOS/firmware path had not started. Not the synthetic6960/3f example.
+THIS125 autonomous/manual attribution question is pending; do not reuse124's
+answer. Latest user reply explicitly confirmed124 only. PMIC cause unproven.
+
+Pinned native arm-smmu.c19b63c8 lines4766–4771 writes DT attach-impl-defs
+without readback-equality checks. Actual device DT has06b68/9a82a382. Neither
+source documents bit masks: no claim that the missing bits are reserved,
+write-only or secure. Codex authored0126 native-write experiment, code commit
+156a62d7b34246c43ec84ff2d0de111124338edd: only06b68 uses exact native write
+and SAME guarded write/barrier/read sequence, retaining raw readback without
+per-bit acceptance. No write-value tuning/mask invention/retry/other predicate
+change; all-ones and callback/owner failures still stop. Unknown opaque write
+effects remain UNQUALIFIED even if later ATOS passes. All other controls,
+fault checks and140 ATOS stay mandatory. Private cached sample logs after
+failure quarantine or with SMMU receipts before firmware windows on success.
+Public success receipt unchanged. Full daily-use goal stays ACTIVE/incomplete.
+
+DSH71985 actual validation0: strict fresh120-patch source126-codex5282 files
+SHA258f3be295363d721df43229f210a7322f71ce0ef6e3b1be833d4ec4236d5b16,
+only board.c/smmu.c/h differ from frozen125. All61 host files passed, SMMU
+3,482,273 ASan/UBSan checks incl2541 callback failures x echo/non-echo and
+independent architected-control/ATOS refusals; board2839+75 cases. Original
+125 frozen fixture baseline/candidate3,259,083 IOcallbacks identical digest
+b627036027cd4225. Both real ARM64 TUs compiled using CURRENT qualified125
+gauguin.zy6VU9 manifest/recipe; no manual objects or warning bypass. All input
+pins/source125/source126 unchanged in research/tmp/dsh-0126/validation-result.json.
+No126 full build/image/boot yet. Next standard local126 kernel build, strict
+qualification/package/runtime reader with explicit opaque-field limitation,
+then ONE exact temporary boot. Preserve all125 rejected proof and oldimages.
+User mkadt original7line diff untouched. Codex core/Git/audit; DSH execution.
+
 ### 2026-11-07 — 0125 complete local kernel/image and both runtime readers validated; diagnostic boot next
 
 Previous goal turn made concrete progress: ONE124 real trial failed at SMMU

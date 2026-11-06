@@ -3,6 +3,28 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0114 autonomous normal-running watchdog reset VERIFIED
+
+User answered the pending attribution question: “是，手机自行重启，我没有操作”.
+Parent rechecked unchanged image/log/cycle hashes against the technical report
+and combined that explicit fact in
+research/tmp/dsh-0114/hardware-parent-verification.json. Result is now verified
+normal-running expiry/autonomous recovery after131s. The earlier unknown/exit3
+report remains unchanged history, not silently relabeled. EN3/native20sBARK23sBITE,
+five enabled increasing counters, explicit observer back-in-TWRP, no PET/software
+reboot/panic, full banner and unique trial all checked. This does NOT prove
+containment of arbitrary secure-world hangs. Device remains TWRP.
+
+Current115 work (offline, not booted): root authors bounded BCM transport;
+Codex agent prepares explicit PAS CPU-stage READY/one-way claim; another prepares
+one-attempt watchdog arm/budget API preserving114 diagnostics. DSH will execute
+reviewed tests/builds. Native BCM batch semantics: MSGIDs10108,10108,10008,10108,
+10108,10108; WAIT3b,ENABLE3f. DRV2 IRQ is actual DT thirdtuple SPI5/INTID37,
+GIC NS ISENABLER1 bit5 (distinct from WDT bits0/1). No new hardware write yet.
+Keep0113 UI/touch and0114 reset baselines. No GPU/Metal completion claim.
+
+
+
 ### 2026-11-06 — 0114 timer/automatic-recovery data verified; manual-action confirmation PENDING
 
 Observer saw recovery after131s (not a timeout); fresh114log was automatically

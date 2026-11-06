@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source122-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source124-codex')))/'bsd/dev'
 source=D/'gauguin_cx_power.c';fixture=R/'tests/fixtures/gmu-clock/clock_host.c'
 inputs=[source,fixture,D/'gauguin_gmu_clock.h',D/'gauguin_cx_power.h',D/'gauguin_gcc_votes.h',D/'gauguin_cx_rail.h',D/'gauguin_bcm_transport.h',D/'gauguin_bcm_plan.h']
 pins={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}

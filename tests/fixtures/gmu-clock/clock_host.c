@@ -125,6 +125,22 @@ static void quiet_cases(void)
   reset();success();h.fail_guard=h.guards+i;out=0xa5;
   CHECK(!sweet_gmu_clock_quiet(&out)&&out==0xa5);
  }
+ for(unsigned mode=0;mode<4;mode++){
+  reset();success();h.gx_gdsc=(mode&1)?0x80000000:0;
+  h.reg[GMC_GX]=(mode&2)?1:0x80000000;out=0xa5;
+  unsigned writes=h.direct,maps=h.maps;
+  CHECK(sweet_gmu_clock_live(true,&out)&&out==h.gx_gdsc&&h.direct==writes&&h.maps==maps);
+  out=0xa5;CHECK(sweet_gmu_clock_live(false,&out)==(mode==0));
+  if(mode)CHECK(out==0xa5);
+ }
+ for(unsigned i=0;i<sizeof(regs)/sizeof(*regs);i++){
+  reset();success();h.gx_gdsc=0x80000000;h.reg[regs[i]]=UINT32_MAX;out=0xa5;
+  CHECK(!sweet_gmu_clock_live(true,&out)&&out==0xa5);
+ }
+ for(unsigned i=1;i<=28;i++){
+  reset();success();h.gx_gdsc=0x80000000;h.fail_guard=h.guards+i;out=0xa5;
+  CHECK(!sweet_gmu_clock_live(true,&out)&&out==0xa5);
+ }
 }
 int main(void){
  reset();success();CHECK(h.direct==7&&h.shared==2);

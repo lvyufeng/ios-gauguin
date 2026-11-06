@@ -20,7 +20,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-SOURCE_ROOT = Path(os.environ.get("XNU_SOURCE", str(REPO / ".deps-cache/p0-20261105/source113-codex"))).resolve()
+SOURCE_ROOT = Path(os.environ.get("XNU_SOURCE", str(REPO / ".deps-cache/p0-20261105/source115-codex"))).resolve()
 DEV = SOURCE_ROOT / "bsd/dev"
 FIXTURE = HERE / "fixtures/gauguin_bus_probe_host.c"
 SOURCE = DEV / "gauguin_bus_probe.c"
@@ -109,6 +109,22 @@ def run(directory):
                     "--trial", trial, "--out", decoded], log, env)
             if decoded.read_bytes() != data:
                 raise RuntimeError("actual worker RAW/extractor round-trip differs from fixture DB")
+            # The public prepare API is executed separately by the same
+            # fixture; its own actual RAW output must also reconstruct fully.
+            prepare_image = build / 'prepare.image'
+            prepare_log = build / 'prepare-bound.log'
+            prepare_decoded = build / 'prepare-decoded.bin'
+            prepare_trial = 'synthetic-prepare-host-115'
+            prepare_image.write_bytes(banner + b'\x00')
+            prepare_log.write_bytes(banner + b'\nboot-args=sweetbusvote=1 sweettrial=' +
+                                    prepare_trial.encode('ascii') + b'\n' +
+                                    Path(str(raw_log) + '.prepare').read_bytes())
+            invoke([sys.executable, EXTRACTOR, '--image', prepare_image,
+                    '--log', prepare_log, '--trial', prepare_trial,
+                    '--out', prepare_decoded], log, env)
+            if prepare_decoded.read_bytes() != data:
+                raise RuntimeError('prepare API RAW/extractor round-trip differs from fixture DB')
+            log.write('PASS: prepare API -> own RAW log -> actual extractor -> exact fixture DB\n')
             after = {path: hashlib.sha256(Path(path).read_bytes()).hexdigest() for path in inputs}
             if after != inputs:
                 raise RuntimeError("test input changed during execution")

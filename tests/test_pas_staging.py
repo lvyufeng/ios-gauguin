@@ -31,7 +31,7 @@ import warnings
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-XNU = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/xnu-patched-0082-2'))
+XNU = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/p0-20261105/source115-codex'))
 SOURCE = Path(os.environ.get('PAS_STAGE_SOURCE', XNU / 'bsd/dev/gauguin_pas_stage.c'))
 FIXTURE = HERE / 'fixtures/gauguin_pas_stage_host.c'
 PAGE = 16384
@@ -52,8 +52,39 @@ def module(name, path):
     return result
 
 
+def inspect_contract(source_path, header_path):
+    source, header = source_path.read_text(), header_path.read_text()
+    stage = source.split("void\nsweet_pas_stage_once(", 1)[1].split("bool\nsweet_pas_cpu_stage_claim(", 1)[0]
+    claim = source.split("bool\nsweet_pas_cpu_stage_claim(", 1)[1]
+    # This is a supplementary audit, not a substitute for executing real C.
+    assert "int probe = 0, stage = 0;" in stage
+    assert stage.index("probe != 1 || stage != 1") < stage.index("PST_STAGING")
+    assert "__atomic_compare_exchange_n(&pst_state, &expected, PST_STAGING, false," in stage
+    assert "__ATOMIC_ACQ_REL, __ATOMIC_RELAXED" in stage
+    publication = "__atomic_store_n(&pst_state, PST_READY, __ATOMIC_RELEASE);"
+    assert source.count(publication) == 1
+    record_write = "pst_ready = (struct sweet_pas_cpu_stage){ pa, PST_BYTES, (uint32_t)PST_PAGE };"
+    assert source.count(record_write) == 1
+    assert stage.index('if (!match)') < stage.index(record_write) < stage.index(publication)
+    assert stage.count("__atomic_store_n(&pst_state, PST_FAILED, __ATOMIC_RELEASE);") == 4
+    assert "unsigned expected = PST_READY;" in claim
+    assert "__atomic_compare_exchange_n(&pst_state, &expected, PST_CLAIMED, false," in claim
+    assert "__ATOMIC_ACQUIRE, __ATOMIC_RELAXED" in claim
+    assert claim.index("out == NULL") < claim.index("__atomic_compare_exchange_n") < claim.index("*out = pst_ready;")
+    assert source.count("*out = pst_ready;") == 1
+    assert not re.search(r"pst_state\s*=\s*PST_IDLE|__atomic_store_n\(&pst_state,\s*PST_IDLE", source)
+    record = re.search(r"struct sweet_pas_cpu_stage\s*\{(.*?)\};", header, re.S).group(1)
+    assert "*" not in record and re.sub(r"\s+", " ", record).strip() == (
+        "uint64_t pa; uint32_t metadata_bytes; uint32_t reserved_bytes;")
+    assert "bool sweet_pas_cpu_stage_claim(struct sweet_pas_cpu_stage *out);" in header
+    assert "void sweet_pas_stage_once(uint64_t pa, uint64_t region_bytes);" in header
+    assert "0xaa200000" not in source.lower()
+
+
+
 def production_source():
     """The staging C with only the DSB and its includes replaced."""
+    inspect_contract(SOURCE, SOURCE.with_suffix('.h'))
     source = SOURCE.read_text()
     assert not re.search(r'smc #|ml_io_unmap|sweet_spmi|rpmh_write|write32|read32', source)
     assert source.count('ml_io_map_wcomb((vm_offset_t)pa') == 1
@@ -144,7 +175,7 @@ class StagingTests(unittest.TestCase):
         source_path = directory / 'test.c'
         source_path.write_text(self.fixture.replace('@SOURCE@', source))
         binary = directory / 'test'
-        subprocess.run(CC + [str(source_path), '-o', str(binary)], check=True, timeout=60,
+        subprocess.run(CC + ['-I' + str(SOURCE.parent), '-pthread', str(source_path), '-o', str(binary)], check=True, timeout=60,
                        capture_output=True, text=True)
         return binary, directory / 'descriptor.bin', directory / 'page.bin'
 

@@ -3,6 +3,99 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0115 strict replay + full host suite PASS on fresh source115-codex (DSH)
+
+DSH executed the reviewed `research/tmp/dsh-0115/execute-replay-full-tests.txt`
+command EXACTLY ONCE (no retry, no edits, no repair, no full build, no device,
+no network, no git changes): `PYTHONDONTWRITEBYTECODE=1 python3
+research/tmp/dsh-0115/prepare_and_test115.py > replay-full-host-executor.log 2>&1`.
+Actual script exit0, state `passed`; started09:17Z finished09:18:49Z.
+
+Preconditions seen by DSH before running: source115-codex/pristine115.tar/record
+absent; source114-context SHA256 `738fda98...…3a9557a3` intact; pinned upstream
+`1b191cb5…` (tree `5c0fc728…`) present. Strict replay PASSED:109patches from
+`git archive` of that upstream, fresh `.deps-cache/p0-20261105/source115-codex`,
+5261files, source SHA256
+`a6634f4a8913181ab29ee477ed31abf0b0de92bbfc479428e0e7d70130d35cc8`. Exactly the
+14 expected paths differ from114 (listed in the result file), baseline114
+unchanged, no failure/warning/skip in replay115.log. Full host suite PASSED:
+`tests/run-all.sh` with XNU_SOURCE=source115-codex, host_exit0, all48 test files,
+101 unittest cases ok/0 fail, terminal line `all host tests passed`, tested source
+hash unchanged. `test_bcm_guards.py` (never executed before) PASSED controller
+guards rsc-helper15 / legacy-gate-gauguin8 / legacy-gate-other8. New tests
+re-passed on this fresh tree: coordinator58, transport147, lease190,
+pas_staging3, bus_probe/Loader/86PAS cases.
+
+OBSERVED vs GUESS: this is host/test evidence only (no full link, image or boot)
+and the guard test still uses a deliberate sentinel for the non-prefix legacy
+path. Record research/tmp/dsh-0115/replay-full-host-dsh-result.json (with log
+SHA256s); replay115.log, full-host115.log,
+replay-full-host-result.json. Next (Codex/parent): commit tested source, then
+normal full build/qualification/package before any hardware trial. Phone last
+confirmed TWRP; no115 hardware operation has occurred.
+
+
+### 2026-11-06 — 0115 bounded BCM transport integrated as draft; offline checks PASS
+
+Next: commit the reviewed/tested0115 changes, then normal local build/qualify/
+package and independent image review before any hardware trial. 114 autonomous normal-running reset is now confirmed by
+user (no manual action), but does not prove arbitrary secure-world hang recovery.
+No115 full kernel/image/boot or bandwidth/PAS/GPU hardware operation yet.
+
+Authoritative candidate research/tmp/dsh-0115/combined; tracked draft
+0115-gauguin-bounded-bcm-transport.patch covers14paths (6newfiles), with tests.
+One coordinator waits45s, claims actual CPUstage READY (bounded5s wait), prepares
+this boot's CMDDB from two complete readonlycopies, arms/observes WDT once, then
+submits the exact six-command native BCM batch onACTIVE1. Old RSC entry is hard
+excluded beforelock/map when sweetbusvote1; old WDT sampler/PET excludedtoo.
+FreshGICNSINTID37(bit5)quiet guard, ownRSCIRQbit1 acquire/newcompletion,6ISSUED/
+5COMPL, exactpayloadreadback, nativecleanup andownbitrestore required. NoCMD_STATUS
+clearguess, maskedIRQfallback, retries or vote rollback. Anyuncertain write
+quarantines untilreset. Transaction10s +freshWDTbudget15sstart/3sstep guards.
+COMPLETE meanscontrollerrequestcompletion, not measuredBW/GPUexecution.
+Successful requests remainheld untilreset; no sleep/wake/PDC program orPAS/SMC.
+
+PAS READY API preservesdualparamstageABI; releasepublishedimmutable dynamicPA,
+6860raw/16384reserved, oneacquireclaim onlyafterfullcopy/readback. WDTlease shares
+oneattempt with114test; native4writesunchanged, one1sadvancement, freshthreshold/
+monotoniccounter/CPU23swindow budget. NoPET/disable/rearm; successfulbudgetreadonly.
+Coordinator claimsREADY beforeCMDDB andWDT, avoiding asynchronous45s-stage race.
+Newstage/watchdogAPIs andcontrollerenginehavebeenCodex-reviewed.
+
+DSH validation: PASrealpacker3testsPASS (includingoldrawlengthnegative and
+8concurrentclaimants); transport147casesPASS; lease87old+103new=190PASS;
+coordinator58PASS; CMDDBprepare70old+36new=106PASS andbothactualRAWlogs roundtrip.
+NativeARM64 singleTUs PASS fortransport, PASready, lease, coordinator against
+114/qsECQd context. These are not full linking/hardware proofs. Initialtransport
+fixture compile failedunusedhas helper; correctedfixture nowasserts accurate
+completionlog; strictwarnings/sanitizers retained, originalfailurepreserved.
+Records research/tmp/dsh-0115/component-validation-result.json,
+offline-first-dsh-result.json and individual.log/uniquehostresultdirectories.
+Controllerguardtestauthored (actualreadonlyGIChelper +actual
+legacyentryprefix; remainder deliberatelyfallbacksentinel, wholeoldbodyhash
+preserved) and now PASS (see later executorentry); publictestpinsbaselinelegacySHA
+instead ofdependingonignoredtree.
+
+All changes authored byCodex; DSH onlyexecutedreviewedtests/TUs. PhoneTWRP;
+no livejob, currentnativecontext still114/qsECQd. Preserveoriginalmkadt edit,
+all113/114qualifiedimages and private/public history separation. Fullgoalactive.
+
+
+### 2026-11-06 — 0115 BCM transport host fixture FAILED TO COMPILE (stopped for Codex)
+
+DSH ran the reviewed `research/tmp/dsh-0115/transport/host/run_tests.py` EXACTLY ONCE
+(no retry, no edits, no repair/object patch, no network/device/full build).
+actual_exit=1, cases executed0. clang (Apple21.0.0) error:
+`transport_test.c:500:13: error: unused function 'has' [-Werror,-Wunused-function]`,
+originating from fixture `transport/host/transport_host.c:237` (`static bool has(...)`,
+never referenced; real assertions use CHECK()). Binary/mock/ASan run never started,
+so there is no result for the C+31 write oracle, the native flow, or new IRQ
+failures either way. First python run created `transport/host/logs/`; the sole run
+dir is logs/transport-run-ql829y7r (run.log, result.json state `failed`). Record:
+research/tmp/dsh-0115/transport-host-dsh-result.json; top log transport-host.log.
+RESOLVED: see the later 0115 rerun entry below.
+
+
 ### 2026-11-06 — 0114 autonomous normal-running watchdog reset VERIFIED
 
 User answered the pending attribution question: “是，手机自行重启，我没有操作”.

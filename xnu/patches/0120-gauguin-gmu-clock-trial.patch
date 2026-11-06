@@ -1,0 +1,323 @@
+diff --git a/bsd/dev/gauguin_bcm_coordinator.c b/bsd/dev/gauguin_bcm_coordinator.c
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -24,6 +24,7 @@
+ #include "gauguin_pas_init.h"
+ #include "gauguin_cx_rail.h"
+ #include "gauguin_cx_power.h"
++#include "gauguin_gmu_clock.h"
+ extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
+ extern void thread_terminate_self(void);
+ extern int get_preemption_level(void);
+@@ -55,6 +56,8 @@
+     int cx = 0;
+     (void)PE_parse_boot_argn("sweetcxpower", &cx, sizeof(cx));
+     if ((cx != 0 && cx != 1) || (cx == 1 && (init != 0 || mem != 0))) return false;
++    int gmu = 0; (void)PE_parse_boot_argn("sweetgmuclk", &gmu, sizeof(gmu));
++    if ((gmu != 0 && gmu != 1) || (gmu == 1 && cx != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -123,7 +126,20 @@
+         }
+         snprintf(line, sizeof(line), "SWEET BCM BOOT: CX power complete gcc=%08x before=%08x final=%08x ahb=%08x writes=%u polls=%u", power.gcc_cfg_ahb, power.gdsc_before, power.gdsc_final, power.ahb_final, power.writes, power.polls);
+         bcm_record(line);
+-        bcm_record("SWEET BCM BOOT: CX trial done; ARC/BCM requests retained; awaiting watchdog reset; no PAS/GMU/GX/GPU execution");
++        if (sweet_gmu_clock_requested()) {
++            struct gmc_receipt clock;
++            enum gcx_rc clock_result = sweet_gmu_clock_once(&clock);
++            if (clock_result != GCX_OK) {
++                gauguin_wdt_lease_quarantine();
++                snprintf(line, sizeof(line), "SWEET BCM BOOT: GMU clock stopped rc=%u state=%u; no later GPU operation", (unsigned)clock_result, (unsigned)sweet_gmu_clock_state());
++                bcm_record(line); return;
++            }
++            snprintf(line, sizeof(line), "SWEET BCM BOOT: GMU clock complete configured_hz=%u direct_writes=%u hold_requests=%u polls=%u", clock.configured_hz, clock.direct_writes, clock.hold_requests, clock.polls);
++            bcm_record(line);
++            bcm_record("SWEET BCM BOOT: GMU clock trial done; requests retained; awaiting watchdog reset; no firmware/reset-release/PAS/GX operation");
++        } else {
++            bcm_record("SWEET BCM BOOT: CX trial done; ARC/BCM requests retained; awaiting watchdog reset; no PAS/GMU/GX/GPU execution");
++        }
+     } else if (sweet_pas_init_requested()) {
+         struct gpi_receipt pas;
+         enum gpi_rc result = sweet_pas_init_image_once(&stage, &pas);
+diff --git a/bsd/dev/gauguin_cx_power.c b/bsd/dev/gauguin_cx_power.c
+--- a/bsd/dev/gauguin_cx_power.c
++++ b/bsd/dev/gauguin_cx_power.c
+@@ -14,6 +14,8 @@
+ #include <vm/pmap.h>
+ #include <pexpert/pexpert.h>
+ #include "gauguin_cx_power.h"
++#include "gauguin_gmu_clock.h"
++#include "gauguin_gcc_votes.h"
+ #include "gauguin_cx_rail.h"
+ #include "gauguin_wdt_lease.h"
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+@@ -41,6 +43,7 @@
+ _Static_assert(PAGE_SHIFT == 14, "CX mappings are exactly16KiB pages");
+ static unsigned gcx_lifecycle;
+ static vm_offset_t gcx_gcc, gcx_gpucc;
++static bool gcx_gcc_writable;
+ static uint64_t gcx_deadline;
+ static struct gcx_receipt gcx_work;
+ 
+@@ -150,7 +153,8 @@
+     clock_interval_to_deadline(5, NSEC_PER_SEC, &gcx_deadline);
+     enum gcx_rc rc = gcx_guard(GCX_ENTRY_TICKS);
+     if (rc != GCX_OK) return gcx_fail(rc, "parent/initial budget");
+-    rc = gcx_map(GCX_GCC_PAGE, VM_PROT_READ, &gcx_gcc, GCX_ENTRY_TICKS);
++    gcx_gcc_writable = sweet_gmu_clock_requested();
++    rc = gcx_map(GCX_GCC_PAGE, VM_PROT_READ | (gcx_gcc_writable ? VM_PROT_WRITE : 0), &gcx_gcc, GCX_ENTRY_TICKS);
+     if (rc != GCX_OK) return gcx_fail(rc, "GCC map/guard");
+     gcx_record("SWEET CX POWER: before GCC CFG_AHB read pa=00145004; no GCC write");
+     rc = gcx_guard(GCX_STEP_TICKS);
+@@ -204,4 +208,183 @@
+     gcx_record("SWEET CX POWER: complete CX PWR_ON and HLOS request verified; GMU/GX/GPU execution untested");
+     return GCX_OK;
+ }
++/* Same translation unit as CX: reuse private GPUCC and GCC144000 mappings.
++ * Native19b63 GPUCC/GCC/RCG2/Fabia/branch operations, see pinned clock plan.
++ * No general register API; register enum and masked write sites are fixed.
++ */
++static unsigned gmc_lifecycle;
++static vm_offset_t gmc_pll,gmc_axi;
++static uint64_t gmc_deadline;
++static struct gmc_receipt gmc_work;
++bool sweet_gmu_clock_requested(void)
++{ int flag=0;(void)PE_parse_boot_argn("sweetgmuclk",&flag,sizeof(flag));return flag==1; }
++enum gcx_state sweet_gmu_clock_state(void)
++{return (enum gcx_state)__atomic_load_n(&gmc_lifecycle,__ATOMIC_ACQUIRE);}
++static enum gcx_rc gmc_guard(uint32_t minimum)
++{
++    if(!gcx_context())return GCX_CONTEXT;
++    if(sweet_bcm_transport_state()!=GBCMT_COMPLETE || sweet_cx_rail_state()!=GCR_COMPLETE || sweet_cx_power_state()!=GCX_COMPLETE)return GCX_PARENT;
++    if(mach_absolute_time()>=gmc_deadline)return GCX_TIMEOUT;
++    return gauguin_wdt_lease_check_budget(minimum)?GCX_OK:GCX_BUDGET;
++}
++static bool gmc_shared_guard(void)
++{return gmc_guard(GCX_STEP_TICKS)==GCX_OK;}
++static enum gcx_rc gmc_fail(enum gcx_rc rc,const char *why)
++{
++    gauguin_wdt_lease_quarantine();
++    __atomic_store_n(&gmc_lifecycle,GCX_QUARANTINED,__ATOMIC_RELEASE);
++    char line[192];snprintf(line,sizeof(line),"SWEET GMU CLOCK: stopped rc=%u direct_writes=%u polls=%u reason=%s; retained, no retry/cleanup",(unsigned)rc,gmc_work.direct_writes,gmc_work.polls,why);gcx_record(line);return rc;
++}
++static enum gcx_rc gmc_map(uint64_t pa,vm_prot_t prot,vm_offset_t *out)
++{
++    enum gcx_rc guard=gmc_guard(GCX_STEP_TICKS);if(guard!=GCX_OK)return guard;
++    ppnum_t pn=(ppnum_t)(pa>>PAGE_SHIFT);
++    if(pmap_valid_page(pn)||(pmap_cache_attributes(pn)&255u)!=7u)return GCX_MAPPING;
++    vm_offset_t va=ml_io_map_with_prot((vm_offset_t)pa,GCX_PAGE,prot);
++    if(!va||ml_vtophys(va)!=pa||ml_vtophys(va+GCX_PAGE-1)!=pa+GCX_PAGE-1)return GCX_MAPPING;
++    *out=va;return GCX_OK;
++}
++static uint32_t gmc_read(vm_offset_t map,uint32_t off)
++{
++    uint32_t value=*(volatile uint32_t *)(map+off);
++    __asm__ volatile("dmb oshld" ::: "memory");return value;
++}
++static void gmc_write(vm_offset_t map,uint32_t off,uint32_t value)
++{
++    ++gmc_work.direct_writes; /* uncertain before actual store */
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)(map+off)=value;
++    __asm__ volatile("dsb sy" ::: "memory");
++}
++static bool gmc_rd(enum gmc_register reg,uint32_t *out)
++{
++    if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return false;
++    static const uint32_t gpu_off[GMC_COUNT]={[GMC_AHB]=0x1078,[GMC_GDSC]=0x106c,
++        [GMC_CMD]=0x1120,[GMC_CFG]=0x1124,[GMC_CX]=0x1098,[GMC_GX]=0x1064,[GMC_CXO]=0x109c};
++    uint32_t v;
++    switch(reg){
++    case GMC_MODE:v=gmc_read(gmc_pll,0);break;
++    case GMC_L:v=gmc_read(gmc_pll,4);break;
++    case GMC_FRAC:v=gmc_read(gmc_pll,0x38);break;
++    case GMC_DIV:v=gmc_read(gcx_gcc,0x114c);break;
++    case GMC_CFG_AHB:v=gmc_read(gcx_gcc,0x1004);break;
++    case GMC_PLL_VOTE:if(!ggv_gpu_read(GGV_PLL0,&v))return false;break;
++    case GMC_DIV_VOTE:if(!ggv_gpu_read(GGV_GPU_DIV,&v))return false;break;
++    case GMC_AXI:v=gmc_read(gmc_axi,0x1038);break;
++    case GMC_MEM:v=gmc_read(gcx_gcc,0x100c);break;
++    default:if(reg<GMC_AHB||reg>GMC_CXO||!gpu_off[reg])return false;v=gmc_read(gcx_gpucc,gpu_off[reg]);break;
++    }
++    if(v==UINT32_MAX)return false;*out=v;return true;
++}
++static bool gmc_snapshot(uint32_t out[GMC_COUNT])
++{for(unsigned i=0;i<GMC_COUNT;++i)if(!gmc_rd((enum gmc_register)i,&out[i]))return false;return true;}
++static bool gmc_parent_valid(const uint32_t *s)
++{
++    return (s[GMC_MODE]&0x100000u) && s[GMC_L]==0x1fu && s[GMC_FRAC]==0x4000u &&
++        (s[GMC_DIV]&3u)==1 && (s[GMC_CFG_AHB]&0x80000001u)==1 &&
++        (s[GMC_GDSC]&0x8000f007u)==0x80008000u;
++}
++static void gmc_dump(const char *phase,const uint32_t *s)
++{
++    for(unsigned i=0;i<GMC_COUNT;++i)printf("SWEET GMU CLOCK: %s reg%u=%08x\n",phase,i,s[i]);
++    char line[160];snprintf(line,sizeof(line),"SWEET GMU CLOCK: %s snapshot persisted; configured rate is not measured",phase);gcx_record(line);
++}
++static bool gmc_mask(vm_offset_t map,uint32_t off,uint32_t mask,uint32_t value)
++{
++    if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return false;
++    uint32_t before=gmc_read(map,off);if(before==UINT32_MAX)return false;
++    uint32_t wanted=(before&~mask)|value;
++    if(before!=wanted){if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return false;gmc_write(map,off,wanted);}
++    if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return false;
++    uint32_t after=gmc_read(map,off);return after!=UINT32_MAX && (after&mask)==value;
++}
++static bool gmc_poll(enum gmc_register reg,uint32_t mask,uint32_t value,unsigned count,bool branch)
++{
++    for(unsigned i=0;i<count;++i){uint32_t v;if(!gmc_rd(reg,&v))return false;++gmc_work.polls;
++        if(branch?(!(v&0x80000000u)||(v&0xf0000000u)==0x20000000u):((v&mask)==value))return true;
++        delay(1);
++    }return false;
++}
++static bool gmc_branch(vm_offset_t map,uint32_t off,enum gmc_register reg,bool hwcg)
++{
++    uint32_t before;if(!gmc_rd(reg,&before)||!gmc_mask(map,off,1,1))return false;
++    /* Native branch2 skips halt polling when HWCG is set. Do not clear HWCG
++     * or label the request readback as a frequency measurement. */
++    if(hwcg&&(before&2))return true;
++    return gmc_poll(reg,0,0,200,true);
++}
++enum gcx_rc sweet_gmu_clock_once(struct gmc_receipt *out)
++{
++    if(!sweet_gmu_clock_requested())return GCX_OFF;
++    if(!out)return GCX_ARGUMENT;
++    unsigned expected=GCX_IDLE;
++    if(!__atomic_compare_exchange_n(&gmc_lifecycle,&expected,GCX_RUNNING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GCX_ALREADY;
++    if(!gcx_context())return gmc_fail(GCX_CONTEXT,"invalid context");
++    if(!sweet_cx_power_requested()||!gcx_flags()||!gcx_gcc_writable)return gmc_fail(GCX_CONFIG,"CX/flags/shared RW mapping unavailable");
++    clock_interval_to_deadline(5,NSEC_PER_SEC,&gmc_deadline);
++    enum gcx_rc rc=gmc_guard(8u*32765u);if(rc!=GCX_OK)return gmc_fail(rc,"entry budget/prerequisites");
++    gcx_record("SWEET GMU CLOCK: reuse private GPUCC/GCC144000 RW; shared GCC150000 owner; no new aliases");
++    if(gmc_guard(8u*32765u)!=GCX_OK||!ggv_prepare())return gmc_fail(GCX_MAPPING,"shared vote page unavailable");
++    gcx_record("SWEET GMU CLOCK: before PLL100000 RO and AXI12c000 RW maps");
++    rc=gmc_map(0x100000,VM_PROT_READ,&gmc_pll);if(rc!=GCX_OK)return gmc_fail(rc,"PLL map");
++    rc=gmc_map(0x12c000,VM_PROT_READ|VM_PROT_WRITE,&gmc_axi);if(rc!=GCX_OK)return gmc_fail(rc,"AXI map");
++    uint32_t second[GMC_COUNT];
++    if(!gmc_snapshot(gmc_work.before))return gmc_fail(GCX_READBACK,"before snapshot");
++    gmc_dump("before",gmc_work.before);
++    if(!gmc_snapshot(second)||!gmc_parent_valid(second))return gmc_fail(GCX_CONFIG,"native600MHz tuple/divider/CX gate");
++    /* A shared root must not be retuned under an inherited active client.
++     * Root enable/update/dirty modes are outside this bounded first path. */
++    const unsigned stable[]={GMC_L,GMC_FRAC,GMC_DIV,GMC_CMD,GMC_CFG,GMC_CX,GMC_GX};
++    for(unsigned i=0;i<sizeof(stable)/sizeof(stable[0]);++i)
++        if(second[stable[i]]!=gmc_work.before[stable[i]])return gmc_fail(GCX_CONFIG,"inherited controls changed");
++    if(!gmc_parent_valid(gmc_work.before)||(second[GMC_CMD]&0xf3u)||(second[GMC_CFG]&0x103000u)||
++       (second[GMC_CX]&1u)||(second[GMC_GX]&1u))return gmc_fail(GCX_MODE,"root mode or active inherited client");
++    bool change=(second[GMC_CFG]&0x10371fu)!=0x602u;
++    if(change&&(!(second[GMC_CX]&0x80000000u)||!(second[GMC_GX]&0x80000000u)))return gmc_fail(GCX_MODE,"root change requires halted siblings");
++    gcx_record("SWEET GMU CLOCK: fixed parent holds next; no PLL frequency programming");
++    uint32_t v;
++    if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return gmc_fail(GCX_BUDGET,"parent hold guard");
++    ++gmc_work.hold_requests;
++    if(!ggv_gpu_hold(GGV_PLL0,&v,gmc_shared_guard)||!gmc_poll(GMC_MODE,0x40000000u,0x40000000u,100,false))return gmc_fail(GCX_TIMEOUT,"PLL FSM active");
++    if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return gmc_fail(GCX_BUDGET,"divider hold guard");
++    ++gmc_work.hold_requests;
++    if(!ggv_gpu_hold(GGV_GPU_DIV,&v,gmc_shared_guard))return gmc_fail(GCX_READBACK,"GPU DIV vote");
++    delay(10);
++    if(!gmc_mask(gcx_gpucc,0x1078,1,1))return gmc_fail(GCX_READBACK,"GPUCC AHB request");delay(10);
++    /* Revalidate after logging/parent enable, before a shared RCG write. */
++    if(!gmc_snapshot(second)||!gmc_parent_valid(second)||(second[GMC_CMD]&0xf3u)||
++       (second[GMC_CX]&1u)||(second[GMC_GX]&1u)||(second[GMC_CFG]&0x103000u)||
++       (second[GMC_CFG]&0x10371fu)!=(gmc_work.before[GMC_CFG]&0x10371fu))return gmc_fail(GCX_CONFIG,"pre-RCG controls changed");
++    if(change){
++        if(!(second[GMC_CX]&0x80000000u)||!(second[GMC_GX]&0x80000000u))return gmc_fail(GCX_MODE,"sibling no longer halted");
++        if(!gmc_mask(gcx_gpucc,0x1124,0x10371f,0x602))return gmc_fail(GCX_READBACK,"RCG CFG");
++        if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return gmc_fail(GCX_BUDGET,"RCG UPDATE guard");
++        /* Our CFG write may set DIRTY_CFGbit4. Permit that owned dirty
++         * field here, while still rejecting UPDATE/ROOT_EN and dirty M/N/D. */
++        uint32_t cmd=gmc_read(gcx_gpucc,0x1120);if(cmd==UINT32_MAX||(cmd&0xe3u))return gmc_fail(GCX_MODE,"RCG changed before UPDATE");
++        if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return gmc_fail(GCX_BUDGET,"post-read UPDATE guard");
++        gmc_write(gcx_gpucc,0x1120,cmd|1); /* one self-clearing UPDATE, never rewritten */
++        if(!gmc_poll(GMC_CMD,1,0,500,false))return gmc_fail(GCX_TIMEOUT,"RCG UPDATE");
++    }
++    /* UPDATE self-clear is native completion; additionally require clean
++     * owned CFG before enabling consumers. This is not a frequency meter. */
++    if(!gmc_rd(GMC_CMD,&v)||(v&0xf3u))return gmc_fail(GCX_READBACK,"RCG not clean before branches");
++    gcx_record("SWEET GMU CLOCK: native branch sequence CX_GMU/CXO/DDRSS_AXI/MEMNOC next");
++    if(!gmc_mask(gcx_gpucc,0x1098,0xff0,0xff0)||!gmc_branch(gcx_gpucc,0x1098,GMC_CX,false)||
++       !gmc_branch(gcx_gpucc,0x109c,GMC_CXO,false)||!gmc_branch(gmc_axi,0x1038,GMC_AXI,true)||
++       !gmc_branch(gcx_gcc,0x100c,GMC_MEM,true))return gmc_fail(GCX_READBACK,"branch request/halt");
++    if(!gmc_snapshot(gmc_work.after)||!gmc_parent_valid(gmc_work.after))return gmc_fail(GCX_READBACK,"final snapshot/parent");
++    const uint32_t *a=gmc_work.after;
++    if(!(a[GMC_MODE]&0x40000000u)||!(a[GMC_PLL_VOTE]&1)||!(a[GMC_DIV_VOTE]&0x100)||
++       (a[GMC_CMD]&0xf3u)||(a[GMC_CFG]&0x10371fu)!=0x602u||(a[GMC_CX]&0xff1)!=0xff1||
++       !(a[GMC_CXO]&1)||!(a[GMC_AXI]&1)||!(a[GMC_MEM]&1)||(a[GMC_GX]&1))return gmc_fail(GCX_READBACK,"final fixed requests");
++    /* Recheck native branch ON unless HWCG legally suppresses that poll. */
++    const unsigned branches[]={GMC_CX,GMC_CXO,GMC_AXI,GMC_MEM};
++    for(unsigned i=0;i<4;++i){uint32_t raw=a[branches[i]];if(i>=2&&(raw&2))continue;
++        if((raw&0x80000000u)&&(raw&0xf0000000u)!=0x20000000u)return gmc_fail(GCX_READBACK,"final branch not ON");}
++    gmc_work.configured_hz=200000000;gmc_dump("after",a);
++    if(gmc_guard(GCX_STEP_TICKS)!=GCX_OK)return gmc_fail(GCX_BUDGET,"post-log budget");
++    *out=gmc_work;__atomic_store_n(&gmc_lifecycle,GCX_COMPLETE,__ATOMIC_RELEASE);
++    gcx_record("SWEET GMU CLOCK: complete configured_hz=200000000; held requests, no GMU firmware/reset release/PAS/GX operation");return GCX_OK;
++}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gcc_votes.c b/bsd/dev/gauguin_gcc_votes.c
+--- a/bsd/dev/gauguin_gcc_votes.c
++++ b/bsd/dev/gauguin_gcc_votes.c
+@@ -103,10 +103,10 @@
+     uint32_t value=ggv_read(off);if(value==UINT32_MAX)return false;
+     *out=value;return true;
+ }
+-bool ggv_gpu_hold(enum ggv_gpu_vote vote,uint32_t *out)
++bool ggv_gpu_hold(enum ggv_gpu_vote vote,uint32_t *out,bool (*allow_write)(void))
+ {
+     uint32_t off,bit;
+-    if (!out || !ggv_context() || !ggv_ready() ||
++    if (!out || !allow_write || !ggv_context() || !ggv_ready() ||
+         __atomic_load_n(&ggv_gpu_quarantined,__ATOMIC_ACQUIRE) || !ggv_gpu_address(vote,&off,&bit)) return false;
+     unsigned expected=0;
+     if (!__atomic_compare_exchange_n(&ggv_gpu_owner,&expected,1u,false,
+@@ -120,8 +120,10 @@
+     if (wanted!=before) {
+         /* Quarantine BEFORE the store; a nonreturning/faulting access must
+          * never leave GPU authorization to try another operation. */
++        if (!allow_write()) {__atomic_store_n(&ggv_gpu_owner,0u,__ATOMIC_RELEASE);return false;}
+         __atomic_store_n(&ggv_gpu_quarantined,1u,__ATOMIC_RELEASE);
+         ggv_write(off,wanted);
++        if (!allow_write()) {__atomic_store_n(&ggv_gpu_owner,0u,__ATOMIC_RELEASE);return false;}
+         uint32_t after=ggv_read(off);
+         if (after!=wanted) {__atomic_store_n(&ggv_gpu_owner,0u,__ATOMIC_RELEASE);return false;}
+         *out=after;
+diff --git a/bsd/dev/gauguin_gcc_votes.h b/bsd/dev/gauguin_gcc_votes.h
+--- a/bsd/dev/gauguin_gcc_votes.h
++++ b/bsd/dev/gauguin_gcc_votes.h
+@@ -20,7 +20,9 @@
+ bool ggv_gpu_read(enum ggv_gpu_vote, uint32_t *out);
+ /* Add exactly PLL0 bit0 or GPU_DIV bit8 and read back; skip an already-held
+  * vote. Preserve every unrelated bit. Success writes the readback to out;
+- * failure leaves out unchanged. No mapping or implicit prepare is performed.
++ * failure leaves out unchanged. The caller guard is mandatory before the
++ * store and following readback, so a delayed read cannot bypass its deadline/
++ * lease. No mapping or implicit prepare is performed.
+  */
+-bool ggv_gpu_hold(enum ggv_gpu_vote, uint32_t *out);
++bool ggv_gpu_hold(enum ggv_gpu_vote, uint32_t *out, bool (*allow_write)(void));
+ #endif
+diff --git a/bsd/dev/gauguin_gmu_clock.h b/bsd/dev/gauguin_gmu_clock.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_clock.h
+@@ -0,0 +1,20 @@
++#ifndef GAUGUIN_GMU_CLOCK_H
++#define GAUGUIN_GMU_CLOCK_H
++#include "gauguin_cx_power.h"
++enum gmc_register {GMC_MODE,GMC_L,GMC_FRAC,GMC_DIV,GMC_CFG_AHB,GMC_PLL_VOTE,
++    GMC_DIV_VOTE,GMC_AHB,GMC_GDSC,GMC_CMD,GMC_CFG,GMC_CX,GMC_GX,GMC_CXO,
++    GMC_AXI,GMC_MEM,GMC_COUNT};
++/* direct_writes counts only private-map stores; hold_requests counts calls
++ * to the shared GCC owner, which may skip an already-held vote. */
++struct gmc_receipt {uint32_t before[GMC_COUNT],after[GMC_COUNT];
++    uint32_t direct_writes,hold_requests,polls,configured_hz;};
++/* Fixed GPLL0 600MHz /2 /1.5 profile,200MHz configured rate (not measured).
++ * Reuses CX's private maps and shared GCC vote page. Only after same-boot
++ * BCM/ARC/CX COMPLETE and a fresh WDT budget; no old receipt authorizes this.
++ * Retains requests, no frequency retune/rollback/PET or GMU firmware/reset
++ * release/PAS/SMMU/GX operation. Inherited CM3 state is not thereby proven.
++ */
++bool sweet_gmu_clock_requested(void);
++enum gcx_rc sweet_gmu_clock_once(struct gmc_receipt *);
++enum gcx_state sweet_gmu_clock_state(void);
++#endif

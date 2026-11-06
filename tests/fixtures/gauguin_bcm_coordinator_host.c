@@ -14,6 +14,7 @@
 #include "gauguin_pas_init.h"
 #include "gauguin_cx_rail.h"
 #include "gauguin_cx_power.h"
+#include "gauguin_gmu_clock.h"
 #define GAUGUIN 1
 #define KERN_SUCCESS 0
 #define NSEC_PER_SEC UINT64_C(1000000000)
@@ -39,7 +40,8 @@ static struct {
     enum gpi_rc mem_result;
     enum gpm_state mem_state;
     struct gpm_receipt mem_receipt;
-    int cxpower,after_rail_context,after_power_context;
+    int cxpower,after_rail_context,after_power_context,gmuclk;
+    unsigned clock_queries,clock_calls,clock_states;enum gcx_rc clock_result;enum gcx_state clock_state;struct gmc_receipt clock_receipt;
     unsigned cx_requested_queries,cx_plans,rail_calls,rail_state_queries,power_calls,power_state_queries;
     enum gbcmt_rc rail_result;
     enum gcr_state rail_state;
@@ -55,7 +57,7 @@ static struct {
     struct gbcmt_receipt receipt;
     enum gbcmt_rc tx_result;
     thread_continue_t worker;
-    char order[8],log[32][224];unsigned order_count;
+    char order[10],log[32][224];unsigned order_count;
 } mock;
 static void order(char step)
 { CHECK(mock.order_count<sizeof(mock.order)-1,"bounded API sequence");mock.order[mock.order_count++]=step; }
@@ -72,6 +74,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     if(!strcmp(key,"sweetpasstage")){*(int*)out=mock.stage;return true;}
     if(!strcmp(key,"sweetpasinit")){*(int*)out=mock.pasinit;return true;}
     if(!strcmp(key,"sweetpasmem")){*(int*)out=mock.pasmem;return true;}
+    if(!strcmp(key,"sweetgmuclk")){*(int*)out=mock.gmuclk;return true;}
     if(!strcmp(key,"sweetcxpower")){*(int*)out=mock.cxpower;return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,off_flags[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known flag");return false;
@@ -150,7 +153,7 @@ void gauguin_wdt_lease_quarantine(void)
     CHECK(mock.tx_result!=GBCMT_OK || (mock.init_calls==1 && mock.init_result!=GPI_OK) ||
         (mock.mem_calls==1 && mock.mem_result!=GPI_OK) ||
         (mock.rail_calls==1 && mock.rail_result!=GBCMT_OK) ||
-        (mock.power_calls==1 && mock.power_result!=GCX_OK) || mock.after_sleeps==30,
+        (mock.power_calls==1 && mock.power_result!=GCX_OK) || (mock.clock_calls==1 && mock.clock_result!=GCX_OK) || mock.after_sleeps==30,
         "quarantine after TX/INIT/MEM/ARC/CX failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
@@ -299,6 +302,15 @@ enum gcx_state sweet_cx_power_state(void)
     ++mock.power_state_queries;return mock.power_state;
 }
 
+bool sweet_gmu_clock_requested(void){CHECK(mock.power_calls==1 && mock.power_result==GCX_OK && mock.power_state==GCX_COMPLETE && !mock.clock_queries,"clock flag only after CX complete");++mock.clock_queries;return mock.gmuclk==1;}
+enum gcx_rc sweet_gmu_clock_once(struct gmc_receipt *out){
+ CHECK(out && mock.clock_queries==1 && mock.gmuclk==1 && !mock.clock_calls && !strcmp(mock.order,"RPWTAC") && !mock.quarantines,"clock once after all prerequisites");
+ if(mock.context)CHECK(mock.clock_result==GCX_CONTEXT,"real clock helper rejects lost context");
+ ++mock.clock_calls;order('G');
+ if(mock.clock_result==GCX_OK){mock.clock_state=GCX_COMPLETE;*out=mock.clock_receipt;}else memset(out,0xa5,sizeof(*out));
+ return mock.clock_result;
+}
+enum gcx_state sweet_gmu_clock_state(void){CHECK(mock.clock_calls==1 && mock.clock_result!=GCX_OK && mock.quarantines==1,"clock state only after failed result and quarantine");++mock.clock_states;return mock.clock_state;}
 #define printf test_printf
 @SOURCE@
 #undef printf
@@ -307,7 +319,7 @@ static unsigned count(const char *needle){unsigned n=0;for(unsigned i=0;i<mock.l
 static void reset(const char *name)
 {
     memset(&mock,0,sizeof(mock));case_name=name;++cases;bcm_started=0;
-    mock.requested=mock.probe=mock.stage=1;mock.ready_after=1;mock.now=1;
+    mock.requested=mock.probe=mock.stage=1;mock.clock_result=GCX_OK;mock.clock_receipt.configured_hz=200000000;mock.clock_receipt.direct_writes=7;mock.clock_receipt.hold_requests=2;mock.clock_receipt.polls=7;mock.ready_after=1;mock.now=1;
     mock.init_result=GPI_OK;mock.init_state=GPI_QUARANTINED;
     mock.init_receipt.has_returned=1;mock.init_receipt.smc_calls=1;
     mock.init_receipt.fresh_attempts=1;
@@ -685,6 +697,19 @@ static void cx_cases(void)
     }
 }
 
+static void clock_cases(void){
+ for(int value=-1;value<=2;++value)if(value!=0&&value!=1){reset_cx("bad clock flag");mock.gmuclk=value;run_worker();CHECK(!mock.claims&&!mock.clock_queries,"invalid clock stops before experiment");}
+ reset("clock requires CX mode");mock.gmuclk=1;run_worker();CHECK(!mock.claims&&!mock.clock_queries,"dependency flags rejected early");
+ reset_cx("native clock dependency success");mock.gmuclk=1;run_worker();
+ CHECK(!strcmp(mock.order,"RPWTACGQ")&&mock.clock_calls==1&&!mock.clock_states&&mock.after_sleeps==30,"one clock call then reset wait");
+ CHECK(has("GMU clock complete configured_hz=200000000 direct_writes=7 hold_requests=2 polls=7")&&has("GMU clock trial done")&&!has("CX trial done;"),"clock receipt and correct terminal marker");
+ for(unsigned rc=GCX_OFF;rc<=GCX_READBACK;++rc){reset_cx("clock failure terminal");mock.gmuclk=1;mock.clock_result=(enum gcx_rc)rc;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGQ")&&mock.clock_calls==1&&mock.clock_states==1&&!mock.after_sleeps,"failed clock no wait/retry");
+  CHECK(has("GMU clock stopped")&&!has("GMU clock complete")&&!has("trial done")&&!has("a5a5"),"failure receipt never consumed");
+ }
+ reset_cx("CX error prevents clock");mock.gmuclk=1;mock.power_result=GCX_READBACK;run_worker();CHECK(!mock.clock_queries&&!mock.clock_calls,"no clock before successful CX");
+ for(int context=1;context<=3;++context){reset_cx("clock refuses lost context");mock.gmuclk=1;mock.after_power_context=context;mock.clock_result=GCX_CONTEXT;run_worker();CHECK(!mock.after_sleeps&&mock.clock_calls==1&&mock.markers==mock.flushes,"context failure stops");}
+}
 int main(void)
 {
     legacy_cases();
@@ -702,5 +727,7 @@ int main(void)
     cx_cases();
     printf("PASS: 149 retained + %u CX coordinator cases (%u total); BCM -> ARC -> CX, no PAS, typed seams only\n",
         cases-before_cx,cases);
+    CHECK(cases==241,"all241 coordinator cases retained");unsigned before_clock=cases;clock_cases();
+    printf("PASS: 241 retained + %u GMU clock coordinator cases (%u total)\n",cases-before_clock,cases);
     return 0;
 }

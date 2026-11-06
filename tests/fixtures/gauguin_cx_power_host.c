@@ -30,7 +30,7 @@ static unsigned cases;
 static const char *const conflicts[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet","sweetreboot","sweetbusprobe","sweetgpuprobe","sweetscmprobe","sweetwdttest"};
 enum phase { START, CONFIGURE, ENABLE, POLL, FINAL, AHB };
 static struct {
-    int requested,vote,off[9],context;
+    int requested,vote,off[9],context,gmu_requested;
     enum gcr_state parent;
     enum phase phase;
     unsigned maps,translations[2],valid_calls[2],attr_calls[2];
@@ -141,7 +141,7 @@ unsigned int pmap_cache_attributes(ppnum_t pn){unsigned i=page_index(pn);++mock.
 vm_offset_t ml_io_map_with_prot(vm_offset_t pa,vm_size_t size,vm_prot_t prot)
 {
     no_pending();unsigned id=pa==0x144000u ? 0:1;
-    CHECK(pa==(id ? 0x3d90000u:0x144000u) && size==0x4000 && prot==(id ? 3u:1u),"exact aligned maps and protections");
+    CHECK(pa==(id ? 0x3d90000u:0x144000u) && size==0x4000 && prot==(id || mock.gmu_requested ? 3u:1u),"exact aligned maps and protections");
     CHECK(mock.maps==id && mock.parent==GCR_COMPLETE && mock.budget_live && !mock.context,"parent/budget before mapping, no retry");
     CHECK(mock.valid_calls[id]==1 && mock.attr_calls[id]==1,"pmap checks before map");
     CHECK(mock.markers==mock.flushes,"map log persisted before guard/map");
@@ -163,6 +163,7 @@ bool gauguin_wdt_lease_check_budget(uint32_t minimum)
     ++mock.budget_calls;return mock.budget_live && mock.budget_calls!=mock.budget_fail_call;
 }
 void gauguin_wdt_lease_quarantine(void){no_pending();CHECK(!mock.quarantines,"software quarantine once");++mock.quarantines;}
+bool sweet_gmu_clock_requested(void){return mock.gmu_requested==1;}
 #define printf test_printf
 @SOURCE@
 #undef printf
@@ -236,5 +237,7 @@ int main(void)
     reset("power lost aftersettle");mock.final_power_loss=1;failed(GCX_READBACK,2);CHECK(!mock.ahb_reads,"noAHBafterpowerloss");
     reset("mode lost aftersettle");mock.final_mode_loss=1;failed(GCX_READBACK,2);CHECK(!mock.ahb_reads,"noAHBaftermodechange");
     reset("AHB allones");mock.ahb=UINT32_MAX;failed(GCX_READBACK,2);
+    CHECK(cases==103,"all103 legacy CX cases retained");
+    reset("opted-in clock requires one shared GCC RW map");mock.gmu_requested=1;succeeded(2,3);CHECK(gcx_gcc_writable,"RW authorization retained privately");
     printf("PASS: %u actualCXpower hostcases; parent/clockgates, maskedGDSCRwrites, boundedpolls, no otherMMIO; hardwareunqualified\n",cases);return 0;
 }

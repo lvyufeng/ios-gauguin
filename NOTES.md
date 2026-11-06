@@ -3,6 +3,84 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0114 normal native build/image qualified; expiry trial next
+
+Code commit6f3f067bad26d8bb18818a3aa9f7c8f7d4574099. source114-context:
+5255files SHA738fda981dbee40acd133f2542e05cb3db5d26ac292e61ccb86a06fe3a9557a3;
+full45hostfiles PASS, including87actualworker/helper/legacy-gate cases. Stronger
+context fixture catches oldsource114-codex's invalid-context UFS mark at runtime;
+fixed source prints but never persists in invalid context. No source-only PASS
+has been mistaken for hardware reset qualification.
+
+DSH normal local build gauguin.qsECQd:make0,statebuilt, normaldSYM/strip/install.
+Manifest SHA6f1c86cf6bc59277ae1737ae2e0e1407e4d63efae35384971d35785b75c92a26;
+installed kernel16816136B SHAe99b9312fdefcffd73f1a3203d174489a07f02228b4652014810217ae28ea8b9,
+ID xnu-917c2bd2614f4ad78ff771c72785854d, banner Nov6 15:30:37 CST.
+Full source/recordedinputs/SDKinputs/HEAD/originalmkadt/ARM64/symbols/version.o
+qualified in research/tmp/p3-native-0114-qualification-20261106.json.
+Image shim/out/shim-p3-wdtexpiry-0114-native-20261106.img,
+19431424B SHA13b95042ce14961a0560b86cfefde862beaf971c68b87fe747c9f9cbb9caaec3;
+payload SHAef9d36eb66fb72f08c7149ebd03b893c25a5cb17bdfda41c3288c27ad2e09284.
+All old shim/DTB/ADT/NVT/MDT pins and payload bounds checked; parent independently
+reparsed image and its569B command-line field. sweetwdttest1, PET/reboot/bus/GPU/
+SCM/touchmode/PASprobe/PASstage0; NVT1/hz30,cpus8, unique
+sweettrial=wdtexpiry-0114-20261106-a1. 0113 image unchanged.
+Report research/tmp/dsh-0114/image-parent-review.json PASS. No114 boot/arming yet.
+
+Next: sanitized single-parent public push, temporary boot once/180s observer.
+Tell user this round intentionally expires the APSS watchdog and not to press
+buttons. Actual reset requires the observer's explicit back-in-TWRP record,
+not merely exit0 (timeout then manual recovery can also yield0). Require a
+fresh fullbanner/unique-trial log, legacy exclusion, raw firstGICquiet, exact
+EN3/BARK655300/BITE753595, five enabled strictlyincreasing decoded counters,
+no failure/PET/software-reboot/panic, AND explicit user no-manual-reset evidence.
+Second GIC check is inferred from boundimage controlflow, not a second logged
+raw value. Verifier prepared dsh-0114/verify_wdt114.py, not yet executed.
+If success, claim only normal-running expiry; secure-world hang containment is
+still unproven. No GPU/bandwidth/PAS authentication happens in this experiment.
+
+Phone last confirmedTWRP. No native build remains live. Current generated native
+context is source114-context/gauguin.qsECQd; prior113 retained as baseline.
+Original mkadt.py edit remains uncommitted. Codex authored/reviewed; DSH executes.
+Broader daily-use/GPU/Metal/peripherals/high-refresh goal remains active.
+
+
+
+### 2026-11-06 — 0114 native build/qualification/packing PASS; not booted
+
+DSH ran the reviewed `research/tmp/dsh-0114/build114.py` EXACTLY ONCE from the
+repo root at HEAD 6f3f067bad26d8bb18818a3aa9f7c8f7d4574099 (only `M tools/mkadt.py`
+dirty, preserved). Process exit0 and script exit0; no retry, no source edit,
+no repair, no manual strip, no DSYM disable, no network/CI/git mutation, no
+device access. All three steps passed:
+- build_exit0, new run gauguin.qsECQd (exactly one new run), manifest state
+  built, make_exit0, normal dSYM/strip/install. Manifest source SHA256
+  738fda981dbee40acd133f2542e05cb3db5d26ac292e61ccb86a06fe3a9557a3 equals the
+  tested source114-context (wrapper asserts it).
+- qualification_exit0, BUILD QUALIFIED, final_kernel_produced true; kernel
+  16816136B SHA256 e99b9312fdefcffd73f1a3203d174489a07f02228b4652014810217ae28ea8b9,
+  ID/banner xnu-917c2bd2614f4ad78ff771c72785854d (Nov6 15:30:37 CST).
+- package_exit0, state `packed-not-booted`.
+Image shim/out/shim-p3-wdtexpiry-0114-native-20261106.img, 19431424B,
+SHA256 13b95042ce14961a0560b86cfefde862beaf971c68b87fe747c9f9cbb9caaec3 (rehashed
+by DSH); payload research/tmp/p3-wdtexpiry-0114-native-20261106.bin 19103744B
+SHA256 ef9d36eb66fb72f08c7149ebd03b893c25a5cb17bdfda41c3288c27ad2e09284; evidence
+research/tmp/p3-wdtexpiry-0114-native-evidence-20261106.json. Evidence cmdline
+569B: sweetwdttest=1 with PET/reboot/bus/GPU/SCM/touchmode/PASprobe/PASstage all 0;
+marker sweettrial=wdtexpiry-0114-20261106-a1 (one occurrence in image strings);
+ZAP MDT PA182568000/raw6860/res16384 zero-padded. Boot field "NOT BOOTED".
+DSH record research/tmp/dsh-0114/native114-dsh-result.json (logs
+native114-build/qualification/package/executor.log, native114-execution-result.json).
+
+OBSERVED vs GUESS: host build/qualification/packing success is not hardware
+evidence. The actual watchdog expiry/reset is UNQUALIFIED; it needs a separate
+Codex-reviewed temporary boot with a fresh log matching the full
+xnu-917c2bd2... banner AND the unique trial marker, and the image still carries
+the baseline loader secure-WDT SMC attempt (no whole-boot SMC-free claim).
+Phone last confirmed TWRP. Next: independent image review, then one temporary
+expiry trial (no flash/format/partition writes).
+
+
 ### 2026-11-06 — 0114 watchdog expiry candidate authored, not yet qualified
 
 Previous goal turn made verified hardware progress:0113 CMDDB/DRV2/touch PASS.

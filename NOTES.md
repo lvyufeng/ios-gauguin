@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — full138 native ACK-compatible kernel qualified; package/runtime checks next
+
+DSH12854 CLOSED0; actual standard local build138.py build0/qualification0,
+gauguin.HLxJKk, captured HEADfdf2518896160ced0ae18114609142cc98fc68cf.
+Exact132-patch source138c40e8c3f...88a552,5282files. All137 qualifiers retained;
+native bounded ACK source conditions/mask checked and
+native_ack_prefix_sequence_source_bound TRUE required. Kernel16905712B SHA
+1afa64fc2e59984874d7622838af9369737bfb9317c0c1bb68290a7530da3def,
+IDxnu-f19772512a1d4117b143ce75e7c2cd4c. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.HLxJKk/build-manifest.json SHA
+6b7b3efb7d426bfc4d157ff6901d1d5801a9deac4f2029d2dd767a5e47c5231e;
+qualification SHA62fd31973bc550f0bc1a7d40de1ef26dd9d2d8200a0d826dc161157f915e0c86.
+No CI used. Current generated native recipe/source now138 HLxJKk, not137
+ggv3Il. DSH82460 package/review running. Codex prepared138 pack/readers:
+native ACK prefix/sequence source flag required; header-announced lengths
+INIT3..19/VERS4..19,seq1/2 respectively; existing type/status/version/copy/
+reset/OOB/guard rules remain, extras/other echo bits unqualified. One obsolete
+INIT4 negative intentionally becomes valid, replaced by short INIT2; new
+real-shape/min/max/oversize tests added. Version-only metadata migration
+preserved all numeric data/pins/131-page strings before ACK-policy edits.
+Next runtime suites and ONE coherent138 temporary boot. No138 phone proof
+yet. PhoneTWRP after137; no new user UI/touch/reset fact. Whole objective
+ACTIVE; original mkadt seven-line diff untouched; no destructive action.
+
 ### 2026-11-07 — 0138 native ACK prefix/sequence fix committed; all61 hosts/two native TUs pass
 
 Previous goal turn was progress: actual137 captured INIT4-word/type2/sequence1/

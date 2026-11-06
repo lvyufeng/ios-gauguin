@@ -29,7 +29,35 @@ passes (full-host.log). Tests: new test_pas_staging.py + guard-page fixture
 returning the real raw pin only for the exact synthetic6860 bytes; asset is
 never modified), test_payload_zap_asset.py, and the owner fixture now requires
 the stage call only after all64 pages and only with sweetpasstage=1.
-Phone remains TWRP; nothing built/packaged/booted yet for0112; no PAS/GPU op.
+Phone remains TWRP; nothing packaged or booted for0112; no PAS/GPU op.
+
+Native build (local, SKIP_TESTS=1 after the passing suite, committed003dc1c with
+only the original mkadt edit dirty) ran as run gauguin.Qz3IuF: manifest captured
+HEAD003dc1c, source112-dsh (5249 files), all recorded inputs re-hashed equal.
+Compile and kernel link completed; the final strip was never run because the
+dSYM rule's `2> >(grep ...)` hits the DSH sandbox's /dev/fd denial
+("bash: /dev/fd/63: Operation not permitted"), so make exited2 with state=failed.
+The unstripped link object is20547000B SHA
+53b050be178374807527aac3dc08bdc0466887de59cc71ca9474ef337eecf742, banner
+"Darwin Kernel Version 22.6.0: Fri Nov  6 11:19:23 CST 2026;
+baai:xnu-39930ab6e8194dd5b5e3a1d2dc358a39", ARM64 Mach-O, with
+_sweet_pas_stage_once, the PAS pmap/owner and ml_io_map_wcomb/ml_vtophys/SHA256
+symbols defined; payload/ADT/entry/segment bounds pass
+(p3-native-0112-qualification-20261106.json). The installed/stripped kernel in
+the object dir is still the111 artifact, so NO0112 image was packaged: the
+packer (research/tmp/dsh-0112/pack_native0112.py) refuses without a finished,
+stripped, qualified kernel and has written nothing.
+
+Release (needs sandbox permission; record in build provenance, do not relabel):
+1) finish the strip products for this run - `make ... kernel.development.gauguin`
+   in the SDKROOT env with BUILD_DSYM=0, or run dsymutil separately (done here
+   successfully) and strip the unstripped object; 2) copy the stripped kernel to
+   the staging/install path and run `tools/xnu-build-manifest.py finish` with this
+   run and the real make status; 3) re-run qualification, then
+   `pack_native0112.py` to write shim/out/shim-p3-passtage-0112-native-20261106.img
+   (proven shim b5ba7764..., original DTB, ADT7d6d93be..., NVT + raw MDT, 2MiB
+   initrd tail with1MiB runtime region, sweetpasprobe/stage=1, marker
+   sweettrial=passtage-0112-20261106-dsh-a1). No boot until GPT review.
 
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 

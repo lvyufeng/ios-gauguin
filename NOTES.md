@@ -2,6 +2,81 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — pure139 native PERF builder validated;138 autonomous reset explicitly confirmed
+
+THIS goal turn is progress: unchanged138 full reader accepted fresh firmware,
+INIT and VERSION; user then explicitly confirmed THIS138 self-restarted with
+no manual operation. A separate unchanged-reader --manual-reset no report
+exited0, state verified-GMU-firmware-HFI-SMMU-clock-CX-controller-and-normal-runtime-reset.
+Original unknown-attribution report preserved. Details/raw/hash pins in next
+entry. Whole daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh objective
+stays ACTIVE/incomplete. No139 hardware send/ACK or GPU command/Metal proof.
+
+Private core82e6ce9008da37f61a8cb476322c1f6cdafc7862 adds133rd patch
+0139-gauguin-gmu-native-perf-table-builder.patch. Fresh source1395282files SHA
+528d329c616a0bce1671aed34dcf054d37992c0522f93b235ef19a30bdfeb026.
+Only firmware.c/h differ from frozen138c40e8c3f...88a552. New
+gmf_perf_table_build constructs172B/43-word native v1 PERF bytes, no I/O.
+Same-boot validated ARC plan, sequence1..4095, fixed captured off-inclusive
+GPU curve0/253/355/430/565/650/800MHz;7GX/2GMU counts,16GX/4CX fixed pairs,
+unused zero. Native ARC dependency search and bit packing, kHz frequencies.
+MIN_SVS48 rounds CX to64/index2,MX64/index2; GX64 uses index1, not CX index2.
+Invalid plans/sequences/spans/overlap refuse without output mutation. No
+bootstrap/channel/receipt/guard/default-path change and NO runtime caller yet.
+
+DSH13171 CLOSED0, actual readonly capture0; policy-capture.json/raw files
+under research/tmp/dsh-0139. Fresh six active frequencies800/650/565/430/355/
+253MHz, max800; num_pwrlevels6 excludes native off. Live FDT588757B SHA
+0b73e7afcc926c6b691ce6612de3f2d68f04fbb6e24e54edeb4b029d3fcc08d2.
+Unique matching DT table qcom,gpu-pwrlevels-2 has property169: table match,
+NOT direct fuse read. speed_bin file is MISSING despite adb exec-out0;
+audit checks remote error bytes rather than accepting transport exit alone.
+OPP ARC VLVLs0/64/128/192/256/320/384, not measured microvolts. HFI_USE_REG
+property present, chip06010900. policy-audit.json SHA
+4746cd78b830b29884b9770d476ffbd58da5fd438371062cf9bc28ee592127f2.
+Native regulator-levels header pin19b63c8 SHA
+9f91da86a36ffd727151b3dae60535ea246272e612ba7e880e7f786bea617a4f,
+MIN_SVS48 explicitly web/file verified. kgsl_gmu.c SHA
+f5568c0485cf0f28031df757c510d4356782937148755b50d7acf155a9489e89.
+
+First DSH1304 CLOSED0 wrapped actual validate139.py1: reset-attribution0,
+policy-audit0, pristine replay0, full-host1. One test failed because Codex's
+handwritten golden mixed GX/CX primary indices; production byte builder was
+unchanged. Original reports/logs retained plus old fixture/patch/series under
+failed-v1. Corrected only six GX literals in fixture. Explicit reviewed v2
+binds this exact correction and reuses the successful immutable source replay.
+DSH80181 CLOSED0; actual validate139_v2.py0, normal FIVE zero results:
+native oracle, all61 hosts, original-model I/O equivalence, real ARM64 firmware
+and board TUs. validation-v2-result.json36796B SHA
+e4fa90430b7b1c14c84209b402dac011d97881c4c59b7e7d0ab2fdaf69e3210e;
+source/baseline/inputs unchanged. Native oracle compiles EXACT pinned
+setup_volt_dependency_tbl plus hfi_send_dcvstbl_v1 body/native structs,
+stubbing only OS/HFI send; all4095 sequence packets byte-identical. Not ACKs.
+ASan/UBSan GMF1,951,204 checks, board2840+95. Golden43 words/all4095 sequences,
+every plan-byte corruption, invalid/overflow spans/alias/output preservation.
+Frozen ORIGINAL129 model138/1391,009,420 I/O requests identical digest42c8a43275281f5b.
+Native firmware56552B SHAb12e9723cb109532c365a5b9bea2fd182b00f229d339fe569978f288c6ccddf6
+at gmu139-gauguin_gmu_firmware/run-zb9gh8zj/compile.json; board72888B SHA
+d4f0413a6ec662e1bbd00ab53665b98bbd7787a4dfbbfe6fde4211e6d3028991
+at gmu139-gauguin_gmu_board/run-qca7plo1/compile.json (all under
+research/tmp/gauguin-nvt-p1). Uses CURRENT138 HLxJKk recipe/source.
+
+NEXT140: add separately opt-in bounded PERF send after qualified VERSION on
+the SAME retained HFI channel. Use139 builder with sequence3, native generic
+ACK prefix3..19/type2/matching12-bit sequence/status!=ffffffff, cached first
+refusal. Preserve default bootstrap I/O, private ownership/once-only state,
+output/repeat behavior, all live reset/fault/IRQ/clock/deadline/WDT guards;
+never retry/rearm/pet. Add transaction success and every callback/ACK refusal
+host case, compile, then full coherent new kernel/image/strict-reader trial.
+Do not claim HFI_ON: BW table and HFI_USE_REG TEST still required. Native BW
+table must derive actual GPU/CNOC usecase paths/BCMs, not copy saturated BOOT
+plan. Skip a139 full image whose runtime path would be unchanged; build the
+next actual sender only after its software validation. Preserve138 image as
+qualified bootstrap baseline. No139 full native kernel/image/phone trial/CI.
+Phone remains TWRP after readonly capture. All owned handles CLOSED; original
+seven-line mkadt diff intact. No flash/format/GPT/destructive action. Codex
+core/review/Git; DSH full-access compile/test/build/boot.
+
 ### 2026-11-07 — actual138 fresh GMU firmware plus INIT and VERSION handshake PASS
 
 Milestone source private8a0fcff and validated handoff8e2b893, public
@@ -31,9 +106,16 @@ No HFI refusal record. Full state
 verified-GMU-firmware-HFI-SMMU-clock-CX-controller-reset-attribution-unverified.
 No normal HFI_ON/DCVS/BW/TEST/SQE/CP/ZAP/GPU command/rendering/Metal proof.
 
-138 manual/autonomous-reset attribution UNKNOWN; old0124 reply does not
-apply. Requested a THIS138 attribution separately; no new user UI/touch fact.
-Diagnostic coordinator awaits watchdog after handshake. 130s is observer
+User subsequently explicitly confirmed THIS138 self-restarted without any
+manual operation. DSH reran the UNCHANGED strict reader with --manual-reset no
+and a NEW output, actual exit0. Attributed26292B report
+research/tmp/dsh-0138/hardware-full-verification-attributed.json SHA
+c8709f1176bc20d18249df7f6d9cbd413390d95fc158e7631da865185841945b;
+state verified-GMU-firmware-HFI-SMMU-clock-CX-controller-and-normal-runtime-reset.
+The earlier unknown-attribution report is preserved. This is diagnostic
+runtime-reset evidence, not an independent PMIC reset-cause register reading.
+No new user UI/touch fact. Diagnostic coordinator awaits watchdog after
+handshake. 130s is observer
 elapsed including boot/logging/recovery, not independent reset-cause proof.
 Phone observed TWRP. Original seven-line mkadt diff intact. No flash/format/
 GPT/destructive action. Whole daily-use goal remains ACTIVE/incomplete.
@@ -44,6 +126,12 @@ table construction and captured gauguin power/frequency/CMDDB resources;
 implement bounded typed messages with refusal tests before hardware writes.
 0138 is now the preserved qualified bootstrap baseline. Current local native
 recipe/source138 HLxJKk. Codex core/review/Git; DSH compile/test/build/boot.
+
+Physical138 handoff pushed/ls-remote verified
+19f416cf766e53ecae2c815b36af1fe9fca7c78b, sole parent2ecc3ff, exactly
+NOTES/docs text paths, same tree as private7365f27744691a2191503bb38f5c42470b461bb3.
+Report research/tmp/dsh-0138/public-hardware-snapshot-0138.json. No private
+ancestry, raw logs/dumps/assets/serials pushed. No CI run used.
 
 ### 2026-11-07 — complete138 ACK-compatible native image and strict readers qualified; one physical trial next
 

@@ -411,8 +411,10 @@ SHA256 `0550c64cc5e0e9c67282384de63f44380f8b97315645e3bfba8f9e2c04fe5a5a`,
 kernel `xnu-f19772512a1d4117b143ce75e7c2cd4c`, and unique trial
 `gmuf-0138-20261107-a1`. The unchanged strict runtime reader bound the source,
 manifest, qualification, image, kernel banner, command line and fresh logs.
-Its full technical checks passed; exit3 records pending manual-reset
-attribution, separately from the accepted firmware evidence.
+Its full technical checks passed. The first report's exit3 recorded pending
+manual-reset attribution. The user then confirmed this0138 self-restarted
+without manual operation; the unchanged reader produced a separate exit0
+report. The original report remains preserved.
 
 The hardware completed all8192 TCM writes/comparisons, fresh0xbabeface,
 boot-slumber OOB and HFI-ready transition0->1. Both replies were accepted:
@@ -424,9 +426,10 @@ also passed. No refused-packet diagnostic was emitted.
 
 The observer ran2026-11-06T22:56:28.482093Z to22:58:40.256573Z and observed
 recovery after130s. This includes boot, logging and recovery; it does not
-independently establish reset cause. The coordinator deliberately awaits its
-diagnostic watchdog after completing the handshake. This run adds no user
-confirmation of UI, touch, autonomous reset or daily stability.
+independently establish a PMIC reset cause. The coordinator deliberately
+awaits its diagnostic watchdog after completing the handshake. Explicit user
+attribution qualifies autonomous diagnostic runtime reset; this run adds no
+user confirmation of UI, touch or daily stability.
 
 Next follow the pinned native legacy `hfi_start` ordering: v1 PERF table,
 bandwidth table, then TEST when HFI_USE_REG applies. Derive tables from the
@@ -435,3 +438,55 @@ them. Do not mark normal HFI_ON, GPU command execution, ZAP, rendering, Metal
 or high refresh as qualified by INIT/version success. Keep the0138 bootstrap
 as a reproducible baseline and test each new command's refusal and success
 paths before a coherent temporary hardware trial.
+
+## Pure0139 PERF table construction
+
+Fresh recovery reads show six active frequencies, descending800,650,565,430,
+355,253MHz. The native `num_pwrlevels` sysfs value6 excludes the off entry.
+The live device-tree table whose rows uniquely match that list has speed-bin
+property169. This is a table match, not a direct fuse read: the `speed_bin`
+sysfs file is absent. In this recovery, `adb exec-out` returned transport exit0
+even for the missing file; the audit rejects that error text as a fuse value.
+
+Patch0139 adds `gmf_perf_table_build` as a pure constructor in the firmware
+translation unit. It consumes the validated same-boot ARC plan and a nonzero
+12-bit sequence. Its172-byte legacy v1 PERF message has43 words: header,
+7 GX levels,2 GMU levels,16 fixed-capacity GX pairs and4 CX pairs. Unused
+pairs are zero. The off-inclusive ascending GPU curve is:
+
+| MHz | ARC virtual level | GX index | MX index |
+| --- | --- | --- | --- |
+| 0 | 0 | 0 | 0 |
+| 253 | 64 | 1 | 2 |
+| 355 | 128 | 2 | 3 |
+| 430 | 192 | 3 | 4 |
+| 565 | 256 | 4 | 5 |
+| 650 | 320 | 5 | 6 |
+| 800 | 384 | 6 | 7 |
+
+Each native vote packs virtual level in bits31:16, MX index15:8 and primary
+index7:0; frequency is in kHz. The two GMU rows are off and200MHz. The latter
+uses native MIN_SVS48, rounded up by the captured CX table to64/index2 and
+MX64/index2. These are virtual policy levels, not measured microvolts.
+See the pinned [ARC dependency builder](https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/19b63c8192b1c9b7c4d931d7d3be92024bc2d778/drivers/gpu/msm/kgsl_gmu.c#L640),
+[legacy PERF sender](https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/19b63c8192b1c9b7c4d931d7d3be92024bc2d778/drivers/gpu/msm/kgsl_hfi.c#L439)
+and [regulator levels](https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/19b63c8192b1c9b7c4d931d7d3be92024bc2d778/include/dt-bindings/regulator/qcom,rpmh-regulator-levels.h).
+
+Invalid plans/sequences/spans and overlapping input/output refuse before
+changing the output. This API sends no HFI packet and changes no controller,
+clock, rail, context, receipt or bootstrap sequence. Physical0138 remains the
+qualified firmware baseline. A future opt-in PERF transmission must follow
+VERSION on the same retained channel, verify its actual bounded native ACK,
+and preserve quarantine/deadline/one-shot and default bootstrap behavior.
+Bandwidth-table construction and HFI_USE_REG TEST remain subsequent stages;
+do not substitute the temporary saturated BOOT BCM votes for native GPU
+bandwidth tables or declare normal HFI_ON from this byte constructor.
+
+The initial hand-written test oracle incorrectly used CX's primary indices
+for GX. That run was rejected and retained; six oracle literals were corrected
+without changing the production source. An independent test then compiled the
+exact pinned native ARC dependency helper, v1 PERF sender and wire structs,
+stubbing only the send seam. All4095 permitted sequence packets matched the
+new constructor byte-for-byte. All61 host suites, original bootstrap I/O
+equivalence and real ARM64 firmware/board compilation passed. This qualifies
+byte construction only;0139 has no full kernel/image or hardware PERF trial.

@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source124-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source125-codex')))/'bsd/dev'
 S=D/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 inputs=[S,F,D/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
 inputs += [D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']

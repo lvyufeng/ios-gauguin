@@ -1,0 +1,140 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -42,5 +42,12 @@
+     gauguin_wdt_lease_quarantine();char line[192];
+     snprintf(line,sizeof(line),"SWEET GMU BOARD: stopped rc=%u smmu=%u reason=%s; mappings retained, no retry/rollback",(unsigned)rc,(unsigned)gmb_work.smmu_result,why);
+-    gmb_record(line);return rc;
++    gmb_record(line);
++    if(rc==GMB_SMMU&&gmb_context.diagnostic.phase){
++        const struct gsm_diagnostics *d=&gmb_context.diagnostic;
++        const struct gsm_receipt *s=&gmb_context.work;
++        snprintf(line,sizeof(line),"SWEET GMU SMMU FAIL: phase=%u check=%u off=%05x mask=%016llx expected=%016llx actual=%016llx",d->phase,d->check,d->offset,d->mask,d->expected,d->actual);gmb_record(line);
++        snprintf(line,sizeof(line),"SWEET GMU SMMU FAIL: id=%08x/%08x/%08x cr0=%08x/%08x micro=%08x/%08x ias=%u oas=%u writes=%u polls=%u atos=%u",s->id0,s->id1,s->id2,s->cr0_before,s->cr0_after,s->micro_before,s->micro_after,s->ias,s->oas,s->writes,s->polls,s->translations);gmb_record(line);
++    }
++    return rc;
+ }
+ static bool gmb_outer(void)
+diff --git a/bsd/dev/gauguin_gmu_smmu.c b/bsd/dev/gauguin_gmu_smmu.c
+--- a/bsd/dev/gauguin_gmu_smmu.c
++++ b/bsd/dev/gauguin_gmu_smmu.c
+@@ -42,9 +42,16 @@
+ static bool delay(struct gsm_context *c,unsigned us)
+ {return c->ops.guard(c->ops.cookie)&&c->ops.delay_us(c->ops.cookie,us)&&c->ops.guard(c->ops.cookie);}
++static enum gsm_result mismatch(struct gsm_context *c,enum gsm_check check,
++    uint32_t off,uint64_t mask,uint64_t expected,uint64_t actual)
++{
++    c->diagnostic.check=check;c->diagnostic.offset=off;c->diagnostic.mask=mask;
++    c->diagnostic.expected=expected;c->diagnostic.actual=actual;
++    return GSM_READBACK;
++}
+ static enum gsm_result store(struct gsm_context *c,uint32_t off,uint32_t value,uint32_t mask)
+ {
+     uint32_t v;
+     if(!w32(c,off,value)||!sync_memory(c)||!r32(c,off,&v))return GSM_IO;
+-    return (v&mask)==(value&mask)?GSM_OK:GSM_READBACK;
++    return (v&mask)==(value&mask)?GSM_OK:mismatch(c,GSD_STORE32,off,mask,value,v);
+ }
+ static enum gsm_result store64(struct gsm_context *c,uint32_t off,uint64_t value)
+@@ -52,5 +59,5 @@
+     uint64_t v;
+     if(!w64(c,off,value)||!sync_memory(c)||!r64(c,off,&v))return GSM_IO;
+-    return v==value?GSM_OK:GSM_READBACK;
++    return v==value?GSM_OK:mismatch(c,GSD_STORE64,off,UINT64_MAX,value,v);
+ }
+ static enum gsm_result poll(struct gsm_context *c,uint32_t off,uint32_t mask,uint32_t wanted,unsigned count,unsigned us)
+@@ -58,5 +65,5 @@
+     for(unsigned i=0;i<count;i++){
+         uint32_t v;if(!r32(c,off,&v))return GSM_IO;++c->work.polls;
+-        if(v==UINT32_MAX)return GSM_READBACK;
++        if(v==UINT32_MAX)return mismatch(c,GSD_POLL32,off,mask,wanted,v);
+         if((v&mask)==wanted)return GSM_OK;
+         if(i+1<count&&!delay(c,us))return GSM_IO;
+@@ -148,7 +155,8 @@
+     unsigned ips=0;while(ips<6&&width(ips)!=w->oas)++ips;
+     uint64_t pa=c->plan.owner_pa+0x4000,tcr=((uint64_t)ips<<32)|UINT64_C(0x802000)|(64-w->ias);
+-    if(cfg->kernel_ttbr0!=pa||cfg->kernel_ttbr1!=pa+0x5000||cfg->user_ttbr0!=pa+0x6000||
+-       cfg->user_ttbr1!=pa+0x7000||cfg->tcr!=tcr||cfg->mair0!=0xf404ff44||cfg->mair1!=0xe4||
+-       cfg->ias!=w->ias||cfg->oas!=w->oas)return GSM_READBACK;
++    const uint64_t expected[]={pa,pa+0x5000,pa+0x6000,pa+0x7000,tcr,0xf404ff44,0xe4,w->ias,w->oas};
++    const uint64_t actual[]={cfg->kernel_ttbr0,cfg->kernel_ttbr1,cfg->user_ttbr0,
++        cfg->user_ttbr1,cfg->tcr,cfg->mair0,cfg->mair1,cfg->ias,cfg->oas};
++    for(unsigned i=0;i<9;i++)if(actual[i]!=expected[i])return mismatch(c,GSD_CONFIG,i,UINT64_MAX,expected[i],actual[i]);
+     w->tcr=(uint32_t)tcr;w->tcr2=(uint32_t)(tcr>>32)|0x38010;
+     w->mair0=cfg->mair0;w->mair1=cfg->mair1;return GSM_OK;
+@@ -178,5 +186,5 @@
+     }
+     uint32_t fsr;if(!r32(c,0x48,&fsr)||!w32(c,0x48,fsr)||!sync_memory(c))return GSM_IO;
+-    if(!r32(c,0x48,&fsr))return GSM_IO;if(fsr)return GSM_READBACK;
++    if(!r32(c,0x48,&fsr))return GSM_IO;if(fsr)return mismatch(c,GSD_FAULT32,0x48,UINT32_MAX,0,fsr);
+     if(!w32(c,0x6c,UINT32_MAX)||!w32(c,0x68,UINT32_MAX)||!w32(c,0x70,UINT32_MAX)||!sync_memory(c))return GSM_IO;
+     r=poll(c,0x74,1,0,100,10);if(r)return r;
+@@ -247,5 +255,5 @@
+         unsigned base=CB(w->bank[n]);uint32_t fsr;
+         if(!r32(c,base+0x58,&fsr)||!w32(c,base+0x58,fsr)||!sync_memory(c)||!r32(c,base+0x58,&fsr))return GSM_IO;
+-        if(fsr)return GSM_READBACK;
++        if(fsr)return mismatch(c,GSD_FAULT32,base+0x58,UINT32_MAX,0,fsr);
+         w->smr_after[n]=w->stream_match?(VALID|4u+n):0;
+         if(w->stream_match){r=store(c,SMR(w->slot[n]),w->smr_after[n],UINT32_MAX);if(r)return r;}
+@@ -256,13 +264,13 @@
+      * may now be enabled. This catches a board-side owner violation too. */
+     for(unsigned i=0;i<w->groups;i++)if(i!=w->slot[0]&&i!=w->slot[1]){
+-        uint32_t v;if(!r32(c,S2CR(i),&v))return GSM_IO;if(v!=c->s2crs[i])return GSM_READBACK;
+-        if(w->stream_match){if(!r32(c,SMR(i),&v))return GSM_IO;if(v!=c->smrs[i])return GSM_READBACK;}
++        uint32_t v;if(!r32(c,S2CR(i),&v))return GSM_IO;if(v!=c->s2crs[i])return mismatch(c,GSD_FINAL32,S2CR(i),UINT32_MAX,c->s2crs[i],v);
++        if(w->stream_match){if(!r32(c,SMR(i),&v))return GSM_IO;if(v!=c->smrs[i])return mismatch(c,GSD_FINAL32,SMR(i),UINT32_MAX,c->smrs[i],v);}
+     }
+     for(unsigned i=0;i<w->banks;i++)if(i!=w->bank[0]&&i!=w->bank[1]){
+-        uint32_t v;if(!r32(c,CB(i),&v))return GSM_IO;if(v!=c->sctlr[i])return GSM_READBACK;
++        uint32_t v;if(!r32(c,CB(i),&v))return GSM_IO;if(v!=c->sctlr[i])return mismatch(c,GSD_FINAL32,CB(i),UINT32_MAX,c->sctlr[i],v);
+     }
+     r=store(c,MICRO,0x2378,~IDLE);if(r)return r;
+     if(!r32(c,MICRO,&w->micro_after)||!r32(c,0,&w->cr0_after)||!sync_memory(c))return GSM_IO;
+-    if((w->micro_after&~IDLE)!=0x2370)return GSM_READBACK;
++    if((w->micro_after&~IDLE)!=0x2370)return mismatch(c,GSD_MICRO32,MICRO,~IDLE,0x2370,w->micro_after);
+     return GSM_OK;
+ }
+@@ -277,10 +285,14 @@
+     struct gsm_ops copy=*ops;struct ggm_plan p=*plan;uint32_t expected=0;
+     if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GSM_ALREADY;
+-    c->ops=copy;c->plan=p;memset(&c->work,0,sizeof(c->work));
+-    struct ggm_s1_config cfg;enum gsm_result r=capture(c);
+-    if(!r)r=resolve(c);if(!r)r=prepare(c,&cfg);if(!r)r=global_init(c);
+-    if(!r)r=bank_init(c,&cfg,0);if(!r)r=bank_init(c,&cfg,1);
+-    if(!r)r=verify_translations(c);if(!r)r=finalize(c);
+-    if(!r)*out=c->work;
++    c->ops=copy;c->plan=p;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));
++    c->diagnostic.phase=GSP_CAPTURE;struct ggm_s1_config cfg;enum gsm_result r=capture(c);
++    if(!r){c->diagnostic.phase=GSP_RESOLVE;r=resolve(c);}
++    if(!r){c->diagnostic.phase=GSP_PREPARE;r=prepare(c,&cfg);}
++    if(!r){c->diagnostic.phase=GSP_GLOBAL;r=global_init(c);}
++    if(!r){c->diagnostic.phase=GSP_USER;r=bank_init(c,&cfg,0);}
++    if(!r){c->diagnostic.phase=GSP_KERNEL;r=bank_init(c,&cfg,1);}
++    if(!r){c->diagnostic.phase=GSP_ATOS;r=verify_translations(c);}
++    if(!r){c->diagnostic.phase=GSP_FINAL;r=finalize(c);}
++    if(!r){c->diagnostic.phase=GSP_DONE;*out=c->work;}
+     __atomic_store_n(&c->state,r?3:2,__ATOMIC_RELEASE);return r;
+ }
+diff --git a/bsd/dev/gauguin_gmu_smmu.h b/bsd/dev/gauguin_gmu_smmu.h
+--- a/bsd/dev/gauguin_gmu_smmu.h
++++ b/bsd/dev/gauguin_gmu_smmu.h
+@@ -32,4 +32,13 @@
+     uint32_t tcr,tcr2,mair0,mair1,writes,polls,translations,mapped_pages;
+ };
++/* Cached diagnostics only: no additional MMIO, changed predicate or public
++ * receipt. Populated before returning READBACK; phase also identifies an IO
++ * failure's broad stage. CONFIG offset is field index0..8 (four TTBRs,TCR,
++ * MAIR0/1,IAS,OAS); every other offset is an actual byte register offset. */
++enum gsm_phase {GSP_IDLE,GSP_CAPTURE,GSP_RESOLVE,GSP_PREPARE,GSP_GLOBAL,
++    GSP_USER,GSP_KERNEL,GSP_ATOS,GSP_FINAL,GSP_DONE};
++enum gsm_check {GSD_NONE,GSD_STORE32,GSD_STORE64,GSD_POLL32,GSD_CONFIG,
++    GSD_FINAL32,GSD_FAULT32,GSD_MICRO32};
++struct gsm_diagnostics {uint32_t phase,check,offset;uint64_t mask,expected,actual;};
+ /* Zero-initialized, single private board instance. Cold initialization only:
+  * all existing context SCTLR.M and stalled faults must be zero. Unrelated
+@@ -50,4 +59,5 @@
+     uint32_t smrs[GSM_STREAMS],s2crs[GSM_STREAMS];
+     uint32_t sctlr[GSM_BANKS],fsr[GSM_BANKS];
++    struct gsm_diagnostics diagnostic;
+ };
+ enum gsm_result gsm_configure_once(struct gsm_context *,const struct gsm_ops *,

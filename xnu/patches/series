@@ -120,3 +120,4 @@
 0122-gauguin-gmu-smmu-board.patch
 0123-gauguin-gmu-firmware-bootstrap.patch
 0124-gauguin-gmu-native-bootstrap.patch
+0125-gauguin-gmu-smmu-failure-diagnostics.patch

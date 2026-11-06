@@ -24,11 +24,17 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned owner_calls,owner_fail,budgets,budget_fail,expire,allocs,frees,alloc_fail,smmu_calls,smmu_fail,barriers,corrupt;
     unsigned clock_bad,irq_bad,context,quarantine,reads,writes,writes64;bool live;uint64_t now;
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
-        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden;} h;
+        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
-static int host_printf(const char *s,...){(void)s;return 1;}
+static int host_printf(const char *s,...)
+{
+    char text[256];va_list ap;va_start(ap,s);int n=vsnprintf(text,sizeof(text),s,ap);va_end(ap);
+    CHECK(n>0&&(unsigned)n<sizeof(text));
+    if(strstr(text,"SWEET GMU SMMU FAIL:")){CHECK(h.quarantine==1&&!h.live);++h.diag_lines;}
+    return n;
+}
 int ml_get_interrupts_enabled(void){return h.context!=1;}
 int ml_at_interrupt_context(void){return h.context==2;}
 int get_preemption_level(void){return h.context==3;}
@@ -119,7 +125,7 @@ enum gsm_result gsm_configure_once(struct gsm_context *ctx,const struct gsm_ops 
     CHECK(!o->read32(NULL,65536,&a)&&!o->read32(NULL,1,&a)&&!o->write32(NULL,65536,0)&&!o->write32(NULL,1,0));
     CHECK(!o->read64(NULL,65536,&b)&&!o->read64(NULL,4,&b)&&!o->write64(NULL,65536,0)&&!o->write64(NULL,4,0));
     CHECK(reads==h.reads&&writes==h.writes&&writes64==h.writes64);
-    if(h.smmu_fail==2)return GSM_IO;
+    if(h.smmu_fail==2){ctx->diagnostic=(struct gsm_diagnostics){GSP_GLOBAL,GSD_STORE32,0x6960,UINT32_MAX,UINT32_MAX,0x3f};return GSM_READBACK;}
     memset(out,0,sizeof(*out));out->mapped_pages=131;out->translations=140;
     if(h.firmware){
         out->banks=8;out->groups=128;out->stream_match=1;out->micro_after=0x2378;
@@ -288,7 +294,7 @@ int main(void)
     for(unsigned i=1;i<=pmaps;i++){reset();h.pmap_fail=i;failed();reset();h.attr_fail=i;failed();}
     reset();*(uint32_t *)(void *)(reset_page+0x2000)=0;failed();CHECK(h.maps==1&&!h.smmu_calls);
     reset();*(uint32_t *)(void *)(reset_page+0x2000)=UINT32_MAX;failed();CHECK(h.maps==1&&!h.smmu_calls);
-    reset();h.smmu_fail=1;failed();CHECK(!h.nc_maps);reset();h.smmu_fail=2;failed();
+    reset();h.smmu_fail=1;failed();CHECK(!h.nc_maps);reset();h.smmu_fail=2;failed();CHECK(h.diag_lines==2);
     reset();h.alloc_fail=1;failed();CHECK(h.allocs==1&&!h.frees);
     reset();h.corrupt=1;failed();CHECK(h.allocs==1&&h.frees==1);
     reset();h.expire=10;failed();

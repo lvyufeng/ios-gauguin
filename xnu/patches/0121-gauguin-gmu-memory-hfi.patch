@@ -1,0 +1,303 @@
+diff --git a/bsd/conf/files b/bsd/conf/files
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -123,6 +123,8 @@
+ bsd/dev/gauguin_cx_rail_plan.c		standard
+ bsd/dev/gauguin_cx_power.c		standard
+ bsd/dev/gauguin_gcc_votes.c		standard
++bsd/dev/gauguin_gmu_memory.c		standard
++bsd/dev/gauguin_gmu_hfi.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+diff --git a/bsd/dev/gauguin_gmu_hfi.c b/bsd/dev/gauguin_gmu_hfi.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_hfi.c
+@@ -0,0 +1,102 @@
++/* Fixed A619 legacy queues, native kgsl_hfi.c/h pin19b63c8. No OS/MMIO/DMA. */
++#include <string.h>
++#include "gauguin_gmu_hfi.h"
++enum {UNBOUND=0,READY=1,BUSY=2,POISON=3};
++static const uint32_t table[6]={0,54,6,12,4,4};
++static const uint32_t types[4]={0x0a00,0x0a04,0x2805,0x1401};
++static bool range(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++static bool read_word(struct ggh_channel *c,uint32_t word,uint32_t *v)
++{return word<4152&&c->ops.guard(c->ops.cookie)&&c->ops.read(c->ops.cookie,word,v)&&c->ops.guard(c->ops.cookie);}
++static bool write_word(struct ggh_channel *c,uint32_t word,uint32_t v)
++{return word<4152&&c->ops.guard(c->ops.cookie)&&c->ops.write(c->ops.cookie,word,v)&&c->ops.guard(c->ops.cookie);}
++static bool barrier(struct ggh_channel *c)
++{return c->ops.guard(c->ops.cookie)&&c->ops.barrier(c->ops.cookie)&&c->ops.guard(c->ops.cookie);}
++static enum ggh_result finish(struct ggh_channel *c,enum ggh_result r)
++{
++    __atomic_store_n(&c->state,r==GGH_IO||r==GGH_CORRUPT?POISON:READY,__ATOMIC_RELEASE);
++    return r;
++}
++static enum ggh_result enter(struct ggh_channel *c)
++{
++    uint32_t expected=READY;
++    if(__atomic_compare_exchange_n(&c->state,&expected,BUSY,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GGH_OK;
++    return expected==BUSY?GGH_BUSY:GGH_QUARANTINED;
++}
++static uint32_t expected_header(unsigned word)
++{
++    if(word<6)return table[word];
++    unsigned q=(word-6)/12,field=(word-6)%12;
++    if(field==0)return q<3;
++    if(field==1)return 0x600010e0u+4096*q;
++    if(field==2)return types[q];
++    if(field==3)return 1024;
++    return 0;
++}
++enum ggh_result ggh_bind(struct ggh_channel *c,const struct ggh_ops *ops,unsigned major)
++{
++    if(!c||!ops||(major!=1&&major!=2)||!ops->guard||!ops->read||!ops->write||!ops->barrier)return GGH_ARGUMENT;
++    struct ggh_ops copy=*ops;uint32_t expected=UNBOUND;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,BUSY,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))
++        return expected==BUSY?GGH_BUSY:GGH_QUARANTINED;
++    c->ops=copy;c->major=major;
++    for(unsigned word=0;word<54;word++){
++        uint32_t v;if(!read_word(c,word,&v))return finish(c,GGH_IO);
++        if(v!=expected_header(word))return finish(c,GGH_CORRUPT);
++    }
++    return finish(c,barrier(c)?GGH_OK:GGH_IO);
++}
++static enum ggh_result inspect(struct ggh_channel *c,unsigned q,uint32_t *rd,uint32_t *wr)
++{
++    for(unsigned i=0;i<10;i++){
++        unsigned word=i<6?i:6+12*q+i-6;uint32_t v;
++        if(!read_word(c,word,&v))return GGH_IO;
++        if(v!=expected_header(word))return GGH_CORRUPT;
++    }
++    if(!read_word(c,6+12*q+10,rd)||!read_word(c,6+12*q+11,wr)||!barrier(c))return GGH_IO;
++    if(*rd>=1024||*wr>=1024||(c->major==2&&((*rd|*wr)&3)))return GGH_CORRUPT;
++    return GGH_OK;
++}
++static enum ggh_result publish(struct ggh_channel *c,unsigned index,uint32_t old,uint32_t value)
++{
++    uint32_t v;
++    if(!barrier(c)||!read_word(c,index,&v))return GGH_IO;
++    if(v!=old)return GGH_CORRUPT;
++    if(!write_word(c,index,value)||!barrier(c)||!read_word(c,index,&v))return GGH_IO;
++    if(v!=value)return GGH_CORRUPT;
++    return barrier(c)?GGH_OK:GGH_IO;
++}
++enum ggh_result ggh_send(struct ggh_channel *c,const uint32_t *packet,size_t words)
++{
++    if(!c||!words||words>GGH_MAX_WORDS||!range(packet,words*4)||
++       overlap(packet,words*4,c,sizeof(*c)))return GGH_ARGUMENT;
++    uint32_t local[GGH_MAX_WORDS];memcpy(local,packet,words*4);
++    if(((local[0]>>8)&255)!=words||((local[0]>>16)&15)!=0)return GGH_ARGUMENT;
++    enum ggh_result r=enter(c);if(r!=GGH_OK)return r;
++    uint32_t rd,wr;r=inspect(c,0,&rd,&wr);if(r!=GGH_OK)return finish(c,r);
++    unsigned padded=c->major==2?((unsigned)words+3)&~3u:(unsigned)words;
++    unsigned free=(rd+1024-wr-1)%1024;
++    if(padded>free)return finish(c,GGH_FULL);
++    for(unsigned i=0;i<padded;i++)if(!write_word(c,56+(wr+i)%1024,i<words?local[i]:0xfafafafau))return finish(c,GGH_IO);
++    return finish(c,publish(c,17,wr,(wr+padded)%1024));
++}
++enum ggh_result ggh_receive(struct ggh_channel *c,unsigned q,uint32_t *out,size_t capacity,size_t *count)
++{
++    if(!c||(q!=1&&q!=2)||!capacity||capacity>GGH_MAX_WORDS||!range(out,capacity*4)||!range(count,sizeof(*count))||
++       overlap(out,capacity*4,c,sizeof(*c))||overlap(count,sizeof(*count),c,sizeof(*c))||
++       overlap(out,capacity*4,count,sizeof(*count)))return GGH_ARGUMENT;
++    enum ggh_result r=enter(c);if(r!=GGH_OK)return r;
++    uint32_t rd,wr;r=inspect(c,q,&rd,&wr);if(r!=GGH_OK)return finish(c,r);
++    unsigned available=(wr+1024-rd)%1024;if(!available)return finish(c,GGH_EMPTY);
++    uint32_t local[GGH_MAX_WORDS];unsigned base=56+q*1024;
++    if(!read_word(c,base+rd,&local[0]))return finish(c,GGH_IO);
++    unsigned words=(local[0]>>8)&255,padded=c->major==2?(words+3)&~3u:words;
++    if(!words||padded>available)return finish(c,GGH_CORRUPT);
++    if(words>capacity)return finish(c,GGH_CAPACITY);
++    for(unsigned i=1;i<words;i++)if(!read_word(c,base+(rd+i)%1024,&local[i]))return finish(c,GGH_IO);
++    r=publish(c,6+12*q+10,rd,(rd+padded)%1024);
++    if(r!=GGH_OK)return finish(c,r);
++    memcpy(out,local,words*4);*count=words;return finish(c,GGH_OK);
++}
+diff --git a/bsd/dev/gauguin_gmu_hfi.h b/bsd/dev/gauguin_gmu_hfi.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_hfi.h
+@@ -0,0 +1,41 @@
++#ifndef GAUGUIN_GMU_HFI_H
++#define GAUGUIN_GMU_HFI_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++#define GGH_MAX_WORDS 255u
++enum ggh_result {GGH_OK,GGH_EMPTY,GGH_FULL,GGH_ARGUMENT,GGH_BUSY,
++    GGH_QUARANTINED,GGH_IO,GGH_CORRUPT,GGH_CAPACITY};
++/* Only the same-boot GMU memory owner may provide these callbacks. Offsets
++ * are uint32_t words from the HFI allocation, always within its first16608B.
++ * Read/write access little-endian NC shared RAM, never controller MMIO.
++ * barrier must order all preceding shared accesses before following ones
++ * (native adapter: dsb sy). guard checks ownership/deadline/WDT/reset policy.
++ * Callbacks must not mutate the context or caller buffers. No callback is an
++ * authority to map memory, release reset, execute firmware or ring a doorbell.
++ */
++struct ggh_ops {void *cookie;bool (*guard)(void *);
++    bool (*read)(void *,uint32_t,uint32_t *);
++    bool (*write)(void *,uint32_t,uint32_t);bool (*barrier)(void *);};
++struct ggh_channel {uint32_t state,major;struct ggh_ops ops;};
++/* Zero-initialize ONE private board channel; bind once, before HFI is started.
++ * Explicit qualified major1/2, independent of the fixed A619 legacy queue IDs.
++ * All initial216 header bytes must match the freshly emitted native table.
++ * Never copy/reinitialize/rebind a used channel, even after an IO error.
++ */
++enum ggh_result ggh_bind(struct ggh_channel *,const struct ggh_ops *,unsigned major);
++/* Synchronous single-host-owner ring primitives. Command queue0 only; receive
++ * message1/debug2 only. The board owns doorbells and IRQ handling. Send OK means
++ * the write index was published/read back; issue HOST2GMU only after OK while
++ * retaining the board lease. This module does not wait for or interpret ACKs.
++ * Reserve one DWORD to keep full distinct from empty; v2 pads to4 DWORDs.
++ * IO/corruption quarantine the channel; publication may already have occurred.
++ * ARGUMENT/BUSY/EMPTY/FULL/CAPACITY leave queues and caller outputs unchanged.
++ * On receive, capacity is1..255 DWORDs and count must not overlap output.
++ * Output is published only after consuming index/barriers/readback succeed.
++ * Caller packet/output/count buffers must be private ordinary RAM, never
++ * aliases of the callback-accessed shared allocation or controller mappings.
++ */
++enum ggh_result ggh_send(struct ggh_channel *,const uint32_t *,size_t words);
++enum ggh_result ggh_receive(struct ggh_channel *,unsigned queue,uint32_t *,size_t capacity,size_t *count);
++#endif
+diff --git a/bsd/dev/gauguin_gmu_memory.c b/bsd/dev/gauguin_gmu_memory.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_memory.c
+@@ -0,0 +1,86 @@
++/* Fixed A619 legacy GMU memory image, no device access or launch.
++ * Native19b63c8192b1c9b7c4d931d7d3be92024bc2d778: kgsl_gmu.c gmu_cache_finalize
++ * precedes gmu_memory_probe; kgsl_hfi.c hfi_init uses four legacy queue IDs.
++ * io-pgtable-arm.c supplies S1 NC/outer-shareable/AF/nG/AP and MAIR encoding.
++ */
++#include <string.h>
++#include "gauguin_gmu_memory.h"
++static const struct ggm_region ggm_regions[GGM_COUNT]={
++    {0x10000,0x3c000,0x00004000,0x3c000,1},
++    {0x4c000,0x3c000,0x00044000,0x3c000,1},
++    {0x88000,0x04000,0x60000000,0x01000,1},
++    {0x8c000,0x08000,GGM_HFI_IOVA,GGM_HFI_BYTES,0},
++    {0x94000,0x04000,0x60006000,0x04000,0},
++    {0x98000,0x04000,0x6000a000,0x01000,1}
++};
++static bool ggm_pa_valid(uint64_t pa)
++{return pa && !(pa&(GGM_REGION_BYTES-1u)) && pa<=UINT64_C(0xfff00000);}
++bool ggm_plan_build(uint64_t pa,struct ggm_plan *out)
++{
++    if(!out||!ggm_pa_valid(pa))return false;
++    struct ggm_plan p={0};p.owner_pa=pa;memcpy(p.region,ggm_regions,sizeof(ggm_regions));*out=p;return true;
++}
++bool ggm_plan_valid(const struct ggm_plan *p)
++{
++    if(!p||!ggm_pa_valid(p->owner_pa))return false;
++    for(unsigned i=0;i<GGM_COUNT;++i){const struct ggm_region *a=&p->region[i],*b=&ggm_regions[i];
++        if(a->offset!=b->offset||a->reserved!=b->reserved||a->iova!=b->iova||a->bytes!=b->bytes||a->privileged!=b->privileged)return false;
++    }return true;
++}
++static bool ggm_range(const void *p,size_t bytes)
++{return p && bytes && (uintptr_t)p<=UINTPTR_MAX-(bytes-1);}
++static bool ggm_overlap(const void *a,size_t an,const void *b,size_t bn)
++{
++    uintptr_t av=(uintptr_t)a,bv=(uintptr_t)b;
++    return av<=bv ? bv-av<an : av-bv<bn;
++}
++static void ggm_put32(uint8_t *p,uint32_t v)
++{for(unsigned i=0;i<4;++i)p[i]=(uint8_t)(v>>(8*i));}
++static void ggm_put64(uint8_t *p,uint64_t v)
++{for(unsigned i=0;i<8;++i)p[i]=(uint8_t)(v>>(8*i));}
++bool ggm_emit_tables(const struct ggm_plan *p,unsigned ias,unsigned oas,void *memory,size_t capacity,struct ggm_s1_config *out)
++{
++    unsigned ips;
++    switch(oas){case 32:ips=0;break;case 36:ips=1;break;case 40:ips=2;break;case 42:ips=3;break;case 44:ips=4;break;case 48:ips=5;break;default:return false;}
++    if(!ggm_plan_valid(p)||ias<32||ias>39||capacity<GGM_TABLE_BYTES||
++       !ggm_range(memory,GGM_TABLE_BYTES)||!ggm_range(out,sizeof(*out))||
++       ggm_overlap(memory,GGM_TABLE_BYTES,p,sizeof(*p))||
++       ggm_overlap(memory,GGM_TABLE_BYTES,out,sizeof(*out))||ggm_overlap(out,sizeof(*out),p,sizeof(*p)))return false;
++    /* Physical owner is below4GiB even for the largest accepted OAS. */
++    uint64_t pa=p->owner_pa+GGM_TABLE_OFFSET;
++    struct ggm_s1_config cfg={pa,pa+0x5000,pa+0x6000,pa+0x7000,
++        ((uint64_t)ips<<32)|UINT64_C(0x802000)|(64u-ias),0xf404ff44u,0xe4u,ias,oas};
++    uint8_t *dst=memory;memset(dst,0,GGM_TABLE_BYTES);
++    /* L1 root has two L2 branches: low caches and the60000000 shared range.
++     * Each L2 has one L3. Remaining three tables are empty TTBR1/user roots.
++     * Hardware bits only: no Linux software refcount or sync bits are needed. */
++    ggm_put64(dst+0*8,(pa+0x1000)|3);
++    ggm_put64(dst+1*8,(pa+0x3000)|3);
++    ggm_put64(dst+0x1000+0*8,(pa+0x2000)|3);
++    ggm_put64(dst+0x3000+256*8,(pa+0x4000)|3);
++    for(unsigned r=0;r<GGM_COUNT;++r){const struct ggm_region *m=&p->region[r];
++        for(unsigned off=0;off<m->bytes;off+=0x1000){
++            uint32_t va=m->iova+off;unsigned table=va<0x60000000u?0x2000u:0x4000u;
++            unsigned index=(va>>12)&511u;
++            uint64_t leaf=(p->owner_pa+m->offset+off)|UINT64_C(0xe03);
++            if(!m->privileged)leaf|=0x40u;
++            ggm_put64(dst+table+index*8,leaf);
++        }
++    }
++    *out=cfg;return true;
++}
++bool ggm_emit_hfi(const struct ggm_plan *p,void *memory,size_t capacity)
++{
++    if(!ggm_plan_valid(p)||capacity<GGM_HFI_RESERVED||!ggm_range(memory,GGM_HFI_RESERVED)||
++       ggm_overlap(memory,GGM_HFI_RESERVED,p,sizeof(*p)))return false;
++    uint8_t *dst=memory;memset(dst,0,GGM_HFI_RESERVED);
++    static const uint32_t header[6]={0,54,6,12,4,4};
++    static const uint32_t ids[4]={0,4,5,1},priority[4]={10,10,40,20};
++    for(unsigned i=0;i<6;++i)ggm_put32(dst+4*i,header[i]);
++    for(unsigned i=0;i<4;++i){uint8_t *h=dst+24+48*i;
++        ggm_put32(h,i<3?1:0);
++        ggm_put32(h+4,p->region[GGM_HFI].iova+GGM_HFI_QUEUE_OFFSET+i*GGM_HFI_QUEUE_BYTES);
++        ggm_put32(h+8,ids[i]|(priority[i]<<8));
++        ggm_put32(h+12,GGM_HFI_QUEUE_BYTES/4);
++    }return true;
++}
+diff --git a/bsd/dev/gauguin_gmu_memory.h b/bsd/dev/gauguin_gmu_memory.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_memory.h
+@@ -0,0 +1,42 @@
++#ifndef GAUGUIN_GMU_MEMORY_H
++#define GAUGUIN_GMU_MEMORY_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++/* A619 native legacy VMA/allocation order (pin19b63c8). CPU16KiB pages and
++ * SMMU4KiB granules are distinct. The first16KiB PAS MDT page is protected;
++ * these offsets use only the remainder of the existing1MiB owner arena.
++ * Building bytes is not ownership, mapping, coherency or DMA authorization.
++ * Runtime must acquire the same-boot owner, revalidate NC attributes/ranges,
++ * hold CM3 reset and qualify SMMU capabilities before publishing TTBR/IOVAs.
++ */
++#define GGM_REGION_BYTES 0x100000u
++#define GGM_TABLE_OFFSET 0x4000u
++#define GGM_TABLE_BYTES 0x8000u
++#define GGM_ARENA_END 0x9c000u
++#define GGM_HFI_IOVA 0x60001000u
++#define GGM_HFI_RESERVED 0x8000u
++#define GGM_HFI_BYTES 0x5000u
++#define GGM_HFI_TABLE_BYTES 216u
++#define GGM_HFI_QUEUE_OFFSET 224u
++#define GGM_HFI_QUEUE_BYTES 4096u
++enum ggm_region_id {GGM_ICACHE,GGM_DCACHE,GGM_DUMMY,GGM_HFI,GGM_DUMP,GGM_LOG,GGM_COUNT};
++struct ggm_region {uint32_t offset,reserved,iova,bytes,privileged;};
++struct ggm_plan {uint64_t owner_pa;struct ggm_region region[GGM_COUNT];};
++struct ggm_s1_config {uint64_t kernel_ttbr0,kernel_ttbr1,user_ttbr0,user_ttbr1,tcr;
++    uint32_t mair0,mair1,ias,oas;};
++bool ggm_plan_build(uint64_t owner_pa,struct ggm_plan *);
++bool ggm_plan_valid(const struct ggm_plan *);
++/* Pure byte emitters, no allocation/MMIO/cache operations. Validate everything
++ * before any output write; failure leaves all outputs unchanged. Out buffers
++ * must not overlap plan/config. Exactly TABLE_BYTES or HFI_RESERVED bytes are
++ * initialized; larger caller capacity does not authorize more writes.
++ * Tables map only the named data regions, never metadata, tables or page gaps.
++ * S1 attributes match native RW/NC/outer-shareable, with user access only for
++ * HFI/dump (native lacks IOMMU_PRIV there). User context has empty tables.
++ * Hardware IAS/OAS selection and SMMU CBAR/ASID/TLB controls are caller duties.
++ */
++bool ggm_emit_tables(const struct ggm_plan *,unsigned ias,unsigned oas,
++    void *tables,size_t capacity,struct ggm_s1_config *);
++bool ggm_emit_hfi(const struct ggm_plan *,void *memory,size_t capacity);
++#endif

@@ -12,7 +12,7 @@ struct fake {struct gmf_context channel;struct gmf_plan plan;
     unsigned step,fail,writes,doorbells,reset_writes,asset_calls,copy_calls,delays;
     unsigned ignore,timeout,bad_asset,bad_version,bad_ack,fw_fault,debug,init_positive,bad_readback,sticky_oob,hidden_mode,hidden_fault,pdc_mode,pdc_bad,pdc_clear,pdc_allones,ao_override,cm3_override;
     uint32_t ao_readback,cm3_readback;
-    unsigned cache_stores,cache_bad;uint32_t cache_readback;
+    unsigned cache_stores,cache_bad,cache_override;uint32_t cache_readback,cache_raw[3];
     bool nested;};
 static bool tick(struct fake *f){return ++f->step!=f->fail;}
 static bool guard(void *cookie,enum gmf_phase phase)
@@ -43,6 +43,10 @@ static bool read_word(void *cookie,enum gmf_window w,uint32_t off,uint32_t *v)
         if(f->pdc_mode)*v=(*v&~8u)|(f->pdc_mode==2?0x80000000u:0);
         if(f->pdc_bad==n+1)*v&=~f->pdc_clear;
         if(f->pdc_allones==n+1)*v=UINT32_MAX;
+    }
+    if(w==GMF_CSR&&f->cache_override){
+        static const unsigned offsets[]={0x103c,0x1000,0x1004};
+        for(unsigned n=0;n<3;n++)if(off==offsets[n])*v=f->cache_raw[n];
     }
     if(w==GMF_CSR&&f->cache_bad){
         static const unsigned offsets[]={0x103c,0x1000,0x1004};
@@ -83,20 +87,22 @@ static bool write_word(void *cookie,enum gmf_window w,uint32_t off,uint32_t valu
 {
     struct fake *f=cookie;CHECK(w<GMF_WINDOWS&&!(off&3)&&off<(w==GMF_TCM?0xc000u:0x4000u));
     if(!tick(f))return false;++f->writes;
-    if(f->ignore==f->writes)return true;
-    if(w==GMF_CSR&&off==0x2644){if(!f->sticky_oob||value!=(1u<<30))f->regs[w][0x2648/4]&=~value;return true;}
-    if(w==GMF_AO&&off==0x2c10){f->regs[w][0x2c14/4]&=~value;return true;}
     if(w==GMF_CSR&&(off==0x103c||off==0x1000||off==0x1004)){
         /* Exact native power_config order; every prefix failure stays bounded. */
         static const unsigned order[]={0x103c,0x1000,0x1004};
         CHECK(f->channel.phase==GMF_RESET&&value==1&&f->cache_stores<3);
         CHECK(off==order[f->cache_stores++]);
     }
+    if(f->ignore==f->writes)return true;
+    if(w==GMF_CSR&&off==0x2644){if(!f->sticky_oob||value!=(1u<<30))f->regs[w][0x2648/4]&=~value;return true;}
+    if(w==GMF_AO&&off==0x2c10){f->regs[w][0x2c14/4]&=~value;return true;}
     f->regs[w][off/4]=value;
     if(w==GMF_CSR&&off==0x2000){
         CHECK(value==0&&f->channel.phase==GMF_RELEASING&&++f->reset_writes==1);
         CHECK(f->copy_calls==1&&f->regs[GMF_GBIF][0x3114/4]==0);
-        CHECK(f->cache_stores==3&&f->regs[GMF_CSR][0x103c/4]==1&&f->regs[GMF_CSR][0x1000/4]==1&&f->regs[GMF_CSR][0x1004/4]==1);
+        CHECK(f->cache_stores==3);
+        static const unsigned boot_offsets[]={0x103c,0x1000,0x1004};
+        for(unsigned n=0;n<3;n++)CHECK(f->regs[GMF_CSR][boot_offsets[n]/4]==(f->ignore==62+n?0u:1u));
         CHECK(f->regs[GMF_AO][0x1600/4]==0xa7a506a0&&f->regs[GMF_SEQ][0]==0xfebea1e1);
         CHECK(f->regs[GMF_PDC][0x500/4]==0x80000001&&f->regs[GMF_PDC][0x520/4]==0);
         CHECK(f->regs[GMF_PDC][0x15d8/4]==0x30010&&f->regs[GMF_PDC][0x15dc/4]==1);
@@ -164,7 +170,7 @@ static struct fake *fresh(void)
 static enum gmf_result run(struct fake *f,struct gmf_receipt *out)
 {struct gmf_ops o=ops(f);return gmf_bootstrap_once(&f->channel,&o,&f->plan,out);}
 static void stopped(struct fake *f)
-{unsigned step=f->step;struct gmf_receipt out,before;struct gmf_diagnostic diagnostic=f->channel.diagnostic;uint32_t mask=f->channel.hidden_valid,raw[3],pdc_mask=f->channel.pdc_msgid_valid,pdc[6],ao_valid=f->channel.ao_mask_valid,ao_raw=f->channel.ao_mask_readback,cfg_valid=f->channel.cm3_config_valid,cfg_raw=f->channel.cm3_config_readback;memcpy(raw,f->channel.hidden_readback,sizeof(raw));memcpy(pdc,f->channel.pdc_msgid_readback,sizeof(pdc));memset(&out,0x7c,sizeof(out));before=out;CHECK(run(f,&out)==GMF_ALREADY&&f->step==step&&!memcmp(&out,&before,sizeof(out)));CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));CHECK(mask==f->channel.hidden_valid&&!memcmp(raw,f->channel.hidden_readback,sizeof(raw)));CHECK(pdc_mask==f->channel.pdc_msgid_valid&&!memcmp(pdc,f->channel.pdc_msgid_readback,sizeof(pdc)));CHECK(ao_valid==f->channel.ao_mask_valid&&ao_raw==f->channel.ao_mask_readback);CHECK(cfg_valid==f->channel.cm3_config_valid&&cfg_raw==f->channel.cm3_config_readback);}
+{unsigned step=f->step;struct gmf_receipt out,before;struct gmf_diagnostic diagnostic=f->channel.diagnostic;uint32_t mask=f->channel.hidden_valid,raw[3],pdc_mask=f->channel.pdc_msgid_valid,pdc[6],ao_valid=f->channel.ao_mask_valid,ao_raw=f->channel.ao_mask_readback,cfg_valid=f->channel.cm3_config_valid,cfg_raw=f->channel.cm3_config_readback,boot_valid=f->channel.boot_config_valid,boot_raw[3];memcpy(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw));memcpy(raw,f->channel.hidden_readback,sizeof(raw));memcpy(pdc,f->channel.pdc_msgid_readback,sizeof(pdc));memset(&out,0x7c,sizeof(out));before=out;CHECK(run(f,&out)==GMF_ALREADY&&f->step==step&&!memcmp(&out,&before,sizeof(out)));CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));CHECK(mask==f->channel.hidden_valid&&!memcmp(raw,f->channel.hidden_readback,sizeof(raw)));CHECK(pdc_mask==f->channel.pdc_msgid_valid&&!memcmp(pdc,f->channel.pdc_msgid_readback,sizeof(pdc)));CHECK(ao_valid==f->channel.ao_mask_valid&&ao_raw==f->channel.ao_mask_readback);CHECK(cfg_valid==f->channel.cm3_config_valid&&cfg_raw==f->channel.cm3_config_readback);CHECK(boot_valid==f->channel.boot_config_valid&&!memcmp(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw)));}
 static void happy(void)
 {
     for(unsigned debug=0;debug<2;debug++){
@@ -302,31 +308,44 @@ static void cm3_config_fields(void)
 }
 static void native_bus_cache_order(void)
 {
-    /* A bus/cache configuration write that does not read back exactly1 still
-     * refuses. This test does not predict hardware write acceptance. */
     static const unsigned offsets[]={0x103c,0x1000,0x1004};
-    static const uint32_t bad[]={0,2,UINT32_MAX};
-    for(unsigned n=0;n<3;n++)for(unsigned k=0;k<3;k++){
-        struct fake *f=fresh();f->cache_bad=n+1;f->cache_readback=bad[k];
+    static const uint32_t observed[]={0,1,2,0x80000000,0xfffffffe};
+    for(unsigned n=0;n<3;n++)for(unsigned k=0;k<sizeof(observed)/sizeof(*observed);k++){
+        struct fake *f=fresh();f->cache_bad=n+1;f->cache_readback=observed[k];
         f->cm3_override=1;f->cm3_readback=0x52;f->ao_override=1;f->ao_readback=0x3f;f->pdc_mode=1;f->hidden_mode=1;
+        struct gmf_receipt r;CHECK(run(f,&r)==GMF_OK&&f->cache_stores==3&&f->reset_writes==1&&!f->channel.diagnostic.valid);
+        CHECK(f->channel.boot_config_valid==7&&r.tcm_written==8192&&r.version_ack[1]==0x00200201);
+        for(unsigned i=0;i<3;i++)CHECK(f->channel.boot_config_readback[i]==(i==n?observed[k]:1u));
+        stopped(f);free(f);
+    }
+    for(unsigned n=0;n<3;n++){
+        struct fake *f=fresh();f->cache_bad=n+1;f->cache_readback=UINT32_MAX;
         struct gmf_receipt r,b;memset(&r,0x71,sizeof(r));b=r;
         CHECK(run(f,&r)==GMF_READBACK&&!memcmp(&r,&b,sizeof(r)));
         const struct gmf_diagnostic *d=&f->channel.diagnostic;
         CHECK(d->valid&&d->phase==GMF_RESET&&d->check==GMFD_STORE32&&d->window==GMF_CSR);
-        CHECK(d->offset==offsets[n]&&d->mask==UINT32_MAX&&d->expected==1&&d->actual==bad[k]);
-        CHECK(f->cache_stores==n+1&&f->writes==62+n&&!f->reset_writes&&!f->doorbells&&!f->delays&&f->copy_calls==1);
-        CHECK(f->channel.work.tcm_written==8192&&f->channel.work.tcm_checked==8192);
+        CHECK(d->offset==offsets[n]&&d->mask==UINT32_MAX&&d->expected==1&&d->actual==UINT32_MAX);
+        CHECK(f->channel.boot_config_valid==(1u<<n)-1&&f->cache_stores==n+1&&f->writes==62+n&&!f->reset_writes&&!f->doorbells&&f->copy_calls==1);
+        for(unsigned i=0;i<3;i++)CHECK(f->channel.boot_config_readback[i]==(i<n?1u:0u));
         stopped(f);free(f);
     }
+    /* Callback success does not prove a write took effect: retain zero as
+     * unqualified, and rely on separately required fresh result/real ACKs.
+     * This fixture synthesizes firmware replies; it is not hardware proof. */
     for(unsigned n=0;n<3;n++){
-        struct fake *f=fresh();f->ignore=62+n;struct gmf_receipt r,b;
-        memset(&r,0x71,sizeof(r));b=r;
-        CHECK(run(f,&r)==GMF_READBACK&&!memcmp(&r,&b,sizeof(r)));
-        const struct gmf_diagnostic *d=&f->channel.diagnostic;
-        CHECK(d->valid&&d->window==GMF_CSR&&d->offset==offsets[n]&&d->mask==UINT32_MAX&&d->expected==1&&d->actual==0);
-        CHECK(f->cache_stores==n&&f->writes==62+n&&!f->reset_writes&&!f->doorbells&&f->copy_calls==1);
+        struct fake *f=fresh();f->ignore=62+n;struct gmf_receipt r;
+        CHECK(run(f,&r)==GMF_OK&&f->cache_stores==3&&f->reset_writes==1);
+        CHECK(f->channel.boot_config_valid==7&&f->channel.boot_config_readback[n]==0);
+        CHECK(r.fw_result==0xbabeface&&r.version_ack[1]==0x00200201);stopped(f);free(f);
+    }
+    for(unsigned n=0;n<2;n++){
+        struct fake *f=fresh();f->cache_override=1;f->timeout=n?4:1;
+        struct gmf_receipt r,b;memset(&r,0x71,sizeof(r));b=r;
+        CHECK(run(f,&r)==GMF_TIMEOUT&&!memcmp(&r,&b,sizeof(r)));
+        CHECK(f->channel.boot_config_valid==7&&!f->channel.diagnostic.valid&&f->reset_writes==1);
+        for(unsigned i=0;i<3;i++)CHECK(f->channel.boot_config_readback[i]==0);
         stopped(f);free(f);
     }
-    printf("Native bus-before-cache: exact SYS_BUS/ICACHE/DCACHE order; each zero/other/all-ones read refuses before release, output/repeat preserved PASS (host only)\n");
+    printf("Native boot CFG: exact BUS/ICACHE/DCACHE fixed1 order, raw0/1/synthetic bits unqualified, per-slot all-ones refusal; repeat/cache/output and mandatory FW/ACK checks PASS (host only)\n");
 }
 int main(void){native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}

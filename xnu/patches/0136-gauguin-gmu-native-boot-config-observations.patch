@@ -1,0 +1,91 @@
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -107,6 +107,20 @@
+     if(actual==UINT32_MAX)return mismatch(c,GMFD_STORE32,GMF_CSR,off,UINT32_MAX,0x4052,actual);
+     if(actual&GMF_CM3_NMI)return mismatch(c,GMFD_STORE32,GMF_CSR,off,GMF_CM3_NMI,0,actual);
+     c->cm3_config_readback=actual;c->cm3_config_valid=1;
++    return GMF_OK;
++}
++static enum gmf_result boot_configure(struct gmf_context *c,unsigned index)
++{
++    static const uint32_t words[]={0x1f40f,0x1f400,0x1f401};
++    if(index>=3)return GMF_ARGUMENT;
++    uint32_t actual,off=C(words[index]);
++    /* Native19b63c8 power_config issues these three fixed1 writes without
++     * equality verification. Actual134 ICACHE and135 SYS_BUS read0. No bit
++     * semantics or successful cache/buffer disabling is established. Keep
++     * the existing guarded I/O; only later fresh FW result/ACKs prove boot. */
++    if(!wr(c,GMF_CSR,off,1)||!barrier(c)||!rd(c,GMF_CSR,off,&actual))return GMF_IO;
++    if(actual==UINT32_MAX)return mismatch(c,GMFD_STORE32,GMF_CSR,off,UINT32_MAX,1,actual);
++    c->boot_config_readback[index]=actual;c->boot_config_valid|=1u<<index;
+     return GMF_OK;
+ }
+ static enum gmf_result poll(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t mask_bits,uint32_t value,uint32_t *out)
+@@ -200,6 +214,9 @@
+     };
+     for(unsigned i=0;i<sizeof(config)/sizeof(*config);i++){
+         if(config[i][0]==GMF_CSR&&config[i][1]==C(0x1f82d))rc=cm3_configure(c);
++        else if(config[i][0]==GMF_CSR&&
++                (config[i][1]==C(0x1f40f)||config[i][1]==C(0x1f400)||config[i][1]==C(0x1f401)))
++            rc=boot_configure(c,config[i][1]==C(0x1f40f)?0:config[i][1]==C(0x1f400)?1:2);
+         else rc=store(c,(enum gmf_window)config[i][0],config[i][1],config[i][2]);
+         if(rc)return rc;
+     }
+@@ -309,6 +326,7 @@
+     c->pdc_msgid_valid=0;memset(c->pdc_msgid_readback,0,sizeof(c->pdc_msgid_readback));
+     c->ao_mask_valid=0;c->ao_mask_readback=0;
+     c->cm3_config_valid=0;c->cm3_config_readback=0;
++    c->boot_config_valid=0;memset(c->boot_config_readback,0,sizeof(c->boot_config_readback));
+     const uint8_t *asset=NULL;size_t bytes=0;enum gmf_result rc=GMF_OK;
+     if(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
+        (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1))rc=GMF_ASSET;
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -51,7 +51,9 @@
+     uint32_t hidden_valid,hidden_readback[3];
+     uint32_t pdc_msgid_valid,pdc_msgid_readback[6];
+     uint32_t ao_mask_valid,ao_mask_readback;
+-    uint32_t cm3_config_valid,cm3_config_readback;};
++    uint32_t cm3_config_valid,cm3_config_readback;
++    /* Native fixed1 boot configuration writes; equality/effects unqualified. */
++    uint32_t boot_config_valid,boot_config_readback[3];};
+ /* One cold native bootstrap: PDC/RSC/TCM/power/version -> reset release and
+  * fresh FW result -> A619 boot-slumber OOB -> HFI init and INIT/version ACKs.
+  * Exact pinned legacy asset + native family rules select v1 transport; the
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -360,6 +360,15 @@
+         gmb_record(line);
+     }
+ }
++static void gfw_boot_config_records(void)
++{
++    static const unsigned offsets[]={0x103c,0x1000,0x1004};
++    for(unsigned i=0;i<3;i++)if(gfw_context.boot_config_valid&(1u<<i)){
++        char line[192];
++        snprintf(line,sizeof(line),"SWEET GMU BOOT CFG: off=%05x requested=00000001 readback=%08x policy=native-write; equality unqualified",offsets[i],gfw_context.boot_config_readback[i]);
++        gmb_record(line);
++    }
++}
+ static enum gmb_result gfw_fail(enum gmb_result rc,const char *why)
+ {
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+@@ -384,6 +393,7 @@
+     gfw_pdc_records();
+     gfw_ao_record();
+     gfw_cm3_record();
++    gfw_boot_config_records();
+     return rc;
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+@@ -426,6 +436,7 @@
+     gfw_pdc_records();
+     gfw_ao_record();
+     gfw_cm3_record();
++    gfw_boot_config_records();
+     gmb_record("SWEET GMU FW: complete native FW result and INIT/version ACKs; no normal HFI_ON/GPU/Metal qualification");
+     return GMB_OK;
+ }

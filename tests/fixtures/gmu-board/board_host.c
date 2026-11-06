@@ -24,7 +24,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned owner_calls,owner_fail,budgets,budget_fail,expire,allocs,frees,alloc_fail,smmu_calls,smmu_fail,barriers,corrupt;
     unsigned clock_bad,irq_bad,context,quarantine,reads,writes,writes64;bool live;uint64_t now;
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
-        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines;} h;
+        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -68,6 +68,13 @@ static int host_printf(const char *s,...)
         CHECK(h.fw_cm3_lines++==0);
         CHECK(!strcmp(text,"SWEET GMU CM3 CFG: off=020b4 requested=00004052 readback=00000052 checked_mask=00000200 expected=00000000 policy=native-write; other bits unqualified\n"));
         CHECK(h.live?!h.quarantine:h.quarantine==1);
+    }
+    if(strstr(text,"SWEET GMU BOOT CFG:")){
+        unsigned index=h.fw_bootcfg_lines++;CHECK(index<3&&h.fw_cm3_lines==1&&h.fw_ao_lines==1);
+        static const unsigned offsets[]={0x103c,0x1000,0x1004};
+        static const uint32_t raw[]={0,0,0x80000001};char expected[192];
+        snprintf(expected,sizeof(expected),"SWEET GMU BOOT CFG: off=%05x requested=00000001 readback=%08x policy=native-write; equality unqualified\n",offsets[index],raw[index]);
+        CHECK(!strcmp(text,expected));CHECK(h.live?!h.quarantine:h.quarantine==1);
     }
     return n;
 }
@@ -279,6 +286,9 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     if(h.engine_fail==8)return GMF_TIMEOUT;
     ctx->cm3_config_valid=1;ctx->cm3_config_readback=0x52;
     if(h.engine_fail==9)return GMF_TIMEOUT;
+    ctx->boot_config_valid=h.engine_fail==10?1u:7u;
+    ctx->boot_config_readback[0]=0;ctx->boot_config_readback[1]=0;ctx->boot_config_readback[2]=0x80000001;
+    if(h.engine_fail==10||h.engine_fail==11)return GMF_TIMEOUT;
     for(unsigned i=0;i<4096;i++)CHECK(!fw_page[3][i]);
     for(unsigned i=0x9000;i<49152;i++)CHECK(!fw_page[3][i]);
     uint32_t v;unsigned stores=h.fw_stores;
@@ -331,7 +341,7 @@ static void firmware_cases(void)
     CHECK(firmware_run(&out)==GMB_OK&&h.maps==7&&h.nc_maps==1&&h.engine_calls==1&&!h.quarantine);
     CHECK(h.impl_lines==1);
     CHECK(out.reset==0&&out.release_attempted==1&&out.oob_attempted==1&&out.phase==GMF_DONE&&h.allow_gx);
-    CHECK(out.firmware.fw_result==0xbabeface&&out.asset_pa==0xb0000000&&h.fw_impl_lines==3&&h.fw_pdc_lines==6&&h.fw_ao_lines==1&&h.fw_cm3_lines==1);
+    CHECK(out.firmware.fw_result==0xbabeface&&out.asset_pa==0xb0000000&&h.fw_impl_lines==3&&h.fw_pdc_lines==6&&h.fw_ao_lines==1&&h.fw_cm3_lines==1&&h.fw_bootcfg_lines==3);
     CHECK(out.fsr[0]==0x400&&out.fsr[1]==0x400);
     CHECK(sweet_gmu_firmware_state()==GMB_READY&&sweet_gmu_board_state()==GMB_READY);
     unsigned budgets=h.budgets,maps=h.maps;CHECK(firmware_run(&out)==GMB_ALREADY&&h.budgets==budgets&&h.maps==maps);
@@ -343,6 +353,8 @@ static void firmware_cases(void)
     reset();h.firmware=1;h.engine_fail=7;firmware_failed();CHECK(h.fw_impl_lines==3&&h.fw_pdc_lines==1&&!gfw_work.release_attempted&&!gfw_copy_issued);
     reset();h.firmware=1;h.engine_fail=8;firmware_failed();CHECK(h.fw_ao_lines==1&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
     reset();h.firmware=1;h.engine_fail=9;firmware_failed();CHECK(h.fw_cm3_lines==1&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
+    reset();h.firmware=1;h.engine_fail=10;firmware_failed();CHECK(h.fw_bootcfg_lines==1&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
+    reset();h.firmware=1;h.engine_fail=11;firmware_failed();CHECK(h.fw_bootcfg_lines==3&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
     for(unsigned n=1;n<=24;n++){reset();h.firmware=1;h.fw_fail_phase=n;firmware_failed();}
     const unsigned faultbits[]={1,2,3,4,5,6,7,8,30,31};
     for(unsigned n=0;n<sizeof(faultbits)/sizeof(*faultbits);n++){reset();h.firmware=1;h.ctx_fault=1u<<faultbits[n];firmware_failed();}

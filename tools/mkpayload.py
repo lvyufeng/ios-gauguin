@@ -239,6 +239,8 @@ def append_nvt_firmware(pieces, adt_blob, kernel_end, virt_base, phys_base, mem_
 
 ZAP_MDT_SIZE = 6860
 ZAP_MDT_SHA256 = '6f2a0e35325097f98fded6123d755266cdbb44caa932be61251b65b5c516ac7b'
+GMU_FIRMWARE_SIZE = 32768
+GMU_FIRMWARE_SHA256 = '9ef10b2b179054fb57af25008e29feb24300c2eaaeabf907bd741786bbacbf2e'
 
 
 def append_firmware_asset(pieces, adt_blob, kernel_end, virt_base, phys_base,
@@ -391,11 +393,11 @@ def pas_pending_adt(adt_blob, pieces, kernel_end, virt_base, phys_base, mem_size
 
 
 def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None,
-          pas_reservation=False, zap_mdt_path=None):
+          pas_reservation=False, zap_mdt_path=None, gmu_firmware_path=None):
     buf = bytearray(open(kernel_path, 'rb').read())
-    executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or pas_reservation else None
+    executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or gmu_firmware_path is not None or pas_reservation else None
     m = parse_macho(buf)
-    asset_count = int(nvt_firmware_path is not None) + int(zap_mdt_path is not None)
+    asset_count = int(nvt_firmware_path is not None) + int(zap_mdt_path is not None) + int(gmu_firmware_path is not None)
     if asset_count and sum(bool(s['vmsize']) for s in m['segs']) + bool(ramdisk_path) + asset_count > ASSET_MAX_SEGMENTS:
         raise ValueError('asset segment table exceeds one16K page')
     if executable is not None and not any(start <= m['entry'] < end for start, end in executable):
@@ -415,6 +417,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
         asset_adt(adt_blob)
     if zap_mdt_path is not None:
         asset_adt(adt_blob, 'A615ZapMDT')
+    if gmu_firmware_path is not None:
+        asset_adt(adt_blob, 'A619GMUFirmware')
     # The ADT decides where the kernel's RAM is (mkadt.py --highmem).
     PHYS_BASE, MEM_SIZE = adt_dram(adt_blob)
     pieces = [(s['vmaddr'], s['vmsize'], buf[s['fileoff']:s['fileoff'] + s['filesize']]) for s in segs]
@@ -444,6 +448,16 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
             'A615 ZAP metadata', 16384)
         if nvt is not None:
             nvt['top_of_kernel_data'] = zap['top_of_kernel_data']
+
+    gmu = None
+    if gmu_firmware_path is not None:
+        adt_blob, kernel_end, gmu = append_firmware_asset(
+            pieces, adt_blob, kernel_end, virt_base, PHYS_BASE, MEM_SIZE,
+            gmu_firmware_path, 'A619GMUFirmware', GMU_FIRMWARE_SIZE,
+            GMU_FIRMWARE_SHA256, 'A619 legacy GMU firmware')
+        for earlier in (nvt, zap):
+            if earlier is not None:
+                earlier['top_of_kernel_data'] = gmu['top_of_kernel_data']
 
     pas = None
     if pas_reservation:
@@ -495,12 +509,16 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
         info['nvt_firmware'] = nvt
     if zap is not None:
         info['zap_metadata'] = zap
+    if gmu is not None:
+        info['gmu_firmware'] = gmu
     if pas is not None:
         info['low_pas_request'] = pas
         if nvt is not None:
             nvt['top_of_kernel_data'] = hex(pas_top)
         if zap is not None:
             zap['top_of_kernel_data'] = hex(pas_top)
+        if gmu is not None:
+            gmu['top_of_kernel_data'] = hex(pas_top)
     return bytes(out), info
 
 
@@ -512,9 +530,10 @@ if __name__ == '__main__':
     ap.add_argument('--nvt-firmware', help='pinned Novatek firmware data asset; does not upload it')
     ap.add_argument('--pas-reservation', action='store_true', help='request runtime-validated unmanaged low-PA ownership; no PAS operation')
     ap.add_argument('--zap-mdt', help='pinned A615 ZAP metadata data asset; does not authenticate or execute it')
+    ap.add_argument('--gmu-firmware', help='pinned A619 legacy GMU data asset; does not execute it')
     a = ap.parse_args()
     blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware,
-                       a.pas_reservation, a.zap_mdt)
+                       a.pas_reservation, a.zap_mdt, a.gmu_firmware)
     open(a.out, 'wb').write(blob)
     for k, v in info.items():
         if k != 'segs':

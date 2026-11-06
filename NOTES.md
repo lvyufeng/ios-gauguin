@@ -77,6 +77,12 @@ Phone remains TWRP after readonly capture. All owned handles CLOSED; original
 seven-line mkadt diff intact. No flash/format/GPT/destructive action. Codex
 core/review/Git; DSH full-access compile/test/build/boot.
 
+Validated139 source/attributed138 handoff pushed and ls-remote verified
+bcb1cbd10f61d2fc644bd456ebdeaf4755922eca, sole parent19f416c, six text
+paths, same tree as private1f4067fcbc26b81e313ca5c666ad15bf219e866d.
+Report research/tmp/dsh-0139/public-snapshot-0139.json. Private ancestry,
+device/FDT/firmware/raw evidence/binaries and serials remain local. No CI run.
+
 ### 2026-11-07 — actual138 fresh GMU firmware plus INIT and VERSION handshake PASS
 
 Milestone source private8a0fcff and validated handoff8e2b893, public

@@ -32,6 +32,8 @@ def main():
         assert calls and re.search(r'^\s*sweet_pas_probe_init\(\);\s*$', calls.group(1), re.M)
         assert init.count('sweet_pas_probe_init();') == 1
     assert not re.search(r'ml_io_map|ml_static_ptovirt|pmap_enter|smc #|volatile', source)
+    # 0112 adds the conditional staging call; its fixture block must then run.
+    staged = 'sweet_pas_stage_once' in source
     source = re.sub(r'^#include .*\n', '', source, flags=re.M)
     fixture = (ROOT / 'tests/fixtures/gauguin_pas_probe_host.c').read_text()
     assert fixture.count('@SOURCE@') == 1
@@ -43,7 +45,8 @@ def main():
         import json
         cases = json.loads((out / 'cases.json').read_text())
         ready = next(c['path'] for c in cases if c['name'] == 'ready')
-        (out / 'test.c').write_text(fixture.replace('@SOURCE@', source))
+        preamble = '#define PAS_STAGE_CALL_TEST 1\n' if staged else ''
+        (out / 'test.c').write_text(preamble + fixture.replace('@SOURCE@', source))
         subprocess.run(shlex.split(os.environ.get('CC', 'cc')) + [
             '-std=c11', '-Wall', '-Wextra', '-Werror', '-pedantic', '-O1', '-g',
             '-fsanitize=address,undefined', '-fno-omit-frame-pointer',

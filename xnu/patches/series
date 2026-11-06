@@ -107,3 +107,4 @@
 0109-gauguin-gpu-gcc-handoff-probe.patch
 0110-gauguin-scm-capability-probe.patch
 0111-gauguin-pas-owner-metadata-probe.patch
+0112-gauguin-pas-cpu-staging.patch

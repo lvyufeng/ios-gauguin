@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 - 0112 CPU firmware staging (code + tests); build/package in progress
+
+Drafted then reviewed the0112 CPU staging path. `tools/mkpayload.py` gained an
+optional `--zap-mdt` A615ZapMDT data asset (immutable6860-byte MDT, SHA
+6f2a0e35...16ac7b) behind kernel/NVT using a factored asset helper; the MDT
+descriptor page is16KiB (zero padded), the raw6860 pin is unchanged, default
+and NVT payload bytes/info are unchanged (NVT goldens pass). New kernel file
+`bsd/dev/gauguin_pas_stage.c` maps ONLY the first16KiB of the validated dynamic
+1MiB region with ml_io_map_wcomb after the111 owner record and all64 pages
+passed, verifies both endpoints with ml_vtophys, zeroes16KiB, copies6860 MDT
+bytes after re-verifying their raw SHA, DSBs, then checks the readback SHA
+(raw6860 pin) plus the9524 zero tail. It is called only when sweetpasprobe=1
+AND sweetpasstage=1; one attempt per boot; mapping/reservation retained until
+reboot on success or failure; no unmap/retry, no SCM/PAS, no GPU/power/register
+access. A page ending exactly at topOfKernelData is accepted; a zero remaining
+length is not. Default-off111 readonly path is byte-identical.
+
+Fresh strict replay from pristine1b191cb (106 patches) into source112-dsh;
+exact differences from111: bsd/conf/files, bsd/dev/gauguin_pas_probe.c, new
+bsd/dev/gauguin_pas_stage.c; only the series and0112 patch changed among
+recorded inputs (source112-dsh-659d8149ab08208f.json). ARM64 single-TU compile
+via the111/W1dBXN manifest passed (14504B). Full host suite on source112-dsh
+passes (full-host.log). Tests: new test_pas_staging.py + guard-page fixture
+(real production flow, DSB/DT/map/translation seams, strict-byte crypto seam
+returning the real raw pin only for the exact synthetic6860 bytes; asset is
+never modified), test_payload_zap_asset.py, and the owner fixture now requires
+the stage call only after all64 pages and only with sweetpasstage=1.
+Phone remains TWRP; nothing built/packaged/booted yet for0112; no PAS/GPU op.
+
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 
 User confirms physical touch unlock; manually returned TWRP. First pull

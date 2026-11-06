@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete140 image and strict PERF runtime readers qualified; ONE phone trial next
+
+Full native run140 P3pyBC/HEADbd0dc75 is qualified (previous entry). Manifest
+SHA5284d9d41109245b52111be69c9ae3b100be551499cac56417b2cbf99cf87f3b;
+qualification11124B SHA656888627e48996334ea0f0e6030f26df142087f8f92e5098951d18d68a43704.
+DSH84491 CLOSED0; actual package0/independent review0, normal result,
+inputs unchanged. Image19546112B SHA
+b97e7e426191d7e2b8f2b0de0d91410b08072df869166b0e9721ed04599faedd;
+payload19218432B SHA6b9a5f950698ea6a94a84e3215854a275776c5940a09e719bf2c6800dadc2821.
+Unique sweettrial=gmuf-0140-20261107-a1 with sweetgmuperf1. Source assets
+unchanged NVT182558000/MDT18257c000/GMU182580000; all old image pins preserved.
+DSH10888 CLOSED0; actual runtime_validate140.py0, normal three zero results,
+inputs unchanged: clock4/95,FW58/342,explicitly SYNTHETIC full21/76. Strict
+reader SHA5704e05024828ca9b647a8d4af89c8881d458c2d931fa2038098db02087e8f36.
+New PERF required record/source flag and size/type/sequence/status rules tested;
+missing/duplicate/partial/out-of-order/wrong request/word count/flag refuse.
+All inherited138 diagnostic/power/SMMU/clock/ABI checks remain. No fixture
+qualifies phone evidence. Native recipe/source CURRENT140 P3pyBC.
+
+Reviewed boot140/run_hardware140 prepared for ONE image-hash-pinned tempboot,
+same products/routine13-byte recovery latch/180s observer/freshpull/banner,
+then unchanged strict full140 reader. Script owns recovery-to-fastboot;
+DSH must not add an initial fastboot preflight. NEXT execute execute-hardware.txt.
+No140 hardware/accepted PERF ACK/reset attribution/UI/touch fact yet. Only
+THIS138 has user-confirmed autonomous diagnostic reset. Last observed phone
+TWRP. Whole objective ACTIVE/incomplete; original mkadt diff intact; no flash/
+format/GPT/destructive action.
+
 ### 2026-11-07 — complete140 local native PERF kernel qualified; packaging/runtime reader next
 
 DSH94562 CLOSED0; actual build140.py build0/qualification0. Run

@@ -2,6 +2,86 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual0130 captures RSC address readback82204514; native three-address policy next
+
+DSH64473 ONE physical130 temporary boot: observer0/full verifier2, original
+hardware-full-verification.json remains evidence-rejected. Start
+2026-11-06T20:15:28.542239Z,finish20:17:45.340473Z; Send19088KB0.444s,
+Boot0.134s,total0.580s, recovery observed135s. Unique recoverygauguin /
+fastbootgauguinpro and routine recovery latch readback passed. Raw log
+research/tmp/p3-gmuf-0130-native-observer-20261107.txt4046lines/454374B SHA
+2f6298d4547211b759e8c8b8d64b49933a3a6ccde4ed7f7bb015d52602e7b2ef;
+cycle991B SHA9c5335f0feece67aa7514c2212eb4e2854ad3f4a8efab1280de83614c6cac08c.
+Same-boot CMDDB131072B SHA7506468c005bd57778fb2152806b81fc0bc00d3da8a14eb8a5508233cc2b6f49.
+
+Real cold SMMU again completes131 mapped/140 ATOS, owned stream4/5 routes and
+resume. GMF6/phase0,writes5,polls0,copy0/0,reset1,release0/OOB0; no firmware
+execution or INIT/version ACKs. NEW physical row3937:
+SWEET GMU FW READBACK: phase=0 check=1 window=1 off=01034 mask=ffffffff expected=00000000 actual=82204514
+WindowAO03d8c000 yields PA03d8d034, native RSC HIDDEN_TCS_CMD0_ADDR. This is
+the actual cached failed sample, not synthetic12340000. FSR400/400 has zero
+named fault flags; no new hardware reset-cause, secure ownership or UI claim.
+DSH65209 audit_failed_trial130.py actual0 -> failed-trial-audit.json state
+bound-native-SMMU-complete-cached-firmware-READBACK, all inputs unchanged.
+Strict reader SHA1a41e64b5ac68e67545046d0924080dc0c9afafd13f49153bd3aa8b377e29103.
+Stage-subset evidence only; whole failed result kept. All handles CLOSED.
+
+Address derivation checked against pinned native kgsl_gmu.c/gmu_core.c:
+resource03d6a000 maps directly; raw rscc=reg_virt+23000 BYTES, then word0xd*4,
+so current PA matches native path. Native19b63c8 a6xx_load_rsc_ucode performs
+fixed zero writes to HIDDEN_TCS_CMD0_ADDR/+2/+4 with no equality requirement.
+Neither native header nor upstream v6.12 XML documents per-bit echo semantics.
+Do NOT invent a mask, claim these registers read-only, or infer a hardware
+write failure solely from mismatch.131 proposed next: only these three fixed
+zero address writes use explicit native-write/equality-UNQUALIFIED policy,
+cache existing reads for logs, reject all-ones/IO/guards, retain every other
+readback/TCM/reset/fault/ACK check. Validate original-model I/O equivalence,
+focused negatives/all61 hosts and current130 xs5x0H native TUs before commit.
+No131 code/build/phone yet. PhoneTWRP.130 manual reset attribution unknown;
+older125/126/128/129 questions remain pending. Goal ACTIVE, no flash/format/
+GPT, original seven-line mkadt diff unchanged.
+
+### 2026-11-07 — 0130 complete local kernel/image/readers qualified; one physical cached-readback trial next
+
+DSH46985 actual build0/qualification0, standard local gauguin.xs5x0H.
+Captured HEAD38365e5fc8c0aaa69e05e6ed5651cfc10765aae4; source130 exact9eb26716...8a42b.
+Installed kernel16905368B SHAec3fb0fa7e0428a1ab8104e0961317108735f38e8ad1e5fd1b994c2a0859b1d1,
+IDxnu-911401120c7f4ba49496a32cb26052f1. Manifest SHA
+3e91d339835249003566415ed620e26b616c6bdd84680a5780a57c20c7e5aca7.
+Qualification SHA0c25505fba58b1fcd10df208d2be94e5faa9f6c918224b89b2b4b194ef183178,
+retains every129 check plus cached_firmware_readback_diagnostics_linked TRUE.
+Uses authoritative130 validation-result-v2.json SHA62e9f82199029ccc55ba68e720c312be2e1c5d44b6a22a3d365d435a28f92278.
+Future native probes must use CURRENT130 xs5x0H recipe/source.
+No CI build used. Sanitized public89f11c676099c7f7e155a4b4a8222ff6d81b15a9
+pushed/verified on a45b92575fd3c5cf54d798480479f44396f75f62, nine text paths.
+
+DSH60227 package0/independent review0, all pins unchanged. Image
+shim/out/shim-p3-gmuf-0130-native-20261107.img19546112B SHA
+3a8edd99f69ca099e26e6f628e0e5585fa36ba74ce3cf52f890227e3888bd194;
+payload19218432B SHA5a6fc933eba086f6395a2c0c9a1dec94ae40e8d95779d80406eafacf12b5ee3b.
+Evidence SHA0d2f36bbba597d0aee6bfe77270da879782795916866e314fa6524fe1816717e.
+Unique sweettrial=gmuf-0130-20261107-a1,539bytes. Kernel grew16KiB, so
+packaged source assets move16KiB: NVT182558000/MDT18257c000/GMU182580000;
+same-kernel no-GMU control, all old assets/image pins and ten segments pass.
+
+DSH8380 runtime tests clock0/FW0/full1: synthetic125-derived fixture retained
+old PAS payload extent. DSH45243 v2 clock0/FW0/full1: extent corrected, but
+synthetic old GMU asset marker was still stale. BOTH failures/logs/scripts/
+inputs retained unchanged. No kernel or production verifier relaxation.
+DSH6785 runtime_validate130_v3.py actual0/all inputs unchanged: clock4/95,
+FW10/199,full explicitly SYNTHETIC4/20. v3 fixture adapts payload extent/input
+and GMU source placement from actual130 package; tests reject stale fields.
+Authoritative runtime-parser-result-v3.json has three actual zero exits and
+pins previous failures. Strict verify_gmuf130.py requires new diagnostic flag
+and rejects READBACK namespace in full-success traces. No firmware/GPU proof.
+
+All these handles CLOSED. Phone last TWRP; boot130.py and run_hardware130.py
+prepared for ONE image-pinned temporary boot, unique recoverygauguin / fastboot
+gauguinpro, routine recovery-latch readback, unchanged180s observer/freshpull.
+No130 phone IO yet. Next execute reviewed execute-hardware.txt via DSH, bind
+fresh log/tuple and preserve strict full result. Whole goal ACTIVE, no flash/
+format/GPT. Original seven-line mkadt diff still untouched.
+
 ### 2026-11-07 — 0130 cached firmware refusal diagnostics validated and committed; full kernel build next
 
 Private code bffa9d9183e30ed86040e8ad8f7361e45d7bd5dd adds124th patch,

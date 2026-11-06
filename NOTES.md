@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0132 PDC MSGID named-field candidate committed; all61 hosts/two native TUs pass; full build next
+
+THIS goal turn is progress: complete131 native build/image/readers passed,
+actual131 advanced to PDC store27, audit bound the real MSGID difference;
+Codex wrote132 and DSH validated it. Full daily-use/GPU/Metal/RAM/storage/
+peripheral/high-refresh goal remains ACTIVE/incomplete; no firmware execution.
+
+Private code199597858f1d558da559183021a2ea3c8a65a3a3 adds126th patch
+0132-gauguin-pdc-msgid-control-fields.patch. Fresh source132-codex5282files SHA
+6ca52236e335909dbc7d3b09ba7b520764e99163249c31347cce41ba1e55c689.
+Only firmware.c/h and board.c differ from frozen131fb3e3f59...a6e0c.
+Six fixed PDC MSGIDs at15d4/15e4/15f4/1764/1774/1784 still receive native10108
+in the same guarded write/barrier/read positions. Header mask10100 names
+WRITE16/RESP_REQ8 from pinned native rpmh-rsc.c. Missing either refuses with
+that mask; all-ones still full-width refusal. Other bits explicitly UNQUALIFIED,
+not called read-only. All other PDC/BCM/register/TCM/reset/fault/IRQ/budget/ACK
+checks and public receipt unchanged. Private valid mask + six raw values
+emit SWEET GMU PDC MSGID after hidden rows, after completion or quarantine.
+
+DSH46970 actual validate132.py0, five normal actual zero results: pristine
+replay, full61 host files, original-model I/O equivalence, real firmware/board
+native TUs. validation-result.json inputs/source/baseline unchanged. Native
+primary rpmh-rsc.c SHAf8a17b18d747ba6abf1a127a4f4a2f5aa229657931753fcd643fa9953440eb9d
+and adreno_a6xx_gmu.c SHAd3cb5a1c14a6cde2794ef3e4e268220a738a15420ad74faa7b09aa1c9e7a6f86
+are included in input pins. GMF ASan/UBSan1,640,823 checks; board2840+89.
+Each of six MSGID slots tests WRITE missing, RESP_REQ missing and all-ones
+before copy/release; positive10100 matches actual131, extra high bit is a
+SYNTHETIC unqualified-value case. Repeat/output/cache preservation and
+fail-every-callback pass. Frozen ORIGINAL129 fixture against baseline131/132
+has identical1,009,420 requests/digestf8383376e7a1a07b. Actual native objects:
+firmware45320B SHAb964fa7f8f9b8576252dcb1fe19424fdca7b5ed11db771355b1e158466653020,
+board65744B SHA4f185edea25a7f6a721a771443c9d5626d305b87792ce61870eb7c90c7cb51e7,
+using CURRENT131 SM6zJz recipe/source. All owned handles CLOSED.
+
+131 physical handoff pushed/verified publicly5fa388920dc4e1f3861edc8d9615b7a1d858721c,
+sole parenta65270aadc12ffe88651fccf11a379db23fc3053, two text paths, private
+head a27110bf not pushed. Next sanitized132 source/notes snapshot on5fa3889;
+publication report research/tmp/dsh-0132/public-snapshot-0132.json. Never push
+private ancestry, device dumps, serials or binary assets.
+
+NEXT: standard full132 local kernel/qualification retaining all131 checks,
+require installed PDC MSGID format + source-bound named-fields flag. Pack/
+independent review, new unique132 trial; strict runtime reader must require
+six ordered distinct PDC MSGID rows after three hidden rows and before adapter
+completion, native requested10108, checked_mask10100, raw!=ffffffff and both
+named bits present, explicit other-bits-UNQUALIFIED. Preserve all existing
+SMMU/FW-result/copy/INIT/version/reset/OOB checks; field readback is not PDC
+command, FW/GPU/Metal execution proof. Test malformed/duplicate/order/wrong
+mask/request/missing bits/all-ones and false-qualified labels plus dynamic
+synthetic payload extent/asset location, then ONE coherent temporary132 boot.
+No132 full build/image/reader/phone IO yet. Phone last TWRP after131; manual
+reset attribution unknown, no new user UI/touch result. Original seven-line
+mkadt diff untouched; no flash/format/GPT/destructive action. Codex core/review/
+Git; DSH full-access relay CLI executes exact reviewed compile/test/boot tasks.
+
 ### 2026-11-07 — actual131 passes RSC/SEQ and reaches first PDC MSGID;132 field-scoped comparison next
 
 DSH5505 ONE real131 temporary boot observer0/full verifier2, original full

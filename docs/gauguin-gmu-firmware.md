@@ -184,3 +184,16 @@ only the documented WRITE/RESP_REQ mask0x10100, retain all-ones/IO/guard
 refusals and cache full raw samples. Other bits remain explicitly unqualified;
 this does not establish read-only length semantics or successful PDC command
 execution. All other PDC stores and later firmware completion checks remain.
+
+Patch0132 applies this to only TCS1/TCS3 CMD0–2 MSGIDs, at PDC byte offsets
+0x15d4/0x15e4/0x15f4/0x1764/0x1774/0x1784. Each retains its native0x10108
+write, barrier and guarded read. `GMF_PDC_MSGID_FIELDS` names bits16/8;
+missing either is READBACK refusal with the checked mask, while all-ones is
+still a full-width refusal. A private six-value cache emits raw
+`SWEET GMU PDC MSGID` records after completion or quarantine. Those records
+state which bits were checked and explicitly leave other bits unqualified;
+they never prove length-field semantics or actual PDC transaction execution.
+The public receipt, other register comparisons and generic BCM path remain.
+Host coverage models the physical0x10100 value, synthetic unrelated bits, all
+six slots with each missing control bit/all-ones, repeat/output preservation,
+partial cache logging and the original failure at every I/O boundary.

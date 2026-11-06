@@ -148,3 +148,23 @@ only those three addresses, record their existing readbacks as equality
 unqualified, and retain all-ones/IO/guard refusals plus every other store,
 TCM, reset, fault and firmware ACK check. This is a bounded experiment, not
 hardware qualification of those fields or proof of firmware/GPU operation.
+
+Patch0131 implements that narrow policy at AO offsets0x1034/0x103c/0x1044.
+Each still performs exactly one guarded zero write, barrier and guarded read
+at the same position in the native sequence. A failed callback, guard or
+all-ones read refuses the transaction. Other values are cached privately and
+do not establish bitwise write completion; all other registers keep the
+original comparison. Successful samples emit `SWEET GMU FW IMPL` only after
+the transaction completes or, on failure, after shared-owner/watchdog
+quarantine. A later failure may produce a partial set; full success requires
+all three distinct addresses plus the original FW-result/INIT/version ACKs.
+The public success receipt, firmware asset, TCM copy/readback, write order,
+deadlines, IRQ/reset/GX/fault guards and one-shot lifecycle are unchanged.
+
+Host coverage injects the physical0130 value0x82204514 at the first address
+and explicitly synthetic nonzero values at the other two, exercises each
+all-ones refusal before copy/release, and checks cached samples survive repeat
+entry. Non-exempt DATA readback and OOB-clear failures remain negative tests.
+The board seam covers full and partial cache logging after quarantine; actual
+engine sequencing is checked separately. Host success cannot qualify the
+physical meaning of these values or the next firmware operation.

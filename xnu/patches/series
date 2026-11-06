@@ -126,3 +126,4 @@
 0128-gauguin-smmu-architected-par-faults.patch
 0129-gauguin-smmu-fsr-status-fields.patch
 0130-gauguin-gmu-firmware-readback-diagnostics.patch
+0131-gauguin-rsc-native-hidden-address-writes.patch

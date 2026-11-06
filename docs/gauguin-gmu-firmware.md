@@ -226,3 +226,16 @@ Host cases include physical0x3f,0x3b, the full mask and explicitly synthetic
 other bits, plus each named mask bit missing and zero. Rejections occur after
 the required copy but before reset release; repeat/output/cache preservation
 and the original I/O-boundary coverage remain required.
+
+Physical0133 passes the AO named-source check with raw0x3f, then stops at
+store59: CSR offset0x20b4/PA0x03d7e0b4, CM3_CFG requested0x4052 reads0x52.
+The full TCM copy/readback remains8192 words, with reset1/release0 and no
+firmware execution or ACKs. Full success remains rejected.
+
+The native initialization comment requires restoring CM3 configuration before
+boot to avoid entering its NMI handler. Pinned `adreno.c` defines the NMI bit
+as9 and sets it to send an NMI; the physical0x52 has this bit clear. The next
+candidate will keep native0x4052 at this word only, retain guarded I/O and
+all-ones refusal, and explicitly verify NMI clear. Other fields, including
+the differing bit14, remain unqualified. No inferred bit14 mask or read-only
+semantics is justified; actual firmware result and ACKs remain mandatory.

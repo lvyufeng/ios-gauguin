@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual133 reaches CM3 CFG store59; documented NMI-clear field candidate next
+
+DSH31093 ONE actual133 temporary boot observer0/full verifier2; original full
+rejection retained. Start2026-11-06T21:12:01.498708Z,finish21:14:13.279471Z;
+Send19088KB0.442s/Boot0.135s/total0.580s, recovery observed130s. Products and
+routine recovery-latch readback passed. No new user manual/reset attribution.
+Fresh4044lines/454212B logp3-gmuf-0133-native-observer-20261107.txt SHA
+44f203b6d9eac80a895784f0f02e8da9b80cf14f19b0a5e4a28d8d338645e8c4;
+cycle991B SHA8ce27e2d9bffb54ca5a69a2bce40fdcb64c20b0ce3407323ae891f228777bfc4.
+Same-boot CMDDB131072B SHA236cb2b9152314a2435e7110b396cb283874ddd0f4ad989a4a726e4255d255f5.
+
+SMMU131/140, PDC six named fields and full8192-word TCM write/readback again
+complete. AO mask raw3f/check3b passes. Next exact READBACK refusal: phase0,
+GMF6, writes59/polls0,CSR window0 off020b4/PA03d7e0b4, CM3_CFG(native1f82d),
+requested4052/actual52 (bit14 differs). Reset1/release0/OOB0,FW0/version0;
+no firmware execution/ACK/GPU/Metal. GFSR0,FSR400/400,AO status0/info0.
+DSH59205 audit_failed_trial133.py actual0 -> failed-trial-audit.json state
+bound-TCM-copy-AO-mask-CM3-config-refusal, all inputs unchanged. SMMU prefix,
+raw named-field records and cached refusal are stage subsets; full rejection
+kept. Reader SHA471a48eb46ee535b86155192599efe2b6ff425bf362317ff790b77f35e0be619.
+PhoneTWRP; all handles closed. No new UI/touch/hardware reset-cause claim.
+
+Pinned native a6xx_gmu.c1099-1104 explains4052 restores CM3 configuration to
+avoid starting in NMI. Newly fetched exact19b63c8 drivers/gpu/msm/adreno.c
+defines GMU_CM3_CFG_NONMASKINTR_SHIFT9 and sets bit9 to send NMI (lines364-380).
+Cached research/tmp/dsh-0134/native/adreno.c115732B SHA
+7d8a0cc4a93144a31724f1c6e910dca41f1fae2a317a8636dcdca328763c9a5a,
+Git blob bde230310e4a0fbcf32a00f2b5bb6b63ff0dd2dc matches present exact entry
+in saved source-tree listing. Listing ref19b63c8 is TRUNCATED; only this target
+entry is verified, not a complete repository tree. First download precondition
+incorrectly expected an untruncated tree SHA, stopped before fetch/write;
+then scoped check to exact present blob + immutable raw URL, saved source-pin.
+Bit14 and other CM3 fields remain undocumented; do not invent maskffffbfff or
+read-only semantics. Actual52 has bit9 CLEAR. Next134: keep native4052 write
+and existing write/barrier/read order for ONLY CM3_CFG, require documented NMI
+bit9 clear, reject all-ones/IO/guards, cache raw value with other bits explicitly
+UNQUALIFIED; fresh FW result/ACKs still required. All other comparisons and
+public receipt unchanged. Test NMI set/all-ones,52/4052/synthetic other bits,
+cache/repeat/output and callback failures, all61 hosts and current133 F4oxTo
+native TUs. No134 code yet. Goal ACTIVE; original mkadt seven-line diff intact;
+no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — complete133 native kernel/image/runtime readers qualified; one physical trial next
 
 Previous goal turn was progress: actual132 full TCM copy/readback then AO

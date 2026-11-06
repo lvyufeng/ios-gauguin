@@ -2,6 +2,109 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual136 first fresh GMU BABEFACE, GX on, HFI-ready path; handshake ACK refusal next
+
+THIS goal turn is progress: complete136 native build/image/readers qualified;
+ONE physical136 boot FIRST proves fresh GMU firmware execution (BABEFACE),
+observes GX on, and reaches HANDSHAKE after source-bound boot-slumber/HFI-ready
+polls. It then refuses GMF_ACK. Full handshake/INIT/version completion is NOT
+qualified; GPU command execution/Metal/daily-use/RAM/storage/peripherals/high-
+refresh objective remains ACTIVE/incomplete. This is CM3 firmware execution,
+not GPU rendering. No relaxed ACK/type/size/echo/status checks or fake success.
+
+DSH64889 CLOSED0 initially stopped BEFORE reviewed executor: it incorrectly
+required fastboot enumeration although phone starts in recovery. No image
+boot or latch in that job; original events-hardware.jsonl kept. Corrected
+execute-hardware-v2.txt tells DSH to run only the reviewed script, which owns
+recovery/ADB/product/latch/fastboot preflight. DSH65131 CLOSED0 then actual
+observer0/full verifier2; ONE actual136 boot, not a repeated physical trial.
+Use this v2 task wording for later boots; no separate initial-fastboot gate.
+
+Start2026-11-06T22:12:20.778853Z,finish22:14:32.502031Z. Send19088KB0.447s,
+Boot0.134s/total0.584s. Recovery observed131s; no new user manual/reset/UI/
+touch attribution. Fresh4112lines/460613B log
+p3-gmuf-0136-native-observer-20261107.txt SHA
+169fd01cb334aafb028ab0a5ab13464aa9112bb4577158cce500c905030d5fd8;
+cycle1077B SHA0f479efcc3c785efef02ab001b518383ce5ef4c648c4693d95ce98be64a247de.
+Same-boot CMDDB131072B SHA55adb65aa0193b36fd76abb8e7a1cbb0ae97184b7318777334ab1a377dbdd4fc.
+SMMU131/140,PDC6,8192-word copy/readback,AO3f/CM3raw52 all pass. Three
+BOOT CFG raws now all0 (including first physical DCACHE sample); equality/
+write acceptance/cache state remain UNQUALIFIED despite later firmware boot.
+
+Exact cached stop: phase5/engine10(GMF_ACK), reset0,GXf8222000 (power-on bit
+set), release1/OOB1,GFSR0,FSR400/400/named faults0,AOstatus0/info0. Partial
+work phase5,writes80,polls4,copy8192/8192,FWbabeface,reported version0. No
+READBACK refusal. Native code clears FW_INIT_RESULT0 before owned release,
+requires freshBABEFACE then boot-slumber ACK/clear and HFI-ready poll before
+setting HANDSHAKE. Those latter passes are source-bound, not separate raw
+success records. GMF_ACK can come from draining a queued packet before/after
+INIT or request reply size/echo/status/type;136 captures none of the packet.
+INIT send/validation is UNKNOWN; do not assert actual invalid INIT status or
+guess a protocol mismatch from phase5/writes80 alone. No version ACK qualified.
+
+DSH20171 CLOSED0, actual audit_failed_trial136.py0 -> failed-trial-audit.json,
+state bound-fresh-GMU-boot-GX-HFI-ready-handshake-refusal, inputs unchanged.
+Strict reader940721ad...7b866a and actual source snapshotfcd7f7d7...cccdc9 bound.
+Audit reuses UNCHANGED SMMU prefix and records raw boot/GX + explicitly
+source-bound transitions as a stage subset. Full original rejection retained.
+firmware_boot TRUE, hfi_handshake_complete FALSE, gpu_execution/metal FALSE.
+All owned handles CLOSED; phoneTWRP. Current native recipe/source136 yLkhEV.
+
+NEXT137: diagnostic-only capture of FIRST rejected already-read HFI packet,
+covering BOTH drain_debug and request GMF_ACK exits. Cache phase/site/reason,
+queue, request header/expected size if applicable, received word count and
+bounded complete payload (max19 words). Distinguish unexpected/stale ACK,
+wrong type/id, ACK size/echo/status and exhausted16-debug budget. No extra
+MMIO/shared reads, retries, ACK-policy relaxation, ring/public receipt or
+native initialization changes. Clear cache after first successful CAS only;
+repeat/output preservation. Log cache only AFTER gmb/WDT quarantine, with
+bounded header and indexed raw-word records; no packet log can claim success.
+Host cases exercise every reason/site/full max packet, no cache on success,
+repeat/all callback failures/output preservation and partial board diagnostics.
+Compare original-model I/O against frozen136, all61 hosts and CURRENT136
+yLkhEV native TUs; full image/tempboot then use real packet to choose protocol
+fix. Preserve original mkadt seven-line diff and every existing check. No137
+code yet; no flash/format/GPT/destructive action. Codex core/review/Git, DSH
+exact full-access compile/test/boot execution.
+
+### 2026-11-07 — complete136 native image and three-record strict runtime readers qualified; one physical trial next
+
+DSH91065 CLOSED0; actual standard local build136.py build0/qualification0,
+gauguin.yLkhEV, captured HEAD7b4bbab5edbefae58c51745af91da171eedfda53.
+Exact130-patch source136fcd7f7d7...cccdc9,5282files. All135 qualifiers retained,
+including native fixed1 BUS/ICACHE/DCACHE table; installed BOOT CFG format and
+native_boot_config_observations_source_bound TRUE required. Kernel16905688B
+SHAb89a52561b8f083703c90166ead4a7380a3909fd05a924ab0f25aab70713e88a,
+IDxnu-13d908121b964131b171d976ab2dc69f. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.yLkhEV/build-manifest.json SHA
+61e0361a80f2f242dc060e5f5712653d2af7f8fd925e33a1f9b3d53bfaf1e80e;
+qualification SHA8790bd6f44412523c0f38ccbcd746f5eb3225eef44446e40d8d57e1b595a764b.
+No CI used. Current generated native recipe/source now136 yLkhEV, not135
+fzguBO. DSH95635 CLOSED0; actual package0/independent review0, normal report,
+inputs unchanged. Image19546112B SHA
+6da213f4c34328c47acb992a738a2d43ee2506bc08b183a7d4a7e9d42f7c08ee;
+payload19218432B SHA61d3fc3ea3999869408be6d52bf6fbb047c58e64c18984480dd2d402a29de42c.
+Evidence SHA10b5c9a448eecfe7dc779791371bd1bcecba2a3124ee3484f8a5074d80db22b8.
+Unique sweettrial=gmuf-0136-20261107-a1,539bytes; source assets unchanged:
+NVT182558000/MDT18257c000/GMU182580000. All old image pins preserved.
+Codex prepared136 readers requiring
+three ordered BOOT CFG raw observations AFTER CM3 and BEFORE FW completion,
+fixed1/non-all-ones/equality UNQUALIFIED and source-bound qualifier. Every
+previous FW/ACK/reset/OOB/SMMU/PDC/AO/CM3 rule remains. Metadata migration
+preserved numeric constants, old SHA pins and complete131-page strings.
+DSH74205 CLOSED0, actual runtime_validate136.py0, normal three zero results,
+inputs unchanged: clock4/95, FW22/311, explicitly SYNTHETIC full17/53. Reader
+SHA940721ad109ff032a48bda0ce9f1f76a9f52487b222da7dbaf21200dce7b866a.
+Tests0/1/synthetic other bits, each all-ones slot, wrong request/offset/policy,
+false-qualified/missing/duplicate/order records and false qualifier; all
+old FW/ACK/guards retained. No synthetic trace is hardware proof.
+Reviewed boot136/run_hardware136 scripts prepared for ONE image-hash-pinned
+temporary boot, same products/latch readback/180s observer/freshpull/banner
+and strict full reader. NEXT execute execute-hardware.txt via DSH.
+No136 phone proof yet. PhoneTWRP after135; no new user UI/touch/reset
+attribution. Whole goal ACTIVE; original mkadt seven-line diff intact;
+no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0136 native boot-config observations committed; all61 hosts/two native TUs pass; full build next
 
 Previous goal turn was progress: complete134/135 builds/images/readers and
@@ -43,7 +146,12 @@ Native firmware50960B SHA77f162b3e00cbdb42d4e7cb6a9fccc677b089306492d6922aa295da
 board70816B SHAbaeb246f0d951fb4110e7c765d08cb421894e515e43b0245c93a2c85a4055dda,
 CURRENT135 fzguBO recipe/source. All owned handles CLOSED; no CI used.
 
-NEXT sanitized136 source/notes push, full136 standard local build/qualification
+Sanitized136 source/notes pushed and ls-remote verified
+b91bf7334b72996837ab72965bb0831e24088684, sole parent6b0654e, eight text
+paths, same tree as privatebbe9aef. Publisher56886 CLOSED0; report
+research/tmp/dsh-0136/public-snapshot-0136.json. Private ancestry, raw logs,
+dumps/serials and binary/downloaded artifacts not pushed.
+NEXT full136 standard local build/qualification
 retaining every135 check; installed BOOT CFG format and source-bound native
 boot-config observations flag required. Pack/review, unique136 trial; full
 reader requires exactly three ordered BOOT CFG rows AFTER CM3/AO/PDC6/hidden3

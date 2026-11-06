@@ -312,3 +312,27 @@ zero observations plus missing fresh firmware result or missing INIT ACK
 must fail. Mock replies and board callback seams remain software evidence;
 only a real boot's fresh result and INIT/version replies can qualify the
 execution stage. No0136 hardware evidence exists yet.
+
+Physical0136 first reaches fresh GMU firmware execution: the cached native
+FW_INIT_RESULT is0xbabeface after its mandatory zero-clear and owned reset
+release. The final reset read is0 and GX_GDSCR is0xf8222000 (power-on bit set).
+The pinned engine then reaches HANDSHAKE, which requires successful fresh
+boot-slumber ACK/clear and HFI-ready polling first. Those latter transitions
+are source-bound passed paths, whereas BABEFACE/reset/GX are directly logged.
+All three boot-config raw reads are0; their bit semantics and cache/buffer
+state remain unqualified. Earlier SMMU/TCM/PDC/AO/CM3 checks still pass.
+
+The run stops at phase5/GMF_ACK, writes80/polls4, copied/compared8192,
+reported version0. No packet payload is captured, so neither the failed
+request nor the type/size/echo/status reason is established. A queued packet
+while draining before or after INIT can also produce that result. INIT
+transmission/validation is unknown; the complete INIT/version handshake
+remains rejected. This is GMU CM3 firmware execution evidence, without GPU
+command execution, normal HFI_ON/DCVS/ZAP or Metal qualification.
+
+The next diagnostic candidate should cache the first rejected packet already
+returned by the ring helper, covering both drain and request refusal paths,
+and log its site/reason, queue, expected request and bounded raw words after
+quarantine. It must preserve acceptance/refusal behavior, all guards, I/O
+order and the public success receipt. A real captured packet, rather than
+an inferred protocol mismatch, should determine the following fix.

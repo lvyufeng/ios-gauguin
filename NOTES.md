@@ -2,6 +2,60 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0138 native ACK prefix/sequence fix committed; all61 hosts/two native TUs pass
+
+Previous goal turn was progress: actual137 captured INIT4-word/type2/sequence1/
+status0 ACK, rejected by port's exact3/full-header assumptions; pinned native
+matches sequence only and actual bounded size. THIS turn Codex wrote138 and
+DSH validated it. Full daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh
+goal stays ACTIVE/incomplete. No138 hardware or real accepted INIT+VERSION
+handshake/GPU commands/Metal proof yet;137 rejection is not retroactive success.
+
+Private core8a0fcffba23953e6000858b71fe2e48165aff2a4 adds132nd patch
+0138-gauguin-gmu-native-ack-prefix-sequence.patch. Fresh source1385282files
+SHAc40e8c3f63caf7e7c7dbe606541961f2cc18ad673540fee9e37b91a2aa88a552.
+ONLY firmware.c/h differ from frozen1374ae84df0...507258; board unchanged.
+In request ACK path only, require n>=existing required prefix (INIT3,VERSION4)
+and n<=19; GGH already refuses over-capacity/corrupt packets. Match only
+GMF_ACK_SEQUENCE_MASK=fff00000, matching native12-bit sequence. Other echoed
+bits and extra payload unqualified. Copy ONLY original3/4-word success prefix;
+public receipt layout unchanged. ACK type2/INIT status!=ffffffff/VERSION
+status0/version compatibility, all ring/guards/reset/fault/IRQ/clock/deadline/
+one-shot/native-init rules stay.137 failure cache/logging remains; SIZE now
+short prefix, ECHO sequence mismatch. No extra I/O/retry or command changes.
+
+DSH25215 CLOSED0; actual validate138.py0, normal FIVE zero results: pristine
+replay, full61 hosts, ORIGINAL129-model I/O equivalence, real native firmware/
+board TUs. Source/baseline/inputs unchanged. Native hfi c/h explicitly pinned
+(6dd0519c...b8d9a1,5aa03382...64a6d3), plus earlier hardware references.
+ASan/UBSan GMF1,938,331 checks, board2840+95. Captured-shape INIT4 with SYNTHETIC
+opaque tail, all3..19/4..19 sizes, exact/sequence-only/synthetic other echo
+bits and positive INIT status pass. Short/zero/20-word packets, wrong sequence,
+type/status, corrupt queue refuse with output/repeat/cache preservation.
+Extra INIT word cannot spill into VERSION prefix. Max19 failure diagnostic
+retained using sequence mismatch instead of obsolete exact-size refusal.
+All old callback failures remain. Frozen137/138 ORIGINAL129 model1,009,420
+I/O requests identical, digest42c8a43275281f5b. Native firmware53840B SHA
+c0efd23b918318fd96339390dd04fe7c4f7f03a725855161e867a0da75e038d5;
+board72888B SHA99051e4e73d430732a2e1e89c5bbddf79b3d424d831a032f8be154a069744d50,
+CURRENT137 ggv3Il recipe/source. No138 full build/image/readers/phone IO yet.
+All owned handles CLOSED; phoneTWRP after137, no new user UI/touch/reset facts.
+
+NEXT sanitized138 source/notes push; standard full native build retaining all
+137 checks, new native_ack_prefix_sequence_source_bound qualifier. Pack/
+independent review and strict runtime reader MUST adopt same bounded-prefix/
+sequence/type/status/version rules: INIT header words3..19,VERS4..19, echoed
+sequence1/2 respectively; body receipt prefixes remain3/4 words. Other echo
+bits/extra data unqualified. Add actual-shape positive, minimum/maximum,
+short/oversize/wrong-sequence/status/type and false-qualifier/conflicting HFI
+failure-record cases. A former INIT-size4 negative is NOW positive; replace
+that negative with size2 intentionally. Preserve numeric data/pins/131-page
+strings outside this explicit ACK policy change. ONE coherent138 temporary
+boot using script-owned recovery-to-fastboot; verify actual INIT AND VERSION
+before claiming handshake. Original seven-line mkadt diff untouched; no flash/
+format/GPT/destructive action. Codex core/review/Git, DSH exact full-access
+compile/test/boot execution. Whole objective unchanged and ACTIVE.
+
 ### 2026-11-07 — actual137 captures successful-status4-word INIT ACK; port size/full-echo assumptions differ from native
 
 THIS goal turn is progress:137 diagnostics written/committed/pushed, all61
@@ -50,6 +104,12 @@ sources and unchanged SMMU prefix as stage evidence. Original full rejection
 retained. firmware_boot TRUE; init_ack_port_accepted/hfi_handshake_complete/
 gpu_execution/metal FALSE. All handles CLOSED; phoneTWRP. Current native
 recipe/source137 ggv3Il. No flash/format/GPT/destructive action.
+
+Physical137 handoff pushed and ls-remote verified
+ceb649eb3ff2e70ec88804c27156f52cf2fdb410, sole parentf3264ab, exactly
+NOTES/docs text paths, same tree as privatef991386. Publisher55525 CLOSED0;
+reportresearch/tmp/dsh-0137/public-handoff-0137.json. Private ancestry and
+raw logs/packet dumps/assets/serials remain local.
 
 NEXT138: implement native ACK compatibility in request ONLY: accept received
 length >=required prefix (INIT3,VERSION4), bounded by existing19-word GGH

@@ -379,3 +379,24 @@ fields and other echo bits stay unqualified. Type/status/version and all
 ring/guard/reset/deadline/copy checks remain required. Real complete INIT and
 VERSION replies must then be observed; this analysis does not retroactively
 turn0137 into a successful handshake.
+
+Patch0138 changes only request ACK length and echo correlation. It accepts
+a bounded prefix: INIT needs at least3 words and VERSION at least4, with the
+existing19-word complete-packet capacity retained. It matches only the
+echoed12-bit sequence (`0xfff00000`), following the pinned native matcher.
+Other echoed fields and any additional payload stay unqualified. Only the
+existing3/4-word receipt prefix is copied; public receipt layout is unchanged.
+ACK type2, INIT status other than0xffffffff, VERSION status0 and the existing
+reported-version compatibility check remain mandatory. Ring inspection,
+guard/fault/reset/deadline/one-shot behavior and native initialization stay.
+The cached SIZE reason now describes a short required prefix; ECHO describes
+sequence mismatch. Failed packet diagnostics still emit only after quarantine.
+
+Host cases use the captured INIT4/sequence-only/status0 shape with a synthetic
+opaque tail, all3..19/4..19 lengths, original full echoes and synthetic other
+echo bits. Short/oversized packets, corrupt queues, wrong sequences/types/
+statuses and missing version data refuse with unchanged caller output.
+Tests also check that an extra INIT word cannot spill into the VERSION
+receipt, and retain full19-word refused-packet diagnostics using a sequence
+failure. This is protocol compatibility and software validation; physical
+complete INIT and VERSION replies are still required for0138.

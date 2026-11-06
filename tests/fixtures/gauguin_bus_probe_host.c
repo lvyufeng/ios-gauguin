@@ -12,6 +12,7 @@
 #include "cmd_db_snapshot.h"
 #include "gauguin_bcm_plan.h"
 #include "gauguin_bus_probe.h"
+#include "gauguin_cx_rail.h"
 
 #define GAUGUIN 1
 #define KERN_SUCCESS 0
@@ -42,12 +43,13 @@ typedef struct { uint8_t digest[32]; unsigned updates; } SHA256_CTX;
 #define READS_MAX 1200u
 static const char *case_name = "setup";
 static unsigned cases;
-static uint8_t positive_db[DB_BYTES], db[2][DB_BYTES], positive_digest[32];
+static uint8_t positive_db[DB_BYTES], positive_cx_db[DB_BYTES], db[2][DB_BYTES];
+static uint8_t positive_digest[32], positive_cx_digest[32];
 static uint32_t rsc[2][RSC_BYTES / 4];
 struct expected_read { uint32_t offset, value; };
 static struct {
     int enabled, touchmode, thread_error, context, delayed_context;
-    int vote; bool prepare_mode;
+    int vote, cxpower; bool prepare_mode, mutate_after_capture;
     unsigned starts, deallocations, terminations, sleeps, allocations;
     unsigned allocation_failure, map_failure, map_count, translate_failure;
     unsigned translations[2];
@@ -124,6 +126,7 @@ bool PE_parse_boot_argn(const char *key,void *value,size_t len)
     CHECK(len==sizeof(int),"boot argument integer");
     if (!strcmp(key,"sweetbusprobe")) *(int*)value=mock.enabled;
     else if (!strcmp(key,"sweetbusvote")) *(int*)value=mock.vote;
+    else if (!strcmp(key,"sweetcxpower")) *(int*)value=mock.cxpower;
     else { CHECK(!strcmp(key,"sweettouchmode"),"known boot arg"); *(int*)value=mock.touchmode; }
     return true;
 }
@@ -226,7 +229,15 @@ static void sha_update(SHA256_CTX *ctx,const void *data,size_t len)
     CHECK(data!=db[0] && data!=db[1] && data!=positive_db,"never hash fixture or MMIO pointer");
     mock.positive_sha=!memcmp(data,positive_db,DB_BYTES);
     if (mock.positive_sha) memcpy(ctx->digest,positive_digest,32);
-    else memset(ctx->digest,0xa5,32);
+    else if (!memcmp(data,positive_cx_db,DB_BYTES)) {
+        mock.positive_sha=2; memcpy(ctx->digest,positive_cx_digest,32);
+    } else memset(ctx->digest,0xa5,32);
+    if (mock.mutate_after_capture) {
+        /* Both real parsers must use the immutable captured CPU bytes, even
+         * if the fake device changes immediately after the last MMIO load. */
+        put16(db[0]+384+12,416); db[0][476]^=1;
+        memcpy(db[1],db[0],DB_BYTES);
+    }
     ++ctx->updates;
 }
 static void sha_final(uint8_t out[32],SHA256_CTX *ctx)
@@ -332,13 +343,13 @@ static void export_positive(const char *path)
     for(unsigned i=0;i<mock.lines;++i) CHECK(fputs(mock.log[i],f)>=0,"write positive log");
     CHECK(!fclose(f),"close positive log");
 }
-static void parse_digest(const char *hex)
+static void parse_digest(const char *hex,uint8_t digest[32])
 {
     CHECK(strlen(hex)==64,"digest length");
     for(unsigned i=0;i<32;++i) {
         char part[3]={hex[2*i],hex[2*i+1],0}; char *end;
         CHECK(strspn(part,"0123456789abcdef")==2,"lowercase hex digest");
-        positive_digest[i]=(uint8_t)strtoul(part,&end,16); CHECK(!*end,"digest decode");
+        digest[i]=(uint8_t)strtoul(part,&end,16); CHECK(!*end,"digest decode");
     }
 }
 static void prepare_reset(const char *name)
@@ -373,15 +384,158 @@ static void prepare_failure(bool attempted)
         CHECK(mock.allocations==allocs && mock.map_count==maps && mock.db_loads==loads,"no accesses during retry");
     }
 }
+/* Included into the fixture source by the author, before main. */
+static void cx_reset(const char *name)
+{
+    prepare_reset(name);mock.cxpower=1;
+    memcpy(db[0],positive_cx_db,DB_BYTES);memcpy(db[1],positive_cx_db,DB_BYTES);
+}
+static void cx_no_hardware(void)
+{
+    CHECK(!mock.rsc_loads && !mock.pmap_checks[8] && !mock.translations[1] &&
+        mock.map_count<=1 && !mock.sleeps && !mock.starts,
+        "CX prepare has no RSC metadata/map/read, thread, local delay or hardware writes");
+}
+static void cx_success(void)
+{
+    struct gbcm_plan bcm;struct gcr_plan cx;
+    memset(&bcm,0xa5,sizeof(bcm));memset(&cx,0xa5,sizeof(cx));
+    CHECK(sweet_bus_cx_plan_prepare(&bcm,&cx),"both CPU plans prepared from the same snapshot");
+    cx_no_hardware();
+    CHECK(mock.allocations==1 && mock.map_count==1 && mock.db_loads==65536 &&
+        mock.shas==1 && mock.positive_sha==2 && bus_started==1,"one allocation/map, two full copies and one hash");
+    CHECK(bus_work==mock.allocation && !memcmp(bus_work->raw[0],positive_cx_db,DB_BYTES) &&
+        !memcmp(bus_work->raw[1],positive_cx_db,DB_BYTES),"retained actual CPU copies equal immutable CX fixture");
+    CHECK(!memcmp(&bcm,&bus_work->plan,sizeof(bcm)),"published BCM is the actual stored plan");
+    static const uint32_t addr[]={0x50000,0x50004,0x5002c,0x50044,0x5006c,0x50080};
+    static const uint32_t data[]={0x6fffffff,0x6fffffff,0x2fffffff,0x6fffffff,0x6fffffff,0x60000008};
+    CHECK(bcm.wait_mask==0x3b,"unchanged BCM policy");
+    for(unsigned i=0;i<6;++i)CHECK(bcm.cmd[i].address==addr[i] && bcm.cmd[i].data==data[i] &&
+        bcm.cmd[i].wait==((0x3bu>>i)&1),"independent exact BCM plan");
+    static const uint16_t levels[]={0,16,64,128,192,256,384};
+    CHECK(cx.address==0x30000 && cx.selector==6 && cx.level==384 && cx.count==7 &&
+        cx.max_level==65535,"independent fixed CX envelope, not a measured floor");
+    for(unsigned i=0;i<16;++i) CHECK(cx.levels[i]==(i<7 ? levels[i]:0),"all CX levels and zero tail exact");
+    has("highest supported native domain, not a live floor read");
+    CHECK(count_line("SWEET CMDB BEGIN: ")==1 && count_line("SWEET CMDB END: ")==1 &&
+        count_line("SWEET CMDB RAW: ")==2048,"one common actual RAW snapshot");
+    struct gbcm_plan saved_bcm=bcm;struct gcr_plan saved_cx=cx;
+    CHECK(!sweet_bus_cx_plan_prepare(&bcm,&cx) && !memcmp(&bcm,&saved_bcm,sizeof(bcm)) &&
+        !memcmp(&cx,&saved_cx,sizeof(cx)),"second CX prepare leaves both outputs unchanged");
+    mock.cxpower=0;
+    CHECK(!sweet_bus_plan_prepare(&bcm) && !memcmp(&bcm,&saved_bcm,sizeof(bcm)),"CX attempt excludes legacy prepare");
+    mock.enabled=1;sweet_bus_probe_init();
+    CHECK(!mock.starts && mock.allocations==1 && mock.map_count==1 && mock.db_loads==65536,
+        "shared once excludes all legacy probe/prepare restarts");
+    mock.enabled=0;mock.cxpower=1;
+}
+static void cx_failure(bool attempted)
+{
+    struct gbcm_plan bcm,saved_bcm;struct gcr_plan cx,saved_cx;
+    memset(&bcm,0xa5,sizeof(bcm));saved_bcm=bcm;memset(&cx,0x5a,sizeof(cx));saved_cx=cx;
+    CHECK(!sweet_bus_cx_plan_prepare(&bcm,&cx) && !memcmp(&bcm,&saved_bcm,sizeof(bcm)) &&
+        !memcmp(&cx,&saved_cx,sizeof(cx)),"failed CX prepare publishes neither output");
+    cx_no_hardware();
+    CHECK(bus_started==(attempted ? 1u:0u),"only authorized CX attempt consumes once");
+    unsigned allocations=mock.allocations,maps=mock.map_count,loads=mock.db_loads;
+    CHECK(!sweet_bus_cx_plan_prepare(&bcm,&cx) && !memcmp(&bcm,&saved_bcm,sizeof(bcm)) &&
+        !memcmp(&cx,&saved_cx,sizeof(cx)),"repeat failure cannot mutate either output");
+    CHECK(mock.allocations==allocations && mock.map_count==maps && mock.db_loads==loads,
+        "no retry, remap or recapture");
+}
+static void cx_cases(const char *log_path)
+{
+    cx_reset("CX success same CMDDB snapshot");cx_success();
+    size_t size=strlen(log_path)+4;char *path=malloc(size);CHECK(path,"CX log path");
+    snprintf(path,size,"%s.cx",log_path);export_positive(path);free(path);
+    cx_reset("device changes after capture do not change either CPU plan");mock.mutate_after_capture=true;cx_success();
+    CHECK(memcmp(db[0],positive_cx_db,DB_BYTES) && memcmp(db[1],positive_cx_db,DB_BYTES),
+        "fake device differs from both retained immutable copies");
+    for(unsigned missing=0;missing<3;++missing) {
+        cx_reset("NULL outputs do not consume shared attempt");
+        struct gbcm_plan bcm,saved_bcm;struct gcr_plan cx,saved_cx;
+        memset(&bcm,0xa5,sizeof(bcm));saved_bcm=bcm;memset(&cx,0x5a,sizeof(cx));saved_cx=cx;
+        CHECK(!sweet_bus_cx_plan_prepare(missing==0 || missing==2 ? NULL:&bcm,
+            missing==1 || missing==2 ? NULL:&cx),"NULL is rejected");
+        CHECK(!bus_started && !mock.allocations && !mock.map_count && !mock.db_loads &&
+            !memcmp(&bcm,&saved_bcm,sizeof(bcm)) && !memcmp(&cx,&saved_cx,sizeof(cx)),
+            "NULL leaves both outputs and lifetime untouched");cx_success();
+    }
+    const int invalid[]={0,-1,2,9};
+    for(unsigned i=0;i<4;++i) {
+        cx_reset("CX API requires exact CX flag1");mock.cxpower=invalid[i];cx_failure(false);
+        cx_reset("CX API requires exact busvote1");mock.vote=invalid[i];cx_failure(false);
+    }
+    const int nonzero[]={-1,1,2,9};
+    for(unsigned i=0;i<4;++i) {
+        cx_reset("legacy prepare rejects CX and malformed CX modes");mock.cxpower=nonzero[i];prepare_failure(false);
+    }
+    for(int value=-1;value<=1;value+=2) {
+        cx_reset("CX conflicts with standalone probe");mock.enabled=value;cx_failure(false);
+        cx_reset("CX conflicts with legacy writer");mock.touchmode=value;cx_failure(false);
+    }
+    for(int context=1;context<=3;++context) {
+        cx_reset("CX invalid context");mock.context=context;cx_failure(false);
+    }
+    cx_reset("CX allocation fails");mock.allocation_failure=1;cx_failure(true);
+    for(unsigned page=0;page<8;++page) {
+        cx_reset("CX managed CMDDB page");mock.managed_page=page+1;cx_failure(true);
+        CHECK(!mock.map_count && !mock.db_loads,"pmap rejects before mapping");
+        cx_reset("CX wrong cache CMDDB page");mock.wrong_attr_page=page+1;cx_failure(true);
+        CHECK(!mock.map_count && !mock.db_loads,"cache rejects before mapping");
+    }
+    cx_reset("CX mapping fails");mock.map_failure=1;cx_failure(true);CHECK(!mock.db_loads,"failed map never read");
+    for(unsigned endpoint=1;endpoint<=2;++endpoint) {
+        cx_reset("CX translation fails");mock.translate_failure=endpoint;cx_failure(true);
+        CHECK(!mock.db_loads,"failed endpoint never read");
+    }
+    cx_reset("CX pass2 changes outside metadata");db[1][DB_BYTES-1]^=1;cx_failure(true);
+    CHECK(mock.db_loads==65536 && !mock.shas,"full two-copy equality required before hashing");
+    cx_reset("CX pass2 changes CX table");put16(db[1]+384+12,416);cx_failure(true);
+    CHECK(mock.db_loads==65536 && !mock.shas,"no separate later CX snapshot");
+    for(unsigned bad=0;bad<7;++bad) {
+        cx_reset("CX bad metadata leaves both prepared outputs unpublished");
+        if(bad==0)db[0][476]^=1;                       /* otherwise valid BCM header, bad pinned unit */
+        if(bad==1)put16(db[0]+16,0x100);               /* generic ARC parser accepts, CX policy rejects */
+        if(bad==2)put16(db[0]+384+12,416);             /* ordered but different supported domain */
+        if(bad==3)put32(db[0]+144+16,0x300b0);         /* valid ARC address, wrong fixed resource */
+        if(bad==4)put16(db[0]+144+20,16);              /* seven levels but not pinned32 bytes */
+        if(bad==5)put16(db[0]+384+14,416);             /* eighth legal level changes the table */
+        if(bad==6)memcpy(db[0]+144,"cy.lvl",6);        /* missing named CX */
+        memcpy(db[1],db[0],DB_BYTES);cx_failure(true);
+        CHECK(mock.db_loads==65536 && mock.shas==1,"actual capture before CPU validation");
+        absent("same-boot CPU plan ready");
+    }
+    prepare_reset("old prepare already consumed the attempt");prepare_success();
+    mock.enabled=0;mock.cxpower=1;cx_failure(true);
+    cx_reset("failed CX attempt cannot fall back to legacy plan");mock.map_failure=1;cx_failure(true);
+    mock.cxpower=0;prepare_failure(true);
+    cx_reset("unauthorized CX call leaves later authorized call possible");mock.vote=0;cx_failure(false);
+    mock.vote=1;cx_success();
+}
+
 int main(int argc,char **argv)
 {
     make_positive_db();
-    if(argc==3 && !strcmp(argv[1],"--emit-db")) {
-        FILE *f=fopen(argv[2],"wb"); CHECK(f,"open positive DB");
-        CHECK(fwrite(positive_db,1,DB_BYTES,f)==DB_BYTES && !fclose(f),"emit positive DB"); return 0;
+    /* Preserve the old fixture. CX pins the actual bank version and32-byte
+     * aux (seven levels + nine zero slots). Move other aux ranges accordingly. */
+    memcpy(positive_cx_db,positive_db,DB_BYTES);put16(positive_cx_db+16,0x1000);
+    memset(positive_cx_db+384,0,128);
+    put16(positive_cx_db+144+20,32);
+    memcpy(positive_cx_db+384,positive_db+384,16);
+    for(unsigned i=1;i<4;++i) {
+        put16(positive_cx_db+144+24*i+22,16+16*i);
+        memcpy(positive_cx_db+400+16*i,positive_db+384+16*i,16);
     }
-    CHECK(argc==5 && !strcmp(argv[1],"--digest") && !strcmp(argv[3],"--log"),"usage --digest HEX --log PATH");
-    parse_digest(argv[2]);
+    put16(positive_cx_db+28,320);memcpy(positive_cx_db+464,positive_db+448,48);
+    if(argc==3 && (!strcmp(argv[1],"--emit-db") || !strcmp(argv[1],"--emit-cx-db"))) {
+        const uint8_t *bytes=!strcmp(argv[1],"--emit-db") ? positive_db:positive_cx_db;
+        FILE *f=fopen(argv[2],"wb"); CHECK(f,"open positive DB");
+        CHECK(fwrite(bytes,1,DB_BYTES,f)==DB_BYTES && !fclose(f),"emit positive DB"); return 0;
+    }
+    CHECK(argc==7 && !strcmp(argv[1],"--digest") && !strcmp(argv[3],"--log") &&
+        !strcmp(argv[5],"--cx-digest"),"usage --digest HEX --log PATH --cx-digest HEX");
+    parse_digest(argv[2],positive_digest); parse_digest(argv[6],positive_cx_digest);
     const int disabled[]={0,2,-1,9};
     for(unsigned i=0;i<sizeof(disabled)/sizeof(disabled[0]);++i) {
         reset("default off"); mock.enabled=disabled[i]; sweet_bus_probe_init(); sweet_bus_probe_init();
@@ -486,6 +640,10 @@ int main(int argc,char **argv)
     CHECK(!sweet_bus_plan_prepare(&second) && !memcmp(&second,&saved,sizeof(second)),"old probe and prepare share one attempt");
     CHECK(mock.map_count==old_maps && mock.db_loads==old_loads && mock.rsc_loads==old_rsc,"shared attempt prevents new access");
     printf("PASS: legacy=%u prepare_additions=%u; same-boot CMDDB plan only, no RSC access\n",legacy_cases,cases-legacy_cases);
+    CHECK(cases==106,"all 70 legacy plus36 prepare cases preserved");
+    const unsigned retained=cases;
+    cx_cases(argv[4]);
+    printf("PASS: 106 retained + %u CX prepare cases (%u total); real parser/planners, one CMDDB snapshot, no RSC\n",cases-retained,cases);
     free(mock.allocation); mock.allocation=NULL; bus_work=NULL;
     printf("PASS: %u worker cases; ASan/UBSan; read-only mappings, exact MMIO whitelist, actual RAW log exported; SHA itself is a seam\n",cases);
     return 0;

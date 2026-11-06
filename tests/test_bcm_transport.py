@@ -18,7 +18,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT_SOURCE = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source115-codex')))
+DEFAULT_SOURCE = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source118-codex')))
 FIXTURE = HERE / 'fixtures/gauguin_bcm_transport_host.c'
 FLAGS = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic", "-O1", "-g",
          "-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
@@ -61,11 +61,13 @@ def main(temporary):
     parser.add_argument('--source-root', type=Path, default=DEFAULT_SOURCE)
     args = parser.parse_args()
     dev = args.source_root.resolve() / 'bsd/dev'
-    transport = lease = dev
+    transport = lease = shared = dev
+    rail = dev / 'gauguin_cx_rail_plan.c'
+    parser_c = dev / 'cmd_db_snapshot.c'
     source = transport / "gauguin_bcm_transport.c"
     planner = dev / "gauguin_bcm_plan.c"
-    inputs = [source, transport / "gauguin_bcm_transport.h", lease / "gauguin_wdt_lease.h",
-              planner, dev / "gauguin_bcm_plan.h", dev / "cmd_db_snapshot.h", FIXTURE]
+    inputs = [source, dev / "gauguin_bcm_transport.h", lease / "gauguin_wdt_lease.h",
+              planner, dev / "gauguin_bcm_plan.h", dev / "cmd_db_snapshot.h", shared / "gauguin_cx_rail.h", rail, parser_c, FIXTURE]
     for path in inputs:
         if not path.is_file():
             raise SystemExit(f"missing input: {path}")
@@ -82,8 +84,8 @@ def main(temporary):
     try:
         unit.write_text(prepare(source))
         with log_path.open("w") as log:
-            run(["clang", *FLAGS, "-I" + str(transport), "-I" + str(lease), "-I" + str(dev),
-                 unit, planner, "-o", binary], log, env)
+            run(["clang", *FLAGS, "-I" + str(transport), "-I" + str(lease), "-I" + str(dev), "-I" + str(shared),
+                 unit, planner, rail, parser_c, "-o", binary], log, env)
             run([binary], log, env)
         if {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs} != report["inputs"]:
             raise RuntimeError("test input changed while running")
@@ -102,5 +104,5 @@ def main(temporary):
 
 
 if __name__ == "__main__":
-    with tempfile.TemporaryDirectory(prefix="gauguin-bcm-transport-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="gauguin-transport-") as temporary:
         raise SystemExit(main(temporary))

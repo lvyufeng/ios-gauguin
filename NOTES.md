@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — strict0124 runtime verifier validated; first coherent firmware trial next
+
+Previous goal turn was concrete progress: codea263288/privatec514be5, public
+ebb3abcaf4f3e76125009d7ce20d828d263a170c pushed/verified (soleparent713a869aa...).
+Full goal remains ACTIVE/incomplete. Native/image bytes from0124 remain frozen.
+No device IO in this verifier milestone; highest hardware still0120.
+
+Codex authored research/tmp/dsh-0124/verify_gmuf124.py SHA
+14b87de117ad7d1b3dd9f76d64e0b724ee3cd39c30682ef4b88504436193a351.
+Retains120 identity/image/CPU-stage/CMDDB/WDT/BCM/CX/clock checks, updates only
+exact124 source/flag/terminal and adds exact four-ARC policy, actual pinned GMU
+segment binding, capability-derived SMMU geometry/dynamic banks/ASID/roots,
+131mapped/140ATOS, fixed narrow maps, reset/copy/OOB/HFI INIT+version receipts,
+NS masks including core332 and source-derived counter bounds. Rejects missing/
+duplicate/stale/failure/extra/out-of-order records. Distinguishes configured
+clocks, GMU firmware/ACKs and GPU/Metal/normal HFI_ON. No hardware claim from
+host records. Per-access guard/fault details are honestly SOURCE-bound control
+flow, while raw contexts/ACK/final-state fields are directly parsed.
+
+DSH72322 original runtime-parser-result.json FAILED only because the host
+mutation selector sctlr=00c01067 matched both contexts, not one. Codex narrowed
+the selector to the user context; production verifier/native source unchanged.
+Original report/logs/verify_fw124_host.initial.py retained. Separate DSH50269
+runtime-parser-result-v2.json PASS, all input pins unchanged: retained clock
+valid4/rejected93; firmware/SMMU valid8/rejected185 plus ACTUAL qualified-package
+binding and metadata-negative cases. Actual GMF+GGH model separately compiled
+with sanitizers:1,617,941 checks,1385 failure boundaries; debug0 writes82/polls5/
+messages0 and debug1 writes84/polls5/messages4. Those are host model results.
+Verifier bounds82..142stores/5..5000polls/0..90debug are independently derived
+from fixed source, not tuned to hardware. Native driver/image need no rebuild.
+
+Codex also rechecked pinned native arm-smmu.c lines5448–5457: ID1NUMPAGENDX2
+with4KiB registers gives CB base+8000 and total10000; existing geometry is
+correct (no source change). Next ONE bounded temporary boot of the exact
+7f156ffd...066bc image below, then read fresh logs and run strict verifier.
+Require a separate THIS-trial reset attribution; never reuse0120's answer.
+DSH executes reviewed boot script, Codex interprets. Preserve all baselines,
+original mkadt diff and all rejected evidence; no flash/format/GPT changes.
+
 ### 2026-11-07 — 0124 full local kernel/package/independent image review PASS; runtime verifier next
 
 Codea26328873f64b0ffb55e18408e9e29db54d8d49e, build-captured/handoff commit

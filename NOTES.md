@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete131 native kernel/image/runtime readers qualified; physical trial next
+
+Previous goal turn was progress: actual130 read82204514 and tested/committed/
+pushed scoped131 policy. THIS turn DSH81260 actual standard local build0/
+qualification0, gauguin.SM6zJz, captured HEAD0b8cd7fce17ab2ebd61f94b4d5fcb3dfce6b9b80.
+Exact tested125-patch sourcefb3e3f59...a6e0c/5282files. Installed native
+kernel16905400B SHA98904a25ae6885148f12af8545c57b13977f6302611a4054e47af045e902fc9b,
+IDxnu-4274c5f2ff97423ab0d30a3ea65f4601. Manifest SHA
+b81f64b870446e131cefeb03d7ad296b451200a098a0181d45575d4273ff6bd2;
+qualification SHA08ac7f86a3feecf3a8b400dca0f8fa84f758729da29ae26a7031b7c27b8c14c7.
+Every130 qualification retained plus native_hidden_address_write_policy_linked
+TRUE, installed format present. Current native recipe/source now131 SM6zJz;
+do not reuse130 xs5x0H after shared Makefile replacement. No CI used.
+
+DSH46930 actual package0/independent review0, all pins unchanged. Image
+shim/out/shim-p3-gmuf-0131-native-20261107.img19546112B SHA
+618bd22ea5d2ddb519daac773b9d4a8ce93b1ca2b16a49f6a17425f999526644;
+payload19218432B SHAe78580f9382621d39bd54cc3422699d0bb55fb05f03bc270feec3a51d0ce202d.
+Evidence SHAe25fcfcaafb39032f66cd14bc378fd1deec81ec3fbb500bb74ae2e98fd84729d.
+Unique sweettrial=gmuf-0131-20261107-a1, same539-byte command line. Assets
+NVT182558000/MDT18257c000/GMU182580000; all old130/129/etc pins preserved.
+
+DSH67587 runtime_validate131.py actual0, all inputs unchanged; clock4/95,
+FW12/218,full explicitly SYNTHETIC6/23. Normal runtime-parser-result.json
+three actual zero exits. Production verify_gmuf131.py adds exactly three
+ordered native policy rows1034/103c/1044 with requested0, raw!=ffffffff,
+explicit equality UNQUALIFIED; keeps all existing full-success/FW/ACK guards.
+Every new row missing/duplicate/reordered/malformed, all-ones, wrong zero
+request or false-qualified label rejects. Full/record tests assert returned
+per-field bitwise_qualified FALSE; dynamic synthetic payload extent and GMU
+location inherited from130_v3, original negative integer values and all asset
+SHA pins preserved during migration. Clock fixture's printed actual130 label
+is cosmetic; execution/input hash bind actual131 reader. No hardware proof.
+
+All these handles CLOSED. Phone last observed TWRP; boot131.py/run_hardware131.py
+prepared for ONE image-pinned temporary boot, unique recoverygauguin/fastboot
+gauguinpro + routine latch readback, unchanged180s observer/freshpull. Next
+execute reviewed execute-hardware.txt via DSH; preserve full result then audit
+actual failure or require all real firmware ACKs. No131 device IO yet at THIS
+checkpoint. Whole daily-use goal ACTIVE; no flash/format/GPT/destructive step,
+original seven-line mkadt diff unchanged.130 reset attribution still unknown.
+
 ### 2026-11-07 — 0131 scoped native hidden-address policy committed; all61 hosts/two native TUs pass; full build next
 
 Private code75dd82b1d45ad9901ba80019d3983084d124f85a implements125th patch

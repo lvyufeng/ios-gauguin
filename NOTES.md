@@ -2,6 +2,89 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — native0111 build qualified; first enabled reservation image ready
+
+Native build32110 exit0, no CI. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.W1dBXN/build-manifest.json.
+Kernel16798560B SHA2be023bbf91416c9137dbb654eb525a85c5b1d85e42172cf47e2f645dd099422,
+full ID xnu-ca43a06cd2de44cc9bd6f092ea45f636 (Nov6 09:12:46 CST).
+Source/all build inputs unchanged;105patches/5248files, required PAS/pmap and
+prior input/GPU/SCM symbols defined, ARM64/entry/segments/ADT bounds pass.
+Qualification p3-native-0111-qualification-20261106.json. Shared generated
+native build context is now111/W1dBXN; do not reuse110/liFpTf TU commands.
+
+Build capture started while the111 change was staged, before local a5d353e
+commit completed: captured HEAD23340e4 + tracked diff SHA
+f0042a098afbf523d9adf6579cd1e9e5b8b5911f306e2b9fb9d7257a8faadc84.
+Exact `git diff --binary <captured HEAD>` was rehashed after commit and matched
+that record, reconciling the build to committed a5d353e plus the original
+preserved mkadt edit. This is recorded explicitly, not relabeled a clean build.
+
+Prepared shim/out/shim-p3-low-pas-0111-native-20261106.img,19398656B,
+SHA a57b7194e31ab8bfb7e386d140018ec0552cdf306d37aec0b190ca58b9b2dac5.
+Same hardware-qualified new shim b5ba7764... and same original DTB; NVT
+assetPA182540000/raw139264/reserve147456 unchanged. Optional2MiB initrd tail
+is enabled; runtime must select/validate1MiB below4GiB and publish owner/pmap
+metadata. sweetpasprobe=1, NVT1/hz30, GCC/SCM probes off. Unique actual-log
+marker sweettrial=pasowner-0111-20261106-a1 required in addition to full ID.
+No buffer access/map, firmware loading or PAS/SMC operation is implemented.
+Host preflight on the real packed payload passes using synthetic handoff
+addresses; actual runtime PA/result are UNKNOWN until fresh hardware log.
+Evidence p3-low-pas-0111-native-evidence-20261106.json. Phone TWRP; next
+temporary180s boot and manual touch/recovery/log qualification.
+
+### 2026-11-06 —0111 readonly ownership consumer ready for native build
+
+Added0111 gauguin_pas_probe: default-off sweetpasprobe=1 creates its own
+post-root worker, waits45s, validates exact owner/pmap metadata and checks
+all64 selected16KiB pages via pmap_valid_page/pmap_cache_attributes. Only
+kernel metadata is inspected; no PA dereference, mapping, allocation, firmware,
+SMC or power operation. Checks context again after delay and fails closed on
+missing/pending/invalid metadata, a managed page or any wrong cache attribute.
+The successful log explicitly says buffer/PAS/GPU remain untested.
+
+Freshsource111 strictly replayed105patches/5248files. Exact differences from
+qualified110: bsd/conf/files, bsd/kern/bsd_init.c, bsd/dev/gauguin_pas_probe.c.
+ProbeSHA ebf3fa828e321c709cba9a61f0716db7c987c05cf1edec018d5b05cec0788f57.
+Full hostsuite on111 passes (p3-pas-owner-probe-20261106/full-host.log).
+Consumer host fixture uses actual shim prepare/commit output, checks default
+off/start/context errors, missing/pending/malformed/overflow metadata and
+each of64 managed-page/cache-attribute failure positions under ASan/UBSan.
+SCM integration test now checks its shared GAUGUIN guard membership rather
+than requiring its call to be the last entry in that block.
+
+Phone remains TWRP after qualified default-loader log capture. No observer,
+CI or full native111 build live yet. Next commit/build locally; shared native
+generated context is still110/liFpTf until the new build starts. Qualify full
+link/manifest, then package the already proven new shim with --pas-reservation
+and sweetpasprobe=1. Require a fresh unique trial marker and actual owner/
+64-page completion log; do not infer reservation success from UI alone.
+
+### 2026-11-06 — new loader default boot and physical unlock VERIFIED
+
+User confirms physical touch unlock still works; manually returned TWRP.
+Fresh log p3-low-pas-default-20261106-recovered.txt matches the full kernel110
+banner AND unique sweettrial=lpdefault-20261106-a1 (one occurrence).
+No PAS reservation was requested; no SCM/GCC worker ran. Observer22293 ended
+181s/exit4 and fresh pull was performed only after manual recovery.
+
+Log: 30666 lines, ring1178184B/flush14559; last PET24360 at468429862902 ticks,
+last NVT2427654 accepted2427654/rejected0. These are captured counters; the
+phone was not continuously inspected throughout that full interval. No
+captured panic(cpu...) line. Full SHA and package fields are in ignored
+p3-low-pas-default-20261106-package.json. Local loader commit23340e4 and
+sanitized public3ef39bc68601801303c829130ff2dabc3c17dd9a (parentbc7f72d)
+are committed/pushed. Only original tools/mkadt.py is dirty.
+
+Next: readonly owner/pmap-attribute kernel probe candidate in ignored
+p3-pas-owner-probe-20261106/gauguin_pas_probe.c. Real kernel ARM64 TU passes
+(20208B object, source ce74cdfe6dddcad4b3dc343e3f96646957b944dfbf4ff0ed417fb1f89c8b2944).
+Initial TU exposed hidden BSD pmap declarations; exact canonical externs
+added and retry passed. Candidate not integrated/built as full kernel yet.
+Validate host failure paths before adding0111. Future enabled trial must
+verify exact 128B ownership record, matching pmap tuple and all64 unmanaged
+16KiB pages' cache attributes; no buffer mapping/access, firmware or PAS call.
+
 ### 2026-11-06 — low-PAS loader integrated; default-only image qualified
 
 Integrated optional pending-request/owned-initrd-tail contract in mkpayload

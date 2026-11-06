@@ -2,6 +2,92 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual133 reaches CM3 CFG store59; documented NMI-clear field candidate next
+
+DSH31093 ONE actual133 temporary boot observer0/full verifier2; original full
+rejection retained. Start2026-11-06T21:12:01.498708Z,finish21:14:13.279471Z;
+Send19088KB0.442s/Boot0.135s/total0.580s, recovery observed130s. Products and
+routine recovery-latch readback passed. No new user manual/reset attribution.
+Fresh4044lines/454212B logp3-gmuf-0133-native-observer-20261107.txt SHA
+44f203b6d9eac80a895784f0f02e8da9b80cf14f19b0a5e4a28d8d338645e8c4;
+cycle991B SHA8ce27e2d9bffb54ca5a69a2bce40fdcb64c20b0ce3407323ae891f228777bfc4.
+Same-boot CMDDB131072B SHA236cb2b9152314a2435e7110b396cb283874ddd0f4ad989a4a726e4255d255f5.
+
+SMMU131/140, PDC six named fields and full8192-word TCM write/readback again
+complete. AO mask raw3f/check3b passes. Next exact READBACK refusal: phase0,
+GMF6, writes59/polls0,CSR window0 off020b4/PA03d7e0b4, CM3_CFG(native1f82d),
+requested4052/actual52 (bit14 differs). Reset1/release0/OOB0,FW0/version0;
+no firmware execution/ACK/GPU/Metal. GFSR0,FSR400/400,AO status0/info0.
+DSH59205 audit_failed_trial133.py actual0 -> failed-trial-audit.json state
+bound-TCM-copy-AO-mask-CM3-config-refusal, all inputs unchanged. SMMU prefix,
+raw named-field records and cached refusal are stage subsets; full rejection
+kept. Reader SHA471a48eb46ee535b86155192599efe2b6ff425bf362317ff790b77f35e0be619.
+PhoneTWRP; all handles closed. No new UI/touch/hardware reset-cause claim.
+
+Pinned native a6xx_gmu.c1099-1104 explains4052 restores CM3 configuration to
+avoid starting in NMI. Newly fetched exact19b63c8 drivers/gpu/msm/adreno.c
+defines GMU_CM3_CFG_NONMASKINTR_SHIFT9 and sets bit9 to send NMI (lines364-380).
+Cached research/tmp/dsh-0134/native/adreno.c115732B SHA
+7d8a0cc4a93144a31724f1c6e910dca41f1fae2a317a8636dcdca328763c9a5a,
+Git blob bde230310e4a0fbcf32a00f2b5bb6b63ff0dd2dc matches present exact entry
+in saved source-tree listing. Listing ref19b63c8 is TRUNCATED; only this target
+entry is verified, not a complete repository tree. First download precondition
+incorrectly expected an untruncated tree SHA, stopped before fetch/write;
+then scoped check to exact present blob + immutable raw URL, saved source-pin.
+Bit14 and other CM3 fields remain undocumented; do not invent maskffffbfff or
+read-only semantics. Actual52 has bit9 CLEAR. Next134: keep native4052 write
+and existing write/barrier/read order for ONLY CM3_CFG, require documented NMI
+bit9 clear, reject all-ones/IO/guards, cache raw value with other bits explicitly
+UNQUALIFIED; fresh FW result/ACKs still required. All other comparisons and
+public receipt unchanged. Test NMI set/all-ones,52/4052/synthetic other bits,
+cache/repeat/output and callback failures, all61 hosts and current133 F4oxTo
+native TUs. No134 code yet. Goal ACTIVE; original mkadt seven-line diff intact;
+no flash/format/GPT/destructive action.
+
+### 2026-11-07 — complete133 native kernel/image/runtime readers qualified; one physical trial next
+
+Previous goal turn was progress: actual132 full TCM copy/readback then AO
+mask refusal;133 code tested/committed/pushed. THIS turn DSH31554 actual
+standard local build0/qualification0, gauguin.F4oxTo, captured HEAD
+727b267985916ed61cfaac7acb8c097b1ba4e3fc. Exact127-patch sourceacc6af6d...a6822,
+5282files. Native installed kernel16905504B SHA
+d2b8659469267c7f1dbe5b6a2b6c4b46f81a23eb46c96cd241a9077d04e05c69,
+IDxnu-6a2dc5a2f0d041ba8542aa15af19b543. Manifest SHA
+f44fac92cbd82c708b75eb5dbea6c319c055b10b77c9a5c9bdbf21103b3b2786;
+qualification SHAe2fe0482c50834f9c11446d7e5a2c8010470681a928722e7c7135117e67f1758.
+Every132 check retained plus ao_irq_named_sources_source_bound TRUE and
+installed AO-format check. Current native recipe/source now133 F4oxTo,
+do not reuse132 InoCAW after shared Makefile replacement. No CI used.
+
+DSH64173 actual package0/independent review0, all input hashes unchanged.
+Normal package-review-execution-result.json passed; newly authored wrapper
+uses exact native133 result filename, no metadata execution failure this time.
+Image shim/out/shim-p3-gmuf-0133-native-20261107.img19546112B SHA
+cae0af455a7c3e1ecf5bcc2ce2849f2f3c201266ed4401a8ac241e763a238493;
+payload19218432B SHA025d5ed1004515c78b930065fb6c2e68847faf8fd008f3799861de568943546b.
+Evidence SHA984482f1cb34229749f6464bde3e0dfc2daa5caa22923da7f91f77314a1bd1e6.
+Unique sweettrial=gmuf-0133-20261107-a1,539bytes; same asset source placement
+NVT182558000/MDT18257c000/GMU182580000. All older132/131/etc pins preserved.
+
+DSH91516 runtime_validate133.py actual0, normal three actual zero results,
+inputs unchanged. Clock4/95,FW17/276,full explicitly SYNTHETIC11/47. Reader SHA
+471a48eb46ee535b86155192599efe2b6ff425bf362317ff790b77f35e0be619.
+Requires one AO mask row after hidden3/PDC6 before adapter completion, requested
+ffffffff, checked_mask3b, all five named bits set, other bits UNQUALIFIED;
+allows fullffffffff for THIS requested-mask word. All original FW/ACK/copy/
+reset/OOB and other all-ones/status/IRQ checks retained. Tests cover named
+source missing, zero, raw3f/full mask/synthetic other bits, false-qualified/
+wrong mask/request/offset/order/missing/duplicate records. Numeric values,
+complete131-page/140-ATOS strings and original SHA pins preserved. All these
+handles CLOSED; no133 phone proof yet at THIS checkpoint.
+
+Phone last TWRP. Reviewed boot133.py/run_hardware133.py prepared for ONE
+image-pinned temporary boot, unique recoverygauguin/fastbootgauguinpro and
+routine latch readback, unchanged180s observer/freshpull. Next execute exact
+execute-hardware.txt via DSH; bind actual refusal or real FW-result/ACKs.
+Whole goal ACTIVE, original seven-line mkadt diff untouched; no flash/format/
+GPT/destructive action. No new user UI/touch/reset-attribution evidence.
+
 ### 2026-11-07 — 0133 AO named-source mask candidate committed; all61 hosts/two native TUs pass; full build next
 
 THIS goal turn is progress: complete132 native kernel/image/readers passed;
@@ -39,8 +125,10 @@ using CURRENT132 InoCAW recipe/source. All owned handles CLOSED.
 
 132 physical handoff pushed/verified publiclye0b5fd270a21db704d56e4a5db8ff6ad09501c8d,
 sole parentdd3ad8bb9a72b9b879a8d8c3e37c0414ec777f94, two text paths, private
-head e0569a3 not pushed. Next sanitized133 source/notes snapshot on e0b5fd2;
-publication report research/tmp/dsh-0133/public-snapshot-0133.json. Never push
+head e0569a3 not pushed.133 sanitized source/notes pushed/verified
+6b403b0bb84c825fb4f919239b02ba998f65ab17, sole parent e0b5fd2, eight text
+paths, same tree as private fd5228e. Publication report
+research/tmp/dsh-0133/public-snapshot-0133.json. Never push
 private ancestry, device dumps, serials or binary assets.
 
 NEXT: full133 standard local native build/qualification retaining every132

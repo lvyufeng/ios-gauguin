@@ -11,7 +11,7 @@ struct fake {
     struct ggm_plan plan;
     uint32_t regs[16384];unsigned char tables[32768];
     unsigned step,fail,writes,prepared,atos,barriers;
-    unsigned ignore,stuck,wrong_par,drift;
+    unsigned ignore,stuck,wrong_par,drift,opaque_mode;
     bool nested;
 };
 static bool tick(struct fake *f){return ++f->step!=f->fail;}
@@ -67,7 +67,12 @@ static bool write32(void *cookie,uint32_t off,uint32_t value)
 {
     struct fake *f=cookie;CHECK(off<65536&&!(off&3));if(!tick(f))return false;++f->writes;
     if(off==f->ignore)return true;
-    if(off==0x6000)f->regs[off/4]=(value&~8u)|((value&4)?8u:0u);
+    if(off==0x6b68&&f->opaque_mode){
+        CHECK(value==0x9a82a382); /* exact native DT write, never readback-tuned */
+        const uint32_t observations[]={0,0x0a800082,UINT32_MAX,0,0x12345678};
+        CHECK(f->opaque_mode<sizeof(observations)/sizeof(*observations));
+        f->regs[off/4]=observations[f->opaque_mode];
+    }else if(off==0x6000)f->regs[off/4]=(value&~8u)|((value&4)?8u:0u);
     else if(off==0x48||(off>=0x8000&&(off&0xfff)==0x58))f->regs[off/4]&=~value;
     else f->regs[off/4]=value;
     return true;
@@ -139,8 +144,10 @@ static void stopped(struct fake *f)
 {
     unsigned step=f->step;struct gsm_receipt r,b;memset(&r,0x64,sizeof(r));b=r;
     struct gsm_diagnostics diagnostic=f->channel.diagnostic;
+    struct gsm_impl_sample implementation=f->channel.implementation;
     CHECK(run(f,&r)==GSM_ALREADY);CHECK(f->step==step&&!memcmp(&r,&b,sizeof(r)));
     CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));
+    CHECK(!memcmp(&implementation,&f->channel.implementation,sizeof(implementation)));
 }
 static void happy(void)
 {
@@ -155,6 +162,7 @@ static void happy(void)
         CHECK(r.cr0_after==0xc01c36&&r.micro_after==0x2370);
         CHECK(r.writes==f->writes&&f->prepared==1&&!(f->regs[0x6000/4]&4));
         CHECK(f->channel.diagnostic.phase==GSP_DONE&&f->channel.diagnostic.check==GSD_NONE);
+        CHECK(f->channel.implementation.valid==1&&f->channel.implementation.requested==0x9a82a382&&f->channel.implementation.readback==0x9a82a382);
         for(unsigned i=0;i<r.groups;i++)if(i!=r.slot[0]&&i!=r.slot[1]){
             CHECK(f->regs[(0xc00+4*i)/4]==original[(0xc00+4*i)/4]);
             if(match)CHECK(f->regs[(0x800+4*i)/4]==original[(0x800+4*i)/4]);
@@ -236,13 +244,35 @@ static void arguments(void)
     o.write64=NULL;CHECK(gsm_configure_once(&f->channel,&o,&f->plan,&r)==GSM_ARGUMENT);
     CHECK(f->step==s&&!f->channel.state);free(f);
 }
+static void opaque_native_write(void)
+{
+    for(unsigned mode=1;mode<=4;mode++){
+        struct fake *f=fresh(true);f->opaque_mode=mode;
+        struct gsm_receipt r,b;memset(&r,0x84,sizeof(r));b=r;
+        CHECK(run(f,&r)==(mode==2?GSM_READBACK:GSM_OK));
+        CHECK(f->channel.implementation.valid==1&&f->channel.implementation.requested==0x9a82a382);
+        const uint32_t observations[]={0,0x0a800082,UINT32_MAX,0,0x12345678};
+        CHECK(f->channel.implementation.readback==observations[mode]);
+        if(mode==2){
+            CHECK(!memcmp(&r,&b,sizeof(r))&&f->atos==0&&f->writes==13);
+            CHECK(f->channel.diagnostic.phase==GSP_GLOBAL&&f->channel.diagnostic.check==GSD_STORE32&&f->channel.diagnostic.offset==0x6b68);
+        }else CHECK(r.translations==140&&r.mapped_pages==131&&f->atos==140);
+        stopped(f);free(f);
+    }
+    /* An opaque readback never bypasses architected control or ATOS gates. */
+    struct fake *f=fresh(true);f->opaque_mode=1;f->ignore=CB(6);struct gsm_receipt r;
+    CHECK(run(f,&r)==GSM_READBACK&&f->channel.diagnostic.offset==CB(6));stopped(f);free(f);
+    f=fresh(true);f->opaque_mode=1;f->wrong_par=1;
+    CHECK(run(f,&r)==GSM_TRANSLATION);stopped(f);free(f);
+    printf("SMMU opaque native-write: observed/non-echo/zero samples, all-ones refusal and independent control/ATOS gates PASS\n");
+}
 static void faults(void)
 {
     struct fake *f=fresh(true);struct gsm_receipt r;CHECK(run(f,&r)==GSM_OK);unsigned steps=f->step;free(f);
-    for(unsigned fail=1;fail<=steps;fail++){
-        f=fresh(true);f->fail=fail;struct gsm_receipt b;memset(&r,0x84,sizeof(r));b=r;
+    for(unsigned mode=0;mode<=1;mode++)for(unsigned fail=1;fail<=steps;fail++){
+        f=fresh(true);f->opaque_mode=mode;f->fail=fail;struct gsm_receipt b;memset(&r,0x84,sizeof(r));b=r;
         CHECK(run(f,&r)==GSM_IO);CHECK(!memcmp(&r,&b,sizeof(r)));stopped(f);free(f);
     }
-    printf("SMMU fail-every-callback: %u boundaries PASS\n",steps);
+    printf("SMMU fail-every-callback: %u boundaries x echo/non-echo PASS\n",steps);
 }
-int main(void){happy();bad();arguments();faults();printf("SMMU transaction: %u checks PASS\n",checks);}
+int main(void){happy();bad();arguments();opaque_native_write();faults();printf("SMMU transaction: %u checks PASS\n",checks);}

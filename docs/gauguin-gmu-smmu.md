@@ -1,8 +1,8 @@
 # Gauguin GMU SMMU initialization
 
 The cold SMMU transaction and native board adapter consume the
-[memory/HFI image contract](gauguin-gmu-memory-hfi.md). No boot hook calls the
-adapter yet. Native compilation and host execution with hardware seams do not
+[memory/HFI image contract](gauguin-gmu-memory-hfi.md). The opt-in coherent
+firmware coordinator calls this adapter. Native compilation and host execution with hardware seams do not
 establish physical register access, firmware boot or GPU acceleration.
 
 The primary reference is
@@ -89,6 +89,36 @@ TTBR0/1, TCR, MAIR0/1, IAS and OAS. Other offsets are byte register offsets.
 The comparison tuple comes from the exact rejected predicate. The secondary
 identity/control fields are a partial cached work record; zero in an after
 field not yet filled is not a fresh hardware observation.
+
+## Opaque implementation write after trial0125
+
+The real0125 trial rejected the13th store at global offset0x6b68, physical
+0x03d46b68: requested0x9a82a382, readback0x0a800082, comparison mask0xffffffff.
+No context programming or ATOS had started; firmware had not been entered.
+The captured device tree contains that exact write pair. The pinned native
+`qsmmuv2_device_reset` writes each DT implementation value at lines4766–4771
+without imposing full-width readback equality. Its source does not document
+this register's writable/readable bit fields. The observed difference is
+insufficient to infer a writable mask or the reason particular bits read zero.
+
+Patch0126 changes only this opaque register's equality policy. It issues the
+same native write with the same guarded write/barrier/read callback sequence,
+retains the raw readback, and still rejects an all-ones response or any I/O or
+owner failure. It does not replace the write value with the observed value,
+invent a mask, retry the access, or change any other register predicate.
+Non-echo and even zero readbacks are observations with no per-bit acceptance
+claim. An ignored opaque write cannot independently be distinguished here;
+successful translation checks do not qualify this register's undocumented
+fields. This is a bring-up experiment following the native write policy.
+
+All architected context/route/fault checks and140 actual ATOS checks remain
+mandatory before reset release. The new `SWEET GMU SMMU IMPL` row records the
+requested and read values, explicitly marking equality unqualified. It logs
+from the cached private context after quarantine on failure, or with the SMMU
+receipts before firmware windows on success; it adds no MMIO. Success/failure
+outputs and repeat-call quarantine behavior remain unchanged. Host projection
+tests establish software behavior only. A new qualified kernel and exact
+temporary-boot trial are still required to test this on hardware.
 
 The coherent firmware adapter and opt-in coordinator are described in
 [the firmware contract](gauguin-gmu-firmware.md). They must still pass this

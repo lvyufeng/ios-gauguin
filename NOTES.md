@@ -2,6 +2,107 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0125 physical failure identified; 0126 native-write experiment passes61 host files and two native TUs
+
+Previous checkpoint was progress:125 complete local kernel/image and strict
+runtime readers qualified. THIS turn DSH48522 closed0 after ONE actual125
+temporary boot: Send19072KB0.447s/Boot0.134s/total0.583s, start
+2026-11-06T18:31:35.476737Z, finish18:33:47.526698Z, recovery131s/observer0.
+Unique recovery productgauguin / fastboot productgauguinpro and13-byte routine
+recovery latch readback all passed. Phone nowTWRP. No flash/format/GPT change.
+Strict hardware-full-verification.json remains evidence-rejected/exit2.
+Separate hardware-diagnostic-verification.json exit0 means ONLY a verified
+failed-predicate capture, never firmware/SMMU/GPU success. Original logs kept.
+Fresh4026lines/450423B p3-gmuf-0125-native-observer-20261107.txt SHA
+63098de2bf563afa83a3392f57622140f8659ab04ef2d00a46b1f0517ce7cdc1;
+991B cycle SHAea28838a95260deb510fc30a65555c60e5feb453f08ef34587de0ab958a2208e.
+BuildIDxnu-35e8ee3b79544eba9a9ed80d8d3bccb3, gmuf-0125-20261107-a1 and
+e545fa47...541c9 image match the qualified125 package. Same-trial CMDDB131072B
+SHA64dfc9cee0e4f102ebe6a8381ada050f91ddd7aada4477a7b85ffdbfb909f5cc.
+
+Exact real failure: phase4/global check1/store32 off06b68, PA03d46b68,
+mask00000000ffffffff, requested000000009a82a382, actual000000000a800082.
+Cached id48016605/20008005/00007511, cr0before00200626, microbefore00002378,
+IAS39/OAS36, writes13/polls1/ATOS0. Zero after fields are UNSET, not observed.
+Contexts/ATOS/firmware path had not started. Not the synthetic6960/3f example.
+THIS125 autonomous/manual attribution question is pending; do not reuse124's
+answer. Latest user reply explicitly confirmed124 only. PMIC cause unproven.
+
+Pinned native arm-smmu.c19b63c8 lines4766–4771 writes DT attach-impl-defs
+without readback-equality checks. Actual device DT has06b68/9a82a382. Neither
+source documents bit masks: no claim that the missing bits are reserved,
+write-only or secure. Codex authored0126 native-write experiment, code commit
+156a62d7b34246c43ec84ff2d0de111124338edd: only06b68 uses exact native write
+and SAME guarded write/barrier/read sequence, retaining raw readback without
+per-bit acceptance. No write-value tuning/mask invention/retry/other predicate
+change; all-ones and callback/owner failures still stop. Unknown opaque write
+effects remain UNQUALIFIED even if later ATOS passes. All other controls,
+fault checks and140 ATOS stay mandatory. Private cached sample logs after
+failure quarantine or with SMMU receipts before firmware windows on success.
+Public success receipt unchanged. Full daily-use goal stays ACTIVE/incomplete.
+
+DSH71985 actual validation0: strict fresh120-patch source126-codex5282 files
+SHA258f3be295363d721df43229f210a7322f71ce0ef6e3b1be833d4ec4236d5b16,
+only board.c/smmu.c/h differ from frozen125. All61 host files passed, SMMU
+3,482,273 ASan/UBSan checks incl2541 callback failures x echo/non-echo and
+independent architected-control/ATOS refusals; board2839+75 cases. Original
+125 frozen fixture baseline/candidate3,259,083 IOcallbacks identical digest
+b627036027cd4225. Both real ARM64 TUs compiled using CURRENT qualified125
+gauguin.zy6VU9 manifest/recipe; no manual objects or warning bypass. All input
+pins/source125/source126 unchanged in research/tmp/dsh-0126/validation-result.json.
+No126 full build/image/boot yet. Next standard local126 kernel build, strict
+qualification/package/runtime reader with explicit opaque-field limitation,
+then ONE exact temporary boot. Preserve all125 rejected proof and oldimages.
+User mkadt original7line diff untouched. Codex core/Git/audit; DSH execution.
+
+### 2026-11-07 — 0125 complete local kernel/image and both runtime readers validated; diagnostic boot next
+
+Previous goal turn made concrete progress: ONE124 real trial failed at SMMU
+READBACK and source125 cached diagnostics were committed95e8574/handoff5aca48b,
+sanitized publica8a7c783630911290cab6b5d0749b80bd161297d pushed/verified.
+THIS125 full native build/dSYM/strip/install and qualification both actualexit0
+in gauguin.zy6VU9, captured private5aca48b0a41cdf56ec1c05a8fbdc01db72cda644.
+Exact host-tested119-patch sourcef5376027...b4fda/5282files unchanged. Standard
+build only; no CI, manual object repair, warning bypass or stripped substitute.
+Same20 required symbols/six GMU archive members verified. Both new failure
+format strings are present in the actual installed kernel. DSH68845 closed0.
+
+Kernel16888944B SHA8e4c8c07b7c4878f8a1e5b03dea054a81f953e469bc86b898a696546b10fae5e,
+IDxnu-35e8ee3b79544eba9a9ed80d8d3bccb3. Manifest SHA
+128ed162c445a6a303ed574df332e7757d4b6aaf8ff5e5555bf3a66648c6fd32.
+Qualification p3-native-0125-qualification-20261107.json SHA
+0c760267d5d2dd337c37a457cb339d37fb3818cff7045080eb2c886687250e7d.
+DSH59884 package/review both actualexit0; image-parent-review.json PASS and
+package-review-execution-result.json passed, frozen inputs unchanged.
+Image shim/out/shim-p3-gmuf-0125-native-20261107.img19529728B SHA
+e545fa47d44388de435d7d0dd082823329203a32923c51d2e2cab176f00541c9,
+539-byte bootargs, unique sweettrial=gmuf-0125-20261107-a1. Three source assets
+retain NVT182554000/MDT182578000/GMU18257c000; all older image pins intact.
+
+Codex prepared strict verify_gmuf125.py (SHA0114ea671ac472fb15a2708829605c0603705fa289ce31384214b133cc3f34a5)
+with exact new source/marker and required linked diagnostics; prior full-FW
+success checks remain. Separate verify_smmu_diag125.py (SHA5bc9f65e9c106a8edd1cedbeea147a25f95a9d738b7208055fd75fd667044d28)
+verifies ONLY a failed predicate capture: typed phase/check/offset/mask/value,
+native geometry/widths, source bounds and exact refusal/quarantine order,
+same-trial asset/CMDDB/image identity. CONFIG is a CPU field, not an MMIO
+offset. It always reports SMMU/FW/GPU/Metal completion FALSE and preserves
+the strict full-verifier rejection. Zero after fields remain unqualified.
+No parser relaxation that labels a failed SMMU transaction as successful.
+
+DSH33149 runtime-parser-result.json PASS, all pins unchanged: retained full
+clock/FW suites plus separate diagnostic valid8/rejected60, including an
+explicitly synthetic full trace with ACTUAL125 package binding and stale124
+runtime rejection. These are HOST tests, never125 hardware evidence.
+No125 phone access/boot yet at this checkpoint; last phone stateTWRP after
+user-confirmed autonomous124 recovery. Next exact125 temporary image boot,
+using recovery productgauguin / bootloader productgauguinpro separately;
+read back the non-destructive recovery BCB request before switching modes.
+Then unchanged bounded observer body and strict full verifier; if rejected,
+separate diagnostic reader must capture the exact failing tuple. Never infer
+it from the synthetic6960/3f formatter example. THIS125 reset attribution is
+still required separately. Full daily-use/GPU/Metal/RAM/storage/peripherals/
+90–120Hz goal remains ACTIVE/incomplete. No flash/format/GPT changes.
+
 ### 2026-11-07 — 0124 actual trial stops on SMMU READBACK; autonomous131s recovery confirmed
 
 Previous turn was progress:124 complete native kernel/image plus sanitized

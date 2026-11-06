@@ -31,7 +31,7 @@ import warnings
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-XNU = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/p0-20261105/source115-codex'))
+XNU = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/p0-20261105/source122-codex'))
 SOURCE = Path(os.environ.get('PAS_STAGE_SOURCE', XNU / 'bsd/dev/gauguin_pas_stage.c'))
 FIXTURE = HERE / 'fixtures/gauguin_pas_stage_host.c'
 PAGE = 16384

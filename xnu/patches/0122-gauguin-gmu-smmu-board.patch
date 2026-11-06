@@ -1,0 +1,696 @@
+diff --git a/bsd/conf/files b/bsd/conf/files
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -126,4 +126,6 @@
+ bsd/dev/gauguin_gmu_memory.c		standard
+ bsd/dev/gauguin_gmu_hfi.c			standard
++bsd/dev/gauguin_gmu_smmu.c		standard
++bsd/dev/gauguin_gmu_board.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+diff --git a/bsd/dev/gauguin_cx_power.c b/bsd/dev/gauguin_cx_power.c
+--- a/bsd/dev/gauguin_cx_power.c
++++ b/bsd/dev/gauguin_cx_power.c
+@@ -388,3 +388,32 @@
+     gcx_record("SWEET GMU CLOCK: complete configured_hz=200000000; held requests, no GMU firmware/reset release/PAS/GX operation");return GCX_OK;
+ }
++static bool gmq_read(vm_offset_t mapping,uint32_t offset,uint32_t *out)
++{
++    if(!gauguin_wdt_lease_check_budget(GCX_STEP_TICKS))return false;
++    uint32_t value=gmc_read(mapping,offset);
++    if(!gauguin_wdt_lease_check_budget(GCX_STEP_TICKS)||value==UINT32_MAX)return false;
++    *out=value;return true;
++}
++bool sweet_gmu_clock_quiet(uint32_t *gx_gdsc)
++{
++    if(!gx_gdsc||!gcx_context()||sweet_gmu_clock_state()!=GCX_COMPLETE||
++       sweet_cx_power_state()!=GCX_COMPLETE||sweet_cx_rail_state()!=GCR_COMPLETE||
++       sweet_bcm_transport_state()!=GBCMT_COMPLETE||!gmc_pll||!gmc_axi||!gcx_gpucc||!gcx_gcc)return false;
++    vm_offset_t maps[]={gmc_pll,gmc_pll,gmc_pll,gcx_gcc,gcx_gpucc,gcx_gpucc,
++        gcx_gpucc,gcx_gpucc,gcx_gpucc,gcx_gpucc,gmc_axi,gcx_gcc,gcx_gpucc,gcx_gpucc};
++    static const uint32_t offsets[]={0,4,0x38,0x114c,0x1078,0x106c,
++        0x1120,0x1124,0x1098,0x109c,0x1038,0x100c,0x1064,0x100c};
++    uint32_t s[14];
++    for(unsigned i=0;i<14;i++)if(!gmq_read(maps[i],offsets[i],&s[i]))return false;
++    if((s[0]&0xc0100000u)!=0xc0100000u||s[1]!=31||s[2]!=0x4000||(s[3]&3)!=1||
++       !(s[4]&1)||(s[5]&0x8000f007u)!=0x80008000u||(s[6]&0xf3)||
++       (s[7]&0x10371f)!=0x602||(s[8]&0xff1)!=0xff1||!(s[9]&1)||
++       !(s[10]&1)||!(s[11]&1)||(s[12]&1)||!(s[12]&0x80000000u)||
++       (s[13]&0x80000000u))return false;
++    for(unsigned i=8;i<=11;i++){
++        if(i>=10&&(s[i]&2))continue;
++        if((s[i]&0x80000000u)&&(s[i]&0xf0000000u)!=0x20000000u)return false;
++    }
++    *gx_gdsc=s[13];return true;
++}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -0,0 +1,176 @@
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/clock.h>
++#include <machine/machine_routines.h>
++#include <mach/mach_time.h>
++#include <vm/pmap.h>
++#include <IOKit/IOLib.h>
++#include "gauguin_gmu_board.h"
++#include "gauguin_gmu_clock.h"
++#include "gauguin_wdt_lease.h"
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t,vm_size_t,vm_prot_t);
++extern vm_offset_t ml_io_map_wcomb(vm_offset_t,vm_size_t);
++extern vm_offset_t ml_vtophys(vm_offset_t);
++extern boolean_t pmap_valid_page(ppnum_t);
++extern unsigned int pmap_cache_attributes(ppnum_t);
++extern int get_preemption_level(void);
++extern bool sweet_gmu_irq_quiet(uint32_t [3]);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++#define GMB_PAGE 0x4000u
++#define GMB_MIN (3u*GAUGUIN_WDT_CLOCK_HZ)
++_Static_assert(PAGE_SHIFT==14,"GMU board mappings use16KiB CPU pages");
++static unsigned gmb_lifecycle;
++static uint64_t gmb_deadline;
++static vm_offset_t gmb_reset,gmb_smmu,gmb_ram;
++static struct gsm_context gmb_context;
++static struct gmb_receipt gmb_work;
++static struct sweet_pas_cpu_stage gmb_stage;
++
++static bool gmb_thread(void)
++{return ml_get_interrupts_enabled()&&!ml_at_interrupt_context()&&!get_preemption_level();}
++static void gmb_record(const char *line)
++{printf("%s\n",line);if(gmb_thread()){sweet_log_mark_sync(line);sweet_log_flush_now();}}
++enum gmb_state sweet_gmu_board_state(void)
++{return (enum gmb_state)__atomic_load_n(&gmb_lifecycle,__ATOMIC_ACQUIRE);}
++static enum gmb_result gmb_fail(enum gmb_result rc,const char *why)
++{
++    __atomic_store_n(&gmb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    gauguin_wdt_lease_quarantine();char line[192];
++    snprintf(line,sizeof(line),"SWEET GMU BOARD: stopped rc=%u smmu=%u reason=%s; mappings retained, no retry/reset release",(unsigned)rc,(unsigned)gmb_work.smmu_result,why);
++    gmb_record(line);return rc;
++}
++static bool gmb_outer(void)
++{
++    uint32_t irq[3],gx;
++    return gmb_thread()&&mach_absolute_time()<gmb_deadline&&
++        gauguin_wdt_lease_check_budget(GMB_MIN)&&sweet_gmu_clock_quiet(&gx)&&
++        sweet_gmu_irq_quiet(irq)&&mach_absolute_time()<gmb_deadline&&
++        gauguin_wdt_lease_check_budget(GMB_MIN);
++}
++static bool gmb_reset_check(uint32_t *observed)
++{
++    if(!gmb_reset||!gmb_outer())return false;
++    uint32_t reset=*(volatile uint32_t *)(gmb_reset+0x2000);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    if(observed)*observed=reset;
++    return reset==1&&gmb_outer();
++}
++static bool gmb_guard(void *cookie)
++{(void)cookie;return gmb_reset_check(NULL);}
++static bool gmb_device_map(uint64_t pa,unsigned bytes,vm_offset_t *out)
++{
++    if(!gmb_outer())return false;
++    for(unsigned off=0;off<bytes;off+=GMB_PAGE){
++        ppnum_t pn=(ppnum_t)((pa+off)>>PAGE_SHIFT);
++        if(pmap_valid_page(pn)||(pmap_cache_attributes(pn)&255u)!=7u)return false;
++    }
++    *out=ml_io_map_with_prot((vm_offset_t)pa,bytes,VM_PROT_READ|VM_PROT_WRITE);
++    if(!*out||(*out&(GMB_PAGE-1))||*out>UINTPTR_MAX-(bytes-1u))return false;
++    for(unsigned off=0;off<bytes;off+=GMB_PAGE)
++        if(ml_vtophys(*out+off)!=pa+off||ml_vtophys(*out+off+GMB_PAGE-1)!=pa+off+GMB_PAGE-1)return false;
++    return gmb_outer();
++}
++static bool gmb_read32(void *cookie,uint32_t off,uint32_t *v)
++{
++    (void)cookie;if(!gmb_smmu||off>0xfffc||(off&3))return false;
++    *v=*(volatile uint32_t *)(gmb_smmu+off);
++    __asm__ volatile("dmb oshld" ::: "memory");return true;
++}
++static bool gmb_write32(void *cookie,uint32_t off,uint32_t v)
++{
++    (void)cookie;if(!gmb_smmu||off>0xfffc||(off&3))return false;
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)(gmb_smmu+off)=v;return true;
++}
++static bool gmb_read64(void *cookie,uint32_t off,uint64_t *v)
++{
++    (void)cookie;if(!gmb_smmu||off>0xfff8||(off&7))return false;
++    *v=*(volatile uint64_t *)(gmb_smmu+off);
++    __asm__ volatile("dmb oshld" ::: "memory");return true;
++}
++static bool gmb_write64(void *cookie,uint32_t off,uint64_t v)
++{
++    (void)cookie;if(!gmb_smmu||off>0xfff8||(off&7))return false;
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint64_t *)(gmb_smmu+off)=v;return true;
++}
++static bool gmb_barrier(void *cookie)
++{(void)cookie;__asm__ volatile("dsb sy" ::: "memory");return true;}
++static bool gmb_delay(void *cookie,unsigned us)
++{(void)cookie;if(us!=5&&us!=10)return false;delay(us);return true;}
++static bool gmb_ram_map(void)
++{
++    if(!gmb_guard(NULL)||!sweet_pas_stage_owner_valid(&gmb_stage))return false;
++    /* Never remap the first16KiB: the existing PAS owner retains that alias. */
++    gmb_ram=ml_io_map_wcomb((vm_offset_t)(gmb_stage.pa+GMB_PAGE),GGM_REGION_BYTES-GMB_PAGE);
++    if(!gmb_ram||(gmb_ram&(GMB_PAGE-1))||gmb_ram>UINTPTR_MAX-(GGM_REGION_BYTES-GMB_PAGE-1u))return false;
++    for(unsigned off=GMB_PAGE;off<GGM_REGION_BYTES;off+=GMB_PAGE){
++        ppnum_t pn=(ppnum_t)((gmb_stage.pa+off)>>PAGE_SHIFT);
++        vm_offset_t va=gmb_ram+off-GMB_PAGE;
++        if(pmap_valid_page(pn)||pmap_cache_attributes(pn)!=UINT32_C(0xd0000006)||
++           ml_vtophys(va)!=gmb_stage.pa+off||ml_vtophys(va+GMB_PAGE-1)!=gmb_stage.pa+off+GMB_PAGE-1)return false;
++    }
++    return gmb_guard(NULL);
++}
++static bool gmb_memory(unsigned offset,const uint32_t *source,unsigned bytes,bool check)
++{
++    if(!gmb_ram||offset<GMB_PAGE||(offset&4095)||!bytes||(bytes&4095)||offset>GGM_ARENA_END||bytes>GGM_ARENA_END-offset)return false;
++    for(unsigned chunk=0;chunk<bytes;chunk+=4096){
++        if(!gmb_guard(NULL))return false;
++        volatile uint32_t *dst=(volatile uint32_t *)(gmb_ram+offset-GMB_PAGE+chunk);
++        for(unsigned i=0;i<1024;i++){
++            uint32_t expected=source?source[chunk/4+i]:0;
++            if(check){if(dst[i]!=expected)return false;}else dst[i]=expected;
++        }
++        __asm__ volatile("dsb sy" ::: "memory");
++        if(!gmb_guard(NULL))return false;
++    }
++    return true;
++}
++static bool gmb_prepare(void *cookie,unsigned ias,unsigned oas,struct ggm_s1_config *out)
++{
++    (void)cookie;if(!gmb_ram_map())return false;
++    uint8_t *scratch=IOMalloc(65536);if(!scratch)return false;
++    struct ggm_s1_config cfg;struct ggm_plan *p=&gmb_context.plan;
++    bool good=ggm_emit_tables(p,ias,oas,scratch,32768,&cfg)&&ggm_emit_hfi(p,scratch+32768,32768);
++    for(unsigned r=0;r<GGM_COUNT&&good;r++)
++        good=gmb_memory(p->region[r].offset,NULL,p->region[r].reserved,false)&&
++            gmb_memory(p->region[r].offset,NULL,p->region[r].reserved,true);
++    if(good)good=gmb_memory(GGM_TABLE_OFFSET,(const uint32_t *)scratch,GGM_TABLE_BYTES,false)&&
++        gmb_memory(GGM_TABLE_OFFSET,(const uint32_t *)scratch,GGM_TABLE_BYTES,true)&&
++        gmb_memory(p->region[GGM_HFI].offset,(const uint32_t *)(scratch+32768),GGM_HFI_RESERVED,false)&&
++        gmb_memory(p->region[GGM_HFI].offset,(const uint32_t *)(scratch+32768),GGM_HFI_RESERVED,true);
++    IOFree(scratch,65536);
++    if(!good||!sweet_pas_stage_owner_valid(&gmb_stage)||!gmb_guard(NULL))return false;
++    *out=cfg;return true;
++}
++enum gmb_result sweet_gmu_smmu_once(const struct sweet_pas_cpu_stage *stage,struct gmb_receipt *out)
++{
++    if(!stage||!out)return GMB_ARGUMENT;
++    struct sweet_pas_cpu_stage copy=*stage;unsigned expected=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&gmb_lifecycle,&expected,GMB_RUNNING,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMB_ALREADY;
++    gmb_stage=copy;
++    if(!gmb_thread())return gmb_fail(GMB_CONTEXT,"thread context");
++    clock_interval_to_deadline(8,NSEC_PER_SEC,&gmb_deadline);
++    if(!sweet_pas_stage_owner_valid(stage)||!ggm_plan_build(stage->pa,&gmb_context.plan))return gmb_fail(GMB_MEMORY,"actual claimed low owner");
++    if(!gauguin_wdt_lease_check_budget(13u*GAUGUIN_WDT_CLOCK_HZ))return gmb_fail(GMB_BUDGET,"initial13s budget");
++    if(!gmb_outer()||!sweet_gmu_clock_quiet(&gmb_work.gx_before)||!sweet_gmu_irq_quiet(gmb_work.irq_before))return gmb_fail(GMB_PARENT,"live clock/GX/NS IRQ predicates");
++    gmb_work.owner_pa=stage->pa;
++    gmb_record("SWEET GMU BOARD: before narrow reset03d7c000+4000 RW map; no reset write");
++    if(!gmb_device_map(UINT64_C(0x03d7c000),GMB_PAGE,&gmb_reset))return gmb_fail(GMB_MAPPING,"reset page");
++    if(!gmb_reset_check(&gmb_work.reset_before))return gmb_fail(GMB_RESET,"CM3 reset must already be asserted");
++    gmb_record("SWEET GMU BOARD: CM3 reset1 observed; before SMMU03d40000+10000 RW map");
++    if(!gmb_device_map(UINT64_C(0x03d40000),0x10000,&gmb_smmu)||!gmb_guard(NULL))return gmb_fail(GMB_MAPPING,"SMMU aperture");
++    struct gsm_ops ops={NULL,gmb_guard,gmb_read32,gmb_write32,gmb_read64,gmb_write64,gmb_barrier,gmb_delay,gmb_prepare};
++    struct ggm_plan plan=gmb_context.plan;
++    gmb_work.smmu_result=gsm_configure_once(&gmb_context,&ops,&plan,&gmb_work.smmu);
++    if(gmb_work.smmu_result!=GSM_OK)return gmb_fail(GMB_SMMU,"native SMMU initialization/ATOS");
++    if(!sweet_pas_stage_owner_valid(&gmb_stage)||!gmb_guard(NULL))return gmb_fail(GMB_MEMORY,"final metadata/lease/reset predicates");
++    *out=gmb_work;__atomic_store_n(&gmb_lifecycle,GMB_READY,__ATOMIC_RELEASE);
++    gmb_record("SWEET GMU BOARD: complete131 mapped pages/140 ATOS checks; CM3 still reset, no firmware execution");
++    return GMB_OK;
++}
++#endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gmu_board.h b/bsd/dev/gauguin_gmu_board.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -0,0 +1,22 @@
++#ifndef GAUGUIN_GMU_BOARD_H
++#define GAUGUIN_GMU_BOARD_H
++#include "gauguin_gmu_smmu.h"
++#include "gauguin_pas_stage.h"
++enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
++enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
++    GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU};
++struct gmb_receipt {uint64_t owner_pa;uint32_t reset_before,gx_before,irq_before[3];
++    enum gsm_result smmu_result;struct gsm_receipt smmu;};
++/* Internal coherent-GMU-initializer entry, deliberately no boot hook/flag yet.
++ * Caller is the sole consumer of the real same-boot CPU-stage claim. Requires
++ * completed native clock/CX path, an armed lease, asserted CM3 reset and GX
++ * PWR_ON0. Reuses retained clock/GIC owners, maps only reset03d7c000+4000 and
++ * SMMU03d40000+10000, and maps the low arena AFTER its protected metadata page.
++ * Both Device and NC mappings are retained on every outcome. No reset write,
++ * firmware/PAS/GX operation or retry. Failure quarantines the shared WDT lease.
++ * READY means SMMU/routes and actual ATOS checks completed under reset, not
++ * executing firmware, working HFI or GPU acceleration. Outputs only on success.
++ */
++enum gmb_result sweet_gmu_smmu_once(const struct sweet_pas_cpu_stage *,struct gmb_receipt *);
++enum gmb_state sweet_gmu_board_state(void);
++#endif
+diff --git a/bsd/dev/gauguin_gmu_clock.h b/bsd/dev/gauguin_gmu_clock.h
+--- a/bsd/dev/gauguin_gmu_clock.h
++++ b/bsd/dev/gauguin_gmu_clock.h
+@@ -18,3 +18,10 @@
+ enum gcx_rc sweet_gmu_clock_once(struct gmc_receipt *);
+ enum gcx_state sweet_gmu_clock_state(void);
++/* Read-only live fixed-clock/CX and GX PWR_ON0 observation for the following
++ * cold GMU/SMMU owner. Does not reuse the completed clock transaction's stale
++ * CPU deadline; caller must supply its own deadline and CM3/IRQ policy.
++ * Repeats current WDT budgets around every read; no mappings/writes/retry.
++ * This does not establish secure ownership or cancel a stalled MMIO read.
++ */
++bool sweet_gmu_clock_quiet(uint32_t *gx_gdsc);
+ #endif
+diff --git a/bsd/dev/gauguin_gmu_smmu.c b/bsd/dev/gauguin_gmu_smmu.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_smmu.c
+@@ -0,0 +1,286 @@
++/* A619/qcom,smmu-v2 fixed board transaction. Native arm-smmu.c and regs.h
++ * pin19b63c8192b1c9b7c4d931d7d3be92024bc2d778; DT attach-impl-defs.
++ * Physical authorization is exclusively the guarded board adapter's duty. */
++#include <string.h>
++#include "gauguin_gmu_smmu.h"
++#define CB(n) (0x8000u+0x1000u*(n))
++#define SMR(n) (0x800u+4u*(n))
++#define S2CR(n) (0xc00u+4u*(n))
++#define VALID 0x80000000u
++#define MICRO 0x6000u
++#define HALT 4u
++#define IDLE 8u
++#define SCTLR 0x00c01067u /* NC owner; no-stall, no HUPCF, native S1 bits */
++#define ACTLR 0x70000000u
++static const uint32_t impl[][2]={
++    {0x6000,0x2378},{0x6060,0x1055},{0x678c,8},{0x6794,0x28},
++    {0x6800,6},{0x6900,0x3ff},{0x6924,0x204},{0x6928,0x11000},
++    {0x6930,0x800},{0x6960,0xffffffff},{0x6b64,0x1a5551},{0x6b68,0x9a82a382}
++};
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++static bool r32(struct gsm_context *c,uint32_t off,uint32_t *v)
++{return off<=0xfffc&&!(off&3)&&c->ops.guard(c->ops.cookie)&&c->ops.read32(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);}
++static bool r64(struct gsm_context *c,uint32_t off,uint64_t *v)
++{return off<=0xfff8&&!(off&7)&&c->ops.guard(c->ops.cookie)&&c->ops.read64(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);}
++static bool w32(struct gsm_context *c,uint32_t off,uint32_t v)
++{
++    if(off>0xfffc||(off&3)||!c->ops.guard(c->ops.cookie))return false;
++    ++c->work.writes;
++    return c->ops.write32(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);
++}
++static bool w64(struct gsm_context *c,uint32_t off,uint64_t v)
++{
++    if(off>0xfff8||(off&7)||!c->ops.guard(c->ops.cookie))return false;
++    ++c->work.writes;
++    return c->ops.write64(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);
++}
++static bool sync_memory(struct gsm_context *c)
++{return c->ops.guard(c->ops.cookie)&&c->ops.barrier(c->ops.cookie)&&c->ops.guard(c->ops.cookie);}
++static bool delay(struct gsm_context *c,unsigned us)
++{return c->ops.guard(c->ops.cookie)&&c->ops.delay_us(c->ops.cookie,us)&&c->ops.guard(c->ops.cookie);}
++static enum gsm_result store(struct gsm_context *c,uint32_t off,uint32_t value,uint32_t mask)
++{
++    uint32_t v;
++    if(!w32(c,off,value)||!sync_memory(c)||!r32(c,off,&v))return GSM_IO;
++    return (v&mask)==(value&mask)?GSM_OK:GSM_READBACK;
++}
++static enum gsm_result store64(struct gsm_context *c,uint32_t off,uint64_t value)
++{
++    uint64_t v;
++    if(!w64(c,off,value)||!sync_memory(c)||!r64(c,off,&v))return GSM_IO;
++    return v==value?GSM_OK:GSM_READBACK;
++}
++static enum gsm_result poll(struct gsm_context *c,uint32_t off,uint32_t mask,uint32_t wanted,unsigned count,unsigned us)
++{
++    for(unsigned i=0;i<count;i++){
++        uint32_t v;if(!r32(c,off,&v))return GSM_IO;++c->work.polls;
++        if(v==UINT32_MAX)return GSM_READBACK;
++        if((v&mask)==wanted)return GSM_OK;
++        if(i+1<count&&!delay(c,us))return GSM_IO;
++    }
++    return GSM_TIMEOUT;
++}
++static unsigned width(unsigned encoded)
++{static const unsigned bits[6]={32,36,40,42,44,48};return encoded<6?bits[encoded]:0;}
++static enum gsm_result capture(struct gsm_context *c)
++{
++    struct gsm_receipt *w=&c->work;
++    if(!r32(c,0x20,&w->id0)||!r32(c,0x24,&w->id1)||!r32(c,0x28,&w->id2)||
++       !r32(c,0,&w->cr0_before)||!r32(c,MICRO,&w->micro_before))return GSM_IO;
++    /* ATOSNS means architected ATOS is NOT supported. EXIDS changes SMR valid
++     * semantics and is deliberately outside this fixed low-SID transaction. */
++    if(w->id0==UINT32_MAX||w->id1==UINT32_MAX||w->id2==UINT32_MAX||
++       !(w->id0&(1u<<30))||(w->id0&((1u<<26)|(1u<<8)))||
++       (w->id1&(1u<<31))||((w->id1>>28)&7)!=2||!(w->id2&(1u<<12)))return GSM_CAPABILITY;
++    unsigned sidbits=(w->id0>>9)&15;
++    w->stream_match=!!(w->id0&(1u<<27));
++    w->groups=w->stream_match?w->id0&255u:1u<<sidbits;
++    w->banks=w->id1&255u;w->s2banks=(w->id1>>16)&255;
++    /* S1 output size comes from ID2.IAS (native ipa_size), not ID2.OAS. */
++    w->ias=width((w->id2>>8)&15);if(w->ias>39)w->ias=39;
++    w->oas=width(w->id2&15);
++    if(sidbits<3||!w->groups||w->groups>GSM_STREAMS||w->banks>GSM_BANKS||
++       w->s2banks>w->banks||w->banks-w->s2banks<2||!w->ias||!w->oas||
++       !width((w->id2>>4)&15))return GSM_CAPABILITY;
++    if(w->cr0_before==UINT32_MAX||w->micro_before==UINT32_MAX||
++       (w->cr0_before&8)||(w->micro_before&HALT))return GSM_INHERITED;
++    for(unsigned i=0;i<w->groups;i++){
++        if(w->stream_match&&!r32(c,SMR(i),&c->smrs[i]))return GSM_IO;
++        if(!r32(c,S2CR(i),&c->s2crs[i]))return GSM_IO;
++        if(c->s2crs[i]==UINT32_MAX)return GSM_INHERITED;
++    }
++    for(unsigned i=0;i<w->banks;i++){
++        if(!r32(c,CB(i),&c->sctlr[i])||!r32(c,CB(i)+0x58,&c->fsr[i]))return GSM_IO;
++        if(c->sctlr[i]==UINT32_MAX||(c->sctlr[i]&1)||c->fsr[i]==UINT32_MAX||
++           (c->fsr[i]&(1u<<30)))return GSM_INHERITED;
++    }
++    return GSM_OK;
++}
++static bool active(struct gsm_context *c,unsigned slot)
++{return !c->work.stream_match||!!(c->smrs[slot]&VALID);}
++static enum gsm_result resolve(struct gsm_context *c)
++{
++    struct gsm_receipt *w=&c->work;bool used[GSM_BANKS]={0};
++    for(unsigned n=0;n<2;n++)w->slot[n]=w->bank[n]=UINT32_MAX;
++    for(unsigned i=0;i<w->groups;i++)if(active(c,i)){
++        uint32_t cr=c->s2crs[i];unsigned type=(cr>>16)&3,bank=cr&255;
++        if(type==3||(type==0&&bank>=w->banks))return GSM_ROUTING;
++        if(type==0)used[bank]=true;
++        for(unsigned n=0;n<2;n++){
++            unsigned sid=4+n;
++            bool match=w->stream_match?!((sid^(c->smrs[i]&0x7fff))&~((c->smrs[i]>>16)&0x7fff)):i==sid;
++            if(!match)continue;
++            if(w->slot[n]!=UINT32_MAX||(w->stream_match&&c->smrs[i]!=(VALID|sid)))return GSM_ROUTING;
++            w->slot[n]=i;
++            if(type==0)w->bank[n]=bank;
++        }
++    }
++    for(unsigned n=0;n<2;n++){
++        if(w->slot[n]==UINT32_MAX){
++            for(unsigned i=0;i<w->groups;i++)if(!active(c,i)&&i!=w->slot[1-n]){w->slot[n]=i;break;}
++            if(w->slot[n]==UINT32_MAX)return GSM_ROUTING;
++        }
++        if(w->bank[n]!=UINT32_MAX){
++            unsigned bank=w->bank[n];bool exclusive=bank>=w->s2banks;
++            for(unsigned i=0;i<w->groups;i++)if(i!=w->slot[n]&&active(c,i)&&
++                !((c->s2crs[i]>>16)&3)&&(c->s2crs[i]&255)==bank)exclusive=false;
++            /* Reset S2CRs can all reference disabled bank0. Preserve that
++             * shared bank and allocate an unused S1 bank for our own stream. */
++            if(!exclusive)w->bank[n]=UINT32_MAX;
++        }
++        if(w->bank[n]==UINT32_MAX){
++            for(unsigned i=w->s2banks;i<w->banks;i++)if(!used[i]){w->bank[n]=i;used[i]=true;break;}
++            if(w->bank[n]==UINT32_MAX)return GSM_ROUTING;
++        }
++        w->asid[n]=w->bank[n]+1;
++        w->smr_before[n]=c->smrs[w->slot[n]];w->s2cr_before[n]=c->s2crs[w->slot[n]];
++    }
++    return w->bank[0]!=w->bank[1]?GSM_OK:GSM_ROUTING;
++}
++static enum gsm_result prepare(struct gsm_context *c,struct ggm_s1_config *cfg)
++{
++    struct gsm_receipt *w=&c->work;
++    if(!c->ops.guard(c->ops.cookie)||!c->ops.prepare(c->ops.cookie,w->ias,w->oas,cfg)||
++       !c->ops.guard(c->ops.cookie)||!sync_memory(c))return GSM_IO;
++    unsigned ips=0;while(ips<6&&width(ips)!=w->oas)++ips;
++    uint64_t pa=c->plan.owner_pa+0x4000,tcr=((uint64_t)ips<<32)|UINT64_C(0x802000)|(64-w->ias);
++    if(cfg->kernel_ttbr0!=pa||cfg->kernel_ttbr1!=pa+0x5000||cfg->user_ttbr0!=pa+0x6000||
++       cfg->user_ttbr1!=pa+0x7000||cfg->tcr!=tcr||cfg->mair0!=0xf404ff44||cfg->mair1!=0xe4||
++       cfg->ias!=w->ias||cfg->oas!=w->oas)return GSM_READBACK;
++    w->tcr=(uint32_t)tcr;w->tcr2=(uint32_t)(tcr>>32)|0x38010;
++    w->mair0=cfg->mair0;w->mair1=cfg->mair1;return GSM_OK;
++}
++static enum gsm_result global_init(struct gsm_context *c)
++{
++    struct gsm_receipt *w=&c->work;enum gsm_result r;
++    /* Recheck all SCTLR.M immediately before global writes. Board ownership
++     * also requires CM3 reset and GX quiet throughout, excluding new masters. */
++    for(unsigned i=0;i<w->banks;i++){
++        uint32_t v;if(!r32(c,CB(i),&v))return GSM_IO;if(v!=c->sctlr[i])return GSM_INHERITED;
++    }
++    for(unsigned i=0;i<w->groups;i++){
++        uint32_t v;if(!r32(c,S2CR(i),&v))return GSM_IO;if(v!=c->s2crs[i])return GSM_INHERITED;
++        if(w->stream_match){if(!r32(c,SMR(i),&v))return GSM_IO;if(v!=c->smrs[i])return GSM_INHERITED;}
++    }
++    uint32_t current;
++    if(!r32(c,0,&current))return GSM_IO;if(current!=w->cr0_before)return GSM_INHERITED;
++    if(!r32(c,MICRO,&current))return GSM_IO;if((current&~IDLE)!=(w->micro_before&~IDLE))return GSM_INHERITED;
++    r=store(c,MICRO,w->micro_before|HALT,~IDLE);if(r)return r;
++    r=poll(c,MICRO,IDLE,IDLE,300,10);if(r)return r;
++    for(unsigned i=0;i<sizeof(impl)/sizeof(*impl);i++){
++        /* Unlike a blind DT replay, retain our halt request until EVERY
++         * implementation register and context has been programmed/verified. */
++        uint32_t value=impl[i][1]|(impl[i][0]==MICRO?HALT:0);
++        r=store(c,impl[i][0],value,impl[i][0]==MICRO?~IDLE:UINT32_MAX);if(r)return r;
++    }
++    uint32_t fsr;if(!r32(c,0x48,&fsr)||!w32(c,0x48,fsr)||!sync_memory(c))return GSM_IO;
++    if(!r32(c,0x48,&fsr))return GSM_IO;if(fsr)return GSM_READBACK;
++    if(!w32(c,0x6c,UINT32_MAX)||!w32(c,0x68,UINT32_MAX)||!w32(c,0x70,UINT32_MAX)||!sync_memory(c))return GSM_IO;
++    r=poll(c,0x74,1,0,100,10);if(r)return r;
++    uint32_t cr=w->cr0_before;
++    cr&=~(1u|8u|0x2000u|0xc000u|0xc00000u|0x80000000u);
++    cr|=0x1836u|0x400u|0xc00000u; /* fault reporting, VMIDPNE/PTM, unmatchedFAULT */
++    if(w->id2&(1u<<15))cr|=0x80000000u;
++    r=store(c,0,cr,UINT32_MAX);if(r)return r;
++    w->cr0_after=cr;return GSM_OK;
++}
++static enum gsm_result bank_init(struct gsm_context *c,const struct ggm_s1_config *cfg,unsigned n)
++{
++    struct gsm_receipt *w=&c->work;unsigned bank=w->bank[n],base=CB(bank);enum gsm_result r;
++    r=store(c,S2CR(w->slot[n]),0x20000,UINT32_MAX);if(r)return r;
++    r=store(c,0x1800+4*bank,1,UINT32_MAX);if(r)return r;
++    r=store(c,0x1000+4*bank,0x1f300,UINT32_MAX);if(r)return r;
++    r=store(c,base+0x10,w->tcr2,UINT32_MAX);if(r)return r;
++    r=store(c,base+0x30,w->tcr,UINT32_MAX);if(r)return r;
++    uint64_t asid=(uint64_t)w->asid[n]<<48;
++    w->ttbr0[n]=(n?cfg->kernel_ttbr0:cfg->user_ttbr0)|asid;
++    w->ttbr1[n]=(n?cfg->kernel_ttbr1:cfg->user_ttbr1)|asid;
++    r=store64(c,base+0x20,w->ttbr0[n]);if(r)return r;
++    r=store64(c,base+0x28,w->ttbr1[n]);if(r)return r;
++    r=store(c,base+0x38,w->mair0,UINT32_MAX);if(r)return r;
++    r=store(c,base+0x3c,w->mair1,UINT32_MAX);if(r)return r;
++    /* Native qsmmuv2 ACTLR 0x70000000, flushed before translation probes. */
++    r=store(c,base+4,ACTLR,UINT32_MAX);if(r)return r;
++    if(!w32(c,base+0x58,c->fsr[bank])||!sync_memory(c))return GSM_IO;
++    r=store(c,base,SCTLR,UINT32_MAX);if(r)return r;
++    if(!w32(c,base+0x610,w->asid[n])||!w32(c,base+0x7f0,UINT32_MAX)||!sync_memory(c))return GSM_IO;
++    r=poll(c,base+0x7f4,1,0,100,10);if(r)return r;
++    w->sctlr[n]=SCTLR;w->actlr[n]=ACTLR;return GSM_OK;
++}
++static enum gsm_result translate(struct gsm_context *c,unsigned n,uint32_t va,uint64_t expected)
++{
++    unsigned base=CB(c->work.bank[n]);enum gsm_result r;uint64_t par;
++    /* Native qsmmuv2 ATOS requires local halt; we have held it since init.
++     * Non-stall is already configured, so no SCTLR toggle/RESUME is needed. */
++    if(!w64(c,base+0x800,va)||!sync_memory(c))return GSM_IO;
++    r=poll(c,base+0x8f0,1,0,10,5);if(r)return r;
++    if(!r64(c,base+0x50,&par))return GSM_IO;
++    ++c->work.translations;
++    if(par==UINT64_MAX)return GSM_TRANSLATION;
++    if(expected==UINT64_MAX){unsigned fault=(unsigned)(par>>1)&63;
++        return (par&1)&&fault>=4&&fault<=7?GSM_OK:GSM_TRANSLATION;}
++    return !(par&1)&&(par&UINT64_C(0x0000fffffffff000))==expected?GSM_OK:GSM_TRANSLATION;
++}
++static enum gsm_result verify_translations(struct gsm_context *c)
++{
++    enum gsm_result r;
++    for(unsigned n=0;n<GGM_COUNT;n++){
++        const struct ggm_region *m=&c->plan.region[n];
++        for(unsigned off=0;off<m->bytes;off+=4096){
++            r=translate(c,1,m->iova+off,c->plan.owner_pa+m->offset+off);if(r)return r;
++            ++c->work.mapped_pages;
++        }
++    }
++    static const uint32_t holes[]={0,0x40000,0x80000,0x6000b000,0x80000000,0xfffff000};
++    for(unsigned i=0;i<sizeof(holes)/sizeof(*holes);i++){r=translate(c,1,holes[i],UINT64_MAX);if(r)return r;}
++    static const uint32_t user[]={0x4000,0x60000000,0x60001000};
++    for(unsigned i=0;i<sizeof(user)/sizeof(*user);i++){r=translate(c,0,user[i],UINT64_MAX);if(r)return r;}
++    return GSM_OK;
++}
++static enum gsm_result finalize(struct gsm_context *c)
++{
++    struct gsm_receipt *w=&c->work;enum gsm_result r;
++    for(unsigned n=0;n<2;n++){
++        unsigned base=CB(w->bank[n]);uint32_t fsr;
++        if(!r32(c,base+0x58,&fsr)||!w32(c,base+0x58,fsr)||!sync_memory(c)||!r32(c,base+0x58,&fsr))return GSM_IO;
++        if(fsr)return GSM_READBACK;
++        w->smr_after[n]=w->stream_match?(VALID|4u+n):0;
++        if(w->stream_match){r=store(c,SMR(w->slot[n]),w->smr_after[n],UINT32_MAX);if(r)return r;}
++        w->s2cr_after[n]=w->bank[n];
++        r=store(c,S2CR(w->slot[n]),w->s2cr_after[n],UINT32_MAX);if(r)return r;
++    }
++    /* Preserve EVERY unrelated route and context control; only our two banks
++     * may now be enabled. This catches a board-side owner violation too. */
++    for(unsigned i=0;i<w->groups;i++)if(i!=w->slot[0]&&i!=w->slot[1]){
++        uint32_t v;if(!r32(c,S2CR(i),&v))return GSM_IO;if(v!=c->s2crs[i])return GSM_READBACK;
++        if(w->stream_match){if(!r32(c,SMR(i),&v))return GSM_IO;if(v!=c->smrs[i])return GSM_READBACK;}
++    }
++    for(unsigned i=0;i<w->banks;i++)if(i!=w->bank[0]&&i!=w->bank[1]){
++        uint32_t v;if(!r32(c,CB(i),&v))return GSM_IO;if(v!=c->sctlr[i])return GSM_READBACK;
++    }
++    r=store(c,MICRO,0x2378,~IDLE);if(r)return r;
++    if(!r32(c,MICRO,&w->micro_after)||!r32(c,0,&w->cr0_after)||!sync_memory(c))return GSM_IO;
++    if((w->micro_after&~IDLE)!=0x2370)return GSM_READBACK;
++    return GSM_OK;
++}
++enum gsm_result gsm_configure_once(struct gsm_context *c,const struct gsm_ops *ops,
++    const struct ggm_plan *plan,struct gsm_receipt *out)
++{
++    if(!c||!ops||!span(plan,sizeof(*plan))||!span(out,sizeof(*out))||
++       overlap(plan,sizeof(*plan),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
++       overlap(out,sizeof(*out),plan,sizeof(*plan))||!ggm_plan_valid(plan)||
++       !ops->guard||!ops->read32||!ops->write32||!ops->read64||!ops->write64||
++       !ops->barrier||!ops->delay_us||!ops->prepare)return GSM_ARGUMENT;
++    struct gsm_ops copy=*ops;struct ggm_plan p=*plan;uint32_t expected=0;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GSM_ALREADY;
++    c->ops=copy;c->plan=p;memset(&c->work,0,sizeof(c->work));
++    struct ggm_s1_config cfg;enum gsm_result r=capture(c);
++    if(!r)r=resolve(c);if(!r)r=prepare(c,&cfg);if(!r)r=global_init(c);
++    if(!r)r=bank_init(c,&cfg,0);if(!r)r=bank_init(c,&cfg,1);
++    if(!r)r=verify_translations(c);if(!r)r=finalize(c);
++    if(!r)*out=c->work;
++    __atomic_store_n(&c->state,r?3:2,__ATOMIC_RELEASE);return r;
++}
+diff --git a/bsd/dev/gauguin_gmu_smmu.h b/bsd/dev/gauguin_gmu_smmu.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_smmu.h
+@@ -0,0 +1,55 @@
++#ifndef GAUGUIN_GMU_SMMU_H
++#define GAUGUIN_GMU_SMMU_H
++#include "gauguin_gmu_memory.h"
++#define GSM_STREAMS 128u
++#define GSM_BANKS 8u
++enum gsm_result {GSM_OK,GSM_ARGUMENT,GSM_ALREADY,GSM_IO,GSM_CAPABILITY,
++    GSM_INHERITED,GSM_ROUTING,GSM_READBACK,GSM_TIMEOUT,GSM_TRANSLATION};
++/* Private board owner supplies the sole retained03d40000+10000 Device mapping.
++ * Each guard must check same-boot clocks/CX, CM3 reset asserted, GX quiet,
++ * masked NS IRQs, context/deadline and WDT margin. No callback may release
++ * reset or mutate context/output. prepare publishes and verifies the actual
++ * retained NC memory image, then issues DSB. It is called only after all CBs
++ * are observed disabled and stream ownership has been resolved.
++ */
++struct gsm_ops {
++    void *cookie;
++    bool (*guard)(void *);
++    bool (*read32)(void *,uint32_t,uint32_t *);
++    bool (*write32)(void *,uint32_t,uint32_t);
++    bool (*read64)(void *,uint32_t,uint64_t *);
++    bool (*write64)(void *,uint32_t,uint64_t);
++    bool (*barrier)(void *);
++    bool (*delay_us)(void *,unsigned);
++    bool (*prepare)(void *,unsigned,unsigned,struct ggm_s1_config *);
++};
++struct gsm_receipt {
++    uint32_t id0,id1,id2,cr0_before,cr0_after,micro_before,micro_after;
++    uint32_t groups,banks,s2banks,ias,oas,stream_match;
++    uint32_t slot[2],bank[2],asid[2],smr_before[2],s2cr_before[2];
++    uint32_t smr_after[2],s2cr_after[2],sctlr[2],actlr[2];
++    uint64_t ttbr0[2],ttbr1[2];
++    uint32_t tcr,tcr2,mair0,mair1,writes,polls,translations,mapped_pages;
++};
++/* Zero-initialized, single private board instance. Cold initialization only:
++ * all existing context SCTLR.M and stalled faults must be zero. Unrelated
++ * streams/banks are preserved; GMU stream4(user)/5(kernel) are uniquely
++ * resolved or allocated from unused slots/banks, never assumed to be CB4/5.
++ * Context bank and implementation programming follow pinned native19b63c8.
++ * Exact4KiB-register-page/64KiB aperture, AArch644KiB S1 with ATOS supported.
++ * Every131 leaf is checked by hardware ATOS; holes and empty user root fault.
++ * Success retains tables/routes/requests; failure permanently quarantines.
++ * No rollback/retry/reset release/PAS/firmware launch. Software deadlines
++ * cannot cancel stalled MMIO. Caller outputs change only on full success.
++ */
++struct gsm_context {
++    uint32_t state;
++    struct gsm_ops ops;
++    struct ggm_plan plan;
++    struct gsm_receipt work;
++    uint32_t smrs[GSM_STREAMS],s2crs[GSM_STREAMS];
++    uint32_t sctlr[GSM_BANKS],fsr[GSM_BANKS];
++};
++enum gsm_result gsm_configure_once(struct gsm_context *,const struct gsm_ops *,
++    const struct ggm_plan *,struct gsm_receipt *);
++#endif
+diff --git a/bsd/dev/gauguin_pas_stage.c b/bsd/dev/gauguin_pas_stage.c
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -22,4 +22,5 @@
+ #include <kern/thread.h>
+ #include <vm/vm_map.h>
++#include <vm/pmap.h>
+ #include <machine/machine_routines.h>
+ #include <pexpert/pexpert.h>
+@@ -33,4 +34,6 @@
+ extern vm_offset_t ml_io_map_wcomb(vm_offset_t phys_addr, vm_size_t size);
+ extern vm_offset_t ml_vtophys(vm_offset_t vaddr);
++extern boolean_t pmap_valid_page(ppnum_t);
++extern unsigned int pmap_cache_attributes(ppnum_t);
+
+ extern unsigned long gPhysBase, real_phys_size;
+@@ -237,3 +240,19 @@
+ }
+
++bool sweet_pas_stage_owner_valid(const struct sweet_pas_cpu_stage *stage)
++{
++    if(!stage||!ml_get_interrupts_enabled()||ml_at_interrupt_context()||get_preemption_level()||
++       __atomic_load_n(&pst_state,__ATOMIC_ACQUIRE)!=PST_CLAIMED||!pst_mapping||
++       stage->pa!=pst_ready.pa||stage->metadata_bytes!=PST_BYTES||stage->reserved_bytes!=PST_PAGE)return false;
++    for(uint64_t pa=stage->pa;pa<stage->pa+PST_REGION;pa+=PST_PAGE){
++        ppnum_t pn=(ppnum_t)(pa>>PAGE_SHIFT);
++        if(pmap_valid_page(pn)||pmap_cache_attributes(pn)!=UINT32_C(0xd0000006))return false;
++    }
++    if(ml_vtophys(pst_mapping)!=stage->pa||ml_vtophys(pst_mapping+PST_PAGE-1)!=stage->pa+PST_PAGE-1)return false;
++    uint8_t digest[SHA256_DIGEST_LENGTH];
++    if(!pst_hash((const uint8_t *)pst_mapping,digest))return false;
++    const volatile uint8_t *bytes=(const volatile uint8_t *)pst_mapping;
++    for(unsigned i=PST_BYTES;i<PST_PAGE;i++)if(bytes[i])return false;
++    return true;
++}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_pas_stage.h b/bsd/dev/gauguin_pas_stage.h
+--- a/bsd/dev/gauguin_pas_stage.h
++++ b/bsd/dev/gauguin_pas_stage.h
+@@ -27,3 +27,8 @@
+  * issue the appropriate DSB before SMC; this function invokes no SMC. */
+ bool sweet_pas_cpu_stage_claim(struct sweet_pas_cpu_stage *out);
++/* Read-only check by that single consumer. Requires the actual immutable
++ * CLAIMED record, all64 pages still unmanaged/NC, and the original metadata
++ * hash/zero-tail unchanged. No new mapping, buffer pointer, claim or retry.
++ */
++bool sweet_pas_stage_owner_valid(const struct sweet_pas_cpu_stage *);
+ #endif /* GAUGUIN_PAS_STAGE_H */
+diff --git a/pexpert/arm/pe_fiq.c b/pexpert/arm/pe_fiq.c
+--- a/pexpert/arm/pe_fiq.c
++++ b/pexpert/arm/pe_fiq.c
+@@ -88,4 +88,25 @@
+     *enabled = value;
+     return (value & (1u << 5)) == 0;
++}
++#endif
++
++#if defined(GAUGUIN)
++/* DT global SMMU SPIs229/231 -> INTIDs261/263; GMU304/305 ->336/337;
++ * SMMU context SPIs364..371 ->396..403. Reuse PE mapping, NS enable view only.
++ * This does not inspect secure enable/group state or install IRQ handlers. */
++bool sweet_gmu_irq_quiet(uint32_t enabled[3]);
++bool
++sweet_gmu_irq_quiet(uint32_t enabled[3])
++{
++    if(!enabled||!gicd_base||ml_vtophys(gicd_base)!=UINT64_C(0x17a00000))return false;
++    static const unsigned offsets[3]={0x120,0x128,0x130};
++    uint32_t raw[3];
++    for(unsigned i=0;i<3;i++){
++        if(ml_vtophys(gicd_base+offsets[i])!=UINT64_C(0x17a00000)+offsets[i])return false;
++        raw[i]=gicd_read32(offsets[i]);
++        __asm__ volatile("dmb oshld" ::: "memory");
++    }
++    for(unsigned i=0;i<3;i++)enabled[i]=raw[i];
++    return !(raw[0]&0xa0u)&&!(raw[1]&0x30000u)&&!(raw[2]&0xff000u);
+ }
+ #endif

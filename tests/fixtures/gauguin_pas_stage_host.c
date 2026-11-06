@@ -33,6 +33,8 @@
 #define SHA256_DIGEST_LENGTH 32
 typedef uintptr_t vm_offset_t;
 typedef size_t vm_size_t;
+typedef unsigned ppnum_t;
+typedef int boolean_t;
 typedef unsigned DTEntry;
 typedef struct { unsigned Version; uint64_t physBase,memSize,topOfKernelData; } boot_args;
 typedef struct { int match; } SHA256_CTX;
@@ -51,7 +53,7 @@ static const uint8_t raw_pin[32]={
     0xcd,0xbb,0x44,0xca,0xa9,0x32,0xbe,0x61,0x25,0x1b,0x65,0xb5,0xc5,0x16,0xac,0x7b};
 static struct {
     int bad_context,missing,property_error,map_error,translation_error,corrupt,alias_error;
-    int probe_flag,stage_flag; unsigned claim_checks;
+    int probe_flag,stage_flag,owner_managed,owner_attr_bad; unsigned claim_checks,owner_page;
     unsigned maps,translations,hashes,barriers,markers,flushes,properties;
     char log[8192];size_t used;
 } mock;
@@ -114,6 +116,16 @@ vm_offset_t ml_vtophys(vm_offset_t va)
     if(mock.translation_error==2 && va!=(vm_offset_t)target)return low_pa+0x4000;
     return low_pa+va-(vm_offset_t)target;
 }
+boolean_t pmap_valid_page(ppnum_t pn)
+{
+    assert(pn>=low_pa/16384&&pn<(low_pa+1048576)/16384);
+    return mock.owner_managed&&pn==low_pa/16384+mock.owner_page;
+}
+unsigned pmap_cache_attributes(ppnum_t pn)
+{
+    assert(pn>=low_pa/16384&&pn<(low_pa+1048576)/16384);
+    return mock.owner_attr_bad&&pn==low_pa/16384+mock.owner_page?0xd0000007u:0xd0000006u;
+}
 /* Crypto seam: only the exact synthetic digest input is accepted as the pin. */
 void SHA256_Init(SHA256_CTX *ctx) { ctx->match=0; }
 void SHA256_Update(SHA256_CTX *ctx,const void *p,size_t bytes)
@@ -174,6 +186,27 @@ static void assert_claim_ready(uint64_t expected_pa)
     sweet_pas_stage_once(expected_pa,0x100000);
     assert(pst_state==PST_CLAIMED && mock.maps==maps && mock.hashes==hashes && mock.properties==properties);
     assert(!memcmp(&pst_ready,&saved,sizeof(saved)));
+}
+static void owner_checks(void)
+{
+    reset();struct sweet_pas_cpu_stage claim={low_pa,6860,16384};
+    assert(!sweet_pas_stage_owner_valid(&claim));
+    sweet_pas_stage_once(low_pa,0x100000);assert(pst_state==PST_READY);
+    assert(!sweet_pas_stage_owner_valid(&claim));assert_claim_ready(low_pa);
+    unsigned maps=mock.maps;assert(sweet_pas_stage_owner_valid(&claim));
+    assert(!sweet_pas_stage_owner_valid(NULL));
+    struct sweet_pas_cpu_stage wrong=claim;wrong.pa+=0x100000;
+    assert(!sweet_pas_stage_owner_valid(&wrong));wrong=claim;wrong.metadata_bytes++;
+    assert(!sweet_pas_stage_owner_valid(&wrong));wrong=claim;wrong.reserved_bytes++;
+    assert(!sweet_pas_stage_owner_valid(&wrong));
+    for(unsigned i=0;i<64;i++){
+        mock.owner_page=i;mock.owner_managed=1;assert(!sweet_pas_stage_owner_valid(&claim));
+        mock.owner_managed=0;mock.owner_attr_bad=1;assert(!sweet_pas_stage_owner_valid(&claim));mock.owner_attr_bad=0;
+    }
+    for(unsigned i=1;i<=3;i++){mock.bad_context=i;assert(!sweet_pas_stage_owner_valid(&claim));}mock.bad_context=0;
+    target[0]^=1;assert(!sweet_pas_stage_owner_valid(&claim));target[0]^=1;
+    target[16383]=1;assert(!sweet_pas_stage_owner_valid(&claim));target[16383]=0;
+    assert(sweet_pas_stage_owner_valid(&claim)&&mock.maps==maps&&pst_state==PST_CLAIMED);
 }
 struct claim_thread_result { bool claimed; struct sweet_pas_cpu_stage record; };
 static void *claim_thread(void *opaque)
@@ -309,5 +342,7 @@ int main(int argc,char **argv)
     /* Failed entry is terminal and must not export a formerly valid record. */
     reset();sweet_pas_stage_once(0,0x100000);assert_failed();
     assert(pst_ready.pa==0 && pst_ready.metadata_bytes==0 && pst_ready.reserved_bytes==0);
+    owner_checks();
+    puts("PAS staging: fresh64-page claimed-owner checks pass");
     free(asset);assert(!munmap(lo,span));puts("PAS staging: bounds/hash before mapping, guarded readback, translation/corruption failures and retention pass");return 0;
 }

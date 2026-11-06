@@ -2,6 +2,97 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0122 cold SMMU transaction and real board adapter pass focused validation
+
+Previous goal turn was progress:0121 codea3a426f/handoffaf2d081, public
+6057db67fedbb9ba6a9122200371d3861db7e4b9 was pushed/verified with soleparent
+1f1b3bc...; all55 host files passed. The user explicitly reactivated the FULL
+daily-use/GPU/Metal/RAM/storage/peripherals/90–120Hz goal. Keep it active and
+incomplete. Highest hardware remains0120 configured200MHz/branch ON/autonomous
+recovery; no new firmware/GPU execution has been attempted in0121/0122.
+
+Codex authored gauguin_gmu_smmu.c/.h, a complete cold callback transaction:
+qualify fixed64KiB/4KiB SMMUv2 capabilities/ATOS, capture all routes/CBs, reject
+any enabled/stalled context, resolve/allocate exact GMU streams4/5 without
+assuming bank4/5, preserve other routes/controls, prepare actual table memory,
+recheck snapshots, halt Qualcomm micro-MMU, program12 native implementation
+values while retaining halt, clear/sync faults/TLB, configure both native
+S1 contexts, perform131 mapped-page plus9 hole/user-root ATOS checks, publish
+routes, recheck unrelated state and resume local halt. External-abort/all-ones
+PAR cannot satisfy an expected translation fault. No reset release/firmware/PAS.
+Cold-only: active handover, EXIDS, unsupported geometries/ATOS are rejected.
+
+New gauguin_gmu_board.c/.h is the actual native adapter, still WITHOUT a boot
+hook/flag. Same-boot CPU-stage CLAIMED owner is revalidated by its owner API:
+all64 unmanaged NC pages plus unchanged MDT hash/zero tail. Retained clock
+owner supplies current fixed-profile/CX/GX-off checks independently of its old
+deadline. PE GIC helper reuses existing mapping, NS ISENABLER8/10/12 masks
+a0/30000/ff000 (global SMMU261/263, GMU336/337, CB396..403); secure state remains
+unproven. Eight-second new CPU deadline, initial13s WDT margin and fresh3s
+access guards. CM3 reset must already read1; an inherited running CM3 stops.
+
+Narrow reset03d7c000+4000 RW and GPU SMMU03d40000+10000 RW maps are checked for
+unmanaged Device attributes, all16KiB endpoint translations and virtual-range
+overflow, retained on any outcome. No broad GMU/GPUCC alias or pointer export.
+NC owner mapping starts AFTER the old protected first16KiB PAS map. Ordinary
+64KiB scratch contains expected tables/HFI; bounded4KiB chunks zero/copy/compare
+only named reservations/table bytes with live guards. Metadata/gaps/arena tail
+are untouched; scratch freed, physical owner/maps retained. Failure latches
+board/WDT quarantine; no retry/rollback/PET/new watchdog arm. No caller yet.
+
+Native reference fixed19b63c8192b1c9b7c4d931d7d3be92024bc2d778 arm-smmu.c and
+arm-smmu-regs.h verified by Git blob hashing AND fresh commit/contents API calls:
+actual root tree465f20ae4183ed1dbb51f45a921de736a082125c. Machine pins in
+research/tmp/dsh-0122/native-source-pins.json. Older recursive source-tree.json
+is truncated and its sha field equals the requested commit, not the actual
+root tree hash; do not use it as a complete inventory. Explicit native blobs
+still match:469649eb...b2fb3/bed45ecf...4efe3. Stage1 output uses ID2.IAS
+(native ipa_size), not downstream ID2.OAS. Public contract docs/gauguin-gmu-smmu.md.
+
+DSH smmu-validation.json PASS:1,738,000 ASan/UBSan checks, indexing userCB1/
+kernelCB2 and matching userCB6/kernelCB4, actual independent software walks
+behind140 modeled ATOS operations, fail-every-callback2541 boundaries and real
+ARM64 TU. board-validation-v2.json PASS: real IRQ102 bit/address cases, retained
+clock117 cases, original PAS staging plus per-page owner negatives, board2837
+mapping/owner/reset/budget/failure cases, native clock/PAS/board TUs and PE
+pe_fiq using its actual PE make recipe. Initial board-validation.json failed
+only because an existing Python test expected the old C success string; all
+C checks passed. Codex restored that string plus a separate new owner line.
+Original failure retained. No production source repair was needed for it.
+
+Review then added board VA-overflow checks and a directly captured reset sample.
+board-validation-v3.json PASS:2839 board cases plus fresh actual board ARM64 TU;
+V2 unchanged components are retained only after rehashing every unaffected pin.
+No DSH source/object repair, crypto substitute or warning bypass. SMMU and all
+adapter results are host/native compile evidence, NOT hardware qualification.
+
+Fresh strict116-patch replay source122-codex5278 files SHA
+4cba3656b1bf5871e719005ddf233b5683340e9b59776416dfadd78df6475485:
+exact ten native paths match reviewed bytes; source121 baseline unchanged.
+DSH7972 complete58-file suite PASS: actual host_exit0/source_unchanged true,
+baseline unchanged in replay-full-host-result.json. Code committed5a39a54.
+Git format check caught blank context spaces in the unified patch; the shell
+continued to that local commit despite the check's nonzero exit. Codex fixed
+the patch representation only (two context lines; no trailing blank spaces).
+Fresh strict final-format replay source122-format-codex is byte-identical to
+the tested5278-file source, SAME SHA4cba3656...75485; replay-format-result.json
+PASS and git diff --check from public parent PASS. No host/native rerun was
+needed for identical source bytes. No0122 full kernel/CI/image/device trial.
+No device IO this turn; last observed phone state remainsTWRP. Preserve all
+113–120 qualified images/data and original seven-line mkadt diff SHAa74a0418...
+454860. Private HEADaf2d081 at start; current public6057db67...7e4b9.
+
+Final patch-format commit c206700; sanitized publication outcome/new SHA is
+recorded in research/tmp/dsh-0122/public-snapshot-0122.json when pushed;
+never push private ancestry.
+Next: implement the pinned32768-byte
+legacy GMU asset/ADT contract, narrow TCM+GMU AO/PDC/RSC owners, native ucode/
+power/boot/version and reset/FW result, followed by A619 GX/OOB/HFI ordering and
+real request/ACK. Integrate in one bounded initializer before a temporary boot;
+do not spend mapping/copy-only boots. ZAP remains at its native later point.
+Codex authors/reviews/interprets; DSH executes reviewed local scripts with
+provider-existing-relay.patch.yml/local-tools-only.patch.yml from0121, full access.
+
 ### 2026-11-06 — 0120 autonomous reset confirmed; 0121 memory/HFI modules validated locally
 
 THIS0120 user explicitly answered “是，自行重启，我没有操作” to question

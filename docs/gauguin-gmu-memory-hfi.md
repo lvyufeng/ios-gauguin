@@ -1,5 +1,8 @@
 # A619 GMU memory and HFI contract
 
+The subsequent [SMMU board adapter](gauguin-gmu-smmu.md) implements cold
+context setup and guarded publication of this image; it has no boot hook yet.
+
 These CPU-only modules prepare the fixed legacy A619 memory image and implement
 bounded HFI shared-RAM queues. They are not connected to a boot hook. They do
 not configure an SMMU, release CM3 reset, execute firmware, handle an IRQ or

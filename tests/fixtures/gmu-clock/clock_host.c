@@ -29,7 +29,7 @@ static bool gcx_gcc_writable;
 static struct {uint32_t reg[GMC_COUNT];unsigned maps,trans[2],mapfail,transfail,managed,attrbad;
  unsigned reads,direct,shared,holdcalls,polls,delays,lines,guards,quarantine;
  unsigned noactive,update_stuck,branch_stuck,fail_write,budget_after_write,deadline_after_write;
- unsigned holdfail,preparefail,mutate_cfg,dirty_on_cfg;
+ unsigned holdfail,preparefail,mutate_cfg,dirty_on_cfg,gx_gdsc,fail_guard;
  uint64_t now,deadline;int flag,context;bool powerflag,flags,live;
  enum gcx_state cx;enum gcr_state rail;enum gbcmt_state bcm;} h;
 static bool gcx_context(void){return !h.context;}
@@ -41,7 +41,7 @@ enum gbcmt_state sweet_bcm_transport_state(void){return h.bcm;}
 bool PE_parse_boot_argn(const char *s,void *out,size_t n){CHECK(!strcmp(s,"sweetgmuclk")&&n==sizeof(int));*(int*)out=h.flag;return true;}
 uint64_t mach_absolute_time(void){return h.now;}
 void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *out){CHECK(n==5&&scale==NSEC_PER_SEC);*out=h.deadline=h.now+5*scale;}
-bool gauguin_wdt_lease_check_budget(uint32_t n){CHECK(n==8*32765u||n==GCX_STEP_TICKS);++h.guards;return h.live;}
+bool gauguin_wdt_lease_check_budget(uint32_t n){CHECK(n==8*32765u||n==GCX_STEP_TICKS);++h.guards;return h.live&&h.guards!=h.fail_guard;}
 void gauguin_wdt_lease_quarantine(void){CHECK(!h.quarantine);++h.quarantine;h.live=false;}
 void delay(unsigned n){CHECK(n==1||n==10);++h.delays;h.now+=n*1000;}
 static void gcx_record(const char *line){CHECK(line&&strlen(line)<192);++h.lines;}
@@ -69,7 +69,9 @@ static unsigned reg_at(vm_offset_t map,uint32_t off){
  CHECK(map==GPU);switch(off){case 0x1078:return GMC_AHB;case 0x106c:return GMC_GDSC;case 0x1120:return GMC_CMD;case 0x1124:return GMC_CFG;case 0x1098:return GMC_CX;case 0x1064:return GMC_GX;case 0x109c:return GMC_CXO;default:CHECK(false);return 0;}
 }
 static uint32_t fake_read(vm_offset_t map,uint32_t off){
- CHECK(h.live&&!h.context&&h.cx==GCX_COMPLETE);++h.reads;unsigned r=reg_at(map,off);
+ CHECK(h.live&&!h.context&&h.cx==GCX_COMPLETE);++h.reads;
+ if(map==GPU&&off==0x100c)return h.gx_gdsc;
+ unsigned r=reg_at(map,off);
  if(r==GMC_CMD&&h.reg[r]!=UINT32_MAX&&(h.reg[r]&1)&&!h.update_stuck)h.reg[r]&=~0x11u;
  if(r==GMC_CFG&&h.mutate_cfg&&h.holdcalls==2)h.reg[r]^=0x100;
  return h.reg[r];
@@ -104,6 +106,26 @@ static void success(void){struct gmc_receipt out;CHECK(sweet_gmu_clock_once(&out
  CHECK(h.maps==2&&h.trans[0]==2&&h.trans[1]==2&&out.after[GMC_CFG]==0x602&&(out.after[GMC_CX]&0xff1)==0xff1);
  unsigned writes=h.direct;CHECK(sweet_gmu_clock_once(&out)==GCX_ALREADY&&h.direct==writes);
 }
+static void quiet_cases(void)
+{
+ reset();success();uint32_t out=0xa5;
+ h.now=h.deadline+1000; /* The new owner supplies its own CPU deadline. */
+ CHECK(sweet_gmu_clock_quiet(&out)&&out==0&&!h.quarantine);
+ CHECK(!sweet_gmu_clock_quiet(NULL));
+ const unsigned regs[]={GMC_MODE,GMC_L,GMC_FRAC,GMC_DIV,GMC_AHB,GMC_GDSC,
+  GMC_CMD,GMC_CFG,GMC_CX,GMC_CXO,GMC_AXI,GMC_MEM,GMC_GX};
+ for(unsigned i=0;i<sizeof(regs)/sizeof(*regs);i++){
+  reset();success();h.reg[regs[i]]=UINT32_MAX;out=0xa5;
+  CHECK(!sweet_gmu_clock_quiet(&out)&&out==0xa5);
+ }
+ reset();success();h.gx_gdsc=0x80000000;out=0xa5;
+ CHECK(!sweet_gmu_clock_quiet(&out)&&out==0xa5);
+ reset();success();h.cx=GCX_IDLE;out=0xa5;CHECK(!sweet_gmu_clock_quiet(&out)&&out==0xa5);
+ for(unsigned i=1;i<=28;i++){
+  reset();success();h.fail_guard=h.guards+i;out=0xa5;
+  CHECK(!sweet_gmu_clock_quiet(&out)&&out==0xa5);
+ }
+}
 int main(void){
  reset();success();CHECK(h.direct==7&&h.shared==2);
  reset();h.dirty_on_cfg=0;success();
@@ -136,5 +158,6 @@ int main(void){
  for(unsigned i=1;i<=7;++i)if(i!=2){reset();h.fail_write=i;failed();CHECK(h.direct==i);}
  for(unsigned i=1;i<=7;++i){reset();h.budget_after_write=i;failed();CHECK(h.direct==i);}
  reset();h.deadline_after_write=2;failed();CHECK(h.direct==2);
- printf("PASS: %u actual GMU clock cases; fixed profile/ordering, strict MMIO allowlist, guards, terminal failures; no hardware\n",cases);return 0;
+ quiet_cases();
+ printf("PASS: %u actual GMU clock cases; fixed profile/ordering, live quiet guards, strict MMIO allowlist, terminal failures; no hardware\n",cases);return 0;
 }

@@ -2,6 +2,95 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual128 completes all140 ATOS; final FSR check mistakes RO AArch64 Format2 for a fault;129 next
+
+THIS goal turn made major concrete progress: actual126 ATOS132 refusal,
+127 cached-PAR diagnostics and128 architectural decoder correction were
+committed/tested, full128 native kernel/image/runtime reader qualified, then
+ONE actual128 temporary boot completed all140 hardware translations. Final
+SMMU publication/resume and firmware/GPU/Metal are STILL INCOMPLETE. Whole
+daily-use/GPU/Metal/RAM/storage/peripherals/90–120Hz goal stays ACTIVE.
+Code79aa204479ac089c1960e2da4dda2c4a56f8150c, build-captured/private handoff
+8c8fe963e3303893daf88050277b81a26b320420. Sanitized public
+3c5c86234d0c5476a0c1aba4632894257ede10e6 pushed/verified, sole parent
+9398974ba5e6fa3fed1cb270045eefe07fb78af6, nine text paths only.
+
+DSH45658 actual build0/qualification0, standard local build/dSYM/strip/install
+gauguin.lYYurL; exact tested122-patch sourceea4f87af...20cbc/5282 files.
+Kernel16888984B SHAe06db5df7966dc2dd05b17874d998fad02376a17c4e4579248c05c03040a4beb,
+IDxnu-54965b2965ed4622bd8cdeffa0ca48d5; manifest SHA
+1c18fafebd16947e5c550ee879710d262bde77268efc3bca5ee15b663aef2308.
+Qualification p3-native-0128-qualification-20261107.json SHA
+0dd821218f72ccbc08fa69a1fc39ebfef11c6e02aaee0069075824d472112205,
+retains126 provenance/SDK/install/symbol/archive checks plus actual linked
+ATOS-level diagnostics; architected_smmu_fault_format_linked TRUE, hardware
+firmware qualification FALSE. Future native probes must use CURRENT128
+lYYurL source/recipe, not126 EXvD1e after shared generated Makefile replacement.
+
+DSH75952 package0/review0, package-review-execution-result.json passed/all
+inputs unchanged. Image shim/out/shim-p3-gmuf-0128-native-20261107.img19529728B
+SHA1ed47463d68dbfe719a95b978a38860ce6604ea8435b95b17c1adf58227d2879.
+Payload19202048B SHAd699ce30f3f9a1fc740e752f4b019ae6ac81278e85fe82e2738506bf716582a6.
+Evidence SHA659e19a70a92f16e124edef8ceb5cc19c09529421a1b6b0ddd3c29d062bd8d8d;
+sweettrial=gmuf-0128-20261107-a1,539-byte bootargs. Independent10 native
+segments/wrapper/ADT/2MiBzero-tail/three-asset checks; old126/125/124 and
+older baselines intact. NVT182554000/MDT182578000/GMU18257c000 are packaged
+source addresses. No code/object repair, warning bypass or system install.
+
+Codex strict verify_gmuf128.py SHA
+1b8cc045bdf7c81d88f362237cfd3aa23108baa06555fc475f33a8bd2568d0a9
+requires exact source/marker + qualified architectural decoder, rejects new
+ATOS-failure namespace, retains every earlier full-success requirement and
+opaque-fields bitwise UNQUALIFIED scope. AST digest comparison confirms ONLY
+source SHA differs from126: same four asset pins. DSH2517 runtime-parser-result.json
+passed/all inputs unchanged, clock valid4/rejected95, FW valid10/rejected196,
+full SYNTHETIC common+FW trace valid4/rejected17 with actual128 artifacts.
+These host records alone are not hardware proof.
+
+DSH9061 actual observer0/full verifier2. ONE temporary128 boot: Send19072KB
+0.443s/Boot0.135s/total0.580s; start2026-11-06T19:20:24.510332Z,
+finish19:22:36.287794Z, observedTWRP130s. Unique recoverygauguin / fastboot
+gauguinpro and13-byte routine recovery-latch readback passed. Fresh3993lines/
+449087B log SHA240e6988aa35c7989f41e5fbbef70e7f844a8f9212031ec33d85d62b5aa6e663;
+991B cycle SHA57e95646be961586a9688b8eeecf19a0273092f916875f044dacb5abdd2db9eb.
+Same-trial CMDDB131072 SHAe8554cbaeebcb4092d1e58fffe76ed328c953e49542567f411df6da92c7defdd.
+Original hardware-full-verification.json remains evidence-rejected. DSH53845
+audit_failed_trial128.py actual0 -> failed-trial-audit.json, all original input
+hashes unchanged; binds image/banner/marker/source and actual140 counter.
+
+Actual first refusal line3925 GMB9/GSM7=READBACK. phase8/check6/final context
+fault, off08058(PA03d48058,first owned bank0),maskffffffff,expected0,actual400.
+Cached writes187,polls144,ATOS140; id48016605/20008005/00007511,
+cr0before00200626/after00e01e36,microbefore2378/afterUNSET0,IAS39/OAS36.
+Source-bound phase8 implies all131 positive leaves and9 correctly typed/leveled
+negative probes accepted; individual successful PAR values not raw-logged.
+No ATOS rejection row. Opaque06b68 requested9a82a382/read0a800082 still
+bitwise UNQUALIFIED. Final first-bank FSR check happens BEFORE owned route
+publication/resume, so do not claim complete SMMU or any firmware execution.
+
+Primary Arm IHI0062D.c16.5.9 pp16-299/300 visually checked in the same pinned
+PDF5f12c28c...ca7e9d. FSR Format[10:9] is READ-ONLY, generated from CBA2R.VA64
+and TCR.EAE;400 means AArch64 Format2, not a fault. Named fault bits union
+c00001fe (MULTI31,SS30,UUT8,ASF7,TLBLKF6,TLBMCF5,EF4,PF3,AFF2,TF1) gives
+ZERO for observed400. Native pinned arm-smmu-regs.h FSR_FAULT and driver
+checks agree. Full-zero FSR comparison is a second definite software bug;
+W1C cannot clear generated RO format. Exact126 PAR remains unknown, not
+reconstructed from128's successful probes. Independent reset cause unproven.
+
+Next129: use documented fault-bit masking in BOTH gsm finalize and gfw_faults
+context checks (currently rejects any nonzero FSR too). Preserve raw FSR;
+GFSR remains a separate register. Keep SS/real-fault/all-ones refusals, context
+configuration verification and all140 probes. Model generated RO Format2
+after context setup with W1C fault-only semantics; update old host negative
+case injecting context FSR bit0 (reserved) to actual TF bit1, and add readonly
+format/stuck fault/real fault variants. Independent updated model should
+reproduce128's final failure then let129 proceed; native compile against128
+recipe, all61 tests, then full129 build/package/readers/ONE coherent FW boot.
+No129 code/build/image/task exists yet. No need another mapping-only boot.
+Phone nowTWRP. THIS128 autonomous/manual question pending,125/126 also
+unanswered; do not reuse124's explicit answer. No128 touch/UI claim beyond
+raw process markers. All owned handles closed. No flash/format/GPT changes.
+
 ### 2026-11-07 — 0128 architected PAR decoder passes independent regression, all61 host files and two native TUs
 
 THIS turn is concrete progress: actual126 stopped at ATOS132;127 diagnostics

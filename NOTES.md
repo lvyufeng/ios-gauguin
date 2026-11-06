@@ -3,6 +3,35 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0113 native build+qualification PASS; packaging FAILED (path collision)
+
+DSH ran the reviewed `research/tmp/dsh-0113/build113.py` exactly once from the
+repo root at HEAD f805eda with only `M tools/mkadt.py` dirty; wrapper exit1;
+NOT retried and NOT fixed. Exact codes from native113-execution-result.json:
+build_exit0 (`gauguin.67UNbi`, manifest state built, make_exit0, created
+06:43:10Z/finished06:45:41Z, verified0113 source 25e51223..., committed head
+f805eda), qualification_exit0 (BUILD QUALIFIED, final_kernel_produced true;
+kernel 16815816B SHA256
+26694e5d88e9c29495c317adb14f48a9f6688622390d802c34bb0b645334e906),
+package_exit1, final state `package-failed`.
+
+Failure: `AssertionError: preserve any prior images` at
+pack_native0113.py:50. Verified cause: OUT and PAYLOAD are absent, but
+EVIDENCE (line15) points at the pre-existing qualified0112 file
+research/tmp/p3-passtage-0112-native-evidence-20261106.json (mtime11:56,
+untouched); line177 would write the0113 report there. That is the only tripped
+term; the qualification-prefixed asserts passed. No0113 image/payload was
+written, nothing was deleted, and the shim/baseline/ADT/MDT hash asserts were
+never reached (DSH checked those four separately: all match). No boot, no
+device access, no CI/network, no source edits. Build output of67UNbi is
+preserved and reusable. DSH record research/tmp/dsh-0113/native113-dsh-result.json
+(ignored, like all research/). Next: Codex repoints EVIDENCE to a new0113 path,
+then reissue the executor task. Approved hardware-trial command
+(EXACT once, no second boot, no flash/format/partition writes):
+`fastboot boot shim/out/shim-p3-cmddb-0113-native-20261106.img`. After the
+temporary boot, ask the user to confirm touch unlock and manually return to
+TWRP, then pull a fresh log; treat the result only as read-only evidence.
+
 ### 2026-11-06 — 0113 read-only bus qualification in progress; division of work updated
 
 Latest user instruction supersedes the older DSH-authoring preference below:

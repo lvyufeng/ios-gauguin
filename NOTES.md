@@ -70,6 +70,12 @@ sources under research/tmp/gauguin-nvt-p1/native-msm_bus_{arb,fabric,of}_rpmh.c;
 bind exact19b63c8 provenance/hashes before using. No new device I/O for this
 research. Continue Codex core/review/plans and DSH compile/test/build/boot.
 
+Physical140 handoff pushed and ls-remote verified
+ac4114bbe791123a34eb1d7d453aca5fad530832, sole parent50dc49c, exactly
+NOTES/docs text paths, same tree as private95b995c1b232570bacef4046c23731c96903f416.
+Report research/tmp/dsh-0140/public-hardware-snapshot-0140.json. Private
+ancestry/raw/FDT/firmware/Apple/binary/serial evidence remains local. No CI run.
+
 ### 2026-11-07 — complete140 image and strict PERF runtime readers qualified; ONE phone trial next
 
 Full native run140 P3pyBC/HEADbd0dc75 is qualified (previous entry). Manifest

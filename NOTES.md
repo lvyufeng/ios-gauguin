@@ -2,6 +2,64 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0124 full local kernel/package/independent image review PASS; runtime verifier next
+
+Codea26328873f64b0ffb55e18408e9e29db54d8d49e, build-captured/handoff commit
+4803df62ac1d14b7f0e1c84cc8516b4206054f5b. Normal local build/dSYM/strip/install
+and extended strict artifact qualification both actualexit0 in gauguin.dNjjd4.
+No CI run, manual object repair, substitute stripping or warning bypass. Source
+is the exact118-patch5282-file host-tested54ead7a4...19f92 tree below; full61
+suite was already passed, so standard builder SKIP_TESTS1 was explicitly gated
+on unchanged test/source evidence. Kernel includes all20 new required defined
+symbols and exactly one of each actual memory/HFI/SMMU/board/asset/firmware
+archive member. These are BUILD proofs, not firmware/GPU hardware evidence.
+
+Native installed kernel16888944B SHA
+07670bfbd5f68272b3d9d5a2b61f9e36bb2056477ed552cf86a721529956c2bc;
+IDxnu-3cd3c8e985a94570bdd8c654f4515c98, Nov7 01:00:07CST banner. Manifest SHA
+3fa3202837ffa37db8526acb47d030324ddfb5a94b388c56a3aee2719d6eb096.
+Artifacts under .deps-cache/p0-20261105/build/runs/gauguin.dNjjd4/install and
+research/tmp/p3-native-0124-20261107-out. Qualification
+research/tmp/p3-native-0124-qualification-20261107.json SHA
+54465cb56bbe8d4d55e657e25871926749a2a70bd11abb587081b02d3704405b;
+DSH41408 terminal0 and native124-execution-result.json qualified-not-packaged.
+
+Subsequent separate DSH1772 package+independent review BOTH actualexit0,
+package-review-execution-result.json passed/inputs unchanged. Image
+shim/out/shim-p3-gmuf-0124-native-20261107.img19529728B SHA
+7f156ffd38f1b8d0b999734ca2410394e50548885531a902082ddd66460066bc;
+payload19202048B SHA
+0e1f6c925061f9cab4e452d088ad84308229a4a7cefa058bf52d02c106bf899f.
+Actual539-byte0x48/608 command line adds sweetgmufw1 and unique
+sweettrial=gmuf-0124-20261107-a1 to the existing clock/CX/BCM diagnostic flags.
+PAS INIT/MEM/otherprobes/PET/reboot remain0, NVT1/hz30/cpus8/sampler disabled.
+NVT sourcePA182554000/MDT182578000/GMU18257c000; same-kernel no-GMU control
+preserves earlier NVT/MDT placement/content exactly. Private pinned GMU32KiB
+is two16KiB pages after MDT. These are package source addresses, not the low
+runtime1MiB owner or GPU virtual addresses. No binary/dump/serial is in Git.
+
+Independent image-parent-review.json PASS, SHA
+186062f19416d1dfa6e60b105a6881a0405a3f08d3b8c66ec8259139cee2fcbb:
+exact proven wrapper/actual commandline,10 normalized native kernel segments,
+three pinned assets/ADT descriptors, pending PAS slots and2MiB zero tail;
+all113–118 and120 baseline pins preserved. Original mkadt seven-line diff
+still SHAa74a0418...454860. DSH36768 integration and1772 package handles closed0.
+
+Phone has NOT been accessed/booted in0124; last observedTWRP. Highest physical
+result remains0120 clock profile, not SMMU/FW/HFI/GPU/Metal. Full goal ACTIVE
+and incomplete. Next author/test strict verify_gmuf124.py retaining120's actual
+identity/image/CPUstage/CMDDB/WDT/BCM/CX/clock checks, updating exact source/
+flag/terminal, and adding real SMMU mapping/ATOS/routes/context and firmware
+reset/copy/OOB/HFI INIT/version receipts. Reject partial/failure/duplicate/stale
+logs; no parser relaxation to accept a failed hardware trial. Review that
+failure diagnostics will identify the first rejected hardware stage. Only then
+execute one already-authorized temporary fastboot boot with the exact image
+pin and bounded observer; NEVER flash/format. Attribution of a future recovery
+requires THIS-trial user confirmation, not0120's answer. No user action yet.
+Sanitized publication outcome/new SHA goes into
+research/tmp/dsh-0124/public-snapshot-0124.json; sole public parent713a869aa...
+e046d, never private ancestry. Codex authors/reviews/interprets, DSH executes.
+
 ### 2026-11-07 — 0124 native firmware adapter/coordinator pass all61 host files; full local build next
 
 Previous goal turn was progress:0123 code259a27f/handoffa05a605, sanitized

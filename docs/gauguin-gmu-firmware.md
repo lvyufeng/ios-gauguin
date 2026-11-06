@@ -357,3 +357,25 @@ and a valid INIT followed by a refused queued message before VERSION. That
 last case demonstrates why phase5/GMF_ACK alone does not identify INIT as the
 failed command. A full physical0137 trial is still needed to capture the real
 packet; no new packet type or relaxed ACK policy is introduced here.
+
+Physical0137 captures the refusal in the request path for INIT sequence1:
+the ACK has type2 and4 words, whereas the port expects exactly3. Its echoed
+request retains sequence1 but omits length/type fields, and its status word
+is0. The remaining word is opaque and unqualified. Fresh BABEFACE/GX-on and
+the earlier initialization checks repeat. The current port still rejects
+before accepting INIT or sending VERSION; full handshake qualification is
+unchanged. Fixing only the length check would expose the full-header echo
+comparison as another refusal for this same packet.
+
+The pinned native `receive_ack_cmd` matches only the12-bit sequence and
+copies the message's header-reported length. Its INIT generic request treats
+status0 as success (only0xffffffff is failure), and its version request
+requires status0 before reading the version field. It does not require the
+complete echoed header or compare command ID. The next candidate should
+follow that correlation rule while retaining explicit bounded lengths:
+at least3 words for INIT or4 for VERSION, no more than the existing19-word
+ring capacity, and copy only the required public receipt prefix. Extra
+fields and other echo bits stay unqualified. Type/status/version and all
+ring/guard/reset/deadline/copy checks remain required. Real complete INIT and
+VERSION replies must then be observed; this analysis does not retroactively
+turn0137 into a successful handshake.

@@ -1,0 +1,140 @@
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -254,15 +254,33 @@
+     if(!wr(c,GMF_CSR,C(0x1f986),1)||!barrier(c))return GMF_IO;
+     return poll(c,GMF_CSR,C(0x1f980),1,1,&c->work.hfi_after);
+ }
+-static enum gmf_result drain_debug(struct gmf_context *c,unsigned queue,uint32_t bit)
++static enum gmf_result reply_refuse(struct gmf_context *c,enum gmf_reply_site site,
++    enum gmf_reply_reason reason,unsigned queue,uint32_t request,unsigned expected,
++    const uint32_t *reply,size_t words)
++{
++    struct gmf_reply_diagnostic *d=&c->reply_diagnostic;
++    if(!d->valid){
++        d->phase=c->phase;d->site=site;d->reason=reason;d->queue=queue;
++        d->request_header=request;d->expected_words=expected;d->words=(uint32_t)words;
++        d->captured=words<GMF_REPLY_WORDS?(uint32_t)words:GMF_REPLY_WORDS;
++        if(d->captured)memcpy(d->data,reply,d->captured*sizeof(*reply));
++        d->valid=1;
++    }
++    return GMF_ACK;
++}
++static enum gmf_result drain_debug(struct gmf_context *c,unsigned queue,uint32_t bit,
++    uint32_t request_header,unsigned expected_words)
+ {
+     for(unsigned i=0;i<16;i++){
+         uint32_t reply[19],info;size_t n=0;
+         enum ggh_result r=ggh_receive(&c->hfi,queue,reply,19,&n);
+         if(r==GGH_OK){
+             if((reply[0]&255)==100)return GMF_FAULT;
+-            if(((reply[0]>>16)&15)==2||(reply[0]&255)!=101)return GMF_ACK;
+-            ++c->work.debug_messages;continue;
++            if(((reply[0]>>16)&15)==2)return reply_refuse(c,GMFR_DRAIN,GMFR_UNEXPECTED_ACK,queue,request_header,expected_words,reply,n);
++            if((reply[0]&255)!=101)return reply_refuse(c,GMFR_DRAIN,GMFR_UNEXPECTED_MESSAGE,queue,request_header,expected_words,reply,n);
++            ++c->work.debug_messages;
++            if(i==15)return reply_refuse(c,GMFR_DRAIN,GMFR_LIMIT,queue,request_header,expected_words,reply,n);
++            continue;
+         }
+         if(r!=GGH_EMPTY)return GMF_TRANSPORT;
+         if(!rd(c,GMF_CSR,C(0x1f992),&info))return GMF_IO;
+@@ -270,12 +288,12 @@
+         if(!(info&bit))return GMF_OK;
+         if(!wr(c,GMF_CSR,C(0x1f991),bit)||!barrier(c))return GMF_IO;
+     }
+-    return GMF_ACK;
++    return reply_refuse(c,GMFR_DRAIN,GMFR_LIMIT,queue,request_header,expected_words,NULL,0);
+ }
+ static enum gmf_result request(struct gmf_context *c,const uint32_t *packet,unsigned words,uint32_t *ack,unsigned ack_words)
+ {
+-    uint32_t info;enum gmf_result rc=drain_debug(c,2,4);if(rc)return rc;
+-    rc=drain_debug(c,1,1);if(rc)return rc;
++    uint32_t info;enum gmf_result rc=drain_debug(c,2,4,packet[0],ack_words);if(rc)return rc;
++    rc=drain_debug(c,1,1,packet[0],ack_words);if(rc)return rc;
+     if(!rd(c,GMF_CSR,C(0x1f992),&info))return GMF_IO;
+     if(info&0x8001)return GMF_INHERITED;
+     if(ggh_send(&c->hfi,packet,words)!=GGH_OK)return GMF_TRANSPORT;
+@@ -287,14 +305,17 @@
+         uint32_t reply[19];size_t n=0;enum ggh_result r=ggh_receive(&c->hfi,1,reply,19,&n);
+         if(r!=GGH_OK)return GMF_TRANSPORT;
+         if(((reply[0]>>16)&15)==2){
+-            if(n!=ack_words||reply[1]!=packet[0]||reply[2]==UINT32_MAX||
+-               (ack_words==4&&reply[2]!=0))return GMF_ACK;
++            if(n!=ack_words)return reply_refuse(c,GMFR_REQUEST,GMFR_SIZE,1,packet[0],ack_words,reply,n);
++            if(reply[1]!=packet[0])return reply_refuse(c,GMFR_REQUEST,GMFR_ECHO,1,packet[0],ack_words,reply,n);
++            if(reply[2]==UINT32_MAX)return reply_refuse(c,GMFR_REQUEST,GMFR_STATUS,1,packet[0],ack_words,reply,n);
++            if(ack_words==4&&reply[2]!=0)return reply_refuse(c,GMFR_REQUEST,GMFR_VERSION_STATUS,1,packet[0],ack_words,reply,n);
+             memcpy(ack,reply,ack_words*4);return GMF_OK;
+         }
+-        if((reply[0]&255)!=101)return GMF_ACK;
++        if((reply[0]&255)!=101)return reply_refuse(c,GMFR_REQUEST,GMFR_UNEXPECTED_MESSAGE,1,packet[0],ack_words,reply,n);
+         ++c->work.debug_messages;
+-    }
+-    return GMF_ACK;
++        if(i==15)return reply_refuse(c,GMFR_REQUEST,GMFR_LIMIT,1,packet[0],ack_words,reply,n);
++    }
++    return reply_refuse(c,GMFR_REQUEST,GMFR_LIMIT,1,packet[0],ack_words,NULL,0);
+ }
+ static enum gmf_result handshake(struct gmf_context *c)
+ {
+@@ -322,6 +343,7 @@
+     if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMF_ALREADY;
+     c->ops=copy;c->plan=p;c->phase=GMF_RESET;
+     memset(&c->diagnostic,0,sizeof(c->diagnostic));
++    memset(&c->reply_diagnostic,0,sizeof(c->reply_diagnostic));
+     c->hidden_valid=0;memset(c->hidden_readback,0,sizeof(c->hidden_readback));
+     c->pdc_msgid_valid=0;memset(c->pdc_msgid_readback,0,sizeof(c->pdc_msgid_readback));
+     c->ao_mask_valid=0;c->ao_mask_readback=0;
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -43,9 +43,18 @@
+  * the same fixed mapping contract as the engine; valid distinguishes phase0
+  * from an absent sample. Does not alter the public success receipt. */
+ struct gmf_diagnostic {uint32_t valid,phase,check,window,offset,mask,expected,actual;};
++#define GMF_REPLY_WORDS 19u
++enum gmf_reply_site {GMFR_DRAIN=1,GMFR_REQUEST=2};
++enum gmf_reply_reason {GMFR_UNEXPECTED_ACK=1,GMFR_UNEXPECTED_MESSAGE,
++    GMFR_SIZE,GMFR_ECHO,GMFR_STATUS,GMFR_VERSION_STATUS,GMFR_LIMIT};
++/* First refused already-read packet, never an accepted ACK or extra I/O.
++ * words may be0 for drain-budget exhaustion without a received packet. */
++struct gmf_reply_diagnostic {uint32_t valid,phase,site,reason,queue;
++    uint32_t request_header,expected_words,words,captured,data[GMF_REPLY_WORDS];};
+ struct gmf_context {uint32_t state;enum gmf_phase phase;struct gmf_ops ops;
+     struct gmf_plan plan;struct ggh_channel hfi;struct gmf_receipt work;
+     struct gmf_diagnostic diagnostic;
++    struct gmf_reply_diagnostic reply_diagnostic;
+     /* Native fixed-zero HIDDEN_TCS_CMDn_ADDR writes, not bitwise-qualified.
+      * Cache only the existing read; no public success receipt is changed. */
+     uint32_t hidden_valid,hidden_readback[3];
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -369,6 +369,19 @@
+         gmb_record(line);
+     }
+ }
++static void gfw_reply_record(void)
++{
++    const struct gmf_reply_diagnostic *d=&gfw_context.reply_diagnostic;
++    if(d->valid){
++        char line[192];
++        snprintf(line,sizeof(line),"SWEET GMU HFI REPLY: phase=%u site=%u reason=%u queue=%u request=%08x expected=%u words=%u captured=%u",d->phase,d->site,d->reason,d->queue,d->request_header,d->expected_words,d->words,d->captured);
++        gmb_record(line);
++        for(unsigned i=0;i<d->captured&&i<GMF_REPLY_WORDS;i++){
++            snprintf(line,sizeof(line),"SWEET GMU HFI WORD: index=%u value=%08x",i,d->data[i]);
++            gmb_record(line);
++        }
++    }
++}
+ static enum gmb_result gfw_fail(enum gmb_result rc,const char *why)
+ {
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+@@ -394,6 +407,7 @@
+     gfw_ao_record();
+     gfw_cm3_record();
+     gfw_boot_config_records();
++    gfw_reply_record();
+     return rc;
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,

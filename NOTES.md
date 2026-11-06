@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0130 cached firmware refusal diagnostics validated and committed; full kernel build next
+
+Private code bffa9d9183e30ed86040e8ad8f7361e45d7bd5dd adds124th patch,
+0130-gauguin-gmu-firmware-readback-diagnostics.patch. Fresh source130-codex
+5282files SHA9eb267166486743bc70beaf015f91b01f59878f5242ccc40eda18d54c488a42b.
+Only firmware.c/h and board.c differ from129. Private diagnostic cache records
+the ALREADY READ failed comparison, including valid/phase/check/window/byte
+offset/mask/expected/actual. Board prints it AFTER quarantine. Public receipt,
+all predicates and I/O callbacks unchanged; no retry or new MMIO.
+
+DSH46617 completed strict replay and all61 host files, then the wrapper raised
+a Python TypeError in constructing the IO-comparison command. Original failed
+report/logs retained. DSH65411 separate validate130_v2.py retained those TWO
+completed components under original-report SHA72e9d3d3c7ca8bb95f75845f2d12507f0d6975553fa6fa5c642d338aa1feb752,
+then actually ran THREE remaining IO/native steps, all0. The authoritative
+research/tmp/dsh-0130/validation-result-v2.json is passed, inputs/source/base
+unchanged. Future consumers must check3 results+2 retained_components, not5
+results. GMF ASan/UBSan1,620,905 checks; board2840+87. Original129 fixture
+versus130 has1,009,420 identical ordered I/O requests/digestf8383376e7a1a07b.
+Both actual native firmware/board TUs pass with current129 DhXMEk recipe.
+No130 complete kernel/image/device trial at THIS checkpoint.
+
+Actual129 partial-stage audit now completed: DSH46617 audit_failed_trial129.py
+returned0, failed-trial-audit.json state bound-native-SMMU-complete-firmware-READBACK.
+All original input hashes preserved; uses unchanged strict-reader SMMU prefix
+only and retains full-verifier rejection.131 mapped/140 ATOS and source-bound
+owned routes/resume complete. GMF6 phase0 writes5/polls0,copy0,reset1,release0/
+OOB0; no firmware execution/GPU/Metal. AO1034/PA03d8d034 requested0 is inferred
+from the frozen fifth-store order; actual readback UNKNOWN until130 trial.
+Synthetic fixture12340000 is NOT a physical observation.
+
+Next: sanitized text-only public snapshot on a45b92575fd3c5cf54d798480479f44396f75f62,
+standard local130 build/qualification with linked diagnostic format check,
+independent pack/review, strict runtime readers, then ONE coherent temporary
+fastboot boot. No source repair/manual objects/warning bypass. Phone last
+observed TWRP after129;125/126/128/129 reset-attribution questions pending.
+All previous handles closed; whole daily-use goal stays ACTIVE. Original
+seven-line mkadt diff untouched; no flash/format/GPT or destructive action.
+
 ### 2026-11-07 — actual129 completes native SMMU; firmware ucode setup refuses fifth store;130 diagnostics being prepared
 
 THIS turn is concrete progress.129 complete local kernel/image/runtime reader

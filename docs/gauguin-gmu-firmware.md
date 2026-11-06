@@ -336,3 +336,24 @@ and log its site/reason, queue, expected request and bounded raw words after
 quarantine. It must preserve acceptance/refusal behavior, all guards, I/O
 order and the public success receipt. A real captured packet, rather than
 an inferred protocol mismatch, should determine the following fix.
+
+Patch0137 adds only private rejected-packet diagnostics. It preserves every
+acceptance/refusal rule, initialization value, ring operation and I/O order.
+The first `GMF_ACK` refusal caches phase, drain/request site, reason, queue,
+request header, expected ACK words and the already-read packet (at most19
+words). The request header at a drain site identifies the upcoming request;
+it does not claim that request was sent. Size/echo/status/version-status,
+unexpected queued ACK/message and the16-debug budget have distinct reasons.
+A drain budget exhausted without receiving a packet records zero words.
+No raw reads or retries are added; successful ACKs never become refusal
+diagnostics. Cache clearing occurs only after the first successful claim,
+and repeated calls preserve the cached failure and caller output.
+
+`SWEET GMU HFI REPLY` and indexed `SWEET GMU HFI WORD` records are emitted
+only after the board and watchdog lease are quarantined, following the
+existing boot-config records. The public success receipt stays unchanged.
+Host models cover both sites/queues, each reason, short/max19/no-packet bounds,
+and a valid INIT followed by a refused queued message before VERSION. That
+last case demonstrates why phase5/GMF_ACK alone does not identify INIT as the
+failed command. A full physical0137 trial is still needed to capture the real
+packet; no new packet type or relaxed ACK policy is introduced here.

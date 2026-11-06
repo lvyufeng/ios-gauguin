@@ -24,7 +24,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned owner_calls,owner_fail,budgets,budget_fail,expire,allocs,frees,alloc_fail,smmu_calls,smmu_fail,barriers,corrupt;
     unsigned clock_bad,irq_bad,context,quarantine,reads,writes,writes64;bool live;uint64_t now;
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
-        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines;} h;
+        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines,fw_reply_lines,fw_word_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -75,6 +75,18 @@ static int host_printf(const char *s,...)
         static const uint32_t raw[]={0,0,0x80000001};char expected[192];
         snprintf(expected,sizeof(expected),"SWEET GMU BOOT CFG: off=%05x requested=00000001 readback=%08x policy=native-write; equality unqualified\n",offsets[index],raw[index]);
         CHECK(!strcmp(text,expected));CHECK(h.live?!h.quarantine:h.quarantine==1);
+    }
+    if(strstr(text,"SWEET GMU HFI REPLY:")){
+        CHECK(h.quarantine==1&&!h.live&&h.fw_reply_lines++==0&&h.fw_bootcfg_lines==3);
+        const char *expected=h.engine_fail==13?
+            "SWEET GMU HFI REPLY: phase=5 site=1 reason=7 queue=2 request=00100500 expected=3 words=0 captured=0\n":
+            "SWEET GMU HFI REPLY: phase=5 site=2 reason=3 queue=1 request=00100500 expected=3 words=19 captured=19\n";
+        CHECK(!strcmp(text,expected));
+    }
+    if(strstr(text,"SWEET GMU HFI WORD:")){
+        unsigned index=h.fw_word_lines++;CHECK(h.quarantine==1&&!h.live&&h.fw_reply_lines==1&&index<19&&h.engine_fail==12);
+        uint32_t raw=index==0?0x0012137e:index==1?0x00100500:0xa5000000u+index;char expected[192];
+        snprintf(expected,sizeof(expected),"SWEET GMU HFI WORD: index=%u value=%08x\n",index,raw);CHECK(!strcmp(text,expected));
     }
     return n;
 }
@@ -322,6 +334,12 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     if(h.ctx_fault)memcpy(smmu+0x9058,&h.ctx_fault,4);
     if(!o->guard(NULL,GMF_HFI_START)||!o->guard(NULL,GMF_HANDSHAKE))return GMF_IO;
     if(h.engine_fail==4)return GMF_FAULT;
+    if(h.engine_fail==12||h.engine_fail==13){
+        struct gmf_reply_diagnostic *d=&ctx->reply_diagnostic;
+        *d=(struct gmf_reply_diagnostic){.valid=1,.phase=GMF_HANDSHAKE,.site=h.engine_fail==13?GMFR_DRAIN:GMFR_REQUEST,.reason=h.engine_fail==13?GMFR_LIMIT:GMFR_SIZE,.queue=h.engine_fail==13?2:1,.request_header=0x00100500,.expected_words=3,.words=h.engine_fail==13?0:19,.captured=h.engine_fail==13?0:19};
+        for(unsigned i=0;i<d->captured;i++)d->data[i]=i==0?0x0012137e:i==1?0x00100500:0xa5000000u+i;
+        return GMF_ACK;
+    }
     CHECK(!o->guard(NULL,GMF_RESET)&&!o->guard(NULL,GMF_DONE+1));
     memset(out,0,sizeof(*out));out->phase=GMF_DONE;out->fw_result=0xbabeface;out->reported_version=0x100b0000;return GMF_OK;
 }
@@ -339,7 +357,7 @@ static void firmware_cases(void)
     unsigned first=cases;
     reset();h.firmware=1;struct gmb_firmware_receipt out;
     CHECK(firmware_run(&out)==GMB_OK&&h.maps==7&&h.nc_maps==1&&h.engine_calls==1&&!h.quarantine);
-    CHECK(h.impl_lines==1);
+    CHECK(h.impl_lines==1&&!h.fw_reply_lines&&!h.fw_word_lines);
     CHECK(out.reset==0&&out.release_attempted==1&&out.oob_attempted==1&&out.phase==GMF_DONE&&h.allow_gx);
     CHECK(out.firmware.fw_result==0xbabeface&&out.asset_pa==0xb0000000&&h.fw_impl_lines==3&&h.fw_pdc_lines==6&&h.fw_ao_lines==1&&h.fw_cm3_lines==1&&h.fw_bootcfg_lines==3);
     CHECK(out.fsr[0]==0x400&&out.fsr[1]==0x400);
@@ -355,6 +373,8 @@ static void firmware_cases(void)
     reset();h.firmware=1;h.engine_fail=9;firmware_failed();CHECK(h.fw_cm3_lines==1&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
     reset();h.firmware=1;h.engine_fail=10;firmware_failed();CHECK(h.fw_bootcfg_lines==1&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
     reset();h.firmware=1;h.engine_fail=11;firmware_failed();CHECK(h.fw_bootcfg_lines==3&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
+    reset();h.firmware=1;h.engine_fail=12;firmware_failed();CHECK(h.fw_reply_lines==1&&h.fw_word_lines==19&&gfw_work.release_attempted&&gfw_work.oob_attempted);
+    reset();h.firmware=1;h.engine_fail=13;firmware_failed();CHECK(h.fw_reply_lines==1&&!h.fw_word_lines&&gfw_work.release_attempted&&gfw_work.oob_attempted);
     for(unsigned n=1;n<=24;n++){reset();h.firmware=1;h.fw_fail_phase=n;firmware_failed();}
     const unsigned faultbits[]={1,2,3,4,5,6,7,8,30,31};
     for(unsigned n=0;n<sizeof(faultbits)/sizeof(*faultbits);n++){reset();h.firmware=1;h.ctx_fault=1u<<faultbits[n];firmware_failed();}

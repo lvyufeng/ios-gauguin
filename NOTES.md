@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0137 rejected-HFI-packet diagnostics committed; all61 hosts/two native TUs pass
+
+Previous goal turn was progress: actual136 FIRST fresh GMU firmware BABEFACE,
+GX on and source-bound HFI-ready, then phase5/GMF_ACK with packet unknown.
+THIS turn Codex wrote137 diagnostic-only capture, DSH validated it. Full
+daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh goal remains ACTIVE.
+No137 hardware or completed INIT/version handshake/GPU command/Metal proof.
+
+Private corec3fbc87651b40c52f70fc932ad51a04a1486793b adds131st patch
+0137-gauguin-gmu-cached-hfi-reply-diagnostics.patch. Fresh source1375282files
+SHA4ae84df062f11cc0575466b035d3921d1e08e7b7f6973503b892f65cbe507258.
+Only firmware.c/h and board.c differ from frozen136fcd7f7d7...cccdc9. Private
+reply_diagnostic captures FIRST GMF_ACK refusal: phase,site(1 drain/2 request),
+reason(1 unexpected ACK,2 unexpected message,3 size,4 echo,5 status,6 version
+status,7 limit),queue,request header,expected words,actual/captured counts,
+up to19 already-read raw words. Drain request is UPCOMING, not necessarily
+sent. No-packet drain-budget exhaustion records words/captured0. Error packet
+ID100 still GMF_FAULT with no ACK diagnostic; IO/transport failures unchanged.
+Clear cache only after successful first CAS; preserve on invalid/repeated
+calls. Public success receipt, all acceptance/refusal conditions, ring/MMIO,
+native init values, guards and timing budgets unchanged. No extra I/O/retry.
+Board logs HFI REPLY header then indexed HFI WORD rows only AFTER gmb/WDT
+quarantine, after BOOT CFG rows; none on successful completion.
+
+DSH52056 CLOSED0; actual validate137.py0, normal FIVE zero results: pristine
+replay, full61 hosts, unchanged ORIGINAL129-model I/O equivalence and real
+native firmware/board TUs. Source/baseline/inputs unchanged. ASan/UBSan GMF
+1,786,560 checks, board2840+95. Tests both sites/queues and every reason,
+short/max19/no-packet, complete raw/tail-zero cache, repeat/output/first-claim
+clear and no cache on successful ACKs/original callback failures. Includes
+valid INIT followed by unexpected ACK/message draining before VERSION,
+showing why136 phase5/GMF_ACK cannot identify INIT as failed. Board tests
+max19/zero-word failure logs strictly after quarantine and no success records.
+Frozen136/137 original-model1,009,420 requests identical, digest42c8a43275281f5b.
+Native firmware53832B SHA37022412d4f55e68dd89515fffff4a0e3e0573829cfd817a347b3d779ebe1064;
+board72888B SHA39550f49ee5795e0895ea8ed3b1b5c58c54f69c332377ab07b3f3413935956bd,
+CURRENT136 yLkhEV recipe/source. No137 full build/image/readers/phone IO yet.
+All owned handles CLOSED; phoneTWRP after136, no new user UI/touch/reset fact.
+
+NEXT sanitized137 push, full standard local build retaining every136 qualifier,
+requiring both installed HFI REPLY/HFI WORD formats/source-bound diagnostic
+flag. Pack/review/readers: all previous success rules unchanged, failure-only
+HFI diagnostics must NEVER be accepted as successful full traces. Add false
+qualifier and conflicting HFI diagnostic tests; retain numeric data/pins and
+131-page strings. ONE coherent137 tempboot using136 execute-hardware-v2
+wording (script owns recovery-to-fastboot, no external fastboot preflight).
+Bind actual packet/header/site/reason and raw words AFTER quarantine; infer
+no protocol change until native comparison. Original seven-line mkadt diff
+untouched; no flash/format/GPT/destructive action. Codex core/review/Git,
+DSH exact full-access compile/test/boot execution.
+
 ### 2026-11-07 — actual136 first fresh GMU BABEFACE, GX on, HFI-ready path; handshake ACK refusal next
 
 THIS goal turn is progress: complete136 native build/image/readers qualified;
@@ -49,6 +100,12 @@ Audit reuses UNCHANGED SMMU prefix and records raw boot/GX + explicitly
 source-bound transitions as a stage subset. Full original rejection retained.
 firmware_boot TRUE, hfi_handshake_complete FALSE, gpu_execution/metal FALSE.
 All owned handles CLOSED; phoneTWRP. Current native recipe/source136 yLkhEV.
+
+Physical136 handoff pushed and ls-remote verified
+3fdea4b6a5353f81864ce0c4d9cf36dc03a81c07, sole parentb91bf73, exactly
+NOTES/docs text paths, same tree as privated46475e. Publisher31357 CLOSED0;
+reportresearch/tmp/dsh-0136/public-handoff-0136.json. Private ancestry and
+raw logs/assets/dumps/serials remain local.
 
 NEXT137: diagnostic-only capture of FIRST rejected already-read HFI packet,
 covering BOTH drain_debug and request GMF_ACK exits. Cache phase/site/reason,

@@ -13,6 +13,8 @@ struct fake {struct gmf_context channel;struct gmf_plan plan;
     unsigned ignore,timeout,bad_asset,bad_version,bad_ack,fw_fault,debug,init_positive,bad_readback,sticky_oob,hidden_mode,hidden_fault,pdc_mode,pdc_bad,pdc_clear,pdc_allones,ao_override,cm3_override;
     uint32_t ao_readback,cm3_readback;
     unsigned cache_stores,cache_bad,cache_override;uint32_t cache_readback,cache_raw[3];
+    unsigned inject_queue,inject_words,flood_queue,response_flood,response_wide,version_status,drain_sticky,after_init_drain;
+    uint32_t inject_data[19];
     bool nested;};
 static bool tick(struct fake *f){return ++f->step!=f->fail;}
 static bool guard(void *cookie,enum gmf_phase phase)
@@ -73,15 +75,23 @@ static void response(struct fake *f)
     f->shared[16]=wr; /* Native firmware consumes command before ACK. */
     if(f->timeout==4+id)return;
     if(f->debug){uint32_t msg=0x10165;reply(f,1,&msg,1);}
+    if(f->response_flood){uint32_t msg=0x10165;for(unsigned i=0;i<16;i++)reply(f,1,&msg,1);return;}
+    if(f->response_wide){
+        uint32_t wide[19];for(unsigned i=0;i<19;i++)wide[i]=0xa5000000u+i;
+        wide[0]=((id+1)<<20)|(2<<16)|(19<<8)|126;wide[1]=header;
+        reply(f,1,wide,19);return;
+    }
     unsigned n=id?4:3;
     uint32_t ack[4]={((id+1)<<20)|(2<<16)|(n<<8)|126,header,id?0:f->init_positive,0x100b0000};
     if(f->bad_ack==1)ack[1]^=0x100000;
     if(f->bad_ack==2)ack[2]=UINT32_MAX;
     if(f->bad_ack==3)ack[0]^=3u<<16;
     if(f->bad_ack==4){ack[0]=(ack[0]&~0xff00u)|0x200;n=2;}
+    if(id&&f->version_status)ack[2]=1;
     if(id&&f->bad_version==2)ack[3]=0x100a0000;
     if(id&&f->bad_version==3)ack[3]=0x200b0000;
     reply(f,1,ack,n);
+    if(!id&&f->after_init_drain)reply(f,1,f->inject_data,f->inject_words);
 }
 static bool write_word(void *cookie,enum gmf_window w,uint32_t off,uint32_t value)
 {
@@ -94,7 +104,7 @@ static bool write_word(void *cookie,enum gmf_window w,uint32_t off,uint32_t valu
         CHECK(off==order[f->cache_stores++]);
     }
     if(f->ignore==f->writes)return true;
-    if(w==GMF_CSR&&off==0x2644){if(!f->sticky_oob||value!=(1u<<30))f->regs[w][0x2648/4]&=~value;return true;}
+    if(w==GMF_CSR&&off==0x2644){if((!f->sticky_oob||value!=(1u<<30))&&(!f->drain_sticky||value!=4))f->regs[w][0x2648/4]&=~value;return true;}
     if(w==GMF_AO&&off==0x2c10){f->regs[w][0x2c14/4]&=~value;return true;}
     f->regs[w][off/4]=value;
     if(w==GMF_CSR&&off==0x2000){
@@ -126,6 +136,9 @@ static bool write_word(void *cookie,enum gmf_window w,uint32_t off,uint32_t valu
     if(w==GMF_CSR&&off==0x2618){
         CHECK(value==1&&f->channel.phase==GMF_HFI_START);
         if(f->timeout!=3)f->regs[w][0x2600/4]=1;
+        if(f->inject_queue)reply(f,f->inject_queue,f->inject_data,f->inject_words);
+        if(f->flood_queue){uint32_t msg=0x10165;for(unsigned i=0;i<16;i++)reply(f,f->flood_queue,&msg,1);}
+        if(f->drain_sticky)f->regs[w][0x2648/4]|=4;
         if(f->debug){uint32_t msg=0x10165;reply(f,1,&msg,1);reply(f,2,&msg,1);}
     }
     return true;
@@ -170,7 +183,7 @@ static struct fake *fresh(void)
 static enum gmf_result run(struct fake *f,struct gmf_receipt *out)
 {struct gmf_ops o=ops(f);return gmf_bootstrap_once(&f->channel,&o,&f->plan,out);}
 static void stopped(struct fake *f)
-{unsigned step=f->step;struct gmf_receipt out,before;struct gmf_diagnostic diagnostic=f->channel.diagnostic;uint32_t mask=f->channel.hidden_valid,raw[3],pdc_mask=f->channel.pdc_msgid_valid,pdc[6],ao_valid=f->channel.ao_mask_valid,ao_raw=f->channel.ao_mask_readback,cfg_valid=f->channel.cm3_config_valid,cfg_raw=f->channel.cm3_config_readback,boot_valid=f->channel.boot_config_valid,boot_raw[3];memcpy(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw));memcpy(raw,f->channel.hidden_readback,sizeof(raw));memcpy(pdc,f->channel.pdc_msgid_readback,sizeof(pdc));memset(&out,0x7c,sizeof(out));before=out;CHECK(run(f,&out)==GMF_ALREADY&&f->step==step&&!memcmp(&out,&before,sizeof(out)));CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));CHECK(mask==f->channel.hidden_valid&&!memcmp(raw,f->channel.hidden_readback,sizeof(raw)));CHECK(pdc_mask==f->channel.pdc_msgid_valid&&!memcmp(pdc,f->channel.pdc_msgid_readback,sizeof(pdc)));CHECK(ao_valid==f->channel.ao_mask_valid&&ao_raw==f->channel.ao_mask_readback);CHECK(cfg_valid==f->channel.cm3_config_valid&&cfg_raw==f->channel.cm3_config_readback);CHECK(boot_valid==f->channel.boot_config_valid&&!memcmp(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw)));}
+{unsigned step=f->step;struct gmf_receipt out,before;struct gmf_diagnostic diagnostic=f->channel.diagnostic;struct gmf_reply_diagnostic reply_diagnostic=f->channel.reply_diagnostic;uint32_t mask=f->channel.hidden_valid,raw[3],pdc_mask=f->channel.pdc_msgid_valid,pdc[6],ao_valid=f->channel.ao_mask_valid,ao_raw=f->channel.ao_mask_readback,cfg_valid=f->channel.cm3_config_valid,cfg_raw=f->channel.cm3_config_readback,boot_valid=f->channel.boot_config_valid,boot_raw[3];memcpy(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw));memcpy(raw,f->channel.hidden_readback,sizeof(raw));memcpy(pdc,f->channel.pdc_msgid_readback,sizeof(pdc));memset(&out,0x7c,sizeof(out));before=out;CHECK(run(f,&out)==GMF_ALREADY&&f->step==step&&!memcmp(&out,&before,sizeof(out)));CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));CHECK(!memcmp(&reply_diagnostic,&f->channel.reply_diagnostic,sizeof(reply_diagnostic)));CHECK(mask==f->channel.hidden_valid&&!memcmp(raw,f->channel.hidden_readback,sizeof(raw)));CHECK(pdc_mask==f->channel.pdc_msgid_valid&&!memcmp(pdc,f->channel.pdc_msgid_readback,sizeof(pdc)));CHECK(ao_valid==f->channel.ao_mask_valid&&ao_raw==f->channel.ao_mask_readback);CHECK(cfg_valid==f->channel.cm3_config_valid&&cfg_raw==f->channel.cm3_config_readback);CHECK(boot_valid==f->channel.boot_config_valid&&!memcmp(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw)));}
 static void happy(void)
 {
     for(unsigned debug=0;debug<2;debug++){
@@ -178,7 +191,7 @@ static void happy(void)
         CHECK(run(f,&r)==GMF_OK&&r.phase==GMF_DONE&&r.fw_result==0xbabeface);
         CHECK(r.reported_version==0x100b0000&&r.init_ack[1]==0x00100500&&r.version_ack[1]==0x00200201);
         CHECK(r.tcm_written==8192&&r.tcm_checked==8192&&r.writes==f->writes&&f->doorbells==2&&f->reset_writes==1);
-        CHECK(r.debug_messages==(debug?4u:0u)&&!f->channel.diagnostic.valid&&f->channel.hidden_valid==7&&f->channel.pdc_msgid_valid==63&&f->channel.ao_mask_valid==1&&f->channel.ao_mask_readback==UINT32_MAX&&f->channel.cm3_config_valid==1&&f->channel.cm3_config_readback==0x4052);stopped(f);
+        CHECK(!f->channel.reply_diagnostic.valid);CHECK(r.debug_messages==(debug?4u:0u)&&!f->channel.diagnostic.valid&&f->channel.hidden_valid==7&&f->channel.pdc_msgid_valid==63&&f->channel.ao_mask_valid==1&&f->channel.ao_mask_readback==UINT32_MAX&&f->channel.cm3_config_valid==1&&f->channel.cm3_config_readback==0x4052);stopped(f);
         printf("Legacy GMU bootstrap debug%u: native sequence and two real ring ACKs, %u boundaries PASS\n",debug,f->step);free(f);
     }
 }
@@ -204,7 +217,7 @@ static void faults(void)
     struct fake *f=fresh();struct gmf_receipt r;CHECK(run(f,&r)==GMF_OK);unsigned steps=f->step;free(f);
     for(unsigned n=1;n<=steps;n++){
         f=fresh();f->fail=n;struct gmf_receipt old;memset(&r,0x87,sizeof(r));old=r;
-        CHECK(run(f,&r)!=GMF_OK&&!memcmp(&r,&old,sizeof(r)));stopped(f);free(f);
+        CHECK(run(f,&r)!=GMF_OK&&!memcmp(&r,&old,sizeof(r))&&!f->channel.reply_diagnostic.valid);stopped(f);free(f);
     }
     printf("GMU bootstrap fail-every-callback: %u boundaries PASS\n",steps);
 }
@@ -348,4 +361,64 @@ static void native_bus_cache_order(void)
     }
     printf("Native boot CFG: exact BUS/ICACHE/DCACHE fixed1 order, raw0/1/synthetic bits unqualified, per-slot all-ones refusal; repeat/cache/output and mandatory FW/ACK checks PASS (host only)\n");
 }
-int main(void){native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}
+static void reply_failed(struct fake *f,unsigned site,unsigned reason,unsigned queue,
+    uint32_t request,unsigned expected,const uint32_t *data,unsigned words)
+{
+    struct gmf_receipt out,before;memset(&out,0x71,sizeof(out));before=out;
+    CHECK(run(f,&out)==GMF_ACK&&!memcmp(&out,&before,sizeof(out)));
+    const struct gmf_reply_diagnostic *d=&f->channel.reply_diagnostic;
+    CHECK(d->valid==1&&d->phase==GMF_HANDSHAKE&&d->site==site&&d->reason==reason&&d->queue==queue);
+    CHECK(d->request_header==request&&d->expected_words==expected&&d->words==words&&d->captured==words);
+    for(unsigned i=0;i<GMF_REPLY_WORDS;i++)CHECK(d->data[i]==(i<words?data[i]:0));
+    CHECK(f->channel.state==3&&!f->channel.diagnostic.valid);stopped(f);
+}
+static void hfi_reply_diagnostics(void)
+{
+    CHECK(GMF_REPLY_WORDS==19);
+    /* Drain a refused packet on either queue before the INIT doorbell. */
+    for(unsigned queue=1;queue<=2;queue++)for(unsigned mode=0;mode<3;mode++){
+        struct fake *f=fresh();f->inject_queue=queue;f->inject_words=mode==2?19:mode?1:3;
+        for(unsigned i=0;i<f->inject_words;i++)f->inject_data[i]=0xc5000000u+i;
+        f->inject_data[0]=mode==2?(1u<<16)|(19u<<8)|102u:mode?(2u<<16)|(1u<<8)|126u:(2u<<16)|(3u<<8)|126u;
+        reply_failed(f,GMFR_DRAIN,mode==2?GMFR_UNEXPECTED_MESSAGE:GMFR_UNEXPECTED_ACK,queue,0x00100500,3,f->inject_data,f->inject_words);
+        CHECK(!f->doorbells);free(f);
+    }
+    static const unsigned reason[]={GMFR_ECHO,GMFR_STATUS,GMFR_UNEXPECTED_MESSAGE,GMFR_SIZE};
+    for(unsigned mode=1;mode<=4;mode++){
+        struct fake *f=fresh();f->bad_ack=mode;
+        uint32_t data[3]={0x0012037e,0x00100500,0};unsigned words=3;
+        if(mode==1)data[1]^=0x100000;if(mode==2)data[2]=UINT32_MAX;
+        if(mode==3)data[0]^=3u<<16;if(mode==4){data[0]=0x0012027e;words=2;}
+        reply_failed(f,GMFR_REQUEST,reason[mode-1],1,0x00100500,3,data,words);CHECK(f->doorbells==1);free(f);
+    }
+    /* Phase5/GMF_ACK can also occur after a valid INIT ACK while draining
+     * before VERSION, with just one command doorbell. Capture that context. */
+    for(unsigned mode=0;mode<2;mode++){
+        struct fake *f=fresh();f->after_init_drain=1;f->inject_words=mode?1:3;
+        f->inject_data[0]=mode?0x10166:0x0012037e;f->inject_data[1]=0x00100500;f->inject_data[2]=0;
+        reply_failed(f,GMFR_DRAIN,mode?GMFR_UNEXPECTED_MESSAGE:GMFR_UNEXPECTED_ACK,1,0x00200201,4,f->inject_data,f->inject_words);
+        CHECK(f->doorbells==1&&f->channel.work.init_ack[1]==0x00100500);free(f);
+    }
+    struct fake *f=fresh();f->version_status=1;
+    const uint32_t version_bad[]={0x0022047e,0x00200201,1,0x100b0000};
+    reply_failed(f,GMFR_REQUEST,GMFR_VERSION_STATUS,1,0x00200201,4,version_bad,4);CHECK(f->doorbells==2);free(f);
+    f=fresh();f->response_wide=1;uint32_t wide[19];for(unsigned i=0;i<19;i++)wide[i]=0xa5000000u+i;
+    wide[0]=0x0012137e;wide[1]=0x00100500;
+    reply_failed(f,GMFR_REQUEST,GMFR_SIZE,1,0x00100500,3,wide,19);free(f);
+    for(unsigned queue=1;queue<=2;queue++){
+        f=fresh();f->flood_queue=queue;uint32_t debug=0x10165;
+        reply_failed(f,GMFR_DRAIN,GMFR_LIMIT,queue,0x00100500,3,&debug,1);CHECK(!f->doorbells&&f->channel.work.debug_messages==16);free(f);
+    }
+    f=fresh();f->drain_sticky=1;
+    reply_failed(f,GMFR_DRAIN,GMFR_LIMIT,2,0x00100500,3,NULL,0);CHECK(!f->doorbells);free(f);
+    f=fresh();f->response_flood=1;uint32_t debug=0x10165;
+    reply_failed(f,GMFR_REQUEST,GMFR_LIMIT,1,0x00100500,3,&debug,1);CHECK(f->doorbells==1&&f->channel.work.debug_messages==16);free(f);
+    /* Invalid arguments preserve stale private bytes; first acquired run clears
+     * them. Successful ACKs never become refused-packet diagnostics. */
+    f=fresh();memset(&f->channel.reply_diagnostic,0xa5,sizeof(f->channel.reply_diagnostic));
+    struct gmf_reply_diagnostic before=f->channel.reply_diagnostic,zero={0};struct gmf_receipt out;
+    f->plan.selector[GMF_MX]--;CHECK(run(f,&out)==GMF_ARGUMENT&&!memcmp(&before,&f->channel.reply_diagnostic,sizeof(before)));
+    f->plan.selector[GMF_MX]++;CHECK(run(f,&out)==GMF_OK&&!memcmp(&zero,&f->channel.reply_diagnostic,sizeof(zero)));stopped(f);free(f);
+    printf("HFI refused-packet diagnostics: both sites/queues, each reason,19-word/short/no-packet bounds, first-claim clear, repeat/output and no success cache PASS (host only)\n");
+}
+int main(void){hfi_reply_diagnostics();native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}

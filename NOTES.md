@@ -38,8 +38,12 @@ using CURRENT131 SM6zJz recipe/source. All owned handles CLOSED.
 
 131 physical handoff pushed/verified publicly5fa388920dc4e1f3861edc8d9615b7a1d858721c,
 sole parenta65270aadc12ffe88651fccf11a379db23fc3053, two text paths, private
-head a27110bf not pushed. Next sanitized132 source/notes snapshot on5fa3889;
-publication report research/tmp/dsh-0132/public-snapshot-0132.json. Never push
+head a27110bf not pushed.132 sanitized source/notes pushed/verified
+dd3ad8bb9a72b9b879a8d8c3e37c0414ec777f94, sole parent5fa3889, eight text
+paths, tree equals private2fa7ae1. Original publisher stopped BEFORE commit-tree/
+push because its allowlist retained the old patch suffix; original script
+kept, publish132_v2.py changes only that pathname and passed all guards.
+Publication report research/tmp/dsh-0132/public-snapshot-0132.json. Never push
 private ancestry, device dumps, serials or binary assets.
 
 NEXT: standard full132 local kernel/qualification retaining all131 checks,

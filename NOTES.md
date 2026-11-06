@@ -3,6 +3,63 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0114 timer/automatic-recovery data verified; manual-action confirmation PENDING
+
+Observer saw recovery after131s (not a timeout); fresh114log was automatically
+pulled and matched the exact image. Technical verifier checks PASS, but the
+user has NOT yet answered whether any button/manual restart was used. Its
+honest status is reset-attribution-unverified, --manual-reset unknown, exit3.
+Do NOT promote this to qualified hardware reset until that explicit answer.
+Pending question: “0114在约131秒后回到了TWRP，日志已自动读回；是否手机自行重启、期间没有按键/手动重启？”
+If user confirms no manual operation, combine that new fact with unchanged
+verifiedlog/image/cycle hashes for the normal-running-reset qualification.
+If manual, preserve this trial and repeat a distinct trial marker if needed.
+No fresh trial needed merely to repeat already-passed data checks.
+
+Temporary boot accepted once:18976KB send0.442s/boot0.134s,total0.580s.
+Cycle started 2026-11-06T07:34:26.379684+00:00, finished 2026-11-06T07:36:43.035174+00:00;
+cycle research/tmp/p3-wdtexpiry-0114-native-cycle-20261106.log explicitly says
+back in TWRP after131s; observer0, no timeout/fallback. Fresh log
+research/tmp/p3-wdtexpiry-0114-native-observer-20261106.txt,
+145871B/2243lines, SHAb0f8998f4680a18c8fc235cdb4f14514eae9843f3f7aa7162dc47f51f085988a.
+Full banner xnu-917c2bd2614f4ad78ff771c72785854d, unique actual
+sweettrial=wdtexpiry-0114-20261106-a1. Initial commandline569B preserved; later
+optional loader-announced diagnostics end afterscmstep3, so this114 log does
+not establish secure-watchdog SMC success/status. No such success is assumed.
+
+Exact WDT evidence: legacy sampler/PET excluded; GIC NS ISENABLER1=0 quiet1;
+initialEN0/STS0/BARK524287/BITE1048575. Armreadback EN3/BARK655300/BITE753595/STS0,
+at1753534148ticks. Samples1..5 EN3, decodedcounts
+32872,65750,98589,131463,164336; at
+1772798503,1792065310,1811308827,1830573273,1849836554ticks respectively.
+Reported kernel timebase19200000Hz. All five count/STSmatches and monotonic
+time/count checks passed. Terminalcounter-advancing/awaitingactualreset marker
+present; no survived30s, failure, PET, debug-reboot, or panic(cpu) record.
+SecondGICguard passage is controlflow evidence from the matching image, not
+a second rawGIClog. Pre/post TWRP bootreason properties were empty; do not
+invent a PMIC/firmware reset-cause code. Physical attribution awaits user.
+
+Verifier/report: research/tmp/dsh-0114/verify_wdt114.py and
+hardware-data-verification.json; DSH actualexpectedexit3 recorded in
+verify-observed-dsh-result.json. Parent independently read the fresh records.
+No device operation followed the automaticpull except read-only bootreasonprops.
+Phone is currentlyTWRP; all DSH/build/observer handles terminal, no live job.
+Published114 code snapshot d3cd94b0b771ea8403ca92ed76adc8592363ade9 (single public parent
+d9cc88b77311059a053fa8a077bde7773d3e678e), matching privatehandoff69819e3 tree;
+no privateancestry/dumps/firmware/serials. Code6f3f067, normalnativeqsECQd.
+Original mkadt edit remains uncommitted.
+
+Next stateful step after normal-reset attribution is established: bounded
+same-boot BCM transport with exclusive HLOS writer/slot checks, then explicit
+PAS-stage READY publication and source-correct INIT_IMAGE ABI. Review
+research/tmp/dsh-0113/next-pas-parent-plan.json; idleTCS does not prove current
+bandwidth. This expiry experiment is not proof of containing arbitrary secure
+world hangs, and no GPU/Metal/bandwidth/PAS auth operation has occurred.
+Goal remains active; current work materially advanced timer programming and
+actual recovery evidence, not merely a plan. Codex codes; DSH executes.
+
+
+
 ### 2026-11-06 — 0114 normal native build/image qualified; expiry trial next
 
 Code commit6f3f067bad26d8bb18818a3aa9f7c8f7d4574099. source114-context:

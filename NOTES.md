@@ -2,7 +2,7 @@
 
 ## Agent handoff / active work
 
-### 2026-11-07 — full137 native diagnostic kernel qualified; image/runtime checks next
+### 2026-11-07 — complete137 native diagnostic image and strict readers qualified; one physical packet trial next
 
 DSH12228 CLOSED0; actual standard local build137.py build0/qualification0,
 gauguin.ggv3Il, captured HEADfbf8c68c914f3b5b88087ac061ed69ba38044469.
@@ -15,11 +15,25 @@ IDxnu-d7ab1d4e93d947ae9a9d94f6b664b15c. Manifest
 9c7ec9fbc2dce84a33f165c12e89fe1f3c80084a29116c0f53aede279a95ece2;
 qualification SHA98da11f58a27842d1fdea9184f0068caaac8e1e0512bd1a2d03978fe0573e3de.
 No CI used. Current generated native recipe/source now137 ggv3Il, not136
-yLkhEV. DSH94714 package/review running. Codex prepared137 pack/readers,
+yLkhEV. DSH94714 CLOSED0; actual package0/independent review0, normal report,
+inputs unchanged. Image19546112B SHA
+04068d5fcc9f2f0787043daf09ed4db1c39a84efb51444c549e380873a06c196;
+payload19218432B SHA7ee2ff51149bd5ea2eb69678852960e0ecbac815cbd7057e5ed4a61c0db8780d.
+Evidence SHA63a11e80084c02ef2d7dffcec98c0e7884c5b5b727b2299db6b19311d45d87c0.
+Unique sweettrial=gmuf-0137-20261107-a1,539bytes; source assets unchanged
+NVT182558000/MDT18257c000/GMU182580000. All earlier image pins preserved.
+Codex prepared137 pack/readers,
 preserving all success rules/data/pins/131-page strings. New diagnostic source
 flag required, HFI REPLY/WORD on any purported successful trace rejected.
-Next runtime suites and ONE temporary137 boot, using reviewed script-owned
-recovery-to-fastboot transition. No137 phone proof yet. PhoneTWRP after136;
+DSH20451 CLOSED0, actual runtime_validate137.py0; normal three zero results,
+inputs unchanged: clock4/95,FW22/314,explicitly SYNTHETIC full17/55. Reader SHA
+60dabd5adeee89906030d99a6878916ee63e7dc1f1593fbf05e6f71f067e4130.
+New false-qualifier and HFI REPLY/WORD conflicting-success cases reject;
+all previous success/negative rules retained. No synthetic hardware proof.
+Reviewed boot137/run_hardware137 prepared for ONE image-hash-pinned boot,
+same products/latch/180s observer/freshpull/banner and strict full reader.
+NEXT execute execute-hardware.txt (script owns recovery-to-fastboot; no
+external adb/fastboot preflight). No137 phone proof yet. PhoneTWRP after136;
 no new user UI/touch/reset attribution. Full goal ACTIVE; original mkadt
 seven-line diff untouched; no flash/format/GPT/destructive action.
 

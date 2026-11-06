@@ -2,6 +2,90 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0118 strict replay and all51 host files PASS; ready for local build
+
+Fresh112-patch replay produced source118-codex5267 files, SHA
+9923370484996862a1019ecd35114ce3793327add4d1f57650f7af12aa19eb84.
+Exactly9 expected native paths differ from117; all equal reviewed combined
+candidate bytes. Baseline117 and tested118 unchanged. Full51 public host files
+PASS, report research/tmp/dsh-0118/replay-full-host-result.json; DSH85101 terminal0.
+Public fixtures match frozen candidates and use XNU_SOURCE/temporary outputs;
+no private raw capture is required by public tests. Private pure-plan115-case
+run additionally checks the pinned actual117 capture (public synthetic93 cases).
+
+Final focused results also include bus162 (106 retained+56 CX), three exact
+RAW/extractor round-trips, coordinator241 (149 retained+92 CX). All five changed/
+new native C TUs compile. Bus57976B object SHA4bc384a5e66e39385a6923db4189a4dda8382144d463b00948d8674319a0f2eb;
+coordinator32256B SHA5e480315288c5332529a70f8cdfcfc05fc6125c879ecd727edc118a1ad19f1a3.
+Machine joint-host-validation-result.json/coordinator-tu-validation-result.json
+PASS; sessions77890/30901 terminal0. Codex independent review found no blocker.
+
+Next: commit13 reviewed text paths, standard local build118.py/qualification/
+packaging and independent image review. These scripts now pin fresh118 SHA.
+verify_cx118.py preserves117 identity/CMDDB/CPU/WDT/BCM checks and adds exact
+ARC+CX log order, raw registers/receipt agreement, bounded counts, PAS exclusion.
+It distinguishes initial PWR_ON from observed OFF-to-ON without claiming causal
+ownership. Parser-focused host checks are being authored; no118 image/boot yet.
+After review, publish only a sanitized single-parent snapshot from public
+c90545fcee0e4d3f8ca278f2aa69e376396c7c56, then one authorized temporary boot.
+Phone remains TWRP. No destructive partition action. Full goal remains active.
+
+### 2026-11-06 — 0118 CX power candidate; focused checks in progress, NOT BOOTED
+
+117 remains the highest verified PAS result below. Next trial follows native
+GPU AWARE prerequisites rather than calling AUTH on an unpowered GPU. Reviewed
+primary source is LineageOS/android_kernel_xiaomi_gauguin at
+19b63c8192b1c9b7c4d931d7d3be92024bc2d778. Local contracts:
+research/tmp/dsh-0118/{arc-native-contract.md,cx-clock-plan.md,header-source-pins.json}.
+Actual117 CMDDB CX is address30000, slave3, bankver1000, aux32 bytes, levels
+0/16/64/128/192/256/384 then nine zero u16s. Initial candidate mistakenly
+required aux16; actual-RAW host replay rejected it before build/boot. Root
+corrected to strict32 and added all padding-byte rejection cases. Original
+failed reports remain in transport-validation-result.json and component logs.
+
+Selected temporary policy is selector6/level384, the highest supported legal
+same-table CX request, permitted by captured DT max65535. It dominates legal
+inherited same-table DRV requests; it is NOT a current floor/voltage reading,
+proof of opaque secure ownership, or a daily thermal policy. Retain through
+qualified WDT reset; no lower/release/rollback. One synchronous ARC command
+after BCM cleanup uses the same private RSC map/atomic owner, ADDR30000/DATA6/
+MSG10108/WAIT0/ENABLE1, mandatory ISSUED+COMPL and a fresh own completion IRQ.
+Separate ARC state/receipt preserve completed BCM history. Owned uncertainty
+quarantines controller/lease; non-owner BUSY changes neither.
+
+Then CX checks GCC CFG_AHB00145004 via aligned RO00144000+4000 before GPUCC
+RW03d90000+4000. Only GDSCR106c is written: reject HW_CONTROL/SW_OVERRIDE,
+masked CLK_DIS_WAIT8 then clear SW_COLLAPSE; native bounded500us PWR_ON poll
+and settle, final AHB1078 read. No GMU/GX/SMMU/CP/PAS/GPU execution. Actual DT
+has hw-ctl-addr, while pinned driver looks for hw-ctrl-addr, so native polls
+GDSCR106c, not syscon1540. Future GMU200MHz/SMMU/SQE/CP_INIT precede native ZAP.
+
+DSH read-only inventory completed in7s, all22 recovery checks good,140 DT
+properties, required_unavailable empty:
+research/tmp/dsh-0118/twrp-power-inventory-uv68hdbn/inventory.json.
+Both clk_summary/regulator_summary unavailable; no mount/fallback/device open.
+This captures DT/Linux state, not XNU voltage. No118 boot has occurred.
+
+Focused DSH results: CX power103 sanitizer cases and its native TU PASS;
+shared BCM+ARC280 cases (all147 old cases retained) PASS; pure CX plan115 cases
+including exact117 raw snapshot PASS; corrected plan and transport native TUs
+PASS. Machine reports initial-validation-result.json and
+transport-v2-validation-result.json. DSH sessions7305/51362/46083/70960 terminal.
+First ARC failure was a fixture expecting ALREADY instead of OFF with bus flag
+disabled; production behavior was correct. No warning/object/source repair by DSH.
+
+Candidates are under research/tmp/dsh-0118/{shared,plan,arc-transport,cx-power,
+bus-prepare,coordinator}. Root wrote core; fix_bus_host_fixture independently
+reviewed ARC and is extending bus/coordinator fixtures. Root-authored public
+test runners are being staged; full patch/replay/link/boot NOT YET qualified.
+Next: complete focused bus/coordinator validation, generate9-path112th patch
+(four new files, expected fresh source5267), full51-file host suite, commit,
+normal local build/package/review, sanitized single-public-parent push and one
+temporary sweetcxpower=1/busvote=1/PASinit=0/PASmem=0 trial. Build/review scripts
+still contain UNBUILT_SOURCE118_PIN until fresh replay establishes source hash.
+Keep original tools/mkadt.py diff and all113–117 artifacts; no destructive step.
+Full GPU/Metal, RAM/storage, peripherals,90–120Hz and daily-use goal stays active.
+
 
 ### 2026-11-06 — 0117 PAS MEM_SETUP and autonomous normal-runtime reset VERIFIED
 

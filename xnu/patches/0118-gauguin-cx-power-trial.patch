@@ -1,0 +1,785 @@
+diff --git a/bsd/conf/files b/bsd/conf/files
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -120,6 +120,8 @@
+ bsd/dev/gauguin_bcm_transport.c		standard
+ bsd/dev/gauguin_bcm_coordinator.c		standard
+ bsd/dev/gauguin_pas_init.c		standard
++bsd/dev/gauguin_cx_rail_plan.c		standard
++bsd/dev/gauguin_cx_power.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+diff --git a/bsd/dev/gauguin_bcm_coordinator.c b/bsd/dev/gauguin_bcm_coordinator.c
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -1,5 +1,5 @@
+-/* Opt-in BCM submission trial with separately enabled PAS INIT_IMAGE and MEM_SETUP.
+- * No AUTH_RESET, firmware-code load or GPU execution here.
++/* Opt-in BCM trial with separate PAS or fixed CX power diagnostics.
++ * CX mode excludes PAS. No AUTH_RESET, firmware-code load or GPU execution here.
+  * One preemptible coordinator serializes: CPU-stage claim -> same-boot CMDDB
+  * plan -> watchdog arm/advance -> native six-command transfer -> optional
+  * PAS INIT_IMAGE -> optional MEM_SETUP -> reset wait. New flags default0;
+@@ -22,6 +22,8 @@
+ #include "gauguin_bcm_transport.h"
+ #include "gauguin_wdt_lease.h"
+ #include "gauguin_pas_init.h"
++#include "gauguin_cx_rail.h"
++#include "gauguin_cx_power.h"
+ extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
+ extern void thread_terminate_self(void);
+ extern int get_preemption_level(void);
+@@ -50,6 +52,9 @@
+     int mem = 0;
+     (void)PE_parse_boot_argn("sweetpasmem", &mem, sizeof(mem));
+     if ((mem != 0 && mem != 1) || (mem == 1 && init != 1)) return false;
++    int cx = 0;
++    (void)PE_parse_boot_argn("sweetcxpower", &cx, sizeof(cx));
++    if ((cx != 0 && cx != 1) || (cx == 1 && (init != 0 || mem != 0))) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -59,6 +64,7 @@
+ {
+     struct sweet_pas_cpu_stage stage;
+     struct gbcm_plan plan;
++    struct gcr_plan cx_plan;
+     struct gauguin_wdt_lease_record lease;
+     struct gbcmt_receipt receipt;
+     uint64_t deadline;
+@@ -76,7 +82,8 @@
+     }
+     snprintf(line, sizeof(line), "SWEET BCM BOOT: CPU-stage claimed pa=%016llx metadata=%u reserved=%u; no secure authentication", stage.pa, stage.metadata_bytes, stage.reserved_bytes);
+     bcm_record(line);
+-    if (!sweet_bus_plan_prepare(&plan)) {
++    const bool cx_requested = sweet_cx_power_requested();
++    if (!(cx_requested ? sweet_bus_cx_plan_prepare(&plan, &cx_plan) : sweet_bus_plan_prepare(&plan))) {
+         bcm_record("SWEET BCM BOOT: same-boot CMDDB preparation failed; no watchdog/RSC write");
+         return;
+     }
+@@ -97,7 +104,27 @@
+         snprintf(line, sizeof(line), "SWEET BCM BOOT: cmd%u addr=%05x data=%08x wait=%u status=%08x", i, plan.cmd[i].address, plan.cmd[i].data, plan.cmd[i].wait, receipt.cmd_status[i]);
+         bcm_record(line);
+     }
+-    if (sweet_pas_init_requested()) {
++    if (cx_requested) {
++        struct gbcmt_receipt rail;
++        enum gbcmt_rc rail_result = sweet_cx_rail_submit_once(&cx_plan, &rail);
++        if (rail_result != GBCMT_OK) {
++            gauguin_wdt_lease_quarantine();
++            snprintf(line, sizeof(line), "SWEET BCM BOOT: CX rail stopped rc=%u state=%u; no GPUCC access or retry", (unsigned)rail_result, (unsigned)sweet_cx_rail_state());
++            bcm_record(line); return;
++        }
++        snprintf(line, sizeof(line), "SWEET BCM BOOT: CX rail complete slot=%u config=%08x irq_before=%08x irq_after=%08x irq_completed=%08x status=%08x", rail.slot, rail.config, rail.irq_before, rail.irq_after, rail.irq_completed, rail.cmd_status[0]);
++        bcm_record(line);
++        struct gcx_receipt power;
++        enum gcx_rc power_result = sweet_cx_power_once(&power);
++        if (power_result != GCX_OK) {
++            gauguin_wdt_lease_quarantine();
++            snprintf(line, sizeof(line), "SWEET BCM BOOT: CX power stopped rc=%u state=%u; no later GPU operation", (unsigned)power_result, (unsigned)sweet_cx_power_state());
++            bcm_record(line); return;
++        }
++        snprintf(line, sizeof(line), "SWEET BCM BOOT: CX power complete gcc=%08x before=%08x final=%08x ahb=%08x writes=%u polls=%u", power.gcc_cfg_ahb, power.gdsc_before, power.gdsc_final, power.ahb_final, power.writes, power.polls);
++        bcm_record(line);
++        bcm_record("SWEET BCM BOOT: CX trial done; ARC/BCM requests retained; awaiting watchdog reset; no PAS/GMU/GX/GPU execution");
++    } else if (sweet_pas_init_requested()) {
+         struct gpi_receipt pas;
+         enum gpi_rc result = sweet_pas_init_image_once(&stage, &pas);
+         if (result != GPI_OK) {
+diff --git a/bsd/dev/gauguin_bcm_transport.c b/bsd/dev/gauguin_bcm_transport.c
+--- a/bsd/dev/gauguin_bcm_transport.c
++++ b/bsd/dev/gauguin_bcm_transport.c
+@@ -1,13 +1,16 @@
+-/* Gauguin apps DRV2 ACTIVE1, one boot-lifetime six-command BCM batch.
++/* Gauguin apps DRV2 ACTIVE1: one BCM batch then one optional synchronous CX vote.
+  * Pinned19b63c8192b1c9b7c4d931d7d3be92024bc2d778 rpmh-rsc.c:221-354:
+  * per-command RESP_REQ follows cmd.wait (batch wait_for_compl=false).
+  * Native IRQ completion is mandatory; native has no CMD_STATUS clear path.
++ * ARC requires response/ISSUED/COMPL even with WAIT0. A shared atomic owner
++ * serializes both operations; non-owner BUSY leaves all state/output untouched.
+  * No masked-IRQ/busy-progress fallback, retry, vote release or PDC/sleep/wake write.
+  * Caller supplies a freshly validated same-boot plan and an armed WDT lease.
+  * Old sweet_rpmh_vreg_enable must reject this flag BEFORE mapping or locking;
+  * immutable boot configuration excludes the only other HLOS RSC writer.
+  * Register observations do not establish firmware-side ownership. Any uncertain
+- * write/completion quarantines this controller and lease until reset.
++ * owned failure quarantines this controller and lease until reset. Historical
++ * BCM completion is retained; it does not authorize use after lease quarantine.
+  */
+ #include <pexpert/arm64/board_config.h>
+ #if defined(GAUGUIN)
+@@ -20,6 +23,7 @@
+ #include <pexpert/pexpert.h>
+ #include <IOKit/IOLib.h>
+ #include "gauguin_bcm_transport.h"
++#include "gauguin_cx_rail.h"
+ #include "gauguin_wdt_lease.h"
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern vm_offset_t ml_vtophys(vm_offset_t);
+@@ -61,11 +65,20 @@
+ _Static_assert(PAGE_SHIFT == 14, "DRV2 probe covers one16KiB page");
+ _Static_assert(GBCM_COUNT == 6, "only the reviewed six-command request is accepted");
+ 
+-static unsigned gt_state;
++static unsigned gt_state, gcr_lifecycle;
++static unsigned gt_owner, gt_controller_quarantined;
++/* Only the acquired owner accesses transaction configuration. Historical BCM
++ * state and receipt stay complete while the separate CX request is executed. */
++static bool gt_arc;
++struct gt_wire {
++    unsigned count;
++    uint32_t wait_mask, response_mask;
++    struct gbcm_command cmd[GBCM_COUNT];
++};
+ static vm_offset_t gt_map;
+ static bool gt_wrote;
+ static uint64_t gt_deadline;
+-static struct gbcmt_receipt gt_receipt;
++static struct gbcmt_receipt gt_receipt, gcr_receipt;
+ 
+ static bool gt_context(void)
+ { return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
+@@ -91,9 +104,13 @@
+ static enum gbcmt_rc gt_fail(enum gbcmt_rc rc, const char *why)
+ {
+     char line[192];
+-    __atomic_store_n(&gt_state, gt_wrote ? GBCMT_QUARANTINED : GBCMT_REJECTED, __ATOMIC_RELEASE);
++    __atomic_store_n(&gt_controller_quarantined, 1u, __ATOMIC_RELEASE);
++    if (gt_arc)
++        __atomic_store_n(&gcr_lifecycle, gt_wrote ? GCR_QUARANTINED : GCR_REJECTED, __ATOMIC_RELEASE);
++    else
++        __atomic_store_n(&gt_state, gt_wrote ? GBCMT_QUARANTINED : GBCMT_REJECTED, __ATOMIC_RELEASE);
+     gauguin_wdt_lease_quarantine(); /* software only; never disable or pet */
+-    snprintf(line, sizeof(line), "SWEET BCM TX: stopped rc=%u writes=%u reason=%s; no retry/rollback", (unsigned)rc, gt_wrote ? 1u : 0u, why);
++    snprintf(line, sizeof(line), "%s: stopped rc=%u writes=%u reason=%s; no retry/rollback", gt_arc ? "SWEET CX RAIL" : "SWEET BCM TX", (unsigned)rc, gt_wrote ? 1u : 0u, why);
+     gt_record(line);
+     return rc;
+ }
+@@ -162,62 +179,64 @@
+     }
+     return true;
+ }
+-static uint32_t gt_msgid(unsigned command)
+-{ return 0x10008u | (((0x3bu >> command) & 1u) ? 0x100u : 0u); }
+-static bool gt_payload_matches(const struct gbcm_plan *p)
+-{
+-    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++static uint32_t gt_msgid(const struct gt_wire *p, unsigned command)
++{ return 0x10008u | (((p->response_mask >> command) & 1u) ? 0x100u : 0u); }
++static bool gt_payload_matches(const struct gt_wire *p)
++{
++    for (unsigned i = 0; i < p->count; ++i) {
+         uint32_t base = GT_OWN + i * GT_CMD_STRIDE;
+-        if (gt_read(base + GT_MSGID) != gt_msgid(i) ||
++        if (gt_read(base + GT_MSGID) != gt_msgid(p, i) ||
+             gt_read(base + GT_ADDR) != p->cmd[i].address ||
+             gt_read(base + GT_DATA) != p->cmd[i].data) return false;
+     }
+-    return gt_read(GT_OWN + GT_WAIT) == 0x3bu && gt_read(GT_OWN + GT_ENABLE) == 0x3fu;
+-}
+-
+-enum gbcmt_rc
+-sweet_bcm_submit_once(const struct gbcm_plan *input, struct gbcmt_receipt *out)
+-{
+-    unsigned expected = GBCMT_IDLE;
+-    struct gbcm_plan plan;
++    return gt_read(GT_OWN + GT_WAIT) == p->wait_mask &&
++        gt_read(GT_OWN + GT_ENABLE) == ((1u << p->count) - 1u);
++}
++/* Acquired owner only. Two fixed wire formats: BCM6 and synchronous CX ARC1.
++ * ARC reuses the successful BCM mapping. No general resource-writing API. */
++static enum gbcmt_rc gt_transaction(const struct gt_wire *p)
++{
+     struct gt_snapshot first, second;
++    struct gbcmt_receipt *receipt = gt_arc ? &gcr_receipt : &gt_receipt;
+     uint32_t irq = UINT32_MAX;
++    const uint32_t entry_ticks = (gt_arc ? 10u : 15u) * GT_WDT_HZ;
++    const unsigned total_ms = gt_arc ? 5000u : GT_TOTAL_MS;
+     char line[192];
+-    if (!sweet_bcm_vote_requested()) return GBCMT_OFF;
+-    if (!input || !out) return GBCMT_ARGUMENT;
+-    if (!__atomic_compare_exchange_n(&gt_state, &expected, GBCMT_RUNNING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return GBCMT_ALREADY;
+-    if (!gt_context()) return gt_fail(GBCMT_CONTEXT, "invalid thread context");
+-    plan = *input; /* caller's immutable CPU-owned validated plan; no MMIO input */
+-    if (!gt_plan_valid(&plan) || gt_conflicts()) return gt_fail(GBCMT_CONFIG, "plan/boot flags rejected");
+-    if (!gauguin_wdt_lease_check_budget(GT_START_TICKS)) return gt_fail(GBCMT_BUDGET, "armed watchdog lease unavailable");
++    if (!gauguin_wdt_lease_check_budget(entry_ticks)) return gt_fail(GBCMT_BUDGET, "armed watchdog lease unavailable");
+     if (!sweet_rsc_irq_quiet(&irq)) return gt_fail(GBCMT_CONFIG, "GIC NS INTID37 is enabled/unavailable");
+-    snprintf(line, sizeof(line), "SWEET BCM TX: ACTIVE1 exclusive experiment; GIC NS ISENABLER1=%08x; secure ownership unproven", irq);
++    snprintf(line, sizeof(line), "%s: ACTIVE1 exclusive experiment; GIC NS ISENABLER1=%08x; secure ownership unproven", gt_arc ? "SWEET CX RAIL" : "SWEET BCM TX", irq);
+     gt_record(line);
+     ppnum_t page = (ppnum_t)(GT_PA >> PAGE_SHIFT);
+     if (pmap_valid_page(page) || (pmap_cache_attributes(page) & 255u) != 7u) return gt_fail(GBCMT_MAPPING, "pmap not unmanaged Device");
+-    gt_record("SWEET BCM TX: mapping DRV2 18220000+4000 Device RW; fixed ACTIVE1 whitelist");
+-    gt_map = ml_io_map_with_prot(GT_PA, GT_BYTES, VM_PROT_READ | VM_PROT_WRITE);
++    if (gt_arc) {
++        gt_record("SWEET CX RAIL: reuse DRV2 18220000+4000 Device RW; no new alias");
++    } else {
++        gt_record("SWEET BCM TX: mapping DRV2 18220000+4000 Device RW; fixed ACTIVE1 whitelist");
++        gt_map = ml_io_map_with_prot(GT_PA, GT_BYTES, VM_PROT_READ | VM_PROT_WRITE);
++    }
+     if (!gt_map || ml_vtophys(gt_map) != GT_PA || ml_vtophys(gt_map + GT_BYTES - 1u) != GT_PA + GT_BYTES - 1u) return gt_fail(GBCMT_MAPPING, "map/translation failed");
+     if (!gt_snapshot(&first)) return gt_fail(GBCMT_BUSY, "geometry/slot/pending IRQ not inert");
+     IOSleep(1);
+     if (!gt_snapshot(&second) || memcmp(&first, &second, sizeof(first))) return gt_fail(GBCMT_BUSY, "preflight snapshot changed");
+-    gt_receipt.slot = GT_SLOT; gt_receipt.config = first.config; gt_receipt.irq_before = first.irq_en;
+-    gt_record("SWEET BCM TX: preflight stable; six native batch commands, WAIT3b/ENABLE3f; next write claims own IRQ bit1");
+-    clock_interval_to_deadline(GT_TOTAL_MS, NSEC_PER_MSEC, &gt_deadline);
+-    if (!gt_budget(GT_START_TICKS) || !sweet_rsc_irq_quiet(&irq) ||
++    receipt->slot = GT_SLOT; receipt->config = first.config; receipt->irq_before = first.irq_en;
++    gt_record(gt_arc ?
++        "SWEET CX RAIL: preflight stable; synchronous cx.lvl selector6, WAIT0/ENABLE1; next write claims own IRQ bit1" :
++        "SWEET BCM TX: preflight stable; six native batch commands, WAIT3b/ENABLE3f; next write claims own IRQ bit1");
++    clock_interval_to_deadline(total_ms, NSEC_PER_MSEC, &gt_deadline);
++    if (!gt_budget(entry_ticks) || !sweet_rsc_irq_quiet(&irq) ||
+         !gt_snapshot(&second) || memcmp(&first, &second, sizeof(first))) return gt_fail(GBCMT_BUSY, "pre-write guard changed");
+     if (!gt_sync(GT_IRQ_EN, first.irq_en | GT_BIT)) return gt_fail(GBCMT_READBACK, "own IRQ enable readback/budget");
+     /* A masked old pending indication may appear on unmask: never ACK it and
+      * never mistake it for this request. IRQ_CLEAR does not clear CMD_STATUS. */
+     if (gt_read(GT_IRQ_STATUS) != 0) return gt_fail(GBCMT_BUSY, "pending IRQ appeared before payload");
+-    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++    for (unsigned i = 0; i < p->count; ++i) {
+         uint32_t base = GT_OWN + i * GT_CMD_STRIDE;
+         if (!gt_budget(GT_POLL_TICKS)) return gt_fail(GBCMT_BUDGET, "payload budget");
+-        if (!gt_sync(base + GT_MSGID, gt_msgid(i)) ||
+-            !gt_sync(base + GT_ADDR, plan.cmd[i].address) ||
+-            !gt_sync(base + GT_DATA, plan.cmd[i].data)) return gt_fail(GBCMT_READBACK, "payload readback");
+-    }
+-    if (!gt_sync(GT_OWN + GT_WAIT, 0x3bu) || !gt_sync(GT_OWN + GT_ENABLE, 0x3fu)) return gt_fail(GBCMT_READBACK, "WAIT/ENABLE readback");
++        if (!gt_sync(base + GT_MSGID, gt_msgid(p, i)) ||
++            !gt_sync(base + GT_ADDR, p->cmd[i].address) ||
++            !gt_sync(base + GT_DATA, p->cmd[i].data)) return gt_fail(GBCMT_READBACK, "payload readback");
++    }
++    if (!gt_sync(GT_OWN + GT_WAIT, p->wait_mask) || !gt_sync(GT_OWN + GT_ENABLE, (1u << p->count) - 1u)) return gt_fail(GBCMT_READBACK, "WAIT/ENABLE readback");
+     /* Native trigger order: clear TRIGGER, clear AMC, set AMC, trigger ONCE. */
+     uint32_t control = gt_read(GT_OWN + GT_CONTROL);
+     if (control != 0 || gt_read(GT_IRQ_EN) != (first.irq_en | GT_BIT)) return gt_fail(GBCMT_BUSY, "controller ownership changed before trigger");
+@@ -225,27 +244,27 @@
+         !gt_sync(GT_OWN + GT_CONTROL, control & ~(GT_TRIGGER | GT_AMC)) ||
+         !gt_sync(GT_OWN + GT_CONTROL, GT_AMC)) return gt_fail(GBCMT_READBACK, "AMC preparation");
+     if (!gt_budget(GT_POLL_TICKS) || !sweet_rsc_irq_quiet(&irq) || gt_read(GT_CONFIG) != first.config ||
+-        gt_read(GT_IRQ_STATUS) != 0 || !gt_payload_matches(&plan)) return gt_fail(GBCMT_BUSY, "final trigger guards changed");
++        gt_read(GT_IRQ_STATUS) != 0 || !gt_payload_matches(p)) return gt_fail(GBCMT_BUSY, "final trigger guards changed");
+     gt_write(GT_OWN + GT_CONTROL, GT_AMC | GT_TRIGGER); /* never sync/rewrite trigger */
+     bool complete = false;
+-    for (unsigned i = 0; i < GT_TOTAL_MS; ++i) {
++    for (unsigned i = 0; i < total_ms; ++i) {
+         if (!gt_budget(GT_POLL_TICKS)) return gt_fail(GBCMT_TIMEOUT, "completion deadline/watchdog budget");
+         uint32_t pending = gt_read(GT_IRQ_STATUS);
+         if (pending & ~GT_BIT) return gt_fail(GBCMT_BUSY, "foreign completion observed");
+-        if (pending == GT_BIT) { gt_receipt.irq_completed = pending; complete = true; break; }
++        if (pending == GT_BIT) { receipt->irq_completed = pending; complete = true; break; }
+         IOSleep(1);
+     }
+     if (!complete) return gt_fail(GBCMT_TIMEOUT, "no new own completion IRQ");
+-    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++    for (unsigned i = 0; i < p->count; ++i) {
+         uint32_t value = gt_read(GT_OWN + GT_CMD_STATUS + i * GT_CMD_STRIDE);
+-        gt_receipt.cmd_status[i] = value;
++        receipt->cmd_status[i] = value;
+         if (value == UINT32_MAX || !(value & GT_ISSUED) ||
+-            (((0x3bu >> i) & 1u) && !(value & GT_COMPL))) return gt_fail(GBCMT_COMPLETION, "native command status incomplete");
++            (((p->response_mask >> i) & 1u) && !(value & GT_COMPL))) return gt_fail(GBCMT_COMPLETION, "native command status incomplete");
+     }
+     uint32_t idle = gt_read(GT_OWN + GT_STATUS);
+     control = gt_read(GT_OWN + GT_CONTROL);
+     if (!idle || idle == UINT32_MAX || (control & ~(GT_AMC | GT_TRIGGER)) ||
+-        gt_read(GT_IRQ_EN) != (first.irq_en | GT_BIT) || !gt_payload_matches(&plan)) return gt_fail(GBCMT_COMPLETION, "completed payload/idle/ownership changed");
++        gt_read(GT_IRQ_EN) != (first.irq_en | GT_BIT) || !gt_payload_matches(p)) return gt_fail(GBCMT_COMPLETION, "completed payload/idle/ownership changed");
+     /* Clear only the successful transport. This does not release BCM votes. */
+     if (!gt_sync(GT_OWN + GT_CONTROL, control & ~GT_TRIGGER) ||
+         !gt_sync(GT_OWN + GT_CONTROL, control & ~(GT_TRIGGER | GT_AMC)) ||
+@@ -265,10 +284,93 @@
+     if (current_irq != (first.irq_en | GT_BIT)) return gt_fail(GBCMT_BUSY, "IRQ enable changed during cleanup");
+     /* Restore only the one bit we acquired; never write a stale full mask. */
+     if (!gt_sync(GT_IRQ_EN, current_irq & ~GT_BIT)) return gt_fail(GBCMT_READBACK, "restore own IRQ bit");
+-    gt_receipt.irq_after = current_irq & ~GT_BIT;
+-    *out = gt_receipt;
+-    __atomic_store_n(&gt_state, GBCMT_COMPLETE, __ATOMIC_RELEASE);
+-    gt_record("SWEET BCM TX: native completion verified, ACTIVE1 reclaimed; BCM requests held until reset; bandwidth/GPU execution not measured");
++    receipt->irq_after = current_irq & ~GT_BIT;
+     return GBCMT_OK;
+ }
++static bool gt_acquire(void)
++{
++    unsigned expected = 0;
++    return __atomic_compare_exchange_n(&gt_owner, &expected, 1u, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
++}
++static void gt_release(void)
++{ __atomic_store_n(&gt_owner, 0u, __ATOMIC_RELEASE); }
++enum gcr_state sweet_cx_rail_state(void)
++{ return (enum gcr_state)__atomic_load_n(&gcr_lifecycle, __ATOMIC_ACQUIRE); }
++static bool gt_cx_requested(void)
++{
++    int flag = 0; (void)PE_parse_boot_argn("sweetcxpower", &flag, sizeof(flag));
++    return flag == 1;
++}
++static bool gt_cx_flags(void)
++{
++    int init = 0, mem = 0;
++    (void)PE_parse_boot_argn("sweetpasinit", &init, sizeof(init));
++    (void)PE_parse_boot_argn("sweetpasmem", &mem, sizeof(mem));
++    return sweet_bcm_vote_requested() && !init && !mem && !gt_conflicts();
++}
++enum gbcmt_rc
++sweet_bcm_submit_once(const struct gbcm_plan *input, struct gbcmt_receipt *out)
++{
++    if (!sweet_bcm_vote_requested()) return GBCMT_OFF;
++    if (!input || !out) return GBCMT_ARGUMENT;
++    if (sweet_bcm_transport_state() != GBCMT_IDLE) return GBCMT_ALREADY;
++    /* A non-owner cannot alter the active transaction, its state or lease. */
++    if (!gt_acquire()) return GBCMT_BUSY;
++    unsigned expected = GBCMT_IDLE;
++    if (!__atomic_compare_exchange_n(&gt_state, &expected, GBCMT_RUNNING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
++        gt_release(); return GBCMT_ALREADY;
++    }
++    gt_arc = false; gt_wrote = false;
++    memset(&gt_receipt, 0, sizeof(gt_receipt));
++    struct gbcm_plan plan = *input;
++    struct gt_wire wire = {0};
++    enum gbcmt_rc rc;
++    if (__atomic_load_n(&gt_controller_quarantined, __ATOMIC_ACQUIRE)) rc = gt_fail(GBCMT_CONFIG, "controller quarantined");
++    else if (!gt_context()) rc = gt_fail(GBCMT_CONTEXT, "invalid thread context");
++    else if (!gt_plan_valid(&plan) || gt_conflicts()) rc = gt_fail(GBCMT_CONFIG, "plan/boot flags rejected");
++    else {
++        wire.count = GBCM_COUNT; wire.wait_mask = wire.response_mask = 0x3bu;
++        memcpy(wire.cmd, plan.cmd, sizeof(wire.cmd));
++        rc = gt_transaction(&wire);
++    }
++    if (rc == GBCMT_OK) {
++        *out = gt_receipt;
++        __atomic_store_n(&gt_state, GBCMT_COMPLETE, __ATOMIC_RELEASE);
++        gt_record("SWEET BCM TX: native completion verified, ACTIVE1 reclaimed; BCM requests held until reset; bandwidth/GPU execution not measured");
++    }
++    gt_release(); return rc;
++}
++enum gbcmt_rc
++sweet_cx_rail_submit_once(const struct gcr_plan *input, struct gbcmt_receipt *out)
++{
++    if (!gt_cx_requested()) return GBCMT_OFF;
++    if (!input || !out) return GBCMT_ARGUMENT;
++    if (sweet_cx_rail_state() != GCR_IDLE) return GBCMT_ALREADY;
++    if (!gt_acquire()) return GBCMT_BUSY;
++    unsigned expected = GCR_IDLE;
++    if (!__atomic_compare_exchange_n(&gcr_lifecycle, &expected, GCR_RUNNING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
++        gt_release(); return GBCMT_ALREADY;
++    }
++    gt_arc = true; gt_wrote = false;
++    memset(&gcr_receipt, 0, sizeof(gcr_receipt));
++    struct gcr_plan plan = *input;
++    struct gt_wire wire = {0};
++    enum gbcmt_rc rc;
++    if (__atomic_load_n(&gt_controller_quarantined, __ATOMIC_ACQUIRE)) rc = gt_fail(GBCMT_CONFIG, "controller quarantined");
++    else if (!gt_context()) rc = gt_fail(GBCMT_CONTEXT, "invalid thread context");
++    else if (!gt_cx_flags() || !gcr_plan_valid(&plan)) rc = gt_fail(GBCMT_CONFIG, "CX plan/flags rejected");
++    else if (sweet_bcm_transport_state() != GBCMT_COMPLETE || !gt_map) rc = gt_fail(GBCMT_CONFIG, "BCM completion/mapping prerequisite");
++    else {
++        wire.count = 1; wire.wait_mask = 0; wire.response_mask = 1;
++        wire.cmd[0].address = plan.address; wire.cmd[0].data = plan.selector;
++        wire.cmd[0].wait = 0;
++        rc = gt_transaction(&wire);
++    }
++    if (rc == GBCMT_OK) {
++        *out = gcr_receipt;
++        __atomic_store_n(&gcr_lifecycle, GCR_COMPLETE, __ATOMIC_RELEASE);
++        gt_record("SWEET CX RAIL: synchronous completion verified, ACTIVE1 reclaimed; CX selector6 held until reset; voltage not measured");
++    }
++    gt_release(); return rc;
++}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_bus_probe.c b/bsd/dev/gauguin_bus_probe.c
+--- a/bsd/dev/gauguin_bus_probe.c
++++ b/bsd/dev/gauguin_bus_probe.c
+@@ -27,6 +27,7 @@
+ #include "cmd_db_snapshot.h"
+ #include "gauguin_bcm_plan.h"
+ #include "gauguin_bus_probe.h"
++#include "gauguin_cx_rail.h"
+ 
+ /* Canonical MACH/PEXPERT-private declarations, hidden from the BSD header view
+  * (as in the existing gauguin probes). */
+@@ -514,14 +515,17 @@
+     bus_record("SWEET BUS: PLAN ONLY; no bandwidth submitted, no GPU execution; observation only");
+ }
+ 
+-bool
+-sweet_bus_plan_prepare(struct gbcm_plan *out)
+-{
+-    int vote = 0, probe = 0, mode = 0;
++static bool
++bus_plan_prepare(struct gbcm_plan *out, struct gcr_plan *cx)
++{
++    int vote = 0, probe = 0, mode = 0, cxflag = 0;
++    struct gcr_plan cx_plan = {0};
+     (void)PE_parse_boot_argn("sweetbusvote", &vote, sizeof(vote));
+     (void)PE_parse_boot_argn("sweetbusprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweettouchmode", &mode, sizeof(mode));
+-    if (!out || vote != 1 || probe != 0 || mode != 0 || !bus_context()) return false;
++    (void)PE_parse_boot_argn("sweetcxpower", &cxflag, sizeof(cxflag));
++    if (!out || vote != 1 || probe != 0 || mode != 0 || !bus_context() ||
++        (cx ? cxflag != 1 : cxflag != 0)) return false;
+     if (__atomic_exchange_n(&bus_started, 1u, __ATOMIC_ACQ_REL)) return false;
+     bus_work = (struct bus_work *)IOMalloc(sizeof(*bus_work));
+     if (!bus_work) { bus_record("SWEET BUS: plan allocation failed; no RSC access"); return false; }
+@@ -533,11 +537,26 @@
+     if (!bus_readonly_map(BUS_CMDB_PA, BUS_CMDB_BYTES, &cmdb)) return false;
+     bus_record("SWEET BUS: plan CMDDB mapping OK; first read next");
+     if (!bus_dump_cmddb(cmdb, bus_work) || !bus_parse_metadata(bus_work)) return false;
++    if (cx) {
++        struct ndb_entry entry;
++        if (ndb_lookup(bus_work->raw[0], BUS_RAW_BYTES, "cx.lvl", 6, &entry) != NDB_OK ||
++            !gcr_plan_build(&entry, &cx_plan)) {
++            bus_record("SWEET BUS: CX legal-domain plan rejected; no RSC access");
++            return false;
++        }
++        bus_record("SWEET BUS: CX plan addr=30000 selector=6 level=384 count=7 max=65535; highest supported native domain, not a live floor read");
++    }
+     bus_report_plan(bus_work);
+     *out = bus_work->plan;
++    if (cx) *cx = cx_plan;
+     bus_record("SWEET BUS: same-boot CPU plan ready; no RSC access or submission yet");
+     return true;
+ }
++
++bool sweet_bus_plan_prepare(struct gbcm_plan *out)
++{ return bus_plan_prepare(out, NULL); }
++bool sweet_bus_cx_plan_prepare(struct gbcm_plan *out, struct gcr_plan *cx)
++{ return cx != NULL && bus_plan_prepare(out, cx); }
+ 
+ static void
+ bus_worker(void *argument, wait_result_t result)
+diff --git a/bsd/dev/gauguin_bus_probe.h b/bsd/dev/gauguin_bus_probe.h
+--- a/bsd/dev/gauguin_bus_probe.h
++++ b/bsd/dev/gauguin_bus_probe.h
+@@ -6,5 +6,9 @@
+  * with the read-only probe. Copies/validates actual same-boot CMDDB twice,
+  * produces only a CPU plan. No RSC map/write or submission. Output unchanged
+  * on failure; all mappings/copies retained until reboot. Thread context only. */
+-bool sweet_bus_plan_prepare(struct gbcm_plan *out);
++bool sweet_bus_plan_prepare(struct gbcm_plan *);
++struct gcr_plan;
++/* Same two-copy CMDDB capture, plus a fixed CX legal-domain envelope plan.
++ * Both outputs remain unchanged on failure; no RSC access or voltage claim. */
++bool sweet_bus_cx_plan_prepare(struct gbcm_plan *, struct gcr_plan *);
+ #endif
+diff --git a/bsd/dev/gauguin_cx_power.c b/bsd/dev/gauguin_cx_power.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_cx_power.c
+@@ -0,0 +1,207 @@
++/* Native19b63c8192b1c9b7c4d931d7d3be92024bc2d778 gdsc-regulator.c and
++ * gpucc-lagoon.c; actual gauguin DT CX GDSCR106c/wait8/timeout500us.
++ * The DT says hw-ctl-addr, while the pinned parser accepts hw-ctrl-addr;
++ * this exact native combination polls GDSCR106c, not syscon1540.
++ * No CX sw-reset/domain-addr/retention-clock branch exists in this DT.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/clock.h>
++#include <machine/machine_routines.h>
++#include <mach/mach_time.h>
++#include <vm/pmap.h>
++#include <pexpert/pexpert.h>
++#include "gauguin_cx_power.h"
++#include "gauguin_cx_rail.h"
++#include "gauguin_wdt_lease.h"
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern vm_offset_t ml_vtophys(vm_offset_t);
++extern boolean_t pmap_valid_page(ppnum_t);
++extern unsigned int pmap_cache_attributes(ppnum_t);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++
++#define GCX_GCC_PAGE UINT64_C(0x00144000)
++#define GCX_GCC_CFG 0x1004u /* absolute00145004, not a16KiB-aligned map base */
++#define GCX_GPUCC_PAGE UINT64_C(0x03d90000)
++#define GCX_PAGE 0x4000u
++#define GCX_GDSCR 0x106cu
++#define GCX_AHB 0x1078u
++#define GCX_ON (1u << 31)
++#define GCX_COLLAPSE 1u
++#define GCX_MODE_MASK 6u
++#define GCX_WAIT_MASK 0xf000u
++#define GCX_WAIT8 0x8000u
++#define GCX_CONTROL_MASK (GCX_WAIT_MASK | GCX_MODE_MASK | GCX_COLLAPSE)
++#define GCX_ENTRY_TICKS (5u * 32765u)
++#define GCX_STEP_TICKS (3u * 32765u)
++_Static_assert(PAGE_SHIFT == 14, "CX mappings are exactly16KiB pages");
++static unsigned gcx_lifecycle;
++static vm_offset_t gcx_gcc, gcx_gpucc;
++static uint64_t gcx_deadline;
++static struct gcx_receipt gcx_work;
++
++static bool gcx_context(void)
++{ return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
++static void gcx_record(const char *line)
++{
++    printf("%s\n", line);
++    if (gcx_context()) { sweet_log_mark_sync(line); sweet_log_flush_now(); }
++}
++bool sweet_cx_power_requested(void)
++{
++    int flag = 0; (void)PE_parse_boot_argn("sweetcxpower", &flag, sizeof(flag));
++    return flag == 1;
++}
++enum gcx_state sweet_cx_power_state(void)
++{ return (enum gcx_state)__atomic_load_n(&gcx_lifecycle, __ATOMIC_ACQUIRE); }
++static bool gcx_flags(void)
++{
++    int vote = 0; (void)PE_parse_boot_argn("sweetbusvote", &vote, sizeof(vote));
++    if (vote != 1) return false;
++    static const char *const off[] = {"sweetpasinit", "sweetpasmem", "sweettouchmode",
++        "sweetwdtpet", "sweetreboot", "sweetbusprobe", "sweetgpuprobe", "sweetscmprobe", "sweetwdttest"};
++    for (unsigned i = 0; i < sizeof(off) / sizeof(off[0]); ++i) {
++        int value = 0; (void)PE_parse_boot_argn(off[i], &value, sizeof(value));
++        if (value != 0) return false;
++    }
++    return true;
++}
++static enum gcx_rc gcx_guard(uint32_t minimum)
++{
++    if (!gcx_context()) return GCX_CONTEXT;
++    if (sweet_cx_rail_state() != GCR_COMPLETE) return GCX_PARENT;
++    if (mach_absolute_time() >= gcx_deadline) return GCX_TIMEOUT;
++    if (!gauguin_wdt_lease_check_budget(minimum)) return GCX_BUDGET;
++    return GCX_OK;
++}
++static uint32_t gcx_read(vm_offset_t mapping, uint32_t offset)
++{
++    uint32_t value = *(volatile uint32_t *)(mapping + offset);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++static void gcx_write(uint32_t value)
++{
++    ++gcx_work.writes; /* uncertain before actual store; never retry */
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)(gcx_gpucc + GCX_GDSCR) = value;
++    __asm__ volatile("dsb sy" ::: "memory");
++}
++static enum gcx_rc gcx_fail(enum gcx_rc rc, const char *reason)
++{
++    gauguin_wdt_lease_quarantine();
++    __atomic_store_n(&gcx_lifecycle, GCX_QUARANTINED, __ATOMIC_RELEASE);
++    char line[192];
++    snprintf(line, sizeof(line), "SWEET CX POWER: stopped rc=%u writes=%u polls=%u reason=%s; retained, no retry/cleanup",
++        (unsigned)rc, gcx_work.writes, gcx_work.polls, reason);
++    gcx_record(line); return rc;
++}
++static enum gcx_rc gcx_map(uint64_t pa, vm_prot_t prot, vm_offset_t *out, uint32_t minimum)
++{
++    ppnum_t pn = (ppnum_t)(pa >> PAGE_SHIFT);
++    if (pmap_valid_page(pn) || (pmap_cache_attributes(pn) & 255u) != 7u) return GCX_MAPPING;
++    char line[160];
++    snprintf(line, sizeof(line), "SWEET CX POWER: before map pa=%08llx bytes=4000 prot=%u", (unsigned long long)pa, (unsigned)prot);
++    gcx_record(line);
++    enum gcx_rc rc = gcx_guard(minimum); /* synchronous persistence consumed time */
++    if (rc != GCX_OK) return rc;
++    vm_offset_t va = ml_io_map_with_prot((vm_offset_t)pa, GCX_PAGE, prot);
++    if (!va || ml_vtophys(va) != pa || ml_vtophys(va + GCX_PAGE - 1u) != pa + GCX_PAGE - 1u) return GCX_MAPPING;
++    *out = va; return GCX_OK;
++}
++static enum gcx_rc gcx_step(uint32_t mask, uint32_t value, bool wait_required, const char *marker, uint32_t *result)
++{
++    gcx_record(marker);
++    enum gcx_rc rc = gcx_guard(GCX_STEP_TICKS);
++    if (rc != GCX_OK) return rc;
++    uint32_t before = gcx_read(gcx_gpucc, GCX_GDSCR);
++    if (before & GCX_MODE_MASK) return GCX_MODE;
++    if (wait_required && (before & GCX_WAIT_MASK) != GCX_WAIT8) return GCX_READBACK;
++    uint32_t wanted = (before & ~mask) | value;
++    if (wanted != before) {
++        /* The fresh register read itself may have consumed time. */
++        rc = gcx_guard(GCX_STEP_TICKS);
++        if (rc != GCX_OK) return rc;
++        gcx_write(wanted); /* preserve every unrelated bit */
++    }
++    rc = gcx_guard(GCX_STEP_TICKS);
++    if (rc != GCX_OK) return rc;
++    uint32_t after = gcx_read(gcx_gpucc, GCX_GDSCR);
++    *result = after;
++    /* PWR_ON is dynamic status. Verify our control bits, not a guessed whole
++     * register constant; no hardware-mode takeover is allowed. */
++    if ((after & GCX_CONTROL_MASK) != (wanted & GCX_CONTROL_MASK)) return GCX_READBACK;
++    return GCX_OK;
++}
++enum gcx_rc
++sweet_cx_power_once(struct gcx_receipt *out)
++{
++    unsigned expected = GCX_IDLE;
++    if (!sweet_cx_power_requested()) return GCX_OFF;
++    if (out == NULL) return GCX_ARGUMENT;
++    if (!__atomic_compare_exchange_n(&gcx_lifecycle, &expected, GCX_RUNNING, false,
++        __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return GCX_ALREADY;
++    if (!gcx_context()) return gcx_fail(GCX_CONTEXT, "invalid context");
++    if (!gcx_flags()) return gcx_fail(GCX_CONFIG, "conflicting flags");
++    clock_interval_to_deadline(5, NSEC_PER_SEC, &gcx_deadline);
++    enum gcx_rc rc = gcx_guard(GCX_ENTRY_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "parent/initial budget");
++    rc = gcx_map(GCX_GCC_PAGE, VM_PROT_READ, &gcx_gcc, GCX_ENTRY_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "GCC map/guard");
++    gcx_record("SWEET CX POWER: before GCC CFG_AHB read pa=00145004; no GCC write");
++    rc = gcx_guard(GCX_STEP_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "GCC gate guard");
++    gcx_work.gcc_cfg_ahb = gcx_read(gcx_gcc, GCX_GCC_CFG);
++    char line[192];
++    snprintf(line, sizeof(line), "SWEET CX POWER: GCC CFG_AHB raw=%08x", gcx_work.gcc_cfg_ahb); gcx_record(line);
++    if (!(gcx_work.gcc_cfg_ahb & 1u) || (gcx_work.gcc_cfg_ahb & GCX_ON)) return gcx_fail(GCX_ACCESS_GATE, "GCC config AHB not enabled/on");
++    rc = gcx_map(GCX_GPUCC_PAGE, VM_PROT_READ | VM_PROT_WRITE, &gcx_gpucc, GCX_STEP_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "GPUCC map/guard");
++    gcx_record("SWEET CX POWER: before first GDSCR read pa=03d9106c; parent ARC completion required");
++    rc = gcx_guard(GCX_STEP_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "first GDSCR guard");
++    gcx_work.gdsc_before = gcx_read(gcx_gpucc, GCX_GDSCR);
++    snprintf(line, sizeof(line), "SWEET CX POWER: GDSCR before=%08x", gcx_work.gdsc_before); gcx_record(line);
++    if (gcx_work.gdsc_before & GCX_MODE_MASK) return gcx_fail(GCX_MODE, "HW_CONTROL/SW_OVERRIDE owned elsewhere");
++    rc = gcx_step(GCX_WAIT_MASK, GCX_WAIT8, false,
++        "SWEET CX POWER: before masked CLK_DIS_WAIT=8; no mode takeover", &gcx_work.gdsc_config);
++    if (rc != GCX_OK) return gcx_fail(rc, "wait configuration");
++    snprintf(line, sizeof(line), "SWEET CX POWER: GDSCR configured=%08x writes=%u", gcx_work.gdsc_config, gcx_work.writes); gcx_record(line);
++    rc = gcx_step(GCX_COLLAPSE, 0, true,
++        "SWEET CX POWER: before clearing HLOS SW_COLLAPSE only; no reset/clamp write", &gcx_work.gdsc_enable);
++    if (rc != GCX_OK) return gcx_fail(rc, "software enable");
++    /* Native gdsc_mb readback above, then at least8 XO cycles. */
++    delay(1);
++    bool on = false;
++    for (unsigned i = 0; i < 500; ++i) {
++        rc = gcx_guard(GCX_STEP_TICKS);
++        if (rc != GCX_OK) return gcx_fail(rc, "power-on poll guard");
++        uint32_t value = gcx_read(gcx_gpucc, GCX_GDSCR); ++gcx_work.polls;
++        if ((value & GCX_CONTROL_MASK) != GCX_WAIT8) return gcx_fail(GCX_READBACK, "controls changed during power-on");
++        if (value & GCX_ON) { on = true; break; }
++        delay(1);
++    }
++    if (!on) return gcx_fail(GCX_TIMEOUT, "PWR_ON not observed in500 polls");
++    delay(1); delay(1); /* native clock/memory then staggered-memory settle */
++    rc = gcx_guard(GCX_STEP_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "settle guard");
++    gcx_work.gdsc_final = gcx_read(gcx_gpucc, GCX_GDSCR);
++    if ((gcx_work.gdsc_final & (GCX_ON | GCX_CONTROL_MASK)) != (GCX_ON | GCX_WAIT8)) return gcx_fail(GCX_READBACK, "final power/control mismatch");
++    gcx_record("SWEET CX POWER: before final GPUCC AHB raw read pa=03d91078; CX on only");
++    rc = gcx_guard(GCX_STEP_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "AHB observation guard");
++    gcx_work.ahb_final = gcx_read(gcx_gpucc, GCX_AHB);
++    if (gcx_work.ahb_final == UINT32_MAX) return gcx_fail(GCX_READBACK, "AHB observation all ones");
++    snprintf(line, sizeof(line), "SWEET CX POWER: final gdsc=%08x ahb=%08x writes=%u polls=%u", gcx_work.gdsc_final, gcx_work.ahb_final, gcx_work.writes, gcx_work.polls); gcx_record(line);
++    rc = gcx_guard(GCX_STEP_TICKS);
++    if (rc != GCX_OK) return gcx_fail(rc, "post-log budget");
++    *out = gcx_work;
++    __atomic_store_n(&gcx_lifecycle, GCX_COMPLETE, __ATOMIC_RELEASE);
++    gcx_record("SWEET CX POWER: complete CX PWR_ON and HLOS request verified; GMU/GX/GPU execution untested");
++    return GCX_OK;
++}
++#endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_cx_power.h b/bsd/dev/gauguin_cx_power.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_cx_power.h
+@@ -0,0 +1,29 @@
++#ifndef GAUGUIN_CX_POWER_H
++#define GAUGUIN_CX_POWER_H
++#include <stdbool.h>
++#include <stdint.h>
++enum gcx_state { GCX_IDLE, GCX_RUNNING, GCX_COMPLETE, GCX_QUARANTINED };
++enum gcx_rc { GCX_OK, GCX_OFF, GCX_ARGUMENT, GCX_ALREADY, GCX_CONTEXT,
++    GCX_CONFIG, GCX_PARENT, GCX_BUDGET, GCX_TIMEOUT, GCX_MAPPING,
++    GCX_ACCESS_GATE, GCX_MODE, GCX_READBACK };
++struct gcx_receipt {
++    uint32_t gcc_cfg_ahb, gdsc_before, gdsc_config, gdsc_enable, gdsc_final;
++    uint32_t ahb_final, writes, polls;
++};
++/* One fixed CX power transaction after successful same-boot ARC parent request.
++ * Parent completion depends on the reviewed native legal-selector envelope;
++ * it is not measured voltage or secure-owner proof. No GPUCC access precedes
++ * that parent and a live already-enabled GCC config-AHB gate. No GCC writes.
++ *
++ * Only GDSCR wait8 and HLOS SW_COLLAPSE0 may be written. Reject inherited
++ * HW_CONTROL/SW_OVERRIDE rather than taking over an unknown hardware owner.
++ * Mapping/request remain held until reset; every started failure quarantines
++ * state and WDT authorization, with no rollback/retry/disable/PET operation.
++ * Output is written only on complete success, before terminal release state.
++ * Raw AHB is a final observation; COMPLETE is CX-on, not GMU/GX/GPU execution.
++ * Software deadlines cannot cancel a blocked MMIO access.
++ */
++bool sweet_cx_power_requested(void);
++enum gcx_rc sweet_cx_power_once(struct gcx_receipt *out);
++enum gcx_state sweet_cx_power_state(void);
++#endif
+diff --git a/bsd/dev/gauguin_cx_rail.h b/bsd/dev/gauguin_cx_rail.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_cx_rail.h
+@@ -0,0 +1,27 @@
++#ifndef GAUGUIN_CX_RAIL_H
++#define GAUGUIN_CX_RAIL_H
++#include <stdbool.h>
++#include <stdint.h>
++#include "gauguin_bcm_transport.h"
++struct ndb_entry;
++/* Fixed gauguin diagnostic policy, not a general regulator or current-vote API.
++ * Exact current CMDDB CX table and captured DT max65535 bound selector6/384.
++ * This dominates legal requests in that table, not undocumented out-of-domain
++ * votes. Known HLOS writers are excluded; secure ownership/solver behavior is
++ * not established by idle TCS. Hold the request until the qualified WDT reset;
++ * never lower/release a vote or claim a measured voltage from completion. */
++struct gcr_plan {
++    uint32_t address, selector, level, count, max_level;
++    uint16_t levels[16];
++};
++bool gcr_plan_build(const struct ndb_entry *, struct gcr_plan *);
++bool gcr_plan_valid(const struct gcr_plan *);
++enum gcr_state { GCR_IDLE, GCR_RUNNING, GCR_COMPLETE, GCR_REJECTED, GCR_QUARANTINED };
++/* Exactly one additional fixed CX command after the successful BCM cleanup,
++ * through the same private RSC mapping/owner. Global response required even
++ * with WAIT0: ADDR30000 DATA6 MSGID10108 ENABLE1, ISSUED+COMPL and fresh IRQ.
++ * Preserve BCM's completed receipt/state; any uncertain ARC write quarantines
++ * further controller use and WDT authorization, without retry or cleanup. */
++enum gbcmt_rc sweet_cx_rail_submit_once(const struct gcr_plan *, struct gbcmt_receipt *);
++enum gcr_state sweet_cx_rail_state(void);
++#endif
+diff --git a/bsd/dev/gauguin_cx_rail_plan.c b/bsd/dev/gauguin_cx_rail_plan.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_cx_rail_plan.c
+@@ -0,0 +1,37 @@
++/* Pure fixed-board CX diagnostic policy. No MMIO or voltage measurements.
++ * The current gauguin CMDDB table and captured native DT max65535 define an
++ * upper envelope for legal native DRV2 requests, not an observed live floor.
++ * Do not silently adapt to a different table, board maximum or resource. */
++#include <string.h>
++#include "cmd_db_snapshot.h"
++#include "gauguin_cx_rail.h"
++static const uint16_t gcr_cx_levels[7] = {0,16,64,128,192,256,384};
++bool gcr_plan_valid(const struct gcr_plan *p)
++{
++    if (!p || p->address != 0x30000u || p->selector != 6u ||
++        p->level != 384u || p->count != 7u || p->max_level != 65535u) return false;
++    for (unsigned i = 0; i < 16; ++i)
++        if (p->levels[i] != (i < 7 ? gcr_cx_levels[i] : 0)) return false;
++    return true;
++}
++bool gcr_plan_build(const struct ndb_entry *entry, struct gcr_plan *out)
++{
++    struct ndb_arc_levels arc;
++    struct gcr_plan plan = {0};
++    if (!entry || !out || memcmp(entry->name, "cx.lvl", 7) ||
++        entry->name[7] || entry->name[8] || entry->address != 0x30000u ||
++        entry->owner_slave != 3u || entry->bank_version != 0x1000u ||
++        entry->aux_length != 32u || ndb_decode_arc(entry, &arc) != NDB_OK ||
++        arc.count != 7u) return false;
++    for (unsigned i = 0; i < arc.count; ++i)
++        if (arc.value[i] != gcr_cx_levels[i]) return false;
++    plan.address = entry->address;
++    plan.count = arc.count;
++    plan.selector = arc.count - 1u;
++    plan.level = arc.value[plan.selector];
++    plan.max_level = 65535u;
++    memcpy(plan.levels, arc.value, arc.count * sizeof(arc.value[0]));
++    if (!gcr_plan_valid(&plan)) return false;
++    *out = plan;
++    return true;
++}

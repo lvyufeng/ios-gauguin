@@ -11,6 +11,7 @@
 #include "cmd_db_snapshot.h"
 #include "gauguin_bcm_transport.h"
 #include "gauguin_wdt_lease.h"
+#include "gauguin_cx_rail.h"
 #define GAUGUIN 1
 #define PAGE_SHIFT 14
 #define VM_PROT_READ 1u
@@ -32,7 +33,8 @@ static unsigned cases;
 static const char *const conflicts[]={"sweettouchmode","sweetwdtpet","sweetreboot",
     "sweetbusprobe","sweetgpuprobe","sweetscmprobe","sweetwdttest"};
 static struct {
-    int requested,conflict[7],context;
+    int requested,conflict[7],context,cx_requested,pas_init,pas_mem;
+    unsigned arc_phase;
     unsigned maps,translations,managed,attr,map_failure,translation_failure;
     unsigned reads,writes,dmb_read,dmb_store,dsb,pending_read,pending_store;
     unsigned write_limit,fail_readback_write,budget_calls,budget_fail_call,budget_fail_writes;
@@ -50,6 +52,11 @@ static struct {
 static const uint32_t addresses[6]={0x50000,0x50004,0x5002c,0x50044,0x5006c,0x50080};
 static const uint32_t data_words[6]={0x6fffffff,0x6fffffff,0x2fffffff,0x6fffffff,0x6fffffff,0x60000008};
 static struct gbcm_plan plan;
+static struct gcr_plan cx_plan;
+static struct gbcmt_receipt bcm_history;
+static unsigned trigger_write(void) { return mock.arc_phase ? 10u : 25u; }
+static unsigned clear_write(void) { return mock.arc_phase ? 15u : 30u; }
+static unsigned controls_write(void) { return mock.arc_phase ? 6u : 21u; }
 static uint32_t command(unsigned c,unsigned reg) { return OWN+0x14*c+reg; }
 static bool read_allowed(unsigned off)
 {
@@ -83,27 +90,35 @@ static uint32_t fake_read(unsigned off)
     uint32_t value=mock.reg[off/4];
     if(mock.fail_readback_write && mock.writes==mock.fail_readback_write &&
         off==mock.write_offset[mock.writes-1]) value=mock.write_value[mock.writes-1]^1u;
-    if(mock.bad_control==1 && mock.writes==21 && off==OWN+0x14) value=1;
-    if(mock.bad_irq_owner==1 && mock.writes==21 && off==0xd00) value=7;
-    if(mock.final_config && mock.writes==24 && off==0xc) value^=1;
-    if(mock.payload_reread==1 && mock.writes==24 && off==command(0,0x38)) value^=1;
-    if(mock.payload_reread==2 && mock.writes==25 && off==command(0,0x38)) value^=1;
-    if(mock.writes>=25) {
-        for(unsigned c=0;c<6;++c) if(off==command(c,0x3c)) {
+    if(mock.bad_control==1 && mock.writes==controls_write() && off==OWN+0x14) value=1;
+    if(mock.bad_irq_owner==1 && mock.writes==controls_write() && off==0xd00) value=7;
+    if(mock.final_config && mock.writes==trigger_write()-1 && off==0xc) value^=1;
+    if(mock.payload_reread==1 && mock.writes==trigger_write()-1 && off==command(0,0x38)) value^=1;
+    if(mock.payload_reread==2 && mock.writes==trigger_write() && off==command(0,0x38)) value^=1;
+    if(mock.writes>=trigger_write()) {
+        for(unsigned c=0;c<(mock.arc_phase ? 1u:6u);++c) if(off==command(c,0x3c)) {
             ++mock.command_status_reads;
             if(mock.missing_issued==c+1) value&=~0x100u;
             if(mock.missing_compl==c+1) value&=~0x10000u;
             if(mock.ones_status==c+1) value=UINT32_MAX;
         }
         if(mock.bad_idle && off==OWN+0x18) value=mock.bad_idle==1 ? 0:UINT32_MAX;
-        if(mock.bad_control==2 && off==OWN+0x14 && mock.writes==25) value|=1;
-        if(mock.bad_irq_owner==2 && off==0xd00 && mock.writes==25) value=7;
+        if(mock.bad_control==2 && off==OWN+0x14 && mock.writes==trigger_write()) value|=1;
+        if(mock.bad_irq_owner==2 && off==0xd00 && mock.writes==trigger_write()) value=7;
     }
-    if(mock.cleanup_irq_change && mock.writes==30 && off==0xd00) value=7;
+    if(mock.cleanup_irq_change && mock.writes==clear_write() && off==0xd00) value=7;
     mock.pending_read=1; return value;
 }
 static void expected_write(unsigned n,uint32_t *off,uint32_t *value)
 {
+    if(mock.arc_phase) {
+        static const uint32_t offsets[]={0xd00, OWN+0x30, OWN+0x34, OWN+0x38,
+            OWN+0x10, OWN+0x1c, OWN+0x14, OWN+0x14, OWN+0x14, OWN+0x14,
+            OWN+0x14, OWN+0x14, OWN+0x1c, OWN+0x10, 0xd08, 0xd00};
+        static const uint32_t values[]={3,0x10108,0x30000,6,0,1,0,0,0x10000,
+            0x1010000,0x10000,0,0,0,2,1};
+        CHECK(n<16,"at most16 ARC writes"); *off=offsets[n]; *value=values[n]; return;
+    }
     CHECK(n<31,"at most31 writes in successful native flow");
     if(n==0) { *off=0xd00; *value=3; }
     else if(n<=18) {
@@ -151,6 +166,9 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
 {
     CHECK(bytes==sizeof(int),"integer boot argument");
     if(!strcmp(key,"sweetbusvote")) { *(int*)out=mock.requested; return true; }
+    if(!strcmp(key,"sweetcxpower")) { *(int*)out=mock.cx_requested; return true; }
+    if(!strcmp(key,"sweetpasinit")) { *(int*)out=mock.pas_init; return true; }
+    if(!strcmp(key,"sweetpasmem")) { *(int*)out=mock.pas_mem; return true; }
     for(unsigned i=0;i<7;++i) if(!strcmp(key,conflicts[i])) { *(int*)out=mock.conflict[i]; return true; }
     CHECK(false,"known boot argument"); return false;
 }
@@ -160,7 +178,7 @@ int get_preemption_level(void) { return mock.context==3 ? 1:0; }
 unsigned long long mach_absolute_time(void) { no_pending_barrier(); return mock.now; }
 void clock_interval_to_deadline(unsigned interval,uint64_t scale,uint64_t *deadline)
 {
-    CHECK(interval==10000 && scale==NSEC_PER_MSEC,"single ten-second transaction deadline");
+    CHECK(interval==(mock.arc_phase ? 5000u:10000u) && scale==NSEC_PER_MSEC,"phase shared deadline");
     *deadline=mock.now+interval*scale; mock.deadline=*deadline;
 }
 void IOSleep(unsigned ms) { no_pending_barrier(); CHECK(ms==1,"one-ms snapshot/poll sleep"); ++mock.sleeps; mock.now+=(uint64_t)ms*1000000; }
@@ -188,9 +206,9 @@ vm_offset_t ml_vtophys(vm_offset_t va)
 }
 bool gauguin_wdt_lease_check_budget(uint32_t minimum)
 {
-    no_pending_barrier(); CHECK(minimum==START_BUDGET || minimum==STEP_BUDGET,"native tick budget request");
+    no_pending_barrier(); CHECK(minimum==(mock.arc_phase ? 327650u:START_BUDGET) || minimum==STEP_BUDGET,"phase native tick budget request");
     CHECK(!mock.quarantine,"never check lease after quarantine"); ++mock.budget_calls;
-    if(mock.budget_calls==1) CHECK(minimum==START_BUDGET,"initial minimum15 seconds");
+    if(mock.budget_calls==1) CHECK(minimum==(mock.arc_phase ? 327650u:START_BUDGET),"initial phase minimum");
     return mock.budget_calls!=mock.budget_fail_call && mock.writes<mock.budget_fail_writes;
 }
 void gauguin_wdt_lease_quarantine(void)
@@ -233,6 +251,13 @@ static void reset(const char *name)
      * They must NEVER stand in for this request's new own IRQ. */
     for(unsigned c=0;c<6;++c)mock.reg[command(c,0x3c)/4]=0x10100;
     gt_state=GBCMT_IDLE;gt_map=0;gt_wrote=false;gt_deadline=0;memset(&gt_receipt,0,sizeof(gt_receipt));make_plan();
+    gt_owner=gt_controller_quarantined=0;gcr_lifecycle=GCR_IDLE;gt_arc=false;
+    memset(&gcr_receipt,0,sizeof(gcr_receipt));
+    struct ndb_entry e={0}; memcpy(e.name,"cx.lvl",6); e.address=0x30000;
+    e.owner_slave=3;e.bank_version=0x1000;e.aux_length=32;
+    const unsigned levels[]={0,16,64,128,192,256,384,0};
+    for(unsigned i=0;i<8;++i) put16(e.aux+2*i,levels[i]);
+    CHECK(gcr_plan_build(&e,&cx_plan),"real CX planner accepts board levels");
 }
 static bool has(const char *needle)
 { for(unsigned i=0;i<mock.lines;++i)if(strstr(mock.log[i],needle))return true;return false; }
@@ -269,6 +294,104 @@ static void success(void)
     for(unsigned c=0;c<6;++c)CHECK(mock.reg[command(c,0x38)/4]==data_words[c],"votes never zeroed on cleanup");
     struct gbcmt_receipt saved=out;CHECK(sweet_bcm_submit_once(&plan,&out)==GBCMT_ALREADY,"success also one-shot");
     CHECK(!memcmp(&out,&saved,sizeof(out)) && mock.writes==31,"no successful reuse");
+}
+/* Complete the REAL BCM path first, retain all production globals and MMIO
+ * words, then reset only per-phase host instrumentation. No synthetic COMPLETE
+ * state, new map or driver reset is used to authorize ARC. */
+static void arc_reset(const char *name)
+{
+    reset(name); success(); bcm_history=gt_receipt;
+    uint32_t registers[FRAME_WORDS]; memcpy(registers,mock.reg,sizeof(registers));
+    memset(&mock,0,sizeof(mock));memcpy(mock.reg,registers,sizeof(registers));
+    mock.arc_phase=1;mock.maps=1;mock.attr=0xd0000007u;mock.requested=1;mock.cx_requested=1;
+    mock.write_limit=16;mock.budget_fail_writes=UINT32_MAX;mock.now=1;
+}
+static void retained(void)
+{
+    CHECK(sweet_bcm_transport_state()==GBCMT_COMPLETE && !memcmp(&bcm_history,&gt_receipt,sizeof(bcm_history)),"ARC never rewrites BCM history");
+    CHECK(mock.maps==1 && gt_map==FAKE_MAP,"ARC retains single original mapping");
+    CHECK(gt_owner==0,"owner released only on return"); barriers();
+}
+static void arc_failure(enum gbcmt_rc want,unsigned writes)
+{
+    struct gbcmt_receipt out,saved;memset(&out,0xa5,sizeof(out));saved=out;
+    enum gbcmt_rc rc=sweet_cx_rail_submit_once(&cx_plan,&out);
+    if(rc!=want)fprintf(stderr,"ARC rc=%u expected=%u writes=%u expected=%u\n",rc,want,mock.writes,writes);
+    CHECK(rc==want && mock.writes==writes,"ARC exact failure write prefix");
+    CHECK(!memcmp(&out,&saved,sizeof(out)),"ARC failure caller unchanged");retained();
+    CHECK(sweet_cx_rail_state()==(writes ? GCR_QUARANTINED:GCR_REJECTED) && mock.quarantine==1 && gt_controller_quarantined==1,"ARC failure quarantines shared controller and lease");
+    CHECK(!has("synchronous completion verified"),"no premature ARC success");
+    CHECK(sweet_cx_rail_submit_once(&cx_plan,&out)==GBCMT_ALREADY && sweet_bcm_submit_once(&plan,&out)==(mock.requested==1 ? GBCMT_ALREADY:GBCMT_OFF),"no retry via either API");
+    CHECK(mock.writes==writes && !memcmp(&out,&saved,sizeof(out)),"no retry cleanup/output");
+}
+static void arc_tests(void)
+{
+    const int off[]={0,2,-1};
+    for(unsigned i=0;i<3;++i) {
+        arc_reset("ARC exact default off");mock.cx_requested=off[i];
+        struct gbcmt_receipt out,saved;memset(&out,0xa5,sizeof(out));saved=out;
+        CHECK(sweet_cx_rail_submit_once(&cx_plan,&out)==GBCMT_OFF,"ARC flag exact1");
+        CHECK(!mock.writes && !mock.budget_calls && !mock.quarantine && !mock.translations && sweet_cx_rail_state()==GCR_IDLE && !memcmp(&out,&saved,sizeof(out)),"ARC off no effects");retained();
+    }
+    arc_reset("ARC null arguments");struct gbcmt_receipt out;
+    CHECK(sweet_cx_rail_submit_once(NULL,&out)==GBCMT_ARGUMENT && sweet_cx_rail_submit_once(&cx_plan,NULL)==GBCMT_ARGUMENT && sweet_cx_rail_state()==GCR_IDLE && !mock.quarantine,"ARC argument does not consume attempt");retained();
+    arc_reset("ARC native synchronous completion");memset(&out,0xa5,sizeof(out));
+    CHECK(sweet_cx_rail_submit_once(&cx_plan,&out)==GBCMT_OK,"ARC completion");retained();
+    CHECK(mock.writes==16 && mock.triggers==1 && mock.irq_clears==1 && mock.command_status_reads==1 && mock.gic_calls==3,"exact ARC request and fresh IRQ");
+    CHECK(!mock.quarantine && !gt_controller_quarantined && sweet_cx_rail_state()==GCR_COMPLETE && has("synchronous completion verified"),"ARC success state");
+    CHECK(out.slot==1 && out.config==0x80008104 && out.irq_before==1 && out.irq_after==1 && out.irq_completed==2 && out.cmd_status[0]==0x10100,"ARC real receipt");
+    for(unsigned i=1;i<6;++i) CHECK(out.cmd_status[i]==0,"no old BCM status published in ARC receipt");
+    CHECK(mock.reg[command(0,0x38)/4]==6 && mock.reg[(OWN+0x10)/4]==0 && mock.reg[(OWN+0x1c)/4]==0 && mock.reg[(OWN+0x14)/4]==0,"ARC retained request/native cleanup");
+    CHECK(sweet_cx_rail_submit_once(&cx_plan,&out)==GBCMT_ALREADY && mock.writes==16,"ARC one attempt");
+    for(unsigned api=0;api<2;++api) {
+        reset("shared owner BUSY untouched");mock.cx_requested=1;gt_owner=1;
+        struct gbcmt_receipt saved;memset(&out,0xa5,sizeof(out));saved=out;
+        CHECK((api ? sweet_cx_rail_submit_once(&cx_plan,&out):sweet_bcm_submit_once(&plan,&out))==GBCMT_BUSY,"non-owner BUSY");
+        CHECK(gt_owner==1 && gt_state==GBCMT_IDLE && gcr_lifecycle==GCR_IDLE && !gt_controller_quarantined && !gt_arc && !mock.quarantine && !mock.maps && !mock.budget_calls && !memcmp(&out,&saved,sizeof(out)),"non-owner no state/output/lease effects");
+    }
+    reset("ARC before BCM rejected");mock.cx_requested=1;
+    CHECK(sweet_cx_rail_submit_once(&cx_plan,&out)==GBCMT_CONFIG && sweet_cx_rail_state()==GCR_REJECTED && sweet_bcm_transport_state()==GBCMT_IDLE && !mock.maps && !mock.writes && !mock.budget_calls && mock.quarantine==1 && gt_controller_quarantined==1 && !gt_owner,"requires real BCM mapping/completion");
+    for(unsigned i=0;i<3;++i){arc_reset("ARC context invalid");mock.context=(int)i+1;arc_failure(GBCMT_CONTEXT,0);}
+    for(unsigned key=0;key<7;++key)for(int v=-1;v<=1;v+=2){arc_reset("ARC legacy conflict");mock.conflict[key]=v;arc_failure(GBCMT_CONFIG,0);}
+    for(int v=-1;v<=2;++v)if(v!=0){arc_reset("ARC PAS INIT prohibited");mock.pas_init=v;arc_failure(GBCMT_CONFIG,0);arc_reset("ARC PAS MEM prohibited");mock.pas_mem=v;arc_failure(GBCMT_CONFIG,0);}
+    for(unsigned i=0;i<3;++i){arc_reset("ARC bus flag exact1");mock.requested=off[i];arc_failure(GBCMT_CONFIG,0);}
+    for(unsigned field=0;field<21;++field){
+        arc_reset("ARC plan exact domain");
+        if(field==0)cx_plan.address^=4;if(field==1)cx_plan.selector=2;if(field==2)cx_plan.level=64;
+        if(field==3)cx_plan.count=8;if(field==4)cx_plan.max_level--;
+        if(field>=5)cx_plan.levels[field-5]^=1;arc_failure(GBCMT_CONFIG,0);
+    }
+    arc_reset("ARC armed lease lost");mock.budget_fail_call=1;arc_failure(GBCMT_BUDGET,0);
+    arc_reset("ARC GIC initial guard");mock.gic_fail_call=1;arc_failure(GBCMT_CONFIG,0);
+    arc_reset("ARC pmap managed");mock.managed=1;arc_failure(GBCMT_MAPPING,0);
+    arc_reset("ARC wrong attr");mock.attr=6;arc_failure(GBCMT_MAPPING,0);
+    for(unsigned i=1;i<=2;++i){arc_reset("ARC translation rechecked");mock.translation_failure=i;arc_failure(GBCMT_MAPPING,0);}
+    arc_reset("ARC initial own pending IRQ");mock.reg[0xd04/4]=2;arc_failure(GBCMT_BUSY,0);
+    arc_reset("ARC initial foreign IRQ");mock.reg[0xd04/4]=4;arc_failure(GBCMT_BUSY,0);
+    for(unsigned t=0;t<8;++t)for(unsigned field=0;field<4;++field){arc_reset("ARC repeated all-slot inert check");mock.reg[(0xd00+t*0x2a0+0x10+4*field)/4]=field==2 ? 0:1;arc_failure(GBCMT_BUSY,0);}
+    for(unsigned i=2;i<=3;++i){arc_reset("ARC snapshots changed");mock.change_snapshot=i;arc_failure(GBCMT_BUSY,0);}
+    arc_reset("ARC latent IRQ");mock.latent_irq=1;mock.write_limit=1;arc_failure(GBCMT_BUSY,1);CHECK(!mock.irq_clears && !mock.triggers,"ARC latent IRQ not ACKed");
+    for(unsigned n=1;n<=16;++n)if(n!=10 && n!=15){arc_reset("ARC uncertain sync readback");mock.fail_readback_write=n;mock.write_limit=n;arc_failure(GBCMT_READBACK,n);CHECK(mock.delays==1000,"bounded single store readback");}
+    arc_reset("ARC control before trigger changes");mock.bad_control=1;mock.write_limit=6;arc_failure(GBCMT_BUSY,6);
+    arc_reset("ARC IRQ owner before trigger changes");mock.bad_irq_owner=1;mock.write_limit=6;arc_failure(GBCMT_BUSY,6);
+    arc_reset("ARC final GIC changed");mock.gic_fail_call=3;mock.write_limit=9;arc_failure(GBCMT_BUSY,9);
+    arc_reset("ARC final geometry changed");mock.final_config=1;mock.write_limit=9;arc_failure(GBCMT_BUSY,9);
+    arc_reset("ARC payload changed");mock.payload_reread=1;mock.write_limit=9;arc_failure(GBCMT_BUSY,9);
+    arc_reset("ARC stale statuses no own IRQ");mock.no_completion=1;mock.write_limit=10;arc_failure(GBCMT_TIMEOUT,10);CHECK(!mock.command_status_reads && !mock.irq_clears,"ARC stale status never accepted");
+    arc_reset("ARC foreign completion");mock.foreign_completion=1;mock.write_limit=10;arc_failure(GBCMT_BUSY,10);CHECK(!mock.irq_clears,"no foreign ACK");
+    arc_reset("ARC missing issued");mock.missing_issued=1;mock.write_limit=10;arc_failure(GBCMT_COMPLETION,10);
+    arc_reset("ARC WAIT0 still requires COMPL");mock.missing_compl=1;mock.write_limit=10;arc_failure(GBCMT_COMPLETION,10);
+    arc_reset("ARC status unavailable");mock.ones_status=1;mock.write_limit=10;arc_failure(GBCMT_COMPLETION,10);
+    for(unsigned i=1;i<=2;++i){arc_reset("ARC completed slot not idle");mock.bad_idle=i;mock.write_limit=10;arc_failure(GBCMT_COMPLETION,10);}
+    arc_reset("ARC completed control changed");mock.bad_control=2;mock.write_limit=10;arc_failure(GBCMT_COMPLETION,10);
+    arc_reset("ARC completed IRQ owner changed");mock.bad_irq_owner=2;mock.write_limit=10;arc_failure(GBCMT_COMPLETION,10);
+    arc_reset("ARC completed payload changed");mock.payload_reread=2;mock.write_limit=10;arc_failure(GBCMT_COMPLETION,10);
+    arc_reset("ARC IRQ clear timeout");mock.clear_stuck=1;mock.write_limit=15;arc_failure(GBCMT_TIMEOUT,15);
+    arc_reset("ARC foreign IRQ during cleanup");mock.clear_foreign=1;mock.write_limit=15;arc_failure(GBCMT_BUSY,15);
+    arc_reset("ARC IRQ ownership lost during cleanup");mock.cleanup_irq_change=1;mock.write_limit=15;arc_failure(GBCMT_BUSY,15);
+    arc_reset("ARC lease expires after trigger");mock.budget_fail_writes=10;mock.write_limit=10;arc_failure(GBCMT_TIMEOUT,10);
+    arc_reset("ARC lease lost mid cleanup");mock.budget_fail_writes=12;mock.write_limit=12;arc_failure(GBCMT_READBACK,12);
+    arc_reset("ARC shared deadline expires");mock.deadline_write=10;mock.write_limit=10;arc_failure(GBCMT_TIMEOUT,10);
 }
 int main(void)
 {
@@ -340,6 +463,8 @@ int main(void)
     reset("budget lost in partial cleanup");mock.budget_fail_writes=27;mock.write_limit=27;failure(GBCMT_READBACK,27);
     reset("deadline expires after trigger");mock.deadline_write=25;mock.write_limit=25;failure(GBCMT_TIMEOUT,25);
     reset("deadline expires after payload store");mock.deadline_write=2;mock.write_limit=2;failure(GBCMT_READBACK,2);
-    printf("PASS: %u actual BCM transport cases; exact ACTIVE1 writes, native IRQ completion, terminal failures; no hardware qualification\n",cases);
+    CHECK(cases==147,"all147 legacy BCM cases retained");
+    arc_tests();
+    printf("PASS: %u actual BCM + ARC transport cases; exact ACTIVE1 writes, native IRQ completion, terminal failures; no hardware qualification\n",cases);
     return 0;
 }

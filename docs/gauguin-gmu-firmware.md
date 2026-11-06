@@ -520,9 +520,9 @@ sequence-only correlation, generic positive status, debug traffic, malformed/
 stale/failed replies and all1743 callback-failure boundaries. Board and
 coordinator tests cover opt-in dependencies, shared once-state, mapping,
 deadline/fault/IRQ guards and post-quarantine diagnostics. The default path's
-original-model I/O trace matches0139 exactly. This software validation is not
-an actual firmware PERF ACK: a complete qualified kernel/image and coherent
-physical0140 trial are still required. BW and TEST must follow later before
+original-model I/O trace matches0139 exactly. These software checks alone
+cannot establish an actual firmware PERF ACK; the physical trial below
+supplies that evidence. BW and TEST must follow later before
 normal HFI_ON, GPU command execution, rendering or Metal can be qualified.
 
 Physical0140 now qualifies this PERF transaction. One temporary image with

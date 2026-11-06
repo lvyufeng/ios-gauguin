@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete140 local native PERF kernel qualified; packaging/runtime reader next
+
+DSH94562 CLOSED0; actual build140.py build0/qualification0. Run
+gauguin.P3pyBC, captured HEADbd0dc75d8e929c463f226c97fba8f36d77fa7c1d.
+Exact134-patch source140ab8fdb34...a0a7a1f,5282files. All138 qualifiers
+retained; new native_perf_transaction_source_bound TRUE plus constructor/
+engine/board symbols and actual kernel PERF complete/partial formats checked.
+Default/opt-in dispatch, post-VERSION sequence3, flag prerequisites and original
+public firmware receipt layout independently checked against frozen139.
+Kernel16905984B SHA
+820591830680e30853669f10b75546ea1f423dd02a814ba482a035c704a8d59a,
+IDxnu-aa4e8ab8b2454236b70976571a9edd48. No CI used. Current generated native
+recipe/source NOW140 P3pyBC;138 HLxJKk is historical and cannot be used for
+future single-file compile recipes. Qualification at
+research/tmp/p3-native-0140-qualification-20261107.json. All owned handles
+CLOSED. Phone remainsTWRP, no new phone I/O/UI/touch/reset fact.
+
+Codex prepared140 pack/readers from138 with metadata-only numeric/pin/131-page
+invariants checked BEFORE explicit new PERF rules. Add sweetgmuperf1 and source
+qualifier required by pack, independent review and runtime binding. Preserve
+all old image pins and add138 baseline. Strict reader requires one ordered
+actual PERF request00302b04/43-word/3..19 ACK/type2/sequence3/status!=ffffffff
+record, new final marker and source flag; partial/missing/duplicate/out-of-
+order/malformed/refused/conflicting records fail. New static bounds84..174
+writes/6..6000 polls/debug<=135; all other138 rules remain. Fixtures explicitly
+SYNTHETIC, with new actual-package command options adapted in the copied125
+prefix (raw125 unchanged). No parser tests/package/image/140 phone proof yet.
+NEXT execute reviewed package_and_review140.py with QUALIFIED HEADbd0dc75,
+then runtime_validate140.py. No relaxed success based on138 handshake only.
+Whole objective ACTIVE/incomplete; mkadt user diff untouched; no destructive
+action. Firmware/GPU/Metal hardware qualification is NOT asserted by build.
+
 ### 2026-11-07 —140 opt-in PERF transaction implemented; all61 hosts and three ARM64 TUs PASS
 
 Previous goal turn was progress: physical138 FW/INIT/VERSION and attributed

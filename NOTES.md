@@ -43,7 +43,12 @@ Native firmware50960B SHA77f162b3e00cbdb42d4e7cb6a9fccc677b089306492d6922aa295da
 board70816B SHAbaeb246f0d951fb4110e7c765d08cb421894e515e43b0245c93a2c85a4055dda,
 CURRENT135 fzguBO recipe/source. All owned handles CLOSED; no CI used.
 
-NEXT sanitized136 source/notes push, full136 standard local build/qualification
+Sanitized136 source/notes pushed and ls-remote verified
+b91bf7334b72996837ab72965bb0831e24088684, sole parent6b0654e, eight text
+paths, same tree as privatebbe9aef. Publisher56886 CLOSED0; report
+research/tmp/dsh-0136/public-snapshot-0136.json. Private ancestry, raw logs,
+dumps/serials and binary/downloaded artifacts not pushed.
+NEXT full136 standard local build/qualification
 retaining every135 check; installed BOOT CFG format and source-bound native
 boot-config observations flag required. Pack/review, unique136 trial; full
 reader requires exactly three ordered BOOT CFG rows AFTER CM3/AO/PDC6/hidden3

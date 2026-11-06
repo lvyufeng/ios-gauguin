@@ -2,6 +2,64 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual129 completes native SMMU; firmware ucode setup refuses fifth store;130 diagnostics being prepared
+
+THIS turn is concrete progress.129 complete local kernel/image/runtime reader
+qualified, then ONE real129 temporary boot completed cold SMMU publication/
+micro-MMU resume and entered the native firmware initializer. Firmware has NOT
+executed: engineGMF_READBACK6,phase0,only5writes/0polls,copy0/0,CM3reset1,
+release0/OOB0. No GPU/Metal/daily-use qualification. Whole goal stays ACTIVE.
+
+Private code10e5fe08fa701dc9dde0170130ff6d0f5728a58b/build-captured handoff
+b5c8292775b97e34a463f799c3723edf8206c47c. Sanitized public
+a45b92575fd3c5cf54d798480479f44396f75f62 pushed/verified, sole parent
+5d1902606b86bd3d4d6b346959abe71e52026872, eight text files only.
+DSH69004 actual build0/qualification0, standard local gauguin.DhXMEk,
+source1298e914058...ee224/5282files. Kernel16888984B SHA
+dcafffa973c764f4eb5c575434668e8a09e7766e0c870528124fd19fb3e0abd7,
+IDxnu-c620dfcfb7c6434cb7f6be9911c77833; manifest SHA
+ac3bb13f9799fade78468f111da83db02ad1b23d1d187d5396c04bad56dced16.
+Qualification SHAd333f799910f250decf86000d42d4b3255cab26f79f3e2f000816e5ec5d027ed,
+context_fsr_fault_mask_source_bound TRUE; no hardware FW claim from build.
+Future native probes MUST use CURRENT129 DhXMEk recipe/source, not128lYYurL.
+
+DSH64975 package0/review0, frozen inputs unchanged. Image19529728B SHA
+bdd19cfeaa8e68f4df111cd68834333ee3e5c2ba352eb61b586f95ef33319421,
+shim/out/shim-p3-gmuf-0129-native-20261107.img. Payload19202048B SHA
+c202b9d42bf7a2f6d741c548a995c1a3c536e65f71d6a5ed5f1adb2461ccae0e;
+evidence SHA2400956c611d795dd7dff1ab407878c282afb79089c2a7f24b3eb0038e808ca7.
+sweettrial=gmuf-0129-20261107-a1,539bytes; same three pinned asset addresses.
+Prior128 and all older pinned images preserved. DSH12182 runtime-reader0,
+runtime-parser-result.json pass,clock4/95,FW10/197,full synthetic4/17,
+all inputs unchanged. Strict verify_gmuf129.py SHA
+9d6bc2cf8ef42475aac3e6ed9c29bb7e4461e88ff691bc00b821846d6a040bec,
+requires source-bound FSR correction and all earlier full-success conditions.
+
+DSH38009 actual observer0/full verifier2, original evidence-rejected report
+preserved. Start2026-11-06T19:45:06.308841Z,finish19:47:18.054672Z,
+Send19072KB0.449s/Boot0.134s/total0.585s, observed recovery131s. Product
+gauguin/recovery,gauguinpro/fastboot and routine13-byte recovery latch verified.
+Log has4046lines.131mapped/140ATOS complete; actual SID4slot0/CB0/ASID1,
+SID5slot1/CB1/ASID2; TTBR user00010000aa20a000/aa20b000,kernel
+00020000aa204000/aa209000. All five firmware narrow-map markers reached.
+Actual GMB11/smmu0 then FW phase0/engine6,reset1,gx00222001,release0/oob0,
+GFSR0,rawFSR400/400(no named fault flags),AO0/info0. Partialwrites5,polls0,
+copy_issued0/copy_compared0,FW0/version0. Source-bound fifth store is AO
+R(0xd):off1034,PA03d8d034,requested0, native HIDDEN_TCS_CMD0_ADDR. Its
+actual readback is UNKNOWN. Do NOT replace it with synthetic fixture12340000.
+
+Codex started130 metadata-only candidates under research/tmp/dsh-0130/combined:
+gmf private valid/phase/check/window/byte-offset/mask/expected/actual cache for
+every existing READBACK path (store32 and OOB-clear). Public receipt/predicates/
+callbacks unchanged. Board logs cache AFTER quarantine. Host fixture edits
+are present but NOT YET TESTED, no130 patch/replayed source/build/image/task
+yet. Next finish strict129 partial-stage audit preserving full rejection, then
+130 focused/full61 tests, original129-fixture IO-equivalence and real firmware/
+board TUs using129 recipe; commit validated code. No need a mapping-only boot.
+Phone nowTWRP; THIS129 reset question pending,125/126/128 also unanswered.
+No new manual/no-reset, touch or UI claim. All completed handles above closed.
+Original7-line mkadt diff untouched; no flash/format/GPT changes.
+
 ### 2026-11-07 — 0129 both context-FSR checks fixed; all61 hosts and two native TUs pass; full build next
 
 Previous turn was concrete progress: real128 completed140 ATOS then refused

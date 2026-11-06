@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0125 complete local kernel/image and both runtime readers validated; diagnostic boot next
+
+Previous goal turn made concrete progress: ONE124 real trial failed at SMMU
+READBACK and source125 cached diagnostics were committed95e8574/handoff5aca48b,
+sanitized publica8a7c783630911290cab6b5d0749b80bd161297d pushed/verified.
+THIS125 full native build/dSYM/strip/install and qualification both actualexit0
+in gauguin.zy6VU9, captured private5aca48b0a41cdf56ec1c05a8fbdc01db72cda644.
+Exact host-tested119-patch sourcef5376027...b4fda/5282files unchanged. Standard
+build only; no CI, manual object repair, warning bypass or stripped substitute.
+Same20 required symbols/six GMU archive members verified. Both new failure
+format strings are present in the actual installed kernel. DSH68845 closed0.
+
+Kernel16888944B SHA8e4c8c07b7c4878f8a1e5b03dea054a81f953e469bc86b898a696546b10fae5e,
+IDxnu-35e8ee3b79544eba9a9ed80d8d3bccb3. Manifest SHA
+128ed162c445a6a303ed574df332e7757d4b6aaf8ff5e5555bf3a66648c6fd32.
+Qualification p3-native-0125-qualification-20261107.json SHA
+0c760267d5d2dd337c37a457cb339d37fb3818cff7045080eb2c886687250e7d.
+DSH59884 package/review both actualexit0; image-parent-review.json PASS and
+package-review-execution-result.json passed, frozen inputs unchanged.
+Image shim/out/shim-p3-gmuf-0125-native-20261107.img19529728B SHA
+e545fa47d44388de435d7d0dd082823329203a32923c51d2e2cab176f00541c9,
+539-byte bootargs, unique sweettrial=gmuf-0125-20261107-a1. Three source assets
+retain NVT182554000/MDT182578000/GMU18257c000; all older image pins intact.
+
+Codex prepared strict verify_gmuf125.py (SHA0114ea671ac472fb15a2708829605c0603705fa289ce31384214b133cc3f34a5)
+with exact new source/marker and required linked diagnostics; prior full-FW
+success checks remain. Separate verify_smmu_diag125.py (SHA5bc9f65e9c106a8edd1cedbeea147a25f95a9d738b7208055fd75fd667044d28)
+verifies ONLY a failed predicate capture: typed phase/check/offset/mask/value,
+native geometry/widths, source bounds and exact refusal/quarantine order,
+same-trial asset/CMDDB/image identity. CONFIG is a CPU field, not an MMIO
+offset. It always reports SMMU/FW/GPU/Metal completion FALSE and preserves
+the strict full-verifier rejection. Zero after fields remain unqualified.
+No parser relaxation that labels a failed SMMU transaction as successful.
+
+DSH33149 runtime-parser-result.json PASS, all pins unchanged: retained full
+clock/FW suites plus separate diagnostic valid8/rejected60, including an
+explicitly synthetic full trace with ACTUAL125 package binding and stale124
+runtime rejection. These are HOST tests, never125 hardware evidence.
+No125 phone access/boot yet at this checkpoint; last phone stateTWRP after
+user-confirmed autonomous124 recovery. Next exact125 temporary image boot,
+using recovery productgauguin / bootloader productgauguinpro separately;
+read back the non-destructive recovery BCB request before switching modes.
+Then unchanged bounded observer body and strict full verifier; if rejected,
+separate diagnostic reader must capture the exact failing tuple. Never infer
+it from the synthetic6960/3f formatter example. THIS125 reset attribution is
+still required separately. Full daily-use/GPU/Metal/RAM/storage/peripherals/
+90–120Hz goal remains ACTIVE/incomplete. No flash/format/GPT changes.
+
 ### 2026-11-07 — 0124 actual trial stops on SMMU READBACK; autonomous131s recovery confirmed
 
 Previous turn was progress:124 complete native kernel/image plus sanitized

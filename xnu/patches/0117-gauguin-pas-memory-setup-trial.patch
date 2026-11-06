@@ -1,0 +1,328 @@
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -1,8 +1,9 @@
+-/* Opt-in BCM submission trial with a separately enabled first PAS INIT_IMAGE.
+- * No MEM_SETUP, AUTH_RESET, firmware-code load or GPU execution here.
++/* Opt-in BCM submission trial with separately enabled PAS INIT_IMAGE and MEM_SETUP.
++ * No AUTH_RESET, firmware-code load or GPU execution here.
+  * One preemptible coordinator serializes: CPU-stage claim -> same-boot CMDDB
+  * plan -> watchdog arm/advance -> native six-command transfer -> optional
+- * PAS INIT_IMAGE -> reset wait. Default sweetpasinit=0 preserves the BCM trial.
++ * PAS INIT_IMAGE -> optional MEM_SETUP -> reset wait. New flags default0;
++ * sweetpasmem=0 preserves the INIT trial, sweetpasinit=0 the BCM trial.
+  * Both staging memory and successful votes remain retained until reset.
+  */
+ #include <pexpert/arm64/board_config.h>
+@@ -46,6 +47,9 @@
+     int init = 0;
+     (void)PE_parse_boot_argn("sweetpasinit", &init, sizeof(init));
+     if (init != 0 && init != 1) return false;
++    int mem = 0;
++    (void)PE_parse_boot_argn("sweetpasmem", &mem, sizeof(mem));
++    if ((mem != 0 && mem != 1) || (mem == 1 && init != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -102,9 +106,28 @@
+             bcm_record(line);
+             return;
+         }
+-        snprintf(line, sizeof(line), "SWEET BCM BOOT: PAS INIT returned success pa=%016llx calls=%u; no MEM_SETUP/AUTH_RESET/GPU operation", pas.stage_pa, pas.smc_calls);
++        const bool memory_requested = sweet_pas_mem_requested();
++        if (memory_requested) {
++            snprintf(line, sizeof(line), "SWEET BCM BOOT: PAS INIT returned success pa=%016llx calls=%u; MEM_SETUP pending; no AUTH_RESET/GPU operation", pas.stage_pa, pas.smc_calls);
++        } else {
++            snprintf(line, sizeof(line), "SWEET BCM BOOT: PAS INIT returned success pa=%016llx calls=%u; no MEM_SETUP/AUTH_RESET/GPU operation", pas.stage_pa, pas.smc_calls);
++        }
+         bcm_record(line);
+-        bcm_record("SWEET BCM BOOT: PAS INIT trial done; requests and shared buffer retained; awaiting watchdog reset");
++        if (memory_requested) {
++            struct gpm_receipt memory;
++            enum gpi_rc memory_result = sweet_pas_mem_setup_once(&memory);
++            if (memory_result != GPI_OK) {
++                gauguin_wdt_lease_quarantine();
++                snprintf(line, sizeof(line), "SWEET BCM BOOT: PAS MEM_SETUP stopped rc=%u state=%u; no retry or later PAS/GPU operation", (unsigned)memory_result, (unsigned)sweet_pas_mem_state());
++                bcm_record(line);
++                return;
++            }
++            snprintf(line, sizeof(line), "SWEET BCM BOOT: PAS MEM_SETUP returned success pa=%016llx bytes=%llu calls=%u; no code load/AUTH_RESET/GPU operation", (unsigned long long)memory.stage_pa, (unsigned long long)memory.region_bytes, memory.smc_calls);
++            bcm_record(line);
++            bcm_record("SWEET BCM BOOT: MEM_SETUP trial done; requests and shared buffer retained; awaiting watchdog reset");
++        } else {
++            bcm_record("SWEET BCM BOOT: PAS INIT trial done; requests and shared buffer retained; awaiting watchdog reset");
++        }
+     } else {
+         bcm_record("SWEET BCM BOOT: requests held; awaiting watchdog reset; coordinator performed no PAS/SMC/GPU operation");
+     }
+--- a/bsd/dev/gauguin_pas_init.c
++++ b/bsd/dev/gauguin_pas_init.c
+@@ -1,4 +1,4 @@
+-/* One-shot PAS13 INIT_IMAGE only. Native pin19b63c8192b1c9b7c4d931d7d3be92024bc2d778:
++/* One-shot PAS13 INIT_IMAGE then separately opted-in MEM_SETUP only. Native pin19b63c8192b1c9b7c4d931d7d3be92024bc2d778:
+  * subsys-pil-tz.c pil_init_image_trusted; scm.c __scm_call_armv8_64/__scm_call2;
+  * scm.h SCM_SIP_FNID, SCM_ARGS(2,SCM_VAL,SCM_RW). Normal yielding SCM64:
+  * x0=42000201 x1=82 x2=13 x3=claimed PA x4..x6=0. No length argument.
+@@ -10,6 +10,10 @@
+  * BUSY comparison uses signed low32 (-12); successful x0/x1 must both be FULL0.
+  * Busy starts fresh registers after30ms. Diagnostic bounds:68 total fresh calls,
+  * 8 total continuations, shared5s CPU deadline, fresh10s/3s watchdog budgets.
++ * MEM_SETUP uses the same private engine, exact42000202/3/13/savedPA/4096/0/0.
++ * Its PA is privately published only by successful INIT, never caller supplied.
++ * 4096 is the native loadable ELF memory span (extra_size0), not the1MiB owner
++ * allocation or the16KiB MDT page. No memory bytes are touched here.
+  * None of these software bounds can interrupt a non-returning secure call.
+  */
+ #include <pexpert/arm64/board_config.h>
+@@ -30,12 +34,19 @@
+ 
+ #define GPI_FUNCTION UINT64_C(0x42000201)
+ #define GPI_ARGINFO UINT64_C(0x82)
++#define GPM_FUNCTION UINT64_C(0x42000202)
++#define GPM_ARGINFO UINT64_C(3)
++#define GPM_REGION_BYTES UINT64_C(4096)
+ #define GPI_PAS_ID UINT64_C(13)
+ #define GPI_BUSY_ATTEMPTS 68u
+ #define GPI_CONTINUATIONS 8u
+ #define GPI_INITIAL_BUDGET (10u * 32765u)
+ #define GPI_CALL_BUDGET (3u * 32765u)
+ static unsigned gpi_lifecycle;
++static unsigned gpm_lifecycle;
++/* Written exactly once on complete INIT success, before its release state.
++ * MEM reads only after acquiring that state. No public setter/getter/PA input. */
++static uint64_t gpi_success_pa;
+ 
+ static bool gpi_context(void)
+ { return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
+@@ -66,10 +77,11 @@
+     }
+     return true;
+ }
+-static enum gpi_rc gpi_guard(uint64_t deadline, uint32_t minimum)
++static enum gpi_rc gpi_guard(uint64_t deadline, uint32_t minimum, bool memory)
+ {
+     if (!gpi_context()) return GPI_CONTEXT;
+-    if (sweet_bcm_transport_state() != GBCMT_COMPLETE) return GPI_PREREQUISITE;
++    if (sweet_bcm_transport_state() != GBCMT_COMPLETE ||
++        (memory && sweet_pas_init_state() != GPI_COMPLETE)) return GPI_PREREQUISITE;
+     if (mach_absolute_time() >= deadline) return GPI_TIMEOUT;
+     if (!gauguin_wdt_lease_check_budget(minimum)) return GPI_BUDGET;
+     return GPI_OK;
+@@ -93,17 +105,17 @@
+     r->x[0] = x0; r->x[1] = x1; r->x[2] = x2; r->x[3] = x3;
+     r->x[4] = x4; r->x[5] = x5; r->x[6] = x6;
+ }
+-static void gpi_raw(const struct gpi_receipt *receipt)
++static void gpi_raw(const char *prefix, const struct gpi_receipt *receipt)
+ {
+     if (!receipt->has_returned) return;
+     const struct gpi_registers *r = &receipt->returned;
+     char line[224];
+-    snprintf(line, sizeof(line), "SWEET PAS INIT: raw calls=%u x0=%016llx x1=%016llx x2=%016llx x3=%016llx",
+-        receipt->smc_calls, (unsigned long long)r->x[0], (unsigned long long)r->x[1],
++    snprintf(line, sizeof(line), "%s: raw calls=%u x0=%016llx x1=%016llx x2=%016llx x3=%016llx",
++        prefix, receipt->smc_calls, (unsigned long long)r->x[0], (unsigned long long)r->x[1],
+         (unsigned long long)r->x[2], (unsigned long long)r->x[3]);
+     gpi_record(line);
+-    snprintf(line, sizeof(line), "SWEET PAS INIT: raw calls=%u x4=%016llx x5=%016llx x6=%016llx fresh=%u continuations=%u",
+-        receipt->smc_calls, (unsigned long long)r->x[4], (unsigned long long)r->x[5],
++    snprintf(line, sizeof(line), "%s: raw calls=%u x4=%016llx x5=%016llx x6=%016llx fresh=%u continuations=%u",
++        prefix, receipt->smc_calls, (unsigned long long)r->x[4], (unsigned long long)r->x[5],
+         (unsigned long long)r->x[6], receipt->fresh_attempts, receipt->continuations);
+     gpi_record(line);
+ }
+@@ -112,8 +124,9 @@
+     if (rc != GPI_OK) {
+         gauguin_wdt_lease_quarantine(); /* software only; no pet/disable/free */
+     }
++    if (rc == GPI_OK) gpi_success_pa = receipt->stage_pa;
+     *out = *receipt;
+-    /* Publish the complete caller record before the terminal state. */
++    /* Publish the immutable same-boot PA and caller record before COMPLETE. */
+     __atomic_store_n(&gpi_lifecycle, rc == GPI_OK ? GPI_COMPLETE : GPI_QUARANTINED, __ATOMIC_RELEASE);
+     char line[192];
+     snprintf(line, sizeof(line), "SWEET PAS INIT: terminal rc=%u returned=%u calls=%u fresh=%u continuations=%u; INIT_IMAGE only, no AUTH/RESET/GPU; retained until reset",
+@@ -121,6 +134,64 @@
+     gpi_record(line);
+     return rc;
+ }
++/* Private two-operation engine: no caller can choose a function or PA here.
++ * Each stage gets its own bounded5s transaction and fresh10s entry budget. */
++static enum gpi_rc gpi_transaction(bool memory, struct gpi_receipt *receipt)
++{
++    const char *prefix = memory ? "SWEET PAS MEM" : "SWEET PAS INIT";
++    uint64_t deadline;
++    clock_interval_to_deadline(5, NSEC_PER_SEC, &deadline);
++    for (unsigned fresh = 0; fresh < GPI_BUSY_ATTEMPTS; ++fresh) {
++        struct gpi_registers r = {{memory ? GPM_FUNCTION : GPI_FUNCTION,
++            memory ? GPM_ARGINFO : GPI_ARGINFO, GPI_PAS_ID, receipt->stage_pa,
++            memory ? GPM_REGION_BYTES : 0, 0, 0}};
++        char line[192];
++        if (memory) {
++            snprintf(line, sizeof(line), "SWEET PAS MEM: before fresh=%u fn=42000202 arginfo=3 pas=13 pa=%016llx bytes=4096; retained until reset, software timeout cannot cancel SMC",
++                fresh + 1u, (unsigned long long)receipt->stage_pa);
++        } else {
++            snprintf(line, sizeof(line), "SWEET PAS INIT: before fresh=%u fn=42000201 arginfo=82 pas=13 pa=%016llx; SCM_RW retained, software timeout cannot cancel SMC",
++                fresh + 1u, (unsigned long long)receipt->stage_pa);
++        }
++        gpi_record(line);
++        bool first_call = true;
++        for (;;) {
++            /* After every synchronous pre-call log, and before each tight
++             * continuation: fresh read-only budgets, no intervening UFS/sleep. */
++            enum gpi_rc guard = gpi_guard(deadline, receipt->smc_calls == 0 ? GPI_INITIAL_BUDGET : GPI_CALL_BUDGET, memory);
++            if (guard != GPI_OK) {
++                if (!first_call) gpi_raw(prefix, receipt);
++                return guard;
++            }
++            if (first_call) ++receipt->fresh_attempts;
++            else ++receipt->continuations;
++            ++receipt->smc_calls;
++            __asm__ volatile("dsb sy" ::: "memory");
++            gpi_invoke(&r);
++            receipt->returned = r; receipt->has_returned = 1;
++            if (r.x[0] != UINT64_C(1)) break;
++            if (receipt->continuations == GPI_CONTINUATIONS) {
++                gpi_raw(prefix, receipt);
++                return GPI_CONTINUATION_LIMIT;
++            }
++            first_call = false;
++        }
++        /* The continuation chain ended. Only now may synchronous logs run. */
++        gpi_raw(prefix, receipt);
++        enum gpi_rc guard = gpi_guard(deadline, GPI_CALL_BUDGET, memory);
++        if (guard != GPI_OK) return guard;
++        if ((int32_t)r.x[0] == -12) {
++            if (fresh + 1u == GPI_BUSY_ATTEMPTS) return GPI_BUSY_LIMIT;
++            IOSleep(30); /* fresh native BUSY retry, not continuation */
++            continue;
++        }
++        if (r.x[0] != 0) return GPI_TRANSPORT;
++        if (r.x[1] != 0) return GPI_SERVICE;
++        return GPI_OK;
++    }
++    return GPI_BUSY_LIMIT;
++}
++
+ enum gpi_rc
+ sweet_pas_init_image_once(const struct sweet_pas_cpu_stage *input, struct gpi_receipt *out)
+ {
+@@ -137,49 +208,50 @@
+     if (!stage.pa || (stage.pa & UINT64_C(0xfffff)) || stage.pa > UINT64_C(0xfff00000) ||
+         stage.metadata_bytes != 6860 || stage.reserved_bytes != 16384 ||
+         sweet_bcm_transport_state() != GBCMT_COMPLETE) return gpi_finish(GPI_PREREQUISITE, &receipt, out);
+-    uint64_t deadline;
+-    clock_interval_to_deadline(5, NSEC_PER_SEC, &deadline);
+-    for (unsigned fresh = 0; fresh < GPI_BUSY_ATTEMPTS; ++fresh) {
+-        struct gpi_registers r = {{GPI_FUNCTION, GPI_ARGINFO, GPI_PAS_ID, stage.pa, 0, 0, 0}};
+-        char line[192];
+-        snprintf(line, sizeof(line), "SWEET PAS INIT: before fresh=%u fn=42000201 arginfo=82 pas=13 pa=%016llx; SCM_RW retained, software timeout cannot cancel SMC",
+-            fresh + 1u, (unsigned long long)stage.pa);
+-        gpi_record(line);
+-        bool first_call = true;
+-        for (;;) {
+-            /* After every synchronous pre-call log, and before each tight
+-             * continuation: fresh read-only budgets, no intervening UFS/sleep. */
+-            enum gpi_rc guard = gpi_guard(deadline, receipt.smc_calls == 0 ? GPI_INITIAL_BUDGET : GPI_CALL_BUDGET);
+-            if (guard != GPI_OK) {
+-                if (!first_call) gpi_raw(&receipt);
+-                return gpi_finish(guard, &receipt, out);
+-            }
+-            if (first_call) ++receipt.fresh_attempts;
+-            else ++receipt.continuations;
+-            ++receipt.smc_calls;
+-            __asm__ volatile("dsb sy" ::: "memory");
+-            gpi_invoke(&r);
+-            receipt.returned = r; receipt.has_returned = 1;
+-            if (r.x[0] != UINT64_C(1)) break;
+-            if (receipt.continuations == GPI_CONTINUATIONS) {
+-                gpi_raw(&receipt);
+-                return gpi_finish(GPI_CONTINUATION_LIMIT, &receipt, out);
+-            }
+-            first_call = false;
+-        }
+-        /* The continuation chain ended. Only now may synchronous logs run. */
+-        gpi_raw(&receipt);
+-        enum gpi_rc guard = gpi_guard(deadline, GPI_CALL_BUDGET);
+-        if (guard != GPI_OK) return gpi_finish(guard, &receipt, out);
+-        if ((int32_t)r.x[0] == -12) {
+-            if (fresh + 1u == GPI_BUSY_ATTEMPTS) return gpi_finish(GPI_BUSY_LIMIT, &receipt, out);
+-            IOSleep(30); /* fresh native BUSY retry, not continuation */
+-            continue;
+-        }
+-        if (r.x[0] != 0) return gpi_finish(GPI_TRANSPORT, &receipt, out);
+-        if (r.x[1] != 0) return gpi_finish(GPI_SERVICE, &receipt, out);
+-        return gpi_finish(GPI_OK, &receipt, out);
+-    }
+-    return gpi_finish(GPI_BUSY_LIMIT, &receipt, out);
++    return gpi_finish(gpi_transaction(false, &receipt), &receipt, out);
++}
++
++bool sweet_pas_mem_requested(void)
++{
++    int flag = 0; (void)PE_parse_boot_argn("sweetpasmem", &flag, sizeof(flag));
++    return flag == 1;
++}
++enum gpm_state sweet_pas_mem_state(void)
++{ return (enum gpm_state)__atomic_load_n(&gpm_lifecycle, __ATOMIC_ACQUIRE); }
++static enum gpi_rc gpm_finish(enum gpi_rc rc, const struct gpi_receipt *receipt, struct gpm_receipt *out)
++{
++    if (rc != GPI_OK) gauguin_wdt_lease_quarantine();
++    *out = (struct gpm_receipt){
++        .stage_pa = receipt->stage_pa, .region_bytes = GPM_REGION_BYTES,
++        .returned = receipt->returned, .has_returned = receipt->has_returned,
++        .smc_calls = receipt->smc_calls, .fresh_attempts = receipt->fresh_attempts,
++        .continuations = receipt->continuations,
++    };
++    __atomic_store_n(&gpm_lifecycle, rc == GPI_OK ? GPM_COMPLETE : GPM_QUARANTINED, __ATOMIC_RELEASE);
++    char line[192];
++    snprintf(line, sizeof(line), "SWEET PAS MEM: terminal rc=%u returned=%u calls=%u fresh=%u continuations=%u; MEM_SETUP4096 only, no b02/AUTH_RESET/GPU; retained until reset",
++        (unsigned)rc, receipt->has_returned, receipt->smc_calls, receipt->fresh_attempts, receipt->continuations);
++    gpi_record(line);
++    return rc;
++}
++enum gpi_rc
++sweet_pas_mem_setup_once(struct gpm_receipt *out)
++{
++    unsigned expected = GPM_IDLE;
++    if (!sweet_pas_mem_requested()) return GPI_OFF;
++    if (out == NULL) return GPI_ARGUMENT;
++    if (!__atomic_compare_exchange_n(&gpm_lifecycle, &expected, GPM_RUNNING, false,
++        __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return GPI_ALREADY;
++    struct gpi_receipt receipt = {0};
++    if (!gpi_context()) return gpm_finish(GPI_CONTEXT, &receipt, out);
++    if (!sweet_pas_init_requested() || !gpi_flags()) return gpm_finish(GPI_CONFIG, &receipt, out);
++    /* This acquire is the authority for the private immutable PA. Do not read
++     * it for IDLE/RUNNING/failed INIT; caller receipts/log values are irrelevant. */
++    if (sweet_pas_init_state() != GPI_COMPLETE) return gpm_finish(GPI_PREREQUISITE, &receipt, out);
++    receipt.stage_pa = gpi_success_pa;
++    if (!receipt.stage_pa || (receipt.stage_pa & UINT64_C(0xfffff)) ||
++        receipt.stage_pa > UINT64_C(0xfff00000) ||
++        sweet_bcm_transport_state() != GBCMT_COMPLETE) return gpm_finish(GPI_PREREQUISITE, &receipt, out);
++    return gpm_finish(gpi_transaction(true, &receipt), &receipt, out);
+ }
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_pas_init.h
++++ b/bsd/dev/gauguin_pas_init.h
+@@ -34,4 +34,22 @@
+ bool sweet_pas_init_requested(void);
+ enum gpi_rc sweet_pas_init_image_once(const struct sweet_pas_cpu_stage *, struct gpi_receipt *);
+ enum gpi_state sweet_pas_init_state(void);
++
++enum gpm_state { GPM_IDLE, GPM_RUNNING, GPM_COMPLETE, GPM_QUARANTINED };
++struct gpm_receipt {
++    uint64_t stage_pa, region_bytes;
++    struct gpi_registers returned;
++    uint32_t has_returned, smc_calls, fresh_attempts, continuations;
++};
++/* Separately exact1 opted-in PAS13 MEM_SETUP, fixed native ELF span4096 and
++ * extra_size0. PA comes solely from this boot's successful INIT publication;
++ * there is deliberately no PA/size/caller-receipt input. GPI_COMPLETE remains
++ * historical INIT success even if MEM fails; MEM/WDT authorization then stays
++ * quarantined. No buffer access/remap/restage/free, b02 load or AUTH_RESET.
++ * OFF/NULL/ALREADY preserve out. Started terminal paths publish the complete
++ * receipt before release terminal state. Each transaction retains the same
++ * software/SMC bounds and cannot cancel a secure call that never returns. */
++bool sweet_pas_mem_requested(void);
++enum gpi_rc sweet_pas_mem_setup_once(struct gpm_receipt *out);
++enum gpm_state sweet_pas_mem_state(void);
+ #endif /* GAUGUIN_PAS_INIT_H */

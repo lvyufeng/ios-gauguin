@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source116-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE', str(ROOT / '.deps-cache/p0-20261105/source117-codex'))) / 'bsd/dev'
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
 
@@ -64,7 +64,8 @@ def main(temporary):
         output = log_path.read_text()
         assert 'PASS: retained 58 original coordinator cases with INIT disabled' in output
         assert 'PASS: 58 original + 42 INIT coordinator cases (100 total);' in output
-        report.update(state='passed', original_cases=58, init_cases=42, total_cases=100)
+        assert 'PASS: 100 retained + 49 MEM coordinator cases (149 total);' in output
+        report.update(state='passed', original_cases=58, init_cases=42, mem_cases=49, total_cases=149)
     except Exception as error:
         report.update(state='failed', error=str(error))
         print(f'FAIL: {error}; {log_path}', file=sys.stderr)

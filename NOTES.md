@@ -3,6 +3,73 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0117 MEM_SETUP implementation, native TUs and full 49-file suite PASS
+
+Previous goal turn made real progress: 0115 native BCM completion and 0116 PAS
+INIT_IMAGE acceptance (three continuations), both followed by user-confirmed
+normal-runtime watchdog reset. Full daily-use/GPU/Metal/high-refresh goal remains
+active and incomplete. Phone remains in TWRP; no 0117 device operation yet.
+
+Codex authored/reviewed 0117, extending the existing PAS C/header and coordinator
+(three XNU paths, no new native files). INIT and MEM_SETUP share one private SMC
+engine. Successful INIT publishes an immutable private PA before release COMPLETE;
+MEM acquires that state and takes no caller PA/size/receipt input. Separate MEM
+latch allows one attempt; MEM failure preserves INIT history and quarantines MEM
+and WDT authorization. No buffer read/write/remap/restage/free, b02 load, AUTH_RESET
+or GPU command is added. New sweetpasmem=1 requires sweetpasinit=1; invalid flags
+are rejected before the whole experiment. Zero/absent preserves 0116 behavior.
+Enabled coordinator logs MEM_SETUP pending; disabled path retains the old text.
+
+Pinned native source/ELF/DT evidence in research/tmp/dsh-0117/
+mem-setup-native-evidence.md confirms frame 42000202/3/13/same dynamic PA/4096/0/0,
+extra_size=0, and the same region_start for INIT then MEM_SETUP. The 4096-byte ELF
+span is distinct from the 1MiB owner allocation and 16KiB staging page. Shared
+engine preserves full x0..x6 continuation, low32 signed BUSY-12 fresh retry,
+68 fresh/8 continuation limits, separate 5s transaction deadlines and fresh
+10s entry/3s later WDT budgets. No software bound cancels a nonreturning SMC.
+
+Frozen helper C SHA d62a14094a1e86882360e87308bb288c5079dc87eb07ba5b4596cfe42d180816;
+header SHA 1b25730874b35ce4b5b139542524ea99945136c84ac10ef92039ac0a95e2ba62;
+coordinator SHA 2320dab5041b9a30f2c96f3b9c488337c1cf84cc2b386fb6613f1b84215788ec.
+DSH executed reviewed native TUs against 0116/XShBw1: helper24952B object SHA
+ aad122b9d013e2de04d35b3437aeaf52d3f8a45760825a470043cc38e4129f63,
+report research/tmp/gauguin-nvt-p1/pas117-init-tu/run-ugv3q8rc/compile.json;
+coordinator28328B object SHA61cb747696bc4501d1a288084b0e35d45346e718d0d6678172ff4ba1012bc9d5,
+report research/tmp/gauguin-nvt-p1/pas117-coordinator-tu/run-4_ah1d9k/compile.json.
+These are isolated TU results, not full linking or hardware evidence.
+
+Focused ASan/UBSan PASS: PAS133 cases (69 retained INIT +64 additions, actual
+INIT-to-MEM publication/transaction) in pas-mem/host/logs/pas-mem-38ydfbs7/result.json;
+coordinator149 (100 retained +49 MEM) in coordinator-host/logs/coordinator-shzotezr/result.json.
+Both under research/tmp/dsh-0117. Public fixtures equal the frozen candidates;
+public runners use XNU_SOURCE and temporary outputs, no private runtime dependency.
+
+Fresh strict111-patch replay and all49 test files PASS. source117-codex has5263
+files, SHA7fc320d69c15d3e2f548f0e20d10ec14644b30eaf3fcb295d5178c5e15a1139d.
+Exactly the three dev files changed vs116 and match combined candidate bytes;
+source116 unchanged and tested117 unchanged. Authoritative machine report:
+research/tmp/dsh-0117/replay-full-host-result.json, host_exit0/statepassed.
+Task text accidentally named prepare_and_test116.py inside dsh-0117; actual DSH
+bash event invoked the reviewed existing prepare_and_test117.py once. Root checked
+that actual command, script, fresh source and result; no second replay/test run
+was needed, and the original task/event record is preserved. All DSH handles
+45679/42672/11891/24217 terminal0. DSH remains executor only; Codex interprets.
+
+Next: commit tested changes, standard local full build/qualification/package and
+independent image review, then one controlled MEM_SETUP trial. Prepared117 packer
+explicitly replaces whole sweetsample=names with sweetsample=- and removes its
+three now-unused timing options before adding sweetpasmem=1. Omitting sweetsample
+would enable defaults, so '-' is deliberate; core logging/UI flags remain.
+Source sweet_sample.c:70-78 proves '-' returns before timing-option parsing.
+Verifier verify_pas117.py now pins the tested source SHA and supports both phases'
+actual bounded BUSY/continuation paths, complete raw records per chain and final
+full64 x0/x1 zero. Intermediate continuation values remain source-bound evidence.
+No117 full image/boot/PAS MEM_SETUP hardware result yet. Preserve original mkadt
+edit and all113–116 artifacts. Public branch is still22a18e... (116); never push
+private ancestry. No new permission is needed for authorized temporary boots/push.
+
+
+
 ### 2026-11-06 — 0116 PAS INIT_IMAGE success and autonomous normal-running reset VERIFIED
 
 User confirmed THIS116 trial: “是，自行重启，我没有操作”. Parent rechecked all

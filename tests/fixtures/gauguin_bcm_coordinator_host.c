@@ -25,7 +25,7 @@ static unsigned cases;
 static const char *const off_flags[]={"sweettouchmode","sweetwdtpet","sweetreboot",
     "sweetbusprobe","sweetgpuprobe","sweetscmprobe","sweetwdttest"};
 static struct {
-    int requested,off[7],probe,stage,pasinit,context,late_context,after_plan_context,after_tx_context,after_init_context,thread_error;
+    int requested,off[7],probe,stage,pasinit,pasmem,context,late_context,after_plan_context,after_tx_context,after_init_context,after_mem_context,thread_error;
     unsigned starts,deallocations,terminations,before_sleeps,claim_sleeps,after_sleeps;
     unsigned claims,ready_after,claimed,plans,arms,transactions,quarantines,state_queries;
     unsigned plan_fail,arm_fail,frozen_wait_clock,markers,flushes,lines;
@@ -33,6 +33,11 @@ static struct {
     enum gpi_rc init_result;
     enum gpi_state init_state;
     struct gpi_receipt init_receipt;
+    unsigned mem_requested_queries,mem_calls,mem_state_queries;
+    enum gpi_rc mem_result;
+    enum gpm_state mem_state;
+    struct gpm_receipt mem_receipt;
+    uint64_t after_init_ready_pa;
     uint64_t now;
     struct sweet_pas_cpu_stage ready;
     struct gbcm_plan plan;
@@ -55,6 +60,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     if(!strcmp(key,"sweetpasprobe")){*(int*)out=mock.probe;return true;}
     if(!strcmp(key,"sweetpasstage")){*(int*)out=mock.stage;return true;}
     if(!strcmp(key,"sweetpasinit")){*(int*)out=mock.pasinit;return true;}
+    if(!strcmp(key,"sweetpasmem")){*(int*)out=mock.pasmem;return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,off_flags[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known flag");return false;
 }
@@ -87,6 +93,8 @@ void IOSleep(unsigned ms)
         CHECK(ms==1000 && mock.tx_result==GBCMT_OK && !mock.quarantines,"only successful transfer waits for reset");
         CHECK(mock.pasinit==0 || (mock.init_calls==1 && mock.init_result==GPI_OK),
             "enabled INIT must complete once before post-transfer reset wait");
+        CHECK(mock.pasmem==0 || (mock.mem_calls==1 && mock.mem_result==GPI_OK),
+            "enabled MEM must complete once before post-transfer reset wait");
         CHECK(mock.after_sleeps<30,"bounded30 requested seconds");++mock.after_sleeps;mock.now+=NSEC_PER_SEC;
     }
 }
@@ -125,7 +133,8 @@ void gauguin_wdt_lease_quarantine(void)
 {
     CHECK(mock.transactions==1 && !mock.quarantines,"only after attempted transfer, no duplicate coordinator quarantine");
     CHECK(mock.tx_result!=GBCMT_OK || (mock.init_calls==1 && mock.init_result!=GPI_OK) ||
-        mock.after_sleeps==30,"quarantine after TX/INIT failure or unqualified reset timeout only");
+        (mock.mem_calls==1 && mock.mem_result!=GPI_OK) || mock.after_sleeps==30,
+        "quarantine after TX/INIT/MEM failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
 enum gbcmt_state sweet_bcm_transport_state(void)
@@ -159,6 +168,7 @@ enum gpi_rc sweet_pas_init_image_once(const struct sweet_pas_cpu_stage *input,st
         /* Failed helper output must not be consumed by the coordinator. */
         memset(out,0xa5,sizeof(*out));
     }
+    if(mock.after_init_ready_pa) mock.ready.pa=mock.after_init_ready_pa;
     mock.context=mock.after_init_context;
     return mock.init_result;
 }
@@ -166,6 +176,44 @@ enum gpi_state sweet_pas_init_state(void)
 {
     CHECK(mock.init_calls==1 && mock.init_result!=GPI_OK && mock.quarantines==1,"INIT state queried only after failed call and coordinator quarantine");
     ++mock.init_state_queries;return mock.init_state;
+}
+bool sweet_pas_mem_requested(void)
+{
+    CHECK(mock.init_calls==1 && mock.init_result==GPI_OK && mock.init_state==GPI_COMPLETE &&
+        !mock.quarantines && !mock.mem_requested_queries && !strcmp(mock.order,"RPWTI"),
+        "MEM considered once only after successful same-path INIT");
+    ++mock.mem_requested_queries;return mock.pasmem==1;
+}
+enum gpi_rc sweet_pas_mem_setup_once(struct gpm_receipt *out)
+{
+    CHECK(out && mock.pasmem==1 && mock.pasinit==1 && !mock.mem_calls && !mock.quarantines,
+        "one explicit MEM call; typed API has no caller PA or size");
+    CHECK(mock.init_calls==1 && mock.init_result==GPI_OK && mock.init_state==GPI_COMPLETE &&
+        mock.mem_requested_queries==1 && !strcmp(mock.order,"RPWTI"),
+        "MEM after READY/plan/WDT/BCM/INIT through one path");
+    char expected[192];
+    snprintf(expected,sizeof(expected),"PAS INIT returned success pa=%016llx calls=%u; MEM_SETUP pending; no AUTH_RESET/GPU operation",
+        (unsigned long long)mock.init_receipt.stage_pa,mock.init_receipt.smc_calls);
+    unsigned init_logs=0;
+    for(unsigned i=0;i<mock.lines;++i)if(strstr(mock.log[i],expected))++init_logs;
+    CHECK(init_logs==1,"exact successful INIT receipt logged before MEM call");
+    if(mock.context) CHECK(mock.mem_result==GPI_CONTEXT,"MEM seam refuses invalid context");
+    ++mock.mem_calls;order('M');
+    if(mock.mem_result==GPI_OK) {
+        /* Emulates immutable helper publication, never the mutable READY record. */
+        mock.mem_receipt.stage_pa=mock.init_receipt.stage_pa;
+        mock.mem_receipt.region_bytes=4096;
+        mock.mem_state=GPM_COMPLETE;*out=mock.mem_receipt;
+    } else {
+        memset(out,0xa5,sizeof(*out));
+    }
+    mock.context=mock.after_mem_context;return mock.mem_result;
+}
+enum gpm_state sweet_pas_mem_state(void)
+{
+    CHECK(mock.mem_calls==1 && mock.mem_result!=GPI_OK && mock.quarantines==1 &&
+        mock.init_state==GPI_COMPLETE,"MEM state only after failed call; INIT history remains complete");
+    ++mock.mem_state_queries;return mock.mem_state;
 }
 #define printf test_printf
 @SOURCE@
@@ -179,6 +227,8 @@ static void reset(const char *name)
     mock.init_result=GPI_OK;mock.init_state=GPI_QUARANTINED;
     mock.init_receipt.has_returned=1;mock.init_receipt.smc_calls=1;
     mock.init_receipt.fresh_attempts=1;
+    mock.mem_result=GPI_OK;mock.mem_state=GPM_QUARANTINED;
+    mock.mem_receipt.has_returned=1;mock.mem_receipt.smc_calls=1;mock.mem_receipt.fresh_attempts=1;
     mock.ready=(struct sweet_pas_cpu_stage){UINT64_C(0x94000000),6860,16384};
     static const uint32_t addr[]={0x50000,0x50004,0x5002c,0x50044,0x5006c,0x50080};
     static const uint32_t data[]={0x6fffffff,0x6fffffff,0x2fffffff,0x6fffffff,0x6fffffff,0x60000008};
@@ -192,10 +242,15 @@ static void run_worker(void)
     CHECK(!mock.before_sleeps && !mock.claims,"no inline execution");sweet_bcm_vote_init();CHECK(mock.starts==1,"one start while pending");
     mock.worker(NULL,0);CHECK(mock.terminations==1,"thread terminates once");
     unsigned transactions=mock.transactions,arms=mock.arms,plans=mock.plans,claims=mock.claims,inits=mock.init_calls,init_queries=mock.init_requested_queries,state_queries=mock.init_state_queries;
-    sweet_bcm_vote_init();CHECK(mock.starts==1 && mock.transactions==transactions && mock.arms==arms && mock.plans==plans && mock.claims==claims && mock.init_calls==inits && mock.init_requested_queries==init_queries && mock.init_state_queries==state_queries,"no retry after any result");
+    unsigned memories=mock.mem_calls,mem_queries=mock.mem_requested_queries,mem_states=mock.mem_state_queries;
+    sweet_bcm_vote_init();CHECK(mock.starts==1 && mock.transactions==transactions && mock.arms==arms && mock.plans==plans && mock.claims==claims && mock.init_calls==inits && mock.init_requested_queries==init_queries && mock.init_state_queries==state_queries && mock.mem_calls==memories && mock.mem_requested_queries==mem_queries && mock.mem_state_queries==mem_states,"no retry after any result");
     CHECK(mock.markers==mock.flushes,"all marked logs flushed");
     if(mock.pasinit==0) CHECK(mock.init_calls==0 && mock.init_state_queries==0,
         "off flag preserves 115 with no PAS helper/state access");
+    if(mock.pasmem==0) CHECK(!mock.mem_calls && !mock.mem_state_queries,
+        "MEM off preserves 116 with no MEM helper/state access");
+    if(mock.init_result!=GPI_OK || !mock.init_calls) CHECK(!mock.mem_requested_queries && !mock.mem_calls && !mock.mem_state_queries,
+        "no MEM option query or API before successful INIT");
 }
 static void success(void)
 {
@@ -317,13 +372,108 @@ static void init_cases(void)
         CHECK(mock.markers==mock.flushes,"invalid-context failure never synchronously persists");
     }
 }
+static void reset_mem(const char *name)
+{reset_init(name);mock.pasmem=1;}
+static void no_mem(void)
+{CHECK(!mock.mem_requested_queries && !mock.mem_calls && !mock.mem_state_queries,"no MEM access before successful INIT");}
+static void mem_success(void)
+{
+    run_worker();
+    CHECK(!strcmp(mock.order,"RPWTIMQ"),"one path READY -> plan -> WDT -> BCM -> INIT -> MEM -> reset wait");
+    CHECK(mock.init_calls==1 && mock.mem_requested_queries==1 && mock.mem_calls==1 &&
+        !mock.init_state_queries && !mock.mem_state_queries,"one call per helper; no retry or redundant state read");
+    CHECK(mock.after_sleeps==30 && mock.quarantines==1,"only bounded original reset wait follows MEM");
+    CHECK(count("SWEET BCM BOOT: cmd")==6 && count("calls=")==2,"six BCM statuses and two distinct PAS success receipts");
+    char expected[192];
+    snprintf(expected,sizeof(expected),"PAS MEM_SETUP returned success pa=%016llx bytes=4096 calls=%u; no code load/AUTH_RESET/GPU operation",
+        (unsigned long long)mock.init_receipt.stage_pa,mock.mem_receipt.smc_calls);
+    CHECK(has(expected),"MEM log uses exact published INIT PA, fixed span and actual helper count");
+    CHECK(has("MEM_SETUP trial done; requests and shared buffer retained; awaiting watchdog reset") &&
+        has("survived30 requested seconds after transfer; reset unqualified"),"retain resources; bounded wait is not reset qualification");
+    CHECK(!has("PAS INIT trial done") && !has("no MEM_SETUP/AUTH_RESET/GPU operation") &&
+        !has("coordinator performed no PAS/SMC/GPU operation") && !has("stopped rc="),"no obsolete off-mode or failure claim");
+}
+static void mem_cases(void)
+{
+    const int disabled[]={0,2,-1};
+    for(unsigned i=0;i<3;++i){
+        reset_mem("MEM cannot enable base coordinator");mock.requested=disabled[i];
+        sweet_bcm_vote_init();sweet_bcm_vote_init();
+        CHECK(!mock.starts && !mock.lines && !mock.claims,"base flag remains exact1");no_init();no_mem();
+    }
+    const int invalid[]={-1,2,9};
+    for(unsigned i=0;i<3;++i){
+        reset_mem("invalid MEM flag rejects whole experiment");mock.pasmem=invalid[i];run_worker();
+        CHECK(!mock.before_sleeps && !mock.claims && !mock.plans && !mock.arms && !mock.transactions,
+            "invalid MEM rejects before delay/READY/plan/WDT/BCM");no_init();no_mem();
+    }
+    const int no_init_flag[]={0,-1,2};
+    for(unsigned i=0;i<3;++i){
+        reset_mem("MEM requires INIT flag exact1");mock.pasinit=no_init_flag[i];run_worker();
+        CHECK(!mock.before_sleeps && !mock.claims && !mock.arms && !mock.transactions,"dependent flags reject before any experiment");no_init();no_mem();
+    }
+    reset_mem("MEM cannot bypass PET exclusion");mock.off[1]=1;run_worker();
+    CHECK(!mock.before_sleeps && !mock.claims,"conflict rejected early");no_init();no_mem();
+    for(unsigned i=0;i<2;++i){
+        reset_mem("MEM still requires both staging flags");if(i)mock.stage=0;else mock.probe=0;run_worker();
+        CHECK(!mock.before_sleeps && !mock.claims,"staging requirements precede experiment");no_init();no_mem();
+    }
+    for(unsigned rc=GPI_OFF;rc<=GPI_SERVICE;++rc){
+        reset_mem("every INIT failure prevents MEM even when enabled");mock.init_result=(enum gpi_rc)rc;run_worker();
+        CHECK(!strcmp(mock.order,"RPWTIQ") && mock.init_calls==1 && mock.init_state_queries==1 &&
+            mock.quarantines==1 && !mock.after_sleeps,"failed INIT is terminal with MEM enabled");
+        CHECK(has("PAS INIT stopped") && !has("calls=") && !has("MEM_SETUP pending") &&
+            !has("PAS MEM_SETUP") && !has("survived30"),"no failed INIT receipt consumed or later MEM log");no_mem();
+    }
+    reset_mem("successful one-path MEM");mem_success();
+    reset_mem("MEM receives dynamic INIT publication");mock.ready.pa=UINT64_C(0x9ab00000);mem_success();
+    reset_mem("MEM continuation receipt does not cause coordinator retries");
+    mock.init_receipt.smc_calls=4;mock.init_receipt.continuations=3;
+    mock.mem_receipt.smc_calls=3;mock.mem_receipt.continuations=2;mem_success();
+    reset_mem("MEM never takes PA from mutable READY record");mock.after_init_ready_pa=UINT64_C(0xfff00000);mem_success();
+    CHECK(mock.init_receipt.stage_pa==UINT64_C(0x94000000) && mock.ready.pa==UINT64_C(0xfff00000),"publication and later record deliberately differ");
+    for(unsigned rc=GPI_OFF;rc<=GPI_SERVICE;++rc){
+        reset_mem("every MEM helper failure is terminal");mock.mem_result=(enum gpi_rc)rc;run_worker();
+        CHECK(!strcmp(mock.order,"RPWTIMQ") && mock.mem_calls==1 && mock.mem_state_queries==1 &&
+            mock.quarantines==1 && !mock.after_sleeps && !mock.init_state_queries,"MEM failure quarantines and returns; no retry/wait/later operation");
+        char expected[160];snprintf(expected,sizeof(expected),"PAS MEM_SETUP stopped rc=%u state=%u; no retry or later PAS/GPU operation",rc,(unsigned)mock.mem_state);
+        CHECK(has(expected) && count("calls=")==1 && !has("bytes=") && !has("a5a5a5a5a5a5a5a5") &&
+            !has("PAS MEM_SETUP returned success") && !has("trial done") && !has("survived30"),"MEM error logs rc/state only; poisoned receipt never consumed");
+    }
+    const enum gpi_rc exceptional_rc[]={GPI_ALREADY,GPI_OFF};
+    const enum gpm_state exceptional_state[]={GPM_COMPLETE,GPM_IDLE};
+    for(unsigned i=0;i<2;++i){
+        reset_mem("MEM state cannot override helper error");mock.mem_result=exceptional_rc[i];mock.mem_state=exceptional_state[i];run_worker();
+        CHECK(mock.mem_calls==1 && mock.mem_state_queries==1 && !mock.after_sleeps && mock.quarantines==1 &&
+            !has("PAS MEM_SETUP returned success"),"COMPLETE/IDLE state with failed return remains terminal");
+    }
+    for(int c=1;c<=3;++c){
+        reset_mem("MEM helper refuses context lost after INIT");mock.after_init_context=c;mock.after_mem_context=c;mock.mem_result=GPI_CONTEXT;run_worker();
+        CHECK(!strcmp(mock.order,"RPWTIMQ") && !mock.after_sleeps && mock.mem_calls==1 &&
+            mock.markers==mock.flushes,"context refusal terminates without synchronous persistence");
+    }
+    const enum gbcmt_rc tx_errors[]={GBCMT_OFF,GBCMT_COMPLETION};
+    for(unsigned i=0;i<2;++i){
+        reset_mem("MEM cannot bypass BCM failure");mock.tx_result=tx_errors[i];run_worker();
+        CHECK(!strcmp(mock.order,"RPWTQ") && !mock.after_sleeps,"BCM error remains terminal before both PAS operations");no_init();no_mem();
+    }
+    reset_mem("MEM cannot bypass failed CMDDB plan");mock.plan_fail=1;run_worker();
+    CHECK(!strcmp(mock.order,"RP") && !mock.arms && !mock.transactions,"plan failure prevents both PAS operations");no_init();no_mem();
+    reset_mem("MEM cannot bypass watchdog arm failure");mock.arm_fail=1;run_worker();
+    CHECK(!strcmp(mock.order,"RPW") && !mock.transactions,"watchdog failure prevents both PAS operations");no_init();no_mem();
+}
 int main(void)
 {
     legacy_cases();
     unsigned original=cases;
     init_cases();
     CHECK(cases-original==42 && cases==100,"58 retained plus42 focused INIT cases");
-    printf("PASS: %u original + %u INIT coordinator cases (%u total); actual coordinator, typed helper seams, no real SMC/reset/GPU\n",
+    printf("PASS: %u original + %u INIT coordinator cases (%u total); MEM disabled, original assertions preserved\n",
         original,cases-original,cases);
+    unsigned before_mem=cases;
+    mem_cases();
+    CHECK(cases-before_mem==49 && cases==149,"100 retained plus49 focused MEM cases");
+    printf("PASS: 100 retained + %u MEM coordinator cases (%u total); actual coordinator, typed helper seams, no real SMC/reset/GPU\n",
+        cases-before_mem,cases);
     return 0;
 }

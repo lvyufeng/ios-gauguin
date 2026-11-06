@@ -21,6 +21,8 @@ static const char *const disabled[]={"sweettouchmode","sweetwdtpet","sweetreboot
 static struct sweet_pas_cpu_stage stage;
 static struct {
     int requested,required[3],off[7],context;
+    int mem_requested; bool mem_phase;
+    unsigned allow_quarantined_budget,allow_repeat_quarantine,inflight_mem;
     enum gbcmt_state bcm;
     unsigned budget_calls,budget_fail_call,budget_live,calls,barriers,sleeps,quarantines;
     unsigned count,replies,lines,markers,flushes,last_return_lines,last_return_sleeps;
@@ -41,6 +43,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t size)
 {
     CHECK(size==sizeof(int),"integer boot flags");
     if(!strcmp(key,"sweetpasinit")){*(int*)out=mock.requested;return true;}
+    if(!strcmp(key,"sweetpasmem")){*(int*)out=mock.mem_requested;return true;}
     for(unsigned i=0;i<3;++i)if(!strcmp(key,required[i])){*(int*)out=mock.required[i];return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,disabled[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known boot flag");return false;
@@ -75,12 +78,12 @@ void sweet_log_flush_now(void)
 enum gbcmt_state sweet_bcm_transport_state(void){return mock.bcm;}
 bool gauguin_wdt_lease_check_budget(uint32_t minimum)
 {
-    CHECK(!mock.quarantines,"no lease checks after terminal quarantine");
+    CHECK(!mock.quarantines || mock.allow_quarantined_budget,"no lease checks after terminal quarantine except in-flight failure propagation");
     CHECK(minimum==(mock.calls==0 ? 327650u:98295u),"initial10s then3s fresh budget");
-    ++mock.budget_calls;mock.event='B';return mock.budget_live && mock.budget_calls!=mock.budget_fail_call;
+    ++mock.budget_calls;mock.event='B';return !mock.quarantines && mock.budget_live && mock.budget_calls!=mock.budget_fail_call;
 }
 void gauguin_wdt_lease_quarantine(void)
-{CHECK(!mock.quarantines,"helper quarantines once, software only");++mock.quarantines;}
+{CHECK(!mock.quarantines || mock.allow_repeat_quarantine,"quarantine is software-only and idempotent for nested failed prerequisites");++mock.quarantines;mock.budget_live=0;}
 static void fake_dsb(void)
 {CHECK(mock.event=='B' && mock.now<mock.deadline,"DSB after latest guard, no intervening log");++mock.barriers;mock.event='D';}
 struct competing_result { enum gpi_rc rc; struct gpi_receipt out; };
@@ -90,21 +93,35 @@ static void *competing_caller(void *opaque)
     r->rc=sweet_pas_init_image_once(&stage,&r->out);
     CHECK(r->rc==GPI_ALREADY && !memcmp(&r->out,&saved,sizeof(saved)),"concurrent caller cannot consume running attempt or output");return NULL;
 }
+struct competing_mem_result { enum gpi_rc rc; struct gpm_receipt out; };
+static void *competing_mem_caller(void *opaque)
+{
+    struct competing_mem_result *r=opaque;memset(&r->out,0xa5,sizeof(r->out));const struct gpm_receipt saved=r->out;
+    r->rc=sweet_pas_mem_setup_once(&r->out);
+    CHECK(r->rc==GPI_ALREADY && !memcmp(&r->out,&saved,sizeof(saved)),"concurrent MEM caller cannot claim running stage");return NULL;
+}
 static void fake_invoke(struct gpi_registers *regs)
 {
     CHECK(mock.event=='D' && mock.barriers==mock.calls+1,"exactly one DSB immediately before SMC");
-    CHECK(sweet_pas_init_state()==GPI_RUNNING && mock.calls<mock.replies,"one active attempt and bounded script");
+    CHECK((mock.mem_phase ? sweet_pas_init_state()==GPI_COMPLETE && sweet_pas_mem_state()==GPM_RUNNING : sweet_pas_init_state()==GPI_RUNNING) && mock.calls<mock.replies,"correct active stage and bounded script");
     if(mock.calls && mock.last.x[0]==1){
         CHECK(!memcmp(regs,&mock.last,sizeof(*regs)),"continuation preserves ALL64bit x0..x6");
         CHECK(mock.lines==mock.last_return_lines && mock.sleeps==mock.last_return_sleeps,"tight continuation has no log/UFS/sleep");
     }else{
-        const struct gpi_registers expected={{0x42000201,0x82,13,mock.original_pa,0,0,0}};
-        CHECK(!memcmp(regs,&expected,sizeof(*regs)),"fresh INIT_IMAGE exact regs; BUSY discards old x6/context");
+        const struct gpi_registers expected={{mock.mem_phase ? 0x42000202u:0x42000201u,
+            mock.mem_phase ? 3u:0x82u,13,mock.original_pa,mock.mem_phase ? 4096u:0u,0,0}};
+        CHECK(!memcmp(regs,&expected,sizeof(*regs)),"exact INIT/MEM fresh frame; MEM x4=4096 and BUSY discards x6/context");
     }
     if(mock.concurrent && mock.calls==0){
-        pthread_t thread;struct competing_result result;
-        CHECK(!pthread_create(&thread,NULL,competing_caller,&result),"concurrent host claimant");
+        pthread_t thread;struct competing_result result;struct competing_mem_result mem;
+        CHECK(!pthread_create(&thread,NULL,mock.mem_phase ? competing_mem_caller:competing_caller,
+            mock.mem_phase ? (void *)&mem:(void *)&result),"concurrent host claimant");
         CHECK(!pthread_join(thread,NULL),"join concurrent caller");
+    }
+    if(mock.inflight_mem && !mock.calls){
+        struct gpm_receipt out;memset(&out,0xa5,sizeof(out));
+        CHECK(sweet_pas_mem_setup_once(&out)==GPI_PREREQUISITE,"MEM cannot enter during actual in-flight INIT");
+        CHECK(out.stage_pa==0 && !out.has_returned && !out.smc_calls && sweet_pas_mem_state()==GPM_QUARANTINED && sweet_pas_init_state()==GPI_RUNNING,"in-flight INIT private PA is never exported/used");
     }
     *regs=mock.scripted[mock.calls++];mock.last=*regs;mock.last_return_lines=mock.lines;mock.last_return_sleeps=mock.sleeps;mock.event='R';
     if(mock.lose_context)mock.context=(int)mock.lose_context;
@@ -116,7 +133,7 @@ static void fake_invoke(struct gpi_registers *regs)
 #undef printf
 static void reset(const char *name)
 {
-    memset(&mock,0,sizeof(mock));case_name=name;++cases;gpi_lifecycle=GPI_IDLE;
+    memset(&mock,0,sizeof(mock));case_name=name;++cases;gpi_lifecycle=GPI_IDLE;gpm_lifecycle=GPM_IDLE;gpi_success_pa=0;
     mock.requested=mock.budget_live=mock.replies=1;mock.now=1;mock.bcm=GBCMT_COMPLETE;
     for(unsigned i=0;i<3;++i)mock.required[i]=1;
     stage=(struct sweet_pas_cpu_stage){UINT64_C(0x94000000),6860,16384};mock.original_pa=stage.pa;
@@ -130,9 +147,49 @@ static struct gpi_receipt check_result(enum gpi_rc wanted,unsigned calls,unsigne
     CHECK(rc==wanted && mock.calls==calls && mock.barriers==calls,"result/call/barrier counts");
     CHECK(out.stage_pa==mock.original_pa && out.has_returned==(calls ? 1u:0u) && out.smc_calls==calls && out.fresh_attempts==fresh && out.continuations==continuations,"deterministic terminal receipt");
     struct gpi_registers zero={{0}};CHECK(!memcmp(&out.returned,calls ? &mock.last:&zero,sizeof(zero)),"full raw x0..x6, including nonzero upper bits");
-    CHECK(sweet_pas_init_state()==(wanted==GPI_OK ? GPI_COMPLETE:GPI_QUARANTINED) && mock.quarantines==(wanted==GPI_OK ? 0u:1u),"terminal state and software quarantine");
+    CHECK(sweet_pas_init_state()==(wanted==GPI_OK ? GPI_COMPLETE:GPI_QUARANTINED) && mock.quarantines==(wanted==GPI_OK ? 0u:(mock.inflight_mem ? 2u:1u)),"terminal state and software quarantine");
     const struct gpi_receipt saved=out;CHECK(sweet_pas_init_image_once(&stage,&out)==GPI_ALREADY && !memcmp(&saved,&out,sizeof(out)),"no retry after any terminal result");
     CHECK(mock.calls==calls,"no extra SMC after terminal result");return out;
+}
+static void mem_phase_reset(uint64_t saved_pa, bool failed_init)
+{
+    /* Only the platform-script phase resets here. Production lifecycle and
+     * private publication remain exactly as the actual INIT call left them. */
+    uint64_t now=mock.now;
+    memset(&mock,0,sizeof(mock));mock.mem_phase=true;
+    mock.requested=mock.mem_requested=mock.replies=1;mock.budget_live=!failed_init;
+    mock.bcm=GBCMT_COMPLETE;mock.now=now;mock.original_pa=saved_pa;
+    for(unsigned i=0;i<3;++i)mock.required[i]=1;
+    if(failed_init){mock.quarantines=1;mock.allow_repeat_quarantine=1;}
+    for(unsigned i=0;i<80;++i)for(unsigned r=2;r<7;++r)mock.scripted[i].x[r]=UINT64_C(0x9876543200000000)+(i<<8)+r;
+}
+static void mem_begin(const char *name,uint64_t pa)
+{
+    reset(name);stage.pa=mock.original_pa=pa;
+    struct gpi_receipt init=check_result(GPI_OK,1,1,0);
+    CHECK(sweet_pas_init_state()==GPI_COMPLETE && gpi_success_pa==pa,"actual INIT publishes private PA");
+    init.stage_pa=UINT64_C(0x12300000); /* caller receipt is not MEM authority */
+    stage=(struct sweet_pas_cpu_stage){0,0,0}; /* nor is the former input */
+    CHECK(init.stage_pa!=pa,"caller receipt mutated deliberately");
+    mem_phase_reset(pa,false);
+}
+static void mem_check(enum gpi_rc wanted,unsigned calls,unsigned fresh,unsigned cont,bool knows_pa)
+{
+    enum gpi_state prior=sweet_pas_init_state();unsigned quarantines=mock.quarantines;
+    struct gpm_receipt out;memset(&out,0xa5,sizeof(out));
+    enum gpi_rc rc=sweet_pas_mem_setup_once(&out);
+    if(rc!=wanted)fprintf(stderr,"MEM rc=%u expected=%u calls=%u\n",rc,wanted,mock.calls);
+    CHECK(rc==wanted && mock.calls==calls && mock.barriers==calls,"MEM result and call/barrier counts");
+    CHECK(out.stage_pa==(knows_pa ? mock.original_pa:0) && out.region_bytes==4096 && out.has_returned==(calls ? 1u:0u) && out.smc_calls==calls && out.fresh_attempts==fresh && out.continuations==cont,"typed MEM receipt, no speculative PA");
+    struct gpi_registers zero={{0}};CHECK(!memcmp(&out.returned,calls ? &mock.last:&zero,sizeof(zero)),"MEM full7register return or deterministic zero");
+    CHECK(sweet_pas_init_state()==prior,"MEM never rewrites INIT historical state");
+    CHECK(sweet_pas_mem_state()==(wanted==GPI_OK ? GPM_COMPLETE:GPM_QUARANTINED) && mock.quarantines==quarantines+(wanted==GPI_OK ? 0u:1u),"independent MEM/WDT terminal state");
+    const struct gpm_receipt saved=out;CHECK(sweet_pas_mem_setup_once(&out)==GPI_ALREADY && !memcmp(&saved,&out,sizeof(out)) && mock.calls==calls,"MEM no retry/output overwrite");
+    if(prior==GPI_COMPLETE){
+        struct gpi_receipt old,saved_old;memset(&old,0xa5,sizeof(old));saved_old=old;
+        CHECK(sweet_pas_init_image_once(&stage,&old)==(mock.requested==1 ? GPI_ALREADY:GPI_OFF) && !memcmp(&old,&saved_old,sizeof(old)),"MEM does not reopen INIT");
+        CHECK(gpi_success_pa==mock.original_pa,"private INIT PA remains immutable");
+    }
 }
 int main(void)
 {
@@ -166,5 +223,37 @@ int main(void)
     for(unsigned i=0;i<3;++i){reset("native int BUSY fresh reset");mock.replies=2;mock.scripted[0].x[0]=busy_codes[i];mock.scripted[0].x[1]=123;mock.mutate_input=1;check_result(GPI_OK,2,2,0);CHECK(mock.sleeps==1,"one native30ms fresh retry");}
     reset("68 total fresh BUSY attempts");mock.replies=68;for(unsigned i=0;i<68;++i)mock.scripted[i].x[0]=UINT64_C(0xfffffffffffffff4);check_result(GPI_BUSY_LIMIT,68,68,0);CHECK(mock.sleeps==67,"no needless sleep after terminal busy cap");
     reset("continuation cap shared across BUSY restarts");mock.replies=10;for(unsigned i=0;i<10;++i)mock.scripted[i].x[0]=1;mock.scripted[4].x[0]=UINT64_C(0xfffffffffffffff4);check_result(GPI_CONTINUATION_LIMIT,10,2,8);CHECK(mock.sleeps==1,"only BUSY causes sleep");
+    unsigned old_cases=cases;CHECK(old_cases==69,"all69 original INIT cases retained");
+    reset("MEM disabled before INIT");struct gpm_receipt mem,saved_mem;memset(&mem,0xa5,sizeof(mem));saved_mem=mem;
+    CHECK(sweet_pas_mem_setup_once(&mem)==GPI_OFF && !memcmp(&mem,&saved_mem,sizeof(mem)) && sweet_pas_mem_state()==GPM_IDLE,"default MEM off has no effect");
+    for(unsigned i=0;i<3;++i){mem_begin("MEM exact opt-in after actual INIT",UINT64_C(0x94000000));mock.mem_requested=off[i];memset(&mem,0xa5,sizeof(mem));saved_mem=mem;CHECK(!sweet_pas_mem_requested() && sweet_pas_mem_setup_once(&mem)==GPI_OFF && !memcmp(&mem,&saved_mem,sizeof(mem)) && !mock.calls && sweet_pas_mem_state()==GPM_IDLE,"off MEM preserves receipt/attempt and INIT");}
+    mem_begin("MEM NULL does not claim",UINT64_C(0x94000000));CHECK(sweet_pas_mem_setup_once(NULL)==GPI_ARGUMENT && sweet_pas_mem_state()==GPM_IDLE,"NULL MEM unchanged");mem_check(GPI_OK,1,1,0,true);
+    reset("MEM while INIT IDLE");mock.mem_requested=1;mock.mem_phase=true;mem_check(GPI_PREREQUISITE,0,0,0,false);CHECK(gpi_success_pa==0,"no INIT PA publication");
+    reset("MEM during actual INIT SMC");mock.mem_requested=mock.inflight_mem=mock.allow_quarantined_budget=mock.allow_repeat_quarantine=1;
+    check_result(GPI_BUDGET,1,1,0);CHECK(!gpi_success_pa && sweet_pas_mem_state()==GPM_QUARANTINED,"in-flight refusal and failed INIT never publish PA");
+    memset(&mem,0xa5,sizeof(mem));saved_mem=mem;CHECK(sweet_pas_mem_setup_once(&mem)==GPI_ALREADY && !memcmp(&mem,&saved_mem,sizeof(mem)),"MEM cannot retry after premature call");
+    reset("failed INIT never authorizes MEM");mock.scripted[0].x[1]=1;check_result(GPI_SERVICE,1,1,0);mem_phase_reset(0,true);mem_check(GPI_PREREQUISITE,0,0,0,false);CHECK(!gpi_success_pa,"failed INIT private PA stays zero");
+    mem_begin("actual INIT then MEM immutable PA",UINT64_C(0x98200000));mem_check(GPI_OK,1,1,0,true);
+    mem_begin("actual INIT last valid base then MEM",UINT64_C(0xfff00000));mem_check(GPI_OK,1,1,0,true);
+    mem_begin("concurrent second MEM caller",UINT64_C(0x94000000));mock.concurrent=1;mem_check(GPI_OK,1,1,0,true);
+    for(int c=1;c<=3;++c){mem_begin("MEM invalid context",UINT64_C(0x94000000));mock.context=c;mem_check(GPI_CONTEXT,0,0,0,false);}
+    for(unsigned i=0;i<3;++i){mem_begin("MEM requires INIT flag1",UINT64_C(0x94000000));mock.requested=off[i];mem_check(GPI_CONFIG,0,0,0,false);}
+    for(unsigned flag=0;flag<3;++flag)for(unsigned i=0;i<3;++i){mem_begin("MEM required flags",UINT64_C(0x94000000));mock.required[flag]=off[i];mem_check(GPI_CONFIG,0,0,0,false);}
+    for(unsigned flag=0;flag<7;++flag)for(int v=-1;v<=1;v+=2){mem_begin("MEM conflicting diagnostic",UINT64_C(0x94000000));mock.off[flag]=v;mem_check(GPI_CONFIG,0,0,0,false);}
+    for(unsigned state=GBCMT_IDLE;state<=GBCMT_QUARANTINED;++state)if(state!=GBCMT_COMPLETE){mem_begin("MEM requires BCM COMPLETE",UINT64_C(0x94000000));mock.bcm=(enum gbcmt_state)state;mem_check(GPI_PREREQUISITE,0,0,0,true);}
+    mem_begin("MEM prelog deadline expiry",UINT64_C(0x94000000));mock.expire_pre=1;mem_check(GPI_TIMEOUT,0,0,0,true);
+    mem_begin("MEM prelog lease expiry",UINT64_C(0x94000000));mock.lose_pre_budget=1;mem_check(GPI_BUDGET,0,0,0,true);
+    mem_begin("MEM prelog BCM loss",UINT64_C(0x94000000));mock.pre_bcm=1;mem_check(GPI_PREREQUISITE,0,0,0,true);
+    mem_begin("MEM rawlog deadline expiry",UINT64_C(0x94000000));mock.expire_raw=1;mem_check(GPI_TIMEOUT,1,1,0,true);
+    mem_begin("MEM rawlog lease expiry",UINT64_C(0x94000000));mock.lose_raw_budget=1;mem_check(GPI_BUDGET,1,1,0,true);
+    for(unsigned i=0;i<4;++i){mem_begin("MEM full64 transport error",UINT64_C(0x94000000));mock.scripted[0].x[0]=transport_errors[i];mem_check(GPI_TRANSPORT,1,1,0,true);}
+    for(unsigned i=0;i<3;++i){mem_begin("MEM full64 service error",UINT64_C(0x94000000));mock.scripted[0].x[1]=service_errors[i];mem_check(GPI_SERVICE,1,1,0,true);}
+    mem_begin("MEM eight tight continuations success",UINT64_C(0x94000000));mock.replies=9;for(unsigned i=0;i<8;++i)mock.scripted[i].x[0]=1;mem_check(GPI_OK,9,1,8,true);CHECK(!mock.sleeps && mock.lines==4,"MEM continuation no logs/sleep");
+    mem_begin("MEM continuation cap",UINT64_C(0x94000000));mock.replies=9;for(unsigned i=0;i<9;++i)mock.scripted[i].x[0]=1;mem_check(GPI_CONTINUATION_LIMIT,9,1,8,true);
+    mem_begin("MEM continuation budget loss",UINT64_C(0x94000000));mock.scripted[0].x[0]=1;mock.budget_fail_call=2;mem_check(GPI_BUDGET,1,1,0,true);
+    for(unsigned i=0;i<3;++i){mem_begin("MEM BUSY fresh x4/x6 frame",UINT64_C(0x94000000));mock.replies=2;mock.scripted[0].x[0]=busy_codes[i];mock.scripted[0].x[1]=55;mem_check(GPI_OK,2,2,0,true);CHECK(mock.sleeps==1,"MEM fresh30ms retry");}
+    mem_begin("MEM fresh BUSY cap",UINT64_C(0x94000000));mock.replies=68;for(unsigned i=0;i<68;++i)mock.scripted[i].x[0]=UINT64_C(0xfffffffffffffff4);mem_check(GPI_BUSY_LIMIT,68,68,0,true);CHECK(mock.sleeps==67,"MEM bounded BUSY");
+    mem_begin("MEM total continuation cap across BUSY",UINT64_C(0x94000000));mock.replies=10;for(unsigned i=0;i<10;++i)mock.scripted[i].x[0]=1;mock.scripted[4].x[0]=UINT64_C(0xfffffffffffffff4);mem_check(GPI_CONTINUATION_LIMIT,10,2,8,true);
+    printf("PASS: originalINIT=%u MEM_additions=%u; actualINITpublication feedsMEM, one shared bounded engine\n",old_cases,cases-old_cases);
     printf("PASS: %u actual PAS INIT host cases; fixed ABI, full returns, tight continuation and bounded fresh retry; no secure call executed\n",cases);return 0;
 }

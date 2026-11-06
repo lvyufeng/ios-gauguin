@@ -2,14 +2,51 @@
 
 ## Agent handoff / active work
 
-### 2026-11-06 - 0112 CPU staging: published; temporary boot accepted, log PENDING
+### 2026-11-06 - 0112 CPU staging: fresh-log VERIFIED; probe + stage gates pass
 
-Status: native build succeeded, parent qualification and the parent image review
-PASS (research/tmp/dsh-0112/image-parent-review.json) both passed, and the0112
-staging image is published. ONE temporary `fastboot boot` was performed; the
-image was accepted but produced no fresh log (observer exit4), so the hardware
-low-PAS/staging result is UNKNOWN. User preference retained: DSH runs with
-danger-full-access for implementation/build, Codex plans and reviews.
+Status: PASS on a fresh log. The published0112 image was temporarily booted
+once, the user confirmed physical touch unlock in THAT trial, then manually
+returned the phone to TWRP; the fresh read-only pull now shows the exact build
+identity, the complete owner record (64 pages, wimg=d0000006) and the complete
+stage record (6860/9524, pinned sha256). No new boot/flash/build/code/push was
+done for this verification. Phone is currently TWRP. User preference retained:
+DSH runs with danger-full-access for implementation/build, Codex plans and
+reviews. Broader goal unchanged: real GPU/Metal is NOT implemented.
+
+Fresh log (this boot only; the observer removed its failed output, so nothing
+was reused): research/tmp/p3-passtage-0112-native-recovered-20261106.txt,
+3750lines, 275714B, SHA256 201e59867baafe4feee97d19b105f7c02878e0ff1c40f93836d704514477334b,
+ring4194304/total275959/flush235, read-only dd from /dev/block/sda35
+(userdata114919714816B, blocks28055546..). `adb get-state` was recovery on the
+first check (no retries). identity: tools/kernel_banner.py against the image
+returned0; line1 carries the full xnu-dc38b2a01c6f471fa523f9f9cdab1f4e and
+boot-args on line411 contains exactly one
+sweettrial=passtage-0112-20261106-dsh-a1 (the only sweettrial= anywhere), with
+sweetpasprobe=1 sweetpasstage=1. This is the actual boot-args of this boot, not
+a reused banner.
+
+Raw records (no failures, in order):
+- `SWEET PAS PROBE: owner pa=00000000aa200000 bytes=100000 input=00000000a91cb000+1234000 tail=1034000`
+- `SWEET PAS PROBE: provenance fdt=00000000a8fca000+44137 shim=00000000a2480000+39000`
+- `SWEET PAS PROBE: complete unmanaged_pages=64 wimg=d0000006; metadata only, buffer/PAS/GPU untested`
+- `SWEET PAS STAGE: pinned MDT verified; mapping first16KiB NC/RW only`
+- `SWEET PAS STAGE: before zero/copy; reserved first16KiB only`
+- `SWEET PAS STAGE: complete metadata_bytes=6860 zero_tail_bytes=9524 sha256=6f2a0e35325097f98fded6123d755266cdbb44caa932be61251b65b5c516ac7b`
+(lines1947-1952). None of the invalid/mapping-failed/readback-mismatch/
+missing-asset stops appear. Last PET `count=200 at=4151740440 en=0 sts=0`; last
+NVT `packets=13960 accepted=13960 rejected=0 mask=0`; strict `panic(cpu` count0
+(the gPanicBase/exec DumpPanic strings are not panics); last HB
+`4 wdt=4 tick=875229 exp=859984 call=15250`. PET units are ticks; a conversion to
+seconds is NOT assumed.
+
+The owner PA this boot is whatever the shim placed (0xaa200000 here); it is a
+result of this boot, not a fixed address. Hard limits: the probe line itself says
+metadata only, buffer/PAS/GPU untested; the stage covers only the first16KiB
+metadata page (zero/copy + readback+tail equality in the consumer), and no PAS
+authentication/reset, SCM, power vote or GPU/Metal operation exists. User touch
+unlock is USER-confirmed; the log does not independently prove touch.
+Record research/tmp/dsh-0112/hardware-recovered-result.json (supersedes the
+pending hardware-trial-result.json).
 
 Publish (this session): local HEAD764cd9d8c68d4a5a9049f4e2901197e9c61eab7f
 with only the preserved original tools/mkadt.py edit dirty. Sanitized public
@@ -84,20 +121,22 @@ and the log pull failed, with no recovery adb. Immediately afterwards
 returned to TWRP. Exit4 removes OUT by design, so
 research/tmp/p3-passtage-0112-native-recovered-20261106.txt does NOT exist: there
 is NO fresh log, no banner/marker verification, and no observed SWEET PAS STAGE
-line, panic or counter. Cycle log
-research/tmp/p3-passtage-0112-native-cycle-20261106.log (finish2026-11-06T04:03:18Z,
-12:03:18 CST). Hardware low-PAS mapping/staging result is UNKNOWN, not failed and
-not passed. No GPU/PAS/SMC operation was invoked by this trial.
+line, panic or counter at that time (cycle log
+research/tmp/p3-passtage-0112-native-cycle-20261106.log, finish2026-11-06T04:03:18Z,
+12:03:18 CST). That interim UNKNOWN is now RESOLVED by the fresh pull above:
+the phone kept running until the user unlocked it and returned TWRP. No
+GPU/PAS/SMC operation was invoked by this trial.
 
-Next step (needs the user, not another boot): physical touch/unlock confirmation
-and manual return to TWRP, then a fresh
-research/tmp/p3-passtage-0112-native-recovered-20261106.txt pull. Require both the
-full xnu-dc38b2a01c6f471fa523f9f9cdab1f4e ID and exactly one
-sweettrial=passtage-0112-20261106-dsh-a1 before trusting any line. Success requires
-`SWEET PAS STAGE: pinned MDT verified` followed by
-`SWEET PAS STAGE: complete metadata_bytes=6860 zero_tail_bytes=9524`; the
-mapping/translation-failed, readback mismatch and missing-asset stops are failures.
-Result record research/tmp/dsh-0112/hardware-trial-result.json.
+Local commit: only this NOTES.md handoff (parent9946819); original tools/mkadt.py
+edit untouched and left uncommitted. Public sanitized snapshot remains
+0e38d207d7089b2cbe657fc290d175b3ca7a6838 on codex/gauguin-p0-ci-20261105; no
+second push is needed for a NOTES-only handoff. Native build context is still
+source112-dsh-contract / gauguin.fbWj14 (kernel16798800B SHA8267eb94...9fdc, ID
+xnu-dc38b2a01c6f471fa523f9f9cdab1f4e).
+
+Next: parent independent review of the exact stage lines/hash above, then design
+the actual PAS authentication/reset step with its own review; do not treat the
+staged16KiB metadata page as firmware loaded or PAS owned-for-execution.
 
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 

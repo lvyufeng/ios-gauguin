@@ -6,6 +6,13 @@
 #include "gauguin_gmu_memory.h"
 #include "cmd_db_snapshot.h"
 static unsigned checks;
+static const uint32_t perf_golden[43]={
+        0x00302b04,7,2,
+        0,0,0x00400201,253000,0x00800302,355000,0x00c00403,430000,
+        0x01000504,565000,0x01400605,650000,0x01800706,800000,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0x00400202,200000,0,0,0,0
+    };
 #define CHECK(x) do {assert(x);++checks;} while(0)
 struct fake {struct gmf_context channel;struct gmf_plan plan;
     uint32_t regs[GMF_WINDOWS][12288],shared[8192];uint8_t image[32768];
@@ -17,6 +24,8 @@ struct fake {struct gmf_context channel;struct gmf_plan plan;
     uint32_t inject_data[19];
     unsigned native_ack,native_words[2],native_echo,native_bad_seq,native_bad_type,native_bad_queue;
     uint32_t native_status[2];
+    unsigned perf,perf_words,perf_echo,perf_type,perf_badseq,perf_bad_queue,perf_timeout,perf_debug,perf_error,after_version_drain;
+    uint32_t perf_status;
     bool nested;};
 static bool tick(struct fake *f){return ++f->step!=f->fail;}
 static bool guard(void *cookie,enum gmf_phase phase)
@@ -70,6 +79,24 @@ static void response(struct fake *f)
     unsigned rd=f->shared[16],wr=f->shared[17],base=56+rd;
     uint32_t header=f->shared[base];unsigned words=(header>>8)&255,id=header&255;
     CHECK(f->channel.phase==GMF_HANDSHAKE&&f->regs[GMF_CSR][0x2600/4]==1);
+    if(id==4){
+        CHECK(f->perf&&f->doorbells==3&&header==0x00302b04&&words==43);
+        CHECK((wr+1024-rd)%1024==words);
+        for(unsigned i=0;i<43;i++)CHECK(f->shared[56+(rd+i)%1024]==perf_golden[i]);
+        f->shared[16]=wr;
+        if(f->perf_timeout)return;
+        if(f->perf_debug){uint32_t msg=0x10165;reply(f,1,&msg,1);}
+        if(f->perf_error){uint32_t msg=0x10164;reply(f,1,&msg,1);return;}
+        uint32_t ack[20];for(unsigned i=0;i<20;i++)ack[i]=0xbeef0000u+i;
+        unsigned n=f->perf_words;CHECK(n<=20);
+        ack[0]=(f->perf_type<<16)|(n<<8)|126u;
+        ack[1]=f->perf_echo==1?header:f->perf_echo==2?0x003fffffu:0x00300000u;
+        if(f->perf_badseq)ack[1]^=0x100000;
+        ack[2]=f->perf_status;
+        reply(f,1,ack,n?n:1);
+        if(f->perf_bad_queue)f->shared[28]=1024;
+        return;
+    }
     CHECK((id==0&&words==5&&header==0x00100500)||(id==1&&words==2&&header==0x00200201));
     CHECK((wr+1024-rd)%1024==words);
     if(id==0){CHECK(f->shared[base+1]==0&&f->shared[base+2]==0x60006000&&f->shared[base+3]==0x4000&&f->shared[base+4]==1);}
@@ -107,6 +134,7 @@ static void response(struct fake *f)
     if(id&&f->bad_version==3)ack[3]=0x200b0000;
     reply(f,1,ack,n);
     if(!id&&f->after_init_drain)reply(f,1,f->inject_data,f->inject_words);
+    if(id&&f->after_version_drain)reply(f,1,f->inject_data,f->inject_words);
 }
 static bool write_word(void *cookie,enum gmf_window w,uint32_t off,uint32_t value)
 {
@@ -184,6 +212,7 @@ static struct fake *fresh(void)
     struct fake *f=calloc(1,sizeof(*f));CHECK(f);f->regs[GMF_CSR][0x2000/4]=1;
     f->regs[GMF_GBIF][0x3114/4]=3;
     f->native_words[0]=f->native_words[1]=4;
+    f->perf_words=4;f->perf_type=2;
     for(unsigned i=0;i<32736;i++)f->image[i]=(uint8_t)(i*17);
     static const uint32_t address[]={0x30000,0x30010,0x30050,0x300a0},count[]={7,8,8,4};
     static const uint16_t level[4][16]={{0,16,64,128,192,256,384},{0,16,64,128,192,256,320,384},{0,64,128,192,256,320,384,416},{0,32,80,128}};
@@ -197,7 +226,7 @@ static struct fake *fresh(void)
     return f;
 }
 static enum gmf_result run(struct fake *f,struct gmf_receipt *out)
-{struct gmf_ops o=ops(f);return gmf_bootstrap_once(&f->channel,&o,&f->plan,out);}
+{struct gmf_ops o=ops(f);return f->perf?gmf_bootstrap_perf_once(&f->channel,&o,&f->plan,out):gmf_bootstrap_once(&f->channel,&o,&f->plan,out);}
 static void stopped(struct fake *f)
 {unsigned step=f->step;struct gmf_receipt out,before;struct gmf_diagnostic diagnostic=f->channel.diagnostic;struct gmf_reply_diagnostic reply_diagnostic=f->channel.reply_diagnostic;uint32_t mask=f->channel.hidden_valid,raw[3],pdc_mask=f->channel.pdc_msgid_valid,pdc[6],ao_valid=f->channel.ao_mask_valid,ao_raw=f->channel.ao_mask_readback,cfg_valid=f->channel.cm3_config_valid,cfg_raw=f->channel.cm3_config_readback,boot_valid=f->channel.boot_config_valid,boot_raw[3];memcpy(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw));memcpy(raw,f->channel.hidden_readback,sizeof(raw));memcpy(pdc,f->channel.pdc_msgid_readback,sizeof(pdc));memset(&out,0x7c,sizeof(out));before=out;CHECK(run(f,&out)==GMF_ALREADY&&f->step==step&&!memcmp(&out,&before,sizeof(out)));CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));CHECK(!memcmp(&reply_diagnostic,&f->channel.reply_diagnostic,sizeof(reply_diagnostic)));CHECK(mask==f->channel.hidden_valid&&!memcmp(raw,f->channel.hidden_readback,sizeof(raw)));CHECK(pdc_mask==f->channel.pdc_msgid_valid&&!memcmp(pdc,f->channel.pdc_msgid_readback,sizeof(pdc)));CHECK(ao_valid==f->channel.ao_mask_valid&&ao_raw==f->channel.ao_mask_readback);CHECK(cfg_valid==f->channel.cm3_config_valid&&cfg_raw==f->channel.cm3_config_readback);CHECK(boot_valid==f->channel.boot_config_valid&&!memcmp(boot_raw,f->channel.boot_config_readback,sizeof(boot_raw)));}
 static void happy(void)
@@ -496,24 +525,18 @@ static void native_perf_table(void)
     /* Independent fixed wire oracle: native hfi_dcvstable_v1_cmd has16 GX
      * pairs then4 CX pairs, even though only7/2 are active. The live800MHz
      * curve includes off; CX wanted MIN_SVS48 rounds to ARC64/MX64 index2. */
-    const uint32_t golden[43]={
-        0x00302b04,7,2,
-        0,0,0x00400201,253000,0x00800302,355000,0x00c00403,430000,
-        0x01000504,565000,0x01400605,650000,0x01800706,800000,
-        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0x00400202,200000,0,0,0,0
-    };
+    const uint32_t *golden=perf_golden;
     CHECK(GMF_PERF_WORDS==43&&sizeof(struct gmf_perf_table)==172);
     struct fake *f=fresh();const struct gmf_plan p=f->plan;
     struct {uint32_t before;struct gmf_perf_table table;uint32_t after;} boxed;
     memset(&boxed,0xa6,sizeof(boxed));
     CHECK(gmf_perf_table_build(&p,3,&boxed.table));
-    CHECK(!memcmp(boxed.table.word,golden,sizeof(golden)));
+    CHECK(!memcmp(boxed.table.word,golden,sizeof(perf_golden)));
     CHECK(boxed.before==0xa6a6a6a6&&boxed.after==0xa6a6a6a6&&!memcmp(&p,&f->plan,sizeof(p)));
     for(uint32_t seq=1;seq<=4095;seq++){
         CHECK(gmf_perf_table_build(&p,seq,&boxed.table));
         CHECK(boxed.table.word[0]==((seq<<20)|0x2b04));
-        CHECK(!memcmp(boxed.table.word+1,golden+1,sizeof(golden)-4));
+        CHECK(!memcmp(boxed.table.word+1,golden+1,sizeof(perf_golden)-4));
     }
     const uint32_t invalid[]={0,4096,0x10000,0x80000000,UINT32_MAX};
     for(unsigned i=0;i<sizeof(invalid)/sizeof(*invalid);i++){
@@ -550,4 +573,66 @@ static void native_perf_table(void)
     free(f);
     printf("Native v1 PERF bytes: captured800MHz/off curve,43-word golden,4095 sequences, invalid plan/sequence/span/alias preservation PASS (pure host construction, not firmware ACK)\n");
 }
-int main(void){native_perf_table();native_ack_compatibility();hfi_reply_diagnostics();native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}
+static void perf_stopped(struct fake *f)
+{
+    uint8_t saved[sizeof(f->channel)];memcpy(saved,&f->channel,sizeof(saved));
+    stopped(f);
+    struct gmf_receipt out,before;memset(&out,0x72,sizeof(out));before=out;
+    struct gmf_ops o=ops(f);unsigned steps=f->step;
+    CHECK(gmf_bootstrap_once(&f->channel,&o,&f->plan,&out)==GMF_ALREADY);
+    CHECK(gmf_bootstrap_perf_once(&f->channel,&o,&f->plan,&out)==GMF_ALREADY);
+    CHECK(f->step==steps&&!memcmp(saved,&f->channel,sizeof(saved))&&!memcmp(&out,&before,sizeof(out)));
+}
+static void perf_transaction(void)
+{
+    for(unsigned words=3;words<=19;words++)for(unsigned echo=0;echo<3;echo++){
+        struct fake *f=fresh();f->perf=1;f->perf_words=words;f->perf_echo=echo;f->perf_status=echo==2?7:0;
+        f->native_ack=1;f->perf_debug=1;f->nested=true;struct gmf_receipt out;
+        CHECK(run(f,&out)==GMF_OK&&out.phase==GMF_DONE);
+        CHECK(f->channel.perf_requested&&f->channel.perf_started&&f->channel.perf_valid);
+        CHECK(((f->channel.perf_ack[0]>>8)&255)==words&&(f->channel.perf_ack[1]&GMF_ACK_SEQUENCE_MASK)==0x00300000u);
+        CHECK(f->channel.perf_ack[2]==f->perf_status&&!f->channel.reply_diagnostic.valid);
+        CHECK(f->doorbells==3&&f->reset_writes==1&&out.writes==84&&out.polls==6&&out.debug_messages==1);
+        perf_stopped(f);free(f);
+    }
+    for(unsigned mode=0;mode<14;mode++){
+        struct fake *f=fresh();f->perf=1;enum gmf_result expected=GMF_ACK;
+        if(mode<3){f->perf_words=mode;if(!mode)expected=GMF_TRANSPORT;}
+        else if(mode==3){f->perf_words=20;expected=GMF_TRANSPORT;}
+        else if(mode==4)f->perf_badseq=1;
+        else if(mode==5)f->perf_status=UINT32_MAX;
+        else if(mode<9)f->perf_type=mode==8?3:mode-6;
+        else if(mode==9){f->perf_bad_queue=1;expected=GMF_TRANSPORT;}
+        else if(mode==10){f->perf_timeout=1;expected=GMF_TIMEOUT;}
+        else if(mode==11)f->perf_error=1;
+        else if(mode==12){f->bad_version=2;expected=GMF_VERSION;}
+        else {f->after_version_drain=1;f->inject_words=3;f->inject_data[0]=0x0002037e;f->inject_data[1]=0x00200000;}
+        struct gmf_receipt out,before;memset(&out,0x72,sizeof(out));before=out;
+        CHECK(run(f,&out)==expected&&!memcmp(&out,&before,sizeof(out)));
+        CHECK(f->channel.perf_requested&&!f->channel.perf_valid&&f->reset_writes==1);
+        CHECK(f->channel.perf_started==(mode!=12));
+        CHECK(f->doorbells==((mode==12||mode==13)?2u:3u));
+        if(expected==GMF_ACK){
+            const struct gmf_reply_diagnostic *d=&f->channel.reply_diagnostic;
+            CHECK(d->valid&&d->phase==GMF_HANDSHAKE&&d->request_header==0x00302b04&&d->expected_words==3);
+            CHECK(d->site==(mode==13?GMFR_DRAIN:GMFR_REQUEST));
+        }
+        perf_stopped(f);free(f);
+    }
+    struct fake *f=fresh();f->perf=1;struct gmf_receipt out;CHECK(run(f,&out)==GMF_OK);
+    unsigned steps=f->step;free(f);
+    for(unsigned fail=1;fail<=steps;fail++){
+        f=fresh();f->perf=1;f->fail=fail;struct gmf_receipt before;
+        memset(&out,0x73,sizeof(out));before=out;
+        CHECK(run(f,&out)!=GMF_OK&&!memcmp(&out,&before,sizeof(out)));
+        CHECK(f->channel.state==3&&!f->channel.reply_diagnostic.valid);
+        perf_stopped(f);free(f);
+    }
+    f=fresh();memset(&f->channel.perf_ack,0x75,sizeof(f->channel.perf_ack));f->channel.perf_requested=7;f->channel.perf_started=8;f->channel.perf_valid=9;
+    f->perf=1;f->plan.selector[GMF_MX]--;CHECK(run(f,&out)==GMF_ARGUMENT&&!f->step);
+    CHECK(f->channel.perf_requested==7&&f->channel.perf_started==8&&f->channel.perf_valid==9&&f->channel.perf_ack[0]==0x75757575);
+    f->plan.selector[GMF_MX]++;f->perf=0;CHECK(run(f,&out)==GMF_OK&&!f->channel.perf_requested&&!f->channel.perf_started&&!f->channel.perf_valid);
+    CHECK(!f->channel.perf_ack[0]&&!f->channel.perf_ack[1]&&!f->channel.perf_ack[2]&&f->doorbells==2);perf_stopped(f);free(f);
+    printf("Native PERF transaction: exact third43-word command,3..19 ACKs/sequence/status/debug; refusals/default and both-entry once-state; fail every%u callback boundary PASS (host only)\n",steps);
+}
+int main(void){perf_transaction();native_perf_table();native_ack_compatibility();hfi_reply_diagnostics();native_bus_cache_order();happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();cm3_config_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}

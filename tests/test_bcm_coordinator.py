@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source124-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source140-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
@@ -90,9 +90,11 @@ def main(temporary):
         firmware = re.search(r'PASS: (\d+) retained \+ (\d+) GMU firmware coordinator cases \((\d+) total\)', output)
         assert clock and firmware and int(clock[2]) == int(firmware[1])
         assert int(firmware[2]) == 24 and int(firmware[3]) == int(firmware[1]) + 24
+        perf = re.search(r'PASS: (\d+) retained \+ (\d+) PERF coordinator cases \((\d+) total\)', output)
+        assert perf and int(perf[1]) == int(firmware[3]) and int(perf[2]) == 23 and int(perf[3]) == int(perf[1]) + 23
         report.update(state='passed', original_cases=58, init_cases=42, mem_cases=49,
                       cx_cases=int(counts[1]), clock_cases=int(clock[1]),
-                      firmware_cases=int(firmware[2]), total_cases=int(firmware[3]))
+                      firmware_cases=int(firmware[2]), perf_cases=int(perf[2]), total_cases=int(perf[3]))
     except Exception as error:
         report.update(state='failed', error=str(error))
         print(f'FAIL: {error}; {log_path}', file=sys.stderr)

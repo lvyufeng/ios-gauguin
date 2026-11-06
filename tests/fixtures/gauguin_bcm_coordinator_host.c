@@ -43,7 +43,8 @@ static struct {
     enum gpi_rc mem_result;
     enum gpm_state mem_state;
     struct gpm_receipt mem_receipt;
-    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw;
+    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf;
+    unsigned perf_calls;
     unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
     enum gmb_result fw_result;struct gmf_plan fw_plan;struct gmb_firmware_receipt fw_receipt;
     unsigned clock_queries,clock_calls,clock_states;enum gcx_rc clock_result;enum gcx_state clock_state;struct gmc_receipt clock_receipt;
@@ -81,6 +82,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     if(!strcmp(key,"sweetpasmem")){*(int*)out=mock.pasmem;return true;}
     if(!strcmp(key,"sweetgmuclk")){*(int*)out=mock.gmuclk;return true;}
     if(!strcmp(key,"sweetgmufw")){*(int*)out=mock.gmufw;return true;}
+    if(!strcmp(key,"sweetgmuperf")){*(int*)out=mock.gmuperf;return true;}
     if(!strcmp(key,"sweetcxpower")){*(int*)out=mock.cxpower;return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,off_flags[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known flag");return false;
@@ -334,7 +336,7 @@ bool sweet_gmu_asset_view(struct gma_view *out)
  CHECK(out&&mock.fwplan_calls==1&&!mock.arms&&!mock.asset_calls,"asset verified after real plan, before WDT");
  ++mock.asset_calls;if(mock.fw_fail_step==3)return false;*out=(struct gma_view){(const uint8_t *)(uintptr_t)0xb0000000,0xb0000000,32768};return true;
 }
-enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
+static enum gmb_result firmware_mock(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
 {
  CHECK(s&&p&&out&&mock.gmufw==1&&mock.clock_calls==1&&mock.clock_result==GCX_OK&&!mock.fw_calls&&!mock.quarantines&&!strcmp(mock.order,"RPWTACG"),"firmware after completed clock only");
  CHECK(!memcmp(s,&mock.ready,sizeof(*s))&&!memcmp(p,&mock.fw_plan,sizeof(*p)),"exact claimed owner and same-boot firmware plan");
@@ -343,6 +345,10 @@ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *s,cons
  else {memset(out,0xa5,sizeof(*out));if(mock.fw_result>=GMB_CONTEXT)gauguin_wdt_lease_quarantine();}
  return mock.fw_result;
 }
+enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
+{CHECK(mock.gmuperf==0&&!mock.perf_calls,"default firmware entry excludes PERF");return firmware_mock(s,p,out);}
+enum gmb_result sweet_gmu_firmware_perf_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
+{CHECK(mock.gmuperf==1&&mock.perf_calls++==0,"PERF uses its explicit once-only entry");return firmware_mock(s,p,out);}
 enum gmb_state sweet_gmu_firmware_state(void)
 {CHECK(mock.fw_calls==1&&mock.fw_result!=GMB_OK,"state only after refused firmware return");++mock.fw_state_queries;return mock.fw_result>=GMB_CONTEXT?GMB_QUARANTINED:GMB_IDLE;}
 #define printf test_printf
@@ -780,6 +786,30 @@ static void firmware_cases(void)
   CHECK(has("firmware stopped")&&!has("firmware complete")&&!has("a5a5"),"failed receipt never consumed");
  }
 }
+static void perf_cases(void)
+{
+ for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_fw("invalid PERF flag");mock.gmuperf=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.perf_calls,"PERF flag exact0/1 before work");}
+ for(unsigned dep=0;dep<3;dep++){
+  reset_fw("PERF prerequisite missing");mock.gmuperf=1;
+  if(dep==0)mock.gmufw=0;else if(dep==1)mock.gmuclk=0;else mock.cxpower=0;
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.fw_calls&&!mock.perf_calls,"PERF requires firmware/clocks/CX before any experiment");
+ }
+ for(unsigned n=1;n<=3;n++){
+  reset_fw("PERF preflight failure");mock.gmuperf=1;mock.fw_fail_step=n;run_worker();
+  CHECK(!mock.arms&&!mock.transactions&&!mock.perf_calls&&!mock.quarantines,"PERF cannot bypass same-boot preflight");
+ }
+ for(unsigned n=GMB_ARGUMENT;n<=GMB_FIRMWARE;n++){
+  reset_fw("every PERF bootstrap refusal terminal");mock.gmuperf=1;mock.fw_result=(enum gmb_result)n;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.fw_calls==1&&mock.perf_calls==1&&!mock.after_sleeps&&mock.quarantines==1,"PERF refusal never retries or consumes poisoned output");
+  CHECK(has("firmware stopped")&&!has("firmware complete")&&!has("PERF diagnostic done")&&!has("a5a5"),"no false completion after PERF refusal");
+ }
+ reset_fw("PERF opt-in order");mock.gmuperf=1;run_worker();
+ CHECK(mock.perf_calls==1&&mock.fw_calls==1&&!strcmp(mock.order,"RPWTACGFQ")&&mock.after_sleeps==30,"one combined cold transaction after clocks, one diagnostic reset wait");
+ CHECK(has("PERF diagnostic done")&&has("no BW/TEST/normal HFI_ON/GPU commands/Metal")&&!has("INIT/version diagnostic done"),"PERF final marker does not claim complete HFI/GPU");
+ reset_fw("PERF default0 preserves prior stage");run_worker();CHECK(!mock.perf_calls&&mock.fw_calls==1&&has("INIT/version diagnostic done")&&!has("PERF diagnostic done"),"default selects existing API");
+ reset_fw("PERF forbidden after failed clock");mock.gmuperf=1;mock.clock_result=GCX_READBACK;run_worker();CHECK(!mock.fw_calls&&!mock.perf_calls,"clock failure stops before PERF API");
+ reset_fw("PERF forbidden after failed watchdog arm");mock.gmuperf=1;mock.arm_fail=1;run_worker();CHECK(!mock.fw_calls&&!mock.perf_calls&&!mock.transactions,"no PERF after arm failure");
+}
 int main(void)
 {
     legacy_cases();
@@ -801,5 +831,8 @@ int main(void)
     printf("PASS: 241 retained + %u GMU clock coordinator cases (%u total)\n",cases-before_clock,cases);
     unsigned before_fw=cases;firmware_cases();
     printf("PASS: %u retained + %u GMU firmware coordinator cases (%u total); typed seams only\n",before_fw,cases-before_fw,cases);
+    unsigned before_perf=cases;perf_cases();
+    CHECK(cases-before_perf==23,"23 focused PERF coordinator cases");
+    printf("PASS: %u retained + %u PERF coordinator cases (%u total); typed seams only\n",before_perf,cases-before_perf,cases);
     return 0;
 }

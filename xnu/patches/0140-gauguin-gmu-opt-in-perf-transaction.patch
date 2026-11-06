@@ -1,0 +1,180 @@
+diff --git a/bsd/dev/gauguin_bcm_coordinator.c b/bsd/dev/gauguin_bcm_coordinator.c
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -38,6 +38,8 @@
+ static unsigned bcm_started;
+ static bool bcm_firmware_requested(void)
+ {int flag=0;(void)PE_parse_boot_argn("sweetgmufw",&flag,sizeof(flag));return flag==1;}
++static bool bcm_perf_requested(void)
++{int flag=0;(void)PE_parse_boot_argn("sweetgmuperf",&flag,sizeof(flag));return flag==1;}
+ static bool bcm_context(void)
+ { return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
+ static void bcm_record(const char *line)
+@@ -66,6 +68,8 @@
+     if ((gmu != 0 && gmu != 1) || (gmu == 1 && cx != 1)) return false;
+     int fw = 0; (void)PE_parse_boot_argn("sweetgmufw", &fw, sizeof(fw));
+     if ((fw != 0 && fw != 1) || (fw == 1 && gmu != 1)) return false;
++    int perf = 0; (void)PE_parse_boot_argn("sweetgmuperf", &perf, sizeof(perf));
++    if ((perf != 0 && perf != 1) || (perf == 1 && fw != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -156,7 +160,9 @@
+             bcm_record(line);
+             if(fw_requested){
+                 struct gmb_firmware_receipt fw;
+-                enum gmb_result result=sweet_gmu_firmware_once(&stage,&fw_plan,&fw);
++                const bool perf=bcm_perf_requested();
++                enum gmb_result result=perf?sweet_gmu_firmware_perf_once(&stage,&fw_plan,&fw):
++                    sweet_gmu_firmware_once(&stage,&fw_plan,&fw);
+                 if(result!=GMB_OK){
+                     enum gmb_state state=sweet_gmu_firmware_state();
+                     if(state!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+@@ -169,7 +175,8 @@
+                 for(unsigned n=0;n<5;n++){
+                     snprintf(line,sizeof(line),"SWEET GMU BOOT: tcm_version%u=%08x",n,f->versions[n]);bcm_record(line);
+                 }
+-                bcm_record("SWEET GMU BOOT: INIT/version diagnostic done; awaiting watchdog reset; no normal HFI_ON/GPU commands/Metal");
++                if(perf)bcm_record("SWEET GMU BOOT: PERF diagnostic done; awaiting watchdog reset; no BW/TEST/normal HFI_ON/GPU commands/Metal");
++                else bcm_record("SWEET GMU BOOT: INIT/version diagnostic done; awaiting watchdog reset; no normal HFI_ON/GPU commands/Metal");
+             }else{
+                 bcm_record("SWEET BCM BOOT: GMU clock trial done; requests retained; awaiting watchdog reset; no firmware/reset-release/PAS/GX operation");
+             }
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -407,11 +407,15 @@
+     gfw_ao_record();
+     gfw_cm3_record();
+     gfw_boot_config_records();
++    if(gfw_context.perf_requested){
++        snprintf(line,sizeof(line),"SWEET GMU PERF: partial requested=%u started=%u accepted=%u ack=%08x/%08x/%08x; transaction quarantined",gfw_context.perf_requested,gfw_context.perf_started,gfw_context.perf_valid,gfw_context.perf_ack[0],gfw_context.perf_ack[1],gfw_context.perf_ack[2]);
++        gmb_record(line);
++    }
+     gfw_reply_record();
+     return rc;
+ }
+-enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+-    const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
++static enum gmb_result gfw_once(const struct sweet_pas_cpu_stage *stage,
++    const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf)
+ {
+     if(!stage||!out||!gmf_plan_valid(plan))return GMB_ARGUMENT;
+     unsigned expected=GMB_IDLE;
+@@ -442,8 +446,11 @@
+     }
+     struct gmf_ops ops={NULL,gfw_guard,gfw_read,gfw_write,gmb_barrier,gfw_delay,
+         gfw_asset_view,gfw_copy,gfw_shared_read,gfw_shared_write};
+-    gfw_work.result=gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
++    gfw_work.result=perf?gmf_bootstrap_perf_once(&gfw_context,&ops,plan,&gfw_work.firmware):
++        gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
+     if(gfw_work.result!=GMF_OK)return gfw_fail(GMB_FIRMWARE,"native firmware/HFI bootstrap");
++    if(perf&&(!gfw_context.perf_requested||!gfw_context.perf_started||!gfw_context.perf_valid))
++        return gfw_fail(GMB_FIRMWARE,"PERF ACK receipt unavailable");
+     if(!sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_DONE))return gfw_fail(GMB_MEMORY,"final firmware owner/phase predicates");
+     *out=gfw_work;__atomic_store_n(&gfw_lifecycle,GMB_READY,__ATOMIC_RELEASE);
+     gfw_hidden_records();
+@@ -452,6 +459,16 @@
+     gfw_cm3_record();
+     gfw_boot_config_records();
+     gmb_record("SWEET GMU FW: complete native FW result and INIT/version ACKs; no normal HFI_ON/GPU/Metal qualification");
++    if(perf){
++        snprintf(line,sizeof(line),"SWEET GMU PERF: complete request=00302b04 words=43 ack=%08x/%08x/%08x; no BW/TEST/normal HFI_ON/GPU/Metal qualification",gfw_context.perf_ack[0],gfw_context.perf_ack[1],gfw_context.perf_ack[2]);
++        gmb_record(line);
++    }
+     return GMB_OK;
+ }
++enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
++    const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
++{return gfw_once(stage,plan,out,false);}
++enum gmb_result sweet_gmu_firmware_perf_once(const struct sweet_pas_cpu_stage *stage,
++    const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
++{return gfw_once(stage,plan,out,true);}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gmu_board.h b/bsd/dev/gauguin_gmu_board.h
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -32,5 +32,11 @@
+  * claim normal HFI_ON, GPU commands, secure ZAP, DVFS or Metal capability. */
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *,
+     const struct gmf_plan *,struct gmb_firmware_receipt *);
++/* Explicit opt-in PERF extension before this same transaction completes.
++ * Consumes the same sole board lifecycle; no second bootstrap or retry.
++ * Native ACK is logged from private state after final guards. No BW/TEST,
++ * normal HFI_ON, frequency change, GPU command or Metal claim. */
++enum gmb_result sweet_gmu_firmware_perf_once(const struct sweet_pas_cpu_stage *,
++    const struct gmf_plan *,struct gmb_firmware_receipt *);
+ enum gmb_state sweet_gmu_firmware_state(void);
+ #endif
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -370,8 +370,8 @@
+     table.word[38]=200000;
+     *out=table;return true;
+ }
+-enum gmf_result gmf_bootstrap_once(struct gmf_context *c,const struct gmf_ops *ops,
+-    const struct gmf_plan *plan,struct gmf_receipt *out)
++static enum gmf_result bootstrap(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,struct gmf_receipt *out,bool perf)
+ {
+     if(!c||!span(ops,sizeof(*ops))||!span(out,sizeof(*out))||!span(plan,sizeof(*plan))||
+        overlap(plan,sizeof(*plan),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
+@@ -388,12 +388,27 @@
+     c->ao_mask_valid=0;c->ao_mask_readback=0;
+     c->cm3_config_valid=0;c->cm3_config_readback=0;
+     c->boot_config_valid=0;memset(c->boot_config_readback,0,sizeof(c->boot_config_readback));
++    c->perf_requested=perf;c->perf_started=0;c->perf_valid=0;memset(c->perf_ack,0,sizeof(c->perf_ack));
+     const uint8_t *asset=NULL;size_t bytes=0;enum gmf_result rc=GMF_OK;
+-    if(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
+-       (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1))rc=GMF_ASSET;
++    struct gmf_perf_table table;
++    if(perf&&!gmf_perf_table_build(&p,3,&table))rc=GMF_ARGUMENT;
++    if(!rc&&(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
++       (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1)))rc=GMF_ASSET;
+     if(!rc)rc=preflight(c);if(!rc)rc=ucode(c);if(!rc)rc=load_configure(c,asset,bytes);if(!rc)rc=release_boot(c);
+     if(!rc)rc=gx_hfi(c);if(!rc)rc=handshake(c);
++    if(!rc&&perf){
++        /* Same channel/phase/lease: no reset, new alias, retry or rearm. */
++        c->perf_started=1;
++        rc=request(c,table.word,GMF_PERF_WORDS,c->perf_ack,3);
++        if(!rc)c->perf_valid=1;
++    }
+     if(!rc&&!guard(c))rc=GMF_IO;c->work.phase=c->phase;
+     if(!rc){c->phase=GMF_DONE;c->work.phase=GMF_DONE;*out=c->work;}
+     __atomic_store_n(&c->state,rc?3:2,__ATOMIC_RELEASE);return rc;
+ }
++enum gmf_result gmf_bootstrap_once(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,struct gmf_receipt *out)
++{return bootstrap(c,ops,plan,out,false);}
++enum gmf_result gmf_bootstrap_perf_once(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,struct gmf_receipt *out)
++{return bootstrap(c,ops,plan,out,true);}
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -78,7 +78,11 @@
+     uint32_t ao_mask_valid,ao_mask_readback;
+     uint32_t cm3_config_valid,cm3_config_readback;
+     /* Native fixed1 boot configuration writes; equality/effects unqualified. */
+-    uint32_t boot_config_valid,boot_config_readback[3];};
++    uint32_t boot_config_valid,boot_config_readback[3];
++    /* Optional third request on this same one-shot channel. Valid records
++     * accepted ACK prefix only; an eventual guard failure still quarantines
++     * the whole transaction and leaves its public output untouched. */
++    uint32_t perf_requested,perf_started,perf_valid,perf_ack[3];};
+ /* One cold native bootstrap: PDC/RSC/TCM/power/version -> reset release and
+  * fresh FW result -> A619 boot-slumber OOB -> HFI init and INIT/version ACKs.
+  * Exact pinned legacy asset + native family rules select v1 transport; the
+@@ -90,4 +94,11 @@
+  */
+ enum gmf_result gmf_bootstrap_once(struct gmf_context *,const struct gmf_ops *,
+     const struct gmf_plan *,struct gmf_receipt *);
++/* Explicit opt-in extension of the SAME cold transaction: after accepted
++ * INIT/version send native v1 PERF (43 words,sequence3), then require the
++ * bounded generic ACK. Shared once-only state, guards and public receipt
++ * layout are unchanged. No BW/TEST/normal HFI_ON/GPU command qualification.
++ * Both entry points consume the same context and cannot be mixed/retried. */
++enum gmf_result gmf_bootstrap_perf_once(struct gmf_context *,const struct gmf_ops *,
++    const struct gmf_plan *,struct gmf_receipt *);
+ #endif

@@ -2,6 +2,79 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —140 opt-in PERF transaction implemented; all61 hosts and three ARM64 TUs PASS
+
+Previous goal turn was progress: physical138 FW/INIT/VERSION and attributed
+diagnostic autonomous reset, pure139 native PERF bytes validated/pushed.
+THIS turn Codex implemented real140 sender/board/coordinator and DSH validated
+it; whole daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh objective
+remains ACTIVE/incomplete. No140 phone PERF ACK/GPU execution/Metal proof yet.
+
+Private corefe962266380609c384dd8a4f7411956cd6e01b6d adds134th patch
+0140-gauguin-gmu-opt-in-perf-transaction.patch. Fresh source1405282files SHA
+ab8fdb34bf818c498f868e7f9715adc274e857504064050995a3fe237a0a7a1f.
+Five changed source paths vs frozen139528d329c...feb026: firmware.c/h,
+board.c/h,coordinator.c. Original public firmware/board receipts unchanged.
+New explicit gmf_bootstrap_perf_once shares the original engine's once-state,
+same ops/ARC plan/HFI channel/phase/clock/reset/fault/IRQ/deadline/WDT guards.
+After successful INIT/VERSION,139 constructor makes43-word PERF sequence3;
+existing request enforces3..19/type2/12-bit sequence/status!=ffffffff. Other
+echo bits/extra payload unqualified. No new reset/OOB/PAS/alias/rearm/PET/retry.
+Default gmf_bootstrap_once still takes old no-PERF path; both entries consume
+the SAME context. Private requested/started/accepted-prefix fields clear only
+after successful first claim; repeats preserve all state/output. 'started'
+means dispatch attempt including pre-send queue draining, NOT proof of send.
+Refusal cache site REQUEST vs DRAIN plus request00302b04 identifies the stage.
+Full success still requires final guards after an accepted ACK.
+
+Physical sweet_gmu_firmware_perf_once shares board lifecycle, maps/8s deadline,
+initial13s/per-access3s WDT policy and sole private CSR/SMMU/NC owners. PERF
+ACK availability and final guards precede success output/logging. Failure
+quarantines board/firmware/shared lease BEFORE new PERF partial/cached packet
+logs; a partial accepted1 alone is not full transaction qualification.
+sweetgmuperf defaults0; exact1 requires sweetgmufw1 (and existing clocks/CX/
+PAS exclusions). Coordinator chooses the combined API once after clocks.
+Success marker says PERF diagnostic done; BW/TEST/normal HFI_ON/GPU/Metal
+remain unqualified. This sends the performance TABLE, not a live DVFS request
+or proof of selected/measured GPU frequency/voltage.
+
+DSH14597 CLOSED0; actual validate140.py0, normal SEVEN zero results: pristine
+replay, all61 hosts, exact native PERF helper/sender byte oracle4095 sequences,
+frozen ORIGINAL129-model default I/O equivalence, real ARM64 firmware/board/
+coordinator TUs. validation-result.json SHA
+3bbcb2c8df5b243ee0d2b967b84cce6ce10a01ff46a3301273f5dd2ff02465d3.
+Source/baseline/inputs unchanged. ASan/UBSan GMF4,634,093 checks; new PERF
+success3..19/sequence-only/other-echo/status7/debug, wrong sizes/type/sequence/
+status/queue, timeout/error/stale pre-send ACK, VERSION refusal; fail EVERY
+1743 callback boundary, whole-output/private-state preservation, both-entry
+repeat/nesting/default behavior. Existing1385 default boundaries retained.
+Board2840+95 retained plus49 PERF ownership/mapping/deadline/guard/log cases;
+coordinator285 retained plus23 PERF flag/dependency/refusal/order cases (308).
+Default139/140 trace1,009,420 I/O requests identical digest42c8a43275281f5b.
+Native firmware57832B SHA4a19347c293748ba0734c831ab6fa104dca0c32c307f25a1f5bbfd8ad7be6546
+at gmu140-gauguin_gmu_firmware/run-7edgu0ub/compile.json; board75120B SHA
+74ae8a4651f443e954a79ef1d89ee6121a4889fb1a57aeb9cb8dd164c3bf187f
+at gmu140-gauguin_gmu_board/run-j2mj2ud8/compile.json; coordinator43760B SHA
+559ede56a9de2168d608dcd3c9e3c4a821636025ad923c0655985b3dab392e53
+at gmu140-gauguin_bcm_coordinator/run-qkaustb0/compile.json (under
+research/tmp/gauguin-nvt-p1). CURRENT native recipe/source still138 HLxJKk.
+
+NEXT full standard local140 kernel using reviewed build140/bind_host140/
+qualify_native0140. Retain all138 qualifiers, require new
+native_perf_transaction_source_bound flag plus linked constructor/new entry
+symbols, correct post-VERSION sequence3 source and default/receipt invariants.
+Pack adds sweetgmuperf1, preserves prior image pins/assets, independent review;
+strict runtime readers must REQUIRE actual new PERF ACK record and source
+flag (never treat138 INIT/VERSION alone as140 PERF success). Add malformed/
+missing/duplicate/partial/conflicting PERF record/false qualifier cases.
+New native bounds84..174 controller writes,6..6000 polls,debug<=135 (third
+request); preserve other ACK/type/status/version/SMMU guards. ONE coherent
+new temporary boot; script owns recovery-to-fastboot, no external preflight.
+Last observed phoneTWRP after139 readonly capture; no new phone UI/touch/reset
+facts. All owned handles CLOSED. Original seven-line mkadt diff intact. No
+flash/format/GPT/destructive action. Codex core/review/Git; DSH compile/test/
+build/boot. No140 whole kernel/image/CI/hardware trial yet.
+
 ### 2026-11-07 — pure139 native PERF builder validated;138 autonomous reset explicitly confirmed
 
 THIS goal turn is progress: unchanged138 full reader accepted fresh firmware,
@@ -76,6 +149,12 @@ qualified bootstrap baseline. No139 full native kernel/image/phone trial/CI.
 Phone remains TWRP after readonly capture. All owned handles CLOSED; original
 seven-line mkadt diff intact. No flash/format/GPT/destructive action. Codex
 core/review/Git; DSH full-access compile/test/build/boot.
+
+Validated139 source/attributed138 handoff pushed and ls-remote verified
+bcb1cbd10f61d2fc644bd456ebdeaf4755922eca, sole parent19f416c, six text
+paths, same tree as private1f4067fcbc26b81e313ca5c666ad15bf219e866d.
+Report research/tmp/dsh-0139/public-snapshot-0139.json. Private ancestry,
+device/FDT/firmware/raw evidence/binaries and serials remain local. No CI run.
 
 ### 2026-11-07 — actual138 fresh GMU firmware plus INIT and VERSION handshake PASS
 

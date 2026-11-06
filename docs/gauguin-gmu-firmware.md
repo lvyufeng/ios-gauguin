@@ -490,3 +490,37 @@ stubbing only the send seam. All4095 permitted sequence packets matched the
 new constructor byte-for-byte. All61 host suites, original bootstrap I/O
 equivalence and real ARM64 firmware/board compilation passed. This qualifies
 byte construction only;0139 has no full kernel/image or hardware PERF trial.
+
+## Opt-in0140 PERF transaction
+
+`sweetgmuperf=1` requires `sweetgmufw=1` and its existing clock/CX prerequisites
+and PAS exclusions. The coordinator chooses the explicit combined firmware/
+PERF entry once after clocks. The original entry keeps the INIT/version-only
+path. Both entries share the same private lifecycle and cannot be mixed or
+retried after a started transaction.
+
+The engine constructs the fixed43-word PERF message with sequence3. After
+accepted INIT and VERSION, it sends that message on the same HFI channel and
+requires a native generic ACK: type2,3..19 received words, matching12-bit
+request sequence and status other than0xffffffff. Only the3-word required
+prefix is retained. No new reset, OOB, mapping, PAS call or watchdog rearm/PET
+is introduced. Existing guards and the eight-second board deadline remain.
+
+Private requested/started/accepted fields support diagnostics; started means
+request dispatch including pre-send queue draining, not confirmed publication.
+Cached refusal site and request header distinguish a stale queued ACK from a
+reply to the sent PERF request. An accepted prefix followed by a lost guard
+still fails the whole transaction and preserves its public output. Both owners
+and the shared lease are quarantined before partial/refusal logs. Success is
+logged only after final guards; public firmware/board receipt layouts remain.
+
+All61 host suites and real ARM64 firmware/board/coordinator translation units
+pass. Tests exercise the exact43-word third request, all3..19-word ACK sizes,
+sequence-only correlation, generic positive status, debug traffic, malformed/
+stale/failed replies and all1743 callback-failure boundaries. Board and
+coordinator tests cover opt-in dependencies, shared once-state, mapping,
+deadline/fault/IRQ guards and post-quarantine diagnostics. The default path's
+original-model I/O trace matches0139 exactly. This software validation is not
+an actual firmware PERF ACK: a complete qualified kernel/image and coherent
+physical0140 trial are still required. BW and TEST must follow later before
+normal HFI_ON, GPU command execution, rendering or Metal can be qualified.

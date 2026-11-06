@@ -20,8 +20,8 @@ guard failures. Other fields, including bit14, remain UNQUALIFIED; no invented
 ffffbfff mask/read-only claim. Every other config/reset/GX/IRQ/fault/budget/
 TCM/ACK check unchanged, public receipt unchanged. Private valid/raw cache
 emits SWEET GMU CM3 CFG after AO row on completion or AFTER quarantine on
-failure. No new MMIO/retry; original135? NO: candidate is134, do not rename
-physical131-page counts when migrating metadata.
+failure. No new MMIO/retry. Preserve physical131-page counts when migrating
+metadata labels.
 
 DSH41780 actual validate134.py0, normal FIVE actual zero results: pristine
 replay, full61 hosts, original-model I/O equivalence, real firmware/board TUs.

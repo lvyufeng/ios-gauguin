@@ -50,6 +50,12 @@ source-bound transitions as a stage subset. Full original rejection retained.
 firmware_boot TRUE, hfi_handshake_complete FALSE, gpu_execution/metal FALSE.
 All owned handles CLOSED; phoneTWRP. Current native recipe/source136 yLkhEV.
 
+Physical136 handoff pushed and ls-remote verified
+3fdea4b6a5353f81864ce0c4d9cf36dc03a81c07, sole parentb91bf73, exactly
+NOTES/docs text paths, same tree as privated46475e. Publisher31357 CLOSED0;
+reportresearch/tmp/dsh-0136/public-handoff-0136.json. Private ancestry and
+raw logs/assets/dumps/serials remain local.
+
 NEXT137: diagnostic-only capture of FIRST rejected already-read HFI packet,
 covering BOTH drain_debug and request GMF_ACK exits. Cache phase/site/reason,
 queue, request header/expected size if applicable, received word count and

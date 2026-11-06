@@ -2,6 +2,89 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0123 pinned GMU asset and native firmware/HFI engine pass all61 host files
+
+Previous0122 milestone completed at private21a8487; sanitized public
+8a7c7ed2c96e553dfbfc86e9c94c7eb9618b62da was pushed/verified with sole parent
+6057db67...7e4b9. Full daily-use/GPU/Metal/RAM/storage/peripherals/90–120Hz goal
+remains ACTIVE and incomplete. Highest hardware is still0120 configured200MHz/
+branchON and user-confirmed autonomous recovery131s. No0121–0123 physical SMMU,
+firmware, HFI ACK, GPU commands or Metal qualification. Last observed phone is
+TWRP; no device IO, full kernel build, CI run, image or boot in0123.
+
+Codex code commit259a27f1b6dc1a1e22b9d20d10686d1497682d15 adds117th patch:
+gauguin_gmu_firmware.c/.h pure bounded native-order bootstrap, native
+gauguin_gmu_asset.c/.h reader, read-only same-boot immutable CMDDB ARC exporter,
+and optional mkpayload --gmu-firmware. Exact32768B asset SHA
+9ef10b2b179054fb57af25008e29feb24300c2eaaeabf907bd741786bbacbf2e;
+ADT /chosen/memory-map/A619GMUFirmware is LE64 physical address/32768B length.
+Two16KiB pages follow existing assets; prior topOfKernelData reports and PAS
+tail remain consistent. Default layout unchanged. Native reader rechecks
+boot_args/DRAM/kernel bounds, ADT, contiguous direct-map endpoints and actual
+SHA256, then returns a const data view. No asset binary is in Git.
+
+Engine consumes exact real cx/mx/gfx/xo entries (owner3/version1000/aux32,
+addresses30000/30010/30050/300a0). Bounded diagnostic upper-envelope GFX/MX7/7
+policy is not measured voltage or daily DVFS. Asset/cold state precede writes;
+native five-word RSC/PDC/TCS programming,8192-word copy/readback, actual five
+legacy TCM version words, TCM_BOOT2/CM3_CFG4052/chip06019000/fence80a008a0/
+queue/log/cache/IFPC/RPMh then GBIF halt clear. A619 HAS GBIF. Single reset
+release must yield fresh babeface; boot-slumber OOB uses request bit22/ACK30.
+HFI INIT and version requests use actual ggh rings and require exact echoed
+headers/v1ACKtype2, native INIT non-ffffffff and version status0, major1/minor11+.
+Known debug packets are bounded; stale/error/fault/timeout/guard loss permanently
+quarantines. Model-generated replies are HOST evidence, never hardware ACKs.
+No DCVS/BW tables/TEST/normal HFI_ON/SQE/CP/ZAP/Metal result is claimed.
+
+DSH asset-validation.json PASS covers new and three retained packer files.
+firmware-validation.json PASS:1,617,938 ASan/UBSan checks,1385 ordinary and1721
+debug fail-every-callback boundaries, actual firmware ARM64 TU. Real platform
+CommonCrypto SHA256 asset-consumer-validation-v2.json PASS:23 synthetic cases,
+23 actual private-asset cases with UNMODIFIED production pin and native ARM64 TU.
+Initial synthetic host fixture declared16MiB while its packer-emitted asset
+was beyond16MiB; real reader correctly rejected it. Codex corrected only the
+fixture DRAM to32MiB matching synthetic ADT. Original failed report/logs retained.
+bus-export-validation.json PASS:106 retained+56 CX cases including atomic ARC
+export/retained-copy negatives, three actual RAW roundtrips, actual bus ARM64 TU.
+All frozen report inputs rehashed unchanged before commit. No DSH source/object
+repair, hand-written result, crypto replacement or warning bypass.
+
+Eight native primary files reverified independently against fixed kernel
+19b63c8192b1c9b7c4d931d7d3be92024bc2d778 and actual root tree465f20ae...125c:
+research/tmp/dsh-0123/native-source-pins.json. Fresh strict117-patch replay
+.deps-cache/p0-20261105/source123-codex has5282 files SHA
+f18b5f85ef458d73263972baf1989ed152d01f2eb6ee70cef80630497b41a3d2;
+exact seven native paths match reviewed combined bytes. DSH9987 actual script0:
+all61 host test files PASS, tested source and source122 baseline unchanged in
+research/tmp/dsh-0123/replay-full-host-result.json. Public contract is
+docs/gauguin-gmu-firmware.md. Original seven-line mkadt diff SHAa74a0418...
+454860 and all113–120 artifacts preserved.
+
+Execution incident: a Codex Python task-writer syntax error prevented creation
+of execute-firmware.txt, but an unconditional launcher still started DSH99057.
+It attempted broad read-only file discovery; Codex terminated its exact observed
+process tree. No compile/source change/device IO was observed from that launch.
+Original events-firmware.jsonl retained. Correct specification was written and
+separately run as56254/events-firmware-v2.jsonl. Future launches are conditional
+on successful task creation; prompts explicitly say missing task/script means
+stop immediately without searching. Closed prior handles18470/99057/56254/
+68833/90060/46241/98575; CLI exit0 is not proof of inner script success.
+
+Next: native physical firmware adapter and coherent coordinator. Reuse retained
+0122 private CSR/SMMU/NC mappings; add ONLY narrow AO/RSC03d8c000+4000,
+PDCcfg0b294000+4000, PDCseq0b490000+4000, TCM03d6c000+c000 and
+GBIF03d0c000+4000. Need phase-aware reset/GX and clock checks after owned reset
+release/OOB; old reset1/GX-off guard is invalid then. Check live SMMU faults,
+fresh CPU/WDT margins and masked NS IRQs, additionally GPU core332/word10bit12.
+Copy only TCM[1000,9000), reuse actual HFI NC reservation, no broad aliases/raw
+pointer exports. Bind actual asset/ARC/board owners and one-shot failure policy,
+then one full local build/package/strict-verifier/temporary-boot trial. Do not
+spend a mapping/copy-only boot. ZAP belongs at its native later stage. Codex
+authors/reviews/interprets, DSH executes exact reviewed scripts with full access.
+Sanitized publication/new SHA is recorded in
+research/tmp/dsh-0123/public-snapshot-0123.json when pushed. Never push private
+ancestry or firmware/dumps/serials. No new user action is required yet.
+
 ### 2026-11-06 — 0122 cold SMMU transaction and real board adapter pass focused validation
 
 Previous goal turn was progress:0121 codea3a426f/handoffaf2d081, public

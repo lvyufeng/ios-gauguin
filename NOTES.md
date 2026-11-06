@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — full137 native diagnostic kernel qualified; image/runtime checks next
+
+DSH12228 CLOSED0; actual standard local build137.py build0/qualification0,
+gauguin.ggv3Il, captured HEADfbf8c68c914f3b5b88087ac061ed69ba38044469.
+Exact131-patch source1374ae84df0...507258,5282files. All136 qualifiers retained;
+both HFI REPLY/HFI WORD formats present in installed kernel and
+cached_hfi_reply_diagnostics_linked TRUE required. Kernel16905712B SHA
+3671f39bf53756bd8dcceafbeeebd0532204715cb262580e0887cc0aad84047a,
+IDxnu-d7ab1d4e93d947ae9a9d94f6b664b15c. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.ggv3Il/build-manifest.json SHA
+9c7ec9fbc2dce84a33f165c12e89fe1f3c80084a29116c0f53aede279a95ece2;
+qualification SHA98da11f58a27842d1fdea9184f0068caaac8e1e0512bd1a2d03978fe0573e3de.
+No CI used. Current generated native recipe/source now137 ggv3Il, not136
+yLkhEV. DSH94714 package/review running. Codex prepared137 pack/readers,
+preserving all success rules/data/pins/131-page strings. New diagnostic source
+flag required, HFI REPLY/WORD on any purported successful trace rejected.
+Next runtime suites and ONE temporary137 boot, using reviewed script-owned
+recovery-to-fastboot transition. No137 phone proof yet. PhoneTWRP after136;
+no new user UI/touch/reset attribution. Full goal ACTIVE; original mkadt
+seven-line diff untouched; no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0137 rejected-HFI-packet diagnostics committed; all61 hosts/two native TUs pass
 
 Previous goal turn was progress: actual136 FIRST fresh GMU firmware BABEFACE,

@@ -2,6 +2,77 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0126 complete local native kernel/image and strict full runtime reader qualified; exact boot next
+
+THIS goal turn made concrete progress: physical125 failure identified at
+06b68, tested126 experiment code156a62d/handoff0095fb1 committed. Sanitized
+public944f4c306e26f1acd34a9bfe5f0cd4ea51c982ad pushed/verified, sole parent
+a8a7c783630911290cab6b5d0749b80bd161297d, eight text paths only. Full daily
+GPU/Metal/RAM/storage/peripherals/90–120Hz goal stays ACTIVE/incomplete.
+
+DSH73504 actual build0/qualification0 in gauguin.EXvD1e, captured private
+0095fb1459db23bf98ef5e73b99bb235468ee165. Standard local native kernel,
+dSYM/strip/install; exact tested120-patch source258f3be2...d5b16/5282files
+unchanged. Kernel16888984B SHA
+67769371585373600431fbc7d431fbed6547c92828adb750f6b62db3b82cb787,
+IDxnu-d3768bb45ecf441eacedf9efa2c6d78a. Manifest SHA
+7fc5ff0a1a34c335149b5146a3a7dbaef1ee66a64d2ef4a5ef977a7ae32a2078.
+Qualification p3-native-0126-qualification-20261107.json SHA
+2b97bc05c035ceb0910b1305a9b85ba6ea117564bc2f8aa2a9ff5a5b6ebd6864,
+retains every120 provenance/SDK/install/defined-symbol/archive check plus20
+GMU symbols/six native members, actual linked failure and opaque-policy strings.
+Both cached_smmu_diagnostics_linked and opaque_implementation_write_policy_linked
+TRUE; firmware_hardware_qualified FALSE. Future single-file probes must use
+THIS126 EXvD1e recipe, not125 zy6VU9 after shared BSD Makefile replacement.
+
+DSH26111 packaging first attempt actual1 BEFORE packaging: Codex wrapper
+retained two old125 filenames. Original script/log preserved. Separate reviewed
+package_and_review126_v2.py / DSH5580 actual package0/image-review0; frozen
+package-review-execution-result.json passed, all inputs unchanged. Native
+kernel/source never changed. Image shim/out/shim-p3-gmuf-0126-native-20261107.img
+19529728B SHA4f607d193827a7d43a5b1dc3f655158e54fe23154723f2f317d163eb4b53f4c6.
+Payload19202048B SHAd4ba078ee5a744a5f54617e43036321f6cda67031573f6bed782f05815e5439b.
+Evidence SHA86fd98432a8c2f59ade9bec9e3b3e5f21ce59fa6cb0fa867a9c4fe70cd6c5db4;
+unique sweettrial=gmuf-0126-20261107-a1,539-byte bootargs. Independent review
+checked actual10 kernel segments, wrapper/ADT/PAS2MiBzero tail and three assets;
+NVT182554000/MDT182578000/GMU18257c000 remain source package addresses.
+Prior125/124/120 and older pinned images preserved. No126 phone access yet.
+
+Codex strict verify_gmuf126.py SHA
+83f47a62a9b8d4cd002cd6dcfec622737a59c3af3e131a3cf3dd12317760d8dc
+requires exact new source/marker and qualified opaque policy, unique ordered
+IMPL row requested9a82a382 with non-all-ones readback, mandatory140 ATOS and
+all earlier contexts/routes/fault/clock/CMDDB/ARC/asset/INIT/version checks.
+Opaque readback is explicitly bitwise_qualified FALSE, even on full success;
+zero/non-echo values are never treated as known masks or qualified fields.
+Original full-firmware rejection policy remains; GPU/Metal still not qualified.
+
+Initial runtime-parser-result.json failed before record checks because Codex's
+script migration accidentally changed MDT SHA constant. Initial verifier saved
+as verify_gmuf126.initial.py; original failure/logs kept. Restored exact original
+MDT pin; AST digest comparison confirmed ONLY source SHA differs from125.
+Separate v2 failed ONLY the full host fixture's stale-banner negative case:
+fixture called record-only helper without production main's preceding banner
+check. Saved verify_full126_host.initial.py and v2 report; corrected HOST parse
+seam to apply existing main identity check. Production verifier/native/image
+unchanged by that fixture fix. DSH24797 runtime-parser-result-v3.json PASS,
+all inputs unchanged: clock valid4/rejected94; FW/SMMU/opaque valid10/rejected194;
+full SYNTHETIC common+firmware trace valid4/rejected17 with actual126 qualified
+artifacts and actual125 stale-runtime rejection. These are NOT hardware proof.
+All owned build/package/parser handles closed. Only original7-line mkadt diff.
+
+Phone remainsTWRP after125. THIS125 manual/autonomous question is pending;
+latest user explicitly answered124 only. Do not reuse attribution across trials.
+Next prepare ONE exact126 temporary boot from reviewed125 boot wrapper/body,
+using runtime-parser-result-v3.json, current image/hash/head and distinct
+recovery productgauguin / bootloader productgauguinpro. Read back routine BCB
+recovery latch; no flash/format/GPT. Bounded observer then strict full126 reader.
+Keep strict rejection if new stage fails. A separate126 failed-stage reader,
+if needed, must account for opaque sample/order and must never label failure
+as firmware success; do not blindly reuse125 diagnostic grammar. Preserve raw
+logs and original125 proof. Ask THIS126 reset attribution only for an actual
+new boot. Keep current experiment's undocumented-field limitation explicit.
+
 ### 2026-11-07 — 0125 physical failure identified; 0126 native-write experiment passes61 host files and two native TUs
 
 Previous checkpoint was progress:125 complete local kernel/image and strict

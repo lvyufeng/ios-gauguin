@@ -2,7 +2,7 @@
 
 ## Agent handoff / active work
 
-### 2026-11-07 — full136 native kernel qualified; image and three-record runtime validation next
+### 2026-11-07 — complete136 native image and three-record strict runtime readers qualified; one physical trial next
 
 DSH91065 CLOSED0; actual standard local build136.py build0/qualification0,
 gauguin.yLkhEV, captured HEAD7b4bbab5edbefae58c51745af91da171eedfda53.
@@ -15,13 +15,28 @@ IDxnu-13d908121b964131b171d976ab2dc69f. Manifest
 61e0361a80f2f242dc060e5f5712653d2af7f8fd925e33a1f9b3d53bfaf1e80e;
 qualification SHA8790bd6f44412523c0f38ccbcd746f5eb3225eef44446e40d8d57e1b595a764b.
 No CI used. Current generated native recipe/source now136 yLkhEV, not135
-fzguBO. DSH95635 package/review running. Codex prepared136 readers requiring
+fzguBO. DSH95635 CLOSED0; actual package0/independent review0, normal report,
+inputs unchanged. Image19546112B SHA
+6da213f4c34328c47acb992a738a2d43ee2506bc08b183a7d4a7e9d42f7c08ee;
+payload19218432B SHA61d3fc3ea3999869408be6d52bf6fbb047c58e64c18984480dd2d402a29de42c.
+Evidence SHA10b5c9a448eecfe7dc779791371bd1bcecba2a3124ee3484f8a5074d80db22b8.
+Unique sweettrial=gmuf-0136-20261107-a1,539bytes; source assets unchanged:
+NVT182558000/MDT18257c000/GMU182580000. All old image pins preserved.
+Codex prepared136 readers requiring
 three ordered BOOT CFG raw observations AFTER CM3 and BEFORE FW completion,
 fixed1/non-all-ones/equality UNQUALIFIED and source-bound qualifier. Every
 previous FW/ACK/reset/OOB/SMMU/PDC/AO/CM3 rule remains. Metadata migration
 preserved numeric constants, old SHA pins and complete131-page strings.
-Next independent image review, three runtime suites, then ONE temporary136
-boot. No136 phone proof yet. PhoneTWRP after135; no new user UI/touch/reset
+DSH74205 CLOSED0, actual runtime_validate136.py0, normal three zero results,
+inputs unchanged: clock4/95, FW22/311, explicitly SYNTHETIC full17/53. Reader
+SHA940721ad109ff032a48bda0ce9f1f76a9f52487b222da7dbaf21200dce7b866a.
+Tests0/1/synthetic other bits, each all-ones slot, wrong request/offset/policy,
+false-qualified/missing/duplicate/order records and false qualifier; all
+old FW/ACK/guards retained. No synthetic trace is hardware proof.
+Reviewed boot136/run_hardware136 scripts prepared for ONE image-hash-pinned
+temporary boot, same products/latch readback/180s observer/freshpull/banner
+and strict full reader. NEXT execute execute-hardware.txt via DSH.
+No136 phone proof yet. PhoneTWRP after135; no new user UI/touch/reset
 attribution. Whole goal ACTIVE; original mkadt seven-line diff intact;
 no flash/format/GPT/destructive action.
 

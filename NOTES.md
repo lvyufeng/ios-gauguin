@@ -2,6 +2,126 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0135 native bus/cache order fix committed; all61 hosts/two native TUs pass
+
+THIS turn is progress: complete134 build/image/readers passed, ONE real134
+boot passed CM3 NMI-clear then refused ICACHE store62. Primary native source
+establishes BUS-before-ICACHE/DCACHE; causal explanation remains unproven.
+Codex wrote135, DSH validated it. Full daily-use/GPU/Metal/RAM/storage/
+peripherals/high-refresh goal remains ACTIVE; no firmware execution or ACKs.
+
+Private core2764a93 adds129th patch0135-gauguin-gmu-native-bus-cache-order.patch.
+Fresh135 source5282files SHA
+62a4bf7dd543bd017d39c3798c4b43e41de2075ec1211825d679ca643dc3ad8e.
+ONLY bsd/dev/gauguin_gmu_firmware.c differs from frozen1349d388676...9e9b51:
+the three fixed1 entries now SYS_BUS(word1f40f),ICACHE(1f400),DCACHE(1f401).
+All full-width readback comparisons, guards, values, count and later reset/
+FW/INIT/version checks unchanged. No new MMIO, retry, cache-bit mask or claim
+of hardware acceptance. Header/board/public receipt/log format unchanged.
+
+DSH12717 CLOSED0, actual validate135.py0, normal FIVE zero results: pristine
+129-patch replay, full61 hosts, predicted I/O-order audit, real firmware/
+board native TUs. Source/baseline/inputs unchanged. Primary a6xx_reg.h and
+adreno_a6xx_gmu.c source-pinned with earlier references. ASan/UBSan GMF
+1,688,558 checks; actual board2840+91. Fixture requires exact BUS/ICACHE/DCACHE
+order before release; each zero/other/all-ones read and each ignored write
+still refuses with full-width tuple after8192 copy, before reset/doorbells,
+preserving output/repeat. All original callback failures remain covered.
+Frozen ORIGINAL129 fixture against134/135 has1,009,420 I/O requests:
+baseline rawf8383376e7a1a07b, predicted/native42c8a43275281f5b. Exactly3870
+read/write address arguments rotate across the three CSR locations over all
+original cases; every guard/value/barrier/count/other operation stays equal.
+Native firmware48784B SHAf6f7c25fbd97c4b38862aa0ec2f1df6807d9c747fda5a869fd6101344b526e4e;
+board68312B SHA04623e35bbd722f5ae691b8c454a27ec6984220a0888375e48cf5c7ddbbd8105,
+using CURRENT134 I9eLz1 recipe/source. All owned handles closed.
+
+NEXT sanitized source/notes push, full135 standard local build/qualification;
+retain every134 check and source-bind BUS-before-cache order, independent
+pack/review and strict runtime suites, then ONE temporary135 boot. No135 full
+image/phone IO yet. PhoneTWRP after134; no new user UI/touch/reset attribution.
+Original seven-line mkadt diff untouched; no flash/format/GPT/destructive
+action. Codex critical code/review/Git, DSH exact full-access compile/test/boot.
+
+### 2026-11-07 — actual134 passes CM3 NMI check, refuses ICACHE store62; native bus/cache order differs
+
+DSH98645 CLOSED0; actual ONE temporary134 observer0/full reader2 (original
+full rejection retained). Start2026-11-06T21:36:23.763345Z, finish21:38:35.529060Z;
+Send19088KB0.439s/Boot0.135s/total0.577s, TWRP observed131s. No new user reset
+attribution, UI or touch fact. Fresh4052lines/454269B raw log
+p3-gmuf-0134-native-observer-20261107.txt SHA
+27db6b4439effa697e4ab10d5eeb7c2fb78930dbd722d2dba70e30e1538bbee6;
+cycle991B SHAb5e68a32c66637865a80f51fb5b68d4168ec58b7decf8a6d6d0ee2341a78c393.
+Same-boot CMDDB131072B SHAf176bc5e0991545611307fac4ee8b0bcde03765cc6ca94e99edeb002ce53abf1.
+
+SMMU131/140, PDC6, complete8192-word TCM write/readback and AO3f/check3b
+again pass. CM3_CFG raw52/request4052/check200/expected0 now passes with all
+other fields UNQUALIFIED. Next exact cached READBACK: phase0/check1/CSR
+off01000/PA03d7d000, GMU ICACHE_CONFIG (native word1f400), request1/read0,
+maskffffffff. Writes62/polls0, reset1/release0/OOB0, FW0/version0; no firmware
+execution/ACK/GPU/Metal. GFSR0/FSR400,400/named faults0/AOstatus0/info0.
+DSH12350 CLOSED0; actual audit_failed_trial134.py0 -> failed-trial-audit.json,
+state bound-TCM-copy-CM3-NMI-clear-ICACHE-config-refusal, inputs unchanged.
+It binds the unchanged strict reader's SMMU stage prefix and cached records
+as a subset only; full verifier rejection remains intact. Phone last TWRP.
+
+Codex initially called this a power counter in commentary, corrected promptly
+using pinned a6xx_reg.h1003: ICACHE_CONFIG, not counter. Pinned native
+adreno_a6xx_gmu.c312-322 writes SYS_BUS_CONFIG1 BEFORE ICACHE1/DCACHE1.
+Current134 instead writes ICACHE, DCACHE, SYS_BUS. This is a proven source
+order difference; causation of the zero read is only a HYPOTHESIS. Next135
+should ONLY restore native SYS_BUS -> ICACHE -> DCACHE order, retaining all
+full-width readback checks, guards, values and later FW/ACK requirements.
+Do NOT relax cache comparison or claim self-clearing/read-only semantics.
+Add source-order/ignored-write/bad-read tests, audit the expected exact I/O
+permutation against frozen134, all61 hosts and current134 I9eLz1 native TUs.
+No135 code yet at this checkpoint. Whole goal ACTIVE; original seven-line
+mkadt diff untouched; no flash/format/GPT/destructive action.
+
+### 2026-11-07 — complete134 native image and strict CM3 runtime readers qualified; one physical trial next
+
+DSH83746 CLOSED0; actual standard local build134.py build0/qualification0,
+gauguin.I9eLz1, captured HEADdf6cdb7f6fb4021150de59b0c485d8724d23bef4.
+Exact128-patch source1349d388676...9e9b51,5282files; all133 qualifiers retained
+and installed CM3 CFG format plus cm3_nmi_clear_source_bound TRUE required.
+Native installed kernel16905568B SHA
+fa457584c62371a19a536c51be8376b9bfd44825c03836c6fd79993cb06fc959,
+IDxnu-c87753798429479e9993baddca8c0374. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.I9eLz1/build-manifest.json SHA
+f64c2696afd9d1eaab560bfa6229f63c657e2845a61537d0b92cfca94d48aff6.
+Qualificationp3-native-0134-qualification-20261107.json SHA
+53b8ca39050c1188d5df0f6073683c025049f3817266b9be871faf8eb77f3894.
+No CI used. Current generated native recipe/source now134 I9eLz1, not133
+F4oxTo. All61 prior hosts and source pins rebound before build.
+
+Codex prepared134 package/review and strict runtime readers. Metadata-only
+migration checked identical numeric AST constants, existing SHA pins and
+complete131-page strings before adding narrow CM3 requirements. Reader
+requires exactly one CM3 row after AO/PDC6/hidden3 before adapter completion:
+off20b4/request4052/mask200/expected0, non-all-ones and NMI9 clear; every
+other bit UNQUALIFIED. Existing FW/INIT/version/reset/OOB checks remain.
+DSH9407 CLOSED0; actual package0/independent image review0, normal report,
+all inputs unchanged. Image shim/out/shim-p3-gmuf-0134-native-20261107.img
+19546112B SHA f05112f035a286d1deadbb6047fc85ae83a3d5c2ee6025dd0668ebb0578bf797;
+payload19218432B SHAfe47bfb76b57c26539fb15b13f896a2d9f533a3498807d3145de3cf4134c1570.
+Evidence SHA6d4a3b1996e1e75419cdc81cccbf3d38651002268e129b3315d0dd02dc48bb8a.
+Unique sweettrial=gmuf-0134-20261107-a1,539bytes. Asset source PAs unchanged:
+NVT182558000/MDT18257c000/GMU182580000. All prior image pins preserved.
+
+DSH92954 CLOSED0; actual runtime_validate134.py0, three normal zero results,
+inputs unchanged. Clock4/95, FW19/291, explicitly SYNTHETIC full14/50. Reader
+SHA0a2d744a7956d82cab339d2464e6648eee69621b729b1a94a6cbba55fddc0154.
+CM3 cases52/4052/synthetic high bit pass; NMI252/4252/all-ones refuse. Wrong
+offset/request/mask/expected/policy, false-qualified, missing/duplicate/order
+records and false source-bound qualifier refuse. All earlier acceptance
+checks including AO fullffffffff retained. No synthetic test is phone proof.
+Reviewed boot134.py/run_hardware134.py prepared for ONE temporary boot,
+image-hash pinned, unique gauguin recovery/gauguinpro fastboot, routine latch
+readback, same180s observer/freshpull/banner check and full strict reader.
+NEXT execute execute-hardware.txt via DSH. No134 phone proof yet. PhoneTWRP
+last observed after133; no new
+UI/touch/reset-attribution facts. Full goal ACTIVE; original mkadt seven-line
+diff intact, no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0134 CM3 NMI-clear candidate committed; all61 hosts/two native TUs pass; full build next
 
 THIS goal turn is progress: complete133 native build/image/readers passed;
@@ -39,8 +159,10 @@ using CURRENT133 F4oxTo recipe/source. All owned handles CLOSED.
 
 133 physical handoff pushed/verified publiclybe2e7676a45a0db0e4e63df2e983233ae9f20c84,
 sole parent6b403b0bb84c825fb4f919239b02ba998f65ab17, two text paths, private
-head7c6371e not pushed. Next sanitized134 source/notes snapshot on be2e767;
-publication report research/tmp/dsh-0134/public-snapshot-0134.json. Never
+head7c6371e not pushed.134 sanitized source/notes pushed/verified
+89f38b72768c9c0f11c629c0f09ca9440b0a1a54, sole parent be2e767, eight text
+paths, same tree as private38870f7. Publication report
+research/tmp/dsh-0134/public-snapshot-0134.json. Never
 push private ancestry, dumps/serials or downloaded/binary assets.
 
 NEXT: full134 standard local build/qualification retaining every133 check;

@@ -250,3 +250,29 @@ receipt remain unchanged. Host cases include physical0x52, original0x4052,
 synthetic other bits, NMI set and all-ones; refusals preserve output/cache and
 occur before reset release. Native fixed-write order is checked separately
 against the frozen original model; software success is not firmware proof.
+
+Physical0134 passes the NMI-clear check with CM3_CFG raw0x52, then stops at
+store62: CSR offset0x1000/PA0x03d7d000, native GMU_ICACHE_CONFIG word0x1f400,
+requested1/read0. Complete TCM copy/readback remains8192 words; reset1,
+release0, no firmware execution or ACKs. Full success remains rejected.
+
+The pinned native `a6xx_gmu_power_config` writes SYS_BUS_CONFIG1 first,
+then ICACHE_CONFIG1 and DCACHE_CONFIG1. Current0134 has those three writes
+in cache/cache/bus order. This source-order difference is established; its
+causal role in the zero readback is unproven. The next candidate should
+restore bus/instruction-cache/data-cache order while retaining every
+full-width readback comparison, value and guard. There is no evidence for
+self-clearing or read-only cache-bit semantics, and a zero read must still
+refuse before reset release. Only actual firmware-result/ACK evidence can
+qualify the later execution stage.
+
+Patch0135 restores only that three-write order: SYS_BUS_CONFIG, then ICACHE
+and DCACHE, each with the original fixed1 value and unchanged guarded
+write/barrier/read/full-width comparison. It adds no MMIO, retry or relaxed
+comparison. Host coverage checks this native order before reset release,
+each zero/other/all-ones read, each ignored write, output/repeat preservation
+and the existing failure at every I/O callback. A separate frozen original
+fixture compares all1,009,420 requests against0134: the only difference is
+the predicted CSR address rotation across those three stores/reads. This is
+source fidelity and software validation; no0135 physical result exists yet,
+and the reason0134 read zero remains unproven.

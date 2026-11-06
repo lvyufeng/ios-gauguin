@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — full136 native kernel qualified; image and three-record runtime validation next
+
+DSH91065 CLOSED0; actual standard local build136.py build0/qualification0,
+gauguin.yLkhEV, captured HEAD7b4bbab5edbefae58c51745af91da171eedfda53.
+Exact130-patch source136fcd7f7d7...cccdc9,5282files. All135 qualifiers retained,
+including native fixed1 BUS/ICACHE/DCACHE table; installed BOOT CFG format and
+native_boot_config_observations_source_bound TRUE required. Kernel16905688B
+SHAb89a52561b8f083703c90166ead4a7380a3909fd05a924ab0f25aab70713e88a,
+IDxnu-13d908121b964131b171d976ab2dc69f. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.yLkhEV/build-manifest.json SHA
+61e0361a80f2f242dc060e5f5712653d2af7f8fd925e33a1f9b3d53bfaf1e80e;
+qualification SHA8790bd6f44412523c0f38ccbcd746f5eb3225eef44446e40d8d57e1b595a764b.
+No CI used. Current generated native recipe/source now136 yLkhEV, not135
+fzguBO. DSH95635 package/review running. Codex prepared136 readers requiring
+three ordered BOOT CFG raw observations AFTER CM3 and BEFORE FW completion,
+fixed1/non-all-ones/equality UNQUALIFIED and source-bound qualifier. Every
+previous FW/ACK/reset/OOB/SMMU/PDC/AO/CM3 rule remains. Metadata migration
+preserved numeric constants, old SHA pins and complete131-page strings.
+Next independent image review, three runtime suites, then ONE temporary136
+boot. No136 phone proof yet. PhoneTWRP after135; no new user UI/touch/reset
+attribution. Whole goal ACTIVE; original mkadt seven-line diff intact;
+no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0136 native boot-config observations committed; all61 hosts/two native TUs pass; full build next
 
 Previous goal turn was progress: complete134/135 builds/images/readers and

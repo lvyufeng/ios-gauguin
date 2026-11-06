@@ -30,6 +30,12 @@ This binds source order and the strict-reader SMMU stage prefix/cached raw
 records as a subset ONLY; original hardware-full-verification.json rejection
 is retained. All owned handles (including runtime56803) CLOSED; phoneTWRP.
 
+135 physical handoff pushed and ls-remote verified
+6b0654efe103bb170d4bf3612039b3ce68e26657, sole parentdf54ac0, exactly
+NOTES/docs text paths, same tree as private507fe9d. Report
+research/tmp/dsh-0135/public-handoff-0135.json. Publisher60941 CLOSED0;
+private ancestry and all raw logs/assets/dumps/serials remain local.
+
 Pinned native adreno_a6xx_gmu.c312-322 writes all three fixed1 values with
 no equality-read check; kgsl_gmu_core.c221-245 confirms guarded offset/wmb/
 raw write, not readback verification. Registers' per-bit/readback semantics

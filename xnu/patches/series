@@ -129,3 +129,4 @@
 0131-gauguin-rsc-native-hidden-address-writes.patch
 0132-gauguin-pdc-msgid-control-fields.patch
 0133-gauguin-ao-interrupt-mask-fields.patch
+0134-gauguin-cm3-config-nmi-field.patch

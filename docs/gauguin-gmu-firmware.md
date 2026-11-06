@@ -239,3 +239,14 @@ candidate will keep native0x4052 at this word only, retain guarded I/O and
 all-ones refusal, and explicitly verify NMI clear. Other fields, including
 the differing bit14, remain unqualified. No inferred bit14 mask or read-only
 semantics is justified; actual firmware result and ACKs remain mandatory.
+
+Patch0134 keeps the fixed0x4052 write and existing guarded I/O for CM3_CFG
+only. It checks documented NMI bit9 clear (`GMF_CM3_NMI`,0x200), refuses an
+all-ones read, and privately caches the complete raw value. Its record follows
+the AO mask record after completion or quarantine, identifying only the
+NMI-clear check and explicitly leaving other fields unqualified. All other
+configuration comparisons, reset/GX/IRQ/fault/budget guards and the public
+receipt remain unchanged. Host cases include physical0x52, original0x4052,
+synthetic other bits, NMI set and all-ones; refusals preserve output/cache and
+occur before reset release. Native fixed-write order is checked separately
+against the frozen original model; software success is not firmware proof.

@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0134 CM3 NMI-clear candidate committed; all61 hosts/two native TUs pass; full build next
+
+THIS goal turn is progress: complete133 native build/image/readers passed;
+ONE real133 boot advanced to CM3_CFG store59, captured4052->52, and native
+adreno.c proved NMI bit9. Codex wrote134 and DSH validated it. Full daily-use/
+GPU/Metal/RAM/storage/peripheral/high-refresh goal remains ACTIVE/incomplete.
+No firmware execution/reset release/ACKs or GPU/Metal hardware qualification.
+
+Private code46e3506494eeb1150130b80d21d4b35171ee2b87 adds128th patch
+0134-gauguin-cm3-config-nmi-field.patch. Fresh source134-codex5282files SHA
+9d388676f51a88d2fcefb1b86d5b2472d1ccb102d322e3c29d1659a3fe9e9b51.
+Exactly firmware.c/h and board.c differ from frozen133acc6af6d...a6822.
+ONLY CSR CM3_CFG off20b4 keeps native4052 and same guarded write/barrier/read,
+requires documented NMI9 clear (mask200/expected0), rejects all-ones and IO/
+guard failures. Other fields, including bit14, remain UNQUALIFIED; no invented
+ffffbfff mask/read-only claim. Every other config/reset/GX/IRQ/fault/budget/
+TCM/ACK check unchanged, public receipt unchanged. Private valid/raw cache
+emits SWEET GMU CM3 CFG after AO row on completion or AFTER quarantine on
+failure. No new MMIO/retry. Preserve physical131-page counts when migrating
+metadata labels.
+
+DSH41780 actual validate134.py0, normal FIVE actual zero results: pristine
+replay, full61 hosts, original-model I/O equivalence, real firmware/board TUs.
+validation-result.json inputs/source/baseline unchanged. Exact native NMI
+adreno.c SHA7d8a0cc4a93144a31724f1c6e910dca41f1fae2a317a8636dcdca328763c9a5a
+and native/source-pin.json are input-pinned along with existing references.
+GMF ASan/UBSan1,669,246 checks; board2840+91. Tests physical52,original4052,
+SYNTHETIC extra high bit; NMI set/all-ones refuse after copy/before release,
+cache/repeat/output and every original callback failure pass. Board tests
+full/partial cache logs/quarantine. Frozen ORIGINAL129 fixture versus baseline
+133/134 has identical1,009,420 I/O requests/digestf8383376e7a1a07b. Actual
+native firmware48784B SHAb18a8bbbea8a28c7e54a80e333e6be03d732ee264b7bf58bffd03a558d4674fc;
+board68312B SHA828ba80405b828771217e0bcf393207c4c89d2d9889b906ce347611657d9f97a,
+using CURRENT133 F4oxTo recipe/source. All owned handles CLOSED.
+
+133 physical handoff pushed/verified publiclybe2e7676a45a0db0e4e63df2e983233ae9f20c84,
+sole parent6b403b0bb84c825fb4f919239b02ba998f65ab17, two text paths, private
+head7c6371e not pushed. Next sanitized134 source/notes snapshot on be2e767;
+publication report research/tmp/dsh-0134/public-snapshot-0134.json. Never
+push private ancestry, dumps/serials or downloaded/binary assets.
+
+NEXT: full134 standard local build/qualification retaining every133 check;
+require installed CM3 CFG record and source-bound NMI-clear flag. Pack/
+independent review, unique134 trial. Full reader must require exactly one
+CM3 row AFTER AO/PDC6/hidden3, BEFORE adapter completion: off20b4, requested
+4052,checked_mask200,expected0,raw!=ffffffff and NMI9 clear; all other bits
+explicitly UNQUALIFIED. Keep all previous FW-result/copy/INIT/version/reset/
+OOB and other all-ones checks; AO mask fullffffffff stays valid for its own
+requested-mask word. Test NMI set/all-ones,52/4052/other bits, wrong request/
+mask/expected/offset/false-qualified/missing/duplicate/order records, then ONE
+coherent temporary134 boot. No134 full build/image/reader/phone IO yet. Phone
+last TWRP after133, reset attribution unknown, no new user UI/touch result.
+Original mkadt seven-line diff untouched; no flash/format/GPT/destructive
+action. Codex core/review/Git, DSH exact full-access compile/test/boot tasks.
+
 ### 2026-11-07 — actual133 reaches CM3 CFG store59; documented NMI-clear field candidate next
 
 DSH31093 ONE actual133 temporary boot observer0/full verifier2; original full

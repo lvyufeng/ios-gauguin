@@ -124,3 +124,4 @@
 0126-gauguin-smmu-native-implementation-write.patch
 0127-gauguin-smmu-atos-failure-diagnostics.patch
 0128-gauguin-smmu-architected-par-faults.patch
+0129-gauguin-smmu-fsr-status-fields.patch

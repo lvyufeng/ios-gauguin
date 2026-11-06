@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0129 both context-FSR checks fixed; all61 hosts and two native TUs pass; full build next
+
+Previous turn was concrete progress: real128 completed140 ATOS then refused
+FSR400 (RO Format2). Sanitized public handoff5d1902606b86bd3d4d6b346959abe71e52026872
+pushed/verified on3c5c862. THIS turn Codex authored129 core correction,
+commit10e5fe08fa701dc9dde0170130ff6d0f5728a58b. New shared header constant
+GSM_FSR_FAULT_MASK=c00001fe contains all documented MULTI/SS/UUT/ASF/TLB/
+external/permission/access/translation flags, excludes generated Format[10:9]
+and reserved bits. gsm finalize and gfw_faults BOTH use the mask. Raw FSR,
+existing W1C writes, global-FSR check, context/CBA2R/TCR identity, all140 probes,
+owner/deadlines/IRQs/CM3/GX guards and opaque06b68 limitation preserved.
+READBACK diagnostic retains actual raw FSR and now reports the true fault mask.
+No extra MMIO, retry, timeout, public receipt or success-log change.
+
+Host SMMU and board models now generate AArch64 RO Format2 from CBAR/CBA2R.
+Context W1C only clears writable fault bits, never SS or format. Tests exercise
+all10 named fault/stall bits as sticky faults and clearable statuses, persistent
+read-only SS and all-ones. Healthy firmware model keeps both raw FSR400 values;
+old context-FSR reserved-bit0 negative case now uses actual TF bit1.
+DSH21114 actual validation0: fresh123-patch source129-codex5282files SHA
+8e91405840ef766a3d6f21328331ed74cd1160d440c103a4551f3c50163ee224,
+only board.c/smmu.c/h differ from unchanged128 sourceea4f87af...20cbc. All61
+host files PASS, SMMU3,540,699 ASan/UBSan checks; board2840+86. Two actual
+ARM64 TUs compile with CURRENT128 lYYurL recipe. All inputs unchanged in
+research/tmp/dsh-0129/validation-result.json. Same independent updated model
+against original128 returns GSM7,mapped131/ATOS140; candidate129 returns GSM0,
+mapped131/ATOS140. This proves the software regression, not129 hardware or FW.
+DSH handle closed0. No129 full build/image/phone IO yet at this checkpoint.
+
+Next standard local129 build/qualification, source-bound FSR-mask metadata,
+pack/review and strict new runtime reader; ONE coherent firmware trial. Preserve
+all128 rejected reports/raw proof. PhoneTWRP after128, no new phone IO this
+milestone.125/126/128 reset attribution questions still pending; no manual/no
+reset claim. Whole daily-use/GPU/Metal/RAM/storage/peripherals/high-refresh
+goal remains ACTIVE/incomplete. Original user7-line mkadt diff unchanged.
+No flash/format/GPT or destructive step. Codex core/review/Git;DSH execution.
+
 ### 2026-11-07 — actual128 completes all140 ATOS; final FSR check mistakes RO AArch64 Format2 for a fault;129 next
 
 THIS goal turn made major concrete progress: actual126 ATOS132 refusal,

@@ -2,6 +2,110 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual137 captures successful-status4-word INIT ACK; port size/full-echo assumptions differ from native
+
+THIS goal turn is progress:137 diagnostics written/committed/pushed, all61
+hosts/two native TUs and full native build/image/readers passed, ONE actual
+137 boot captured the first refused packet. Full daily-use/GPU/Metal/RAM/
+storage/peripheral/high-refresh goal stays ACTIVE/incomplete. Fresh GMU
+execution/GX-on repeats; complete INIT/version handshake remains rejected by
+the current port, no normal HFI_ON/GPU command/Metal proof. No138 code yet.
+
+DSH35567 CLOSED0; actual observer0/full verifier2, ONE temp137 boot. Start
+2026-11-06T22:34:00.923394Z,finish22:36:12.684982Z; Send19088KB0.443s,
+Boot0.134s/total0.579s. TWRP observed131s; no new user manual/reset/UI/touch
+attribution. Fresh4106lines/460115B rawp3-gmuf-0137-native-observer-20261107.txt
+SHAe7f623baefae46a6ccc3240269684038856998b9e69a2a102823ba02ae1687b9;
+cycle1077B SHA9e2c54a91fc61d75a0e3137a7fb786aa737465a19fc940b20e2d5619bf2779ce.
+Same-boot CMDDB131072B SHAc6f9df3d102af68987506712b601149d39b7707202a36e43be6acc68917d8838.
+Phase5/engine10, reset0/GXf8222000/release1/OOB1, writes80/polls4,
+copy8192/8192,FWbabeface,reported version0. SMMU131/140/PDC/AO/CM3/BOOT CFG
+again pass; GFSR0/FSR400,400/named faults0/AOstatus0/info0.
+
+Exact first refusal tuple: site2 REQUEST,reason3 SIZE,queue1,request00100500
+(INIT,sequence1), expected3 words, received/captured4. Raw ACK header decodes
+type2,size4; echo decodes sequence1 with size/type bits omitted; status is0.
+Opaque extra word stays UNQUALIFIED; full packet remains local audit/raw log.
+The tuple plus pinned source proves INIT was sent and this is its request-
+reply path, not pre-request queue draining. Port rejects LENGTH first; its
+next full-header echo comparison would also reject this sample if only the
+length check were fixed. INIT ACK is native-shape-compatible, NOT accepted
+by current port; VERSION has not been queried/qualified in this run.
+
+Re-read and web-verified exact19b63c8 native kgsl_hfi.c: receive_ack_cmd231-249
+matches ONLY the12-bit sequence (HDR_CMP_SEQNUM), then copies header-reported
+size. It does NOT compare command ID or the complete echoed header. INIT
+generic request336-352 rejects only statusffffffff; version372-395 requires
+status0 before reading result[3]. Cached native cSHA
+6dd0519c037103812325d4c570b7f15d362ebfc8558dd9e4de50804dfdb8d9a1,
+hSHA5aa0338222c0d144d40424f79d6eef207a61148ad7e3e7ac1d7f6b6f9864a6d3.
+Do NOT accidentally describe native as sequence+ID matching. Size/type/ID
+bits omitted from the echo have no qualified equality semantics here.
+
+DSH32189 CLOSED0; actual audit_failed_trial137.py0, state
+bound-fresh-GMU-boot-INIT-ACK-size-echo-format-refusal, all inputs unchanged,
+actual source snapshot4ae84df0...507258 and strict reader60dabd5a...7e4130 bound.
+It parses the ordered post-quarantine reply/header/indexed raw words, native
+sources and unchanged SMMU prefix as stage evidence. Original full rejection
+retained. firmware_boot TRUE; init_ack_port_accepted/hfi_handshake_complete/
+gpu_execution/metal FALSE. All handles CLOSED; phoneTWRP. Current native
+recipe/source137 ggv3Il. No flash/format/GPT/destructive action.
+
+NEXT138: implement native ACK compatibility in request ONLY: accept received
+length >=required prefix (INIT3,VERSION4), bounded by existing19-word GGH
+capacity; copy only the existing public receipt prefix, leave extra words
+unqualified. Match echoed12-bit sequence ONLY (maskfff00000), as native,
+not complete header or a new ID check. Preserve ACK type2, INIT status!=
+ffffffff, VERSION status0 and compatible reported version, all guards/ring/
+deadlines/one-shot/cache/refusal behavior outside these two assumptions.
+Retain137 diagnostics (SIZE now short prefix, ECHO now sequence mismatch).
+Test captured-shape INIT4/stripped echo with synthetic unqualified tail,
+original exact packets,3..19/4..19 boundaries, short/oversized/invalid queue,
+wrong sequence/type/status, output/repeat/all callbacks and full19-word
+failure diagnostics. Pin native hfi c/h, compare unchanged ORIGINAL129-model
+I/O against frozen137, all61 hosts and CURRENT137 ggv3Il native TUs. Runtime
+reader must adopt the SAME bounded-minimum/sequence/status rules with an
+explicit source-bound qualifier; preserve ALL other source/pin/FW/reset/OOB/
+copy/version checks. Full138 build/image/one coherent tempboot then verify
+real INIT AND VERSION replies; do not claim completion from137 retroactively.
+Original seven-line mkadt diff untouched; Codex core/review/Git, DSH exact
+full-access compile/test/boot. Whole objective remains unchanged and ACTIVE.
+
+### 2026-11-07 — complete137 native diagnostic image and strict readers qualified; one physical packet trial next
+
+DSH12228 CLOSED0; actual standard local build137.py build0/qualification0,
+gauguin.ggv3Il, captured HEADfbf8c68c914f3b5b88087ac061ed69ba38044469.
+Exact131-patch source1374ae84df0...507258,5282files. All136 qualifiers retained;
+both HFI REPLY/HFI WORD formats present in installed kernel and
+cached_hfi_reply_diagnostics_linked TRUE required. Kernel16905712B SHA
+3671f39bf53756bd8dcceafbeeebd0532204715cb262580e0887cc0aad84047a,
+IDxnu-d7ab1d4e93d947ae9a9d94f6b664b15c. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.ggv3Il/build-manifest.json SHA
+9c7ec9fbc2dce84a33f165c12e89fe1f3c80084a29116c0f53aede279a95ece2;
+qualification SHA98da11f58a27842d1fdea9184f0068caaac8e1e0512bd1a2d03978fe0573e3de.
+No CI used. Current generated native recipe/source now137 ggv3Il, not136
+yLkhEV. DSH94714 CLOSED0; actual package0/independent review0, normal report,
+inputs unchanged. Image19546112B SHA
+04068d5fcc9f2f0787043daf09ed4db1c39a84efb51444c549e380873a06c196;
+payload19218432B SHA7ee2ff51149bd5ea2eb69678852960e0ecbac815cbd7057e5ed4a61c0db8780d.
+Evidence SHA63a11e80084c02ef2d7dffcec98c0e7884c5b5b727b2299db6b19311d45d87c0.
+Unique sweettrial=gmuf-0137-20261107-a1,539bytes; source assets unchanged
+NVT182558000/MDT18257c000/GMU182580000. All earlier image pins preserved.
+Codex prepared137 pack/readers,
+preserving all success rules/data/pins/131-page strings. New diagnostic source
+flag required, HFI REPLY/WORD on any purported successful trace rejected.
+DSH20451 CLOSED0, actual runtime_validate137.py0; normal three zero results,
+inputs unchanged: clock4/95,FW22/314,explicitly SYNTHETIC full17/55. Reader SHA
+60dabd5adeee89906030d99a6878916ee63e7dc1f1593fbf05e6f71f067e4130.
+New false-qualifier and HFI REPLY/WORD conflicting-success cases reject;
+all previous success/negative rules retained. No synthetic hardware proof.
+Reviewed boot137/run_hardware137 prepared for ONE image-hash-pinned boot,
+same products/latch/180s observer/freshpull/banner and strict full reader.
+NEXT execute execute-hardware.txt (script owns recovery-to-fastboot; no
+external adb/fastboot preflight). No137 phone proof yet. PhoneTWRP after136;
+no new user UI/touch/reset attribution. Full goal ACTIVE; original mkadt
+seven-line diff untouched; no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0137 rejected-HFI-packet diagnostics committed; all61 hosts/two native TUs pass
 
 Previous goal turn was progress: actual136 FIRST fresh GMU firmware BABEFACE,
@@ -41,7 +145,12 @@ board72888B SHA39550f49ee5795e0895ea8ed3b1b5c58c54f69c332377ab07b3f3413935956bd,
 CURRENT136 yLkhEV recipe/source. No137 full build/image/readers/phone IO yet.
 All owned handles CLOSED; phoneTWRP after136, no new user UI/touch/reset fact.
 
-NEXT sanitized137 push, full standard local build retaining every136 qualifier,
+Sanitized137 source/notes pushed and ls-remote verified
+f3264abe96010ff84c321d0f2434c8aef799acf1, sole parent3fdea4b, eight text
+paths, same tree as private493bf59. Publisher72331 CLOSED0; report
+research/tmp/dsh-0137/public-snapshot-0137.json. Private ancestry/raw logs/
+assets/dumps/serials not pushed.
+NEXT full standard local build retaining every136 qualifier,
 requiring both installed HFI REPLY/HFI WORD formats/source-bound diagnostic
 flag. Pack/review/readers: all previous success rules unchanged, failure-only
 HFI diagnostics must NEVER be accepted as successful full traces. Add false

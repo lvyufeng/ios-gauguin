@@ -3,6 +3,76 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0117 PAS MEM_SETUP and autonomous normal-runtime reset VERIFIED
+
+THIS117 user confirmed: “是，自行重启，我没有操作”. Parent rehashed every technical
+input and combined that new fact in research/tmp/dsh-0117/hardware-parent-verification.json.
+INIT and MEM_SETUP both returned full64 transport0/service0; native BCM completion
+and autonomous recovery after131s are verified. This proves acceptance of INIT
+and the4096-byte MEM_SETUP, not b02 execution, AUTH_RESET, GPU/Metal, effective
+bandwidth or recovery from an arbitrary nonreturning secure call. Goal remains active.
+
+One temporary boot accepted19008KB, send0.454s/boot0.134s/total0.597s. Observer0,
+explicit back-in-TWRP131s/no timeout; start11:04:06.011394Z, finish11:06:22.533364Z.
+Fresh3934-line/445773B log research/tmp/p3-pasmem-0117-native-observer-20261106.txt
+SHA3efdf420cbcfc014bb9c54bd4211023d9f0c014b180432a214654b387370ab1d.
+Cycle1036B SHA0a4531a04c5c46c693aaa1645f4e9a40a6b9370159008b62d894a8fc335e2b00.
+Exact banner xnu-119adf637ad14a8d9a6b2c692ab94838 and unique trial
+pasmem-0117-20261106-a1 match imageaa2e6fa6...49bc79e9. All seven boot-progress
+markers yes. No touch interaction was requested during this expiry experiment.
+Bootreason properties were empty; no PMIC cause code is claimed.
+
+Dynamic CPU-stage PA AA200000, metadata6860/reserved16384,64 unmanaged NC pages
+and pinned metadata/zero-tail verified before INIT. Full CMDDB RAW extracted:
+research/tmp/p3-pasmem-0117-native-cmd-db-20261106.bin131072B SHA
+ dde122f958d8ad8852d1b8d8206f6153d270acd4177eae875b118974e550ad33.
+Four banks, six BCM and four ARC entries validated. WDT armedEN3/BARK655300/
+BITE753595; arm_at1758541248, ready_at1777826672, readycount32907, timebase19.2MHz.
+BCMslot1/config80008104/IRQbefore1/after1/completed2; statuses10101,10101,00101,
+10101,10101,10101hex. Successful controller cleanup and held-request markers present.
+
+INIT: one fresh request,2 continuations/3 SMC entries, final raw x0..x6 all0,
+terminalrc0/returned1. MEM_SETUP: one fresh request,0 continuations/1 SMC entry,
+frame42000202/3/13/AA200000/4096/0/0; final raw x0..x3=0,x4=1000hex,x5/x6=0;
+terminalrc0/returned1, coordinator same PA/4096/calls1. The private successful INIT
+PA publication is matching-code evidence; both actual premarkers/receipts agree.
+Intermediate continuation registers were not individually logged; counts and
+reviewed binary control flow establish that path. No BUSY retries this trial.
+No failure/PET/panic/survived30 record. Sampler explicitly off; core logs retained.
+
+DSH executed reviewed verify_pas117.py once, actualexit3 because user confirmation
+was pending then. Authoritative technical report hardware-data-verification.json
+and verify-observed.log preserve that state; parent report adds the explicit answer
+without rewriting history. Both phase parser checks and all prior identity/CPU/
+CMDDB/WDT/BCM checks passed. DSH extractor exit0. Sessions91179 and32597 terminal0;
+no build/observer/extractor remains live. Phone leftTWRP; no subsequent device IO.
+Code8c527d7/native7tVAmW; pretrialhandoff1af541a. Publicsnapshot
+c90545fcee0e4d3f8ca278f2aa69e376396c7c56 has solepublicparent
+22a18e463155bbaeac52620899893f1d040ba2d0;7textpaths, no private ancestry.
+Preserve original mkadt edit and all113–117 qualified artifacts.
+
+Next action changed based on actual native call-chain review:
+research/tmp/dsh-0117/next-auth-plan.md documents b02=1984bytes, SHA
+61be42f041eb6051eb9f56beb1f98ed97ab21faf2ef2df6b9151ba1a46aae878, destinationoffset0,
+BSSzero-count0, existing retained pst_mapping suitable for a narrow owner-local
+copy/readback API (no new alias, no pending-MDT restage). AUTH frame is
+42000205/1/13/0/0/0/0. Do NOT infer that zero per-PIL clock/regulator lists make
+AUTH independent of GPU resources: native a6xx_rb_start starts SQE, completes
+CP_INIT, then calls a6xx_zap_load; outer adreno_start first enters GPU AWARE.
+HLOS ordering is proven, secure-handler necessity is not (PAS13 handler source
+is unavailable). CP_INIT does not need ZAP, so there is no circular dependency.
+
+Next real GPU work: qualify native parent ARC rails, CX/GPUCC access and the
+GMU/SMMU/SQE/CP_INIT path; then combine b02 copy/readback and AUTH at the native
+ZAP point. Do not add a standalone copy-only reboot, and do not present an early
+bare AUTH as source-equivalent sequencing. Native AUTH continuation count has no
+8-call guarantee; our8 cap is diagnostic, not inferred from small image size or
+INIT behavior. All memory/storage/peripheral/90–120Hz/daily-use requirements remain
+part of the full goal; none are waived by these PAS milestones. Codex authors,
+reviews and interprets; DSH executes only reviewed commands and actual reports.
+
+
+
 ### 2026-11-06 — 0117 normal native build and independent image review PASS
 
 Code8c527d79caf7b69cac148c9a3102952c0fba5e96; full49 host files passed on fresh

@@ -24,7 +24,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned owner_calls,owner_fail,budgets,budget_fail,expire,allocs,frees,alloc_fail,smmu_calls,smmu_fail,barriers,corrupt;
     unsigned clock_bad,irq_bad,context,quarantine,reads,writes,writes64;bool live;uint64_t now;
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
-        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines;} h;
+        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -102,7 +102,14 @@ static uint32_t mmio_read32(vm_offset_t address)
 {
     CHECK(h.live);++h.reads;
     if(address==(uintptr_t)reset_page+0x2000){uint32_t v;memcpy(&v,reset_page+0x2000,4);return v;}
-    CHECK(address>=(uintptr_t)smmu&&address+4<=(uintptr_t)smmu+65536);uint32_t v;memcpy(&v,(void *)address,4);return v;
+    CHECK(address>=(uintptr_t)smmu&&address+4<=(uintptr_t)smmu+65536);uint32_t v;memcpy(&v,(void *)address,4);
+    unsigned off=(unsigned)(address-(uintptr_t)smmu);
+    if(off>=0x8000&&(off&0xfff)==0x58){
+        unsigned bank=(off-0x8000)/4096;uint32_t cbar,cba2r;
+        memcpy(&cbar,smmu+0x1000+4*bank,4);memcpy(&cba2r,smmu+0x1800+4*bank,4);
+        if(((cbar>>16)&3)==1&&(cba2r&1))v=(v&~0x600u)|0x400u;
+    }
+    return v;
 }
 static void mmio_write32(vm_offset_t address,uint32_t v)
 {CHECK(h.live&&address>=(uintptr_t)smmu&&address+4<=(uintptr_t)smmu+65536);++h.writes;memcpy((void *)address,&v,4);}
@@ -255,7 +262,7 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     if(h.engine_fail==3)return GMF_FAULT;
     if(h.fw_fail_phase==3){uint32_t one=1;memcpy(reset_page+0x2000,&one,4);}
     if(h.fw_fail_phase==4){uint32_t one=1;memcpy(smmu+0x48,&one,4);}
-    if(h.fw_fail_phase==5){uint32_t one=1;memcpy(smmu+0x9058,&one,4);}
+    if(h.fw_fail_phase==5){uint32_t one=2;memcpy(smmu+0x9058,&one,4);}
     if(h.fw_fail_phase==6){uint32_t one=1;memcpy(fw_page[0]+0x2c14,&one,4);}
     if(h.fw_fail_phase==7){uint32_t one=0x8000;memcpy(reset_page+0x2648,&one,4);}
     if(h.fw_fail_phase==8){uint32_t one=1;memcpy(smmu+0x810,&one,4);}
@@ -264,6 +271,7 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     if(h.fw_fail_phase==21)h.live=false;
     if(h.fw_fail_phase==22)h.now=gfw_deadline;
     if(h.fw_fail_phase==23)h.budget_fail=h.budgets+2;
+    if(h.ctx_fault)memcpy(smmu+0x9058,&h.ctx_fault,4);
     if(!o->guard(NULL,GMF_HFI_START)||!o->guard(NULL,GMF_HANDSHAKE))return GMF_IO;
     if(h.engine_fail==4)return GMF_FAULT;
     CHECK(!o->guard(NULL,GMF_RESET)&&!o->guard(NULL,GMF_DONE+1));
@@ -286,12 +294,16 @@ static void firmware_cases(void)
     CHECK(h.impl_lines==1);
     CHECK(out.reset==0&&out.release_attempted==1&&out.oob_attempted==1&&out.phase==GMF_DONE&&h.allow_gx);
     CHECK(out.firmware.fw_result==0xbabeface&&out.asset_pa==0xb0000000);
+    CHECK(out.fsr[0]==0x400&&out.fsr[1]==0x400);
     CHECK(sweet_gmu_firmware_state()==GMB_READY&&sweet_gmu_board_state()==GMB_READY);
     unsigned budgets=h.budgets,maps=h.maps;CHECK(firmware_run(&out)==GMB_ALREADY&&h.budgets==budgets&&h.maps==maps);
     for(unsigned n=1;n<=2;n++){reset();h.firmware=1;h.asset_fail=n;firmware_failed();if(n==1)CHECK(!h.maps&&!h.fw_stores);}
     for(unsigned n=3;n<=7;n++){reset();h.firmware=1;h.map_fail=n;firmware_failed();CHECK(!h.engine_calls);reset();h.firmware=1;h.misalign=n;firmware_failed();}
     for(unsigned n=1;n<=4;n++){reset();h.firmware=1;h.engine_fail=n;firmware_failed();CHECK(gfw_work.release_attempted==(n>=2));CHECK(gfw_work.oob_attempted==(n>=3));}
     for(unsigned n=1;n<=24;n++){reset();h.firmware=1;h.fw_fail_phase=n;firmware_failed();}
+    const unsigned faultbits[]={1,2,3,4,5,6,7,8,30,31};
+    for(unsigned n=0;n<sizeof(faultbits)/sizeof(*faultbits);n++){reset();h.firmware=1;h.ctx_fault=1u<<faultbits[n];firmware_failed();}
+    reset();h.firmware=1;h.ctx_fault=UINT32_MAX;firmware_failed();
     for(unsigned n=1;n<=8192;n+=257){reset();h.firmware=1;h.fw_read_corrupt=n;firmware_failed();CHECK(!gfw_work.release_attempted);}
     reset();h.firmware=1;h.core_irq=1;firmware_failed();CHECK(!h.maps&&!h.engine_calls&&!h.fw_stores);
     reset();h.firmware=1;h.gx_on=1;firmware_failed();CHECK(!h.engine_calls);

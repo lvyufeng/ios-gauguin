@@ -11,7 +11,7 @@ struct fake {
     struct ggm_plan plan;
     uint32_t regs[16384];unsigned char tables[32768];
     unsigned step,fail,writes,prepared,atos,barriers;
-    unsigned ignore,stuck,wrong_par,drift,opaque_mode;
+    unsigned ignore,stuck,wrong_par,drift,opaque_mode,fsr_stuck,fsr_once,last_fsr;
     bool nested;
 };
 static bool tick(struct fake *f){return ++f->step!=f->fail;}
@@ -30,6 +30,13 @@ static bool read32(void *cookie,uint32_t off,uint32_t *out)
 {
     struct fake *f=cookie;CHECK(off<65536&&!(off&3));if(!tick(f))return false;
     *out=f->regs[off/4];
+    if(off>=0x8000&&(off&0xfff)==0x58){
+        unsigned bank=(off-0x8000)/4096;
+        if(((f->regs[(0x1000+4*bank)/4]>>16)&3)==1&&
+           (f->regs[(0x1800+4*bank)/4]&1))*out=(*out&~0x600u)|0x400u;
+        if(f->atos==140&&bank==f->channel.work.bank[0])*out|=f->fsr_stuck;
+        f->last_fsr=*out;
+    }
     if(f->stuck==1&&off==0x6000)*out&=~8u;
     if(f->stuck==2&&off==0x74)*out=1;
     if(f->stuck==3&&(off&0xfff)==0x7f4)*out=1;
@@ -77,7 +84,8 @@ static bool write32(void *cookie,uint32_t off,uint32_t value)
         CHECK(f->opaque_mode<sizeof(observations)/sizeof(*observations));
         f->regs[off/4]=observations[f->opaque_mode];
     }else if(off==0x6000)f->regs[off/4]=(value&~8u)|((value&4)?8u:0u);
-    else if(off==0x48||(off>=0x8000&&(off&0xfff)==0x58))f->regs[off/4]&=~value;
+    else if(off==0x48)f->regs[off/4]&=~value;
+    else if(off>=0x8000&&(off&0xfff)==0x58)f->regs[off/4]&=~(value&0x800001feu);
     else f->regs[off/4]=value;
     return true;
 }
@@ -116,6 +124,7 @@ static bool write64(void *cookie,uint32_t off,uint64_t value)
         case 20:par=model_fault(3,1u<<31);break;
         }
         set64(f,CB(bank)+0x50,par);
+        if(f->atos==140)f->regs[(CB(f->channel.work.bank[0])+0x58)/4]|=f->fsr_once;
     }
     return true;
 }
@@ -188,6 +197,7 @@ static void happy(void)
         CHECK(f->channel.diagnostic.phase==GSP_DONE&&f->channel.diagnostic.check==GSD_NONE);
         CHECK(f->channel.implementation.valid==1&&f->channel.implementation.requested==0x9a82a382&&f->channel.implementation.readback==0x9a82a382);
         CHECK(!f->channel.translation.valid);
+        CHECK(f->last_fsr==0x400); /* generated RO format survives W1C */
         for(unsigned i=0;i<r.groups;i++)if(i!=r.slot[0]&&i!=r.slot[1]){
             CHECK(f->regs[(0xc00+4*i)/4]==original[(0xc00+4*i)/4]);
             if(match)CHECK(f->regs[(0x800+4*i)/4]==original[(0x800+4*i)/4]);
@@ -276,6 +286,25 @@ static void arguments(void)
     o.write64=NULL;CHECK(gsm_configure_once(&f->channel,&o,&f->plan,&r)==GSM_ARGUMENT);
     CHECK(f->step==s&&!f->channel.state);free(f);
 }
+static void fsr_fields(void)
+{
+    const unsigned bits[]={1,2,3,4,5,6,7,8,30,31};
+    for(unsigned i=0;i<sizeof(bits)/sizeof(*bits);i++){
+        struct fake *f=fresh(true);f->fsr_stuck=1u<<bits[i];
+        struct gsm_receipt r,b;memset(&r,0x84,sizeof(r));b=r;
+        CHECK(run(f,&r)==GSM_READBACK&&!memcmp(&r,&b,sizeof(r)));
+        const struct gsm_diagnostics *d=&f->channel.diagnostic;
+        CHECK(d->phase==GSP_FINAL&&d->check==GSD_FAULT32&&d->offset==CB(6)+0x58);
+        CHECK(d->mask==0xc00001feu&&d->expected==0&&d->actual==(0x400u|f->fsr_stuck));
+        CHECK(f->atos==140&&f->last_fsr==(0x400u|f->fsr_stuck));stopped(f);free(f);
+        f=fresh(true);f->fsr_once=1u<<bits[i];
+        CHECK(run(f,&r)==(bits[i]==30?GSM_READBACK:GSM_OK));
+        CHECK(f->atos==140);stopped(f);free(f); /* SS is RO, not FSR-W1C */
+    }
+    struct fake *f=fresh(true);f->fsr_stuck=UINT32_MAX;struct gsm_receipt r;
+    CHECK(run(f,&r)==GSM_READBACK&&f->channel.diagnostic.actual==UINT32_MAX);stopped(f);free(f);
+    printf("SMMU FSR: generated AArch64 format,10 actual fault/stall bits,W1C,RO SS and all-ones refusal PASS\n");
+}
 static void opaque_native_write(void)
 {
     for(unsigned mode=1;mode<=4;mode++){
@@ -307,4 +336,4 @@ static void faults(void)
     }
     printf("SMMU fail-every-callback: %u boundaries x echo/non-echo PASS\n",steps);
 }
-int main(void){happy();bad();arguments();opaque_native_write();faults();printf("SMMU transaction: %u checks PASS\n",checks);}
+int main(void){happy();bad();arguments();fsr_fields();opaque_native_write();faults();printf("SMMU transaction: %u checks PASS\n",checks);}

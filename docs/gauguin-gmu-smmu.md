@@ -173,9 +173,18 @@ startup. Individual successful PAR values were not logged.
 [Arm section16.5.9, pages16-299–300](https://documentation-service.arm.com/static/5f900d34f86e16515cdc08fb#page=299)
 defines FSR Format[10:9] as generated read-only information. The observed
 0x400 is AArch64 Format2; its named fault flags are zero. Pinned native
-`FSR_FAULT` covers0xc00001fe, excluding format. The final check and the firmware
-adapter's context-FSR check both currently mistake nonzero format for a fault.
-The next change must distinguish format from fault flags while retaining real
-fault/stall checks, raw diagnostic data and all140 probes. It must also correct
-the host model's missing read-only format behavior, not merely change the
-physical trial's expected value.
+`FSR_FAULT` covers0xc00001fe, excluding format. Both pre129 checks incorrectly
+required the full context FSR to be zero. Patch0129 corrects the final check
+and the firmware adapter to use that fault mask. It preserves raw diagnostics,
+the existing W1C operation, context configuration checks and all140 probes.
+Global FSR is a separate register and keeps its existing check. There is no
+extra MMIO, retry or timeout change.
+
+The host models generate read-only Format2 from configured CBAR/CBA2R and
+preserve read-only fields across W1C. They exercise all ten named fault/stall
+bits, clearable faults, sticky faults, read-only stalled status and all-ones
+reads. The firmware adapter model retains raw0x400 for both healthy contexts;
+its old reserved-bit0 fault injection now uses actual TF bit1. Under the same
+updated model,128 stops after140 with READBACK while129 completes the cold
+transaction. These are software regressions; physical129 and firmware startup
+remain to be tested.

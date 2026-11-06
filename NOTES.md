@@ -2,7 +2,7 @@
 
 ## Agent handoff / active work
 
-### 2026-11-07 — full138 native ACK-compatible kernel qualified; package/runtime checks next
+### 2026-11-07 — complete138 ACK-compatible native image and strict readers qualified; one physical trial next
 
 DSH12854 CLOSED0; actual standard local build138.py build0/qualification0,
 gauguin.HLxJKk, captured HEADfdf2518896160ced0ae18114609142cc98fc68cf.
@@ -15,15 +15,31 @@ IDxnu-f19772512a1d4117b143ce75e7c2cd4c. Manifest
 6b7b3efb7d426bfc4d157ff6901d1d5801a9deac4f2029d2dd767a5e47c5231e;
 qualification SHA62fd31973bc550f0bc1a7d40de1ef26dd9d2d8200a0d826dc161157f915e0c86.
 No CI used. Current generated native recipe/source now138 HLxJKk, not137
-ggv3Il. DSH82460 package/review running. Codex prepared138 pack/readers:
+ggv3Il. DSH82460 CLOSED0; actual package0/independent review0, normal report,
+inputs unchanged. Image19546112B SHA
+0550c64cc5e0e9c67282384de63f44380f8b97315645e3bfba8f9e2c04fe5a5a;
+payload19218432B SHAb3cf83f624d9a1f032856924ae5f6910e2d75a97cf809bceaef930290e408f5e.
+Evidence SHA7d9e058d5510723b4ad8b96175e5cb412ed50ff69c30e55b7904affeb812a645.
+Unique sweettrial=gmuf-0138-20261107-a1,539bytes; source assets unchanged
+NVT182558000/MDT18257c000/GMU182580000. All old image pins preserved.
+Codex prepared138 pack/readers:
 native ACK prefix/sequence source flag required; header-announced lengths
 INIT3..19/VERS4..19,seq1/2 respectively; existing type/status/version/copy/
 reset/OOB/guard rules remain, extras/other echo bits unqualified. One obsolete
 INIT4 negative intentionally becomes valid, replaced by short INIT2; new
 real-shape/min/max/oversize tests added. Version-only metadata migration
 preserved all numeric data/pins/131-page strings before ACK-policy edits.
-Next runtime suites and ONE coherent138 temporary boot. No138 phone proof
-yet. PhoneTWRP after137; no new user UI/touch/reset fact. Whole objective
+DSH66899 CLOSED0; actual runtime_validate138.py0, normal three zero results,
+inputs unchanged: clock4/95,FW41/324,explicitly SYNTHETIC full19/64. Reader SHA
+35ad870434acc1fab3e2d7c364414c75aa1b6a30d41826cdf9ca872176d9d303.
+Recorded ack_policy explicitly states3/4-prefix/19-cap/sequence-mask; source
+flag required. Tests real-shape/prefix bounds/other echo bits, short/oversize/
+wrong type/sequence/status/version and false qualifier; HFI failure records
+still refuse complete success. No synthetic hardware proof.
+Reviewed boot138/run_hardware138 prepared for ONE image-hash-pinned tempboot,
+same products/latch/180s observer/freshpull/banner and full strict reader.
+NEXT execute execute-hardware.txt, script owns recovery-to-fastboot. No138
+phone proof yet. PhoneTWRP after137; no new user UI/touch/reset fact. Whole objective
 ACTIVE; original mkadt seven-line diff untouched; no destructive action.
 
 ### 2026-11-07 — 0138 native ACK prefix/sequence fix committed; all61 hosts/two native TUs pass

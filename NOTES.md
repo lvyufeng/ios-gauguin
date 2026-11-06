@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0120 native GMU clock/CX technical verification PASS; reset attribution PENDING
+
+Full strict research/tmp/dsh-0120/hardware-data-verification.json passed all
+identity/image/source/CPUstage/CMDDB/WDT/BCM/CX and new GMC checks. Actual exit3
+means ONLY that THIS0120 user reset attribution is still pending, not a technical
+failure. A question was sent asking whether131s recovery was autonomous; no
+answer yet when this entry was written. Do not reuse118's answer. Preserve the
+original unknown-attribution report; combine a future answer with unchanged
+input hashes in a separate record. All10 bound inputs rehashed unchanged.
+No log-framing exception needed this trial; no embedded core diagnostics found.
+
+One19024KB temporary boot send0.444s/boot0.135s/total0.582s, observer0/no timeout,
+backTWRP131s. Start12:52:53.128737Z, finish12:55:09.734624Z. Fresh4063-line/455948B
+research/tmp/p3-gmuc-0120-native-observer-20261106.txt SHA
+06d1c3b87fe05d66b0ba401c120c25899c27b30bb6a21d4a492f9cf2362a4cf1;
+cycle1120B SHA3e9ba061efbb0025a6e617bed1d6be1694373c6e324fd37122b3cab65da01f54.
+Exact xnu-e9c9211bdc96471489b2cd0fd06e7d86/gmuc-0120-20261106-a1 and qualified
+image12dfc3ef...dfde28 match. CMDDB extraction0,131072B SHA
+f8144f3079109cf2d6c784e9b81f7f3c969008978aebf051e1e88cc48da3c8a0, saved as
+research/tmp/p3-gmuc-0120-native-cmd-db-20261106.bin. Raw tables/CPUstage/BCM/CX
+and normal-runtime WDT readiness checked. Arm1758314364/ready1777615915/count32934,
+EN3/BARK655300/BITE753595/CPU19.2MHz. Bootreason properties empty, no PMIC cause.
+
+GMC before→after (hex; IDs documented in gauguin_gmu_clock.h):
+MODEd010003d/L1f/FRAC4000/DIV1 unchanged; gate9/AHB1/GDSCf8228000 unchanged;
+PLLvote1→1 (already held); GPU_DIVvote1e→11e (preserves old bits);
+CMD80000000→0; CFG0→602; CX_GMU80004220→4ff1; GX_GMU80000000 unchanged;
+CXO1 unchanged; DDRSS_AXI80000000→1; MEMNOC80004220→4221.
+All FOUR branches satisfy native ON status in actual final values; none relies
+only on HWCG skipping. Complete receipt configured_hz200000000/direct_writes6/
+hold_requests2/polls6. Direct count excludes shared-owner stores; two hold calls
+do not mean two stores. Configured rate is source-derived600MHz/2/(3/2), not a
+frequency-counter measurement. No explicit firmware/reset-release/PAS/GX/GPU
+operation; inherited CM3 state, GPU execution and Metal remain unqualified.
+
+NVT hardware regression: bootstrap result0/ready1,96936bytes written+verified,
+9165 transfers; then packet counters998/1996/2994 each equal accepted, rejected0,
+mask0. Shared GCC migration did not prevent NVT bootstrap or normal report
+reads. No user touch input requested, so do not claim an interaction/unlock test.
+Sessions68498/91008 terminal0; phone leftTWRP, no subsequent device IO.
+
+Code919a6a1, nativegKuZ8y, pretrial private4fc4cf3/publicc2fee4d3603921d827c9478272668b8a115f44c1,
+solepublicparent63b693a...; original mkadt diff and all113–118/0120 artifacts kept.
+Full GPU/Metal/all usable RAM/reliable storage/peripherals/90–120Hz/daily-use goal
+remains active. Real progress this turn is qualified native clock configuration.
+
+Next: combine THIS0120 reset answer if/when supplied, then implement the coherent
+native GMU initialization path. Read research/tmp/dsh-0120/next-gmu-fw-contract.md
+and gmu-native-source-pins.json (all7 exact19b63 blobs). A619 is615_family and
+uses legacy32768B a619_gmu.bin, not a640 block-stream firmware. Exact image SHA
+9ef10b2b179054fb57af25008e29feb24300c2eaaeabf907bd741786bbacbf2e. Native AHB
+offsets are GPU-relative words: SYSRESET03d7e000, TCM copy03d6d000..03d75000.
+Broad GMU DT mapping would alias retained GPUCC: keep narrow page ownership.
+Before reset release, qualify CM3 containment/IRQ state, PDC/RSC, GMU SMMU
+backing/coherency and HFI/log IOVAs;0120 does not supply those. Avoid extra
+copy-only probes/reboots; read accepted inherited predicates then act in the
+same bounded coherent initialization trial. Do not move ZAP AUTH before the
+native GPU AWARE/GX/SMMU/SQE/CP_INIT point. Codex authors/interprets; DSH executes.
+
 ### 2026-11-06 — 0120 local full build, package and independent image review PASS
 
 Code919a6a1ec79784d89a154456d04e5dc6726c5f72; sanitized public

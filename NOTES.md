@@ -2,6 +2,91 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0124 actual trial stops on SMMU READBACK; autonomous131s recovery confirmed
+
+Previous turn was progress:124 complete native kernel/image plus sanitized
+publicebb3abcaf4f3e76125009d7ce20d828d263a170c. THIS turn completed the strict
+runtime verifier and ONE actual temporary124 image boot. No firmware/GPU/Metal
+qualification: original hardware-data-verification.json is evidence-rejected,
+actualexit2, because line3865 says GMB9/GSM7 (SMMU READBACK). CM3 reset1 was
+observed before SMMU access. SMMU did not complete; firmware/TCM/OOB/HFI path
+was never entered. Do not guess the failed register or weaken its mask.
+
+Real boot from restored fastboot: Sending19072KB0.444s/Booting0.134s/total0.585s.
+Started2026-11-06T17:37:43.972045Z, finished17:39:56.096630Z; observerexit0,
+backTWRP131s. Exact xnu-3cd3c8e985a94570bdd8c654f4515c98 and
+gmuf-0124-20261107-a1, image7f156ffd...066bc match qualified124 artifacts below.
+Fresh4036-line/452276B p3-gmuf-0124-native-observer-20261107.txt SHA
+6a211e7b4de82f3845e4acb61c6514a5fd4ea3de59dd287847babbb965492464;
+ready-v2 cycle991B SHAad6cd1dc8b81081bbaf94596b85fd63b1b1efb60fa374bac1bec68d129d1d5a8.
+Same-trial CMDDB131072B SHA2c507d183626004b8b2e4ac3268f226f88b298c58424790b87bdf1d83e005afe;
+all four exact ARC policies independently decode correctly. Prior clock receipt
+directly logs configured200MHz/direct6/holds2/polls6; this failure audit does
+not silently turn partial earlier-stage records into full technical success.
+
+User explicitly answered THIS trial's call_6f46b6d16f3f4b198c44e84355e9ee43:
+“是，自行重启，我没有操作”. DSH97775 generated failed-trial-audit.json,
+binding/rechecking all original inputs, actual banner/image/marker/CMDDB/cycle,
+stage failure and user attribution. All inputs unchanged. Autonomous recovery
+is confirmed; independent PMIC/reset cause remains unproven. Original rejected
+report and unknown-attribution observer record remain unchanged. DSH63096
+terminal0, inner observer0/verifier2; DSH CLI status alone is not success.
+Phone nowTWRP; no touch-regression claim is made. Full goal ACTIVE/incomplete.
+
+Two SETUP failures preceded the sole actual boot and must NOT be counted as
+kernel failures. First setup adb recovery/product passed, issued recovery BCB
+request and reboot-bootloader, but fastboot absent for60s; observerexit1 and
+NO fastboot boot. User then confirmed fastboot+USB replug. Read-only inventory
+found one fastboot device, vendor18d1/productd00d. Second ready setup stopped
+BEFORE cycle creation because Codex incorrectly required fastboot product
+gauguin. Actual bootloader product is exactly gauguinpro; TWRP product is
+gauguin. fastboot-product-audit.json records the fresh exact query; do not
+conflate these two strings. Third setup fixed only that guard and used the
+unchanged observer BODY from tools/sweet-observe.sh, with already-fastboot
+entry and explicit exit on fastboot-command failure. Both earlier reports/logs
+preserved; setup-failure-audit.json source-binds verified-not-booted. No flash,
+format, GPT change, retry of an actual image boot or new user approval needed.
+
+### 2026-11-07 — 0125 cached SMMU failure diagnostics pass focused checks and all61 host files
+
+Code commit95e85743901230c6d9491d2dc292fcb9385fdcf8. Codex authored three
+native changes under research/tmp/dsh-0125/combined:
+gauguin_gmu_smmu.c/.h and gauguin_gmu_board.c. Private diagnostic adds stage,
+comparison kind, byte register offset (CONFIG uses field index), mask and exact
+expected/actual from every existing READBACK failure. Config mismatch identifies
+which of nine fields; store32/64, invalid poll, fault, final route/control and
+micro-MMU mismatches retain their original predicates/results. No added MMIO,
+callback, timeout, register mask/value, retry or public-receipt change. Cached
+identity/control/counts log AFTER board/WDT quarantine. Zero not-yet-filled
+after fields are not observations. Synthetic fixture6960/3f is ONLY a formatter
+test; it is NOT the124 failed hardware address/value. Exact real address is
+still UNKNOWN until the next diagnostic-enabled real trial.
+
+diagnostic-validation.json: SMMU1,741,165 ASan/UBSan checks and board2839+75
+cases PASS; independent ORIGINAL-fixture comparison of124/candidate passes
+3,257,598 callbacks with identical request digest613f7c79ae2e7d66. Native probe
+then rejected OLD120 reference recipe before compilation because124's full
+build replaced shared generated BSD Makefile. Original report/log kept. No
+source change or guard bypass: separate diagnostic-validation-v2.json PASS
+uses CURRENT qualified124 gauguin.dNjjd4 manifest/source124, both actual SMMU
+and board ARM64 TUs; three host components retained only after all input pins
+rehash. DSH13551 terminal0. Future probes must use the current qualified recipe,
+not stale gKuZ8y metadata.
+
+119th patch0125-gauguin-gmu-smmu-failure-diagnostics.patch prepared, strict
+fresh replay source125-codex5282 files SHA
+f537602732d8e5701eca2aa17a518cdc44b85b5ee64dc501d339f11429cb4fda;
+three native paths exactly equal reviewed bytes, source124 baseline unchanged.
+DSH83628 finished actualscript0: all61 host files PASS, tested source and124
+baseline unchanged in replay-full-host-result.json. Handle closed0. No125 full
+kernel/image/boot task exists at this checkpoint. Sanitized publication is
+recorded in research/tmp/dsh-0125/public-snapshot-0125.json when pushed;
+sole public parentebb3abcaf4f3e76125009d7ce20d828d263a170c, not private ancestry.
+Next one full125 local build/package/review and strict diagnostic-receipt
+verifier before temporary boot. Preserve124 failing hardware proof unchanged.
+Default coherent firmware initializer remains; do not spend a mapping-only boot.
+Codex authors/reviews/interprets; DSH executes scripts with full access.
+
 ### 2026-11-07 — strict0124 runtime verifier validated; first coherent firmware trial next
 
 Previous goal turn was concrete progress: codea263288/privatec514be5, public

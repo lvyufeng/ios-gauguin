@@ -10,7 +10,8 @@ static unsigned checks;
 struct fake {struct gmf_context channel;struct gmf_plan plan;
     uint32_t regs[GMF_WINDOWS][12288],shared[8192];uint8_t image[32768];
     unsigned step,fail,writes,doorbells,reset_writes,asset_calls,copy_calls,delays;
-    unsigned ignore,timeout,bad_asset,bad_version,bad_ack,fw_fault,debug,init_positive,bad_readback,sticky_oob,hidden_mode,hidden_fault,pdc_mode,pdc_bad,pdc_clear,pdc_allones;
+    unsigned ignore,timeout,bad_asset,bad_version,bad_ack,fw_fault,debug,init_positive,bad_readback,sticky_oob,hidden_mode,hidden_fault,pdc_mode,pdc_bad,pdc_clear,pdc_allones,ao_override;
+    uint32_t ao_readback;
     bool nested;};
 static bool tick(struct fake *f){return ++f->step!=f->fail;}
 static bool guard(void *cookie,enum gmf_phase phase)
@@ -33,6 +34,7 @@ static bool read_word(void *cookie,enum gmf_window w,uint32_t off,uint32_t *v)
         unsigned n=(off-0x1034)/8;static const uint32_t raw[]={0x82204514,0x12345678,0x60001000};
         if(f->hidden_mode)*v=raw[n];if(f->hidden_fault==n+1)*v=UINT32_MAX;
     }
+    if(w==GMF_AO&&off==0x2c18&&f->ao_override)*v=f->ao_readback;
     if(w==GMF_PDC)for(unsigned n=0;n<6;n++){
         unsigned address=n<3?0x15d4+16*n:0x1764+16*(n-3);
         if(off!=address)continue;
@@ -148,7 +150,7 @@ static struct fake *fresh(void)
 static enum gmf_result run(struct fake *f,struct gmf_receipt *out)
 {struct gmf_ops o=ops(f);return gmf_bootstrap_once(&f->channel,&o,&f->plan,out);}
 static void stopped(struct fake *f)
-{unsigned step=f->step;struct gmf_receipt out,before;struct gmf_diagnostic diagnostic=f->channel.diagnostic;uint32_t mask=f->channel.hidden_valid,raw[3],pdc_mask=f->channel.pdc_msgid_valid,pdc[6];memcpy(raw,f->channel.hidden_readback,sizeof(raw));memcpy(pdc,f->channel.pdc_msgid_readback,sizeof(pdc));memset(&out,0x7c,sizeof(out));before=out;CHECK(run(f,&out)==GMF_ALREADY&&f->step==step&&!memcmp(&out,&before,sizeof(out)));CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));CHECK(mask==f->channel.hidden_valid&&!memcmp(raw,f->channel.hidden_readback,sizeof(raw)));CHECK(pdc_mask==f->channel.pdc_msgid_valid&&!memcmp(pdc,f->channel.pdc_msgid_readback,sizeof(pdc)));}
+{unsigned step=f->step;struct gmf_receipt out,before;struct gmf_diagnostic diagnostic=f->channel.diagnostic;uint32_t mask=f->channel.hidden_valid,raw[3],pdc_mask=f->channel.pdc_msgid_valid,pdc[6],ao_valid=f->channel.ao_mask_valid,ao_raw=f->channel.ao_mask_readback;memcpy(raw,f->channel.hidden_readback,sizeof(raw));memcpy(pdc,f->channel.pdc_msgid_readback,sizeof(pdc));memset(&out,0x7c,sizeof(out));before=out;CHECK(run(f,&out)==GMF_ALREADY&&f->step==step&&!memcmp(&out,&before,sizeof(out)));CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));CHECK(mask==f->channel.hidden_valid&&!memcmp(raw,f->channel.hidden_readback,sizeof(raw)));CHECK(pdc_mask==f->channel.pdc_msgid_valid&&!memcmp(pdc,f->channel.pdc_msgid_readback,sizeof(pdc)));CHECK(ao_valid==f->channel.ao_mask_valid&&ao_raw==f->channel.ao_mask_readback);}
 static void happy(void)
 {
     for(unsigned debug=0;debug<2;debug++){
@@ -156,7 +158,7 @@ static void happy(void)
         CHECK(run(f,&r)==GMF_OK&&r.phase==GMF_DONE&&r.fw_result==0xbabeface);
         CHECK(r.reported_version==0x100b0000&&r.init_ack[1]==0x00100500&&r.version_ack[1]==0x00200201);
         CHECK(r.tcm_written==8192&&r.tcm_checked==8192&&r.writes==f->writes&&f->doorbells==2&&f->reset_writes==1);
-        CHECK(r.debug_messages==(debug?4u:0u)&&!f->channel.diagnostic.valid&&f->channel.hidden_valid==7&&f->channel.pdc_msgid_valid==63);stopped(f);
+        CHECK(r.debug_messages==(debug?4u:0u)&&!f->channel.diagnostic.valid&&f->channel.hidden_valid==7&&f->channel.pdc_msgid_valid==63&&f->channel.ao_mask_valid==1&&f->channel.ao_mask_readback==UINT32_MAX);stopped(f);
         printf("Legacy GMU bootstrap debug%u: native sequence and two real ring ACKs, %u boundaries PASS\n",debug,f->step);free(f);
     }
 }
@@ -242,4 +244,25 @@ static void pdc_msgid_fields(void)
     }
     printf("PDC MSGID: six native writes retain named control fields, other bits unqualified; each missing control bit/all-ones refuses before copy/release PASS (host only)\n");
 }
-int main(void){happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}
+static void ao_mask_fields(void)
+{
+    CHECK(GMF_AO_IRQ_FIELDS==0x3b);
+    static const uint32_t values[]={0x3f,0x3b,0x8000003b,UINT32_MAX};
+    for(unsigned n=0;n<sizeof(values)/sizeof(*values);n++){
+        struct fake *f=fresh();f->ao_override=1;f->ao_readback=values[n];f->hidden_mode=1;f->pdc_mode=1;struct gmf_receipt r;
+        CHECK(run(f,&r)==GMF_OK&&f->channel.ao_mask_valid==1&&f->channel.ao_mask_readback==values[n]&&!f->channel.diagnostic.valid);
+        CHECK(f->reset_writes==1&&r.tcm_written==8192&&r.version_ack[1]==0x00200201);stopped(f);free(f);
+    }
+    static const unsigned bits[]={0,1,3,4,5};
+    for(unsigned n=0;n<=sizeof(bits)/sizeof(*bits);n++){
+        struct fake *f=fresh();f->ao_override=1;f->ao_readback=n<sizeof(bits)/sizeof(*bits)?0x3fu&~(1u<<bits[n]):0;
+        struct gmf_receipt r,b;memset(&r,0x71,sizeof(r));b=r;
+        CHECK(run(f,&r)==GMF_READBACK&&!memcmp(&r,&b,sizeof(r)));
+        const struct gmf_diagnostic *d=&f->channel.diagnostic;
+        CHECK(d->valid&&d->phase==GMF_RESET&&d->check==GMFD_STORE32&&d->window==GMF_AO);
+        CHECK(d->offset==0x2c18&&d->mask==0x3b&&d->expected==0x3b&&d->actual==f->ao_readback);
+        CHECK(!f->channel.ao_mask_valid&&!f->reset_writes&&f->copy_calls==1);stopped(f);free(f);
+    }
+    printf("AO IRQ mask: all five named sources required, raw3f/full mask/synthetic other bits retained, repeat/output preservation PASS (host only)\n");
+}
+int main(void){happy();bad();readback_diagnostics();native_hidden_addresses();pdc_msgid_fields();ao_mask_fields();faults();printf("GMU firmware bootstrap: %u checks PASS\n",checks);}

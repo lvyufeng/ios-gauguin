@@ -24,7 +24,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned owner_calls,owner_fail,budgets,budget_fail,expire,allocs,frees,alloc_fail,smmu_calls,smmu_fail,barriers,corrupt;
     unsigned clock_bad,irq_bad,context,quarantine,reads,writes,writes64;bool live;uint64_t now;
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
-        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines;} h;
+        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -58,6 +58,11 @@ static int host_printf(const char *s,...)
         unsigned off=index<3?0x15d4+16*index:0x1764+16*(index-3);
         snprintf(expected,sizeof(expected),"SWEET GMU PDC MSGID: off=%05x requested=00010108 readback=00010100 checked_mask=00010100 policy=native-write; other bits unqualified\n",off);
         CHECK(!strcmp(text,expected));CHECK(h.live?!h.quarantine:h.quarantine==1);
+    }
+    if(strstr(text,"SWEET GMU AO MASK:")){
+        CHECK(h.fw_ao_lines++==0);
+        CHECK(!strcmp(text,"SWEET GMU AO MASK: off=02c18 requested=ffffffff readback=0000003f checked_mask=0000003b policy=native-write; other bits unqualified\n"));
+        CHECK(h.live?!h.quarantine:h.quarantine==1);
     }
     return n;
 }
@@ -265,6 +270,8 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     if(!o->guard(NULL,GMF_RESET)||!o->asset(NULL,&data,&bytes)||
        !o->copy(NULL,data,bytes,&copy))return GMF_ASSET;
     CHECK(copy.written==8192&&copy.checked==8192&&!memcmp(fw_page[3]+0x1000,fw_asset,32768));
+    ctx->ao_mask_valid=1;ctx->ao_mask_readback=0x3f;
+    if(h.engine_fail==8)return GMF_TIMEOUT;
     for(unsigned i=0;i<4096;i++)CHECK(!fw_page[3][i]);
     for(unsigned i=0x9000;i<49152;i++)CHECK(!fw_page[3][i]);
     uint32_t v;unsigned stores=h.fw_stores;
@@ -317,7 +324,7 @@ static void firmware_cases(void)
     CHECK(firmware_run(&out)==GMB_OK&&h.maps==7&&h.nc_maps==1&&h.engine_calls==1&&!h.quarantine);
     CHECK(h.impl_lines==1);
     CHECK(out.reset==0&&out.release_attempted==1&&out.oob_attempted==1&&out.phase==GMF_DONE&&h.allow_gx);
-    CHECK(out.firmware.fw_result==0xbabeface&&out.asset_pa==0xb0000000&&h.fw_impl_lines==3&&h.fw_pdc_lines==6);
+    CHECK(out.firmware.fw_result==0xbabeface&&out.asset_pa==0xb0000000&&h.fw_impl_lines==3&&h.fw_pdc_lines==6&&h.fw_ao_lines==1);
     CHECK(out.fsr[0]==0x400&&out.fsr[1]==0x400);
     CHECK(sweet_gmu_firmware_state()==GMB_READY&&sweet_gmu_board_state()==GMB_READY);
     unsigned budgets=h.budgets,maps=h.maps;CHECK(firmware_run(&out)==GMB_ALREADY&&h.budgets==budgets&&h.maps==maps);
@@ -327,6 +334,7 @@ static void firmware_cases(void)
     reset();h.firmware=1;h.engine_fail=5;firmware_failed();CHECK(h.fw_diag_lines==1&&!gfw_work.release_attempted&&!gfw_copy_issued);
     reset();h.firmware=1;h.engine_fail=6;firmware_failed();CHECK(h.fw_impl_lines==1&&!gfw_work.release_attempted&&!gfw_copy_issued);
     reset();h.firmware=1;h.engine_fail=7;firmware_failed();CHECK(h.fw_impl_lines==3&&h.fw_pdc_lines==1&&!gfw_work.release_attempted&&!gfw_copy_issued);
+    reset();h.firmware=1;h.engine_fail=8;firmware_failed();CHECK(h.fw_ao_lines==1&&!gfw_work.release_attempted&&gfw_copy_issued==8192&&gfw_copy_compared==8192);
     for(unsigned n=1;n<=24;n++){reset();h.firmware=1;h.fw_fail_phase=n;firmware_failed();}
     const unsigned faultbits[]={1,2,3,4,5,6,7,8,30,31};
     for(unsigned n=0;n<sizeof(faultbits)/sizeof(*faultbits);n++){reset();h.firmware=1;h.ctx_fault=1u<<faultbits[n];firmware_failed();}

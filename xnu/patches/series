@@ -128,3 +128,4 @@
 0130-gauguin-gmu-firmware-readback-diagnostics.patch
 0131-gauguin-rsc-native-hidden-address-writes.patch
 0132-gauguin-pdc-msgid-control-fields.patch
+0133-gauguin-ao-interrupt-mask-fields.patch

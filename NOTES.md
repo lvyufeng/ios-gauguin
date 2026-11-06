@@ -2,6 +2,64 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0133 AO named-source mask candidate committed; all61 hosts/two native TUs pass; full build next
+
+THIS goal turn is progress: complete132 native kernel/image/readers passed;
+ONE real132 boot completed PDC programming and full8192-word TCM copy/readback,
+then exposed AO mask width/equality refusal. Codex wrote133 and DSH validated
+it. Full daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh goal stays
+ACTIVE/incomplete; firmware has still NOT executed, no reset release/ACKs.
+
+Private code737e6c41d50d7c586a48daed084cd0dc3b04dfcf adds127th patch
+0133-gauguin-ao-interrupt-mask-fields.patch. Fresh source133-codex5282files SHA
+acc6af6d7f023b530643d93442cc46d73fd5892911c0bf9e51f1f17dfcfa6822.
+Only firmware.c/h and board.c differ from frozen1326ca52236...5c689.
+ONLY AO HOST_INTERRUPT_MASK off2c18 keeps fullffffffff write and identical
+guarded write/barrier/read, checks all five native named sources mask3b;
+other bits UNQUALIFIED, no inferred width. A fullffffffff read remains valid
+for this requested mask (same as old store); all OTHER register/status/IRQ/
+GIC/deadline/TCM/reset/ACK checks unchanged, CSR mask untouched. Private
+valid/raw cache logs SWEET GMU AO MASK after PDC rows on completion, or AFTER
+quarantine on failure. Public receipt unchanged; no new MMIO or retry.
+
+DSH98990 actual validate133.py0, normal FIVE actual zero results: pristine
+replay, full61 host files, original-model I/O equivalence, real firmware/board
+native TUs. validation-result.json inputs/source/baseline unchanged. Primary
+kgsl_gmu.h SHA5f08ed0eed8118068a66e5596612a5ac9d00e410c6a1920fd7a85fbb12ad3d8b
+is input-pinned together with earlier PDC/native references. GMF ASan/UBSan
+1,657,593 checks; board2840+90. AO tests physical3f, named3b, fullffffffff
+and explicitly SYNTHETIC extra high bit; every named bit missing and zero
+refuse after copy/before release, repeat/output/cache preservation and all
+original callback failures pass. Board checks full/partial cache rows and
+quarantine. Frozen ORIGINAL129 fixture against baseline132/133 has identical
+1,009,420 requests/digestf8383376e7a1a07b. Actual native objects firmware
+46984B SHAabfa79e4a7dd1ec21ffb935d49f19cefa2cf8883e2e4734fc2a415f9c68deee3,
+board67008B SHAd89949c9bbcc02fbdf944bcd1d53098c99ac5b8475aa9dacd828369e97a7f8ec,
+using CURRENT132 InoCAW recipe/source. All owned handles CLOSED.
+
+132 physical handoff pushed/verified publiclye0b5fd270a21db704d56e4a5db8ff6ad09501c8d,
+sole parentdd3ad8bb9a72b9b879a8d8c3e37c0414ec777f94, two text paths, private
+head e0569a3 not pushed. Next sanitized133 source/notes snapshot on e0b5fd2;
+publication report research/tmp/dsh-0133/public-snapshot-0133.json. Never push
+private ancestry, device dumps, serials or binary assets.
+
+NEXT: full133 standard local native build/qualification retaining every132
+check; require installed AO-mask record and source-bound named-sources flag.
+Pack/independent review, unique133 trial; full runtime reader must require
+exactly one ordered AO row AFTER hidden3/PDC6 and BEFORE adapter completion:
+off2c18, requestedffffffff, checked_mask3b, all named sources set, other bits
+explicitly UNQUALIFIED. Allow fullffffffff for THIS mask read; other all-ones
+refusals stay intact. Keep original131-page/140-ATOS strings and numeric data
+when changing version labels. Require all prior FW-result/copy/INIT/version/
+reset/OOB checks. Test each missing named source, zero, raw3f/full mask/other
+bits, false-qualified/wrong-mask/request/duplicate/order records, then ONE
+coherent temporary133 boot. Watch metadata filenames:132 package/audit wrappers
+initially used stale131 filenames before any action; preserved failed originals
+and separate corrected wrappers/reports. No133 full build/image/reader/phone
+IO yet. Phone last TWRP after132, reset attribution unknown, no new user UI/
+touch result. Original seven-line mkadt diff untouched; no flash/format/GPT/
+destructive action. Codex core/review/Git, DSH executes exact full-access tasks.
+
 ### 2026-11-07 — actual132 completes PDC programming and full8192-word TCM copy/readback; AO interrupt-mask comparison next
 
 DSH85774 ONE actual132 temporary boot observer0/full verifier2, original full

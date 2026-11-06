@@ -2,12 +2,35 @@
 
 ## Agent handoff / active work
 
-### 2026-11-06 - 0112 CPU staging: build qualified, image packaged, NOT booted
+### 2026-11-06 - 0112 CPU staging: published; temporary boot accepted, log PENDING
 
-Status: native build succeeded, parent qualification passed and the0112 staging
-image is packaged and waiting for the parent's review before any
-temporary `fastboot boot`. User preference retained: DSH runs with
+Status: native build succeeded, parent qualification and the parent image review
+PASS (research/tmp/dsh-0112/image-parent-review.json) both passed, and the0112
+staging image is published. ONE temporary `fastboot boot` was performed; the
+image was accepted but produced no fresh log (observer exit4), so the hardware
+low-PAS/staging result is UNKNOWN. User preference retained: DSH runs with
 danger-full-access for implementation/build, Codex plans and reviews.
+
+Publish (this session): local HEAD764cd9d8c68d4a5a9049f4e2901197e9c61eab7f
+with only the preserved original tools/mkadt.py edit dirty. Sanitized public
+snapshot 0e38d207d7089b2cbe657fc290d175b3ca7a6838, single parent public
+2084afaf556e57623cf92b7ed48add5c86815509 (verified both local ref and remote
+ls-remote before the push; no force, no private ancestry, not HEAD), tree
+20c9e36e... identical to HEAD^{tree}. Exactly9 changed files, all text, no
+firmware/dumps/serials: NOTES.md; tests/fixtures/gauguin_pas_probe_host.c;
+tests/fixtures/gauguin_pas_stage_host.c; tests/test_pas_owner_probe.py;
+tests/test_pas_staging.py; tests/test_payload_zap_asset.py; tools/mkpayload.py;
+xnu/patches/0112-gauguin-pas-cpu-staging.patch; xnu/patches/series. Pushed only
+the new SHA to refs/heads/codex/gauguin-p0-ci-20261105, remote re-verified at
+the new SHA and the local branch ref moved2084afa->0e38d20 (guarded). Public
+push targets only `main` for workflow, so NO CI was dispatched. Record:
+research/tmp/dsh-0112/public-snapshot-0112.json.
+
+Image identity re-verified before the boot: shim/out/shim-p3-passtage-0112-native-20261106.img,
+exact19415040B, SHA256 17af66bf150a20a62673d5d0593512d6ae9478dd79598e8dc5cff6ab04e0e847,
+full kernel ID xnu-dc38b2a01c6f471fa523f9f9cdab1f4e and one occurrence of
+sweettrial=passtage-0112-20261106-dsh-a1 in the cmdline. No earlier0112 boot
+and no pre-existing output files.
 
 Code (commit65c12fbd623dbd2a030e547debd5b06aa45658e5): the packer emits the
 A615ZapMDT descriptor second word as the reserved16KiB descriptor page, not the
@@ -38,7 +61,7 @@ failed) with its unstripped object in ignored
 research/tmp/dsh-0112/contract-preserve/failed-Qz3IuF-kernel.unstripped.
 Parent qualification: research/tmp/p3-native-0112-fullaccess-qualification-20261106.json.
 
-Image (NOT BOOTED): shim/out/shim-p3-passtage-0112-native-20261106.img,
+Image: shim/out/shim-p3-passtage-0112-native-20261106.img,
 19415040B SHA 17af66bf150a20a62673d5d0593512d6ae9478dd79598e8dc5cff6ab04e0e847;
 payload research/tmp/p3-passtage-0112-native-20261106.bin SHA
 27947b6e431416e46c3cb80f37c7843032be91081e50d92964c66911a47869b6; evidence
@@ -51,9 +74,30 @@ sweettrial=passtage-0112-20261106-dsh-a1; cmdline527B. Packed by
 research/tmp/dsh-0112/pack_native0112_fullaccess.py (parent-corrected copy; the
 original helper is preserved). The real low-PAS PA is unknown until boot.
 
-Phone last confirmed TWRP; this image has NOT been booted; no GPU/PAS operation
-has run. Next step is the parent's image review, which must authorize any
-temporary `fastboot boot` separately.
+Hardware trial (EXACT once; no second boot, no flash/format/partition writes):
+preflight `adb get-state` returned recovery. tools/sweet-observe.sh was run
+unmodified, which armed misc boot-recovery, rebooted to the bootloader and issued
+the temporary `fastboot boot` (send18960KB0.438s, boot0.134s, total0.579s - the
+image was ACCEPTED). Observer ended181s/exit4: "no recovery detected after 181s"
+and the log pull failed, with no recovery adb. Immediately afterwards
+`adb get-state` reported no device, so XNU was still holding USB and had not
+returned to TWRP. Exit4 removes OUT by design, so
+research/tmp/p3-passtage-0112-native-recovered-20261106.txt does NOT exist: there
+is NO fresh log, no banner/marker verification, and no observed SWEET PAS STAGE
+line, panic or counter. Cycle log
+research/tmp/p3-passtage-0112-native-cycle-20261106.log (finish2026-11-06T04:03:18Z,
+12:03:18 CST). Hardware low-PAS mapping/staging result is UNKNOWN, not failed and
+not passed. No GPU/PAS/SMC operation was invoked by this trial.
+
+Next step (needs the user, not another boot): physical touch/unlock confirmation
+and manual return to TWRP, then a fresh
+research/tmp/p3-passtage-0112-native-recovered-20261106.txt pull. Require both the
+full xnu-dc38b2a01c6f471fa523f9f9cdab1f4e ID and exactly one
+sweettrial=passtage-0112-20261106-dsh-a1 before trusting any line. Success requires
+`SWEET PAS STAGE: pinned MDT verified` followed by
+`SWEET PAS STAGE: complete metadata_bytes=6860 zero_tail_bytes=9524`; the
+mapping/translation-failed, readback mismatch and missing-asset stops are failures.
+Result record research/tmp/dsh-0112/hardware-trial-result.json.
 
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 

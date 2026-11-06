@@ -3,6 +3,67 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0115 native BCM completion and autonomous normal-running reset VERIFIED
+
+User confirmed THIS115 trial: “是，自行重启，我没有操作”. Parent combined this
+new fact with unchanged input hashes of the successful technical verifier;
+research/tmp/dsh-0115/hardware-parent-verification.json is authoritative.
+Technical verifier99be6e74...a1c0c7 executed byDSH once, actualexit3 solelybecause
+manual-resetwasunknown then; preserved hardware-data-verification.json and
+verify-observed-dsh-result.json are history. AlltechnicalchecksPASS.
+
+One temporaryboot accepted19008KB/send0.444s/boot0.134s,total0.583s. Cycle explicit
+backinTWRPafter131s, observer0/no timeout; start10:00:29.771168Z,
+finish10:02:46.485701Z. Freshlog4376lines/484692bytes SHA
+ d295a99eadc898d6189959b7112befcff938f6110ef16ca713d8d6ed36f2e18d;
+research/tmp/p3-bcmsubmit-0115-native-observer-20261106.txt. Cycle SHA
+ c1cff853bcd9f0fe0e17abba5eba0e9000ef50260ef87e49d2a411bb57319511.
+Unique actualtrial bcmsubmit-0115-20261106-a1 and fullbanner
+xnu-754aa35e66a84ffa8cfc01e09ea7b7b6 matched qualifiedimage83b0bf1b...b92a2b.
+Allsevenbootprogressmarkersyes; no touchinteractionasked onthisdeliberateexpirytrial.
+
+CPUstage: dynamicownerpaAA200000,1MiB, inputA91BF000+1240000 tail1040000;
+64unmanagedpages WIMGd0000006. MDT6860bytes+zero9524 verified before oneREADYclaim.
+CMDDBtwofullcopiesstable65536reads, reconstructed131072bytes SHA
+ e59408f8032cf567ef0a5db6cd95bef15cc2ae7d1c511e8232482cd496f1e788.
+Fourbanks/6BCM/4ARC metadata validated; versus113 RAW575bytes differ, alloutside
+anydeclaredheader/entry/aux extent (first2142,last1fa96); alldeclaredtablesidentical.
+This is observedbytecomparison, not an explanation of unused-region contents.
+DSH extractor executedonceexit0; binary preserved at
+research/tmp/p3-bcmsubmit-0115-native-cmd-db-20261106.bin (same131072bytes/SHA);
+research/tmp/dsh-0115/extract115-dsh-result.json recordsactualresult.
+
+WDT legacyPET excluded; rawNS GICenable0, initialEN0; programmedEN3/BARK655300/
+BITE753595. arm_at1759664573, rawreadback1759664668, readiness1778959663,
+readycount32924; CPUtimebase19200000Hz. Readinessdelta1.0049526s agrees with
+32924/32765=1.0048527s. BCM ACTIVE1 preflightstable, NSINTID37quiet0;
+nativecompletion receipt slot1 config80008104 IRQbefore1/after1/completed2.
+Six actualstatuses:10101,10101,00101,10101,10101,10101hex, exact6BOOTdata/wait3b.
+AllISSUED +5requiredCOMPL checked; successfulcontrollercleanup marker present,
+requestshelduntilreset. No failure/PET/software-reboot/panic/survived30 record.
+Per-stepbudget/laterGIC/cleanupreadback success is boundbinarycontrolflow evidence,
+not individuallyrawlogged measurements. Bootreasonpropertiesempty; noPMICcauseclaim.
+
+Publicsnapshot41ea3be0b21ca3a887315820a08d1455a8025fa5 has singlepublicparent
+ d3cd94b0b771ea8403ca92ed76adc8592363ade9,16textpaths; private d609742 ancestry
+notpushed. PhoneTWRP. Fullnativecodefb8041b, runMRqCtP; originalmkadteditpreserved.
+
+Executorinterpretationcorrection: DSH added unsupportedtwo-boot/ring-wrap guesses
+to its ignored publish-boot115-dsh-result.json and draftNOTES. Parent andindependent
+Codexreview rejected those guesses. Actualfreshlog has ONEbanner/ONEtrial and
+NO obs.replay marker. arm/readback95counterticks=4.9479microseconds, notbootduration;
+armabsolute91.649s +1.005sready +continuednormalexecution whileawaiting23s expiry
+is compatiblewith131sobserverrecovery. No secondboot or repull is indicated.
+Rawexecutorcommandexits/hashes retained; its speculativeverdict is not authoritative.
+Parentreportrecords thiserrata. DSHmustexecuteonly; Codex interprets andupdatesnotes.
+
+Next: retain115controllerbaseline and prepare reviewed source-correct PAS INIT_IMAGE
+using samebootCPUclaim+BCMcompletion+freshWDTbudget; no newSMChasrun in115.
+Controllercompletion is NOT measuredBW, PASauth, GPU/Metal, highrefresh or dailyuse.
+Normalruntimewatchdogreset does NOT prove arbitrarysecureworldhangcontainment.
+Broadergoalremainsactive. No deviceoperationafterautomaticlogpull is required.
+
+
 ### 2026-11-06 — 0115 normal native build and package PASS; hardware trial pending
 
 Code fb8041b941f1dd92229590eaef79240bf6678a1c; source115-codex5261files

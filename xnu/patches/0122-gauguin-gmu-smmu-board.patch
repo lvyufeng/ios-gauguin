@@ -1,20 +1,17 @@
 diff --git a/bsd/conf/files b/bsd/conf/files
 --- a/bsd/conf/files
 +++ b/bsd/conf/files
-@@ -125,6 +125,8 @@
- bsd/dev/gauguin_gcc_votes.c		standard
+@@ -126,4 +126,6 @@
  bsd/dev/gauguin_gmu_memory.c		standard
  bsd/dev/gauguin_gmu_hfi.c			standard
 +bsd/dev/gauguin_gmu_smmu.c		standard
 +bsd/dev/gauguin_gmu_board.c		standard
  bsd/dev/gauguin_nvt/nvt_protocol.c		standard
  bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
- bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
 diff --git a/bsd/dev/gauguin_cx_power.c b/bsd/dev/gauguin_cx_power.c
 --- a/bsd/dev/gauguin_cx_power.c
 +++ b/bsd/dev/gauguin_cx_power.c
-@@ -387,4 +387,33 @@
-     *out=gmc_work;__atomic_store_n(&gmc_lifecycle,GCX_COMPLETE,__ATOMIC_RELEASE);
+@@ -388,3 +388,32 @@
      gcx_record("SWEET GMU CLOCK: complete configured_hz=200000000; held requests, no GMU firmware/reset release/PAS/GX operation");return GCX_OK;
  }
 +static bool gmq_read(vm_offset_t mapping,uint32_t offset,uint32_t *out)
@@ -258,8 +255,7 @@ new file mode 100644
 diff --git a/bsd/dev/gauguin_gmu_clock.h b/bsd/dev/gauguin_gmu_clock.h
 --- a/bsd/dev/gauguin_gmu_clock.h
 +++ b/bsd/dev/gauguin_gmu_clock.h
-@@ -17,4 +17,11 @@
- bool sweet_gmu_clock_requested(void);
+@@ -18,3 +18,10 @@
  enum gcx_rc sweet_gmu_clock_once(struct gmc_receipt *);
  enum gcx_state sweet_gmu_clock_state(void);
 +/* Read-only live fixed-clock/CX and GX PWR_ON0 observation for the following
@@ -624,27 +620,22 @@ new file mode 100644
 diff --git a/bsd/dev/gauguin_pas_stage.c b/bsd/dev/gauguin_pas_stage.c
 --- a/bsd/dev/gauguin_pas_stage.c
 +++ b/bsd/dev/gauguin_pas_stage.c
-@@ -21,6 +21,7 @@
- #include <sys/systm.h>
+@@ -22,4 +22,5 @@
  #include <kern/thread.h>
  #include <vm/vm_map.h>
 +#include <vm/pmap.h>
  #include <machine/machine_routines.h>
  #include <pexpert/pexpert.h>
- #include <pexpert/device_tree.h>
-@@ -32,6 +33,8 @@
-  * header view (as in gauguin_pas_probe.c for its pmap APIs). */
+@@ -33,4 +34,6 @@
  extern vm_offset_t ml_io_map_wcomb(vm_offset_t phys_addr, vm_size_t size);
  extern vm_offset_t ml_vtophys(vm_offset_t vaddr);
 +extern boolean_t pmap_valid_page(ppnum_t);
 +extern unsigned int pmap_cache_attributes(ppnum_t);
- 
+
  extern unsigned long gPhysBase, real_phys_size;
- extern vm_offset_t arm_vm_kernelcache_phys_end;
-@@ -236,4 +239,20 @@
-     return true;
+@@ -237,3 +240,19 @@
  }
- 
+
 +bool sweet_pas_stage_owner_valid(const struct sweet_pas_cpu_stage *stage)
 +{
 +    if(!stage||!ml_get_interrupts_enabled()||ml_at_interrupt_context()||get_preemption_level()||
@@ -665,8 +656,7 @@ diff --git a/bsd/dev/gauguin_pas_stage.c b/bsd/dev/gauguin_pas_stage.c
 diff --git a/bsd/dev/gauguin_pas_stage.h b/bsd/dev/gauguin_pas_stage.h
 --- a/bsd/dev/gauguin_pas_stage.h
 +++ b/bsd/dev/gauguin_pas_stage.h
-@@ -26,4 +26,9 @@
-  * A later secure caller must qualify its own resources/ABI/permissions and
+@@ -27,3 +27,8 @@
   * issue the appropriate DSB before SMC; this function invokes no SMC. */
  bool sweet_pas_cpu_stage_claim(struct sweet_pas_cpu_stage *out);
 +/* Read-only check by that single consumer. Requires the actual immutable
@@ -678,8 +668,7 @@ diff --git a/bsd/dev/gauguin_pas_stage.h b/bsd/dev/gauguin_pas_stage.h
 diff --git a/pexpert/arm/pe_fiq.c b/pexpert/arm/pe_fiq.c
 --- a/pexpert/arm/pe_fiq.c
 +++ b/pexpert/arm/pe_fiq.c
-@@ -87,6 +87,27 @@
-     __asm__ volatile("dmb oshld" ::: "memory");
+@@ -88,4 +88,25 @@
      *enabled = value;
      return (value & (1u << 5)) == 0;
 +}
@@ -705,4 +694,3 @@ diff --git a/pexpert/arm/pe_fiq.c b/pexpert/arm/pe_fiq.c
 +    return !(raw[0]&0xa0u)&&!(raw[1]&0x30000u)&&!(raw[2]&0xff000u);
  }
  #endif
- 

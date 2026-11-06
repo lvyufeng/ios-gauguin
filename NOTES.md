@@ -4,12 +4,27 @@
 
 ### 2026-11-06 - 0112 CPU staging: fresh-log VERIFIED; probe + stage gates pass
 
+Next concrete action: treat0112 as the working baseline and preserve it. Do the
+next work offline: audit and prepare a bounded, read-only, same-boot CMDDB
+identity/bank-bounds check plus the actual DRV2 inherited state/ownership/
+aggregation, BEFORE any new RPMh/BCM vote or PAS INIT_IMAGE. Native
+msm_bus_fabric_rpmh.c does read BCM aux data and the real prior recovery cmd-db
+text already carries BCM aux, so do NOT claim aux is absent; the open questions
+are bank identity/version/bounds and inherited DRV2 floor at the same boot. Base
+facts are verified in ignored research/tmp/dsh-gpu-bus-audit/REPORT.md; its old
+numeric models are withdrawn and NO executable vectors are approved (any vote
+needs a reviewed numeric vector first). A successful CPU stage does NOT qualify
+PAS authentication or any GPU operation. User DSH fullaccess for implementation
+and Codex plans/reviews remains.
+
 Status: PASS on a fresh log. The published0112 image was temporarily booted
 once, the user confirmed physical touch unlock in THAT trial, then manually
 returned the phone to TWRP; the fresh read-only pull now shows the exact build
 identity, the complete owner record (64 pages, wimg=d0000006) and the complete
-stage record (6860/9524, pinned sha256). No new boot/flash/build/code/push was
-done for this verification. Phone is currently TWRP. User preference retained:
+stage record (6860/9524, pinned sha256). The parent's independent hardware log
+review PASSED (research/tmp/dsh-0112/hardware-parent-review.json). No new
+boot/flash/build/code/push was done for this verification; no observer or build
+is live. Phone is currently TWRP. User preference retained:
 DSH runs with danger-full-access for implementation/build, Codex plans and
 reviews. Broader goal unchanged: real GPU/Metal is NOT implemented.
 
@@ -42,11 +57,14 @@ seconds is NOT assumed.
 The owner PA this boot is whatever the shim placed (0xaa200000 here); it is a
 result of this boot, not a fixed address. Hard limits: the probe line itself says
 metadata only, buffer/PAS/GPU untested; the stage covers only the first16KiB
-metadata page (zero/copy + readback+tail equality in the consumer), and no PAS
-authentication/reset, SCM, power vote or GPU/Metal operation exists. User touch
+metadata page (zero/copy + readback+tail equality in the consumer). This0112
+staging path invokes no PAS auth/reset, no SCM call and no GPU/power vote; the
+prior0110 SCM64 query probe exists in the source but was disabled for this trial
+(sweetscmprobe=0), and the RPMh/touch code is unrelated to staging. GPU/Metal
+execution is not implemented. User touch
 unlock is USER-confirmed; the log does not independently prove touch.
 Record research/tmp/dsh-0112/hardware-recovered-result.json (supersedes the
-pending hardware-trial-result.json).
+earlier interim hardware-trial-result.json).
 
 Publish (this session): local HEAD764cd9d8c68d4a5a9049f4e2901197e9c61eab7f
 with only the preserved original tools/mkadt.py edit dirty. Sanitized public
@@ -109,34 +127,33 @@ b5ba7764..., original DTB, base ADT7d6d93be..., NVT007143e7... (PA
 (runtime selects1MiB); flags NVT1/hz30, GCC/SCM0, pasprobe1/passtage1; marker
 sweettrial=passtage-0112-20261106-dsh-a1; cmdline527B. Packed by
 research/tmp/dsh-0112/pack_native0112_fullaccess.py (parent-corrected copy; the
-original helper is preserved). The real low-PAS PA is unknown until boot.
+original helper is preserved). The real low-PAS PA was unknown at packaging
+time; this boot selected AA200000+100000 as recorded above, which is that
+boot's allocation, not a fixed address.
 
 Hardware trial (EXACT once; no second boot, no flash/format/partition writes):
 preflight `adb get-state` returned recovery. tools/sweet-observe.sh was run
 unmodified, which armed misc boot-recovery, rebooted to the bootloader and issued
 the temporary `fastboot boot` (send18960KB0.438s, boot0.134s, total0.579s - the
-image was ACCEPTED). Observer ended181s/exit4: "no recovery detected after 181s"
-and the log pull failed, with no recovery adb. Immediately afterwards
-`adb get-state` reported no device, so XNU was still holding USB and had not
-returned to TWRP. Exit4 removes OUT by design, so
-research/tmp/p3-passtage-0112-native-recovered-20261106.txt does NOT exist: there
-is NO fresh log, no banner/marker verification, and no observed SWEET PAS STAGE
-line, panic or counter at that time (cycle log
-research/tmp/p3-passtage-0112-native-cycle-20261106.log, finish2026-11-06T04:03:18Z,
-12:03:18 CST). That interim UNKNOWN is now RESOLVED by the fresh pull above:
-the phone kept running until the user unlocked it and returned TWRP. No
-GPU/PAS/SMC operation was invoked by this trial.
+image was ACCEPTED). At181s the observer exited4 ("no recovery detected after
+181s") and its log pull failed, so it removed OUT by design; an `adb get-state`
+right after reported no device, which was only "no ADB observed" and was NOT
+proof of progress or of the kernel being stuck. The user later confirmed touch
+unlock and returned TWRP, and the subsequent fresh pull (above) identified this
+trial and passed both gates. Cycle log
+research/tmp/p3-passtage-0112-native-cycle-20261106.log (finish2026-11-06T04:03:18Z,
+12:03:18 CST). No GPU/PAS/SMC operation was invoked by this trial.
 
 Local commit: only this NOTES.md handoff (parent9946819); original tools/mkadt.py
-edit untouched and left uncommitted. Public sanitized snapshot remains
-0e38d207d7089b2cbe657fc290d175b3ca7a6838 on codex/gauguin-p0-ci-20261105; no
-second push is needed for a NOTES-only handoff. Native build context is still
-source112-dsh-contract / gauguin.fbWj14 (kernel16798800B SHA8267eb94...9fdc, ID
+edit untouched and left uncommitted. Prior public sanitized snapshot
+0e38d207d7089b2cbe657fc290d175b3ca7a6838 on codex/gauguin-p0-ci-20261105 was
+pushed before this handoff. Native build context is still source112-dsh-contract
+/ gauguin.fbWj14 (kernel16798800B SHA8267eb94...9fdc, ID
 xnu-dc38b2a01c6f471fa523f9f9cdab1f4e).
 
-Next: parent independent review of the exact stage lines/hash above, then design
-the actual PAS authentication/reset step with its own review; do not treat the
-staged16KiB metadata page as firmware loaded or PAS owned-for-execution.
+Reminder for the next stage: the staged16KiB metadata page is not firmware
+loaded and is not PAS owned-for-execution. Real PAS authentication/reset is a
+separate step needing its own review and must not start with a naive secure call.
 
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 

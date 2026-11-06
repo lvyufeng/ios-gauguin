@@ -1,0 +1,73 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -342,7 +342,13 @@
+     snprintf(line,sizeof(line),"SWEET GMU FW: partial engine_phase=%u writes=%u polls=%u copy_issued=%u copy_compared=%u fw=%08x version=%08x",
+         (unsigned)gfw_context.phase,gfw_context.work.writes,gfw_context.work.polls,
+         gfw_copy_issued,gfw_copy_compared,gfw_context.work.fw_result,gfw_context.work.reported_version);
+-    gmb_record(line);return rc;
++    gmb_record(line);
++    if(gfw_context.diagnostic.valid){
++        const struct gmf_diagnostic *d=&gfw_context.diagnostic;
++        snprintf(line,sizeof(line),"SWEET GMU FW READBACK: phase=%u check=%u window=%u off=%05x mask=%08x expected=%08x actual=%08x",d->phase,d->check,d->window,d->offset,d->mask,d->expected,d->actual);
++        gmb_record(line);
++    }
++    return rc;
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -47,8 +47,14 @@
+ }
+ static bool barrier(struct gmf_context *c)
+ {return guard(c)&&c->ops.barrier(c->ops.cookie)&&guard(c);}
++static enum gmf_result mismatch(struct gmf_context *c,enum gmf_check check,
++    enum gmf_window w,uint32_t off,uint32_t bits,uint32_t expected,uint32_t actual)
++{
++    c->diagnostic=(struct gmf_diagnostic){1,c->phase,check,w,off,bits,expected,actual};
++    return GMF_READBACK;
++}
+ static enum gmf_result store(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t v)
+-{uint32_t actual;if(!wr(c,w,off,v)||!barrier(c)||!rd(c,w,off,&actual))return GMF_IO;return actual==v?GMF_OK:GMF_READBACK;}
++{uint32_t actual;if(!wr(c,w,off,v)||!barrier(c)||!rd(c,w,off,&actual))return GMF_IO;return actual==v?GMF_OK:mismatch(c,GMFD_STORE32,w,off,UINT32_MAX,v,actual);}
+ static enum gmf_result mask(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t set)
+ {uint32_t old;if(!rd(c,w,off,&old)||old==UINT32_MAX)return GMF_IO;return store(c,w,off,old|set);}
+ static enum gmf_result poll(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t mask_bits,uint32_t value,uint32_t *out)
+@@ -164,7 +170,7 @@
+     if(c->work.oob_after&(1u<<15))return GMF_FAULT;
+     if(!wr(c,GMF_CSR,C(0x1f991),1u<<30)||!barrier(c))return GMF_IO;
+     uint32_t info;if(!rd(c,GMF_CSR,C(0x1f992),&info))return GMF_IO;
+-    if(info&(1u<<30))return GMF_READBACK;
++    if(info&(1u<<30))return mismatch(c,GMFD_OOB_CLEAR,GMF_CSR,C(0x1f992),1u<<30,0,info);
+     c->phase=GMF_HFI_START;
+     if(!wr(c,GMF_CSR,C(0x1f986),1)||!barrier(c))return GMF_IO;
+     return poll(c,GMF_CSR,C(0x1f980),1,1,&c->work.hfi_after);
+@@ -236,6 +242,7 @@
+     struct gmf_ops copy=*ops;struct gmf_plan p=*plan;uint32_t expected=0;
+     if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMF_ALREADY;
+     c->ops=copy;c->plan=p;c->phase=GMF_RESET;
++    memset(&c->diagnostic,0,sizeof(c->diagnostic));
+     const uint8_t *asset=NULL;size_t bytes=0;enum gmf_result rc=GMF_OK;
+     if(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
+        (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1))rc=GMF_ASSET;
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -31,8 +31,14 @@
+ struct gmf_receipt {uint32_t phase,versions[5],fw_result,oob_before,oob_after;
+     uint32_t hfi_before,hfi_after,init_ack[3],version_ack[4],reported_version;
+     uint32_t tcm_written,tcm_checked,writes,polls,debug_messages;};
++enum gmf_check {GMFD_NONE,GMFD_STORE32,GMFD_OOB_CLEAR};
++/* Cached rejected comparison, no extra MMIO. Window and byte offset use
++ * the same fixed mapping contract as the engine; valid distinguishes phase0
++ * from an absent sample. Does not alter the public success receipt. */
++struct gmf_diagnostic {uint32_t valid,phase,check,window,offset,mask,expected,actual;};
+ struct gmf_context {uint32_t state;enum gmf_phase phase;struct gmf_ops ops;
+-    struct gmf_plan plan;struct ggh_channel hfi;struct gmf_receipt work;};
++    struct gmf_plan plan;struct ggh_channel hfi;struct gmf_receipt work;
++    struct gmf_diagnostic diagnostic;};
+ /* One cold native bootstrap: PDC/RSC/TCM/power/version -> reset release and
+  * fresh FW result -> A619 boot-slumber OOB -> HFI init and INIT/version ACKs.
+  * Exact pinned legacy asset + native family rules select v1 transport; the

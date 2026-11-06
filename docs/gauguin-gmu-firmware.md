@@ -105,3 +105,31 @@ the diagnostic watchdog reset. Failure consumes no poisoned receipt and never
 retries. Host typed board models do not constitute physical firmware ACKs.
 Software timeouts cannot cancel hung fabric IO. A full kernel/image and one
 coherent temporary-boot trial still require qualification.
+
+## First physical firmware-stage refusal and cached comparisons
+
+The real0129 trial completed cold SMMU setup and reached all five firmware
+apertures. It stopped with GMF_READBACK in RESET phase after5 stores and no
+poll, TCM copy, reset release or OOB request. The raw context FSR words were
+both0x400, with no named fault flag. No firmware result or HFI reply was obtained.
+The full runtime verifier rejected this trial; cold SMMU stage evidence does
+not establish firmware or GPU execution.
+
+The frozen instruction order infers the fifth store as AO byte offset0x1034,
+physical0x03d8d034, RSC HIDDEN_TCS_CMD0_ADDR, requested0. That offset/value is
+source-bound inference from the count; the actual readback is still unknown.
+
+Patch0130 caches the existing rejected comparison. Its private sample records
+validity, phase, check, mapping window, byte offset, mask, expected and actual.
+Check1 is the full-width store readback; check2 is the existing OOB-clear bit30
+check. Validity distinguishes a RESET-phase sample from an absent sample.
+The public success receipt and every comparison/callback remain unchanged.
+`SWEET GMU FW READBACK` logs the cache after owner/watchdog quarantine and
+the existing partial-work rows. No diagnostic MMIO or retry is added. Repeat
+entry preserves the first sample. Synthetic12340000 fixtures are formatting
+tests and must never be reported as the physical0129 readback.
+
+Source0130 passes the full host suite and native firmware/board compilation.
+The frozen original0129 model produces identical I/O request counts and digests
+with both versions. A complete0130 kernel/image and coherent physical trial
+are still required to capture the real rejected value and continue debugging.

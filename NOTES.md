@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete133 native kernel/image/runtime readers qualified; one physical trial next
+
+Previous goal turn was progress: actual132 full TCM copy/readback then AO
+mask refusal;133 code tested/committed/pushed. THIS turn DSH31554 actual
+standard local build0/qualification0, gauguin.F4oxTo, captured HEAD
+727b267985916ed61cfaac7acb8c097b1ba4e3fc. Exact127-patch sourceacc6af6d...a6822,
+5282files. Native installed kernel16905504B SHA
+d2b8659469267c7f1dbe5b6a2b6c4b46f81a23eb46c96cd241a9077d04e05c69,
+IDxnu-6a2dc5a2f0d041ba8542aa15af19b543. Manifest SHA
+f44fac92cbd82c708b75eb5dbea6c319c055b10b77c9a5c9bdbf21103b3b2786;
+qualification SHAe2fe0482c50834f9c11446d7e5a2c8010470681a928722e7c7135117e67f1758.
+Every132 check retained plus ao_irq_named_sources_source_bound TRUE and
+installed AO-format check. Current native recipe/source now133 F4oxTo,
+do not reuse132 InoCAW after shared Makefile replacement. No CI used.
+
+DSH64173 actual package0/independent review0, all input hashes unchanged.
+Normal package-review-execution-result.json passed; newly authored wrapper
+uses exact native133 result filename, no metadata execution failure this time.
+Image shim/out/shim-p3-gmuf-0133-native-20261107.img19546112B SHA
+cae0af455a7c3e1ecf5bcc2ce2849f2f3c201266ed4401a8ac241e763a238493;
+payload19218432B SHA025d5ed1004515c78b930065fb6c2e68847faf8fd008f3799861de568943546b.
+Evidence SHA984482f1cb34229749f6464bde3e0dfc2daa5caa22923da7f91f77314a1bd1e6.
+Unique sweettrial=gmuf-0133-20261107-a1,539bytes; same asset source placement
+NVT182558000/MDT18257c000/GMU182580000. All older132/131/etc pins preserved.
+
+DSH91516 runtime_validate133.py actual0, normal three actual zero results,
+inputs unchanged. Clock4/95,FW17/276,full explicitly SYNTHETIC11/47. Reader SHA
+471a48eb46ee535b86155192599efe2b6ff425bf362317ff790b77f35e0be619.
+Requires one AO mask row after hidden3/PDC6 before adapter completion, requested
+ffffffff, checked_mask3b, all five named bits set, other bits UNQUALIFIED;
+allows fullffffffff for THIS requested-mask word. All original FW/ACK/copy/
+reset/OOB and other all-ones/status/IRQ checks retained. Tests cover named
+source missing, zero, raw3f/full mask/synthetic other bits, false-qualified/
+wrong mask/request/offset/order/missing/duplicate records. Numeric values,
+complete131-page/140-ATOS strings and original SHA pins preserved. All these
+handles CLOSED; no133 phone proof yet at THIS checkpoint.
+
+Phone last TWRP. Reviewed boot133.py/run_hardware133.py prepared for ONE
+image-pinned temporary boot, unique recoverygauguin/fastbootgauguinpro and
+routine latch readback, unchanged180s observer/freshpull. Next execute exact
+execute-hardware.txt via DSH; bind actual refusal or real FW-result/ACKs.
+Whole goal ACTIVE, original seven-line mkadt diff untouched; no flash/format/
+GPT/destructive action. No new user UI/touch/reset-attribution evidence.
+
 ### 2026-11-07 — 0133 AO named-source mask candidate committed; all61 hosts/two native TUs pass; full build next
 
 THIS goal turn is progress: complete132 native kernel/image/readers passed;

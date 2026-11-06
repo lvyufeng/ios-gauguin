@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — native0111 build qualified; first enabled reservation image ready
+
+Native build32110 exit0, no CI. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.W1dBXN/build-manifest.json.
+Kernel16798560B SHA2be023bbf91416c9137dbb654eb525a85c5b1d85e42172cf47e2f645dd099422,
+full ID xnu-ca43a06cd2de44cc9bd6f092ea45f636 (Nov6 09:12:46 CST).
+Source/all build inputs unchanged;105patches/5248files, required PAS/pmap and
+prior input/GPU/SCM symbols defined, ARM64/entry/segments/ADT bounds pass.
+Qualification p3-native-0111-qualification-20261106.json. Shared generated
+native build context is now111/W1dBXN; do not reuse110/liFpTf TU commands.
+
+Build capture started while the111 change was staged, before local a5d353e
+commit completed: captured HEAD23340e4 + tracked diff SHA
+f0042a098afbf523d9adf6579cd1e9e5b8b5911f306e2b9fb9d7257a8faadc84.
+Exact `git diff --binary <captured HEAD>` was rehashed after commit and matched
+that record, reconciling the build to committed a5d353e plus the original
+preserved mkadt edit. This is recorded explicitly, not relabeled a clean build.
+
+Prepared shim/out/shim-p3-low-pas-0111-native-20261106.img,19398656B,
+SHA a57b7194e31ab8bfb7e386d140018ec0552cdf306d37aec0b190ca58b9b2dac5.
+Same hardware-qualified new shim b5ba7764... and same original DTB; NVT
+assetPA182540000/raw139264/reserve147456 unchanged. Optional2MiB initrd tail
+is enabled; runtime must select/validate1MiB below4GiB and publish owner/pmap
+metadata. sweetpasprobe=1, NVT1/hz30, GCC/SCM probes off. Unique actual-log
+marker sweettrial=pasowner-0111-20261106-a1 required in addition to full ID.
+No buffer access/map, firmware loading or PAS/SMC operation is implemented.
+Host preflight on the real packed payload passes using synthetic handoff
+addresses; actual runtime PA/result are UNKNOWN until fresh hardware log.
+Evidence p3-low-pas-0111-native-evidence-20261106.json. Phone TWRP; next
+temporary180s boot and manual touch/recovery/log qualification.
+
 ### 2026-11-06 —0111 readonly ownership consumer ready for native build
 
 Added0111 gauguin_pas_probe: default-off sweetpasprobe=1 creates its own

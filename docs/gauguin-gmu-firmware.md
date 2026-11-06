@@ -197,3 +197,19 @@ The public receipt, other register comparisons and generic BCM path remain.
 Host coverage models the physical0x10100 value, synthetic unrelated bits, all
 six slots with each missing control bit/all-ones, repeat/output preservation,
 partial cache logging and the original failure at every I/O boundary.
+
+Physical0132 completes all six MSGID checks with raw0x10100, then copies and
+compares all8192 firmware words under reset. Register store51 refuses the AO
+HOST_INTERRUPT_MASK at byte offset0x2c18/PA0x03d8ec18: requested0xffffffff,
+actual0x3f. No reset release, firmware execution or ACK occurred. The full
+verifier correctly rejects the run; PDC execution and other field semantics
+are still unqualified despite completing its programming sequence.
+
+Pinned `kgsl_gmu.h` defines five AO sources at bits0/1/3/4/5 (union0x3b), all
+set in the observed mask. The next candidate will keep the full native mask
+write and existing I/O, check all five named mask bits, cache the raw value
+and mark other bits unqualified. The observation does not establish the
+implemented register width or read-only behavior. Full0xffffffff readback is
+also valid for this requested mask; the separate CSR mask and other register
+guards retain their existing checks. Actual firmware completion remains the
+required later evidence.

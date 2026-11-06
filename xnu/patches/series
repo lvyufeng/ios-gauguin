@@ -135,3 +135,4 @@
 0137-gauguin-gmu-cached-hfi-reply-diagnostics.patch
 0138-gauguin-gmu-native-ack-prefix-sequence.patch
 0139-gauguin-gmu-native-perf-table-builder.patch
+0140-gauguin-gmu-opt-in-perf-transaction.patch

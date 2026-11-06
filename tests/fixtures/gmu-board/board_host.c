@@ -24,7 +24,8 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned owner_calls,owner_fail,budgets,budget_fail,expire,allocs,frees,alloc_fail,smmu_calls,smmu_fail,barriers,corrupt;
     unsigned clock_bad,irq_bad,context,quarantine,reads,writes,writes64;bool live;uint64_t now;
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
-        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines,fw_reply_lines,fw_word_lines;} h;
+        fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines,fw_reply_lines,fw_word_lines,
+        perf_mode,perf_engine_calls,perf_complete_lines,perf_partial_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -32,6 +33,13 @@ static int host_printf(const char *s,...)
 {
     char text[256];va_list ap;va_start(ap,s);int n=vsnprintf(text,sizeof(text),s,ap);va_end(ap);
     CHECK(n>0&&(unsigned)n<sizeof(text));
+    if(strstr(text,"SWEET GMU PERF: complete")){
+        CHECK(h.perf_mode&&h.perf_engine_calls==1&&h.live&&!h.quarantine&&h.perf_complete_lines++==0);
+        CHECK(!strcmp(text,"SWEET GMU PERF: complete request=00302b04 words=43 ack=0002047e/00300000/00000000; no BW/TEST/normal HFI_ON/GPU/Metal qualification\n"));
+    }
+    if(strstr(text,"SWEET GMU PERF: partial")){
+        CHECK(h.perf_mode&&h.quarantine==1&&!h.live&&h.perf_partial_lines++==0);
+    }
     if(strstr(text,"SWEET GMU SMMU FAIL:")){CHECK(h.quarantine==1&&!h.live);++h.diag_lines;}
     if(strstr(text,"SWEET GMU SMMU IMPL:")){
         CHECK(!strcmp(text,"SWEET GMU SMMU IMPL: off=06b68 requested=9a82a382 readback=0a800082 policy=native-write; equality unqualified\n"));
@@ -78,14 +86,15 @@ static int host_printf(const char *s,...)
     }
     if(strstr(text,"SWEET GMU HFI REPLY:")){
         CHECK(h.quarantine==1&&!h.live&&h.fw_reply_lines++==0&&h.fw_bootcfg_lines==3);
-        const char *expected=h.engine_fail==13?
+        const char *expected=h.engine_fail==14?
+            "SWEET GMU HFI REPLY: phase=5 site=2 reason=4 queue=1 request=00302b04 expected=3 words=3 captured=3\n":h.engine_fail==13?
             "SWEET GMU HFI REPLY: phase=5 site=1 reason=7 queue=2 request=00100500 expected=3 words=0 captured=0\n":
             "SWEET GMU HFI REPLY: phase=5 site=2 reason=4 queue=1 request=00100500 expected=3 words=19 captured=19\n";
         CHECK(!strcmp(text,expected));
     }
     if(strstr(text,"SWEET GMU HFI WORD:")){
-        unsigned index=h.fw_word_lines++;CHECK(h.quarantine==1&&!h.live&&h.fw_reply_lines==1&&index<19&&h.engine_fail==12);
-        uint32_t raw=index==0?0x0012137e:index==1?0x00000500:0xa5000000u+index;char expected[192];
+        unsigned index=h.fw_word_lines++;CHECK(h.quarantine==1&&!h.live&&h.fw_reply_lines==1&&index<19&&(h.engine_fail==12||h.engine_fail==14));
+        uint32_t raw=h.engine_fail==14?(index==0?0x0002037e:index==1?0x00200000:0):index==0?0x0012137e:index==1?0x00000500:0xa5000000u+index;char expected[192];
         snprintf(expected,sizeof(expected),"SWEET GMU HFI WORD: index=%u value=%08x\n",index,raw);CHECK(!strcmp(text,expected));
     }
     return n;
@@ -343,8 +352,22 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     CHECK(!o->guard(NULL,GMF_RESET)&&!o->guard(NULL,GMF_DONE+1));
     memset(out,0,sizeof(*out));out->phase=GMF_DONE;out->fw_result=0xbabeface;out->reported_version=0x100b0000;return GMF_OK;
 }
+enum gmf_result gmf_bootstrap_perf_once(struct gmf_context *ctx,const struct gmf_ops *o,
+    const struct gmf_plan *p,struct gmf_receipt *out)
+{
+    CHECK(h.perf_mode&&h.perf_engine_calls++==0);ctx->perf_requested=1;
+    enum gmf_result rc=gmf_bootstrap_once(ctx,o,p,out);if(rc)return rc;
+    ctx->perf_started=1;
+    if(h.engine_fail==14){
+        ctx->reply_diagnostic=(struct gmf_reply_diagnostic){.valid=1,.phase=GMF_HANDSHAKE,.site=GMFR_REQUEST,.reason=GMFR_ECHO,.queue=1,.request_header=0x00302b04,.expected_words=3,.words=3,.captured=3,.data={0x0002037e,0x00200000,0}};
+        return GMF_ACK;
+    }
+    if(h.engine_fail!=15){ctx->perf_valid=1;ctx->perf_ack[0]=0x0002047e;ctx->perf_ack[1]=0x00300000;}
+    if(h.engine_fail==16)h.now=gfw_deadline;
+    return GMF_OK;
+}
 static enum gmb_result firmware_run(struct gmb_firmware_receipt *out)
-{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;return sweet_gmu_firmware_once(&s,&p,out);}
+{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;return h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
 static void firmware_failed(void)
 {
     struct gmb_firmware_receipt out,before;memset(&out,0xa3,sizeof(out));before=out;
@@ -384,6 +407,24 @@ static void firmware_cases(void)
     reset();h.firmware=1;h.gx_on=1;firmware_failed();CHECK(!h.engine_calls);
     printf("GMU firmware board: %u real callback/map/copy/phase/IRQ/fault cases PASS (typed engine seam, no hardware ACKs)\n",cases-first);
 }
+static void firmware_perf_cases(void)
+{
+    unsigned first=cases;
+    reset();h.firmware=h.perf_mode=1;struct gmb_firmware_receipt out;
+    CHECK(firmware_run(&out)==GMB_OK&&h.perf_engine_calls==1&&h.engine_calls==1&&h.perf_complete_lines==1&&!h.perf_partial_lines);
+    CHECK(out.phase==GMF_DONE&&h.maps==7&&h.nc_maps==1&&!h.quarantine);
+    struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;
+    unsigned budgets=h.budgets,stores=h.fw_stores,maps=h.maps;
+    CHECK(sweet_gmu_firmware_once(&s,&p,&out)==GMB_ALREADY&&firmware_run(&out)==GMB_ALREADY);
+    CHECK(h.budgets==budgets&&h.fw_stores==stores&&h.maps==maps&&h.perf_complete_lines==1);
+    for(unsigned n=1;n<=16;n++){reset();h.firmware=h.perf_mode=1;h.engine_fail=n;firmware_failed();CHECK(h.perf_partial_lines==1&&!h.perf_complete_lines);}
+    for(unsigned n=1;n<=24;n++){reset();h.firmware=h.perf_mode=1;h.fw_fail_phase=n;firmware_failed();CHECK(!h.perf_complete_lines);}
+    for(unsigned n=3;n<=7;n++){reset();h.firmware=h.perf_mode=1;h.map_fail=n;firmware_failed();CHECK(!h.perf_engine_calls&&!h.perf_partial_lines);}
+    for(unsigned n=1;n<=2;n++){reset();h.firmware=h.perf_mode=1;h.asset_fail=n;firmware_failed();CHECK(!h.perf_complete_lines);}
+    reset();h.firmware=1;CHECK(firmware_run(&out)==GMB_OK&&!h.perf_engine_calls&&!h.perf_complete_lines);
+    budgets=h.budgets;maps=h.maps;CHECK(sweet_gmu_firmware_perf_once(&s,&p,&out)==GMB_ALREADY&&h.budgets==budgets&&h.maps==maps);
+    printf("GMU PERF board: %u shared lifecycle, dependency/refusal/guard and post-quarantine logging cases PASS (typed engine seam)\n",cases-first);
+}
 int main(void)
 {
     happy();unsigned budgets=h.budgets,translations=h.translations,pmaps=h.pmap_calls;
@@ -405,4 +446,5 @@ int main(void)
     for(unsigned i=1;i<=budgets;i++){reset();h.budget_fail=i;failed();}
     printf("GMU actual board adapter: %u mapping/owner/reset/budget/failure cases PASS\n",cases);
     firmware_cases();
+    firmware_perf_cases();
 }

@@ -75,6 +75,13 @@ facts. All owned handles CLOSED. Original seven-line mkadt diff intact. No
 flash/format/GPT/destructive action. Codex core/review/Git; DSH compile/test/
 build/boot. No140 whole kernel/image/CI/hardware trial yet.
 
+Validated140 source/notes pushed and ls-remote verified
+50dc49c006fb083447f76606caac403a806a9186, sole parentbcb1cbd, ten text
+paths, same tree as private57192ae1775b94d1fcdab63b7322caa02f14395f.
+Report research/tmp/dsh-0140/public-snapshot-0140.json. No private ancestry,
+raw device/firmware/Apple assets/binaries/serials pushed. Local full native
+build is next; this source publication does not trigger a CI run.
+
 ### 2026-11-07 — pure139 native PERF builder validated;138 autonomous reset explicitly confirmed
 
 THIS goal turn is progress: unchanged138 full reader accepted fresh firmware,

@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0118 local full build and independent image review PASS
+
+Code59f4986df940f32bb1a6437fcddf1dc8b0686999; normal local make/dSYM/strip/install
+completed in run gauguin.Y1TL15. Source118 SHA9923370484996862a1019ecd35114ce3793327add4d1f57650f7af12aa19eb84,
+5267 files; all51 host files and isolated native TUs passed. Manifest SHA
+276d09311c3a45c3d77633c3d03671cdc209a82da638b9e59330b378b74a9f82.
+Installed kernel16851680B SHAfa6fa1e77b906ab5cc9908644ff6fd0dadb1d16eecafe57f7d0cd714e3f579af,
+ID xnu-bdef4e55eb0049fdb45ba87361ca914c, Nov6 20:05:04CST banner.
+
+Image shim/out/shim-p3-cxpower-0118-native-20261106.img19464192B SHA
+dc883ec60f05d3cba5fdc53ffc3c8f7f0047761cf08bfb5351728b1c743c461a;
+payload19136512B SHA5da9b14b9604a0f248f097789788b8b30bb29aba66569cc623126f90fe9c182e.
+Actual0x48/608 command line515B: sweetcxpower/busvote/PASprobe/PASstage1,
+PASinit/PASmem/otherprobes/PET/reboot/wdttest/touchmode0, NVT1/hz30/cpus8,
+sweetsample=-, unique sweettrial=cxpower-0118-20261106-a1. NVTasset18254c000 and
+MDTasset182570000 unchanged; runtime low reservation is still selected at boot.
+
+Independent image-parent-review.json PASS: exact wrapper/actual flags/ADT,
+10 native segments, asset pads/2MiB zero tail, all113–117 baseline pins and
+original mkadt diff. Native qualification retains provenance and all new defined
+symbols. Reports research/tmp/dsh-0118/native118-execution-result.json,
+research/tmp/p3-native-0118-qualification-20261106.json and
+research/tmp/p3-cxpower-0118-native-evidence-20261106.json. DSH10747/20542 terminal0.
+Root initially supplied wrong checker option --out; argparse rejected before
+checking/writing. Correct --report run passed; original error log retained.
+CX verifier additionally passed8 valid/99 rejected synthetic cases, parser-host-result.json;
+DSH81382 terminal0, source SHA05e74caaa3ccc981053b727bf53ba6a3decfed9b765f2070b8e9bb6df1602d62.
+
+Next: sanitized13-text-path snapshot from publicc90545f..., then boot118.py once
+with180s observer. No118 device boot yet; phoneTWRP. Require fresh THIS118 logs
+and user reset attribution, never reuse117 confirmation. Trial proves at most
+native ARC completion/CX PWR_ON, not GMU/GX/GPU/Metal. Parallel next-clock research
+uses6 exact19b63 GitHub blobs in dsh-0118/native-clock/pins.json; earlier
+native-clk-* copies were a different revision and are not authoritative here.
+
 ### 2026-11-06 — 0118 strict replay and all51 host files PASS; ready for local build
 
 Fresh112-patch replay produced source118-codex5267 files, SHA

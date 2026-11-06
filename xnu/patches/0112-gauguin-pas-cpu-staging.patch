@@ -1,6 +1,6 @@
 --- /dev/null
 +++ b/bsd/dev/gauguin_pas_stage.c
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,197 @@
 +/* One-time CPU staging/readback, sweetpasprobe=1 AND sweetpasstage=1.
 + * Internal caller supplies the region only after complete LowPASReservation
 + * and 64-page pmap validation, so ownership and cache attributes are checked
@@ -89,12 +89,16 @@
 +    (void)snprintf(line, 192, "%s sha256=%s", label, hex);
 +}
 +
-+/* Locate the loader-pinned A615ZapMDT asset from the real boot_args and ADT.
-+ * The asset must be 6860 raw bytes in one16KiB page, page-aligned, strictly
-+ * above the kernelcache, below topOfKernelData and entirely inside DRAM (the
-+ * boot_args checks above establish top <= physBase + memSize with no
-+ * overflow), with both endpoints in the direct map, and must hash to the
-+ * production pin before it is copied. A page ending exactly at
++/* Locate the loader-pinned A615ZapMDT page from the real boot_args and ADT.
++ * The descriptor is a physical address plus a byte count like every other
++ * /chosen/memory-map entry, and for this asset the count is the reserved
++ * descriptor PAGE(16KiB), not the metadata size: the packer maps one16KiB
++ * page for a 6860-byte image, and the raw6860 is pinned separately by its
++ * SHA256 below. The page is page-aligned, strictly above the kernelcache,
++ * below topOfKernelData and entirely inside DRAM (the boot_args checks above
++ * establish top <= physBase + memSize with no overflow), and both endpoints
++ * must be in the direct map. Only the first6860 bytes are hashed against the
++ * production pin before they are copied. A page ending exactly at
 + * topOfKernelData is legal. */
 +static const uint8_t *
 +pst_asset(void)
@@ -118,10 +122,10 @@
 +        return NULL;
 +    }
 +    memcpy(range, property, sizeof(range));
-+    uint64_t pa = range[0], raw = range[1];
++    uint64_t pa = range[0], reserved_bytes = range[1];
 +    /* Every bound is checked before any arithmetic or address translation so
 +     * a corrupted descriptor can never wrap into a mapped kernel address. */
-+    if (!pa || raw != PST_BYTES || (pa & (PST_PAGE - 1)) ||
++    if (!pa || reserved_bytes != PST_PAGE || (pa & (PST_PAGE - 1)) ||
 +        pa < arm_vm_kernelcache_phys_end || pa >= args->topOfKernelData ||
 +        PST_PAGE > args->topOfKernelData - pa ||
 +        PST_PAGE > args->physBase + args->memSize - pa) {

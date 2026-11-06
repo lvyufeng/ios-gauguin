@@ -2,62 +2,50 @@
 
 ## Agent handoff / active work
 
-### 2026-11-06 - 0112 CPU firmware staging (code + tests); build/package in progress
+### 2026-11-06 - 0112 CPU staging: reviewed descriptor fix committed; native build pending
 
-Drafted then reviewed the0112 CPU staging path. `tools/mkpayload.py` gained an
-optional `--zap-mdt` A615ZapMDT data asset (immutable6860-byte MDT, SHA
-6f2a0e35...16ac7b) behind kernel/NVT using a factored asset helper; the MDT
-descriptor page is16KiB (zero padded), the raw6860 pin is unchanged, default
-and NVT payload bytes/info are unchanged (NVT goldens pass). New kernel file
-`bsd/dev/gauguin_pas_stage.c` maps ONLY the first16KiB of the validated dynamic
-1MiB region with ml_io_map_wcomb after the111 owner record and all64 pages
-passed, verifies both endpoints with ml_vtophys, zeroes16KiB, copies6860 MDT
-bytes after re-verifying their raw SHA, DSBs, then checks the readback SHA
-(raw6860 pin) plus the9524 zero tail. It is called only when sweetpasprobe=1
-AND sweetpasstage=1; one attempt per boot; mapping/reservation retained until
-reboot on success or failure; no unmap/retry, no SCM/PAS, no GPU/power/register
-access. A page ending exactly at topOfKernelData is accepted; a zero remaining
-length is not. Default-off111 readonly path is byte-identical.
+Review status: the current narrow0112 correction and its tests are APPROVED by
+the parent Codex review (research/tmp/dsh-0112/narrow-contract.txt,
+narrow-final-fixes.txt). User preference recorded: DSH runs with
+danger-full-access for implementation/build, Codex plans and reviews.
 
-Fresh strict replay from pristine1b191cb (106 patches) into source112-dsh;
-exact differences from111: bsd/conf/files, bsd/dev/gauguin_pas_probe.c, new
-bsd/dev/gauguin_pas_stage.c; only the series and0112 patch changed among
-recorded inputs (source112-dsh-659d8149ab08208f.json). ARM64 single-TU compile
-via the111/W1dBXN manifest passed (14504B). Full host suite on source112-dsh
-passes (full-host.log). Tests: new test_pas_staging.py + guard-page fixture
-(real production flow, DSB/DT/map/translation seams, strict-byte crypto seam
-returning the real raw pin only for the exact synthetic6860 bytes; asset is
-never modified), test_payload_zap_asset.py, and the owner fixture now requires
-the stage call only after all64 pages and only with sweetpasstage=1.
+The fix: the packer emits the A615ZapMDT descriptor second word as the reserved
+descriptor page size,16KiB, not the raw6860 metadata length. The consumer
+(`bsd/dev/gauguin_pas_stage.c` in xnu/patches/0112-gauguin-pas-cpu-staging.patch)
+therefore accepts `reserved_bytes == PST_PAGE` (16KiB, page-aligned, bounds
+unchanged) and keeps pinning the first raw6860 bytes by SHA256; raw6860 remains
+ZAP_MDT_SIZE. Linked regression added: tests/test_pas_staging.py now runs the
+real packer (tools/mkpayload.py, synthetic MDT bytes) and feeds its emitted
+16-byte /chosen/memory-map/A615ZapMDT property and last16KiB segment to the
+host fixture tests/fixtures/gauguin_pas_stage_host.c, which stages the emitted
+descriptor and rejects raw6860/16383/16385; a mutant consumer requiring
+PST_BYTES aborts at the first positive case (runtime proof, not text match).
+
+Contract source: .deps-cache/p0-20261105/source112-dsh-contract, fresh strict
+replay of pristine1b191cb +106 patches,5249 files, canonical
+tools/xnu-build-manifest.py snapshot SHA
+7b408015fc035412822c2b87d4d3a7f7fc2b2f538614fa8643617de83fe97283
+(contract-parent-hashes.json); old source112-dsh / source112-c003dc1c is
+23b0fb38d7792ff920be58b8966e036b1fda4b8a460c338e9e0f1e671d8846b2; diff -r is
+only bsd/dev/gauguin_pas_stage.c. Full host suite passes (41 files) on that
+source (contract-full-host.log); focused3/3 and payload2+9 pass
+(contract-focused-stage.log, contract-payload.log; contract-result.json).
+Committed here: 0112 patch, test_pas_staging.py, guard-page fixture and this
+NOTES. The user's 7-line tools/mkadt.py edit stays uncommitted (unchanged).
+
+Native build: the old run gauguin.Qz3IuF permanently failed (make exit2: the
+dSYM rule's `2> >(grep ...)` hit the old DSH sandbox's /dev/fd denial). Keep it
+as history; its manifest (SHA ad7d22d0...33a7f13, state failed) is unchanged and
+its unstripped20547000B link object (SHA 53b050be...7eecf742, banner
+xnu-39930ab6, NOT0112) is preserved in ignored
+research/tmp/dsh-0112/contract-preserve/failed-Qz3IuF-kernel.unstripped. A new
+standard build run (no BUILD_DSYM=0, no manual strip, no manifest relabel) with
+the user-approved danger-full-access tool mode is now the next step:
+`SKIP_TESTS=1 bash deps/build-macos.sh gauguin --xnu $PWD/.deps-cache/p0-20261105/source112-dsh-contract
+--build-root $PWD/.deps-cache/p0-20261105/build --out $PWD/research/tmp/p3-native-0112-20261106-fullaccess-out --jobs 8`
+logging to research/tmp/p3-native-0112-fullaccess-build-20261106.log. It
+should finish the normal dSYM/strip/install path; build result pending.
 Phone remains TWRP; nothing packaged or booted for0112; no PAS/GPU op.
-
-Native build (local, SKIP_TESTS=1 after the passing suite, committed003dc1c with
-only the original mkadt edit dirty) ran as run gauguin.Qz3IuF: manifest captured
-HEAD003dc1c, source112-dsh (5249 files), all recorded inputs re-hashed equal.
-Compile and kernel link completed; the final strip was never run because the
-dSYM rule's `2> >(grep ...)` hits the DSH sandbox's /dev/fd denial
-("bash: /dev/fd/63: Operation not permitted"), so make exited2 with state=failed.
-The unstripped link object is20547000B SHA
-53b050be178374807527aac3dc08bdc0466887de59cc71ca9474ef337eecf742, banner
-"Darwin Kernel Version 22.6.0: Fri Nov  6 11:19:23 CST 2026;
-baai:xnu-39930ab6e8194dd5b5e3a1d2dc358a39", ARM64 Mach-O, with
-_sweet_pas_stage_once, the PAS pmap/owner and ml_io_map_wcomb/ml_vtophys/SHA256
-symbols defined; payload/ADT/entry/segment bounds pass
-(p3-native-0112-qualification-20261106.json). The installed/stripped kernel in
-the object dir is still the111 artifact, so NO0112 image was packaged: the
-packer (research/tmp/dsh-0112/pack_native0112.py) refuses without a finished,
-stripped, qualified kernel and has written nothing.
-
-Release (needs sandbox permission; record in build provenance, do not relabel):
-1) finish the strip products for this run - `make ... kernel.development.gauguin`
-   in the SDKROOT env with BUILD_DSYM=0, or run dsymutil separately (done here
-   successfully) and strip the unstripped object; 2) copy the stripped kernel to
-   the staging/install path and run `tools/xnu-build-manifest.py finish` with this
-   run and the real make status; 3) re-run qualification, then
-   `pack_native0112.py` to write shim/out/shim-p3-passtage-0112-native-20261106.img
-   (proven shim b5ba7764..., original DTB, ADT7d6d93be..., NVT + raw MDT, 2MiB
-   initrd tail with1MiB runtime region, sweetpasprobe/stage=1, marker
-   sweettrial=passtage-0112-20261106-dsh-a1). No boot until GPT review.
 
 ### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
 

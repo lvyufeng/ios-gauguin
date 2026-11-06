@@ -6,7 +6,14 @@
  * flow, strict bytes, negative paths and guard-page bounds, NOT host or
  * hardware cryptographic qualification. The staged page is an anonymous span
  * bracketed by inaccessible guard pages, so any access outside the one mapped
- *16KiB page faults. */
+ *16KiB page faults.
+ *
+ * The DT descriptor and the asset page are not invented here: main() reads
+ * exactly16 descriptor bytes and exactly16384 asset bytes (EOF required) from
+ * the files named on the command line, as serialized by the real packer. The
+ * descriptor is copied back from those bytes on every reset, so the second
+ * word of the property is exercised exactly as emitted rather than regenerated
+ * by the fixture. */
 #define _GNU_SOURCE 1
 #include <assert.h>
 #include <stdbool.h>
@@ -15,8 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <string.h>
 #include <sys/mman.h>
+#include <string.h>
 #define GAUGUIN 1
 #define PAGE_SHIFT 14
 #define kSuccess 0
@@ -33,7 +40,10 @@ unsigned long gPhysBase=0x180000000ul,real_phys_size=0x10000000ul;
 vm_offset_t arm_vm_kernelcache_phys_end;
 static uint8_t *asset,*target;
 static uint8_t synthetic[6860];
-static uint64_t descriptor[2],low_pa=0x94000000;
+/* Emitted by the packer (main() loads them) and copied verbatim on reset. */
+static uint64_t descriptor[2],asset_pa;
+static uint8_t emitted_descriptor[16],emitted_page[16384];
+static uint64_t low_pa=0x94000000;
 static const uint8_t raw_pin[32]={
     0x6f,0x2a,0x0e,0x35,0x32,0x50,0x97,0xf9,0x8f,0xde,0xd6,0x12,0x3d,0x75,0x52,0x66,
     0xcd,0xbb,0x44,0xca,0xa9,0x32,0xbe,0x61,0x25,0x1b,0x65,0xb5,0xc5,0x16,0xac,0x7b};
@@ -65,7 +75,7 @@ int SecureDTGetProperty(DTEntry entry,const char *name,const void **out,unsigned
 }
 vm_offset_t ml_static_ptovirt(vm_offset_t pa)
 {
-    uint64_t actual=gPhysBase+0x2000000;
+    uint64_t actual=asset_pa;
     if(pa!=actual && pa!=actual+0x3fff)return 0; /* unmapped direct-map range */
     if(pa==actual && mock.alias_error==1)return 0;
     if(pa!=actual && mock.alias_error==2)return (vm_offset_t)(asset+0x4000);
@@ -111,15 +121,31 @@ static void fake_dsb(void)
 static void reset(void)
 {
     memset(&mock,0,sizeof(mock));pst_attempted=0;pst_mapping=0;
-    real_phys_size=0x10000000ul;arm_vm_kernelcache_phys_end=gPhysBase+0x2000000;
-    args=(boot_args){2,gPhysBase,real_phys_size,gPhysBase+0x200C000};PE_state.bootArgs=&args;
-    descriptor[0]=gPhysBase+0x2000000;descriptor[1]=6860;
-    memcpy(asset,synthetic,sizeof(synthetic));memset(asset+6860,0,sizeof(synthetic));
+    real_phys_size=0x10000000ul;arm_vm_kernelcache_phys_end=asset_pa;
+    args=(boot_args){2,gPhysBase,real_phys_size,asset_pa+3*16384};PE_state.bootArgs=&args;
+    /* Verbatim emitted property; only tests that must corrupt it or move it
+     * past topOfKernelData write descriptor[] after this. */
+    memcpy(descriptor,emitted_descriptor,sizeof(descriptor));
+    memcpy(asset,emitted_page,sizeof(emitted_page));
     memset(target,0xa5,16384);
 }
 static void untouched(void) { for(unsigned i=0;i<16384;i++)assert(target[i]==0xa5);assert(!mock.barriers); }
-int main(void)
+static void load_exact(const char *path,void *out,size_t bytes)
 {
+    FILE *file=fopen(path,"rb");assert(file);
+    assert(fread(out,1,bytes,file)==bytes);
+    assert(fgetc(file)==EOF);assert(!ferror(file));assert(!fclose(file));
+}
+int main(int argc,char **argv)
+{
+    if(argc!=3){fprintf(stderr,"usage: %s descriptor.bin page.bin\n",argv[0]);return 2;}
+    load_exact(argv[1],emitted_descriptor,sizeof(emitted_descriptor));
+    load_exact(argv[2],emitted_page,sizeof(emitted_page));
+    memcpy(&asset_pa,emitted_descriptor,sizeof(asset_pa));
+    /* The descriptor word restored by reset() describes the page the C
+     * consumer stages: it must be exactly one emitted16KiB page. */
+    uint64_t length;memcpy(&length,emitted_descriptor+8,sizeof(length));
+    assert(length==16384);
     void *memory=NULL;assert(!posix_memalign(&memory,16384,16384*2));asset=memory;
     size_t span=5*16384;
     void *lo=mmap(NULL,span,PROT_NONE,MAP_PRIVATE|MAP_ANON,-1,0);assert(lo!=MAP_FAILED);
@@ -164,7 +190,7 @@ int main(void)
         if(mode==10)arm_vm_kernelcache_phys_end=args.topOfKernelData+16384;
         if(mode==11)PE_state.bootArgs=NULL;
         /* boot_args rejections come first; then genuine descriptor rejections:
-         * zero, raw6861, unaligned, below kernelcache, exactly at top. */
+         * zero, emitted+1, unaligned, below kernelcache, exactly at top. */
         if(mode==12)descriptor[0]=0;if(mode==13)descriptor[1]++;
         if(mode==14)descriptor[0]+=1;if(mode==15)descriptor[0]-=16384;
         if(mode==16)descriptor[0]=arm_vm_kernelcache_phys_end-16384;
@@ -175,6 +201,16 @@ int main(void)
         if(mode==20)asset[100]^=1;if(mode==21)asset[6859]^=0x80;
         if(mode==22||mode==23)mock.alias_error=(int)mode-21;
         sweet_pas_stage_once(low_pa,0x100000);assert(!mock.maps);untouched();
+    }
+    /* Descriptor second word: only the reserved page is accepted. The raw or
+     * near-raw metadata lengths, and one byte either side of16KiB, are refused
+     * before any mapping. */
+    static const uint64_t lengths[]={6860,16383,16385};
+    for(unsigned mode=0;mode<3;mode++) {
+        reset();descriptor[1]=lengths[mode];
+        sweet_pas_stage_once(low_pa,0x100000);
+        assert(!mock.maps && mock.properties==1);untouched();
+        assert(strstr(mock.log,"missing/invalid pinned MDT asset; no low mapping"));
     }
     for(unsigned mode=0;mode<5;mode++) {
         reset();if(mode==0)mock.map_error=1;

@@ -1,0 +1,337 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_wdt_test.c
+@@ -0,0 +1,245 @@
++/* Opt-in APSS watchdog expiry experiment, sweetwdttest=1. Default off.
++ * Gauguin native19b63c8 watchdog_v2.c: WDT_HZ32765, bark20s/bite23s,
++ * qcom,wakeup-enable => EN3. This worker programs only this watchdog; it
++ * performs no GPU/bandwidth/SMC operation. The existing loader still makes
++ * its pre-kernel secure-watchdog attempt; success there is NOT assumed.
++ *
++ * SweetWatchdog startup excludes its sampler/PET before any scheduling when
++ * this flag is set. Retain IOWatchdog's userland service/check-in semantics.
++ * A read-only helper requires the initialized GIC NS view to show SPI32/33
++ * disabled. Secure-owned interrupt state remains opaque. No GIC write occurs.
++ *
++ * Register/counter readback is not reset proof. Only actual automatic reset
++ * and a fresh same-trial log can qualify this experiment; it does not prove
++ * that a watchdog can interrupt arbitrary future secure-world hangs.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <mach/mach_time.h>
++#include <vm/pmap.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern vm_offset_t ml_vtophys(vm_offset_t);
++extern boolean_t pmap_valid_page(ppnum_t);
++extern unsigned int pmap_cache_attributes(ppnum_t);
++extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
++extern void thread_terminate_self(void);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++extern bool sweet_wdt_irq_quiet(uint32_t *);
++bool sweet_wdt_test_requested(void);
++void sweet_wdt_test_init(void);
++
++#define WDT_PA UINT64_C(0x17c10000)
++#define WDT_BYTES 0x1000u
++#define WDT_RST 0x04u
++#define WDT_EN 0x08u
++#define WDT_STS 0x0cu
++#define WDT_BARK 0x10u
++#define WDT_BITE 0x14u
++#define WDT_HZ 32765u
++#define WDT_BARK_TICKS (20u * WDT_HZ)
++#define WDT_BITE_TICKS (23u * WDT_HZ)
++_Static_assert(PAGE_SHIFT == 14, "one unmanaged16KiB page covers the WDT");
++_Static_assert(WDT_BITE_TICKS < 0x100000u, "deadline fits the native20-bit counter");
++
++static unsigned wdt_started;
++static vm_offset_t wdt_mapping; /* IO mapping retained until reset. */
++static bool wdt_context(void);
++
++static uint32_t
++wdt_read(uint32_t offset)
++{
++    uint32_t value = *(volatile uint32_t *)(wdt_mapping + offset);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++
++static void
++wdt_write(uint32_t offset, uint32_t value)
++{
++    *(volatile uint32_t *)(wdt_mapping + offset) = value;
++    __asm__ volatile("dsb sy" ::: "memory");
++}
++
++static void
++wdt_record(const char *message)
++{
++    printf("%s\n", message);
++    /* Rejection paths may run with IRQs/preemption disabled. Printing is
++     * allowed there; synchronous UFS persistence may acquire a mutex. */
++    if (!wdt_context()) {
++        return;
++    }
++    sweet_log_mark_sync(message);
++    sweet_log_flush_now();
++}
++
++static bool
++wdt_context(void)
++{
++    return ml_get_interrupts_enabled() && !ml_at_interrupt_context() &&
++        get_preemption_level() == 0;
++}
++
++bool
++sweet_wdt_test_requested(void)
++{
++    int test = 0;
++    (void)PE_parse_boot_argn("sweetwdttest", &test, sizeof(test));
++    return test == 1;
++}
++
++static bool
++wdt_conflict(void)
++{
++    /* Do not confuse another timed panic/reboot with this hardware expiry, or
++     * combine the first reset test with any other new MMIO experiment. */
++    static const char *const names[] = {"sweetwdtpet", "sweetreboot",
++        "sweetbusprobe", "sweetgpuprobe", "sweetscmprobe", "sweettouchmode",
++        "sweetpasprobe", "sweetpasstage"};
++    for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
++        int value = 0;
++        (void)PE_parse_boot_argn(names[i], &value, sizeof(value));
++        if (value != 0) {
++            char line[160];
++            snprintf(line, sizeof(line), "SWEET WDT TEST: conflict %s=%d; stopped before map/write", names[i], value);
++            wdt_record(line);
++            return true;
++        }
++    }
++    return false;
++}
++
++static bool
++wdt_irq_check(void)
++{
++    uint32_t enabled = UINT32_MAX;
++    char line[160];
++    bool quiet = sweet_wdt_irq_quiet(&enabled);
++    snprintf(line, sizeof(line), "SWEET WDT TEST: GIC NS ISENABLER1=%08x quiet=%u; secure IRQ state opaque", enabled, quiet ? 1u : 0u);
++    wdt_record(line);
++    return quiet;
++}
++
++static void
++wdt_run(void)
++{
++    char line[192];
++    ppnum_t pn = (ppnum_t)(WDT_PA >> PAGE_SHIFT);
++    boolean_t managed = pmap_valid_page(pn);
++    unsigned attr = pmap_cache_attributes(pn);
++    if (managed || (attr & 0xffu) != 7u) {
++        snprintf(line, sizeof(line), "SWEET WDT TEST: pmap managed=%u attr=%08x; stopped", managed ? 1u : 0u, attr);
++        wdt_record(line);
++        return;
++    }
++    if (!wdt_irq_check()) {
++        wdt_record("SWEET WDT TEST: NS IRQ guard failed; no WDT writes");
++        return;
++    }
++    wdt_record("SWEET WDT TEST: mapping 17c10000+1000 Device RW; exact register whitelist only");
++    wdt_mapping = ml_io_map_with_prot(WDT_PA, WDT_BYTES, VM_PROT_READ | VM_PROT_WRITE);
++    if (!wdt_mapping || ml_vtophys(wdt_mapping) != WDT_PA ||
++        ml_vtophys(wdt_mapping + WDT_BYTES - 1u) != WDT_PA + WDT_BYTES - 1u) {
++        wdt_record("SWEET WDT TEST: map/translation failed; stopped before register access");
++        return;
++    }
++    uint32_t en = wdt_read(WDT_EN), status = wdt_read(WDT_STS);
++    uint32_t bark = wdt_read(WDT_BARK), bite = wdt_read(WDT_BITE);
++    snprintf(line, sizeof(line), "SWEET WDT TEST: initial en=%08x sts=%08x bark=%u bite=%u", en, status, bark, bite);
++    wdt_record(line);
++    if (en != 0) {
++        wdt_record("SWEET WDT TEST: watchdog already enabled/unknown; no writes");
++        return;
++    }
++    wdt_record("SWEET WDT TEST: preparing native BARK655300 BITE753595 EN3; one final RST, then no pets");
++    /* Recheck immediately before any write, after persistence operations. */
++    uint32_t irq = UINT32_MAX;
++    if (!wdt_context() || !sweet_wdt_irq_quiet(&irq) || wdt_read(WDT_EN) != 0) {
++        wdt_record("SWEET WDT TEST: pre-write context/IRQ/enable changed; no writes");
++        return;
++    }
++    wdt_write(WDT_BARK, WDT_BARK_TICKS);
++    wdt_write(WDT_BITE, WDT_BITE_TICKS);
++    /* Never enable with unverified thresholds. No restoration/retry: the
++     * initially disabled watchdog stays disabled if threshold checks fail. */
++    if (wdt_read(WDT_BARK) != WDT_BARK_TICKS || wdt_read(WDT_BITE) != WDT_BITE_TICKS) {
++        wdt_record("SWEET WDT TEST: threshold readback mismatch; EN/RST not written");
++        return;
++    }
++    wdt_write(WDT_EN, 3u);
++    wdt_write(WDT_RST, 1u); /* native sequence; never read the pulse register */
++    en = wdt_read(WDT_EN); bark = wdt_read(WDT_BARK); bite = wdt_read(WDT_BITE);
++    status = wdt_read(WDT_STS);
++    snprintf(line, sizeof(line), "SWEET WDT TEST: armed readback en=%08x bark=%u bite=%u sts=%08x at=%llu", en, bark, bite, status, mach_absolute_time());
++    wdt_record(line);
++    if (en != 3u || bark != WDT_BARK_TICKS || bite != WDT_BITE_TICKS) {
++        wdt_record("SWEET WDT TEST: arming readback failed; no retry/cleanup/pet; state unqualified");
++        return;
++    }
++    uint32_t previous = (status >> 1) & 0xfffffu;
++    for (unsigned i = 1; i <= 5; ++i) {
++        IOSleep(1000);
++        status = wdt_read(WDT_STS);
++        en = wdt_read(WDT_EN);
++        uint32_t count = (status >> 1) & 0xfffffu;
++        snprintf(line, sizeof(line), "SWEET WDT TEST: sample=%u en=%08x sts=%08x count=%u at=%llu", i, en, status, count, mach_absolute_time());
++        wdt_record(line);
++        if (en != 3u || count <= previous) {
++            wdt_record("SWEET WDT TEST: no monotonic enabled counter; reset remains unqualified; no pets");
++            return;
++        }
++        previous = count;
++    }
++    wdt_record("SWEET WDT TEST: counter advancing, no pets; awaiting actual reset (readback is not reset proof)");
++    for (unsigned i = 0; i < 25; ++i) {
++        IOSleep(1000);
++    }
++    wdt_record("SWEET WDT TEST: survived 30 requested seconds after arm; automatic reset NOT qualified; no retry");
++}
++
++static void
++wdt_worker(void *argument, wait_result_t result)
++{
++    (void)argument; (void)result;
++    if (!wdt_context() || wdt_conflict()) {
++        printf("SWEET WDT TEST: worker context/config rejected\n");
++        thread_terminate_self();
++        return;
++    }
++    wdt_record("SWEET WDT TEST: worker delay45s; legacy sampler/PET excluded");
++    for (unsigned i = 0; i < 45; ++i) {
++        IOSleep(1000);
++    }
++    if (wdt_context()) {
++        wdt_run();
++    } else {
++        wdt_record("SWEET WDT TEST: invalid context after delay; no map/write");
++    }
++    thread_terminate_self();
++}
++
++void
++sweet_wdt_test_init(void)
++{
++    thread_t thread;
++    if (!sweet_wdt_test_requested() || __atomic_exchange_n(&wdt_started, 1, __ATOMIC_ACQ_REL)) {
++        return;
++    }
++    kern_return_t result = kernel_thread_start(wdt_worker, NULL, &thread);
++    if (result == KERN_SUCCESS) {
++        thread_deallocate(thread);
++    } else {
++        printf("SWEET WDT TEST: thread creation failed=%d; no inline fallback\n", result);
++    }
++}
++#endif /* GAUGUIN */
+--- a/iokit/Kernel/arm/SweetWatchdog.cpp
++++ b/iokit/Kernel/arm/SweetWatchdog.cpp
+@@ -31,6 +31,10 @@
+ /* declared (not exported) by osfmk/arm64/pmap; sweet_ufs.c does the same */
+ extern "C" vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
+ 
++
++#if defined(GAUGUIN)
++extern "C" bool sweet_wdt_test_requested(void);
++#endif
+ 
+ void sweet_wdt_thread_start(void);
+ void sweet_pon_dump(void);
+@@ -529,6 +533,16 @@
+ void
+ sweet_wdt_thread_start(void)
+ {
++#if defined(GAUGUIN)
++	/* The reset experiment owns APSS WDT exclusively. Exclude both legacy
++	 * aliases/callouts before scheduling, even when test flags conflict.
++	 * The userland IOWatchdog service and read-only secure diagnostics stay. */
++	if (sweet_wdt_test_requested()) {
++		IOLog("SWEET WDT TEST: legacy sampler/PET excluded before scheduling\n");
++		sweet_secure_diag_start();
++		return;
++	}
++#endif
+ 	if (sweet_wdt_call != NULL) {
+ 		return;
+ 	}
+--- a/pexpert/arm/pe_fiq.c
++++ b/pexpert/arm/pe_fiq.c
+@@ -49,6 +49,28 @@
+ #define gicr_read32(offset) (_gic_read32(gicr_pe_base + (offset)))
+ #define gicr_write32(offset, data) (_gic_write32(gicr_pe_base + (offset), (data)))
+ #define gicr_read64(offset) (_gic_read64(gicr_pe_base + (offset)))
++
++/* Gauguin APSS watchdog experiment: read-only interrupt precondition.
++ * Architected GICD_ISENABLER1=0x104 (SPI32..63); DT watchdog SPI0/1=INTID32/33.
++ * Reuse the initialized PE mapping; read-only, no SPI/GIC configuration change.
++ * A zero bit in this NS view does not disclose or claim secure ownership. */
++#if defined(GAUGUIN)
++extern vm_offset_t ml_vtophys(vm_offset_t);
++bool sweet_wdt_irq_quiet(uint32_t *enabled);
++bool
++sweet_wdt_irq_quiet(uint32_t *enabled)
++{
++    if (enabled == NULL || !gicd_base ||
++        ml_vtophys(gicd_base) != UINT64_C(0x17a00000) ||
++        ml_vtophys(gicd_base + 0x104u) != UINT64_C(0x17a00104)) {
++        return false;
++    }
++    uint32_t value = gicd_read32(0x104u);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    *enabled = value;
++    return (value & 3u) == 0;
++}
++#endif
+ 
+ static vm_offset_t
+ find_gicr_pe_base()
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -116,6 +116,7 @@
+ bsd/dev/cmd_db_snapshot.c		standard
+ bsd/dev/gauguin_bcm_plan.c		standard
+ bsd/dev/gauguin_bus_probe.c		standard
++bsd/dev/gauguin_wdt_test.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -408,6 +408,7 @@
+ extern void sweet_scm_probe_init(void);
+ extern void sweet_pas_probe_init(void);
+ extern void sweet_bus_probe_init(void);
++extern void sweet_wdt_test_init(void);
+ #endif
+ void set_rootvnode(vnode_t);
+ 
+@@ -1076,6 +1077,7 @@
+ 	sweet_scm_probe_init();
+ 	sweet_pas_probe_init();
+ 	sweet_bus_probe_init();
++	sweet_wdt_test_init();
+ #endif
+ 
+ #if 0 /* not yet */

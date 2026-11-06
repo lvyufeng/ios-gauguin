@@ -3,6 +3,70 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0114 watchdog expiry candidate authored, not yet qualified
+
+Previous goal turn made verified hardware progress:0113 CMDDB/DRV2/touch PASS.
+The current task qualifies a real automatic reset before stateful GPU bring-up.
+Codex has authored research/tmp/dsh-0114/candidate/ and integrated draft patch
+0114-gauguin-watchdog-expiry-test.patch (not yet committed). Preserve113 baseline.
+Default-off sweetwdttest=1 starts one delayed kernel thread. SweetWatchdog startup
+excludes its old sampler/PET before any callout allocation when the flag is set,
+while retaining userland IOWatchdog/PMU stubs and read-only secure diagnostics.
+The worker rejects nonzero PET/reboot/bus/GPU/SCM/touchmode/PASprobe/PASstage flags;
+PASworker ALSO waits45s asynchronously, so do not assume it completes first.
+This dedicated114 image will turn both CPU PAS flags off.
+
+Native-sourced thresholds:32765Hz, BARK655300 (20s), BITE753595 (23s), EN3 then
+one RST1. EN1 is NOT proven to mean bark masking. A new read-only pe_fiq helper
+reuses GICD mapping, validates PA17a00000, reads ISENABLER1@104 and requires NS
+SPI32/33 enable bits clear; no GIC writes, no claim of secure IRQ ownership.
+WDT17c10000+1000 must be unmanaged/Device, translate exactly and startEN0;
+thresholds read back before enabling. Five finite counter samples, then no pets,
+no cleanup writes, no software reboot fallback. 30 requested seconds without
+reset logs failure, not success. Real automated recovery plus fresh unique-trial
+log required; this will only qualify normal running reset, not arbitrary
+future secure-world hang containment. Existing shim still makes a pre-kernel
+secure-WDT SMC attempt (113 returned-2), so do not claim the wholeboot is SMC-free.
+
+Code/source review closed the concrete context bug: wdt_record now prints but
+never synchronously marks/flushes UFS in invalid context. The stronger fixture
+rejects the old source114-codex at runtime (bad context after delay / synchronous
+mark requires preemptible thread context), after successful compile. Fresh
+source114-context strict replay PASSED all108 patches;5255files SHA256
+738fda981dbee40acd133f2542e05cb3db5d26ac292e61ccb86a06fe3a9557a3; exactly5 source
+changes vs113, preserved113 unchanged. Full45 test files PASS, including87actual
+worker/helper/legacy-gate cases, ASan/UBSan; tested source unchanged. Prior
+87/45 passes on oldsource lacked the new context assertions and are not final
+qualification. Reports dsh-0114/context-tests-dsh-result.json and
+replay-full-host-context-result.json. Initial ARM64 singleTU PASS before the
+PAS flag/context-log fixes (historical only), report
+research/tmp/gauguin-nvt-p1/wdt114-codex-compile/run-itbjzet3/compile.json;
+no current full114 build/image/boot/arming. Next: commit this tested source,
+DSH normal local full build/qualification/packing, then independent image review
+and one temporary expiry trial. Do not equate host success with hardware reset.
+Current native build context remains113/67UNbi. Phone lastconfirmedTWRP.
+
+DSH executorcontextturns(tests/testwdt_expiry.py):
+observed: oldsource114codex (precontextfix) compiles (clangexit0)
+but runtime FAILS line175 "synchronous mark requires preemptible thread
+context", test exit1, as Codex review predicted (expected negative, not a
+compile failure). Fresh strict replay to .deps-cache/.../source114context:
+exactly5diffs vs113, api hash738fda98...(5255 files), baseline
+unchanged; tests/runall.sh exit0, 45sections, WDT fixture PASS (87 cases),
+tail "all host tests passed". Record
+research/tmp/dsh0114/contexttestsdshresult.json; logs
+oldcontextregression.log / replaycontextexecutor.log /
+replay114context.log / fullhost114context.log. History preserved (old
+45file PASS untouched). No build/device/network/git/source edits.
+Note: source114context was replayed from the current working-tree patch set
+(uncommitted tests + draft0114), not from a committed state; old
+source114codex tree is unchanged and still contains the invalid-context bug.
+Last public handoff d9cc88b77311059a053fa8a077bde7773d3e678e (parent586ae424...),
+local baseline handoff534fbc45472f9af90424543b0f10e04bfac6285f.
+Original mkadt.py edit remains untouched. See dsh-0114/parent-state.json for jobs.
+
+
+
 ### 2026-11-06 — 0113 real CMDDB/DRV2 readback VERIFIED; touch unlock retained
 
 Next concrete action: preserve0113 and qualify an actual enforced reset path

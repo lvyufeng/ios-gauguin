@@ -72,12 +72,26 @@ afterwards, recheck unrelated controls/routes, and clear the local halt request.
 Failure quarantines the transaction and its watchdog authorization; software
 timeouts cannot cancel a fabric access that never returns.
 
-## Following integration
+## Cached failure diagnostics
 
-Next implement the pinned32768-byte legacy asset contract, narrow TCM and GMU
-AO/PDC/RSC owners, native ucode/power/boot/version setup, reset release and
-fresh firmware result, then A619-specific GX/OOB/HFI ordering and request/ACK
-exchange. Select protocol using qualified runtime evidence. Integrate these in
-one bounded initialization before a new temporary boot; no mapping-only reboot
-is needed. GPU commands, ZAP at its native point, Metal/rendering and high
-refresh remain required work toward the unchanged daily-use objective.
+The private context keeps a stage and a comparison tuple when a READBACK check
+fails. This adds no callback, MMIO read/write, changed register mask, timeout,
+retry or hardware operation. The public success receipt is unchanged. A second
+attempt cannot overwrite the first diagnostic. Board and watchdog quarantine
+precede synchronous logging of the cached data.
+
+`SWEET GMU SMMU FAIL` reports phase, check, offset, mask, expected and actual.
+Phases1..9 mean capture, resolve, prepare, global setup, user bank, kernel bank,
+ATOS, final checks and done. Checks1..7 mean32-bit store,64-bit store, invalid
+poll read, CPU configuration, unrelated final control, fault status and final
+micro-MMU control. CONFIG/check4 uses field indices0..8: kernel TTBR0/1, user
+TTBR0/1, TCR, MAIR0/1, IAS and OAS. Other offsets are byte register offsets.
+The comparison tuple comes from the exact rejected predicate. The secondary
+identity/control fields are a partial cached work record; zero in an after
+field not yet filled is not a fresh hardware observation.
+
+The coherent firmware adapter and opt-in coordinator are described in
+[the firmware contract](gauguin-gmu-firmware.md). They must still pass this
+cold transaction before any GMU reset release. GPU commands, native-point
+ZAP, normal HFI_ON, Metal/rendering and high refresh remain separate required
+stages toward the unchanged daily-use objective.

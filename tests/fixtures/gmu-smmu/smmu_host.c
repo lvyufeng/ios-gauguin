@@ -103,6 +103,15 @@ static bool prepare(void *cookie,unsigned ias,unsigned oas,struct ggm_s1_config 
     if(f->drift==2)f->regs[CB(7)/4]=1;
     if(f->drift==3)f->regs[0]^=0x100;
     if(f->drift==4)cfg->tcr^=1;
+    if(f->drift==5)cfg->kernel_ttbr0^=4096;
+    if(f->drift==6)cfg->kernel_ttbr1^=4096;
+    if(f->drift==7)cfg->user_ttbr0^=4096;
+    if(f->drift==8)cfg->user_ttbr1^=4096;
+    if(f->drift==9)cfg->tcr^=1;
+    if(f->drift==10)cfg->mair0^=1;
+    if(f->drift==11)cfg->mair1^=1;
+    if(f->drift==12)cfg->ias^=1;
+    if(f->drift==13)cfg->oas^=1;
     return true;
 }
 static struct gsm_ops ops(struct fake *f)
@@ -129,7 +138,9 @@ static enum gsm_result run(struct fake *f,struct gsm_receipt *out)
 static void stopped(struct fake *f)
 {
     unsigned step=f->step;struct gsm_receipt r,b;memset(&r,0x64,sizeof(r));b=r;
+    struct gsm_diagnostics diagnostic=f->channel.diagnostic;
     CHECK(run(f,&r)==GSM_ALREADY);CHECK(f->step==step&&!memcmp(&r,&b,sizeof(r)));
+    CHECK(!memcmp(&diagnostic,&f->channel.diagnostic,sizeof(diagnostic)));
 }
 static void happy(void)
 {
@@ -143,6 +154,7 @@ static void happy(void)
         CHECK(r.ias==39&&r.oas==36&&r.tcr==0x802019&&r.tcr2==0x38011);
         CHECK(r.cr0_after==0xc01c36&&r.micro_after==0x2370);
         CHECK(r.writes==f->writes&&f->prepared==1&&!(f->regs[0x6000/4]&4));
+        CHECK(f->channel.diagnostic.phase==GSP_DONE&&f->channel.diagnostic.check==GSD_NONE);
         for(unsigned i=0;i<r.groups;i++)if(i!=r.slot[0]&&i!=r.slot[1]){
             CHECK(f->regs[(0xc00+4*i)/4]==original[(0xc00+4*i)/4]);
             if(match)CHECK(f->regs[(0x800+4*i)/4]==original[(0x800+4*i)/4]);
@@ -184,6 +196,13 @@ static void bad(void)
         struct fake *f=fresh(true);f->drift=kind;struct gsm_receipt r;
         CHECK(run(f,&r)==(kind==4?GSM_READBACK:GSM_INHERITED));CHECK(!f->writes);stopped(f);free(f);
     }
+    for(unsigned kind=5;kind<=13;kind++){
+        struct fake *f=fresh(true);f->drift=kind;struct gsm_receipt r,b;
+        memset(&r,0xa3,sizeof(r));b=r;CHECK(run(f,&r)==GSM_READBACK&&!memcmp(&r,&b,sizeof(r))&&!f->writes);
+        const struct gsm_diagnostics *d=&f->channel.diagnostic;
+        CHECK(d->phase==GSP_PREPARE&&d->check==GSD_CONFIG&&d->offset==kind-5&&d->mask==UINT64_MAX&&d->expected!=d->actual);
+        stopped(f);free(f);
+    }
     for(unsigned kind=1;kind<=4;kind++){
         struct fake *f=fresh(true);f->stuck=kind;struct gsm_receipt r,b;memset(&r,0xa3,sizeof(r));b=r;
         CHECK(run(f,&r)==GSM_TIMEOUT);CHECK(!memcmp(&r,&b,sizeof(r)));stopped(f);free(f);
@@ -193,9 +212,14 @@ static void bad(void)
         CHECK(run(f,&r)==GSM_TRANSLATION);CHECK(!memcmp(&r,&b,sizeof(r)));stopped(f);free(f);
     }
     const unsigned ignore[]={0x6000,0x6060,0x1800+4*6,0x1000+4*6,CB(6)+0x10,CB(6)+0x20,CB(6)+4,CB(6)};
+    const uint64_t wanted[]={4,0x1055,1,0x1f300,0x38011,((uint64_t)7<<48)|0xaa20a000,0x70000000,0x00c01067};
     for(unsigned i=0;i<sizeof(ignore)/sizeof(*ignore);i++){
         struct fake *f=fresh(true);f->ignore=ignore[i];struct gsm_receipt r;
-        CHECK(run(f,&r)==GSM_READBACK);stopped(f);free(f);
+        CHECK(run(f,&r)==GSM_READBACK);
+        const struct gsm_diagnostics *d=&f->channel.diagnostic;
+        CHECK(d->phase==(i<2?GSP_GLOBAL:GSP_USER)&&d->offset==ignore[i]&&d->expected==wanted[i]&&!d->actual);
+        CHECK(d->check==(i==5?GSD_STORE64:GSD_STORE32)&&d->mask==(i==5?UINT64_MAX:i==0?(UINT32_MAX&~8u):UINT32_MAX));
+        stopped(f);free(f);
     }
 }
 static void arguments(void)

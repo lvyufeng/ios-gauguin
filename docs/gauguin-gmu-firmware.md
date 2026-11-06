@@ -168,3 +168,19 @@ entry. Non-exempt DATA readback and OOB-clear failures remain negative tests.
 The board seam covers full and partial cache logging after quarantine; actual
 engine sequencing is checked separately. Host success cannot qualify the
 physical meaning of these values or the next firmware operation.
+
+Physical0131 completes the RSC and sequence-memory stores, then stops at
+store27 before any firmware copy or reset release: PDC window offset0x15d4,
+physical0x0b2955d4, TCS1 CMD0 MSGID. Requested0x00010108 reads0x00010100.
+The three cached hidden-address reads are0x82204514/0x82204510/0x82204520;
+their bitwise effects remain unqualified. The full verifier rejects the run.
+
+Pinned `rpmh-rsc.c` defines WRITE at bit16 and RESP_REQ at bit8, while the
+native GPU PDC sequence writes0x10108 to its six MSGID words. The observed
+PDC value preserves both named control bits. Generic RPMh/BCM registers are
+distinct and do echo the original length value; their checks stay intact.
+The next candidate will preserve the native PDC write and read order, check
+only the documented WRITE/RESP_REQ mask0x10100, retain all-ones/IO/guard
+refusals and cache full raw samples. Other bits remain explicitly unqualified;
+this does not establish read-only length semantics or successful PDC command
+execution. All other PDC stores and later firmware completion checks remain.

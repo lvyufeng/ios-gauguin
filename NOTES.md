@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual132 completes PDC programming and full8192-word TCM copy/readback; AO interrupt-mask comparison next
+
+DSH85774 ONE actual132 temporary boot observer0/full verifier2, original full
+rejection retained. Start2026-11-06T20:52:52.069838Z,finish20:55:03.861661Z;
+Send19088KB0.446s/Boot0.135s/total0.583s, recovery observed131s. Unique recovery/
+fastboot products and routine latch readback passed; no new user reset fact.
+Fresh raw log4087lines/459092B SHA
+5102a8d7e25977d484d6a3f258bbf4b16bf6f580f05db5619878a0e3214c91c6,
+p3-gmuf-0132-native-observer-20261107.txt. Cycle1163B SHA
+2d2482587f35ad5a682545108816325bf41f7ee7d0034201a239c23f96dac74d.
+Same-boot CMDDB131072B SHA981691dfd383b7fcc9cd4f1b33a899decae19a4cb8693093dafe020777cf1dd5.
+
+Cold SMMU131/140 complete. All six PDC MSGID raw values10100 pass named
+WRITE/RESP_REQ checks; RSC/PDC register programming completes, other-field
+semantics/actual PDC command execution remain UNQUALIFIED. Physical TCM
+copy_issued8192/copy_compared8192: all32768 pinned firmware bytes written and
+read back under reset. No reset release, OOB, firmware execution or ACKs.
+Next real refusal at store51: phase0/GMF6, AO window1 off02c18/PA03d8ec18,
+GMU_AO_HOST_INTERRUPT_MASK, requestedffffffff, actual0000003f. CSR host-mask
+store50 already passed full comparison (source-bound). GFSR0, FSR400/400 with
+no named fault flags, reset1/GX00222001, AO status0/info0. No FW/GPU/Metal claim.
+
+DSH41417 first audit wrapper failed BEFORE reader import (stale filename
+verify_gmuf131.py under dsh-0132); original script/log retained. DSH31992
+audit_failed_trial132_v2.py corrects only both reader filenames, pins original
+failure files and itself, actual0 -> failed-trial-audit.json state
+bound-native-SMMU-PDC-TCM-complete-AO-mask-refusal, all inputs unchanged. Full
+rejection kept; SMMU prefix and raw ordered hidden/PDC records plus source-
+bound copy counts are stage subsets, never full FW success. All handles closed.
+
+Pinned kgsl_gmu.h23-27 SHA5f08ed0eed8118068a66e5596612a5ac9d00e410c6a1920fd7a85fbb12ad3d8b
+defines AO WDOG0/RSCC_COMP1/FENCE_ERR3/DBD_WAKEUP4/HOST_AHB_ERR5. Union3b,
+errors29 matches existing guard. Actual3f has ALL named sources masked. Do
+NOT infer a six-bit implemented width or general reserved/read-only behavior.
+Next133 candidate: ONLY AO mask word keeps fullffffffff write and existing
+guarded write/barrier/read, checks all named3b mask bits, privately caches
+raw result and logs other bits UNQUALIFIED. Fullffffffff read remains valid
+for this word: it is the requested mask and was already accepted; other
+register/all-ones/error guards unchanged. Keep CSR mask/store full-width.
+Test each of five named bits missing, physical3f, fullffffffff and synthetic
+other bits, repeat/cache/output preservation, all61 hosts, original-model I/O
+equivalence, native TUs using CURRENT132 InoCAW. No133 code yet. PhoneTWRP,
+reset attribution UNKNOWN; goal ACTIVE, original mkadt diff untouched, no
+flash/format/GPT/destructive action.
+
 ### 2026-11-07 — complete132 native kernel/image/runtime readers qualified; one physical trial next
 
 Previous goal turn was progress: real131 PDC MSGID refusal bound,132 code

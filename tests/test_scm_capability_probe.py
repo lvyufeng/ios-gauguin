@@ -20,9 +20,12 @@ source = args.source.read_text()
 root = args.source.resolve().parents[2]
 assert (root / 'bsd/conf/files').read_text().count('bsd/dev/gauguin_scm_probe.c\t\tstandard') == 1
 init = (root / 'bsd/kern/bsd_init.c').read_text()
-assert '#if defined(GAUGUIN)\nextern void sweet_gpu_probe_init(void);\nextern void sweet_scm_probe_init(void);\n#endif' in init
+declarations = re.search(r'#if defined\(GAUGUIN\)\n([^#]+)#endif', init)
+assert declarations and 'extern void sweet_scm_probe_init(void);\n' in declarations.group(1)
 assert '\tif (mountroot_post_hook != NULL) {\n\t\tmountroot_post_hook();\n\t}\n#endif' in init
-assert '\tsweet_gpu_probe_init();\n\tsweet_scm_probe_init();\n#endif' in init
+old_hook = '\tif (mountroot_post_hook != NULL) {\n\t\tmountroot_post_hook();\n\t}\n#endif'
+calls = re.match(r'\s*#if defined\(GAUGUIN\)\n([^#]+)#endif', init.split(old_hook)[1])
+assert calls and re.search(r'^\s*sweet_scm_probe_init\(\);\s*$', calls.group(1), re.M)
 assert init.count('sweet_scm_probe_init();') == 1
 signature = 'static void\nscmp_invoke(struct scmp_registers *r)\n{'
 start = source.index(signature); end = source.index('\n}', start) + 2

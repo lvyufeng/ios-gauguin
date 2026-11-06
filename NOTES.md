@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 —0111 real low-PAS ownership/pmap check VERIFIED
+
+User confirms physical touch unlock; manually returned TWRP. First pull
+preceded USB enumeration (no device); fresh get-state then returned recovery,
+retry pull and full banner verification succeeded. No observer/build/CI live.
+Log p3-low-pas-0111-native-recovered-20261106.txt matches full ca43a06c... ID
+and unique sweettrial=pasowner-0111-20261106-a1. Actual runtime record:
+selectedAA200000+100000, inputA91CF000+1230000, tail offset1030000;
+FDT A8FCE000+44137, shimA2480000+39000. All64 pages unmanaged, raw pmap cache
+attribute d0000006; exact complete marker present. This PA is a result of
+this boot's ABL allocation, NOT a fixed address for later boots.
+
+Last PET3330 at64307117566 ticks; NVT325084 accepted325084/rejected0;
+no captured panic(cpu...) line. Hash/counters/probe lines saved in ignored
+p3-low-pas-0111-native-evidence-20261106.json. Actual buffer bytes have not
+been mapped/read/written; secure firmware/PAS/GPU remain untested. Touch
+confirmation belongs to this111 trial, unlike earlier pending entries.
+
+Next: source-backed WC mapping/lifetime and CPU staging/readback, plus actual
+recovery config/native bus-provider audit for the crypto-to-DDR bandwidth
+prerequisite. Do not issue PAS immediately merely because owner metadata
+passed. Phone currently TWRP; preserve all qualified images and original
+unstaged mkadt edit. Latest public handoff2084afa, code publice665e50.
+
 ### 2026-11-06 —0111 enabled trial booted; manual TWRP/fresh log PENDING
 
 Current phone state UNKNOWN: temporary0111 image was accepted (send18944KB

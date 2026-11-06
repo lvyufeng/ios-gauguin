@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 —0111 enabled trial booted; manual TWRP/fresh log PENDING
+
+Current phone state UNKNOWN: temporary0111 image was accepted (send18944KB
+0.445s, boot0.134s, total0.585s); observer27767 ended181s/exit4 without
+recovery. No observer/native build/CI remains live. Output log was removed
+by the observer on failed pull, so there is no fresh0111 runtime result yet.
+User has been asked to confirm touch and manually return TWRP. Do not reuse
+the previous default-loader trial's touch confirmation or its same-phone log.
+
+Code local a5d353e, qualification handoff5bcbe27; sanitized public
+e665e5030127c2bc3b01781e3d67ab06837002a2 (parent3ef39bc) pushed successfully.
+Cycle research/tmp/p3-low-pas-0111-native-cycle-20261106.log; evidence
+p3-low-pas-0111-native-evidence-20261106.json. After user returns TWRP, pull
+fresh p3-low-pas-0111-native-recovered-20261106.txt and require both full
+xnu-ca43a06cd2de44cc9bd6f092ea45f636 identity and
+sweettrial=pasowner-0111-20261106-a1. Actual ownership PA and pmap result remain
+UNKNOWN. Success requires valid owner provenance plus complete unmanaged_pages=64
+wimg=d0000006. UI alone does not prove reservation. Buffer/PAS/GPU remain untested.
+
+Next-stage native-source audit recorded in ignored
+p3-pas-owner-probe-20261106/next-pas-prerequisites.json: actual pil_gpu has no
+per-device proxy clock/regulator/bus properties, but pil_init_image_trusted
+still calls the global scm_pas_enable_bw before MDT/INIT_IMAGE. Its crypto
+master-to-EBI usecase advertises IB3936000000/AB393600000 bytes/sec. Inspect
+actual bus provider/config and inherited ownership before PAS operations;
+do not treat successful reservation as readiness for authentication/reset.
+No new power, bandwidth, firmware, secure or GPU operation has been executed.
+Original uncommitted tools/mkadt.py edit remains preserved.
+
 ### 2026-11-06 — native0111 build qualified; first enabled reservation image ready
 
 Native build32110 exit0, no CI. Manifest

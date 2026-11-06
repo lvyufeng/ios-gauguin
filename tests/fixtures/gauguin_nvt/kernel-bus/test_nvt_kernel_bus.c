@@ -1,4 +1,6 @@
 #define NVT_BUS_HOST_TEST 1
+#define GCC_VOTES_HOST_TEST 1
+#include <gauguin_gcc_votes.c>
 #include <nvt_kernel_bus.c> /* actual adapter control flow, not a reimplementation */
 #include <assert.h>
 #include <stdio.h>
@@ -147,7 +149,7 @@ static void init(void)
     assert(!nvt_bus_mutex.owner);
     final_at_unlock=NULL;final_seen=false;replace_after_unlock=false;
     memset(&hw,0,sizeof(hw));memset(&nv_bus,0,sizeof(nv_bus));
-    memset(&nv_maps,0,sizeof(nv_maps));nv_quarantined=false;nv_generation=0;
+    memset(&nv_maps,0,sizeof(nv_maps));ggv_map=0;ggv_mapping_state=ggv_gpu_quarantined=ggv_gpu_owner=0;nv_quarantined=false;nv_generation=0;
     (void)setup(&spi);
     spi.reg[GS_FW_REVISION/4]=spi.reg[0x6c/4]=0x101;
     spi.reg[GS_HW_PARAM0/4]=0x201029e4;spi.reg[GS_HW_PARAM1/4]=0x20104800;
@@ -352,3 +354,12 @@ int main(void)
     puts("actual XNU adapter flow: ownership/maps/clock qualification/GPIO ordering/restore/quarantine PASS");
     return 0;
 }
+
+boolean_t pmap_valid_page(ppnum_t p){assert(p==(0x150000>>14));return 0;}
+unsigned int pmap_cache_attributes(ppnum_t p){assert(p==(0x150000>>14));return 0xd0000007;}
+vm_offset_t ml_io_map_with_prot(vm_offset_t pa,vm_size_t n,vm_prot_t prot){
+ assert(pa==0x150000 && n==0x4000 && prot==3);hw.maps++;return hw.fail_map==NV_VOTE_PA?0:pa;
+}
+vm_offset_t ml_vtophys(vm_offset_t va){assert(va==0x150000 || va==0x153fff);return va;}
+uint32_t ggv_test_read(vm_offset_t p,uint32_t off){assert(p==0x150000 && off==0x2000);return test_mmio_read(NV_VOTE_PA,0);}
+void ggv_test_write(vm_offset_t p,uint32_t off,uint32_t v){assert(p==0x150000 && off==0x2000);test_mmio_write(NV_VOTE_PA,0,v);test_barrier();}

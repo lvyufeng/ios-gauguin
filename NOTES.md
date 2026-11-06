@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-06 — 0119 shared GCC vote owner and NVT migration PASS; no device boot
+
+Previous goal turn was progress:118 actually qualified CX ARC/PWR_ON and
+user-confirmed autonomous recovery. Full daily-use/GPU/Metal/RAM/storage/
+peripherals/90–120Hz goal remains active and incomplete. Phone staysTWRP.
+
+Codex authored shared GCC150000+4000 permanent Device RW owner, replacing NVT's
+overlapping152000+1000 map. Fixed touch word152000 retains its6/7/10 masked
+updates/restoration under the original NVT mutex; future GPU has distinct
+152008 bit8 and152010 bit0 hold-only interfaces. No exported MMIO pointer or
+caller-chosen GPU address/mask/value. Mapping state is one-shot CAS with pmap
+unmanagedDevice7 and exact endpoint checks; partial map failure never retries.
+GPU write uncertainty latches quarantine before store, serializes GPU writers,
+preserves caller output on failure and leaves the separate touch word usable.
+Native NVT now also rejects all-ones vote reads before wrapper/SE accesses.
+
+DSH gcc-validation-result.json passed shared-owner host fixture, ALL retained
+actual NVT adapter host cases, plus both real ARM64 TUs. No object/source repair.
+Source candidates in research/tmp/dsh-0119/combined. Strict113-patch replay
+source119-codex5269 files SHA
+df7bd9cf7b13d847de9e854bafb64dd9e283317cf56f9c0e94fb3eed52b3bc88.
+Exactly4 native paths differ from preserved118 and equal reviewed candidate
+bytes. All52 public host files PASS; source118/tested119 unchanged. Machine
+research/tmp/dsh-0119/replay-full-host-result.json; sessions70484/67737 terminal0.
+No119 full kernel/image/device trial: this is a necessary mapping dependency,
+and its hardware regression belongs in the next integrated clock trial, not a
+standalone mapping-only reboot. Original mkadt edit and all113–118 artifacts kept.
+
+Next critical code is drafted but UNVALIDATED in research/tmp/dsh-0120:
+combined/bsd/dev/gauguin_cx_power.c, gauguin_gmu_clock.h and gmu_clock_body.c.
+It retains private CX maps, selects GCC144000 RW only for sweetgmuclk1, maps
+PLL100000 RO/AXI12c000 RW, then fixed600MHz tuple/divider/RCG200MHz/native four
+branch sequence with same-boot BCM/ARC/CX/WDT guards. No coordinator hookup,
+host fixture, native compile, patch, full build or image yet for this draft.
+It MUST be reviewed/fixed before execution, especially fresh lease/deadline
+checks inside shared GPU vote RMW, precise direct-vs-shared write accounting,
+and final inherited RCGuard stability. Do not infer qualification from119 tests.
+Plan stays research/tmp/dsh-0118/gmuc-clock-next-plan.md; exact native sources
+in native-clock/pins.json. Integrate clocks in one future boot after repeated
+BCM→CX ARC→CX power. CM3 inherited reset state remains a review boundary before
+firmware/DMA. Codex authors; DSH executes reviewed compilation/tests/boots.
+
 ### 2026-11-06 — 0118 native CX ARC completion, PWR_ON and autonomous reset VERIFIED
 
 THIS118 user explicitly confirmed: “是，自行重启，我没有操作”. Authoritative

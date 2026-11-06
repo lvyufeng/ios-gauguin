@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-XNU = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/xnu-patched-0082-2'))
+XNU = Path(os.environ.get('XNU_SOURCE', ROOT / '.deps-cache/p0-20261105/source119-codex'))
 MODULE = Path(os.environ.get('NVT_MODULE_ROOT', XNU / 'bsd/dev/gauguin_nvt')).resolve()
 FIXTURES = ROOT / 'tests/fixtures/gauguin_nvt/kernel-bus'
 
@@ -27,7 +27,7 @@ def main():
         subprocess.run(shlex.split(os.environ.get('CC', 'cc')) + [
             '-std=c11', '-Wall', '-Wextra', '-Werror', '-g',
             '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
-            '-I', str(FIXTURES), '-I', str(MODULE), '-I', str(MODULE / 'kernel-bus'),
+            '-I', str(FIXTURES), '-I', str(MODULE.parent), '-I', str(MODULE), '-I', str(MODULE / 'kernel-bus'),
             # Force the tracked boundary first, even when NVT_MODULE_ROOT
             # points to a research candidate containing its original test shim.
             '-include', str(FIXTURES / 'test_kernel_shim.h'),

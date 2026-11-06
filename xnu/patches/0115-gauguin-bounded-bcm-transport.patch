@@ -1,0 +1,1180 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -117,6 +117,8 @@
+ bsd/dev/gauguin_bcm_plan.c		standard
+ bsd/dev/gauguin_bus_probe.c		standard
+ bsd/dev/gauguin_wdt_test.c		standard
++bsd/dev/gauguin_bcm_transport.c		standard
++bsd/dev/gauguin_bcm_coordinator.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -0,0 +1,116 @@
++/* Opt-in first BCM submission trial. No PAS/SMC/GPU operation here.
++ * One preemptible coordinator serializes: CPU-stage claim -> same-boot CMDDB
++ * plan -> watchdog arm/advance -> native six-command transfer -> reset wait.
++ * Both staging memory and successful votes remain retained until reset.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <kern/clock.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <mach/mach_time.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++#include "gauguin_pas_stage.h"
++#include "gauguin_bus_probe.h"
++#include "gauguin_bcm_transport.h"
++#include "gauguin_wdt_lease.h"
++extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
++extern void thread_terminate_self(void);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++void sweet_bcm_vote_init(void);
++static unsigned bcm_started;
++static bool bcm_context(void)
++{ return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
++static void bcm_record(const char *line)
++{
++    printf("%s\n", line);
++    if (bcm_context()) { sweet_log_mark_sync(line); sweet_log_flush_now(); }
++}
++static bool bcm_flags(void)
++{
++    static const char *const off[] = {"sweettouchmode", "sweetwdtpet", "sweetreboot",
++        "sweetbusprobe", "sweetgpuprobe", "sweetscmprobe", "sweetwdttest"};
++    for (unsigned i = 0; i < sizeof(off) / sizeof(off[0]); ++i) {
++        int value = 0; (void)PE_parse_boot_argn(off[i], &value, sizeof(value));
++        if (value != 0) return false;
++    }
++    int probe = 0, stage = 0;
++    (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
++    (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
++    return probe == 1 && stage == 1;
++}
++static void bcm_run(void)
++{
++    struct sweet_pas_cpu_stage stage;
++    struct gbcm_plan plan;
++    struct gauguin_wdt_lease_record lease;
++    struct gbcmt_receipt receipt;
++    uint64_t deadline;
++    bool claimed = false;
++    char line[192];
++    clock_interval_to_deadline(5, NSEC_PER_SEC, &deadline);
++    for (unsigned i = 0; i < 500 && mach_absolute_time() < deadline; ++i) {
++        if (sweet_pas_cpu_stage_claim(&stage)) { claimed = true; break; }
++        IOSleep(10);
++    }
++    if (!claimed || stage.metadata_bytes != 6860 || stage.reserved_bytes != 16384 ||
++        !stage.pa || (stage.pa & UINT64_C(0xfffff)) || stage.pa > UINT64_C(0xfff00000)) {
++        bcm_record("SWEET BCM BOOT: CPU-stage READY unavailable/invalid; no watchdog/RSC write");
++        return;
++    }
++    snprintf(line, sizeof(line), "SWEET BCM BOOT: CPU-stage claimed pa=%016llx metadata=%u reserved=%u; no secure authentication", stage.pa, stage.metadata_bytes, stage.reserved_bytes);
++    bcm_record(line);
++    if (!sweet_bus_plan_prepare(&plan)) {
++        bcm_record("SWEET BCM BOOT: same-boot CMDDB preparation failed; no watchdog/RSC write");
++        return;
++    }
++    if (!bcm_context() || !gauguin_wdt_lease_arm(&lease)) {
++        bcm_record("SWEET BCM BOOT: watchdog arm/advance not ready; no RSC write");
++        return;
++    }
++    enum gbcmt_rc rc = sweet_bcm_submit_once(&plan, &receipt);
++    if (rc != GBCMT_OK) {
++        gauguin_wdt_lease_quarantine();
++        snprintf(line, sizeof(line), "SWEET BCM BOOT: transfer rejected rc=%u state=%u; no PAS/GPU call, no retry", (unsigned)rc, (unsigned)sweet_bcm_transport_state());
++        bcm_record(line);
++        return;
++    }
++    snprintf(line, sizeof(line), "SWEET BCM BOOT: native batch complete slot=%u config=%08x irq_before=%08x irq_after=%08x irq_completed=%08x", receipt.slot, receipt.config, receipt.irq_before, receipt.irq_after, receipt.irq_completed);
++    bcm_record(line);
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        snprintf(line, sizeof(line), "SWEET BCM BOOT: cmd%u addr=%05x data=%08x wait=%u status=%08x", i, plan.cmd[i].address, plan.cmd[i].data, plan.cmd[i].wait, receipt.cmd_status[i]);
++        bcm_record(line);
++    }
++    bcm_record("SWEET BCM BOOT: requests held; awaiting watchdog reset; coordinator performed no PAS/SMC/GPU operation");
++    for (unsigned i = 0; i < 30; ++i) IOSleep(1000);
++    gauguin_wdt_lease_quarantine();
++    bcm_record("SWEET BCM BOOT: survived30 requested seconds after transfer; reset unqualified, no retry or vote release");
++}
++static void bcm_worker(void *argument, wait_result_t result)
++{
++    (void)argument; (void)result;
++    if (!bcm_context() || !bcm_flags()) {
++        printf("SWEET BCM BOOT: context/flags rejected; no experiment\n");
++        thread_terminate_self(); return;
++    }
++    bcm_record("SWEET BCM BOOT: worker delay45s; single coordinator, legacy RSC/PET excluded");
++    for (unsigned i = 0; i < 45; ++i) IOSleep(1000);
++    if (bcm_context()) bcm_run();
++    else printf("SWEET BCM BOOT: invalid context after delay; stopped\n");
++    thread_terminate_self();
++}
++void sweet_bcm_vote_init(void)
++{
++    thread_t thread;
++    if (!sweet_bcm_vote_requested() || __atomic_exchange_n(&bcm_started, 1u, __ATOMIC_ACQ_REL)) return;
++    kern_return_t result = kernel_thread_start(bcm_worker, NULL, &thread);
++    if (result == KERN_SUCCESS) thread_deallocate(thread);
++    else printf("SWEET BCM BOOT: worker creation failed=%d; no inline fallback\n", result);
++}
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_bcm_transport.c
+@@ -0,0 +1,274 @@
++/* Gauguin apps DRV2 ACTIVE1, one boot-lifetime six-command BCM batch.
++ * Pinned19b63c8192b1c9b7c4d931d7d3be92024bc2d778 rpmh-rsc.c:221-354:
++ * per-command RESP_REQ follows cmd.wait (batch wait_for_compl=false).
++ * Native IRQ completion is mandatory; native has no CMD_STATUS clear path.
++ * No masked-IRQ/busy-progress fallback, retry, vote release or PDC/sleep/wake write.
++ * Caller supplies a freshly validated same-boot plan and an armed WDT lease.
++ * Old sweet_rpmh_vreg_enable must reject this flag BEFORE mapping or locking;
++ * immutable boot configuration excludes the only other HLOS RSC writer.
++ * Register observations do not establish firmware-side ownership. Any uncertain
++ * write/completion quarantines this controller and lease until reset.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/clock.h>
++#include <machine/machine_routines.h>
++#include <mach/mach_time.h>
++#include <vm/pmap.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++#include "gauguin_bcm_transport.h"
++#include "gauguin_wdt_lease.h"
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern vm_offset_t ml_vtophys(vm_offset_t);
++extern boolean_t pmap_valid_page(ppnum_t);
++extern unsigned int pmap_cache_attributes(ppnum_t);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++extern bool sweet_rsc_irq_quiet(uint32_t *);
++
++#define GT_PA UINT64_C(0x18220000)
++#define GT_BYTES 0x4000u
++#define GT_CONFIG 0xcu
++#define GT_IRQ_EN 0xd00u
++#define GT_IRQ_STATUS 0xd04u
++#define GT_IRQ_CLEAR 0xd08u
++#define GT_BASE 0xd00u
++#define GT_STRIDE 0x2a0u
++#define GT_SLOT 1u
++#define GT_BIT (1u << GT_SLOT)
++#define GT_OWN (GT_BASE + GT_SLOT * GT_STRIDE)
++#define GT_WAIT 0x10u
++#define GT_CONTROL 0x14u
++#define GT_STATUS 0x18u
++#define GT_ENABLE 0x1cu
++#define GT_MSGID 0x30u
++#define GT_ADDR 0x34u
++#define GT_DATA 0x38u
++#define GT_CMD_STATUS 0x3cu
++#define GT_CMD_STRIDE 0x14u
++#define GT_AMC (1u << 16)
++#define GT_TRIGGER (1u << 24)
++#define GT_ISSUED (1u << 8)
++#define GT_COMPL (1u << 16)
++#define GT_WDT_HZ 32765u
++#define GT_START_TICKS (15u * GT_WDT_HZ)
++#define GT_POLL_TICKS (3u * GT_WDT_HZ)
++#define GT_TOTAL_MS 10000u
++_Static_assert(PAGE_SHIFT == 14, "DRV2 probe covers one16KiB page");
++_Static_assert(GBCM_COUNT == 6, "only the reviewed six-command request is accepted");
++
++static unsigned gt_state;
++static vm_offset_t gt_map;
++static bool gt_wrote;
++static uint64_t gt_deadline;
++static struct gbcmt_receipt gt_receipt;
++
++static bool gt_context(void)
++{ return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
++static void gt_record(const char *line)
++{
++    printf("%s\n", line);
++    if (gt_context()) { sweet_log_mark_sync(line); sweet_log_flush_now(); }
++}
++static uint32_t gt_read(uint32_t offset)
++{
++    uint32_t value = *(volatile uint32_t *)(gt_map + offset);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++static void gt_write(uint32_t offset, uint32_t value)
++{
++    /* Mark uncertain before the actual access: a fault must never authorize a retry. */
++    gt_wrote = true;
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)(gt_map + offset) = value;
++    __asm__ volatile("dsb osh" ::: "memory");
++}
++static enum gbcmt_rc gt_fail(enum gbcmt_rc rc, const char *why)
++{
++    char line[192];
++    __atomic_store_n(&gt_state, gt_wrote ? GBCMT_QUARANTINED : GBCMT_REJECTED, __ATOMIC_RELEASE);
++    gauguin_wdt_lease_quarantine(); /* software only; never disable or pet */
++    snprintf(line, sizeof(line), "SWEET BCM TX: stopped rc=%u writes=%u reason=%s; no retry/rollback", (unsigned)rc, gt_wrote ? 1u : 0u, why);
++    gt_record(line);
++    return rc;
++}
++bool sweet_bcm_vote_requested(void)
++{
++    int flag = 0; (void)PE_parse_boot_argn("sweetbusvote", &flag, sizeof(flag));
++    return flag == 1;
++}
++enum gbcmt_state sweet_bcm_transport_state(void)
++{ return (enum gbcmt_state)__atomic_load_n(&gt_state, __ATOMIC_ACQUIRE); }
++static bool gt_conflicts(void)
++{
++    static const char *const keys[] = {"sweettouchmode", "sweetwdtpet", "sweetreboot",
++        "sweetbusprobe", "sweetgpuprobe", "sweetscmprobe", "sweetwdttest"};
++    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
++        int value = 0; (void)PE_parse_boot_argn(keys[i], &value, sizeof(value));
++        if (value != 0) return true;
++    }
++    return false;
++}
++static bool gt_plan_valid(const struct gbcm_plan *p)
++{
++    static const uint32_t values[GBCM_COUNT] = {
++        0x6fffffff,0x6fffffff,0x2fffffff,0x6fffffff,0x6fffffff,0x60000008};
++    if (p->wait_mask != 0x3bu) return false;
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        const struct gbcm_board_row *b = &gbcm_board[i];
++        const struct gbcm_db *d = &p->db[i];
++        if (d->address != b->address || d->unit != b->unit || d->width != b->width ||
++            d->vcd != b->vcd || d->reserved || p->cmd[i].address != b->address ||
++            p->cmd[i].data != values[i] || p->cmd[i].wait != ((0x3bu >> i) & 1u)) return false;
++    }
++    return true;
++}
++static bool gt_budget(uint32_t minimum)
++{ return gt_context() && mach_absolute_time() < gt_deadline && gauguin_wdt_lease_check_budget(minimum); }
++/* Every synchronous write is performed ONCE. Polls have both a count and a
++ * shared10s transaction deadline; no copy of native's unbounded sync loop. */
++static bool gt_sync(uint32_t offset, uint32_t value)
++{
++    if (!gt_budget(GT_POLL_TICKS)) return false;
++    gt_write(offset, value);
++    for (unsigned i = 0; i < 1000; ++i) {
++        if (!gt_budget(GT_POLL_TICKS)) return false;
++        if (gt_read(offset) == value) return true;
++        delay(10);
++    }
++    return false;
++}
++struct gt_snapshot { uint32_t config, irq_en, irq_status, tcs[8][4]; };
++static bool gt_snapshot(struct gt_snapshot *s)
++{
++    memset(s, 0, sizeof(*s));
++    s->config = gt_read(GT_CONFIG);
++    unsigned count = (s->config >> 12) & 63u, ncpt = (s->config >> 27) & 31u;
++    if (count < 8 || ncpt < 6 || ncpt > 16) return false;
++    s->irq_en = gt_read(GT_IRQ_EN); s->irq_status = gt_read(GT_IRQ_STATUS);
++    if ((s->irq_en & GT_BIT) || s->irq_en == UINT32_MAX || s->irq_status != 0) return false;
++    /* Dedicated experiment: require every normal slot inert as observed in113.
++     * We do not own or change the six sleep/wake slots merely by inspecting them. */
++    for (unsigned t = 0; t < 8; ++t) {
++        uint32_t base = GT_BASE + t * GT_STRIDE;
++        for (unsigned f = 0; f < 4; ++f) s->tcs[t][f] = gt_read(base + GT_WAIT + f * 4u);
++        if (s->tcs[t][0] || s->tcs[t][1] || !s->tcs[t][2] ||
++            s->tcs[t][2] == UINT32_MAX || s->tcs[t][3]) return false;
++    }
++    return true;
++}
++static uint32_t gt_msgid(unsigned command)
++{ return 0x10008u | (((0x3bu >> command) & 1u) ? 0x100u : 0u); }
++static bool gt_payload_matches(const struct gbcm_plan *p)
++{
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        uint32_t base = GT_OWN + i * GT_CMD_STRIDE;
++        if (gt_read(base + GT_MSGID) != gt_msgid(i) ||
++            gt_read(base + GT_ADDR) != p->cmd[i].address ||
++            gt_read(base + GT_DATA) != p->cmd[i].data) return false;
++    }
++    return gt_read(GT_OWN + GT_WAIT) == 0x3bu && gt_read(GT_OWN + GT_ENABLE) == 0x3fu;
++}
++
++enum gbcmt_rc
++sweet_bcm_submit_once(const struct gbcm_plan *input, struct gbcmt_receipt *out)
++{
++    unsigned expected = GBCMT_IDLE;
++    struct gbcm_plan plan;
++    struct gt_snapshot first, second;
++    uint32_t irq = UINT32_MAX;
++    char line[192];
++    if (!sweet_bcm_vote_requested()) return GBCMT_OFF;
++    if (!input || !out) return GBCMT_ARGUMENT;
++    if (!__atomic_compare_exchange_n(&gt_state, &expected, GBCMT_RUNNING, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return GBCMT_ALREADY;
++    if (!gt_context()) return gt_fail(GBCMT_CONTEXT, "invalid thread context");
++    plan = *input; /* caller's immutable CPU-owned validated plan; no MMIO input */
++    if (!gt_plan_valid(&plan) || gt_conflicts()) return gt_fail(GBCMT_CONFIG, "plan/boot flags rejected");
++    if (!gauguin_wdt_lease_check_budget(GT_START_TICKS)) return gt_fail(GBCMT_BUDGET, "armed watchdog lease unavailable");
++    if (!sweet_rsc_irq_quiet(&irq)) return gt_fail(GBCMT_CONFIG, "GIC NS INTID37 is enabled/unavailable");
++    snprintf(line, sizeof(line), "SWEET BCM TX: ACTIVE1 exclusive experiment; GIC NS ISENABLER1=%08x; secure ownership unproven", irq);
++    gt_record(line);
++    ppnum_t page = (ppnum_t)(GT_PA >> PAGE_SHIFT);
++    if (pmap_valid_page(page) || (pmap_cache_attributes(page) & 255u) != 7u) return gt_fail(GBCMT_MAPPING, "pmap not unmanaged Device");
++    gt_record("SWEET BCM TX: mapping DRV2 18220000+4000 Device RW; fixed ACTIVE1 whitelist");
++    gt_map = ml_io_map_with_prot(GT_PA, GT_BYTES, VM_PROT_READ | VM_PROT_WRITE);
++    if (!gt_map || ml_vtophys(gt_map) != GT_PA || ml_vtophys(gt_map + GT_BYTES - 1u) != GT_PA + GT_BYTES - 1u) return gt_fail(GBCMT_MAPPING, "map/translation failed");
++    if (!gt_snapshot(&first)) return gt_fail(GBCMT_BUSY, "geometry/slot/pending IRQ not inert");
++    IOSleep(1);
++    if (!gt_snapshot(&second) || memcmp(&first, &second, sizeof(first))) return gt_fail(GBCMT_BUSY, "preflight snapshot changed");
++    gt_receipt.slot = GT_SLOT; gt_receipt.config = first.config; gt_receipt.irq_before = first.irq_en;
++    gt_record("SWEET BCM TX: preflight stable; six native batch commands, WAIT3b/ENABLE3f; next write claims own IRQ bit1");
++    clock_interval_to_deadline(GT_TOTAL_MS, NSEC_PER_MSEC, &gt_deadline);
++    if (!gt_budget(GT_START_TICKS) || !sweet_rsc_irq_quiet(&irq) ||
++        !gt_snapshot(&second) || memcmp(&first, &second, sizeof(first))) return gt_fail(GBCMT_BUSY, "pre-write guard changed");
++    if (!gt_sync(GT_IRQ_EN, first.irq_en | GT_BIT)) return gt_fail(GBCMT_READBACK, "own IRQ enable readback/budget");
++    /* A masked old pending indication may appear on unmask: never ACK it and
++     * never mistake it for this request. IRQ_CLEAR does not clear CMD_STATUS. */
++    if (gt_read(GT_IRQ_STATUS) != 0) return gt_fail(GBCMT_BUSY, "pending IRQ appeared before payload");
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        uint32_t base = GT_OWN + i * GT_CMD_STRIDE;
++        if (!gt_budget(GT_POLL_TICKS)) return gt_fail(GBCMT_BUDGET, "payload budget");
++        if (!gt_sync(base + GT_MSGID, gt_msgid(i)) ||
++            !gt_sync(base + GT_ADDR, plan.cmd[i].address) ||
++            !gt_sync(base + GT_DATA, plan.cmd[i].data)) return gt_fail(GBCMT_READBACK, "payload readback");
++    }
++    if (!gt_sync(GT_OWN + GT_WAIT, 0x3bu) || !gt_sync(GT_OWN + GT_ENABLE, 0x3fu)) return gt_fail(GBCMT_READBACK, "WAIT/ENABLE readback");
++    /* Native trigger order: clear TRIGGER, clear AMC, set AMC, trigger ONCE. */
++    uint32_t control = gt_read(GT_OWN + GT_CONTROL);
++    if (control != 0 || gt_read(GT_IRQ_EN) != (first.irq_en | GT_BIT)) return gt_fail(GBCMT_BUSY, "controller ownership changed before trigger");
++    if (!gt_sync(GT_OWN + GT_CONTROL, control & ~GT_TRIGGER) ||
++        !gt_sync(GT_OWN + GT_CONTROL, control & ~(GT_TRIGGER | GT_AMC)) ||
++        !gt_sync(GT_OWN + GT_CONTROL, GT_AMC)) return gt_fail(GBCMT_READBACK, "AMC preparation");
++    if (!gt_budget(GT_POLL_TICKS) || !sweet_rsc_irq_quiet(&irq) || gt_read(GT_CONFIG) != first.config ||
++        gt_read(GT_IRQ_STATUS) != 0 || !gt_payload_matches(&plan)) return gt_fail(GBCMT_BUSY, "final trigger guards changed");
++    gt_write(GT_OWN + GT_CONTROL, GT_AMC | GT_TRIGGER); /* never sync/rewrite trigger */
++    bool complete = false;
++    for (unsigned i = 0; i < GT_TOTAL_MS; ++i) {
++        if (!gt_budget(GT_POLL_TICKS)) return gt_fail(GBCMT_TIMEOUT, "completion deadline/watchdog budget");
++        uint32_t pending = gt_read(GT_IRQ_STATUS);
++        if (pending & ~GT_BIT) return gt_fail(GBCMT_BUSY, "foreign completion observed");
++        if (pending == GT_BIT) { gt_receipt.irq_completed = pending; complete = true; break; }
++        IOSleep(1);
++    }
++    if (!complete) return gt_fail(GBCMT_TIMEOUT, "no new own completion IRQ");
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        uint32_t value = gt_read(GT_OWN + GT_CMD_STATUS + i * GT_CMD_STRIDE);
++        gt_receipt.cmd_status[i] = value;
++        if (value == UINT32_MAX || !(value & GT_ISSUED) ||
++            (((0x3bu >> i) & 1u) && !(value & GT_COMPL))) return gt_fail(GBCMT_COMPLETION, "native command status incomplete");
++    }
++    uint32_t idle = gt_read(GT_OWN + GT_STATUS);
++    control = gt_read(GT_OWN + GT_CONTROL);
++    if (!idle || idle == UINT32_MAX || (control & ~(GT_AMC | GT_TRIGGER)) ||
++        gt_read(GT_IRQ_EN) != (first.irq_en | GT_BIT) || !gt_payload_matches(&plan)) return gt_fail(GBCMT_COMPLETION, "completed payload/idle/ownership changed");
++    /* Clear only the successful transport. This does not release BCM votes. */
++    if (!gt_sync(GT_OWN + GT_CONTROL, control & ~GT_TRIGGER) ||
++        !gt_sync(GT_OWN + GT_CONTROL, control & ~(GT_TRIGGER | GT_AMC)) ||
++        !gt_sync(GT_OWN + GT_ENABLE, 0) || !gt_sync(GT_OWN + GT_WAIT, 0)) return gt_fail(GBCMT_READBACK, "successful transport cleanup");
++    if (!gt_budget(GT_POLL_TICKS)) return gt_fail(GBCMT_BUDGET, "before own IRQ clear");
++    gt_write(GT_IRQ_CLEAR, GT_BIT); /* write-one-to-clear OWN bit, never a read */
++    bool cleared = false;
++    for (unsigned i = 0; i < 1000; ++i) {
++        if (!gt_budget(GT_POLL_TICKS)) return gt_fail(GBCMT_TIMEOUT, "IRQ clear budget");
++        uint32_t pending = gt_read(GT_IRQ_STATUS);
++        if (pending & ~GT_BIT) return gt_fail(GBCMT_BUSY, "foreign IRQ during cleanup");
++        if (!pending) { cleared = true; break; }
++        delay(10);
++    }
++    if (!cleared) return gt_fail(GBCMT_TIMEOUT, "own IRQ did not clear");
++    uint32_t current_irq = gt_read(GT_IRQ_EN);
++    if (current_irq != (first.irq_en | GT_BIT)) return gt_fail(GBCMT_BUSY, "IRQ enable changed during cleanup");
++    /* Restore only the one bit we acquired; never write a stale full mask. */
++    if (!gt_sync(GT_IRQ_EN, current_irq & ~GT_BIT)) return gt_fail(GBCMT_READBACK, "restore own IRQ bit");
++    gt_receipt.irq_after = current_irq & ~GT_BIT;
++    *out = gt_receipt;
++    __atomic_store_n(&gt_state, GBCMT_COMPLETE, __ATOMIC_RELEASE);
++    gt_record("SWEET BCM TX: native completion verified, ACTIVE1 reclaimed; BCM requests held until reset; bandwidth/GPU execution not measured");
++    return GBCMT_OK;
++}
++#endif /* GAUGUIN */
+--- /dev/null
++++ b/bsd/dev/gauguin_bcm_transport.h
+@@ -0,0 +1,22 @@
++#ifndef GAUGUIN_BCM_TRANSPORT_H
++#define GAUGUIN_BCM_TRANSPORT_H
++#include <stdbool.h>
++#include <stdint.h>
++#include "gauguin_bcm_plan.h"
++/* Narrow one-shot transport for the reviewed six-command BOOT request only.
++ * Controller COMPLETE means native command/IRQ completion, not measured BW,
++ * GPU readiness, secure ownership or a daily power policy. Votes are retained;
++ * no release/rollback/reuse API exists. Reset ends this diagnostic lifetime. */
++enum gbcmt_state { GBCMT_IDLE, GBCMT_RUNNING, GBCMT_COMPLETE,
++    GBCMT_REJECTED, GBCMT_QUARANTINED };
++enum gbcmt_rc { GBCMT_OK, GBCMT_OFF, GBCMT_ALREADY, GBCMT_ARGUMENT,
++    GBCMT_CONTEXT, GBCMT_CONFIG, GBCMT_MAPPING, GBCMT_BUSY,
++    GBCMT_BUDGET, GBCMT_READBACK, GBCMT_TIMEOUT, GBCMT_COMPLETION };
++struct gbcmt_receipt {
++    uint32_t slot, config, irq_before, irq_after, irq_completed;
++    uint32_t cmd_status[GBCM_COUNT];
++};
++bool sweet_bcm_vote_requested(void);
++enum gbcmt_rc sweet_bcm_submit_once(const struct gbcm_plan *, struct gbcmt_receipt *);
++enum gbcmt_state sweet_bcm_transport_state(void);
++#endif
+--- a/bsd/dev/gauguin_bus_probe.c
++++ b/bsd/dev/gauguin_bus_probe.c
+@@ -26,6 +26,7 @@
+ #include <libkern/crypto/sha2.h>
+ #include "cmd_db_snapshot.h"
+ #include "gauguin_bcm_plan.h"
++#include "gauguin_bus_probe.h"
+ 
+ /* Canonical MACH/PEXPERT-private declarations, hidden from the BSD header view
+  * (as in the existing gauguin probes). */
+@@ -126,6 +127,7 @@
+ bus_record(const char *line)
+ {
+     printf("%s\n", line);
++    if (!bus_context()) return; /* no synchronous UFS from invalid context */
+     sweet_log_mark_sync(line);
+     sweet_log_flush_now();
+ }
+@@ -512,6 +514,31 @@
+     bus_record("SWEET BUS: PLAN ONLY; no bandwidth submitted, no GPU execution; observation only");
+ }
+ 
++bool
++sweet_bus_plan_prepare(struct gbcm_plan *out)
++{
++    int vote = 0, probe = 0, mode = 0;
++    (void)PE_parse_boot_argn("sweetbusvote", &vote, sizeof(vote));
++    (void)PE_parse_boot_argn("sweetbusprobe", &probe, sizeof(probe));
++    (void)PE_parse_boot_argn("sweettouchmode", &mode, sizeof(mode));
++    if (!out || vote != 1 || probe != 0 || mode != 0 || !bus_context()) return false;
++    if (__atomic_exchange_n(&bus_started, 1u, __ATOMIC_ACQ_REL)) return false;
++    bus_work = (struct bus_work *)IOMalloc(sizeof(*bus_work));
++    if (!bus_work) { bus_record("SWEET BUS: plan allocation failed; no RSC access"); return false; }
++    memset(bus_work, 0, sizeof(*bus_work));
++    vm_offset_t cmdb;
++    bus_record("SWEET BUS: coordinator CMDDB preparation; no RSC access or submission");
++    if (!bus_premap(BUS_CMDB_PA, BUS_CMDB_BYTES)) return false;
++    bus_record("SWEET BUS: plan CMDDB pmap OK; readonly map next");
++    if (!bus_readonly_map(BUS_CMDB_PA, BUS_CMDB_BYTES, &cmdb)) return false;
++    bus_record("SWEET BUS: plan CMDDB mapping OK; first read next");
++    if (!bus_dump_cmddb(cmdb, bus_work) || !bus_parse_metadata(bus_work)) return false;
++    bus_report_plan(bus_work);
++    *out = bus_work->plan;
++    bus_record("SWEET BUS: same-boot CPU plan ready; no RSC access or submission yet");
++    return true;
++}
++
+ static void
+ bus_worker(void *argument, wait_result_t result)
+ {
+--- /dev/null
++++ b/bsd/dev/gauguin_bus_probe.h
+@@ -0,0 +1,10 @@
++#ifndef GAUGUIN_BUS_PROBE_H
++#define GAUGUIN_BUS_PROBE_H
++#include <stdbool.h>
++#include "gauguin_bcm_plan.h"
++/* Only sweetbusvote=1 with legacy touch/busprobe disabled; one shared attempt
++ * with the read-only probe. Copies/validates actual same-boot CMDDB twice,
++ * produces only a CPU plan. No RSC map/write or submission. Output unchanged
++ * on failure; all mappings/copies retained until reboot. Thread context only. */
++bool sweet_bus_plan_prepare(struct gbcm_plan *out);
++#endif
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -9,6 +9,10 @@
+  * on success or failure). The mapping and the whole reservation stay valid
+  * until reboot. No unmapping, retry, secure call, power/clock/GPU register
+  * access or GPU execution happens here; the staged region remains untrusted.
++ *
++ * A successful readback publishes immutable same-boot CPU-stage metadata.
++ * Exactly one consumer can claim that record. READY is not EL3 authentication
++ * or secure-world access permission; no mutable virtual buffer is exposed.
+  */
+ #include <pexpert/arm64/board_config.h>
+ #if defined(GAUGUIN)
+@@ -22,6 +26,7 @@
+ #include <pexpert/device_tree.h>
+ #include <pexpert/arm64/boot.h>
+ #include <libkern/crypto/sha2.h>
++#include "gauguin_pas_stage.h"
+ 
+ /* Canonical MACH/PEXPERT-private declarations, hidden from the BSD exported
+  * header view (as in gauguin_pas_probe.c for its pmap APIs). */
+@@ -34,8 +39,6 @@
+ extern void sweet_log_flush_now(void);
+ extern int get_preemption_level(void);
+ 
+-void sweet_pas_stage_once(uint64_t pa, uint64_t region_bytes);
+-
+ #define PST_PAGE UINT64_C(0x4000)
+ #define PST_BYTES 6860u
+ #define PST_REGION UINT64_C(0x100000)
+@@ -43,7 +46,12 @@
+ _Static_assert(PAGE_SHIFT == 14, "staging requires16KiB CPU pages");
+ _Static_assert(PST_BYTES < PST_PAGE, "metadata must fit one staging page");
+ 
+-static unsigned pst_attempted;
++enum pst_lifecycle { PST_IDLE, PST_STAGING, PST_FAILED, PST_READY, PST_CLAIMED };
++/* Only atomics access the lifecycle. The record is written once while STAGING,
++ * before release publication, and never changed after READY (including after
++ * CLAIMED). There is deliberately no reset/unclaim/free API. */
++static unsigned pst_state;
++static struct sweet_pas_cpu_stage pst_ready;
+ static vm_offset_t pst_mapping;
+ /* SHA256 of the pinned A615ZapMDT raw6860-byte asset, used for BOTH the
+  * immutable high-bank asset and the low readback's first6860 bytes. The
+@@ -144,17 +152,27 @@
+ void
+ sweet_pas_stage_once(uint64_t pa, uint64_t region_bytes)
+ {
+-    if (__atomic_exchange_n(&pst_attempted, 1, __ATOMIC_ACQ_REL)) {
++    int probe = 0, stage = 0;
++    (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
++    (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
++    if (probe != 1 || stage != 1) {
++        return; /* Disabled does not consume the one attempt or leave IDLE. */
++    }
++    unsigned expected = PST_IDLE;
++    if (!__atomic_compare_exchange_n(&pst_state, &expected, PST_STAGING, false,
++        __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+         return;
+     }
+     if (!ml_get_interrupts_enabled() || ml_at_interrupt_context() || get_preemption_level() ||
+         !region_bytes || region_bytes != PST_REGION || !pa || (pa & (PST_REGION - 1)) ||
+         pa > UINT64_C(0x100000000) - PST_REGION) {
++        __atomic_store_n(&pst_state, PST_FAILED, __ATOMIC_RELEASE);
+         printf("SWEET PAS STAGE: invalid entry/context; stopped\n");
+         return;
+     }
+     const uint8_t *image = pst_asset();
+     if (!image) {
++        __atomic_store_n(&pst_state, PST_FAILED, __ATOMIC_RELEASE);
+         pst_record("SWEET PAS STAGE: missing/invalid pinned MDT asset; no low mapping");
+         return;
+     }
+@@ -164,6 +182,7 @@
+     if (!pst_mapping || (pst_mapping & (PST_PAGE - 1)) ||
+         ml_vtophys(pst_mapping) != (vm_offset_t)pa ||
+         ml_vtophys(pst_mapping + PST_PAGE - 1) != (vm_offset_t)(pa + PST_PAGE - 1)) {
++        __atomic_store_n(&pst_state, PST_FAILED, __ATOMIC_RELEASE);
+         pst_record("SWEET PAS STAGE: mapping/translation failed; retained until reboot");
+         return;
+     }
+@@ -187,11 +206,34 @@
+     }
+     char line[192];
+     if (!match) {
++        __atomic_store_n(&pst_state, PST_FAILED, __ATOMIC_RELEASE);
+         pst_record("SWEET PAS STAGE: readback/tail mismatch; retained until reboot");
+         return;
+     }
+     pst_hex("SWEET PAS STAGE: complete metadata_bytes=6860 zero_tail_bytes=9524", digest, line);
+     pst_record(line);
++    /* The owner probe supplied this boot's dynamic PA only after validating
++     * its provenance and all64 unmanaged NC pages. Retain that caller contract;
++     * a READY record never substitutes for those preconditions. */
++    pst_ready = (struct sweet_pas_cpu_stage){ pa, PST_BYTES, (uint32_t)PST_PAGE };
++    __atomic_store_n(&pst_state, PST_READY, __ATOMIC_RELEASE);
++}
++
++bool
++sweet_pas_cpu_stage_claim(struct sweet_pas_cpu_stage *out)
++{
++    if (out == NULL) {
++        return false; /* Never consume READY for an invalid output. */
++    }
++    unsigned expected = PST_READY;
++    if (!__atomic_compare_exchange_n(&pst_state, &expected, PST_CLAIMED, false,
++        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
++        return false;
++    }
++    /* Acquire pairs with the READY release. The record stays immutable and
++     * the mapping/reservation remain retained, even if a later caller fails. */
++    *out = pst_ready;
++    return true;
+ }
+ 
+ #endif /* GAUGUIN */
+--- /dev/null
++++ b/bsd/dev/gauguin_pas_stage.h
+@@ -0,0 +1,29 @@
++#ifndef GAUGUIN_PAS_STAGE_H
++#define GAUGUIN_PAS_STAGE_H
++#include <stdbool.h>
++#include <stdint.h>
++
++/* CPU staging only. No EL3 authentication, permission or GPU readiness claim.
++ * Addresses are this boot's dynamically selected reservation, never an old log
++ * value. No mutable virtual buffer pointer is returned. The low mapping and
++ * whole reservation remain retained until reboot, even after claim/failure. */
++struct sweet_pas_cpu_stage {
++    uint64_t pa;
++    uint32_t metadata_bytes;
++    uint32_t reserved_bytes;
++};
++
++/* Internal owner-probe entry only: caller must first validate this boot's
++ * LowPASReservation provenance and all64 unmanaged NC pages. Both exact1
++ * flags sweetpasprobe/sweetpasstage are required. Disabled leaves IDLE; an
++ * enabled attempt is terminal even on error. Existing caller ABI retained. */
++void sweet_pas_stage_once(uint64_t pa, uint64_t region_bytes);
++
++/* Atomically claim the CPU-stage record once, after verified pin/copy/readback
++ * and zero-tail checks. Success returns PA,6860,16384 with acquire visibility.
++ * NULL, IDLE, in-progress, failed and already-claimed calls return false and
++ * leave any non-NULL output unchanged. No unclaim, retry, restage or free API.
++ * A later secure caller must qualify its own resources/ABI/permissions and
++ * issue the appropriate DSB before SMC; this function invokes no SMC. */
++bool sweet_pas_cpu_stage_claim(struct sweet_pas_cpu_stage *out);
++#endif /* GAUGUIN_PAS_STAGE_H */
+--- /dev/null
++++ b/bsd/dev/gauguin_wdt_lease.h
+@@ -0,0 +1,71 @@
++#ifndef GAUGUIN_WDT_LEASE_H
++#define GAUGUIN_WDT_LEASE_H
++#include <stdbool.h>
++#include <stdint.h>
++
++/* CPU-owned metadata only: no mapping pointer or transfer of MMIO ownership.
++ * Time fields use mach_absolute_time() ticks, NOT nanoseconds/WDT ticks.
++ * armed_at_ticks is sampled immediately BEFORE the EN/RST writes, so the
++ * independent CPU-time window does not grant extra time for arming overhead.
++ * ready_count is a 20-bit WDT counter sample after ONE requested second.
++ */
++struct gauguin_wdt_lease_record {
++    uint64_t armed_at_ticks;
++    uint64_t ready_at_ticks;
++    uint32_t ready_count;
++    uint32_t bark_ticks;
++    uint32_t bite_ticks;
++    uint32_t clock_hz;
++};
++
++enum {
++    GAUGUIN_WDT_CLOCK_HZ = 32765u,
++    GAUGUIN_WDT_BARK_TICKS = 20u * GAUGUIN_WDT_CLOCK_HZ,
++    GAUGUIN_WDT_BITE_TICKS = 23u * GAUGUIN_WDT_CLOCK_HZ,
++};
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++/* Exact test1 OR busvote1. Used before scheduling any legacy sampler/PET;
++ * deliberately true even when conflicting flags make both experiments fail.
++ * This does not arm anything or prove the corresponding configuration valid.
++ */
++bool sweet_wdt_exclusive_requested(void);
++
++/* Only sweetbusvote=1 can enter. The coordinator must first establish its
++ * same-boot PAS CPU-stage/CMDDB/controller prerequisites; this API does not
++ * infer or create those prerequisites. One attempt shared with wdttest.
++ * Requires valid preemptible thread context and conflicting diagnostics off.
++ * After exact native register programming, waits IOSleep(1000) ONCE, checks
++ * EN/thresholds and a strictly increasing count, then publishes READY.
++ * A non-NULL out is written only on success; failure leaves it untouched.
++ * Every started failure is quarantined until reboot; no retry/pet/disable.
++ * A true return is historical arm/counter evidence, not a reservation of
++ * future time. Check a fresh budget immediately before each stateful step.
++ */
++bool gauguin_wdt_lease_arm(struct gauguin_wdt_lease_record *out);
++
++/* Require 0 < minimum_remaining_ticks < GAUGUIN_WDT_BITE_TICKS. Returns true
++ * only while READY, EN3/thresholds unchanged, the 20-bit count has not moved
++ * backwards, and BOTH the current WDT counter and an independent CPU-time
++ * window leave at least that many nominal WDT ticks. Rapid calls may see the
++ * same count; strict increase was established by arm's one-second sample.
++ * Successful checks do not sleep, log, pet or write any hardware register.
++ * A failed READY check permanently quarantines authorization. Concurrent
++ * checks are rejected/quarantined rather than spinning; one coordinator must
++ * serialize its uses and all downstream stateful operations.
++ * This observation cannot guarantee that a later operation returns or that
++ * an arbitrary secure-world hang is terminated by the watchdog.
++ */
++bool gauguin_wdt_lease_check_budget(uint32_t minimum_remaining_ticks);
++
++/* Pure software latch, valid even on error paths. Consumes the shared attempt
++ * and prevents every future arm/budget success; never accesses hardware.
++ * It cannot cancel an already in-flight arm/read or a downstream operation.
++ */
++void gauguin_wdt_lease_quarantine(void);
++#ifdef __cplusplus
++}
++#endif
++#endif
+--- a/bsd/dev/gauguin_wdt_test.c
++++ b/bsd/dev/gauguin_wdt_test.c
+@@ -1,11 +1,15 @@
+-/* Opt-in APSS watchdog expiry experiment, sweetwdttest=1. Default off.
++/* Opt-in APSS watchdog expiry experiment and BCM coordinator counter lease.
++ * sweetwdttest=1 preserves the isolated expiry test; sweetbusvote=1 permits
++ * only an explicit coordinator arm call. Both default off and share one
++ * attempt. The header describes the CPU-only READY/budget contract.
+  * Gauguin native19b63c8 watchdog_v2.c: WDT_HZ32765, bark20s/bite23s,
+  * qcom,wakeup-enable => EN3. This worker programs only this watchdog; it
+  * performs no GPU/bandwidth/SMC operation. The existing loader still makes
+  * its pre-kernel secure-watchdog attempt; success there is NOT assumed.
+  *
+  * SweetWatchdog startup excludes its sampler/PET before any scheduling when
+- * this flag is set. Retain IOWatchdog's userland service/check-in semantics.
++ * either exclusive flag is set. Retain IOWatchdog's userland service/check-in
++ * semantics.
+  * A read-only helper requires the initialized GIC NS view to show SPI32/33
+  * disabled. Secure-owned interrupt state remains opaque. No GIC write occurs.
+  *
+@@ -18,12 +22,14 @@
+ #include <sys/param.h>
+ #include <sys/systm.h>
+ #include <kern/thread.h>
++#include <kern/clock.h>
+ #include <kern/sched_prim.h>
+ #include <machine/machine_routines.h>
+ #include <mach/mach_time.h>
+ #include <vm/pmap.h>
+ #include <pexpert/pexpert.h>
+ #include <IOKit/IOLib.h>
++#include "gauguin_wdt_lease.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern vm_offset_t ml_vtophys(vm_offset_t);
+@@ -45,15 +51,32 @@
+ #define WDT_STS 0x0cu
+ #define WDT_BARK 0x10u
+ #define WDT_BITE 0x14u
+-#define WDT_HZ 32765u
+-#define WDT_BARK_TICKS (20u * WDT_HZ)
+-#define WDT_BITE_TICKS (23u * WDT_HZ)
++#define WDT_HZ GAUGUIN_WDT_CLOCK_HZ
++#define WDT_BARK_TICKS GAUGUIN_WDT_BARK_TICKS
++#define WDT_BITE_TICKS GAUGUIN_WDT_BITE_TICKS
+ _Static_assert(PAGE_SHIFT == 14, "one unmanaged16KiB page covers the WDT");
+ _Static_assert(WDT_BITE_TICKS < 0x100000u, "deadline fits the native20-bit counter");
+ 
+ static unsigned wdt_started;
+ static vm_offset_t wdt_mapping; /* IO mapping retained until reset. */
+ static bool wdt_context(void);
++
++/* Monotonic lifecycle: IDLE -> ARMING -> READY -> QUARANTINED, or any
++ * started/explicitly quarantined state -> QUARANTINED. No return to IDLE.
++ * READY publishes the immutable arm/ready snapshot with release/acquire.
++ * budget_busy serializes mutable last-sample bookkeeping, never spins.
++ */
++enum wdt_lease_state { WDL_IDLE, WDL_ARMING, WDL_READY, WDL_QUARANTINED };
++static unsigned wdt_lease_state;
++static unsigned wdt_budget_busy;
++static struct gauguin_wdt_lease_record wdt_lease_record;
++static uint32_t wdt_lease_last_count;
++static uint64_t wdt_lease_last_at;
++
++struct wdt_arm_snapshot {
++    uint32_t status;
++    uint64_t armed_at_ticks;
++};
+ 
+ static uint32_t
+ wdt_read(uint32_t offset)
+@@ -99,13 +122,27 @@
+ }
+ 
+ static bool
++wdt_bus_requested(void)
++{
++    int bus = 0;
++    (void)PE_parse_boot_argn("sweetbusvote", &bus, sizeof(bus));
++    return bus == 1;
++}
++
++bool
++sweet_wdt_exclusive_requested(void)
++{
++    return sweet_wdt_test_requested() || wdt_bus_requested();
++}
++
++static bool
+ wdt_conflict(void)
+ {
+     /* Do not confuse another timed panic/reboot with this hardware expiry, or
+      * combine the first reset test with any other new MMIO experiment. */
+     static const char *const names[] = {"sweetwdtpet", "sweetreboot",
+         "sweetbusprobe", "sweetgpuprobe", "sweetscmprobe", "sweettouchmode",
+-        "sweetpasprobe", "sweetpasstage"};
++        "sweetpasprobe", "sweetpasstage", "sweetbusvote"};
+     for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+         int value = 0;
+         (void)PE_parse_boot_argn(names[i], &value, sizeof(value));
+@@ -130,8 +167,8 @@
+     return quiet;
+ }
+ 
+-static void
+-wdt_run(void)
++static bool
++wdt_arm_registers(struct wdt_arm_snapshot *out)
+ {
+     char line[192];
+     ppnum_t pn = (ppnum_t)(WDT_PA >> PAGE_SHIFT);
+@@ -140,18 +177,18 @@
+     if (managed || (attr & 0xffu) != 7u) {
+         snprintf(line, sizeof(line), "SWEET WDT TEST: pmap managed=%u attr=%08x; stopped", managed ? 1u : 0u, attr);
+         wdt_record(line);
+-        return;
++        return false;
+     }
+     if (!wdt_irq_check()) {
+         wdt_record("SWEET WDT TEST: NS IRQ guard failed; no WDT writes");
+-        return;
++        return false;
+     }
+     wdt_record("SWEET WDT TEST: mapping 17c10000+1000 Device RW; exact register whitelist only");
+     wdt_mapping = ml_io_map_with_prot(WDT_PA, WDT_BYTES, VM_PROT_READ | VM_PROT_WRITE);
+     if (!wdt_mapping || ml_vtophys(wdt_mapping) != WDT_PA ||
+         ml_vtophys(wdt_mapping + WDT_BYTES - 1u) != WDT_PA + WDT_BYTES - 1u) {
+         wdt_record("SWEET WDT TEST: map/translation failed; stopped before register access");
+-        return;
++        return false;
+     }
+     uint32_t en = wdt_read(WDT_EN), status = wdt_read(WDT_STS);
+     uint32_t bark = wdt_read(WDT_BARK), bite = wdt_read(WDT_BITE);
+@@ -159,14 +196,14 @@
+     wdt_record(line);
+     if (en != 0) {
+         wdt_record("SWEET WDT TEST: watchdog already enabled/unknown; no writes");
+-        return;
++        return false;
+     }
+     wdt_record("SWEET WDT TEST: preparing native BARK655300 BITE753595 EN3; one final RST, then no pets");
+     /* Recheck immediately before any write, after persistence operations. */
+     uint32_t irq = UINT32_MAX;
+     if (!wdt_context() || !sweet_wdt_irq_quiet(&irq) || wdt_read(WDT_EN) != 0) {
+         wdt_record("SWEET WDT TEST: pre-write context/IRQ/enable changed; no writes");
+-        return;
++        return false;
+     }
+     wdt_write(WDT_BARK, WDT_BARK_TICKS);
+     wdt_write(WDT_BITE, WDT_BITE_TICKS);
+@@ -174,8 +211,9 @@
+      * initially disabled watchdog stays disabled if threshold checks fail. */
+     if (wdt_read(WDT_BARK) != WDT_BARK_TICKS || wdt_read(WDT_BITE) != WDT_BITE_TICKS) {
+         wdt_record("SWEET WDT TEST: threshold readback mismatch; EN/RST not written");
+-        return;
+-    }
++        return false;
++    }
++    uint64_t armed_at = mach_absolute_time();
+     wdt_write(WDT_EN, 3u);
+     wdt_write(WDT_RST, 1u); /* native sequence; never read the pulse register */
+     en = wdt_read(WDT_EN); bark = wdt_read(WDT_BARK); bite = wdt_read(WDT_BITE);
+@@ -184,8 +222,23 @@
+     wdt_record(line);
+     if (en != 3u || bark != WDT_BARK_TICKS || bite != WDT_BITE_TICKS) {
+         wdt_record("SWEET WDT TEST: arming readback failed; no retry/cleanup/pet; state unqualified");
++        return false;
++    }
++    out->status = status;
++    out->armed_at_ticks = armed_at;
++    return true;
++}
++
++static void
++wdt_run(void)
++{
++    char line[192];
++    struct wdt_arm_snapshot arm;
++    if (!wdt_arm_registers(&arm)) {
+         return;
+     }
++    uint32_t status = arm.status;
++    uint32_t en;
+     uint32_t previous = (status >> 1) & 0xfffffu;
+     for (unsigned i = 1; i <= 5; ++i) {
+         IOSleep(1000);
+@@ -207,6 +260,170 @@
+     wdt_record("SWEET WDT TEST: survived 30 requested seconds after arm; automatic reset NOT qualified; no retry");
+ }
+ 
++void
++gauguin_wdt_lease_quarantine(void)
++{
++    (void)__atomic_exchange_n(&wdt_started, 1u, __ATOMIC_ACQ_REL);
++    __atomic_store_n(&wdt_lease_state, WDL_QUARANTINED, __ATOMIC_RELEASE);
++}
++
++static bool
++wdt_lease_fail(const char *message)
++{
++    gauguin_wdt_lease_quarantine();
++    wdt_record(message); /* printf only when the context cannot persist */
++    return false;
++}
++
++static bool
++wdt_bus_conflict(void)
++{
++    static const char *const off[] = {"sweetwdtpet", "sweetreboot",
++        "sweetwdttest", "sweetbusprobe", "sweetgpuprobe", "sweetscmprobe",
++        "sweettouchmode"};
++    for (unsigned i = 0; i < sizeof(off) / sizeof(off[0]); ++i) {
++        int value = 0;
++        (void)PE_parse_boot_argn(off[i], &value, sizeof(value));
++        if (value != 0) {
++            char line[160];
++            snprintf(line, sizeof(line), "SWEET WDT LEASE: conflict %s=%d; no arm", off[i], value);
++            wdt_record(line);
++            return true;
++        }
++    }
++    /* CPU-only PAS preparation may be enabled by the coordinator. These
++     * flags are not evidence that it completed; the caller must await READY. */
++    static const char *const cpu[] = {"sweetpasprobe", "sweetpasstage"};
++    for (unsigned i = 0; i < sizeof(cpu) / sizeof(cpu[0]); ++i) {
++        int value = 0;
++        (void)PE_parse_boot_argn(cpu[i], &value, sizeof(value));
++        if (value != 0 && value != 1) {
++            wdt_record("SWEET WDT LEASE: invalid CPU-stage flag; no arm");
++            return true;
++        }
++    }
++    return false;
++}
++
++/* Software upper window in nominal WDT ticks. This is a refusal guard if the
++ * WDT count stalls, not an alternate reset or cancellation mechanism. Bound
++ * nanoseconds BEFORE multiplication; no CPU-frequency constant is assumed. */
++static bool
++wdt_cpu_window(uint64_t armed_at, uint64_t now, uint32_t minimum)
++{
++    uint64_t nanoseconds;
++    if (now < armed_at) {
++        return false;
++    }
++    absolutetime_to_nanoseconds(now - armed_at, &nanoseconds);
++    if (nanoseconds >= UINT64_C(23000000000)) {
++        return false;
++    }
++    uint64_t used = nanoseconds * WDT_HZ / UINT64_C(1000000000);
++    return used < WDT_BITE_TICKS && WDT_BITE_TICKS - used >= minimum;
++}
++
++bool
++gauguin_wdt_lease_arm(struct gauguin_wdt_lease_record *out)
++{
++    /* Rejected absent-mode/NULL calls do not consume a real attempt. */
++    if (out == NULL || !wdt_bus_requested()) {
++        return false;
++    }
++    if (__atomic_exchange_n(&wdt_started, 1u, __ATOMIC_ACQ_REL)) {
++        return false;
++    }
++    unsigned expected = WDL_IDLE;
++    if (!__atomic_compare_exchange_n(&wdt_lease_state, &expected, WDL_ARMING,
++        false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
++        return false;
++    }
++    if (!wdt_context() || wdt_bus_conflict()) {
++        return wdt_lease_fail("SWEET WDT LEASE: context/config rejected; quarantined");
++    }
++    wdt_record("SWEET WDT LEASE: one arm requested by bus coordinator; no automatic re-arm or PET");
++    struct wdt_arm_snapshot arm;
++    if (!wdt_arm_registers(&arm)) {
++        return wdt_lease_fail("SWEET WDT LEASE: arm failed; quarantined with no cleanup writes");
++    }
++    IOSleep(1000); /* exactly one readiness wait in this API */
++    if (!wdt_context()) {
++        return wdt_lease_fail("SWEET WDT LEASE: invalid context after readiness wait; quarantined");
++    }
++    uint32_t en = wdt_read(WDT_EN), bark = wdt_read(WDT_BARK);
++    uint32_t bite = wdt_read(WDT_BITE), status = wdt_read(WDT_STS);
++    uint32_t count = (status >> 1) & 0xfffffu;
++    uint64_t now = mach_absolute_time();
++    if (en != 3u || bark != WDT_BARK_TICKS || bite != WDT_BITE_TICKS ||
++        count <= ((arm.status >> 1) & 0xfffffu) || count >= WDT_BITE_TICKS ||
++        !wdt_cpu_window(arm.armed_at_ticks, now, 1u)) {
++        return wdt_lease_fail("SWEET WDT LEASE: readiness/counter/window mismatch; quarantined");
++    }
++    struct gauguin_wdt_lease_record ready = {
++        arm.armed_at_ticks, now, count, WDT_BARK_TICKS, WDT_BITE_TICKS, WDT_HZ
++    };
++    char line[192];
++    snprintf(line, sizeof(line), "SWEET WDT LEASE: readiness sample en=%08x count=%u arm_at=%llu ready_at=%llu; counter evidence only",
++        en, count, ready.armed_at_ticks, ready.ready_at_ticks);
++    wdt_record(line);
++    if (!wdt_context()) {
++        return wdt_lease_fail("SWEET WDT LEASE: invalid publication context; quarantined");
++    }
++    wdt_lease_record = ready;
++    wdt_lease_last_count = count;
++    wdt_lease_last_at = now;
++    expected = WDL_ARMING;
++    if (!__atomic_compare_exchange_n(&wdt_lease_state, &expected, WDL_READY,
++        false, __ATOMIC_RELEASE, __ATOMIC_RELAXED)) {
++        return false; /* another error path quarantined; never overwrite it */
++    }
++    *out = ready;
++    return true;
++}
++
++bool
++gauguin_wdt_lease_check_budget(uint32_t minimum_remaining_ticks)
++{
++    if (__atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) != WDL_READY) {
++        return false;
++    }
++    if (!wdt_bus_requested() || !wdt_context() || minimum_remaining_ticks == 0 ||
++        minimum_remaining_ticks >= WDT_BITE_TICKS) {
++        return wdt_lease_fail("SWEET WDT LEASE: invalid budget request/context; quarantined");
++    }
++    unsigned clear = 0;
++    if (!__atomic_compare_exchange_n(&wdt_budget_busy, &clear, 1u, false,
++        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
++        return wdt_lease_fail("SWEET WDT LEASE: concurrent budget check; quarantined");
++    }
++    /* A simultaneous quarantine does not turn into another READY state. */
++    if (__atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) != WDL_READY) {
++        __atomic_store_n(&wdt_budget_busy, 0u, __ATOMIC_RELEASE);
++        return false;
++    }
++    uint32_t en = wdt_read(WDT_EN), bark = wdt_read(WDT_BARK);
++    uint32_t bite = wdt_read(WDT_BITE), status = wdt_read(WDT_STS);
++    uint32_t count = (status >> 1) & 0xfffffu;
++    uint64_t now = mach_absolute_time();
++    bool valid = en == 3u && bark == WDT_BARK_TICKS && bite == WDT_BITE_TICKS &&
++        count >= wdt_lease_last_count && count < WDT_BITE_TICKS &&
++        now >= wdt_lease_last_at &&
++        WDT_BITE_TICKS - count >= minimum_remaining_ticks &&
++        wdt_cpu_window(wdt_lease_record.armed_at_ticks, now, minimum_remaining_ticks);
++    if (valid) {
++        wdt_lease_last_count = count;
++        wdt_lease_last_at = now;
++    } else {
++        gauguin_wdt_lease_quarantine();
++    }
++    bool still_ready = __atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) == WDL_READY;
++    __atomic_store_n(&wdt_budget_busy, 0u, __ATOMIC_RELEASE);
++    if (!valid) {
++        wdt_record("SWEET WDT LEASE: budget/readback/counter/window failed; quarantined, no PET or cleanup");
++    }
++    return valid && still_ready;
++}
++
+ static void
+ wdt_worker(void *argument, wait_result_t result)
+ {
+--- a/bsd/dev/sweet_rpmh.c
++++ b/bsd/dev/sweet_rpmh.c
+@@ -4,6 +4,7 @@
+  * No sleep/wake programming, SPMI writes, GIC handler, or timeout recovery.
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
++#include <pexpert/arm64/board_config.h>
+ #include <sys/param.h>
+ #include <sys/systm.h>
+ #include <sys/errno.h>
+@@ -12,6 +13,9 @@
+ 
+ extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
+ int sweet_rpmh_vreg_enable(const char *res, unsigned mv);
++#if defined(GAUGUIN)
++extern bool sweet_bcm_vote_requested(void);
++#endif
+ 
+ /* Live downstream DT has two positional reg entries, no reg-names. */
+ #define RH_RSC_PA       0x18220000u
+@@ -328,6 +332,14 @@
+ int
+ sweet_rpmh_vreg_enable(const char *res, unsigned mv)
+ {
++#if defined(GAUGUIN)
++	/* Exclude the old controller writer before its lock/map, even when the
++	 * new experiment later rejects conflicting flags or other preconditions. */
++	if (sweet_bcm_vote_requested()) {
++		printf("SWEET RPMH: BCM experiment owns controller; legacy access refused\n");
++		return EBUSY;
++	}
++#endif
+ 		/* Board-specific helper: do not apply PMIC5-LDO policy to arbitrary
+ 	 * resources. The resource names are the vendor DT's rpmh-regulator
+ 	 * qcom,resource-name values; gauguin powers the touch IC from the main
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -409,6 +409,7 @@
+ extern void sweet_pas_probe_init(void);
+ extern void sweet_bus_probe_init(void);
+ extern void sweet_wdt_test_init(void);
++extern void sweet_bcm_vote_init(void);
+ #endif
+ void set_rootvnode(vnode_t);
+ 
+@@ -1078,6 +1079,7 @@
+ 	sweet_pas_probe_init();
+ 	sweet_bus_probe_init();
+ 	sweet_wdt_test_init();
++	sweet_bcm_vote_init();
+ #endif
+ 
+ #if 0 /* not yet */
+--- a/iokit/Kernel/arm/SweetWatchdog.cpp
++++ b/iokit/Kernel/arm/SweetWatchdog.cpp
+@@ -33,7 +33,7 @@
+ 
+ 
+ #if defined(GAUGUIN)
+-extern "C" bool sweet_wdt_test_requested(void);
++extern "C" bool sweet_wdt_exclusive_requested(void);
+ #endif
+ 
+ void sweet_wdt_thread_start(void);
+@@ -534,10 +534,11 @@
+ sweet_wdt_thread_start(void)
+ {
+ #if defined(GAUGUIN)
+-	/* The reset experiment owns APSS WDT exclusively. Exclude both legacy
+-	 * aliases/callouts before scheduling, even when test flags conflict.
++	/* Either reset-test or bus-coordinator mode owns APSS WDT exclusively.
++	 * Exclude both legacy aliases/callouts before scheduling, even when
++	 * configuration flags conflict.
+ 	 * The userland IOWatchdog service and read-only secure diagnostics stay. */
+-	if (sweet_wdt_test_requested()) {
++	if (sweet_wdt_exclusive_requested()) {
+ 		IOLog("SWEET WDT TEST: legacy sampler/PET excluded before scheduling\n");
+ 		sweet_secure_diag_start();
+ 		return;
+--- a/pexpert/arm/pe_fiq.c
++++ b/pexpert/arm/pe_fiq.c
+@@ -69,6 +69,24 @@
+     __asm__ volatile("dmb oshld" ::: "memory");
+     *enabled = value;
+     return (value & 3u) == 0;
++}
++#endif
++
++
++#if defined(GAUGUIN)
++/* Gauguin DRV2 uses DT SPI5 = INTID37. Same NS-view-only limitation as WDT;
++ * no interrupt handler is installed and no GIC enable/group bits are changed. */
++bool sweet_rsc_irq_quiet(uint32_t *enabled);
++bool
++sweet_rsc_irq_quiet(uint32_t *enabled)
++{
++    if (enabled == NULL || !gicd_base ||
++        ml_vtophys(gicd_base) != UINT64_C(0x17a00000) ||
++        ml_vtophys(gicd_base + 0x104u) != UINT64_C(0x17a00104)) return false;
++    uint32_t value = gicd_read32(0x104u);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    *enabled = value;
++    return (value & (1u << 5)) == 0;
+ }
+ #endif
+ 

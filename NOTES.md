@@ -3,6 +3,219 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0115 normal native build and package PASS; hardware trial pending
+
+Code fb8041b941f1dd92229590eaef79240bf6678a1c; source115-codex5261files
+SHAa6634f4a8913181ab29ee477ed31abf0b0de92bbfc479428e0e7d70130d35cc8.
+All48hostfiles passed before fullbuild. DSH executed reviewed build115.py once,
+normal make0/dSYM/strip/install, run gauguin.MRqCtP. Manifest SHA
+ a21a22d9a106400d0c5826cfb0b0c90d297e03639dba6556b17498becf0112c0.
+Installed kernel16850240bytes SHA
+ dc7d872f0c6c8f0f9effd91869e773f0f9e39c37322b86eec69d1abc576a44f4,
+buildID xnu-754aa35e66a84ffa8cfc01e09ea7b7b6, banner Nov6 17:55:18CST.
+All original qualification checks and new PASclaim/lease/CMDDBprepare/GIC/
+transport/coordinator definedsymbols passed. Source/input/SDK recordedinputs,
+installedkernel/archiveversion.o/committedHEAD/originalmkadtdiff qualified.
+
+Image shim/out/shim-p3-bcmsubmit-0115-native-20261106.img19464192bytes
+SHA83b0bf1bf8d469af87ed227919ab34bd8bb9df0fb573b4485696c76dadb92a2b;
+payload19136512bytes SHAb87bb135775772b8ed9523875634eaa0cdee390084476d7e93ecc54b1689ca85.
+Initialcmdline584bytes contains unique sweettrial=bcmsubmit-0115-20261106-a1:
+busvote1, PASprobe/stage1; wdttest/PET/reboot/busprobe/GPUprobe/SCMprobe/
+touchmode0, NVT1/hz30/cpus8. Optional later SCM diagnostic tokens may be omitted
+for space; initial marker is preserved. Baseline shim secure-WDT attempt remains.
+No new worker PAS/SMC/GPU call. Runtimeclaims dynamic lowCPUstage; packagedMDT
+at182570000 is a sourceasset, NOT the lowclaimedPA. NVT sourceasset18254c000.
+
+Records research/tmp/dsh-0115/native115-{execution,dsh}-result.json,
+research/tmp/p3-native-0115-qualification-20261106.json,
+research/tmp/p3-bcmsubmit-0115-native-evidence-20261106.json.
+DSHprocess88269 terminal0; no build remains live. Phone lastTWRP; no115bootyet.
+Independent read-only image review PASS: boot-v2/rawpayload0x48/608/ADT,
+10native kernelsegments, allpinnedassets, zero2MiBtail, unchanged113/114baselines
+andoriginalmkadtdiff. Report research/tmp/dsh-0115/image-parent-review.json;
+DSH reviewedscript oneexecution exit0 (image-review115-dsh-result.json).
+Next: sanitized16textpath publicsnapshot with parent
+ d3cd94b0b771ea8403ca92ed76adc8592363ade9, one temporaryboot with180s observer.
+Retain originalmkadtedit and113/114images. Require fresh trial/banner, CPUclaim,
+fullCMDDB, WDTready, nativecompletion/receipt + explicit actualrecovery evidence.
+Controller completion is not measured bandwidth or GPU/Metal execution.
+Normal-runtime114 autonomousreset verified; broadergoal remainsactive.
+
+
+
+### 2026-11-06 — 0115 strict replay + full host suite PASS on fresh source115-codex (DSH)
+
+DSH executed the reviewed `research/tmp/dsh-0115/execute-replay-full-tests.txt`
+command EXACTLY ONCE (no retry, no edits, no repair, no full build, no device,
+no network, no git changes): `PYTHONDONTWRITEBYTECODE=1 python3
+research/tmp/dsh-0115/prepare_and_test115.py > replay-full-host-executor.log 2>&1`.
+Actual script exit0, state `passed`; started09:17Z finished09:18:49Z.
+
+Preconditions seen by DSH before running: source115-codex/pristine115.tar/record
+absent; source114-context SHA256 `738fda98...…3a9557a3` intact; pinned upstream
+`1b191cb5…` (tree `5c0fc728…`) present. Strict replay PASSED:109patches from
+`git archive` of that upstream, fresh `.deps-cache/p0-20261105/source115-codex`,
+5261files, source SHA256
+`a6634f4a8913181ab29ee477ed31abf0b0de92bbfc479428e0e7d70130d35cc8`. Exactly the
+14 expected paths differ from114 (listed in the result file), baseline114
+unchanged, no failure/warning/skip in replay115.log. Full host suite PASSED:
+`tests/run-all.sh` with XNU_SOURCE=source115-codex, host_exit0, all48 test files,
+101 unittest cases ok/0 fail, terminal line `all host tests passed`, tested source
+hash unchanged. `test_bcm_guards.py` (never executed before) PASSED controller
+guards rsc-helper15 / legacy-gate-gauguin8 / legacy-gate-other8. New tests
+re-passed on this fresh tree: coordinator58, transport147, lease190,
+pas_staging3, bus_probe/Loader/86PAS cases.
+
+OBSERVED vs GUESS: this is host/test evidence only (no full link, image or boot)
+and the guard test still uses a deliberate sentinel for the non-prefix legacy
+path. Record research/tmp/dsh-0115/replay-full-host-dsh-result.json (with log
+SHA256s); replay115.log, full-host115.log,
+replay-full-host-result.json. Next (Codex/parent): commit tested source, then
+normal full build/qualification/package before any hardware trial. Phone last
+confirmed TWRP; no115 hardware operation has occurred.
+
+
+### 2026-11-06 — 0115 bounded BCM transport integrated as draft; offline checks PASS
+
+Next: commit the reviewed/tested0115 changes, then normal local build/qualify/
+package and independent image review before any hardware trial. 114 autonomous normal-running reset is now confirmed by
+user (no manual action), but does not prove arbitrary secure-world hang recovery.
+No115 full kernel/image/boot or bandwidth/PAS/GPU hardware operation yet.
+
+Authoritative candidate research/tmp/dsh-0115/combined; tracked draft
+0115-gauguin-bounded-bcm-transport.patch covers14paths (6newfiles), with tests.
+One coordinator waits45s, claims actual CPUstage READY (bounded5s wait), prepares
+this boot's CMDDB from two complete readonlycopies, arms/observes WDT once, then
+submits the exact six-command native BCM batch onACTIVE1. Old RSC entry is hard
+excluded beforelock/map when sweetbusvote1; old WDT sampler/PET excludedtoo.
+FreshGICNSINTID37(bit5)quiet guard, ownRSCIRQbit1 acquire/newcompletion,6ISSUED/
+5COMPL, exactpayloadreadback, nativecleanup andownbitrestore required. NoCMD_STATUS
+clearguess, maskedIRQfallback, retries or vote rollback. Anyuncertain write
+quarantines untilreset. Transaction10s +freshWDTbudget15sstart/3sstep guards.
+COMPLETE meanscontrollerrequestcompletion, not measuredBW/GPUexecution.
+Successful requests remainheld untilreset; no sleep/wake/PDC program orPAS/SMC.
+
+PAS READY API preservesdualparamstageABI; releasepublishedimmutable dynamicPA,
+6860raw/16384reserved, oneacquireclaim onlyafterfullcopy/readback. WDTlease shares
+oneattempt with114test; native4writesunchanged, one1sadvancement, freshthreshold/
+monotoniccounter/CPU23swindow budget. NoPET/disable/rearm; successfulbudgetreadonly.
+Coordinator claimsREADY beforeCMDDB andWDT, avoiding asynchronous45s-stage race.
+Newstage/watchdogAPIs andcontrollerenginehavebeenCodex-reviewed.
+
+DSH validation: PASrealpacker3testsPASS (includingoldrawlengthnegative and
+8concurrentclaimants); transport147casesPASS; lease87old+103new=190PASS;
+coordinator58PASS; CMDDBprepare70old+36new=106PASS andbothactualRAWlogs roundtrip.
+NativeARM64 singleTUs PASS fortransport, PASready, lease, coordinator against
+114/qsECQd context. These are not full linking/hardware proofs. Initialtransport
+fixture compile failedunusedhas helper; correctedfixture nowasserts accurate
+completionlog; strictwarnings/sanitizers retained, originalfailurepreserved.
+Records research/tmp/dsh-0115/component-validation-result.json,
+offline-first-dsh-result.json and individual.log/uniquehostresultdirectories.
+Controllerguardtestauthored (actualreadonlyGIChelper +actual
+legacyentryprefix; remainder deliberatelyfallbacksentinel, wholeoldbodyhash
+preserved) and now PASS (see later executorentry); publictestpinsbaselinelegacySHA
+instead ofdependingonignoredtree.
+
+All changes authored byCodex; DSH onlyexecutedreviewedtests/TUs. PhoneTWRP;
+no livejob, currentnativecontext still114/qsECQd. Preserveoriginalmkadt edit,
+all113/114qualifiedimages and private/public history separation. Fullgoalactive.
+
+
+### 2026-11-06 — 0115 BCM transport host fixture FAILED TO COMPILE (stopped for Codex)
+
+DSH ran the reviewed `research/tmp/dsh-0115/transport/host/run_tests.py` EXACTLY ONCE
+(no retry, no edits, no repair/object patch, no network/device/full build).
+actual_exit=1, cases executed0. clang (Apple21.0.0) error:
+`transport_test.c:500:13: error: unused function 'has' [-Werror,-Wunused-function]`,
+originating from fixture `transport/host/transport_host.c:237` (`static bool has(...)`,
+never referenced; real assertions use CHECK()). Binary/mock/ASan run never started,
+so there is no result for the C+31 write oracle, the native flow, or new IRQ
+failures either way. First python run created `transport/host/logs/`; the sole run
+dir is logs/transport-run-ql829y7r (run.log, result.json state `failed`). Record:
+research/tmp/dsh-0115/transport-host-dsh-result.json; top log transport-host.log.
+RESOLVED: see the later 0115 rerun entry below.
+
+
+### 2026-11-06 — 0114 autonomous normal-running watchdog reset VERIFIED
+
+User answered the pending attribution question: “是，手机自行重启，我没有操作”.
+Parent rechecked unchanged image/log/cycle hashes against the technical report
+and combined that explicit fact in
+research/tmp/dsh-0114/hardware-parent-verification.json. Result is now verified
+normal-running expiry/autonomous recovery after131s. The earlier unknown/exit3
+report remains unchanged history, not silently relabeled. EN3/native20sBARK23sBITE,
+five enabled increasing counters, explicit observer back-in-TWRP, no PET/software
+reboot/panic, full banner and unique trial all checked. This does NOT prove
+containment of arbitrary secure-world hangs. Device remains TWRP.
+
+Current115 work (offline, not booted): root authors bounded BCM transport;
+Codex agent prepares explicit PAS CPU-stage READY/one-way claim; another prepares
+one-attempt watchdog arm/budget API preserving114 diagnostics. DSH will execute
+reviewed tests/builds. Native BCM batch semantics: MSGIDs10108,10108,10008,10108,
+10108,10108; WAIT3b,ENABLE3f. DRV2 IRQ is actual DT thirdtuple SPI5/INTID37,
+GIC NS ISENABLER1 bit5 (distinct from WDT bits0/1). No new hardware write yet.
+Keep0113 UI/touch and0114 reset baselines. No GPU/Metal completion claim.
+
+
+
+### 2026-11-06 — 0114 timer/automatic-recovery data verified; manual-action confirmation PENDING
+
+Observer saw recovery after131s (not a timeout); fresh114log was automatically
+pulled and matched the exact image. Technical verifier checks PASS, but the
+user has NOT yet answered whether any button/manual restart was used. Its
+honest status is reset-attribution-unverified, --manual-reset unknown, exit3.
+Do NOT promote this to qualified hardware reset until that explicit answer.
+Pending question: “0114在约131秒后回到了TWRP，日志已自动读回；是否手机自行重启、期间没有按键/手动重启？”
+If user confirms no manual operation, combine that new fact with unchanged
+verifiedlog/image/cycle hashes for the normal-running-reset qualification.
+If manual, preserve this trial and repeat a distinct trial marker if needed.
+No fresh trial needed merely to repeat already-passed data checks.
+
+Temporary boot accepted once:18976KB send0.442s/boot0.134s,total0.580s.
+Cycle started 2026-11-06T07:34:26.379684+00:00, finished 2026-11-06T07:36:43.035174+00:00;
+cycle research/tmp/p3-wdtexpiry-0114-native-cycle-20261106.log explicitly says
+back in TWRP after131s; observer0, no timeout/fallback. Fresh log
+research/tmp/p3-wdtexpiry-0114-native-observer-20261106.txt,
+145871B/2243lines, SHAb0f8998f4680a18c8fc235cdb4f14514eae9843f3f7aa7162dc47f51f085988a.
+Full banner xnu-917c2bd2614f4ad78ff771c72785854d, unique actual
+sweettrial=wdtexpiry-0114-20261106-a1. Initial commandline569B preserved; later
+optional loader-announced diagnostics end afterscmstep3, so this114 log does
+not establish secure-watchdog SMC success/status. No such success is assumed.
+
+Exact WDT evidence: legacy sampler/PET excluded; GIC NS ISENABLER1=0 quiet1;
+initialEN0/STS0/BARK524287/BITE1048575. Armreadback EN3/BARK655300/BITE753595/STS0,
+at1753534148ticks. Samples1..5 EN3, decodedcounts
+32872,65750,98589,131463,164336; at
+1772798503,1792065310,1811308827,1830573273,1849836554ticks respectively.
+Reported kernel timebase19200000Hz. All five count/STSmatches and monotonic
+time/count checks passed. Terminalcounter-advancing/awaitingactualreset marker
+present; no survived30s, failure, PET, debug-reboot, or panic(cpu) record.
+SecondGICguard passage is controlflow evidence from the matching image, not
+a second rawGIClog. Pre/post TWRP bootreason properties were empty; do not
+invent a PMIC/firmware reset-cause code. Physical attribution awaits user.
+
+Verifier/report: research/tmp/dsh-0114/verify_wdt114.py and
+hardware-data-verification.json; DSH actualexpectedexit3 recorded in
+verify-observed-dsh-result.json. Parent independently read the fresh records.
+No device operation followed the automaticpull except read-only bootreasonprops.
+Phone is currentlyTWRP; all DSH/build/observer handles terminal, no live job.
+Published114 code snapshot d3cd94b0b771ea8403ca92ed76adc8592363ade9 (single public parent
+d9cc88b77311059a053fa8a077bde7773d3e678e), matching privatehandoff69819e3 tree;
+no privateancestry/dumps/firmware/serials. Code6f3f067, normalnativeqsECQd.
+Original mkadt edit remains uncommitted.
+
+Next stateful step after normal-reset attribution is established: bounded
+same-boot BCM transport with exclusive HLOS writer/slot checks, then explicit
+PAS-stage READY publication and source-correct INIT_IMAGE ABI. Review
+research/tmp/dsh-0113/next-pas-parent-plan.json; idleTCS does not prove current
+bandwidth. This expiry experiment is not proof of containing arbitrary secure
+world hangs, and no GPU/Metal/bandwidth/PAS auth operation has occurred.
+Goal remains active; current work materially advanced timer programming and
+actual recovery evidence, not merely a plan. Codex codes; DSH executes.
+
+
+
 ### 2026-11-06 — 0114 normal native build/image qualified; expiry trial next
 
 Code commit6f3f067bad26d8bb18818a3aa9f7c8f7d4574099. source114-context:

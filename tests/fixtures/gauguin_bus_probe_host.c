@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmd_db_snapshot.h"
 #include "gauguin_bcm_plan.h"
+#include "gauguin_bus_probe.h"
 
 #define GAUGUIN 1
 #define KERN_SUCCESS 0
@@ -46,6 +47,7 @@ static uint32_t rsc[2][RSC_BYTES / 4];
 struct expected_read { uint32_t offset, value; };
 static struct {
     int enabled, touchmode, thread_error, context, delayed_context;
+    int vote; bool prepare_mode;
     unsigned starts, deallocations, terminations, sleeps, allocations;
     unsigned allocation_failure, map_failure, map_count, translate_failure;
     unsigned translations[2];
@@ -102,6 +104,7 @@ static void make_positive_db(void)
 }
 static unsigned page_index(ppnum_t pn)
 {
+    CHECK(!mock.prepare_mode || pn!=(RSC_PA>>PAGE_SHIFT),"prepare never inspects RSC page metadata");
     if (pn >= (DB_PA>>PAGE_SHIFT) && pn < (DB_PA>>PAGE_SHIFT)+8)
         return pn-(DB_PA>>PAGE_SHIFT);
     CHECK(pn==(RSC_PA>>PAGE_SHIFT),"only nine known physical pages checked");
@@ -120,11 +123,13 @@ bool PE_parse_boot_argn(const char *key,void *value,size_t len)
 {
     CHECK(len==sizeof(int),"boot argument integer");
     if (!strcmp(key,"sweetbusprobe")) *(int*)value=mock.enabled;
+    else if (!strcmp(key,"sweetbusvote")) *(int*)value=mock.vote;
     else { CHECK(!strcmp(key,"sweettouchmode"),"known boot arg"); *(int*)value=mock.touchmode; }
     return true;
 }
 kern_return_t kernel_thread_start(thread_continue_t fn,void *arg,thread_t *thread)
 {
+    CHECK(!mock.prepare_mode,"prepare does not schedule a thread");
     CHECK(!arg,"null worker argument"); ++mock.starts;
     if (mock.thread_error) return mock.thread_error;
     mock.worker=fn; *thread=(thread_t)(uintptr_t)1; return KERN_SUCCESS;
@@ -137,6 +142,7 @@ int ml_at_interrupt_context(void) { return mock.context==2; }
 int get_preemption_level(void) { return mock.context==3 ? 1:0; }
 void IOSleep(unsigned ms)
 {
+    CHECK(!mock.prepare_mode,"prepare library never sleeps; coordinator owns delay");
     CHECK(ms==1000 && mock.sleeps<45,"45 one-second sleeps");
     CHECK(!mock.allocations && !mock.map_count && !mock.db_loads,"delay before allocation or mapping");
     CHECK(mock.markers==1 && mock.flushes==1,"delay marker persisted");
@@ -144,7 +150,8 @@ void IOSleep(unsigned ms)
 }
 void *IOMalloc(size_t size)
 {
-    CHECK(mock.sleeps==45 && !mock.allocations && !mock.map_count,"one allocation after delay");
+    CHECK(mock.sleeps==(mock.prepare_mode ? 0u:45u) && !mock.allocations && !mock.map_count,
+        "prepare zero local sleep; legacy worker still requires45 sleeps");
     CHECK(size>2*DB_BYTES && size<2*DB_BYTES+16384,"bounded value storage");
     ++mock.allocations;
     if (mock.allocation_failure) return NULL;
@@ -167,6 +174,7 @@ unsigned int pmap_cache_attributes(ppnum_t pn)
 vm_offset_t ml_io_map_with_prot(vm_offset_t pa,vm_size_t bytes,vm_prot_t prot)
 {
     unsigned id=pa==DB_PA ? 0:1;
+    CHECK(!mock.prepare_mode || id==0,"prepare cannot map RSC");
     CHECK(pa==DB_PA || pa==RSC_PA,"fixed physical map only");
     CHECK(bytes==(id ? RSC_BYTES:DB_BYTES) && prot==VM_PROT_READ,"exact extent read only");
     CHECK(mock.allocations==1 && mock.allocation,"storage before map");
@@ -333,6 +341,38 @@ static void parse_digest(const char *hex)
         positive_digest[i]=(uint8_t)strtoul(part,&end,16); CHECK(!*end,"digest decode");
     }
 }
+static void prepare_reset(const char *name)
+{ reset(name);mock.prepare_mode=true;mock.enabled=0;mock.vote=1; }
+static void prepare_success(void)
+{
+    struct gbcm_plan out;memset(&out,0xa5,sizeof(out));
+    CHECK(sweet_bus_plan_prepare(&out),"prepare returns validated CPU plan");
+    CHECK(mock.allocations==1 && mock.map_count==1 && mock.db_loads==65536 && !mock.rsc_loads &&
+        !mock.pmap_checks[8] && !mock.translations[1] && !mock.sleeps && !mock.starts,
+        "prepare exactly two full CMDDB copies; no RSC or private delay/thread");
+    CHECK(mock.shas==1 && mock.positive_sha && bus_started==1,"hash and one shared attempt");
+    CHECK(out.wait_mask==0x3b,"prepared wait mask");
+    static const uint32_t addr[]={0x50000,0x50004,0x5002c,0x50044,0x5006c,0x50080};
+    static const uint32_t data[]={0x6fffffff,0x6fffffff,0x2fffffff,0x6fffffff,0x6fffffff,0x60000008};
+    for(unsigned i=0;i<6;++i)CHECK(out.cmd[i].address==addr[i] && out.cmd[i].data==data[i] && out.cmd[i].wait==((0x3bu>>i)&1),"exact prepared six-command CPU plan");
+    has("same-boot CPU plan ready; no RSC access or submission yet");
+    const struct gbcm_plan saved=out;
+    CHECK(!sweet_bus_plan_prepare(&out) && !memcmp(&out,&saved,sizeof(out)),"second prepare refused without output changes");
+    CHECK(mock.allocations==1 && mock.map_count==1 && mock.db_loads==65536,"no restage/recapture");
+    mock.enabled=1;sweet_bus_probe_init();CHECK(!mock.starts,"old probe cannot take an already consumed attempt");
+}
+static void prepare_failure(bool attempted)
+{
+    struct gbcm_plan out,saved;memset(&out,0xa5,sizeof(out));saved=out;
+    CHECK(!sweet_bus_plan_prepare(&out) && !memcmp(&out,&saved,sizeof(out)),"prepare failure leaves output untouched");
+    CHECK(!mock.rsc_loads && !mock.pmap_checks[8] && !mock.translations[1] && mock.map_count<=1 && !mock.sleeps && !mock.starts,"failed prepare has no RSC or scheduling access");
+    CHECK(bus_started==(attempted ? 1u:0u),"only an authorized prepare consumes shared attempt");
+    if(attempted){
+        unsigned allocs=mock.allocations,maps=mock.map_count,loads=mock.db_loads;
+        CHECK(!sweet_bus_plan_prepare(&out) && !memcmp(&out,&saved,sizeof(out)),"failed prepare cannot retry");
+        CHECK(mock.allocations==allocs && mock.map_count==maps && mock.db_loads==loads,"no accesses during retry");
+    }
+}
 int main(int argc,char **argv)
 {
     make_positive_db();
@@ -416,6 +456,36 @@ int main(int argc,char **argv)
     reset("only active1 candidate"); set_both(0xd04,1); run_worker(); complete(); has("candidate_active_idle=1;"); absent("not ready for 6-command transport");
     reset("ncpt16 but no candidate"); mock.initial_config=(8u<<12)|(16u<<27); set_both(0xc,mock.initial_config);
     set_both(tcs(0,0x14),1); set_both(tcs(1,0x14),1); run_worker(); complete(); has("ncpt=16 candidate_active_idle=0;"); has("not ready for 6-command transport");
+    const unsigned legacy_cases=cases;
+    CHECK(legacy_cases==70,"all70 original legacy cases remain");
+    prepare_reset("prepare success, no RSC mapping");prepare_success();
+    size_t prep_bytes=strlen(argv[4])+9;char *prep_path=malloc(prep_bytes);CHECK(prep_path,"prepare output path");
+    snprintf(prep_path,prep_bytes,"%s.prepare",argv[4]);export_positive(prep_path);free(prep_path);
+    prepare_reset("prepare NULL output");CHECK(!sweet_bus_plan_prepare(NULL) && !bus_started && !mock.allocations,"NULL does not consume attempt");prepare_success();
+    const int off_vote[]={0,2,-1};
+    for(unsigned i=0;i<3;++i){prepare_reset("prepare disabled vote");mock.vote=off_vote[i];prepare_failure(false);}
+    for(int value=-1;value<=1;value+=2){
+        prepare_reset("prepare conflicts with legacy probe");mock.enabled=value;prepare_failure(false);
+        prepare_reset("prepare conflicts with legacy writer");mock.touchmode=value;prepare_failure(false);
+    }
+    for(int context=1;context<=3;++context){prepare_reset("prepare invalid context");mock.context=context;prepare_failure(false);}
+    prepare_reset("prepare allocation fails");mock.allocation_failure=1;prepare_failure(true);
+    for(unsigned page=0;page<8;++page){
+        prepare_reset("prepare managed page");mock.managed_page=page+1;prepare_failure(true);CHECK(!mock.map_count && !mock.db_loads,"managed before map");
+        prepare_reset("prepare wrong cache page");mock.wrong_attr_page=page+1;prepare_failure(true);CHECK(!mock.map_count && !mock.db_loads,"cache mismatch before map");
+    }
+    prepare_reset("prepare map fails");mock.map_failure=1;prepare_failure(true);CHECK(!mock.db_loads,"no loads after map failure");
+    for(unsigned endpoint=1;endpoint<=2;++endpoint){prepare_reset("prepare translation fails");mock.translate_failure=endpoint;prepare_failure(true);CHECK(!mock.db_loads,"no loads after translation failure");}
+    prepare_reset("prepare copies differ");db[1][DB_BYTES-1]^=1;prepare_failure(true);CHECK(mock.db_loads==65536 && !mock.shas,"all words copied, unstable bytes not published");
+    prepare_reset("prepare wrong BCM metadata");db[0][460]^=1;memcpy(db[1],db[0],DB_BYTES);prepare_failure(true);CHECK(mock.db_loads==65536,"complete CMDDB before parse rejection");
+    prepare_reset("prepare wrong ARC metadata");put16(db[0]+384+4,1);memcpy(db[1],db[0],DB_BYTES);prepare_failure(true);
+    reset("old probe consumes attempt before prepare");run_worker();
+    unsigned old_maps=mock.map_count,old_loads=mock.db_loads,old_rsc=mock.rsc_loads;
+    mock.prepare_mode=true;mock.enabled=0;mock.vote=1;
+    struct gbcm_plan second,saved;memset(&second,0xa5,sizeof(second));saved=second;
+    CHECK(!sweet_bus_plan_prepare(&second) && !memcmp(&second,&saved,sizeof(second)),"old probe and prepare share one attempt");
+    CHECK(mock.map_count==old_maps && mock.db_loads==old_loads && mock.rsc_loads==old_rsc,"shared attempt prevents new access");
+    printf("PASS: legacy=%u prepare_additions=%u; same-boot CMDDB plan only, no RSC access\n",legacy_cases,cases-legacy_cases);
     free(mock.allocation); mock.allocation=NULL; bus_work=NULL;
     printf("PASS: %u worker cases; ASan/UBSan; read-only mappings, exact MMIO whitelist, actual RAW log exported; SHA itself is a seam\n",cases);
     return 0;

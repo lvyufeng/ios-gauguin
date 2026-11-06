@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run actual watchdog worker/helper/start gate with host-only platform seams.
+"""Run actual watchdog worker/lease/header/helper/start gate with host-only seams.
 
 Only aligned MMIO loads/stores, DMB/DSB, and platform APIs are mocked. No
 hardware, reset, sleeping, network, shell, assembly generation or object patch.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 FIXTURE = HERE / "fixtures/gauguin_wdt_test_host.c"
-DEFAULT_SOURCE = Path(os.environ.get("XNU_SOURCE", str(HERE.parent / ".deps-cache/p0-20261105/source114-context")))
+REPO = HERE.parent
 FLAGS = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
          "-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g", "-O1"]
 
@@ -82,27 +82,30 @@ def invoke(command, log, env):
 
 def main(temporary):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--source-root", type=Path, default=Path(os.environ.get("XNU_SOURCE", str(REPO / ".deps-cache/p0-20261105/source115-codex"))),
+                        help="optional complete integrated XNU tree; otherwise use authored candidate files")
     args = parser.parse_args()
-    root = args.source_root.resolve()
-    worker = root / "bsd/dev/gauguin_wdt_test.c"
-    pe = root / "pexpert/arm/pe_fiq.c"
-    watchdog = root / "iokit/Kernel/arm/SweetWatchdog.cpp"
-    conf = (root / 'bsd/conf/files').read_text()
-    assert conf.count('bsd/dev/gauguin_wdt_test.c\t\tstandard') == 1
-    init = (root / 'bsd/kern/bsd_init.c').read_text()
-    blocks = re.findall(r'#if defined\(GAUGUIN\)\n([^#]+)#endif', init)
-    assert init.count('sweet_wdt_test_init();') == 1
-    assert any('\tsweet_wdt_test_init();\n' in block for block in blocks)
-    assert any('extern void sweet_wdt_test_init(void);\n' in block for block in blocks)
-    inputs = [FIXTURE, worker, pe, watchdog]
+    if args.source_root:
+        root = args.source_root.resolve()
+        worker = root / "bsd/dev/gauguin_wdt_test.c"
+        header = root / "bsd/dev/gauguin_wdt_lease.h"
+        pe = root / "pexpert/arm/pe_fiq.c"
+        watchdog = root / "iokit/Kernel/arm/SweetWatchdog.cpp"
+        conf = (root / 'bsd/conf/files').read_text()
+        assert conf.count('bsd/dev/gauguin_wdt_test.c\t\tstandard') == 1
+        init = (root / 'bsd/kern/bsd_init.c').read_text()
+        blocks = re.findall(r'#if defined\(GAUGUIN\)\n([^#]+)#endif', init)
+        assert init.count('sweet_wdt_test_init();') == 1
+        assert any('\tsweet_wdt_test_init();\n' in block for block in blocks)
+        assert any('extern void sweet_wdt_test_init(void);\n' in block for block in blocks)
+    inputs = [FIXTURE, worker, header, pe, watchdog]
     for path in inputs:
         if not path.is_file():
             raise SystemExit(f"missing input: {path}")
     build = Path(temporary)
     unit, binary, log_path = build / "wdt_host.c", build / "wdt_host", build / "run.log"
     report = {"state": "running", "source_root": str(root), "build": str(build),
-              "scope": "actual C worker + GIC helper + actual SweetWatchdog start gate; platform seams; no reset proof",
+              "scope": "actual C worker/lease + actual public header + GIC helper + SweetWatchdog start gate; platform seams; no reset proof",
               "inputs": {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}}
     result_path = build / "result.json"
     result_path.write_text(json.dumps(report, indent=2) + "\n")
@@ -113,12 +116,16 @@ def main(temporary):
     try:
         unit.write_text(prepare(worker, pe, watchdog))
         with log_path.open("w") as log:
-            invoke(["clang", *FLAGS, unit, "-o", binary], log, env)
+            invoke(["clang", *FLAGS, "-I", header.parent, unit, "-o", binary], log, env)
             invoke([binary], log, env)
         after = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
         if after != report["inputs"]:
             raise RuntimeError("test input changed during execution")
-        report["state"] = "passed"
+        output = log_path.read_text()
+        assert 'PASS: retained 87 original WDT worker/helper cases' in output
+        match = re.search(r'PASS: 87 original \+ (\d+) lease cases \((\d+) total\);', output)
+        assert match and int(match[1]) > 0 and int(match[2]) == 87 + int(match[1])
+        report.update(state="passed", original_cases=87, lease_cases=int(match[1]), total_cases=int(match[2]))
     except Exception as error:
         report.update(state="failed", error=str(error))
         print(f"FAIL: {error}; {log_path}", file=sys.stderr)
@@ -128,10 +135,10 @@ def main(temporary):
     finally:
         result_path.write_text(json.dumps(report, indent=2) + "\n")
     print(log_path.read_text().splitlines()[-2])
-    print(f"PASS: watchdog host fixture; {result_path}")
+    print(f"PASS: watchdog lease host fixture; {result_path}")
     return 0
 
 
 if __name__ == "__main__":
-    with tempfile.TemporaryDirectory(prefix="gauguin-wdt-expiry-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="gauguin-wdt-lease-") as temporary:
         raise SystemExit(main(temporary))

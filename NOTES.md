@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete132 native kernel/image/runtime readers qualified; one physical trial next
+
+Previous goal turn was progress: real131 PDC MSGID refusal bound,132 code
+tested/committed/pushed. THIS turn DSH51033 actual standard local build0/
+qualification0, gauguin.InoCAW, captured HEADc8a8eb3449a532b83de1494c3818f36e452921ed.
+Exact126-patch source1326ca52236...5c689/5282files. Native installed kernel
+16905432B SHA18940ccb1f019ca2fa2ae79cad296ec6f83eb1f5f23404c7dc7f9c41150ab27e,
+IDxnu-55987b2e8f5d4087b72e0e70232ec3a0. Manifest SHA
+45babf98ba23ea965b9b173288fd7ca4d5bdf1f6f515507b55119d8340a64b08;
+qualification SHAb5952bf68feb377dacd3adbd324de0e9d9d82630af3c65e2198f6a3b209a15c2.
+Every131 check retained plus pdc_msgid_named_fields_source_bound TRUE and
+installed PDC-format verification. Current native recipe/source now132
+InoCAW, do not reuse131 SM6zJz after shared Makefile replacement. No CI used.
+
+DSH35304 packaging wrapper actually exited1 BEFORE reading build input or
+packaging: stale filename native131-execution-result.json under dsh-0132.
+Original wrapper/log retained. DSH86518 explicit package_and_review132_v2.py
+corrects ONLY that input pathname; pins original failure files and itself,
+then actual package0/independent review0, all inputs unchanged. Normal
+package-review-execution-result.json passed. No image from failed wrapper.
+Image shim/out/shim-p3-gmuf-0132-native-20261107.img19546112B SHA
+ff7b40c7760beb1a35fb3174863c1c4406cb5a74a6da54381dc0bd61f9a96cef;
+payload19218432B SHAa225850dfba07a30691a5fbfa68ff45114f36d00095f4055a3b82fdd5a6bc9c4.
+Evidence SHA841e94e02c346e78bf23a7e491b8fdf6f331004863e4422acbbe22519f721196.
+Unique sweettrial=gmuf-0132-20261107-a1,539bytes; assets unchanged at
+NVT182558000/MDT18257c000/GMU182580000. All prior131/130/etc image pins intact.
+
+DSH76499 runtime_validate132.py actual0, normal three-zero result report,
+all input pins unchanged; clock4/95,FW14/261,full explicitly SYNTHETIC8/41.
+Strict reader SHA02ee85b190305218b43cb7de9ebc52c3b14dd71dad81abf42b6e27847c965338.
+Requires six ordered MSGID rows, native requested10108, checked_mask10100,
+raw!=ffffffff with WRITE/RESP_REQ present, other bits UNQUALIFIED. All earlier
+FW/ACK/full-success checks preserved. Tests reject each absent control bit/
+all-ones, wrong mask/request/label/order/missing/duplicate rows, keep raw
+other-bit scope unqualified. Numeric constants, actual complete131-page log
+strings, original asset pins and dynamic payload/asset fixture layout retained.
+All these handles CLOSED; no132 hardware proof yet at THIS checkpoint.
+
+Phone last observed TWRP. Reviewed boot132.py/run_hardware132.py prepared for
+ONE image-pinned temporary boot with unique recoverygauguin/fastbootgauguinpro
+and routine recovery-latch readback, unchanged180s observer/freshpull. Next
+execute execute-hardware.txt via DSH; bind actual failure or all actual FW
+ACKs. Goal ACTIVE/incomplete; original seven-line mkadt diff untouched, no
+flash/format/GPT/destructive action. No new user touch/UI/reset-attribution.
+
 ### 2026-11-07 — 0132 PDC MSGID named-field candidate committed; all61 hosts/two native TUs pass; full build next
 
 THIS goal turn is progress: complete131 native build/image/readers passed,

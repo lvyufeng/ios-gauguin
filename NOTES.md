@@ -39,8 +39,10 @@ using CURRENT133 F4oxTo recipe/source. All owned handles CLOSED.
 
 133 physical handoff pushed/verified publiclybe2e7676a45a0db0e4e63df2e983233ae9f20c84,
 sole parent6b403b0bb84c825fb4f919239b02ba998f65ab17, two text paths, private
-head7c6371e not pushed. Next sanitized134 source/notes snapshot on be2e767;
-publication report research/tmp/dsh-0134/public-snapshot-0134.json. Never
+head7c6371e not pushed.134 sanitized source/notes pushed/verified
+89f38b72768c9c0f11c629c0f09ca9440b0a1a54, sole parent be2e767, eight text
+paths, same tree as private38870f7. Publication report
+research/tmp/dsh-0134/public-snapshot-0134.json. Never
 push private ancestry, dumps/serials or downloaded/binary assets.
 
 NEXT: full134 standard local build/qualification retaining every133 check;

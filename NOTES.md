@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — full135 native kernel qualified; image and unchanged strict FW runtime checks next
+
+DSH34635 CLOSED0; actual standard local build135.py build0/qualification0,
+gauguin.fzguBO, captured HEAD7022e8310023687aa79f0a73f3d41492b3733a48.
+Exact129-patch source13562a4bf7d...c3ad8e,5282files. All134 qualifiers
+retained; installed native SYS_BUS/ICACHE/DCACHE fixed1 table checked and
+native_bus_cache_order_source_bound TRUE required. Kernel16905568B SHA
+3f339c05188ef3af19bbfd45ee575a3fc6a156fc131bddc1fd5479f0a622bf17,
+IDxnu-51654419c294412984e4b08a888cb65f. Manifest
+.deps-cache/p0-20261105/build/runs/gauguin.fzguBO/build-manifest.json SHA
+2f09606fd64ab932da265ec46f9a806b78d6649538ddec9b7014bc6ca1236058;
+qualification SHA4661442fcde90899a0836ecd015be3cc6efb1eb11ff6f6c87208ebab40f5f78a.
+No CI used. Current generated native recipe/source now135 fzguBO, not134
+I9eLz1. DSH22581 packaging/review running. Readers migrated with numeric data,
+old pins and131-page strings preserved; additionally require native-order
+qualifier, retain every CM3/AO/PDC/SMMU and FW/ACK/reset/OOB check. Next runtime
+suites then ONE temporary135 boot. No135 phone proof. Last phoneTWRP after134;
+no new UI/touch/reset attribution. Full goal ACTIVE; original mkadt seven-line
+diff untouched, no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — 0135 native bus/cache order fix committed; all61 hosts/two native TUs pass
 
 THIS turn is progress: complete134 build/image/readers passed, ONE real134

@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual134 passes CM3 NMI check, refuses ICACHE store62; native bus/cache order differs
+
+DSH98645 CLOSED0; actual ONE temporary134 observer0/full reader2 (original
+full rejection retained). Start2026-11-06T21:36:23.763345Z, finish21:38:35.529060Z;
+Send19088KB0.439s/Boot0.135s/total0.577s, TWRP observed131s. No new user reset
+attribution, UI or touch fact. Fresh4052lines/454269B raw log
+p3-gmuf-0134-native-observer-20261107.txt SHA
+27db6b4439effa697e4ab10d5eeb7c2fb78930dbd722d2dba70e30e1538bbee6;
+cycle991B SHAb5e68a32c66637865a80f51fb5b68d4168ec58b7decf8a6d6d0ee2341a78c393.
+Same-boot CMDDB131072B SHAf176bc5e0991545611307fac4ee8b0bcde03765cc6ca94e99edeb002ce53abf1.
+
+SMMU131/140, PDC6, complete8192-word TCM write/readback and AO3f/check3b
+again pass. CM3_CFG raw52/request4052/check200/expected0 now passes with all
+other fields UNQUALIFIED. Next exact cached READBACK: phase0/check1/CSR
+off01000/PA03d7d000, GMU ICACHE_CONFIG (native word1f400), request1/read0,
+maskffffffff. Writes62/polls0, reset1/release0/OOB0, FW0/version0; no firmware
+execution/ACK/GPU/Metal. GFSR0/FSR400,400/named faults0/AOstatus0/info0.
+DSH12350 CLOSED0; actual audit_failed_trial134.py0 -> failed-trial-audit.json,
+state bound-TCM-copy-CM3-NMI-clear-ICACHE-config-refusal, inputs unchanged.
+It binds the unchanged strict reader's SMMU stage prefix and cached records
+as a subset only; full verifier rejection remains intact. Phone last TWRP.
+
+Codex initially called this a power counter in commentary, corrected promptly
+using pinned a6xx_reg.h1003: ICACHE_CONFIG, not counter. Pinned native
+adreno_a6xx_gmu.c312-322 writes SYS_BUS_CONFIG1 BEFORE ICACHE1/DCACHE1.
+Current134 instead writes ICACHE, DCACHE, SYS_BUS. This is a proven source
+order difference; causation of the zero read is only a HYPOTHESIS. Next135
+should ONLY restore native SYS_BUS -> ICACHE -> DCACHE order, retaining all
+full-width readback checks, guards, values and later FW/ACK requirements.
+Do NOT relax cache comparison or claim self-clearing/read-only semantics.
+Add source-order/ignored-write/bad-read tests, audit the expected exact I/O
+permutation against frozen134, all61 hosts and current134 I9eLz1 native TUs.
+No135 code yet at this checkpoint. Whole goal ACTIVE; original seven-line
+mkadt diff untouched; no flash/format/GPT/destructive action.
+
 ### 2026-11-07 — complete134 native image and strict CM3 runtime readers qualified; one physical trial next
 
 DSH83746 CLOSED0; actual standard local build134.py build0/qualification0,

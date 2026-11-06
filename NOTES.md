@@ -3,6 +3,157 @@
 ## Agent handoff / active work
 
 
+### 2026-11-06 — 0116 normal native build and independent image review PASS; trial next
+
+Code aebabc2ad551020e6860163b92e2a682cd557be9. DSH normal local build
+run gauguin.XShBw1 make0/dSYM/strip/install, source116-codex5263files
+SHA978ca9142745ed6f3bdcae1ba52a8df544169e361a6e448218e89cb7e0fa86e4.
+Manifest SHAe296e3faf9d53349962cc714bd3e276630cbc053070e1d1379429648cef30b09;
+installedkernel16850456B SHA6aa0674cd4909a6475ee5f1c540b10070560d1b3835de00d3af19c857fedc553.
+IDxnu-cbe548b930ef405d997c9827399f659d, banner Nov6 18:29:25CST.
+Source/input/SDKrecordedinputs/HEAD/originalmkadt/kernel/archiveversion.o/defined
+symbols qualified including3newPASINITAPI symbols. Full49hostfilesPASS beforehand.
+
+Image shim/out/shim-p3-pasinit-0116-native-20261106.img19464192B SHA
+8bb846dc1e2e5be6ceb1c9385b3a65251a1f3e2486792da46297e95eb339bb9b;
+payload19136512B SHA816dcaec7f99a9513545328114f2557a24f15030d5a06a474e121791bb94a510.
+Actual0x48/608cmdline597B hasuniquetrialpasinit-0116-20261106-a1 andsweetpasinit1,
+busvote1, PASprobe/stage1, otherprobes/PET/reboot/wdttest/touchmode0, NVT1/hz30/cpus8.
+No optionalloaderwdtpre/SCM tokensfit; thisisboundedomission, nottruncatedtrial.
+Oldshim/DTB/baseADT/NVT/MDT pinsunchanged;10kernelsegmentscompared, assetpads/
+2MiBtailzero,115(and113/114)imagespreserved. No dynamicruntimePAclaim frompackage.
+
+Records research/tmp/dsh-0116/native116-execution-result.json,
+research/tmp/p3-native-0116-qualification-20261106.json,
+research/tmp/p3-pasinit-0116-native-evidence-20261106.json and
+research/tmp/dsh-0116/image-parent-review.json PASS. Build23221terminal0;
+independentimagecheckscriptfinishedPASS. No116bootornewSMCyet, phoneTWRP.
+Next sanitized7textpathpublicsnapshot parent41ea3be... thenone180s temporaryboot.
+No destructivepartitionchange; originalmkadteditpreserved.
+
+Verifierprepared/readreviewed: research/tmp/dsh-0116/verify_pas116.py
+SHAe986aeb737bb3a36f53f118691b207de2a8d567a7c608450be3f24230faedba2.
+Itbindsfreshimage/log/CMDDB/CPUstage/WDT/BCM andcertifiesonly1fresh/1SMC/0continuation
+withfull64x0/x1bothzero, exactPAS13/PA/precall/terminal/coordrecords. Anyotheroutcome
+isrejectedwithactualPASdiagnosticsretainedforseparateanalysis. Resetattribution
+requiresTHIS116userconfirmation, neverreuse115answer. INITsuccessisnotAUTH_RESET,
+GPU/Metal ormeasuredBW. NonreturningSMCcontainment remainsunproven. Goalactive.
+
+
+
+### 2026-11-06 — 0116 PAS INIT_IMAGE offline implementation and full49 host suite PASS
+
+No116 image or hardware trial yet. Phone remainsTWRP after the verified115 trial.
+Codex authored/reviewed fixedSCM64 PAS INIT_IMAGE helper and optional coordinator
+path; DSH executed only reviewed focusedtests, nativeTUs and strictreplay/fullsuite.
+The existing115 baseline remains unchanged. Next: commit reviewed116 source,
+normal local fullbuild/qualification/package/image review, then controlledtrial.
+
+Patch0116-gauguin-pas-init-image-trial.patch changes exactly4XNU paths:
+bsd/conf/files, bsd/dev/gauguin_bcm_coordinator.c, newgauguin_pas_init.c/.h.
+New sweetpasinit1 requires samebootCPUclaim + BCMCOMPLETE + freshWDTbudget;
+0/absent retains115, invalidnonzero rejects beforetheexperiment. No secondworker.
+ExactfirstSMC x0=42000201 x1=82 x2=13 x3=claimedPA x4..x6=0; noMDTlengtharg.
+Fixed64ABI is based on historical0110 boardquery andnativecaller, not a newly
+validatedsamebootavailability/PAS13-permission claim. DSBsy beforeSMC; existing
+NormalNCbufferretained withnoalias/restage/free/postcallimmutabilityassumption.
+
+Full64 x0==1 continuation preservesallx0..x6 withnoUFS/sleep inchain; native
+signedlow32 BUSY-12 startsfreshregs/x6zero after30ms. Bounds:68freshattempts,
+8totalcontinuations,5sdeadline, initialfresh10sWDTbudget and3s perentry/afterrawlogs.
+No softwarebound cancancelnonreturningSMC. Onlyfull64 x0=0 ANDx1=0 qualifiesINIT;
+noMEM_SETUP/AUTH_RESET/b02load/GPUexec. Oneattempt; errorquarantinessoftwareonly.
+Receipt copiedbeforeterminalreleasepublication. Off/null/alreadyleavesoutuntouched.
+OldSCMprobeoff; SECLOGisreadonly/noSMC; CPU_ONisstartup-only; GAUGUINNO_MONITOR1.
+Native/code/integrationreviews: research/tmp/dsh-0116/pas-init-review-constraints.md
+andparent-plan.json. FinalPAS C SHA95e0f7f6ecc429bed222611c7c744c377da71b1e121e475b64eea41017f2acc1;
+header2672196b925a0d849697e4a3d7b7c822dc7f7a43a9a44e5de94c2b01ca36eec6;
+coordinator6450a6d5f38a96e1019d63958b37b2defd42e1fd87d652cedd7cf59be33b907b.
+
+ActualDSHexecution: PAS69hostcasesPASS (pas-init/host/logs/pas-init-03mdig3p/result.json),
+coordinator58old+42new=100PASS (coordinator-host/logs/coordinator-whcgcwvl/result.json).
+StrictASan/UBSan; actualC+explicitSMC/DSB/platformseams, neverphysicalSMCproof.
+NativeARM64TUsPASS against115/MRqCtP context: PASobject20256B SHAe69aa1cc...4a33ec,
+report research/tmp/gauguin-nvt-p1/pas116-init-tu/run-23kprnbx/compile.json;
+coordinator26144B SHA49730713...9f6e6ec,
+report research/tmp/gauguin-nvt-p1/pas116-coordinator-tu/run-n3_ay746/compile.json.
+These machine-generatedreports are authoritative; DSH's hand-written tu summary
+contains an invalid placeholder timestamp and is not used as time evidence.
+
+Freshstrict110patch replayPASS frompinnedupstream; source116-codex5263files SHA
+978ca9142745ed6f3bdcae1ba52a8df544169e361a6e448218e89cb7e0fa86e4. Exactlythe4paths
+above differfrom115 andmatchfrozencandidates. All49testfilesPASS, hostexit0,
+sourceunchanged, baseline115unchanged. Records research/tmp/dsh-0116/
+replay-full-host-result.json, replay116.log, full-host116.log. NativeTU1797,
+PAShost14443, coordinatorhost1573, fullsuite6281 areallterminal0.
+
+Public116 tests use XNU_SOURCE andrepo fixtures/temporaryoutputs, noignoredlocal
+runtime dependencies. Originalmkadteditstillpreserved. PublicHEAD41ea3be... is115;
+neverpushprivateancestry. Latest115hardwarehandoff b867024. Broadergoalactive.
+
+
+
+### 2026-11-06 — 0115 native BCM completion and autonomous normal-running reset VERIFIED
+
+User confirmed THIS115 trial: “是，自行重启，我没有操作”. Parent combined this
+new fact with unchanged input hashes of the successful technical verifier;
+research/tmp/dsh-0115/hardware-parent-verification.json is authoritative.
+Technical verifier99be6e74...a1c0c7 executed byDSH once, actualexit3 solelybecause
+manual-resetwasunknown then; preserved hardware-data-verification.json and
+verify-observed-dsh-result.json are history. AlltechnicalchecksPASS.
+
+One temporaryboot accepted19008KB/send0.444s/boot0.134s,total0.583s. Cycle explicit
+backinTWRPafter131s, observer0/no timeout; start10:00:29.771168Z,
+finish10:02:46.485701Z. Freshlog4376lines/484692bytes SHA
+ d295a99eadc898d6189959b7112befcff938f6110ef16ca713d8d6ed36f2e18d;
+research/tmp/p3-bcmsubmit-0115-native-observer-20261106.txt. Cycle SHA
+ c1cff853bcd9f0fe0e17abba5eba0e9000ef50260ef87e49d2a411bb57319511.
+Unique actualtrial bcmsubmit-0115-20261106-a1 and fullbanner
+xnu-754aa35e66a84ffa8cfc01e09ea7b7b6 matched qualifiedimage83b0bf1b...b92a2b.
+Allsevenbootprogressmarkersyes; no touchinteractionasked onthisdeliberateexpirytrial.
+
+CPUstage: dynamicownerpaAA200000,1MiB, inputA91BF000+1240000 tail1040000;
+64unmanagedpages WIMGd0000006. MDT6860bytes+zero9524 verified before oneREADYclaim.
+CMDDBtwofullcopiesstable65536reads, reconstructed131072bytes SHA
+ e59408f8032cf567ef0a5db6cd95bef15cc2ae7d1c511e8232482cd496f1e788.
+Fourbanks/6BCM/4ARC metadata validated; versus113 RAW575bytes differ, alloutside
+anydeclaredheader/entry/aux extent (first2142,last1fa96); alldeclaredtablesidentical.
+This is observedbytecomparison, not an explanation of unused-region contents.
+DSH extractor executedonceexit0; binary preserved at
+research/tmp/p3-bcmsubmit-0115-native-cmd-db-20261106.bin (same131072bytes/SHA);
+research/tmp/dsh-0115/extract115-dsh-result.json recordsactualresult.
+
+WDT legacyPET excluded; rawNS GICenable0, initialEN0; programmedEN3/BARK655300/
+BITE753595. arm_at1759664573, rawreadback1759664668, readiness1778959663,
+readycount32924; CPUtimebase19200000Hz. Readinessdelta1.0049526s agrees with
+32924/32765=1.0048527s. BCM ACTIVE1 preflightstable, NSINTID37quiet0;
+nativecompletion receipt slot1 config80008104 IRQbefore1/after1/completed2.
+Six actualstatuses:10101,10101,00101,10101,10101,10101hex, exact6BOOTdata/wait3b.
+AllISSUED +5requiredCOMPL checked; successfulcontrollercleanup marker present,
+requestshelduntilreset. No failure/PET/software-reboot/panic/survived30 record.
+Per-stepbudget/laterGIC/cleanupreadback success is boundbinarycontrolflow evidence,
+not individuallyrawlogged measurements. Bootreasonpropertiesempty; noPMICcauseclaim.
+
+Publicsnapshot41ea3be0b21ca3a887315820a08d1455a8025fa5 has singlepublicparent
+ d3cd94b0b771ea8403ca92ed76adc8592363ade9,16textpaths; private d609742 ancestry
+notpushed. PhoneTWRP. Fullnativecodefb8041b, runMRqCtP; originalmkadteditpreserved.
+
+Executorinterpretationcorrection: DSH added unsupportedtwo-boot/ring-wrap guesses
+to its ignored publish-boot115-dsh-result.json and draftNOTES. Parent andindependent
+Codexreview rejected those guesses. Actualfreshlog has ONEbanner/ONEtrial and
+NO obs.replay marker. arm/readback95counterticks=4.9479microseconds, notbootduration;
+armabsolute91.649s +1.005sready +continuednormalexecution whileawaiting23s expiry
+is compatiblewith131sobserverrecovery. No secondboot or repull is indicated.
+Rawexecutorcommandexits/hashes retained; its speculativeverdict is not authoritative.
+Parentreportrecords thiserrata. DSHmustexecuteonly; Codex interprets andupdatesnotes.
+
+Next: retain115controllerbaseline and prepare reviewed source-correct PAS INIT_IMAGE
+using samebootCPUclaim+BCMcompletion+freshWDTbudget; no newSMChasrun in115.
+Controllercompletion is NOT measuredBW, PASauth, GPU/Metal, highrefresh or dailyuse.
+Normalruntimewatchdogreset does NOT prove arbitrarysecureworldhangcontainment.
+Broadergoalremainsactive. No deviceoperationafterautomaticlogpull is required.
+
+
 ### 2026-11-06 — 0115 normal native build and package PASS; hardware trial pending
 
 Code fb8041b941f1dd92229590eaef79240bf6678a1c; source115-codex5261files

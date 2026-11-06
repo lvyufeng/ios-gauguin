@@ -32,8 +32,9 @@ board61536B SHA88348177381932a6c19a271dc0f8cd9e02657f3e064b36fa964d33fd73d9f90c,
 using CURRENT130 xs5x0H recipe/source. All handles CLOSED.
 
 130 physical handoff pushed/verified publicly47a835f027f94b6e6d97ccfe3e7fb3a45e11acf8
-on89f11c676099c7f7e155a4b4a8222ff6d81b15a9, two text paths. Next publish131
-sanitized source/notes on47a835f; final publication report is
+on89f11c676099c7f7e155a4b4a8222ff6d81b15a9, two text paths.131 sanitized
+source/notes pushed/verified a65270aadc12ffe88651fccf11a379db23fc3053,
+sole parent47a835f, eight text paths, same tree as private dc6cea34. Report:
 research/tmp/dsh-0131/public-snapshot-0131.json. Never push private ancestry.
 
 NEXT CONCRETE ACTION: standard local131 kernel build/qualification; retain

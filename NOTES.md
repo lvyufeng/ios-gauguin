@@ -39,8 +39,10 @@ using CURRENT132 InoCAW recipe/source. All owned handles CLOSED.
 
 132 physical handoff pushed/verified publiclye0b5fd270a21db704d56e4a5db8ff6ad09501c8d,
 sole parentdd3ad8bb9a72b9b879a8d8c3e37c0414ec777f94, two text paths, private
-head e0569a3 not pushed. Next sanitized133 source/notes snapshot on e0b5fd2;
-publication report research/tmp/dsh-0133/public-snapshot-0133.json. Never push
+head e0569a3 not pushed.133 sanitized source/notes pushed/verified
+6b403b0bb84c825fb4f919239b02ba998f65ab17, sole parent e0b5fd2, eight text
+paths, same tree as private fd5228e. Publication report
+research/tmp/dsh-0133/public-snapshot-0133.json. Never push
 private ancestry, device dumps, serials or binary assets.
 
 NEXT: full133 standard local native build/qualification retaining every132

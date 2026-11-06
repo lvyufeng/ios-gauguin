@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — 0131 scoped native hidden-address policy committed; all61 hosts/two native TUs pass; full build next
+
+Private code75dd82b1d45ad9901ba80019d3983084d124f85a implements125th patch
+0131-gauguin-rsc-native-hidden-address-writes.patch. Fresh source131-codex
+5282files SHAfb3e3f5916706440687b6d2cd153d386099cbcb0fcc27925feabb65f225a6e0c.
+Exactly firmware.c/h and board.c differ from frozen1309eb26716...8a42b.
+ONLY AO1034/103c/1044 (native words0xd/0xf/0x11) use fixed zero writes with
+equality UNQUALIFIED. Existing guarded write/barrier/read order unchanged;
+all-ones still GMF_READBACK with exact diagnostic, IO/guard failures still
+stop. Every other store, copy/readback, reset/GX/IRQ/fault/deadline/ACK guard
+unchanged. Public receipt unchanged. Private three-value cache + valid bits
+emit SWEET GMU FW IMPL rows after transaction completion, or AFTER quarantine
+on failure. Partial failures can have fewer rows. No inferred bit mask or
+write-only/read-only claim, no retry/MMIO addition.
+
+DSH38555 actual validate131.py0: pristine replay0, all61 hosts0, IO-equivalence0,
+native firmware0/board0; authoritative dsh-0131/validation-result.json has FIVE
+actual zero results (normal schema, no retained-components workaround), all
+inputs/source/baseline unchanged. GMF ASan/UBSan1,624,969 checks; board2840+88.
+Three nonzero hidden reads succeed in the host model (first82204514 matches
+real130; other12345678/60001000 are SYNTHETIC), each all-ones refuses before
+copy/release, unrelated DATA and OOB-clear errors still refuse; repeat/output
+preservation and fail-every-callback pass. Board tests full/partial cached
+logs and quarantine. Frozen ORIGINAL129 fixture against baseline130 and131
+has identical1,009,420 I/O callbacks/digestf8383376e7a1a07b. Actual native
+firmware43608B SHA921d912bc9c4e6ba0cac60926a4fe23c11de6de671fcc5e25de6a6ecbf3e90a8;
+board61536B SHA88348177381932a6c19a271dc0f8cd9e02657f3e064b36fa964d33fd73d9f90c,
+using CURRENT130 xs5x0H recipe/source. All handles CLOSED.
+
+130 physical handoff pushed/verified publicly47a835f027f94b6e6d97ccfe3e7fb3a45e11acf8
+on89f11c676099c7f7e155a4b4a8222ff6d81b15a9, two text paths. Next publish131
+sanitized source/notes on47a835f; final publication report is
+research/tmp/dsh-0131/public-snapshot-0131.json. Never push private ancestry.
+
+NEXT CONCRETE ACTION: standard local131 kernel build/qualification; retain
+all130 checks and require linked SWEET GMU FW IMPL format/new source flag.
+Then pack/independent review with new unique131 trial; strict runtime reader
+must require three ordered distinct offsets1034/103c/1044, requested0, raw
+read!=ffffffff, explicit equality-UNQUALIFIED, PLUS unchanged FW/INIT/version
+checks. Reject extra/malformed/duplicate policy records; full receipts must
+never become GPU/Metal proof. Adapt130_v3 synthetic fixture's dynamic payload
+extent AND GMU location (original/v2 fixtures were stale). ONE coherent
+temporary131 trial after all checks; preserve original130 rejected report.
+No131 full build/image/reader/phone IO yet at THIS checkpoint. Phone TWRP;
+130 manual/no-reset attribution unknown, no new UI/touch result. Whole goal
+ACTIVE/incomplete. Original seven-line mkadt diff untouched, no flash/format/
+GPT/destructive action. Codex critical code/review/Git; DSH compilation/tests/
+boot in full-access headless relay mode, exact reviewed task only.
+
 ### 2026-11-07 — actual0130 captures RSC address readback82204514; native three-address policy next
 
 DSH64473 ONE physical130 temporary boot: observer0/full verifier2, original

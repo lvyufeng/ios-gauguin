@@ -2,6 +2,144 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —163 physical WDT refusal preserved;164 equivalent full-table scan SOURCE QUALIFIED
+
+Goal remains ACTIVE/full/unlimited. Phone last observed TWRP after ONE163boot;
+user away, ALL resets automatic, never ask reset attribution. Prompt only if
+actually stuck and manual recovery is necessary. No flash/format/GPT/device
+partition change beyond authorized13-byte recovery latch/readback. Original
+mkadt7line diff SHAa74a0418...454860 intact. Current full/generated recipe is
+STILL163 gauguin.t2cGH4/source163-codex until a new full164build actually runs;
+never use159/157 TU helpers in the shared build directory.
+
+163 DSH87758 CLOSED0/boot163.py0: temporary fastboot boot succeeded,
+2026-11-07T11:51:41.612095Z ->11:53:53.677488Z, autoTWRP131s. Observer0,
+fresh banner/image matched, root/launchd/SpringBoard/backboardd markers,
+4FB swaps/58GPU lookups. No user screen/touch/refresh/performance observation.
+Raw receipts show DATA19/171ATOS/writes189/polls173 and CP DONE15. At ZAP
+SEAL phase1 scopeLIVE, reason4/WDT; calls INIT/MEM/AUTH all0, copy0, owner9;
+quarantine occurred before signed load/native-mode/ordinary-data dispatch.
+DSH20170 CLOSED0 but ACTUAL read_hardware163.py failed1, inner strict reader2;
+whole report evidence-rejected. Never call this ordinary GPU write success.
+hardware-full-verification.json20700B SHAe530c677afa85fd0640187cfe4d3a058b2c4b116e436721e2708292c558fe72e;
+wrapper SHAd905899604b24a6112e41e016d631e8ffeeb5d674dad42db11f64dc5092d4550.
+Raw text464309B SHA851655410f82065c9c50f09d8442f841b97424879edb0d97e632e6936b4d3cad,
+binary4198400B SHA8667a8dff9728df48ab2dcfcfc7274181404dfa6b2caeea859c2eb1e3cd1e78b,
+cycle SHA4d9048e2544339bc5802a02bcf7a55f8dff236f7a47c9c0c73e5f25cce6c151e.
+Raw text exact binary decode; no record repair/filter/dedup or verifier waiver.
+
+Observed timebase19200000Hz. Relative to WDT arm,159 ZAP entry12.0205388s,
+163 entry13.2671476s: nominal23s bite leaves9.7328524s, below exact GPZ SEAL
+10s minimum. CORE/CP durations1591.1917772/1.7206527s vs1631.3946645/2.0349703s;
+163 CORE entry also0.7209s later. Additional table/plan guard work is the
+optimization target, not a proven exclusive cause or a measured speed claim.
+Keep BARK20/BITE23/phase/total/entry budget/once/quarantine/PET policy unchanged.
+Optional DSH20990/analyze163.py failed before a stage-only report: full raw
+contains expected repeated cached GMU SMMU IMPL after gmb_fail at4162 in
+addition to3977. Strict one-record helper refuses it. Source gmb_fail calls
+gmb_impl_record again; this is failure diagnostics, not a second boot.
+Original helper/log preserved, no partial qualification/report manufactured.
+
+Codex authored patch0164 (158thactive), ONLY gpu_data.C changes versus163.
+Replace per-entry L3 region searches/branching with canonical zero ranges
+and once-per-region attribute derivation. Still performs aligned volatile64
+loads of ALL2048 actual16KiB words exactly once on success: both root entries,
+all19 leaves, every hole and empty TTBR1; no cached expected table/authority,
+skipped scan, changed NC alias, board guard or watchdog relaxation. Original
+constructors/header byte-identical. Candidate C SHA
+2d9e13ed48ba19424266f22ee5f8979ef0eb54ac971194955b6b57f61a817e70.
+DSH50182 CLOSED0/focus164.py0: existing exhaustive actual ASan/UBSan model0,
+132666cases/4595438checks incl all131072single-bit table mutations; actual
+ARM64TU0 on CURRENT163 recipe,13232B SHA
+8964ab0d8fc0eb6d2c83e84cf2a41ae3958d19ade06a17cf13de3b5520d2901a,
+research/tmp/gauguin-nvt-p1/gpu164-data/run-7rn8ebt_/compile.json.
+focus-result.json SHAc3784db6eb177e250b120a8020e77e9d1c8d6f6f5661bf6308d84e9dab7c1de1/9pins.
+DSH35903 CLOSED0/integrate164.py0: official pristine158patch replay0, all78
+actual hostfiles0/exact sorted order, source164-codex5306files SHA
+c586524563f3b2cf915490d27635f7e26d72c9782d8de8ece1beb289cc20eb17,
+exact1delta vs163/candidate equal/baseline unchanged. integration-result.json
+SHAf10a8b552c30cef4e5d0ee50293ebee1be8503e2db112a0abfca6a79260caebd/309pins.
+Correct staging record already under build/source-state/source164-codex-4de9c59677ee491e.json.
+DSH48163 CLOSED0/preflight164.py0: strict binder/native41/38/34/10/PIL/realpack
+foundations all bound, four complete Python helper syntax checks0, official
+staging check0. Codex independently rehashed9+309inputs, actual object and
+fresh5306-file source in independent-source-review.json. All164tests passed
+FIRST attempts; no hardware speed or ordinary-data/Metal qualification.
+
+NEXT: commit/publish ONLY patch0164/series/NOTES, then ONE standard LOCAL8job
+build164.py <capturedHEAD>, strict qualify_native0164.py. Keep HEAD/source fixed
+until BOTH complete; recover same DSH handle after timeout, never restart.
+Build control/report/logs live under research/tmp/dsh-0164. On success update
+current generated recipe immediately, then adapt verified163fiveasset packing,
+image review and strict runtime reader/fixtures to exact164source/identity/
+trial gwrt-0164-a1 (same606B/mode3). Preserve all prior gates and newly require
+native_gpu_linear_whole_table_source_bound. ONE temporary164boot only after
+all artifact/runtime checks; fresh raw text/binary/cycle and --manual-reset no.
+No164fullkernel/image/device IO yet. Do not re-run old163 source binders on
+the new158-entry current series; their original pinned snapshots remain.
+Publication IDs go in dsh-0164/public-source-snapshot.json. All DSH jobs closed
+at this source handoff. Broad RAM/UFS/peripherals/rendering/Metal/high-refresh/
+daily-use objective stays unfinished and ACTIVE.
+
+### 2026-11-07 —163 complete LOCAL kernel/image qualified; strict runtime extension in progress
+
+Runtime163 v2 CLOSED actual0 (one execution, shell exit0): runtime_validate163_v2.py
+reused unchanged console-framing/clock/firmware (0/0/0), reran ONE full-trace in
+separate verify_full163_host_v2.py correcting ONLY stale mutation gusr-0159-a1 ->
+gwrt-0163-a1; full-trace exit0 (45/678, 20/117, 21/147+3mode2 conflicts, 30/223),
+inputs_unchanged true. runtime-parser-result-v2.json SHAacc347f72f70e7760f15ab6fce89876f14340621f9d9ff887d294a90b49d0e74;
+v2 host verifier SHA03701497...f214; log SHA3fe94480...663. v1 failure and all
+original inputs unchanged. SYNTHETIC only, NOT hardware evidence; no editing,
+waiver, retry or phone IO. Next: independent rehash of runtime inputs, then ONE
+temporary163 boot (standing unattended/automatic-reset policy).
+
+Current generated/native recipe is NOW163 gauguin.t2cGH4/source163-codex.
+Do not invoke159/157 native-TU helpers against this shared build directory.
+Private source commit1ca0cab5032d85583954c0e0123300c8894dc1a8, published2340f53a2587aa8c3251ade9aa8ffb8cd1d2b8f2
+soleparentab57e93a789da1272a1d1d9dce49c9ec2d0e7bf1, same tree01f5fc31365e2db640ccda7399a31b6489a53af9.
+No CI163 dispatched. Standard LOCAL8job DSH39565 CLOSED0/build163_v2.py0,
+full build0 + strict qualification0; native163-execution-result-v2.json.
+Kernel17031408B SHAb5c90c4f25225f1521bea6eea374c128d84093ab027b150751511685d5e53d4a,
+banner Sat Nov7 19:37:26 CST2026/xnu-0d5814ab777241f7ab2ab19ef8f96175;
+manifest1958abbdccdc0339651201c3538e71bb91eaa24b7764b6438bb78dd44d13569f,
+archivee5df3848865a1376e128633c030bd576baeee53d2e20ed6c6882b9849eccba81,
+qualificationc5a404c45278c7145ed93464983d77badca19f8b3a44aaa0d8be7592e94ccfc4.
+Codex independently rehashed kernel/manifest/archive/fresh5306-file source,
+checked actual banner/new archive members; independent-build-review.json.
+
+Preserved first failed build163.py/DSH55169: stopped BEFORE compiler because
+staging input record existed only in isolated replay-source-state, not shared
+build/source-state. Empty run gauguin.kfdDmj has no kernel/qualification.
+DSH68048/restore_staging163.py0: second pristine replay source163-staging-audit
+matches all5306 file/symlink entries; official record/check commands all0,
+original/shared record byte-equal SHAa811d3d15f79a12db52c5a7921821e736ff5aac030d0610df7c7fea84525dd1e.
+staging-audit-result.json SHAc078f832a9b4c2f14cd7a4e4cd239295ebd86f4519f7c43e9766664c6cdb689e.
+V2 uses separate logs/report/output, same source/HEAD/8jobs/strict qualifier,
+no compiler retry or rule waiver. Actual first compiler attempt passed.
+
+DSH86970 CLOSED0/package_and_review163.py0: package0 and independent image
+review0, package-review-execution-result.json/image-parent-review.json.
+Image19726336B SHA80b6b8cb4db9a17e253cee85a8e7b4675548e7432089d82cd1630e8c9c70f8f7,
+payload19398656B SHA07ee9224bd9791ffcfc0b2ddddf6b5f2fa9a5b74e0fbaf49da034c5308545159.
+All five fixed assets and exact606B command retained, only explicit mode3
+and unique gwrt-0163-a1 trial. Codex rehashed all51 independent image pins.
+Runtime first DSH15977 CLOSED: framing/clock/FW0, fullfixture1 at old trial
+mutation still targeting gusr-0159-a1, which left new synthetic trace unchanged.
+Original script/snapshot/report/log preserved. Separate fullfixture_v2 ONLY
+changes mutation target to actual gwrt-0163-a1; production parser/kernel/image
+unchanged. DSH63956 CLOSED0/runtime_validate163_v2.py0, prior3 immutable passes
+reused, fullfixturev2 exit0. FW132valid/563negative; full old45/678, signed20/117,
+unsecure21/147+3duplicate modes, newwrite30valid/223negative; synthetic only.
+All old technical gates retained, plus cold DATA19/171ATOS/full16KiB table and
+ordinary4096-byte data/CPU samples checks. Codex rehashed34 pinned inputs and
+exact one-line fixture delta in independent-runtime-review.json.
+DSH87758 now running ONE boot163.py, no retry. Next recover SAME handle and
+actual boot-preflight/hardware-trial-result/cycle; then read_hardware163.py
+once on fresh rawbinary/text/cycle, --manual-reset no. User explicitly away: ALL
+resets automatic; NEVER ask reset attribution again. Prompt only if actually
+stuck requiring manual recovery. Full daily-use goal ACTIVE, no rendering/
+Metal/performance qualification. Original mkadt diff intact; no flash/format/GPT.
+
 ### 2026-11-07 —163 integrated cold DATA19/live write SOURCE QUALIFIED; full LOCAL build NEXT
 
 Previous goal turn PROGRESS:162 engine committed private1b02fb000c5daf954766cff223c0ddaf985f1ef3,

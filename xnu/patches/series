@@ -158,3 +158,4 @@
 0160-gauguin-normal-gpu-data-constructors.patch
 0161-gauguin-explicit-normal-data-smmu-layout.patch
 0162-gauguin-normal-gpu-write-readback-engine.patch
+0163-gauguin-live-normal-gpu-data-write.patch

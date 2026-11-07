@@ -2,6 +2,98 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —163 integrated cold DATA19/live write SOURCE QUALIFIED; full LOCAL build NEXT
+
+Previous goal turn PROGRESS:162 engine committed private1b02fb000c5daf954766cff223c0ddaf985f1ef3,
+publishedab57e93a789da1272a1d1d9dce49c9ec2d0e7bf1, same tree864d9974436588306d107b9def440ec7cfb0d109.
+This turn implements the actual163 private board/owner/coordinator binding,
+not another pure packet stage. Broad GPU/Metal/RAM/UFS/peripherals/highrefresh/
+daily-use goal ACTIVE/full/unlimited. Last device observation TWRP159, NO163
+device IO yet. CURRENT full/generated native recipe STILL159gauguin.Ee2hCj/
+source159-codex. Do not use old native helpers after a future full163 rebuild.
+
+Patch0163 (157thactive), exact6 source deltas vs162: gpu_data.C/H, gmu_board.C/H,
+bcm_coordinator.C, pas_stage.C. Mode sweetgpuzap3 explicitly selects DATA19
+BEFORE cold SMMU attach, then same-boot signed -> native mode -> ordinary-data
+write.0/1/2 retained. Owner C changes ONLY permitted mode3. New canonical
+ggd_tables_match reads ALL16KiB with aligned volatile64 loads, verifies every
+L1/L2/L3/hole/empty-TTBR1 word against the fixed private plan; no expected-buffer
+pointer/cache is authority. Original data constructors byte-identical prefix.
+Board validates new16KiB NC reservation, expands rangeb8000->bc000 ONLYin3,
+zeros/checks extra reservation under reset, emits19leaf table before activation,
+binds selected private plan/context/work/receipt tag1/19/171 and rechecks exact
+PTEs+all8GPU/table/data NC CPU pages in live guards. Signed SECURE/LATE uses
+cached-only profile checks; original signed guard/body and owner-MDT phase
+semantics stay intact, no secure-buffer access afterAUTH.
+
+New GGWB provider seals actual private completed GGU+signed/CP/core/FW receipts,
+not caller authority; separate post-AUTH RUNNING owner and4s total/2s perphase,
+entry8s/later3s WDT budgets, monotonic checks before/after guarded access.
+Whitelists ringDW20..30 writes, scratch0 wait-only read, normal data0..4092
+read-only capture/verify; onlyWPTR31/keepalive MMIO writes. No CPU data/shadow
+store, PTE edit, ring/SQE reset, HOST release, cleanup/retry/PET/secure bypass.
+New cached actual before/after first/last sample mask must15 before publish;
+all1024pre/1024post,2edge/1022middle and31ring comparisons required. Quarantines
+GGW/GGU/ZAP/CP/core/start/FW/board/lease BEFORE cached failure records.
+
+DSH17575 CLOSED0/replay_native163.py0: pristine157patch replay0, source163-codex
+5306files SHA2319c884b1be5a4c7870e3d9dd93a785276e3aab407916470a64124c2858c652,
+exact6deltas candidate-equal/source162 unchanged.4actual ARM64TUs on current159
+recipe all0: owner27976B SHAcb5758cb53c9237f90163e969cf46c6303eebebd874e0eb67efd010ee8f67a65;
+data11832B SHA71ffb5fab5a8eebbeb9669c7b58ac671c043077323a065e63ec91ecdd95db2f3;
+board299632B SHA8f9d534564deea45a91763bc4240bf710e7cccdc796967f34bec212b1804c8c5;
+coordinator62232B SHAe425473fddc5db370f494febdb55007b790689a237de817bb4ec3d602129267e.
+native-result.json23186B SHA1e1a77f9b135ee98f74829525f47727196baace90ae54d00230ba3b4a10d451e/175pins.
+DSH24091 CLOSED0/models163.py0: actualdata/realowner/legacy/coordinator all0.
+Data132666cases/4595438checks includes all131072single-bit table mutations;
+realowner533cases/126copyguards/all64attrs/PROT_NONE modes1/2/3; coordinator500
+cases incl30newmode3, all470old retained. models-result.json1721B SHA
+64f68ee6b401e82283221ef9b5ec4029791b3376a733ec27c8bb2287013c807b/10pins.
+DSH87335 CLOSED0/board163.py0: allold board cases incl237ZAP/217GGU retained,
+369new actual coldDATA19+CP+ZAP+GGU+GGW cases:30faults across7phases, partial
+stores, data corruption/missing writes, all64 data-PTE bits, all8NC/PA CPU
+pages, unauthorized late mode switch, full callback offset whitelist and
+quarantine/once/deadline/private-authority. First secure16KiB remains PROT_NONE
+through both new post-AUTH stages. board-result.json5035B SHA
+2bb04f33dc527f6ccf73b2131364ca9869dfbecf2399e9277deeab6dbc694a7a/33pins;
+generated board-unit.c SHA01d36d4dacb4801c400564e62f4b4af2365c7404c7f8e88172470630d98409d1.
+DSH79837 CLOSED0/full163.py0: all78 actual hostfiles0/exact filename order;
+full-host-result.json37023B SHAfe505857504566a1d6d9f6390656fe101fbdc93b23cff0a6deb8d5438a73368d,
+311pins/snapshot. Codex independently rehashed175+10+33+311inputs/actual4objects/
+source5306 in independent-source-review.json. All actual model/TU checks passed
+FIRST attempts; no source acceptance waiver. Pure162/41body5trace and prior
+38/34CP/PIL/realpack/native10body normal-PTE foundations unchanged and rebound.
+
+DSH77763 CLOSED actualpreflight163.py1 before report: syntax loop incorrectly
+compiled deliberately indented qualification-extra163.py as standalone module.
+The assembled full qualifier and binder already passed before that refusal.
+No kernel build/image/deviceIO occurred. Originalscript/log/fragment preserved
+in preflight-fragment-context-failure.json. Separate preflight163_v2.py only
+checks the fragment in its actual function context, adds original failure
+pins/new report; all source/native/model/assembled qualifier checks retained.
+DSH58319 CLOSED0/v2actual0; preflight-result-v2.json SHA
+4180f13f7f8e385b2fc8de912c4045667187c5e6976e6d9cae5d0a980868317f.
+Exact proposed606B command differs159 only sweetgpuzap2->3 and trial token
+gusr-0159-a1->gwrt-0163-a1; missinglegacyINIT remains source-default0, no token
+duplication, sweetpasmem0 and all other controls unchanged. Qualifier163 keeps
+all original120..159 artifact gates, explicitly extends source/mode contract,
+adds13symbols/cold19/wholePTE/privateGGU/append/readback/quarantine gates and
+formats. All hardware/render/Metal qualification flags remainfalse in it.
+
+NEXT: commit/publish reviewed13 UTF8 source/test/docs paths, then ONE standard
+LOCAL8job build163.py <capturedHEAD> and strictqualify_native0163.py. Helpers
+preflight passed; keep HEAD/source fixed until both finish. Update current
+generated/native recipe to actual163run immediately afterwards. Then independently
+package fivefixedassets, actualMachO/ADT/606B mode3 command, new strict runtime
+reader/fixtures retaining all159 technical/identity/CP/signed/native checks and
+adding map tag1/19/171/16384byte table policy, DATA31/fullpage/sample guards.
+ONE temporary boot only after image/reader qualification; fresh rawbinary/text/
+cycle with --manual-reset no from standing unattended policy. Only prompt
+manual recovery if actually stuck. No163fullkernel/image/device proof yet;
+no shader/rendering/Metal or performance claim. Current publication IDs go
+in dsh-0163/public-source-snapshot.json. All DSH jobs closed at this handoff.
+Original tools/mkadt.py7line diff SHAa74a0418...454860 untouched. No flash/format/GPT.
+
 ### 2026-11-07 —162 bounded ordinary GPU write/readback ENGINE QUALIFIED; live163 binding NEXT
 
 This goal turn PROGRESS:161 explicit DATA19 cold API/consumer proof committed

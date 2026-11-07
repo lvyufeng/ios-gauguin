@@ -292,6 +292,33 @@ inputs. This raw CP memory path makes no rendering/EOP timestamp claim.
 Fresh156-patch replay and all78 host files pass. There is still no live163
 board binding, new kernel/image or hardware data-write result.
 
+Patch0163 adds the live binding under explicit `sweetgpuzap=3`. Modes0/1/2
+retain their behavior. Mode3 selects DATA19 before cold SMMU activation,
+validates and initializes its extra16KiB NC CPU reservation, and binds the
+private selected plan, tagged context and completion receipt. A canonical
+read-only matcher checks every word of the complete16KiB table image,
+including all unused slots and the empty TTBR1 root. Live guards check these
+bytes and CPU aliases; cached-only geometry checks preserve the signed
+loader's SECURE/LATE exclusion rules.
+
+The separate ordinary-write owner requires actual private signed, native-mode,
+CP, core and firmware completion. It uses fresh monotonic4s total/2s phase
+deadlines and watchdog budgets, phase-specific memory offsets, WPTR31 and
+keepalive writes only. Its cached before/after data samples come from actual
+CPU read callbacks and must match the engine's complete-page verification
+before publication. Every shared owner is quarantined before failure logs.
+It never writes data from the CPU or reuses an expired RUNNING-stage guard.
+
+All4 changed ARM64 translation units pass. The table model rejects every one
+of131072 single-bit mutations; real-owner tests cover533 cases with the
+secure page inaccessible afterAUTH. The coordinator passes500 cases, retaining
+all470 earlier cases. The actual integrated board passes369 additional cases,
+including faults in all7 phases, data/PTE corruption, all8 retained NC/PA
+pages, late mode changes, offset boundaries, partial writes and quarantine.
+The secure page remains PROT_NONE throughout the two post-AUTH stages.
+All78 host files pass. Full kernel, image and physical163 data-write evidence
+are still required; source/model completion does not establish rendering.
+
 Do not substitute a TRUST_CONTROL0 write for the native signed-load/unsecured
 path. Completing the transition will still leave general scheduling,
 rendering, the iOS graphics/Metal interface, power management and high-refresh

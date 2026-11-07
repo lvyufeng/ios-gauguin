@@ -1,150 +1,131 @@
-# A619 signed ZAP integration plan
+# A619 signed ZAP loader
 
-This is an implementation contract, not a completed loader. Trial154 proved
-the first native ME_INIT/WHERE_AM_I completion. Historical trial117 separately
-proved PAS13 INIT_IMAGE and MEM_SETUP4096 acceptance. Those are different boots;
-neither run authenticated or loaded the ZAP code segment.
+Trial157 completed the first same-boot signed ZAP load after native GPU
+ME_INIT/WHERE_AM_I completion. PAS13 INIT_IMAGE, MEM_SETUP4096 and AUTH_AND_RESET
+all returned full64 transport/service zero. The owner copied and compared
+exactly1984 bytes of the pinned b02 segment between MEM and AUTH. The phone
+returned automatically to TWRP after131 seconds. This establishes the signed
+load; unsecured-mode commands, rendering, Metal and high-refresh operation
+remain unfinished.
 
-Patch0155 now implements the optional immutable b02 source asset. The packer
-adds `--zap-code` and an `A615ZapCode` raw1984-byte descriptor with16KiB reserved
-extent and14400 zero padding bytes. It appends after the four old assets and
-updates final top/PAS accounting. The kernel's `sweet_gpu_zap_asset_view` checks
-the fixed pin, padding, direct-map endpoints, coherent five-descriptor layout
-and all pairwise overlaps. It requires the high DRAM bank, disjoint from any
-permitted below-4GiB PAS allocation; it does not validate a current low owner.
-It returns only an immutable source view and performs no firmware loading.
+The kernel was built locally with8 jobs from source157,5300 files and151
+patches, then independently qualified and packaged. The trial used build ID
+`xnu-4968d149ca024346ad2972681e7448a1` and marker `gzap-0157-a1`.
+The actual606-byte command was decoded and checked in the boot image. It
+replaces explicit `sweetpasinit=0` with `sweetgpuzap=1`; the omitted legacy
+INIT flag defaults to0 in the qualified source and tested callers. All other
+controls remain the same as154. No flash, format or partition-table change
+was used.
 
-Validation passed the actual ARM64 asset translation unit,84 real-SHA256
-ASan/UBSan consumer cases with captured b02,64 synthetic layout combinations,
-128 exact byte/info comparisons with the actual frozen pre155 packer, the
-actual shim loader's five-asset copy/zero/ADT/bootargs path and88 PAS metadata
-cases. All73 host test files pass. The offline five-asset pack used the old154
-kernel to verify packaging only; no155 full kernel or device trial was made.
+The physical receipts were:
 
-Patch0156 adds the fixed `gpz_start_once` transaction engine. It owns the three
-native frames, serialized owner-action sequence, copy counts, continuation/BUSY
-handling and terminal quarantine. It contains no SMC instruction or live board
-dispatch. Its provider must establish the actual same-boot CP/owner authority
-and perform the owner-local copy; the PA argument is only a comparison key.
-Implementation157 now supplies the live binding described below. An integrated
-kernel/image and physical trial remain required before signed-load acceptance
-can be qualified.
+| Stage | Observed result |
+| --- | --- |
+| First CP initialization |15 native command words; device-written shadow RPTR15; busy bit23 clear |
+| INIT_IMAGE |1 fresh attempt,5 SMC calls,4 continuations; final x0/x1 zero |
+| MEM_SETUP |1 fresh attempt,1 call; span4096; x0/x1 zero, returned x4=4096 |
+| Segment copy |1984 bytes written and1984 compared through the retained owner alias |
+| AUTH_AND_RESET |1 fresh attempt,1 call; x0/x1 zero |
+| Final owner/guard |owner8, phase7 complete, reason0; LATE scope2/FINAL phase6 |
 
-The engine separates pre-transaction live checks from the tight secure-call
-checks and the checks after AUTH success. Continuations preserve all seven
-registers and admit only CPU/context/time/watchdog/owner-metadata checks, with
-no logging, GPU access or secure-buffer inspection. After AUTH0, the late
-scope also forbids GPU register and secure-region access. Known terminal raw
-errors are emitted after shared quarantine. Failed output remains untouched.
-Diagnostic bounds are20s overall,5s per secure transaction,2s for copy and1s
-for seal/final, alongside the independent watchdog budget; these do not bound
-or cancel the execution time of a secure call that never returns.
+The final guard interval was about0.119 seconds at the recorded19.2MHz CPU
+timebase, including guards and logging; it is not a performance benchmark.
+No GPU register or secure-buffer read followed AUTH0. The reported LIVE
+values are cached pre-AUTH observations. Root mount, launchd, SpringBoard and
+backboardd markers and3 framebuffer swaps were also observed. The user was
+away, so this run supplies no new human screen or touch observation.
 
-Validation passes130 actual-engine host cases and all74 host files, including
-all guard/clock/deadline/barrier boundaries, full64 errors, partial copies,
-multiple interrupted/BUSY chains and8 continuations combined with67 BUSYs.
-Three unchanged original PIL function bodies produce exactly the same fresh
-register frames as the port under typed OS/normal64 scalar-frame seams. This
-verifies descriptor construction, not native assembly, the full PIL loader or
-signature authentication. The original oracle's failed macro-extraction run
-is preserved; a separate version uses the source's actual command enum.
+The strict runtime reader retained the prior clock/CMDDB/watchdog/BCM/CX/
+SMMU/firmware/HFI/PERF/BW/TEST/DCVS/GPU-context/aperture/core/CP checks and added
+signed-load identity, source, raw7, count, descriptor, owner, copy, ordering and
+deadline checks. Its fixtures passed4 clock acceptances/95 refusals,
+132 firmware acceptances/515 refusals,45 retained full-trace acceptances/678
+refusals and20 additional signed-load acceptances/117 refusals. The physical
+reader passed with the original text exactly matching the captured binary
+decode, no console-framing recovery and all inputs unchanged. Raw device
+logs, firmware and build products remain outside Git.
 
-Patch0157 binds the engine to the actual private CLAIMED owner, retained first
-page mapping and same-boot CP/core/FW completion. The owner validates original
-MDT bytes until INIT_ENTER, then uses phase-aware geometry checks. It copies
-and compares exactly1984 bytes in64-byte batches, with no tail clearing or
-new alias. The board checks private engine receipts before owner accept actions
-and checks deadlines inside nested copy guards. Secure/late scopes avoid GPU
-and low-buffer reads; failure quarantines all shared owners before diagnostics.
+## Source and ownership contract
+
+Patch0155 adds the optional immutable b02 source asset. `--zap-code` creates
+an `A615ZapCode` raw1984-byte descriptor with16KiB reserved extent and14400
+zero padding bytes. It appends after NVT, MDT, GMU and SQE and updates top/PAS
+accounting. `sweet_gpu_zap_asset_view` checks the fixed hash, padding, direct-map
+endpoints, five-descriptor layout and pairwise overlaps. The source stays in
+the high DRAM bank, disjoint from any permitted below-4GiB PAS allocation.
+The view performs no loading or allocation.
+
+Patch0156 supplies the fixed `gpz_start_once` engine: three native frames,
+serialized owner actions, copy receipts, continuation/BUSY handling and
+terminal quarantine. A caller PA is only a comparison key, never authority
+or a pointer setter. Continuations preserve all seven registers, with no
+logging, sleep, GPU access or secure-buffer inspection inside the chain.
+Full64 transport/service zero is required. Diagnostic limits are20s overall,
+5s per transaction,2s for copy,1s for seal/final,68 fresh attempts and8 total
+continuations per transaction. These limits cannot cancel a nonreturning SMC.
+
+Patch0157 binds that engine to the actual private CLAIMED owner, retained
+mapping and same-boot CP/core/firmware completion. Original MDT bytes and
+zero tail are checked before INIT_ENTER only. Later owner checks validate
+phase-aware geometry and private engine receipts without rehashing or
+restaging the metadata. The owner writes and compares exactly1984 bytes in
+64-byte batches, with no tail clear or new alias. Board guards include time
+checks inside nested copy callbacks. Secure and late scopes exclude GPU and
+low-buffer reads. Failure quarantines shared owners before cached diagnostics;
+mappings and requests remain retained, without cleanup or retry.
+
 The coordinator preflights b02 before watchdog/RSC writes and dispatches only
-after successful CP completion under the separate exact opt-in.
+after successful CP completion under the separate opt-in. Legacy standalone
+INIT/MEM behavior and its original MDT validator remain independent. Their
+incompatibility with concurrent CX/GPU use is resolved by this separate owner
+path, rather than changing their meaning.
 
-Source validation passed all three changed ARM64 translation units,530 actual
-owner cases with real SHA256/guard pages,444 coordinator cases,237 new board
-cases running the actual CP/ZAP engines under typed hardware/owner seams, and
-all75 host files. These prove implementation behavior under those seams. They
-do not establish real secure authentication, rendering or Metal. The proposed
-606-byte command preserves the disabled legacy INIT default while adding the
-new opt-in; image review must verify its exact decoded bytes before boot.
+Source validation passed all3 changed ARM64 translation units,530 real-owner
+cases using captured firmware/real SHA256/guard pages,444 coordinator cases,
+237 new board cases running actual CP/ZAP engines under typed hardware seams,
+and all75 host files. The engine also passed130 host cases and native-frame
+comparisons against3 unchanged original PIL function bodies. Firmware-asset
+validation includes84 real-SHA256 consumer cases,64 layout combinations,
+128 exact pre155-compatibility comparisons and the actual shim loader path.
+These source/model results are distinct from the157 physical receipts above.
 
-The primary reference remains LineageOS/android_kernel_xiaomi_gauguin commit
-`19b63c8192b1c9b7c4d931d7d3be92024bc2d778`. The read-only155 source audit
-rehashes12 pinned native files, all seven captured firmware files and original
-117/154 report inputs. Its private report records51 unchanged input hashes.
-Captured bytes and device dumps stay outside Git.
+## Native reference and next transition
 
-The native order in `adreno_a6xx.c` is CP_INIT, `a6xx_zap_load`, unsecured-mode
-submission, then post_start. `a6xx_zap_load` calls `subsystem_get("a615_zap")`
-and propagates failure. The actual recovery DT selects trusted PIL PAS13,
-with no no-auth flag or fixed memory-region binding. `peripheral-loader.c`
-orders INIT_IMAGE, MEM_SETUP, segment loading and AUTH_AND_RESET. The signed
-path must be implemented at this post-CP point; a TRUST_CONTROL0 fallback
-does not complete it.
-
-The fixed captured format is:
+The primary reference is LineageOS/android_kernel_xiaomi_gauguin commit
+`19b63c8192b1c9b7c4d931d7d3be92024bc2d778`. Its native sequence is CP_INIT,
+`a6xx_zap_load`, unsecured-mode submission, then post_start. ZAP loading calls
+`subsystem_get("a615_zap")` and propagates failure. The real recovery DT selects
+trusted PIL PAS13. The PIL loader orders INIT_IMAGE, MEM_SETUP, segment loading
+and AUTH_AND_RESET.
 
 | Item | Exact scope |
 | --- | --- |
 | MDT |6860 bytes, b00+b01 packed metadata |
 | Loadable segment |b02 only,1984 bytes, relocated destination offset0 |
 | Segment BSS |0 bytes; no tail-clearing operation |
-| Native memory span |4096 bytes passed to MEM_SETUP |
-| Reserved allocation |1MiB, distinct from the4096-byte span |
-| Fresh AUTH frame x0..x6 |42000205,1,13,0,0,0,0 (normal SCM64) |
+| MEM_SETUP span |4096 bytes, distinct from the1MiB reserved allocation |
+| INIT fresh x0..x6 |42000201,82,13,actual-owner-PA,0,0,0 |
+| MEM fresh x0..x6 |42000202,3,13,same-owner-PA,1000,0,0 |
+| AUTH fresh x0..x6 |42000205,1,13,0,0,0,0 |
 
-The b02 SHA256 is
+Frame values above are hexadecimal. The b02 SHA256 is
 `61be42f041eb6051eb9f56beb1f98ed97ab21faf2ef2df6b9151ba1a46aae878`.
-The metadata is initially staged at the region base. Only after this boot's
-INIT and MEM_SETUP succeed may b02 overwrite exactly the first1984 bytes.
-Do not reload MDT between secure calls, load the full ELF, clear4096/16384
-bytes or interpret a matching hash as successful signature authentication.
+Do not reload MDT between calls, load the whole ELF, clear4096/16384 bytes or
+access the secure region after AUTH merely because a CPU alias remains.
 
-There are two current integration conflicts. `bcm_flags` rejects simultaneous
-CX/GPU and old PAS INIT/MEM opt-ins, and its coordinator branches are exclusive.
-Also, `sweet_pas_stage_owner_valid` checks the original MDT hash and zero tail;
-the current GPU guards use that predicate. INIT permits SCM_RW changes and
-b02 deliberately replaces metadata, so those predicates cannot authorize the
-later loading phases. Their existing semantics must remain intact.
+The next implementation must derive `adreno_switch_to_unsecure_mode`,
+`cp_secure_mode`, `adreno_ringbuffer_submit_spin` and its submission/idle
+helpers from the pinned source. Native A619 appends CP_SET_SECURE_MODE0 and a
+WHERE_AM_I to the existing RB0; it does not reset/reinitialize the ring or
+rewrite the GPU shadow. Starting from this trial's RPTR/WPTR15, the candidate
+5-word append would publish WPTR20. Exact words, placement, fence/keepalive
+sequence and completion predicates still require native-function comparison
+and source/model tests before any new image.
 
-The implementation proceeds in these bounded stages:
-
-1. Implemented in155: a fifth optional, pinned b02 asset through payload packing, shim layout,
-   ADT descriptor and a kernel read-only view. Validate its exact1984-byte hash,
-   raw/padded size, direct-map endpoints, DRAM/top bounds and separation from
-   all existing assets and the low reservation. With the asset absent, retain
-   existing payload bytes and options. Keep binaries outside Git. The remaining
-   fixed engine156 and live binding157 are now source/model/TU qualified;
-   linked-kernel, package and physical qualification remain unfinished.
-2. Add a distinct default-off ZAP entry after successful live CP completion.
-   Seal the actual same-boot CP/firmware/core/owner state before INIT. Retain
-   original MDT checks before the transfer; use separate phase-aware geometry,
-   mapping and ownership checks afterward. Never add a caller PA/pointer setter
-   or accept a fabricated completion receipt as authority. Keep legacy PAS
-   flags and old standalone tests independent.
-3. Run one serialized INIT/MEM/copy/AUTH state machine under fresh watchdog,
-   context, clock, IRQ, route, fault and retained-parent checks. The copy stays
-   inside the owner module, uses its existing NC alias and writes exactly1984
-   bytes, with bounded readback and a barrier before AUTH. Publish copy success
-   privately only after verification. A failure quarantines shared authority
-   before cached logs; retain mappings and requests, with no cleanup or retry.
-4. Preserve normal SCM64 continuation and BUSY semantics. Keep full x0..x6
-   across interrupted returns and require full64 transport/service zero.
-   Existing8-continuation,68-fresh-attempt and5s diagnostic bounds are policy,
-   not native AUTH guarantees. Review any changed bound explicitly. Logging
-   must leave fresh entry budget; software cannot cancel a nonreturning SMC.
-5. Validate exact pinned native call frames/order against the implementation,
-   partial copy and permission failures, every state/once boundary, missing
-   prerequisites, error/continuation/BUSY/deadline paths, and old behavior.
-   Compile changed ARM64 translation units with the current154 manifest and
-   run the applicable host suite. Link/package only the integrated live path;
-   no separate copy-only physical boot.
-6. Qualify one temporary combined boot with a new identity and strict reader:
-   same-boot core/CP completion, INIT/MEM success, b02 copy/readback, AUTH raw
-   result and terminal state. Preserve failures and raw logs. AUTH success
-   qualifies this signed load only. Do not inspect/rewrite the secure region
-   afterward or infer safe CPU access from an old mapping.
-
-After authenticated ZAP loading, derive the native CP_SET_SECURE_MODE and
-submission/completion transaction before adding the unsecured transition.
-General command scheduling, rendering, the iOS graphics/Metal interface,
-power management and high-refresh display remain separate unfinished work.
+Authorization for that append must come from the actual private same-boot
+157 signed-load receipt and retained CP/core/firmware state. It must use a
+new post-AUTH guard path, without the old MDT hash check or a secure-buffer
+read, and quarantine on failure. Do not substitute a TRUST_CONTROL0 write
+for the native signed-load/unsecured-mode path. Completing this transition
+will still leave general scheduling, rendering, the iOS graphics/Metal
+interface, power management and high-refresh display to implement.

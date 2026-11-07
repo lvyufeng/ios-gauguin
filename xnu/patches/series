@@ -160,3 +160,4 @@
 0162-gauguin-normal-gpu-write-readback-engine.patch
 0163-gauguin-live-normal-gpu-data-write.patch
 0164-gauguin-linear-whole-gpu-table-check.patch
+0165-gauguin-batch-cached-gpu-success-records.patch

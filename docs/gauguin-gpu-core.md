@@ -128,3 +128,28 @@ at scratch offset0 to equal software WPTR, plus GMU AO busy bit23 clear.
 The native initialization submits12 ME_INIT words plus3 WHERE_AM_I words
 before loading ZAP; source-level ordering permits this diagnostic first step,
 but the current core-only path does not release SQE or submit those commands.
+# Cached success-record persistence
+
+The165 board change addresses a measured bring-up budget refusal, not UI
+performance. The164 device run reached ZAP SEAL13.1299 seconds after the
+watchdog arm. Its nominal23-second bite window left9.8701 seconds, below the
+unchanged10-second entry requirement, so signed loading and ordinary GPU data
+writes did not start. The rejected raw log and verifier remain preserved.
+
+`sweet_log_flush_now()` starts with a zero local flush cursor and rewrites the
+current console history. Previously every cached context/start/core/CP record
+requested that full write. For the explicitly selected DATA19 variant only,
+each completed record group now keeps the same ordered text and each
+synchronous persistent mark, then flushes the complete console group once
+before returning to its caller. Partial/failure records, legacy variants,
+register access, guards, native engines and all watchdog limits are unchanged.
+The code uses a local output function choice; no batch state spans hardware
+operations or failure paths. Storage-driver code is unchanged.
+
+A typed persistence model runs the actual new functions against pinned164
+functions. Its192 cases compare exact text, order, per-line marks, final
+console persistence and unchanged driver state across selected layouts,
+success/failure and thread contexts. It also checks that only successful
+DATA19 groups reduce full-console flush calls. These are CPU model results;
+the388 avoided calls across model scenarios do not establish a device timing
+improvement, GPU execution, rendering or Metal support.

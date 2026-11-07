@@ -2,6 +2,99 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —157 LIVE signed-ZAP source QUALIFIED; standard full kernel/image/strict runtime proof NEXT
+
+Previous turn was PROGRESS: fixed156 engine compiled/native3-descriptor/74host
+qualified and published. Its handoff private4411dbd7552b8ef1171103e476cc36e645de6ff0
+published5de1004b4ec6c3ec9584d3ec02b0f996c11dd45c. This turn completes actual
+owner/live-board/coordinator source, all3 native TUs and full75 host proof.
+No linked157 kernel/image/phone IO yet; phone lastTWRP154, whole goal ACTIVE.
+
+Five candidate paths research/tmp/dsh-0157/candidate/bsd/dev: pas_stage.C/H,
+gmu_board.C/H, bcm_coordinator.C; patch0157 is151st active patch. Fresh pristine
+source157-codex5300files SHA
+37bc7fece069cd3f21cedf2bb5eea6e581d1376ed6faf613c7f8dbd5753d9cea.
+Only those5 paths differ from156; all original owner/board function bodies and
+legacy metadata validator unchanged; pure CP/GPZ/b02 asset C/H byte-identical.
+
+Owner seals actual CLAIMED pst_ready/pst_mapping and immutable b02 at native
+post-CP point. All64 low1MiB pages unmanaged/exactNC, first-page endpoints,
+actual private PA and original6860 MDT/tail checked before INIT_ENTER only.
+Afterward only phase-aware geometry, never original MDT hash/restage. Fixed
+1984copy/readback in31 bounded64byte batches,2DSBs, no tail clear/new alias/
+unmap or pointer/PA setter. Copy counts retained on partial failure. Correct
+private owner phases require actual private board/engine phase and full64
+returned INIT/MEM/AUTH receipts, not caller-constructed authorization.
+
+Board binds READY CP/core/GGX/FW/board, private complete CP receipt, actual
+owner, all prior clock/IRQ/SMMU/fault/NC/device predicates. SECURE/LATE guards
+check CPU/time/WDT/owner metadata ONLY, returning before GPU/secure-buffer
+reads. Native seven-scalar wrapper reused via typed register copies. After
+AUTH0 no GPU or low-buffer access, including final guards/records. Failure
+quarantines owner/CP/core/GGX/FW/board/lease BEFORE cached failure raw/terminal.
+No cleanup/retry/HOST release or unsecured/renderer/Metal claim.
+
+Coordinator exact sweetgpuzap=0/1, requires entire existing start chain;
+preflights fixed b02 before WDT/RSC and calls signed loader ONLY after CP
+success. Legacy PAS flags stay0; all old paths retain old behavior. New command
+proposed606B: replace explicit sweetpasinit=0 with sweetgpuzap=1 (missing legacy
+INIT parses as0), keep sweetpasmem=0 and every other control, new unique token
+sweettrial=gzap-0157-a1. Default absence is tested by owner/coordinator/board.
+Packer/reviewer must still decode and match actual full606B string, no truncation.
+
+DSH82759 CLOSED0/native157.py0:3 actual ARM64 TUs on CURRENT154gauguin.SlaKVj/
+source154-codex +156/candidate headers passed. Codex then found nested copy
+callbacks bypass engine's outer time wrapper: added direct monotonic/phase/
+total checks INSIDE board guard (no timeout extension). Preserved all7 prior
+native inputs in native-input-snapshot. Only board.C changed; DSH57835 CLOSED0/
+native157_v2.py0 recompiled it, unchanged owner/coordinator proofs retained.
+Final actual objects: owner27624B SHA
+7ffaafa3456960b55f21f24e1ab540b04fe58ea56944ba1f6251e49872dbe639;
+board229448B SHAa9fa41195f09648ad3ae9de2e0fd83705dc95b7f737086c63d5f4ae0f464d641;
+coordinator58056B SHAbce61597ad15a93028fcfc577c0b10f616b66528cdea73e066479d971fca3780.
+native-result-v2.json1636B SHA5f3f196d8de55b4b4abb6d1a3567a996e6da5647b5b81081539df885c2fdb328,8pins.
+
+DSH5695 CLOSED0/owner157.py0: pristine151patch replay; actual realSHA realMDT/
+b02 owner530 cases, all126 copy guards, all64 page attributes per tested phase,
+guard-page bounds, exact1984/no tail clear, no post-INIT hash, PROT_NONE region
+through AUTH accept/final; legacy staging unchanged; coordinator444(416old+28
+ZAP) cases pass. owner-result.json22994B SHA
+85e3e5ac9e78f1054867c7c1113176448690b25a15fdada46062993857c754e1,174pins.
+DSH34684 CLOSED0/board157.py0: all old board cases retained, actual CP+GPZ engine
+with typed owner/SMC/MMIO/time seams adds237 ZAP cases: live/full64 errors,
+raw receipt/phase authorization, owner failures, nested-copy deadlines, empty/
+partial copy, continuations/BUSY/caps, default absence, terminal quarantine,
+and explicit no GPU reads after AUTH0. Board report757B SHA
+9b639c187640eeda7c41d4ac8b18e5f8be6e25daca8c71bf2b3e3b09c90f5cd2,4pins.
+DSH47281 CLOSED0/full157.py0: all75 host files observed once and passed; report
+35295B SHAadb5d4da3452f84e6e5db106cb155745d498bcc07adda59da14992d071cafe75,
+297pins. These are SOURCE/TU/MODEL proofs, NOT secure authentication/hardware.
+
+DSH60113 CLOSED0/preflight157.py0 binds final host/source/TUs, unchanged153
+native34function/5trace first-CP proof,156 original3PIL-body descriptor proof,
+and155 real5asset/pre155-compat packer proof. Build/qualifier syntax valid;
+all inherited154 qualifier checks retained with exact157source/new binder,
+plus native GPZ/b02 members/symbols/owner/scope/copy/quarantine/dispatch formats.
+preflight-result.json1810B SHA
+976d9f40fa1af4e8dba0e3107589cbec28a28bf8f4e2660a5827e4d1f28ee137,6pins.
+Codex independently rehashed8+174+4+297+6 inputs,7 old native snapshot pins,
+all3 final actual objects,151patch source, and actual75 executed test names;
+research/tmp/dsh-0157/independent-source-review.json records verification.
+
+NEXT: commit/publish reviewed source then ONE standard LOCAL8job full157
+kernel via build157.py and qualify_native0157.py; bind_host157.py retains
+all old technical gates. Keep source/HEAD fixed during build+qualification.
+No full157 kernel/image/phone trial yet. After qualification prepare independent
+five-asset packer/review with unique157 token and decoded606B options, separate
+strict runtime reader retaining ALL154 identity/artifact/source/clock/FW/HFI/
+DCVS/SMMU/core/CP/reset gates plus actual same-boot INIT/MEM/codecopy/AUTH,
+phase/scope/raw7/count/owner/timing/terminal gates and inherited console framing.
+Run runtime valid/refusal fixtures before ONE temporary fastboot boot. Standing
+no-manual user authority, only request manual recovery if truly stuck. No
+unchanged154/CPU-only boot. All ownedDSH jobs CLOSED; full native/generated
+BSD recipe STILL154gauguin.SlaKVj/source154-codex pending full157 build.
+Original user mkadt diff a74a0418...454860 untouched; no CI/flash/format/GPT.
+
 ### 2026-11-07 —Standing user instruction: unattended resets are automatic; no repeated confirmation
 
 The user explicitly says: "我人不在旁边 重启肯定都是自动的 不用确认 只有卡住了需要我手动重启的时候 你会提示我".

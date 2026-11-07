@@ -17,6 +17,7 @@
 #include "gauguin_gmu_clock.h"
 #include "gauguin_gmu_board.h"
 #include "gauguin_gmu_asset.h"
+#include "gauguin_gpu_zap_asset.h"
 #include "cmd_db_snapshot.h"
 #define GAUGUIN 1
 #define KERN_SUCCESS 0
@@ -48,6 +49,7 @@ static struct {
     unsigned sqe_calls;
     unsigned core_calls;enum ggc_result core_result;enum gmb_state core_state;
     unsigned cp_calls;enum ggq_result cp_result;enum gmb_state cp_state;
+    int gpuzap,missing_init;unsigned zap_calls,zap_asset_calls,zap_asset_fail;enum gpz_result zap_result;enum gmb_state zap_state;
     unsigned gpu_calls;
     unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
     unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
@@ -68,13 +70,13 @@ static struct {
     struct gbcmt_receipt receipt;
     enum gbcmt_rc tx_result;
     thread_continue_t worker;
-    char order[12],log[32][224];unsigned order_count;
+    char order[16],log[64][224];unsigned order_count;
 } mock;
 static void order(char step)
 { CHECK(mock.order_count<sizeof(mock.order)-1,"bounded API sequence");mock.order[mock.order_count++]=step; }
 static int test_printf(const char *fmt,...)
 {
-    va_list ap;int n;CHECK(mock.lines<32,"bounded logs");
+    va_list ap;int n;CHECK(mock.lines<64,"bounded logs");
     va_start(ap,fmt);n=vsnprintf(mock.log[mock.lines],sizeof(mock.log[0]),fmt,ap);va_end(ap);
     CHECK(n>0 && (size_t)n<sizeof(mock.log[0]) && mock.log[mock.lines][n-1]=='\n',"bounded newline record");++mock.lines;return n;
 }
@@ -83,7 +85,8 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     CHECK(bytes==sizeof(int),"integer argument");
     if(!strcmp(key,"sweetpasprobe")){*(int*)out=mock.probe;return true;}
     if(!strcmp(key,"sweetpasstage")){*(int*)out=mock.stage;return true;}
-    if(!strcmp(key,"sweetpasinit")){*(int*)out=mock.pasinit;return true;}
+    if(!strcmp(key,"sweetpasinit")){if(mock.missing_init)return false;*(int*)out=mock.pasinit;return true;}
+    if(!strcmp(key,"sweetgpuzap")){*(int*)out=mock.gpuzap;return true;}
     if(!strcmp(key,"sweetpasmem")){*(int*)out=mock.pasmem;return true;}
     if(!strcmp(key,"sweetgmuclk")){*(int*)out=mock.gmuclk;return true;}
     if(!strcmp(key,"sweetgmufw")){*(int*)out=mock.gmufw;return true;}
@@ -175,7 +178,8 @@ void gauguin_wdt_lease_quarantine(void)
         (mock.power_calls==1 && mock.power_result!=GCX_OK) || (mock.clock_calls==1 && mock.clock_result!=GCX_OK) ||
         (mock.fw_calls==1 && mock.fw_result!=GMB_OK) ||
         (mock.core_calls==1 && mock.core_result!=GGC_OK && mock.core_state!=GMB_QUARANTINED) ||
-        (mock.cp_calls==1 && mock.cp_result!=GGQ_OK && mock.cp_state!=GMB_QUARANTINED) || mock.after_sleeps==30,
+        (mock.cp_calls==1 && mock.cp_result!=GGQ_OK && mock.cp_state!=GMB_QUARANTINED) ||
+        (mock.zap_calls==1 && mock.zap_result!=GPZ_OK && mock.zap_state!=GMB_QUARANTINED) || mock.after_sleeps==30,
         "quarantine after TX/INIT/MEM/ARC/CX failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
@@ -404,6 +408,13 @@ enum ggq_result sweet_gpu_cp_once(struct ggq_receipt *out)
 enum gmb_state sweet_gpu_cp_state(void)
 {return mock.cp_result==GGQ_OK?GMB_READY:mock.cp_state;}
 #define printf test_printf
+bool sweet_gpu_zap_requested(void){return mock.gpuzap==1;}
+bool sweet_gpu_zap_asset_view(struct gza_view *out)
+{CHECK(mock.gpuzap==1&&!mock.arms,"ZAP asset before WDT");++mock.zap_asset_calls;if(mock.zap_asset_fail)return false;*out=(struct gza_view){(const uint8_t *)(uintptr_t)1,UINT64_C(0x1825a4000),1984};return true;}
+enum gpz_result sweet_gpu_zap_once(struct gpz_receipt *out)
+{CHECK(mock.gpuzap==1&&mock.cp_calls==1&&mock.cp_result==GGQ_OK&&mock.zap_calls++==0&&!mock.quarantines,"signed loader only after successful CP once");order('Z');if(mock.zap_result!=GPZ_OK){if(mock.zap_state==GMB_QUARANTINED)++mock.quarantines;return mock.zap_result;}memset(out,0,sizeof(*out));return GPZ_OK;}
+enum gmb_state sweet_gpu_zap_state(void){return mock.zap_result==GPZ_OK?GMB_READY:mock.zap_state;}
+
 @SOURCE@
 #undef printf
 static bool has(const char *needle){for(unsigned i=0;i<mock.lines;++i)if(strstr(mock.log[i],needle))return true;return false;}
@@ -413,6 +424,7 @@ static void reset(const char *name)
     memset(&mock,0,sizeof(mock));case_name=name;++cases;bcm_started=0;
     mock.core_state=GMB_QUARANTINED;
     mock.cp_state=GMB_QUARANTINED;
+    mock.zap_state=GMB_QUARANTINED;
     mock.requested=mock.probe=mock.stage=1;mock.clock_result=GCX_OK;mock.clock_receipt.configured_hz=200000000;mock.clock_receipt.direct_writes=7;mock.clock_receipt.hold_requests=2;mock.clock_receipt.polls=7;mock.ready_after=1;mock.now=1;
     mock.init_result=GPI_OK;mock.init_state=GPI_QUARANTINED;
     mock.init_receipt.has_returned=1;mock.init_receipt.smc_calls=1;
@@ -976,6 +988,32 @@ static void gpu_start_cases(void)
   CHECK(mock.cp_calls==1&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU CP BOOT: stopped"),"CP coordinator quarantines unclaimed lease exactly once");
  }
 }
+static void zap_cases(void)
+{
+ unsigned first=cases;
+ for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_bw("ZAP exact flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.zap_calls,"invalid ZAP flag before any work");}
+ for(unsigned n=0;n<8;n++){
+  reset_bw("ZAP missing parent flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;
+  if(n==0)mock.gpustart=0;else if(n==1)mock.gpucontext=0;else if(n==2)mock.gmudcvs=0;else if(n==3)mock.gmubw=0;else if(n==4)mock.gmuperf=0;else if(n==5)mock.gmufw=0;else if(n==6)mock.gmuclk=0;else mock.cxpower=0;
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.zap_calls,"ZAP retains entire old chain");
+ }
+ reset_bw("ZAP asset unavailable");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;mock.zap_asset_fail=1;run_worker();CHECK(mock.zap_asset_calls==1&&!mock.arms&&!mock.zap_calls,"refuse missing code before hardware");
+ for(unsigned n=GPZ_ARGUMENT;n<=GPZ_SERVICE;n++){
+  reset_bw("ZAP terminal errors");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;mock.zap_result=(enum gpz_result)n;run_worker();CHECK(mock.zap_calls==1&&mock.quarantines==1&&!mock.after_sleeps&&!has("signed ZAP load accepted"),"no retry/fallback/false signed success");
+ }
+ for(unsigned n=GMB_IDLE;n<=GMB_RUNNING;n++){
+  reset_bw("ZAP fallback quarantine");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;mock.zap_result=GPZ_GUARD;mock.zap_state=(enum gmb_state)n;run_worker();CHECK(mock.zap_calls==1&&mock.quarantines==1&&!mock.after_sleeps,"coordinator quarantines only if helper did not");
+ }
+ for(unsigned n=0;n<3;n++){
+  reset_bw("ZAP refused prior step");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;if(n==0)mock.fw_result=GMB_GPU;else if(n==1)mock.core_result=GGC_GUARD;else mock.cp_result=GGQ_GUARD;
+  run_worker();CHECK(!mock.zap_calls&&!has("signed ZAP load accepted"),"no secure load after refused firmware/core/CP");
+ }
+ for(unsigned missing=0;missing<2;missing++){
+  reset_bw("ZAP accepted order and default missing legacy init0");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;mock.missing_init=missing;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGFKJZQ")&&mock.zap_calls==1&&mock.zap_asset_calls==1&&mock.after_sleeps==30&&has("signed ZAP load accepted")&&!mock.init_calls&&!mock.mem_calls,"one signed load at native post-CP point with legacy APIs off");
+ }
+ printf("PASS: %u retained + %u ZAP coordinator cases (%u total); typed seams only\n",first,cases-first,cases);
+}
 int main(void)
 {
     legacy_cases();
@@ -1008,5 +1046,6 @@ int main(void)
     printf("PASS: %u retained + %u GPU context coordinator cases (%u total); typed seams only\n",before_gpu,cases-before_gpu,cases);
     unsigned before_start=cases;gpu_start_cases();
     printf("PASS: %u retained + %u GPU start coordinator cases (%u total); typed seams only\n",before_start,cases-before_start,cases);
+    zap_cases();
     return 0;
 }

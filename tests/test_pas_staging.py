@@ -94,7 +94,7 @@ def production_source():
     assert source.count('SHA256_Update(&') == 1
     assert 'SHA256_Update(&ctx, bytes, PST_BYTES);' in source
     barrier = '__asm__ volatile("dsb sy" ::: "memory");'
-    assert source.count(barrier) == 1
+    assert source.count(barrier) == (2 if '\nstatic void psz_barrier(void)\n' in source else 1)
     source = source.replace(barrier, 'fake_dsb();')
     return re.sub(r'^#include .*\n', '', source, flags=re.M)
 

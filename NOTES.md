@@ -2,6 +2,20 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —147 strict runtime readers passed; ONE temporary hardware trial next
+
+DSH36664 CLOSED0; actual runtime_validate147.py0. Three zero results, clock4/95,
+FW132/504, full SYNTHETIC25/157. Actual5-slot/5-bank FW-record positive added;
+old rejection rules and source/image/flag binding retained; new required
+capacity-fix qualification flag has a negative case. Codex rehashed all14
+runtime report inputs. Synthetic fixtures are not physical GPU/SMC evidence.
+Reviewed boot147/run_hardware147 owns ONE temporary fastboot boot after routine
+13-byte BCB/product checks,180s observation/fresh pull and strict full reader.
+NEXT execute-hardware.txt; preserve any rejection and do not proceed to core
+until real default-context/aperture verified. Current recipe1473eaEOm, captured
+HEAD5c60506, image2e68e4da...ae3d11. Phone last observedTWRP146. Whole goal
+ACTIVE/incomplete; original mkadt diff intact, no CI/flash/format/GPT actions.
+
 ### 2026-11-07 —147 complete local kernel and independent image qualified; runtime fixtures running
 
 Source/code private5c6050648130b08eba55cde3b05ccca56262f20e published as

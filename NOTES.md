@@ -2,6 +2,140 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —167 source/native/full81/preflight ACCEPTED; full LOCAL build NEXT
+
+Previous166 physical IB preserved; full goal ACTIVE/unlimited. Phone STILL
+TWRP166, NO167kernel/image/device IO/EOP hardware proof. User away, all resets
+automatic --manual-reset no; no attribution/UI questions, prompt only truly
+stuck/manual recovery. Original mkadt7line diff unchanged. No flash/format/GPT.
+CURRENT generated/native recipe STILL166 gauguin.MVqkS8/source166-codex,
+manifest331973dccfdba19b8d1594ab69864a51bf9a713876df491944947678cc983971.
+Do not use older165/164/159 TU helpers. No full167build yet; after successful
+full167 build/qualification update CURRENT recipe immediately.
+
+167 fresh official161patch replay0 +ALL81actual host files0 FIRST attempts,
+DSH28998 CLOSED0/dispatch-integration0. Source167-codex5310files SHA
+cf9257f53a3b4a2cd8df90dc92b2cf60cf68d0f75c3bad02546569f00e1f5893,
+exact7delta vs166, new GGE.C/H+board.C/H+coordinator/PASowner/BSDmember.
+New patch0167-gauguin-native-ib-eop-completion.patch. Old mode3/GGW and
+mode4/GGI providers/engines byte-identical. Allother source including GGD/
+GGS/tables/NC/UFS/WDT unchanged. Mode5 actual signed/GGU20->IB8+noIRQ
+EOP5+WHERE3/direct12->device32, independent EOP CPU-read polling before
+full-page/32ring/8IB compare, exact cold mode freeze0/3/4/5 with DATA19/171.
+No CPU DATA writes/new mapping/alias/PTE or watchdog policy changes.
+
+DSH12984 CLOSED0/dispatch-v2-native-contract0:43unchanged native bodies,
+all42prior unchanged, exact EOPblock SHA
+615d5006e33b820644d98d08bcfd77d8d12f5d1beed7af5470fb4179e7a83536,
+old normaluserIBblock70aa868d7df55064ceb7bc033e2cbdb470309438d0c844c86fd6f775e1cbd3dd.
+Five exact12ring/8IB/EOP-read traces and nativefence timeout0.
+Native report native-eop-v2/result.json SHA
+d2262b79647fc90049ecf55fcd1b387fda30349472ab13e9bb1ef12a92839017,
+25pins. First extra native IRQbranch UBSan failure preserved/unqualified;
+actual noIRQ branch only, native bytes/sanitizers unchanged. Destination
+macros and deferred event publication/polling are typed MODEL seams, NOT
+fullKGSL memstore/context/IRQ scheduling. HeaderCACHE_FLUSH_TS4 pinnedprimary.
+
+DSH14312 CLOSED0/dispatch-preflight0: strict bind_host167/qualify_native0167/
+build167 syntax and full81/495board/43native/4ARM64+oldnative foundations,
+shared EOP source contract (same validation runs after actual link), exact
+mode5coordinator/owner/cold freeze, officialstaging and cached165logging0.
+Allmodels/source unchanged. Root independently rehashed all323full81 input
+pins,25native pins/five trace pairs and entire source; verified exact7delta
+and both old providers byte-identical. integration-result.json SHA
+19b9c1bd2854eeaa5ac07b61e3311a0d2cc161dd7b7e968ed0a79c1f7637c3b5;
+independent-source-review.json SHA
+724ba598a541ddba393e717936931a5a5a169cc4edbec88c53c8c4b0b129a4f0.
+
+NEXT: root commit/publish this complete SOURCE/MODEL milestone (source IDs
+will be in research/tmp/dsh-0167/public-source-snapshot.json), then DSH
+ python3 research/tmp/dsh-0167/dispatch_once167.py build
+ONE standard fullLOCAL8job build+strict qualification. Do not restart any
+claimed/live job; old167focus/board/integration/preflight allterminal0.
+Freeze sourceHEAD/binder/qualifier through build+qualification. New EOP
+hardware flag must stayfalse in source qualifier; separate actual boot proof
+later. Runtime/image/boot167 helpers NOT authored yet. Derive from verified
+166 final helpers with explicit consistent filename map; avoid old broad
+numeric/v2 replacements. Must audit all oldmode4 negative mutation needles
+to actualmode5 and move illegal5 to6 deliberately; retain semantic classes.
+Then exact606B mode5/trialgwrt-0167-a1/fiveassets image, strictfull runtime,
+ONE temporary fastboot boot and strict separate physical EOP read. All
+raw/failed artifacts immutable; no filters/repair/dedup/waivers. Root critical
+C/NOTES/Git, DSHexecute only with explicit no edits/Git mutations and atomic
+once. No user action required. EOP/shader/rendering/Metal/highrefresh/daily-use
+remain incomplete; no CPU guarded span or service logs prove performance.
+
+### 2026-11-07 —167 integrated EOP candidate engine/board/4TUs PASSED; native oracle v2 next
+
+This continuation PROGRESS: actual new EOP engine/provider/coord/owner/member
+candidate authored by Codex, DSH pure engine and actual board models/4ARM64
+TUs passed. Previous166 physical IB accepted; broader goal ACTIVE/unlimited.
+Phone STILL TWRP166, NO167device IO, no167kernel/image/full-source replay yet.
+Current source HEAD0666bd8eb499625af6cae98ef86beaaecadded78/public958cc85ad66494243f93fe6398cbe34eb13496d7.
+CURRENT generated/native recipe STILL166 gauguin.MVqkS8/source166-codex,
+manifest331973dccfdba19b8d1594ab69864a51bf9a713876df491944947678cc983971.
+Never use older165/164/159 native helpers. Original mkadt7line diff untouched.
+All resets automatic (--manual-reset no), no attribution/UI questions;
+only prompt if actually stuck/manual recovery. No flash/format/GPT.
+
+Work root research/tmp/dsh-0167/. candidate has7paths: new
+bsd/dev/gauguin_gpu_eop.c/.h (GGE), board.C/H, coordinator, PASowner, BSD
+member. Mode5 exclusive continuation after actual signed/GGU20, before mode4
+branch, preserving mode3/4 engine/provider bytes. Freeze cold mode0/3/4/5
+(all3/4/5 stillDATA19/171). Reuse existingRO/NX ring IB8 at+4000; direct12words
+20..31 namesIB4, no-IRQ EOP5, WHERE3 ->device32. DATA edgesGEP2/GEP3
+47455032/47455033; distinct DATA+4 EOPmarkerGEP1 47455031. CPU only writes
+IB8+ring12; full pre1024zeros/post3expected+1021unchanged/32ring/8IB checks,
+separate bounded1024CPU NC EOP polls afterRPTR32/idle, wrong nonzero EOP
+rejected, no CPU DATA/scratch/securebuffer writes/new mappings/PTEs/WDT
+changes. Fresh4s/2s/8sentry private stage, GGI/GGW mustidle; read-only actual
+GGU/signed/CP/core/FW parent predicate, fulltable/NC/route/clock/IRQ/fault guards,
+allowners poisoned before cached diagnostics. Hardware EOP UNQUALIFIED.
+
+Pinned primary19b63c8192b1c9b7c4d931d7d3be92024bc2d778 fetched through GitHub
+connector (no browser): a3xx_reg.h21584B defines CACHE_FLUSH_TS4. Local native/
+header plus primary-eop-header.json; actual adreno_ringbuffer.c EOPblock uses
+that include/macro and CP_EVENT_WRITE0x46. Native constructor header70460004
+still subject to oracle acceptance. Extra fetched kgsl_device/drawobj headers
+unused in proof; INTERNAL_ISSUE actually already defined BIT1 in pinned
+adreno.h. No need more lookups. Native full memstore/context scheduling is
+NOT modeled: EOP destination macros are explicit typed DATA+4 seam.
+
+DSH76311 CLOSED0/dispatch-focus inner0: actual engine16497cases, all6592/6670
+callback boundaries injected; EOP missing despiteRPTR32/idle, delay1/2/1023,
+1024poll timeout, wrongvalue, data/ring/IB/allcallback/once/alias errors.
+4actual ARM64 TUs0 against CURRENT166 recipe. DSH32775 childCLOSED0 /
+dispatch-board-model0,495new actual EOP board cases, allold board suites incl
+GGW369/GGI436 retained and PROT_NONE secure CPU page afterAUTH. Actual
+committed tests/test_gmu_board.py now has GMU_BOARD_SOURCE_DIR override for
+candidate C/H +EOP.C with166deps; full-source default source167 later.
+Root independently rehashed focused/board pins and4objects, report
+independent-focus-board-review.json. Original records immutable.
+
+DSH60226 CLOSED1/native-contract1:43unchanged native functions (42prior plus
+is_internal_cmds), exact original EOPblock, exact actual noIRQcase0 trace
+completed; then EXTRA unsubmitted IRQ-branch host tests hit native signed
+(1<<31) UBSan. Driver/noIRQcase not changed, no sanitizer disabled. First
+native-eop/failed report/log untouched. Codex NEW native_eop167v2.c and
+native_contract167v2.py qualify ONLY requested NULL/noninternal/noIRQ branch
+and timestamp edges, native43bodies/EOPblock byte-identical. IRQbranch is
+explicitly UNQUALIFIED, not needed bymode5. Address and deferred EOP memory
+publication/polling are typed model seams, not full addcmds or native IRQ
+scheduler. DSH12984 CURRENT runtime session for
+ python3 research/tmp/dsh-0167/dispatch_once167v2.py native-contract.
+Inspect actual dispatch-v2-native-contract.json/native-eop-v2/result.json;
+never rerun claimed/live stage. No full81host/official source167replay yet.
+
+Uncommitted repo-owned host changes: new tests/test_gpu_eop.py +gpu-eop/eop_host
+fixture +gmu-board/eop_host fixture, actual board harness/hooks; coordinator/
+owner model mode5positive and old illegal5->6 negatives now authored but
+UNTESTED. Need generate161st patch from7candidate paths, appendseries, fresh
+source167-codex officialreplay via build/source-state and full81actualhost
+files. Only after nativev2+full81 may source be committed/published and ONE
+fullLOCAL8job kernel be compiled. Root owns NOTES/Git/critical C; DSH execute
+only, explicit no edits/Git mutations; all stages atomic once. No user action
+required. Preserve accepted166 evidence, don't re-boot merely to reconfirm.
+
 ### 2026-11-07 —166 PHYSICAL native fixed IB execution VERIFIED; GPU EOP fence NEXT
 
 This goal turn PROGRESS: Codex integrated critical IB driver/provider/mode4,

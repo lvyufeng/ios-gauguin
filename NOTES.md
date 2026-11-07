@@ -58,7 +58,13 @@ at research/tmp/gauguin-nvt-p1/gpu144-v2-memory/run-w14yb5l2/compile.json.
 Codex independently rehashed all300 validation pins, all native/policy/audit
 pins and both complete source snapshots after DSH;143 baseline unchanged.
 All owned DSH tasks completed. Original7-line mkadt user diff unchanged.
-No CI, flash/format/GPT/destructive operation. Commit/publication follows.
+No CI, flash/format/GPT/destructive operation. Private validated source commit
+6fc9d5f4f0a0486f67278ed9d3be3f4c455987cf; sanitized publication
+3ceba2a1ec8ef01993305726a550bdc6c5f36dad ls-remote verified, sole parent
+995f4b89e5c2a53d3a73d055d9fec31867329ee1 and same tree as that private commit.
+Exactly6 NOTES/docs/new GPU test/patch/series text paths; report
+research/tmp/dsh-0144/public-snapshot-0144.json. No private ancestry/raw device
+data/downloaded native sources/binaries/serials pushed.
 
 NEXT145: integrate a guarded late GPU SID0 context preserving running GMU
 banks0/1, secure SID2 and unrelated routes. Do NOT reuse cold gsm_configure_once:

@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —142 combined native BW/TEST startup validated; full local kernel next
+
+THIS turn progresses from the141 constructor to actual opt-in sender code.
+Whole daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh goal ACTIVE and
+incomplete. No142 whole kernel/image/phone/accepted BW or TEST ACK yet.
+
+136th patch0142 adds gmf_bootstrap_bw_test_once and board counterpart on SAME
+once-state/channel/lease, public receipts unchanged. Validate/freeze640-byte
+BW packet before ownership/IO; after INIT/version/PERF accepted, send BW160
+0040a003 then native HFI_USE_REG TEST1 00500105. Both use existing native ACK
+prefix3..19/type2/sequence4 or5/status!=ffffffff, extra bytes unqualified.
+Private requested/started/accepted fields preserve prefix evidence; started
+means request dispatch before drain, not proof of send. Failure stops later
+commands, quarantines, public output unchanged. No new reset/map/OOB/PAS/
+retry/rearm/PET. Final guards precede all completion logs; partials follow
+both owner/shared-lease quarantine. sweetgmubw defaults0, exact1 requires
+PERF/FW/clocks/CX and existing PAS exclusions. Four SAME published snapshot
+BCM entries decoded BEFORE watchdog/RSC, no fallback; four plan records bind
+MC0/SH0/ACV/SN10. Default INIT/version and PERF paths remain available.
+
+DSH66201 CLOSED0, actual validate142.py0, EIGHT zero results: pristine136-patch
+replay, native BW oracle, all62 hosts, native PERF oracle, frozen default I/O
+equivalence and three real ARM64 TUs. Fresh1425282files SHA
+285122135ab1f13cf01a813d160a61ac0a4cf5c6341a9f352b8ec98d838cfbf6;
+only coordinator.c,board.c/h,firmware.c/h changed from141. Validation report
+research/tmp/dsh-0142/validation-result.json SHA
+3901c59fd322c2a6a8b7e0f57defe3be47a67dfebeaf6ac71b5747c26d3ca59b.
+Inputs/source/baseline unchanged. All2684 combined callback failures, exact
+160+1 transmitted words, all3..19 ACK lengths/echo variants/status7/debug,
+malformed/timeout/stale/error/refusal, three-entry repeat/nesting and invalid
+BW plan/span/alias preservation pass; engine11248119 checks. Retained PERF
+1743 and old1385 boundary suites still pass. Board56 focused BW/TEST cases
+plus prior2840+95+49 retained; coordinator308+27=335. Exact native BW640-byte
+wire remains03030a35...197ce5bb at all4095 sequences; PERF oracle also passes.
+ORIGINAL129-model default140/1421,009,420 I/O requests identical digest
+42c8a43275281f5b. No host seam is physical ACK evidence.
+
+Native firmware65592B SHA f07306b25cf0f364fe3569cb1f697a27f00e7948fb4253c1a584ed848cbae02d
+at gmu142-gauguin_gmu_firmware/run-so1jcr7o/compile.json; board78840B SHA
+4131ac07c10167069797070187ed42ecca42826f41326e2ad0d574e49ddd4121 at
+gmu142-gauguin_gmu_board/run-myq2bvvw/compile.json; coordinator48200B SHA
+3db99930448c5ac6b2eda29fa3dd358c604c765ac36880c382c75cc30db100c2 at
+gmu142-gauguin_bcm_coordinator/run-nsho0srf/compile.json, all under
+research/tmp/gauguin-nvt-p1. CURRENT full native recipe remains140P3pyBC.
+
+NEXT: publish validated source and DSH full LOCAL build142, all inherited
+native qualifiers plus BW/TEST entry/symbol/order/kernel-format binding;
+package unique sweetgmubw1 trial, strict readers require four pre-WDT plan
+rows and ordered PERF/BW/TEST ACKs, min88/max238 stores,8..8000 polls and
+225 debug bound. One temporary boot after parser/pack validation. Preserve
+140 physical PERF baseline. No full async IRQ/power lifecycle, live DVFS,
+SQE/CP/ZAP/GPU command/rendering/Metal proof from completing legacy startup.
+Phone last observedTWRP, all current DSH handles CLOSED; no new phone I/O.
+User's THIS138 self-reset attribution retained,140 attribution UNKNOWN.
+Original7-line mkadt diff intact. No flash/format/GPT/destructive action/CI.
+
 ### 2026-11-07 —141 native BW encoder and snapshot exporter validated; next real BW/TEST transaction
 
 Previous goal turn was progress: actual140 PERF ACK passed and source/handoff
@@ -91,6 +147,12 @@ whole image on this constructor-only unchanged runtime path. No141 whole
 kernel/image/phone/CI trial.140 remains physical PERF baseline. All owned
 handles CLOSED, phone last observedTWRP. Original7-line mkadt diff untouched;
 no flash/format/GPT/destructive action. Whole objective remains ACTIVE.
+
+141 validated source published and ls-remote verified at
+586c99f633aec6a05c03c3eaff00fca28969de74, sole parentac4114b, same tree as
+private5b6e830e32a4ae24476dcac3768378a294f15606. Exactly8 reviewed text paths;
+report research/tmp/dsh-0141/public-snapshot-0141.json. No private ancestry,
+raw CMDDB/FDT/native downloads/binaries/serials published. No CI run.
 
 ### 2026-11-07 — actual140 native PERF table ACK PASS; next bandwidth table and TEST
 

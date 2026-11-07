@@ -3,7 +3,8 @@
 The packer, native asset reader, bounded bootstrap engine, physical callback
 adapter and opt-in coordinator are implemented. Host controller seams exercise
 the engine and actual HFI rings. Physical0138 now qualifies fresh GMU firmware
-execution and INIT/version replies; GPU command execution remains unqualified.
+execution and INIT/version replies; physical0140 additionally accepts PERF.
+GPU command execution remains unqualified.
 The adapter reuses the retained0122 board owner's CSR, SMMU and low-memory
 mappings without exporting pointers or creating aliases.
 
@@ -586,3 +587,28 @@ without further MMIO. Original firmware/PERF tests and default bootstrap I/O
 equivalence remain intact. No new runtime consumer sends this table yet;
 the next opt-in transaction must send BW and TEST after PERF, validate each
 actual ACK and retain the shared once-state, guards and quarantine behavior.
+
+## Opt-in native bandwidth and TEST startup (0142)
+
+`sweetgmubw=1` requires PERF, firmware, clocks and CX modes. Before watchdog
+arm or RSC submission, the coordinator exports MC0/SH0/ACV/SN10 from the
+already published matching CPU snapshots and validates the fixed BW plan.
+Unavailable metadata is terminal. Four plan records bind the actual resources.
+
+The combined engine shares the original cold once-state and public receipt.
+It freezes the full640-byte sequence4 BW packet before taking ownership,
+then sends it only after accepted INIT/version/PERF. Accepted BW is followed
+by the sequence5 one-word TEST used by this board's captured HFI_USE_REG
+quirk. Both replies use the existing native type2,3..19-word,12-bit sequence
+and non-ffffffff status rules. The engine caches only accepted3-word prefixes.
+Private started flags indicate request dispatch before draining, not proof
+that the command was sent. Failures stop later requests and quarantine the
+transaction; success records follow all final guards, partials follow quarantine.
+There is no second reset, new mapping, OOB request, retry or watchdog rearm.
+
+All62 host files, exact native BW/PERF byte oracles,2684 combined callback
+failure boundaries,56 new board and27 new coordinator cases, default I/O
+equivalence and three ARM64 translation units pass. This is source/host
+qualification:0142 has no physical BW/TEST ACK yet. Completion of this legacy
+startup sequence does not qualify asynchronous HFI/interrupt/power operation,
+frequency changes, GPU execution, rendering or Metal.

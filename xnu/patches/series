@@ -144,3 +144,4 @@
 0146-gauguin-gpu-input-rejection-diagnostics.patch
 0147-gauguin-gpu-match-group-capacity.patch
 0148-gauguin-native-gpu-mmu-oob-core-start.patch
+0149-gauguin-pinned-sqe-cold-staging.patch

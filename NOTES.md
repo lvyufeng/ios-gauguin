@@ -2,6 +2,70 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —149 pinned SQE cold staging source validated; full A619 core/CP startup next
+
+Codex implemented0149 (143rd patch), optional pinned SQE payload/view and cold
+board staging; DSH executed all compiles/tests. Source1495292files SHA
+b78aab1bf446b326faba9b079f92fe74fa11ce7017318eb2b9fe48953331d71a,
+.deps-cache/p0-20261105/source149-codex. Exactly6 XNU paths differ from148:
+bsd/conf/files, coordinator.c, board.c/h and new gpu_sqe_asset.c/h. New
+tools/mkpayload.py --sqe-firmware appends A630SQEFirmware(raw32304/reserved32768,
+SHAa0e1b583f620fabe32729ce367959d1960638663244d7d0cfc21b9a5215a018b).
+Raw4Bheader retained in asset; native cold load skips4 ->32300code+468zero pad,
+8192issued/8192compared words. RealSHA/bounds/disjoint oldassets/direct endpoints
+checked before maps; source authenticated again at entry/postcopy. Existing NC
+SQE reservation only, no new allocation/mapping/leaf; CM3reset/GXoff and all
+live cold guards retained; tables publish AFTER verified copy. Five old public
+entrypoints keep SQEoff; existing default-off sweetgpustart1 selects new cold
+SQE entrypoint then retained GGX. No new flag fits607B command. See docs/gauguin-gpu-sqe.md.
+
+DSH75561 CLOSED0/focus149.py0: pristine143patch replay, packer,51synthetic and
+51REAL pinned SQE consumer cases, actual ARM64 asset/board TUs all0.
+Focus22556B SHA22e22724baa7e30493e018f9f8e711cdfdb8b318bfd5d7681f2411a91c885355.
+DSH69370 CLOSED0/integration149.py0:143 new cold board cases plus all old
+2840+95+49+56+69+3817+202 retained, coordinator386+20=406, all68hosts and actual
+ARM64 coordinatorTU all0. Integration33183B SHA
+3d5ec530a0ad6eddf35eb34a0f67ffa7c3a03c9ce7065f81c963d92f48c0840d.
+DSH25879 CLOSED0/legacy_compat149.py0: frozen148oldAPI fixture, same unchanged
+seams, both compile/run0,107464820 hardware/guard callback events exactly same
+FNV640243f33abfba5eec/outputSHAaa78c31e6782a2b0de34c91ff8d6bf23483f310848a705c0149d3c9f2e024b30;
+32 oldasset/PAS/ramdisk combinations payloadbytes+info exactly148 withSQEabsent.
+Compatibility1804B SHA51350283b3f43daf0b56ea8a726f9bb0eb27cdd59796e09c9bd301f7b879308c.
+Native asset11456B SHA344fe6a57767532d7e534b771ee96fdcc7df6154fe114f5faecb5712b9ffc6e3;
+board133240B SHA79a9b7ee6e90df9aa9a464b8ffed09ea5140daf3cffd44b8e4f7e71410c3ec88;
+coordinator52496B SHA6cd8b0ff6220339ed602bde5cc11539147a6d0634c2726cf1c5e5b8daa3cc34c.
+Codex independently rehashed all43audit/167focus/273integration/5compatibility
+pins and native objects; original mkadt diff unchanged.
+
+DSH47429 CLOSED0/input audit0:21fresh native fixed19b63c8192b1c9b7c4d931d7d3be92024bc2d778
+primary files; old cache matches and actual retainedFDT policy parsed. Audit17535B
+SHAe18adf10b98f61de8d2c845c012a956df369ff5849b315c4270337d8956101bf.
+ActualFDT GPU main03d00000+40000/CX_DBGC03d61000+800/CX_MISC03d9e000+1000;
+chip06010900/highestbank14/minaccess32/UBWC2, no selecteddisablepreempt/LM/quirk.
+A619 noAPRIV,512KiBGMEM ->UCHEGMEMbase100000, featurePREEMPTION supported but
+native runtime-bit remains0 until preemption_init succeeds. Each ring needs
+0x190000 normal AND0x190000 secure preempt record plus otherbuffers; current1MiB
+owner cannot fit. First CP validation will use explicitly native-supported
+runtime-preemption-disabled path; full preemption remains later required work.
+
+NEXT implement/review full A619 native core contract before next physical trial.
+Read research/tmp/dsh-0149/native exact a6xx_start/HWCG/protect/live-reglist and
+ring submission; real a6xx_hwcg_set has existing-clock early return and RMW
+SPclock; LM feature absent -> actual helper returns without MMIO. Native
+adreno_deassert_gbif_halt writes word3c45 ->bytef114 in existing MISC03d0c000
+alias BEFORE MMU/OOB. Do not create duplicate alias or write secure bypass.
+Native submit_spin appends WHERE_AM_I3words after ME_INIT12words on noAPRIV
+A619: do not ring doorbell12 without native shadow-RPTR protocol. Live RGL
+header16bytes, u16length/offset; contents MUST use actual registers. Need exact
+native function trace oracle and real engine/board/native TU qualification.
+
+No149 fullkernel/image/phoneIO yet; prefer combining next meaningful boot with
+core/CP progress instead of just CPU-copy boot. Current complete recipe STILL
+148gauguin.E1ium7/captured4e407cf, not149. Last phone observedTWRP148;
+THIS148 reset attribution question remains PENDING; user147 answer only qualifies147.
+All owned DSH tasks CLOSED. No CI/flash/format/GPT/destructive operations.
+Whole goal ACTIVE/incomplete; GPU execution/rendering/Metal still unqualified.
+
 ### 2026-11-07 —148 PHYSICAL native MMU/GPU OOB/core access verified; THIS reset attribution pending
 
 DSH80336 CLOSED0; run_hardware148.py actual0, observer0/full reader3. Exactly ONE

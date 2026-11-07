@@ -2,6 +2,93 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —166 PHYSICAL native fixed IB execution VERIFIED; GPU EOP fence NEXT
+
+This goal turn PROGRESS: Codex integrated critical IB driver/provider/mode4,
+DSH models/native/full80/TUs/ONE fullLOCAL/strict qualifier/image/runtime/
+ONE physical boot all accepted; actual GPU IB fetch and indirect normal-page
+writes/readback proven. Full goal ACTIVE/unlimited: shader/EOP/rendering/
+Metal/general scheduling/RAM/UFS/peripherals/high-refresh/daily-use NOT done.
+Phone LAST TWRP166. ALL DSH jobs CLOSED. User away, all resets automatic
+--manual-reset no; never ask attribution/UI, only prompt if truly stuck/manual
+recovery needed. Late0148 belongs only0148. No flash/format/GPT; original
+mkadt7line diff intact. Correct CURRENT generated recipe166 gauguin.MVqkS8/
+source166-codex, manifest331973dccfdba19b8d1594ab69864a51bf9a713876df491944947678cc983971;
+never use165/164/159 TU helpers. SourceHEAD for166artifacts stays
+9bc4b88a61938d2d77cf88dca31275ae4b9a72d3 / public96c6e2122faaae5bac0063375d0599054db4d508.
+Current docs/NOTES newer; do not rewrite immutable past reports/flags.
+
+DSH92016 CLOSED0/dispatch-v9-boot inner0: ONE temporary boot,
+2026-11-07T14:25:48.686528Z->14:28:00.833846Z, autoTWRP131s, observer0,
+all7root/launchd/SpringBoard/backboardd markers,5FBswaps/66GPUlookups.
+NO human UI/touch/smoothness/high-refresh observation. DSH45423 CLOSED0 /
+dispatch-v9-read inner0 / strict actual physical reader0 FIRST attempt;
+no raw/parser repair/filter/dedup/waivers. Accepted final reader is
+read_hardware166v2.py, production parser verify_gmuf166.py (unchanged since
+first package), final synthetic runtime reportv2 with all4accepted gates.
+
+Actual166 chain DATA19/131GMU/171ATOS, full canonical16KiB PTE and8CPU NC
+pages guarded; CP15, signed INIT/MEM/AUTH full64zeros/code1984/1984/owner8,
+GGU5word append ->device20. New7word direct append20..26 names fixed8word
+IB at existing userRO/NX ring+4000, IOVAfc00c000, IB_PRIV0. GPU executes two
+indirect MEM_WRITE to normal DATA first/last words, then WHERE ->device27.
+GGI DONE8/rc0, sealed1, ring7/7,prefix20,clean7; IB clean/written/checked/
+after8/8/8/8, complete1/retained1. Reads13/writes3, fence1/status0, idle1,
+AO71000000/busy23clear, decoded faults0, FINALguard7/reason0. Full1024pre/
+1024post,2edges/1022middle/27ring checks. ACTUAL CPU maskf before0/0 after
+47494231/47494232. No production CPU DATA stores after cold preparation.
+Thus fixed reduced-privilege IB fetch/indirect normal GPU-memory execution
+qualified, NOT EOP/shader/rendering/Metal/general scheduling/UI performance.
+Stage-local signed_zap.unsecured_mode_qualifiedfalse is intentional; separate
+GGU and GGI proofs true. Build qualifier hardware flags stayfalse; NEVER edit.
+
+Full actual report58714B SHA13b8a9c50e350ad0e0c2e883645cc163784d331d61c8191826e677db1553d55c;
+wrapper SHA19fb92bbfed347c2f1f28d5a41bbb9aede4ee3de3f09ff6c31afd9d49c233d59;
+trial SHA3b4a281de528aff0223027a92c06ac7716ffeea9a6653eec07e9892e075f6747.
+Raw text469486B SHA3fde5396901fe2e80af5b3fb7a207e4a2c770f575f1c43569f62aa924af60fa5;
+binary4198400B SHA712c3ae4265e5051e717c5ff8d4dcb85c65130a899201a69aff12c6d9aab5de0;
+cycle991B SHA7e21301d9c7b7c026700584c25e4eb3b65b9f3c32f3606347f0e40865ec03988.
+Text EXACT binary decode, zero framing recoveries. Codex independently
+rehashed ALL19 full-report byte/hash records plus ALL15 wrapper inputs,
+checked actual opcode/address/size/IB_PRIV/data/parent/fault/scope and full
+source5308files SHA130950a5e004b0c10a4798fbabf5432edcc931f2e010d59705c6a059a170e042.
+independent-hardware-review.json SHA36f88a1e13f9748799ce5667dab29d266356bb697190fe1e31c76915e677bb01.
+All failed helper/full/runtime snapshots remain immutable. Accepted physical
+trial requires NO repeat boot merely to reconfirm it. docs/gauguin-gpu-data.md
+updated with166 result. Raw/binary/native firmware/serials stay OUT of Git.
+
+Observed CPU19.2MHz timing after WDT arm: COREentry9.386517s,
+CPentry10.756259s,ZAPentry12.748792s,GGUentry12.930349s,GGIentry13.060722s,
+GGIfinish16.435974s/span3.375252s; total4s stage margin0.624748s. Nominal
+23s-bite remaining~6.564s after GGI. These are guarded single-trial spans,
+not GPU/UI benchmarks. Do NOT append another8s-entry stage afterGGI.
+
+NEXT167 concrete direction (UNIMPLEMENTED): native end-of-pipeline memory
+fence before shader/render work. Preserve accepted mode3 and mode4 byte-exact.
+Pinned primary19b63c8192b1c9b7c4d931d7d3be92024bc2d778 local
+research/tmp/dsh-0149/native/adreno_ringbuffer.c EOP block~739..759 inspected:
+cp_mem_packet(CP_EVENT_WRITE,3,1), CACHE_FLUSH_TS, cp_gpuaddr64, timestamp.
+CP_EVENT_WRITE0x46 verified in adreno_pm4types.h; CACHE_FLUSH_TS numeric
+constant is NOT in currently downloaded native headers. Fetch/verify its
+actual pinned primary definition; NEVER guess. Use actual native no-IRQ
+branch(drawctxtNULL/noninternal flags), never bit31 interrupt request or
+protected-mode override. Need exact native constructor/block proof plus live
+integrated engine/provider/coordinator, not constructor-only detour.
+Possible exclusive mode5 starts at same actual signed/GGU20 (NOT afterGGI),
+reuses IB8 in existing RO ring and adds direct5word EOP before WHERE: total
+12ring words20..31 ->device32. Target a distinct ordinary DATA word e.g+4,
+full prezero/post3expected/1021unchanged, bounded actual EOP CPU-read polling
+and32ring/8IB comparisons, fresh4s/2s/8sentry guards and exact
+new cold-mode freeze0/3/4/5, owner flags, quarantine, all existing table/NC/
+clock/IRQ/fault routes, no new aliases/PTEs/CPU DATA stores/WDT changes.
+Exact design/packet bytes, native completion semantics and timing still need
+review. This proposal is NOT167source, qualified oracle, kernel/image or
+hardware evidence. Then minimal shader/render and iOS acceleration/Metal
+interface, actual touch/UI/high-refresh checks later; no smoothness claim now.
+Root critical C/NOTES/Git, DSH build/test/boot only with explicit no edits/Git
+mutations; atomic once required. Publish this completed166 physical handoff,
+then continue broader goal. No current user action required.
+
 ### 2026-11-07 —166 full runtime ACCEPTED; ONE physical boot currently observing
 
 CURRENT166 recipe gauguin.MVqkS8/source166-codex; sourceHEAD for every166

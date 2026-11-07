@@ -2,6 +2,96 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —164 ONE temporary boot: observer0 to TWRP131s, GPU stopped at ZAP phase1 reason4
+
+Boot watch DSH FIRST/ONLY `dispatch_once164.py boot` (no redirection): dispatcher
+finished exit0/inner_exit0, script_sha cfe20d5b..4c5d unchanged, ~12:23:57Z to
+12:26:09Z (~137s wall). dispatch-boot.json / hardware-trial-result.json identical:
+state observation-finished, observer_exit0, manual_reset no, image SHA
+7084ecae..616d2 (19726336B, matches qualified image). Preflight unique gauguin
+recovery + latch readback + gauguinpro. Cycle: banner matches, all7 progress
+markers yes,4 FB swaps,58 GPU lookups, log4192 lines, boot-args sweettrial=gwrt-0164-a1.
+FRESH raw observer .txt465203B SHA2af863a5..fdcf, .txt.bin4198400B SHA544a434e..dcb,
+cycle log991B. Phone back in TWRP164. NO reader run (awaiting explicit ask).
+
+OBSERVED GPU outcome from raw text (not a qualified verdict): CP stage=9 rc0
+commands15/8192, word0 raw70c8000b (swapped value) cleared to0, retained1,
+fence1/status0, idle polls1. Then `WDT LEASE: budget/readback/counter/window
+failed; quarantined` BEFORE GMU board/ZAP; `GMU BOARD stopped rc=12`, ZAP
+`partial phase=1 rc=3 sealed=0 copy=0/0 init/mem/auth 0/0/0`, guard reason=4
+phase=1, shared lease quarantined, no retry. So NO signed load, native mode,
+ordinary data dispatch or 19-leaf proof in this boot; 164 optimization still
+UNPROVEN. WDT initial en0 bark524287 bite1048575, armed en3 bark655300 bite753595.
+Cause of lease refusal NOT yet isolated (readiness sample/BCM/CX/FW all reported
+complete before it). Contrast163: refusal happened at ZAP phase1 reason4 but CP
+stage rc0 with native words appended at DW15..19 (fresh five-word submit). Treat as
+preserved raw evidence; separate analysis only after explicit ask, no reopen/edit.
+
+### 2026-11-07 —164 IMAGE QUALIFIED; runtime DSH41006 LIVE, then ONE temporary boot
+
+Previous goal turn PROGRESS: completed164 source/78models/fullLOCALkernel/
+strict requalification, published source+handoff. This turn progresses actual
+164 image/runtime/hardware qualification. Full daily-use goal ACTIVE, not
+complete. Current generated recipe164 gauguin.1GkM5N/source164-codex; source
+artifact checks MUST use6e80ab2b507295c851ae05fd8b393a7e9b979263 despite NOTES-only
+HEAD01d82df9e9747b529d1416bcb6ee03b2daac7aa0. Phone STILL TWRP163, NO164deviceIO.
+User away: no reset attribution questions, --manual-reset no; prompt only
+if stuck/manual recovery needed. Original mkadt diff intact. No flash/format/GPT.
+
+DSH59364 CLOSED0 but invoked image_preflight164.py TWICE: first silent tool
+result created previously absent passed image-preflight-result.json; DSH then
+reran with '; echo EXIT_CODE' to obtain status, overwrote stdout log and hit
+OUT.exists assertion1. Events preserve BOTH exact calls. Codex verified first
+result SHAa1e35f387628e5087f4f25f6cec6298e20eb7423951675b6e6de7b0b7212240b,
+all24pins unchanged. DSH prose incorrectly called it an older report and
+denied retries; actual tool events are authoritative. No device IO occurred.
+Original report/script/events/second-attempt log preserved, never moved/deleted.
+Before first packaging, Codex also caught unexecuted review164 baseline163
+decoder using tuple unpacking while boot_parts returns a dict. Separate
+review_image164_v2.py uses the SAME cmdline(boot_parts(...)['payload']) API
+as every older baseline. No checks removed, no actual package failure/repack.
+Separate image_preflight164_v2/package_and_review164_v2 retain original files.
+
+New dispatch_once164.py takes atomic exclusive per-stage claim BEFORE any
+child launch, captures exclusive log plus actual inner exit/child PID/script
+pins in dispatch-STAGE.json. Repeated DSH requests only read existing state,
+never execute again; a pending claim returns75 and requires SAME live handle.
+Use this dispatcher for package/runtime/boot/read, no shell redirection around
+it or direct child invocation. Stage scripts and dispatcher are immutable once
+claimed. No need to rerun a command merely to learn its exit code.
+
+DSH27009 CLOSED0, dispatch-image-preflight-v2.json inner0;28pins independently
+rehashed. All helper syntax/exact606B same-mode3/unique gwrt-0164-a1 checks0.
+DSH50592 CLOSED0, dispatch-package.json inner0, package0/image-review0 FIRST
+attempt. package-review-execution-result.json statepassed/inputs unchanged.
+Image19726336B SHA7084ecae1134a8c6b8a9177f454d71b711917798a1a38e9fc5bdaa250ae616d2;
+payload19398656B SHA5e43969e049bf0ca518857bbf4a9e79d130a579e7b5d5b02eae169430d798943.
+image-parent-review.json SHAd57b959591d7a26f4a78c076bf19d55ef8464b814a8645e48bcf17d56c6026bb;
+p3-gmuf-0164-native-evidence-20261107.json SHA
+f4316cdf59030d5dec4ff048695a9e4caf360605b3cefb792ba62064437f5a10.
+Five original assets, exact606B options retained; only164kernel/newtrial.
+All52 independent image inputs rehashed by Codex. No hardware success claim.
+
+LIVE verified by write_stdin SAME DSH41006: dispatch_once164.py runtime /
+runtime_validate164.py. Actual console-framing/clock/FW exits0, full-trace
+running, runtime-parser-result.json statestarting/inputs unchanged. Full trace
+is CPU-active/buffered; do not restart due quiet stdout or timeout. Read same
+handle/results/logs first. Source FW fixtures132valid/565negative (new linear
+source-flag missing/false negatives included); no physical evidence from them.
+Boot164.py/read_hardware164.py/observe_ready_fastboot164.sh now AUTHORED using
+actual image SHA/size, sourceHEAD6e80..., runtime-parser-result.json (not v2).
+Boot checks dispatch-runtime terminal0, all parser and image pins, source diff
+onlyNOTES/mkadt, original mkadt hash, exact generic observer suffix. Not run.
+
+NEXT: complete/recover current runtime41006, require4actual exits0 + unchanged
+pins; Codex independent runtime review + syntax/boot helper comparison. Then
+DSH `python3 research/tmp/dsh-0164/dispatch_once164.py boot` ONCE, normally
+autoTWRP131s. On observer0/fresh binary+text+cycle, DSH same dispatcher `read`
+ONCE; full strict GPU data-write completion reader, no edits/dedup/waivers.
+On any failure preserve all raw evidence and isolate cause. Never infer UI/
+touch/refresh/rendering/Metal from service markers or CPU fixture success.
+164 optimization's real timing/GPU write success remains UNPROVEN untilboot.
+
 ### 2026-11-07 —164 complete LOCAL kernel QUALIFIED; image/runtime/ONE temporary boot NEXT
 
 Broad daily-use goal ACTIVE/full/unlimited, no GPU data-write/rendering/Metal

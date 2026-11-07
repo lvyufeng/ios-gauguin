@@ -36,7 +36,78 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU source work and complete hardware recipe are recorded in the
 latest milestones below. No repeated reset question; only necessary manual recovery.
 
-### 2026-11-07 —154 result published;155 read-only signed-ZAP integration audit PASS, implementation NEXT
+### 2026-11-07 —155 immutable b02 asset/plumbing QUALIFIED; post-CP owner/PAS loader156 NEXT
+
+Previous goal turn was PROGRESS: actual154 first GPU init verified/published
+and source-backed ZAP constraints established. This turn implements the missing
+fifth asset and verifies it. Whole daily-use goal remains ACTIVE/incomplete.
+Starting privateHEAD65100b70ff7012c3f6a24fb5161e4b6e97624908 was published as
+560fefca98c0ece22d85a0d1059920ae52dac98a, solepublicparenta1580039e3d4e9d7947ef086c3c69c045e0f1749;
+public-plan-snapshot.json records same tree/two textpaths. New completed155
+source publication is recorded after commit in dsh-0155/public-assets-snapshot.json.
+
+Codex authored optional --zap-code/path argument appended to mkpayload API;
+fixed1984B a615_zap.b02 SHA61be42f041eb6051eb9f56beb1f98ed97ab21faf2ef2df6b9151ba1a46aae878,
+reserved16KiB/padding14400zero, ADT A615ZapCode raw1984, after all4 existing
+assets. Existing VA/descriptor/bytes retained; final top/PAS accounting includes
+the new extent. No public hash bypass, firmware binary or device data in git.
+Patch0155 adds bsd/conf/files member and gauguin_gpu_zap_asset.C/H only.
+sweet_gpu_zap_asset_view validates same bootargs/highbank/endpoints, all5
+fixed-size/range/pairwise disjoint descriptors, full padding and realSHA256;
+no output mutation on refusal, no map/allocation/copy/SMC/GPU operation.
+Highbank>=4GiB makes immutable source disjoint from every allowed low PAS
+allocation, but does NOT qualify any actual current low owner or authentication.
+Existing CP/FW/core/coordinator/owner/PAS C files are byte-identical to154.
+
+DSH83030 CLOSED0/native155.py0 then focus155.py0, once each, no retry/failure.
+Actual ARM64 TU on CURRENT154gauguin.SlaKVj/source154-codex recipe passed;
+object11696B SHA45485a546403907b90f4d31546a60a58fbf745f71bf0ae5981b5b144ff49122a;
+candidateC SHA8f1bb1b3688586551da810a2b6f8348cb470d6a0e87ec9afeb4eda7a09b9699f.
+native-result.json799B SHA1521116869709da00b25fee5df667fe0ce89810660542e7595be6efa4b4e5ac6,4pins.
+Pristine149patch replay/source155-codex5298files SHA
+f1e0409162d8504b08ec95f47328e3b0395e368ce05dc8c41194b98b68134a84.
+Only three paths above differ from154; exact candidate/replay bytes match.
+
+All7 focus stages0: replay, pack-compat, real-pack, zap-asset-real,
+zap-payload, shim-pas-five-assets, full-host. Real captured b02 passes84
+ASan/UBSan realSHA consumer cases including each descriptor/fault/padding/
+overflow/directmap/pairwise overlap, low-bank refusal and exact top boundary.
+64 synthetic new-asset layout combinations and CLI pin/refusal checks pass.
+Actual frozen pre155 packer bytes (git65100b7) vs current:128 old4asset/ramdisk/
+PAS/command combinations have EXACT payload bytes+info equality with b02 absent.
+Actual unmodified shim loader C copies five-asset segments/zero fill/ADT/
+bootargs correctly,10 existing malformed failures per layout retained;88 PAS
+metadata cases including five-assets+PAS pass with protected input tail.
+All73 named host test files observed exactly once, full suite0; no broad rerun.
+focus-result.json SHA9b013ca4f31dc8337a34e2c19782d14830b419bd1a90cfb2a14eea01026c9ce6,
+297pins. Codex independently rehashed all4native+297focus+5compat+13real-pack
+pins, actual object, both full source snapshots and all73 executed names.
+asset-independent-review.json records the review, including frozen baseline.
+
+Offline real5asset payload uses OLD154kernel ONLY, not a155linked kernel or
+bootable Android image. New19333120B SHA
+4b20562d090e961189892f3f520aaf22722b19d1416161c3d91db7407853f071,
+private pack-only155-real-old154-kernel.bin. Without b02 the current packer
+reproduces original154 payload EXACTLY. With b02,4old descriptors and segment
+bytes/VA unchanged; new codePA1825a4000/reserved16384, top1825b0000 for THIS
+offline154kernel layout only. Future linked kernel placement must be recomputed.
+No signature AUTH, new GPU command, linked155 kernel/image or155phone IO.
+
+NEXT CONCRETE156: keep old PAS init/mem flags0 (CXpower off[] ALSO forbids them)
+and add separate exact default-off post-CP ZAP entry. Seal actual successful
+CP/core/FW/owner before INIT, then private phase-aware owner checks without
+relying on original MDT content after SCM_RW. Add owner-local exact1984copy/
+readback and serialized native INIT/MEM/AUTH engine; never accept caller PA/
+mutable pointer/fabricated receipt. Preserve old guards and legacy PAS APIs.
+New immutable b02 view is ready; no standalone asset/copy-only physical boot.
+After source/native/frame/refusal/all73 host proof, build ONE integrated156
+kernel/image and strict new same-boot reader before temporary boot. Proper
+unsecured transition/rendering/Metal follow signed ZAP, not qualified by155.
+Full native recipe remains154gauguin.SlaKVj/generated BSD source154, NOT155.
+Phone LAST TWRP154, all ownedDSH CLOSED; no manual action needed. Original
+mkadt diff a74a0418...454860 preserved; no CI/flash/format/GPT changes.
+
+### 2026-11-07 —154 result published;155 read-only signed-ZAP integration audit PASS, implementation NEXT (completed above)
 
 First physical-init/framing milestone committed private
 19be9570f7e80b9eb9440b1b02ad1a76332c4ae7, published

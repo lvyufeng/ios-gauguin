@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic metadata only; no actual physical memory or device access."""
 import ctypes as C
+from contextlib import ExitStack
 import hashlib
 import importlib.util
 import json
@@ -142,6 +143,25 @@ class Tests(unittest.TestCase):
                     self.run_case('asset-layout-'+str(bool(ramdisk))+'-'+str(bool(firmware)),payload=after)
         self.run_case('default',self.default,expected=0)
         self.metrics['default_exact_variants']=8
+    def test_02_five_asset_layout(self):
+        images=[('nvt_firmware_path','NVT_FIRMWARE_SHA256',bytes(range(256))*544),
+                ('zap_mdt_path','ZAP_MDT_SHA256',bytes(range(256))*26+bytes(range(204))),
+                ('gmu_firmware_path','GMU_FIRMWARE_SHA256',bytes((i*19+7)%251 for i in range(32768))),
+                ('sqe_firmware_path','SQE_FIRMWARE_SHA256',bytes((i*23+11)%251 for i in range(32304))),
+                ('zap_code_path','ZAP_CODE_SHA256',bytes((i*31+5)%251 for i in range(1984)))]
+        rd=self.dir/'rd';rd.write_bytes(b'R'*17001)
+        with ExitStack() as stack:
+            options={'ramdisk_path':rd}
+            for name,key,data in images:
+                p=self.dir/name;p.write_bytes(data);options[name]=p
+                stack.enter_context(patch.object(pack,key,hashlib.sha256(data).hexdigest()))
+            plain,_=pack.build(self.k,self.a,'',**options)
+            reserved,info=pack.build(self.k,self.a,'',**options,pas_reservation=True)
+        self.run_case('five-assets',payload=plain,expected=0)
+        p=self.run_case('five-assets-pas',payload=reserved)
+        self.assertEqual(len(reserved),info['low_pas_request']['tail_offset']+0x200000)
+        self.assertEqual(p.pa%0x100000,0)
+
     def test_02_ready_tail_guard_and_exact_reservation(self):
         self.assertEqual(self.blob[-0x200000:],bytes(0x200000))
         self.assertEqual(len(self.blob),self.info['low_pas_request']['tail_offset']+0x200000)

@@ -243,6 +243,8 @@ GMU_FIRMWARE_SIZE = 32768
 GMU_FIRMWARE_SHA256 = '9ef10b2b179054fb57af25008e29feb24300c2eaaeabf907bd741786bbacbf2e'
 SQE_FIRMWARE_SIZE = 32304
 SQE_FIRMWARE_SHA256 = 'a0e1b583f620fabe32729ce367959d1960638663244d7d0cfc21b9a5215a018b'
+ZAP_CODE_SIZE = 1984
+ZAP_CODE_SHA256 = '61be42f041eb6051eb9f56beb1f98ed97ab21faf2ef2df6b9151ba1a46aae878'
 
 
 def append_firmware_asset(pieces, adt_blob, kernel_end, virt_base, phys_base,
@@ -395,11 +397,12 @@ def pas_pending_adt(adt_blob, pieces, kernel_end, virt_base, phys_base, mem_size
 
 
 def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None,
-          pas_reservation=False, zap_mdt_path=None, gmu_firmware_path=None, sqe_firmware_path=None):
+          pas_reservation=False, zap_mdt_path=None, gmu_firmware_path=None, sqe_firmware_path=None,
+          zap_code_path=None):
     buf = bytearray(open(kernel_path, 'rb').read())
-    executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or gmu_firmware_path is not None or sqe_firmware_path is not None or pas_reservation else None
+    executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or gmu_firmware_path is not None or sqe_firmware_path is not None or zap_code_path is not None or pas_reservation else None
     m = parse_macho(buf)
-    asset_count = int(nvt_firmware_path is not None) + int(zap_mdt_path is not None) + int(gmu_firmware_path is not None) + int(sqe_firmware_path is not None)
+    asset_count = int(nvt_firmware_path is not None) + int(zap_mdt_path is not None) + int(gmu_firmware_path is not None) + int(sqe_firmware_path is not None) + int(zap_code_path is not None)
     if asset_count and sum(bool(s['vmsize']) for s in m['segs']) + bool(ramdisk_path) + asset_count > ASSET_MAX_SEGMENTS:
         raise ValueError('asset segment table exceeds one16K page')
     if executable is not None and not any(start <= m['entry'] < end for start, end in executable):
@@ -423,6 +426,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
         asset_adt(adt_blob, 'A619GMUFirmware')
     if sqe_firmware_path is not None:
         asset_adt(adt_blob, 'A630SQEFirmware')
+    if zap_code_path is not None:
+        asset_adt(adt_blob, 'A615ZapCode')
     # The ADT decides where the kernel's RAM is (mkadt.py --highmem).
     PHYS_BASE, MEM_SIZE = adt_dram(adt_blob)
     pieces = [(s['vmaddr'], s['vmsize'], buf[s['fileoff']:s['fileoff'] + s['filesize']]) for s in segs]
@@ -472,6 +477,18 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
         for earlier in (nvt, zap, gmu):
             if earlier is not None:
                 earlier['top_of_kernel_data'] = sqe['top_of_kernel_data']
+
+    zap_code = None
+    if zap_code_path is not None:
+        # Preserve every preceding asset VA. This is immutable high-bank data,
+        # not a PAS destination or permission to load/authenticate the segment.
+        adt_blob, kernel_end, zap_code = append_firmware_asset(
+            pieces, adt_blob, kernel_end, virt_base, PHYS_BASE, MEM_SIZE,
+            zap_code_path, 'A615ZapCode', ZAP_CODE_SIZE, ZAP_CODE_SHA256,
+            'A615 ZAP b02 code')
+        for earlier in (nvt, zap, gmu, sqe):
+            if earlier is not None:
+                earlier['top_of_kernel_data'] = zap_code['top_of_kernel_data']
 
     pas = None
     if pas_reservation:
@@ -527,6 +544,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
         info['gmu_firmware'] = gmu
     if sqe is not None:
         info['sqe_firmware'] = sqe
+    if zap_code is not None:
+        info['zap_code'] = zap_code
     if pas is not None:
         info['low_pas_request'] = pas
         if nvt is not None:
@@ -537,6 +556,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
             gmu['top_of_kernel_data'] = hex(pas_top)
         if sqe is not None:
             sqe['top_of_kernel_data'] = hex(pas_top)
+        if zap_code is not None:
+            zap_code['top_of_kernel_data'] = hex(pas_top)
     return bytes(out), info
 
 
@@ -550,9 +571,10 @@ if __name__ == '__main__':
     ap.add_argument('--zap-mdt', help='pinned A615 ZAP metadata data asset; does not authenticate or execute it')
     ap.add_argument('--gmu-firmware', help='pinned A619 legacy GMU data asset; does not execute it')
     ap.add_argument('--sqe-firmware', help='pinned A630 SQE data asset; does not execute it')
+    ap.add_argument('--zap-code', help='pinned A615 ZAP b02 data asset; does not load or authenticate it')
     a = ap.parse_args()
     blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware,
-                       a.pas_reservation, a.zap_mdt, a.gmu_firmware, a.sqe_firmware)
+                       a.pas_reservation, a.zap_mdt, a.gmu_firmware, a.sqe_firmware, a.zap_code)
     open(a.out, 'wb').write(blob)
     for k, v in info.items():
         if k != 'segs':

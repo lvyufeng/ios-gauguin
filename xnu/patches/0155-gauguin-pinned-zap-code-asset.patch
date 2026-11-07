@@ -1,0 +1,97 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -136,6 +136,7 @@
+ bsd/dev/gauguin_gmu_firmware.c		standard
+ bsd/dev/gauguin_gmu_asset.c		standard
+ bsd/dev/gauguin_gpu_sqe_asset.c		standard
++bsd/dev/gauguin_gpu_zap_asset.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_zap_asset.c
+@@ -0,0 +1,65 @@
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <vm/vm_map.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <pexpert/device_tree.h>
++#include <pexpert/arm64/boot.h>
++#include <libkern/crypto/sha2.h>
++#include "gauguin_gpu_zap_asset.h"
++extern unsigned long gPhysBase,real_phys_size;
++extern vm_offset_t arm_vm_kernelcache_phys_end;
++static const uint8_t gza_expected[32]={
++    0x61,0xbe,0x42,0xf0,0x41,0xeb,0x60,0x51,0xeb,0x9f,0x56,0xbe,0xb1,0xf9,0x8e,0xd9,
++    0x7a,0xb2,0x1f,0xaf,0x2e,0xf2,0xdf,0x6b,0x91,0x51,0xba,0x1a,0x46,0xaa,0xe8,0x78
++};
++static bool gza_range(const boot_args *a,uint64_t pa,uint64_t bytes)
++{
++    return pa&&!(pa&0x3fff)&&pa>=arm_vm_kernelcache_phys_end&&
++        pa<a->topOfKernelData&&bytes<=a->topOfKernelData-pa&&
++        bytes<=a->physBase+a->memSize-pa;
++}
++bool sweet_gpu_zap_asset_view(struct gza_view *out)
++{
++    if(!out)return false;
++    const boot_args *a=PE_state.bootArgs;
++    DTEntry node;const void *property=NULL;unsigned length=0;uint64_t range[2];
++    /* The existing PAS owner contract confines its whole allocation below4GiB.
++     * This distinct immutable source must live in the actual high DRAM bank. */
++    if(!a||a->Version!=kBootArgsVersion2||a->physBase!=gPhysBase||
++       a->physBase<UINT64_C(0x100000000)||!real_phys_size||!a->memSize||
++       a->memSize>real_phys_size||a->physBase>UINT64_MAX-real_phys_size||
++       (a->topOfKernelData&0x3fff)||a->topOfKernelData<a->physBase||
++       a->topOfKernelData>a->physBase+a->memSize||arm_vm_kernelcache_phys_end<a->physBase||
++       arm_vm_kernelcache_phys_end>a->topOfKernelData||
++       SecureDTLookupEntry(NULL,"/chosen/memory-map",&node)!=kSuccess||
++       SecureDTGetProperty(node,"A615ZapCode",&property,&length)!=kSuccess||
++       !property||length!=sizeof(range))return false;
++    memcpy(range,property,sizeof(range));uint64_t pa=range[0];
++    if(range[1]!=GZA_CODE_BYTES||!gza_range(a,pa,GZA_RESERVED_BYTES))return false;
++    static const char *const names[]={"NovatekFirmware","A615ZapMDT","A619GMUFirmware","A630SQEFirmware"};
++    static const uint64_t raw[]={139264,16384,32768,32304},reserved[]={147456,16384,32768,32768};
++    uint64_t old_pa[4];
++    for(unsigned i=0;i<4;i++){
++        property=NULL;length=0;
++        if(SecureDTGetProperty(node,names[i],&property,&length)!=kSuccess||
++           !property||length!=sizeof(range))return false;
++        memcpy(range,property,sizeof(range));old_pa[i]=range[0];
++        if(range[1]!=raw[i]||!gza_range(a,range[0],reserved[i])||
++           (pa<range[0]+reserved[i]&&range[0]<pa+GZA_RESERVED_BYTES))return false;
++        for(unsigned j=0;j<i;j++)
++            if(range[0]<old_pa[j]+reserved[j]&&old_pa[j]<range[0]+reserved[i])return false;
++    }
++    vm_offset_t first=ml_static_ptovirt((vm_offset_t)pa);
++    if(!first||first>UINTPTR_MAX-(GZA_RESERVED_BYTES-1)||
++       ml_static_ptovirt((vm_offset_t)(pa+GZA_RESERVED_BYTES-1))!=first+GZA_RESERVED_BYTES-1)return false;
++    const uint8_t *data=(const uint8_t *)first;
++    for(unsigned i=GZA_CODE_BYTES;i<GZA_RESERVED_BYTES;i++)if(data[i])return false;
++    uint8_t digest[32];SHA256_CTX ctx;
++    SHA256_Init(&ctx);SHA256_Update(&ctx,data,GZA_CODE_BYTES);SHA256_Final(digest,&ctx);
++    if(memcmp(digest,gza_expected,sizeof(digest)))return false;
++    *out=(struct gza_view){data,pa,GZA_CODE_BYTES};return true;
++}
++#endif /* GAUGUIN */
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_zap_asset.h
+@@ -0,0 +1,16 @@
++#ifndef GAUGUIN_GPU_ZAP_ASSET_H
++#define GAUGUIN_GPU_ZAP_ASSET_H
++#include <stdbool.h>
++#include <stdint.h>
++#define GZA_CODE_BYTES 1984u
++#define GZA_RESERVED_BYTES 16384u
++struct gza_view {const uint8_t *data;uint64_t pa;uint32_t bytes;};
++/* Immutable pinned a615_zap.b02, not the MDT or full ELF. Requires a coherent
++ * five-asset high-bank layout, bounded contiguous direct-map endpoints, exact
++ * raw SHA256 and zero reserved padding. High-bank placement is disjoint from
++ * every permitted below-4GiB PAS owner, but does not validate any actual owner.
++ * No allocation/map/copy/SMC/GPU operation or signature-authentication claim.
++ * Output stays unchanged on refusal. Only a later owner/state-qualified loader
++ * may copy these bytes, after same-boot INIT/MEM success and before AUTH. */
++bool sweet_gpu_zap_asset_view(struct gza_view *);
++#endif /* GAUGUIN_GPU_ZAP_ASSET_H */

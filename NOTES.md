@@ -47,8 +47,12 @@ verified-native-register-HFI-TEST-reply. Build142NfYVjn/HEADd7fe2d7/kernel
 51dce3cd...de8f9e4d0, image2be27bc3...66b127eb and all previous images kept.
 Preparation commitsc4bf5e4 and9fb8665. CURRENT native recipe/source142NfYVjn.
 Phone observedTWRP; all owned handles CLOSED. Original7-line mkadt diff
-intact; no flash/format/GPT/destructive action/CI. Source publication264381b
-already remote verified; physical handoff publication next.
+intact; no flash/format/GPT/destructive action/CI. Source publication264381b and sanitized physical handoff
+publicationafb3a92abc30d5925e8a0206fbfd5fcd6e6c7ad5 both ls-remote verified.
+The latter has sole parent264381babecc680a3e6547f6918abbc1223c8fea and
+matches private126b26305f42b8423710b55611074a30139ca11f tree; exactly2
+NOTES/docs text paths, no private ancestry/raw/native downloads/binaries/
+serials. Report research/tmp/dsh-0142/public-hardware-snapshot-0142.json.
 
 NEXT143: preserve142 as reproducible native legacy startup baseline. Native
 kgsl_gmu.c gmu_start calls hfi_start then default GPU power-level selection;

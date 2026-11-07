@@ -2,6 +2,93 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —148 native MMU/GPU OOB/core driver validated; complete local build next
+
+THIS goal turn progresses from attributed physical147 baseline to implemented,
+source-validated148 driver. No148 physical boot or core access yet. Codex wrote
+critical code; DSH ran all compilations/tests; no new phone IO. Last observed
+TWRP147, current complete native recipe/source still147gauguin.3eaEOm.
+
+Patch0148 is the142nd patch. Fresh pristine1485290files SHA
+9268d4e068b8f2c782ff0378d908d1e3adbc1e693bc0b080f4e68b65067c1865,
+only bsd/conf/files,coordinator.c,board.c/h,new gpu_start.c/h differ from147.
+Original147 board function bytes are identical; existing receipts untouched.
+Default-off sweetgpustart exact0/1 requires full147chain BEFORE any work.
+New separate ggx engine runs AFTER accepted firmware/GPU default context:
+native HUM2/DORA1/barrier -> same owned TTBR0/CONTEXTIDR0/barrier/read ->
+TLBIALL1/barrier/TLBSYNC0/SACTIVEpoll -> HOST GPU SET16/fresh ACK24/clear ONLY
+ACK24 -> disjoint16KiB core03d00000 mapping -> raw STATUS840/STATUS384c reads.
+HOST GPU and boot-slumber requests remain held for subsequent CP startup;
+no HOST release/extra HFI_START/IRQenable/blanket-clear/globalHALT/CR0/reset/
+secure-context replay, and NO core writes or GPU command/rendering/Metal claim.
+HUM/DORA raw values do not require equality. New board guard checks live147
+owners/routes/roots/firmware/faults/clock/GX/IRQs/deadlines; cannot use cold guard.
+Initial8s WDT budget, per-step3s, CPU4s, TLB2s and OOB100ms CPU bounds plus counts.
+Failure quarantines shared owners before cached partial records, no retries or
+cleanup; public output and aliases retained. SQE/live reglist/CP/RB/iOS ABI later.
+
+DSH31578 CLOSED0: focus148.py0, pristine replay/new engine/actual ARM64 engine
+and board TUs all0. Engine189237 assertions; six dynamic CB2..7 and all112 callback
+failure sites per bank, stale ACK/fatal/timeout/sticky clear/PT/CONTEXTIDR/core
+refusals, partial output unchanged and no repeat IO. Focus21579B SHA
+7ec5ed1415a671df7c135d79caaa5c581697ec5838a537e26d97d987d072dfd3.
+DSH66709 v1 stopped at new board fault case: my test injected FSR reserved bit0,
+correct production mask ignored it. Failed fixture/generated C/report preserved.
+Explicit v2 uses real TFbit1 and adds reserved-bit acceptance;202 new board cases
+passed. Then v2 coordinator test had my accidental comma identifier; v3 corrected
+that but found new expected order QX wrong: Q is final30s lease quarantine, so
+actual required order is RPWTACGFXQ. These failures/fixtures retained; production
+source unchanged throughout. Explicit v4 DSH54330 CLOSED0, all FOUR checks0:
+rehash/retain v2 board, coordinator, all66hosts, actual coordinator ARM64 TU.
+386 old +20 new coordinator cases=406. All old board/GPU3817 cases retained.
+Integration33376B SHA95ec378e6405eaa96f9494d672bb68b3b854d2f55d82a493273761d230b35d40.
+
+Native oracle v1 failed scaffold compilation (device type/default-PT field
+placement); preserved. Explicit v2 DSH64088 CLOSED0/actual0 compiles EXACT pinned
+19b63c8 kgsl_iommu_start/set_pt, actual A615-family selector and A619 OOB function,
+with typed already-attached-context/clock/poll seams. Six CB2..7,48 native writes
+match48 REAL ggx writes byte-for-byte, digest
+78fc556cc7c776d796f9fad012301f4fb7fc3b216599ff9f66b2591e7f36389b.
+Oracle6537B SHA488feff3b8ad66b8781205475c577dea3108c1e05d4ef80d68194d4e9771fe8a.
+Native-only unused-but-set-variable flag covers native unused TTBR0 flush temp;
+our candidate stays strict Werror. Codex independently rehashed every focused,
+274 integration and native-oracle pin, both source snapshots and actual traces.
+Native GPU start18568B SHAfbfa42d0716fd735942a8c1895181f4021edd726cd602933ddddc9c748f731a4;
+board127584B SHA3205a8b4b988b5f58420840ac5349531fa333342bf7d19d089e5a54168e373fa;
+coordinator52248B SHAfebff6b350489fbd4d191bc0586756373790fdbf24acb58602e93c60ac7afe35.
+
+NEXT commit/publish sanitized148 source then reviewed build148.py/bind_host148.py/
+qualify_native0148.py for ONE standard local full build on committed HEAD, sole
+original mkadt diff. No tracked/HEAD changes during build. Packaging/review
+helpers prepared with inherited hash/numeric AST protection (caught inappropriate
+147456 and0x0002147e replacements BEFORE any use; corrected token protection).
+New marker gpus-0148-a1 frees command-line space for sweetgpustart1 under608B.
+Need finish strict148 runtime reader/core receipt and positive/negative fixtures,
+then qualified image/ONE temporary148 trial. All owned DSH tasks CLOSED. Original
+mkadt7-line diff intact; whole goal ACTIVE/incomplete, no CI/flash/format/GPT/
+destructive actions.147 attributed report0ccf292e...5286723 remains baseline.
+
+### 2026-11-07 —147 explicitly attributed normal runtime reset;148 driver implementation in progress
+
+User explicitly confirmed THIS147 self-restarted with no buttons/manual reboot.
+DSH78166 CLOSED0, SAME immutable strict147 verifier actual0 with --manual-reset no;
+new research/tmp/dsh-0147/hardware-full-verification-attributed.json30830B SHA
+0ccf292e20c233f497ec68f6d29dc2eb2e922160d4dc70ae9bea350ef5286723. Original
+pending report30813B/4c63340d...cb8581 retained. Codex rehashed every attributed
+report input size/hash.147 is now the preserved context/aperture + full native
+GMU/DCVS + THIS normal runtime reset baseline, not GPU execution/Metal proof.
+Last phone observedTWRP147; no new device IO. Previous milestone private752d240
+published7e86283da15ed6ab9292eb306e1785fd6304423a, sole public parent97bfcd5c...,
+NOTES-only same-tree text delta; report dsh-0147/public-hardware-snapshot.json.
+
+148 critical driver being written by Codex under research/tmp/dsh-0148/combined,
+not yet compiled/integrated/committed. Separate ggx engine does native user MMU
+start/TLB sync -> legacy GPU SET16/ACK24 -> bounded core status reads; no
+HUM/DORA equality invention, no cold replay, no HOST release before subsequent
+CP startup. Default-off sweetgpustart requires147 chain. Pure/fault-model and
+board/coordinator integration tests next via DSH; keep147 source/recipe3eaEOm
+and images immutable. Whole goal ACTIVE/incomplete; original mkadt diff intact.
+
 ### 2026-11-07 —147 PHYSICAL GPU context/aperture plus complete GMU startup verified; reset attribution pending
 
 DSH36135 CLOSED0; run_hardware147.py0, observer0/full reader3. ONE temporary147

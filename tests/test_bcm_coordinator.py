@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source145-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source148-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
@@ -44,7 +44,7 @@ def main(temporary):
                  'gauguin_wdt_lease.h', 'gauguin_bcm_plan.h'))]
     files += [dev/name for name in ('gauguin_gmu_board.h','gauguin_gmu_asset.h',
         'gauguin_gmu_firmware.h','gauguin_gmu_hfi.h','gauguin_gmu_memory.h',
-        'gauguin_gmu_smmu.h','gauguin_gpu_smmu.h','gauguin_gpu_memory.h','gauguin_gpu_aperture.h','cmd_db_snapshot.h')]
+        'gauguin_gmu_smmu.h','gauguin_gpu_smmu.h','gauguin_gpu_memory.h','gauguin_gpu_aperture.h','gauguin_gpu_start.h','cmd_db_snapshot.h')]
     for path in files:
         if not path.is_file():
             raise SystemExit(f'missing input: {path}')

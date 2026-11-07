@@ -28,6 +28,8 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
         perf_mode,perf_engine_calls,perf_complete_lines,perf_partial_lines,
         bw_mode,bw_engine_calls,bw_complete_lines,bw_partial_lines,test_complete_lines,test_partial_lines,dcvs_mode,dcvs_engine_calls,dcvs_request_lines,dcvs_complete_lines,dcvs_partial_lines,dcvs_missing,
         gpu_mode,gpu_context_calls,gpu_context_fail,gpu_smc_calls,gpu_smc_mode,gpu_drift,gpu_complete_lines,gpu_partial_lines,gpu_ap_complete_lines,gpu_input_lines;} h;
+static _Alignas(16384) uint8_t core_page[16384];
+static unsigned start_mode,start_sticky,start_missing,start_busy,start_allones,start_expire,start_reads,start_complete,start_partial;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -35,6 +37,8 @@ static int host_printf(const char *s,...)
 {
     char text[256];va_list ap;va_start(ap,s);int n=vsnprintf(text,sizeof(text),s,ap);va_end(ap);
     CHECK(n>0&&(unsigned)n<sizeof(text));
+    if(strstr(text,"SWEET GPU START: complete")){CHECK(start_mode&&h.live&&!h.quarantine&&sweet_gpu_start_state()==GMB_READY&&start_complete++==0);}
+    if(strstr(text,"SWEET GPU START: partial")){CHECK(start_mode&&!h.live&&h.quarantine==1&&start_partial++==0);}
     if(strstr(text,"SWEET GPU SMMU: complete")){CHECK(h.gpu_mode&&h.live&&!h.quarantine&&h.gpu_complete_lines++==0);}
     if(strstr(text,"SWEET GPU SMMU: partial")){CHECK(h.gpu_mode&&!h.live&&h.quarantine==1);++h.gpu_partial_lines;}
     if(strstr(text,"SWEET GPU APERTURE: complete")){CHECK(h.gpu_mode&&h.gpu_complete_lines==1&&h.live&&!h.quarantine);++h.gpu_ap_complete_lines;}
@@ -130,16 +134,16 @@ int ml_get_interrupts_enabled(void){return h.context!=1;}
 int ml_at_interrupt_context(void){return h.context==2;}
 int get_preemption_level(void){return h.context==3;}
 uint64_t mach_absolute_time(void){return h.now;}
-void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *out){CHECK((n==8||(h.gpu_mode&&n==5))&&scale==NSEC_PER_SEC);*out=h.now+n*scale;}
+void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *out){CHECK(((n==8||(h.gpu_mode&&n==5)||(start_mode&&n==4))&&scale==NSEC_PER_SEC)||(start_mode&&(n==2000||n==100||n==4000)&&scale==NSEC_PER_SEC/1000));*out=h.now+n*scale;}
 bool gauguin_wdt_lease_check_budget(uint32_t n)
 {
-    CHECK(n==3u*32765||n==13u*32765||(h.gpu_mode&&n==10u*32765));++h.budgets;
+    CHECK(n==3u*32765||n==13u*32765||(h.gpu_mode&&n==10u*32765)||(start_mode&&n==8u*32765));++h.budgets;
     if(h.budgets==h.expire)h.now=8*NSEC_PER_SEC;
     if(h.budgets==h.budget_fail)h.live=false;
     return h.live;
 }
 void gauguin_wdt_lease_quarantine(void){++h.quarantine;h.live=false;}
-bool sweet_gmu_clock_quiet(uint32_t *gx){if(h.clock_bad)return false;*gx=0;return true;}
+bool sweet_gmu_clock_quiet(uint32_t *gx){if(h.clock_bad||(start_mode&&h.gx_on))return false;*gx=0;return true;}
 bool sweet_gmu_clock_live(bool allow,uint32_t *gx)
 {h.allow_gx+=allow;*gx=h.gx_on?0x80000000u:0;return !h.clock_bad&&(allow||!h.gx_on);}
 bool sweet_gmu_irq_quiet(uint32_t raw[3]){raw[0]=raw[2]=0;raw[1]=h.core_irq?0x1000:0;return !h.irq_bad;}
@@ -147,7 +151,7 @@ bool sweet_pas_stage_owner_valid(const struct sweet_pas_cpu_stage *p)
 {++h.owner_calls;return h.owner_calls!=h.owner_fail&&p&&p->pa==owner&&p->metadata_bytes==6860&&p->reserved_bytes==16384;}
 boolean_t pmap_valid_page(ppnum_t pn)
 {
-    bool found=(pn>=owner/16384&&pn<(owner+1048576)/16384)||pn==0x3d7c000/16384||
+    bool found=(start_mode&&pn==0x3d00000/16384)||(pn>=owner/16384&&pn<(owner+1048576)/16384)||pn==0x3d7c000/16384||
         (pn>=0x3d40000/16384&&pn<0x3d50000/16384);
     for(unsigned n=0;n<5;n++)found|=pn>=fw_bases[n]/16384&&pn<(fw_bases[n]+fw_sizes[n])/16384;
     CHECK(found);
@@ -157,11 +161,13 @@ unsigned pmap_cache_attributes(ppnum_t pn)
 {return h.pmap_calls==h.attr_fail?0:pn>=owner/16384?0xd0000006u:0xd0000007u;}
 vm_offset_t ml_io_map_with_prot(vm_offset_t pa,vm_size_t bytes,vm_prot_t prot)
 {
-    ++h.maps;CHECK(prot==3&&h.maps<=(h.firmware?7u:2u));
+    ++h.maps;CHECK(prot==3&&h.maps<=(start_mode?8u:h.firmware?7u:2u));
     if(h.maps<=2)CHECK(h.maps==1?(pa==0x3d7c000&&bytes==16384):(pa==0x3d40000&&bytes==65536));
+    else if(h.maps==8)CHECK(start_mode&&pa==0x3d00000&&bytes==16384);
     else CHECK(pa==fw_bases[h.maps-3]&&bytes==fw_sizes[h.maps-3]);
     if(h.map_fail==h.maps)return 0;
     if(h.overflow==1&&h.maps==2)return UINTPTR_MAX-16383u;
+    if(h.maps==8)return (vm_offset_t)core_page+(h.misalign==8);
     return (vm_offset_t)(h.maps==1?reset_page:h.maps==2?smmu:fw_page[h.maps-3])+(h.misalign==h.maps);
 }
 vm_offset_t ml_io_map_wcomb(vm_offset_t pa,vm_size_t bytes)
@@ -172,12 +178,13 @@ vm_offset_t ml_vtophys(vm_offset_t va)
     if(va>=(uintptr_t)reset_page&&va<(uintptr_t)reset_page+sizeof(reset_page))pa=0x3d7c000+va-(uintptr_t)reset_page;
     else if(va>=(uintptr_t)smmu&&va<(uintptr_t)smmu+sizeof(smmu))pa=0x3d40000+va-(uintptr_t)smmu;
     else if(va>=(uintptr_t)ram+16384&&va<(uintptr_t)ram+sizeof(ram))pa=owner+va-(uintptr_t)ram;
+    else if(start_mode&&va>=(uintptr_t)core_page&&va<(uintptr_t)core_page+sizeof(core_page))pa=0x3d00000+va-(uintptr_t)core_page;
     else {bool found=false;for(unsigned n=0;n<5;n++)if(va>=(uintptr_t)fw_page[n]&&va<(uintptr_t)fw_page[n]+fw_sizes[n]){found=true;pa=fw_bases[n]+va-(uintptr_t)fw_page[n];break;}CHECK(found);}
     return pa+(h.translations==h.fail_translation);
 }
 void *IOMalloc(size_t n){CHECK(n==65536||n==16384);++h.allocs;return h.alloc_fail?NULL:malloc(n);}
 void IOFree(void *p,size_t n){CHECK((n==65536||n==16384)&&p);++h.frees;free(p);}
-void delay(unsigned us){CHECK(us==5||us==10||us==100);}
+void delay(unsigned us){CHECK(us==5||us==10||us==100);if(start_mode)h.now+=(uint64_t)us*1000;}
 void IOSleep(unsigned ms){CHECK(h.gpu_mode&&ms==30&&h.gpu_smc_calls&&h.live);h.now+=(uint64_t)ms*1000000;}
 void sweet_log_mark_sync(const char *s){CHECK(s&&strlen(s)<192);}
 void sweet_log_flush_now(void){}
@@ -187,6 +194,7 @@ static uint32_t mmio_read32(vm_offset_t address)
     if(address==(uintptr_t)reset_page+0x2000){uint32_t v;memcpy(&v,reset_page+0x2000,4);return v;}
     CHECK(address>=(uintptr_t)smmu&&address+4<=(uintptr_t)smmu+65536);uint32_t v;memcpy(&v,(void *)address,4);
     unsigned off=(unsigned)(address-(uintptr_t)smmu);
+    if(start_mode&&start_busy&&off>=0x8000&&(off&0xfff)==0x7f4)return 1;
     if(off>=0x8000&&(off&0xfff)==0x58){
         unsigned bank=(off-0x8000)/4096;uint32_t cbar,cba2r;
         memcpy(&cbar,smmu+0x1000+4*bank,4);memcpy(&cba2r,smmu+0x1800+4*bank,4);
@@ -270,6 +278,9 @@ static void reset(void)
     memset(&gmb_context,0,sizeof(gmb_context));memset(&gmb_work,0,sizeof(gmb_work));memset(&gmb_stage,0,sizeof(gmb_stage));
     gfw_lifecycle=0;gfw_deadline=0;memset(gfw_map,0,sizeof(gfw_map));memset(&gfw_context,0,sizeof(gfw_context));memset(&gfw_work,0,sizeof(gfw_work));memset(&gfw_asset,0,sizeof(gfw_asset));
     gfw_copy_issued=gfw_copy_compared=0;
+    start_mode=start_sticky=start_missing=start_busy=start_allones=start_expire=start_reads=start_complete=start_partial=0;
+    ggx_board_lifecycle=ggx_board_phase=0;ggx_deadline=ggx_phase_deadline=0;ggx_core=0;ggx_result=0;
+    memset(&ggx_context,0,sizeof(ggx_context));memset(&ggx_work,0,sizeof(ggx_work));memset(core_page,0,sizeof(core_page));
     memset(&ggb_context,0,sizeof(ggb_context));memset(&ggb_plan,0,sizeof(ggb_plan));memset(&ggb_smmu,0,sizeof(ggb_smmu));
     memset(&ggb_aperture,0,sizeof(ggb_aperture));memset(&ggb_secure,0,sizeof(ggb_secure));ggb_deadline=0;ggb_started=0;ggb_result=0;ggb_secure_result=0;ggb_argument=0;
     memset(fw_page,0,sizeof(fw_page));for(unsigned n=0;n<sizeof(fw_asset);n++)fw_asset[n]=(uint8_t)(n*19+3);
@@ -302,11 +313,17 @@ static uint8_t *fw_address(vm_offset_t address)
     if(address>=(uintptr_t)reset_page&&address+4<=(uintptr_t)reset_page+sizeof(reset_page))return (uint8_t *)address;
     if(address>=(uintptr_t)ram+0x8c000&&address+4<=(uintptr_t)ram+0x94000)return (uint8_t *)address;
     for(unsigned n=0;n<5;n++)if(address>=(uintptr_t)fw_page[n]&&address+4<=(uintptr_t)fw_page[n]+fw_sizes[n])return (uint8_t *)address;
+    if(start_mode&&address>=(uintptr_t)core_page&&address+4<=(uintptr_t)core_page+sizeof(core_page)){
+        CHECK(h.maps==8&&ggx_context.work.ack_valid&&ggx_context.work.ack_clear_attempted&&!(gfw_work.host_info&(1u<<24)));return (uint8_t *)address;
+    }
     CHECK(false);return NULL;
 }
 static uint32_t fw_read32(vm_offset_t address)
 {
     CHECK(h.live);uint32_t value;memcpy(&value,fw_address(address),4);
+    if(start_mode&&address>=(uintptr_t)core_page&&address<(uintptr_t)core_page+sizeof(core_page)){
+        ++start_reads;if(start_allones)value=UINT32_MAX;if(start_expire)h.now=ggx_deadline;
+    }
     if(h.fw_read_corrupt&&address==(uintptr_t)fw_page[3]+0x1000+4*(h.fw_read_corrupt-1))value^=1;
     return value;
 }
@@ -318,6 +335,15 @@ static void fw_write32(vm_offset_t address,uint32_t value)
     if(address==(uintptr_t)reset_page+0x2650&&value==(1u<<23)){
         CHECK(h.dcvs_mode&&gfw_work.phase==GMF_HANDSHAKE);uint32_t ret=h.engine_fail==23?7:0;memcpy(fw_page[3]+0x6ffc,&ret,4);
     }
+    if(start_mode&&address==(uintptr_t)reset_page+0x2650&&value==(1u<<16)){
+        CHECK(sweet_gmu_firmware_state()==GMB_READY&&ggx_context.work.request_attempted&&ggx_context.phase==GGX_REQUEST);
+        if(!start_missing){uint32_t info;memcpy(&info,reset_page+0x2648,4);info|=1u<<24;memcpy(reset_page+0x2648,&info,4);}
+    }
+    if(start_mode&&address==(uintptr_t)reset_page+0x2644&&value==(1u<<24)){
+        CHECK(ggx_context.work.ack_valid&&ggx_context.work.ack_clear_attempted);
+        if(!start_sticky){uint32_t info;memcpy(&info,reset_page+0x2648,4);info&=~(1u<<24);memcpy(reset_page+0x2648,&info,4);}
+    }
+    CHECK(!(start_mode&&address==(uintptr_t)reset_page+0x2650&&value==(1u<<24)));
     memcpy(p,&value,4);
 }
 /* Typed engine seam: exercise every actual board callback and both critical
@@ -444,7 +470,7 @@ enum gmf_result gmf_bootstrap_dcvs_once(struct gmf_context *ctx,const struct gmf
         CHECK(h.dcvs_missing<=8);if(h.dcvs_missing==8)ctx->dcvs_return=1;else *flag[h.dcvs_missing-1]=0;}
     if(h.engine_fail==25)h.now=gfw_deadline;
     if(h.gpu_drift==2){uint32_t bad=0x20000;memcpy(smmu+0xc00+4*ggb_smmu.slot,&bad,4);}
-    return GMF_OK;
+    ctx->state=2;return GMF_OK;
 }
 static enum gmb_result firmware_run(struct gmb_firmware_receipt *out)
 {struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;return h.gpu_mode?sweet_gmu_firmware_gpu_once(&s,&p,&bw,out):h.dcvs_mode?sweet_gmu_firmware_dcvs_once(&s,&p,&bw,out):h.bw_mode?sweet_gmu_firmware_bw_test_once(&s,&p,&bw,out):h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
@@ -646,6 +672,60 @@ static void firmware_gpu_cases(void)
     for(unsigned n=1;n<=pmaps;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.pmap_fail=n;firmware_failed();reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.attr_fail=n;firmware_failed();}
     printf("GPU context board: %u retained-alias/NC-publication/SCM-order/continuation/owner/budget/translation/attribute/final-drift cases PASS (typed SMMU/SMC seams, actual aperture engine)\n",cases-first);
 }
+static void start_setup(void)
+{
+    reset();start_mode=1;h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;
+    struct gmb_firmware_receipt fw;CHECK(firmware_run(&fw)==GMB_OK&&gfw_context.state==2&&h.gpu_complete_lines==1);
+    uint32_t a=0x12340000,b=0x56780000;memcpy(core_page+0x840,&a,4);memcpy(core_page+0x84c,&b,4);
+}
+static void start_failed(void)
+{
+    struct ggx_receipt out,before;memset(&out,0xa3,sizeof(out));before=out;
+    enum ggx_result rc=sweet_gpu_start_once(&out);
+    if(rc==GGX_OK)fprintf(stderr,"unexpected start success case%u bank%u reads%u\n",cases,out.bank,start_reads);
+    CHECK(rc!=GGX_OK&&sweet_gpu_start_state()==GMB_QUARANTINED&&
+        sweet_gmu_firmware_state()==GMB_QUARANTINED&&sweet_gmu_board_state()==GMB_QUARANTINED&&h.quarantine==1&&!h.live);
+    CHECK(!memcmp(&out,&before,sizeof(out))&&start_partial==1&&!start_complete);
+    unsigned reads=h.reads,stores=h.fw_stores,maps=h.maps,budgets=h.budgets;
+    CHECK(sweet_gpu_start_once(&out)==GGX_ALREADY&&!memcmp(&out,&before,sizeof(out))&&reads==h.reads&&stores==h.fw_stores&&maps==h.maps&&budgets==h.budgets);
+}
+static void gpu_start_cases(void)
+{
+    unsigned first=cases;start_setup();struct ggx_receipt out;
+    CHECK(sweet_gpu_start_once(NULL)==GGX_ARGUMENT&&!ggx_board_lifecycle);
+    unsigned before_b=h.budgets,before_o=h.owner_calls,before_p=h.pmap_calls,before_t=h.translations;
+    uint8_t *before=malloc(sizeof(smmu));CHECK(before);memcpy(before,smmu,sizeof(smmu));
+    CHECK(sweet_gpu_start_once(&out)==GGX_OK&&sweet_gpu_start_state()==GMB_READY&&start_complete==1&&!start_partial&&start_reads==2);
+    CHECK(h.maps==8&&h.nc_maps==1&&out.bank==3&&out.asid==4&&out.core_opened&&out.request_retained&&out.writes32==7&&out.writes64==1&&out.status==0x12340000&&out.status3==0x56780000);
+    /* Apart from native HUM/DORA and this owned CB's PT/context/TLB registers,
+     * every byte including the other contexts and stream routes is preserved. */
+    const unsigned offsets[]={0x6800,0x64a0,0xb020,0xb024,0xb034,0xb618,0xb7f0};
+    for(unsigned i=0;i<sizeof(smmu);i++){
+        bool allowed=false;for(unsigned n=0;n<sizeof(offsets)/sizeof(*offsets);n++)allowed|=i>=offsets[n]&&i<offsets[n]+4;
+        if(!allowed)CHECK(before[i]==smmu[i]);
+    }
+    free(before);unsigned nb=h.budgets-before_b,no=h.owner_calls-before_o,np=h.pmap_calls-before_p,nt=h.translations-before_t;
+    unsigned reads=h.reads,stores=h.fw_stores,budgets=h.budgets;CHECK(sweet_gpu_start_once(&out)==GGX_ALREADY&&reads==h.reads&&stores==h.fw_stores&&budgets==h.budgets);
+    for(unsigned n=1;n<=nb;n++){start_setup();h.budget_fail=h.budgets+n;start_failed();}
+    for(unsigned n=1;n<=no;n++){start_setup();h.owner_fail=h.owner_calls+n;start_failed();}
+    for(unsigned n=1;n<=np;n++){start_setup();h.pmap_fail=h.pmap_calls+n;start_failed();start_setup();h.attr_fail=h.pmap_calls+n;start_failed();}
+    for(unsigned n=1;n<=nt;n++){start_setup();h.fail_translation=h.translations+n;start_failed();}
+    start_setup();uint32_t reserved=1;memcpy(smmu+0x9058,&reserved,4);CHECK(sweet_gpu_start_once(&out)==GGX_OK&&start_complete==1);
+    for(unsigned n=0;n<18;n++){
+        start_setup();uint32_t v=1;
+        if(n==0)h.clock_bad=1;else if(n==1)h.irq_bad=1;else if(n==2){v=2;memcpy(smmu+0x9058,&v,4);}
+        else if(n==3)memcpy(reset_page+0x2000,&v,4);else if(n==4)gfw_context.dcvs_valid=0;
+        else if(n==5)gfw_context.state=0;else if(n==6)memcpy(smmu+0xb000,&v,4);
+        else if(n==7){v=0x8000;memcpy(reset_page+0x2648,&v,4);}else if(n==8){v=1u<<24;memcpy(reset_page+0x2648,&v,4);}
+        else if(n==9)h.map_fail=8;else if(n==10)h.misalign=8;else if(n==11)start_allones=1;
+        else if(n==12)start_missing=1;else if(n==13)start_sticky=1;else if(n==14)start_busy=1;
+        else if(n==15)start_expire=1;else if(n==16)h.core_irq=1;else ggb_secure_result=GPA_TRANSPORT;
+        start_failed();if(n<=8||n==12||n==13||n==14||n>=16)CHECK(!start_reads);
+        if(n==14)CHECK(!ggx_context.work.request_attempted);
+        if(n==15)CHECK(start_reads==1);
+    }
+    printf("GPU start board: %u live firmware/context/alias/map/lease/owner/TLB/OOB/core/quarantine cases PASS (actual start engine)\n",cases-first);
+}
 int main(void)
 {
     happy();unsigned budgets=h.budgets,translations=h.translations,pmaps=h.pmap_calls;
@@ -671,4 +751,5 @@ int main(void)
     firmware_bw_cases();
     firmware_dcvs_cases();
     firmware_gpu_cases();
+    gpu_start_cases();
 }

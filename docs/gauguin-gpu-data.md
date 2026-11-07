@@ -50,3 +50,30 @@ followed by shader/render work and the iOS acceleration interface. New work
 must retain this proven mode3 path and its raw evidence, preserve signed and
 unsecured prerequisites, and obtain separate physical evidence for each new
 capability.
+
+## Fixed indirect-buffer diagnostic (166 source)
+
+Mode4 adds a separate continuation at native shadow20, replacing mode3's
+ordinary write stage for this trial. The exact mode is frozen when DATA19 is
+created, so changing3 to4 later cannot acquire the new continuation. Mode3's
+engine/provider, earlier modes, cold mappings and watchdog policy are retained.
+
+The IB occupies32 bytes at offset`0x4000` of the existing32KiB user read-only,
+non-executable ring mapping, at IOVA`0xfc00c000`. It contains two MEM_WRITE
+packets, targeting the same first/last ordinary data words with distinct
+values`0x47494231`/`0x47494232`. The direct ring appends seven words: the native
+four-word CP_INDIRECT_BUFFER_PFE packet, with size8 and IB_PRIV clear, followed
+by WHERE_AM_I. The final expected device shadow is27. CPU callbacks can write
+only those eight indirect and seven direct words. Before submission, the IB
+is copied, compared and ordered; after completion, all1024 data words,
+27 submitted ring words and eight IB words must match. Failure quarantines
+shared ownership before cached diagnostics; no retry or cleanup is performed.
+
+The host oracle executes42 unchanged functions from the pinned gauguin Android
+kernel plus the exact normal-user three-statement IB builder block in a typed
+wrapper. This does not execute the entire KGSL user submission function. Five
+packet/fence/idle traces match the port exactly. The actual board fixture also
+runs signed/unsecured prerequisites while the secure CPU page is inaccessible.
+These checks and ARM64 object compilation are source/model evidence. A full
+qualified kernel and separate physical raw-log acceptance are still required
+before claiming device IB execution, shader rendering or iOS acceleration.

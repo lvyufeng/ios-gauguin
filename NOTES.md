@@ -2,6 +2,112 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —166 source/native/full80 ACCEPTED; full LOCAL build NEXT
+
+Full goal ACTIVE/unlimited; accepted physical GPU ordinary-write baseline165
+preserved. Phone STILL TWRP165, NO166image/device IO or hardware IB proof.
+User away/all resets automatic (--manual-reset no), never ask attribution.
+CURRENT generated recipe STILL165 gauguin.of4pxl/source165-codex, no166full
+build yet. Source1665308files SHA130950a5e004b0c10a4798fbabf5432edcc931f2e010d59705c6a059a170e042,
+exact seven paths/160active patches. Original mkadt7lines unchanged.
+
+DSH89350 CLOSED0 / v4board child0:436new actual signed+GGU+GGI board cases,
+all old board suites including369GGW retained. DSH64395 CLOSED0 /
+dispatch-v4-integration-v2 child0: staging0/full80actual host files0; source
+and baseline unchanged,320input pins root-rehashed. Raw first full/boardv2/v3
+failures remain immutable. v3 pinpointed FAKE shadow31 copied from oldGGW;
+changed ONLY fixture to new27. Core driver unchanged since original focus.
+Full host report SHA f5d9718acefb0c7d6218e38d7ef16783a182f4b22dd578aec2623353ae2b5956.
+Codex source review SHA7daee24b6b8738d64f9a8d2904d508e4472a66adfbcf5cda7272b56519271ab0:
+exact7source delta; mode3 provider, old engines, PTE/NC/table and UFS/WDT
+unchanged; new cold mode freeze and actual private mode4 lifecycle reviewed.
+DSH31350 preflight CLOSED1: helper incorrectly renamed OLD0153 report to-v2;
+original helpers/raw preserved. NEW bind_host166v2.py restores only that old
+path, qualifier166v2/build166v2/preflight166v2 import corrected binder.
+DSH42911 CLOSED0 / dispatch-v5-preflight inner0: exact full80source/model/four
+ARM64/42native bodies+normaluserIB block/old native foundations bound again;
+helper syntax/staging/cached165logging validation passed. Correct operative
+helpers are v2; NEVER use first faulty bind_host166.py for a full build.
+
+NEXT: commit/publish this completed SOURCE/MODEL milestone, then ONE fullLOCAL
+8job compile/strict qualify through dispatch_once166v5.py build. It reads
+SOURCE_HEAD from public-source-snapshot.json. Source/HEAD/binder/qualifier
+must stay frozen through build+qualification. After a full successful build,
+update CURRENT generated recipe immediately; old165 TU helper then stale.
+New pack166/image review/runtime IB parser/synthetic fixtures authored in
+research/tmp/dsh-0166, but UNTESTED. Needs full qualified kernel, corrected
+165 baseline image+exact606B mode4/trialgwrt-0166-a1 preflight, runtime checks,
+ONE temporary boot and strict separate actual proof before claiming IB.
+Root owns NOTES/Git/critical C; DSH forbidden edits or Git mutations. All stages
+atomic once; inspect recorded state, never repeat live/claimed jobs. No flash,
+format/GPT/destructive storage; no user action needed currently.
+
+### 2026-11-07 —166 integrated fixed native IB SOURCE/MODEL in progress;165 physical baseline preserved
+
+Full goal ACTIVE/unlimited. Phone STILL TWRP165; NO166image or device IO.
+User away: ALL resets automatic (--manual-reset no), never ask attribution;
+late0148 answer belongs only0148. Only prompt if stuck/manual recovery needed.
+Original mkadt7lines untouched. No flash/format/GPT/destructive actions.
+CURRENT generated recipe STILL165 gauguin.of4pxl/source165-codex, manifest
+cce34be0739d838ce0fe7eee9724953de70b0c1a5c0c090baa176fc358e277a3;
+no166full build yet. Do not use164/159 TU helpers. Root owns code/NOTES/Git;
+DSH explicitly forbidden all edits and Git mutations, atomic once required.
+
+Codex authored166 integrated7source paths (new ggi engine C/H, board C/H,
+coordinator, PAS owner, BSD member); active patch160 is
+0166-gauguin-fixed-native-indirect-buffer.patch. Fresh official source166-codex
+replay0,5308files SHA130950a5e004b0c10a4798fbabf5432edcc931f2e010d59705c6a059a170e042,
+exact7delta vs165. Mode4: actual sameboot CP15/signed/GGU20 ->GGI27, skipping
+GGW31. Exact frozen cold ggb_data_mode0/3/4 prevents late3<->4 upgrades despite
+sharedDATA19. IB8words at existing RO/NX ring+4000/IOVAfc00c000, direct ring7
+DW20..26, no new mappings/PTEs or watchdog changes. CPU writes only IB8+ring7,
+never DATA/scratch/securebuffer. Full PTE/NC/routes/fault/clock/IRQ/private
+parent/WDT guards,4s/2s fresh stage and8sentry, quarantine before diagnostics.
+Old GGW provider and engines unchanged. Not shader/rendering/Metal/scheduler.
+
+DSHfocus30815 CLOSED0/dispatch-focus inner0: actual IB16326cases, all6526/6592
+callback boundaries injected, pre/post1024 data+27ring+8IB corruption/once/
+quarantine/fault/timeout model; four actual ARM64 TUs0 against current165
+recipe: IB34600B SHA03bcfe0098cc779e25b817499fd035e271ade1b6edf1ef1e9143bc3b7d61344d;
+board329768B SHAb97032e17e20f9712e7136ddc268cd3a158499924e6746f28ee3eb9194f17871;
+coordinator64424B SHAf1b2c7efd8ef9dd27a2ad767c2a9c268b6d6e3b0e313ca97b2fb53f6cae4faea;
+PAS28008B SHA650c1f25c4472a3cae1b84226e2745d5e097ec1fb35d22f1f50e45d24cdf340c.
+Codex independently rehashed21focus pins and all4objects. Focus report SHA
+fb78f8f4c2599c375739d87d12a7718c3143f7ae13506e5f1337570a9f511727.
+DSH38523 CLOSED0/native-contract inner0:42unchanged pinned primary native
+bodies, all41previous unchanged; exact NORMAL USER three-statement IB builder
+block (typed wrapper, NOT entire KGSL user submit), native IB_PRIV mask,
+actual cp_mem_write pair+allocspace/submit_spin/fence/WHERE/idle. Five exact
+7ring+8IB traces and independent timeout0. Report
+research/tmp/dsh-0166/native-ib/result.json SHA
+41c8c7d6382fb34cfde9b7de218c753c1f6cb04049dafa6fb6a45abd1d4795b2;
+normaluser block SHA70aa868d7df55064ceb7bc033e2cbdb470309438d0c844c86fd6f775e1cbd3dd.
+Codex independently rehashed22pins and all native/port trace pairs. Model only.
+
+First DSH77594 integration CLOSED1: replay0/full80host1, ONLY board test failed
+because old unsecure negative fixture still classified mode4 as invalid.
+Raw full-host.log/integration-result.json/input snapshot IMMUTABLE. Changed
+illegal positive range4->5; retained old semantic negatives and new4 positives.
+DSH75807 board-v2 CLOSED1: old board suites including GGW369cases passed, new
+IB first success8523 failed. DSH73944 board-v3 diagnostic (child CLOSED1,
+outer may still finish): rc9 WAIT timeout, actual fake shadow31 while engine
+expects27. Fake-device fixture ternary copied from old GGW corrected to27;
+NO driver changes after focus/native/replay. Invalid flag retry expectation
+also distinguishes upfront ARGUMENT from ALREADY, still no callbacks/output.
+All failed artifacts retained, never field-repair or waive gates.
+DSH89350 board-v4 currently running, dispatcher166v4.py board-model. Inspect
+actual dispatch-v4-board-model.json/board-model-v4-result.json/log; do not
+retry live/claimed work. New integrate166v2.py is prepared but NOT dispatched;
+it requires v4 pass then full80host rerun on unchanged successful fresh replay,
+keeps all first failure evidence. Run via dispatch_once166v4.py integration-v2.
+Only after full80pass may bind_host166.py/preflight166.py/strict qualifier and
+build be accepted. Helpers authored but UNTESTED. No166commit/push yet.
+NEXT: finish actual board model, full80, independent source/native review,
+commit/publish same-tree sole public parentc97b3aeea547d0f078c62222371bc41209a78a7f;
+then preflight+ONE fullLOCAL8job build/qualification, explicit mode4/trial
+606B controls gwrt-0166-a1, runtime parser/negative proof then ONE temporary
+boot. No source/qualifier/hardware flag may claim IB before actual raw proof.
+
 ### 2026-11-07 —165 PHYSICAL ordinary GPU write/readback VERIFIED; native IB execution NEXT
 
 This goal turn PROGRESS:164 image/runtime/boot refusal diagnosed,165 critical

@@ -4,7 +4,7 @@
 #define S2CR(n) (0xc00u+4u*(n))
 struct gpu_fake {struct fake old;struct ggs_context gpu;struct ggp_plan plan;struct gsm_receipt baseline;
     uint8_t tables[16384];unsigned step,fail,writes,prepared,atos,tf_mode,wrong,drift,ignore,stuck;bool nested;};
-static struct gpu_fake *templates[3];
+static struct gpu_fake *templates[4];
 static bool gpu_tick(struct gpu_fake *f){return ++f->step!=f->fail;}
 static bool gpu_guard(void *cookie)
 {
@@ -98,10 +98,18 @@ static struct ggs_ops gpu_ops(struct gpu_fake *f)
 {return (struct ggs_ops){f,gpu_guard,gpu_r32,gpu_w32,gpu_r64,gpu_w64,gpu_barrier,gpu_delay,gpu_prepare};}
 static struct gpu_fake *gpu_fresh(unsigned mode)
 {
-    CHECK(mode<3);
+    CHECK(mode<4);
     if(!templates[mode]){
         struct fake *m=fresh(mode!=0);
-        if(mode==2){m->regs[0x24/4]=2u<<28|8;memset(m->regs+0x800/4,0,16*4);}
+        if(mode>=2){m->regs[0x24/4]=2u<<28|8;memset(m->regs+0x800/4,0,16*4);}
+        if(mode==3){
+            /* Retained actual143 IDs plus actual146 cached five-slot/five-
+             * bank receipt. SID width3 is independent of five match slots.
+             * Preserve captured inherited CR0 bits and unrelated secure SID2. */
+            m->regs[0x20/4]=0x48016605;m->regs[0x24/4]=0x20008005;m->regs[0x28/4]=0x7511;
+            m->regs[0]=0x200200;
+            m->regs[SMR(4)/4]=0x80000002;m->regs[S2CR(4)/4]=4;
+        }
         struct gsm_receipt r;CHECK(run(m,&r)==GSM_OK);struct gpu_fake *t=calloc(1,sizeof(*t));CHECK(t);
         t->old=*m;t->baseline=r;CHECK(ggp_plan_build(&m->plan,&t->plan));free(m);templates[mode]=t;
     }
@@ -118,13 +126,14 @@ static void gpu_stopped(struct gpu_fake *f)
 }
 static void gpu_good(void)
 {
-    for(unsigned mode=0;mode<3;mode++)for(unsigned tf=0;tf<2;tf++){
+    for(unsigned mode=0;mode<4;mode++)for(unsigned tf=0;tf<2;tf++){
         struct gpu_fake *f=gpu_fresh(mode);f->tf_mode=tf;f->nested=true;struct ggs_receipt r;
         CHECK(gpu_run(f,&r)==GSM_OK);CHECK(r.bank==(mode==0?3u:mode==1?1u:2u));
         CHECK(r.slot==(mode==0?0u:mode==1?2u:2u));CHECK(r.gpu_pages==18&&r.gmu_pages==131&&r.translations==168&&f->atos==168);
         CHECK(r.writes==f->writes&&f->prepared==1&&f->gpu.phase==GGS_DONE&&!(f->old.regs[0x6000/4]&4));
         CHECK(r.sctlr==0xc01167&&r.tcr==0x802019&&r.tcr2==0x38011&&r.cr0==f->baseline.cr0_after);
         CHECK(!memcmp(f->old.tables,templates[mode]->old.tables,sizeof(f->old.tables)));
+        if(mode==3)CHECK(r.groups==5&&r.banks==5&&r.bank==2&&r.slot==2&&r.asid==3&&f->old.regs[SMR(4)/4]==0x80000002&&f->old.regs[S2CR(4)/4]==4);
         for(unsigned i=0;i<r.groups;i++)if(i!=r.slot){CHECK(f->old.regs[S2CR(i)/4]==templates[mode]->old.regs[S2CR(i)/4]);if(mode)CHECK(f->old.regs[SMR(i)/4]==templates[mode]->old.regs[SMR(i)/4]);}
         printf("GPU SMMU mode%u TF%u: SID0 slot%u CB%u ASID%u,18 GPU +131 GMU leaves/168 ATOS, %u callback boundaries PASS\n",mode,tf,r.slot,r.bank,r.asid,f->step);
         gpu_stopped(f);free(f);
@@ -132,7 +141,7 @@ static void gpu_good(void)
 }
 static void gpu_bad(void)
 {
-    for(unsigned mode=0;mode<3;mode++){
+    for(unsigned mode=0;mode<4;mode++){
         struct gpu_fake *ok=gpu_fresh(mode);struct ggs_receipt r;CHECK(gpu_run(ok,&r)==GSM_OK);unsigned steps=ok->step;free(ok);
         for(unsigned fail=1;fail<=steps;fail++){
             struct gpu_fake *f=gpu_fresh(mode);f->fail=fail;struct ggs_receipt b;memset(&r,0x96,sizeof(r));b=r;
@@ -196,4 +205,12 @@ static void gpu_arguments(void)
     o.prepare=NULL;CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,&out)==22);
     CHECK(!f->step&&!memcmp(&saved,&f->gpu,sizeof(saved))&&!memcmp(&saved_out,&out,sizeof(out)));free(f);
 }
-int main(void){gpu_good();gpu_bad();gpu_arguments();for(unsigned i=0;i<3;i++)free(templates[i]);printf("GPU SMMU: %u total assertions PASS; independent real-table walks/route and GMU preservation, exact fault classification, all callback failures and pure argument diagnostics; no hardware qualification\n",checks);}
+static void gpu_group_capacity(void)
+{
+    struct gpu_fake *f=gpu_fresh(3);struct ggs_receipt r;
+    f->baseline.groups=3;f->baseline.id0=(f->baseline.id0&~255u)|3;f->old.regs[0x20/4]=f->baseline.id0;
+    CHECK(gpu_run(f,&r)==GSM_OK&&r.groups==3&&r.slot==2&&r.bank==2&&r.translations==168);gpu_stopped(f);free(f);
+    f=gpu_fresh(3);f->baseline.groups=2;f->baseline.id0=(f->baseline.id0&~255u)|2;f->old.regs[0x20/4]=f->baseline.id0;
+    CHECK(gpu_run(f,&r)==GSM_ROUTING&&!f->prepared&&!f->writes);gpu_stopped(f);free(f);
+}
+int main(void){gpu_good();gpu_bad();gpu_arguments();gpu_group_capacity();for(unsigned i=0;i<4;i++)free(templates[i]);printf("GPU SMMU: %u total assertions PASS; independent real-table walks/route and GMU preservation, actual five-slot/five-bank geometry and exhausted-slot refusal, exact fault classification, all callback failures and pure argument diagnostics; no hardware qualification\n",checks);}

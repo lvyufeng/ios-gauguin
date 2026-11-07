@@ -3,6 +3,86 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —171 authored NIR -> native A619 VS/BS/FS ACCEPTED; program/draw NEXT
+
+Previous goal turn PROGRESS:170actualoffscreenclear. This continuation PROGRESS
+so far: original NIR/IR3 compiler now produces triangleVS/binningVS/constantFS
+with native metadata/disassembly and orthogonal controls, independently reviewed.
+Fullgoal ACTIVE/unlimited. NO171XNU patch/kernel/image/device action. Lastdevice
+automaticTWRP170. Current XNU generated recipe170 gauguin.Qwvb1c, manifest
+710949a9d583a8d0547cbbfee9f04dfd54dad72242c78e725e3c1a693edd26bf.
+Never olderTUhelpers. All170hardware/source evidence preserved; all16immutable
+buildhardwareflagsFALSE. Allresetsautomatic/useraway; never ask attribution.
+
+Work research/tmp/dsh-0171. Authored NIR input fixture
+tests/fixtures/gpu-draw/native_nir_programs.h uses original NIR builder APIs,
+vertex ID to generate (-1,-1),(3,-1),(-1,3), gl_Position and constant green FS
+FRAG_RESULT_DATA0. These are authored INPUT programs, NOT unmodified original
+shader source or handcrafted ISA. Original builder marks NIR internal=true;
+recorded explicitly, not normal fullGL-context qualification. Pipeline uses
+original ir3_finalize_nir/Gallium descriptor-lowering/from_nir/get_variant,
+original A619 metadata and graphics SINGLE_OR_DOUBLE policy, native codegen/
+assembler. No BO allocation, shader upload, program/draw packet, GPU emulation,
+rasterization/Metal/hardware proof. CPUonly nocache, ELF adapter still aborts.
+
+DSH81184/v1 failed compile:IR3 include path absent. V2 DSH43872 compile0/link1:
+original descriptor-lowering C TU not linked; original C header lacks C++ABI
+wrapper. Codex added whole unchanged ir3_descriptor.c compiled under actual
+original C recipe plus typed C ABI bridge, not a fake/skipped pass. Also fixed
+unused fbread slot expression to original A6XX_MAX_RENDER_TARGETS macro8.
+DSH14099/v3 C++compile0/Cdescriptor1:custom exported bridge lacked prototype
+under original -Werror=missing-prototypes; v4 added prototype, no warning waiver.
+DSH92394/v4 compile0/Cdescriptor0/link0 but full-green SIGSEGV(-11) in OUR
+post-variant disassembly call: original get_variant(write_disasm=true) already
+captures disassembly and FREES v->ir; stale header parameter keep_ir is misleading.
+Source ir3_shader.c confirms ir3_shader_disasm dereferences so->ir. Allfailed
+reports/scripts/logs/partialVSbin128B preserved immutable. No device action.
+
+New v5 native_shader171v4.cc uses the ORIGINAL captured disasm_info.disasm and
+asserts ir==NULL. DSH68050/v5 terminalinner0 FIRST4.430s: C++compile/Cdescriptor/
+link/full-green/half-green/full-red/full-green-repeat ALL0. Whole primary Mesa
+10642files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d
+unchanged, same original driver CXX flags and explicit A619 event profile1.
+No custom warning/sanitizer suppression or primary source mutation.
+
+Native full-green metadata: VS128B/32instructiondwords/14instructions/2fullGPR/
+constlen4/twoimmediates(-1,2)/driverparams0; BSsamebinary128B, native binning flag;
+FS128B/32instructiondwords/5instructions/1fullGPR/constlen0/noimmediates.
+Allvariants pvtmem0/BOabsent/noSSBO/IBO/sampler, one output. Native disassembly
+shows VARYING_SLOT_POS/SYSTEM_VALUE_VERTEX_ID and FRAG_RESULT_DATA0. Allfour
+captures in native-shaders-v5. Full-green repeat ALLartifacts byteequal; size
+control changes onlyVS(binary+immediates), colorcontrol onlyFS. Halfscale compiler
+folds multiply1 into add.f, one -0.5 immediate +three original d0d0d0d0 paddings.
+This is compiler output, not proof compiled program has executed on hardware.
+
+Root review_shaders171v1 failed before output at reviewer VERT assumption for
+BS; native label is BVERT. V2 corrected only label, then failed reviewer same
+two-immediate assumption for halfscale. V3 checks exact original optimization,
+halfscale metadata/disassembly/constants, preserves fullscale checks; FIRST0.
+independent-shaders-review-v3.json SHA
+12e850b5b563e115cfd94717356cf5ef2bfc37fd42ec4ece450c0f7584f89fab.
+Allnative inputs/outputs/logs/objects rehashed, original IR3/encode/decode archive
+baseline hashes revalidated, complete original source rehashed/clean, current
+linked NIR/other libraries separately pinned. No native/physical rerun to fix
+review assumptions; allfailedreviews preserved. NOTASan/UBSan/nativeGPUproof.
+
+NEXT CONCRETE ACTION: use original fd6_program_create<A6XX> in whole unchanged
+fd6_program.cc with these actual compiler variants/metadata; original const
+emitter fd6_const.cc and original ir3_get_private_mem (whole ir3_gallium.c,
+pvtmem0 means original no-allocation branch) must execute, no selected fake
+callbacks. Typed CPU BO/ring storage/relocations only, allunselected interfaces
+abort. Need capture config/binning/program/interp state first, then native
+fd6_draw_vbos/3dstate/sysmem render+flush and pixel oracle. Recompile EVERY
+relevant C++TU with explicit A619 USER32 profile1; old170wholegraphicsobjects
+are original profile0 compile evidence only. Preserve current170mode7/guards/
+mappings and otheracceptedpaths; anyfuturemode8 needs new source/host/ARM64/
+kernel/runtime/image/once physical proof. No memory/time/permission waiver.
+Full RAM/UFS/peripherals/highrefresh/iOS acceleration goal remains unfinished.
+
+Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+unchanged. Codex critical code/review/Git; DSH fullaccess execute-only once.
+
+
 ### 2026-11-08 —170 PHYSICAL A619 offscreen clear ACCEPTED; native VS/FS triangle NEXT
 
 This continuation PROGRESS: the169sync stall is resolved on this A619/SQE/init

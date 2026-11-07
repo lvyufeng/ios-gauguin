@@ -2,6 +2,121 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —147 PHYSICAL GPU context/aperture plus complete GMU startup verified; reset attribution pending
+
+DSH36135 CLOSED0; run_hardware147.py0, observer0/full reader3. ONE temporary147
+boot, start2026-11-07T03:22:15.235054Z,finish03:24:27.003102Z;19104KBsend0.449s,
+boot0.134s,total0.586s. TWRP observed131s, logs freshly pulled/banner matched.
+THIS147 user self-reset confirmation requested asynchronously and PENDING.
+Do not reuse THIS0138 confirmation or mark an autonomous watchdog reset yet.
+Phone last observedTWRP147; no more device IO while awaiting response.
+
+This trial has complete technical evidence: GPU SID0 slot2/bank2/ASID3,
+phase9/rc0,18GPU +131retained GMU pages,168ATOS checks,186writes/170polls.
+Roots00030000aa29c000/00030000aa29f000,SCTLRc01167,SMR80000000/S2CR2,
+local micro2378->2378. Existing GMU streams4/5 remain bank0/1 ASID1/2.
+Controller actual48016605/20008005/7511,CR0e01e36. Exactly ONE normal scalar
+SCM42000c1b/info4/arg0ffff0002,arg1..3ffffffff; fresh1/calls1/continuations0,
+returned1/full64x0=0. Rawx1..3=0,x4=x5=00000000ffffffff,x6=0. No extension
+buffer. Native transport success only; x1 zero is observed, not required.
+Same-boot final guards pass after firmware native INIT/VERSION/PERF/BW/TEST
+and DCVS request/ACK/clear/return0. GMU FWbabeface/version10110000,copy8192/8192,
+writes94/polls9,CM3reset0,GXf8222000,NS IRQ0/0/0. Requested GPU253MHz/BW index5
+are NOT measured rates. GPU commands/rendering/Metal, SQE/ZAP auth and daily
+use remain unqualified; existing UI is still stub/software rendering.
+
+Raw4122lines/461892B research/tmp/p3-gmuf-0147-native-observer-20261107.txt
+SHAbbf72ac5c62a994f92199f9c3556b0caea0a1d05e67406b5f0440395d7ca36a7;
+cycle1055B SHA3c4d290291bae71194047f31cb63ee29f60c10145dfd61ed12c7f98dde4b5f75;
+full report30813B research/tmp/dsh-0147/hardware-full-verification.json
+SHA4c63340d9be9a829fb005107f62ce3f50cda9ff2d61d2b91182e7de3e5cb8581.
+Codex independently rehashed every full-report input size/hash. Report retains
+technical success with explicit reset-attribution-unverified. Runtime report
+2330B SHA23cdd5c7aeee774642b3a645d959c60c3265fc4648d5f2e799d3a1e86029a5e7;
+full-reader SHA964c602fc2c919378566d3ac911173726ea54ee0a2fa26f5736d8c058513ba6b.
+All owned DSH tasks CLOSED; original mkadt diff unchanged. Current complete
+recipe/source147gauguin.3eaEOm, capturedHEAD5c6050648130b08eba55cde3b05ccca56262f20e;
+code public97bfcd5c3eabc1d6a284b509d99c4fcda39d5d66, hardware records private.
+
+NEXT: when THIS147 answer arrives, run SAME strict verifier with explicit
+--manual-reset no/yes into a NEW attributed report, preserving original3 report.
+Then148 native MMU-start/OOB/core access stage, retaining147 unchanged baseline:
+- Keep dynamic SID0 bank/default roots, GMU contexts/routes and native per-process
+  policy; never replay cold global HALT/CR0/DT/reset while firmware is running.
+- Pinned native kgsl_iommu_start precedes GPU OOB: user HUPCF/nonstall policy,
+  QSMMU HUM03d46800=2,DORA03d464a0=1/barrier; owned CB TTBR0/CONTEXTIDR0,
+  barrier/read TTBR0,TLBIALL1@+618/barrier,TLBSYNC0@+7f0/poll+7f4 bounded.
+  Reuse existing sole SMMU alias, preserve all other contexts and old holes.
+- A619 legacy oob_gpu0: HOSTSET16,INFO ACK24,CLR ACK24. Validate stale ACK absent
+  before request, retain HOST request while core is accessed; native HOSTclear24
+  only after ownership-qualified completion. boot-slumber HOSTclear30 is later
+  lifecycle, not an arbitrary cleanup on a failed stage. HFI_USE_REG does NOT
+  send another HFI_START message. No global IRQ clearing/enabling/forced reset.
+- Only after accepted GPU OOB may a disjoint16KiB core map03d00000 be accessed.
+  First bounded raw RBBM_STATUS(byte840)/STATUS3(byte84c), not a command or shader
+  execution claim. Narrow new guard must permit owned GX transition and check
+  firmware/clock/lease/fault/context state; never call cold CM3-reset guard.
+- Build a separate pure one-shot engine, full native-policy/route preservation/
+  stale-ACK/TLB timeout/fault/callback failure models and board/flag integration;
+  local ARM64 TUs, full65+ hosts, then complete kernel/package/strict fixtures
+  and ONE temporary trial. Only after physical access add pinned SQE load/live
+  powerup reglist, native CP/RB init and real command completion, then iOS ABI.
+Whole goal ACTIVE/incomplete; no148 implementation/boot yet, no CI/flash/format/
+GPT/destructive actions. Codex critical drivers/Git/review; DSH exact execution.
+
+### 2026-11-07 —147 strict runtime readers passed; ONE temporary hardware trial next
+
+DSH36664 CLOSED0; actual runtime_validate147.py0. Three zero results, clock4/95,
+FW132/504, full SYNTHETIC25/157. Actual5-slot/5-bank FW-record positive added;
+old rejection rules and source/image/flag binding retained; new required
+capacity-fix qualification flag has a negative case. Codex rehashed all14
+runtime report inputs. Synthetic fixtures are not physical GPU/SMC evidence.
+Reviewed boot147/run_hardware147 owns ONE temporary fastboot boot after routine
+13-byte BCB/product checks,180s observation/fresh pull and strict full reader.
+NEXT execute-hardware.txt; preserve any rejection and do not proceed to core
+until real default-context/aperture verified. Current recipe1473eaEOm, captured
+HEAD5c60506, image2e68e4da...ae3d11. Phone last observedTWRP146. Whole goal
+ACTIVE/incomplete; original mkadt diff intact, no CI/flash/format/GPT actions.
+
+### 2026-11-07 —147 complete local kernel and independent image qualified; runtime fixtures running
+
+Source/code private5c6050648130b08eba55cde3b05ccca56262f20e published as
+97bfcd5c3eabc1d6a284b509d99c4fcda39d5d66, sole parentf050834f9236623d9a8214670fe2b34babc8b55a,
+same tree, exactly6 text paths. Read-only remote verified; no CI. Git push itself
+updated the tracking ref; a redundant guarded local update failed, no push repeated.
+Report public-source-snapshot.json retained. First DSH32400 stopped without a
+build because that shell failure prevented writing execute-build.txt. Explicit
+subsequent DSH59249 CLOSED0: actual build147.py0, build0/qualification0, exactly
+ONE standard full local run gauguin.3eaEOm on captured HEAD5c60506, sole original
+mkadt diff. Source14781e798ed...21a489/5288files/141patches unchanged.
+
+Kernel16924168B SHAadd15b1216212034d2015d099d82c735859eeea70f66d4d3260725a1a04683e8,
+ID xnu-11644a8eb9e74d0b815fff42bbcddad3. Manifest905133B SHA
+a3afb34d7bd6adbc8866839cca1a445e221ee8de6a72ae766dec38e9807fc267.
+Qualification12823B SHAd0caaed2e75bae367a22d4cd8471092c5288aaa3176a87c643ee04a68766cc10
+at research/tmp/p3-native-0147-qualification-20261107.json. All146 checks retained,
+new gpu_match_capacity_source_bound true. Hardware remains unqualified.
+CURRENT complete native recipe/source NOW147gauguin.3eaEOm;146yFYkK1 historical.
+
+DSH60201 CLOSED0; actual package0/independent image review0,9inputs unchanged.
+Image shim/out/shim-p3-gmuf-0147-native-20261107.img19562496B SHA
+2e68e4da114c7b04fd0e3fb4ad014216b942911f1436511f0b69b8d2e7ae3d11;
+payload19234816B SHA57afc51503552245ce524c6b5d4401989af8d00e10abe5b76f553f206a4df6a0.
+Evidence4149B SHA553c2b16e89f72fc7090a792a69a645446f51d3498845b40f3357e28608e7de0.
+Unique gmuf-0147-20261107-a1,600B command/sweetgpucontext1. NVT18255c000,
+MDT182580000,GMU182584000 unchanged geometry/content. All old pins retained,
+including146. Codex independently rehashed package pins/image-review inputs and
+actual image/native kernel/manifest. No147 physical trial yet.
+
+Runtime DSH36664 currently executing execute-runtime.txt on actual147 artifacts;
+strict inherited parsers plus new5-slot/5-bank synthetic positive and required
+capacity-fix qualification binding. Poll SAME handle, no restart on timeout.
+NEXT results -> reviewed ONE temporary boot147/run_hardware147. Preserve every
+rejected stage; need real GPU18+GMU131/168ATOS and scalar aperture before
+MMU-start/OOB/core/SQE. Last phone observedTWRP146; no147 ownership/SMC/rendering
+claim. Whole goal ACTIVE/incomplete. Original mkadt diff intact, no CI/flash/
+format/GPT/destructive actions. No source changes during completed full build.
+
 ### 2026-11-07 —147 fixes actual five-slot rejection; validated source, complete local kernel next
 
 Actual146 ONE trial finished03:03:48.136288Z after start03:01:31.327000Z;

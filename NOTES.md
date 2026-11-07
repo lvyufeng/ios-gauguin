@@ -2,6 +2,70 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —145 prerequisite audit PASS; prefer cold GPU default-PT qualification before FW release
+
+Whole goal ACTIVE/incomplete. Completed144 source is private6fc9d5f and
+public3ceba2a1ec8ef01993305726a550bdc6c5f36dad (verified); private publication
+recordd3e4a4d. Correct staged source remains144-v2-codex/ec84a908...0724ff0;
+complete native build/recipe remains143 gauguin.77lIOK. No production145
+patch, full kernel, image or phone IO yet. Phone last observed TWRP in143.
+Original mkadt user diff intact. No CI, flash/format/GPT/destructive action.
+
+DSH13982 CLOSED0; exact audit_scm_inputs.py0 and native_scm_oracle.py0.
+Fresh pinned19b63c8 scm.c/h match previous cache; audit SHA
+1bf49a21778b25a394e82ea53c8ab2d560c0c1020cbdea81494e64b36571a535.
+Exact compiled native allocate_extra_arg_buffer/__scm_call2/scm_call2 and
+unchanged _init_global_pt descriptor/call expression prove FOUR scalar args:
+N_REGISTER_ARGS=10-7+1=4; extended buffer begins at FIVE, not four.
+For actual chosen CB: x0=42000c1b,x1=4,x2=00000000ffff0000|CB,
+x3=x4=x5=00000000ffffffff,x6 initially0. Do NOT pass a buffer PA in x5.
+No argument buffer allocation/flush is needed for this call. Native transport
+oracle covers0..10 args in32/64bit modes, eight banks,68 native BUSY attempts,
+transport and allocation errors under ASan/UBSan. Native callsite checks the
+transport int, not desc.ret[0]; do not invent a zero-service-return convention
+from PAS. Actual secure calls must retain raw x0..x6 evidence and explicit
+bounded continuation/BUSY/context/WDT policy; these CPU seams prove no service.
+Report research/tmp/dsh-0145/native-oracle/result.json SHA
+9987a0e8a2f1424ce1af6fac29e3d3aa4162b1e3c70cd351d799e53564e99184;
+48B native six-register vector forCB2 SHA
+7d28053f662cebb2c15ad8081dd085f66a85e8b35470b90052f4bf4651e9bdf9.
+CB2 here is an oracle example, NOT authorization to assume hardware GPU CB2.
+
+DSH92519 CLOSED0; actual audit_init_order.py0. Newly fetched fixed kgsl.c
+matches cached bytes SHA1f9e1f6cf4198e1d61bb860d55dcd2dece6af23e4cc97831c7dc2628a0ebe5dd.
+Twelve checked primary function bodies/call expressions distinguish stages:
+adreno_probe -> kgsl_device_platform_probe -> kgsl_mmu_probe -> IOMMU init
+-> default/global pagetable creation -> _init_global_pt attaches bank and
+programs CP aperture. This is probe initialization, distinct from later
+_adreno_start: AWARE -> kgsl_mmu_start (user context, hazard6800=2,DORA64a0=1,
+default-PT selection) -> oob_gpu. Native QSMMUv2 ATOS temporarily HALTs/resumes
+the shared local SMMU. Report research/tmp/dsh-0145/init-order.json SHA
+e0e8a01d04b13638d0b9e0be4c36308928f622933d80aadc5fb19a4995464dde.
+Codex independently rehashed all audit/oracle/order pins. All DSH tasks closed.
+
+REVISED NEXT145 (source-based proposal, NOT observed hardware success):
+qualify GPU default context while our CM3 is still reset and GX quiet, after
+the existing GMU SMMU cold setup and BEFORE GMU FW release. This supersedes
+the prior preference for attaching only after FW/DCVS. It avoids ATOS halt
+while GMU is executing. A separate bounded GPU engine must preserve enabled
+but quiescent GMU banks0/1, secure SID2 and unrelated routes, dynamically
+resolve SID0's unused/exclusive slot/bank/ASID, emit144 tables in owner tail,
+and verify18 leaves plus holes through ATOS. No cold gsm_configure_once reuse,
+CR0/global TLB/reset/DT-wide implementation replay or secure stream takeover.
+Only explicitly owned local halt/resume for native ATOS is permitted under
+same-boot CM3-reset/GX-quiet guards, restoring the captured baseline before
+FW startup. Existing GMU registers/routes/tables/131 leaves must stay intact.
+Integrate exact bounded four-scalar CP aperture call with chosen bank, no
+extension buffer and no general caller-selectable SCM interface. Preserve
+separate later MMU start/hazard/DORA/default-PT/owned GPU OOB/core order.
+Refresh CPU stage deadlines only with fresh hardware-budget checks; never
+rearm/pet WDT or weaken143 guards to accommodate a new stage. Test failure
+boundaries and unchanged legacy I/O; build/package/strict reader before ONE
+temporary boot. No standalone144 whole build/boot; it has no runtime consumer.
+Real SQE asset verification/load, powerup list, secure ZAP, CP execution and
+readback, userspace/Metal and high refresh remain outstanding. Codex critical
+drivers/plans/Git/review; DSH reviewed exact compile/test/build/temporary boot.
+
 ### 2026-11-07 —144 GPU memory and native CP_INIT bytes validated; GPU context/ownership next
 
 THIS turn adds CPU-only GPU global-memory/page-table/CP_ME_INIT constructors

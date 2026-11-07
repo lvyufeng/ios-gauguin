@@ -690,3 +690,23 @@ contexts instead of using the cold SMMU configuration path. Actual DT lacks
 `qcom,global_pt`; audit the native four-argument CP aperture SCM transport
 before implementing that path. Owned GPU power/access, core/SQE/ZAP startup
 and bounded execution/readback remain prerequisites for acceleration.
+
+## Native GPU context prerequisites (0145 audit)
+
+The fixed primary SCM implementation has four register arguments. The native
+CP aperture call uses `x0=42000c1b`, `x1=4`, `x2=ffff0000|CB` and
+`x3=x4=x5=00000000ffffffff`; the fourth argument is a scalar in `x5`.
+Extended argument buffers begin at five arguments. Compiled native allocation,
+dispatch and unmodified descriptor expressions pass host checks for both ABI
+widths, argument-count boundaries, eight banks and error paths. These OS/SMC
+seams do not execute secure firmware or establish aperture configuration.
+
+Source call-chain checks also distinguish probe-time default pagetable
+creation/attachment and CP aperture programming from the later MMU start.
+The latter remains after AWARE and before owned GPU OOB. Native QSMMUv2 ATOS
+temporarily halts the shared local SMMU. Based on that source ordering, the
+next implementation will qualify the GPU default context before our GMU FW
+release, while CM3 remains reset and GX is quiet. This proposed ordering
+still needs hardware qualification. It must preserve the existing GMU banks,
+secure and unrelated routes, restore owned halt state and keep the later
+MMU-start/GPU-OOB/core sequence separate.

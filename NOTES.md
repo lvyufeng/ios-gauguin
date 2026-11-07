@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —166 full runtime ACCEPTED; ONE physical boot currently observing
+
+CURRENT166 recipe gauguin.MVqkS8/source166-codex; sourceHEAD for every166
+artifact remains9bc4b88a61938d2d77cf88dca31275ae4b9a72d3. Newer commits NOTES
+only. Full goal ACTIVE/unlimited; hardware IB NOT yet established. Original
+mkadt unchanged. User away, all resets automatic --manual-reset no; never
+ask attribution or UI; prompt only if stuck/manual recovery actually needed.
+
+DSH37091 CLOSED0/dispatch-v9-runtime0: NEW runtime-parser-result-v2.json
+SHA7a315f9412c3a799d5f112048a957334385c2b54a2e97454789b885161e9162c,
+all4checks accepted: original byte-unchanged framing/clock/FW successes reused
+with all pins rehashed + COMPLETE new full-chain fixturev2 exit0. No production
+parser/kernel/image changed; original failed runtime/fixture/report retained.
+Full common45valid/678negative; signed20/117; unsecured21/147 plus4duplicate
+cases (old print label still3, actual v2 source has4); IB35valid/263negative;
+FW132valid/584negative, standalone IB31valid/684negative. ALL SYNTHETIC.
+Codex independently rehashed all33 final runtime inputs, exact actual image,
+new boot166v2/read_hardware166v2 syntax and exact original observer suffix;
+independent-runtime-boot-review-v2.json SHA
+730ddbdc6b38d76761de2f499db7b9949e38f184fad578c6c7d0f160f1f31ae5.
+
+DSH92016 CURRENTLY RUNNING dispatch_once166v9.py boot / child80697. Inspect
+its claim/result and hardware-trial-result.json; NEVER launch another boot.
+boot-preflight.json: unique gauguin recovery and gauguinpro bootloader,
+authorized13B misc recovery latch/readback succeeded, observer-running /
+image_boot_attemptedtrue at2026-11-07T14:25:43.888927Z. This does not itself
+prove successful GPU or UI execution. Exact image SHA1087aa8733843121e56b5a8e8ffa90f064ad169a9f7cefa6f3f5f7559b191be4,
+19726336B, uniquegwrt-0166-a1 /606B mode4 controls; no flash/format/GPT.
+Wait/poll SAME observer through autoTWRP, then strict read_hardware166v2 via
+same dispatcher stage read. Root must independently rehash complete physical
+report and all input records/binary decode before qualifying IB; do not infer
+rendering/Metal/shader/performance/high-refresh or human UI from service logs.
+Root NOTES/Git/critical C, DSH executes only, no edits/Git writes. No user action
+currently needed. Prior165 ordinary GPU write physical baseline preserved.
+
 ### 2026-11-07 —166 image/independent54pins ACCEPTED; full-runtime v2 running before ONE boot
 
 CURRENT recipe166 gauguin.MVqkS8/source166-codex (never old165 TU). SourceHEAD

@@ -138,3 +138,4 @@
 0140-gauguin-gmu-opt-in-perf-transaction.patch
 0141-gauguin-gmu-native-bandwidth-plan.patch
 0142-gauguin-gmu-native-bandwidth-test-transaction.patch
+0143-gauguin-gmu-native-register-dcvs.patch

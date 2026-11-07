@@ -2,6 +2,90 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —143 native register DCVS validated; active DT BW5 replaces provisional BW1
+
+Previous turn was progress: physical142 native BW/TEST ACK PASS. THIS turn
+rebinds seven exact native primary sources and active DT policy, implements
+one guarded post-TEST native register/OOB request, proves host/native write
+order and all old API I/O equivalence. Whole GPU/Metal/RAM/storage/peripheral/
+high-refresh/daily-use goal ACTIVE and incomplete. No143 whole kernel/image/
+phone/native DCVS ACK/return or measured frequency proof yet.
+
+IMPORTANT correction to the historical142 next-step proposal: captured
+selected DT bin169 pwrlevel5 is253MHz but bus-freq5/min4/max7. BW1 is below
+that row's allowed minimum and MUST NOT be used. Native gmu_dcvs_set maps
+Linux pwrlevel5 to ascending PERF1; choose exact DT bus5=2188000000Bps.
+FREQ_VOTE(1,ATLEAST3)=30000001; BW_VOTE(5)=00005005. All are requests,
+not measured clock or bandwidth. Cached sources freshly matched seven fixed
+raw GitHub19b63c8 primary files; SHA/Gitblob/URLs recorded privately.
+
+DSH9867 CLOSED0/actual audit1 stopped on text GPU property interpreted as
+word cells; reviewed v2 retains raw bytes/hex and aligned words, reuses same
+seven pins. DSH87883 CLOSED0/actual auditv2 0, input-audit-v2.json SHA
+b6438c01dee76f6542dec8e2520cb01a7d9e225d35ac8599d4aab22e565cc760.
+Original failures retained. Native oracle v1 failed macro shadowing plus
+native signed/unsigned pointer warning; v2 fixed shadowing and kept that
+native warning nonfatal, then failed unused diagnostic seam variables.
+Explicit v3 consumes real mock device pointer, no native body edits.
+DSH69418/59782 CLOSED0 wrap actualcompile1; DSH65759 CLOSED0 actualv3
+compile0/run0. Exact gmu_core_is_register_offset/regread/regwrite,
+a6xx OOB set/clear/DCVS and gmu_dcvs_set bodies:72 valid index pairs and
+native timeout/nonzero-return cleanup pass ASan/UBSan. The native int ret
+passed to unsigned32-bit read helper remains a logged pointer-sign warning;
+other warnings errors. Result SHA12d33d58bebd1c30b08453b4e7618d8dffea8a9dad25995cef988f1028dbb531,
+six-store72B stream SHA672e5c29da4b4f4c2ab4371147e8db48340bd4f3a1ebaf314742b99cf57a00fe.
+No hardware qualification from OS/IO seams; poll units/private flags mocked.
+
+Private core08662d995b29e8fa4030fd45a6e7eb730c951688,137th patch0143.
+Fresh1435282files SHA6f77f55c0fc3431b7b6049a2373c8374392e9aaea242658245b6c9323da54258;
+only coordinator.c,board.c/h,firmware.c/h differ from frozen142. New
+shared-once gmf_bootstrap_dcvs_once/board API takes existing ARC/BW plan,
+requires all five accepted HFI replies, then TCM6ff0/6ff4/6ff8 writes
+0/30000001/00005005, native HOST2GMU bit23/fresh GMU2HOST ACK31/ACKclear31,
+TCM6ffc return read, native HOST2GMU clear31. No further HFI after TEST.
+Stale ACK31/error15,100ms bounded timeout, lost guard/callback stop without
+retry/rearm/PET/newalias/reset/failure cleanup. Native owned-OOB completion
+clear is still performed after a received nonzero firmware return, matching
+native success/error response ordering; only then quarantine that return.
+Extra existing-style ACK-clear raw check retained. Private flags distinguish
+attempts/accepted/current return; public receipts unchanged. Final guards
+precede request/completion logs, partials follow owner/lease quarantine.
+sweetgmudcvs default0/exact1 requires BW/PERF/FW/clocks/CX and PAS exclusions.
+
+DSH27382 CLOSED0 validationv1 actual1 at comparison harness renamed-main
+implicit return (pristine replay passed). Explicit v2 uses void renamed
+fixture entry; DSH3048 CLOSED0 actual1 at ONE new board test timing assertion:
+asset check1 before engine vs check2 within engine. Corrected ONLY that
+assertion; production source unchanged. DSH63231 CLOSED0 actualv3 0,
+NINE zero results: verified retained pristine replay, actual integrated vs
+native six-store stream, BW oracle, all62 hosts, PERF oracle, two frozen I/O
+streams and three real ARM64 TUs. Normal validation-result-v3.json SHA
+666cacaed909ebc55ed90c109e27a8dd861f1b6abd821257102d4194f3f1c766.
+Source/baseline/inputs unchanged.2735 DCVS callback failures plus old2684/
+1743/1385 suites; engine17553786 checks, board3040+69=3109 cases,
+coordinator335+29=364. Native BW/PERF4095-sequence bytes still match.
+ORIGINAL129-model142/1431,009,420 I/O requests digest42c8a43275281f5b;
+frozen142 INIT/PERF/BW three APIs6,814,938 requests digestb32fb2ca93767019,
+both pairwise identical. New integrated six writes equal native SHA672e5c29.
+
+Native firmware70656B SHAa59a954c3aa896e478fed78168ffe6d822ff021d36988b64102a965e0ebeda41
+at gmu143-gauguin_gmu_firmware/run-1aokp5vu/compile.json; board82416B SHA
+a7d455e551ee3c9e53052a38ace004c22d38dc26aa7d676a90215b8645a63c4a at
+gmu143-gauguin_gmu_board/run-f4fmjq42/compile.json; coordinator49184B SHA
+0295557e155aff3aad802a196ecd76cf0256bce76b263a2bc4bbcc71221e1e16 at
+gmu143-gauguin_bcm_coordinator/run-cioi7fxh/compile.json, all under
+research/tmp/gauguin-nvt-p1. Uses CURRENT142NfYVjn full native recipe/source.
+
+NEXT: publish validated source, DSH full LOCAL build143 and all inherited
+qualifiers + native DCVS source/order/flags/symbol/record binding. Pack unique
+sweetgmudcvs1 trial, require post-TEST DCVS request/fresh ACK31/clear/return0,
+source-bound fixed253MHz/BW5 request and final guards. Bounds94..244 stores,
+9..9000 polls/debug<=225. Test strict readers then ONE temporary boot. Preserve
+142 physical startup baseline. Native return0 qualifies a request, not a
+measured rate/dynamic governor/IRQ lifecycle/GPU commands/rendering/Metal.
+No new phone I/O; last observedTWRP, all owned handles CLOSED. Original7-line
+mkadt diff intact, no flash/format/GPT/destructive action/CI.
+
 ### 2026-11-07 — actual142 native BW and TEST ACK PASS; next register DCVS and GPU execution
 
 THIS goal turn is progress:141 native bandwidth constructor/oracle and142
@@ -47,8 +131,12 @@ verified-native-register-HFI-TEST-reply. Build142NfYVjn/HEADd7fe2d7/kernel
 51dce3cd...de8f9e4d0, image2be27bc3...66b127eb and all previous images kept.
 Preparation commitsc4bf5e4 and9fb8665. CURRENT native recipe/source142NfYVjn.
 Phone observedTWRP; all owned handles CLOSED. Original7-line mkadt diff
-intact; no flash/format/GPT/destructive action/CI. Source publication264381b
-already remote verified; physical handoff publication next.
+intact; no flash/format/GPT/destructive action/CI. Source publication264381b and sanitized physical handoff
+publicationafb3a92abc30d5925e8a0206fbfd5fcd6e6c7ad5 both ls-remote verified.
+The latter has sole parent264381babecc680a3e6547f6918abbc1223c8fea and
+matches private126b26305f42b8423710b55611074a30139ca11f tree; exactly2
+NOTES/docs text paths, no private ancestry/raw/native downloads/binaries/
+serials. Report research/tmp/dsh-0142/public-hardware-snapshot-0142.json.
 
 NEXT143: preserve142 as reproducible native legacy startup baseline. Native
 kgsl_gmu.c gmu_start calls hfi_start then default GPU power-level selection;

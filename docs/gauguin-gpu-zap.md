@@ -113,19 +113,52 @@ Frame values above are hexadecimal. The b02 SHA256 is
 Do not reload MDT between calls, load the whole ELF, clear4096/16384 bytes or
 access the secure region after AUTH merely because a CPU alias remains.
 
-The next implementation must derive `adreno_switch_to_unsecure_mode`,
-`cp_secure_mode`, `adreno_ringbuffer_submit_spin` and its submission/idle
-helpers from the pinned source. Native A619 appends CP_SET_SECURE_MODE0 and a
-WHERE_AM_I to the existing RB0; it does not reset/reinitialize the ring or
-rewrite the GPU shadow. Starting from this trial's RPTR/WPTR15, the candidate
-5-word append would publish WPTR20. Exact words, placement, fence/keepalive
-sequence and completion predicates still require native-function comparison
-and source/model tests before any new image.
+Patch0158 implements the fixed post-ZAP command-append engine. From native
+`adreno_switch_to_unsecure_mode`, `cp_secure_mode` and
+`adreno_ringbuffer_submit_spin`, it appends these5 words at RB0 DW15..19:
 
-Authorization for that append must come from the actual private same-boot
-157 signed-load receipt and retained CP/core/firmware state. It must use a
-new post-AUTH guard path, without the old MDT hash check or a secure-buffer
-read, and quarantine on failure. Do not substitute a TRUST_CONTROL0 write
-for the native signed-load/unsecured-mode path. Completing this transition
-will still leave general scheduling, rendering, the iOS graphics/Metal
-interface, power management and high-refresh display to implement.
+```
+70e60001 00000000 70620002 fc010000 00000000
+```
+
+The new WPTR is20. The engine first seals provider authority, checks existing
+WPTR/shadow15, idle/fault state, the15-word bootstrap prefix and the5 unused
+slots. It writes and compares only the5 new words, preserves the rest of the
+ring and scratch, then follows native keepalive/fenced-WPTR/counter/idle order.
+Only WPTR and keepalive registers are writable. Completion requires a
+device-written shadow20, AO busy bit23 clear and no decoded GPU errors.
+Every callback has guards. Failure consumes the attempt, quarantines before
+returning and leaves output untouched; it performs no cleanup writes.
+
+The468-case ASan/UBSan model passed every callback failure boundary in the
+normal and retry scenarios, ownership refusal, corruption, partial store,
+all decoded fault bits, fence/idle exhaustion, nested entry and argument
+checks. The actual ARM64 translation unit compiled against the157 native
+recipe. The first compile's missing dependency include path was corrected
+in a separate helper; source bytes and the failed report were preserved.
+
+An independent fixture executes38 unchanged functions from the pinned native
+source, including the full submission/idle path and actual unsecured-mode
+functions. All34 earlier function hashes stay identical. It stops the native
+bootstrap at the ZAP seam, sets the native `zap_loaded` field explicitly in
+the fixture, then executes the next native functions. This seam is model
+input, not new secure-authentication evidence. Five successful native traces
+match the port byte-for-byte: normal, one dropped fenced write with delayed
+shadow/busy,100 and199 dropped writes, and counter overflow. Native fenced-write
+exhaustion is checked independently. These prove source/model sequencing;
+the live post-AUTH binding and physical mode transition remain unfinished.
+
+The next board integration must authorize the append using the actual private
+same-boot signed-load receipt and retained CP/core/firmware state. It needs a
+separate post-AUTH owner predicate and live guard path, without the original
+MDT hash check or any secure-buffer read. It must preserve the signed loader's
+SECURE/LATE rules and quarantine all shared authority on failure. Keep the
+157 signed-only mode unchanged. One proposed command contract reserves
+`sweetgpuzap=2` for signed load plus the native append, with1 retaining the
+signed-only trial; this still needs implementation and explicit old/new-mode
+tests. It fits the current606-byte command without adding another token.
+
+Do not substitute a TRUST_CONTROL0 write for the native signed-load/unsecured
+path. Completing the transition will still leave general scheduling,
+rendering, the iOS graphics/Metal interface, power management and high-refresh
+display to implement.

@@ -153,3 +153,4 @@
 0155-gauguin-pinned-zap-code-asset.patch
 0156-gauguin-fixed-signed-zap-engine.patch
 0157-gauguin-live-signed-zap-loader.patch
+0158-gauguin-native-unsecure-append-engine.patch

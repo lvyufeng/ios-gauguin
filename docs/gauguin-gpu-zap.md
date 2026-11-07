@@ -247,6 +247,25 @@ The fresh154-patch source replay and all77 host files pass. The constructor
 model passes1594 cases with4464070 checks, and the actual ARM64 translation
 unit compiles on the159 native recipe. No160 full kernel or image was built.
 
+Patch0161 adds the explicit cold `ggs_configure_data_once` API. The original
+API always selects18 leaves; pre-seeded context fields or callback output
+cannot opt into the extra mapping. The new API validates the complete fixed
+data plan, maps19 leaves and tests all three data-padding holes. Together
+with all retained GMU and hole checks it requires171 address translations.
+An explicit receipt tag distinguishes18/168 from19/171. GPU-start and core
+consumers accept only coherent tag/count combinations and retain all their
+other checks. The live private board must still authorize and bind the exact
+selected layout; a structurally valid receipt alone provides no ownership.
+ATOS validates translations and does not replace exact PTE permission checks.
+
+The actual SMMU model passes27153210 assertions including every callback
+failure across four controller geometries in both layouts, data and padding
+corruption, API mismatch, nested/once and full-plan alias checks. Consumer
+models cover both valid shapes and the full tag/page/count refusal matrix.
+All4 relevant ARM64 translation units and all77 host files pass on a fresh
+155-patch replay. The board does not select this new API yet; no161 kernel,
+image, live data mapping, submission or rendering result is claimed.
+
 Do not substitute a TRUST_CONTROL0 write for the native signed-load/unsecured
 path. Completing the transition will still leave general scheduling,
 rendering, the iOS graphics/Metal interface, power management and high-refresh

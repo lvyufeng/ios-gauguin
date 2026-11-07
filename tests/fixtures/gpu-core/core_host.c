@@ -123,6 +123,18 @@ int main(int argc,char **argv)
         }
         printf("GPU core scenario%u: native path and%u MMIO/map/parent/barrier/memory/phase failure points PASS\n",s,count);
     }
+    for(unsigned s=0;s<4;s++){
+        struct fake *f=fresh(s);f->gpu.layout=GGS_DATA19;f->gpu.gpu_pages=19;f->gpu.translations=171;
+        check_good(f,s);free(f);
+    }
+    for(unsigned layout=0;layout<4;layout++)for(unsigned pages=17;pages<=20;pages++)for(unsigned atos=167;atos<=172;atos++){
+        struct fake *f=fresh(0);f->gpu.layout=layout;f->gpu.gpu_pages=pages;f->gpu.translations=atos;
+        bool valid=(layout==GGS_BOOTSTRAP18&&pages==18&&atos==168)||(layout==GGS_DATA19&&pages==19&&atos==171);
+        if(valid)check_good(f,0);
+        else{struct ggc_receipt out,old;memset(&out,0xa5,sizeof(out));old=out;CHECK(run(f,&out)==GGC_ARGUMENT&&!f->step&&!f->context.state&&!memcmp(&out,&old,sizeof(out)));}
+        free(f);
+    }
+    puts("GPU core: explicit19 layout four native scenarios, full18/19 tag/page/count mismatch matrix PASS");
     for(unsigned n=1;n<=9;n++){struct fake *f=fresh(0);f->parent_bad=n;rejected(f,GGC_PARENT);CHECK(f->writes==1&&!f->opened&&!f->memwrites);free(f);}
     for(unsigned n=0;n<3;n++){struct fake *f=fresh(0);f->memory[n==0?0:n==1?512:1023]=1;rejected(f,GGC_MEMORY);CHECK(!f->memwrites);free(f);}
     for(unsigned n=0;n<4;n++){struct fake *f=fresh(0);f->corrupt=n==0?1:n==1?4:n==2?136:1024;rejected(f,GGC_MEMORY);free(f);}

@@ -133,5 +133,17 @@ static void failures(void)
         CHECK(run(f,&out)==GGX_ARGUMENT&&!f->context.state&&!f->step&&!memcmp(&out,&old,sizeof(out)));free(f);
     }
 }
+static void data_layout(void)
+{
+    for(unsigned layout=0;layout<4;layout++)for(unsigned pages=17;pages<=20;pages++)for(unsigned atos=167;atos<=172;atos++){
+        struct fake *f=fresh(2);f->gpu.layout=layout;f->gpu.gpu_pages=pages;f->gpu.translations=atos;
+        struct ggx_receipt out,old;memset(&out,0xa5,sizeof(out));old=out;
+        bool valid=(layout==GGS_BOOTSTRAP18&&pages==18&&atos==168)||(layout==GGS_DATA19&&pages==19&&atos==171);
+        if(valid){CHECK(run(f,&out)==GGX_OK&&out.request_retained&&out.core_opened);stopped(f);}
+        else CHECK(run(f,&out)==GGX_ARGUMENT&&!f->context.state&&!f->step&&!memcmp(&out,&old,sizeof(out)));
+        free(f);
+    }
+    puts("GPU start: explicit18/19 layout tags and full page/count mismatch matrix PASS");
+}
 int main(void)
-{good();failures();printf("GPU start: %u assertions PASS; no hardware qualification\n",assertions);}
+{good();failures();data_layout();printf("GPU start: %u assertions PASS; no hardware qualification\n",assertions);}

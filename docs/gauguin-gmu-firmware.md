@@ -608,7 +608,19 @@ There is no second reset, new mapping, OOB request, retry or watchdog rearm.
 
 All62 host files, exact native BW/PERF byte oracles,2684 combined callback
 failure boundaries,56 new board and27 new coordinator cases, default I/O
-equivalence and three ARM64 translation units pass. This is source/host
-qualification:0142 has no physical BW/TEST ACK yet. Completion of this legacy
-startup sequence does not qualify asynchronous HFI/interrupt/power operation,
-frequency changes, GPU execution, rendering or Metal.
+equivalence and three ARM64 translation units pass. A complete local native
+kernel and independently reviewed image were temporarily booted once.
+
+Physical0142 accepts BW `0040a003` with prefix
+`0032047e/00400003/00000000` and TEST `00500105` with prefix
+`0042047e/00500005/00000000`, following accepted INIT/version/PERF. The four
+pre-watchdog plan records agree with this fresh binary CMDDB, including SN10.
+Firmware completes phase6 with8192/8192 copied words,88 controller stores,
+8 polls and no debug messages. The unchanged strict full reader accepts all
+technical identity/source/SMMU/clock/power/message evidence; this trial's reset
+attribution remains unknown. The earlier138 user confirmation does not apply.
+
+This completes the native legacy startup message chain. Asynchronous
+HFI/interrupt/power operation, frequency changes, GPU execution, rendering
+and Metal remain unqualified. Native HFI_USE_REG proceeds to register/OOB
+DCVS after TEST; no further HFI message is proposed on this startup channel.

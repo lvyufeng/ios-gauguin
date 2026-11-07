@@ -3,6 +3,92 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —170 PHYSICAL A619 offscreen clear ACCEPTED; native VS/FS triangle NEXT
+
+This continuation PROGRESS: the169sync stall is resolved on this A619/SQE/init
+profile; ONE170temporaryboot passed the full production verifier and independent
+physical review. Fullgoal ACTIVE/unlimited. This is fixed16x16 hardware2Dclear,
+NOTtriangle/general graphics/Metal/UI acceleration/highrefresh or daily-use
+qualification. All16immutablebuildhardwareflags remainFALSE; actual hardware
+evidence is separate. Older16831shader/EOP2 and old modes remain preserved.
+Phone last observed automaticTWRP170; ALL DSH jobs CLOSED, no pending prompts.
+ALLresetsautomatic/useraway; NEVERask reset/UI attribution. No manual action.
+
+CURRENT generated recipe170 gauguin.Qwvb1c/source170-codex,
+manifest710949a9d583a8d0547cbbfee9f04dfd54dad72242c78e725e3c1a693edd26bf.
+NEVERolderTUhelpers with shared files. Frozen artifact SOURCE_HEAD
+06597eb3cbfe82345d8b636a589bed1ab9ff1ba3, publicsourceb7a90701ad2485eae5bcb891822a1e98415cf085,
+SAME TREEc8a6462241f98d2523601b7a3e1ec3617939db44. Later NOTES-only8987d5c/
+84b17cd/finaldocs commits do NOT replace expected-head. Source5314files SHA
+ef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3,
+164patches/all83host0. Kernel17103456B SHAcd8f21a88db10f9c4325942609cce5b44cf96b0a1a6909ffe0817f58244f4a7d;
+image19791872B SHA96c3c5f0147677078705a8fa7eea0b7c0e308328dee8b84edd9d4d78ccd79c19.
+
+Allwork research/tmp/dsh-0170. Runtime298.337s FIRST0(all4gates), full99valid
+perworker/5235actualnegative exactunion. Runtime reportSHA
+d76d4edaf1954d4d0ffef6f679455f2942870760ee3f917ecc589172d1ab015a;
+root runtime/bootreviewSHAd60472279d947231ba1d3c14aa07676a4c99adc38079d6780fe47a0560e2abd4.
+DSH46606/v10boot terminalinner0 FIRST, UTC2026-11-07T20:37:45.577964+00:00
+->20:39:57.613604+00:00. AutomaticTWRP131s; approved13Bmisc latch verified,
+unique recoverygauguin/fastbootgauguinpro, ONEtemporaryboot only. No flash/
+format/GPT/newuserdata. Observer7swaps/74GPUlookups/5086lines are NOT human
+UI/touch/smoothness/highrefresh measurements.
+
+DSH46341/v10read terminalinner0/verifier0 FIRST,0.628s. Same raw currentbanner/
+trialgwrt-0170-a1 fullchain accepted: signed full64 INIT/MEM/AUTH,1984copy/
+readback, nativeGGU20 then fixedsource-profiled149IB/194restore/205preamble.
+Actual GGL completephase8/rc0/reads13/writes3/sealed1/commands7/7/prefix20/
+clean7/retained1; firstfencechecks1/status0, idle1/shadow27/busy71000000,
+RBBM0/CP0. Actual separate finalEOPpoll1/USER32sequence7/IRQfalse.
+Full DATA1024beforezeros/1024afterchecked, actual256pixelrows/masksallones:
+192blueffff0000/64greenff00ff00 centered8x8; control+c00=7, highneighbor0,
+tail0/all767otherwords unchanged0. No production CPU DATA store aftercold.
+WAITdiagnostic1/control7/hi0; separatefinalpoll retained. Fullartifact pre/post
+and27ring words exact. Finalguardreason0/phase7; no time/fault/permission/
+ownership relaxation. Guarded totalclear span0.21135203125s, includesCPU
+staging/readback/guards, NOT GPU throughput or UI benchmark. Entry13.074770625s
+afterWDTarm, finish13.28612265625s, unchanged2s/4s/8s/23s policies.
+
+Root review_physical170 FIRST0; independent-hardware-review.json SHA
+a7eec88883eb7ed0a3a4af4f5269257586482c1fa4b27cce2ed242e49dc5e4a1:
+all22fullinput records and18wrapperpins rehashed, exactbinarydecode/banner/
+trial, actualpixels/control/allnative149/194/205/ring/guards/source verified.
+No console framing recovery needed. Fullhardware reportSHA
+edd9759f45294ad2e8db5e6c8e30a1fa03d9432e763193e584a1a7029cf4f06e;
+wrapperSHA7c26385281190d2676e5691c24b39438fb5ef9d13a28a3c3f7769b5d1760bd38.
+Raw516993B SHA60b1c457fb9e47722a1d025f7375ad9ea55df4adb44df9ea43c636cca9f9409f;
+binary4198400B SHAf604e882fc382905ec357618c048f997576129d8e7b3203510565a5e5b9d9e71;
+cycleSHA c50c3273f6e79899a76fc6c8ee8fd308c75928e080553169d586f8aeac746ac8.
+All raw/dumps/downloaded artifacts stay ignored. Original169failed evidence
+and validators/image/bit30control fixture remain immutable, never promoted.
+
+Inference supported by controlled169->170delta: USER32 transport fixes this
+observed timestamp-vs-sequence sync stall; no claim of a universal Mesa bug
+or firmware semantics across all Adreno chips. Native profile still preserves
+ALWAYSON query behavior; only7generated headers changed in kernel workload.
+
+NEXT CONCRETE ACTION: preserve accepted170mode7 clear/provider/guard bytes;
+inspect primary Mesa24.3.4 fd6_draw.cc/fd6_program.cc/fd6_gmem.cc and original
+IR3/NIR compiler interfaces to capture a minimal original VS+FS draw. Prefer
+oversized fullscreen triangle with constant green FS over blue clear, linear
+16x16target: predictable fullpixel oracle avoids uncertain diagonal edges.
+Need source-exact native program/draw/state/flush generation, exact BO/subview
+roles within authorized mappings, bounded newmode8 continuation only after
+host/native proof. No handcrafted shader ISA/opcode substitutions or mapping/
+timeout waivers. Recompile EVERY new relevant nativeTU with the explicit A619
+USER32 profile; earlier whole draw/program/gmem/texture170v2 objects were
+ORIGINAL control transport, NOT profile-enabled packet evidence. Primary
+10642files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d
+must remain unchanged; same actual upstream driver CXX flag recipe. No171
+patch/kernel/image/trial authored yet. Metal/iOS interface follows proven
+shader rasterization; memory/UFS/peripherals/highrefresh still unfinished.
+
+Final handoff publication IDs in public-physical-handoff.json after commit;
+gh REST solepublicparent/SAME TREE/nonforce ref only, no private ancestry.
+Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+untouched. Codex critical driver/review/Git; DSH fullaccess execute-only once.
+
+
 ### 2026-11-08 —170 full runtime ACCEPTED; ONE physical trial LIVE, do not restart
 
 Fullgoal ACTIVE/unlimited. Frozen170SOURCE_HEAD06597eb3cbfe82345d8b636a589bed1ab9ff1ba3,

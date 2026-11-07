@@ -2,6 +2,105 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —162 bounded ordinary GPU write/readback ENGINE QUALIFIED; live163 binding NEXT
+
+This goal turn PROGRESS:161 explicit DATA19 cold API/consumer proof committed
+privateeb5a44207067cf70cc22db097f2873d3a96c82d6, publisheda06e9d9f2427bf96d560ea611d2540717499304b
+(same treefc10e1c98efc03268323c14b64d8b43f31d18727). Then implemented/qualified
+the162 write/readback engine below. Full goal ACTIVE/unlimited, not narrowed
+to packet/model milestones. Phone last observed TWRP159; NO device IO this
+turn. Current full/generated recipe STILL159gauguin.Ee2hCj/source159-codex.
+
+Codex authored gauguin_gpu_write.C/H and patch0162,156thactive. Pure API
+ggw_start_once uses full fixed ggd_plan; seal compares actual owner PA only,
+provider must establish private same-boot signed/native-mode authority and
+cold DATA19 PTE/NC/routes/clock/IRQ/reset/fault/WDT ownership. CAPTURE requires
+WPTR/shadow20, idle/errors clear, exact20-word CP+unsecure prefix,11 unused
+AA slots and1024 zero data dwords. COMMANDS writes/compares ONLY ringDW20..30:
+two native cp_mem_write packets (8words) then native submit_spin WHERE_AM_I
+(3words), WPTR31. Native keepalive/fence/counter/idle order; device shadow31,
+AO busy23clear. VERIFY checks first/last data words47504431/47504432, all1022
+middle zero dwords, all31 ring words and final GPU faults. No production CPU
+data/shadow writes, secure access, PTE/ring/SQE reset, HOST release, cleanup,
+retry or fallback. Every callback guarded; failure consumes once/quarantines
+before return/output unchanged. Linking alone never dispatches the engine.
+
+DSH16309 CLOSED0/focus162.py0: actualhost0/nativeTU0.16202cases/280360152
+assertions; five success paths, all6472/6538 normal/delayed callback boundaries,
+every pre/post data/ring corruption,11partial command stores,1024 fake-device
+data corruptions, missing edge writes, fault masks, guard/idle/fence exhaustion,
+owner/arguments/once/quarantine. Typed fake device decodes packet addresses
+and performs the data writes; these remain MODEL input, not hardware proof.
+Actual ARM64object31584B SHA
+522ea57d14e7b661abb87b2ec9e818dfa2eaf985129fc616dbccff554186d582,
+research/tmp/gauguin-nvt-p1/gpu162-write/run-gcnek873/compile.json.
+C SHA8a8d0bf980438e372c0f0e9c6cee411071c66a5ba492980c76de69ba80d80ec7;
+H SHA17b867b026454fc6a819b53df542d21499bc87a4b8d0ce1fec6ab4fb463c4d18.
+focus-result.json2783B SHA8b4776d2e70032a5849039d5f78212149245b37790f4f395a11ee1db497a905f,
+17pins. Original161 source/current159 protected native buildfiles unchanged.
+
+DSH60392 CLOSED0/native_contract162.py0: actualcompile0/all6scenario exits0.
+41 unchanged pinned19b63c8 functions, all38 earlier native-body hashes retained.
+Added actual cp_mem_packet/cp_mem_write/a6xx_post_start; post_start returns0
+without any command or preemption operation under current native preemptionOFF.
+Actual cp_mem_write x2 then submit_spin(2000) creates all11words and executes
+unchanged WHERE/fenced-WPTR/counter/idle functions. Five port/native traces
+byte-identical (22/36/425/821/23lines): normal,1/100/199 dropped writes, counter
+wrap. Independent native failing fence has200reads/201writes. Earlier ZAP
+field seam and fake-device publication are explicit model inputs; no live
+table/GPU data/shader/render/Metal proof from this oracle. native-write/result.json
+8098B SHAde3487074aeccab10389f9d912398a86ea28a54925f4af60df09d3a4bc7999d8,
+22pins. No EOP/rendering claim: this uses native raw CP memory+spin path.
+
+DSH86191 CLOSED0/integrate162.py0: fresh156patch replay0 and all78 actual
+hostfiles0, exact expected filename order. Fresh source162-codex5306files SHA
+e26f9fd29f39558a05977b360e7ecc6f2ba9e19908f170c87af6080c3f75429d;
+exact3delta vs161: standard BSDmember plus new write.C/H, candidates equal,
+all old source unchanged. integration-result.json37117B SHA
+16b04293952ee243e6c170758059553a716357519ece847b62753e0dd3de8cd7,
+309pins/snapshot. Codex independently rehashed17+22+309inputs, source5306,
+actualobject and5exacttraces; independent-source-review.json. Explicitly
+verified156active series entries with162 last; DSH prose's timestamp-based
+series-registration concern is refuted by pinned series and exact fresh
+replay/source deltas. No rerun/waiver/record edit needed. All tests/builds
+passed first attempts. Original untested authoring assertion was resolved
+before first model/TU run; no failed test was overwritten. Patch SHA
+79ada5dd7ce2f82bedde72ac04978997c3d31a605c768fbabc4370f91a9e2cea.
+Current162 publication private/public IDs go in dsh-0162/public-snapshot.json.
+
+NEXT actual work is live163 binding, NOT another pure packet proof:
+1. Explicit mode3 (proposed sweetgpuzap3, preserve0/1/2 exactly) selects
+   cold DATA19 before SMMU attach. Update exact flag consumers in pas_stage,
+   board, coordinator; no silent mode change/default enable. Same606B command
+   can use unique gwrt-0163-a1, real pack/review must compare full decoded
+   command. Old152/154/157/159 controls and five firmware assets retained.
+2. Board owns private ggd_plan/selected variant. ggb_run chooses new SMMU API,
+   ggb_prepare uses inactive19-leaf emitter and validates/zeros/checks ONLY
+   extra16KiB CPUreservation atb8000 under reset. ggb_memory bounds grow to
+   bc000 ONLY for explicit private data mode;18-leaf modes keepb8000. Bind
+   ggs tag/context/work/output to18/168 or19/171 (all3padding holes). Validate
+   retained NC CPU alias, PTE/permissions/hole bytes and actualroutes; ATOS
+   alone is not permission proof. No live PTE mutation or extra alias.
+3. Thread exact variant through private core/CP/ZAP/unsecure guards. Never
+   call original MDT/hash validators afterINIT/AUTH or widen signed loader
+   SECURE/LATE scopes. Add separate GGW post-AUTH authorization/provider:
+   require actual private GGU READY/DONE/complete/sealed/full receipt and
+   signed receipt, PTE/NC/mapping/routes; no caller-produced authority.
+   Guard phase-aware allowed accesses: capture/verify data0..4092 and ring,
+   commands ONLYDW20..30, wait scratch0, writes ONLY WPTR31/keepalive. Bound
+   total/phase/native2s idle with monotonic checks and WDT budget. Quarantine
+   all shared owners BEFORE cached diagnostics on any refusal; no cleanup.
+4. Add source-bound data/metadata diagnostics and strict old+new runtime
+   parser/negative fixtures, actual owner/board/coordinator models and TUs,
+   full local build/independent fiveasset image, then ONE temporary boot and
+   fresh binary/text/cycle readback. Native command/data readback proof must
+   precede shader/render/IOAccel/Metal work. No163 source/image/device work
+   exists yet. The full RAM/UFS/peripherals/power/high-refresh/daily-use
+   objective remains unfinished and ACTIVE.
+All DSH jobs closed. Unattended resets need no confirmation; prompt only
+when genuinely stuck/manual recovery needed. No flash/format/GPT. Original
+user tools/mkadt.py7line diff SHAa74a0418...454860 unchanged.
+
 ### 2026-11-07 —161 explicit cold DATA19 SMMU API QUALIFIED; bounded data submission NEXT
 
 Previous turn PROGRESS:160 constructors committed private52b799231c6ea4328b740d47a51b5bb02d5a7087,

@@ -1,0 +1,268 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -140,6 +140,7 @@
+ bsd/dev/gauguin_gpu_zap.c			standard
+ bsd/dev/gauguin_gpu_unsecure.c		standard
+ bsd/dev/gauguin_gpu_data.c			standard
++bsd/dev/gauguin_gpu_write.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_write.c
+@@ -0,0 +1,190 @@
++/* Fixed normal GPU-page CP_MEM_WRITE pair + native submit_spin completion. */
++#include <string.h>
++#include "gauguin_gpu_write.h"
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++bool ggw_command_build(const struct ggd_plan *p,struct ggw_command *out)
++{
++    if(!span(p,sizeof(*p))||!span(out,sizeof(*out))||overlap(p,sizeof(*p),out,sizeof(*out))||
++       !ggd_plan_valid(p))return false;
++    struct ggd_write_command write;if(!ggd_write_command_build(p,&write))return false;
++    struct ggw_command c={0};
++    memcpy(c.word,write.word,sizeof(write.word));
++    c.word[8]=0x70620002u;c.word[9]=p->bootstrap.region[GGP_SCRATCH].iova;
++    /* Unchanged native cp_mem_write x2, then submit_spin's WHERE_AM_I.
++     * These are CP memory operations, not an IB/render/EOP timestamp path. */
++    *out=c;return true;
++}
++struct ggw_prefix {uint32_t word[GGW_START_DWORD];};
++bool ggw_register_allowed(uint32_t reg,bool write)
++{
++    if(write)return reg==0x807||reg==0x1f8c3;
++    return reg==0x807||reg==0x201||reg==0x823||reg==0x23b13||
++        reg==0x23b0c||reg==0x1f888||reg==0x1f889;
++}
++static bool guard(struct ggw_context *c)
++{return c->ops.guard(c->ops.cookie,(enum ggw_phase)c->phase);}
++static enum ggw_result sample(struct ggw_context *c,bool mem,uint32_t reg,uint32_t expected,uint32_t actual)
++{c->diagnostic=(struct ggw_diagnostic){1,mem,reg,expected,actual};return mem?GGW_MEMORY_ERROR:GGW_DIRTY_STATE;}
++static enum ggw_result rd(struct ggw_context *c,uint32_t reg,uint32_t *v)
++{
++    if(!guard(c))return GGW_GUARD;
++    ++c->work.reads;if(!c->ops.read32(c->ops.cookie,reg,v))return GGW_IO;
++    c->diagnostic=(struct ggw_diagnostic){1,0,reg,0,*v};
++    return guard(c)?GGW_OK:GGW_GUARD;
++}
++static enum ggw_result wr(struct ggw_context *c,uint32_t reg,uint32_t v)
++{
++    if(!guard(c))return GGW_GUARD;
++    if(reg==0x807)c->work.submit_attempted=1;
++    if(reg==0x1f8c3){if(v)c->work.keepalive_set_attempted=1;else c->work.keepalive_clear_attempted=1;}
++    ++c->work.writes;if(!c->ops.write32(c->ops.cookie,reg,v))return GGW_IO;
++    return guard(c)?GGW_OK:GGW_GUARD;
++}
++static enum ggw_result mr(struct ggw_context *c,enum ggw_memory mem,uint32_t off,uint32_t *v)
++{
++    if(!guard(c))return GGW_GUARD;
++    if(!c->ops.read_memory(c->ops.cookie,mem,off,v))return GGW_IO;
++    c->diagnostic=(struct ggw_diagnostic){1,1,(mem==GGW_SCRATCH?0x10000u:mem==GGW_DATA?0x20000u:0u)+off,0,*v};
++    return guard(c)?GGW_OK:GGW_GUARD;
++}
++static enum ggw_result barrier(struct ggw_context *c)
++{
++    if(!guard(c))return GGW_GUARD;
++    if(!c->ops.barrier(c->ops.cookie))return GGW_IO;
++    return guard(c)?GGW_OK:GGW_GUARD;
++}
++static enum ggw_result delay(struct ggw_context *c)
++{
++    if(!guard(c))return GGW_GUARD;
++    if(!c->ops.delay_us(c->ops.cookie,10))return GGW_IO;
++    return guard(c)?GGW_OK:GGW_GUARD;
++}
++#define TRY(x) do{enum ggw_result result=(x);if(result)return result;}while(0)
++static enum ggw_result counter(struct ggw_context *c,uint64_t *v)
++{
++    uint32_t h,l,h1;TRY(rd(c,0x1f889,&h));TRY(rd(c,0x1f888,&l));TRY(rd(c,0x1f889,&h1));
++    if(h!=h1)TRY(rd(c,0x1f888,&l));*v=((uint64_t)h1<<32)|l;return GGW_OK;
++}
++static enum ggw_result faults(struct ggw_context *c)
++{
++    TRY(rd(c,0x201,&c->work.rbbm_status));TRY(rd(c,0x823,&c->work.cp_status));
++    return (c->work.rbbm_status&GGQ_RBBM_ERRORS)||(c->work.cp_status&GGQ_CP_ERRORS)?GGW_FAULT:GGW_OK;
++}
++static enum ggw_result capture(struct ggw_context *c,const struct ggw_prefix *prefix)
++{
++    TRY(faults(c));TRY(rd(c,0x807,&c->work.initial_wptr));
++    if(c->work.initial_wptr!=GGW_START_DWORD)return sample(c,false,0x807,GGW_START_DWORD,c->work.initial_wptr);
++    TRY(mr(c,GGW_SCRATCH,0,&c->work.initial_shadow));
++    if(c->work.initial_shadow!=GGW_START_DWORD)return sample(c,true,0x10000,GGW_START_DWORD,c->work.initial_shadow);
++    TRY(rd(c,0x23b0c,&c->work.initial_busy));
++    if(c->work.initial_busy&(1u<<23))return GGW_FAULT;
++    for(unsigned i=0;i<GGW_END_DWORD;i++){
++        uint32_t v,expected=i<GGW_START_DWORD?prefix->word[i]:0xaaaaaaaau;
++        TRY(mr(c,GGW_RING,4*i,&v));
++        if(v!=expected)return sample(c,true,4*i,expected,v);
++        if(i<GGW_START_DWORD)++c->work.prefix_checked;else ++c->work.clean_checked;
++    }
++    for(unsigned i=0;i<GGD_DATA_BYTES/4;i++){
++        uint32_t v;TRY(mr(c,GGW_DATA,4*i,&v));
++        if(v!=GGW_DATA_SEED)return sample(c,true,0x20000u+4*i,GGW_DATA_SEED,v);
++        ++c->work.data_before_checked;
++    }
++    return GGW_OK;
++}
++static enum ggw_result commands(struct ggw_context *c)
++{
++    for(unsigned i=0;i<GGW_COMMAND_WORDS;i++){
++        if(!guard(c))return GGW_GUARD;
++        ++c->work.commands_written;
++        if(!c->ops.write_memory(c->ops.cookie,GGW_RING,4*(GGW_START_DWORD+i),c->command.word[i]))return GGW_IO;
++        if(!guard(c))return GGW_GUARD;
++    }
++    TRY(barrier(c));
++    for(unsigned i=0;i<GGW_COMMAND_WORDS;i++){
++        uint32_t v;TRY(mr(c,GGW_RING,4*(GGW_START_DWORD+i),&v));
++        if(v!=c->command.word[i])return sample(c,true,4*(GGW_START_DWORD+i),c->command.word[i],v);
++        ++c->work.commands_checked;
++    }
++    return barrier(c);
++}
++static enum ggw_result submit(struct ggw_context *c)
++{
++    TRY(wr(c,0x1f8c3,1));TRY(wr(c,0x807,GGW_END_DWORD));
++    TRY(counter(c,&c->work.counter_before));c->work.counter_before_valid=1;
++    unsigned i;
++    for(i=0;i<GGQ_FENCE_LIMIT;i++){
++        TRY(barrier(c));TRY(rd(c,0x23b13,&c->work.fence_status));++c->work.fence_checks;
++        if(!(c->work.fence_status&1u))break;
++        TRY(delay(c));TRY(wr(c,0x807,GGW_END_DWORD));
++    }
++    if(i>=100){c->work.fence_slow=1;TRY(counter(c,&c->work.counter_after));c->work.counter_after_valid=1;}
++    if(i==GGQ_FENCE_LIMIT)return GGW_TIMEOUT;
++    return wr(c,0x1f8c3,0);
++}
++static enum ggw_result wait_idle(struct ggw_context *c)
++{
++    for(unsigned i=0;i<GGQ_IDLE_LIMIT;i++){
++        TRY(faults(c));TRY(barrier(c));TRY(mr(c,GGW_SCRATCH,0,&c->work.rptr));++c->work.idle_polls;
++        if(c->work.rptr>=GGQ_RING_WORDS)return sample(c,true,0x10000,GGW_END_DWORD,c->work.rptr);
++        if(c->work.rptr!=GGW_END_DWORD)continue;
++        TRY(rd(c,0x23b0c,&c->work.busy));
++        if(c->work.busy==UINT32_MAX)return GGW_FAULT;
++        if(!(c->work.busy&(1u<<23)))return GGW_OK;
++    }
++    return GGW_TIMEOUT;
++}
++static enum ggw_result verify_data(struct ggw_context *c,const struct ggw_prefix *prefix)
++{
++    TRY(barrier(c));
++    for(unsigned i=0;i<GGD_DATA_BYTES/4;i++){
++        uint32_t v,expected=i==0?GGD_FIRST_VALUE:i==GGD_DATA_BYTES/4-1?GGD_LAST_VALUE:GGW_DATA_SEED;
++        TRY(mr(c,GGW_DATA,4*i,&v));
++        if(v!=expected)return sample(c,true,0x20000u+4*i,expected,v);
++        ++c->work.data_after_checked;
++        if(i==0||i==GGD_DATA_BYTES/4-1)++c->work.edge_checked;else ++c->work.unchanged_checked;
++    }
++    for(unsigned i=0;i<GGW_END_DWORD;i++){
++        uint32_t v,expected=i<GGW_START_DWORD?prefix->word[i]:c->command.word[i-GGW_START_DWORD];
++        TRY(mr(c,GGW_RING,4*i,&v));
++        if(v!=expected)return sample(c,true,4*i,expected,v);
++        ++c->work.ring_after_checked;
++    }
++    return faults(c);
++}
++static enum ggw_result execute(struct ggw_context *c,const struct ggd_plan *p,const struct ggw_prefix *prefix)
++{
++    c->phase=GGW_SEAL;if(!guard(c))return GGW_GUARD;
++    if(!c->ops.seal(c->ops.cookie,p->bootstrap.owner_pa))return GGW_OWNER;
++    c->work.sealed=c->work.requests_retained=1;if(!guard(c))return GGW_GUARD;
++    c->phase=GGW_CAPTURE;TRY(capture(c,prefix));
++    c->phase=GGW_COMMANDS;TRY(commands(c));
++    c->phase=GGW_SUBMIT;TRY(submit(c));
++    c->phase=GGW_WAIT;TRY(wait_idle(c));
++    c->phase=GGW_VERIFY;TRY(verify_data(c,prefix));
++    c->phase=GGW_FINAL;TRY(barrier(c));if(!guard(c))return GGW_GUARD;
++    c->work.complete=1;return GGW_OK;
++}
++#undef TRY
++enum ggw_result ggw_start_once(struct ggw_context *c,const struct ggw_ops *ops,const struct ggd_plan *p,struct ggw_receipt *out)
++{
++    const void *ptr[]={c,ops,p,out};size_t len[]={sizeof(*c),sizeof(*ops),sizeof(*p),sizeof(*out)};
++    for(unsigned i=0;i<4;i++){
++        if(!span(ptr[i],len[i]))return GGW_ARGUMENT;
++        for(unsigned j=0;j<i;j++)if(overlap(ptr[i],len[i],ptr[j],len[j]))return GGW_ARGUMENT;
++    }
++    struct ggw_command cmd;struct ggw_prefix prefix;struct ggq_command init;struct ggu_command mode;
++    if(!ggw_command_build(p,&cmd)||!ggq_command_build(&p->bootstrap,&init)||!ggu_command_build(&p->bootstrap,&mode)||!ops->guard||!ops->seal||
++       !ops->read32||!ops->write32||!ops->read_memory||!ops->write_memory||
++       !ops->barrier||!ops->delay_us||!ops->quarantine)return GGW_ARGUMENT;
++    memcpy(prefix.word,init.word,sizeof(init.word));memcpy(prefix.word+GGQ_COMMAND_WORDS,mode.word,sizeof(mode.word));
++    const struct ggw_ops saved=*ops;const struct ggd_plan plan=*p;unsigned idle=0;
++    if(!__atomic_compare_exchange_n(&c->state,&idle,1,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GGW_ALREADY;
++    c->ops=saved;c->command=cmd;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));
++    enum ggw_result result=execute(c,&plan,&prefix);
++    if(result){__atomic_store_n(&c->state,3,__ATOMIC_RELEASE);c->ops.quarantine(c->ops.cookie);}
++    else{c->phase=GGW_DONE;*out=c->work;__atomic_store_n(&c->state,2,__ATOMIC_RELEASE);}
++    return result;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_write.h
+@@ -0,0 +1,62 @@
++#ifndef GAUGUIN_GPU_WRITE_H
++#define GAUGUIN_GPU_WRITE_H
++#include "gauguin_gpu_data.h"
++#include "gauguin_gpu_unsecure.h"
++enum ggw_phase {GGW_IDLE,GGW_SEAL,GGW_CAPTURE,GGW_COMMANDS,GGW_SUBMIT,
++    GGW_WAIT,GGW_VERIFY,GGW_FINAL,GGW_DONE};
++enum ggw_result {GGW_OK,GGW_ARGUMENT,GGW_ALREADY,GGW_GUARD,GGW_OWNER,GGW_IO,
++    GGW_DIRTY_STATE,GGW_MEMORY_ERROR,GGW_FAULT,GGW_TIMEOUT};
++enum ggw_memory {GGW_RING,GGW_SCRATCH,GGW_DATA};
++#define GGW_START_DWORD 20u
++#define GGW_COMMAND_WORDS 11u
++#define GGW_END_DWORD 31u
++#define GGW_DATA_SEED 0u
++struct ggw_command {uint32_t word[GGW_COMMAND_WORDS];};
++struct ggw_ops {
++    void *cookie;
++    bool (*guard)(void *,enum ggw_phase);
++    bool (*seal)(void *,uint64_t);
++    bool (*read32)(void *,uint32_t,uint32_t *);
++    bool (*write32)(void *,uint32_t,uint32_t);
++    bool (*barrier)(void *);
++    bool (*delay_us)(void *,unsigned);
++    bool (*read_memory)(void *,enum ggw_memory,uint32_t,uint32_t *);
++    bool (*write_memory)(void *,enum ggw_memory,uint32_t,uint32_t);
++    void (*quarantine)(void *);
++};
++struct ggw_receipt {
++    uint32_t reads,writes,prefix_checked,clean_checked,commands_written,commands_checked;
++    uint32_t sealed,initial_wptr,initial_shadow,initial_busy,submit_attempted;
++    uint32_t keepalive_set_attempted,keepalive_clear_attempted,fence_checks,fence_status;
++    uint32_t fence_slow,counter_before_valid,counter_after_valid,idle_polls;
++    uint32_t rptr,busy,rbbm_status,cp_status,complete,requests_retained;
++    uint32_t data_before_checked,data_after_checked,edge_checked,unchanged_checked,ring_after_checked;
++    uint64_t counter_before,counter_after;
++};
++struct ggw_diagnostic {uint32_t valid,memory,reg,expected,actual;};
++struct ggw_context {
++    uint32_t state,phase;
++    struct ggw_ops ops;
++    struct ggw_command command;
++    struct ggw_receipt work;
++    struct ggw_diagnostic diagnostic;
++};
++bool ggw_command_build(const struct ggd_plan *,struct ggw_command *);
++bool ggw_register_allowed(uint32_t,bool);
++/* Pure fixed31-dword RB0 continuation, never a general scheduler/renderer.
++ * Actual provider must seal private same-boot signed/native-mode completion,
++ * exclusive cold DATA19 mapping/NC CPU page/PTE permissions/routes/owners,
++ * idle WPTR/shadow20, live clock/IRQ/reset/fault/context and bounded WDT/time.
++ * Caller owner PA is comparison-only. No caller-created receipt is authority.
++ * Capture checks original20 words,11 unused slots and1024 zero data dwords.
++ * Write ONLY ringDW20..30. Never write scratch/data, clear/reinit a ring,
++ * restart SQE, change PTEs, access secure memory or release retained requests.
++ * Native MEM_WRITE x2 + submit_spin WHERE_AM_I/fence/idle are followed by
++ * all1024 data comparisons (2 new edge words,1022 preserved), full31-word
++ * ring comparison and final fault check. Rendering/IB/EOP/shader/Metal work
++ * remains separate. Failure consumes the once owner and quarantines before
++ * return, with no cleanup/retry/rollback or further hardware operation;
++ * output stays untouched. Linking alone supplies no live dispatch. */
++enum ggw_result ggw_start_once(struct ggw_context *,const struct ggw_ops *,
++    const struct ggd_plan *,struct ggw_receipt *);
++#endif

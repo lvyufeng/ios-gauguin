@@ -165,3 +165,4 @@
 0167-gauguin-native-ib-eop-completion.patch
 0168-gauguin-fixed-native-compute.patch
 0169-gauguin-native-offscreen-clear.patch
+0170-gauguin-clear-user32-event-source.patch

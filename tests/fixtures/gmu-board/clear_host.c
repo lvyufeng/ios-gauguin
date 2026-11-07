@@ -5,7 +5,7 @@
 #define restore clear_native_restore
 #define preamble clear_native_preamble
 #define expected_page clear_expected_page
-#include "gpu-clear/native_words.h"
+#include "gpu-clear/source_profile_words.h"
 #undef expected_page
 #undef command
 #undef indirect
@@ -70,7 +70,7 @@ static void host_clear_event(void)
  CHECK(lf.device_done&&!lf.eop_done&&lf.submits&&!lf.kept);
  unsigned events=0;
  for(unsigned i=0;i+4<149;i++)if(clear_native_ib[i]==0x70460004){
-  CHECK((clear_native_ib[i+1]&0xc0000000u)==0x40000000u&&clear_native_ib[i+2]==0xfc018c00u&&clear_native_ib[i+3]==0&&clear_native_ib[i+4]==++events);
+  CHECK((clear_native_ib[i+1]&0xc0000000u)==0u&&clear_native_ib[i+2]==0xfc018c00u&&clear_native_ib[i+3]==0&&clear_native_ib[i+4]==++events);
  }
  CHECK(events==7);uint32_t value=lf.bad_eop?lf.bad_eop:7;
  memcpy(ram+0xb8c00,&value,4);lf.eop_done=1;lf.device_writes+=7;

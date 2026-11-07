@@ -6,7 +6,7 @@
 static unsigned checks,cases;
 #define CHECK(x) do{++checks;if(!(x)){fprintf(stderr,"GPU clear line%d\n",__LINE__);abort();}}while(0)
 static const uint32_t prefix[20]={0x70c8000b,0x16f,3,0x20000000,0,0,0,2,0xfc014000,0,0,0,0x70620002,0xfc010000,0,0x70e60001,0,0x70620002,0xfc010000,0};
-#include "native_words.h"
+#include "source_profile_words.h"
 struct fake {
     struct ggl_context c;struct ggl_ops ops;struct ggd_plan p;
     uint32_t ring[8192],scratch[1024],data[1024],reg[0x24000];
@@ -16,6 +16,7 @@ struct fake {
     unsigned shadow_reads,busy_reads,rptr_delay,busy_delay,bad_rptr,bad_busy,timeout_guard,fault_after;
     unsigned nc_since_guard,max_nc_seen,drop_pixels;
     unsigned device_done,device_writes,drop_data,corrupt_data,eop_done,eop_reads,eop_delay,drop_eop,bad_eop,eop_guard;
+    unsigned stalled_control;
 };
 static bool tick(struct fake *f){CHECK(!f->quarantined);return ++f->step!=f->fail;}
 static bool guard(void *cookie,enum ggl_phase phase)
@@ -54,7 +55,7 @@ static void device_eop(struct fake *f)
     CHECK(f->device_done&&!f->eop_done&&f->reg[0x807]==27);
     unsigned events=0;
     for(unsigned i=0;i+4<149;i++)if(indirect[i]==0x70460004){
-        CHECK((indirect[i+1]&0xc0000000u)==0x40000000u&&indirect[i+2]==0xfc018c00u&&indirect[i+3]==0&&indirect[i+4]==++events);
+        CHECK((indirect[i+1]&0xc0000000u)==0u&&indirect[i+2]==0xfc018c00u&&indirect[i+3]==0&&indirect[i+4]==++events);
     }
     CHECK(events==7);f->data[768]=f->bad_eop?f->bad_eop:7;f->device_writes+=7;f->eop_done=1;
     if(f->corrupt_data){CHECK(f->corrupt_data<=1024);f->data[f->corrupt_data-1]^=1;}
@@ -93,6 +94,8 @@ static bool read_memory(void *cookie,enum ggl_memory mem,uint32_t off,uint32_t *
     if(!tick(f))return false;++f->mem_reads;CHECK(++f->nc_since_guard<=64);
     if(f->c.phase==GGL_WAIT&&mem==GGL_SCRATCH){CHECK(f->submitted&&!f->kept&&f->device_done&&f->reg[0x807]==27);
         if(f->shadow_reads++>=f->rptr_delay)f->scratch[0]=27;if(f->bad_rptr)f->scratch[0]=f->bad_rptr;
+        /* Adversarial device result, never a production CPU DATA store. */
+        if(f->stalled_control&&f->shadow_reads==1){f->data[768]=f->stalled_control;++f->device_writes;}
         if(f->trace)printf("P %08x\n",f->scratch[0]);}
     if(f->c.phase==GGL_WAIT&&mem==GGL_DATA){
         CHECK(f->device_done&&!f->kept&&(off==3072||off==3076));
@@ -185,6 +188,20 @@ int main(int argc,char **argv)
     for(unsigned delay=1;delay<=1023;delay=delay==1?2:delay==2?1023:1024){struct fake *f=fresh(0);f->eop_delay=delay;good(f);free(f);}
     {struct fake *f=fresh(0);f->drop_eop=1;stopped(f,GGL_TIMEOUT);CHECK(f->eop_reads==1024&&f->scratch[0]==27&&!f->kept&&f->device_writes==256);free(f);}
     {struct fake *f=fresh(0);f->bad_eop=1;stopped(f,GGL_MEMORY_ERROR);CHECK(f->eop_reads==1&&f->scratch[0]==27);free(f);}
+    {const unsigned wrong[]={6,0x0cf49802u,0xffffffffu};for(unsigned i=0;i<3;i++){
+        struct fake *f=fresh(0);f->bad_eop=wrong[i];stopped(f,GGL_MEMORY_ERROR);
+        CHECK(f->eop_reads==1&&!f->c.work.eop_complete&&!f->c.work.data_after_checked);free(f);
+    }}
+    /* Match the observed169 shadow/control/neighbor values under a bounded
+     * model. This must quarantine, never reach final EOP/pixel acceptance.
+     * It does not identify the packet at which the physical GPU stalled. */
+    {struct fake *f=fresh(0);f->drop_pixels=1;f->bad_rptr=20;
+        f->stalled_control=0x0cf49802u;f->timeout_guard=214;stopped(f,GGL_GUARD);
+        CHECK(f->c.work.wait_samples==213&&f->c.work.wait_control==0x0cf49802u&&
+              !f->c.work.wait_control_hi&&!f->c.work.eop_polls&&!f->c.work.eop_complete&&
+              !f->c.work.data_after_checked&&!f->c.work.pixels_checked&&!f->kept);
+        free(f);
+    }
     {struct fake *f=fresh(0);f->drop_eop=1;f->eop_guard=3;stopped(f,GGL_GUARD);free(f);}
     {struct fake *f=fresh(0);f->corrupt_phase=GGL_WAIT;f->corrupt_mem=GGL_DATA;f->corrupt_offset=3072;stopped(f,GGL_MEMORY_ERROR);free(f);}
     {struct fake *f=fresh(0);f->drop_pixels=1;stopped(f,GGL_MEMORY_ERROR);CHECK(f->eop_done&&f->data[768]==7&&f->scratch[0]==27);free(f);}

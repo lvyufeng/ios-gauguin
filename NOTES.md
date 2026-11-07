@@ -3,6 +3,68 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —170 USER32 kernel source/all83host ACCEPTED; full build NEXT
+
+Fullgoal ACTIVE/unlimited; no170kernel/image/device yet. Current generated
+XNU recipe still169 gauguin.v8Ky8T. Phone last TWRP169; ALLresetsautomatic,
+never ask attribution. No new destructive actions; original mkadt diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 unchanged.
+
+New164th active patch0170-gauguin-clear-user32-event-source.patch changes
+exactly3files vs169: native clear149 array ONLY7source-generated headers,
+comments/provenance, one board diagnostic TIMESTAMP->FENCE/USER32 suffix.
+All other clear engine logic/header geometry and entire board outside that
+diagnostic are byte/semantic identical; all older modes0..6/engines/mappings
+unchanged. No oracle, seq7, masks/highneighbor/zero checks, timeout/guard or
+quarantine relaxation. Original169patch/raw/image/fixtures preserved. New
+source_profile_words.h from accepted native capture; original native_words.h
+remains exact169control. Updated test input pins now include actual new header.
+
+DSH34839/v5focus failed after clear model0; board model never compiled due
+missing unchanged board.h/compute files in narrow candidate view. ALLfailed
+inputs preserved in focus-v1-input-snapshot before later test input-pin updates.
+Codex fixed only host view/bindings, newv6focus full rerun. DSH66865 terminal
+inner0 FIRSTv2,123.18s: clear14875cases/280494724assertions incl observed169
+213samples/control0x0cf49802/hi0/shadow20 guard rejection +wrongfinalseqs;
+board4055newclearcases plusallold; actual two changed ARM64TUs0 using then
+current169manifest52727645fa0536302971170d36094367daeae420e9073c4bd233347d978f547c.
+No sanitizer/native-device success conflation.
+
+DSH22466/v6integration terminalinner0 FIRST,260.93s: pristine164patch replay,
+all83actual hostfiles0,5314sourcefiles SHA
+ef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3.
+Replayed delta equals exact3candidatefiles, independently predicted hash;
+source169unchanged. Root review_source170 FIRST0
+independent-source-review.json SHA
+52d2e3801f89e3da46ae55ea16913a3f84884456357a9da921d557dd2c117f9d:
+allinput/snapshot hashes/full83log/twoobjects/five555wordtraces/nativeprofile/
+old169fixture/failedfocus snapshot/unchangedoldproviders/guards accepted.
+
+DSH39986/v7standalone clear parser terminalinner0 FIRST,22.63s. New production
+parser/source metadata accurately name USER32, FENCE and sequence7, bit30false;
+all previous actual pixel/fullpage/nativebytes/ordering/time/fault criteria
+retained. Additional actualclock-as-completion and oldbit30 packet mutations
+rejected; clear-parser-standalone-result.json records exact counts/pins.
+This and all build source flags are SYNTHETIC/source-only, hardwarefalse.
+
+Codex authored bind_host170/qualify_native0170/build170, preserving older native
+assembler/CP/PIL/data/EOP/GGK foundations verbatim and accurate12clear flags
+(oldbit30source flag replaced by USER32source flag). Preflight not yet run.
+Two author_contract170 helpers failed only pre-write indentation during source
+generation; expected-source170.json writtenonce, actualcontract createdv3.
+Original failures preserved; no gate/device executed by either helper.
+Runtime fixture/parser170helpers authored but full actual-artifact gate pending.
+Optional8worker negative-parse partition runner authored, NOTRUN/qualified;
+every original positive/generator/rejection-body must remain unchanged and
+allcase SHA manifests identical/exactunion before using any parallel result.
+
+NEXT: freeze this committed source/private-public SAME TREE snapshot, DSH once
+preflight then one fullLOCAL8job170build; independently review. Then package,
+full runtime/metadata/framing/clock/FW gates, one temporary trial and readback.
+No physical clear/render/Metal/highrefresh/UIperformance claim until actual
+strictgates pass. No user action needed. Codex criticalcode/review, DSH execution.
+
+
 ### 2026-11-08 —170 explicit A619 event-source native profile ACCEPTED; kernel NEXT
 
 Full goal ACTIVE/unlimited. Source/native milestone only, NO170kernel/image/

@@ -47,7 +47,18 @@ The independent profile review SHA256 is
 `275b73a58ebd32f05f53f7a339e7ca362a93c93979174a10954f501bf5d0b425`.
 These are host/source checks, without GPU emulation or hardware qualification.
 
-The next kernel must retain the full-page pixel checks, exact EOP7 comparison,
+Patch170 carries those source-generated headers into the kernel. Its only
+functional change is the seven event-source words. The clear engine's other
+logic, header geometry and board code are unchanged apart from comments and
+one diagnostic renamed FENCE with the USER32 source stated explicitly.
+Pristine replay of164 patches produces5314 files with SHA256
+`ef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3`.
+All83 host test files, the actual signed/GGU/clear board model and two changed
+ARM64 translation units pass. The clear model includes14875 cases, including
+rejection of the observed169 control/shadow values and incorrect final
+sequences. These checks still provide no physical clear result.
+
+The kernel retains the full-page pixel checks, exact EOP7 comparison,
 zero high neighbor, guards, permissions, ownership quarantine and current
 timeouts. The failed169 image, packets, raw records and verifier results remain
 preserved. A new temporary trial is required to determine whether this source

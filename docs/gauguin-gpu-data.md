@@ -229,8 +229,41 @@ and direct seven-word append exactly. A clean replay of all162 patches and
 all82 host test files passed, followed by source/build preflight and an
 independent review of the complete input records, source and object files.
 
-These are source/model results. No168 complete kernel or physical shader
-experiment has been produced yet. The next step is one complete local
-kernel build and strict artifact qualification, then image/runtime gates
-and one temporary device boot. Rendering, Metal, high refresh and daily-use
-acceptance remain unfinished.
+The168 local kernel `gauguin.7kjNwR` passed its first complete build and strict
+artifact qualification. Its source has5312 files and all162 active patches.
+The reviewed image used token `gwrt-0168-a1`, exact606-byte mode6 options,
+the existing five assets and the same cold mappings. One temporary boot
+returned automatically to TWRP after136 seconds.
+
+The accepted physical records show the GPU reaching shadow27,31 nonzero invocation results
+`1..31`, completion value2, all992 other words remaining zero, complete
+artifact readback and zero decoded faults. The32 actual cached before/after
+values are present. The separate strict physical verifier returned0, and an
+independent review rehashed all21 complete report inputs and19 wrapper inputs,
+decoded the binary log independently, and compared the actual results and
+native artifacts. There were zero console framing recoveries.
+
+The first reader rejected a stale mode5 transition string in both its parser
+and synthetic fixture. A new decoder binds the correct mode6 string to the
+frozen coordinator source and installed kernel while retaining the other
+criteria. A later fixture namespace failure is also preserved. The corrected
+full fixture passed all prior cases and four additional wrong-mode marker
+controls before the same original physical log was accepted. No second boot,
+raw-log change or kernel/image rebuild was needed for these parser fixes.
+
+The accepted report is
+`research/tmp/dsh-0168/hardware-full-verification-v3.json`, SHA256
+`45fad0b0f683b89dfbf2942f06746d485c3f97a47ee1e0a73004d3c11910e9a1`.
+The source-only build qualifier retains its hardware flags as false; this
+separate physical report establishes the bounded shader result. The guarded
+diagnostic took0.1524 seconds including CPU checks and readback, which is not
+a GPU throughput or UI benchmark.
+
+Rendering, Metal, general scheduling, high refresh and daily-use acceptance
+remain unfinished. The next graphics step is a bounded offscreen color
+clear/blit using the original Mesa A6xx implementation, followed by a separate
+triangle/draw path and the iOS acceleration interface. A proposed16x16 linear
+RGBA target fits in the existing DATA page with disjoint completion storage;
+native layout, CCU configuration, command capture and all addresses must be
+verified before implementation. A clear/blit result will not establish a
+working Metal driver or desktop acceleration.

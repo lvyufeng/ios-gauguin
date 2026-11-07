@@ -2,6 +2,139 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual143 native register DCVS request ACK/return0 PASS; next GPU MMU/core/CP
+
+THIS turn is progress: native source/DT audit corrected provisional BW1 to
+actual253MHz row BW5, implemented/validated/published143 fixed register/OOB
+request, complete LOCAL kernel/image and strict readers passed, ONE physical
+temporary boot accepted the request after all five startup messages. Whole
+GPU/Metal/RAM/storage/peripheral/high-refresh/daily-use goal remains ACTIVE
+and incomplete. Request/return0 is not measured frequency/bandwidth, dynamic
+DVFS/governor, async power/IRQ lifecycle, GPU command execution or Metal.
+
+DSH26548 CLOSED0; actual run_hardware143.py0, observer0, unchanged strict
+full verifier3 (all technical evidence PASS, THIS143 reset attribution UNKNOWN).
+Start2026-11-07T01:13:53.374385Z,finish01:16:05.386913Z. Send19088KB0.442s,
+boot0.134s,total0.579s; TWRP observed131s includes boot/log/recovery, not a
+hardware reset-cause measurement. No duplicate/retry. Do not reuse prior117
+or138 user reset confirmation for THIS143; no new user UI/touch/reset fact
+and no attribution question is needed for the next technically proven stage.
+
+Actual raw request perf_index1/hz253000000/bw_index5/Bps2188000000,
+option00000000/perf30000001/bw00005005. Actual completion before00000000,
+ACK80000000,cleared00000000,return00000000. This proves fresh ACK31/clear
+and native return0, exactly the selected-DT request, not measured253MHz.
+All INIT/VERSION/PERF/BW/TEST retained; FWbabeface/reported10110000,
+phase6/copy8192/8192/writes94/polls9/debug0. SMMU131/140, BCM/ARC/CX/clocks,
+same-fresh-CMDDB BW plan, source/manifest/qualified image/full banner/trial
+and final owner/IRQ/clock/fault guards passed. No partial/refused diagnostic.
+Codex independently rehashed ALL full-report input paths/sizes before editing
+this handoff. Full state
+verified-GMU-firmware-PERF-BW-TEST-DCVS-HFI-SMMU-clock-CX-controller-reset-attribution-unverified;
+gmu_dcvs_result verified-fixed-native-register-OOB-request-return0.
+
+Raw4061lines/455840B research/tmp/p3-gmuf-0143-native-observer-20261107.txt
+SHAdcdcb46b455b581f5f16e9e8a711487f9fd689437cf1fa467160b412b1c132e0;
+cycle991B SHAf4f348ba50d3d3a7cda4b17b907308fd9bb8fc42057d03576e9fcec2a8efe4c3.
+Full report28756B SHA
+4d1f7443ea93d4faf03bcee13ba6ad66f1f239ca7134690a3d08483dcb7ee317
+at research/tmp/dsh-0143/hardware-full-verification.json. Kernel14377lIOK/
+HEADcbf1470/7626c642...8911af79d, imageb32b68f6...02d4ef3b preserved along
+with142/all earlier baselines. Runtime reader128/429/full24/133 (synthetic)
+and clock4/95 passed before boot; reportcec41b31...0735a21. Prep commits
+875225f and61e40fa. CURRENT full native recipe/source14377lIOK. Phone
+observedTWRP, all owned DSH handles CLOSED. Original7-line mkadt diff intact.
+No flash/format/GPT/destructive operation/CI. Source publication801c2dd
+remote verified; sanitized physical handoff publication next.
+
+NEXT144: preserve143 as reproducible native power-request baseline. Rebind
+exact19b63c8 adreno.c/adreno_a6xx.c/adreno-gpulist.h and GPU MMU helpers,
+decode retained/fresh live FDT GPU stream/context-bank/global-memory policy
+before changing GPU SMMU ownership. Native _adreno_start does AWARE (GMU
+startup/default DCVS), then kgsl_mmu_start BEFORE oob_gpu; only after that
+performs core setup and ring start. Do not blindly read/write gated GPU core
+or reuse GMU SID4/5 mappings as a GPU command context. Audit inherited GPU
+routes/banks without touching other/secure owners, build correct bounded GPU
+context/global memory plan, then coherent native MMU/owned GPU hold/core
+checks. A619 oob_gpu0 uses SET16/ACK24/ACKclear24 and later clear24; retain
+boot-slumber OOB until native start completes. Native hfi_start_msg returns0
+for HFI_USE_REG, so no extra START HFI after TEST.
+
+Cached-source observations to rebind before implementation: A619 descriptor
+uses a630_sqe.fw, not an invented a619_sqe filename; existing captured file
+32304B SHAa0e1b583f620fabe32729ce367959d1960638663244d7d0cfc21b9a5215a018b.
+Native _load_firmware strips first4-byte version/header, GPU readonly ucode
+32300B/8075words. Native ring start writes RPTR addr/RB config/base, SQE
+instruction base, SQE_CNTL1, sends12-word CP_ME_INIT, THEN loads a615_zap
+via PIL and sends unsecured-mode command/post-start. CP_ME_INIT is type7
+11-word payload including native ordinal mask/reglist pointer; do not skip
+MMU/powerup/protected-reglist dependencies or claim render proof from bytes.
+Prior116 INIT_IMAGE and117 MEM_SETUP returned0, but b02/auth_reset/ZAP/CP
+execution remain unqualified and cannot be inferred from those returns.
+Continue Codex critical drivers/plans/Git/review and DSH exact reviewed
+compile/test/build/temporary boot. Work toward actual bounded GPU execution
+and readback before userspace acceleration/Metal bridge and high refresh.
+
+### 2026-11-07 —143 image and strict native DCVS readers qualified; ONE physical trial next
+
+DSH17808 CLOSED0: actual package0/independent review0, normal result passed,
+inputs unchanged. Image19546112B SHA
+b32b68f6f63e9bb73aec6ac6b0f1e5e0b405d3fbdbcbea294e2ab80a02d4ef3b;
+payload19218432B SHA
+01da4073f4e960ca57246017fa7d8f3f6c8c9d03068762f59dc40eb6a5df9eb3.
+Evidence4070B SHA
+5ef2a04a2b23378b3cb955d5ae13909d60ce60fee2fd73ab7764923dfdbcb212.
+Unique trialgmuf-0143-20261107-a1/sweetgmudcvs1; cmdline582B. All old142/
+other image pins and NVT182558000/MDT18257c000/GMU182580000 assets preserved.
+No143 phone IO yet.
+
+DSH62998 CLOSED0; runtime_validate143.py0, three zero results and unchanged
+inputs. Report at research/tmp/dsh-0143/runtime-parser-result.json SHA
+cec41b31300d370a798e25b89dc69773e72e99120d4d853189df9c6670735a21.
+Reader SHA9ce03b637ce0e1523b31562f201e93651d28778dab3b46cf59afffd6eec0d8a1;
+original142 clock/SMMU/FW/BW/TEST/identity/fresh CMDDB/IRQ/guard checks retained,
+new strict DCVS exact request/fresh ACK31/clear/native return0/order/source
+flag binding plus missing/duplicate/partial/malformed/nonzero/stale variants.
+Explicit CPU fixtures are not hardware evidence. No143 DCVS reply/return or
+measured rate/GPU execution/reset/UI/touch assertion yet.
+
+Reviewed boot143/run_hardware143 owns exactly ONE temporary image boot,
+routine13-byte boot-recovery BCB/readback, product checks, recovery->fastboot,
+180s observer/fresh pull and strict full reader. No added external ADB or
+fastboot preflights/initial fastboot requirement. NEXT execute-hardware.txt.
+Phone last observedTWRP, all owned DSH handles CLOSED. Current full native
+recipe/source14377lIOK. Whole goal ACTIVE/incomplete; original mkadt diff
+intact, no flash/format/GPT/destructive action/CI.
+
+### 2026-11-07 — complete143 local native register DCVS kernel qualified; packaging/readers next
+
+DSH48112 CLOSED0, actual build143.py build0/qualification0; run
+gauguin.77lIOK/HEADcbf14703467c13eff5d1bc7f44b9880111039149, exact137-patch source
+6f77f55c0fc3431b7b6049a2373c8374392e9aaea242658245b6c9323da54258,
+5282files. Kernel16906408B SHA7626c64238f960fd26b0f6e809eab35a9a042bbaf83ac43dca865ed8911af79d,
+IDxnu-4727430828e1431ab29d09e79afb62db. Manifest SHA
+e8abacb6ff46b4aab8f673ec710498975616e28c142b40e50d267918af459a45. Qualification at
+research/tmp/p3-native-0143-qualification-20261107.json SHA
+c2c9d4ed4810ab4cbca80f205f03213e7b891ae1cf00be616886d5e3a869eb48.
+All142 qualifiers retained; native_dcvs_transaction_source_bound true, exact
+post-TEST fixed native TCM/OOB/request/flag/receipt/final-guard/kernel-format
+and actual installed symbols checked. Public firmware receipt unchanged.
+Hardware remains unqualified for143; no143 image/boot/DCVS reply/return yet.
+No CI used. CURRENT native generated recipe/source NOW14377lIOK,142NfYVjn
+is historical for future single-file compiles.
+
+Codex prepared143 pack/review/strict reader fixtures from142 with metadata
+hash/numeric invariants before explicit DCVS rules. New sweetgmudcvs1,
+unique143trial; prior142/all old image pins preserved. Reader requires the
+original ordered INIT/VERSION/PERF/BW/TEST and same-fresh-CMDDB plan, then
+exact native253MHz/BW5 request, fresh ACK31 with no error15, clear31 and
+return0. Counts94..244/9..9000/debug<=225. Record/flag/source/ordering/
+missing/duplicate/partial/native return anomalies must reject. CPU fixtures
+remain explicitly synthetic. NEXT DSH package/review, three runtime-reader
+suites and ONE temporary phone boot after passing. Phone last observedTWRP,
+all owned DSH handles CLOSED. Whole goal ACTIVE/incomplete; original mkadt
+diff unchanged, no flash/format/GPT/destructive step.
+
 ### 2026-11-07 —143 native register DCVS validated; active DT BW5 replaces provisional BW1
 
 Previous turn was progress: physical142 native BW/TEST ACK PASS. THIS turn
@@ -76,7 +209,13 @@ gmu143-gauguin_gmu_board/run-f4fmjq42/compile.json; coordinator49184B SHA
 gmu143-gauguin_bcm_coordinator/run-cioi7fxh/compile.json, all under
 research/tmp/gauguin-nvt-p1. Uses CURRENT142NfYVjn full native recipe/source.
 
-NEXT: publish validated source, DSH full LOCAL build143 and all inherited
+Validated source published and ls-remote verified 801c2dddbd5e8d31186d6e86f406eb2eb3b4b97d, sole
+parentafb3a92abc30d5925e8a0206fbfd5fcd6e6c7ad5, same tree as private6d3929f8b078c3c968bebe111375f874f2073b5b.
+Exactly10 text paths; report research/tmp/dsh-0143/public-snapshot-0143.json.
+No private ancestry/raw/FDT/downloaded native sources/binaries/serials pushed;
+no CI run.
+
+NEXT: DSH full LOCAL build143 and all inherited
 qualifiers + native DCVS source/order/flags/symbol/record binding. Pack unique
 sweetgmudcvs1 trial, require post-TEST DCVS request/fresh ACK31/clear/return0,
 source-bound fixed253MHz/BW5 request and final guards. Bounds94..244 stores,

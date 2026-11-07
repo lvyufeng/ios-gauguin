@@ -157,3 +157,4 @@
 0159-gauguin-live-native-unsecure-append.patch
 0160-gauguin-normal-gpu-data-constructors.patch
 0161-gauguin-explicit-normal-data-smmu-layout.patch
+0162-gauguin-normal-gpu-write-readback-engine.patch

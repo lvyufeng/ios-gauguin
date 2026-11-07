@@ -266,6 +266,32 @@ All4 relevant ARM64 translation units and all77 host files pass on a fresh
 155-patch replay. The board does not select this new API yet; no161 kernel,
 image, live data mapping, submission or rendering result is claimed.
 
+Patch0162 implements the fixed ordinary-page write/readback engine. It seals
+provider authority, checks existing WPTR/shadow20 and the original20 command
+words,11 unused ring slots and a zero data page. It appends exactly two native
+`cp_mem_write` packets plus `submit_spin`'s WHERE_AM_I marker at DW20..30,
+then follows native keepalive, fenced WPTR31, counter and idle checks.
+Completion requires device shadow31, no busy/error indication, both new edge
+words, all1022 untouched middle dwords, the complete31-word ring image and a
+final fault check. It never writes data or scratch from the CPU. Failed
+callbacks consume the attempt and quarantine before returning, without
+cleanup/retry or output publication. The live provider must separately bind
+the actual private signed/native-mode receipt and cold DATA19 mapping.
+
+The actual model passes16202 cases with280360152 assertions, including every
+normal/delayed callback boundary, all pre/post data/ring corruption positions,
+partial command stores, fake-device corruption, missing writes and timeout,
+fault, ownership and argument cases. The ARM64 translation unit compiles.
+An independent fixture executes41 unchanged native functions, retaining all
+38 previous body hashes and adding the actual memory-packet, memory-write and
+post_start functions. Runtime preemption remains disabled and post_start is
+a verified no-op. Five complete command/submit/idle traces match the port
+byte-for-byte, with fenced-write exhaustion checked separately. The earlier
+ZAP seam and device memory publication in this fixture are explicit model
+inputs. This raw CP memory path makes no rendering/EOP timestamp claim.
+Fresh156-patch replay and all78 host files pass. There is still no live163
+board binding, new kernel/image or hardware data-write result.
+
 Do not substitute a TRUST_CONTROL0 write for the native signed-load/unsecured
 path. Completing the transition will still leave general scheduling,
 rendering, the iOS graphics/Metal interface, power management and high-refresh

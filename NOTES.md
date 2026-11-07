@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —143 image and strict native DCVS readers qualified; ONE physical trial next
+
+DSH17808 CLOSED0: actual package0/independent review0, normal result passed,
+inputs unchanged. Image19546112B SHA
+b32b68f6f63e9bb73aec6ac6b0f1e5e0b405d3fbdbcbea294e2ab80a02d4ef3b;
+payload19218432B SHA
+01da4073f4e960ca57246017fa7d8f3f6c8c9d03068762f59dc40eb6a5df9eb3.
+Evidence4070B SHA
+5ef2a04a2b23378b3cb955d5ae13909d60ce60fee2fd73ab7764923dfdbcb212.
+Unique trialgmuf-0143-20261107-a1/sweetgmudcvs1; cmdline582B. All old142/
+other image pins and NVT182558000/MDT18257c000/GMU182580000 assets preserved.
+No143 phone IO yet.
+
+DSH62998 CLOSED0; runtime_validate143.py0, three zero results and unchanged
+inputs. Report at research/tmp/dsh-0143/runtime-parser-result.json SHA
+cec41b31300d370a798e25b89dc69773e72e99120d4d853189df9c6670735a21.
+Reader SHA9ce03b637ce0e1523b31562f201e93651d28778dab3b46cf59afffd6eec0d8a1;
+original142 clock/SMMU/FW/BW/TEST/identity/fresh CMDDB/IRQ/guard checks retained,
+new strict DCVS exact request/fresh ACK31/clear/native return0/order/source
+flag binding plus missing/duplicate/partial/malformed/nonzero/stale variants.
+Explicit CPU fixtures are not hardware evidence. No143 DCVS reply/return or
+measured rate/GPU execution/reset/UI/touch assertion yet.
+
+Reviewed boot143/run_hardware143 owns exactly ONE temporary image boot,
+routine13-byte boot-recovery BCB/readback, product checks, recovery->fastboot,
+180s observer/fresh pull and strict full reader. No added external ADB or
+fastboot preflights/initial fastboot requirement. NEXT execute-hardware.txt.
+Phone last observedTWRP, all owned DSH handles CLOSED. Current full native
+recipe/source14377lIOK. Whole goal ACTIVE/incomplete; original mkadt diff
+intact, no flash/format/GPT/destructive action/CI.
+
 ### 2026-11-07 — complete143 local native register DCVS kernel qualified; packaging/readers next
 
 DSH48112 CLOSED0, actual build143.py build0/qualification0; run

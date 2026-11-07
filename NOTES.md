@@ -2,6 +2,135 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —148 PHYSICAL native MMU/GPU OOB/core access verified; THIS reset attribution pending
+
+DSH80336 CLOSED0; run_hardware148.py actual0, observer0/full reader3. Exactly ONE
+temporary148 boot, started2026-11-07T04:01:13.814226Z,finished04:03:25.838183Z;
+19136KBsend0.443s,boot0.134s,total0.580s. TWRP observed131s; fresh logs/banner
+matched. THIS148 self-reset question sent asynchronously, still PENDING. Do not
+reuse147 confirmation or label autonomous reset yet. Last phone observedTWRP148.
+
+NEW physical evidence: ggx phase8/rc0, same GPUbank2/ASID3/root00030000aa29c000,
+CONTEXTIDR0,TLBSTATUS0,TLB1poll; native7x32+1x64writes. HUM raw2,DORAraw1
+observed (equality still not required). GPU OOB before0 ->ACK01000000 ->clear0,
+1poll; native SET16/ACK24, request/accept/clear all1. HOST GPU request retained.
+Disjoint03d00000+4000 Device core mapping succeeded AFTER OOB; raw RBBM_STATUS1,
+STATUS3=0. Final live firmware/owner/fault/IRQ/clock/context/lease guards passed.
+Raw status1 is NOT an idleness/execution claim. New stage issues NO core write,
+SQE load, CP/RB command, ZAP auth or rendering. Whole GPU/Metal still unqualified.
+
+Same trial retains147 physical GPU SID0 slot2/CB2/ASID3,18GPU+131GMU leaves/
+168ATOS/186writes/170polls, CP aperture native scalar transport0 and complete
+fresh GMU INIT/VERSION/PERF/BW/TEST/DCVS return0. ExistingUI launchd/SpringBoard/
+backboardd markers present; touch/display interactions not human-confirmed this
+trial. No measured frequency/bandwidth/high-refresh/daily-use qualification.
+
+Raw4093lines/459875B research/tmp/p3-gmuf-0148-native-observer-20261107.txt
+SHA0910b6dc16a2c884b167df77ca0d3948985a57d2ca283bb5b235a13a1faa13d6;
+cycle1077B SHAc294e67a2f3e8905961842690767d5e6dc82c8f678d3e62520345d55646c07f0;
+full report32455B research/tmp/dsh-0148/hardware-full-verification.json
+SHA41fb4508039c6a6e746b58daabc6a86ee59b13b40732607a5912c9c533d076e6.
+Codex independently rehashed every full-report input size/hash. Report technical
+success remains explicitly reset-attribution-unverified. Strict runtime v2 report
+2711B SHA50200de3438af70fe69d8f9000c9712026871f4a5e5e361268df10f708bfeedd,
+17 inputs rehashed; reader77677B SHA4a461a5645c1d260a9ba53ae60a10230e99a648ab29f2b0f80044207da815967.
+Current complete recipe/source148gauguin.E1ium7, capturedHEAD4e407cf1...47c89d3,
+imageacc52298...fb0bd7, source9268d4e0...67c1865. Code public3b1263a0bc5063dd84a1638bb6c15204d793b2ad.
+All owned DSH tasks CLOSED, original mkadt diff unchanged. No extra device IO,
+CI/flash/format/GPT/destructive actions. Whole goal ACTIVE/incomplete.
+
+NEXT when THIS148 answer arrives: run SAME immutable strict verifier with
+--manual-reset no/yes into NEW attributed report; keep original exit3 report.
+Then retain148 source/image and advance real GPU startup, beginning with pinned
+SQE asset and full A619 core initialization contract. Existing a630_sqe.fw is
+32304B SHAa0e1b583f620fabe32729ce367959d1960638663244d7d0cfc21b9a5215a018b;
+native loader skips4B header ->32300B/8075words. Add a separately pinned boot
+asset/view, copy/verify into existing NC SQE reservation during cold ggb_prepare
+while GX is still OFF, after its zeroing and before GPU becomes active. No
+additional mapping or overwrite of GMU/tables/MDT/padding; keep native18 leaves.
+The607B command has only one NUL byte left: avoid blindly appending new flags;
+extend the current default-off startup pipeline in a new uniquely bound image,
+keeping148 baseline artifacts immutable. Requalify every asset extent/control.
+
+Before first core write, audit EXACT native a6xx_start (HWCG/VBIF/GBIF/UCHE/
+protect ranges/actual A619 flags and live-read powerup-reglist data), _adreno_start
+and a6xx_rb_start. Do not substitute generic A6xx defaults. Verified source order:
+kgsl_mmu_start ->GPU OOB ->HFI_USE_REG start-msg no-op ->core configuration ->
+a6xx_rb_start programs scratch/RB/SQE, SQE_CNTL1 ->a6xx_send_cp_init ->a6xx_zap_load
+->adreno_set_unsecured_mode ->a6xx_post_start. Thus native CP_ME_INIT precedes
+ZAP load; don't invent ZAP-before-CP ordering or force trust controls to skip it.
+Keep OOB ownership through native startup; release only at native lifecycle point.
+Map new core pages narrowly, reuse existing CSR/SMMU/TCM aliases on overlap. Need
+native-policy/actual-address/dynamic-read host models, real TU/full-host/build/
+image/runtime qualification then ONE trial. No149 code or CP/SQE execution yet.
+Codex critical drivers/plans/Git/review, DSH exact compile/test/build/boot execution.
+
+### 2026-11-07 —148 image and strict live-GPU reader qualified; ONE temporary hardware trial next
+
+DSH60475 CLOSED0; actual package0/independent review0, all9 inputs unchanged.
+Image shim/out/shim-p3-gmuf-0148-native-20261107.img19595264B SHA
+acc52298e45d59c9c795b9eac13c5623dc1ad0e5565fe506efd4e02930fb0bd7;
+payload19267584B SHA8d3f02e038c37ddeb85ad5cfd6d0444503f10eccff32faa52865bca5a57e06c6.
+Evidence4138B SHA9e2a5bbf19dd9f74af8ba9b19b4cba79d75b1a010e9e606a6afe1e8c73915110.
+Unique sweettrial=gpus-0148-a1,607B command/sweetgpustart1. New same-kernel
+verified asset placements NVT182568000/MDT18258c000/GMU182590000, unchanged
+content/reservations. All inherited baseline pins retained including147; Codex
+independently rehashed all package/review pins and actual image.
+
+Runtime v1 stopped on my new fixture loop variable overwriting its old global
+prefix bytes; failed fixture/report/log preserved. Actual parser/kernel/image
+unchanged. Explicit v2 rehashes all old inputs, retains clock/FW passes and
+runs full fixture. DSH32529 CLOSED0, actual runtime_validate148_v2.py0. Three
+zero checks:clock4/95,FW132/505,full SYNTHETIC27/206. Existing147 guards retained;
+new exact bank/ASID/root/MMU/TLB/OOB/core counts/order/retained-HOST, failed/
+missing/duplicate/unknown/reordered/partial rejection; raw-zero HUM/DORA/core
+and actual5-slot full positive accepted. No actual148 hardware proof yet.
+Boot148 requires runtime-parser-result-v2.json, never failed v1. All current
+runtime pins independently rehashed. Reviewed boot148/run_hardware148 now owns
+ONE temporary image boot after same routine13-byte BCB/product checks,180s
+observation/fresh pull and full reader. NEXT execute-hardware.txt; last phone
+observedTWRP147. Current complete native recipe148E1ium7, capturedHEAD4e407cf;
+source9268d4e0...67c1865, public3b1263a0...793b2ad. Whole goal ACTIVE/incomplete,
+original mkadt diff intact; no CI/flash/format/GPT/destructive action.
+
+### 2026-11-07 —148 complete native kernel qualified; package running, strict runtime fixtures next
+
+DSH74741 CLOSED0, build148.py actual0/build0/qualification0, exactly ONE standard
+complete local build on captured private4e407cf1f2e6a8e578d495d49be92eba647c89d3,
+sole original mkadt diff, no source/HEAD changes during build. Run gauguin.E1ium7,
+source1489268d4e0...67c1865/5290files/142patches. Kernel16957792B SHA
+0e34c5766c6034840cf4f1db73bdf5510e4ce7f9a7e85249e006653b32f133f7,
+ID xnu-01697f84992f4d1a9c5e2d924af39135. Manifest905772B SHA
+c33dace4788fae14c45818924eb75d2281bf8db533fedcfa6304d508ede8e460.
+Qualification13156B research/tmp/p3-native-0148-qualification-20261107.json
+SHAfc299902661ce122985c266bc81bb3a981b3bcc00f7fb1a9efb9ed3c035bb207.
+All147 checks retained; new native_gpu_start_source_bound true, linked new
+engine/board/coordinator symbols and exactly one gpu_start.o. Hardware remains
+unqualified. Codex independently rehashed actual kernel and manifest.
+CURRENT complete native recipe/source NOW148gauguin.E1ium7;1473eaEOm historical.
+Future real TU probes must use current148 manifest/source, not old generated BSD
+Makefiles which now belong to148. Prior147-based TU proofs remain historical.
+
+Private4e407cf source published3b1263a0bc5063dd84a1638bb6c15204d793b2ad,
+sole parent7e86283da15ed6ab9292eb306e1785fd6304423a, same tree, exactly10 reviewed
+UTF8 text paths. Remote verified; report research/tmp/dsh-0148/public-source-snapshot.json.
+No private ancestry/raw device logs/serials/native downloads/binaries pushed.
+This also publishes147 attributed baseline handoff from private273b570.
+
+DSH60475 currently executing execute-package.txt on qualified148 kernel. Poll
+SAME handle; never restart on a timeout. New607B command verified from exact
+104 baseline options, short unique sweettrial=gpus-0148-a1 leaves final NUL in
+608B field. sweetgpustart1 explicit, all prior flags/assets/baseline pins retained.
+No148 physical boot yet. Strict148 runtime modules prepared with new MMU/TLB/
+OOB/core/retained-HOST receipt and complete ordering, unknown/partial/duplicate/
+missing/drift rejection. They preserve every147 FW/context/aperture check and
+add actual5-slot full synthetic positive plus raw-zero core/HUM/DORA acceptance.
+DO NOT rerun prepare_artifact_helpers.py: it would replace subsequent reader
+extensions. It was used only for initial protected metadata copying. NEXT
+qualified package -> execute-runtime.txt -> ONE temporary148 boot. Original
+mkadt diff intact; all other owned DSH tasks closed, no CI/flash/format/GPT/
+destructive action. Last phone observedTWRP147; whole goal ACTIVE/incomplete.
+
 ### 2026-11-07 —148 native MMU/GPU OOB/core driver validated; complete local build next
 
 THIS goal turn progresses from attributed physical147 baseline to implemented,

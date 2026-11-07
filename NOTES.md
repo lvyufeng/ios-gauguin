@@ -2,6 +2,42 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —167 image/runtime ACCEPTED; ONE physical noIRQ EOP boot NEXT
+
+CURRENT recipe167 gauguin.NQU6PL/source167-codex; full build/qualifier0 FIRST
+attempts. Frozen SOURCE_HEAD03bebd82a068396c72413955add3b0f6c9380b23/publicb230c6304b79c7f87c2a5ff5419f00ec26e13e94,
+NOT later notes commits. DSH8780 image-preflight0,82319 package+independent
+image review0,71005 fullruntime0; all actual dispatch files terminal inner0.
+StandaloneDSH90973 parser39/8810; DSH79942 metadata1valid/18negative0.
+All four new actual-package runtime gates passed FIRST execution: console,
+clock,FW132/584, fullcommon45/678,signed20/117,GGU21/147+5conflictingduplicate
+modes (old print says3),EOP44/316. Native IRQbranch failed/unqualified artifact
+remains preserved; this trial noIRQ only. No parser/raw filters or waivers.
+
+Image19742720B SHA29cadf1bea0ec6c746a3f37597782d91e4e177150bf36f9a856503c188f0bd09,
+shim/out/shim-p3-gmuf-0167-native-20261107.img. PayloadSHA
+a881b22939c164bcd0ea4abc881b1889c68b2f1d4341270e484abf29fbaf14a7.
+Exact606B, mode5/trialgwrt-0167-a1 only delta from166, samefiveassets/default
+absentINIT0/pasmem0. Root independent-image-review.json independently
+reparsed realpayload, checked all package/parent pins and source/helper
+identities; independent-runtime-boot-review.json rehashed allruntime pins,
+18newEOP metadata negatives and actual boot/read helpers. Original observer
+suffix exact except mandatory fastboot failure exit5. Source qualifier all
+hardwareflags stayfalse. No167device IO/YET; phone lastTWRP166.
+
+NEXT DSH python3 research/tmp/dsh-0167/dispatch_once167.py boot ONE time,
+then read using same dispatcher with read_hardware167.py --manual-reset no.
+boot167.py/read_hardware167.py now AUTHORED/independently syntax/pin reviewed,
+fixed actual imageSHA/size and source03bebd8. Routine13Bmisc recovery latch
+/readback and temporary fastboot boot only; no flashing/format/GPT. Observe
+existing process, never restart claimed/live stage. Prompt user only if
+actually stuck needing manual recovery; ALL resets automatic perstanding
+policy. Root independently inspect strict physical report+all inputrecords,
+exactbinarydecode/freshbanner/trial/timestamp/mask63/fullpage/IB8/ring32 and
+timings before claiming bounded EOP execution. No humanUI/touch/refresh or
+shader/rendering/Metal/performance proof from markers. Fullgoal ACTIVE.
+Original mkadt7line diff untouched. Preserve every raw/failed artifact.
+
 ### 2026-11-07 —167 full LOCAL kernel/strict qualification ACCEPTED; image/runtime NEXT
 
 167 ONE complete local8job build0 and strict qualifier0 FIRST attempts,

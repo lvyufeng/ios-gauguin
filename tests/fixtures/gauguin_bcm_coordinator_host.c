@@ -43,8 +43,8 @@ static struct {
     enum gpi_rc mem_result;
     enum gpm_state mem_state;
     struct gpm_receipt mem_receipt;
-    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf;
-    unsigned perf_calls;
+    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf,gmubw;
+    unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step;struct gmf_bw_plan bw_plan;
     unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
     enum gmb_result fw_result;struct gmf_plan fw_plan;struct gmb_firmware_receipt fw_receipt;
     unsigned clock_queries,clock_calls,clock_states;enum gcx_rc clock_result;enum gcx_state clock_state;struct gmc_receipt clock_receipt;
@@ -83,6 +83,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     if(!strcmp(key,"sweetgmuclk")){*(int*)out=mock.gmuclk;return true;}
     if(!strcmp(key,"sweetgmufw")){*(int*)out=mock.gmufw;return true;}
     if(!strcmp(key,"sweetgmuperf")){*(int*)out=mock.gmuperf;return true;}
+    if(!strcmp(key,"sweetgmubw")){*(int*)out=mock.gmubw;return true;}
     if(!strcmp(key,"sweetcxpower")){*(int*)out=mock.cxpower;return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,off_flags[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known flag");return false;
@@ -336,6 +337,17 @@ bool sweet_gmu_asset_view(struct gma_view *out)
  CHECK(out&&mock.fwplan_calls==1&&!mock.arms&&!mock.asset_calls,"asset verified after real plan, before WDT");
  ++mock.asset_calls;if(mock.fw_fail_step==3)return false;*out=(struct gma_view){(const uint8_t *)(uintptr_t)0xb0000000,0xb0000000,32768};return true;
 }
+bool sweet_bus_bw_entries(struct ndb_entry *out)
+{
+ CHECK(out&&mock.gmubw==1&&mock.asset_calls==1&&!mock.arms&&!mock.bw_entries_calls,"same published BW snapshot before WDT/RSC");
+ ++mock.bw_entries_calls;if(mock.bw_fail_step==1)return false;
+ memset(out,0,4*sizeof(*out));out[3].address=0x50054;if(mock.bw_fail_step==3)mock.context=1;return true;
+}
+bool gmf_bw_plan_build(const struct ndb_entry *in,struct gmf_bw_plan *out)
+{
+ CHECK(in&&out&&mock.bw_entries_calls==1&&!mock.arms&&!mock.bw_plan_calls&&in[3].address==0x50054,"full snapshot BW metadata passed once before WDT");
+ ++mock.bw_plan_calls;if(mock.bw_fail_step==2)return false;*out=mock.bw_plan;return true;
+}
 static enum gmb_result firmware_mock(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
 {
  CHECK(s&&p&&out&&mock.gmufw==1&&mock.clock_calls==1&&mock.clock_result==GCX_OK&&!mock.fw_calls&&!mock.quarantines&&!strcmp(mock.order,"RPWTACG"),"firmware after completed clock only");
@@ -346,9 +358,14 @@ static enum gmb_result firmware_mock(const struct sweet_pas_cpu_stage *s,const s
  return mock.fw_result;
 }
 enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
-{CHECK(mock.gmuperf==0&&!mock.perf_calls,"default firmware entry excludes PERF");return firmware_mock(s,p,out);}
+{CHECK(mock.gmuperf==0&&!mock.gmubw&&!mock.perf_calls&&!mock.bw_calls,"default firmware entry excludes PERF/BW");return firmware_mock(s,p,out);}
 enum gmb_result sweet_gmu_firmware_perf_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,struct gmb_firmware_receipt *out)
-{CHECK(mock.gmuperf==1&&mock.perf_calls++==0,"PERF uses its explicit once-only entry");return firmware_mock(s,p,out);}
+{CHECK(mock.gmuperf==1&&!mock.gmubw&&!mock.bw_calls&&mock.perf_calls++==0,"PERF uses its explicit once-only entry");return firmware_mock(s,p,out);}
+enum gmb_result sweet_gmu_firmware_bw_test_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+{
+ CHECK(mock.gmubw==1&&mock.gmuperf==1&&mock.bw_calls++==0&&!mock.perf_calls&&mock.bw_entries_calls==1&&mock.bw_plan_calls==1,"BW uses explicit combined entry and no separate bootstrap");
+ CHECK(bw&&!memcmp(bw,&mock.bw_plan,sizeof(*bw)),"exact same-boot BW plan supplied");return firmware_mock(s,p,out);
+}
 enum gmb_state sweet_gmu_firmware_state(void)
 {CHECK(mock.fw_calls==1&&mock.fw_result!=GMB_OK,"state only after refused firmware return");++mock.fw_state_queries;return mock.fw_result>=GMB_CONTEXT?GMB_QUARANTINED:GMB_IDLE;}
 #define printf test_printf
@@ -402,6 +419,7 @@ static void run_worker(void)
         "MEM off preserves 116 with no MEM helper/state access");
     if(mock.init_result!=GPI_OK || !mock.init_calls) CHECK(!mock.mem_requested_queries && !mock.mem_calls && !mock.mem_state_queries,
         "no MEM option query or API before successful INIT");
+    if(!mock.gmubw)CHECK(!mock.bw_entries_calls&&!mock.bw_plan_calls&&!mock.bw_calls,"BW default0 makes no BW snapshot/plan/transaction calls");
     if(!mock.gmufw)CHECK(!mock.arc_calls&&!mock.fwplan_calls&&!mock.asset_calls&&!mock.fw_calls&&!mock.fw_state_queries,"firmware default0 makes no new API calls");
 }
 static void success(void)
@@ -810,6 +828,44 @@ static void perf_cases(void)
  reset_fw("PERF forbidden after failed clock");mock.gmuperf=1;mock.clock_result=GCX_READBACK;run_worker();CHECK(!mock.fw_calls&&!mock.perf_calls,"clock failure stops before PERF API");
  reset_fw("PERF forbidden after failed watchdog arm");mock.gmuperf=1;mock.arm_fail=1;run_worker();CHECK(!mock.fw_calls&&!mock.perf_calls&&!mock.transactions,"no PERF after arm failure");
 }
+static void reset_bw(const char *name)
+{
+ reset_fw(name);mock.gmuperf=mock.gmubw=1;
+ const uint32_t addr[]={0x50000,0x50004,0x50080,0x50054},unit[]={2050000,3650000,1,530000};
+ const uint16_t width[]={16,32,0,8};const uint8_t vcd[]={0,1,11,3};
+ for(unsigned n=0;n<4;n++)mock.bw_plan.db[n]=(struct gbcm_db){.address=addr[n],.unit=unit[n],.width=width[n],.vcd=vcd[n],.bank_version=0x1000};
+}
+static void bw_cases(void)
+{
+ for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_bw("invalid BW flag");mock.gmubw=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.bw_calls&&!mock.bw_entries_calls,"BW flag exact0/1 before work");}
+ for(unsigned dep=0;dep<4;dep++){
+  reset_bw("BW prerequisite missing");if(dep==0)mock.gmuperf=0;else if(dep==1)mock.gmufw=0;else if(dep==2)mock.gmuclk=0;else mock.cxpower=0;
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.fw_calls&&!mock.bw_calls&&!mock.bw_entries_calls,"BW requires PERF/FW/clocks/CX before experiment");
+ }
+ for(unsigned n=1;n<=3;n++){
+  reset_bw("BW ARC/asset preflight failure");mock.fw_fail_step=n;run_worker();
+  CHECK(!mock.arms&&!mock.transactions&&!mock.bw_entries_calls&&!mock.bw_calls&&!mock.quarantines,"BW cannot bypass earlier preflight");
+ }
+ for(unsigned n=1;n<=2;n++){
+  reset_bw("BW metadata/plan preflight failure");mock.bw_fail_step=n;run_worker();
+  CHECK(!strcmp(mock.order,"RP")&&!mock.arms&&!mock.transactions&&!mock.bw_calls&&!mock.quarantines,"no WDT/RSC after missing BW entries or invalid plan");
+  CHECK(has("same-boot bandwidth plan unavailable")&&!has("BW PLAN:"),"no fallback or false plan publication");
+ }
+ reset_bw("context lost after BW capture");mock.bw_fail_step=3;run_worker();
+ CHECK(!mock.arms&&!mock.transactions&&!mock.bw_calls&&!mock.quarantines,"lost context before WDT prevents hardware transaction");
+ for(unsigned n=GMB_ARGUMENT;n<=GMB_FIRMWARE;n++){
+  reset_bw("every combined BW/TEST refusal terminal");mock.fw_result=(enum gmb_result)n;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.fw_calls==1&&mock.bw_calls==1&&!mock.perf_calls&&!mock.after_sleeps&&mock.quarantines==1,"one combined call, no retry/poisoned receipt");
+  CHECK(has("firmware stopped")&&!has("firmware complete")&&!has("PERF/BW/TEST startup done")&&!has("a5a5"),"no false completion after refusal");
+ }
+ reset_bw("BW full order");run_worker();
+ CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.fw_calls==1&&mock.bw_calls==1&&!mock.perf_calls&&mock.after_sleeps==30,"one combined cold bootstrap followed by bounded diagnostic reset wait");
+ CHECK(count("SWEET GMU BW PLAN:")==4&&has("index=3 address=50054 unit=530000 width=8 vcd=3 bank=1000"),"same-boot four-resource metadata binding includes SN10");
+ CHECK(has("PERF/BW/TEST startup done")&&has("no async HFI/power lifecycle/GPU commands/Metal")&&!has("PERF diagnostic done")&&!has("INIT/version diagnostic done"),"native startup completion remains bounded claim");
+ reset_bw("BW forbidden after failed clock");mock.clock_result=GCX_READBACK;run_worker();CHECK(!mock.fw_calls&&!mock.bw_calls,"failed clock stops combined API");
+ reset_bw("BW forbidden after WDT arm failure");mock.arm_fail=1;run_worker();CHECK(!mock.transactions&&!mock.fw_calls&&!mock.bw_calls,"failed watchdog prevents all later writes");
+ reset_bw("BW excludes PAS");mock.pasinit=1;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.bw_calls,"PAS conflict rejects before work");
+}
 int main(void)
 {
     legacy_cases();
@@ -834,5 +890,7 @@ int main(void)
     unsigned before_perf=cases;perf_cases();
     CHECK(cases-before_perf==23,"23 focused PERF coordinator cases");
     printf("PASS: %u retained + %u PERF coordinator cases (%u total); typed seams only\n",before_perf,cases-before_perf,cases);
+    unsigned before_bw=cases;bw_cases();
+    printf("PASS: %u retained + %u BW/TEST coordinator cases (%u total); typed seams only\n",before_bw,cases-before_bw,cases);
     return 0;
 }

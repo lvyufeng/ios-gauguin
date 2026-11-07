@@ -9,6 +9,15 @@ accepted. Full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh goal remai
 ACTIVE/unlimited. This is one closed16x16 diagnostic, NOT UI acceleration or a
 general rendering API. No human touch/UI regression or GPU throughput claimed.
 
+Physical milestone docs private22206b906333b0b0a10adf7d3f508130c29af1ef published
+as public100dca02db06ad21f03bf116fd6b111eb48e9169, sole public parente0ef4b32e59cd319ba7b89ffa61cf57070efa5b0,
+SAME TREE755753373ca59fcf5e6e7b57bb6f12e1da861439. Verified ref/tree/parent in
+public-physical171-handoff.json. For the next same-tree source publication use
+that public parent and PRIVATE equivalent22206b9 as diff base; public API commit
+objects are not mirrored locally. This final handoff note is a later local docs
+commit. ALL DSH jobs16..35 now terminal; no live build/test/boot or pending user
+input. Phone TWRP171. No172 work started yet. Do not rerun completed stages.
+
 DSH v34 CLOSED inner0: ONE temporary171 fastboot boot, sending0.450s/booting.134s,
 AUTOMATIC TWRP after131s, fresh banner matched; no user action/attribution asked.
 DSH v35 CLOSED inner0 FIRST: strict full actual parser and wrapper passed. Root

@@ -2,6 +2,139 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —171 complete native triangle command graph ACCEPTED; kernel mode8 NEXT
+
+This continuation PROGRESS: original native cache/program/3d-state/direct-draw/
+sysmem/clear/final-flush paths now execute on the CPU and produce a complete
+reviewed command graph. This is NOT a GPU triangle or Metal result. Full goal
+ACTIVE/unlimited. NO171 kernel patch, source replay, kernel build, image or boot.
+Current shared XNU recipe is still170 gauguin.Qwvb1c/source170-codex: manifest
+710949a9d583a8d0547cbbfee9f04dfd54dad72242c78e725e3c1a693edd26bf;
+source5314 SHAef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3.
+Never use older TU helpers against shared generated files. Last observed phone
+state was automatic TWRP170; this continuation did no device I/O. User is away:
+ALL resets automatic, --manual-reset no; never ask UI/reset attribution. Ask only
+when a genuinely stuck device needs manual recovery. No user action pending.
+
+Work remains research/tmp/dsh-0171. New native_draw171v6.cc includes whole
+original fd6_program.cc, uses real ir3_cache_create/lookup (cold miss and later
+same-state hit), original Gallium variant lookup and zero-private-memory path.
+gallium_draw171.c includes whole original ir3_gallium.c, adding only typed CPU
+ir3_shader_state backing with actual compiled shaders/signalled native fence.
+draw_bridge171.cc calls original fd6_draw_vbos<A6XX,NO_TESS_GS>; gmem_bridge171.cc
+calls original full sysmem prep/render/fini, including blue clear. Native full
+emit/const/barrier/blend/rasterizer/zsa/vsc/blitter/cache/util/layout/view TUs are
+compiled, not patched. Source-exact context dirty-map/empty vertex-elements/
+viewport/sample-mask setup helpers, primary primtype table and sample-location
+disable block are independently byte-matched. A619 GMEM512KiB input is from
+board primary KGSL adreno_gpu_core_a619.base.gmem_size=SZ_512K; original CPU VSC
+tiling estimate runs and returns one bin, prim64/draw5 bits. No GMEM rendering.
+Only typed CPU BO/ring address/size/attachment/lifetime-snapshot seams; all
+unselected allocation/upload/API-lifecycle/resource/trace calls abort. No fake
+selected cache/private-memory/format/blend/stencil/constant functions. All
+shaders match accepted native-shaders-v5 outputs byteexact. Original Mesa10642
+files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d clean.
+
+Failed CPU attempts are immutable, all jobs CLOSED:
+- DSH73439/v8 draw-v1 inner1: authored fd6_format.h typo and missing BO C header.
+- DSH28521/v9 draw-v2 inner1: subpass aggregate {} cannot default-construct native
+  BitmaskEnum. V3 uses native calloc storage, matching other native containers.
+- DSH8840/v10 draw-v3 inner1: all compiles0, link1 retained whole-TU interfaces.
+  Added original util/view/layout functions; exact typed abort-only unselected
+  lifecycle interfaces. Standard valid ONE/ZERO blend enums supplied as inputs.
+- DSH78891/v11 draw-v4 inner1: compile/link0, original sample-mask packer aborts
+  on authored ~0 mask. V5 calls exact original fd_set_sample_mask, truncating to
+  uint16 as native setter specifies. No assertion or compiler policy relaxed.
+- DSH78929/v12 draw-v5 inner1: full-green host SIGSEGV. macOS crash report points
+  to original fd_resource_pitch -> is_a2xx, because OUR target pipe_resource.screen
+  was NULL. V6 binds actual screen->base. Diagnosis captured in
+  draw-v5-crash-diagnosis.json; no physical trial/reboot occurred.
+  Legacy170 subset capture omitted the same field; do not infer full host object
+  lifecycle/UB qualification from it. Keep its unchanged actual packet/pixel/EOP
+  hardware evidence. No ASan/UBSan claim for either capture.
+
+DSH16725/v13 draw-v6 terminalinner0 FIRST8.771s (CPU tool wall time, NOT GPU
+performance): exact28 steps0 = original auxiliary trace-header generation,
+22 C/C++ compiles, link and full-green/half-green/full-red/full-green-repeat.
+Original driver CXX flags/asserts, profile1 forced in every C++ TU; original C
+flags including -Werror=missing-prototypes. No shader resources bound/read; no
+fake bindless or texture success. CPU variants/program BO views are the same
+planned RO shader slots fc00f000/f100/f200 +128B. No device allocation or mapping.
+
+Native graph: sysmem main203 words atfc00c000; draw76 atfc00b800; restore194 at
+fc00d000 and preamble205 atfc00e000 (byteequal170). Program binning92/draw111/
+config24/interp18 byteequal accepted native-program-v2, at packed new addresses.
+24 ring objects total, plus three128B programs =1158 source words. Native
+CP_DRAW_INDX_OFFSET payload184/1/3 = one AUTO_INDEX triangle/one instance/three
+vertices; viewport8/translate8 and inclusive0..15 scissor; target linear16x16
+RGBA8/pitch64 atfc018000. Clear blue -> oversized triangle green is the semantic
+oracle ONLY, no pixels have been observed for171. All17 native draw-state groups
+decoded; binning-only program excluded from SYSMEM by native enable mask.
+
+IMPORTANT new EOP sequence is6, not170's7. Six source-profiled addressed events
+all USER32/no timestamp bit, exact controlfc018c00. Final original WAIT_EQ5 and
+WAIT_MEM_GTE6 retained. 25 BO attachments/19 ring relocations/8 released CPU
+snapshots; snapshots are not resurrected as native ring objects. Requested CPU
+ring capacities are distinct from planned GPU serialized extents: actual used
+bytes padded128, all nonoverlap in existing32KiBRO ring. Packed state range
+fc009000..fc009c00, no permissions/mapping/timeout change. First4KiB of planned
+RO image stayszero for the future CP ring prefix. No new kernel engine exists.
+
+Do NOT strip/repair native special packets: vertex-ID-only VFD_DECODE emits one
+zero-count TYPE4 header48a09080 in a SYSMEM-selected group, hardware semantics
+still UNQUALIFIED. Existing binning dummy-FS zero-count header48a98e80 preserved
+but masked out for SYSMEM. Native user-constant state emits direct unused UBO
+descriptors bad00000/size0; shaders have no UBO load. These are descriptors, not
+GPU memory reads; retain source-bound values rather than silently rewriting.
+
+Root review_draw171 v1 failed BEFORE output due reviewer counting29 steps rather
+than actual28. V2 checks the exact complete ordered28-step list; all other
+predicates retained, no renderer rerun. independent-draw-review-v2.json FIRST0
+SHA c2e1459db127c3497bd1f7fbf550a9d39923a390d009d1cdc5bf22bd7c641f63.
+All inputs/outputs/objects/logs rehashed, original selected symbols verified,
+all PM4 parity/length/IOVA roles/extent/viewport/scissor/MRT/zero packets/events/
+waits/state masks/controls checked. All24 ring files are same for green/red
+(FS binary differs); halfscale changes VS constants/state; repeat allfiles equal.
+native-draw-result-v6.json SHAed53eaccef61cefb7cad190efa391bb73355c5d4770f5e3198681f44c5e67aa4.
+
+DSH41010/v14 fixture terminalinner0: froze source-generated reference files
+tests/fixtures/gpu-draw/native_words.h SHA
+c478b307397180b781ecf60930c62ff5f8cdcbc8957c51d3f1939679cf394282 and
+native_provenance.json SHA1773e3d9a834a767b2d559259f25c7d83533e294c5142ab75efcbae2c5e98e88.
+They contain NO device dump/serial/Apple artifact. Kernel-mode8/hardware/Metal
+flags allfalse. Planned source RO image draw171-planned-RO-ring.bin SHA
+93be3783be3950092883f8c3bec4608df4b52c576c17172f1550067951629c80 (ignored).
+DSH14449/v15 fixturecheck terminalinner0 FIRST: strict C11 host compile,
+native C LE materialization and aarch64-none-elf freestanding compile all0.
+ELF64 LSB ARM aarch64 object confirmed; C output byteequal planned32KiB image.
+fixture-check-result-v1.json SHA705bbcea9bc5b5d818b45654dcfcb027a66716e494bb599aa3202205e937247c;
+root independent-frozen-draw-review.json SHA
+a8badf807ddbcf48686c69f8454ec42c893592a0668e03d479c90e02d3a81a3b.
+No171 XNU build or CI/device run exists. All171 hardware flags stayfalse.
+
+NEXT: implement a separate fixed mode8 offscreen triangle engine/provider using
+the exact frozen native graph and original bounds/guards/quarantine policy.
+Preserve accepted170mode7 and168mode6 byteexact. Cold exact admission must cover
+all staged RO subviews plus shader programs; DATA4KiB unchanged CPU-write ban,
+expected256 green pixels +EOP6 +allpadding/highneighbor unchanged. Native zero
+VFD packet needs explicit preserved admission and bounded physical observation.
+Do not loosen phase/total/entry/WDT8/23s limits, mapping permissions or resource
+ownership to pass. Then source replay/host adversarial tests/local ARM64/TU/
+kernel build/runtime parser/image contract/ONE temporary fastboot boot/automatic
+TWRP readback and independent pixel/event/source acceptance. Metal/iOS service
+integration/RAM/UFS/peripherals/highrefresh/daily-use all remain unfinished.
+
+Original mkadt7line user diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 untouched.
+Before this milestone privateHEAD44f763cda66ab1a1b235bc6395c94263dc3b9808 and
+publicHEAD4ab00cef9b3ac0cdc35f1808a98fa09504679740 SAME TREE
+bddc12614f02a446cfdc4af32e08e0311dca47da. New draw publication must use sole
+public parent4ab00cef.../same-tree source via gh REST nonforce ref, never private
+history. Record new publication in public-draw-handoff.json, NOT existing
+SOURCE_HEAD/public-native-handoff.json/public-source-snapshot.json; those bind
+the earlier CPU171 program publication and are immutable. No171 artifact head
+has been frozen. Codex critical code/review/Git; DSH execution-only, full access.
+
 
 ### 2026-11-08 —171 native program-state capture ACCEPTED; real sysmem draw NEXT
 

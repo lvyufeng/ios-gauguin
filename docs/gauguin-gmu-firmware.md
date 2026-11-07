@@ -710,3 +710,26 @@ release, while CM3 remains reset and GX is quiet. This proposed ordering
 still needs hardware qualification. It must preserve the existing GMU banks,
 secure and unrelated routes, restore owned halt state and keep the later
 MMU-start/GPU-OOB/core sequence separate.
+
+## Opt-in GPU default context and CP aperture (0145)
+
+`sweetgpucontext=1` requires the complete DCVS/BW/PERF/FW/clock/CX chain.
+The same firmware transaction creates a separate GPU SID0 context after GMU
+SMMU setup and before firmware release, under CM3-reset/GX-quiet guards. It
+resolves an unused or exclusive disabled bank and a free ASID, preserving
+GMU, secure SID2 and unrelated routing/control. The retained NC owner tail
+provides tables and command memory without another mapping.
+
+Owned local HALT covers context programming and168 ATOS probes:18 GPU
+leaves,10 GPU holes,131 existing GMU leaves and the original9 GMU holes.
+Only an accepted deliberate hole may clear its own translation-fault bit;
+other faults stop the transaction. The successful path restores HALT and
+uses the exact four-scalar CP aperture SCM call. Bounded continuations retain
+all seven registers; raw returns remain separate from GPU execution proof.
+Existing firmware guards check the new GPU context during later startup.
+
+All65 host files, actual port/native register-byte equivalence and four ARM64
+translation units pass. This includes3816 new board and22 new coordinator
+cases with the original cases retained. Complete kernel/image and physical
+GPU translations/aperture return still require qualification. SQE, GPU core
+startup, command submission, rendering and Metal remain subsequent stages.

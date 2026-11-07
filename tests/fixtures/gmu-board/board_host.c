@@ -26,7 +26,8 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
         fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines,fw_reply_lines,fw_word_lines,
         perf_mode,perf_engine_calls,perf_complete_lines,perf_partial_lines,
-        bw_mode,bw_engine_calls,bw_complete_lines,bw_partial_lines,test_complete_lines,test_partial_lines,dcvs_mode,dcvs_engine_calls,dcvs_request_lines,dcvs_complete_lines,dcvs_partial_lines,dcvs_missing;} h;
+        bw_mode,bw_engine_calls,bw_complete_lines,bw_partial_lines,test_complete_lines,test_partial_lines,dcvs_mode,dcvs_engine_calls,dcvs_request_lines,dcvs_complete_lines,dcvs_partial_lines,dcvs_missing,
+        gpu_mode,gpu_context_calls,gpu_context_fail,gpu_smc_calls,gpu_smc_mode,gpu_drift,gpu_complete_lines,gpu_partial_lines,gpu_ap_complete_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -34,6 +35,9 @@ static int host_printf(const char *s,...)
 {
     char text[256];va_list ap;va_start(ap,s);int n=vsnprintf(text,sizeof(text),s,ap);va_end(ap);
     CHECK(n>0&&(unsigned)n<sizeof(text));
+    if(strstr(text,"SWEET GPU SMMU: complete")){CHECK(h.gpu_mode&&h.live&&!h.quarantine&&h.gpu_complete_lines++==0);}
+    if(strstr(text,"SWEET GPU SMMU: partial")){CHECK(h.gpu_mode&&!h.live&&h.quarantine==1);++h.gpu_partial_lines;}
+    if(strstr(text,"SWEET GPU APERTURE: complete")){CHECK(h.gpu_mode&&h.gpu_complete_lines==1&&h.live&&!h.quarantine);++h.gpu_ap_complete_lines;}
     if(strstr(text,"SWEET GMU PERF: complete")){
         CHECK(h.perf_mode&&h.perf_engine_calls==1&&h.live&&!h.quarantine&&h.perf_complete_lines++==0);
         CHECK(!strcmp(text,"SWEET GMU PERF: complete request=00302b04 words=43 ack=0002047e/00300000/00000000; no BW/TEST/normal HFI_ON/GPU/Metal qualification\n"));
@@ -125,10 +129,10 @@ int ml_get_interrupts_enabled(void){return h.context!=1;}
 int ml_at_interrupt_context(void){return h.context==2;}
 int get_preemption_level(void){return h.context==3;}
 uint64_t mach_absolute_time(void){return h.now;}
-void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *out){CHECK(n==8&&scale==NSEC_PER_SEC);*out=h.now+8*scale;}
+void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *out){CHECK((n==8||(h.gpu_mode&&n==5))&&scale==NSEC_PER_SEC);*out=h.now+n*scale;}
 bool gauguin_wdt_lease_check_budget(uint32_t n)
 {
-    CHECK(n==3u*32765||n==13u*32765);++h.budgets;
+    CHECK(n==3u*32765||n==13u*32765||(h.gpu_mode&&n==10u*32765));++h.budgets;
     if(h.budgets==h.expire)h.now=8*NSEC_PER_SEC;
     if(h.budgets==h.budget_fail)h.live=false;
     return h.live;
@@ -170,9 +174,10 @@ vm_offset_t ml_vtophys(vm_offset_t va)
     else {bool found=false;for(unsigned n=0;n<5;n++)if(va>=(uintptr_t)fw_page[n]&&va<(uintptr_t)fw_page[n]+fw_sizes[n]){found=true;pa=fw_bases[n]+va-(uintptr_t)fw_page[n];break;}CHECK(found);}
     return pa+(h.translations==h.fail_translation);
 }
-void *IOMalloc(size_t n){CHECK(n==65536);++h.allocs;return h.alloc_fail?NULL:malloc(n);}
-void IOFree(void *p,size_t n){CHECK(n==65536&&p);++h.frees;free(p);}
+void *IOMalloc(size_t n){CHECK(n==65536||n==16384);++h.allocs;return h.alloc_fail?NULL:malloc(n);}
+void IOFree(void *p,size_t n){CHECK((n==65536||n==16384)&&p);++h.frees;free(p);}
 void delay(unsigned us){CHECK(us==5||us==10||us==100);}
+void IOSleep(unsigned ms){CHECK(h.gpu_mode&&ms==30&&h.gpu_smc_calls&&h.live);h.now+=(uint64_t)ms*1000000;}
 void sweet_log_mark_sync(const char *s){CHECK(s&&strlen(s)<192);}
 void sweet_log_flush_now(void){}
 static uint32_t mmio_read32(vm_offset_t address)
@@ -252,6 +257,7 @@ bool gmf_plan_valid(const struct gmf_plan *p){return p&&p->address[0]==0x30000;}
 bool gmf_bw_plan_valid(const struct gmf_bw_plan *p){return p&&p->db[0].address==0x50000&&p->db[3].address==0x50054;}
 static uint32_t fw_read32(vm_offset_t address);
 static void fw_write32(vm_offset_t address,uint32_t value);
+static void host_gpu_smc(void *,struct gpa_registers *);
 enum gmf_result gmf_bootstrap_once(struct gmf_context *,const struct gmf_ops *,const struct gmf_plan *,struct gmf_receipt *);
 #define printf host_printf
 @SOURCE@
@@ -263,6 +269,8 @@ static void reset(void)
     memset(&gmb_context,0,sizeof(gmb_context));memset(&gmb_work,0,sizeof(gmb_work));memset(&gmb_stage,0,sizeof(gmb_stage));
     gfw_lifecycle=0;gfw_deadline=0;memset(gfw_map,0,sizeof(gfw_map));memset(&gfw_context,0,sizeof(gfw_context));memset(&gfw_work,0,sizeof(gfw_work));memset(&gfw_asset,0,sizeof(gfw_asset));
     gfw_copy_issued=gfw_copy_compared=0;
+    memset(&ggb_context,0,sizeof(ggb_context));memset(&ggb_plan,0,sizeof(ggb_plan));memset(&ggb_smmu,0,sizeof(ggb_smmu));
+    memset(&ggb_aperture,0,sizeof(ggb_aperture));memset(&ggb_secure,0,sizeof(ggb_secure));ggb_deadline=0;ggb_started=0;ggb_result=0;ggb_secure_result=0;
     memset(fw_page,0,sizeof(fw_page));for(unsigned n=0;n<sizeof(fw_asset);n++)fw_asset[n]=(uint8_t)(n*19+3);
 }
 static enum gmb_result run(struct gmb_receipt *out)
@@ -318,6 +326,7 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *ctx,const struct gmf_ops 
     const struct gmf_plan *p,struct gmf_receipt *out)
 {
     ++h.engine_calls;CHECK(ctx&&p&&out&&gmf_plan_valid(p));
+    if(h.gpu_drift==1){uint32_t bad=0;memcpy(smmu+0x8000+4096*ggb_smmu.bank,&bad,4);}
     if(h.engine_fail==1)return GMF_TIMEOUT;
     if(h.engine_fail==5){ctx->diagnostic=(struct gmf_diagnostic){1,GMF_RESET,GMFD_STORE32,GMF_AO,0x1038,UINT32_MAX,0,0x12340000};return GMF_READBACK;}
     ctx->hidden_valid=h.engine_fail==6?1u:7u;
@@ -433,10 +442,11 @@ enum gmf_result gmf_bootstrap_dcvs_once(struct gmf_context *ctx,const struct gmf
     if(h.dcvs_missing){uint32_t *flag[]={&ctx->dcvs_requested,&ctx->dcvs_started,&ctx->dcvs_trigger_attempted,&ctx->dcvs_ack_valid,&ctx->dcvs_return_valid,&ctx->dcvs_clear_attempted,&ctx->dcvs_valid};
         CHECK(h.dcvs_missing<=8);if(h.dcvs_missing==8)ctx->dcvs_return=1;else *flag[h.dcvs_missing-1]=0;}
     if(h.engine_fail==25)h.now=gfw_deadline;
+    if(h.gpu_drift==2){uint32_t bad=0x20000;memcpy(smmu+0xc00+4*ggb_smmu.slot,&bad,4);}
     return GMF_OK;
 }
 static enum gmb_result firmware_run(struct gmb_firmware_receipt *out)
-{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;return h.dcvs_mode?sweet_gmu_firmware_dcvs_once(&s,&p,&bw,out):h.bw_mode?sweet_gmu_firmware_bw_test_once(&s,&p,&bw,out):h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
+{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;return h.gpu_mode?sweet_gmu_firmware_gpu_once(&s,&p,&bw,out):h.dcvs_mode?sweet_gmu_firmware_dcvs_once(&s,&p,&bw,out):h.bw_mode?sweet_gmu_firmware_bw_test_once(&s,&p,&bw,out):h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
 static void firmware_failed(void)
 {
     struct gmb_firmware_receipt out,before;memset(&out,0xa3,sizeof(out));before=out;
@@ -475,6 +485,43 @@ static void firmware_cases(void)
     reset();h.firmware=1;h.core_irq=1;firmware_failed();CHECK(!h.maps&&!h.engine_calls&&!h.fw_stores);
     reset();h.firmware=1;h.gx_on=1;firmware_failed();CHECK(!h.engine_calls);
     printf("GMU firmware board: %u real callback/map/copy/phase/IRQ/fault cases PASS (typed engine seam, no hardware ACKs)\n",cases-first);
+}
+/* Typed SMMU engine seam: actual transaction/ATOS is covered separately.
+ * This exercises the real board NC publisher, retained aliases and guards. */
+enum gsm_result ggs_configure_once(struct ggs_context *c,const struct ggs_ops *o,
+    const struct ggp_plan *p,const struct gsm_receipt *gmu,struct ggs_receipt *out)
+{
+    CHECK(h.gpu_mode&&h.gpu_context_calls++==0&&h.live&&!h.engine_calls&&!h.gpu_smc_calls);
+    CHECK(gmu==&gmb_work.smmu&&p->owner_pa==owner&&ggp_plan_valid(p));
+    c->state=1;c->phase=GGS_PREPARE;c->ops=*o;c->plan=*p;c->gmu=*gmu;
+    if(h.gpu_context_fail==1)return GSM_INHERITED;
+    struct ggp_s1_config cfg;
+    if(!o->guard(NULL)||!o->prepare(NULL,39,36,&cfg)||!o->guard(NULL))return GSM_IO;
+    CHECK(h.nc_maps==1&&h.maps==2&&cfg.ttbr0==owner+0x9c000&&cfg.ttbr1==owner+0x9f000);
+    CHECK(h.allocs==2&&h.frees==2);
+    if(h.gpu_context_fail==2)return GSM_READBACK;
+    struct ggs_receipt s={.slot=0,.bank=3,.asid=4,.ias=39,.oas=36,.groups=128,.banks=8,.stream_match=1,
+        .cr0=gmu->cr0_after,.micro_before=gmu->micro_after,.micro_after=gmu->micro_after,
+        .smr=0x80000000,.s2cr=3,.sctlr=0xc01167,.tcr=(uint32_t)cfg.tcr,.tcr2=(uint32_t)(cfg.tcr>>32)|0x38010,
+        .mair0=cfg.mair0,.mair1=cfg.mair1,.writes=200,.polls=169,.gpu_pages=18,.gmu_pages=131,.translations=168,
+        .ttbr0=cfg.ttbr0|UINT64_C(4)<<48,.ttbr1=cfg.ttbr1|UINT64_C(4)<<48};
+    const unsigned offs[]={0xb000,0xb004,0xb010,0xb030,0xb038,0xb03c,0x100c,0x180c,0x800,0xc00};
+    const uint32_t vals[]={s.sctlr,0x70000000,s.tcr2,s.tcr,s.mair0,s.mair1,0x1f300,1,s.smr,s.s2cr};
+    for(unsigned i=0;i<10;i++)memcpy(smmu+offs[i],&vals[i],4);
+    memcpy(smmu+0xb020,&s.ttbr0,8);memcpy(smmu+0xb028,&s.ttbr1,8);
+    c->work=s;*out=s;c->phase=GGS_DONE;c->state=2;return GSM_OK;
+}
+static void host_gpu_smc(void *cookie,struct gpa_registers *r)
+{
+    CHECK(!cookie&&h.gpu_mode&&h.live&&!h.quarantine&&!h.engine_calls&&ggb_context_valid());
+    uint32_t reset;memcpy(&reset,reset_page+0x2000,4);CHECK(reset==1&&!h.gx_on);
+    ++h.gpu_smc_calls;
+    if(h.gpu_smc_calls==1||h.gpu_smc_mode!=2){
+        const uint64_t want[]={0x42000c1b,4,0xffff0003,0xffffffff,0xffffffff,0xffffffff,0};CHECK(!memcmp(r->x,want,sizeof(want)));
+    }else CHECK(r->x[0]==1&&r->x[6]==0x619);
+    r->x[0]=h.gpu_smc_mode==1?UINT64_C(0xfffffffffffffffe):h.gpu_smc_mode==2&&h.gpu_smc_calls==1?1:0;
+    r->x[1]=0x111;r->x[6]=0x619; /* native CP callsite does not require x1==0 */
+    if(h.gpu_smc_mode==3){uint32_t bad=0;memcpy(smmu+0xb000,&bad,4);}
 }
 static void firmware_perf_cases(void)
 {
@@ -570,6 +617,29 @@ static void firmware_dcvs_cases(void)
     }
     printf("GMU DCVS board: %u native mailbox callback/owner/receipt/guard/four-entry once-state and quarantine cases PASS (typed engine seams)\n",cases-first);
 }
+static void firmware_gpu_cases(void)
+{
+    unsigned first=cases;struct gmb_firmware_receipt out;
+    reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;
+    CHECK(firmware_run(&out)==GMB_OK&&h.gpu_context_calls==1&&h.gpu_smc_calls==1&&h.engine_calls==1);
+    CHECK(h.gpu_complete_lines==1&&h.gpu_ap_complete_lines==1&&!h.gpu_partial_lines&&h.maps==7&&h.nc_maps==1);
+    unsigned budgets=h.budgets,owners=h.owner_calls,translations=h.translations,pmaps=h.pmap_calls;
+    CHECK(ggb_secure.returned.x[1]==0x111&&ggb_secure.returned.x[0]==0&&ggb_secure.calls==1);
+    for(unsigned n=0;n<16384;n++)CHECK(ram[n]==0xa5);
+    for(unsigned n=GGP_ARENA_END;n<sizeof(ram);n++)CHECK(ram[n]==0xa5);
+    struct ggm_plan old;CHECK(ggm_plan_build(owner,&old));
+    for(unsigned n=0;n<GGM_COUNT;n++)if(n!=GGM_HFI)for(unsigned j=0;j<old.region[n].reserved;j++)CHECK(ram[old.region[n].offset+j]==0);
+    reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_smc_mode=2;
+    CHECK(firmware_run(&out)==GMB_OK&&h.gpu_smc_calls==2&&ggb_secure.continuations==1);
+    for(unsigned n=1;n<=2;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_context_fail=n;firmware_failed();CHECK(!h.gpu_smc_calls&&!h.engine_calls&&!h.gpu_complete_lines&&h.gpu_partial_lines==1);}
+    for(unsigned n=1;n<=3;n+=2){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_smc_mode=n;firmware_failed();CHECK(h.gpu_smc_calls==1&&!h.engine_calls&&!h.gpu_complete_lines);}
+    for(unsigned n=1;n<=2;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_drift=n;firmware_failed();CHECK(h.gpu_smc_calls==1&&!h.gpu_complete_lines&&!h.gpu_ap_complete_lines);}
+    for(unsigned n=1;n<=budgets;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.budget_fail=n;firmware_failed();CHECK(!h.gpu_complete_lines&&!h.gpu_ap_complete_lines);}
+    for(unsigned n=1;n<=owners;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.owner_fail=n;firmware_failed();}
+    for(unsigned n=1;n<=translations;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.fail_translation=n;firmware_failed();}
+    for(unsigned n=1;n<=pmaps;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.pmap_fail=n;firmware_failed();reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.attr_fail=n;firmware_failed();}
+    printf("GPU context board: %u retained-alias/NC-publication/SCM-order/continuation/owner/budget/translation/attribute/final-drift cases PASS (typed SMMU/SMC seams, actual aperture engine)\n",cases-first);
+}
 int main(void)
 {
     happy();unsigned budgets=h.budgets,translations=h.translations,pmaps=h.pmap_calls;
@@ -594,4 +664,5 @@ int main(void)
     firmware_perf_cases();
     firmware_bw_cases();
     firmware_dcvs_cases();
+    firmware_gpu_cases();
 }

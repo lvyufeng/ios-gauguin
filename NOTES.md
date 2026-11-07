@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete142 local native BW/TEST kernel qualified; pack/readers next
+
+DSH98473 CLOSED0; actual build142.py build0/qualification0. Run
+gauguin.NfYVjn captured HEADd7fe2d7b7df7749e2bb716dd53636b509141a24a,
+exact136-patch source28512213...38cfbf6/5282files. Kernel16906296B SHA
+51dce3cdfb787cc62371f072868f3e76eeccf27a120f70d00699a63de8f9e4d0,
+IDxnu-88de34d3e02a4a848b7348525ba2c929. Manifest SHA
+a2e948df9233a33f0694bee02da65169459206d49c2d66dc276fa20ac44776a1.
+Qualification11715B SHA
+b7b156ea78791e7a95dda44b1458f0bbe2181e2501e5355178955897e0700989
+at research/tmp/p3-native-0142-qualification-20261107.json. All140 qualifiers
+retained; native_bw_test_transaction_source_bound true, exact BW/TEST and
+snapshot constructor/engine/board symbols/ordering/kernel record formats
+bound, public firmware receipt unchanged. Static hardware_qualified false
+remains correct: no142 image/phone/BW/TEST ACK yet. Full LOCAL build, no CI.
+CURRENT generated native recipe/source NOW142NfYVjn,140P3pyBC historical.
+
+Codex prepared142 pack/readers from frozen140 with hash/numeric invariants
+before explicit new BW/TEST rules. Packer adds sweetgmubw1/unique142trial;
+independent review preserves140 and all previous image pins. Reader requires
+four ordered pre-WDT plan rows including SN10 matching THIS fresh binary
+CMDDB; bounded ordered native BW/TEST ACK prefixes and exact160/1-word
+requests. Counts88..238/8..8000/debug<=225. Missing/duplicate/malformed/
+partial/order/flag/metadata mismatch must reject. CPU fixtures explicitly
+synthetic, never qualified device evidence. NEXT DSH package/review, then
+all three strict-reader suites, ONE temporary boot after passing. Phone last
+observedTWRP; no new phone I/O/UI/touch/reset fact. Whole goal ACTIVE and
+incomplete; all current handles CLOSED, original mkadt diff unchanged.
+
 ### 2026-11-07 —142 combined native BW/TEST startup validated; full local kernel next
 
 THIS turn progresses from the141 constructor to actual opt-in sender code.

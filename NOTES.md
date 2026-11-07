@@ -2,6 +2,72 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —168 image ACCEPTED; full runtime currently running
+
+Current recipe168 gauguin.7kjNwR, immutable SOURCE_HEAD5124e47b50eeb61b3eb3061fb310cc492dd5151c.
+DSH44189/v14 image-preflight0/package0+independent image review0 FIRSTattempts.
+Image19759104B SHAcbc540e351895a673e6648c0eefb84f79dfa79130644842616f9ab24049d7bcc,
+shim/out/shim-p3-gmuf-0168-native-20261108.img; payloadSHA
+d26a14cc5334d8c64b934a79b54a83a8608af98a61f879d9846a6280ec268361.
+Exact606B mode6/gwrt-0168-a1, samefiveassets/defaultabsentINIT0/pasmem0,
+baseline167 only trial/mode changed. image-parent-review.json SHA
+42701e27b81f0a68d2f3d9e45e2bd9b53fa26089405116d82b4ead813b7bd002,
+package-review-execution-result.json SHAc0bb00a18b9495dc472c53c1cc7691ef0c82e7c7d51a58e096dbed9e95dd1922.
+Helper authoring first inline generator wrote pack_native0168.py then stopped
+on combined q/e statement anchor BEFORE writing other helpers; resumed exact
+anchor to finish. image-helper-authoring-note.json; no test/gate failed there.
+DSH49024/v15 compute-metadata actual inner0:1valid/20rejected source metadata
+controls, reportSHAebbfc0e4a423aa82b4e70165d8a1599a073f1ce769bee9c05358f71c18c273b5.
+Same DSH49024/v14 runtime STILL RUNNING (claimedPID66024/child66025,
+fulltracePID66054); console/clock/FW0, fulltrace CPUactive and buffered log.
+Never restart it or edit frozen inputs. No168 device action yet, LASTTWRP167.
+boot168.py/read_hardware168.py and identical observer helper authored,
+root independent_runtime_boot_review168.py and independent_physical_review168.py
+authored NOTexecuted. NEXT actual runtime terminal0 ->root preboot review ->
+ONE v14boot and v14read (--manual-reset no), then independent physical review.
+Parser's actual gpu_compute fields/criteria are new/strict; inherited final
+top-level scope prose still mentions oldIB8 tests. Keep immutable accepted
+parser and reports; physical wrapper/root review state actual compute scope.
+No filtering/repair/dedup/waiver. No human UI proof; fullgoal remains ACTIVE.
+
+### 2026-11-08 —168 full local kernel ACCEPTED; compute image/runtime NEXT
+
+CURRENT native/generated KERNEL recipe NOW168 gauguin.7kjNwR/source168-codex,
+manifest9711ab8b11100fc7d209c436bde31f3ae9ed0c3b89d32c4206fc1b6a95c51ded.
+Never use167/166/165/164/159 TU recipe with these new shared build files.
+DSH72159/dispatch-v14-build actual inner0: ONE fullLOCAL8job build0 and
+strict qualify_native0168.py0 FIRSTattempts, source unchanged. Immutable
+artifact SOURCE_HEAD5124e47b50eeb61b3eb3061fb310cc492dd5151c/public
+79cfb7391f5ece85292f8bd2387a10eae20f51a2, same-tree
+260f5f0a2978b773d6d3e8666a712ba195eda975; later NOTES commits do not change it.
+Qualification research/tmp/p3-native-0168-qualification-20261108.json SHA
+119d58caf94469f56ae2e3fd3607869f42bb79f8eb16f8490efe5e7ba5afaa09.
+Kernel17068904B SHA740d3b6f37df6121e5cf8088a3fd1d3594894bf9018c01d3af7e96ec209b3834,
+banner SunNov8 01:01:15CST2026 /xnu-d51007b0bf044d54be60dec75a1f5af5.
+LinkarchiveSHA6e438851a08597d7dc0a2d5f369f872732768644db32e30cb33dba3726ce2e37.
+Nine compute source flags true, ALL hardware flags FALSE/immutable.
+Root independent-build-review.json rehashed actual source/kernel/archive/
+manifest/banner/linked compute member and all frozen preflight/parser pins.
+
+DSH31645/v15 compute-parser inner0 FIRST:13valid/1076rejected SYNTHETIC cases,
+compute-parser-standalone-result.json SHA
+828b47ad453eea470761d17507c69532997094dae0770a754f0476257229ef79.
+Exact native constants compute_native168.py, strict actual cached32values/
+fullDATA31shader+EOP2/992unchanged/146artifact/order/fault/deadline parser
+compute_records168.py; main verify_gmuf168.py preserves inherited gates and
+inventories WRITE/IB/EOP/COMPUTE, rejects mixed/extra records. Adapted source
+literal0xc01167 and old gpu_atos167 mutation deliberately retained. No raw
+physical record touched; all expected values still proposed, not observed.
+
+Image/runtime/boot/read helpers NOTyet complete. NEXT finish exact mode6/
+gwrt-0168-a1/606B/fiveassets image helpers, inherited full technical fixtures
+plus new compute negatives and source metadata controls. Then atomic v14
+image-preflight/package/runtime/ONEtempboot/read; v14 remains frozen.
+Phone LASTTWRP167, no168device IO yet. ALL resets automatic --manual-reset no;
+no attribution/UI prompts. Original mkadt diff untouched; no flash/format/GPT.
+Fullgoal ACTIVE/unlimited; this is build/parser progress, no physical shader,
+rendering/Metal/scheduling/performance/high-refresh/daily-use proof.
+
 ### 2026-11-08 —168 GGK source/full82 host ACCEPTED; one full local kernel NEXT
 
 Current continuation PROGRESS: actual mode6 GGK compute engine/provider,

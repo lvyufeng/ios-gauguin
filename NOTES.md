@@ -3,6 +3,60 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —170 local kernel/image ACCEPTED; full runtime then ONE trial NEXT
+
+Fullgoal ACTIVE/unlimited. CURRENT generated/native recipe NOW170
+.deps-cache/p0-20261105/build/runs/gauguin.Qwvb1c/build-manifest.json
+SHA710949a9d583a8d0547cbbfee9f04dfd54dad72242c78e725e3c1a693edd26bf,
+source170-codex5314files SHAef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3.
+NEVERuse169/168/older TU helpers against shared current generated files.
+Frozen170artifact SOURCE_HEAD06597eb3cbfe82345d8b636a589bed1ab9ff1ba3;
+later NOTES-only commits do NOT replace expected-head. Prior profile source
+commita89b924. Source/publicb7a90701ad2485eae5bcb891822a1e98415cf085 SAME TREE
+c8a6462241f98d2523601b7a3e1ec3617939db44, solepublicparente8406855c816e3ad32a45eb4982a399c0d87a6e9.
+gh REST Git-data upload11blobs/tree/soleparent/nonforce ref+rechecks succeeded,
+public-source-handoff.json; NOprivate ancestry/raw artifacts uploaded.
+
+DSH76540/v8preflight terminalinner0 FIRST, alloldernative assembler/CP/PIL/
+data/EOP/GGK foundations plus accurate12clear USER32 sourceflags retained.
+DSH10280/v8build terminalinner0 FIRST,158.624s one completeLOCAL8job, build0/
+qualifier0. Kernel17103456B SHA
+cd8f21a88db10f9c4325942609cce5b44cf96b0a1a6909ffe0817f58244f4a7d,
+banner SunNov8 04:29:12CST2026/xnu-748817600f6e454f865ef4fee456ae14.
+ArchiveSHAf20f8a32a7a5d92b6cc388115d313eeb212379f27a63e310e798d4c952770223.
+QualifierSHA472259c4c43dd68fc640088d4bdbabc20969ab082ae3cacfb079d2356551b08a;
+ALL16buildhardwareflagsFALSE, no retained obsolete clear-bit30sourceflag.
+Root review_build170 FIRST0, independent-build-review.json SHA
+e6eb0486b3bac2bd1b37f1f6e6beac91a20cb9d41c8c71592edfdb475319bd11.
+
+DSH21590/v9image-preflight FIRST0 exact606B mode7 command differs169ONLYtrial,
+INITabsent/default0/pasmem0/fiveassets/oldcommandcontrols retained. DSH68387/
+v9package terminalinner0 FIRST2.408s: ONEpackage0/independentimagereview0.
+Image19791872B SHA96c3c5f0147677078705a8fa7eea0b7c0e308328dee8b84edd9d4d78ccd79c19,
+shim/out/shim-p3-gmuf-0170-native-20261108.img; trialgwrt-0170-a1.
+image-parent-review.json SHAd62ee56d15b8033b8afd2569b95cda2587b69141ffeb21fac7da35a0df89b8ec.
+DSH2707/v9metadata running/terminal result in dispatch-v9-metadata.json; only
+host metadata mutations, no device. Runtime/fullshards not yet executed.
+
+New170runtime helpers retain old production criteria; before ANY FW fixture
+execution Codex restored numeric gpu_atos169 negative that mechanical epoch
+renaming had changed to170. AST numeric/hash audit found no other unintended
+runtime constant/pin changes. This was authoring only, no gate result affected.
+Standalone170clear parser passed20valid/4308rejects, including observedGPUclock
+and all7oldbit30 native headers. Full8worker runner is UNRUN: preserve entire
+positive/generator AST and original rejection body, compare complete caseSHA
+manifests and exact execution union. Inherited worker PASS counts are GENERATED
+case counts; actual aggregate executions only come from explicit worker ledger.
+Do NOT claim runtime acceptance until all4 gates and union/rootreview pass.
+
+NEXT: metadata0 then v9runtime once; independent image/runtime/boot helper
+review; one temporary170fastboot boot, strict readback. Phone lastTWRP169;
+NO170boot yet. ALLresetsautomatic/useraway, no attribution/UIquestions.
+Only genuinely stuck/manual recovery can need user action. No flash/format/
+GPT/newuserdata. Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+unchanged. Codex criticaldriver/review/Git, DSH execute-only/once claims.
+
+
 ### 2026-11-08 —170 USER32 kernel source/all83host ACCEPTED; full build NEXT
 
 Fullgoal ACTIVE/unlimited; no170kernel/image/device yet. Current generated

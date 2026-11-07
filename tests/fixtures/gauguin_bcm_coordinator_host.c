@@ -54,6 +54,7 @@ static struct {
     unsigned ib_calls;enum ggi_result ib_result;enum gmb_state ib_state;
     unsigned eop_calls;enum gge_result eop_result;enum gmb_state eop_state;
     unsigned compute_calls;enum ggk_result compute_result;enum gmb_state compute_state;
+    unsigned clear_calls;enum ggl_result clear_result;enum gmb_state clear_state;
     int gpuzap,missing_init;unsigned zap_calls,zap_asset_calls,zap_asset_fail;enum gpz_result zap_result;enum gmb_state zap_state;
     unsigned gpu_calls;
     unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
@@ -185,11 +186,12 @@ void gauguin_wdt_lease_quarantine(void)
         (mock.core_calls==1 && mock.core_result!=GGC_OK && mock.core_state!=GMB_QUARANTINED) ||
         (mock.cp_calls==1 && mock.cp_result!=GGQ_OK && mock.cp_state!=GMB_QUARANTINED) ||
         (mock.zap_calls==1 && mock.zap_result!=GPZ_OK && mock.zap_state!=GMB_QUARANTINED) ||
-        ((mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6) && mock.unsecure_calls==1 && mock.unsecure_result!=GGU_OK && mock.unsecure_state!=GMB_QUARANTINED) ||
+        ((mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6||mock.gpuzap==7) && mock.unsecure_calls==1 && mock.unsecure_result!=GGU_OK && mock.unsecure_state!=GMB_QUARANTINED) ||
         (mock.gpuzap==3 && mock.write_calls==1 && mock.write_result!=GGW_OK && mock.write_state!=GMB_QUARANTINED) ||
         (mock.gpuzap==4 && mock.ib_calls==1 && mock.ib_result!=GGI_OK && mock.ib_state!=GMB_QUARANTINED) ||
         (mock.gpuzap==5 && mock.eop_calls==1 && mock.eop_result!=GGE_OK && mock.eop_state!=GMB_QUARANTINED) ||
-        (mock.gpuzap==6 && mock.compute_calls==1 && mock.compute_result!=GGK_OK && mock.compute_state!=GMB_QUARANTINED) || mock.after_sleeps==30,
+        (mock.gpuzap==6 && mock.compute_calls==1 && mock.compute_result!=GGK_OK && mock.compute_state!=GMB_QUARANTINED) ||
+        (mock.gpuzap==7 && mock.clear_calls==1 && mock.clear_result!=GGL_OK && mock.clear_state!=GMB_QUARANTINED) || mock.after_sleeps==30,
         "quarantine after TX/INIT/MEM/ARC/CX failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
@@ -418,17 +420,17 @@ enum ggq_result sweet_gpu_cp_once(struct ggq_receipt *out)
 enum gmb_state sweet_gpu_cp_state(void)
 {return mock.cp_result==GGQ_OK?GMB_READY:mock.cp_state;}
 #define printf test_printf
-bool sweet_gpu_zap_requested(void){return mock.gpuzap==1||mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6;}
+bool sweet_gpu_zap_requested(void){return mock.gpuzap==1||mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6||mock.gpuzap==7;}
 bool sweet_gpu_zap_asset_view(struct gza_view *out)
-{CHECK((mock.gpuzap==1||mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6)&&!mock.arms,"ZAP asset before WDT");++mock.zap_asset_calls;if(mock.zap_asset_fail)return false;*out=(struct gza_view){(const uint8_t *)(uintptr_t)1,UINT64_C(0x1825a4000),1984};return true;}
+{CHECK((mock.gpuzap==1||mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6||mock.gpuzap==7)&&!mock.arms,"ZAP asset before WDT");++mock.zap_asset_calls;if(mock.zap_asset_fail)return false;*out=(struct gza_view){(const uint8_t *)(uintptr_t)1,UINT64_C(0x1825a4000),1984};return true;}
 enum gpz_result sweet_gpu_zap_once(struct gpz_receipt *out)
-{CHECK((mock.gpuzap==1||mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6)&&mock.cp_calls==1&&mock.cp_result==GGQ_OK&&mock.zap_calls++==0&&!mock.quarantines,"signed loader only after successful CP once");order('Z');if(mock.zap_result!=GPZ_OK){if(mock.zap_state==GMB_QUARANTINED)++mock.quarantines;return mock.zap_result;}memset(out,0,sizeof(*out));return GPZ_OK;}
+{CHECK((mock.gpuzap==1||mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6||mock.gpuzap==7)&&mock.cp_calls==1&&mock.cp_result==GGQ_OK&&mock.zap_calls++==0&&!mock.quarantines,"signed loader only after successful CP once");order('Z');if(mock.zap_result!=GPZ_OK){if(mock.zap_state==GMB_QUARANTINED)++mock.quarantines;return mock.zap_result;}memset(out,0,sizeof(*out));return GPZ_OK;}
 enum gmb_state sweet_gpu_zap_state(void){return mock.zap_result==GPZ_OK?GMB_READY:mock.zap_state;}
 
-bool sweet_gpu_unsecure_requested(void){return mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6;}
+bool sweet_gpu_unsecure_requested(void){return mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6||mock.gpuzap==7;}
 enum ggu_result sweet_gpu_unsecure_once(struct ggu_receipt *out)
 {
- CHECK((mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6)&&mock.zap_calls==1&&mock.zap_result==GPZ_OK&&mock.unsecure_calls++==0&&!mock.quarantines,"native append only after sameboot signed load");order('U');
+ CHECK((mock.gpuzap==2||mock.gpuzap==3||mock.gpuzap==4||mock.gpuzap==5||mock.gpuzap==6||mock.gpuzap==7)&&mock.zap_calls==1&&mock.zap_result==GPZ_OK&&mock.unsecure_calls++==0&&!mock.quarantines,"native append only after sameboot signed load");order('U');
  if(mock.unsecure_result!=GGU_OK){if(mock.unsecure_state==GMB_QUARANTINED)++mock.quarantines;memset(out,0xa5,sizeof(*out));return mock.unsecure_result;}
  memset(out,0,sizeof(*out));return GGU_OK;
 }
@@ -469,6 +471,15 @@ enum ggk_result sweet_gpu_compute_once(struct ggk_receipt *out)
 }
 enum gmb_state sweet_gpu_compute_state(void){return mock.compute_result==GGK_OK?GMB_READY:mock.compute_state;}
 
+bool sweet_gpu_clear_requested(void){return mock.gpuzap==7;}
+enum ggl_result sweet_gpu_clear_once(struct ggl_receipt *out)
+{
+ CHECK(!mock.compute_calls&&!mock.eop_calls&&!mock.ib_calls&&!mock.write_calls&&mock.gpuzap==7&&mock.zap_calls==1&&mock.zap_result==GPZ_OK&&mock.unsecure_calls==1&&mock.unsecure_result==GGU_OK&&mock.clear_calls++==0&&!mock.quarantines,"ordinary data only after sameboot native-mode completion");order('L');
+ if(mock.clear_result!=GGL_OK){if(mock.clear_state==GMB_QUARANTINED)++mock.quarantines;memset(out,0xa5,sizeof(*out));return mock.clear_result;}
+ memset(out,0,sizeof(*out));return GGL_OK;
+}
+enum gmb_state sweet_gpu_clear_state(void){return mock.clear_result==GGL_OK?GMB_READY:mock.clear_state;}
+
 @SOURCE@
 #undef printf
 static bool has(const char *needle){for(unsigned i=0;i<mock.lines;++i)if(strstr(mock.log[i],needle))return true;return false;}
@@ -479,7 +490,7 @@ static void reset(const char *name)
     mock.core_state=GMB_QUARANTINED;
     mock.cp_state=GMB_QUARANTINED;
     mock.zap_state=GMB_QUARANTINED;mock.unsecure_state=GMB_QUARANTINED;
-    mock.write_state=GMB_QUARANTINED;mock.ib_state=GMB_QUARANTINED;mock.eop_state=GMB_QUARANTINED;mock.compute_state=GMB_QUARANTINED;
+    mock.write_state=GMB_QUARANTINED;mock.ib_state=GMB_QUARANTINED;mock.eop_state=GMB_QUARANTINED;mock.compute_state=GMB_QUARANTINED;mock.clear_state=GMB_QUARANTINED;
     mock.requested=mock.probe=mock.stage=1;mock.clock_result=GCX_OK;mock.clock_receipt.configured_hz=200000000;mock.clock_receipt.direct_writes=7;mock.clock_receipt.hold_requests=2;mock.clock_receipt.polls=7;mock.ready_after=1;mock.now=1;
     mock.init_result=GPI_OK;mock.init_state=GPI_QUARANTINED;
     mock.init_receipt.has_returned=1;mock.init_receipt.smc_calls=1;
@@ -1046,7 +1057,7 @@ static void gpu_start_cases(void)
 static void zap_cases(void)
 {
  unsigned first=cases;
- for(int n=-1;n<=7;n++)if(n!=0&&n!=1&&n!=2&&n!=3&&n!=4&&n!=5&&n!=6){reset_bw("ZAP exact flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.zap_calls,"invalid ZAP flag before any work");}
+ for(int n=-1;n<=8;n++)if(n!=0&&n!=1&&n!=2&&n!=3&&n!=4&&n!=5&&n!=6&&n!=7){reset_bw("ZAP exact flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.zap_calls,"invalid ZAP flag before any work");}
  for(unsigned n=0;n<8;n++){
   reset_bw("ZAP missing parent flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;
   if(n==0)mock.gpustart=0;else if(n==1)mock.gpucontext=0;else if(n==2)mock.gmudcvs=0;else if(n==3)mock.gmubw=0;else if(n==4)mock.gmuperf=0;else if(n==5)mock.gmufw=0;else if(n==6)mock.gmuclk=0;else mock.cxpower=0;
@@ -1219,6 +1230,36 @@ static void compute_cases(void)
  }
  printf("PASS: %u new mode6 coordinator cases (%u total); old cases retained\n",cases-first,cases);
 }
+static void clear_cases(void)
+{
+ unsigned first=cases;
+ for(unsigned missing=0;missing<2;missing++){
+  reset_bw("mode7 ordinary data accepted order");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=7;mock.missing_init=missing;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGFKJZULQ")&&mock.zap_calls==1&&mock.unsecure_calls==1&&mock.clear_calls==1&&!mock.compute_calls&&!mock.eop_calls&&!mock.ib_calls&&!mock.write_calls&&mock.after_sleeps==30&&has("before native A619 offscreen clear")&&has("native A619 offscreen256 pixels/192blue/64green/EOP7 and shadow27 verified"),"mode7 exact native order, legacy INIT default0");
+ }
+ for(unsigned n=GGL_ARGUMENT;n<=GGL_TIMEOUT;n++){
+  reset_bw("all write failures terminal");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=7;mock.clear_result=(enum ggl_result)n;run_worker();
+  CHECK(mock.clear_calls==1&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU CLEAR BOOT: stopped")&&!has("native A619 offscreen256 pixels/192blue/64green/EOP7 and shadow27 verified"),"no false data completion/retry after helper failure");
+ }
+ for(unsigned state=GMB_IDLE;state<=GMB_READY;state++){
+  reset_bw("write helper fallback quarantine");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=7;mock.clear_result=GGL_GUARD;mock.clear_state=(enum gmb_state)state;run_worker();
+  CHECK(mock.clear_calls==1&&mock.quarantines==1&&!mock.after_sleeps,"fallback if helper did not quarantine");
+ }
+ for(unsigned n=0;n<5;n++){
+  reset_bw("write failed predecessor");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=7;
+  if(n==0)mock.fw_result=GMB_GPU;else if(n==1)mock.core_result=GGC_GUARD;else if(n==2)mock.cp_result=GGQ_GUARD;else if(n==3)mock.zap_result=GPZ_SERVICE;else mock.unsecure_result=GGU_GUARD;
+  run_worker();CHECK(!mock.clear_calls&&!has("native A619 offscreen256 pixels/192blue/64green/EOP7 and shadow27 verified"),"all private predecessors required");
+ }
+ for(unsigned n=0;n<8;n++){
+  reset_bw("mode7 prerequisites");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=7;
+  if(n==0)mock.gpustart=0;else if(n==1)mock.gpucontext=0;else if(n==2)mock.gmudcvs=0;else if(n==3)mock.gmubw=0;else if(n==4)mock.gmuperf=0;else if(n==5)mock.gmufw=0;else if(n==6)mock.gmuclk=0;else mock.cxpower=0;
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.clear_calls,"no mode7 hardware before old prerequisite chain");
+ }
+ for(unsigned mode=0;mode<7;mode++){
+  reset_bw("legacy modes never run data");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=(int)mode;run_worker();CHECK(!mock.clear_calls&&!has("GPU CLEAR BOOT"),"mode0/1/2/3/4/5/6 data disabled");
+ }
+ printf("PASS: %u new mode7 coordinator cases (%u total); old cases retained\n",cases-first,cases);
+}
 int main(void)
 {
     legacy_cases();
@@ -1257,5 +1298,6 @@ int main(void)
     ib_cases();
     eop_cases();
     compute_cases();
+    clear_cases();
     return 0;
 }

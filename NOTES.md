@@ -2,6 +2,71 @@
 
 ## Agent handoff / active work
 
+
+### 2026-11-08 —169B native OFFSCREEN source/model/ARM64 ACCEPTED; full kernel NEXT
+
+Fullgoal ACTIVE/unlimited. User away: ALL resets automatic; never ask attribution;
+only request truly stuck/manual recovery. No169 kernel/image/device actions.
+Phone LAST TWRP168. Current generated/native recipe STILL168 gauguin.7kjNwR,
+manifest9711ab8b11100fc7d209c436bde31f3ae9ed0c3b89d32c4206fc1b6a95c51ded.
+No new runtime/physical success claims. Original mkadt7line diff SHA
+ a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 untouched.
+
+Codex authored candidate separate GGL clear C/H, mode7 private board provider,
+coordinator/PAS admission; old GGK provider and modes3/4/5 engine bytes retained.
+163rd active patch0169-gauguin-native-offscreen-clear.patch, seven files/two new.
+Exact accepted native149/194/205 arrays, direct7 at20->27, fixed sameRO/NX ring,
+DATA0 target256pixels (192blue/64green), control+c00/EOP7,767otherzeros.
+Full page/prefix/artifacts pre/post compared,555 CPU ring-only stores, <=64 NC
+batches; no new mapping/alias/exec PTE/IRQ/WDT policy or CPU DATAstores aftercold.
+Actual256 CPU pixel samples/8 masks +control/highneighbor/tail aux, wait-loop
+control/neighbor diagnostics. Wait-loop control may be intermediate/zero; it
+is diagnostic, does NOT replace mandatory separate EOP7 poll/full final page.
+Final requires wait_samples==idle_polls, highneighbor0. Old private signed+GGU
+parent, whole16KiBPTE/eight soleNC,4s total/2s phase/8s entry budgets unchanged.
+
+DSH session3270/dispatch-v8-focus inner0 FIRST: pureGGL ASan/UBSan/Werror
+14871 cases/280402627 assertions +4actualARM64 TUs0 using CURRENT168 recipe.
+Only puretest printed stale91/32/16 label; corrected label to149/194/205 after
+terminal; no engine/model logic changed; full83 below will test finalfixture.
+DSH65541/v9models inner1: actual board0/new4055 clear cases +all oldcases;
+coordinator1 mode7 refused by old exactflag guard (compiled0). Owner not run.
+Failed reports/logs/merged models-source immutable. Codex fixed ONLY coordinator
+exact admission toinclude7 (not loosen flags). DSH91888/v10models inner0 FIRST:
+coordinator630cases (34newmode7), PAS owner0, changed nativecoordinatorTU0.
+Updated clear-specific cold-profile upgrade cases2/3/4/5->7; retained all old
+mode6 fixture cases. All jobs terminal; no retries of old claims.
+
+DSH77694/v11integration inner0 FIRST: pristine163patch replay0, all83actual
+host files0, final clear fixture14871cases/280402627assertions, realboard
+clear4055cases +oldmode6 1333/allold retained, coordinator630/ownercases0.
+Final5314file source169-codex SHA
+ 4e324fb4bcc0c3b07b1cb6d9a739d8b010702067dcfe16536f5dbaa145f4ce57;
+exact seven-file delta from immutable source168, allcandidate bytes equal.
+Integration reportSHA fca81d984345189fd70965397e16d9f8d461f73fd8534b763e10e4a5527d6b3d.
+Root independent_source_review169.py FIRST0, reportSHA
+ 85c51beed797099828c043ddec5f75e3b021fa9119fba25a8ef22300366d9e1e:
+all341integration pins +snapshot rehashed/byte-equal, full83 names/log,
+fullsource/basehash/delta7, old modes3/4/5/6 providers and all old engines
+byte-identical, exact native149/194/205 arrays in all5port555word traces,
+independent native page-oracle literals,4 actual ARM64objects rehashed.
+Object evidence uses v8 clear/board/PAS +v10 revisedcoordinator; original
+failed v9coordinator and oldlabel focused artifacts retained, NOTwaived.
+Shared clear_source_contract169.py12 source-only flags accepted, no hardware
+flags promoted. Full host finalfixtures/defaultsource169 changes all tested.
+
+Implementation committed private b42130c87048e3c6474f75d50bf22d574eb58c68.
+HTTPS git transport returned403 twice, authenticated ghAPI read succeeded;
+API publication of SAME TREE with sole public parent is in progress (no
+private ancestry). No CI/fullkernel started. All DSH jobs terminal.
+
+NEXT publish SAME TREE sole currentpublic parent
+ e4fe109ff7286bc91d5b72d00a8ed19b1107036b; exact IDs in public-source-handoff.json.
+Then author and precheck source-bound build qualifier/runtime/reader, preserving
+all168foundation checks; ONE fullLOCAL8job kernel/qualified image and bounded
+temporary boot. No169 SOURCE_HEAD frozen/fullkernel/image/device work yet.
+Previous169A source/native evidence below remains immutable.
+
 ### 2026-11-08 —169 native OFFSCREEN source/packet capture ACCEPTED; GG2D engine NEXT
 
 Previous168 physical shader turn PROGRESS. This continuation PROGRESS: actual

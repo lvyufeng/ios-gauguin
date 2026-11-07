@@ -36,6 +36,15 @@ static void good(uint64_t owner,bool exhaustive)
         CHECK(ggp_emit_tables(&p,ias,widths[ips],legacy,sizeof(legacy),&old));
         memset(buf,0x71,sizeof(buf));memcpy(before,buf,sizeof(buf));
         CHECK(ggd_emit_tables(&d,ias,widths[ips],buf+64,GGP_TABLE_BYTES,&c));
+        uint64_t table[GGP_TABLE_BYTES/8],copy[GGP_TABLE_BYTES/8];memcpy(table,buf+64,sizeof(table));memcpy(copy,table,sizeof(copy));
+        CHECK(ggd_tables_match(&d,table,sizeof(table))&&!memcmp(table,copy,sizeof(table)));
+        if(exhaustive&&ias==39&&ips==1){
+            for(unsigned slot=0;slot<GGP_TABLE_BYTES/8;slot++)for(unsigned bit=0;bit<64;bit++){
+                ++cases;table[slot]^=UINT64_C(1)<<bit;CHECK(!ggd_tables_match(&d,table,sizeof(table)));table[slot]^=UINT64_C(1)<<bit;
+            }
+            CHECK(!memcmp(table,copy,sizeof(table))&&ggd_tables_match(&d,table,sizeof(table)));
+        }
+        memcpy(table,legacy,sizeof(table));CHECK(!ggd_tables_match(&d,table,sizeof(table)));
         CHECK(!memcmp(&c,&old,sizeof(c))&&!memcmp(buf,before,64)&&!memcmp(buf+64+GGP_TABLE_BYTES,before+64+GGP_TABLE_BYTES,64));
         CHECK(walk(buf+64,c.ttbr0,GGD_DATA_IOVA)==((owner+GGD_DATA_OFFSET)|UINT64_C(0x0060000000000e43)));
         unsigned index=(GGD_DATA_IOVA>>12)&511;CHECK(index==24);
@@ -107,5 +116,12 @@ static void bad(void)
     p.owner_pa=0;CHECK(!ggd_plan_build(&p,&d)&&!memcmp(&d,&old,sizeof(d)));
     CHECK(!ggd_write_command_build(NULL,(struct ggd_write_command *)buf));
     CHECK(!ggd_write_command_build(&old,NULL));
+    CHECK(ggm_plan_build(0xaa200000,&gmu)&&ggp_plan_build(&gmu,&p)&&ggd_plan_build(&p,&d));
+    uint64_t table[GGP_TABLE_BYTES/8];struct ggp_s1_config cfg;CHECK(ggd_emit_tables(&d,39,36,table,sizeof(table),&cfg));
+    CHECK(!ggd_tables_match(NULL,table,sizeof(table))&&!ggd_tables_match(&d,NULL,sizeof(table)));
+    CHECK(!ggd_tables_match(&d,table,sizeof(table)-1)&&!ggd_tables_match(&d,(uint8_t *)table+1,sizeof(table)));
+    CHECK(!ggd_tables_match(&d,(const volatile void *)(uintptr_t)(UINTPTR_MAX-7),sizeof(table)));
+    CHECK(!ggd_tables_match((const struct ggd_plan *)(uintptr_t)(UINTPTR_MAX-4),table,sizeof(table)));
+    CHECK(!ggd_tables_match(&d,&d,sizeof(table)));
 }
 int main(void){good(0x100000,false);good(0xaa200000,true);good(0xfff00000,false);bad();printf("GPU data: %u cases/%u checks PASS;19 permission-qualified leaves, all32-bit holes, legacy18/config unchanged, exact8 MEM_WRITE words, overlap/failure atomicity; CPU-only, no live mapping/submission/rendering\n",cases,checks);}

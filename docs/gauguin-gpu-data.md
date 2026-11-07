@@ -168,3 +168,47 @@ It does not establish shader execution, rendering, general scheduling, Metal,
 high refresh or human-observed UI performance. The next step is to bind and
 execute a minimal shader workload from a primary A6xx implementation before
 working on rendering and the iOS acceleration interface.
+
+
+## Minimal compute source baseline (168)
+
+The next physical experiment will use Mesa24.3.4's original
+[`invocationid.asm`](https://github.com/chaotic-cx/mesa-mirror/blob/769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de/src/freedreno/computerator/examples/invocationid.asm)
+and unchanged
+[`computerator` A6xx frontend](https://github.com/chaotic-cx/mesa-mirror/blob/769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de/src/freedreno/computerator/a6xx.cc).
+This is a read-only mirror of the upstream Mesa repository. The commit is
+fixed to `769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de`.
+
+DSH built the original IR3 library on the local Mac. The328 original
+assembler/disassembler cases passed with the upstream `nocache` option.
+Darwin lacks Linux's ELF build-id interface: a declarations-only host header
+and abort-on-call adapter permit compilation, while `nocache` prevents those
+unqualified cache interfaces from executing. Earlier failed attempts remain
+preserved. Mesa source and its assembler/encoding functions are unchanged.
+This host build uses upstream debug/assert settings; it is not a sanitizer
+or GPU execution qualification.
+
+The original A619 backend initialization, assembly, submission and disassembly
+entry points captured three original examples. BO/ring CPU storage, fixed
+IOVA binding and post-kernel-relocation address resolution are explicit host
+seams, with no GPU emulation or DRM-submit proof. The selected program is128
+bytes, with32 local work items, one32-word SSBO, no constants or private
+memory, a16-word descriptor and91 submitted IB words. An independent review
+checked all40 capture inputs and all three output sets, decoded all33 packets
+and their parity/extents, and inspected the assembled instructions.
+
+The proposed physical layout reuses the existing read-only/non-executable
+ring mapping: IB at ring+0x4000, program at+0x5000 and descriptor at+0x6000.
+The control word and SSBO share the existing ordinary DATA page. Native
+RB_DONE_TS and CACHE_FLUSH_TS events write1 then2 at DATA0; the final expected
+page is2,1,2,...,31 followed by992 zeros. All31 nonzero invocation values,
+all other words and the completion observation must match. There is no
+CP_MEM_WRITE in the captured native IB. This expectation is a plan, not an
+observed shader result.
+
+A new exclusive continuation after GGU is required, preserving the167 EOP
+path and current watchdog guards. No168 XNU driver, kernel image or physical
+shader experiment has been produced. The next work is the actual guarded
+compute engine/provider, followed by native comparisons, failure models,
+ARM64 compilation and one temporary device boot. Rendering, Metal, high
+refresh and daily-use acceptance remain unfinished.

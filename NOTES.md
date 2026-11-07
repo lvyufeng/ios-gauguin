@@ -2,6 +2,139 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —168 primary A619 shader+submit capture ACCEPTED; actual compute engine NEXT
+
+Previous goal turn167 physical EOP was PROGRESS. This continuation PROGRESS:
+locked primary Mesa, built actual offline IR3 library, passed328upstream
+assembler/disasm cases and captured THREE original A619 assembly/fullsubmit
+paths, root independent review accepted. Fullgoal ACTIVE/unlimited, NOTdone.
+NO168XNUsource/patch/kernel/image/device IO. Phone LASTTWRP167, all168jobs
+terminal. Never re-boot167 just to reconfirm. ALLresetsautomatic/useraway,
+--manual-reset no; noUI/attribution questions, prompt only truly stuck.
+Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+untouched. No flash/format/GPT; previous temporaryboot/misc authorization stands.
+CURRENT native/generated KERNEL recipe STILL167 gauguin.NQU6PL/source167-codex,
+manifest7b32e93094505e6bcc81d7ddb7c6120aca68efebeff5fb2e965bfc8a4613d482.
+Mesa host builds do NOT change shared XNUrecipe. Never use older166/165/164/
+159TUhelpers against current shared build files. Current handoff prior
+privatefb2ade188093bf9b0d07ff48a278a739f145768d/public195858bb548aa8978f49e3fb7989f2674bccabcf.
+167artifactSOURCE_HEAD stays03bebd82a068396c72413955add3b0f6c9380b23.
+
+168work research/tmp/dsh-0168/. Primary upstream GitLab raw inaccessible via
+web; GitHub connector fetched original-source read-only mirror metadata and
+files, then DSH cloned fixed Mesa24.3.4 commit
+769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de from chaotic-cx/mesa-mirror.
+Full10642files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d.
+All11 initial Gitblob SHA/size APIpins matched; source git clean/unchanged.
+Original frontend src/freedreno/computerator/a6xx.cc SHA
+ff18db392296f595e322686189f9e95504fd10688611dc3a0d6fa1cb6d4c9ea1,
+ir3_asm.cc SHA2efaaedce5e8f696431ad945f4cecc98de471cc41bf6c72ac382c81a9346f9d0.
+mesa-host-venv Python3.14/meson1.6.1/Mako1.3.8/PyYAML6.0.2/ply3.11/
+packaging24.2 (+recorded MarkupSafe3.0.4). DSH installed HomebrewBison3.8.2
+keg-only, taskPATH only; no shell config edited. No Linux/Docker available.
+
+Preserved failure chain (do NOT rerun or edit old files):
+- DSH21908 fetch0/dispatch-fetch terminal0.
+- DSH60000/v2dispatcher hostbuildv1 terminal1: macOSBison2.3 rejects%code.
+- DSH18753/v3dispatcher BEFORESPAWN1: root reused old host-base-executor.log.
+  v3claim has nochild/inner_exit; PID23647 missing, actualassertion documented
+  dispatch-v3-host-base-aborted-before-spawn.json. No v2script executed there.
+- DSH39908/v4dispatcher hostbuildv2 terminal1: Linux ELF build-id declarations
+  absent on Darwin. Allraw/logs preserved.
+- DSH87717/v5dispatcher hostbuildv3 terminal1: official shader-cache=disabled
+  doesn't remove ir3_disk_cache.c compile sites; same API errors preserved.
+- DSH39919/v6dispatcher hostbuildv4: adaptercompile0/config0/403targetbuild0,
+  upstreamtest ABORT-6 on forbidden Linux ELF cache call. Fullnative libs ARE
+  built in mesa-host-build-v4; original failed report/log unchanged.
+- DSH72939/v7dispatcher host-qualify0: SAME403targetbinary/libraries, NOrebuild,
+  upstream IR3_SHADER_DEBUG=nocache; all328native tests0. Typed
+  host_elf_cache_declarations.h only declares exact Linux APIs; linked
+  host_elf_cache_unreachable.c aborts EVERYcall, stillactive. No fabricated
+  build IDs, caches, warning suppression, originalsource edits or guard waiver.
+  Actual ELF/cache path UNQUALIFIED/UNEXECUTED in accepted run. Standard
+  debug/assert build flags, no ASan/UBSan qualification claim for Mesa.
+
+Accepted host report host-base-qualified-result.json, helper
+qualify_mesa_host168.py. ORIGINAL PRIMARY SOURCE UNCHANGED. Use completed
+mesa-host-build-v4/libs and -IR3_SHADER_DEBUG=nocache, never restart oldjobs.
+Primary functions/macros/assembly/library intact. newcode only hostseams.
+
+DSH41813/v8 native-capture FIRSTattempt: compile0/link0, original invocation
+capture ABORT-6 because typedhost model wrongly refused valid native legacy
+relocation callback. It runs because main.h includesringheader BEFORE source
+FD_BO_NO_HARDPIN definition. Original native-compute/ failed artifact intact.
+DSH73623/v9 native-capture v2 ALL0 FIRSTexecution: root NEW
+native_compute168v2.cc +capture_native_compute168v2.py /native-compute-v2/;
+typed callback resolves actual reloc.iova (checks knownBO/offset0/or0/shift0),
+models post-kernel-fixup addresses only, NOTDRM/ioctl/scheduling proof.
+Whole primary a6xx.cc and ir3_asm.cc INCLUDEDUNCHANGED; actual original
+A619 a6xx_init/assemble/emit_grid/disassemble entrypoints executed. No GPU
+opened/emulated. Typed BO/ring CPUstorage+fixedIOVA; cacheadapternevercalled.
+Control and SSBO model BOs intentionally share existing DATAIOVA, not new
+actual mapping/CPUalias proof. BO upload only compiledprogram, no emulated
+shader DATA writes. Original invocationid/simple/stg_ldg_offset ASM unchanged.
+Allthree captures passed. invocation128B/IB91words; others256B/IB107words.
+ExecutableSHAeb4705546abd1f7252f695e3d6e5e4eb9bbd234248d35e39ea3cfc6d8a5d7859,
+objectSHA9599346f5df64d5a99711cdaf943717b9ad702aa433636a4f691439a47b7730a.
+Finalnative report native-capture-result-v2.json SHA
+aba399f916bf901f6146c64eb58bf7e65f447ce1a081f1f6ad8dcfe871a091e1.
+Root rehashed ALL40inputpins/ALLthree outputsets/exe/object, full10642source;
+independently decoded all33selectedpackets/type4/type7parity/extents, zero
+CP_MEM_WRITE; checked realdisasm/nativeprogram and fixeddispatch/eventtargets.
+independent-native-review.json SHA6e5cf528e1d10fe449e2cc7fbb221e82e4e4a08ea00dc2bfc608794398939370.
+This is native CPU source/metadata/packet evidence ONLY, NOhardware shader.
+
+SELECTED actual upstream invocationid.asm: localsize32,1,1 /grid1,1,1,
+one32wordSSBO, constlen0/maxreg0/maxhalf-1/merged1/thread64/pvtmem0.
+Shader128B=32dwords/instrlen1, SHA
+7142780e5a7332c4bffdf4e0defb78450003295a9932b356140636845087285a.
+Actual native instructions mov r0.y,r0.x; rpt5nop; stib.b.untyped.1d.u32.1.imm
+r0.x,r0.y,0; end; paddednops. Fulloriginal A6xx pipeline91words/33packets,
+IBO16words SHA10333f766fc114eac9d28d42ed263e9d7312fccf9ac231b9429e7773ecd50376.
+Raw arrays/decodedpacketlist/native metadata and futureplan in rootreviewJSON.
+Program at existingRING+5000/IOVAfc00d000; descriptor at+6000/fc00e000;
+IB91 at+4000/fc00c000. Existing32KiB ring RO/NX permits CPU fixedstaging.
+Normaldata remainsDATA19/171ATOS/fc018000; NOnew mapping/alias/PTE proposed.
+Pinned KGSL _get_protection_flags kgsl_iommu.c:1789 defaults normal maps to
+IOMMU_NOEXEC (UCODE exception is separate private microcode). Review exact
+normalshader path before claiming permission proof; no executablePTE change.
+
+Native program tail: CP_EXEC_CS0x33 grid1/1/1, WFI0x26,
+EVENT_WRITE RB_DONE_TS0x16 ->DATA0=1; WAIT_REG_MEM0x3c function13/ref1/maskf/
+delay16; EVENT_WRITE CACHE_FLUSH_TS4->DATA0=2; WAIT_MEM_GTE0x14 ref2.
+IB direct mainring wouldremain IB4+WHERE3 from GGUnative20 ->device27.
+CPU must NOTwriteDATA aftercold. Shaderwrites0..31 bylocalID; completion
+intentionally overwrites DATA0, so required final FULLpage [2,1,2,...,31]
+then992zeros, all31nonzero invocation values required. Events onlyDATA0,
+no CP_MEM_WRITE: memory-only CP success cannot prove this pattern. This is
+PROPOSED expected result, not observedGPUoutput. Full pre1024zeros/post1024
+and code32/descriptor16/IB91/direct7/prefix20 comparisons needed.
+
+NEXT IMPLEMENT critical compute engine GGK (name proposed unused), provider,
+coordinator/PASowner/coldselector exclusive mode6 directly AFTERactual GGU20,
+NOTafterGGE (entry16.55s too late under unchanged WDT23s and fresh8s entry).
+Preserve modes3/4/5 engine/provider bytes and existing cold DATA19 profile.
+Expand common coldmodefreeze/data query to6 deliberately; do not addmappings.
+Nativeprogram/IBO/direct/prog staging146words fit disjoint existingRO/NXring
+slots; whitelist only exactfixedwrite ranges; allrest unchanged. Native
+91word IB must remain byte-exact output; guards/fullcanonical16KiBPTE/
+8CPUsoleNC/routes/clock/IRQ/faults/owner/signedparent/failstop poison before
+cache diagnostics retained. No IRQ/cachelifecycle/general scheduling proof.
+Keep4s total/2s phase/8sentry/currentminWDT guards; stagingextra146words may
+consume margin, use same proven NCbatch<=64 policy, NEVER quietly widen WDT
+or budgets. Models should inject allcallbackfailure boundaries/corruption,
+rejectidle/EOPalone without31shaderresults, completefullpage/ring/prog/IBO
+retention, once/alias/mode mutations, no CPU DATAstores. Actualboard model
+secureCPU page PROT_NONE afterAUTH. Then4nativeTUs CURRENT167manifest,
+freshofficial patch168/fullhost and ONEqualified fullLOCAL/image/runtime/
+physical trial. Critical GGK C/H NOTAUTHORED yet; no patch168/serieschange.
+No pending DSH/devicejob, no user action required. Continue actual shader,
+then minimal rendering/iOSIOAccel+Metal/sustainedpower/scheduling/RAM/UFS/
+peripherals/90-120Hz actualacceptance. Fullgoalunchanged/notcomplete.
+Commit/publish this SOURCE/NATIVE milestone with solepublicparent195858b,
+record newIDs research/tmp/dsh-0168/public-native-handoff.json. Oldimmutable
+167build qualifier hardware flags and allphysical reports remain untouched.
+
 ### 2026-11-07 —167 PHYSICAL native IB + noIRQ EOP VERIFIED; minimal shader NEXT
 
 This continuation PROGRESS: ONE fullLOCAL8job kernel/strict qualifier/image/

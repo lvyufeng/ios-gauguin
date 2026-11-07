@@ -93,9 +93,9 @@ static void setup(void)
     struct sweet_pas_cpu_stage claim;assert(sweet_pas_cpu_stage_claim(&claim)&&claim.pa==low_pa&&h.maps==1&&h.stage_barriers==1);
     h.phase=GPZ_SEAL;
 }
-static void before_copy(void)
+static void before_copy_mode(int mode)
 {
-    setup();assert(sweet_pas_zap_owner_live(GPZ_SEAL,low_pa));assert(sweet_pas_zap_owner_action(GPZO_SEAL));
+    setup();h.zap=mode;assert(sweet_pas_zap_owner_live(GPZ_SEAL,low_pa));assert(sweet_pas_zap_owner_action(GPZO_SEAL));
     h.phase=GPZ_INIT;assert(sweet_pas_zap_owner_live(GPZ_INIT,low_pa));assert(sweet_pas_zap_owner_action(GPZO_INIT_ENTER));
     /* Real SCM_RW may change ANY metadata/tail byte; the new path must not
      * rehash those bytes or clear the old tail before the native code copy. */
@@ -104,6 +104,7 @@ static void before_copy(void)
     h.phase=GPZ_MEM;assert(sweet_pas_zap_owner_live(GPZ_MEM,low_pa));assert(sweet_pas_zap_owner_action(GPZO_MEM_ACCEPT));
     assert(h.hashes==hashes);h.phase=GPZ_COPY;
 }
+static void before_copy(void){before_copy_mode(1);}
 int main(int argc,char **argv)
 {
     assert(argc==3);FILE *f=fopen(argv[1],"rb");assert(f&&fread(metadata,1,6860,f)==6860&&fgetc(f)==EOF);fclose(f);
@@ -130,7 +131,7 @@ int main(int argc,char **argv)
         else assert(!sweet_pas_zap_copy(&out));
     }
     for(unsigned n=0;n<9;n++){
-        setup();switch(n){case 0:h.zap=0;break;case 1:h.zap=2;break;case 2:h.init=1;break;case 3:h.mem=1;break;
+        setup();switch(n){case 0:h.zap=0;break;case 1:h.zap=3;break;case 2:h.init=1;break;case 3:h.mem=1;break;
         case 4:h.active=0;break;case 5:h.context=1;break;case 6:h.context=2;break;case 7:h.context=3;break;case 8:h.translation_bad=1;break;}
         assert(!sweet_pas_zap_owner_action(GPZO_SEAL)&&sweet_pas_zap_owner_state()==PSZ_IDLE);
     }
@@ -140,6 +141,26 @@ int main(int argc,char **argv)
     before_copy();assert(!sweet_pas_zap_copy((struct gpz_copy *)code)&&sweet_pas_zap_owner_state()==PSZ_MEM_DONE);
     setup();h.missing_init=1;assert(sweet_pas_zap_owner_action(GPZO_SEAL));
     setup();target[0]^=1;assert(!sweet_pas_zap_owner_live(GPZ_SEAL,low_pa));
+    /* New authenticated predicate reads geometry only, including PROT_NONE
+     * throughout AUTH acceptance and all subsequent permission checks. */
+    for(int mode=1;mode<=2;mode++){
+        before_copy_mode(mode);assert(!sweet_pas_zap_owner_authenticated(low_pa));
+        assert(sweet_pas_zap_copy(&out));h.phase=GPZ_AUTH;unsigned hashes=h.hashes;
+        assert(!mprotect(target,16384,PROT_NONE));assert(sweet_pas_zap_owner_action(GPZO_AUTH_ACCEPT));
+        h.active=0;h.phase=GPZ_IDLE;
+        assert(sweet_pas_zap_owner_authenticated(low_pa)&&!sweet_pas_zap_owner_authenticated(low_pa+0x100000));
+        for(unsigned state=PSZ_IDLE;state<=PSZ_FAILED;state++){
+            psz_lifecycle=state;assert(sweet_pas_zap_owner_authenticated(low_pa)==(state==PSZ_AUTH_DONE));
+        }
+        psz_lifecycle=PSZ_AUTH_DONE;
+        for(unsigned page=0;page<64;page++){
+            h.owner_page=page;h.managed=1;assert(!sweet_pas_zap_owner_authenticated(low_pa));h.managed=0;
+            h.attr_bad=1;assert(!sweet_pas_zap_owner_authenticated(low_pa));h.attr_bad=0;
+        }
+        for(unsigned context=1;context<=3;context++){h.context=context;assert(!sweet_pas_zap_owner_authenticated(low_pa));}h.context=0;
+        h.translation_bad=1;assert(!sweet_pas_zap_owner_authenticated(low_pa));h.translation_bad=0;
+        assert(sweet_pas_zap_owner_authenticated(low_pa)&&h.hashes==hashes);
+    }
     assert(!mprotect(target,16384,PROT_READ|PROT_WRITE));assert(!munmap(allocation,49152));
     printf("ZAP actual owner: %u cases, all%u copy guards, all64 page attributes per phase, exact1984 byte copy/no tail clear, no MDT hash after INIT_ENTER, protected region after AUTH PASS\n",cases,guards);
 }

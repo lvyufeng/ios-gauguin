@@ -49,6 +49,7 @@ static struct {
     unsigned sqe_calls;
     unsigned core_calls;enum ggc_result core_result;enum gmb_state core_state;
     unsigned cp_calls;enum ggq_result cp_result;enum gmb_state cp_state;
+    unsigned unsecure_calls;enum ggu_result unsecure_result;enum gmb_state unsecure_state;
     int gpuzap,missing_init;unsigned zap_calls,zap_asset_calls,zap_asset_fail;enum gpz_result zap_result;enum gmb_state zap_state;
     unsigned gpu_calls;
     unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
@@ -179,7 +180,8 @@ void gauguin_wdt_lease_quarantine(void)
         (mock.fw_calls==1 && mock.fw_result!=GMB_OK) ||
         (mock.core_calls==1 && mock.core_result!=GGC_OK && mock.core_state!=GMB_QUARANTINED) ||
         (mock.cp_calls==1 && mock.cp_result!=GGQ_OK && mock.cp_state!=GMB_QUARANTINED) ||
-        (mock.zap_calls==1 && mock.zap_result!=GPZ_OK && mock.zap_state!=GMB_QUARANTINED) || mock.after_sleeps==30,
+        (mock.zap_calls==1 && mock.zap_result!=GPZ_OK && mock.zap_state!=GMB_QUARANTINED) ||
+        (mock.gpuzap==2 && mock.unsecure_calls==1 && mock.unsecure_result!=GGU_OK && mock.unsecure_state!=GMB_QUARANTINED) || mock.after_sleeps==30,
         "quarantine after TX/INIT/MEM/ARC/CX failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
@@ -408,12 +410,21 @@ enum ggq_result sweet_gpu_cp_once(struct ggq_receipt *out)
 enum gmb_state sweet_gpu_cp_state(void)
 {return mock.cp_result==GGQ_OK?GMB_READY:mock.cp_state;}
 #define printf test_printf
-bool sweet_gpu_zap_requested(void){return mock.gpuzap==1;}
+bool sweet_gpu_zap_requested(void){return mock.gpuzap==1||mock.gpuzap==2;}
 bool sweet_gpu_zap_asset_view(struct gza_view *out)
-{CHECK(mock.gpuzap==1&&!mock.arms,"ZAP asset before WDT");++mock.zap_asset_calls;if(mock.zap_asset_fail)return false;*out=(struct gza_view){(const uint8_t *)(uintptr_t)1,UINT64_C(0x1825a4000),1984};return true;}
+{CHECK((mock.gpuzap==1||mock.gpuzap==2)&&!mock.arms,"ZAP asset before WDT");++mock.zap_asset_calls;if(mock.zap_asset_fail)return false;*out=(struct gza_view){(const uint8_t *)(uintptr_t)1,UINT64_C(0x1825a4000),1984};return true;}
 enum gpz_result sweet_gpu_zap_once(struct gpz_receipt *out)
-{CHECK(mock.gpuzap==1&&mock.cp_calls==1&&mock.cp_result==GGQ_OK&&mock.zap_calls++==0&&!mock.quarantines,"signed loader only after successful CP once");order('Z');if(mock.zap_result!=GPZ_OK){if(mock.zap_state==GMB_QUARANTINED)++mock.quarantines;return mock.zap_result;}memset(out,0,sizeof(*out));return GPZ_OK;}
+{CHECK((mock.gpuzap==1||mock.gpuzap==2)&&mock.cp_calls==1&&mock.cp_result==GGQ_OK&&mock.zap_calls++==0&&!mock.quarantines,"signed loader only after successful CP once");order('Z');if(mock.zap_result!=GPZ_OK){if(mock.zap_state==GMB_QUARANTINED)++mock.quarantines;return mock.zap_result;}memset(out,0,sizeof(*out));return GPZ_OK;}
 enum gmb_state sweet_gpu_zap_state(void){return mock.zap_result==GPZ_OK?GMB_READY:mock.zap_state;}
+
+bool sweet_gpu_unsecure_requested(void){return mock.gpuzap==2;}
+enum ggu_result sweet_gpu_unsecure_once(struct ggu_receipt *out)
+{
+ CHECK(mock.gpuzap==2&&mock.zap_calls==1&&mock.zap_result==GPZ_OK&&mock.unsecure_calls++==0&&!mock.quarantines,"native append only after sameboot signed load");order('U');
+ if(mock.unsecure_result!=GGU_OK){if(mock.unsecure_state==GMB_QUARANTINED)++mock.quarantines;memset(out,0xa5,sizeof(*out));return mock.unsecure_result;}
+ memset(out,0,sizeof(*out));return GGU_OK;
+}
+enum gmb_state sweet_gpu_unsecure_state(void){return mock.unsecure_result==GGU_OK?GMB_READY:mock.unsecure_state;}
 
 @SOURCE@
 #undef printf
@@ -424,7 +435,7 @@ static void reset(const char *name)
     memset(&mock,0,sizeof(mock));case_name=name;++cases;bcm_started=0;
     mock.core_state=GMB_QUARANTINED;
     mock.cp_state=GMB_QUARANTINED;
-    mock.zap_state=GMB_QUARANTINED;
+    mock.zap_state=GMB_QUARANTINED;mock.unsecure_state=GMB_QUARANTINED;
     mock.requested=mock.probe=mock.stage=1;mock.clock_result=GCX_OK;mock.clock_receipt.configured_hz=200000000;mock.clock_receipt.direct_writes=7;mock.clock_receipt.hold_requests=2;mock.clock_receipt.polls=7;mock.ready_after=1;mock.now=1;
     mock.init_result=GPI_OK;mock.init_state=GPI_QUARANTINED;
     mock.init_receipt.has_returned=1;mock.init_receipt.smc_calls=1;
@@ -991,7 +1002,7 @@ static void gpu_start_cases(void)
 static void zap_cases(void)
 {
  unsigned first=cases;
- for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_bw("ZAP exact flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.zap_calls,"invalid ZAP flag before any work");}
+ for(int n=-1;n<=3;n++)if(n!=0&&n!=1&&n!=2){reset_bw("ZAP exact flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.zap_calls,"invalid ZAP flag before any work");}
  for(unsigned n=0;n<8;n++){
   reset_bw("ZAP missing parent flag");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;
   if(n==0)mock.gpustart=0;else if(n==1)mock.gpucontext=0;else if(n==2)mock.gmudcvs=0;else if(n==3)mock.gmubw=0;else if(n==4)mock.gmuperf=0;else if(n==5)mock.gmufw=0;else if(n==6)mock.gmuclk=0;else mock.cxpower=0;
@@ -1014,6 +1025,36 @@ static void zap_cases(void)
  }
  printf("PASS: %u retained + %u ZAP coordinator cases (%u total); typed seams only\n",first,cases-first,cases);
 }
+static void unsecure_cases(void)
+{
+ unsigned first=cases;
+ for(unsigned missing=0;missing<2;missing++){
+  reset_bw("mode2 native append accepted order");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=2;mock.missing_init=missing;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGFKJZUQ")&&mock.zap_calls==1&&mock.unsecure_calls==1&&mock.after_sleeps==30&&has("before native unsecured append")&&has("native SET_SECURE_MODE0/WHERE_AM_I completed"),"mode2 exact native order and terminal");
+ }
+ for(unsigned n=GGU_ARGUMENT;n<=GGU_TIMEOUT;n++){
+  reset_bw("all unsecure errors terminal");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=2;mock.unsecure_result=(enum ggu_result)n;run_worker();
+  CHECK(mock.unsecure_calls==1&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU UNSECURE BOOT: stopped")&&!has("native SET_SECURE_MODE0/WHERE_AM_I completed"),"quarantine and no retry/false terminal after failure");
+ }
+ for(unsigned state=GMB_IDLE;state<=GMB_RUNNING;state++){
+  reset_bw("unsecure fallback quarantines");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=2;mock.unsecure_result=GGU_GUARD;mock.unsecure_state=(enum gmb_state)state;run_worker();
+  CHECK(mock.unsecure_calls==1&&mock.quarantines==1&&!mock.after_sleeps,"fallback quarantine only if helper did not");
+ }
+ for(unsigned n=0;n<4;n++){
+  reset_bw("unsecure no failed predecessor");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=2;
+  if(n==0)mock.fw_result=GMB_GPU;else if(n==1)mock.core_result=GGC_GUARD;else if(n==2)mock.cp_result=GGQ_GUARD;else mock.zap_result=GPZ_SERVICE;
+  run_worker();CHECK(!mock.unsecure_calls&&!has("native SET_SECURE_MODE0/WHERE_AM_I completed"),"fullsameboot predecessor chain required");
+ }
+ for(unsigned n=0;n<8;n++){
+  reset_bw("mode2 all prerequisite flags");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=2;
+  if(n==0)mock.gpustart=0;else if(n==1)mock.gpucontext=0;else if(n==2)mock.gmudcvs=0;else if(n==3)mock.gmubw=0;else if(n==4)mock.gmuperf=0;else if(n==5)mock.gmufw=0;else if(n==6)mock.gmuclk=0;else mock.cxpower=0;
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.zap_calls&&!mock.unsecure_calls,"no mode2 before prerequisites");
+ }
+ reset_bw("mode1 is still signed-only");mock.gmudcvs=mock.gpucontext=mock.gpustart=mock.gpuzap=1;run_worker();
+ CHECK(!mock.unsecure_calls&&!strcmp(mock.order,"RPWTACGFKJZQ")&&has("awaiting watchdog reset; no unsecured/rendering/Metal"),"exact157 mode1 retained");
+ printf("PASS: %u new mode2 coordinator cases (%u total); typed seams only\n",cases-first,cases);
+}
+
 int main(void)
 {
     legacy_cases();
@@ -1047,5 +1088,6 @@ int main(void)
     unsigned before_start=cases;gpu_start_cases();
     printf("PASS: %u retained + %u GPU start coordinator cases (%u total); typed seams only\n",before_start,cases-before_start,cases);
     zap_cases();
+    unsecure_cases();
     return 0;
 }

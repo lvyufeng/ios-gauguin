@@ -146,17 +146,37 @@ input, not new secure-authentication evidence. Five successful native traces
 match the port byte-for-byte: normal, one dropped fenced write with delayed
 shadow/busy,100 and199 dropped writes, and counter overflow. Native fenced-write
 exhaustion is checked independently. These prove source/model sequencing;
-the live post-AUTH binding and physical mode transition remain unfinished.
+the physical mode transition remains unfinished;159 supplies its live binding below.
 
-The next board integration must authorize the append using the actual private
-same-boot signed-load receipt and retained CP/core/firmware state. It needs a
-separate post-AUTH owner predicate and live guard path, without the original
-MDT hash check or any secure-buffer read. It must preserve the signed loader's
-SECURE/LATE rules and quarantine all shared authority on failure. Keep the
-157 signed-only mode unchanged. One proposed command contract reserves
-`sweetgpuzap=2` for signed load plus the native append, with1 retaining the
-signed-only trial; this still needs implementation and explicit old/new-mode
-tests. It fits the current606-byte command without adding another token.
+Patch0159 binds the append to the actual private same-boot signed-load receipt
+and retained CP/core/firmware state. A separate read-only owner predicate
+requires AUTH_DONE and validated private geometry, without rehashing or reading
+the secure region. A new live stage checks private successful INIT/MEM/AUTH
+receipts, sealed state, mappings, routes, clock, IRQ, reset, faults, watchdog
+and monotonic4s total/2s phase deadlines. It preserves the signed loader's
+SECURE/LATE rules; only the separately authorized stage may resume GPU/RB
+access. All shared owners are quarantined before cached failure diagnostics.
+
+The command contract now accepts exact `sweetgpuzap=0/1/2`:0 disables the
+loader,1 keeps157's signed-only behavior and2 adds the native append after
+this boot's successful signed load. Other values are rejected. The proposed
+159 trial uses `gusr-0159-a1` and the same606-byte command length; packaging
+must still decode and compare the complete command before a physical boot.
+
+All3 changed ARM64 translation units pass. Actual-owner tests pass532 cases,
+including all64 page attributes and a PROT_NONE secure buffer through AUTH
+and the new predicate. The coordinator passes470 cases, retaining all444
+old cases and adding26 mode2/order/failure cases. The actual CP/ZAP/GGU engines
+run together in217 new board cases, with the secure region PROT_NONE during
+the new stage; old board cases remain. Those checks cover21 injected faults
+in each phase, private-receipt failures, partial stores/readback corruption,
+fence exhaustion, deadlines, default/invalid modes and once semantics.
+All76 host files pass. Two original fixture refusals are preserved: one lacked
+the new failed-helper quarantine branch, and one injected an ACK bit into a
+software cache that the driver refreshed. Separate corrected versions extend
+only the exact new legal branch and inject the actual register respectively.
+No native-source change or acceptance-rule waiver was needed for those fixes.
+A complete kernel/image and fresh physical evidence are still required.
 
 Do not substitute a TRUST_CONTROL0 write for the native signed-load/unsecured
 path. Completing the transition will still leave general scheduling,

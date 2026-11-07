@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/mman.h>
 #include "gauguin_gmu_board.h"
 #include "gauguin_gmu_clock.h"
 #include "gauguin_wdt_lease.h"
@@ -52,6 +53,11 @@ static void host_core_budget(void);
 static struct {unsigned enabled,owner_state,owner_checks,owner_fail_at,owner_actions,owner_action_fail,copies,copy_fail,bad_copy,copy_guards,copy_expire;
     unsigned smc_calls[3],cont[3],busy[3],interrupted,auth_done,bad_smc_phase,bad_service,complete,partial,fault_phase,fault_kind,fired,bad_flag,bad_off,missing_init;
     int flag;struct gpa_registers last;} z;
+static struct {unsigned active,owner_checks,owner_bad,budgets,budget_fail,kind,fired,phase,reads,drop,fences,accepted,busy_reads,busy_delay,counter_reads,wrap,memreads,shadow_reads,shadow_delay,bad_shadow,corrupt_read,stores,memstores,drop_write,kept,submits,stop_store,expire_store,complete,partial;} u;
+static bool host_unsecure_active(void);
+static void host_unsecure_budget(void);
+static void host_unsecure_read(vm_offset_t,uint32_t *);
+static bool host_unsecure_store(vm_offset_t,uint32_t);
 static void host_zap_budget(void);
 static void host_zap_smc(struct gpa_registers *);
 static unsigned cases;
@@ -61,6 +67,8 @@ static int host_printf(const char *s,...)
 {
     char text[256];va_list ap;va_start(ap,s);int n=vsnprintf(text,sizeof(text),s,ap);va_end(ap);
     CHECK(n>0&&(unsigned)n<sizeof(text));
+    if(strstr(text,"SWEET GPU UNSECURE: complete")){CHECK(u.active&&h.live&&!h.quarantine&&sweet_gpu_unsecure_state()==GMB_READY&&u.complete++==0);}
+    if(strstr(text,"SWEET GPU UNSECURE: partial")){CHECK(u.active&&!h.live&&h.quarantine==1&&sweet_gpu_unsecure_state()==GMB_QUARANTINED&&u.partial++==0);}
     if(strstr(text,"SWEET GPU ZAP: complete")){CHECK(z.enabled&&h.live&&!h.quarantine&&sweet_gpu_zap_state()==GMB_READY&&z.complete++==0&&z.owner_state==PSZ_AUTH_DONE);}
     if(strstr(text,"SWEET GPU ZAP: partial")){CHECK(z.enabled&&!h.live&&h.quarantine==1&&sweet_gpu_zap_state()==GMB_QUARANTINED&&z.partial++==0&&z.owner_state==PSZ_FAILED);}
     if(strstr(text,"SWEET GPU CP: complete")){CHECK(cp_active&&core_complete&&h.live&&!h.quarantine&&sweet_gpu_cp_state()==GMB_READY&&cp_complete++==0);}
@@ -195,6 +203,7 @@ bool gauguin_wdt_lease_check_budget(uint32_t n)
     host_core_budget();
     host_cp_budget();
     host_zap_budget();
+    host_unsecure_budget();
     if(h.budgets==h.expire)h.now=8*NSEC_PER_SEC;
     if(h.budgets==h.budget_fail)h.live=false;
     return h.live;
@@ -202,10 +211,10 @@ bool gauguin_wdt_lease_check_budget(uint32_t n)
 void gauguin_wdt_lease_quarantine(void){++h.quarantine;h.live=false;}
 bool sweet_gmu_clock_quiet(uint32_t *gx){if(h.clock_bad||(start_mode&&h.gx_on))return false;*gx=0;return true;}
 bool sweet_gmu_clock_live(bool allow,uint32_t *gx)
-{CHECK(!z.auth_done);h.allow_gx+=allow;*gx=h.gx_on?0x80000000u:0;return !h.clock_bad&&(allow||!h.gx_on);}
-bool sweet_gmu_irq_quiet(uint32_t raw[3]){CHECK(!z.auth_done);raw[0]=raw[2]=0;raw[1]=h.core_irq?0x1000:0;return !h.irq_bad;}
+{CHECK(!z.auth_done||host_unsecure_active());h.allow_gx+=allow;*gx=h.gx_on?0x80000000u:0;return !h.clock_bad&&(allow||!h.gx_on);}
+bool sweet_gmu_irq_quiet(uint32_t raw[3]){CHECK(!z.auth_done||host_unsecure_active());raw[0]=raw[2]=0;raw[1]=h.core_irq?0x1000:0;return !h.irq_bad;}
 bool sweet_pas_stage_owner_valid(const struct sweet_pas_cpu_stage *p)
-{++h.owner_calls;return h.owner_calls!=h.owner_fail&&p&&p->pa==owner&&p->metadata_bytes==6860&&p->reserved_bytes==16384;}
+{CHECK(!z.auth_done);++h.owner_calls;return h.owner_calls!=h.owner_fail&&p&&p->pa==owner&&p->metadata_bytes==6860&&p->reserved_bytes==16384;}
 boolean_t pmap_valid_page(ppnum_t pn)
 {
     bool found=(start_mode&&pn==0x3d00000/16384)||(pn>=owner/16384&&pn<(owner+1048576)/16384)||pn==0x3d7c000/16384||
@@ -214,11 +223,11 @@ boolean_t pmap_valid_page(ppnum_t pn)
     if(core_mode)for(unsigned n=0;n<6;n++)found|=pn==(0x03d00000+core_offsets[n])/16384;
     CHECK(found);
     return ++h.pmap_calls==h.pmap_fail||(core_dev_valid&&pn==(0x03d00000+core_offsets[core_dev_valid-1])/16384)||
-        (cp_active&&cp_nc_bad==2&&pn==(owner+0xa8000+16384*(cp_nc_page-1))/16384);
+        ((cp_active||u.active)&&cp_nc_bad==2&&pn==(owner+0xa8000+16384*(cp_nc_page-1))/16384);
 }
 unsigned pmap_cache_attributes(ppnum_t pn)
 {return h.pmap_calls==h.attr_fail||(core_attr_bad&&pn==(owner+0xb4000)/16384)||(core_dev_bad&&pn==(0x03d00000+core_offsets[core_dev_bad-1])/16384)||
-    (cp_active&&((cp_nc_bad==1&&pn==(owner+0xa8000+16384*(cp_nc_page-1))/16384)||(cp_dev_bad&&pn==0x03d00000/16384)))?0:pn>=owner/16384?0xd0000006u:0xd0000007u;}
+    ((cp_active||u.active)&&((cp_nc_bad==1&&pn==(owner+0xa8000+16384*(cp_nc_page-1))/16384)||(cp_dev_bad&&pn==0x03d00000/16384)))?0:pn>=owner/16384?0xd0000006u:0xd0000007u;}
 vm_offset_t ml_io_map_with_prot(vm_offset_t pa,vm_size_t bytes,vm_prot_t prot)
 {
     ++h.maps;CHECK(prot==3&&h.maps<=(core_mode?14u:start_mode?8u:h.firmware?7u:2u));
@@ -258,11 +267,11 @@ void *IOMalloc(size_t n){CHECK(n==65536||n==16384);++h.allocs;return h.alloc_fai
 void IOFree(void *p,size_t n){CHECK((n==65536||n==16384)&&p);++h.frees;free(p);}
 void delay(unsigned us){CHECK(us==5||us==10||us==100);if(start_mode)h.now+=(uint64_t)us*1000;}
 void IOSleep(unsigned ms){CHECK(h.gpu_mode&&ms==30&&(h.gpu_smc_calls||z.enabled)&&h.live);h.now+=(uint64_t)ms*1000000;}
-void sweet_log_mark_sync(const char *s){CHECK(s&&strlen(s)<192);}
+void sweet_log_mark_sync(const char *s){CHECK(s);if(!strncmp(s,"SWEET GPU UNSECURE",18))CHECK(strlen(s)<256);else CHECK(strlen(s)<192);}
 void sweet_log_flush_now(void){}
 static uint32_t mmio_read32(vm_offset_t address)
 {
-    CHECK(h.live);++h.reads;
+    CHECK(h.live&&(!z.auth_done||host_unsecure_active()));++h.reads;
     if(address==(uintptr_t)reset_page+0x2000){uint32_t v;memcpy(&v,reset_page+0x2000,4);return v;}
     CHECK(address>=(uintptr_t)smmu&&address+4<=(uintptr_t)smmu+65536);uint32_t v;memcpy(&v,(void *)address,4);
     unsigned off=(unsigned)(address-(uintptr_t)smmu);
@@ -277,7 +286,7 @@ static uint32_t mmio_read32(vm_offset_t address)
 static void mmio_write32(vm_offset_t address,uint32_t v)
 {CHECK(h.live&&!z.auth_done&&address>=(uintptr_t)smmu&&address+4<=(uintptr_t)smmu+65536);++h.writes;memcpy((void *)address,&v,4);}
 static uint64_t mmio_read64(vm_offset_t address)
-{CHECK(h.live&&!z.auth_done&&address>=(uintptr_t)smmu&&address+8<=(uintptr_t)smmu+65536);uint64_t v;memcpy(&v,(void *)address,8);++h.reads;return v;}
+{CHECK(h.live&&(!z.auth_done||host_unsecure_active())&&address>=(uintptr_t)smmu&&address+8<=(uintptr_t)smmu+65536);uint64_t v;memcpy(&v,(void *)address,8);++h.reads;return v;}
 static void mmio_write64(vm_offset_t address,uint64_t v)
 {CHECK(h.live&&!z.auth_done&&address>=(uintptr_t)smmu&&address+8<=(uintptr_t)smmu+65536);++h.writes64;memcpy((void *)address,&v,8);}
 static void host_barrier(void)
@@ -375,6 +384,9 @@ static void host_core_budget(void)
 }
 static void reset(void)
 {
+    CHECK(!mprotect(ram,16384,PROT_READ|PROT_WRITE));memset(&u,0,sizeof(u));
+    ggub_lifecycle=ggub_phase=ggub_sealed=0;ggub_entry=ggub_phase_entry=ggub_deadline=ggub_phase_end=ggub_last_now=0;
+    memset(&ggub_context,0,sizeof(ggub_context));memset(&ggub_work,0,sizeof(ggub_work));memset(&ggub_diagnostic,0,sizeof(ggub_diagnostic));ggub_result=GGU_OK;
     memset(&z,0,sizeof(z));gpzb_lifecycle=0;gpzb_last_now=0;memset(&gpzb_context,0,sizeof(gpzb_context));memset(&gpzb_work,0,sizeof(gpzb_work));memset(&gpzb_diagnostic,0,sizeof(gpzb_diagnostic));
     ++cases;memset(&h,0,sizeof(h));h.live=true;memset(ram,0xa5,sizeof(ram));memset(reset_page,0,sizeof(reset_page));memset(smmu,0,sizeof(smmu));
     cp_mode=cp_active=cp_complete=cp_partial=cp_words=cp_guard_lines=0;
@@ -430,7 +442,7 @@ static void happy(void)
 }
 static uint8_t *fw_address(vm_offset_t address)
 {
-    if(cp_active&&address>=(uintptr_t)ram+0xa8000&&address+4<=(uintptr_t)ram+0xb1000)return (uint8_t *)address;
+    if((cp_active||u.active)&&address>=(uintptr_t)ram+0xa8000&&address+4<=(uintptr_t)ram+0xb1000)return (uint8_t *)address;
     if(address>=(uintptr_t)reset_page&&address+4<=(uintptr_t)reset_page+sizeof(reset_page))return (uint8_t *)address;
     if(address>=(uintptr_t)ram+0x8c000&&address+4<=(uintptr_t)ram+0x94000)return (uint8_t *)address;
     if(core_active&&address>=(uintptr_t)ram+0xb4000&&address+4<=(uintptr_t)ram+0xb5000)return (uint8_t *)address;
@@ -443,7 +455,8 @@ static uint8_t *fw_address(vm_offset_t address)
 }
 static uint32_t fw_read32(vm_offset_t address)
 {
-    CHECK(h.live&&!z.auth_done);uint32_t value;memcpy(&value,fw_address(address),4);
+    CHECK(h.live&&(!z.auth_done||host_unsecure_active()));uint32_t value;memcpy(&value,fw_address(address),4);
+    host_unsecure_read(address,&value);
     host_cp_read(address,&value);
     host_core_read(address);
     if(start_mode&&(!core_mode||ggc_context.phase==GGC_MMU_OOB)&&address>=(uintptr_t)core_page&&address<(uintptr_t)core_page+sizeof(core_page)){
@@ -559,6 +572,7 @@ static bool host_cp_store(vm_offset_t address,uint32_t value)
 static void fw_write32(vm_offset_t address,uint32_t value)
 {
     CHECK(h.live);uint8_t *p=fw_address(address);++h.fw_stores;
+    if(host_unsecure_store(address,value))return;
     if(host_cp_store(address,value)){if(cp_memstores!=cp_drop_write||address<(uintptr_t)ram+0xa8000||address>=(uintptr_t)ram+0xb1000)memcpy(p,&value,4);return;}
     if(host_core_store(address,value)){memcpy(p,&value,4);return;}
     if(address==(uintptr_t)reset_page+0x2000){CHECK(gfw_work.release_attempted==1&&gfw_work.phase==GMF_RELEASING&&value==0);if(h.fw_fail_phase==24)return;}
@@ -1265,6 +1279,130 @@ static void gpu_zap_cases(void)
     printf("GPU signed ZAP board: %u actual CP+ZAP/owner-seam/lifecycle/live-CPU-late/fault/copy/deadline/once cases PASS; no hardware authentication proof\n",cases-first);
 }
 
+/* New stage uses actual CP+ZAP+GGU engines and exact private receipts. */
+static bool host_unsecure_active(void)
+{
+ return u.active&&z.auth_done&&z.flag==2&&sweet_gpu_unsecure_state()==GMB_RUNNING&&
+  ((ggub_context.state==1&&ggub_context.phase>=GGU_SEAL&&ggub_context.phase<=GGU_FINAL)||
+   (ggub_context.state==2&&ggub_context.phase==GGU_DONE&&ggub_phase==GGU_FINAL));
+}
+bool sweet_pas_zap_owner_authenticated(uint64_t pa)
+{++u.owner_checks;return u.active&&z.enabled&&z.auth_done&&pa==owner&&z.owner_state==PSZ_AUTH_DONE&&!u.owner_bad;}
+static void host_unsecure_budget(void)
+{
+ if(!u.active)return;++u.budgets;
+ if(u.budgets==u.budget_fail)h.live=false;
+ if(!u.kind||u.fired||ggub_context.state!=1||ggub_context.phase!=u.phase)return;
+ u.fired=1;uint32_t v=1;
+ switch(u.kind){
+ case 1:h.clock_bad=1;break;case 2:h.irq_bad=1;break;case 3:memcpy(reset_page+0x2000,&v,4);break;
+ case 4:memcpy(smmu+0x48,&v,4);break;case 5:v=1u<<9;memcpy(core_page+4*0x201,&v,4);break;
+ case 6:memcpy(core_page+4*0x823,&v,4);break;case 7:h.now=ggub_deadline;break;case 8:h.now=ggub_phase_end;break;
+ case 9:u.owner_bad=1;break;case 10:gpzb_work.copy.checked=1983;break;case 11:gfw_context.dcvs_return=1;break;
+ case 12:core_attr_bad=1;break;case 13:ggc_alias[0]++;break;case 14:h.context=1;break;
+ case 15:{uint64_t t=ggb_smmu.ttbr0^4096;memcpy(smmu+0x8000+4096*ggb_smmu.bank+0x20,&t,8);break;}
+ case 16:v=1u<<24;memcpy(reset_page+0x2648,&v,4);break;case 17:ggc_work.mem_compared=1023;break;
+ case 18:h.now=ggub_last_now?ggub_last_now-1:UINT64_MAX;break;
+ case 19:cp_nc_bad=2;cp_nc_page=1;break;case 20:cp_nc_bad=1;cp_nc_page=3;break;case 21:cp_dev_bad=1;break;default:CHECK(false);
+ }
+}
+static void host_unsecure_read(vm_offset_t address,uint32_t *value)
+{
+ if(!u.active)return;CHECK(host_unsecure_active());++u.reads;
+ if(address==(uintptr_t)fw_page[0]+0x2c4c){*value=u.fences++<u.drop?3:2;if(!(*value&1))u.accepted=1;}
+ if(address==(uintptr_t)fw_page[0]+0x2c30){*value=ggub_context.phase==GGU_WAIT&&u.busy_reads++<u.busy_delay?0x71800000:0x71000000;}
+ if(address==(uintptr_t)reset_page+0x2220||address==(uintptr_t)reset_page+0x2224){
+  unsigned n=u.counter_reads++;*value=!u.wrap?(address==(uintptr_t)reset_page+0x2224?1u:0x12345678u):
+   n==0?1u:n==1?0xfffffff0u:n==2?2u:n==3?0x10u:address==(uintptr_t)reset_page+0x2224?2u:0x20u;
+ }
+ if(address>=(uintptr_t)ram+0xa8000&&address<(uintptr_t)ram+0xb1000){
+  ++u.memreads;
+  if(ggub_context.phase==GGU_WAIT){CHECK(address==(uintptr_t)ram+0xb0000&&u.accepted&&u.submits&&!u.kept);
+   if(u.shadow_reads++>=u.shadow_delay){*value=u.bad_shadow?u.bad_shadow:20;memcpy(ram+0xb0000,value,4);}}
+  if(u.corrupt_read==u.memreads)*value^=1;
+ }
+}
+static bool host_unsecure_store(vm_offset_t address,uint32_t value)
+{
+ if(!u.active)return false;CHECK(host_unsecure_active());++u.stores;
+ if(address>=(uintptr_t)ram+0xa8000&&address<(uintptr_t)ram+0xb1000){
+  CHECK(ggub_context.phase==GGU_COMMANDS&&u.memstores<5&&address==(uintptr_t)ram+0xa8000+60+4*u.memstores&&value==ggub_context.command.word[u.memstores]);
+  ++u.memstores;
+  if(u.memstores!=u.drop_write)memcpy((void *)address,&value,4);
+ }else{
+  uint32_t reg=host_core_reg(address);CHECK(ggub_context.phase==GGU_SUBMIT&&ggu_register_allowed(reg,true)&&u.memstores==5&&ggub_context.work.commands_checked==5);
+  if(reg==0x807){CHECK(value==20&&u.kept);++u.submits;}else{CHECK(value<=1);u.kept=value;}
+  memcpy((void *)address,&value,4);
+ }
+ if(u.stores==u.stop_store)h.clock_bad=1;
+ if(u.stores==u.expire_store)h.now=ggub_phase_end;
+ return true;
+}
+static void unsecure_setup(void)
+{
+ zap_setup();z.flag=2;struct gpz_receipt signed_load;CHECK(sweet_gpu_zap_once(&signed_load)==GPZ_OK);
+ cp_active=0;u.active=1;CHECK(!mprotect(ram,16384,PROT_NONE));
+ CHECK(sweet_gpu_unsecure_state()==GMB_IDLE&&ggub_context.state==0);
+}
+static void unsecure_failed(void)
+{
+ struct ggu_receipt out,saved;memset(&out,0xa5,sizeof(out));saved=out;
+ CHECK(sweet_gpu_unsecure_once(&out)!=GGU_OK&&!memcmp(&out,&saved,sizeof(out))&&u.partial==1&&!u.complete);
+ CHECK(sweet_gpu_unsecure_state()==GMB_QUARANTINED&&sweet_gpu_zap_state()==GMB_QUARANTINED&&
+  sweet_gpu_cp_state()==GMB_QUARANTINED&&sweet_gpu_core_state()==GMB_QUARANTINED&&sweet_gpu_start_state()==GMB_QUARANTINED&&
+  sweet_gmu_firmware_state()==GMB_QUARANTINED&&sweet_gmu_board_state()==GMB_QUARANTINED&&z.owner_state==PSZ_FAILED&&!h.live&&h.quarantine==1);
+ unsigned reads=u.reads,stores=u.stores,budgets=u.budgets;
+ CHECK(sweet_gpu_unsecure_once(&out)==GGU_ALREADY&&!memcmp(&out,&saved,sizeof(out))&&reads==u.reads&&stores==u.stores&&budgets==u.budgets);
+}
+static void unsecure_good(void)
+{
+ struct ggu_receipt out,saved;memset(&out,0xa5,sizeof(out));saved=out;
+ unsigned maps=h.maps,nc=h.nc_maps,owner_calls=h.owner_calls;
+ CHECK(sweet_gpu_unsecure_once(&out)==GGU_OK&&sweet_gpu_unsecure_state()==GMB_READY&&u.complete==1&&!u.partial&&z.owner_state==PSZ_AUTH_DONE);
+ CHECK(out.complete==1&&out.sealed==1&&out.commands_written==5&&out.commands_checked==5&&out.prefix_checked==15&&out.clean_checked==5&&out.requests_retained==1&&out.rptr==20);
+ CHECK(out.initial_wptr==15&&out.initial_shadow==15&&out.writes==u.drop+3&&out.fence_checks==u.drop+1&&u.memstores==5&&u.submits==u.drop+1&&!u.kept);
+ CHECK(h.maps==maps&&h.nc_maps==nc&&h.owner_calls==owner_calls&&h.live&&!h.quarantine&&ggub_diagnostic.reason==UGD_NONE);
+ CHECK(!memcmp(ram+0xa8000,ggq_context.command.word,60));for(unsigned i=20;i<8192;i++)CHECK(*(uint32_t *)(void *)(ram+0xa8000+4*i)==0xaaaaaaaa);
+ unsigned reads=u.reads,stores=u.stores,budgets=u.budgets;
+ CHECK(sweet_gpu_unsecure_once(&out)==GGU_ALREADY&&reads==u.reads&&stores==u.stores&&budgets==u.budgets);
+ (void)saved;
+}
+static void gpu_unsecure_cases(void)
+{
+ unsigned first=cases;
+ for(unsigned scenario=0;scenario<5;scenario++){
+  unsecure_setup();u.drop=scenario==1?1:scenario==2?100:scenario==3?199:0;u.wrap=scenario==4;
+  if(scenario==1)u.shadow_delay=u.busy_delay=2;unsecure_good();
+ }
+ for(unsigned phase=GGU_SEAL;phase<=GGU_FINAL;phase++)for(unsigned kind=1;kind<=21;kind++){
+  unsecure_setup();u.phase=phase;u.kind=kind;unsecure_failed();CHECK(u.fired);
+ }
+ for(unsigned n=1;n<=8;n++){unsecure_setup();u.stop_store=n;unsecure_failed();CHECK(u.stores==n);}
+ for(unsigned n=1;n<=8;n++){unsecure_setup();u.expire_store=n;unsecure_failed();CHECK(u.stores==n);}
+ for(unsigned n=1;n<=5;n++){unsecure_setup();u.drop_write=n;unsecure_failed();CHECK(!u.submits);}
+ for(unsigned n=1;n<=26;n++){unsecure_setup();u.corrupt_read=n;unsecure_failed();CHECK(!u.submits);}
+ for(unsigned n=0;n<20;n++){
+  unsecure_setup();uint32_t *p=(uint32_t *)(void *)(ram+0xa8000+4*n);*p^=1;unsecure_failed();CHECK(!u.stores);
+ }
+ for(unsigned n=0;n<12;n++){
+  unsecure_setup();
+  if(n==0)gpzb_lifecycle=GMB_RUNNING;else if(n==1)gpzb_context.state=1;else if(n==2)gpzb_context.phase=GPZ_AUTH;else if(n==3)gpzb_context.pending_raw=1;
+  else if(n==4)gpzb_work.owner_pa+=0x100000;else if(n==5)z.owner_state=PSZ_COPIED;
+  else {unsigned id=(n-6)/2;gpzb_work.transaction[id].returned.x[(n-6)%2]=UINT64_C(0x100000000);gpzb_context.work=gpzb_work;}
+  unsecure_failed();CHECK(!u.stores&&!u.memreads);
+ }
+ unsecure_setup();u.drop=200;unsecure_failed();CHECK(u.kept&&u.submits==201&&u.fences==200);
+ unsecure_setup();u.bad_shadow=8192;unsecure_failed();
+ unsecure_setup();u.budget_fail=1;unsecure_failed();CHECK(ggub_diagnostic.reason==UGD_ENTRY_BUDGET&&!u.stores);
+ unsecure_setup();u.phase=GGU_WAIT;u.kind=8;unsecure_failed();
+ for(int mode=0;mode<=3;mode++)if(mode!=2){
+  unsecure_setup();z.flag=mode;struct ggu_receipt out,saved;memset(&out,0xa5,sizeof(out));saved=out;unsigned budgets=h.budgets;
+  CHECK(sweet_gpu_unsecure_once(&out)==GGU_ARGUMENT&&!memcmp(&out,&saved,sizeof(out))&&sweet_gpu_unsecure_state()==GMB_IDLE&&h.budgets==budgets&&!u.stores);
+ }
+ CHECK(!mprotect(ram,16384,PROT_READ|PROT_WRITE));
+ printf("GPU unsecure live board: %u actual CP+ZAP+GGU/private-receipt/owner-seam/mode/PROT_NONE/fault/deadline/once cases PASS; no hardware mode proof\n",cases-first);
+}
+
 int main(void)
 {
     happy();unsigned budgets=h.budgets,translations=h.translations,pmaps=h.pmap_calls;
@@ -1295,4 +1433,5 @@ int main(void)
     gpu_core_cases();
     gpu_cp_cases();
     gpu_zap_cases();
+    gpu_unsecure_cases();
 }

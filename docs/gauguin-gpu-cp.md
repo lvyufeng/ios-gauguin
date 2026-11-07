@@ -1,8 +1,9 @@
 # A619 first CP submission contract
 
 Patch0153 implements `ggq_start_once`, the first native RB0 command transaction.
-It is compiled for gauguin but has no live dispatch yet. The accepted152 core,
-restore list and cold SQE remain prerequisites. This engine alone does not make
+Patch0154 supplies its live board adapter and coordinator dispatch behind the
+existing default-off `sweetgpustart=1` entry. The accepted152 core, restore list
+and cold SQE remain prerequisites. This engine alone does not make
 GPU rendering, Metal, ZAP, unsecured mode or daily use available.
 
 The reference is LineageOS/android_kernel_xiaomi_gauguin commit
@@ -70,8 +71,22 @@ failure/corruption, named faults, parent validation, recursion, once-state and
 output preservation. All70 host test files and the actual ARM64 CP translation
 unit pass. These are source/model/TU proofs, not a linked-kernel or device result.
 
-Next: a separate live adapter and coordinator dispatch after complete same-boot
-152 core/RGL. Reuse retained core/CSR/AO Device aliases and validate every private
-NC ring/scratch page, without reusing old guards that require RUNNING owners.
-Only then build and boot one integrated image and require real device-written
-RPTR progress, clear busy/fault state and preserved baseline runtime evidence.
+The154 adapter requires complete same-boot core/RGL and READY firmware/GGX
+parents, using an independent CP guard. It reuses core/CSR/AO Device aliases
+and checks their attributes and physical endpoints, plus the two ring and one
+scratch16KiB NC reservations and existing restore-page ownership. Only32KiB
+ring and4KiB scratch bytes are exposed to engine memory callbacks. It creates
+no new mappings and preserves earlier board function bodies.
+
+The new stage has4s total CPU,2s phase/native-idle bounds,8s entry watchdog
+budget and the existing3s minimum. It checks live clocks, masked IRQ state,
+CM3 reset, GPU/GMU routes/roots/faults and accepted current SQE/core receipts.
+Failure quarantines CP/core/GGX/firmware/board/shared lease before cached
+records, with no cleanup or retry. Success records initial pointers, memory
+checks, fenced submission/counters, actual shadow/busy/fault observations,
+final guard ticks and all15 command words. Coordinator failures are terminal.
+
+Its238 new actual CP/core/GGX board cases,416 coordinator cases and all70
+host files pass; the changed board/coordinator ARM64 TUs also pass. Full native
+154 kernel/image/runtime-reader checks and a physical command-completion trial
+remain required. No device CP result or acceleration/Metal is qualified yet.

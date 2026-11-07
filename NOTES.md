@@ -44,8 +44,12 @@ with142/all earlier baselines. Runtime reader128/429/full24/133 (synthetic)
 and clock4/95 passed before boot; reportcec41b31...0735a21. Prep commits
 875225f and61e40fa. CURRENT full native recipe/source14377lIOK. Phone
 observedTWRP, all owned DSH handles CLOSED. Original7-line mkadt diff intact.
-No flash/format/GPT/destructive operation/CI. Source publication801c2dd
-remote verified; sanitized physical handoff publication next.
+No flash/format/GPT/destructive operation/CI. Source publication801c2dd and physical handoff
+publication995f4b89e5c2a53d3a73d055d9fec31867329ee1 both ls-remote verified. Latter has sole
+parent801c2dddbd5e8d31186d6e86f406eb2eb3b4b97d, same tree as privatebfd0384c4038debb2fa133b6bddb6b85f92f8cb9;
+exactly2 NOTES/docs text paths. Report research/tmp/dsh-0143/
+public-hardware-snapshot-0143.json; no private ancestry/raw device data/
+downloaded native sources/binaries/serials pushed.
 
 NEXT144: preserve143 as reproducible native power-request baseline. Rebind
 exact19b63c8 adreno.c/adreno_a6xx.c/adreno-gpulist.h and GPU MMU helpers,

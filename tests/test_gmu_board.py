@@ -3,18 +3,20 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source168-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source169-codex')))/'bsd/dev'
 C=Path(os.environ.get('GMU_BOARD_SOURCE_DIR',str(D)))
 S=C/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 G=R/'tests/fixtures/gmu-board/write_host.c'
 I=R/'tests/fixtures/gmu-board/ib_host.c'
 E=R/'tests/fixtures/gmu-board/eop_host.c'
 K=R/'tests/fixtures/gmu-board/compute_host.c'
+L=R/'tests/fixtures/gmu-board/clear_host.c'
+LV=R/'tests/fixtures/gpu-clear/native_words.h'
 V=R/'tests/fixtures/gpu-compute/native_words.h'
-inputs=[S,F,G,I,E,K,V,C/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
+inputs=[S,F,G,I,E,K,L,V,LV,C/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
 inputs += [D/'gauguin_gpu_sqe_asset.h',D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']
 inputs += [D/(n+s) for n in ['gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib'] for s in ['.c','.h']]+[D/'gauguin_gpu_smmu.h']
-inputs += [D/'gauguin_gpu_eop.c',D/'gauguin_gpu_eop.h',C/'gauguin_gpu_compute.c',C/'gauguin_gpu_compute.h']
+inputs += [D/'gauguin_gpu_eop.c',D/'gauguin_gpu_eop.h',C/'gauguin_gpu_compute.c',C/'gauguin_gpu_compute.h',C/'gauguin_gpu_clear.c',C/'gauguin_gpu_clear.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
 source=re.sub(r'^#include .*\n','',S.read_text(),flags=re.M)
 # Only the physical SMC instruction/register binding is replaced. The real
@@ -42,11 +44,12 @@ fixture=fixture.replace('@WRITE_FIXTURE@',G.read_text())
 assert fixture.count('@IB_FIXTURE@')==1;fixture=fixture.replace('@IB_FIXTURE@',I.read_text())
 assert fixture.count('@EOP_FIXTURE@')==1;fixture=fixture.replace('@EOP_FIXTURE@',E.read_text())
 assert fixture.count('@COMPUTE_FIXTURE@')==1;fixture=fixture.replace('@COMPUTE_FIXTURE@',K.read_text())
+assert fixture.count('@CLEAR_FIXTURE@')==1;fixture=fixture.replace('@CLEAR_FIXTURE@',L.read_text())
 env=os.environ.copy();env.update(ASAN_OPTIONS='halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
 with tempfile.TemporaryDirectory(prefix='gmu-board-') as tmp:
     unit=Path(tmp)/'test.c';binary=Path(tmp)/'test';unit.write_text(fixture.replace('@SOURCE@',source))
     if os.environ.get('GMU_BOARD_UNIT_COPY'):
         with Path(os.environ['GMU_BOARD_UNIT_COPY']).open('x') as f:f.write(unit.read_text())
-    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(C),'-I'+str(D),'-I'+str(V.parent),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib']],str(D/'gauguin_gpu_eop.c'),str(C/'gauguin_gpu_compute.c'),'-o',str(binary)],env=env,check=True)
+    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(C),'-I'+str(D),'-I'+str(V.parent),'-I'+str(R/'tests/fixtures'),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib']],str(D/'gauguin_gpu_eop.c'),str(C/'gauguin_gpu_compute.c'),str(C/'gauguin_gpu_clear.c'),'-o',str(binary)],env=env,check=True)
     subprocess.run([str(binary)],env=env,check=True)
 assert pins=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in pins}

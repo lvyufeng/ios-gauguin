@@ -90,3 +90,36 @@ trial establish the hardware stage.
 SQE halt release, ringbuffer programming, native ME_INIT plus WHERE_AM_I,
 fenced doorbell/completion, secure ZAP loading and unsecured-mode transition,
 interrupt-driven command scheduling and the iOS graphics/Metal ABI still follow.
+
+Patch0152 keeps the same total8s/per-phase4s/entry13s/min3s budgets and all
+peripheral access guards. Only the private4KiB NC memory passes use batches
+of at most64 words, with full live guards before and after each batch. Every
+word is still read/compared or written with errors propagated immediately:
+1024 zero checks,132 data writes, barriers and header-last publication, then
+1024 final comparisons. No CP can concurrently own this retained private page.
+A private zero-scan progress counter does not change the public receipt.
+
+The board caches the first guard refusal and CPU ticks before quarantine.
+Reasons1..21 identify phase, lifecycle, thread, total time, phase time, WDT,
+owner, firmware, SQE, aperture, clock, IRQ, reset, fault, context, stale ACK,
+NC page, parent, live GPU context, entry WDT and SQE asset, respectively.
+Failure records consume cached state only after shared-owner quarantine.
+No fresh MMIO is performed to format the reason/progress/time records.
+
+The152 host model exercises every restore-phase guard and30 additional live
+batch-boundary clock/deadline failures. Its190 board cases and all69 host
+files pass; the four complete native R/W/list trace hashes remain identical.
+Host operation profiling reduces restore-phase SMMU reads197912 ->9152 and
+WDT checks8996 ->416, retaining2048 NC reads. These are operation counts,
+not real-device latency measurements or proof of the151 guard failure cause.
+Both changed C translation units compile under the current151 ARM64 recipe.
+A full152 kernel and physical result remain required for hardware qualification.
+
+The next CP submission must retain the native GMU keepalive vote around its
+fenced WPTR write. Native code checks WRITEDROPPED0 with a posted barrier and
+bounded10us retries (short100/long200), then drops that vote. For one selected
+RB0 without runtime preemption, actual completion requires its shadow RPTR
+at scratch offset0 to equal software WPTR, plus GMU AO busy bit23 clear.
+The native initialization submits12 ME_INIT words plus3 WHERE_AM_I words
+before loading ZAP; source-level ordering permits this diagnostic first step,
+but the current core-only path does not release SQE or submit those commands.

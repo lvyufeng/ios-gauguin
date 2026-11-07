@@ -36,6 +36,58 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU work and complete local recipe are recorded in the latest151
 milestone below. No repeated reset question; only necessary manual recovery.
 
+### 2026-11-07 —152 bounded NC batches and cached guard reasons SOURCE QUALIFIED; full local build NEXT
+
+Codex authored critical C; DSH executed reviewed tests. No phone IO since151;
+last phone TWRP. Standing unattended-reset instruction still applies, no routine
+confirmation. Whole GPU/Metal/daily-use goal remains ACTIVE/incomplete.
+
+152 changes ONLY board/core C and private core header versus immutable151.
+All old pre-core board function bytes and public receipts unchanged. Peripheral
+MMIO keeps full per-access guards; private NC zero/data/compare loops use64word
+(256B) batches, guards before/after each. Complete1024zero/132data/header-last/
+1024compare semantics, native register order and8s total/4s phase/13s entry/
+3s minimum watchdog bounds retained. Private zero_checked and first-refusal
+reason/entry/phase/now/deadline ticks logged only after quarantine on failure.
+No SQE release, CP commands, ZAP/Metal or timeout extension.
+
+DSH21067 CLOSED0/validate152.py inner1: pristine146 replay passed, pure core
+assertion caught duplicated per-batch mem_compared increment (1040 vs1024).
+This was a Codex implementation error, fixed by removing only duplicate count;
+failed staged source152-codex, input snapshot, failed-v1.patch/log/report remain.
+No image/device was involved. DSH75270 CLOSED0/validate152_v2.py inner0:
+pristine146 replay source152-v2-codex5294files SHA
+cedcfc01a97d2af5367f3a10e33a8d910317158baf74e971e4a84a5628e05a99.
+Pure core2267708assertions,459/391/459/459 failurepoints (includes every RGL
+phase guard); four complete native R/W/list trace hashes identical to pinned150.
+Actual board190 newcore cases (160 retained +30batch clock/phase deadline),
+old board cases retained; actual changed core+board ARM64 TUs compile0 using
+CURRENT complete151gauguin.WzXGTu/manifest1fff8668...62fd; all69 hosts passed.
+validation-result-v2.json35845B SHA
+7015f691c45c5510bc592187f2e2b8a631b466d331b05b30ee08571991dbaf22;
+all282 inputs independently rehashed, same staged source and151 baseline.
+
+DSH35508 CLOSED0/postvalidate152.py inner0; independent binder verifies exact
+source/native objects/recipe and public receipt/old API prefix identity.
+HOST profile phase8 WDT8996->416, SMMU MMIO197912->9152, otherDevice13560->690,
+NC reads2048unchanged. Counts ONLY, no measured hardware latency or established
+151 failure cause. guard-profile/result.json5057B SHA
+8bd9bbd3d686527f75f37f14104d823d1fbc7b719412bb1ee6d9f6dfad7f89d0,23pins;
+postvalidation-result.json1283B SHA
+027ee9f3ff784f6cc4b9cbfd1ae0a193fc9c935011317ebeaec2414106ed2af3,6pins.
+
+NEXT commit/publish reviewed text, one standard local8job full152 build with
+strict inherited qualifier adapted to categorized guard/batched source, one
+four-asset image+independent review, new strict152 reader (require progress/
+reason0/sane ticks in complete trace), preserve151 reader/failure/raw, validate
+all old runtime controls plus new corruptions, ONE unattended temporary boot.
+No source/HEAD changes during full build/qualification. Preserve mkadt diff.
+CP audit: native keepalive true -> fenced WPTR (WRITEDROPPED0,mb,10us,
+short100/long200 retries) -> keepalive false; native adreno_isidle compares
+shadowRPTR==softwareWPTR for all active RBs then GMU AO busy bit23 clear.
+Native ME_INIT12+WHERE_AM_I3 precedesZAP. This audit does not execute/qualify CP;
+do not issue CP against failed151/partial152 state.
+
 ### 2026-11-07 —151 PHYSICAL SQE/core writes complete, restore guard refused; bounded NC batching and guard diagnostics NEXT
 
 This goal turn made concrete progress: implemented/committed/published151

@@ -3,6 +3,102 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —169 PHYSICAL clear REJECTED at sync; event-write protocol NEXT
+
+Previous source/native turn PROGRESS. This continuation PROGRESS: ONE local8job
+169kernel qualified, one package reviewed, full runtime accepted, ONE temporary
+fastboot boot +strict log read finished; ACTUAL CLEAR FAILED, NOTGPU/Metal success.
+Independent failure observation narrows next action. Fullgoal ACTIVE/unlimited;
+RAM/UFS/peripherals/90-120Hz/daily-use and general graphics remain unfinished.
+Phone NOW read-only revalidated one ADB recovery/TWRP. ALL DSH jobs CLOSED.
+ALL resets automatic/useraway; NEVERask reset/UI attribution; prompt only truly
+stuck/manual recovery. Do NOT reboot169 to reconfirm. No flash/format/GPT/new
+userdata. Only approved temporaryboot/routine13Bmisc latch used, verified.
+Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 untouched.
+
+CURRENT native/generated XNU recipe169 gauguin.v8Ky8T/source169-codex,
+manifest52727645fa0536302971170d36094367daeae420e9073c4bd233347d978f547c.
+NEVER run old168/167/166/165/164/159 TU helpers with current shared build files.
+Immutable169artifact SOURCE_HEAD59d72b1ceb9194669bbdf96c178e508724d3b9d5 /
+public8f26e11f3bd1a1250b459abf129e688b7c524e2f; later NOTES-only commits do
+NOT replace expected-head. Source5314files SHA4e324fb4bcc0c3b07b1cb6d9a739d8b010702067dcfe16536f5dbaa145f4ce57,
+163patches/all83host0; kernel17103456B SHA8eb6c57d8d9f19e1e307db594874b247463113138d91a5b30fff586a334daa72,
+qSHAfb3323de5c6fe37dfd8225302a19b4f1a9f96d1645970cb14772ea293a986d79.
+ALL16build hardware-qualified flags remain FALSE; no retrospective promotion.
+Older168 physical native31shader/EOP2 baseline stays accepted/unchanged.
+
+169work research/tmp/dsh-0169. DSH50168/v19runtime terminalinner0 FIRST,
+1334s; all4gates0 (first3 unchanged v1 passes +ENTIRE fullv2 rerun):
+45valid/678common; ZAP20/117; GGU21/147+3duplicateoptions;
+clear13/4271 +5older transition markers rejected. All38runtime pins unchanged.
+Root independent-runtime-boot-review FIRST0. Details/failures/accepted hashes
+in next169C entry; never delete old rejected image reviewer or v1full fixture.
+
+DSH8912/v19boot terminalinner0/observer0:UTC2026-11-07T19:35:02.365823+00:00 -> 2026-11-07T19:37:14.407096+00:00,
+automaticTWRP131s. Image19791872B SHA404a0336cc23f2b10cf199c66b5cba32db0498a04d995c2a4493e9857b05ca48.
+One tempboot only; service/UI counters are NOT human UI/touch/performance
+observations. Actual observer summary:3FBswaps/40GPUlookups/4076lines.
+DSH4885/v19read terminalinner1, verifierexit2 correctly REJECTED at line3982:
+SWEET GMU BOARD stopped rc12 native A619 offscreen clear execution. Failed
+full JSON/wrapper/log/raw preserved. Do NOT run independent_physical_review169.py
+as if success; its acceptance precondition is unfulfilled.
+
+Observations from SAME immutable raw (root analyze_failed_clear169/v2):
+- signed ZAP reported complete7/rc0/copy1984/1984/owner8; GGU complete7/rc0,
+  commands5/5/prefix15/clean5. Full boot remains rejected, not new qualification.
+- GGL partial phase5/rc3, sealed1/commands7/7/prefix20/clean7/retained1/complete0;
+  nativeIB149/restore194/preamble205 fully cold-clean/copied/compared, DATA1024
+  beforezero; first fence accepted1/status0/keepalive1/1, no CPU DATAstores.
+- device shadow remains20 (expected27),213idle/control samples; control
+  0x0cf49802 (217356290),neighborhi0. GPUcounter_before0x0cf57bed (217414637),
+  delta58347ticks=0.00303890625s at19.2MHz. Control is NOTrequested seq1..7.
+- phaseguard reason4/time, phase5 WAIT;2.00000015625s phasebudget expired by
+  0.0001658333333s, totalstage2.1325602083s. RBBM/CP error samples0, but idle
+  busyfield0 was NOTfinalAOidle (never reachedshadow27). EOPpolls0,
+  data_after0/pixels0; actual pixel contents and exact stalled packet UNKNOWN.
+- inference: control resembles GPU always-on timestamp. Bit30 write-source/
+  CP init mismatch is a hypothesis to investigate, not a proven final cause.
+  Guard/quarantine happened before partial diagnostics. Do NOT stripbit30,
+  changeoracle, lengthen2s/4s/8s or waive any criterion merely to accept failure.
+
+Raw454853B SHAc0dfefc0c690edfa6101e6cf343c34408b2d24af35a378a28ad941ec722c3db9
+binary4198400B SHA678f55e017f2e2476190bd6a62759cbaf54f91c427d6d12a4e9ee8b59aa96323
+cycleSHA3f51b5264e7c962354445009fad01ae98b89bedbdc5cb965ffcd54a3588d5eda
+failed fullSHA82acc0410cc82ae5eaf5e19b0fe567a5de36f752b6f3d739c8d01957f8483100
+wrapperSHA69944fb04bedb245f799b67328221d14b32e62d518ffbbb397b18abb9f6e4992
+Root independent-rejected-clear-analysis-v2 FIRST0 (observations ONLY) SHA
+f33c1daeafb58019580b6d95cae0cc688cb32e58acad7306eb1014f9d8b0ddb5:
+allwrapper/20partialfull input records rehashed, raw exactbinarydecode, live
+banner/trial bound to frozen169kernel; no completion/graphics qualification.
+
+NEXT CONCRETE ACTION: compare primary Mesa24.3.4 fd6_emit.h lines~203-267
+__event_write< A6XX >:needs_seqno sets CP_EVENT_WRITE_0_TIMESTAMP(bit30)
+vs SAME primary computerator/a6xx.cc lines~411-434:event_write A6xx does NOT
+setbit30, writes seq payload (this path worked on168). Primary
+src/freedreno/registers/adreno/adreno_pm4.xml~1623 callsbit30 timestamp rather
+than packetvalue. Inspect event mapping/waits/CP initialization/firmware semantics
+and primary upstream history before source-backed correction/new tests/image.
+Keep original149/194/205 packets, all failed raw/validators and current2s phase
+proof immutable. No second169boot or unowned post-quarantine RAM reads.
+
+Independent PREPARATORY170 graphics host evidence already ACCEPTED in
+research/tmp/dsh-0170 (details169C below).5whole original draw/program/GMEM/
+texture/blitter TUs compile0 with exact upstream DRIVER C++ Meson block +actual
+FDL global C++ flags, original source unchanged10642files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d.
+Root v2reviewSHA843e7148f923fde2e44dffeff1e37666feba30d5b16ca1428a81179d4649c591.
+NotASan/nativepacket/VS/FS/triangle/Metal proof. No0170XNU patch/kernel/image.
+Use this when clear sync is corrected; don't substitute compilation for graphics.
+
+Private docs2a0ca4c/dcd8f3a/adf2cdc followed original169implementationb42130c;
+source code already public. Latest intermediate private dcd8f3a9a3771b939c8b10478f7497fb3f50b311 /
+public8908231d620efe281a73aee123500559db780e9a SAME TREE680165481e5bcdfebcf92e390bf8ae04637b8b92,
+sole public parent8f26e11f3bd1a1250b459abf129e688b7c524e2f; public-build-handoff.json.
+Final physical-failure handoff publication IDs will be in public-physical-handoff.json
+(only finalNOTES blob; no private ancestry). HTTPSGit403/connectorGraphQLforbidden,
+use authenticated gh REST Git-data/nonforce ref with verified sole public parent.
+Codex critical driver/acceptance/Git; DSH execute-only/once claims. No user action.
+
+
 ### 2026-11-08 —169C local kernel + SAME mode7 image ACCEPTED; runtime/boot NEXT
 
 Previous169B turn PROGRESS. This continuation PROGRESS: strict preflight,

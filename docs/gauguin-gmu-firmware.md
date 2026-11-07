@@ -624,3 +624,29 @@ This completes the native legacy startup message chain. Asynchronous
 HFI/interrupt/power operation, frequency changes, GPU execution, rendering
 and Metal remain unqualified. Native HFI_USE_REG proceeds to register/OOB
 DCVS after TEST; no further HFI message is proposed on this startup channel.
+
+## Fixed native register DCVS request (0143)
+
+The active captured DT253MHz row specifies bus index5, minimum4 and maximum7.
+The provisional index1 would violate that row and is superseded. Native
+`gmu_dcvs_set` converts descending Linux pwrlevel5 to ascending PERF index1;
+`FREQ_VOTE(1,ATLEAST3)` is30000001 and `BW_VOTE(5)` is00005005.
+
+`sweetgmudcvs=1` requires the existing BW/PERF/FW/clocks/CX modes. A new
+combined entry shares the original once-state, maps, guards and public receipt.
+After accepted TEST it writes native TCM mailbox offsets6ff0/6ff4/6ff8,
+requests OOB bit23, requires a fresh ACK31, clears the ACK, reads TCM6ffc and
+completes the owned request with HOST2GMU bit31. These mailbox words are not
+CSR offsets. Callback/guard/timeout failures stop immediately. The native
+completion clear after a received nonzero firmware return remains part of
+the command lifecycle; that result then quarantines the transaction. No
+further HFI message, reset, map, retry or watchdog rearm is added.
+
+Exact fixed primary native functions compiled against synthetic OS/IO seams
+validate72 legal index pairs and the selected six-store stream. Actual port
+bootstrap emits those same six stores after five HFI messages. All62 host
+files,2735 new callback-failure boundaries,69 new board/29 coordinator cases,
+three ARM64 translation units and frozen legacy I/O comparisons pass. The
+137-patch source is qualified for a complete build; there is no0143 physical
+DCVS ACK/return yet. Requested253MHz/BW5 and even a future native return0 do
+not establish a measured clock rate, governor, GPU execution or Metal.

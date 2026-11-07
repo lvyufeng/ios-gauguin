@@ -2,7 +2,45 @@
 
 ## Agent handoff / active work
 
-### 2026-11-08 —171 full native kernel/image ACCEPTED; complete runtime gates running
+### 2026-11-08 —171 physical native triangle ACCEPTED; color/coverage controls next
+
+This goal turn PROGRESS: first physical fixed A619 vertex/fragment triangle
+accepted. Full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh goal remains
+ACTIVE/unlimited. This is one closed16x16 diagnostic, NOT UI acceleration or a
+general rendering API. No human touch/UI regression or GPU throughput claimed.
+
+DSH v34 CLOSED inner0: ONE temporary171 fastboot boot, sending0.450s/booting.134s,
+AUTOMATIC TWRP after131s, fresh banner matched; no user action/attribution asked.
+DSH v35 CLOSED inner0 FIRST: strict full actual parser and wrapper passed. Root
+review_physical171.py FIRST0: independent-hardware-review.json SHA
+b12d29bf4fedfccaddab2b760157b80dd76c53c1a5ed4206c2f50efc719abe9f.
+All26 full-verifier input records, raw binary/text identity, exact source5317,
+same-boot signed INIT/MEM/AUTH+GGU20, true EOP6 and actual DATA verified.
+Wrapper SHAffc226c1c7cee1ebac882e97e012c1b8c8a3c196de5da863fb9ef6a5d753cf01;
+full report SHAd371e8bcda195228e0f5bfa696adfa0ac8f21d4b5284337dc99138482cf10025.
+Raw text664257B SHAd28afb6e18f3e4eb94618c519c3a32ec63d2b9de5177256c80ad68faea163b61;
+raw binary4198400B SHAe79e8891d172b49ab9511cf1ce6385ca1bcea348b5408ee6bc99826e1ea6c808.
+Files research/tmp/p3-gmuf-0171-native-observer-20261108.txt[.bin], cycle .log;
+all ignored/out of Git. Current phone automaticTWRP171, no second boot attempted.
+
+Actual root7words20->27/mainIB203/directdraw76,27slots/26nonempty native blobs,
+1158payload/1632padded words all clean/copied/compared/afterchecked. Actual DATA
+all1024before0, all256pixels green ff00ff00, separate control6, highneighbor0,
+767otherwords remain0, all1024after checked. Fence/idle/EOP all1poll; shadow27,
+RBBM/CP0, no IRQ request. Reference dump explicitly source constants, NOT actual
+RAM dumps; successful receipt requires actual full buffer comparisons. CPU
+production stores RING only.0.45116458s guarded stage is NOT GPU throughput.
+All prior mappings/owner/time/fault/WDT checks and raw native packets retained,
+including native empty VFD and masked binning group. No guard/predicate waiver.
+
+NEXT concrete action: retain immutable171 source/kernel/image/hardware baseline;
+inspect native-draw-v6/{full-green,half-green,full-green-repeat,full-red} metadata
+and exact original-source captures. Derive source-backed color/coverage control
+deltas before a small bounded172 profile/engine contract; independently verify
+physical changed shader color and triangle coverage before a general scheduler,
+larger targets/presentation or UI/Metal bridge. No172 code/build/image/boot yet.
+Codex critical code/plan/review; DSH execution/full access. User away, ALL resets
+automatic; only ask for genuinely needed manual recovery, never attribution/UI.
 
 Current full goal ACTIVE/unlimited. Kernel source head is DISTINCT frozen
 KERNEL171_SOURCE_HEAD=f1a9708d6d4df8db898500035ad82d8003186812 (admission fix
@@ -45,7 +83,8 @@ Payload19480576B SHA5bff932cee5d980ec39708b575c77bd53d7109db03607a652303c9769760
 Unique gwrt-0171-a1; exact606B mode8; legacy INIT absent/default0,pasmem0, same
 assets/layout/reservation/Android/recovery protection. Image review SHA
 2591f1f4449e631deb19f8cae673f57794d377c7477e0c26dfda7e2b88aa21af.
-NOT BOOTED. Physical triangle/Metal/UI/highrefresh/daily use unqualified.
+At that package milestone NOT BOOTED; subsequent physical triangle acceptance
+is recorded above. Metal/UI/highrefresh/daily use remain unqualified.
 
 DSH v32 runtime now CLOSED inner0 FIRST: clock0/.094s, firmware actual image
 binding0/1.382s and full eight-worker trace gate0; all10962 negative parses
@@ -69,17 +108,16 @@ transforms retained, old integer conditions, identical complete worker manifests
 all rejection bodies and old26/new28 metadata tests preserved; exact observer
 body/oneboot/guarded reader reviewed. No production parser shortcut.
 
-DSH v34 boot RUNNING via live exec56348, dispatch_once171v34.py boot. Verified
+DSH v34 boot now CLOSED inner0 via exec56348, dispatch_once171v34.py boot. Verified
 unique gauguin recovery -> routine13B misc boot-recovery latch and exact readback
 -> unique gauguinpro fastboot -> ONE temporary171 fastboot boot submitted.
 boot-preflight.json state observer-running/image_boot_attempted true/misc_verified
-true. Poll SAME live handle, never relaunch a claimed stage.180s observer then
-actual readback is pending. Authored v35 read dispatcher (NOT executed yet),
-read_hardware171.py and root review_physical171.py. After v34 terminal0, execute
-v35 read once, then root independent raw binary/pixels/graph/EOP/source review.
+true at boot submission; observer ended0 with automaticTWRP131s. v35 read
+dispatcher/read_hardware171.py and root review_physical171.py now all CLOSED0,
+see physical evidence above. Never relaunch any completed/claimed stage.
 Only prompt user if genuinely stuck/manual
 recovery required; user away/all restarts automatic, --manual-reset no.
-Current phone under171 diagnostic, no UI/reset-attribution question needed.
+Current phone automaticTWRP171, no UI/reset-attribution question needed.
 Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 intact.
 
 ### 2026-11-08 —171 clean source/full84/current-recipe ARM64 ACCEPTED; full kernel next

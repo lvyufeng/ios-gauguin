@@ -8,6 +8,13 @@ THIS turn progresses from the141 constructor to actual opt-in sender code.
 Whole daily-use/GPU/Metal/RAM/storage/peripheral/high-refresh goal ACTIVE and
 incomplete. No142 whole kernel/image/phone/accepted BW or TEST ACK yet.
 
+Private core48db21b6a2da180f6de34b03a78fe84b006fc405 and validated handoff
+90bb55a96a85641a13cc9a2d9bcd32f631716b8d. Sanitized source published and
+ls-remote verified264381babecc680a3e6547f6918abbc1223c8fea, sole parent
+586c99f633aec6a05c03c3eaff00fca28969de74, exactly10 text paths, same tree as
+90bb55a. Report research/tmp/dsh-0142/public-snapshot-0142.json. No private
+ancestry/downloads/binaries/raw device evidence/serials pushed, no CI run.
+
 136th patch0142 adds gmf_bootstrap_bw_test_once and board counterpart on SAME
 once-state/channel/lease, public receipts unchanged. Validate/freeze640-byte
 BW packet before ownership/IO; after INIT/version/PERF accepted, send BW160

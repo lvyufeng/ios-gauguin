@@ -134,6 +134,12 @@ history. Record new publication in public-draw-handoff.json, NOT existing
 SOURCE_HEAD/public-native-handoff.json/public-source-snapshot.json; those bind
 the earlier CPU171 program publication and are immutable. No171 artifact head
 has been frozen. Codex critical code/review/Git; DSH execution-only, full access.
+Source fixture milestone committed674c09ca6cd51e10e7e3f48715f3e7e37fbe01bb.
+The final draw publication uses DRAW_PUBLICATION_SOURCE_HEAD and records actual
+private/public commit, same tree and sole parent in public-draw-handoff.json and
+public-draw-source-snapshot.json. These are CPU source publications, not171
+kernel artifact bindings. This codex branch push does not match the workflow's
+push-to-main trigger; no new kernel CI run is requested for these fixtures.
 
 
 ### 2026-11-08 —171 native program-state capture ACCEPTED; real sysmem draw NEXT

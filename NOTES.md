@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —148 image and strict live-GPU reader qualified; ONE temporary hardware trial next
+
+DSH60475 CLOSED0; actual package0/independent review0, all9 inputs unchanged.
+Image shim/out/shim-p3-gmuf-0148-native-20261107.img19595264B SHA
+acc52298e45d59c9c795b9eac13c5623dc1ad0e5565fe506efd4e02930fb0bd7;
+payload19267584B SHA8d3f02e038c37ddeb85ad5cfd6d0444503f10eccff32faa52865bca5a57e06c6.
+Evidence4138B SHA9e2a5bbf19dd9f74af8ba9b19b4cba79d75b1a010e9e606a6afe1e8c73915110.
+Unique sweettrial=gpus-0148-a1,607B command/sweetgpustart1. New same-kernel
+verified asset placements NVT182568000/MDT18258c000/GMU182590000, unchanged
+content/reservations. All inherited baseline pins retained including147; Codex
+independently rehashed all package/review pins and actual image.
+
+Runtime v1 stopped on my new fixture loop variable overwriting its old global
+prefix bytes; failed fixture/report/log preserved. Actual parser/kernel/image
+unchanged. Explicit v2 rehashes all old inputs, retains clock/FW passes and
+runs full fixture. DSH32529 CLOSED0, actual runtime_validate148_v2.py0. Three
+zero checks:clock4/95,FW132/505,full SYNTHETIC27/206. Existing147 guards retained;
+new exact bank/ASID/root/MMU/TLB/OOB/core counts/order/retained-HOST, failed/
+missing/duplicate/unknown/reordered/partial rejection; raw-zero HUM/DORA/core
+and actual5-slot full positive accepted. No actual148 hardware proof yet.
+Boot148 requires runtime-parser-result-v2.json, never failed v1. All current
+runtime pins independently rehashed. Reviewed boot148/run_hardware148 now owns
+ONE temporary image boot after same routine13-byte BCB/product checks,180s
+observation/fresh pull and full reader. NEXT execute-hardware.txt; last phone
+observedTWRP147. Current complete native recipe148E1ium7, capturedHEAD4e407cf;
+source9268d4e0...67c1865, public3b1263a0...793b2ad. Whole goal ACTIVE/incomplete,
+original mkadt diff intact; no CI/flash/format/GPT/destructive action.
+
 ### 2026-11-07 —148 complete native kernel qualified; package running, strict runtime fixtures next
 
 DSH74741 CLOSED0, build148.py actual0/build0/qualification0, exactly ONE standard

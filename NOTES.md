@@ -3,6 +3,50 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —170 full runtime ACCEPTED; ONE physical trial LIVE, do not restart
+
+Fullgoal ACTIVE/unlimited. Frozen170SOURCE_HEAD06597eb3cbfe82345d8b636a589bed1ab9ff1ba3,
+source/publicb7a90701ad2485eae5bcb891822a1e98415cf085 SAME TREEc8a6462241f98d2523601b7a3e1ec3617939db44.
+Current generated recipe170 gauguin.Qwvb1c/source170-codex; never olderTUhelpers.
+Source/kernel/image hashes in next entry; all16buildhardwareflagsFALSE.
+Later NOTES-only commits do NOT change artifact expected-head.
+
+DSH2707/v9metadata terminalinner0 FIRST:actualpackage valid1/rejected26 missing/
+false USER32source and missing/true hardwareflags. DSH7130/v9runtime terminal
+inner0 FIRST,298.337s, all4gates0:framing/clock/FW/full. All35runtimeinputpins
+unchanged; runtime-input-snapshot preserved. New8worker host partition FIRST0:
+all99positive parses/assertions in EACHworker, complete identical5235negative
+case SHA/length/order manifests in all8, actual executed indices655/655/655/
+654/654/654/654/654 have exact once-only fullunion. Original positive/generator
+AST and original rejection function body unchanged. ALLcase generation retained;
+worker inherited PASS counts are nominal GENERATED counts only. Aggregate
+5235actualnegative executions proven independently. Runtime/host SYNTHETIC,
+not physicalGPU proof. Full169failed/accepted gates remain immutable.
+
+Root review_runtime170 FIRST0:all35inputs, eight workerlog/report hashes/full
+manifests/exactunion, untouched original fullfixture apart from epoch names,
+preserved numericFW negatives, allfouractualgates, approved observer/body/boot
+safety protocol and USER32 strictread helper accepted. Independent gate is
+independent-runtime-boot-review.json; statepassed-runtime-and-boot-helper-review.
+
+LIVE DSH46606/v10boot, ONE170temporaryimage successfully fastboot booted.
+boot-preflight.json observer-running/image_boot_attemptedtrue/misc_verifiedtrue;
+unique recoverygauguin and bootloadergauguinpro checked; approved13Bmisc latch
+read back exactly. fastboot send0.449s/boot0.134s, no flash/format/GPT/newuserdata.
+Started UTC2026-11-07T20:37:40+00:00. Poll SAME live command handle/result;
+do NOT restart/reboot/launch anotherimage. ALLresetsautomatic/useraway, never
+ask UI/reset attribution. Only truly stuck/manual recovery needs user action.
+Current observer raw/cycle p3-gmuf-0170-native-...-20261108. NOphysical result yet.
+
+NEXT: wait sameboot until terminal, then v10read ONCE. If strictread passes,
+root review_physical170.py (requires all22fullinputpins, actualfull256pixels/
+7USER32events/control7/highneighbor0/fullpage/guards). If rejected, preserve
+allfailedraw/reports and independently analyze observations; NEVERrelax guards,
+oracle or source profile or rerun170 just to reconfirm. Source guard2s/4s/8s,
+WDT23s unchanged. Original mkadt diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+untouched. Codex critical driver/review/Git, DSH once execution. No user action.
+
+
 ### 2026-11-08 —170 local kernel/image ACCEPTED; full runtime then ONE trial NEXT
 
 Fullgoal ACTIVE/unlimited. CURRENT generated/native recipe NOW170

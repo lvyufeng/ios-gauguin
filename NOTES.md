@@ -38,6 +38,13 @@ latest milestones below. No repeated reset question; only necessary manual recov
 
 ### 2026-11-07 —155 immutable b02 asset/plumbing QUALIFIED; post-CP owner/PAS loader156 NEXT
 
+Completed155 source committed private3b73242d34389a2e21d410f2cd685f7823754b70,
+publishedc6c726abf5eb5f26a9355718f4cf926dacc57fb5, solepublicparent
+560fefca98c0ece22d85a0d1059920ae52dac98a, same tree
+ace2fc33fb5543d0f1ee946d82d14cd2873478ec/exact11 reviewed UTF8 paths.
+research/tmp/dsh-0155/public-assets-snapshot.json verifies remote tip/tree and
+sanitized ancestry. No new full kernel/image/phone trial was made.
+
 Previous goal turn was PROGRESS: actual154 first GPU init verified/published
 and source-backed ZAP constraints established. This turn implements the missing
 fifth asset and verifies it. Whole daily-use goal remains ACTIVE/incomplete.

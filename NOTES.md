@@ -33,8 +33,124 @@ Codex independently rehashed all10 technical inputs and both original pins.
 Helper result reset-attribution-standing-policy-result.json records exact
 authority and verifier exit. THIS148 attribution is now resolved automatic;
 no GPU-execution/Metal qualification or human UI/touch observation was added.
-Current GPU work and complete local recipe are recorded in the latest151
-milestone below. No repeated reset question; only necessary manual recovery.
+Current GPU source work and complete hardware recipe are recorded in the
+latest milestones below. No repeated reset question; only necessary manual recovery.
+
+### 2026-11-07 —153 first CP engine SOURCE/ACTUAL NATIVE PREFIX qualified; live adapter154 NEXT
+
+This goal turn made concrete progress: Codex implemented critical first CP C,
+DSH ran pristine147 replay, actual port/fault tests and ARM64 TU, executed34
+UNCHANGED native function bodies, compared5 complete positive traces byte-for-
+byte, independently tested native failed-fence bound and passed all70 hosts.
+Wholegoal ACTIVE/incomplete. NO full153 kernel/image/phone IO:153 only adds the
+engine/bsd membership, with existing152 board/coordinator APIs byte-identical.
+A CPU-only153 boot would not exercise CP and is forbidden; next integrated154
+must actually dispatch the new engine after complete sameboot core/RGL.
+Last phoneTWRP152; user away, no reset confirmation/manual action needed.
+
+IMPORTANT CORRECTION found by deeper primary-source audit before any CP boot:
+RB_CNTL DEFAULT20c is changed by native a6xx_platform_setup for noAPRIV A619:
+OR1<<27 ->0800020c. Previous152 proposed first-cp-source-audit.json/notes only
+recorded default20c and remain preserved, not retroactively fixed.153 production
+uses0800020c. New native oracle executes FULL original platform_setup to prove
+this, not a rewritten equivalent; A619 capabilityPREEMPTION remainsTRUE,
+runtime preemptionFALSE. Native softwareRB count4; unused3 remainempty. Port
+fixed first-RB scope owns oneRB0 and clears all4KiB scratch, not full4-RB backend.
+
+New gauguin_gpu_cp.c/h (`ggq`) accepts canonical plan and complete core receipt,
+validates nonoverlap/private ordinary inputs beforeCAS, owns one-shot state,
+full guards per peripheral/phase/barrier,64word bounded private NC batches.
+Captures initialPTRs/SQE, refuses queuedPTRs/decodedfaults; ring8192words0xaa,
+scratch1024zero +fullverify; programs RPTRshadow, RBcontrol/base andSQEbase;
+SQEcontrol1 ->ME_INIT12+WAI3 ->whole8192word ringverify ->keepalive1 ->WPTR15
+with native fenced protocol/counter ->keepalive0 ->real device shadowRPTR15
+AND GMU AO busybit23clear +fault checks. Packet WAI70620002/fc010000/0.
+Native200checks permit201WPTRattempts,10us delays; counter reread after>=100.
+No APRIV/IRQ enable/trust-control bypass/ZAP/unsecured/Metal. On any started
+failure no later store/keepaliveclear/reset/retry/rollback: preserve output,
+statequarantined; board must quarantine allshared owners beforecachedrecords.
+This is real command-engine code but only host callbacks execute it so far.
+
+DSH64652 CLOSED0/focus153.py inner1: pristine147 replay0 ->actualCPtest1,
+production source153-codex5296 SHA
+74223ba50f707beac1305f4885c109cb73efbfe6be7e14100c060645221a5953.
+Actualsource unchanged thereafter. Test-only error: post-third-shadow-read
+GUARD refusal forbids a third AO busyread; expect2 completed busyreads, not3.
+Preserved v1 input snapshot/log/report. DSH75354 CLOSED0/focus153_v2.py0:
+actualCPmodel133682423assertions; scenarios0..4 boundaries938/1004/2147/3335/941,
+all938/1004 injected in short paths; long100/199 fences, independent200timeout,
+finiteidle200000, guardeddeadline/busy waits, selectedmemoryIO/drop/corruption,
+namedfaults, parent/recursive/once/output cases passed. Actual current152ARM64
+recipe compile0, object29472B SHA
+6292bd093d852688feab3b715cf8437fa372aecadf8f365aecc67ef0b1c7bec0;
+compile.json11383B SHAd56375589c5734931ae2c4c1359433635604df369c1b221cfb6c161a452b342a.
+focus-result-v2.json21391B SHA
+0008982f5a5ed1989507cc2867db7adcdaaff87e19158b1c257ae6133e463ec6,164pins.
+
+DSH88679 CLOSED0/native_contract153.py inner1/compile1: typed native harness
+redefined already-present fault macro and omitted GPUBUSYIGNAHB/APRIV_DEFAULT;
+no runtime scenario executed. Native/port C and warnings not changed. v1 kept.
+DSH36259 CLOSED0/native_contract153_v2.py0/compile0/all6scenarios0:
+extract missing actual macros, remove duplicate handdefinition, derive runtime
+preemption index9 from actual enum. Executes34 exact native bodies and target
+A619 features. Actualplatformsetup yields decimal134218252=0800020c (DSH prose
+hex conversion was WRONG; use JSON+actual traces).4native softwareRBs allsame
+featurecapability; runtimeflag0, unused3 queues0. Prefix ends at explicit ZAP
+seam-EAGAIN AFTER successful nativeCP init; does not qualify ZAP or fullstart.
+Nativefailedfence independently200checks/201writes. Native prefix model uses
+primary kernel bodies with typed OS/MMIO seams, not real GPU. Report
+native-prefix-v2/result.json6834B SHA
+a09c42b0a587728b3ecbb70a48009c870483bcbabdf49f6a9b1192d0801c7937,18pins.
+
+DSH9314 CLOSED0/integrate153.py0,5whole positive port/native traces byte-identical:
+scenario0 34lines SHA34530daf6624dc4520f8522c505fec3312fde33c56b21df29f09d2a2b3bf9572;
+scenario1 48lines SHAc3d099b7327f57cc9ce2e4ca796d5bcf2815860778ca3960d14741ea50e73131;
+scenario2 437lines SHA61a1eee7c5e851ead3caa1ec3771ed6aac503f5cbdd12b925245116ef576aee4;
+scenario3 833lines SHA81b97516c6c9b54c09a0a1bdbb4537b993fd507f058a74a2481f7a2b377dcc04;
+scenario4 35lines SHAd004d40fecaea992379893f86b986d55cc307aa423421c7d856e09f9cc00a7fe.
+Full70hosts passed same pristine153source/baseline152 unchanged.
+integration-result.json36289B SHA
+d7b96772ace97f60cb46c3c2bc9c4d35de2983def5376de97d5b82aa8ff10bef,296pins.
+Report scope string says33-function: TYPO ONLY; actualnative_exact_function_count
+and nativebody hash map BOTH34. Frozen report not edited. Codex independently
+rehashed all164/18/296 proof input pins; codex-review.json records clarification.
+
+NEXT154 implement live CP board+coordinator and meaningful hostfault integration,
+then actualTU using CURRENT full152recipe, pristine148patch replay/all70hosts,
+commit/publish, ONE full local kernel/image/runtime reader qualified for real
+command completion, ONE unattended temporary boot. No154 code exists yet.
+New `ggq_board_guard` must require GGC/GGX/FW READY, coreDONE/contextstate2,
+zero_checked1024, configured/retained/mem133/1024/list132/72, accepted sameboot
+SQE/GSA and all owner/firmware/clock/IRQ/reset/SMMUroot/routes/fault/NC guards.
+Do NOT reuse ggc_board_guard or ggx_guard afterREADY (both requireRUNNING).
+Require fresh8sWDT entry/min3s, total4s CPU and perphase2s/WAITnative2s ifvalidated;
+no existingbudget extension. Guard refusal reason and ticks cached then owners
+quarantined before logging, all aliases/HOSTrequests retained, no rollback.
+
+No new Device maps needed: coreggx_core forDWORD0..fff; CSRgmb_reset for
+1f888/1f889(counter) and1f8c3(keepalive) =>offsets2220/2224/230c;
+AOgfw_map[GMF_AO] for23b0c(busy)/23b13(fence) =>2c30/2c4c. Validate reused
+private Device alias physicalendpoints/attrs7. Whitelist exactggq_register_allowed.
+NC RINGoffseta8000,32KiB/2CPU16KiBpages; SCRATCHb0000,oneCPU16KiBreservation
+but only4KiBaccessible/mapped. Require exactunmanagedNCattrsd0000006 and
+physicalfirst/last perCPU page. No extraGMU/secure mappings, no PTE/range creep.
+Use retained gmb_ram+offset-GMB_PAGE and existing gfw_load32/store32/barrier;
+new delay callback10us, engine alreadyguards around it. ParentWDTno-pet remains.
+
+Coordinator existing default-off sweetgpustart1: after152core completes/logs,
+call liveCPonce, failurequarantineexactlyonce/noCPfallback/retry, successfulCP
+terminal explicitfirstME_INIT/WAI ONLY, no ZAP/Metal/renderer/fullpreemption.
+Test realcp+core+GGX engines under typed seams, deadline/eachphase/owner/fault/
+NC/source/SQE/badparent/Deviceattrs/failedSQE/fencedwrite/realshadow+busy waits,
+outputs/once/partialrecords/quarantinefirst and oldcoordinator gates. Realreader
+must demand source-bound CPstats and changeddevicewrittenRPTR15+busybit23clear,
+noerrorrecords, freshidentity/fulloldSQE/coreFWreceipts and currentresetpolicy.
+
+CURRENT staged153source5296/147patches SHA74223ba5...a5953 has NO live dispatch.
+CURRENT COMPLETE NATIVE RECIPE/HARDWARE BASELINE still152gauguin.lIXZsa,
+source152-v2-codex5294 SHAcedcfc01...05a99, manifest160c4e62...d66a6; generated
+BSD files still152. No153 kernel/image/phoneIO/CP hardware qualification.
+All ownedDSH jobs CLOSED. Original mkadt diff a74a0418...454860 untouched.
 
 ### 2026-11-07 —152 PHYSICAL COMPLETE core/RGL accepted; first actual CP execution NEXT
 

@@ -2,6 +2,137 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —159 physical native-mode command completion QUALIFIED; ordinary GPU data path NEXT
+
+Standing unattended policy: user is away; observed new returns to TWRP are
+attributed to automatic resets (`--manual-reset no`). Do NOT ask per-trial
+reset confirmation. Prompt only if stuck and manual recovery is required.
+
+Source remains private e48c0f9f997ab5245b0f687d6a3828634b6b6f4b / public
+dad3d3458799528de44d816de2a905dc28aed5a8, same tree
+4cf2e64ac21ad85cb5682e8759a6aacdfffa7867. Full/generated native recipe is
+159 gauguin.Ee2hCj / .deps-cache/p0-20261105/source159-codex, not157.
+Full LOCAL8job build/qualification/package/image review below all passed once;
+no new CI run. Kernel17013024B SHA5a9e7e582b2ac2a78affd73b6c4dfcd7e4a7f61a9f36defa8078d503d3478831;
+image19709952B SHA5ffa8e835aff7ac7f53a20664d1330e154665e2a04e28c95f6ae4ad2e061c1f9.
+
+DSH34806 CLOSED0/runtime_validate159_v2.py0: all4 actual strict synthetic
+checks0; unchanged reader/source/image. Clock4valid/95rejected, firmware132/
+515, retained full45/678, signed20/117, native append21/150 (including3mode
+conflicts). Report runtime-parser-result-v2.json SHA
+87a132cf73ca1514eecd9b0078e0d9d3c243ce42ac8a5f935eaa125953960f5c,
+29 input pins independently rehashed. Original pre-test wrapper failure is
+preserved, not reclassified as a parser failure or silently overwritten.
+
+DSH44474 CLOSED0/boot159.py0, observer0: ONE temporary fastboot boot of
+gusr-0159-a1, 2026-11-07T10:08:31.450543Z to10:10:43.526451Z, automatic
+TWRP observed at131s. Unique gauguin recovery/13B recovery-latch readback/
+gauguinpro fastboot preflight passed. Full fresh matching kernel banner:
+xnu-03adca09d7d04aea97176230ccbeeb35, Sat Nov7 17:58:08 CST2026.
+Root/launchd/SpringBoard/backboardd markers,4 framebuffer swaps and58 GPU
+lookups recorded. NO new human UI/touch observation, measured refresh or
+performance evidence. Phone NOW TWRP159; do not repeat159 to reconfirm.
+
+Same-boot CP initialization and signed ZAP load passed all retained gates.
+The separate authorized post-AUTH stage completed phase7/rc0/sealed1,
+commands5/5/prefix15/unused5/complete1/held1; only5 native words appended at
+DW15..19, no ring/SQE reinitialization or CPU shadow write. Initial WPTR and
+device shadow15; fence1/status0, keepalive1/1, submit1, writes3/reads11;
+idle polls1/device shadow20/AO busy bit23clear; RBBM and CP faults0. Final
+guard reason0/phase6, about0.04723s at19.2MHz including guards/logging,
+NOT a performance benchmark. No secure-buffer access in this stage.
+
+DSH7675 CLOSED0/read_hardware159.py0, actual strict verifier0; all inputs
+unchanged and raw text exactly decoded from immutable4198400B binary.
+hardware-full-verification.json SHA
+2454caa55e96e771aca086560ff35e84b9a8d665679d95f0651e6ec00ce5bbb2;
+hardware-verification-result.json SHAb2e1ee8bbafc79a902c378ceddd81cc3b9fcf467d98861a5223c0fd48b66cdf0.
+Independent Codex review rehashed all14 wrapper and18 reader inputs;
+independent-hardware-review.json records actual native-mode command completion.
+Raw research/tmp/p3-gmuf-0159-native-observer-20261107.txt SHA
+6fd88c758352d9101396f995b4d16a5162b2e0180261f3d829657739e60c08ef;
+.txt.bin SHA875cf98a5c015d0862ba43b7944c0a2a47f67667debb6c277e1038da4404492f;
+cycle SHAfe8e62f25702bd9f9b24bb16348aa6a78a460d1fac8e77a157fbcff815922286.
+No console-framing recovery or record repair. Raw/build/Apple/native artifacts
+remain ignored. DSH prose incorrectly interprets signed_zap's stage-local
+unsecured=false as overriding the separate native completion receipt; trust
+gpu_unsecure.native_mode_command_completion_qualified=true and its exact
+scope. General scheduling/rendering/Metal remain NOT qualified.
+
+NEXT: commit/publish this metadata, then derive the ordinary GPU data path
+from the pinned native source. Native a6xx_post_start returns immediately
+with current runtime preemption disabled; do not enable preemption merely
+to progress. Existing scratch is privileged RW; another privileged scratch
+write alone does not prove ordinary user-buffer access or shader execution.
+Review normal user-RW buffer PTE/cache/ownership and native command semantics
+before implementing a bounded submission stage. No160 source/image/device
+trial yet. Continue toward actual rendering, iOS IOAccel/Metal integration,
+safe RAM/UFS/peripherals/high refresh/daily use; broad goal remains ACTIVE.
+Codex writes/reviews critical drivers; DSH runs reviewed compile/test/local
+build/temporary boot commands. All owned DSH jobs closed. No flash/format/GPT.
+Original user tools/mkadt.py7line diff SHAa74a0418...454860 unchanged.
+
+
+### 2026-11-07 —159 full LOCAL kernel and image QUALIFIED; pre-physical handoff (superseded above)
+
+Source committed privatee48c0f9f997ab5245b0f687d6a3828634b6b6f4b and published
+dad3d3458799528de44d816de2a905dc28aed5a8, soleparent927eaee0a3276785916e439e9efdb63455eae9ef,
+same tree4cf2e64ac21ad85cb5682e8759a6aacdfffa7867. public-source-snapshot.json
+pins10reviewedUTF8source/test/docs paths; no raw/native/firmware/binaries.
+CURRENT full/generated native recipe NOW159gauguin.Ee2hCj/source159-codex;
+do NOT use old157TU helpers against shared159 BSD Makefiles. Source5302files/
+153patch SHA cac45cf551989c0e9c73f4ac0f83dcebaa3990d2d4d48f8c637bb82f6c09b9cd.
+
+DSH23073/build159.py actual0: FIRST/ONLY standard LOCAL8job full159 build0,
+strictqualify_native0159.py0, unique run gauguin.Ee2hCj. Installedkernel17013024B
+SHA5a9e7e582b2ac2a78affd73b6c4dfcd7e4a7f61a9f36defa8078d503d3478831;
+IDxnu-03adca09d7d04aea97176230ccbeeb35, fullbanner SatNov7 17:58:08 CST2026.
+Manifest SHA db5f4544b17b078989836c072653328d557c9439e0bb7b20dda2613f46b9a42d;
+qualification research/tmp/p3-native-0159-qualification-20261107.json SHA
+68fa16beaba8881658449071ba1f8c75370e4975d9ddcf680dc7742a9ae19e0f.
+All inherited157/native120 artifact gates retained; modepolicy explicitly
+expanded and new GGUarchive/symbol/private-owner/append/guard/dispatch gates
+passed. All hardware-mode/render/Metal flags remainfalse in artifactqualifier.
+Codex independently rehashed actualkernel/manifest/archive/q flags in
+independent-build-review.json. HEAD/source stayed fixed throughout build+qual.
+
+DSH84011/package_and_review159.py0: package0 and independentimage-review0,
+NO repack. Image shim/out/shim-p3-gmuf-0159-native-20261107.img19709952B SHA
+5ffa8e835aff7ac7f53a20664d1330e154665e2a04e28c95f6ae4ad2e061c1f9;
+payload19382272B SHAc0ef378e761776a975f92a5f6b76a28c578ab8b8087d69f6ebdae268469c41a8.
+Exact606B command/mode2/uniquegusr-0159-a1, legacyINIT absent/source-default0.
+Five pinnedassets/nativeMach-O/boot-v2/ADT/top/tail/earliercontrols preserved;
+b02PA1825ac000 raw1984/reserved16384/pad14400zero. New flags source-bound.
+Independent image review SHAca614ad993b326bfac9b73196cce9d82fcb308b431265ce226a5a2d05d3e1f77;
+Codex independent-image-review.json rehashed all50reviewinputs andactualq.
+
+Prepared new verify_gmuf159.py/zap_records159.py/unsecure_records159.py:
+retain all157 technical/source/clock/FW/CP/ZAP/console-framing gates, explicit
+mode2/marker/source, newZAPbeforeunsecureterminal, GGU5words/WPTR20/deviceRPTR20/
+fence/keepalive/errors/guard/phase/time/source/privateauthority gates. Header
+and full-marker checks retain full64 raw returns; no oldfailures waived.
+New unsecure_fixture159.py plus cloned oldclock/FW/full157and newus cases.
+DSH90844/runtime_validate159.py actual1 BEFORE ANY TEST: stale missing
+image-review-execution-result-v2.json input reference carried from157, actual
+159firstimage review already0. No parserreport/snapshot/testlog created.
+Preserve original wrapper/log; runtime-wrapper-not-started.json pins refusal.
+Separate runtime_validate159_v2.py removes ONLY stale input reference, uses
+new v2reports/snapshot/logs and unchangedreader/fixtures/image/source.
+DSH34806 is CURRENT runtimevalidation process; inspect same handle/result
+before next action, no repeat on timeout. Tests may reveal real parser/fixture
+issues; preserve rejected records and resolve cause, never waive old gates.
+
+NEXT after all4strict synthetic checks0: independent rehash current runtime
+inputs then ONE temporary159fastbootboot, routine13B BCB latch/readback,
+uniquegauguin/gauguinpro identity, <=180s freshTWRPpull. Adapt boot157.py to
+159imageSHA above + new expected buildHEADe48... and v2runtime report, existing
+observer tail byte-identical. Strict freshbinary/text/cycle readback uses
+--manual-reset no from standing userauthority, no confirmation. ONLY prompt
+manual recovery if actually stuck. Phone still TWRP157, no159deviceIO yet.
+No hardware-mode/render/Metal claim until physicalevidence. GoalACTIVE/full.
+Original user tools/mkadt.py7line diff a74a0418...454860 untouched. No flash/
+format/GPT. Full build cannot be restarted just to refresh this milestone.
+
 
 ### 2026-11-07 —159 integrated native unsecured source QUALIFIED; full LOCAL kernel/image/runtime NEXT
 

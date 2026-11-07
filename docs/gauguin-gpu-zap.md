@@ -146,7 +146,7 @@ input, not new secure-authentication evidence. Five successful native traces
 match the port byte-for-byte: normal, one dropped fenced write with delayed
 shadow/busy,100 and199 dropped writes, and counter overflow. Native fenced-write
 exhaustion is checked independently. These prove source/model sequencing;
-the physical mode transition remains unfinished;159 supplies its live binding below.
+159 supplies the separate live binding and physical command evidence below.
 
 Patch0159 binds the append to the actual private same-boot signed-load receipt
 and retained CP/core/firmware state. A separate read-only owner predicate
@@ -160,8 +160,8 @@ access. All shared owners are quarantined before cached failure diagnostics.
 The command contract now accepts exact `sweetgpuzap=0/1/2`:0 disables the
 loader,1 keeps157's signed-only behavior and2 adds the native append after
 this boot's successful signed load. Other values are rejected. The proposed
-159 trial uses `gusr-0159-a1` and the same606-byte command length; packaging
-must still decode and compare the complete command before a physical boot.
+159 trial uses `gusr-0159-a1` and the same606-byte command length. Packaging
+decoded and compared the complete command before the physical boot.
 
 All3 changed ARM64 translation units pass. Actual-owner tests pass532 cases,
 including all64 page attributes and a PROT_NONE secure buffer through AUTH
@@ -176,7 +176,43 @@ the new failed-helper quarantine branch, and one injected an ACK bit into a
 software cache that the driver refreshed. Separate corrected versions extend
 only the exact new legal branch and inject the actual register respectively.
 No native-source change or acceptance-rule waiver was needed for those fixes.
-A complete kernel/image and fresh physical evidence are still required.
+
+The complete159 kernel passed the local build and artifact qualification,
+followed by independent image review. Strict runtime fixtures retain the old
+clock, firmware, full-trace and signed-load checks and add21 accepted native
+append cases and150 refusals, including invalid command-mode combinations.
+The original pre-test wrapper's stale input reference and its separately
+corrected version are preserved.
+
+One temporary159 image was booted on2026-11-07 at10:08:31 UTC. It returned
+automatically to TWRP after131 seconds. The source-bound reader accepted the
+fresh matching kernel banner, complete CP/signed-load receipts and separate
+native command completion:
+
+| Stage | Observed result |
+| --- | --- |
+| Entry | Same-boot signed-load authority sealed; existing WPTR/shadow15 |
+| Append | Exactly5 words written/compared at DW15..19;15-word prefix preserved |
+| Submit | WPTR20; one fence check, status0; keepalive set/clear recorded |
+| Completion | Device-written shadow20; one idle poll; AO busy bit23 clear |
+| Fault/guard | RBBM/CP errors0; final guard reason0, phase6 |
+| Ownership | Requests/mappings retained; no secure-buffer read or ring reinitialization |
+
+The guarded stage took about0.04723 seconds at the recorded19.2MHz CPU
+timebase, including logging; this is not a performance benchmark. The raw
+text exactly matches its captured binary decode, no console-framing recovery
+was needed, and all pinned verifier inputs were unchanged. Independent review
+rehashed the14 wrapper and18 full-reader inputs. Root, launchd, SpringBoard
+and backboardd markers and4 framebuffer swaps were recorded; the user was
+away, so this adds no human screen/touch observation or refresh-rate evidence.
+
+This qualifies source-bound native `SET_SECURE_MODE 0` command completion.
+The earlier signed-load receipt's stage-local unsecured-mode flag remains
+false; the separate native completion receipt carries this later result.
+Ordinary GPU buffer access, shader execution, general scheduling, rendering
+and Metal remain separate work. The next step is an ordinary user-RW GPU
+buffer and bounded data-path submission derived from the pinned native
+driver. Existing privileged scratch writes alone would not establish it.
 
 Do not substitute a TRUST_CONTROL0 write for the native signed-load/unsecured
 path. Completing the transition will still leave general scheduling,

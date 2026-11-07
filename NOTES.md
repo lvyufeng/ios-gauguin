@@ -38,6 +38,13 @@ latest milestones below. No repeated reset question; only necessary manual recov
 
 ### 2026-11-07 —156 fixed INIT/MEM/copy/AUTH ENGINE qualified; real owner/board binding157 NEXT
 
+Completed engine committed private33176ea0c9f07ba6ecdb57ff4b93d3d01ed4093f,
+published5d9695b3e163618ba67d7c44523e6080def680d2, solepublicparent
+9267858d313dfcaceafad8ff41399f35ff57c051, same tree
+a25226cf8a763b15cd39fbafc18e8efe48f90b45/exact6 reviewed UTF8 paths;
+research/tmp/dsh-0156/public-engine-snapshot.json. No private ancestry or
+native/captured firmware/raw/binary asset published.
+
 Previous goal turn was PROGRESS: pinned b02 plumbing/immutable view completed
 and all73 hosts passed, published sourcec6c726abf5eb5f26a9355718f4cf926dacc57fb5.
 Its handoff private6a81ba01d1ad7f8338a462ebad817858a7e0eb62 was published as
@@ -55,6 +62,15 @@ Engine fixes native INIT42000201/82/13/PA, MEM42000202/3/13/PA/4096,
 copyexact1984/readback1984/nozero-tail, AUTH42000205/1/13/0/0/0/0.
 Owner actions explicit SEAL/INIT_ENTER/INIT_ACCEPT/MEM_ACCEPT/AUTH_ACCEPT;
 actual owner-local copy and stage authority are NOT supplied by156 alone.
+
+157 packaging constraint: accepted154 command is607 bytes, at the608-byte
+boot_args field's usable limit. Do NOT blindly append sweetgpuzap=1 and rely
+on mkpayload's truncation. Recompute/review full command and exact options.
+One candidate is replacing explicit sweetpasinit=0 with sweetgpuzap=1: old
+INIT parse/coordinator/CX-off checks initialize missing value0, so semantics
+remain disabled, but this needs explicit source binding/default-absence tests
+and new strict-reader expected options. Keep sweetpasmem=0, unique157 trial,
+all other feature/negative controls and final length<=607; no hidden truncation.
 
 Source control flow preserves FULL7 returned registers across full64x0==1;
 no logs/sleep/fresh frame in interrupted chain. BUSY signedlow32-12 gets30ms

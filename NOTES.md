@@ -23,6 +23,10 @@ ls-remote verified; sole parent3ab6a8b352d48aa92aa9a0e64b64fdd45b8ce353,
 same tree as private893d55b. Exactly12 source patch/series/tests/NOTES/docs
 text paths, report research/tmp/dsh-0145/public-source-snapshot.json.
 No private ancestry/raw/FDT/downloaded sources/binaries/serials pushed.
+Kernel/image handoff published d32864b91402f4bdd9d2a5ec4a4e1518e9b545b5,
+ls-remote verified, sole parent0b7ed969de121b6bc8211a4f65a3fcba3c834720,
+same tree as private2d369a77f77e294fe6172818298a12e98ee88624. ExactlyNOTES.md;
+report research/tmp/dsh-0145/public-image-handoff-snapshot.json.
 
 DSH10049 CLOSED0; actual package0/independent image-review0, normal package
 report passed and all9 inputs unchanged. Image shim/out/

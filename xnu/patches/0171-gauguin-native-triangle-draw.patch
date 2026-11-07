@@ -10,6 +10,15 @@
  bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
 --- a/bsd/dev/gauguin_bcm_coordinator.c
 +++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -88,7 +88,7 @@
+     int start = 0; (void)PE_parse_boot_argn("sweetgpustart", &start, sizeof(start));
+     if ((start != 0 && start != 1) || (start == 1 && gpu != 1)) return false;
+     int zap = 0; (void)PE_parse_boot_argn("sweetgpuzap", &zap, sizeof(zap));
+-    if ((zap != 0 && zap != 1 && zap != 2 && zap != 3 && zap != 4 && zap != 5 && zap != 6 && zap != 7) || (zap != 0 && start != 1)) return false;
++    if ((zap != 0 && zap != 1 && zap != 2 && zap != 3 && zap != 4 && zap != 5 && zap != 6 && zap != 7 && zap != 8) || (zap != 0 && start != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
 @@ -252,7 +252,16 @@
                                  if(sweet_gpu_unsecure_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
                                  snprintf(line,sizeof(line),"SWEET GPU UNSECURE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)unsecure_result,(unsigned)sweet_gpu_unsecure_state());bcm_record(line);return;
@@ -1062,3 +1071,14 @@
 +    {0xfc00f200u,32u,128u,128u,draw171_fs},
 +};
 +#endif
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -266,7 +266,7 @@
+ static bool psz_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7)return false;
++    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8)return false;
+     static const char *const on[]={"sweetpasprobe","sweetpasstage"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem"};
+     for(unsigned i=0;i<sizeof(on)/sizeof(on[0]);i++){int v=0;(void)PE_parse_boot_argn(on[i],&v,sizeof(v));if(v!=1)return false;}

@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source171-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source171v2-codex')))/'bsd/dev'
 C=Path(os.environ.get('GMU_BOARD_SOURCE_DIR',str(D)))
 S=C/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 G=R/'tests/fixtures/gmu-board/write_host.c'

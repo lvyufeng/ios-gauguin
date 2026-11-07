@@ -2,6 +2,105 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —171 clean source/full84/current-recipe ARM64 ACCEPTED; full kernel next
+
+Latest actual source is source171v2-codex (candidate171v5),5317files SHA
+cdf96fac265e882b9e171ea3cc2fd1297ef8b99de8823b019fca585a17669473,
+165active patches/EIGHT changed files vs170. Both actual coordinator AND actual
+PAS owner now explicitly admit8. Prior failed sources/reports retained below.
+DSH v26 CLOSED inner0 FIRST: fresh replay0/5.253s, actual coordinator focus0/
+2.232s (630old+35new=665), actual owner focus0/.848s (538cases,126copy guards),
+all84 public host files0/443.598s. Engine28458/823789025assertions, provider
+25551 cases and five exact1639-RING-write/native payload/padding/MMIO traces all
+pass. integration-result-v3.json SHA
+2db119232f8fba7a994bc85c072248f9483dfc9030a49b4daf2a30a58f7cea8c.
+Independent source review FIRST0 SHA
+8cb5580625b785e27bcfc8d704add0590d3da4c34e1cf78a6115041e2ff4eb0e.
+
+DSH v27 CLOSED inner0 FIRST: changed coordinator and PAS owner both compile
+ARM64 using current170 recipe/2119 header-config inputs, separate outputs and
+protected reference files unchanged. Old draw/board bytes and native objects
+remain exact. ARM64-result-v2.json SHAd224d47f4ff507559515281d103533eaee7a9d12e76e910d86b4217a02522047;
+independent-ARM64-review-v2.json SHA
+59e611eb1bf2d331912e4c05fa8606b1672d140cf02d03dc8c17efb5ccd83534.
+Root reviewer v1 failed BEFORE output comparing seven raw fields to the real
+eight-field Mach-O64 header; v2 uses source-supported8fields, all source/hash/
+recipe/compiler gates retained, NO recompile. Failed reviewer/diagnosis kept.
+DSH v24 CLOSED inner0 FIRST: strict171 all84/current-native/every old168 native
+foundation binder and complete artifact qualifier import/symbol preflight pass.
+kernel-preflight-result-v1.json records exact inputs. No complete kernel yet.
+
+NEXT: commit admission/fixture fixes and freeze DISTINCT KERNEL171_SOURCE_HEAD,
+one standard local8job full build171.py + all old artifact predicates and new
+triangle source/object/native-byte flags. Current generated recipe STILL170;
+after new build, only its new manifest may be used by future TU probes.
+DSH v28 standalone SYNTHETIC triangle parser is RUNNING on live exec15478;
+poll same handle, never restart claim. No parser result yet, no image/boot.
+Actual pixel/reference/EOP parser authored; runtime full/common/identity/image
+gates still need completion and verification before ONE temporary phone trial.
+User away/all resets automatic; last phone TWRP170, no new device I/O. Full goal
+ACTIVE: physical triangle/Metal/UI/highrefresh/daily use still unqualified.
+
+### 2026-11-08 —171 full-path admission omissions fixed; fresh canonical gate running
+
+Current continuation PROGRESS; full goal ACTIVE/unlimited. User away: all
+restarts automatic, never ask attribution/UI, only prompt for genuinely needed
+manual recovery. Last real phone trial remains170 automaticTWRP; no device I/O.
+Original mkadt user diff7lines SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 intact.
+
+Committed first171 production engine/provider/fixtures as private
+2a257905167136be23a0de073d3c6b65b241394b. Public still2a491b9c7545e07d5f26cb2bd7f9aea9125364a6;
+no new publication/CI/kernel/image/boot. Current generated build recipe still
+170 gauguin.Qwvb1c/source170-codex; never use older TU helpers against it.
+
+DSH v23 integration CLOSED inner1: clean165patch replay0/5.274s produced
+source171-codex5317 SHA2d6c5d18820a1b60830347b60cd3c4e50a667cb583b176670e818f03d6d99fd0,
+exact old candidate171v4/seven-file delta. Full84host1/440.533s:83 files passed,
+coordinator fixture link failed because its typed seams lacked three new draw
+APIs. New engine28458 cases/823789025assertions and full provider25551 cases
+passed in that run. Raw failed source/report/log/snapshot/5traces retained.
+
+Added real-header typed triangle coordinator seams and35 new mode8 ordering/
+failure/prerequisite/legacy-mode cases, preserving old case bodies; old invalid
+upper8 sentinel becomes9. Author v1 failed BEFORE writes (overlapping substring
+count); author_coordinator_fixture171v2.py produced current fixture. DSH v25
+integration CLOSED inner1: replay evidence reused unchanged, focused coordinator
+compile0, all630 old cases passed, firstmode8 failed. Full84 not rerun in v25.
+Actual cause: coordinator's boot-flag admission still ended at7. Source audit
+found PAS owner's psz_flags also ended at7. Earlier provider-only model/ARM64
+passes were real but did NOT qualify these two complete-path admission sites.
+
+New candidate171v5 preserves v4 and adds ONLY8 to the actual coordinator and
+actual PAS owner's existing accepted-mode sets; all start dependencies, legacy
+INIT/MEM exclusions, authentication/phase/owner/full64page/NC guards retained.
+Actual owner fixture extends modes1..7 full copy/AUTH/PROT_NONE/page checks to8;
+its unsupported sentinel8 becomes9. Production0171 patch now EIGHT changed files
+(adds bsd/dev/gauguin_pas_stage.c), SHA
+c770cba2736b58f94e6ba974965957b2302f5bfafc1ab7af525a7013ed601434.
+production-patch-result-v3.json pins current public files. Old v1/v2 artifacts
+remain immutable. New expected pristine source5317 SHA
+cdf96fac265e882b9e171ea3cc2fd1297ef8b99de8823b019fca585a17669473.
+Default new board/draw/coordinator/owner test source is source171v2-codex.
+
+DSH v26 integration RUNNING via live exec96247; script integrate171v3.py,
+dispatch_once171v26.py integration. It performs a fresh original export into
+source171v2-codex (old source171 untouched),165patch replay, focused coordinator
+and real owner, then all84 public host files and five new opt-in ring/MMIO traces
+with exact1639writes. Poll same live handle; do not relaunch a claimed job.
+Expected focused counts665coordinator/538owner must be verified, not assumed.
+
+Source-only draw constants/strict triangle parser and171 artifact qualifier/
+binder/preflight/build helpers are being authored in research/tmp/dsh-0171.
+They are NOT executed/accepted yet. Their old source2d6.../candidatev4 bindings
+need migration to candidatev5/sourcecdf... and v26 evidence before execution;
+update both exact owner and coordinator mode8 contracts. Need new current170
+ARM64 compiles for changed coordinator AND PAS owner; old draw/board object
+proofs remain for identical bytes. Then independent full84/source acceptance,
+strict preflight, commit/freeze distinct KERNEL171_SOURCE_HEAD, full8job local
+kernel build, complete artifact qualification/runtime parser/image tests,
+ONE temporary boot and automaticTWRP actual pixel/event review. No triangle GPU,
+Metal/UI/highrefresh/daily-use qualification yet; no user action pending.
+
 ### 2026-11-08 —171 engine/provider/ARM64 ACCEPTED; production patch ready for replay
 
 Previous goal turn PROGRESS: native full draw command graph/frozen source

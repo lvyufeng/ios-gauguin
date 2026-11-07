@@ -3,6 +3,105 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —169C local kernel + SAME mode7 image ACCEPTED; runtime/boot NEXT
+
+Previous169B turn PROGRESS. This continuation PROGRESS: strict preflight,
+ONE fullLOCAL8job build+qualifier0, independent root build review0; ONE image
+pack0, originalreview2(stale expectedmode tuple6), newreviewv2 sameimage0.
+Fullgoal ACTIVE/unlimited. ALL resets automatic/useraway; never ask attribution.
+Phone read-only revalidated: one ADB recovery/no fastboot. No169 device boot.
+No flash/format/GPT/new userdata; only previously authorized temporaryboot+
+routine13B misc latch scope later. Original mkadt7line diff unchanged SHA
+ a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
+FROZEN169 artifact SOURCE_HEAD59d72b1ceb9194669bbdf96c178e508724d3b9d5 /
+public8f26e11f3bd1a1250b459abf129e688b7c524e2f treec84069a9341d9d6385fa5fd8af393f9861e40d4d.
+Later NOTES-only commits do NOT replace frozen expected-head. Private implementation
+b42130c87048e3c6474f75d50bf22d574eb58c68; all83host/source proof unchanged.
+CURRENT generated/native recipe NOW169 gauguin.v8Ky8T/source169-codex,
+manifest52727645fa0536302971170d36094367daeae420e9073c4bd233347d978f547c.
+NEVER use168/167/166/165/164/159 nativeTU helpers with shared generated files.
+5314files SHA4e324fb4bcc0c3b07b1cb6d9a739d8b010702067dcfe16536f5dbaa145f4ce57,
+163patches; native GGL mode7 source only, no new physical/GPU/UI claims yet.
+
+DSH59132/v12preflight inner0 FIRST, all prior compute/EOP/table/PIL/assembler/
+native-foundation checks retained; new12 clear source contracts also accepted.
+DSH21548/v12build inner0 FIRST, nativebuild0/qualifier0,216seconds, one newrun.
+Kernel17103456B SHA8eb6c57d8d9f19e1e307db594874b247463113138d91a5b30fff586a334daa72,
+banner SunNov8 02:56:06CST2026/xnu-e0c4814bdbac4fdcaa63f41e8da8e5f0.
+Archive SHA48a27b774f21a3d44f67c6bd2290b6fcb769e6d4a8282a7cc7b42e2a456b116d.
+QualifierSHAfb3323de5c6fe37dfd8225302a19b4f1a9f96d1645970cb14772ea293a986d79;
+all12clear source flags true/ALL16hardware flags false. Root independent build
+review FIRST0 SHAbe31fbac5935b9c890e50ff741448a77843fc3ff4df6158cf0b0f460c7c0624d.
+
+DSH2920/v13clear-parser FIRST0:20valid/4299rejected SYNTHETIC cases, including
+all833newrecord delete/duplicate/reorder, native555words/pixels256/masks8/
+control/neighbor/fullpage/source/time/fault negatives. NOTphysical proof.
+Accepted verify_gmuf169.py and result preserved; production169v2.py ONLY adds
+one new clear_source_contract169.py input pin. Full artifact suites usev2.
+DSH43872/v14image-preflight FIRST0 exact606B cmdline, old168 differs ONLY
+trialgwrt-0169-a1 andsweetgpuzap6->7; INIT absent/default0/pasmem0/fiveassets.
+DSH81977/v14package terminalinner1: package0, independentreview2 at expected
+command line; ONLY reviewer's literal ('sweetgpuzap','6') was stale. Image,
+payload, evidence/kernel/oldreview/logs all preserved, NO rebuild/repack.
+New review_image169v2.py ONLY tuple6->7; DSH73853/v16image-review FIRST0 reuses
+oldpackage0 plus newfullreview0, every inherited image/source/asset gate retained.
+Image19791872B SHA404a0336cc23f2b10cf199c66b5cba32db0498a04d995c2a4493e9857b05ca48,
+shim/out/shim-p3-gmuf-0169-native-20261108.img. Exact reports in dsh-0169.
+
+DSH23416/v15metadata FIRST0:actual package valid1/rejected26 source/hardware
+metadata mutations. DSH35728/v15runtime terminalinner1:framing0/clock0/FW0,
+fulltrace1 AFTER45valid/678oldcommon negatives, at3 stale positive mode6tokens
+in inherited signed/GGU tests. Production parser/image unchanged. All failures
+and rawlogs preserved. New verify_full169v2_host.py ONLY3 left-hand valid-mode
+inputs6->7, all negative targets/cases retained, ENTIRE full suite rerun.
+First author_runtime_retry169.py failed pre-write at substring count (raw.replace
+also contains '(b' so3matches, not2); premature DSH99738 missingv18dispatcher
+returnedPython2, NOclaim/subprocess/gates/device action. New authorv2 fixed
+count, new dispatcher v19 avoids reusing any failed/missing invocation.
+
+LIVE DSH50168/v19runtime:dispatcherPID8277 ->runtimePID8278 ->fullfixturePID8279,
+last directly verified CPU~100%/elapsed~17min, no terminal report yet. Poll THESE
+same live handles; never restart because no output/timeout. Source tests finite
+but expensive (833newrows/555nativewords/256pixels/full context on every case).
+New runtime-parser-result-v2.json will retain first3 unchangedv1 passes and new
+complete fullv2 result; no weakened/skipped old guard. All3successful gates
+and allinputpins retained. Do NOT use failed runtime-parser-result.json aspass.
+Boot169/read_hardware169/observer and independent_physical_review169.py authored,
+NOTexecuted; references finalv19/runtimev2 +source-head59d72/image404a.
+independent_runtime_boot_review169.py authored, NOTexecuted, requires allgates0,
+exact3fixture differences/source-pin-only productionv2 delta/allpins rehashed.
+
+Independent PREPARATORY170 graphics compile work in research/tmp/dsh-0170:
+DSH88616/v1probe inner1 (all4whole draw/program/gmem/texture TUs1); Clang
+narrowing errors. Primary Freedreno meson.build proves v1 omitted its DRIVER
+C++ argument block (generic C/C++ base alone insufficient). Original source
+block SHA0531873e21c6df9581741d6c82374a123d1442a0a9274b69364b624cae43f540
+copied VERBATIM into a mini Meson evaluator; supported original arguments
+including fno-exceptions/rtti and upstream narrowing policy derived by Meson,
+not agent-invented warning flags. Actual original FDL C++ global command reused,
+return-type/empty-body/format errors retained; no source patches or sanitizers
+waived. DSH8472/v2probe FIRST0:Meson0 +ALL5originalwhole draw/program/gmem/
+texture/blitter compiles0. This also resolves 169's wholeblitter compile gap
+under the complete original driver recipe, NOT retroactive hardware/capture
+qualification. Primary Mesa10642files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d unchanged.
+Root independent_graphics_review170.py first failed assumption blitterwrapper
+was include-only (it actually retains original169 clear-probe caller too).
+New independent_graphics_review170v2.py verifies EXACT original wrapper text,
+all5objects/logs/inputs/source/Meson-block/evaluatedflags rehashed FIRST0;
+reportSHA843e7148f923fde2e44dffeff1e37666feba30d5b16ca1428a81179d4649c591.
+No0170 XNU patch/kernel/image/device or graphics packet/VS/FS execution proof.
+Native host compilation is NOTASan qualification; kernel host gates unchanged.
+All170 jobs closed; only169v19fullfixture remains live.
+
+NEXT poll169v19live; afterallgates0 run independent runtime/boot helper review,
+then ONE temporary mode7 boot/read with --manual-reset no. Actualcontrol7 +all256pixels
+and wholepage checks +native149/194/205 source bytes mandatory; do NOT strip
+original bit30 or loosen guards on failure. Clear is NOTtriangle/Metal/UI.
+No169boot until runtime acceptance. Fullgoal RAM/UFS/peripherals/highrefresh/
+dailyuse remains unfinished. Codex criticalcode/验收/Git; DSHexecute-only.
+
+
 ### 2026-11-08 —169B native OFFSCREEN source/model/ARM64 ACCEPTED; full kernel NEXT
 
 Fullgoal ACTIVE/unlimited. User away: ALL resets automatic; never ask attribution;

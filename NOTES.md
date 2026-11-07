@@ -2,6 +2,160 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —169 native OFFSCREEN source/packet capture ACCEPTED; GG2D engine NEXT
+
+Previous168 physical shader turn PROGRESS. This continuation PROGRESS: actual
+original FDL layout execution, native A619 restore/preamble/clear/cache command
+capture for two cases, independent source/packet/semantic-oracle review accepted.
+Fullgoal ACTIVE/unlimited, NOTdone. NO169XNU patch/source/kernel/image/device IO.
+Phone LASTTWRP168; ALL169DSH stages terminal. ALLresetsautomatic/useraway,
+--manual-reset no; no UI/reset attribution questions, only truly stuck recovery.
+Don't re-boot168 merely to reconfirm. Original mkadt7line diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 untouched.
+No flash/format/GPT/new userdata actions. Prior temporaryboot/misc scope stands.
+
+CURRENT native/generated XNU recipe STILL168 gauguin.7kjNwR/source168-codex,
+manifest9711ab8b11100fc7d209c436bde31f3ae9ed0c3b89d32c4206fc1b6a95c51ded.
+Host Mesa compiles do NOT change this recipe. Never use older167/166/165/164/
+159TU helpers with shared build files. Artifact SOURCE_HEAD5124e47b50eeb61b3eb3061fb310cc492dd5151c;
+latest privatee2f60a322abca31074fb2f79aca57c621b3e1653/public42bf267d7216f422c35a640a3e0faa61451533ef.
+168physical report45fad0b0f683b89dfbf2942f06746d485c3f97a47ee1e0a73004d3c11910e9a1
+and independentbb2e0dbf1f059bb7891175d23400a166e4f1ff9ca1a4aee50c5f12fe04ad0474
+remain immutable; no change to source-only hardware=false flags.
+
+169work research/tmp/dsh-0169/. SAME primary Mesa24.3.4 commit
+769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de,10642files SHA
+598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d.
+Original primary source git clean/unchanged; old Mesa host build-v4/read-only
+libs/toolchain and all168 reports untouched. No warning or sanitizer waiver.
+
+Actual original fd6_layout.c/format table compiled+linked; layout_probe169.c
+executed FIRST0. For16x16RGBA8 singlelevel linear: defaultpitch256,size4096;
+explicitpitch64/offset0 ->pixel slice1024,full padded size4096; explicitoffset
+1024 ->declaredsize5120 (does NOT fit DATA4KiB); pitch68 rejected. Therefore
+prior +400 target proposal superseded, not silently underallocated.
+NEW proposed/actual captured layout: targetDATA+0/IOVAfc018000,16x16/pitch64,
+FDLsize4096/pixels1024; completion logical control view DATA+c00/fc018c00,
+sizeof(native fd6_control)=288 wholly inside unused padding. Logical BO views
+are typed address metadata inside the SAME existing DATA4KiB, NOTnew actual
+allocations/maps/CPU aliases or full Mesa context allocation proof. Ring RO/NX
+32KiB view atfc008000 supplies border base references; it overlaps code views
+but border content/texture sampling is UNUSED/UNQUALIFIED. No fabricated BO
+CPU data output; all BO CPU-map/lifecycle calls abort. Expected-data.bin is a
+separate future semantic oracle, never copied into BOs, NOTobserved GPUdata.
+
+Preserved full failure/success chain (do NOT edit/reuse old outputs):
+- DSH11003/dispatch-probe inner1: trace generation0, all3FDL objects/link/run0,
+  whole4Gallium TUs failed missing original ir3_cache.h include directory.
+- DSH44870/v2probe inner1: added original Gallium/ir3 include path; whole
+  fd6_emit.cc/screen.cc/barrier.cc compiled0. Wholefd6_blitter.cc fails stock
+  Clang unsigned->int32 narrowing in unselected buffer-copy lines467/468.
+  Originalsource/flags intact; that copy branch remains UNQUALIFIED.
+- Capturev1 DSH68576/v2capture: compile1, typed aggregate initialization fails
+  Mesa BitmaskEnum classes' absent default constructor. No native execution.
+- Capturev2 DSH34710/v3capture: new native_clear169v2.cc uses original native
+  CALLOC_STRUCT idiom, compile0/link1. FD_GENX __attribute__((used)) tables
+  retain unrelated shader/texture/restore-trace interfaces.
+- Capturev3 DSH9330/v4capture: exact typed host_unused169.cc interfaces all
+  ABORT on every invocation; compile/link0, scenario0 abort-6 at wrong expected
+  final2. Native event table shows setup CCUcolor/depth already sequence1/2;
+  subsequent native RB_DONE/CACHE makes4, unlike computerator's2.
+- Capturev4 DSH48883/v5capture ALL0: selected eight unchanged clear helpers,
+  whole original CCU/barrier objects/sysmem init prefix/FDL; two primitive
+  captures70/101words, final4. These omit full restore/postclear CCU flush and
+  are only helper-stage evidence, NOT the chosen hardware recipe.
+- Capturev5 DSH14774/v6capture compile1: extended proper native restore/
+  preamble/postclear cache path, host enum typo FD_RINGBUFFER_OBJECT; actual
+  internal native enum is _FD_RINGBUFFER_OBJECT. Preserve failed artifacts.
+- FINAL Capturev6 DSH47422/v7capture ALL5actual exits0 FIRSTexecution: new
+  native_clear169v5.cc/capture_native169v6.py, correct enum, full chosen path.
+  native compile0/unused-interface compile0/link0/scenario0/scenario1 both0.
+  Executable2044d7d1bd801aec4bb8604d613c7f99c899b1a3925473911e9bc085379324b5,
+  object34c43343c1e8251173a297089aaba123334d2e91f425fc57306666f3bfea6f73.
+- Root independent_native_review169.py first failed helper declaration boundary
+  check: generated first function has adjacent native debug macros/no blank
+  boundary; no output JSON created, script preserved. NEW *169v2 reviewer
+  compares each source-exact function text's unique occurrence+source hash,
+  removing only outside-declaration formatting assumption; same native artifacts.
+  ALL input/output/exe/object/fullsource/body/packet checks accepted.
+
+FINAL actual chosen native call sequence: original static register object and
+preamble built from fd6_emit_static_regs and fd6_build_preemption_preamble;
+original fd6_emit_restore (whole accepted emit.o), source-exact nondraw restore+
+LRZ-flush segment with explicit no depth/prologue admission; eight source-exact
+fd6_blitter selected helpers (no unrelated copy branch), actual original CCU/
+barrier/event headers; original postclear CCU color/depth/cache+WFI block from
+fd6_clear_texture, then native fd6_cache_flush. Exact source/headers/packers,
+no manually recreated packet builder. Only native BO/ring allocation/context
+metadata/attachment/reloc storage are host seams, no GPU/DRM emulator. Whole
+Mesa screen/context/BO allocation/submission lifecycle not executed/qualified.
+Primary code stock debug/assert flags, NOT ASan/UBSan qualification.
+
+Selected scenario1 (two colors): mainIB149words/53packets at ring+4000/fc00c000;
+restore194words/95packets at+5000/fc00d000; preamble205words/100packets at
++6000/fc00e000. Scenario0 single red IB118words/40packets; restore/preamble
+byte-identical in both. All<=4KiB disjoint fixed ring slots; bcolor logical
+view covers whole existing32KiB RO/NX ring, no new mapping. Native restore
+uses one nested IB2, registers205word preamble via CP_SET_AMBLE. Preamble's
+CP_MEM_TO_REG reads32words from addressfc018ca0 (control+a0),
+endingfd6_control288bytes; no out-of-page DMA. No CP_MEM_WRITE anywhere.
+A619 dev_info1CCU/64KiB depth+color caches, sysmem depthoffset0/color10000;
+RB_DBG_ECO_CNTL_blit04100000, originalformat0x30/pitch register1.
+
+Command sequence runtime semantic oracle: setup color/depth seq1/2, clear
+body retains2, postclear color/depth/cache seq3/4/5, RB_DONE6 ->WAIT_REG_MEM
+memoryEQ6/maskffffffff/delay16, CACHE_FLUSH7 ->WAIT_MEM_GTE7. All7addressed
+events targetfc018c00. NEW native TIMESTAMP bit30=40000000 present, IRQbit31
+clear. Earlier168 no-bit30 protocol success does NOTqualify this one; XML's
+legacy timestamp wording vs native sequence use remains hardware-unverified.
+Do NOT silently strip bit30 or change oracle/guards to accept a future failure.
+Actual physical seq7 AND full pixel/page readback required before qualification.
+
+Future expected full page (PROPOSED, NOT GPUoutput): all1024words before0;
+after scenario1 first256pixels=192blueffff0000 +64greenff00ff00 in centered
+x4..11/y4..11 rectangle, index768completion7, all767otherwords remain0.
+Scenario0 redff0000ff256pixels pluscompletion7. Event area is disjoint from
+pixels, allpadding/VSC fields unchanged. No CPU DATAstores aftercold in future
+provider. Literal arrays/decoded packet lists/planned1024word oracles are in
+independent-native-review-v2.json; native raw binaries+metadata in
+native-clear-v6/scenario{0,1}/. New hardware evidence NONE.
+
+native-clear-result-v6.json 23799B SHA1e38ee0ae6f268e3303968dbe3bf8a8e035d79694f19827a2d22e81766ec5c99.
+independent-native-review-v2.json 65192B SHA80dd8dc5a311fe543c3f7d78bdac7b921b3d09b83e3f67ca7c1362fc54a5f79f.
+dispatch-v7-capture.json 569B SHAec2daf063b3b8a34a0546db6840c40b18c361878cfb6e4690f07695c7a711a68.
+
+NEXT implement critical XNU clear engine/provider (proposed unused GGL /
+gauguin_gpu_clear.c/.h), exclusive exact cold mode7 immediately after GGU20,
+preserve accepted modes3/4/5/6 engines/providers and all mapping/guard policy.
+Do NOT append after earlier stages/unknown console drain. Direct7 words
+IB_PFE149+WHERE from20->27, stage149+194+205+7=555words only in fixed RO/NX
+ring slots; readback each artifact before/after, prefix20/direct7/ring27,
+fullDATA1024zeros before and exact256pixels+control7+767zeros after. Nested
+IB2/registered preamble/control8B worstcase addresses must remain private.
+Use same proven <=64NC batch/full pre/post guards, individual MMIO/polls,
+full16KiBPTE/eight soleCPU-NC/private signed+GGU parent/clock/routes/IRQ/fault/
+4s total/2s phase/8s entry/minWDT budget/failstop poison-before-diagnostics.
+Old GGK/GGE/GGI/GGW must be IDLE before new branch, no secure CPU reads after
+AUTH. Full original driver scope remains unqualified; bounded clear first,
+then true triangle/draw, iOSIOAccel/Metal, dynamic/sustained power/scheduling,
+RAM/UFS/peripherals/90-120Hz/daily-use acceptance. Fullgoal unchanged/notdone.
+
+Add meaningful pureengine+realboard failures/corruption/boundaries/PROT_NONE
+owner models with ASan/UBSan/Werror and actual raw CPU pixels/control samples,
+not only expected constants. Test every old mode and coldmodefreeze transition;
+invalid7 cases become8 deliberately, not removed. Native fourTU preflight
+MUSTuse CURRENT168manifest above. Then official fresh patch169/full host83
+(if one added test file), ONE fullLOCAL8job/qualified image/runtime/physical
+trial. Source/fixture/compiled PREDECESSOR transition strings bound from outset
+(mode7 "before native A619 offscreen clear" or equivalent exact source chosen),
+no repeat168parser mismatch; isolate exec fixture globals. No169kernel work
+started. No user action needed. Do not retry old failed/claimed jobs.
+
+Publish this completed SOURCE/NATIVE milestone with SAME TREE sole public
+parent42bf267d7216f422c35a640a3e0faa61451533ef; record new IDs in
+research/tmp/dsh-0169/public-native-handoff.json. Keep actual168artifact
+SOURCE_HEAD5124e47 unchanged; next169SOURCE_HEAD is not yet committed.
+
 ### 2026-11-08 —168 PHYSICAL native A619 shader VERIFIED; offscreen graphics NEXT
 
 This continuation PROGRESS: one fullLOCAL8job kernel/build qualifier/image/

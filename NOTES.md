@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —166 complete LOCAL kernel QUALIFIED; image/runtime/ONE boot NEXT
+
+CURRENT generated/native recipe NOW166 gauguin.MVqkS8/source166-codex,
+manifest331973dccfdba19b8d1594ab69864a51bf9a713876df491944947678cc983971.
+Any future TU MUST use that manifest/recipe, never165/164/159 helpers.
+Source private9bc4b88a61938d2d77cf88dca31275ae4b9a72d3, public
+96c6e2122faaae5bac0063375d0599054db4d508, soleparentc97b3aeea547d0f078c62222371bc41209a78a7f,
+same treef90bfc66abd3b2d25d5c0ccad18762184e129f91;13UTF8 paths,
+public-source-snapshot.json. Keep this SOURCE_HEAD for all166artifact checks.
+Full goal ACTIVE/unlimited. Phone STILL TWRP165, NO166device IO/hardware IB
+proof. All resets automatic --manual-reset no, only prompt if stuck/manual
+recovery needed. Original mkadt diff unchanged; no flash/format/GPT.
+
+DSH72058 CLOSED: ONE standard LOCAL8job full build0, run gauguin.MVqkS8;
+first strictv2qualification2 (exact ZAP coordinator gate string still omitted
+mode4). Original native166-execution-result.json, qualifier/helpers/logs
+IMMUTABLE. Codex NEW qualifier166v3 extends ONLY that assertion to actual
+already-tested exact mode4. DSH31670 CLOSED0/dispatch-v7-qualify-existing0:
+COMPLETE strict requalification of SAME original kernel0; no second build.
+Operative final report native166-qualified-execution-v3.json (new file, NOT
+repair of original failed report). Correct helper qualifier_native0166v3.py
+(actual filename qualify_native0166v3.py), binder bind_host166v2.py.
+Kernel17032984B SHAe96f6ca737f330b784d3e9b8fed4ce77e42a189baee781ef26303a5cb8262e15,
+banner SatNov7 22:02:24CST2026/xnu-0d46c8184c544a46b950c93511c755ea;
+archive SHAba0e728b2f678c4001df6ed19623b22491656e5af6bf8844b6d613dce7aeebc4;
+qualification research/tmp/p3-native-0166-qualification-20261107.json SHA
+f9fc8cfa90d59b72fa3df7e2e32069e2eb916e3ec3582dbcb26cce123ca9f931.
+Source5308files SHA130950a5e004b0c10a4798fbabf5432edcc931f2e010d59705c6a059a170e042.
+All8new IB/exact-cold-mode source flags true; hardware IB/data flags remain
+false, source-only scope. Codex independently rehashed installed kernel,
+manifest, archive, complete source and all9 requal inputs; separate review
+SHA4be717a6f90026f46c0b200d3e0945dbca55ce915ab1a3c496e74cb8f37056f0.
+No CI166 was dispatched. All build/requal processes CLOSED.
+
+DSH64041 CLOSED0/dispatch-v6-ib-parser0: independent actual IB parser focus
+31valid/684rejected SYNTHETIC records,25required rows, 32bit flips for each
+7ring/8IB word, wrongsize/IB_PRIV, incomplete counts,31instead27, failures,
+missing/duplicate/reordered/prefixed rows and XML framing tested. NO full
+package chain or physical evidence from this focused model. Prepared166
+package/image-preflight/runtime4checks helpers now use new mode4, all8source
+flags and separate gpu_ib proof; these are UNTESTED pending actual image.
+Correct final image/runtime helpers reference native166-qualified-execution-v3
+and qualifier166v3, not failed first execution. No package outputs yet.
+NEXT: DSH dispatch_once166v7.py image-preflight, then package/independent
+review, full runtime4checks, root independent pins/observer suffix review,
+ONE temporary boot gwrt-0166-a1/606B mode4 then strict physical read. Inspect
+atomic state and never rerun claimed/live/failed jobs through same stage;
+preserve all raw/failed evidence. Codex critical code/NOTES/Git, DSH executes
+only (explicitly forbidden edits or Git mutations). No user action required.
+
 ### 2026-11-07 —166 source/native/full80 ACCEPTED; full LOCAL build NEXT
 
 Full goal ACTIVE/unlimited; accepted physical GPU ordinary-write baseline165

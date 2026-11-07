@@ -36,6 +36,57 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU source work and complete hardware recipe are recorded in the
 latest milestones below. No repeated reset question; only necessary manual recovery.
 
+### 2026-11-07 —154 result published;155 read-only signed-ZAP integration audit PASS, implementation NEXT
+
+First physical-init/framing milestone committed private
+19be9570f7e80b9eb9440b1b02ad1a76332c4ae7, published
+a1580039e3d4e9d7947ef086c3c69c045e0f1749, solepublicparent
+c1a6f6bc6b701cd653283352f6cd1692c723893a. Four reviewed UTF8paths only,
+same tree8c40054fc48f44cc4df4ef16d4f0ae4089e5a136; public-first-init-snapshot.json.
+Kernel still captureda87b687/source154-codex/gauguin.SlaKVj, not rebuilt after
+diagnostic-only changes. Actual154 accepted report and frozen initial rejection
+are both intact. independent-review-result.json records Codex's byte/size/hash
+review and exact seven shared technical bindings; separate readers necessarily
+have different self paths/module pins. Original mkadt edit unchanged.
+
+DSH3015 CLOSED0/audit_zap155.py actual0, ONCE, no compiler/test/device IO/SMC.
+research/tmp/dsh-0155/source-audit-result.json8382B SHA
+5557206668dcee6f8786744edc56ef29d7be94a57ffb51ad9728d8aeda0fe65a:
+12 pinned native files verified by SHA256+Gitblob,7 captured firmware files
+verified against both old plan/capture record; source order and ELF decoded;
+all exact117 and154 technical-report inputs rehashed. Codex independently
+rehashed all51 audit inputs. This is SOURCE/INTEGRATION evidence only. Historical
+117 INIT/MEM success and154 CP success are DIFFERENT BOOTS, not combined AUTH.
+
+Two concrete integration blockers found in current154 source:
+(1) bcm_flags rejects CX with old sweetpasinit/sweetpasmem and coordinator
+branches are exclusive. Simply enabling old flags cannot combine PAS withGPU.
+(2) sweet_pas_stage_owner_valid rehashes originalMDT+zero tail and CP/core/FW
+guards use it. INIT's SCM_RW may modify metadata; b02 deliberately replaces
+its first1984bytes. Keep old checks; new transfer needs a distinct phase-aware
+owner/authority path. Do not weaken original MDT validation globally.
+
+docs/gauguin-gpu-zap.md records concrete next implementation stages: fifth
+optional pinned1984B b02 asset through packer/shim/ADT/kernel; separate exact
+default-off post-CP entry and sealed live parents; serialized same-boot
+INIT6860 ->MEM_SETUP4096 ->b02copy/readback1984@offset0/BSS0 ->AUTH42000205/1/13.
+Private owner-local copy via retained NC mapping, no caller PA/pointer setter,
+no MDT restage/blanket zero and no post-AUTH secure-region rehash/write.
+Full64 continuation/BUSY/results, fresh budgets and terminal quarantine remain.
+The existing8-continuation cap is diagnostic, NOT a native AUTH guarantee.
+DSH prose said "with a zero tail": authoritative ELF/report say zero tail
+COUNT0, meaning NO zeroing operation. No code/image/hardware155 exists yet.
+
+NEXT CONCRETE: Codex author optional b02 asset plumbing/immutable view and
+phase-aware owner/PAS/board contract, then DSH actual154-recipe ARM64 TUs,
+native frame/order/model/refusal checks and applicable71 host files. Integrate
+live post-CP loader before a new full kernel; no standalone copy-only boot or
+unchanged154 reboot. Keep existing4asset packaging identical when b02 absent.
+One integrated trial may stop after AUTH success before unsecured/rendering;
+derive next CP secure-mode packet/completion from pinned native code separately.
+No new secure operation during this audit; phone LAST TWRP154. All ownedDSH
+jobs CLOSED, no manual action needed. Whole daily-use/highrefresh goal ACTIVE.
+
 ### 2026-11-07 —154 FIRST REAL GPU INIT qualified; same immutable boot, conservative console framing, ZAP NEXT
 
 Concrete hardware milestone: ONE temporary154 boot completed native RB0

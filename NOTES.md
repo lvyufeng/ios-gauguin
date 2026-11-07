@@ -2,6 +2,78 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —144 GPU memory and native CP_INIT bytes validated; GPU context/ownership next
+
+THIS turn adds CPU-only GPU global-memory/page-table/CP_ME_INIT constructors
+as138th patch0144. Whole GPU/Metal/RAM/storage/peripheral/high-refresh/daily-use
+goal remains ACTIVE/incomplete. NO144 full kernel, image, phone IO, GPU context
+binding, core MMIO, SQE load, command submission or acceleration claim. Current
+complete native build/recipe remains143 gauguin.77lIOK; phone last observed
+TWRP in143, not newly queried. Preserve that working firmware/DCVS baseline.
+
+DSH38365 completed actual audit0: eighteen freshly fetched fixed native
+19b63c8192b1c9b7c4d931d7d3be92024bc2d778 primary files matched old caches.
+Audit c0ed831d18973e421659733ebde3f7d2b57e2872f39923e4d95c2607e22b7367.
+DSH66586 completed actual policy0. Retained actual139 selected FDT proves
+GPU user SID0, secure SID2 (NOT1), GPU-side context aperture48000; GMU SID4/5
+remain their separate proven banks0/1. qcom,global_pt and force32bit are
+absent. A619 has64bit/preemption/IOCOHERENT but NO APRIV: global VA starts
+fc000000, RB userRO/NX, SQE userRO/executable, scratch/reglist privilegedRW/NX.
+Followup property reader preserves rawhex/wordcells/possible_strings together:
+numeric micro-mmu-control6000 must not be lost as possible text. Policyv3 SHA
+bee07e14506508304d26c44c42e305ea276da8319b54344707a1127923fe2810.
+
+New ggp_* constructors occupy only retained1MiB NC owner's unused tail:
+tables9c000..a0000, SQEa0000/32300B mapped32KiB, RBa8000/32KiB,
+scratchb0000/4KiB, reglistb4000/4KiB. CPU16KiB reservations are distinct from
+4KiB SMMU leaves. Exactly18 leaves, empty TTBR1, all other32bit VAs/guards/
+GMU/metadata/table pages unmapped. This NC/no-LLC bring-up profile matches
+the existing retained NC owner; it is not full Android cache-policy support.
+No existing143 runtime file changes: only bsd/conf/files and new GPU c/h.
+
+Native byte oracle caught a REAL v1 CP packet bug: HEADER_DUMP has one32bit
+address/control pair, not an extra64bit address word. Wrongv1 stagedsource
+source144-codex SHA b3a447d58f7e6c7b59e60016e0bea357dfbf9521099212fcbbd3592f1c43cd2b
+is retained for evidence and MUST NOT be used. Original failed validation/
+native-oracle-v1 artifacts and failed-v1.patch preserved. DSH87629 completed
+wrapper0 but actual validation1 at native CP memcmp (leaf comparison passed).
+Corrected native12words are70c8000b,16f,3,20000000,0,0,0,2,fc014000,0,0,0;
+reglist is word8, operation mode word7, word11 native padding0.
+
+Explicit reviewed v2 uses a NEW pristine138-patch replay, unchanged exact
+native protection/LPAE/PM4 function bodies and rechecked same primary headers.
+DSH51030 has completed final event, actual validate144_v2.py0. FIVE checks0:
+fresh replay, actual GPU-domain policy, exact native leaf/CP byte oracle,
+all63 host files and real ARM64 GPU-memory TU. Report validation-result-v2.json
+SHA4db094428f5aba793f2654964f7928b026e6c6927eb129684d90556ef01814b8.
+Correct source is .deps-cache/p0-20261105/source144-v2-codex,5284files SHA
+ec84a908feff4ff390b1938906709a6f4e6e8ea48362c751a00ca45c30724ff0.
+New memory fixture2,448,251 ASan/UBSan checks includes all4GiB/4KiB holes,
+18 leaf permissions, three owner bounds, IAS32..39/all six OAS, aliases,
+overflow/invalid inputs and failure atomicity. Native oracle SHA
+87c65d304597f5fa959a189f8913f8de85ba1bb1a625990eb96f6aa74353f616;
+exact48B native CP bytes SHA3594cccdbd738655aff17759f53c18b3ad8af2b199b37ea6210a04b1507663ce.
+Native object11896B SHAd4d30e097fd3bec196bb016d743c5d63e92f7185e7ede09e51cd2aadc0a636c2
+at research/tmp/gauguin-nvt-p1/gpu144-v2-memory/run-w14yb5l2/compile.json.
+Codex independently rehashed all300 validation pins, all native/policy/audit
+pins and both complete source snapshots after DSH;143 baseline unchanged.
+All owned DSH tasks completed. Original7-line mkadt user diff unchanged.
+No CI, flash/format/GPT/destructive operation. Commit/publication follows.
+
+NEXT145: integrate a guarded late GPU SID0 context preserving running GMU
+banks0/1, secure SID2 and unrelated routes. Do NOT reuse cold gsm_configure_once:
+it requires all banks disabled and writes global halt/reset/config. Resolve
+an unused bank dynamically; preserve existing translations and global state.
+Native kgsl_mmu_start precedes owned oob_gpu SET16/ACK24, then core/RB/SQE.
+Because actual DT lacks global_pt, audit native SCM MP CP_SMMU_APERTURE_ID1b
+FOUR-argument transport and extended-buffer ABI before calling it; PAS2/3arg
+wrappers do not prove that convention. Do not force global_pt to evade this.
+Actual powerup reglist, SQE header/content validation, secure ZAP and bounded
+CP execution/readback remain outstanding; byte constructors prove none of
+those stages. Codex owns critical driver/Git/review; DSH exact reviewed
+compile/test/build/temporary boot. No standalone144 full build/boot is useful
+before a real consumer exists.
+
 ### 2026-11-07 — actual143 native register DCVS request ACK/return0 PASS; next GPU MMU/core/CP
 
 THIS turn is progress: native source/DT audit corrected provisional BW1 to

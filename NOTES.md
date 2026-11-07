@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —166 image/independent54pins ACCEPTED; full-runtime v2 running before ONE boot
+
+CURRENT recipe166 gauguin.MVqkS8/source166-codex (never old165 TU). SourceHEAD
+for all artifacts STILL9bc4b88a61938d2d77cf88dca31275ae4b9a72d3; later HEADs
+only NOTES. Full goal ACTIVE/unlimited. Phone STILL TWRP165, NO166device IO.
+User away/all resets automatic (--manual-reset no), never ask attribution;
+only prompt if stuck/manual recovery. Original mkadt diff unchanged.
+
+DSH5190 CLOSED1: first package wrapper expected image-preflight-result-v2,
+where first image preflight had written non-v2. Failed before actual packaging;
+all original scripts/logs/dispatch retained. Codex NEW image_preflight166v2.py
+writes exactv2 preflight and pins NEW package_and_review166v2.py; originals
+unchanged. DSH20688 CLOSED0: dispatch-v8-image-preflight0, package0, actual
+packer0/independentreview0, FIRST actual package (no partial outputs repaired).
+Image19726336B SHA1087aa8733843121e56b5a8e8ffa90f064ad169a9f7cefa6f3f5f7559b191be4,
+shim/out/shim-p3-gmuf-0166-native-20261107.img. PayloadSHA
+78676a9d92891de9368ee1267f23ee353d444ba0f306801606eb40d074bfed5c;
+evidence research/tmp/p3-gmuf-0166-native-evidence-20261107.json SHA
+61b42aa1924ccb94e712d09daecaecd6b530112fc192d07f93a3cedaa06127fc.
+Unique606B gwrt-0166-a1, sweetgpuzap4, default-absent INIT0/pasmem0;
+vs165 ONLY mode3->4 and trial changed, same five assets. Independent image
+review SHA04fb97042dc158f19b7becca8b6bc6e6f16ac174ad66851a4cd038be79eab8a6.
+Root rehashed all54actual image inputs, package/preflight/focusedIB31valid/
+684negative pins and original observer suffix; audit SHA
+1d07f56482831241718878f5277b70158e0db98a61fe5af39df0b5b86c07ada8.
+Boot/read helpers only prepared, not executed. Package != hardware IB proof.
+
+DSH77510 CLOSED1 / dispatch-v8-runtime1: framing/clock/FW checks0; FW132valid/
+584negative incl8new source flag false/missing and forbidden hardware-true.
+Full trace retained45valid/678negative passed, then old signed fixture
+negative mutation needle sweetgpuzap3 absent from actual mode4 failed at283.
+Production parser, kernel, image all UNCHANGED. Original failed runtime
+report/raw/fixtures immutable. Codex NEW verify_full166_host_v2.py changes
+ONLY three mutation needles from3 to4 and adds duplicate4 negative; keeps
+old positive/negative semantic classes. NEW runtime_validate166v2.py rehashes
+ALL unchanged old inputs and reuses actual first3accepted checks, reruns
+complete full-chain fixturev2, publishes new runtime-parser-result-v2.json.
+DSH37091 currently running dispatch_once166v9.py runtime; inspect
+ dispatch-v9-runtime.json/runtime-full-trace-v2.log/runtime-parser-result-v2.
+Do not repeat live/claimed job. Full4 acceptance NOT YET established.
+
+Correct future boot/read helpers NEW boot166v2.py/read_hardware166v2.py use
+runtime reportv2 and dispatch-v9-runtime proof, NOT failed original runtime.
+Root must independently rehash final runtime and syntax/observer suffix for
+these actual new helpers before dispatch_once166v9.py boot. Boot166.py and
+read_hardware166.py are earlier UNEXECUTED helpers retained for prior audit;
+never use them against failed v1 runtime. If runtimev2 passes, ONE temporary
+fastboot boot, routine13B misc recovery latch/readback only, no flash/format/
+GPT, then read actual source-bound IB27/8words/GIB1/GIB2 proof separately.
+All resets automatic; do not ask user for UI or attribution. GPU shader/
+rendering/Metal/scheduling/performance/high-refresh/daily-use still unqualified.
+Root code/NOTES/Git; DSH explicitly no edits/Git writes. No user action needed.
+
 ### 2026-11-07 —166 complete LOCAL kernel QUALIFIED; image/runtime/ONE boot NEXT
 
 CURRENT generated/native recipe NOW166 gauguin.MVqkS8/source166-codex,

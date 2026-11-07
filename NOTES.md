@@ -2,6 +2,99 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —164 physical budget refusal;165 cached-success logging SOURCE QUALIFIED, build NEXT
+
+Current goal turn PROGRESS:164 image/runtime/ONE boot completed, then actual
+165 fix/model/native/full79 source proof. Full daily-use goal ACTIVE/unlimited.
+Phone last observed TWRP164. User away: all resets automatic, --manual-reset
+no; never ask attribution. Only prompt for actual stuck/manual recovery. Late
+user reply confirms0148 auto-reset only; do not apply it to any other trial.
+No flash/format/GPT. Original mkadt7line diff SHAa74a0418...454860 intact.
+Current full/generated recipe STILL164 gauguin.1GkM5N/source164-codex. A future
+full165build replaces the shared generated files; never use older TU helpers.
+
+164 DSH41006 CLOSED0, runtime4actual exits0, all28pins independently rehashed;
+FW132/565, retained full45/678, signed20/117, unsecure21/147+3duplicates,
+ordinary30/223 (valid/negative SYNTHETIC). Runtime report SHA
+3a7e726077246f6f128ebc432deabbb1aaf59ea6072ef416f2ffdcbdae667233.
+DSH96934 CLOSED0/dispatch-boot child0, ONE temporary boot12:23:57.249189Z to
+12:26:09.269945Z, autoTWRP131s. Fresh identity matched, all7 service markers,
+4FBswaps/58GPUlookups. No human UI/touch/refresh/performance observation.
+DSH94126 CLOSED0 BUT dispatch-read child1/inner strict reader2: whole report
+evidence-rejected. Raw19GPU/131GMU/171ATOS/writes189/polls173 and CP15DONE,
+then WDT refusal at ZAP SEAL phase1/scopeLIVE/reason4; INIT/MEM/AUTH calls0,
+copy0/owner9. Native-mode and ordinary GPU-data submission never began.
+Full report SHA5e5469c65ff28178f5000fd4be3394fdfa82522f846cb478211fea62dd8ed5c9;
+wrapper SHAaaa5dfb7afc25e593d3a324e4eac59ddbde3f117d6bc6f49fe75054f94297025;
+binary SHA544a434e4c212936fd64da8ca8650eb23e8aa9090d77158003213bd50f6edcbc;
+cycle SHA535ec75cbb06c2d9abc4e975357f363f1e446c68d593e00f71c5fcd8ff8958d1.
+Exact binary/text decode, one permitted lossless XML framing recovery, no
+field repair/dedup/filter or acceptance waiver. At observed19.2MHz,164 ZAP
+entry13.1298933s after arm vs16313.2671476s, nominal23s bite leaves9.8701067s
+below exact10s minimum. CORE entry/duration9.375484/1.373225s; CP entry/duration
+11.059225/1.983119s.164 optimization alone insufficient, not a GPU write pass.
+
+DSH boot also inserted/committed a historical NOTES-only handoff asbb9d03a
+while root worked. That is why sourceHEAD stays6e80... despite newer NOTES
+HEAD. Source/Git mutations were not needed for its dispatcher task. Future
+DSH prompts must explicitly forbid NOTES/Git writes; root owns the handoff.
+Historical DSH prose below is corrected: native CP word0 is70c8000b, no CPU
+clear inferred;163 also stopped before signed/native append, not after it.
+Actual reports/raw records, not DSH summaries, govern qualification.
+
+Source inspection: sweet_log_flush_now starts local flushed=0/seq=0 each call,
+rewriting the CURRENT ENTIRE console history. gmb_record called it for every
+line. mark_sync instead writes separate4KiB persistent marks; they are NOT
+redundant APIs. Storage driver is UNCHANGED in165.
+Patch0165 (159thactive), ONLY board.C delta vs164: four COMPLETE cached record
+groups (GPU context/start/core/CP) in private DATA19 choose gmb_record_cached.
+Identical text/order and each synchronous persistent mark, ONE full console
+flush at group end BEFORE return/next hardware operation. Local function
+choice only; no global batch state spanning hardware. Partial/failure/legacy/
+invalid-selector/thread paths unchanged. Every other board function/guard,
+MMIO/NC/PTE check, deadline/WDT20/23s/entry budget, engine/command, storage and
+quarantine BYTE-IDENTICAL; reverse reconstruction proves only these groups
+and new logging helper differ. No watchdog relaxation/PET/rearm/cleanup/retry.
+Candidate SHA7f64c1a1277c423b1764847cd314db635c80f8899f8e255d40f3687b37d6e72d.
+
+New real function persistence model uses actual headers and pinned164 bodies,
+baseline164.inc SHA2c7d7fefd069deb3aa34ffdac129c6cc20f69fbd7f0e5fef4ea5f063ce156658.
+192 paired exact bytes/order/marks/final console/read-only driver-state cases;
+388 avoided console flushes across MODEL scenarios, not hardware timing.
+DSH22256 CLOSED0/dispatch-focus child0: ASan/UBSan model0, actual ARM64 board
+TU0 on CURRENT164 recipe;292992B object SHA
+8a619cf1960d4f9e478eb81c281c3647ce51f6c94931bf17eafc76b60f454664,
+research/tmp/gauguin-nvt-p1/gpu165-board/run-3uddxtd0/compile.json.
+focus-result.json SHA186df3115c36fb0403e25b38d3afeb3167dee5481031da47f3b8a7cb2a946d65/9pins.
+DSH76072 CLOSED0/dispatch-integration child0: pristine159patch replay0/all79
+actual hostfiles0/exact sorted names; source165-codex5306files SHA
+d43f1210e3eced200e9fc10ad576fbdb12fbd7df75c5e5b160fa8d11b3565cf2,
+exact1boarddelta/candidate equal/source164 unchanged. integration-result.json
+SHA19564fa166fa679553c6bb1d0431104aef6969d7b0f2523c23528db9d07fe65b/313pins.
+Inherited scope label says78; actual test_files79/name list proves79. Correct
+staging record:build/source-state/source165-codex-66d539da72982fb6.json.
+DSH91269 CLOSED0/dispatch-preflight child0: strict source/native41/38/34/10/
+PIL/realpack bind,4whole helper syntax checks, ACTUAL cached-log qualifier
+contract executed on source165 and official staging check0. Preflight SHA
+eeb71e26c227059144f8598f7d12c5a56c582d9ddf22f451cefaafca1e485027.
+Codex independently rehashed9+313inputs, actual object/fresh5306source in
+independent-source-review.json. All165 checks FIRST attempts0; no waivers.
+
+NEXT: commit/publish only7 UTF8 source/test/docs paths, then DSH
+`python3 research/tmp/dsh-0165/dispatch_once165.py build` ONCE. SOURCE_HEAD
+comes from public-source-snapshot.json private source commit. build165.py
+does ONE LOCAL8job full build + strict qualify_native0165 (correct integration
+report path, all prior gates+new cached-log contract). Keep HEAD/source/helpers
+fixed until BOTH finish; poll same handle/dispatch result, never restart on
+observation timeout. After success update current generated recipe, independently
+rehash kernel/manifest/archive/source, then adapt VERIFIED164v2 image/runtime
+helpers. Fiveassets/606B mode3 retained, new trial gwrt-0165-a1; additionally
+require native_gpu_cached_success_records_source_bound. Runtime and later ONE
+boot/read through the same atomic once dispatcher, no NOTES/Git writes by DSH.
+No165fullkernel/image/device IO yet. All DSH jobs closed at source handoff.
+Full GPU data/write/rendering/Metal/high-refresh/daily-use goal still unfinished.
+Publication IDs go in dsh-0165/public-source-snapshot.json.
+
 ### 2026-11-07 —164 ONE temporary boot: observer0 to TWRP131s, GPU stopped at ZAP phase1 reason4
 
 Boot watch DSH FIRST/ONLY `dispatch_once164.py boot` (no redirection): dispatcher
@@ -15,17 +108,16 @@ FRESH raw observer .txt465203B SHA2af863a5..fdcf, .txt.bin4198400B SHA544a434e..
 cycle log991B. Phone back in TWRP164. NO reader run (awaiting explicit ask).
 
 OBSERVED GPU outcome from raw text (not a qualified verdict): CP stage=9 rc0
-commands15/8192, word0 raw70c8000b (swapped value) cleared to0, retained1,
+commands15/8192, native word0=70c8000b, retained1; no CPU-clear inference,
 fence1/status0, idle polls1. Then `WDT LEASE: budget/readback/counter/window
 failed; quarantined` BEFORE GMU board/ZAP; `GMU BOARD stopped rc=12`, ZAP
 `partial phase=1 rc=3 sealed=0 copy=0/0 init/mem/auth 0/0/0`, guard reason=4
 phase=1, shared lease quarantined, no retry. So NO signed load, native mode,
-ordinary data dispatch or 19-leaf proof in this boot; 164 optimization still
+ordinary data dispatch or whole-boot qualification; raw DATA19 receipt observed.164 optimization still
 UNPROVEN. WDT initial en0 bark524287 bite1048575, armed en3 bark655300 bite753595.
-Cause of lease refusal NOT yet isolated (readiness sample/BCM/CX/FW all reported
-complete before it). Contrast163: refusal happened at ZAP phase1 reason4 but CP
-stage rc0 with native words appended at DW15..19 (fresh five-word submit). Treat as
-preserved raw evidence; separate analysis only after explicit ask, no reopen/edit.
+Subsequent root timing analysis above isolates the failed CPU-time budget.
+163 likewise stopped at ZAP phase1 before any native-mode append; neither163
+nor164 dispatched ordinary data writes. Original raw evidence remains intact.
 
 ### 2026-11-07 —164 IMAGE QUALIFIED; runtime DSH41006 LIVE, then ONE temporary boot
 

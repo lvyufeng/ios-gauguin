@@ -87,6 +87,38 @@ checks, fenced submission/counters, actual shadow/busy/fault observations,
 final guard ticks and all15 command words. Coordinator failures are terminal.
 
 Its238 new actual CP/core/GGX board cases,416 coordinator cases and all70
-host files pass; the changed board/coordinator ARM64 TUs also pass. Full native
-154 kernel/image/runtime-reader checks and a physical command-completion trial
-remain required. No device CP result or acceleration/Metal is qualified yet.
+host files pass; the changed board/coordinator ARM64 TUs also pass. The full
+local154 kernel and four-asset image passed source, identity, symbol, layout
+and strict runtime-reader checks, then completed one temporary physical boot
+with trial token `gcpi-0154-a1` on2026-11-07.
+
+That device run reports phase9/rc0,12 reads/11 writes,15 command words and
+8192 ring comparisons. All1024 scratch words were initialized and checked
+before SQE release. The fence succeeded at its first check with status0;
+the final device-written shadow RPTR is15, AO busy is0x71000000 (bit23 clear),
+and decoded RBBM/CP errors and final guard reason are0. Source-bound control
+flow performs no CPU shadow store after SQE release. This qualifies the first
+native ME_INIT/WHERE_AM_I transaction only. Rendering, ZAP, unsecured mode,
+full scheduling, Metal and improved UI performance remain unqualified.
+
+The observer found automatic recovery after131s; the user supplied standing
+no-manual-intervention attribution. The retained-owner terminal intentionally
+awaits watchdog reset, but no reset-cause register was read. Process/framebuffer
+logs are not a human UI/touch observation during this unattended run.
+
+The original reader rejected a WDT arm record that was intact but appended
+behind concurrent IOKit XML output. Raw text/binary and that rejected report
+are preserved. A separate reader uses `tools/console_framing.py` to detach
+only complete known diagnostics following a validated interrupted XML key,
+without repairing fields or relaxing technical gates. It records raw line,
+column and substring hashes; duplicate, malformed and failure records remain
+subject to the original checks. Six framing units and the retained runtime
+cases pass, including45 full-trace acceptance and678 refusal cases. These
+synthetic tests validate the reader; the same immutable physical log supplies
+the GPU execution evidence in the separate accepted report.
+
+The next native stage is signed a615_zap loading through the correct PIL/PAS
+path, followed by the proper unsecured transition and bounded real submission.
+The currently staged MDT bytes do not establish firmware authentication or
+segment loading. The native TRUST_CONTROL0 fallback is not an accepted
+substitute for completing the signed firmware path.

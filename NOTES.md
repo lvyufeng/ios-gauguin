@@ -90,7 +90,9 @@ No171device image/boot yet. Metal/iOSacceleration/RAM/UFS/peripherals/highrefres
 daily-use fullgoal allremainunfinished. Codex criticalcode/review, DSH execution.
 
 Original mkadt7linediff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
-untouched. Publish this native CPU milestone with SAME TREE/solepublicparent
+untouched. Native input sourcecommit884e382 and program-handoff commite3c7857;
+final native publication IDs in research/tmp/dsh-0171/public-native-handoff.json.
+Publish this native CPU milestone with SAME TREE/solepublicparent
 24ba393ab9e550ccbdede804e01f471d077941e5 via gh REST/nonforce ref; NEVERprivate
 ancestry/rawlogs/serials/Appleartifacts. Currentpublic/privatebefore171 docs
 99dc7f108fd6b96d676bfdd71fef72ca56fb779c SAME TREE1607985d1f7a6e02e9c95cf11e4c1db9f140ff08.

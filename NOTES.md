@@ -2,7 +2,7 @@
 
 ## Agent handoff / active work
 
-### 2026-11-07 —145 complete local kernel qualified; packaging active, strict runtime GPU reader next
+### 2026-11-07 —145 complete local kernel and image qualified; strict runtime GPU reader/ONE boot next
 
 DSH31085 CLOSED0; actual build145.py build0/qualification0. ONE standard
 local full build, no retry/CI/device IO. Run gauguin.Ntf1zL captured private
@@ -24,13 +24,23 @@ same tree as private893d55b. Exactly12 source patch/series/tests/NOTES/docs
 text paths, report research/tmp/dsh-0145/public-source-snapshot.json.
 No private ancestry/raw/FDT/downloaded sources/binaries/serials pushed.
 
-Packaging DSH10049 currently active (poll SAME exec handle, do not restart).
-Task execute-package.txt owns package_and_review145.py: new unique145 image
-with sweetgpucontext1, normal qualified145 artifacts plus independent image
-review. All old image pins retained, including new explicit143 baseline pin.
+DSH10049 CLOSED0; actual package0/independent image-review0, normal package
+report passed and all9 inputs unchanged. Image shim/out/
+shim-p3-gmuf-0145-native-20261107.img19562496B SHA
+b08087f3b9cd0510ff19985b6423048c0e952a59de1b3a4f02782a29bc7ad54d;
+payload19234816B SHAed007419bebe9649f2a03b2a228981ed9e9270673351ece72ca743eec50f615f.
+Evidence4149B research/tmp/p3-gmuf-0145-native-evidence-20261107.json SHA
+9f5b43d4e2872c098ee61ad5b5cf653cb876c56f637ae820cff256ac6c3727e8.
+Unique trialgmuf-0145-20261107-a1, sweetgpucontext1, command600B/608B field.
+Actual assets shifted with this larger kernel: NVT18255c000, MDT182580000,
+GMU182584000. Contents/geometry/zero padding/owner request remain qualified;
+strict reader MUST bind these actual145 payload addresses, not143 locations.
+All old image pins retained, including new explicit143 baseline pin.
 Metadata transformation preserved40/64hex and AST numeric constants before
 explicit GPU flag/qualification/source-file-count rules. No package outcome
-claimed yet. NEXT strict145 runtime verifier + synthetic fixtures, based on
+is hardware evidence. Codex independently rehashed package pins and actual
+image after DSH. All owned DSH handles CLOSED. NEXT strict145 runtime verifier
+and synthetic fixtures, based on
 unchanged143 readers with new exact GPU context/SCM checks; never boot before
 that parser/identity/image qualification. Phone last observedTWRP in143,
 not queried this turn. Whole goal ACTIVE/incomplete, mkadt diff unchanged,

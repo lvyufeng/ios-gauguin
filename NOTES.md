@@ -2,6 +2,68 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —171 full native kernel/image ACCEPTED; complete runtime gates running
+
+Current full goal ACTIVE/unlimited. Kernel source head is DISTINCT frozen
+KERNEL171_SOURCE_HEAD=f1a9708d6d4df8db898500035ad82d8003186812 (admission fix
+commit); older SOURCE_HEAD/DRAW_PUBLICATION_SOURCE_HEAD remain historical CPU
+publication heads, never overwrite. Current code/public publication verified:
+publice0ef4b32e59cd319ba7b89ffa61cf57070efa5b0, sole public parent
+2a491b9c7545e07d5f26cb2bd7f9aea9125364a6, SAME TREE
+71dda1265680ba9ef5116684a5e9146d95ebcacf as privatef1a9708. No private ancestry
+published. public-kernel171-handoff.json/ref_updated true;12files via REST.
+
+DSH v29 CLOSED inner0 FIRST: ONE standard local8job full kernel build0 and
+complete strict artifact qualifier0, source171v2-codex5317 SHA
+cdf96fac265e882b9e171ea3cc2fd1297ef8b99de8823b019fca585a17669473.
+Actual run gauguin.inYn00. CURRENT GENERATED RECIPE IS NOW171, manifest SHA
+e0eb9f7639f4480e8364d15519fefa8393742da3390d0b9e95408e2ca5c203fe.
+Never run old170 or older TU probes against these generated files. Native171
+kernel17122720B SHAee74ff466d301d99e5425e3c57634e159bde155638b5297a93f73b60c4a26081;
+archive13be3c7a1b4352c4154040d025a6eefaa2afbf8aefb3ca60c094fc834b9268f6.
+Qualification4dd38ffbd37b6acce4c85e1deab14767eeefc1fe8dbde25f6f2110b98b49eca3.
+ALL18 hardware flags FALSE. Independent build review FIRST0 SHA
+c53804ac2a24cf96d8b94a219a7d13c98bb368f10a3f52babd7b2b52713f98d5:
+fullsource/kernel/banner/archive, all old clear literals, all1158 new native
+triangle payloadwords/sourceflags and every prior artifact predicate retained.
+Native build log350MiB ignored; no CI run used in this continuation.
+
+DSH v28 CLOSED inner0 FIRST: actual triangle parser under explicit SYNTHETIC
+records:21positive/10006negative controls, all1942records/27slots/1632source
+references/256actual pixel fields, EOP6/owner/order/time/duplicate/padding tests.
+draw-parser-standalone-result-v1.json SHA
+03667ad4d7c18625c301c9936bfbbfde0c3bafc65231aec2864d4d7a30b2d964.
+This is NOT a physical GPU result. Native references are labeled source-only,
+distinct from real DATA pixels and engine buffer comparison receipts.
+
+DSH v30 image-preflight CLOSED inner0; v31 package CLOSED inner0 FIRST: full
+fiveasset image + all old independent boot/payload/ADT/identity/command gates
+pass, including exact previous170 mode7->8 plus unique trial delta. Image
+shim/out/shim-p3-gmuf-0171-native-20261108.img,19808256B SHA
+5860924fd970ce50622b893ee39433366631525869bad3347298da52c7381a36.
+Payload19480576B SHA5bff932cee5d980ec39708b575c77bd53d7109db03607a652303c9769760364a.
+Unique gwrt-0171-a1; exact606B mode8; legacy INIT absent/default0,pasmem0, same
+assets/layout/reservation/Android/recovery protection. Image review SHA
+2591f1f4449e631deb19f8cae673f57794d377c7477e0c26dfda7e2b88aa21af.
+NOT BOOTED. Physical triangle/Metal/UI/highrefresh/daily use unqualified.
+
+DSH v32 runtime RUNNING on live exec83546: clock0/.094s, firmware actual image
+binding0/1.382s; eight-worker complete full-trace gate still running. Keep exact
+same live handle, never retry claim. Every common/clock/FW/ZAP/GGU generator
+retained; new fixed-triangle specialization replaces old selected clear path.
+Workers audit identical complete negative manifests and exactly-once parse union.
+Explicit old console-framing + original26 clear metadata refusals and28 new
+triangle metadata refusals are a separate supplementary v33 runtime-aux gate,
+RUNNING via live exec92163; it does not retry/replace32. Both gates required.
+
+Authored boot171.py/read_hardware171.py + exact unchanged observer171 helper,
+but NO device command yet. Need complete32+33, root independent runtime/boot
+helper review (not yet authored), then one guarded temporary fastboot boot,
+routine13B recovery misc latch/readback only, automated180s observer and actual
+pixel/event/source verification. Only prompt user if genuinely stuck/manual
+recovery required; user away/all restarts automatic, --manual-reset no.
+Last phone state remains TWRP170. Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 intact.
+
 ### 2026-11-08 —171 clean source/full84/current-recipe ARM64 ACCEPTED; full kernel next
 
 Latest actual source is source171v2-codex (candidate171v5),5317files SHA

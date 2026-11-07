@@ -2,6 +2,213 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —168 PHYSICAL native A619 shader VERIFIED; offscreen graphics NEXT
+
+This continuation PROGRESS: one fullLOCAL8job kernel/build qualifier/image/
+ONE temporary fastboot boot/source-bound corrected strict reader/root independent
+physical acceptance ALLcompleted. Fullgoal ACTIVE/unlimited, NOTcomplete.
+Phone NOWTWRP168, all DSH jobs closed. ALLresetsautomatic/useraway,
+--manual-reset no; NEVERask UI/reset attribution, prompt only truly stuck.
+No new boot to reconfirm168. No flash/format/GPT; routine13Bmisc latch only.
+Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+untouched. Codex criticalC/Git/NOTES/acceptance; DSH execute-only atomic once.
+
+CURRENT native/generated recipe168 gauguin.7kjNwR/source168-codex, manifest
+9711ab8b11100fc7d209c436bde31f3ae9ed0c3b89d32c4206fc1b6a95c51ded.
+Never run167/166/165/164/159 TU helpers against current shared build files.
+Immutable artifact SOURCE_HEAD5124e47b50eeb61b3eb3061fb310cc492dd5151c/public
+79cfb7391f5ece85292f8bd2387a10eae20f51a2. Later NOTES/docs commits do not replace
+this frozen expected-head. Source5312files SHA
+ a927b7291ccea616a3d220ee83f3ae6ff2c33a36e9d8b42060626e43f5f12ba9,
+162active patches/all82host files0. Kernel17068904B SHA
+740d3b6f37df6121e5cf8088a3fd1d3594894bf9018c01d3af7e96ec209b3834,
+banner SunNov8 01:01:15CST2026/xnu-d51007b0bf044d54be60dec75a1f5af5.
+QualifierSHA119d58caf94469f56ae2e3fd3607869f42bb79f8eb16f8490efe5e7ba5afaa09,
+archive6e438851a08597d7dc0a2d5f369f872732768644db32e30cb33dba3726ce2e37.
+Nine compute source flags true, ALL build hardware flags FALSE/immutable.
+No CI dispatched this continuation; actual standard LOCAL8job build0 FIRST.
+
+DSH71076/v14boot actual inner0/observer0 ONE boot
+2026-11-07T17:16:56.696841Z->17:19:13.806967Z; autoTWRP136s,7service
+markers/4FBswaps/64GPUlookups. NOhumanUI/touch/performance/refresh observation.
+Physical GGU20 then GGK mode6: native IB91/program32/descriptor16 at existing
+RO/NX ring+4000/+5000/+6000, direct7 ending shadow27. All staged/native
+bytes unchanged vs Mesa24.3.4 exact original A619 computerator capture.
+Signed full64 INIT/MEM/AUTH0/code1984/1984 and DATA19/171ATOS/private
+canonical16KiBPTE/eight soleCPU-NC/routes/IRQ/clock/fault guards remained active.
+No new mapping/alias/executePTE/IRQ/WDT policy or CPU DATAstore aftercold.
+
+Actual GGKDONE8/rc0/sealed1/complete1/retained1, commands7/7,prefix20,clean7.
+MMIOreads13/writes3, firstfence status0/idle1/AO71000000 bit23clear/faults0.
+Separate EOP CPU poll1/value2/complete1; DATA1024pre/1024post with31actual
+nonzero shader values1..31 +EOP2 +992zeros, ring27/batch64. Actual before/
+after masksFFFFFFFF/tailmask3/tail0, cached32reads beforeall0 and
+[2,1,2,...,31] after. Full91/32/16 clean/copied/compared/post counts allmatch.
+Finalguard phase7/reason0. This proves fixed native32item compute dispatch
+with31actual nonzero invocation results and native noIRQ EOP/fullpage readback,
+NOT rendering/Metal/general scheduling/desktop acceleration/high refresh.
+19.2MHz guarded stage0.1524425s, remaining3.84755765625s; entry13.0840459375s /
+finish13.2364884375s after WDTarm. CPU guards/readbacks included; NOTbenchmark.
+
+Preserved failed chain (NEVER overwrite/reuse original files/results):
+- DSH43717/v14read inner1/verifier2: v1 parser AND synthetic fixture wrongly
+  retained mode5 transition literal. Frozen mode6 source emitted correct new
+  compute marker. V1 physical full report rejected, NOTaccepted. No GPU fault
+  or log-order mismatch was observed. All raw/binary/image/kernel unchanged.
+- NEW production *168v2 parser binds exact mode6 transition to manifest-pinned
+  coordinator branch and installed kernel hash/string; all old criteria retained.
+  DSH63353/v16 standalone13/1076passed, console/clock/FW0. Fullv2 passed all
+  old and13/1069compute cases, then fixture TypeError before4new marker cases:
+  exec fragment overwrote global byte prefix. That v2 full report is FAILED.
+- NEW full168v3 fixture changes ONLY exec fragment namespace to dict(globals()).
+  Production v2 parser is unchanged. DSH56629/v17runtime inner0 FULLfixture
+  all common45/678,ZAP20/117,GGU21/147,compute13/1069 +four older markers
+  rejected. Explicitly rehashed/reused unchanged first3 successful v2 gates.
+  Root independent_runtime_review168v3.py checked exact sole fixture change,
+  all other main parser criteria byte-identical after source imports/scope text,
+  exact single unsecure terminal change plus additional source/kernel binding.
+- DSH98141 initially inspected read-only files without dispatching; DSH38723
+  exact-executor launched v17read actual inner0/verifier0 on SAME sole raw.
+  Both CLIs closed; atomic dispatcher prevents duplicate stage execution.
+  No second physical boot or kernel/image mutation for parser/fixture fixes.
+
+Canonical accepted physical files NOW hardware-*-v3.json and
+independent-hardware-review-v3.json; production verify_gmuf168v2.py /
+compute_transition168v2.py /source_defaults168v2.py /unsecure_records168v2.py /
+unchanged compute_records168.py+compute_native168.py. Keep original v1/v2
+failed/partial files immutable. Corrected source-bound parser bug is documented,
+not a raw rewrite/filter/dedup, scope waiver or ignored gate. Root independent
+physical review rehashed ALL21 fullreport records(bytes/hash)+ALL19 wrapper
+pins, full5312source, independently decoded raw binary, actual32results and
+91/32/16 artifacts vs original native binary outputs. Zero framing recoveries.
+
+runtime-parser-result-v3.json 5978B SHAd97c689bbac4daf7e8f8ff7125ae83cf0140a0ad4c321cfead2fe682820ace82.
+independent-runtime-v3-review.json 2206B SHAf8e57efedf36021e39d7dbd037d76b655a240383fca4c10c2bea10847b291ecb.
+hardware-full-verification-v3.json 62743B SHA45fad0b0f683b89dfbf2942f06746d485c3f97a47ee1e0a73004d3c11910e9a1.
+hardware-verification-result-v3.json 2789B SHA89eb857c4e6ff9f65a4cec40eaf5475d88a590c1c1b4689feb85c3a7a1afc1ad.
+independent-hardware-review-v3.json 3162B SHAbb2e0dbf1f059bb7891175d23400a166e4f1ff9ca1a4aee50c5f12fe04ad0474.
+
+Image19759104B SHAcbc540e351895a673e6648c0eefb84f79dfa79130644842616f9ab24049d7bcc,
+payloadd26a14cc5334d8c64b934a79b54a83a8608af98a61f879d9846a6280ec268361,
+exact606B mode6/gwrt-0168-a1/defaultabsentINIT0/pasmem0/samefiveassets.
+Raw478918B SHAec728a67702c02db4ccb73f9fa4117655857fa1378f051ce22c059bdcd8d64f7;
+binary4198400B SHA51062d84cc37689e009045193089dc1b60df678964baf122a76aeee49b0c3571;
+cycleSHA2161ec5bab1c37a26496b9a34f4d24c163d6ec4cf4fa7690af22ba57686da546.
+
+NEXT read ignored next-offscreen-primary-plan.json SHA
+baebe866395e0fe33aff00ffde436dcc4888e5767d8d23f089be86e9c266ec4b.
+Pinned Mesa primary fd6_blitter.cc fd6_clear_surface/emit_setup/convert_color/
+emit_clear_color/emit_blit_setup/emit_blit_dst/emit_blit_fini, fd6_emit.cc/.h
+flush/CCU/events and A6xxXML. First capture ORIGINAL native A619 2D clear/blit
+with real layout/device/sysmem CCU metadata, not hand-created packets/zeros.
+Proposed16x16RGBA8 linear pitch64 at DATA+400 (1024bytes), disjoint low1KiB
+control and untouched remaining words; XML base/pitch alignment64 supports
+proposal, but full native layout/control relocations/CCU/bounds/pixel conversion
+MUST be proven before any169XNU change. No new mappings initially proposed.
+Require byte-exact native oracle/model/fullpages and actual readback for any
+bounded clear/blit, then separate true triangle/draw. Neither is Metal or
+full UI acceleration. Preserve168 shader and old modes3/4/5 byte-exact; choose
+new exclusive afterGGU path, never silently widen budgets or append after
+unknown log-drain timing. No169 capture/source/kernel/device action yet.
+Keep source/fixture/compiled transition strings bound for future new modes.
+Then iOSIOAccel/Metal, sustained scheduling/power, remainingRAM/UFS/phone
+peripherals and90/120Hz actualdaily-use acceptance. Fullgoal unchanged/notdone.
+
+Publish this completed physical milestone with same-tree sole public parent
+53938bc9a17a2312c430ba1a2b655fc52dfca686 and record new IDs in
+research/tmp/dsh-0168/public-physical-handoff.json. Last handoff private93f1182,
+artifact SOURCE_HEAD remains5124e47 forever. No user action required now.
+
+### 2026-11-08 —168 v2 fixture failure preserved; v3 full regression RUNNING
+
+V2 standalone13valid/1076reject0; v2 console/clock/FW0. V2 full fixture passed
+ALL common45/678/ZAP20/117/GGU21/147/compute13/1069 checks, then FAILED before
+four NEW wrong-transition controls: compute-tests-addition168.py was executed
+in shared globals and its `for prefix in [...]` replaced trace()'s byte prefix
+with a string. Final trace() raised TypeError before any of four controls ran.
+DSH63353/v16runtime terminal inner1, runtime-parser-result-v2.json statefailed;
+NOT accepted. Preserve every v2 failed script/log/report unchanged.
+
+NEW v3 changes ONLY full-fixture exec(...,dict(globals())) isolation; actual
+production verify_gmuf168v2.py /source-default/transition/unsecure modules are
+UNCHANGED. verify_full168v3_host.py retains ALL old tests and four trailing
+transition negatives. runtime168v3.py explicitly rehashes/reuses the successful
+unchanged v2 console/clock/FW passes, runs FULL new fixture once; no lost case.
+DSH56629 dispatch_once168v17.py runtime underway. New report/snapshot/logs
+runtime-parser-result-v3.json/runtime-input-snapshot-v3/runtime-v3-full-trace.log.
+Never restart claim or edit running inputs. All old raw/kernel/image/source
+and rejected reports remain immutable; one168 physical boot total.
+
+NEXT v17runtime actual0 -> root independent_runtime_review168v3.py (must
+verify both parser criteria byte preservation and sole test namespace change)
+-> DSHv17read read_hardware168v3.py on SAME raw -> root
+independent_physical_review168v3.py. NEW hardware-*-v3.json and
+independent-runtime-v3-review.json/independent-hardware-review-v3.json. V2
+physical read was never executed; do NOT run v16read or root v2 review.
+Root v3 review retains exact mode6 source/kernel binding and all wrong markers
+must fail. The complete physical proof remains pending, despite correct raw
+31shader/EOP2 observations. Phone TWRP168; no new boot needed or authorized
+by this parser correction. No user action required. All resets automatic.
+
+Current kernel recipe168 gauguin.7kjNwR; SOURCE_HEAD5124e47 unchanged. Fullgoal
+ACTIVE. Ignored next-offscreen-primary-plan.json SHA
+baebe866395e0fe33aff00ffde436dcc4888e5767d8d23f089be86e9c266ec4b records
+read-only primary Mesa next-step investigation: original A6xx 2D clear/blit
+then separate triangle/draw, not Metal/performance proof. Proposed16x16RGBA
+pitch64 at DATA+400 fits existing4KiB while leaving disjoint low1KiB control
+and otherwords unchanged. XML specifies64B base/pitch units; actual native
+layout/CCU config/whole helper capture/control relocations MUST prove bounds
+first. No169source/kernel/capture/device action authored or executed.
+
+runtime-parser-result-v2.json SHAe30cd98b16c0c2a3142b4f0b0ef195f16d9edb8722e35b5c982fe9e45c44d3d6.
+dispatch-v16-runtime.json SHA83d0b7b5915dec193ae276407a55dd9a46d00797b919a985bc67c61a8e9dea73.
+runtime-v2-full-trace.log SHA96c987518a37dbf143f1fa1f73383861ca19d991be57baa6d37360c572fcc4df.
+
+### 2026-11-08 —168 sole physical boot completed; v1 parser transition bug, v2 regression RUNNING
+
+ONE actual temporary boot by DSH71076/v14boot inner0/observer0, autoTWRP136s.
+All7 service markers/4swaps/64GPUlookups; NO human UI/touch/refresh observation.
+Raw shows GGKcomplete8/rc0/shadow27,13reads/3writes, firstfence/idle/EOPpoll,
+DATA1024pre/1024post,31shader+EOP2+992zeros, exact91/32/16/7 artifacts,
+actual32cached values before all0/after[2,1,...,31], guard7/reason0/faults0.
+These are observations; complete physical acceptance is still pending.
+
+DSH43717/v14read actual inner1/verifier2: strict rejection at exact UNSECURE
+transition literal. Root missed this adapter: both v1 parser AND synthetic
+fixture retained mode5 "before fixed native IB and EOP", while frozen
+mode6 SOURCE_HEAD coordinator emits "before native A619 compute" before
+compute_once. Not a GPU fault or log-order mismatch. ALL v1 files/results/raw
+remain immutable; NEVER overwrite/reuse them. No new kernel/image/boot needed.
+V1 runtime all4gates0; full common45/678, ZAP20/117, GGU21/147 and newcompute
+13/1069 SYNTHETIC. V1 failed physical reports are NOT accepted evidence.
+
+Root authored NEW *168v2.py modules /dispatch_once168v16.py: exact new mode6
+transition plus additional binding to frozen coordinator manifest hash/branch
+and installed kernel string/hash, all old criteria retained; full fixture
+adds4wrong-older-mode markers. Also corrects stale top-level scope prose in
+NEWv2 only. runtime-v2-change-note.json. DSH63353 v16compute-parser then
+v16runtime underway; no edits/Git/device actions. Do not restart a claim.
+After ALLv2 gates0, run independent_runtime_review168v2.py -> v16read on SAME
+preserved physical raw -> independent_physical_review168v2.py. NEW outputs
+runtime-parser-result-v2.json/hardware-*-v2.json/independent-*-v2*.json.
+Old no-parser-repair wording means no raw/gate waiver: this is a documented
+source-bound parser bug fix with untouched failed reports and full fresh
+regression, not accepting a failed result by ignoring a criterion.
+
+Phone NOW TWRP168. ALL resets automatic/user away; no attribution/UI prompts.
+CURRENT kernel recipe168 gauguin.7kjNwR; artifact SOURCE_HEAD remains5124e47.
+Latest build/image handoff private93f11825f28787e1f54d9ac17f2508cc559b3fe9 /
+public53938bc9a17a2312c430ba1a2b655fc52dfca686. Fullgoal ACTIVE/unlimited.
+Original mkadt diff untouched; no flash/format/GPT; one physical boot total.
+
+hardware-trial-result.json SHA13653d5128731821969abf8162954e7b5ede8421c28c8c6bd129b44ffaacd75a.
+runtime-parser-result.json SHA847e6530d337085c365745085f713e0117d7f66e77995cb5e3ee4e95bc65d810.
+hardware-verification-result.json SHA099777196d68f93fbf643c4d08efd17b55c85e1da0aa8a0d2780774aea3844b2.
+hardware-full-verification.json SHAefeac2e6614deebc2b74c2fe58da7d0a05ffaeaaa97373fe69b52b4289a0f7ab.
+p3-gmuf-0168-native-observer-20261108.txt 478918B SHAec728a67702c02db4ccb73f9fa4117655857fa1378f051ce22c059bdcd8d64f7.
+p3-gmuf-0168-native-observer-20261108.txt.bin 4198400B SHA51062d84cc37689e009045193089dc1b60df678964baf122a76aeee49b0c3571.
+p3-gmuf-0168-native-cycle-20261108.log 991B SHA2161ec5bab1c37a26496b9a34f4d24c163d6ec4cf4fa7690af22ba57686da546.
+
 ### 2026-11-08 —168 image ACCEPTED; full runtime currently running
 
 Current recipe168 gauguin.7kjNwR, immutable SOURCE_HEAD5124e47b50eeb61b3eb3061fb310cc492dd5151c.

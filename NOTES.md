@@ -3,6 +3,51 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —170 explicit A619 event-source native profile ACCEPTED; kernel NEXT
+
+Full goal ACTIVE/unlimited. Source/native milestone only, NO170kernel/image/
+device trial yet. Current generated XNU recipe remains169 gauguin.v8Ky8T;
+never run old TU helpers against shared generated files. Phone last TWRP169.
+Useraway: ALL resets automatic; NEVERask reset/UI attribution. Temporaryboot
+only, no new destructive actions. Original mkadt7line diff untouched.
+
+Primary-source comparison now includes same Mesa24.3.4 computerator sequence
+emitter(no bit30), Gallium USER32 vs ALWAYSON callers(A6XX ignores source),
+XML timestamp-instead-of-value description, actual fd6_query ALWAYSON use,
+and historical primary Chromium Mesa commit9fc5ee58de44223e9f92064ad0f547302d1db55f
+fd6_emit.h(no bit30). Historical source SHAe6d338dfd672580d02beefac160c3986294111676d84f80e5a8573343a014d08;
+provenance stored dsh-0170/event-primary-history-v1. No universal upstream bug
+or proven physical root-cause claim.
+
+Codex authored explicit port template specialization in committed fixture
+a619_event_source_profile.h: USER32 packet value, RB_DONE/ALWAYSON timestamp
+retained; unsupported source/dst/index abort BEFORE header. Original Mesa
+tree immutable. No binary masking, seq7/oracle/guards/timeouts relaxation.
+New native host original-control/profile recompile whole emit/barrier using
+actual upstream driver CXX recipe, typed existing BO/ring seams only.
+
+DSH83735/v3 invocation FAILED before claim: root prompt accidentally included
+standalone punctuation dot as argument. No stage/artifact/device action;
+original invocation/script/events preserved, no retry of a claimed job.
+Fresh v4 DSH48528 terminalinner0 FIRST stage,11.665s. All10compiles/4links/
+2event suites/4captures0;18 unsupported aborts SIGABRT with read-only ring,
+not write/SIGSEGV. Both profiles432 USER32 cases plus native ALWAYSON query.
+Original captures byteequal169 in both scenarios; new source-generated IB
+differs ONLY7 event headers. Restore194/preamble205/4096B semantic oracle
+identical. Original primary10642files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d.
+Root review_event_profile170 FIRST0; independent-event-profile-review-v1.json
+SHA275b73a58ebd32f05f53f7a339e7ca362a93c93979174a10954f501bf5d0b425.
+Native/source checks only; NOASan claim, GPU/clear/render/Metal qualification.
+
+NEXT: port these source-generated seven headers into a NEW170incremental
+patch, accurate USER32 provenance/diagnostics/source flag, preserve complete
+169failure and all3/4/5/6 accepted paths. Full focused/real board/old-host/
+patch replay/TU/build/runtime/image checks before one new temporary trial.
+Keep2s/4s/8s/23s guards, full256pixels/192blue/64green/767unchanged/EOP7/hi0.
+Codex critical driver/review/Git; DSH execute-only builds/tests/boot with once
+claims. No user action needed.
+
+
 ### 2026-11-08 —169 PHYSICAL clear REJECTED at sync; event-write protocol NEXT
 
 Previous source/native turn PROGRESS. This continuation PROGRESS: ONE local8job

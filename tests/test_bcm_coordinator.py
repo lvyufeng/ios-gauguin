@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source148-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source149-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 

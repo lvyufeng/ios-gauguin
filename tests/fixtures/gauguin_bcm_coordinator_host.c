@@ -45,6 +45,7 @@ static struct {
     struct gpm_receipt mem_receipt;
     int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf,gmubw,gmudcvs,gpucontext,gpustart;
     unsigned start_calls;enum ggx_result start_result;
+    unsigned sqe_calls;
     unsigned gpu_calls;
     unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
     unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
@@ -383,6 +384,8 @@ enum gmb_result sweet_gmu_firmware_gpu_once(const struct sweet_pas_cpu_stage *s,
  CHECK(mock.gpucontext==1&&mock.gmudcvs==1&&mock.gmubw==1&&mock.gmuperf==1&&mock.gpu_calls++==0&&!mock.dcvs_calls&&!mock.bw_calls&&!mock.perf_calls,"GPU context selects one explicit cold entry");
  CHECK(bw&&!memcmp(bw,&mock.bw_plan,sizeof(*bw)),"GPU uses exact same-boot BW plan");return firmware_mock(s,p,out);
 }
+enum gmb_result sweet_gmu_firmware_gpu_sqe_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+{CHECK(mock.gpustart==1&&mock.sqe_calls++==0,"SQE cold entry only on validated start path");return sweet_gmu_firmware_gpu_once(s,p,bw,out);}
 enum ggx_result sweet_gpu_start_once(struct ggx_receipt *out)
 {CHECK(mock.gpustart==1&&mock.gpu_calls==1&&mock.fw_result==GMB_OK&&mock.start_calls++==0,"GPU live stage after accepted sole cold bootstrap");order('X');if(mock.start_result!=GGX_OK){++mock.quarantines;return mock.start_result;}memset(out,0,sizeof(*out));return GGX_OK;}
 enum gmb_state sweet_gpu_start_state(void)
@@ -939,11 +942,11 @@ static void gpu_start_cases(void)
  }
  for(unsigned n=GGX_ARGUMENT;n<=GGX_TIMEOUT;n++){
   reset_bw("all GPU start errors terminal");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.start_result=(enum ggx_result)n;run_worker();
-  CHECK(mock.start_calls==1&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU START BOOT: stopped")&&!has("native MMU/OOB/core reads done"),"no retry/fallback/false completion after failed live stage");
+  CHECK(mock.sqe_calls==1&&mock.start_calls==1&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU START BOOT: stopped")&&!has("native MMU/OOB/core reads done"),"no retry/fallback/false completion after failed live stage");
  }
  reset_bw("GPU start full order");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;run_worker();
- CHECK(!strcmp(mock.order,"RPWTACGFXQ")&&mock.start_calls==1&&mock.after_sleeps==30&&has("native MMU/OOB/core reads done"),"MMU/OOB live API follows accepted sole GPU cold firmware startup");
- reset_bw("GPU start default off");mock.gmudcvs=mock.gpucontext=1;run_worker();CHECK(!mock.start_calls&&!strcmp(mock.order,"RPWTACGFQ"),"147 path unchanged by default");
+ CHECK(!strcmp(mock.order,"RPWTACGFXQ")&&mock.sqe_calls==1&&mock.start_calls==1&&mock.after_sleeps==30&&has("native MMU/OOB/core reads done"),"MMU/OOB live API follows accepted sole GPU cold firmware startup");
+ reset_bw("GPU start default off");mock.gmudcvs=mock.gpucontext=1;run_worker();CHECK(!mock.sqe_calls&&!mock.start_calls&&!strcmp(mock.order,"RPWTACGFQ"),"147 path unchanged by default");
  reset_bw("GPU start after refused cold path forbidden");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.fw_result=GMB_GPU;run_worker();CHECK(!mock.start_calls,"no live API on cold-path error");
 }
 int main(void)

@@ -10,6 +10,7 @@
 #include "gauguin_gmu_clock.h"
 #include "gauguin_wdt_lease.h"
 #include "gauguin_gmu_asset.h"
+#include "gauguin_gpu_sqe_asset.h"
 #define GAUGUIN 1
 #define PAGE_SHIFT 14
 #define VM_PROT_READ 1
@@ -30,6 +31,8 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
         gpu_mode,gpu_context_calls,gpu_context_fail,gpu_smc_calls,gpu_smc_mode,gpu_drift,gpu_complete_lines,gpu_partial_lines,gpu_ap_complete_lines,gpu_input_lines;} h;
 static _Alignas(16384) uint8_t core_page[16384];
 static unsigned start_mode,start_sticky,start_missing,start_busy,start_allones,start_expire,start_reads,start_complete,start_partial;
+static _Alignas(16384) uint8_t sqe_asset[32304];
+static unsigned sqe_mode,sqe_calls,sqe_fail,sqe_corrupt,sqe_complete,sqe_partial,sqe_entry_budget,sqe_exit_budget,sqe_drift;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -37,6 +40,8 @@ static int host_printf(const char *s,...)
 {
     char text[256];va_list ap;va_start(ap,s);int n=vsnprintf(text,sizeof(text),s,ap);va_end(ap);
     CHECK(n>0&&(unsigned)n<sizeof(text));
+    if(strstr(text,"SWEET GPU SQE: complete")){CHECK(sqe_mode&&h.live&&!h.quarantine&&strstr(text,"copied=8192 checked=8192 pad=468 loaded=1")&&sqe_complete++==0);}
+    if(strstr(text,"SWEET GPU SQE: partial")){CHECK(sqe_mode&&!h.live&&h.quarantine==1&&sqe_partial++==0);}
     if(strstr(text,"SWEET GPU START: complete")){CHECK(start_mode&&h.live&&!h.quarantine&&sweet_gpu_start_state()==GMB_READY&&start_complete++==0);}
     if(strstr(text,"SWEET GPU START: partial")){CHECK(start_mode&&!h.live&&h.quarantine==1&&start_partial++==0);}
     if(strstr(text,"SWEET GPU SMMU: complete")){CHECK(h.gpu_mode&&h.live&&!h.quarantine&&h.gpu_complete_lines++==0);}
@@ -212,8 +217,9 @@ static void host_barrier(void)
 {
     ++h.barriers;
 }
+static void host_sqe_dsb(void);
 static void host_dsb(void)
-{host_barrier();if(h.corrupt==1&&h.nc_maps&&h.allocs&&!h.frees){ram[0x10000]=0x71;h.corrupt=2;}}
+{host_sqe_dsb();host_barrier();if(h.corrupt==1&&h.nc_maps&&h.allocs&&!h.frees){ram[0x10000]=0x71;h.corrupt=2;}}
 enum gsm_result gsm_configure_once(struct gsm_context *ctx,const struct gsm_ops *o,
     const struct ggm_plan *p,struct gsm_receipt *out)
 {
@@ -261,6 +267,15 @@ enum gsm_result gsm_configure_once(struct gsm_context *ctx,const struct gsm_ops 
 }
 bool sweet_gmu_asset_view(struct gma_view *out)
 {++h.asset_calls;if(h.asset_fail==h.asset_calls)return false;*out=(struct gma_view){fw_asset,0xb0000000,32768};return true;}
+bool sweet_gpu_sqe_asset_view(struct gsa_view *out)
+{CHECK(sqe_mode&&h.gpu_mode&&out);++sqe_calls;
+ if(sqe_calls==1)CHECK(!h.maps&&!h.smmu_calls&&!h.gpu_smc_calls&&!h.engine_calls);
+ if(sqe_calls==2)sqe_entry_budget=h.budgets;
+ if(sqe_calls==3)sqe_exit_budget=h.budgets;
+ if(sqe_calls==sqe_fail)return false;
+ *out=(struct gsa_view){sqe_asset,UINT64_C(0x182600000),32304};
+ if(sqe_calls==3){if(sqe_drift==1)out->data+=4;else if(sqe_drift==2)out->pa+=16384;else if(sqe_drift==3)out->bytes-=4;}
+ return true;}
 bool gmf_plan_valid(const struct gmf_plan *p){return p&&p->address[0]==0x30000;}
 /* Typed dependency seam; actual policy decoder is exercised in its own suite. */
 bool gmf_bw_plan_valid(const struct gmf_bw_plan *p){return p&&p->db[0].address==0x50000&&p->db[3].address==0x50054;}
@@ -271,6 +286,8 @@ enum gmf_result gmf_bootstrap_once(struct gmf_context *,const struct gmf_ops *,c
 #define printf host_printf
 @SOURCE@
 #undef printf
+static void host_sqe_dsb(void)
+{if(sqe_mode&&sqe_corrupt&&ggb_sqe_written==8192&&!ggb_sqe_checked){ram[0xa0000+4*(sqe_corrupt-1)]^=1;sqe_corrupt=0;}}
 static void reset(void)
 {
     ++cases;memset(&h,0,sizeof(h));h.live=true;memset(ram,0xa5,sizeof(ram));memset(reset_page,0,sizeof(reset_page));memset(smmu,0,sizeof(smmu));
@@ -278,6 +295,9 @@ static void reset(void)
     memset(&gmb_context,0,sizeof(gmb_context));memset(&gmb_work,0,sizeof(gmb_work));memset(&gmb_stage,0,sizeof(gmb_stage));
     gfw_lifecycle=0;gfw_deadline=0;memset(gfw_map,0,sizeof(gfw_map));memset(&gfw_context,0,sizeof(gfw_context));memset(&gfw_work,0,sizeof(gfw_work));memset(&gfw_asset,0,sizeof(gfw_asset));
     gfw_copy_issued=gfw_copy_compared=0;
+    sqe_mode=sqe_calls=sqe_fail=sqe_corrupt=sqe_complete=sqe_partial=sqe_entry_budget=sqe_exit_budget=sqe_drift=0;
+    memset(&ggb_sqe_asset,0,sizeof(ggb_sqe_asset));ggb_sqe_requested=ggb_sqe_loaded=ggb_sqe_written=ggb_sqe_checked=0;
+    for(unsigned n=0;n<sizeof(sqe_asset);n++)sqe_asset[n]=(uint8_t)((n*23+11)%251);
     start_mode=start_sticky=start_missing=start_busy=start_allones=start_expire=start_reads=start_complete=start_partial=0;
     ggx_board_lifecycle=ggx_board_phase=0;ggx_deadline=ggx_phase_deadline=0;ggx_core=0;ggx_result=0;
     memset(&ggx_context,0,sizeof(ggx_context));memset(&ggx_work,0,sizeof(ggx_work));memset(core_page,0,sizeof(core_page));
@@ -473,7 +493,7 @@ enum gmf_result gmf_bootstrap_dcvs_once(struct gmf_context *ctx,const struct gmf
     ctx->state=2;return GMF_OK;
 }
 static enum gmb_result firmware_run(struct gmb_firmware_receipt *out)
-{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;return h.gpu_mode?sweet_gmu_firmware_gpu_once(&s,&p,&bw,out):h.dcvs_mode?sweet_gmu_firmware_dcvs_once(&s,&p,&bw,out):h.bw_mode?sweet_gmu_firmware_bw_test_once(&s,&p,&bw,out):h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
+{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;return sqe_mode?sweet_gmu_firmware_gpu_sqe_once(&s,&p,&bw,out):h.gpu_mode?sweet_gmu_firmware_gpu_once(&s,&p,&bw,out):h.dcvs_mode?sweet_gmu_firmware_dcvs_once(&s,&p,&bw,out):h.bw_mode?sweet_gmu_firmware_bw_test_once(&s,&p,&bw,out):h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
 static void firmware_failed(void)
 {
     struct gmb_firmware_receipt out,before;memset(&out,0xa3,sizeof(out));before=out;
@@ -726,6 +746,38 @@ static void gpu_start_cases(void)
     }
     printf("GPU start board: %u live firmware/context/alias/map/lease/owner/TLB/OOB/core/quarantine cases PASS (actual start engine)\n",cases-first);
 }
+static void sqe_setup(void)
+{reset();sqe_mode=1;h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;}
+static void gpu_sqe_cases(void)
+{
+    unsigned first=cases;struct gmb_firmware_receipt out;
+    sqe_setup();CHECK(firmware_run(&out)==GMB_OK&&sqe_calls==3&&sqe_complete==1&&!sqe_partial&&ggb_sqe_loaded);
+    CHECK(ggb_sqe_written==8192&&ggb_sqe_checked==8192&&h.gpu_smc_calls==1&&h.engine_calls==1&&h.maps==7&&h.nc_maps==1);
+    CHECK(!memcmp(ram+0xa0000,sqe_asset+4,32300));for(unsigned n=32300;n<32768;n++)CHECK(!ram[0xa0000+n]);
+    for(unsigned n=0;n<16384;n++)CHECK(ram[n]==0xa5);
+    for(unsigned n=GGP_ARENA_END;n<sizeof(ram);n++)CHECK(ram[n]==0xa5);
+    unsigned entry=sqe_entry_budget,exit=sqe_exit_budget;CHECK(entry&&exit>entry);
+    unsigned calls=sqe_calls,maps=h.maps,stores=h.fw_stores;CHECK(firmware_run(&out)==GMB_ALREADY&&sqe_calls==calls&&h.maps==maps&&h.fw_stores==stores);
+    for(unsigned n=1;n<=3;n++){
+        sqe_setup();sqe_fail=n;firmware_failed();CHECK(sqe_partial==1&&!sqe_complete&&!ggb_sqe_loaded&&!h.gpu_smc_calls&&!h.engine_calls);
+        CHECK(n==1?!h.maps:h.maps==2);CHECK(n<3?!ggb_sqe_written:ggb_sqe_written==8192);
+    }
+    const unsigned corrupt[]={1,4096,8076,8192};
+    for(unsigned n=0;n<sizeof(corrupt)/sizeof(*corrupt);n++){
+        sqe_setup();sqe_corrupt=corrupt[n];firmware_failed();
+        CHECK(!sqe_corrupt&&!ggb_sqe_loaded&&ggb_sqe_written==8192&&ggb_sqe_checked==corrupt[n]-1&&!h.gpu_smc_calls&&!h.engine_calls&&!sqe_complete);
+    }
+    for(unsigned n=1;n<=3;n++){
+        sqe_setup();sqe_drift=n;firmware_failed();CHECK(ggb_sqe_written==8192&&ggb_sqe_checked==8192&&!ggb_sqe_loaded&&!h.gpu_smc_calls&&!h.engine_calls);
+    }
+    for(unsigned n=entry+1;n<=exit+2;n++){
+        sqe_setup();h.budget_fail=n;firmware_failed();CHECK(!sqe_complete&&!h.gpu_smc_calls&&!h.engine_calls);
+    }
+    sqe_setup();start_mode=1;CHECK(firmware_run(&out)==GMB_OK&&ggb_sqe_loaded);struct ggx_receipt core;
+    CHECK(sweet_gpu_start_once(&core)==GGX_OK&&core.request_retained&&start_reads==2&&sqe_complete==1);
+    sqe_setup();start_mode=1;CHECK(firmware_run(&out)==GMB_OK);ggb_sqe_loaded=0;start_failed();
+    printf("SQE cold board: %u header-skip/payload/padding/guard/digest-identity/once-state and combined live-start cases PASS (typed SHA view seam)\n",cases-first);
+}
 int main(void)
 {
     happy();unsigned budgets=h.budgets,translations=h.translations,pmaps=h.pmap_calls;
@@ -752,4 +804,5 @@ int main(void)
     firmware_dcvs_cases();
     firmware_gpu_cases();
     gpu_start_cases();
+    gpu_sqe_cases();
 }

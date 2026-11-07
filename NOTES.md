@@ -58,7 +58,7 @@ failed staged source152-codex, input snapshot, failed-v1.patch/log/report remain
 No image/device was involved. DSH75270 CLOSED0/validate152_v2.py inner0:
 pristine146 replay source152-v2-codex5294files SHA
 cedcfc01a97d2af5367f3a10e33a8d910317158baf74e971e4a84a5628e05a99.
-Pure core2267708assertions,459/389/459/459 failurepoints (includes every RGL
+Pure core2267708assertions,459/391/459/459 failurepoints (includes every RGL
 phase guard); four complete native R/W/list trace hashes identical to pinned150.
 Actual board190 newcore cases (160 retained +30batch clock/phase deadline),
 old board cases retained; actual changed core+board ARM64 TUs compile0 using

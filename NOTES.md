@@ -67,7 +67,8 @@ HOST requests were not released; no CP/SQE start, commands, ZAP or Metal.
 
 Whole strict trial remains EVIDENCE-REJECTED: line4052 gmb_fail rc12/native live
 GPU core setup, shared quarantine; CORE partial phase8/rc3, RGL length/offset0.
-No memory write/comparison was reached; prezero scan progress was NOT logged,
+No restore-list write or final postpublication comparison was reached;
+prezero scan progress was NOT logged,
 so failure may be during that scan. Specific guard condition/time was NOT
 logged: deadline exhaustion from repeated full guards is a HYPOTHESIS, not
 established root cause. Clock/IRQ/route/fault/lease/owner alternatives remain

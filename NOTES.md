@@ -92,6 +92,12 @@ kernel/image/phone/CI trial.140 remains physical PERF baseline. All owned
 handles CLOSED, phone last observedTWRP. Original7-line mkadt diff untouched;
 no flash/format/GPT/destructive action. Whole objective remains ACTIVE.
 
+141 validated source published and ls-remote verified at
+586c99f633aec6a05c03c3eaff00fca28969de74, sole parentac4114b, same tree as
+private5b6e830e32a4ae24476dcac3768378a294f15606. Exactly8 reviewed text paths;
+report research/tmp/dsh-0141/public-snapshot-0141.json. No private ancestry,
+raw CMDDB/FDT/native downloads/binaries/serials published. No CI run.
+
 ### 2026-11-07 — actual140 native PERF table ACK PASS; next bandwidth table and TEST
 
 THIS goal turn is progress:140 opt-in engine/board/coordinator implemented,

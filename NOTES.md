@@ -33,8 +33,86 @@ Codex independently rehashed all10 technical inputs and both original pins.
 Helper result reset-attribution-standing-policy-result.json records exact
 authority and verifier exit. THIS148 attribution is now resolved automatic;
 no GPU-execution/Metal qualification or human UI/touch observation was added.
-Next GPU action remains151 board integration from source150-v2; complete local
-recipe remains148gauguin.E1ium7. All owned tasks CLOSED; no new device IO/build.
+Current GPU work and complete local recipe are recorded in the latest151
+milestone below. No repeated reset question; only necessary manual recovery.
+
+### 2026-11-07 —151 complete local kernel and four-asset image qualified; runtime reader validation in progress
+
+151 source code committed privatee44509418465858bcf3c43396f0c1ab6a1f9167a,
+published e5025fd15778a3d7c7b1555691e19cb6795b2f73, soleparent
+ceb16d46eda470415d172e0fdb92fed6f04aa391, same tree/exact8 reviewedUTF8 paths.
+Report research/tmp/dsh-0151/public-source-snapshot.json. No private ancestry,
+raw logs/native downloads/firmware/binaries published.
+
+DSH23202 CLOSED0/build151.py0: exactly ONE standard full local build0 and strict
+qualification0, capturedHEAD e445094, sole original mkadt user diff throughout.
+Run gauguin.WzXGTu, source151-v2-codex5294files/145patches SHA
+6a5b4a1214d05dea8cfd8832100e64776320dd6de9b8af4f378e4e85ce0810a3.
+Installed kernel16959600B SHAe23939fde3049f6aebd2b6dbe801b1d6aabb66e8d535a427a63e490e1e54f04f;
+identity xnu-a0f378f8f09e47b9bc0e2b765fbcfec9. Manifest907733B SHA
+1fff86680c9fc964a2ebeb08bf12c43ceb08b8cb7558f4237a2b1222aadc62fd.
+Qualification14134B research/tmp/p3-native-0151-qualification-20261107.json SHA
+daf0db00843f3c97882a976323181513890745ec9e44479c79212e6f8265b042.
+Every prior qualifier check retained, new SQEasset/coldstaging/core/liveboard
+source-bound flags true, all required symbols/actual archive members verified.
+Hardware remains unqualified. Codex rehashed actual installed kernel/manifest.
+CURRENT COMPLETE native recipe/source NOW151gauguin.WzXGTu, not148E1ium7.
+Future actual TUs must use this current manifest/source; generated BSD files
+now belong to151. Earlier148-based native TU proofs remain historical facts.
+
+DSH72991 CLOSED0/package_and_review151.py0, package0/independent review0.
+Image shim/out/shim-p3-gmuf-0151-native-20261107.img19628032B SHA
+dc1fafa26d3c7ab16ffb9ed74164018655c48d79aa01edbfb1ae98395c926576;
+payload19300352B SHAa89ea361b87cf4df8c036c8619318cfa2eaf9167cadd3ff305d9f4e9f41c6aec;
+evidence4471B SHAb316d0d95a5600ae2a3995553eea5c6168da63c178ad0f28ba83cbe2de788a09.
+Unique sweettrial=gcor-0151-a1,607B command, full inherited flags unchanged.
+NVT182568000/MDT18258c000/GMU182590000 unchanged; NEW raw SQE182598000,
+32304raw/32768reserved/header4preserved/padding464zero. NewGSA source later
+skips4 ->32300code +468zero in oldNC GPU SQE region. Independent review validates
+all4 descriptors/content/extent/padding/ADT/PAS top. Same-kernel controls prove
+oldNVT/MDT and all3 oldsegments stay identical when addingSQE. All old baseline
+images remain preserved/pinned. Codex independently rehashed all package and
+review inputs and actual output blobs. No new phone IO or boot yet.
+
+New151 reader authored independently from immutable148 reader: all prior
+identity/CMDDB/clock/CX/SMMU/GMU/PERF/BW/TEST/DCVS/GPUcontext/aperture/GGX
+checks retained, plus pinnedSQE raw/pad/cold copy and core146or80writes/71or69
+reads,10pages/6mapattempts/4reuse,66ordered native live registers,132DWORD/
+offset72/544B RGL and fullNC1024-word copy check. Raw RGL values including
+allones remain opaque observations, no invented fixed-write equality. New
+prefix unknown/partial/duplicate/order/shape checks keep failures rejected.
+151 coordinator terminal replaces old GGX-only BOOT terminal; GGX records still
+required BEFORE core map/configuration. Generic resetunknown/yes still exit3;
+real unattended caller will pass no using user's standing instruction.
+
+DSH65279 CLOSED0/runtime_validate151.py inner1: clock passed; FW fixture's new
+private SQE-corruption test updated image SHA but omitted payload SHA, so strict
+reader correctly rejected earlier at payload identity. The fixture expected
+the later SQE-pin error, hence assertion failure. Production reader/kernel/
+image unchanged. Failed report/log and complete runtime-input-snapshot-v1
+preserved. Explicit v2 updates BOTH checksums only in private synthetic evidence
+copies, to exercise actual SQE raw/pad rejection; retains passed clock and
+rehashes all original inputs (old FW fixture from snapshot). DSH85877 CLOSED0/
+runtime_validate151_v2.py0. Retained clock4valid/95rejected; FW132valid/511rejected
+and full SYNTHETIC15130valid/450rejected all passed. Final runtime report3298B
+runtime-parser-result-v2.json SHAbe2b9b739a3f271e15cd0be8643350ce52fae140235503083e10105155a769d8;
+21 inputs independently rehashed. Frozen151 reader84511B SHA
+375b66c9cb51ee4455949e2b74cbd855badb2d1d56610aa824d3d8556e69c51b.
+No151 hardware proof yet. Do NOT rerun prepare_runtime151.py or
+prepare_package151.py: they authored initial copies and later extensions exist.
+
+New boot151.py/run_hardware151.py prepared with exact151 image hash/size,
+frozen passed runtime v2/artifact review pins, original mkadt diff and only
+NOTES changes permitted since captured e445094. Same observer tail and
+authorized routine13-byte BCB latch/readback; one temporary fastboot boot.
+NEXT execute-hardware.txt via DSH once. Codex adb get-state observed recovery
+immediately before preparing this wrapper. Standalone reader stays strict;
+add no GPU commands/Metal claims.
+Use --manual-reset no from recorded standing user policy, no per-trial question.
+Observer180s/fresh pull/full sourcebound verification and cached partial errors
+are required. Only notify user if genuinely stuck and manual recovery is needed.
+Last phone observedTWRP148; no151 physical trial yet. Original mkadt diff intact,
+no CI/flash/format/GPT/destructive action. Whole goal ACTIVE/incomplete.
 
 ### 2026-11-07 —151 live board/core integration validated; full local kernel NEXT
 

@@ -1,0 +1,104 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -139,6 +139,7 @@
+ bsd/dev/gauguin_gpu_zap_asset.c		standard
+ bsd/dev/gauguin_gpu_zap.c			standard
+ bsd/dev/gauguin_gpu_unsecure.c		standard
++bsd/dev/gauguin_gpu_data.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_data.c
+@@ -0,0 +1,52 @@
++/* Pinned19b63c8 KGSL normal user-RW data mapping and CP_MEM_WRITE bytes.
++ * Pure constructors; existing bootstrap and live dispatch are unchanged. */
++#include <string.h>
++#include "gauguin_gpu_data.h"
++static const struct ggp_region data_region={GGD_DATA_OFFSET,GGD_DATA_RESERVED,
++    GGD_DATA_IOVA,GGD_DATA_BYTES,GGD_DATA_BYTES,0,0,0};
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++bool ggd_plan_valid(const struct ggd_plan *p)
++{
++    return span(p,sizeof(*p))&&ggp_plan_valid(&p->bootstrap)&&
++        GGP_ARENA_END==GGD_DATA_OFFSET&&GGD_ARENA_END<=GGM_REGION_BYTES&&
++        !memcmp(&p->data,&data_region,sizeof(data_region));
++}
++bool ggd_plan_build(const struct ggp_plan *p,struct ggd_plan *out)
++{
++    if(!span(p,sizeof(*p))||!span(out,sizeof(*out))||
++       overlap(p,sizeof(*p),out,sizeof(*out))||!ggp_plan_valid(p))return false;
++    const struct ggd_plan d={*p,data_region};
++    if(!ggd_plan_valid(&d))return false;
++    *out=d;return true;
++}
++bool ggd_emit_tables(const struct ggd_plan *p,unsigned ias,unsigned oas,
++    void *memory,size_t capacity,struct ggp_s1_config *out)
++{
++    if(!ggd_plan_valid(p)||capacity<GGP_TABLE_BYTES||!span(memory,GGP_TABLE_BYTES)||
++       !span(out,sizeof(*out))||overlap(memory,GGP_TABLE_BYTES,p,sizeof(*p))||
++       overlap(out,sizeof(*out),p,sizeof(*p))||
++       overlap(memory,GGP_TABLE_BYTES,out,sizeof(*out)))return false;
++    struct ggp_s1_config config;
++    if(!ggp_emit_tables(&p->bootstrap,ias,oas,memory,capacity,&config))return false;
++    /* _get_protection_flags(no flags/priv) => READ|WRITE|NOEXEC; native
++     * arm_lpae_prot_to_pte / init_pte: AP userRW, NC, outer-shareable, AF,
++     * nG, PXN+UXN. No privileged-only or execute permission is introduced. */
++    uint64_t leaf=(p->bootstrap.owner_pa+p->data.offset)|UINT64_C(0x0060000000000e43);
++    unsigned index=(p->data.iova>>12)&511;
++    uint8_t *entry=(uint8_t *)memory+0x2000+8*index;
++    for(unsigned i=0;i<8;i++)entry[i]=(uint8_t)(leaf>>(8*i));
++    *out=config;return true;
++}
++bool ggd_write_command_build(const struct ggd_plan *p,struct ggd_write_command *out)
++{
++    if(!ggd_plan_valid(p)||!span(out,sizeof(*out))||
++       overlap(p,sizeof(*p),out,sizeof(*out)))return false;
++    /* Two actual native cp_mem_write(adreno,cmds,gpuaddr,value) outputs;
++     * each is cp_mem_packet(CP_MEM_WRITE,2,1), low/high GPUaddr, value. */
++    const struct ggd_write_command c={{0x703d8003u,p->data.iova,0,GGD_FIRST_VALUE,
++        0x703d8003u,p->data.iova+GGD_DATA_BYTES-4,0,GGD_LAST_VALUE}};
++    *out=c;return true;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_data.h
+@@ -0,0 +1,36 @@
++#ifndef GAUGUIN_GPU_DATA_H
++#define GAUGUIN_GPU_DATA_H
++#include "gauguin_gpu_memory.h"
++/* Optional normal GPU data page, not part of the legacy18-leaf bootstrap.
++ * A CPU16KiB reservation contains ONE GPU4KiB user-RW, NC, NX leaf. The
++ * remaining12KiB stay unmapped. This is kernel-owned GPU memory; no CPU
++ * userspace mapping or arbitrary caller-chosen VA/PA is provided. */
++#define GGD_DATA_OFFSET 0xb8000u
++#define GGD_DATA_IOVA 0xfc018000u
++#define GGD_DATA_BYTES 0x1000u
++#define GGD_DATA_RESERVED 0x4000u
++#define GGD_ARENA_END 0xbc000u
++#define GGD_WRITE_WORDS 8u
++#define GGD_FIRST_VALUE 0x47504431u
++#define GGD_LAST_VALUE 0x47504432u
++struct ggd_plan {struct ggp_plan bootstrap;struct ggp_region data;};
++struct ggd_write_command {uint32_t word[GGD_WRITE_WORDS];};
++bool ggd_plan_build(const struct ggp_plan *,struct ggd_plan *);
++bool ggd_plan_valid(const struct ggd_plan *);
++/* Construct a NEW, inactive private table image, never patch live tables.
++ * Original18 leaves/configuration stay byte-identical. Add only L3index24;
++ * all other holes and the entire TTBR1 root remain zero. All overlapping
++ * input/output ranges are refused; outputs stay untouched on failure.
++ * Before activation a separate live owner must authorize the extra NC CPU
++ * reservation and SID0 user-RW page, validate every PTE/ATOS/retained route,
++ * and propagate that explicit variant through the existing private guards.
++ * Current bootstrap guards do NOT authorize this optional table layout. */
++bool ggd_emit_tables(const struct ggd_plan *,unsigned,unsigned,
++    void *,size_t,struct ggp_s1_config *);
++/* Two unchanged-native cp_mem_write encodings to the page's first/last
++ * dwords. This neither submits nor establishes GPU execution: the caller
++ * still needs same-boot CP/ZAP/native-mode authority, guarded append/submit,
++ * native completion/fault checks and device-written data readback. No
++ * allocation, MMIO, cache action, live PTE mutation or Metal interface. */
++bool ggd_write_command_build(const struct ggd_plan *,struct ggd_write_command *);
++#endif

@@ -214,6 +214,39 @@ and Metal remain separate work. The next step is an ordinary user-RW GPU
 buffer and bounded data-path submission derived from the pinned native
 driver. Existing privileged scratch writes alone would not establish it.
 
+Patch0160 adds pure constructors for that optional data page. It leaves
+the existing18-leaf bootstrap constructor and all live dispatch paths
+unchanged. A separate plan reserves16KiB at owner offset `0xb8000`, maps
+only its first4KiB at GPU address `0xfc018000`, and keeps the remaining12KiB
+unmapped. The page is normal GPU user-RW, noncacheable and nonexecutable;
+this describes SMMU permissions, not a CPU userspace mapping. The separate
+table emitter copies the legacy layout and adds only L3 entry24, preserving
+all old leaves, configuration values, other holes and the empty TTBR1 root.
+It constructs inactive table bytes and must never patch live tables.
+
+The fixed command builder emits two native `cp_mem_write` packets to the
+page's first and last dwords. An independent fixture executes10 unchanged
+functions from the same pinned primary source: the6 earlier protection,
+LPAE and CP_INIT functions plus the actual type3, memory-packet, GPU-address
+and memory-write helpers. Across144 owner/IAS/OAS combinations all2736 leaf
+comparisons match native encoding, and both native calls match all8 command
+words. The actual constructor model also checks the full32-bit address space,
+padding holes, unchanged18-leaf bytes, overlaps and failure atomicity. These
+remain CPU model and ARM64 translation-unit checks, without live table
+activation, GPU data writes, shader execution or rendering evidence.
+
+Live integration must explicitly authorize this optional mapping before
+GPU startup, verify its NC CPU reservation and all19 translations, and carry
+that exact variant through private owner and retained-table guards. The
+current bootstrap guards authorize only18 leaves. Only after same-boot signed
+load and native-mode completion may a new bounded stage append the two
+data writes and native completion marker, verify device writeback and faults,
+and compare the page's remaining bytes. The original signed-only and native
+mode controls must retain their behavior. No such live binding exists in160.
+The fresh154-patch source replay and all77 host files pass. The constructor
+model passes1594 cases with4464070 checks, and the actual ARM64 translation
+unit compiles on the159 native recipe. No160 full kernel or image was built.
+
 Do not substitute a TRUST_CONTROL0 write for the native signed-load/unsecured
 path. Completing the transition will still leave general scheduling,
 rendering, the iOS graphics/Metal interface, power management and high-refresh

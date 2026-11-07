@@ -2,6 +2,89 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —160 normal GPU data-page constructors QUALIFIED; live mapping/submission NEXT
+
+Previous milestone committed private9d327bcb8b3ee30f3cd7a1d098e79d125db800bd,
+publishedf5e7a31162af7fe3c38e5a671653675718ed7cbf (same tree
+b11311027907447dd26b0e7c923ecc4c4ff7990e): physical159 native SET_SECURE_MODE0
+command completion accepted. Phone still TWRP159; NO new phone IO this turn.
+Standing user policy remains unattended/automatic reset attribution; ask
+only if actually stuck and manual recovery is needed. Broad goal ACTIVE.
+
+Codex authored pure gauguin_gpu_data.C/H and patch0160,154th active patch.
+Exactly3 source deltas vs159: standard bsd/conf/files member plus new C/H;
+all old GPU/GMU/owner/board/coordinator/live guards byte-identical. New
+ggd_plan wraps the validated18-leaf bootstrap plus fixed data region:
+owner+b8000/CPUreserved4000/IOVAfc018000/GPUmapped1000, userRW/NC/NX.
+The extra12KiB remain holes, arena endsbc000 within retained1MiB. New
+inactive-table emitter preserves all original18 leaves/config and every
+other byte, adds ONLY L3index24 leaf0060000000000e43|actualPA. No live table
+mutation, CPU userspace map, allocation, secure access, new MMIO or dispatch.
+Fixed8word command constructor emits native CP_MEM_WRITE to first/last
+dwords, values47504431/47504432. It is not a submission or completion proof.
+
+DSH55715 CLOSED0/focus160.py0: actual host0 and ARM64TU0 on CURRENT159 full
+recipe.1594cases/4464070checks include all32-bit holes, all widths/owner
+bounds, original18-leaf/config preservation, corrupted geometry, padding,
+overlap and failure atomicity. Actual9688B ARM64object SHA
+0bb89ecb00e2bfcf5114af5c6d01b915e69daea6a468766b507726e51ffb3569,
+research/tmp/gauguin-nvt-p1/gpu160-data/run-2kdlqnwf/compile.json.
+focus-result.json1950B SHA8f9f2d24468f86b5a0591ec72989257e3bf950a8ab067f4c7e1d2b176eebd2fe,
+12pins. Candidate and protected reference Makefiles/objects unchanged.
+
+DSH86523 CLOSED0/native_data160.py0: actualcompile0/run0,10 unchanged
+primary19b63c8 functions. All6 original144 protection/LPAE/parity/CP_INIT
+bodies unchanged,4 new unchanged type3/cp_mem_packet/cp_gpuaddr/cp_mem_write
+bodies. Native normal flags exactlyREAD|WRITE|NOEXEC, no privileged/cache
+flag.144 owner/IAS/OAS combinations yield2736 exact19-leaf PTE comparisons;
+actual two cp_mem_write calls equal all8 port words. Native32B command SHA
+953f5fcf4b99493bbd9ec5ed137b98c524fa28f0c274f5a090e7a5804b1db20e.
+native-data/result.json3604B SHA7f7594c0487ec0a7a596642aafccf2d352b91ff352ada9455e636f114a7da5fd,
+17pins; no downloaded source included in Git. All first attempts passed.
+
+DSH80624 CLOSED0/integrate160.py0: fresh pristine154patch replay0,
+source160-codex5304files SHA
+6191a525a22db4eec0d6f6ea134b6f760d79ebbb855f9696868766962c872d2b.
+Exact3delta matched candidate/conf member; source159 unchanged. All77 actual
+host files ran once in exact expected filename order, all0; no rule changes.
+integration-result.json36590B SHA
+6524c666d5586915b234c293c96dc64f1aa91e920be30275df3cc8b9923a298e,
+305pins/snapshot preserved. Codex independently rehashed12focus/17native/
+305integration inputs, actual object, source5304 and unchanged159; see
+research/tmp/dsh-0160/independent-source-review.json.
+Patch SHAad03dc59991fc116566bb4d04b1b5cabfbfda7a9eac412cec4805eb58a3b82a2.
+Current160 publication exact private/public IDs will be recorded in
+research/tmp/dsh-0160/public-data-snapshot.json; review only6 UTF8 source/
+tests/docs paths against publicparentf5e7a31..., preserve sanitized ancestry.
+
+CURRENT full/generated native recipe STILL159gauguin.Ee2hCj/source159-codex.
+There is NO160 full kernel/image/live mapping/GPU data-write/shader/Metal
+proof. Do not relabel pure PTE/packet construction as hardware acceleration.
+
+NEXT concrete work: integrate explicit optional19-leaf layout BEFORE cold
+GPU SMMU activation, preserving every old mode's18-leaf behavior. Audit
+gauguin_gpu_smmu.C/H and board prepare/span/table/translation/retained guards;
+current native verifier deliberately treatsfc018000 as a hole, expects18GPU/
+168total translations, and board bounds stop atb8000. New mode must verify
+the data leaf and retained12KiB holes, actual NC CPU reservation/private
+mapping ownership, all original permissions and all GMU translations. Do
+not globally replace constants or disable old guards. Thread exact variant
+through private CP/core/FW/ZAP/unsecure authority without reading secure
+memory afterAUTH. Derive the final CP data-write completion/cache-order
+sequence from native addcmds/submit/idle (including whether WAIT_MEM_WRITES/
+EOP event is required); the8word constructor intentionally does not decide
+that. Native a6xx_post_start returns0 with runtime preemption disabled;
+do not enable preemption/multiring as a workaround. Then implement a bounded
+same-boot data submission/readback stage, native/host/failure proof, full
+local kernel/independent image/strict runtime fixtures, ONE temporary boot.
+Require device-written data and remaining bytes preserved; no CPU result
+fabrication, privileged-scratch substitute, retry/cleanup/PET/HOST release
+or TRUST_CONTROL fallback. Only after normal data-path hardware proof move
+to shader execution/rendering/iOS IOAccel+Metal, then sustainable scheduling/
+power/high refresh and full safe RAM/UFS/peripherals/daily-use acceptance.
+All owned DSH jobs closed. No flash/format/GPT. Original user mkadt7line diff
+SHAa74a0418...454860 untouched. Goal remains ACTIVE/full/unlimited.
+
 ### 2026-11-07 —159 physical native-mode command completion QUALIFIED; ordinary GPU data path NEXT
 
 Standing unattended policy: user is away; observed new returns to TWRP are

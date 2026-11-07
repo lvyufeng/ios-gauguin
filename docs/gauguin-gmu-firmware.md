@@ -733,3 +733,16 @@ translation units pass. This includes3816 new board and22 new coordinator
 cases with the original cases retained. Complete kernel/image and physical
 GPU translations/aperture return still require qualification. SQE, GPU core
 startup, command submission, rendering and Metal remain subsequent stages.
+
+The first physical0145 trial returns `GSM_ARGUMENT` before claiming the GPU
+context: phase0, zero GPU writes/ATOS and zero CP aperture calls. Existing
+GMU SMMU setup completes, but firmware release and later HFI/DCVS are skipped.
+The strict reader rejects this trial. It provides no GPU context or secure
+transport qualification.
+
+0146 adds a pure classifier for the same unchanged input checks, with cached
+reason and baseline-field diagnostics after quarantine. The frozen0145
+normal/error fixture produces20,942,109 callback records for each version
+with identical digests. All65 host files and two ARM64 translation units pass.
+Actual rejection reason still requires a new qualified diagnostic trial;
+no condition is waived to turn the prior failure into success.

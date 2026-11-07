@@ -27,7 +27,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
         fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines,fw_reply_lines,fw_word_lines,
         perf_mode,perf_engine_calls,perf_complete_lines,perf_partial_lines,
         bw_mode,bw_engine_calls,bw_complete_lines,bw_partial_lines,test_complete_lines,test_partial_lines,dcvs_mode,dcvs_engine_calls,dcvs_request_lines,dcvs_complete_lines,dcvs_partial_lines,dcvs_missing,
-        gpu_mode,gpu_context_calls,gpu_context_fail,gpu_smc_calls,gpu_smc_mode,gpu_drift,gpu_complete_lines,gpu_partial_lines,gpu_ap_complete_lines;} h;
+        gpu_mode,gpu_context_calls,gpu_context_fail,gpu_smc_calls,gpu_smc_mode,gpu_drift,gpu_complete_lines,gpu_partial_lines,gpu_ap_complete_lines,gpu_input_lines;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -38,6 +38,7 @@ static int host_printf(const char *s,...)
     if(strstr(text,"SWEET GPU SMMU: complete")){CHECK(h.gpu_mode&&h.live&&!h.quarantine&&h.gpu_complete_lines++==0);}
     if(strstr(text,"SWEET GPU SMMU: partial")){CHECK(h.gpu_mode&&!h.live&&h.quarantine==1);++h.gpu_partial_lines;}
     if(strstr(text,"SWEET GPU APERTURE: complete")){CHECK(h.gpu_mode&&h.gpu_complete_lines==1&&h.live&&!h.quarantine);++h.gpu_ap_complete_lines;}
+    if(strstr(text,"SWEET GPU INPUT:")){CHECK(h.gpu_mode&&h.gpu_context_fail==3&&!h.live&&h.quarantine==1);++h.gpu_input_lines;}
     if(strstr(text,"SWEET GMU PERF: complete")){
         CHECK(h.perf_mode&&h.perf_engine_calls==1&&h.live&&!h.quarantine&&h.perf_complete_lines++==0);
         CHECK(!strcmp(text,"SWEET GMU PERF: complete request=00302b04 words=43 ack=0002047e/00300000/00000000; no BW/TEST/normal HFI_ON/GPU/Metal qualification\n"));
@@ -270,7 +271,7 @@ static void reset(void)
     gfw_lifecycle=0;gfw_deadline=0;memset(gfw_map,0,sizeof(gfw_map));memset(&gfw_context,0,sizeof(gfw_context));memset(&gfw_work,0,sizeof(gfw_work));memset(&gfw_asset,0,sizeof(gfw_asset));
     gfw_copy_issued=gfw_copy_compared=0;
     memset(&ggb_context,0,sizeof(ggb_context));memset(&ggb_plan,0,sizeof(ggb_plan));memset(&ggb_smmu,0,sizeof(ggb_smmu));
-    memset(&ggb_aperture,0,sizeof(ggb_aperture));memset(&ggb_secure,0,sizeof(ggb_secure));ggb_deadline=0;ggb_started=0;ggb_result=0;ggb_secure_result=0;
+    memset(&ggb_aperture,0,sizeof(ggb_aperture));memset(&ggb_secure,0,sizeof(ggb_secure));ggb_deadline=0;ggb_started=0;ggb_result=0;ggb_secure_result=0;ggb_argument=0;
     memset(fw_page,0,sizeof(fw_page));for(unsigned n=0;n<sizeof(fw_asset);n++)fw_asset[n]=(uint8_t)(n*19+3);
 }
 static enum gmb_result run(struct gmb_receipt *out)
@@ -493,6 +494,7 @@ enum gsm_result ggs_configure_once(struct ggs_context *c,const struct ggs_ops *o
 {
     CHECK(h.gpu_mode&&h.gpu_context_calls++==0&&h.live&&!h.engine_calls&&!h.gpu_smc_calls);
     CHECK(gmu==&gmb_work.smmu&&p->owner_pa==owner&&ggp_plan_valid(p));
+    if(h.gpu_context_fail==3)return GSM_ARGUMENT;
     c->state=1;c->phase=GGS_PREPARE;c->ops=*o;c->plan=*p;c->gmu=*gmu;
     if(h.gpu_context_fail==1)return GSM_INHERITED;
     struct ggp_s1_config cfg;
@@ -511,6 +513,9 @@ enum gsm_result ggs_configure_once(struct ggs_context *c,const struct ggs_ops *o
     memcpy(smmu+0xb020,&s.ttbr0,8);memcpy(smmu+0xb028,&s.ttbr1,8);
     c->work=s;*out=s;c->phase=GGS_DONE;c->state=2;return GSM_OK;
 }
+unsigned ggs_argument_reason(const struct ggs_context *c,const struct ggs_ops *o,
+    const struct ggp_plan *p,const struct gsm_receipt *gmu,const struct ggs_receipt *out)
+{CHECK(c&&o&&p&&gmu&&out&&!h.gpu_context_calls&&!h.gpu_smc_calls&&!h.engine_calls);return h.gpu_context_fail==3?15u:0u;}
 static void host_gpu_smc(void *cookie,struct gpa_registers *r)
 {
     CHECK(!cookie&&h.gpu_mode&&h.live&&!h.quarantine&&!h.engine_calls&&ggb_context_valid());
@@ -632,6 +637,7 @@ static void firmware_gpu_cases(void)
     reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_smc_mode=2;
     CHECK(firmware_run(&out)==GMB_OK&&h.gpu_smc_calls==2&&ggb_secure.continuations==1);
     for(unsigned n=1;n<=2;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_context_fail=n;firmware_failed();CHECK(!h.gpu_smc_calls&&!h.engine_calls&&!h.gpu_complete_lines&&h.gpu_partial_lines==1);}
+    reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_context_fail=3;firmware_failed();CHECK(ggb_argument==15&&h.gpu_input_lines==3&&!h.gpu_smc_calls&&!h.engine_calls&&!ggb_context.state);
     for(unsigned n=1;n<=3;n+=2){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_smc_mode=n;firmware_failed();CHECK(h.gpu_smc_calls==1&&!h.engine_calls&&!h.gpu_complete_lines);}
     for(unsigned n=1;n<=2;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.gpu_drift=n;firmware_failed();CHECK(h.gpu_smc_calls==1&&!h.gpu_complete_lines&&!h.gpu_ap_complete_lines);}
     for(unsigned n=1;n<=budgets;n++){reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=h.gpu_mode=1;h.budget_fail=n;firmware_failed();CHECK(!h.gpu_complete_lines&&!h.gpu_ap_complete_lines);}

@@ -54,11 +54,17 @@ retained; new fixed-triangle specialization replaces old selected clear path.
 Workers audit identical complete negative manifests and exactly-once parse union.
 Explicit old console-framing + original26 clear metadata refusals and28 new
 triangle metadata refusals are a separate supplementary v33 runtime-aux gate,
-RUNNING via live exec92163; it does not retry/replace32. Both gates required.
+now CLOSED inner0 FIRST via exec92163; it does not retry/replace32. Both gates
+required. runtime-aux-result-v1.json SHA
+adcabceb590b3150846628f25a538c9bb328f7f9e6bffee3cbd1af647594b678;
+draw-metadata-result-v1.json SHAdd2788300abc9dc9eb2a6929158b4f72ff6f362672908003a01d94388abb556a,
+actual1positive/54negative, preserving26old clear flags plus28new triangle flags.
 
 Authored boot171.py/read_hardware171.py + exact unchanged observer171 helper,
-but NO device command yet. Need complete32+33, root independent runtime/boot
-helper review (not yet authored), then one guarded temporary fastboot boot,
+review_runtime171.py and review_physical171.py, but NO device command yet. Boot
+also explicitly requires passed auxiliary54metadata controls. Need complete32,
+root independent runtime/boot helper review (authored, not executed), then one
+guarded temporary fastboot boot,
 routine13B recovery misc latch/readback only, automated180s observer and actual
 pixel/event/source verification. Only prompt user if genuinely stuck/manual
 recovery required; user away/all restarts automatic, --manual-reset no.

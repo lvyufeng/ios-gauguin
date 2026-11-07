@@ -1,9 +1,10 @@
 @GMU_FIXTURE@
 #include "gauguin_gpu_smmu.h"
+#include "gauguin_gpu_data.h"
 #define SMR(n) (0x800u+4u*(n))
 #define S2CR(n) (0xc00u+4u*(n))
 struct gpu_fake {struct fake old;struct ggs_context gpu;struct ggp_plan plan;struct gsm_receipt baseline;
-    uint8_t tables[16384];unsigned step,fail,writes,prepared,atos,tf_mode,wrong,drift,ignore,stuck;bool nested;};
+    uint8_t tables[16384];unsigned step,fail,writes,prepared,atos,tf_mode,wrong,drift,ignore,stuck,data_mode,force_old,bad_data;bool nested;};
 static struct gpu_fake *templates[4];
 static bool gpu_tick(struct gpu_fake *f){return ++f->step!=f->fail;}
 static bool gpu_guard(void *cookie)
@@ -84,7 +85,15 @@ static bool gpu_delay(void *cookie,unsigned us){CHECK(us==5||us==10);return gpu_
 static bool gpu_prepare(void *cookie,unsigned ias,unsigned oas,struct ggp_s1_config *cfg)
 {
     struct gpu_fake *f=cookie;if(!gpu_tick(f))return false;++f->prepared;CHECK(!f->writes);
-    CHECK(ggp_emit_tables(&f->plan,ias,oas,f->tables,sizeof(f->tables),cfg));
+    if(f->data_mode&&!f->force_old){
+        struct ggd_plan d;CHECK(ggd_plan_build(&f->plan,&d));
+        CHECK(ggd_emit_tables(&d,ias,oas,f->tables,sizeof(f->tables),cfg));
+        if(f->bad_data){
+            unsigned index=24+(f->bad_data>=3?f->bad_data-2:0);
+            uint64_t leaf=f->bad_data==1?0:((f->plan.owner_pa+GGD_DATA_OFFSET+(f->bad_data==2?4096:0))|UINT64_C(0x0060000000000e43));
+            for(unsigned i=0;i<8;i++)f->tables[0x2000+8*index+i]=(uint8_t)(leaf>>(8*i));
+        }
+    }else CHECK(ggp_emit_tables(&f->plan,ias,oas,f->tables,sizeof(f->tables),cfg));
     switch(f->drift){
     case 1:cfg->ttbr0^=4096;break;case 2:cfg->ttbr1^=4096;break;case 3:cfg->tcr^=1;break;
     case 4:cfg->mair0^=1;break;case 5:cfg->mair1^=1;break;case 6:cfg->ias^=1;break;case 7:cfg->oas^=1;break;
@@ -116,7 +125,11 @@ static struct gpu_fake *gpu_fresh(unsigned mode)
     struct gpu_fake *f=malloc(sizeof(*f));CHECK(f);*f=*templates[mode];f->ignore=UINT32_MAX;return f;
 }
 static enum gsm_result gpu_run(struct gpu_fake *f,struct ggs_receipt *out)
-{struct ggs_ops o=gpu_ops(f);return ggs_configure_once(&f->gpu,&o,&f->plan,&f->baseline,out);}
+{
+    struct ggs_ops o=gpu_ops(f);
+    if(f->data_mode){struct ggd_plan d;CHECK(ggd_plan_build(&f->plan,&d));return ggs_configure_data_once(&f->gpu,&o,&d,&f->baseline,out);}
+    return ggs_configure_once(&f->gpu,&o,&f->plan,&f->baseline,out);
+}
 static void gpu_stopped(struct gpu_fake *f)
 {
     unsigned step=f->step;struct ggs_receipt r,b;memset(&r,0x75,sizeof(r));b=r;
@@ -213,4 +226,58 @@ static void gpu_group_capacity(void)
     f=gpu_fresh(3);f->baseline.groups=2;f->baseline.id0=(f->baseline.id0&~255u)|2;f->old.regs[0x20/4]=f->baseline.id0;
     CHECK(gpu_run(f,&r)==GSM_ROUTING&&!f->prepared&&!f->writes);gpu_stopped(f);free(f);
 }
-int main(void){gpu_good();gpu_bad();gpu_arguments();gpu_group_capacity();for(unsigned i=0;i<4;i++)free(templates[i]);printf("GPU SMMU: %u total assertions PASS; independent real-table walks/route and GMU preservation, actual five-slot/five-bank geometry and exhausted-slot refusal, exact fault classification, all callback failures and pure argument diagnostics; no hardware qualification\n",checks);}
+static void gpu_data_layout(void)
+{
+    for(unsigned mode=0;mode<4;mode++)for(unsigned tf=0;tf<2;tf++){
+        struct gpu_fake *f=gpu_fresh(mode);f->data_mode=1;f->tf_mode=tf;f->nested=true;
+        struct ggs_receipt r;CHECK(gpu_run(f,&r)==GSM_OK&&r.layout==GGS_DATA19&&ggs_receipt_layout_valid(&r));
+        CHECK(r.gpu_pages==19&&r.gmu_pages==131&&r.translations==171&&f->atos==171);
+        CHECK(f->prepared==1&&f->gpu.layout==GGS_DATA19&&f->gpu.state==2&&f->gpu.phase==GGS_DONE);
+        CHECK(!memcmp(f->old.tables,templates[mode]->old.tables,sizeof(f->old.tables)));
+        CHECK(!(f->old.regs[0x6000/4]&4)&&f->old.regs[S2CR(f->baseline.slot[0])/4]==templates[mode]->old.regs[S2CR(f->baseline.slot[0])/4]);
+        unsigned steps=f->step;gpu_stopped(f);free(f);
+        if(!tf){
+            for(unsigned i=1;i<=steps;i++){
+                f=gpu_fresh(mode);f->data_mode=1;f->fail=i;struct ggs_receipt old;memset(&r,0x96,sizeof(r));old=r;
+                CHECK(gpu_run(f,&r)!=GSM_OK&&f->step==i&&f->gpu.state==3&&!memcmp(&r,&old,sizeof(r)));gpu_stopped(f);free(f);
+            }
+            printf("GPU DATA19 mode%u:19 mapped/3 extra-padding holes/171 ATOS; all%u callback failures PASS\n",mode,steps);
+        }
+    }
+    struct gpu_fake *f=gpu_fresh(3);struct ggs_receipt r;f->data_mode=1;f->force_old=1;
+    CHECK(gpu_run(f,&r)==GSM_TRANSLATION&&f->gpu.translation.iova==GGD_DATA_IOVA);gpu_stopped(f);free(f);
+    for(unsigned bad=1;bad<=5;bad++){
+        f=gpu_fresh(3);f->data_mode=1;f->bad_data=bad;
+        CHECK(gpu_run(f,&r)==GSM_TRANSLATION&&f->gpu.translation.valid);
+        CHECK(f->gpu.translation.iova==(bad<=2?GGD_DATA_IOVA:GGD_DATA_IOVA+4096*(bad-2)));gpu_stopped(f);free(f);
+    }
+    /* Old API cannot be switched by pre-seeding the context's layout. */
+    f=gpu_fresh(3);f->gpu.layout=GGS_DATA19;CHECK(gpu_run(f,&r)==GSM_OK&&r.layout==GGS_BOOTSTRAP18&&r.gpu_pages==18&&r.translations==168);gpu_stopped(f);free(f);
+    /* An old API with an unauthorized19-leaf prepare still treats data VA
+     * as a hole and refuses; callbacks do not select the transaction mode. */
+    f=gpu_fresh(3);f->data_mode=1;struct ggs_ops o=gpu_ops(f);
+    CHECK(ggs_configure_once(&f->gpu,&o,&f->plan,&f->baseline,&r)==GSM_TRANSLATION&&f->gpu.translation.iova==GGD_DATA_IOVA);gpu_stopped(f);free(f);
+    f=gpu_fresh(3);struct ggd_plan d;CHECK(ggd_plan_build(&f->plan,&d));o=gpu_ops(f);
+    struct ggs_context c=f->gpu;struct ggs_receipt old;memset(&r,0x71,sizeof(r));old=r;
+    CHECK(ggs_data_argument_reason(&f->gpu,&o,&d,&f->baseline,&r)==0);
+    CHECK(ggs_data_argument_reason(&f->gpu,&o,NULL,&f->baseline,&r)==23);
+    CHECK(ggs_data_argument_reason(&f->gpu,&o,(const struct ggd_plan *)(uintptr_t)(UINTPTR_MAX-4),&f->baseline,&r)==23);
+    d.data.mapped+=4096;CHECK(ggs_configure_data_once(&f->gpu,&o,&d,&f->baseline,&r)==GSM_ARGUMENT);
+    CHECK(!f->step&&!memcmp(&c,&f->gpu,sizeof(c))&&!memcmp(&r,&old,sizeof(r)));free(f);
+    /* Full optional-plan tail aliases must be refused even though the old
+     * bootstrap subobject itself does not overlap those addresses. */
+    union {uint64_t align;uint8_t bytes[32768];} arena,copy;
+    f=gpu_fresh(3);o=gpu_ops(f);CHECK(ggd_plan_build(&f->plan,&d));
+    memset(&arena,0x51,sizeof(arena));memcpy(arena.bytes+4096,&d,sizeof(d));copy=arena;
+    const struct ggd_plan *aliased=(const struct ggd_plan *)(arena.bytes+4096);
+    CHECK(ggs_data_argument_reason(&f->gpu,&o,aliased,&f->baseline,(const struct ggs_receipt *)(arena.bytes+4096+sizeof(struct ggp_plan)))==10);
+    CHECK(ggs_data_argument_reason((const struct ggs_context *)(arena.bytes+4096+sizeof(struct ggp_plan)),&o,aliased,&f->baseline,&r)==6);
+    CHECK(!memcmp(&arena,&copy,sizeof(arena))&&!f->step&&!f->gpu.state);free(f);
+    CHECK(!ggs_receipt_layout_valid(NULL));
+    for(unsigned layout=0;layout<4;layout++)for(unsigned pages=17;pages<=20;pages++)for(unsigned atos=167;atos<=172;atos++){
+        struct ggs_receipt q={.layout=layout,.gpu_pages=pages,.gmu_pages=131,.translations=atos};
+        bool valid=(layout==GGS_BOOTSTRAP18&&pages==18&&atos==168)||(layout==GGS_DATA19&&pages==19&&atos==171);
+        CHECK(ggs_receipt_layout_valid(&q)==valid);q.gmu_pages=130;CHECK(!ggs_receipt_layout_valid(&q));
+    }
+}
+int main(void){gpu_good();gpu_bad();gpu_arguments();gpu_group_capacity();gpu_data_layout();for(unsigned i=0;i<4;i++)free(templates[i]);printf("GPU SMMU: %u total assertions PASS; independent real-table walks/route and GMU preservation, actual five-slot/five-bank geometry and exhausted-slot refusal, exact fault classification, all callback failures and pure argument diagnostics; no hardware qualification\n",checks);}

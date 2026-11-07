@@ -2,6 +2,77 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —161 explicit cold DATA19 SMMU API QUALIFIED; bounded data submission NEXT
+
+Previous turn PROGRESS:160 constructors committed private52b799231c6ea4328b740d47a51b5bb02d5a7087,
+published2e86154b1d4c872f130659ab687992faf52ff288, same tree63afa7b1361075d564335c753fff6ab65bfbf88e.
+Source160/model/native10body proof is complete, not hardware data access.
+Phone STILL TWRP159, no new device IO. Current full/generated recipe STILL
+159gauguin.Ee2hCj/source159-codex. Broad daily-use goal remains ACTIVE/full.
+
+Codex authored patch0161 (155th active): exact4 source deltas vs160,
+gpu_smmu.C/H and consumer gpu_start.C/gpu_core.C. New explicit
+ggs_configure_data_once/data_argument_reason validates the FULL fixed ggd
+plan and full-tail input/output/context aliases. Original configure_once
+ALWAYS sets BOOTSTRAP18, regardless of pre-seeded context or prepare output.
+Both APIs share one atomic once owner and all original controller/geometry/
+route/bank/ASID/GMU/fault/restore/refusal rules. Optional DATA19 checks one
+new mapping atfc018000 and all3 padding holesfc019000/fc01a000/fc01b000.
+It skips ONLY the legacyfc018000-hole test in the explicitly selected mode.
+Totals are19GPU+12GPUholes+131GMU+6GMUholes+3userholes=171 ATOS, NOT169.
+Legacy18GPU/168ATOS path unchanged. ggs_receipt.layout explicitly tags0/1;
+inline shape validator accepts ONLY coherent18/168/tag0 or19/171/tag1 with
+131GMU pages. GPU start/core retain all other validations; live private
+provider must bind the selected variant, a receipt shape is not authority.
+ATOS is translation evidence, NOT a replacement for exact PTE permission
+checks. No board/coordinator dispatch, live mapping or GPU command changes.
+
+DSH30185 CLOSED0/qualify161.py0, all9 actual subprocesses0: pristine155patch
+replay,3 focused actual SMMU/start/core models,4 ARM64TUs and all77 hostfiles.
+Freshsource161-codex5304files SHA
+b31e7a524f792308aeaba75fba7af296060af3dfb2a0377e1509bf7048681928;
+exact4deltas matched candidate, source160 unchanged. SMMU27153210assertions
+include original cases and all3624/3849/3849/3354 new callback failures across
+4controller geometries,8 DATA19/TF success cases, missing/wrong data pages,
+each leaked padding leaf, old/new API mismatch, pre-seeded mode, nested/once,
+tail aliases and full tag/page/translation mismatch matrix. Both consumers
+pass original paths plus coherent-layout/refusal matrices; core also4
+DATA19 native scenarios. Full77 exact filenames ran once, no rule waiver.
+Actual ARM64objects on CURRENT159 generated recipe:
+SMMU49520B SHA1118ea8c345a5964e44408dfa4a1455e61887782b1bffe2d5e5c102eb3eb16d0;
+start19160B SHA766d9ea2bb3915ce1b4ba80c734d75c22592049d5b17b67d8ff4a15f0fb07cd8;
+core26520B SHA3d457bf8f92f8f3f910cdc9cabac1f77a6da63c88033597977e67b6e0e2b5a71;
+unchanged board259752B SHA145094d1f18d9fdd5dee97254276c58cbdf5613e4f921af058850eee0ee1d5fe.
+qualification-result.json37749B SHA
+6e097649c05744ff0127dab3bd365429e6f095e244080f3c0c917258a647c235,
+309pins/snapshot preserved; Codex independently rehashed inputs, source and
+actual4objects in independent-source-review.json. Protected159 buildfiles
+unchanged. All checks passed on FIRST attempts. No full kernel/image/CI or
+hardware161 qualification. Publication IDs go into dsh-0161/public-snapshot.json.
+
+NEXT: implement pure bounded ordinary-data write/readback engine, then live
+binding. Native raw CP memory commands may use unchanged cp_mem_write x2
+followed by adreno_ringbuffer_submit_spin(2000), which appends WHERE_AM_I
+and waits for idle. This is not native general addcmds/render/EOP execution.
+Require zero data preimage, exact two changed edge words, all1022middle
+dwords preserved, device shadow, faults, prefix preservation and no CPU
+data/shadow writes. Native/source trace oracle must compare actual commands,
+fenced submit and idle. An ignored162 candidate directory exists but contains
+no files yet: an authoring command stopped on an exact-replacement assertion
+before writing any candidate (not a test/build failure). No162 source/test/
+patch/artifact/device proof exists. After engine proof bind the new layout
+before cold SMMU activation and thread exact DATA19 private PTE/NC/range/
+parent authority through board CP/ZAP/unsecure/data guards. Preserve all old
+mode0/1/2 behaviors; no blanket constant changes. Full local build/image/
+strict parser fixtures and ONE temporary device boot only after complete
+live binding is reviewed. No privileged scratch substitute, secure-buffer
+read afterAUTH, retry/cleanup/HOST release/PET or TRUST_CONTROL fallback.
+Then actual shader/rendering/iOS IOAccel+Metal and sustained scheduling/power/
+RAM/UFS/peripherals/high-refresh/daily-use acceptance remain required.
+Unattended automatic resets need no confirmation; ask only if stuck/manual
+recovery needed. All owned DSH jobs closed. Original mkadt7line diff
+SHAa74a0418...454860 untouched. No flash/format/GPT.
+
 ### 2026-11-07 —160 normal GPU data-page constructors QUALIFIED; live mapping/submission NEXT
 
 Previous milestone committed private9d327bcb8b3ee30f3cd7a1d098e79d125db800bd,

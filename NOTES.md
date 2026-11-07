@@ -2,6 +2,124 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —171 physical native triangle ACCEPTED; color/coverage controls next
+
+This goal turn PROGRESS: first physical fixed A619 vertex/fragment triangle
+accepted. Full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh goal remains
+ACTIVE/unlimited. This is one closed16x16 diagnostic, NOT UI acceleration or a
+general rendering API. No human touch/UI regression or GPU throughput claimed.
+
+DSH v34 CLOSED inner0: ONE temporary171 fastboot boot, sending0.450s/booting.134s,
+AUTOMATIC TWRP after131s, fresh banner matched; no user action/attribution asked.
+DSH v35 CLOSED inner0 FIRST: strict full actual parser and wrapper passed. Root
+review_physical171.py FIRST0: independent-hardware-review.json SHA
+b12d29bf4fedfccaddab2b760157b80dd76c53c1a5ed4206c2f50efc719abe9f.
+All26 full-verifier input records, raw binary/text identity, exact source5317,
+same-boot signed INIT/MEM/AUTH+GGU20, true EOP6 and actual DATA verified.
+Wrapper SHAffc226c1c7cee1ebac882e97e012c1b8c8a3c196de5da863fb9ef6a5d753cf01;
+full report SHAd371e8bcda195228e0f5bfa696adfa0ac8f21d4b5284337dc99138482cf10025.
+Raw text664257B SHAd28afb6e18f3e4eb94618c519c3a32ec63d2b9de5177256c80ad68faea163b61;
+raw binary4198400B SHAe79e8891d172b49ab9511cf1ce6385ca1bcea348b5408ee6bc99826e1ea6c808.
+Files research/tmp/p3-gmuf-0171-native-observer-20261108.txt[.bin], cycle .log;
+all ignored/out of Git. Current phone automaticTWRP171, no second boot attempted.
+
+Actual root7words20->27/mainIB203/directdraw76,27slots/26nonempty native blobs,
+1158payload/1632padded words all clean/copied/compared/afterchecked. Actual DATA
+all1024before0, all256pixels green ff00ff00, separate control6, highneighbor0,
+767otherwords remain0, all1024after checked. Fence/idle/EOP all1poll; shadow27,
+RBBM/CP0, no IRQ request. Reference dump explicitly source constants, NOT actual
+RAM dumps; successful receipt requires actual full buffer comparisons. CPU
+production stores RING only.0.45116458s guarded stage is NOT GPU throughput.
+All prior mappings/owner/time/fault/WDT checks and raw native packets retained,
+including native empty VFD and masked binning group. No guard/predicate waiver.
+
+NEXT concrete action: retain immutable171 source/kernel/image/hardware baseline;
+inspect native-draw-v6/{full-green,half-green,full-green-repeat,full-red} metadata
+and exact original-source captures. Derive source-backed color/coverage control
+deltas before a small bounded172 profile/engine contract; independently verify
+physical changed shader color and triangle coverage before a general scheduler,
+larger targets/presentation or UI/Metal bridge. No172 code/build/image/boot yet.
+Codex critical code/plan/review; DSH execution/full access. User away, ALL resets
+automatic; only ask for genuinely needed manual recovery, never attribution/UI.
+
+Current full goal ACTIVE/unlimited. Kernel source head is DISTINCT frozen
+KERNEL171_SOURCE_HEAD=f1a9708d6d4df8db898500035ad82d8003186812 (admission fix
+commit); older SOURCE_HEAD/DRAW_PUBLICATION_SOURCE_HEAD remain historical CPU
+publication heads, never overwrite. Current code/public publication verified:
+publice0ef4b32e59cd319ba7b89ffa61cf57070efa5b0, sole public parent
+2a491b9c7545e07d5f26cb2bd7f9aea9125364a6, SAME TREE
+71dda1265680ba9ef5116684a5e9146d95ebcacf as privatef1a9708. No private ancestry
+published. public-kernel171-handoff.json/ref_updated true;12files via REST.
+
+DSH v29 CLOSED inner0 FIRST: ONE standard local8job full kernel build0 and
+complete strict artifact qualifier0, source171v2-codex5317 SHA
+cdf96fac265e882b9e171ea3cc2fd1297ef8b99de8823b019fca585a17669473.
+Actual run gauguin.inYn00. CURRENT GENERATED RECIPE IS NOW171, manifest SHA
+e0eb9f7639f4480e8364d15519fefa8393742da3390d0b9e95408e2ca5c203fe.
+Never run old170 or older TU probes against these generated files. Native171
+kernel17122720B SHAee74ff466d301d99e5425e3c57634e159bde155638b5297a93f73b60c4a26081;
+archive13be3c7a1b4352c4154040d025a6eefaa2afbf8aefb3ca60c094fc834b9268f6.
+Qualification4dd38ffbd37b6acce4c85e1deab14767eeefc1fe8dbde25f6f2110b98b49eca3.
+ALL18 hardware flags FALSE. Independent build review FIRST0 SHA
+c53804ac2a24cf96d8b94a219a7d13c98bb368f10a3f52babd7b2b52713f98d5:
+fullsource/kernel/banner/archive, all old clear literals, all1158 new native
+triangle payloadwords/sourceflags and every prior artifact predicate retained.
+Native build log350MiB ignored; no CI run used in this continuation.
+
+DSH v28 CLOSED inner0 FIRST: actual triangle parser under explicit SYNTHETIC
+records:21positive/10006negative controls, all1942records/27slots/1632source
+references/256actual pixel fields, EOP6/owner/order/time/duplicate/padding tests.
+draw-parser-standalone-result-v1.json SHA
+03667ad4d7c18625c301c9936bfbbfde0c3bafc65231aec2864d4d7a30b2d964.
+This is NOT a physical GPU result. Native references are labeled source-only,
+distinct from real DATA pixels and engine buffer comparison receipts.
+
+DSH v30 image-preflight CLOSED inner0; v31 package CLOSED inner0 FIRST: full
+fiveasset image + all old independent boot/payload/ADT/identity/command gates
+pass, including exact previous170 mode7->8 plus unique trial delta. Image
+shim/out/shim-p3-gmuf-0171-native-20261108.img,19808256B SHA
+5860924fd970ce50622b893ee39433366631525869bad3347298da52c7381a36.
+Payload19480576B SHA5bff932cee5d980ec39708b575c77bd53d7109db03607a652303c9769760364a.
+Unique gwrt-0171-a1; exact606B mode8; legacy INIT absent/default0,pasmem0, same
+assets/layout/reservation/Android/recovery protection. Image review SHA
+2591f1f4449e631deb19f8cae673f57794d377c7477e0c26dfda7e2b88aa21af.
+At that package milestone NOT BOOTED; subsequent physical triangle acceptance
+is recorded above. Metal/UI/highrefresh/daily use remain unqualified.
+
+DSH v32 runtime now CLOSED inner0 FIRST: clock0/.094s, firmware actual image
+binding0/1.382s and full eight-worker trace gate0; all10962 negative parses
+actually executed exactly once,107 positive parses in EACH worker. Runtime
+report SHAc89f29b6199bcfdb7488c74205de0eb47ba118b00933e351254a3ee5b84b7f53.
+Every common/clock/FW/ZAP/GGU generator
+retained; new fixed-triangle specialization replaces old selected clear path.
+Workers audit identical complete negative manifests and exactly-once parse union.
+Explicit old console-framing + original26 clear metadata refusals and28 new
+triangle metadata refusals are a separate supplementary v33 runtime-aux gate,
+now CLOSED inner0 FIRST via exec92163; it does not retry/replace32. Both gates
+required. runtime-aux-result-v1.json SHA
+adcabceb590b3150846628f25a538c9bb328f7f9e6bffee3cbd1af647594b678;
+draw-metadata-result-v1.json SHAdd2788300abc9dc9eb2a6929158b4f72ff6f362672908003a01d94388abb556a,
+actual1positive/54negative, preserving26old clear flags plus28new triangle flags.
+
+Root review_runtime171.py FIRST0, independent-runtime-boot-review.json SHA
+77e0bd6549da13d44b1d932e72f953841ffa7d315107c6149b67b444ebae0f21:
+all common fixture bytes except exact source-backed names/mode/specialization
+transforms retained, old integer conditions, identical complete worker manifests,
+all rejection bodies and old26/new28 metadata tests preserved; exact observer
+body/oneboot/guarded reader reviewed. No production parser shortcut.
+
+DSH v34 boot now CLOSED inner0 via exec56348, dispatch_once171v34.py boot. Verified
+unique gauguin recovery -> routine13B misc boot-recovery latch and exact readback
+-> unique gauguinpro fastboot -> ONE temporary171 fastboot boot submitted.
+boot-preflight.json state observer-running/image_boot_attempted true/misc_verified
+true at boot submission; observer ended0 with automaticTWRP131s. v35 read
+dispatcher/read_hardware171.py and root review_physical171.py now all CLOSED0,
+see physical evidence above. Never relaunch any completed/claimed stage.
+Only prompt user if genuinely stuck/manual
+recovery required; user away/all restarts automatic, --manual-reset no.
+Current phone automaticTWRP171, no UI/reset-attribution question needed.
+Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 intact.
+
 ### 2026-11-08 —171 clean source/full84/current-recipe ARM64 ACCEPTED; full kernel next
 
 Latest actual source is source171v2-codex (candidate171v5),5317files SHA

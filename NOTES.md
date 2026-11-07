@@ -60,17 +60,28 @@ also contains '(b' so3matches, not2); premature DSH99738 missingv18dispatcher
 returnedPython2, NOclaim/subprocess/gates/device action. New authorv2 fixed
 count, new dispatcher v19 avoids reusing any failed/missing invocation.
 
-LIVE DSH50168/v19runtime:dispatcherPID8277 ->runtimePID8278 ->fullfixturePID8279,
-last directly verified CPU~100%/elapsed~17min, no terminal report yet. Poll THESE
-same live handles; never restart because no output/timeout. Source tests finite
-but expensive (833newrows/555nativewords/256pixels/full context on every case).
-New runtime-parser-result-v2.json will retain first3 unchangedv1 passes and new
-complete fullv2 result; no weakened/skipped old guard. All3successful gates
-and allinputpins retained. Do NOT use failed runtime-parser-result.json aspass.
-Boot169/read_hardware169/observer and independent_physical_review169.py authored,
-NOTexecuted; references finalv19/runtimev2 +source-head59d72/image404a.
-independent_runtime_boot_review169.py authored, NOTexecuted, requires allgates0,
-exact3fixture differences/source-pin-only productionv2 delta/allpins rehashed.
+DSH50168/v19runtime NOWTERMINAL inner0 FIRST,1334seconds. Fullv2 PASS:
+45valid/678retainedcommon; signedZAP20/117; GGU21/147 +3duplicate options;
+clear13/4271 plus5older transition marker negatives. First3 originalv1 gates
+reused byte-identically; fullv2 reran ALL cases. All38runtime inputpins unchanged.
+Runtimev2 reportSHA35bf0b4db57d1d1d38bd83f1f9ea1b3561757d3efc77412ef688c82ed49ce86a.
+Root independent_runtime_boot_review169.py FIRST0 SHA
+a2b106909936db3e3d39d07e3ecd7bfa4b0150e32d773c038b1c99bcb9cb76cf,
+all38pins/reused3passes/exact3fixture diffs/productionv2pin-only diff/package
+failure history/full image source/helper/observer equivalence accepted.
+
+LIVE DSH8912/v19boot, dispatcher10014 ->boot10015; one temporary169image
+fastboot boot ALREADY OKAY, boot-preflight observer-running/image_attemptedtrue,
+13Bmisc latch readback verified; recoverygauguin/fastbootgauguinpro unique.
+Started UTC2026-11-07T19:34:57; actual kernel boot message send0.451s/boot0.134s.
+Do NOT restart/reboot/launch another image. Poll SAME boot process/session and
+hardware-trial-result.json/cyclelog. User away, ALLresetsautomatic. No UI/reset
+attribution questions. Only truly stuck/manual recovery may need user action.
+Boot169/read_hardware169/observer and independent_physical_review169.py authored;
+read NOTexecuted, requires successfulobserver +runtimev2/strictsource flags.
+Raw text/binary/cycle paths p3-gmuf-0169-native-...-20261108. After observer0,
+run v19 read ONCE then independent physical review. Allpixel/control/native
+bytes remain mandatory; no169hardware/Metal claim until allactualgates pass.
 
 Independent PREPARATORY170 graphics compile work in research/tmp/dsh-0170:
 DSH88616/v1probe inner1 (all4whole draw/program/gmem/texture TUs1); Clang
@@ -94,8 +105,9 @@ No0170 XNU patch/kernel/image/device or graphics packet/VS/FS execution proof.
 Native host compilation is NOTASan qualification; kernel host gates unchanged.
 All170 jobs closed; only169v19fullfixture remains live.
 
-NEXT poll169v19live; afterallgates0 run independent runtime/boot helper review,
-then ONE temporary mode7 boot/read with --manual-reset no. Actualcontrol7 +all256pixels
+NEXT poll existing169v19 BOOT live, then strict read and independent physical
+review with --manual-reset no. Never repeat the completed runtime/build/package
+or already-started one temporary boot merely for confirmation. Actualcontrol7 +all256pixels
 and wholepage checks +native149/194/205 source bytes mandatory; do NOT strip
 original bit30 or loosen guards on failure. Clear is NOTtriangle/Metal/UI.
 No169boot until runtime acceptance. Fullgoal RAM/UFS/peripherals/highrefresh/

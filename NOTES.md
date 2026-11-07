@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —167 full LOCAL kernel/strict qualification ACCEPTED; image/runtime NEXT
+
+167 ONE complete local8job build0 and strict qualifier0 FIRST attempts,
+DSH29149 finishing/dispatch-build.json terminal inner0. CURRENT native/generated
+recipe NOW167 gauguin.NQU6PL/source167-codex, manifest
+7b32e93094505e6bcc81d7ddb7c6120aca68efebeff5fb2e965bfc8a4613d482.
+Never use166/165/164/159 TU helpers against the current shared build files.
+Source5310files cf9257f53a3b4a2cd8df90dc92b2cf60cf68d0f75c3bad02546569f00e1f5893.
+Source private03bebd82a068396c72413955add3b0f6c9380b23,
+publicb230c6304b79c7f87c2a5ff5419f00ec26e13e94 (sole parent958cc85...),
+same treeaf91ffe40f9235964d4b48720a752ef1fb409097. All167artifact expected-head
+MUST remain03bebd8 even after this notes-only commit.
+Kernel17050872B SHA78c93f9b59c9058a172b545cada50b7fee8f8977c16aba6baf45c9e9acc67d45,
+banner SatNov7 23:37:05CST2026 / xnu-2458ef504d2040feb2a436de98005520.
+Qualification research/tmp/p3-native-0167-qualification-20261107.json;
+execution native167-execution-result.json, runNQU6PL. All8newEOP source flags
+true; ALL hardware flags remainfalse. Root independently rehashed actual
+kernel/manifest/archive/fullsource and frozen preflight/parser pins;
+independent-build-review.json. NO167image or device IO yet; phone STILLTWRP166.
+
+DSH90973 CLOSED0/dispatch-v3-eop-parser inner0: actual new EOP record parser
+39valid/881negative SYNTHETIC cases0, exact31rows/12directwords/8IB/1024EOP
+pollbound/data1024+1024/2edges+1timestamp+1021middle/samplemask63. Only actual
+markerGEP1 atDATA+4 qualifiesEOP, idle/deviceRPTR32 alone rejected; noIRQ.
+Allsource/model/native inputs unchanged. Root authored NEW ignored167
+image/runtime helpers using explicit accepted166final mapping; syntax audited,
+mode5 current negative mutation needles and duplicate5 deliberately updated.
+Helpers NOT image-preflight/executed yet; author_image_runtime167.py is a
+completed generator, DO NOT rerun. Root corrected discovered unexecuted
+filename/sourcecount/currentmode references before first execution.
+
+NEXT DSH atomic dispatch_once167.py image-preflight ->package ->runtime;
+independently rehash actual images and runtime inputs. Boot/read167helpers
+NOT yet authored; derive accepted166v2 with exact new imageSHA and sourceHEAD,
+unchanged observer suffix, --manual-reset no. ONE temporary fastboot boot
+only after allgates, then strict physical EOP proof. Do not repeat claimed
+jobs or rewrite raw/failed artifacts. Original mkadt7line diff unchanged.
+User away/allresetsautomatic, no attribution/UIquestions. No flash/format/GPT.
+Fullgoal ACTIVE/unlimited; shaders/rendering/Metal/highrefresh/dailyuse notdone.
+
 ### 2026-11-07 —167 source/native/full81/preflight ACCEPTED; full LOCAL build NEXT
 
 Previous166 physical IB preserved; full goal ACTIVE/unlimited. Phone STILL

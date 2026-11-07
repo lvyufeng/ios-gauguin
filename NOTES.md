@@ -3,6 +3,99 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —171 native program-state capture ACCEPTED; real sysmem draw NEXT
+
+Previous170goalturn PROGRESS (physicalclear0). This continuation PROGRESS:
+authored NIR -> original VS/BS/FS compiler0, original program/constant/real
+zero-private-memory state factory0 and independent source/packet reviews0.
+Fullgoal ACTIVE/unlimited. NO171kernelpatch/source-replay/image/deviceboot.
+CurrentXNUrecipe remains170 gauguin.Qwvb1c/source170-codex, manifest
+710949a9d583a8d0547cbbfee9f04dfd54dad72242c78e725e3c1a693edd26bf,
+source5314SHAef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3.
+No olderTUhelpers against sharedgeneratedfiles. Lastphone automaticTWRP170.
+ALLresetsautomatic/useraway; neverask UI/reset attribution. No action needed.
+
+Work research/tmp/dsh-0171. Previous entry contains NIR5version failures and
+accepted DSH68050/v5shadercapture/rootreviewv3; fixture source committed
+884e382 (authored NIR INPUT, original compiler/builder internal=true, not
+handcrafted ISA or original fullGL source). Original primary Mesa10642files
+SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d remainsclean.
+
+New native_program171v2.cc includes whole original fd6_program.cc and calls
+fd6_program_create<A6XX> using actual compiled VS/BS/FS variants. Whole original
+fd6_const.cc emits real constant packets. Whole original ir3_gallium.c provides
+REAL ir3_get_private_mem: original pvtmem0 branch performs no allocation,
+verified metadata/bothcontext private-memory slots stayzero. No selected fake
+private-memory/cache/constant results. Typed CPU BO/ring storage/address/size/
+attachment callbacks only, BOmap/lifecycle/allocate abort, noGPUdeviceopen.
+
+DSH98964/v6program terminalinner1:wholeprogram/const/private-C compiles0, link1
+at8retained unselected whole-TU entrypoints (upload/cache/init/TGSI/submission
+ring/streamupload). Codex added program_unused171.c with typed exact prototypes,
+ALL8abort on ANYcall, no fabricated return. Original selected private-memory
+implementation remains strongdefined in private.o. Failed v1 unchanged.
+DSH75392/v7program terminalinner0 FIRSTv2,4.906s: all4compiles/link/fourcases0.
+Allcases invoke nativefactory without touching forbidden entrypoints. C++TUs
+use same actual original driver flags +explicitA619 USER32profile1; C TUs use
+actual IR3C recipe, existing -Werror=missing-prototypes retained. No waivers.
+
+Native fourstateobjects: binning92words/draw111/config24/interp18 =980B.
+Typed planned RO ring subviews, requestedextents:binningfc009000+1000,
+drawfc00a000+1000,configfc00b000+190,interpfc00b400+48. ShaderVS/BS/FS
+fc00f000/fc00f100/fc00f200 +80bytes each. ALLinside existingfc008000..fc010000
+32KiBROmapping, declared extents nonoverlap; no new GPUmapping. These are
+PLANNED host logicalviews, not executed kernel allocations/submission.
+Metadata:MRTcomponentsf,oneviewport,driverparams0/UBOparams0,9attachments.
+Everyshaderbin/immediate/metadata/asm matches accepted NIRcapture byteexact;
+fullgreenrepeat ALLartifacts equal. Color changesFSbinary only, programstate
+bytes unchanged; halfscalechanges VSconstants/state as expected. No frame/pixel
+result, CP_DRAW packet, generalGLpipeline/allocator/scheduling or Metal proof.
+
+Root review_program171 v1 failed beforeoutput due reviewer positive TYPE4count
+assumption. Original pm4_pkt4_hdr only requires cnt<7f/reg!=0; primary parser
+uses raw count. Original fd6_program emit_fs_outputs always emits output_reg_count,
+dummy binning FS has0outputs. Exactlyone terminalheader48a98e80/regA98E/count0
+atbinningoffset91 percase. V2 explicitly verifies that single source-bound
+empty packet/allotherlengths/roles/parities; NOpacket removed/rewritten or
+submitted. Its hardware semantics explicitly UNQUALIFIED. Native draw/config/
+interp objects have noempty packets. Do NOT silently promote/strip this if
+futurebinning is exercised; preserve original fullcapture. Primary external
+corroboration consulted Android kernel msm commit65da178d9f37a94371ac951603881eee7c85773b
+drivers/gpu/msm/adreno_pm4types.h (count=payload length, direct TYPE4count).
+
+Root review_program171v2 FIRST0; independent-program-review-v2.json SHA
+613b3531229a021e8bd2938cb5b47513e6731f629bd740b101eee02c46ee840a:
+allinput/output/log/objecthashes, source10642clean, current170kernel-source
+hashunchanged, originalprivate strongsymbol and abort-onlyunselected symbols,
+allnative PM4length/parity/source literals/VS/BS/FSload IOVAs/constants/private
+zeros, roleextents andrepeatcontrols accepted. Native binning/draw/config/interp
+packetcounts33/38/12/2; TYPE7only nativeLOAD_STATE6_GEOM/FRAG, noDRAW/MEM_WRITE.
+ALL171hardwareflagsFALSE. No171ASan/UBSanclaim. AllDSHjobs nowCLOSED.
+
+NEXT CONCRETE ACTION: capture actual primary fd6_draw_vbos/3dstate and
+fd6_emit_sysmem_prep/render target/viewport/scissor/blend/raster/depth state,
+native BOroles and final flush. Use original shader/cache metadata or explicit
+source-bound CPU views; never bogus pointers or selected fake results. Could
+execute original ir3_cache.c/Gallium shader-state paths with typed allocator/
+upload seams if needed, replacing current abort-only cache callbacks only for
+actually selected original paths. Prefer native oversized fullscreen triangle
+over blue clear -> all256green oracle; actual rasterization remains UNPROVEN.
+Preserve accepted170mode7 provider/engine/guards; anyfuturemode8 requires exact
+source/nativepacket/host/ARM64/build/runtime/image/ONEphysical proof. Current
+planned ring slots leave mainIB/restore/preamble at+4000/+5000/+6000, shader
+storage+7000. Source-derived bounds may change only with reviewed newgeometry,
+never broader memory/permissions/timeouts merely to pass. Recompile ALL new
+relevant C++TUs withA619sourceprofile1, not old170profile0 objects.
+No171device image/boot yet. Metal/iOSacceleration/RAM/UFS/peripherals/highrefresh/
+daily-use fullgoal allremainunfinished. Codex criticalcode/review, DSH execution.
+
+Original mkadt7linediff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+untouched. Publish this native CPU milestone with SAME TREE/solepublicparent
+24ba393ab9e550ccbdede804e01f471d077941e5 via gh REST/nonforce ref; NEVERprivate
+ancestry/rawlogs/serials/Appleartifacts. Currentpublic/privatebefore171 docs
+99dc7f108fd6b96d676bfdd71fef72ca56fb779c SAME TREE1607985d1f7a6e02e9c95cf11e4c1db9f140ff08.
+
+
 ### 2026-11-08 —171 authored NIR -> native A619 VS/BS/FS ACCEPTED; program/draw NEXT
 
 Previous goal turn PROGRESS:170actualoffscreenclear. This continuation PROGRESS

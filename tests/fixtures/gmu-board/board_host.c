@@ -38,6 +38,7 @@ static const uint32_t core_offsets[6]={0x20000,0x24000,0x28000,0x2c000,0x3c000,0
 static unsigned core_mode,core_active,core_reads,core_stores,core_memstores,core_complete,core_partial,core_rgl_lines;
 static unsigned core_fail_phase,core_fail_kind,core_fired,core_attr_bad,core_overflow,core_stop_after,core_expire;
 static unsigned core_phys_fail,core_dev_bad,core_dev_valid,core_corrupt_word;
+static unsigned core_ram_reads,core_ram_stop,core_mem_stop,core_batch_expire,core_guard_lines,core_memory_lines;
 static void host_core_budget(void);
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
@@ -49,6 +50,11 @@ static int host_printf(const char *s,...)
     if(strstr(text,"SWEET GPU CORE: complete")){CHECK(core_mode&&h.live&&!h.quarantine&&sweet_gpu_core_state()==GMB_READY&&core_complete++==0);}
     if(strstr(text,"SWEET GPU CORE: partial")){CHECK(core_mode&&!h.live&&h.quarantine==1&&sweet_gpu_core_state()==GMB_QUARANTINED&&core_partial++==0);}
     if(strstr(text,"SWEET GPU CORE RGL:")){CHECK(core_complete==1&&h.live&&!h.quarantine);++core_rgl_lines;}
+    if(strstr(text,"SWEET GPU CORE GUARD:")||strstr(text,"SWEET GPU CORE MEMORY:")){
+        CHECK(core_mode&&(core_complete||core_partial));
+        CHECK(core_complete?(h.live&&!h.quarantine):(!h.live&&h.quarantine==1));
+        if(strstr(text,"SWEET GPU CORE GUARD:"))++core_guard_lines;else ++core_memory_lines;
+    }
     if(strstr(text,"SWEET GPU SQE: complete")){CHECK(sqe_mode&&h.live&&!h.quarantine&&strstr(text,"copied=8192 checked=8192 pad=468 loaded=1")&&sqe_complete++==0);}
     if(strstr(text,"SWEET GPU SQE: partial")){CHECK(sqe_mode&&!h.live&&h.quarantine==1&&sqe_partial++==0);}
     if(strstr(text,"SWEET GPU START: complete")){CHECK(start_mode&&h.live&&!h.quarantine&&sweet_gpu_start_state()==GMB_READY&&start_complete++==0);}
@@ -334,7 +340,9 @@ static void reset(void)
     core_mode=core_active=core_reads=core_stores=core_memstores=core_complete=core_partial=core_rgl_lines=0;
     core_fail_phase=core_fail_kind=core_fired=core_attr_bad=core_overflow=core_stop_after=core_expire=0;
     core_phys_fail=core_dev_bad=core_dev_valid=core_corrupt_word=0;
+    core_ram_reads=core_ram_stop=core_mem_stop=core_batch_expire=core_guard_lines=core_memory_lines=0;
     ggc_board_lifecycle=ggc_board_phase=ggc_maps_ready=ggc_created=0;ggc_deadline=ggc_phase_deadline=0;ggc_result=0;
+    ggc_entry=ggc_phase_entry=0;memset(&ggc_guard_diagnostic,0,sizeof(ggc_guard_diagnostic));
     memset(ggc_alias,0,sizeof(ggc_alias));memset(&ggc_context,0,sizeof(ggc_context));memset(&ggc_work,0,sizeof(ggc_work));memset(core_extra,0,sizeof(core_extra));
     *(uint32_t *)(void *)(reset_page+0x2000)=1;gmb_lifecycle=0;gmb_deadline=0;gmb_reset=gmb_smmu=gmb_ram=0;
     memset(&gmb_context,0,sizeof(gmb_context));memset(&gmb_work,0,sizeof(gmb_work));memset(&gmb_stage,0,sizeof(gmb_stage));
@@ -407,6 +415,10 @@ static uint32_t host_core_reg(vm_offset_t address)
 static void host_core_read(vm_offset_t address)
 {
     if(!core_active||ggc_context.phase<GGC_ADDRESS||ggc_context.phase>GGC_REGLIST)return;
+    if(address>=(uintptr_t)ram+0xb4000&&address<(uintptr_t)ram+0xb5000){
+        ++core_ram_reads;
+        if(core_ram_stop==core_ram_reads){if(core_batch_expire)h.now=ggc_phase_deadline;else h.clock_bad=1;}
+    }
     uint32_t reg=host_core_reg(address);if(ggc_register_allowed(reg,false))++core_reads;
 }
 static bool host_core_store(vm_offset_t address,uint32_t value)
@@ -416,6 +428,7 @@ static bool host_core_store(vm_offset_t address,uint32_t value)
     else if(ggc_context.phase<GGC_ADDRESS||ggc_context.phase>GGC_REGLIST)return false;
     else if(address>=(uintptr_t)ram+0xb4000&&address+4<=(uintptr_t)ram+0xb5000){
         CHECK(ggc_context.phase==GGC_REGLIST&&h.maps==14);++core_memstores;
+        if(core_mem_stop==core_memstores){if(core_batch_expire)h.now=ggc_phase_deadline;else h.clock_bad=1;}
         if(address==(uintptr_t)ram+0xb400c&&core_corrupt_word){ram[0xb4000+4*(core_corrupt_word-1)]^=1;core_corrupt_word=0;}
         return true;
     }else CHECK(ggc_maps_ready&&ggc_register_allowed(host_core_reg(address),true));
@@ -866,6 +879,7 @@ static void core_failed(void)
     struct ggc_receipt out,old;memset(&out,0xa3,sizeof(out));old=out;
     CHECK(sweet_gpu_core_once(&out)!=GGC_OK&&!memcmp(&out,&old,sizeof(out))&&core_partial==1&&!core_complete&&!core_rgl_lines);
     CHECK(sweet_gpu_core_state()==GMB_QUARANTINED&&sweet_gpu_start_state()==GMB_QUARANTINED&&sweet_gmu_firmware_state()==GMB_QUARANTINED&&sweet_gmu_board_state()==GMB_QUARANTINED&&h.quarantine==1&&!h.live);
+    CHECK(core_guard_lines==1&&core_memory_lines==1);
     unsigned reads=h.reads,stores=h.fw_stores,maps=h.maps,budgets=h.budgets;
     CHECK(sweet_gpu_core_once(&out)==GGC_ALREADY&&!memcmp(&out,&old,sizeof(out))&&h.reads==reads&&h.fw_stores==stores&&h.maps==maps&&h.budgets==budgets);
 }
@@ -879,6 +893,7 @@ static void gpu_core_cases(void)
         CHECK(h.maps==14&&h.nc_maps==1&&ggc_created==6&&ggc_maps_ready&&start_complete==1&&start_reads==2&&sqe_calls==4);
         CHECK(out.writes==(skip?80u:146u)&&out.reads==(skip?69u:71u)&&out.hwcg_skipped==skip&&out.configured&&out.requests_retained);
         CHECK(core_stores==out.writes&&core_reads==out.reads&&core_memstores==133&&out.mem_written==133&&out.mem_compared==1024&&core_complete==1&&core_rgl_lines==66);
+        CHECK(ggc_context.zero_checked==1024&&core_ram_reads==2048&&core_guard_lines==1&&core_memory_lines==1&&ggc_guard_diagnostic.reason==GCD_NONE);
         uint32_t v;memcpy(&v,core_extra[2]+0x3808,4);CHECK(v==2);memcpy(&v,core_page+0x3804,4);CHECK(v==0x200000);
         memcpy(&v,ram+0xb4010,4);CHECK(v==0x841);memcpy(&v,ram+0xb4014,4);CHECK(v==0xf00d1234);
         memcpy(saved+0xb4000,ggc_context.reglist,sizeof(ggc_context.reglist));CHECK(!memcmp(saved,ram,sizeof(ram)));free(saved);
@@ -887,6 +902,8 @@ static void gpu_core_cases(void)
     for(unsigned phase=GGC_BUS;phase<=GGC_FINAL;phase++)for(unsigned kind=1;kind<=10;kind++){
         if(kind==10&&phase<GGC_MAP)continue;
         core_setup();core_fail_phase=phase;core_fail_kind=kind;core_failed();CHECK(core_fired);
+        const enum ggc_guard_reason expected[]={GCD_NONE,GCD_CLOCK,GCD_IRQ,GCD_FAULT,GCD_CONTEXT,GCD_CONTEXT,GCD_NC,GCD_SQE,GCD_RESET,GCD_TOTAL_TIME,GCD_GPU_CONTEXT};
+        CHECK(ggc_guard_diagnostic.reason==expected[kind]&&ggc_guard_diagnostic.phase==phase);
     }
     for(unsigned n=9;n<=14;n++){
         core_setup();h.map_fail=n;core_failed();CHECK(h.maps==n&&core_stores==1);
@@ -905,6 +922,22 @@ static void gpu_core_cases(void)
     }
     const unsigned words[]={1,5,136,1024};
     for(unsigned n=0;n<sizeof(words)/sizeof(*words);n++){core_setup();core_corrupt_word=words[n];core_failed();CHECK(!core_corrupt_word&&core_memstores==133);}
+    /* Change live conditions just inside/on/outside each kind of NC batch.
+     * Stop at its next guard, before another batch or header publication. */
+    const unsigned ram_stops[]={1,64,65,1024,1025,1088,1089,2048};
+    for(unsigned expire=0;expire<2;expire++)for(unsigned n=0;n<sizeof(ram_stops)/sizeof(*ram_stops);n++){
+        core_setup();core_ram_stop=ram_stops[n];core_batch_expire=expire;core_failed();
+        CHECK(core_ram_reads==((core_ram_stop+63)/64)*64&&core_memstores==(core_ram_stop<=1024?0u:133u));
+        CHECK(ggc_context.zero_checked==(core_ram_stop<=1024?core_ram_reads:1024u));
+        CHECK(ggc_guard_diagnostic.phase==GGC_REGLIST&&ggc_guard_diagnostic.reason==(expire?GCD_PHASE_TIME:GCD_CLOCK));
+    }
+    const unsigned mem_stops[]={1,64,65,128,129,132,133};
+    for(unsigned expire=0;expire<2;expire++)for(unsigned n=0;n<sizeof(mem_stops)/sizeof(*mem_stops);n++){
+        core_setup();core_mem_stop=mem_stops[n];core_batch_expire=expire;core_failed();
+        unsigned expected=core_mem_stop<=64?64u:core_mem_stop<=128?128u:core_mem_stop<=132?132u:133u;
+        CHECK(core_memstores==expected&&core_ram_reads==1024&&ggc_context.zero_checked==1024);
+        CHECK(ggc_guard_diagnostic.phase==GGC_REGLIST&&ggc_guard_diagnostic.reason==(expire?GCD_PHASE_TIME:GCD_CLOCK));
+    }
     core_setup();sqe_fail=4;core_failed();CHECK(core_stores==0&&h.maps==7);
     core_setup();ggb_sqe_loaded=0;core_failed();CHECK(!core_stores&&h.maps==7);
     core_setup();uint32_t stale=1u<<24;memcpy(reset_page+0x2648,&stale,4);core_failed();CHECK(!core_stores&&h.maps==7);

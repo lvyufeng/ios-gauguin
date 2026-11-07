@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source150-v2-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source152-v2-codex')))/'bsd/dev'
 F=R/'tests/fixtures/gpu-core/core_host.c';sources=[D/(n+'.c') for n in ['gauguin_gpu_core','gauguin_gpu_memory','gauguin_gmu_memory']]
 inputs=[F,*sources,*[p.with_suffix('.h') for p in sources],D/'gauguin_gpu_start.h',D/'gauguin_gpu_smmu.h',D/'gauguin_gmu_smmu.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs};env=os.environ.copy();env.update(ASAN_OPTIONS='halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')

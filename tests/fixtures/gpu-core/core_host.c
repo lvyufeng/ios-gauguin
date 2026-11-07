@@ -11,12 +11,15 @@ struct fake {
     unsigned step,fail,started,opened,reads,writes,memreads,memwrites,barriers;
     unsigned trace,nested,parent_bad,dirty,corrupt,drop;
     unsigned first[GGC_DONE],last[GGC_DONE],critical[512],critical_count;
+    unsigned memory_guards[256],memory_guard_count,ram_burst,max_burst;
 };
 static bool tick(struct fake *f,bool critical)
 {++f->step;if(critical){CHECK(f->critical_count<512);f->critical[f->critical_count++]=f->step;}return f->step!=f->fail;}
 static bool guard(void *p,enum ggc_phase phase)
 {
     struct fake *f=p;CHECK(phase>=GGC_BUS&&phase<=GGC_FINAL);
+    if(phase==GGC_REGLIST){CHECK(f->memory_guard_count<256);f->memory_guards[f->memory_guard_count++]=f->step+1;}
+    f->ram_burst=0;
     if(!f->first[phase])f->first[phase]=f->step+1;f->last[phase]=f->step+1;
     if(f->nested){f->nested=0;struct ggc_receipt out,old;memset(&out,0xa5,sizeof(out));old=out;unsigned before=f->step;CHECK(ggc_core_once(&f->context,&f->ops,&f->plan,&f->gpu,&out)==GGC_ALREADY&&before==f->step&&!memcmp(&out,&old,sizeof(out)));}
     return tick(f,false);
@@ -64,6 +67,7 @@ static bool open_registers(void *p)
 static bool read_reglist(void *p,uint32_t off,uint32_t *v)
 {
     struct fake *f=p;CHECK(f->context.phase==GGC_REGLIST&&!(off&3)&&off<4096&&f->opened);
+    CHECK(++f->ram_burst<=GGC_MEMORY_BATCH_WORDS);if(f->ram_burst>f->max_burst)f->max_burst=f->ram_burst;
     bool critical=off==0||off==2048||off==4092;
     if(!tick(f,critical))return false;++f->memreads;*v=f->memory[off/4];return true;
 }
@@ -71,6 +75,7 @@ static bool write_reglist(void *p,uint32_t off,uint32_t v)
 {
     struct fake *f=p;CHECK(f->context.phase==GGC_REGLIST&&!(off&3)&&off<4*GGC_REGLIST_WORDS&&f->memreads==1024);
     CHECK(f->memwrites<132?off==16+4*f->memwrites:off==12&&f->memwrites==132);
+    CHECK(++f->ram_burst<=GGC_MEMORY_BATCH_WORDS);if(f->ram_burst>f->max_burst)f->max_burst=f->ram_burst;
     if(!tick(f,off==16||off==280||off==540||off==12))return false;
     ++f->memwrites;if(f->drop!=f->memwrites)f->memory[off/4]=v;return true;
 }
@@ -96,6 +101,7 @@ static void check_good(struct fake *f,unsigned scenario)
     CHECK(out.configured==1&&out.requests_retained==1&&out.start.request_retained==1&&out.list_length==132&&out.list_offset==72);
     CHECK(out.writes==(scenario==1?80u:146u)&&out.reads==(scenario==1?69u:71u)&&out.hwcg_skipped==(scenario==1));
     CHECK(out.mem_written==133&&out.mem_compared==1024&&f->memreads==2048&&!memcmp(f->memory,f->context.reglist,sizeof(f->context.reglist)));
+    CHECK(f->context.zero_checked==1024&&f->max_burst==64&&GGC_MEMORY_BATCH_WORDS==64);
     for(unsigned i=GGC_REGLIST_WORDS;i<1024;i++)CHECK(!f->memory[i]);
     CHECK(!f->memory[0]&&!f->memory[1]&&!f->memory[2]&&f->memory[3]==0x480084);
     for(unsigned i=4;i<GGC_REGLIST_WORDS;i+=2)CHECK(f->memory[i+1]==f->reg[f->memory[i]]);
@@ -108,6 +114,7 @@ int main(int argc,char **argv)
     for(unsigned s=0;s<4;s++){
         struct fake *f=fresh(s);f->nested=1;check_good(f,s);unsigned points[600],count=0;
         for(unsigned i=0;i<f->critical_count;i++)points[count++]=f->critical[i];
+        for(unsigned i=0;i<f->memory_guard_count;i++)points[count++]=f->memory_guards[i];
         for(unsigned p=GGC_BUS;p<=GGC_FINAL;p++){CHECK(f->first[p]&&f->last[p]);points[count++]=f->first[p];points[count++]=f->last[p];}
         CHECK(count<600);free(f);
         for(unsigned i=0;i<count;i++){

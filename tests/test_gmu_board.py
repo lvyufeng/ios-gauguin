@@ -3,12 +3,13 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source163-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source166-codex')))/'bsd/dev'
 S=D/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 G=R/'tests/fixtures/gmu-board/write_host.c'
-inputs=[S,F,G,D/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
+I=R/'tests/fixtures/gmu-board/ib_host.c'
+inputs=[S,F,G,I,D/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
 inputs += [D/'gauguin_gpu_sqe_asset.h',D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']
-inputs += [D/(n+s) for n in ['gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write'] for s in ['.c','.h']]+[D/'gauguin_gpu_smmu.h']
+inputs += [D/(n+s) for n in ['gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib'] for s in ['.c','.h']]+[D/'gauguin_gpu_smmu.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
 source=re.sub(r'^#include .*\n','',S.read_text(),flags=re.M)
 # Only the physical SMC instruction/register binding is replaced. The real
@@ -33,11 +34,12 @@ assert '__asm__' not in source
 # aligned ordinary host array. Its real copy/zero/verify loops run unchanged.
 fixture=F.read_text();assert fixture.count('@SOURCE@')==1 and fixture.count('@WRITE_FIXTURE@')==1
 fixture=fixture.replace('@WRITE_FIXTURE@',G.read_text())
+assert fixture.count('@IB_FIXTURE@')==1;fixture=fixture.replace('@IB_FIXTURE@',I.read_text())
 env=os.environ.copy();env.update(ASAN_OPTIONS='halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
 with tempfile.TemporaryDirectory(prefix='gmu-board-') as tmp:
     unit=Path(tmp)/'test.c';binary=Path(tmp)/'test';unit.write_text(fixture.replace('@SOURCE@',source))
     if os.environ.get('GMU_BOARD_UNIT_COPY'):
         with Path(os.environ['GMU_BOARD_UNIT_COPY']).open('x') as f:f.write(unit.read_text())
-    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(D),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write']],'-o',str(binary)],env=env,check=True)
+    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(D),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib']],'-o',str(binary)],env=env,check=True)
     subprocess.run([str(binary)],env=env,check=True)
 assert pins=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in pins}

@@ -2,6 +2,77 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual142 native BW and TEST ACK PASS; next register DCVS and GPU execution
+
+THIS goal turn is progress:141 native bandwidth constructor/oracle and142
+combined guarded sender built/validated/published, full LOCAL kernel/image/
+strict readers passed, ONE physical temporary boot accepted native BW and
+TEST after INIT/version/PERF. Whole daily-use/GPU/Metal/RAM/storage/
+peripheral/high-refresh objective remains ACTIVE/incomplete. Legacy startup
+messages complete is not async IRQ/power lifecycle, live DVFS/frequency
+measurement, SQE/CP/ZAP/GPU commands/rendering or Metal qualification.
+
+DSH85853 CLOSED0; actual run_hardware142.py0, observer0, unchanged full
+verifier3: all technical checks PASS, THIS142 reset attribution UNKNOWN.
+No retry/duplicate boot. Start2026-11-07T00:36:15.571061Z,
+finish00:38:27.542862Z; sending19088KB0.446s,boot0.134s,total0.583s,
+TWRP observed131s. This observer interval is not hardware reset-cause proof.
+Only THIS138 has explicit no-manual-reset user confirmation; do not reuse it
+for140/142. No new142 user UI/touch/reset assertion, attribution question not
+needed to proceed from this technically verified stage.
+
+Actual pre-WDT plan MC050000/unit2050000/width16/vcd0,SH050004/unit3650000/
+width32/vcd1,ACV50080/unit1/width0/vcd11,SN1050054/unit530000/width8/vcd3,
+allbank1000, independently matches THIS fresh captured binary CMDDB.
+Actual PERF00302b04/43words ACK0022047e/00300004/0;
+BW0040a003/160words/13levels/CNOC1/DDR3/waits0/0 ACK0032047e/00400003/0;
+TEST00500105/1word ACK0042047e/00500005/0. Type2, bounded4-word announced
+packets,12-bit sequences3/4/5/status0; only3-word prefixes retained, tails/
+other echoed bits unqualified. INIT0002047e/00100000/0 and VERSION0012047e/
+00200001/0/10110000. FreshFWbabeface,phase6,copy8192/8192,writes88,polls8,
+debug0,reset0/GXf8222000/release1/OOB1/HFI0->1. SMMU131mapped/140ATOS,
+BCM/ARC/CX/clock/owner/IRQ/guard and image/banner/trial/source bindings pass.
+No cached refusal/failed comparison. Codex independently rechecked ALL full
+report input hashes/sizes before editing this handoff.
+
+Raw4030lines/452574B research/tmp/p3-gmuf-0142-native-observer-20261107.txt
+SHAb39a5f1b62d059f703905cccb31bc51044f70f57c343ab68acc0bf36c918e495;
+cycle991B SHA6701ff2287aa0afe88ccb97edbc58d6d7060aa61a007b8d1d98963f66053d853.
+Full report28097B SHA
+ebbbae653bf86cc4964a3180735e4869f5b6fdc1486468432c19b330f2b7c02f
+at research/tmp/dsh-0142/hardware-full-verification.json. State
+verified-GMU-firmware-PERF-BW-TEST-HFI-SMMU-clock-CX-controller-reset-attribution-unverified;
+gmu_bw_result verified-native-bandwidth-table-reply, gmu_test_result
+verified-native-register-HFI-TEST-reply. Build142NfYVjn/HEADd7fe2d7/kernel
+51dce3cd...de8f9e4d0, image2be27bc3...66b127eb and all previous images kept.
+Preparation commitsc4bf5e4 and9fb8665. CURRENT native recipe/source142NfYVjn.
+Phone observedTWRP; all owned handles CLOSED. Original7-line mkadt diff
+intact; no flash/format/GPT/destructive action/CI. Source publication264381b
+already remote verified; physical handoff publication next.
+
+NEXT143: preserve142 as reproducible native legacy startup baseline. Native
+kgsl_gmu.c gmu_start calls hfi_start then default GPU power-level selection;
+HFI_USE_REG uses gmu_dcvs_set -> GMU_DCVS_NOHFI -> a6xx_gmu_dcvs_nohfi,
+NOT more HFI commands after TEST. Bind/recheck exact native cached sources
+before implementation. Read-only cached-source findings (not runtime proof):
+FREQ_VOTE uses CLKSET_OPTION_ATLEAST3, DCVS_ACK_NONBLOCK0. A619 oob_dcvs7
+means HOST2GMU setbit23, GMU2HOST ack/clearbit31, then HOST2GMU clearbit31.
+Native register words1cbfc..1cbff are TCM mailbox offsets6ff0/6ff4/6ff8/6ffc
+within retained03d6c000 window, NOT CSR C(word)-1f000 arithmetic. Do not map
+new aliases or write into a negative/wrapped CSR offset. Native ascending
+PERF off0+six rows gives253MHz index1 (Linux descending pwrlevel5); native
+BW index1 is400000KBps. A conservative first request could encode30000001
+and00001001 after verifying exact active DT bus indices. This is a proposed
+fixed bring-up policy, not a measured rate or thermal/daily DVFS policy.
+Audit/compile exact native register request/OOB helper against synthetic IO,
+then implement one guarded optional request after accepted TEST on the SAME
+transaction, final owner/clock/SMMU/IRQ/WDT guards retained. No retries/PET/
+rearm/reset/newmapping or extra HFI send. Actual return0/ACK still does not
+prove measured frequency or GPU command execution. Follow with SQE/CP/secure
+ZAP/native GPU context and command-memory planning, bounded execution/readback
+before userspace graphics/Metal bridge. Keep Codex critical drivers/review/
+Git and DSH exact reviewed compile/test/build/boot division.
+
 ### 2026-11-07 —142 image and strict BW/TEST readers qualified; ONE phone trial next
 
 DSH66005 CLOSED0; actual package0/independent image-review0, normal passed

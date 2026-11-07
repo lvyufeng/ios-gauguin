@@ -3,6 +3,103 @@
 ## Agent handoff / active work
 
 
+### 2026-11-07 —158 fixed native unsecured append ENGINE qualified; live159 binding NEXT
+
+Previous turn PROGRESS: physical157 sameboot firstCP+signedZAP qualified;
+its final handoff committed privatec230c5b35e25527e6ed52564aa7c9c09eaa96c4f,
+published411595515fc961d588f7c4aa12e1280a02b73195 (same treef97c45667f23315ed48ee3bb7f44a7f000ffa1e5).
+Current turn implements necessary pure158 command engine with actual ARM64TU,
+native38body/5trace and full76host proof. No158 full kernel/image/device IO.
+Phone still TWRP157, current full native/generated recipe STILL157gauguin.wTGOGo/
+source157-codex. The broad daily-use GPU/Metal/RAM/UFS/peripherals/highrefresh
+objective is ACTIVE and unfinished; do not call a model/packet milestone done.
+
+Codex authored gauguin_gpu_unsecure.C/H, patch0158 (152ndactive), bsd/conf/files
+member. The new engine seals provider's private authority, checks WPTR/shadow15,
+idle/errors, original15word prefix and5 unused slots, writes/compares ONLY5words
+at ringDW15..19, native keepalive/fenced WPTR20/counter/idle wait, then requires
+device shadow20/AObusybit23clear/errors0. Words70e60001,0,70620002,fc010000,0.
+No ring/SQE reinit, CPU shadow store, secure-buffer access, new mapping, SMC,
+HOST release, cleanup/retry/TRUST_CONTROL0 fallback. Two writable regs only
+WPTR807 and keepalive1f8c3. Every memory/MMIO/barrier/delay callback guarded;
+failed attempt quarantines BEFORE returning, output unchanged, once consumed.
+Pure API's seal(pa) is comparison-only; actual sameboot private owner/ZAP/CP/
+core/FW authorization and bounded live provider remain159 work, NOT achieved158.
+
+DSH15813 CLOSED wrapper0 but actual focus158.py1: host actual0,468cases/
+9366753assertions/five success scenarios; native1 missing gauguin_gpu_cp.h
+because explicit baseline bsd/dev include path omitted. Candidate C/H unchanged,
+original failedreport/compilelog preserved (no object). Separate native158_v2.py
+adds ONLY qualified157 dependency include, DSH64160 CLOSED0/native0. No host
+rerun for this include correction. Actual27704B ARM64object SHA
+85b01be12e125bce1a4551ad6725f0f34ca1663c182312a84014003d5d3c1cbc,
+research/tmp/gauguin-nvt-p1/gpu158-unsecure-v2/run-gmnpygjw/compile.json.
+PureC SHAe87b4c6a72f1139d6ee1377713f5194006ab5c07dbb6a9e5c94227bbf127e2c8;
+Hf23b45ad575af93cecd335dc207c9fef9e3fa6c70679de3f5aac39469fdc7117.
+Model covers every157/223callback boundary in normal/retry paths, all5store
+and26readback/capture corruptions, private seal refusal, everydecodedfaultbit,
+fence200/idle200000 exhaustion, nested entry/once/arg failure, unchanged other
+ring/scratch bytes. No signature or hardware-mode proof from those cases.
+
+DSH45833 CLOSED0/native_contract158.py0:38 unchanged original Lineage19b63c8
+functions incl actual cp_secure_mode/adreno_switch_to_unsecure_mode/
+adreno_set_unsecured_mode/full submit-spin/allocspace/fence/idle chain.
+All34previous native function SHA identical. Nativebootstrap stops at ZAP
+seam, fixture explicitly marks zap_loaded1 (MODEL, not new authentication),
+then executes actual nextnative functions.5 successful traces byte-equal to
+port (16/30/419/815/17lines): normal, one droppedwrite plus delayedshadow/busy,
+100/199 droppedwrites, counteroverflow. Separate failing native fence helper
+200reads/201writes checked. NativeRB4/preemptioncapabletrue/runtimefalse/
+noAPRIV unchanged. Native report7879B SHA
+c69458216fb655a552389c9994a94461c5eada406196e2dc01aff0addec0e0b6,23pins;
+source fixture/primary native files/objects/traces stay ignored, never publish.
+
+DSH53378/integrate158.py actual0: fresh pristine152patch replay0, all76actual
+host files once0, exact3staged delta vs157: bsd/conf/files,newunsecure.C/H.
+source158-codex5302files SHA
+cc401fa86864301ba564df44a7b89025f2edc1e8fc9d99b76e71f4fe132eadcc.
+Old board/coordinator/owner and pure CP/ZAP byte-identical to157. Source157and
+source158 stable throughout; integration snapshot preserves all303inputs.
+Integration report36559B SHAecdb446b6dc1e92bed0b4dc9873b5b4a88ed88e52918aebfc2714a396131d864.
+Codex independent-review.json rehashed6+7+23+303reportpins, actualobject/38bodies/
+5tracepairs/source5302 and exact76 executed filenames. No repeated full test
+necessary until159 changes. Original mkadt7line diff a74a0418...454860 intact.
+Commit/publish completed engine/tests/docs as sanitized same-tree source only.
+
+NEXT159 CONCRETE: keep158 engine C/H bytes fixed. Extend actual owner with a
+read-only authenticated(pa) predicate: PSZ_AUTH_DONE plus comparison against
+private pst_ready plus psz_geometry ONLY, no originalMDT hash/securebufferread.
+Append actual board GGUadapter using private gpzb_context/gpzb_work READY/DONE/
+complete/sealed/full64INIT-MEM-AUTH0/copy1984/actualowner plus gpzb_parents to
+seal authority; no caller receipt/pointer/PA setter. Separate new postAUTH
+live guard reuses read-only ggb_context_valid/gfw_faults(false)/ggq_nc_valid
+and retained Device mapping checks, actualclock/IRQ/reset/routes/errors,
+CPU/WDT, monotonic4s total/2s perphase incl native2sidle. Entry>=8sWDT,
+later>=3s. Do NOT call gmb_guard/gfw_guard/ggq_board_guard/ggc_board_guard
+(old validators rehash MDT) or gpzb_guard (sealed loader no longerRUNNING,
+LATE forbidsGPUaccess). GGUadapter alone establishes new postAUTH GPU/RB access.
+Do not require shadow15 in WAIT after submission: device must progress to20.
+Restrictmemory writeCOMMANDS offsets60..76 only, readCAPTUREring0..76/scratch0,
+readCOMMANDSring60..76, WAITscratch0; readonlyprefix remains15nativewords.
+Failure quarantine new/GPZ/CP/core/GGX/FW/board/lease before cached logs, no
+rollback keepaliveclear or hardware accesses after refusal.
+
+Proposed explicit159mode contract sweetgpuzap=0/1/2:0off,1exact157signed-only,
+2signed+nativeunsecure append. Mode2 SAME606B command, uniquegusr-0159-a1;
+no extra token/truncation. Implement mode parser in board/owner/coordinator,
+keep all other on/off requirements, do not silently accept othernonzero modes.
+Mode1oldoutput/dispatch preserved; mode2ZAPterminal says beforeunsecure,
+coordinator only calls GGU after THIS private signedload success. Update exact
+oldmode/invalidmode and owner/board/coordinator fixtures, include PROT_NONE
+securebuffer during new authorized stage, no forged private receipts, all
+phase/time/fault/mapping/refusal boundaries. Compile3changedTUs with CURRENT
+157recipe, fresh153patch/source159, fullhost, then one integrated159fullkernel/
+fiveassetpack/strict runtimefixture/temporaryboot. No unchanged158 physicalboot.
+No159 C/kernel/trial yet; resume from this required live binding. No reset
+confirmation; only request manual recovery if genuinely stuck. All ownedDSH
+jobs terminal; no live work to restart. Goal remains ACTIVE/full.
+
+
 ### 2026-11-07 —157 SAME-BOOT signed ZAP HARDWARE QUALIFIED; native unsecured transition NEXT
 
 PROGRESS: first physical combined CP_INIT -> PAS13 INIT/MEM -> exact1984b02

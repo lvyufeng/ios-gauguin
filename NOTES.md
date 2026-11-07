@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —actual145 refused GPU inputs before any new SMMU write/SMC; diagnose exact argument next
+
+THIS goal turn is progress: strict145 reader/fixtures validated and ONE actual
+temporary145 boot completed. DSH81970 CLOSED0, actual run_hardware145.py2,
+observer0/full verifier2. Source/image not relaxed or boot retried. Start
+2026-11-07T02:39:38.670879Z,finish02:41:50.430124Z; send19104KB0.442s,
+boot0.135s,total0.579s; observer saw TWRP131s. THIS145 reset attribution
+UNKNOWN; no prior117/138 confirmation reused and no attribution question is
+needed to diagnose this rejected stage. Phone last observedTWRP in145.
+
+Actual log reaches existing GMU SMMU complete131/140. Then ggb_run reaches
+ggs_configure_once, which returns GSM_ARGUMENT1 before claiming context:
+GPU partial phase0/rc1, slot/bank/asid0, GPU/GMU pages0/0,ATOS0,writes0,polls0.
+CP aperture partial rc0 is a zero-initialized NOT-ATTEMPTED field: returned0,
+calls0/fresh0/continuations0. It is NOT a secure return0. No new GPU SMMU
+write/ATOS or SMC, no GMU FW release or HFI/DCVS this trial. Board stopped
+GMB_GPU12; shared lease quarantined and routine observer recovered logs.
+Full strict reader correctly rejects; every full145 hardware result remains
+not verified. Existing143 firmware/DCVS physical baseline remains preserved.
+No145 GPU execution/Metal claim. Source145/qualified buildNtf1zL/imageb080...
+remain unchanged. Codex independently rehashed ALL full-reader input records.
+
+NEXT146: determine EXACT argument predicate/actual received field causing
+the early rejection. Host model and native compile passed but are insufficient
+to explain actual pointer/receipt geometry. Add pure cached argument reason
+diagnostics and raw bounded baseline fields, without weakening any predicate,
+changing maps/writes/retries or reaching SCM after refusal. Preserve145 raw
+failure/full report and all baselines. Validate unchanged engine I/O for old
+inputs and meaningful diagnostic cases, native TU then one complete local
+build/image/strict reader and ONE new trial if needed. Do not continue to
+GPU OOB/core/SQE before real default-context/aperture success. Whole goal
+ACTIVE/incomplete. Current full native recipe145Ntf1zL. All DSH tasks closed;
+original mkadt diff intact, no CI/flash/format/GPT/destructive action.
+
 ### 2026-11-07 —145 strict GPU runtime reader validated; ONE temporary boot next
 
 THIS goal turn extends143 strict runtime binding/clock/FW/common readers with

@@ -162,3 +162,4 @@
 0164-gauguin-linear-whole-gpu-table-check.patch
 0165-gauguin-batch-cached-gpu-success-records.patch
 0166-gauguin-fixed-native-indirect-buffer.patch
+0167-gauguin-native-ib-eop-completion.patch

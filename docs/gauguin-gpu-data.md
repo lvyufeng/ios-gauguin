@@ -99,3 +99,36 @@ framebuffer swaps provide no human observation of touch, smoothness or refresh
 rate. This result establishes fixed reduced-privilege IB command fetching and
 indirect ordinary memory writes. Shader execution, EOP completion fences,
 rendering, general scheduling, Metal and iOS acceleration remain unqualified.
+
+## No-IRQ completion event (167 source)
+
+Mode5 extends the fixed indirect command test with the native
+CP_EVENT_WRITE/CACHE_FLUSH_TS completion protocol. The event follows the IB
+and writes a distinct marker to ordinary DATA+4; WHERE_AM_I follows it. The
+direct append is12 words, ending at device shadow32. The eight-word IB writes
+`0x47455032`/`0x47455033` to the page edges, while the event writes`0x47455031`
+to the completion word. Existing mappings and mode3/mode4 providers are retained.
+The exact cold mode is frozen before DATA19 is created.
+
+Ring progress and an idle GPU cannot substitute for observing the completion
+word. The new engine separately polls its NC CPU alias, with at most1024
+reads and the unchanged2-second phase/4-second total guards, then compares
+all1024 data words,32 submitted ring words and eight indirect words. Only the
+IB and direct command slots admit CPU stores. Failure quarantines shared
+ownership before diagnostics. The event requests no interrupt and makes no
+protected-mode override.
+
+The event value4 is defined in the pinned kernel's
+[a3xx_reg.h](https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/19b63c8192b1c9b7c4d931d7d3be92024bc2d778/drivers/gpu/msm/a3xx_reg.h),
+which its A6xx ring submission code includes. The host oracle executes43
+unchanged native functions plus the exact EOP statement block; destination
+macros and deferred event publication are typed model seams. Only the requested
+NULL-context/noninternal/no-IRQ branch is qualified. An extra test of the
+native IRQ branch exposed its signed`1 << 31` under UBSan; that failed result
+is retained and that branch remains unqualified. Native bytes and sanitizer
+settings were preserved.
+
+The167 source has passed all81 host test files,495 new actual board cases,
+five exact native packet/fence/idle/event-read traces and four ARM64 TU builds.
+These establish source/model behavior. A complete qualified kernel, separate
+physical event-marker evidence and shader/rendering work remain necessary.

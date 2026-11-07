@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source166-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source167-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
@@ -42,7 +42,7 @@ def main(temporary):
              bus / 'gauguin_bus_probe.h', shared / 'gauguin_cx_rail.h', power / 'gauguin_cx_power.h', power / 'gauguin_gmu_clock.h',
              *(header_dev / name for name in ('gauguin_pas_stage.h', 'gauguin_bcm_transport.h',
                  'gauguin_wdt_lease.h', 'gauguin_bcm_plan.h'))]
-    files += [dev/n for n in ['gauguin_gpu_unsecure.h','gauguin_gpu_data.h','gauguin_gpu_write.h','gauguin_gpu_ib.h']]
+    files += [dev/n for n in ['gauguin_gpu_unsecure.h','gauguin_gpu_data.h','gauguin_gpu_write.h','gauguin_gpu_ib.h','gauguin_gpu_eop.h']]
     files += [dev/name for name in ('gauguin_gmu_board.h','gauguin_gmu_asset.h',
         'gauguin_gmu_firmware.h','gauguin_gmu_hfi.h','gauguin_gmu_memory.h',
         'gauguin_gmu_smmu.h','gauguin_gpu_smmu.h','gauguin_gpu_memory.h','gauguin_gpu_aperture.h','gauguin_gpu_start.h','gauguin_gpu_core.h','gauguin_gpu_cp.h','gauguin_gpu_zap.h','gauguin_gpu_zap_asset.h','cmd_db_snapshot.h')]

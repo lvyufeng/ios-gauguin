@@ -2,6 +2,169 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —167 PHYSICAL native IB + noIRQ EOP VERIFIED; minimal shader NEXT
+
+This continuation PROGRESS: ONE fullLOCAL8job kernel/strict qualifier/image/
+runtime/ONE actual fastboot boot/strict reader and root independent physical
+review ALLaccepted. Fullgoal ACTIVE/unlimited, notcomplete. Phone LASTTWRP167;
+ALLDSH jobs terminal0. Useraway, ALLresetsautomatic --manual-reset no; NEVER
+ask attribution/UI, prompt only actually stuck needingmanualrecovery. Original
+mkadt7line diff remains intact. No flash/format/GPT; routine13Bmisc recovery
+latch/readback only. Don't re-boot accepted167 merely to reconfirm.
+
+CURRENT native/generated recipe167 gauguin.NQU6PL/source167-codex, manifest
+7b32e93094505e6bcc81d7ddb7c6120aca68efebeff5fb2e965bfc8a4613d482.
+Never use166/165/164/159 TU helpers with current shared build files. Actual
+artifact SOURCE_HEAD stays03bebd82a068396c72413955add3b0f6c9380b23/publicb230c6304b79c7f87c2a5ff5419f00ec26e13e94;
+later NOTES/docs commits do not replace frozen expected-head. Source5310files
+cf9257f53a3b4a2cd8df90dc92b2cf60cf68d0f75c3bad02546569f00e1f5893,
+161active patches. Kernel17050872B SHA78c93f9b59c9058a172b545cada50b7fee8f8977c16aba6baf45c9e9acc67d45;
+banner SatNov7 23:37:05CST2026/xnu-2458ef504d2040feb2a436de98005520.
+QualifierSHAe9989d39edda261fe46ad999f9914da3204f08ada5e90f4faece0c79f962475d,
+archiveSHAe1da4b7941dacdfaf97e0e65458fc9481a12a8edbc4551beea0d4fa845b4f038.
+Source-only all8EOP flags true, ALLhardwareflags remainfalse; immutable.
+
+DSH69426 CLOSED0/dispatch-boot inner0: ONE temporary boot
+2026-11-07T15:45:12.697769Z->15:47:24.769310Z, autoTWRP131s, observer0.
+All7root/launchd/SpringBoard/backboardd markers,4FBswaps/58GPUlookups.
+NOhumanUI/touch/smoothness/highrefresh observation. DSH88635 CLOSED0 /
+dispatch-read inner0/read_hardware167.py physical strict verifier0 FIRST
+attempt. No parser/raw repair/filter/dedup/gate waiver. Production parser
+verify_gmuf167.py unchanged since standalone/package/runtime acceptance.
+
+Actual chain: DATA19/131GMU/171ATOS/full16KiB canonicalPTE+8CPUsoleNC guarded;
+CP15,signed full64INIT/MEM/AUTH0/code1984/1984owner8,GGU5->device20.
+New direct12words20..31 names native fixedIB8 (existingRO/NX ring+4000,
+IOVAfc00c000, IB_PRIV0), then noIRQ CP_EVENT_WRITE0x46/CACHE_FLUSH_TS4 to
+DATA+4, thenWHERE->device32. Indirect twoMEM_WRITE ->normal DATAedges.
+GGE DONE8/rc0/sealed1/complete1/retained1; commands12/12,prefix20,clean12;
+IBclean/written/checked/after8/8/8/8. MMIOreads13/writes3, fence1/status0,
+idle1/AO71000000/bit23clear,faults0,FINALguard7/reason0.
+Separate actual CPU EOP poll1/value47455031/complete1, noIRQ requested.
+DATA1024pre/1024post,2edges+1EOP+1021unchanged,32ring comparisons.
+Actual cached samplemask3f before0/0/0 after47455032/47455033/47455031.
+No production CPU DATA stores after cold. This proves bounded fixed IB
+memory execution AND actual noIRQ EOP timestamp observation, NOT shader/
+rendering/Metal/general scheduling/UIperformance/highrefresh. Stage-local
+signed_zap.unsecured_mode_qualifiedfalse intentional; separate GGU/GGE true.
+
+Fullreport59278B SHA4b377a953fbff3d468acabb9fe1fa13a8204395c7a86e4ae422bc49c984e1397,
+wrapperSHA d7fb4ce25d59bec6f709ae1ed42d967a5265a96e6ade2621a5b8fa54fcfaa397,
+trialSHA6e47dae27224abb3c5ddfec27e858a2b47463a3b9b443af0b1b0e4760230dec8.
+Rawtext469029B SHA59a61815aa344b6492b7e66371288fe2e6f3df67a6c90039fbf29e97d5bf96c0,
+binary4198400B SHA618a20f1e98f3b0860ab9c1715675db8977d2fd4681c58d941d7b99d97e9c198,
+cycle1057B SHAd3eeb097e07fe4e8d0d1985efd4cafd9387cdb717695f0543929864c1b8e7267.
+Root rehashed ALL19 fullinputrecords(bytes+hash)+ALL15wrapperpins, independently
+binarydecoded/rawexact,0framing recoveries, full5310filesource/cmds/actual
+values. independent_physical_review167.py/result independent-hardware-review.json
+SHA32cf0d68c5b12e1033da6b8b6a7a7d1c39b7662e3f37f949171ad15dd85284ce.
+19.2MHz stageentry13.1271816s/finish16.5531138s after WDTarm,
+guardedEOPspan3.4259322s/4s margin0.5740681s. Do NOT append another8sentry
+stage afterGGE: entry16.55s too late under same23s bite. No WDT rearm/PET or
+nominalbudget relaxation. These diagnostic CPU spans are NOT GPUbenchmark.
+
+Image19742720B SHA29cadf1bea0ec6c746a3f37597782d91e4e177150bf36f9a856503c188f0bd09,
+payloada881b22939c164bcd0ea4abc881b1889c68b2f1d4341270e484abf29fbaf14a7.
+Exact606B mode5/trialgwrt-0167-a1; omitteddefaultINIT0/pasmem0/fiveassets
+unchanged. Runtime4gates0 FIRSTpass; reportSHA
+ed38a53aa95da9c1d0278a4533849f9fe0a3965c9eacdbd3558dfdac0e0b97b6,
+28pins; standalone39/881, fullEOP44/316, metadata1/18 allSYNTHETIC.
+Frozen native43bodies+EOPblock/five exact traces accepted; extra nativeIRQ
+branch failed signed1<<31UBSan report remains preserved/unqualified. Requested
+NULL/noninternal/noIRQ branch only. No nativecode or sanitizer weakened.
+
+NEXT: pin/read primary A6xx shader/compute submission and ISA/assembler source;
+choose smallest actual shader writes deterministic normal-page result then
+native EOP CPUreadback. 168NOTauthored, no nextkernel/devicejob started.
+Preserve167 and modes3/4 byte-exact; don't extend GGE late under currentWDT.
+Select exclusive afterGGU path/new coldmode only after native packet/metadata/
+program validation and actual mapping/ownership policy review. Require exact
+native oracle, realengine/board failstop models and actualARM64 TUs against
+CURRENT167manifest, official freshpatchreplay/full host then ONEqualified
+fullLOCAL/image/runtime/temporaryboot. Codex criticaldriver/acceptance/NOTES/
+Git, DSH executeonly viaatomiconce with no edits/Git mutation; do not repeat
+claimedjobs. Then minimal rendering, iOSIOAccel/Metal, sustained scheduling/
+power, remainingRAM/UFS/peripherals and90/120Hz with actual acceptance.
+Do not infer hardware progress from CPUfixtures/service markers. Publish
+this completed physical milestone via same-tree commit with sole public
+parentb230c630..., recordIDs in research/tmp/dsh-0167/public-physical-handoff.json.
+
+### 2026-11-07 —167 image/runtime ACCEPTED; ONE physical noIRQ EOP boot NEXT
+
+CURRENT recipe167 gauguin.NQU6PL/source167-codex; full build/qualifier0 FIRST
+attempts. Frozen SOURCE_HEAD03bebd82a068396c72413955add3b0f6c9380b23/publicb230c6304b79c7f87c2a5ff5419f00ec26e13e94,
+NOT later notes commits. DSH8780 image-preflight0,82319 package+independent
+image review0,71005 fullruntime0; all actual dispatch files terminal inner0.
+StandaloneDSH90973 parser39/8810; DSH79942 metadata1valid/18negative0.
+All four new actual-package runtime gates passed FIRST execution: console,
+clock,FW132/584, fullcommon45/678,signed20/117,GGU21/147+5conflictingduplicate
+modes (old print says3),EOP44/316. Native IRQbranch failed/unqualified artifact
+remains preserved; this trial noIRQ only. No parser/raw filters or waivers.
+
+Image19742720B SHA29cadf1bea0ec6c746a3f37597782d91e4e177150bf36f9a856503c188f0bd09,
+shim/out/shim-p3-gmuf-0167-native-20261107.img. PayloadSHA
+a881b22939c164bcd0ea4abc881b1889c68b2f1d4341270e484abf29fbaf14a7.
+Exact606B, mode5/trialgwrt-0167-a1 only delta from166, samefiveassets/default
+absentINIT0/pasmem0. Root independent-image-review.json independently
+reparsed realpayload, checked all package/parent pins and source/helper
+identities; independent-runtime-boot-review.json rehashed allruntime pins,
+18newEOP metadata negatives and actual boot/read helpers. Original observer
+suffix exact except mandatory fastboot failure exit5. Source qualifier all
+hardwareflags stayfalse. No167device IO/YET; phone lastTWRP166.
+
+NEXT DSH python3 research/tmp/dsh-0167/dispatch_once167.py boot ONE time,
+then read using same dispatcher with read_hardware167.py --manual-reset no.
+boot167.py/read_hardware167.py now AUTHORED/independently syntax/pin reviewed,
+fixed actual imageSHA/size and source03bebd8. Routine13Bmisc recovery latch
+/readback and temporary fastboot boot only; no flashing/format/GPT. Observe
+existing process, never restart claimed/live stage. Prompt user only if
+actually stuck needing manual recovery; ALL resets automatic perstanding
+policy. Root independently inspect strict physical report+all inputrecords,
+exactbinarydecode/freshbanner/trial/timestamp/mask63/fullpage/IB8/ring32 and
+timings before claiming bounded EOP execution. No humanUI/touch/refresh or
+shader/rendering/Metal/performance proof from markers. Fullgoal ACTIVE.
+Original mkadt7line diff untouched. Preserve every raw/failed artifact.
+
+### 2026-11-07 —167 full LOCAL kernel/strict qualification ACCEPTED; image/runtime NEXT
+
+167 ONE complete local8job build0 and strict qualifier0 FIRST attempts,
+DSH29149 finishing/dispatch-build.json terminal inner0. CURRENT native/generated
+recipe NOW167 gauguin.NQU6PL/source167-codex, manifest
+7b32e93094505e6bcc81d7ddb7c6120aca68efebeff5fb2e965bfc8a4613d482.
+Never use166/165/164/159 TU helpers against the current shared build files.
+Source5310files cf9257f53a3b4a2cd8df90dc92b2cf60cf68d0f75c3bad02546569f00e1f5893.
+Source private03bebd82a068396c72413955add3b0f6c9380b23,
+publicb230c6304b79c7f87c2a5ff5419f00ec26e13e94 (sole parent958cc85...),
+same treeaf91ffe40f9235964d4b48720a752ef1fb409097. All167artifact expected-head
+MUST remain03bebd8 even after this notes-only commit.
+Kernel17050872B SHA78c93f9b59c9058a172b545cada50b7fee8f8977c16aba6baf45c9e9acc67d45,
+banner SatNov7 23:37:05CST2026 / xnu-2458ef504d2040feb2a436de98005520.
+Qualification research/tmp/p3-native-0167-qualification-20261107.json;
+execution native167-execution-result.json, runNQU6PL. All8newEOP source flags
+true; ALL hardware flags remainfalse. Root independently rehashed actual
+kernel/manifest/archive/fullsource and frozen preflight/parser pins;
+independent-build-review.json. NO167image or device IO yet; phone STILLTWRP166.
+
+DSH90973 CLOSED0/dispatch-v3-eop-parser inner0: actual new EOP record parser
+39valid/881negative SYNTHETIC cases0, exact31rows/12directwords/8IB/1024EOP
+pollbound/data1024+1024/2edges+1timestamp+1021middle/samplemask63. Only actual
+markerGEP1 atDATA+4 qualifiesEOP, idle/deviceRPTR32 alone rejected; noIRQ.
+Allsource/model/native inputs unchanged. Root authored NEW ignored167
+image/runtime helpers using explicit accepted166final mapping; syntax audited,
+mode5 current negative mutation needles and duplicate5 deliberately updated.
+Helpers NOT image-preflight/executed yet; author_image_runtime167.py is a
+completed generator, DO NOT rerun. Root corrected discovered unexecuted
+filename/sourcecount/currentmode references before first execution.
+
+NEXT DSH atomic dispatch_once167.py image-preflight ->package ->runtime;
+independently rehash actual images and runtime inputs. Boot/read167helpers
+NOT yet authored; derive accepted166v2 with exact new imageSHA and sourceHEAD,
+unchanged observer suffix, --manual-reset no. ONE temporary fastboot boot
+only after allgates, then strict physical EOP proof. Do not repeat claimed
+jobs or rewrite raw/failed artifacts. Original mkadt7line diff unchanged.
+User away/allresetsautomatic, no attribution/UIquestions. No flash/format/GPT.
+Fullgoal ACTIVE/unlimited; shaders/rendering/Metal/highrefresh/dailyuse notdone.
+
 ### 2026-11-07 —167 source/native/full81/preflight ACCEPTED; full LOCAL build NEXT
 
 Previous166 physical IB preserved; full goal ACTIVE/unlimited. Phone STILL

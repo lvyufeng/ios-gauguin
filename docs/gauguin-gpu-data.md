@@ -96,11 +96,11 @@ the physical execution evidence is a separate immutable report.
 The guarded IB stage took3.3753 seconds, including full CPU guards and page
 comparisons. It is not a throughput or UI benchmark. Service logs and five
 framebuffer swaps provide no human observation of touch, smoothness or refresh
-rate. This result establishes fixed reduced-privilege IB command fetching and
-indirect ordinary memory writes. Shader execution, EOP completion fences,
-rendering, general scheduling, Metal and iOS acceleration remain unqualified.
+rate. This166 result establishes fixed reduced-privilege IB command fetching and
+indirect ordinary memory writes. It provides no shader, EOP, rendering, general
+scheduling, Metal or iOS acceleration proof; the separate167 result follows.
 
-## No-IRQ completion event (167 source)
+## No-IRQ completion event (167 verified)
 
 Mode5 extends the fixed indirect command test with the native
 CP_EVENT_WRITE/CACHE_FLUSH_TS completion protocol. The event follows the IB
@@ -130,5 +130,41 @@ settings were preserved.
 
 The167 source has passed all81 host test files,495 new actual board cases,
 five exact native packet/fence/idle/event-read traces and four ARM64 TU builds.
-These establish source/model behavior. A complete qualified kernel, separate
-physical event-marker evidence and shader/rendering work remain necessary.
+These establish source/model behavior. The complete local kernel and the
+separate physical trial described below now provide bounded event-marker
+evidence; shader/rendering work remains necessary.
+
+
+The167 local kernel `gauguin.NQU6PL` passed its first complete build and strict
+qualification, then one temporary physical boot with token `gwrt-0167-a1`.
+After signed loading and native shadow20, the GPU fetched all eight indirect
+words, executed both ordinary-page writes and the no-IRQ event, then reached
+shadow32 with idle status and zero decoded faults. The CPU's separate EOP
+poll succeeded on its first read with `0x47455031` at IOVA `0xfc018004`.
+
+All1024 words were zero before submission. Afterward the first/last words
+were `0x47455032`/`0x47455033`, the EOP word held `0x47455031`, and all1021
+other words remained zero. All32 submitted ring words and eight IB words
+matched. Actual cached sample mask `0x3f` covered all three before/after
+values. The production callbacks permit no CPU DATA stores. The unchanged
+DATA19/171 ATOS, complete page-table, sole NC-alias, monotonic deadline and
+fault checks remained active; the final guard reason was zero.
+
+The phone automatically returned to TWRP after131 seconds. The strict physical
+reader returned0, and an independent review rehashed all19 complete report
+inputs and15 wrapper inputs, checked actual commands/data/timestamp and
+independently decoded the immutable binary log. There were zero console
+framing recoveries. The physical report is
+`research/tmp/dsh-0167/hardware-full-verification.json`, SHA256
+`4b377a953fbff3d468acabb9fe1fa13a8204395c7a86e4ae422bc49c984e1397`.
+The source-only kernel qualification keeps every hardware flag false; this
+separate physical report establishes the bounded event execution result.
+
+The guarded stage took3.4259 seconds, leaving0.5741 seconds of its4-second
+budget. This includes CPU guards and full comparisons and is not a GPU
+throughput or UI benchmark. The test establishes fixed native IB memory
+execution plus actual no-IRQ CACHE_FLUSH_TS completion-word observation.
+It does not establish shader execution, rendering, general scheduling, Metal,
+high refresh or human-observed UI performance. The next step is to bind and
+execute a minimal shader workload from a primary A6xx implementation before
+working on rendering and the iOS acceleration interface.

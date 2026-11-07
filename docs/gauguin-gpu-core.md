@@ -1,9 +1,10 @@
 # A619 core configuration contract
 
 The pure `ggc` engine in patch0150 prepares native core configuration and the
-powerup register list. Board/coordinator activation is subsequent work; merely
-linking this module starts no hardware operation. The separate149 SQE cold-stage
-and148 physical MMU/OOB baseline remain prerequisites for that integration.
+powerup register list. Patch0151 supplies its live board adapter and coordinator
+entry behind the existing default-off `sweetgpustart=1` flag. The coherent149
+SQE cold-stage and148 physical MMU/OOB baseline remain prerequisites. Linking
+the module alone starts no hardware operation.
 
 Target policy is pinned to native commit
 `19b63c8192b1c9b7c4d931d7d3be92024bc2d778` and the retained actual FDT:
@@ -38,7 +39,7 @@ match. This stages data; it does not start CP execution.
 Native register arguments are DWORD offsets. The exact union of required16KiB
 physical-page offsets from03d00000 is:
 `0,c000,20000,24000,28000,2c000,3c000,68000,7c000,8c000`.
-Board integration must reuse existing core/MISC/CSR/AO aliases and map only the
+The board adapter reuses existing core/MISC/CSR/AO aliases and maps only the
 six missing pages after OOB. These pages do not overlap the SMMU03d40000+10000
 or TCM03d6c000+c000 aliases. The typed whitelist rejects CP doorbells/SQE start,
 unowned GMU HOST controls and arbitrary register addresses.
@@ -49,6 +50,26 @@ first store. The pure engine is one-shot, preserves public output on failure and
 never retries or performs rollback. Board failures must quarantine shared owners
 before logging private cached diagnostics. Guards cannot cancel a hung MMIO.
 
+The151 adapter checks13 seconds of watchdog budget at entry, sets an8-second
+total CPU deadline and a4-second deadline per phase, and retains the existing
+GGX4-second total/2-second TLB/100ms OOB bounds. It authenticates the same SQE
+view again before the first store. Each guard verifies the accepted firmware
+transactions, clocks/IRQs/reset, GPU/GMU contexts and routes, owner and complete
+16KiB NC register-list page attributes/physical endpoints. Before GBIF, the old
+GGX stage must be idle with no stale GPU ACK. After its callback, it must be
+ready with the same bank/ASID/root, cleared ACK, live GX and zero CONTEXTIDR.
+This uses a separate live guard; the old GGX guard requires RUNNING and is not
+reused after its success.
+
+Mapping verifies Device attributes, alignment, bounds and physical endpoints;
+partial diagnostics count mapping attempts, including failed returns. Every
+alias stays retained. Register callbacks translate DWORD offsets exactly once,
+use the whitelist and existing load/store/barrier helpers, and restrict the
+register-list alias to4KiB. Started failures quarantine the core, GGX, firmware,
+board and shared lease before cached diagnostics. A child failure that already
+quarantined the lease does not trigger a duplicate quarantine. Successful logs
+include all66 cached register/value pairs after final guards.
+
 Host validation uses exact unmodified native function bodies and actual target
 tables, with typed OS/MMIO seams and the explicit runtime-preemption-disabled
 scope. Four initial-register patterns exercise HWCG skip, both RMW paths and
@@ -57,6 +78,14 @@ register operations and restore-list bytes must agree. Host tests also cover
 MMIO/map/parent/barrier/memory/phase failures and output/once-state invariants.
 The native reference uses its pinned KBUILD base warnings plus Werror; the new
 driver stays under Wall/Wextra/Werror. These proofs do not qualify hardware.
+
+The151 integration additionally passes160 new actual board/core/MMU cases,
+retains the earlier board cases, checks406 coordinator cases and passes all69
+host test files. It covers both HWCG paths, six missing mappings and invalid
+aliases/attributes, live fault/route/root/IRQ/clock/SQE changes in each phase,
+CPU deadlines, failed child startup, corrupted restore data and once-state.
+These remain host/source/native-TU results until a full kernel and physical
+trial establish the hardware stage.
 
 SQE halt release, ringbuffer programming, native ME_INIT plus WHERE_AM_I,
 fenced doorbell/completion, secure ZAP loading and unsecured-mode transition,

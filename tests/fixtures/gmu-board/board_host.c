@@ -33,6 +33,12 @@ static _Alignas(16384) uint8_t core_page[16384];
 static unsigned start_mode,start_sticky,start_missing,start_busy,start_allones,start_expire,start_reads,start_complete,start_partial;
 static _Alignas(16384) uint8_t sqe_asset[32304];
 static unsigned sqe_mode,sqe_calls,sqe_fail,sqe_corrupt,sqe_complete,sqe_partial,sqe_entry_budget,sqe_exit_budget,sqe_drift;
+static _Alignas(16384) uint8_t core_extra[6][16384];
+static const uint32_t core_offsets[6]={0x20000,0x24000,0x28000,0x2c000,0x3c000,0x68000};
+static unsigned core_mode,core_active,core_reads,core_stores,core_memstores,core_complete,core_partial,core_rgl_lines;
+static unsigned core_fail_phase,core_fail_kind,core_fired,core_attr_bad,core_overflow,core_stop_after,core_expire;
+static unsigned core_phys_fail,core_dev_bad,core_dev_valid,core_corrupt_word;
+static void host_core_budget(void);
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -40,6 +46,9 @@ static int host_printf(const char *s,...)
 {
     char text[256];va_list ap;va_start(ap,s);int n=vsnprintf(text,sizeof(text),s,ap);va_end(ap);
     CHECK(n>0&&(unsigned)n<sizeof(text));
+    if(strstr(text,"SWEET GPU CORE: complete")){CHECK(core_mode&&h.live&&!h.quarantine&&sweet_gpu_core_state()==GMB_READY&&core_complete++==0);}
+    if(strstr(text,"SWEET GPU CORE: partial")){CHECK(core_mode&&!h.live&&h.quarantine==1&&sweet_gpu_core_state()==GMB_QUARANTINED&&core_partial++==0);}
+    if(strstr(text,"SWEET GPU CORE RGL:")){CHECK(core_complete==1&&h.live&&!h.quarantine);++core_rgl_lines;}
     if(strstr(text,"SWEET GPU SQE: complete")){CHECK(sqe_mode&&h.live&&!h.quarantine&&strstr(text,"copied=8192 checked=8192 pad=468 loaded=1")&&sqe_complete++==0);}
     if(strstr(text,"SWEET GPU SQE: partial")){CHECK(sqe_mode&&!h.live&&h.quarantine==1&&sqe_partial++==0);}
     if(strstr(text,"SWEET GPU START: complete")){CHECK(start_mode&&h.live&&!h.quarantine&&sweet_gpu_start_state()==GMB_READY&&start_complete++==0);}
@@ -143,6 +152,7 @@ void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *out){CHECK((
 bool gauguin_wdt_lease_check_budget(uint32_t n)
 {
     CHECK(n==3u*32765||n==13u*32765||(h.gpu_mode&&n==10u*32765)||(start_mode&&n==8u*32765));++h.budgets;
+    host_core_budget();
     if(h.budgets==h.expire)h.now=8*NSEC_PER_SEC;
     if(h.budgets==h.budget_fail)h.live=false;
     return h.live;
@@ -159,14 +169,21 @@ boolean_t pmap_valid_page(ppnum_t pn)
     bool found=(start_mode&&pn==0x3d00000/16384)||(pn>=owner/16384&&pn<(owner+1048576)/16384)||pn==0x3d7c000/16384||
         (pn>=0x3d40000/16384&&pn<0x3d50000/16384);
     for(unsigned n=0;n<5;n++)found|=pn>=fw_bases[n]/16384&&pn<(fw_bases[n]+fw_sizes[n])/16384;
+    if(core_mode)for(unsigned n=0;n<6;n++)found|=pn==(0x03d00000+core_offsets[n])/16384;
     CHECK(found);
-    return ++h.pmap_calls==h.pmap_fail;
+    return ++h.pmap_calls==h.pmap_fail||(core_dev_valid&&pn==(0x03d00000+core_offsets[core_dev_valid-1])/16384);
 }
 unsigned pmap_cache_attributes(ppnum_t pn)
-{return h.pmap_calls==h.attr_fail?0:pn>=owner/16384?0xd0000006u:0xd0000007u;}
+{return h.pmap_calls==h.attr_fail||(core_attr_bad&&pn==(owner+0xb4000)/16384)||(core_dev_bad&&pn==(0x03d00000+core_offsets[core_dev_bad-1])/16384)?0:pn>=owner/16384?0xd0000006u:0xd0000007u;}
 vm_offset_t ml_io_map_with_prot(vm_offset_t pa,vm_size_t bytes,vm_prot_t prot)
 {
-    ++h.maps;CHECK(prot==3&&h.maps<=(start_mode?8u:h.firmware?7u:2u));
+    ++h.maps;CHECK(prot==3&&h.maps<=(core_mode?14u:start_mode?8u:h.firmware?7u:2u));
+    if(h.maps>8){
+        CHECK(core_mode&&core_active&&sweet_gpu_start_state()==GMB_READY&&bytes==16384&&pa==0x03d00000+core_offsets[h.maps-9]);
+        if(h.map_fail==h.maps)return 0;
+        if(core_overflow==h.maps)return UINTPTR_MAX-16383u;
+        return (vm_offset_t)core_extra[h.maps-9]+(h.misalign==h.maps);
+    }
     if(h.maps<=2)CHECK(h.maps==1?(pa==0x3d7c000&&bytes==16384):(pa==0x3d40000&&bytes==65536));
     else if(h.maps==8)CHECK(start_mode&&pa==0x3d00000&&bytes==16384);
     else CHECK(pa==fw_bases[h.maps-3]&&bytes==fw_sizes[h.maps-3]);
@@ -184,6 +201,11 @@ vm_offset_t ml_vtophys(vm_offset_t va)
     else if(va>=(uintptr_t)smmu&&va<(uintptr_t)smmu+sizeof(smmu))pa=0x3d40000+va-(uintptr_t)smmu;
     else if(va>=(uintptr_t)ram+16384&&va<(uintptr_t)ram+sizeof(ram))pa=owner+va-(uintptr_t)ram;
     else if(start_mode&&va>=(uintptr_t)core_page&&va<(uintptr_t)core_page+sizeof(core_page))pa=0x3d00000+va-(uintptr_t)core_page;
+    else if(core_mode&&va>=(uintptr_t)core_extra&&va<(uintptr_t)core_extra+sizeof(core_extra)){
+        unsigned n=(unsigned)(va-(uintptr_t)core_extra)/16384;pa=0x03d00000+core_offsets[n]+va-(uintptr_t)core_extra[n];
+        if(core_phys_fail==n+9)++pa;
+    }
+    else if(core_mode&&core_overflow&&va>=UINTPTR_MAX-16383u)pa=0;
     else {bool found=false;for(unsigned n=0;n<5;n++)if(va>=(uintptr_t)fw_page[n]&&va<(uintptr_t)fw_page[n]+fw_sizes[n]){found=true;pa=fw_bases[n]+va-(uintptr_t)fw_page[n];break;}CHECK(found);}
     return pa+(h.translations==h.fail_translation);
 }
@@ -282,15 +304,38 @@ bool gmf_bw_plan_valid(const struct gmf_bw_plan *p){return p&&p->db[0].address==
 static uint32_t fw_read32(vm_offset_t address);
 static void fw_write32(vm_offset_t address,uint32_t value);
 static void host_gpu_smc(void *,struct gpa_registers *);
+static bool host_core_store(vm_offset_t,uint32_t);
+static void host_core_read(vm_offset_t);
 enum gmf_result gmf_bootstrap_once(struct gmf_context *,const struct gmf_ops *,const struct gmf_plan *,struct gmf_receipt *);
 #define printf host_printf
 @SOURCE@
 #undef printf
 static void host_sqe_dsb(void)
 {if(sqe_mode&&sqe_corrupt&&ggb_sqe_written==8192&&!ggb_sqe_checked){ram[0xa0000+4*(sqe_corrupt-1)]^=1;sqe_corrupt=0;}}
+static void host_core_budget(void)
+{
+    if(!core_active||ggc_context.phase!=core_fail_phase||core_fired||!core_fail_kind)return;
+    core_fired=1;uint32_t v=1;
+    if(core_fail_kind==1)h.clock_bad=1;
+    else if(core_fail_kind==2)h.irq_bad=1;
+    else if(core_fail_kind==3)memcpy(smmu+0x48,&v,4);
+    else if(core_fail_kind==4){uint64_t r=ggb_smmu.ttbr0^4096;memcpy(smmu+0x8000+4096*ggb_smmu.bank+0x20,&r,8);}
+    else if(core_fail_kind==5){v=0;memcpy(smmu+0xc00+4*ggb_smmu.slot,&v,4);}
+    else if(core_fail_kind==6)core_attr_bad=1;
+    else if(core_fail_kind==7)ggb_sqe_loaded=0;
+    else if(core_fail_kind==8)memcpy(reset_page+0x2000,&v,4);
+    else if(core_fail_kind==9)h.now=ggc_deadline;
+    else if(core_fail_kind==10)memcpy(smmu+0x8000+4096*ggb_smmu.bank+0x34,&v,4);
+    else CHECK(false);
+}
 static void reset(void)
 {
     ++cases;memset(&h,0,sizeof(h));h.live=true;memset(ram,0xa5,sizeof(ram));memset(reset_page,0,sizeof(reset_page));memset(smmu,0,sizeof(smmu));
+    core_mode=core_active=core_reads=core_stores=core_memstores=core_complete=core_partial=core_rgl_lines=0;
+    core_fail_phase=core_fail_kind=core_fired=core_attr_bad=core_overflow=core_stop_after=core_expire=0;
+    core_phys_fail=core_dev_bad=core_dev_valid=core_corrupt_word=0;
+    ggc_board_lifecycle=ggc_board_phase=ggc_maps_ready=ggc_created=0;ggc_deadline=ggc_phase_deadline=0;ggc_result=0;
+    memset(ggc_alias,0,sizeof(ggc_alias));memset(&ggc_context,0,sizeof(ggc_context));memset(&ggc_work,0,sizeof(ggc_work));memset(core_extra,0,sizeof(core_extra));
     *(uint32_t *)(void *)(reset_page+0x2000)=1;gmb_lifecycle=0;gmb_deadline=0;gmb_reset=gmb_smmu=gmb_ram=0;
     memset(&gmb_context,0,sizeof(gmb_context));memset(&gmb_work,0,sizeof(gmb_work));memset(&gmb_stage,0,sizeof(gmb_stage));
     gfw_lifecycle=0;gfw_deadline=0;memset(gfw_map,0,sizeof(gfw_map));memset(&gfw_context,0,sizeof(gfw_context));memset(&gfw_work,0,sizeof(gfw_work));memset(&gfw_asset,0,sizeof(gfw_asset));
@@ -332,24 +377,56 @@ static uint8_t *fw_address(vm_offset_t address)
 {
     if(address>=(uintptr_t)reset_page&&address+4<=(uintptr_t)reset_page+sizeof(reset_page))return (uint8_t *)address;
     if(address>=(uintptr_t)ram+0x8c000&&address+4<=(uintptr_t)ram+0x94000)return (uint8_t *)address;
+    if(core_active&&address>=(uintptr_t)ram+0xb4000&&address+4<=(uintptr_t)ram+0xb5000)return (uint8_t *)address;
     for(unsigned n=0;n<5;n++)if(address>=(uintptr_t)fw_page[n]&&address+4<=(uintptr_t)fw_page[n]+fw_sizes[n])return (uint8_t *)address;
     if(start_mode&&address>=(uintptr_t)core_page&&address+4<=(uintptr_t)core_page+sizeof(core_page)){
-        CHECK(h.maps==8&&ggx_context.work.ack_valid&&ggx_context.work.ack_clear_attempted&&!(gfw_work.host_info&(1u<<24)));return (uint8_t *)address;
+        CHECK((core_mode?h.maps>=8:h.maps==8)&&ggx_context.work.ack_valid&&ggx_context.work.ack_clear_attempted&&!(gfw_work.host_info&(1u<<24)));return (uint8_t *)address;
     }
+    if(core_active)for(unsigned n=0;n<6;n++)if(address>=(uintptr_t)core_extra[n]&&address+4<=(uintptr_t)core_extra[n]+16384){CHECK(h.maps>n+8&&ggc_context.phase>=GGC_ADDRESS);return (uint8_t *)address;}
     CHECK(false);return NULL;
 }
 static uint32_t fw_read32(vm_offset_t address)
 {
     CHECK(h.live);uint32_t value;memcpy(&value,fw_address(address),4);
-    if(start_mode&&address>=(uintptr_t)core_page&&address<(uintptr_t)core_page+sizeof(core_page)){
+    host_core_read(address);
+    if(start_mode&&(!core_mode||ggc_context.phase==GGC_MMU_OOB)&&address>=(uintptr_t)core_page&&address<(uintptr_t)core_page+sizeof(core_page)){
         ++start_reads;if(start_allones)value=UINT32_MAX;if(start_expire)h.now=ggx_deadline;
     }
     if(h.fw_read_corrupt&&address==(uintptr_t)fw_page[3]+0x1000+4*(h.fw_read_corrupt-1))value^=1;
     return value;
 }
+static uint32_t host_core_reg(vm_offset_t address)
+{
+    if(address>=(uintptr_t)core_page&&address+4<=(uintptr_t)core_page+16384)return (uint32_t)(address-(uintptr_t)core_page)/4;
+    if(address>=(uintptr_t)reset_page&&address+4<=(uintptr_t)reset_page+16384)return (uint32_t)(0x7c000+address-(uintptr_t)reset_page)/4;
+    if(address>=(uintptr_t)fw_page[0]&&address+4<=(uintptr_t)fw_page[0]+16384)return (uint32_t)(0x8c000+address-(uintptr_t)fw_page[0])/4;
+    if(address>=(uintptr_t)fw_page[4]&&address+4<=(uintptr_t)fw_page[4]+16384)return (uint32_t)(0xc000+address-(uintptr_t)fw_page[4])/4;
+    for(unsigned n=0;n<6;n++)if(address>=(uintptr_t)core_extra[n]&&address+4<=(uintptr_t)core_extra[n]+16384)return (uint32_t)(core_offsets[n]+address-(uintptr_t)core_extra[n])/4;
+    return UINT32_MAX;
+}
+static void host_core_read(vm_offset_t address)
+{
+    if(!core_active||ggc_context.phase<GGC_ADDRESS||ggc_context.phase>GGC_REGLIST)return;
+    uint32_t reg=host_core_reg(address);if(ggc_register_allowed(reg,false))++core_reads;
+}
+static bool host_core_store(vm_offset_t address,uint32_t value)
+{
+    if(!core_active)return false;
+    if(ggc_context.phase==GGC_BUS){CHECK(address==(uintptr_t)fw_page[4]+0x3114&&!value&&!core_stores&&sweet_gpu_start_state()==GMB_IDLE);}
+    else if(ggc_context.phase<GGC_ADDRESS||ggc_context.phase>GGC_REGLIST)return false;
+    else if(address>=(uintptr_t)ram+0xb4000&&address+4<=(uintptr_t)ram+0xb5000){
+        CHECK(ggc_context.phase==GGC_REGLIST&&h.maps==14);++core_memstores;
+        if(address==(uintptr_t)ram+0xb400c&&core_corrupt_word){ram[0xb4000+4*(core_corrupt_word-1)]^=1;core_corrupt_word=0;}
+        return true;
+    }else CHECK(ggc_maps_ready&&ggc_register_allowed(host_core_reg(address),true));
+    ++core_stores;if(core_stop_after==core_stores)h.clock_bad=1;
+    if(core_expire==core_stores)h.now=ggc_phase_deadline;
+    return true;
+}
 static void fw_write32(vm_offset_t address,uint32_t value)
 {
     CHECK(h.live);uint8_t *p=fw_address(address);++h.fw_stores;
+    if(host_core_store(address,value)){memcpy(p,&value,4);return;}
     if(address==(uintptr_t)reset_page+0x2000){CHECK(gfw_work.release_attempted==1&&gfw_work.phase==GMF_RELEASING&&value==0);if(h.fw_fail_phase==24)return;}
     if(address==(uintptr_t)reset_page+0x2650&&value==(1u<<22)){CHECK(gfw_work.oob_attempted&&gfw_work.phase==GMF_GX_REQUEST);h.gx_on=1;}
     if(address==(uintptr_t)reset_page+0x2650&&value==(1u<<23)){
@@ -778,6 +855,64 @@ static void gpu_sqe_cases(void)
     sqe_setup();start_mode=1;CHECK(firmware_run(&out)==GMB_OK);ggb_sqe_loaded=0;start_failed();
     printf("SQE cold board: %u header-skip/payload/padding/guard/digest-identity/once-state and combined live-start cases PASS (typed SHA view seam)\n",cases-first);
 }
+static void core_setup(void)
+{
+    sqe_setup();core_mode=start_mode=1;
+    struct gmb_firmware_receipt fw;CHECK(firmware_run(&fw)==GMB_OK&&ggb_sqe_loaded&&sqe_calls==3);
+    core_active=1;uint32_t v=0xf00d1234;memcpy(core_page+4*0x841,&v,4);
+}
+static void core_failed(void)
+{
+    struct ggc_receipt out,old;memset(&out,0xa3,sizeof(out));old=out;
+    CHECK(sweet_gpu_core_once(&out)!=GGC_OK&&!memcmp(&out,&old,sizeof(out))&&core_partial==1&&!core_complete&&!core_rgl_lines);
+    CHECK(sweet_gpu_core_state()==GMB_QUARANTINED&&sweet_gpu_start_state()==GMB_QUARANTINED&&sweet_gmu_firmware_state()==GMB_QUARANTINED&&sweet_gmu_board_state()==GMB_QUARANTINED&&h.quarantine==1&&!h.live);
+    unsigned reads=h.reads,stores=h.fw_stores,maps=h.maps,budgets=h.budgets;
+    CHECK(sweet_gpu_core_once(&out)==GGC_ALREADY&&!memcmp(&out,&old,sizeof(out))&&h.reads==reads&&h.fw_stores==stores&&h.maps==maps&&h.budgets==budgets);
+}
+static void gpu_core_cases(void)
+{
+    unsigned first=cases;
+    for(unsigned skip=0;skip<2;skip++){
+        core_setup();if(skip){uint32_t v=0x8aa8aa82;memcpy(core_page+4*0xae,&v,4);}
+        uint8_t *saved=malloc(sizeof(ram));CHECK(saved);memcpy(saved,ram,sizeof(ram));
+        struct ggc_receipt out;CHECK(sweet_gpu_core_once(&out)==GGC_OK&&sweet_gpu_core_state()==GMB_READY&&sweet_gpu_start_state()==GMB_READY&&h.live&&!h.quarantine);
+        CHECK(h.maps==14&&h.nc_maps==1&&ggc_created==6&&ggc_maps_ready&&start_complete==1&&start_reads==2&&sqe_calls==4);
+        CHECK(out.writes==(skip?80u:146u)&&out.reads==(skip?69u:71u)&&out.hwcg_skipped==skip&&out.configured&&out.requests_retained);
+        CHECK(core_stores==out.writes&&core_reads==out.reads&&core_memstores==133&&out.mem_written==133&&out.mem_compared==1024&&core_complete==1&&core_rgl_lines==66);
+        uint32_t v;memcpy(&v,core_extra[2]+0x3808,4);CHECK(v==2);memcpy(&v,core_page+0x3804,4);CHECK(v==0x200000);
+        memcpy(&v,ram+0xb4010,4);CHECK(v==0x841);memcpy(&v,ram+0xb4014,4);CHECK(v==0xf00d1234);
+        memcpy(saved+0xb4000,ggc_context.reglist,sizeof(ggc_context.reglist));CHECK(!memcmp(saved,ram,sizeof(ram)));free(saved);
+        unsigned budgets=h.budgets,maps=h.maps,stores=h.fw_stores;CHECK(sweet_gpu_core_once(&out)==GGC_ALREADY&&budgets==h.budgets&&maps==h.maps&&stores==h.fw_stores);
+    }
+    for(unsigned phase=GGC_BUS;phase<=GGC_FINAL;phase++)for(unsigned kind=1;kind<=10;kind++){
+        if(kind==10&&phase<GGC_MAP)continue;
+        core_setup();core_fail_phase=phase;core_fail_kind=kind;core_failed();CHECK(core_fired);
+    }
+    for(unsigned n=9;n<=14;n++){
+        core_setup();h.map_fail=n;core_failed();CHECK(h.maps==n&&core_stores==1);
+        core_setup();h.misalign=n;core_failed();CHECK(h.maps==n&&core_stores==1);
+        core_setup();core_overflow=n;core_failed();CHECK(h.maps==n&&core_stores==1);
+        core_setup();core_phys_fail=n;core_failed();CHECK(h.maps==n&&core_stores==1);
+    }
+    for(unsigned n=1;n<=6;n++){
+        core_setup();core_dev_bad=n;core_failed();CHECK(h.maps==n+7&&core_stores==1);
+        core_setup();core_dev_valid=n;core_failed();CHECK(h.maps==n+7&&core_stores==1);
+    }
+    const unsigned stops[]={1,2,13,17,18,81,82,83,84,113,114,146};
+    for(unsigned n=0;n<sizeof(stops)/sizeof(*stops);n++){
+        core_setup();core_stop_after=stops[n];core_failed();CHECK(core_stores==stops[n]);
+        core_setup();core_expire=stops[n];core_failed();CHECK(core_stores==stops[n]);
+    }
+    const unsigned words[]={1,5,136,1024};
+    for(unsigned n=0;n<sizeof(words)/sizeof(*words);n++){core_setup();core_corrupt_word=words[n];core_failed();CHECK(!core_corrupt_word&&core_memstores==133);}
+    core_setup();sqe_fail=4;core_failed();CHECK(core_stores==0&&h.maps==7);
+    core_setup();ggb_sqe_loaded=0;core_failed();CHECK(!core_stores&&h.maps==7);
+    core_setup();uint32_t stale=1u<<24;memcpy(reset_page+0x2648,&stale,4);core_failed();CHECK(!core_stores&&h.maps==7);
+    core_setup();start_missing=1;core_failed();CHECK(core_stores==1&&start_partial==1&&h.quarantine==1);
+    core_setup();core_attr_bad=1;core_failed();CHECK(!core_stores&&h.maps==7);
+    core_setup();CHECK(sweet_gpu_core_once(NULL)==GGC_ARGUMENT&&sweet_gpu_core_state()==GMB_IDLE&&!core_stores);
+    printf("GPU core board: %u retained-map/phase/owner/fault/deadline/SQE/NC/parent/once-state cases PASS (actual core+MMU engines)\n",cases-first);
+}
 int main(void)
 {
     happy();unsigned budgets=h.budgets,translations=h.translations,pmaps=h.pmap_calls;
@@ -805,4 +940,5 @@ int main(void)
     firmware_gpu_cases();
     gpu_start_cases();
     gpu_sqe_cases();
+    gpu_core_cases();
 }

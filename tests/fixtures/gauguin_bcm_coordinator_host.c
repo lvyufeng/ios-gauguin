@@ -46,6 +46,7 @@ static struct {
     int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf,gmubw,gmudcvs,gpucontext,gpustart;
     unsigned start_calls;enum ggx_result start_result;
     unsigned sqe_calls;
+    unsigned core_calls;enum ggc_result core_result;enum gmb_state core_state;
     unsigned gpu_calls;
     unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
     unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
@@ -170,7 +171,8 @@ void gauguin_wdt_lease_quarantine(void)
         (mock.mem_calls==1 && mock.mem_result!=GPI_OK) ||
         (mock.rail_calls==1 && mock.rail_result!=GBCMT_OK) ||
         (mock.power_calls==1 && mock.power_result!=GCX_OK) || (mock.clock_calls==1 && mock.clock_result!=GCX_OK) ||
-        (mock.fw_calls==1 && mock.fw_result!=GMB_OK) || mock.after_sleeps==30,
+        (mock.fw_calls==1 && mock.fw_result!=GMB_OK) ||
+        (mock.core_calls==1 && mock.core_result!=GGC_OK && mock.core_state!=GMB_QUARANTINED) || mock.after_sleeps==30,
         "quarantine after TX/INIT/MEM/ARC/CX failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
@@ -390,6 +392,10 @@ enum ggx_result sweet_gpu_start_once(struct ggx_receipt *out)
 {CHECK(mock.gpustart==1&&mock.gpu_calls==1&&mock.fw_result==GMB_OK&&mock.start_calls++==0,"GPU live stage after accepted sole cold bootstrap");order('X');if(mock.start_result!=GGX_OK){++mock.quarantines;return mock.start_result;}memset(out,0,sizeof(*out));return GGX_OK;}
 enum gmb_state sweet_gpu_start_state(void)
 {return mock.start_result==GGX_OK?GMB_READY:GMB_QUARANTINED;}
+enum ggc_result sweet_gpu_core_once(struct ggc_receipt *out)
+{CHECK(mock.gpustart==1&&mock.gpu_calls==1&&mock.sqe_calls==1&&mock.fw_result==GMB_OK&&mock.core_calls++==0&&!mock.start_calls,"core stage after sole pinned SQE bootstrap; no direct old-API fallback");order('K');if(mock.core_result!=GGC_OK){if(mock.core_state==GMB_QUARANTINED)++mock.quarantines;return mock.core_result;}memset(out,0,sizeof(*out));return GGC_OK;}
+enum gmb_state sweet_gpu_core_state(void)
+{return mock.core_result==GGC_OK?GMB_READY:mock.core_state;}
 #define printf test_printf
 @SOURCE@
 #undef printf
@@ -398,6 +404,7 @@ static unsigned count(const char *needle){unsigned n=0;for(unsigned i=0;i<mock.l
 static void reset(const char *name)
 {
     memset(&mock,0,sizeof(mock));case_name=name;++cases;bcm_started=0;
+    mock.core_state=GMB_QUARANTINED;
     mock.requested=mock.probe=mock.stage=1;mock.clock_result=GCX_OK;mock.clock_receipt.configured_hz=200000000;mock.clock_receipt.direct_writes=7;mock.clock_receipt.hold_requests=2;mock.clock_receipt.polls=7;mock.ready_after=1;mock.now=1;
     mock.init_result=GPI_OK;mock.init_state=GPI_QUARANTINED;
     mock.init_receipt.has_returned=1;mock.init_receipt.smc_calls=1;
@@ -934,20 +941,24 @@ static void gpu_cases(void)
 }
 static void gpu_start_cases(void)
 {
- for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_bw("invalid GPU start flag");mock.gmudcvs=mock.gpucontext=1;mock.gpustart=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.start_calls,"start exact0/1 before any work");}
+ for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_bw("invalid GPU start flag");mock.gmudcvs=mock.gpucontext=1;mock.gpustart=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.start_calls&&!mock.core_calls,"start exact0/1 before any work");}
  for(unsigned dep=0;dep<7;dep++){
   reset_bw("GPU start prerequisite missing");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;
   if(dep==0)mock.gpucontext=0;else if(dep==1)mock.gmudcvs=0;else if(dep==2)mock.gmubw=0;else if(dep==3)mock.gmuperf=0;else if(dep==4)mock.gmufw=0;else if(dep==5)mock.gmuclk=0;else mock.cxpower=0;
-  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.start_calls,"full147 chain required before start");
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.start_calls&&!mock.core_calls,"full147 chain required before start");
  }
- for(unsigned n=GGX_ARGUMENT;n<=GGX_TIMEOUT;n++){
-  reset_bw("all GPU start errors terminal");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.start_result=(enum ggx_result)n;run_worker();
-  CHECK(mock.sqe_calls==1&&mock.start_calls==1&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU START BOOT: stopped")&&!has("native MMU/OOB/core reads done"),"no retry/fallback/false completion after failed live stage");
+ for(unsigned n=GGC_ARGUMENT;n<=GGC_MEMORY;n++){
+  reset_bw("all GPU core errors terminal");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.core_result=(enum ggc_result)n;run_worker();
+  CHECK(mock.sqe_calls==1&&mock.core_calls==1&&!mock.start_calls&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU CORE BOOT: stopped")&&!has("native core/restore configuration done"),"no retry/fallback/false completion after failed core stage");
+ }
+ for(unsigned n=GMB_IDLE;n<=GMB_RUNNING;n++){
+  reset_bw("core failure fallback quarantines unclaimed lease");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.core_result=GGC_GUARD;mock.core_state=(enum gmb_state)n;run_worker();
+  CHECK(mock.core_calls==1&&!mock.start_calls&&mock.quarantines==1&&!mock.after_sleeps&&has("GPU CORE BOOT: stopped"),"coordinator quarantines exactly once when helper did not");
  }
  reset_bw("GPU start full order");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;run_worker();
- CHECK(!strcmp(mock.order,"RPWTACGFXQ")&&mock.sqe_calls==1&&mock.start_calls==1&&mock.after_sleeps==30&&has("native MMU/OOB/core reads done"),"MMU/OOB live API follows accepted sole GPU cold firmware startup");
- reset_bw("GPU start default off");mock.gmudcvs=mock.gpucontext=1;run_worker();CHECK(!mock.sqe_calls&&!mock.start_calls&&!strcmp(mock.order,"RPWTACGFQ"),"147 path unchanged by default");
- reset_bw("GPU start after refused cold path forbidden");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.fw_result=GMB_GPU;run_worker();CHECK(!mock.start_calls,"no live API on cold-path error");
+ CHECK(!strcmp(mock.order,"RPWTACGFKQ")&&mock.sqe_calls==1&&mock.core_calls==1&&!mock.start_calls&&mock.after_sleeps==30&&has("native core/restore configuration done"),"core API follows accepted sole pinned SQE/GPU firmware startup");
+ reset_bw("GPU start default off");mock.gmudcvs=mock.gpucontext=1;run_worker();CHECK(!mock.sqe_calls&&!mock.start_calls&&!mock.core_calls&&!strcmp(mock.order,"RPWTACGFQ"),"147 path unchanged by default");
+ reset_bw("GPU start after refused cold path forbidden");mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.fw_result=GMB_GPU;run_worker();CHECK(!mock.start_calls&&!mock.core_calls,"no live API on cold-path error");
 }
 int main(void)
 {

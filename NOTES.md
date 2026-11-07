@@ -36,6 +36,98 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Next GPU action remains151 board integration from source150-v2; complete local
 recipe remains148gauguin.E1ium7. All owned tasks CLOSED; no new device IO/build.
 
+### 2026-11-07 —151 live board/core integration validated; full local kernel NEXT
+
+Previous goal turn made concrete progress: committed the standing unattended
+reset policy and requalified148 with unchanged reader/all10 inputs, actual0.
+Private32d0eb0b84c15d9e8f3ac4c082f0392e22385360 published
+ceb16d46eda470415d172e0fdb92fed6f04aa391, soleparent1c42ac6...6450f1.
+No per-trial reset question is needed; only notify user for necessary manual
+recovery if truly stuck. Full GPU/Metal/daily-use goal remains ACTIVE/incomplete.
+
+151 implements sweet_gpu_core_once/state behind existing default-off
+sweetgpustart1. Same coherent149 SQE cold entry then actual150 core engine;
+native GBIF release BEFORE existing GGX MMU/OOB callback, then six missing page
+maps and complete core/live-register-list configuration. New adapter appended
+to original board.c; all old board function bytes remain a literal prefix.
+Only3 XNU paths change vs150: board.c/h and coordinator.c. Public GGX API and
+all off paths retained. New source151-v2-codex is5294files/145patches SHA
+6a5b4a1214d05dea8cfd8832100e64776320dd6de9b8af4f378e4e85ce0810a3.
+Baseline150-v2 SHA9ff17ed2...1da820 unchanged. Historical source151-codex is v1;
+use .deps-cache/p0-20261105/source151-v2-codex for next work.
+
+Entry13s WDT budget/total8sCPU/per-phase4s, existing childGGX4s/TLB2s/OOB100ms
+unchanged. Reauthenticate same SQE view before any store; every guard requires
+SQEloaded8192/8192, complete accepted FW/PERF/BW/TEST/DCVS, live owner/routes/
+roots/faults/clocks/IRQ/reset and NC16KiB RGL page attrs/endpoints. BUS refuses
+staleACK before GBIF via existing GBIF/MISC alias+3114; childGGXIDLE ->READY;
+later checks privateGGXDONE/root/bank/ASID/ACKclear/GXon/CONTEXTIDR0/TLBSACTIVE0.
+No reuse of stale ggx_board_guard after READY. Six new Device16KiB maps only
+after acceptedOOB, four existing aliases reused, all retained on failure.
+DWORD->bytes exactlyonce, typed register whitelist, RGL only4KiB existingNC.
+Partial map log explicitly says map_attempts, including0/invalid map returns.
+Shared owners quarantined before cached logs; child failure does not double
+quarantine. Success logs66 cached RGL pairs after final guards. HOST requests
+remain held; no SQE_CNTL/CP doorbell/command/ZAP/Metal operation yet.
+
+DSH58832 CLOSED0/native151.py0: actual candidate board/coordinator ARM64 TUs0.
+DSH24400 CLOSED0/focus151.py inner1: pristine145patch replay succeeded and all
+old board cases passed, new fixture case7364 aborted on unmapped highest-page
+VA in its ml_vtophys seam. Production span ends at UINTPTR_MAX without wrapping;
+actual XNU ml_vtophys->kvtophys/MMU translation returns0 on invalid mapping.
+v1 source/input-snapshot-v1/log/report preserved. Explicit v2 fixes only this
+host return behavior and clarifies production partial map-attempt log label.
+DSH99805 CLOSED0: native151_v2.py0/actual2TUs0, focus151_v2.py inner1: fresh145
+patch/source151-v2 and160 new board cases PASS, coordinator compiled0/run1
+because its old quarantine allowlist omitted the new core-error fallback.
+v2 source/input-snapshot-v2/log/report preserved. Production source unchanged
+after this. Explicit v3 extends that typed allowlist only for core_calls1,
+nonzero core_result and nonquarantined state; duplicate isolation still refused.
+
+DSH45379 CLOSED0/integration151_v3.py0: retained v2 board160/newnative2TUs,
+coordinator386+20=406 and all69host files passed. All previous board counts
+2840+95+49+56+69+3817+202+143 retained. New160 includes both HWCG paths,
+all9phase live fault/root/route/clock/IRQ/SQE/NC/reset/deadline changes, six
+missing map failure/misalignment/highVA/PA/attrs/managedpage refusals, selected
+store boundaries, corrupt NC header/list/tail, staleACK, missing SQE/childACK,
+null output/once-state and whole1MiB owner unchanged outside RGL544bytes.
+No extra mapping/alias/CP activity when start is off. Integration34146B
+research/tmp/dsh-0151/integration-result-v3.json SHA
+49150ca7d0d1a6c88e7fbc79c56d074a7d4346c7bdf58d0bd3d9416da00cd5c4;
+281 input pins independently rehashed. Native884B native-result-v2.json SHA
+e9245cd15b7ffb229419993d5b07bca5a2c4cecf896c6e93f35cac66fb5bc789,
+4candidate/script pins rehashed. Actual native board156616B SHA
+9262acc6d4c5adc1d888897bc754805468767d50f63006d33151600060500f1a;
+coordinator52896B SHAd8bd33f4816ffb5616d16b0dd9e5ec4235d02ce88c4bf9f982d42983eca47b3e.
+Both objects independently rehashed; CURRENT COMPLETE recipe still148E1ium7.
+
+Build151 helpers prepared: bind_host151.py binds final151 reports/source,
+retains immutable150 native4scenario proof (only old series intentionally
+superseded by independently pinned145patch series), all old board prefix
+bytes and SQE packer pin. build151.py performs ONE standard full local build
+on captured committedHEAD and sole original mkadt diff, then strict
+qualify_native0151.py preserving every prior native120/148 check, updated
+source/dispatch contracts and new GSA/GGC symbols/archive/source-bound fields.
+DSH63835 CLOSED0/preflight151.py0: final host/source binding and Python syntax
+checks passed, no full build. preflight-result.json records the three helper
+hashes; original mkadt diff independently rehashed unchanged afterward.
+
+NEXT commit completed151 code/docs/tests and publish sanitized text snapshot,
+then execute build151.py on exact committedHEAD via DSH. Do NOT edit tracked
+files/HEAD while build/qualification runs. No151 full kernel/image/physical
+trial yet. Packaging must add --sqe-firmware (raw32304/reserved32768) afterGMU,
+preserve actual assets/baselines and qualify all four descriptors/PAS top.
+Use unique607B trialtoken; no new bootflag fits. Reader must retain every148
+FW/GPU/OOB check and add SQEcold +native146or80writes/71or69reads,10pages/
+6attempts/4reuse,full66dynamicRGL/header/copycheck/core-final receipt, ordered
+complete/partial/refusal cases; then ONE temporary physicalboot, automatically
+observe returnTWRP and readfresh log. User standing policy --manual-reset no;
+no repeated question. Only ask if stuck and truly needs manual recovery.
+Last phoneTWRP148; no new phone IO/CI/flash/format/GPT/destructive action.
+Original7-line mkadt user diff intact. After physicalcore qualification, native
+CP init still needs complete15words/RB0xaa/scratch/SQE/fenced WPTR/completion,
+then real ZAP and proper unsecured mode before normal GPU/Metal functionality.
+
 ### 2026-11-07 —150 pure native A619 core engine qualified; board activation is NEXT
 
 Completed150 code private17a25bd2e9042109cf6cbdfcc5612e925878b5e7,

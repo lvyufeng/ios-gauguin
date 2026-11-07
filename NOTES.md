@@ -36,7 +36,118 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU work and complete local recipe are recorded in the latest151
 milestone below. No repeated reset question; only necessary manual recovery.
 
-### 2026-11-07 —151 complete local kernel and four-asset image qualified; runtime reader validation in progress
+### 2026-11-07 —151 PHYSICAL SQE/core writes complete, restore guard refused; bounded NC batching and guard diagnostics NEXT
+
+This goal turn made concrete progress: implemented/committed/published151
+live adapter, all69 hosts/native TUs, ONE complete local kernel and independent
+four-asset image/runtime qualification, then ONE physical trial and immutable
+failed-trial analysis. Goal remains ACTIVE/incomplete, no blocker/user action.
+User is away: resets are automatic; only notify if manual recovery is truly
+needed. No routine reset question was asked for151.
+
+DSH35702 CLOSED0; run_hardware151.py actual2, boot151.py/observer0/full reader2.
+Exactly ONE temporary fastboot boot; start2026-11-07T05:39:13.612302Z,
+finish05:41:25.548297Z; send19168KB0.451s,boot0.134s,total0.588s; observed
+TWRP131s, fresh image banner matched. Routine13-byte BCB latch/readback and
+gauguin/gauguinpro identity checks passed. Last phone nowTWRP151. Standing user
+no-manual-intervention attribution recorded; no per-trial confirmation needed.
+
+NEW physical evidence: exact raw SQE182598000 ->32300code,8192issued/8192checked,
+pad468,loaded1; GPU cold context/168ATOS/native scalar CP aperture and full
+GMU INIT/VERSION/PERF/BW/TEST/DCVS preserved before failure. Same GGX phase8/rc0,
+GPUbank2/ASID3/root00030000aa29c000,CONTEXTIDR0,TLB0,1poll; HOSTGPUSET16/ACK24
+accepted/cleared0 in1poll, retained request; core rawSTATUS1/STATUS30. All10
+private core pages ready,6new mapattempts/4reuse. GGC reached phase8(REGLIST),
+returned rc3(GUARD): reads71/writes146,hwcg_skip0; memory0/0,configured0/retained0
+in incomplete new receipt. Source order implies ALL146 native returning writes
+and66 live restore reads occurred before this guard refusal; individual raw
+write readback was not logged/qualified. Last cached live read nativeDWORD
+00e3a (UCHE_GBIF_GX_CONFIG) =010200e1, the66th/final restore register. Existing
+HOST requests were not released; no CP/SQE start, commands, ZAP or Metal.
+
+Whole strict trial remains EVIDENCE-REJECTED: line4052 gmb_fail rc12/native live
+GPU core setup, shared quarantine; CORE partial phase8/rc3, RGL length/offset0.
+No restore-list write or final postpublication comparison was reached;
+prezero scan progress was NOT logged,
+so failure may be during that scan. Specific guard condition/time was NOT
+logged: deadline exhaustion from repeated full guards is a HYPOTHESIS, not
+established root cause. Clock/IRQ/route/fault/lease/owner alternatives remain
+possible. Do not loosen this reader or mark core/RGL/GPU/Metal qualified.
+UI launch/SpringBoard/backboardd/framebuffer markers remain; no human touch/
+display/daily-use qualification for this unattended trial.
+
+Raw4104lines/460870B research/tmp/p3-gmuf-0151-native-observer-20261107.txt SHA
+cbf570fe6b2aad244b3214f6d7260ea75ec0c1137ec917be055b8e82a79372d7;
+cycle1077B SHA3bf545aa1d59bc49080bfa3340f41d07d03d41848c336555ac9a23f652d4262a.
+Original full report12807B research/tmp/dsh-0151/hardware-full-verification.json
+SHAd1faa79a3e67626a4627a6710427731fd2303f1802025c88d0c30a0145a41eb5,
+all8 input records independently rehashed, unchanged rejected verdict.
+
+DSH35779 CLOSED0/analyze_partial151.py inner1 before profiling: complete raw
+log contains a second cached SMMU IMPL record from late gmb_fail, so using the
+completed-FW helper against the entire failed log correctly rejected duplicates.
+That helper/log remains preserved; frozen151 reader and raw log never changed.
+Explicit analysisv2 first proves the UNMODIFIED full raw trial still rejects,
+then inspects only the explicitly hashed temporal prefix before first new core
+mapping for completed FW/SQE/GGX receipts. Full raw partial/failure records
+are analyzed separately. This does NOT accept a shortened/edited boot log as
+whole success. DSH93879 CLOSED0/analyze_partial151_v2.py0 and profile_guard151.py0.
+Partial report14319B hardware-partial-analysis-v2.json SHA
+101490996a60b91918c8680edba668d5e5d2536247ed1f64d5b99610fce6cc77;
+all8 input records independently rehashed; report explicitly failed/partial,
+no complete core/RGL or GPU execution qualification.
+
+Actual production151 board/core HOST operation profile compiled0/run0, with
+same typed platform seams: restore phase8 makes8996WDTbudget calls,
+197912SMMU-MMIO reads,13560otherDevice reads for2048NC-memory reads. These are
+HOST COUNTS, NOT measured real-device latency and do not prove151 failure
+cause. They quantify avoidable per-word full-guard overhead. Profile5062B
+research/tmp/dsh-0151/guard-profile/result.json SHA
+4b198600153b18f5a47a38a34b7af2d1d2e850566de2df383b86933dbb941157,
+23 inputs rehashed; frozen151 reader still375b66c9...e69c51b unchanged.
+
+NEXT implement152 from immutable source151-v2-codex5294files SHA6a5b4a12...810a3.
+Optimize ONLY private4KiB NC restore memory passes into bounded64-word/256B
+batches, with full live guards before/after EACH batch. Keep per-word CPU
+read/write/error/comparison checks and complete1024zero/132data/header-last/
+1024verify semantics. Peripheral MMIO still uses full per-access guards.
+Keep total8s/per-phase4s/entryWDT13s/min3s limits, same native register writes,
+all ownership/route/root/fault/clock/IRQ/NC/once-state checks; do NOT just extend
+timeouts, remove final guards, truncate list/checks or fake successful receipt.
+Private NC owner is retained/unmanaged, not unmap/reallocate-able by another
+caller; no CP runs during these CPU batches. Existing coldSQE copy already
+uses guarded4KiB chunks;64words is a smaller bounded CPU interval.
+
+Add private zero-pass progress and cached guard reason/time diagnostics so a
+future guard failure identifies lifecycle/context/CPU total or phase deadline/
+WDT/owner/SQE/clock/IRQ/reset/fault/GPUcontext/staleACK/NC/parent category.
+Capture raw entry/phase/current/deadline ticks at the guard, not new MMIO after
+failure. Quarantine shared owners BEFORE logging cached diagnostics. Keep
+existing firmware/public receipts and all old pre150 board function bytes.
+Reprofile counts to establish actual reduction and retain native R/W +liveRGL
+trace equivalence, update board fault/batch-boundary fixtures, actual ARM64 TUs
+using CURRENT151WzXGTu recipe, full69/commit/sanitizedpush/ONE standard local
+build/image/runtime-source binding/ONE unattended temporary trial. No152 code
+exists yet. Preserve ALL151 artifacts/readers/failures; no unchanged151 reboots.
+
+For meaningful next GPU progress, audit native first-CP submission in parallel
+with this software fix: exact15words ME_INIT12 +WHERE_AM_I3, native scratch
+offset0 forRB0 (fixed primary kgsl.h69/70), RB0xaa/8192DWORDs/RB_CNTL0x20c,
+SQE/RB/RPTR addresses, fencedWPTR/postedbarrier/AHB-fence retry/keepalive and
+native adreno_isidle semantics. If fully source/resource/guard-qualified,
+the next image may gate a first CP attempt strictly AFTER complete verified
+core/RGL success in that same boot, to avoid a CPU-only-copy trial. Do not
+assume shadowRPTR completion values without auditing adreno_isidle and firmware
+protocol. Native CP init precedes real a615_zap load; no trust-control bypass.
+Current151 stopped before memory publication, so issuing CP now is forbidden.
+
+Current complete native recipe/source151gauguin.WzXGTu (captured e445094),
+qualified image dc1fafa2...926576, current phoneTWRP151. Private artifact handoff
+061ced14a35fab08ed5cd73e5c5a4fb82a9ca165 publishedc4d3998768b0e86657b2a1cb8a374f7ea971b566
+with soleparente5025fd...5b2f73. All owned DSH jobs CLOSED. Original mkadt diff
+intact; no CI/flash/format/GPT/destructive actions. Whole goal ACTIVE/incomplete.
+
+### 2026-11-07 —151 complete local kernel and four-asset image qualified; runtime reader validation passed
 
 151 source code committed privatee44509418465858bcf3c43396f0c1ab6a1f9167a,
 published e5025fd15778a3d7c7b1555691e19cb6795b2f73, soleparent

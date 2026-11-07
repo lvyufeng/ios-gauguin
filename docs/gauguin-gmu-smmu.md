@@ -190,3 +190,15 @@ transaction. Physical129 subsequently completed the cold transaction, published
 the two owned routes and resumed the micro-MMU, then stopped during the initial
 firmware RSC configuration. Firmware startup remains unqualified; see the
 [firmware contract](gauguin-gmu-firmware.md).
+
+
+Patch0147 corrects the cold GPU context baseline's arbitrary eight-slot minimum.
+The real0146 cached argument record reports five stream-match slots and five
+context banks; its other geometry is valid. With stream matching, slot count
+is independent of the SID number, so SID4/5 do not require eight slots. The
+baseline now requires a nonzero bounded slot count; ID-derived capture and
+actual free-slot/bank/ASID resolution remain authoritative. Tests retain the
+actual143 controller IDs, preserve an unrelated secure SID2 route, allocate
+GPU SID0 to the third free slot/context, and reject exhausted two-slot capacity
+before writes. Pure replay of0146's cached fields changes reason14 to0; this
+establishes the corrected input policy, not physical GPU translation or execution.

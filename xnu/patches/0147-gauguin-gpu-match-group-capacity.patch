@@ -1,0 +1,14 @@
+--- a/bsd/dev/gauguin_gpu_smmu.c
++++ b/bsd/dev/gauguin_gpu_smmu.c
+@@ -70,7 +70,10 @@
+ }
+ static unsigned baseline_reason(const struct gsm_receipt *s)
+ {
+-    if(s->groups<8||s->groups>GSM_STREAMS||s->banks<3||s->banks>GSM_BANKS||
++    /* With stream matching, mapping-group count is independent of SID bit
++     * width. Actual A619 reports5 slots/5 banks; slots can match SID4/5.
++     * Capture validates ID-derived geometry and resolve checks availability. */
++    if(!s->groups||s->groups>GSM_STREAMS||s->banks<3||s->banks>GSM_BANKS||
+        s->s2banks>=s->banks||s->ias<32||s->ias>39||s->stream_match>1)return 14;
+     if(s->mapped_pages!=131||s->translations!=140)return 15;
+     if(s->bank[0]==s->bank[1]||s->slot[0]==s->slot[1])return 16;

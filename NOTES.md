@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —147 fixes actual five-slot rejection; validated source, complete local kernel next
+
+Actual146 ONE trial finished03:03:48.136288Z after start03:01:31.327000Z;
+observer0/full reader2/runner2, TWRP observed136s. THIS146 reset attribution
+UNKNOWN. GPU INPUT reason14: groups5/banks5/s2banks0/IAS39/OAS36/match1,
+old GMU131pages/140ATOS. Streams4/5 slot0/1 bank0/1 ASID1/2,
+SMR80000004/80000005,S2CR0/1,SCTLRc01067,ACTLR70000000. Rejection precedes
+ANY new GPU write/ATOS/SMC: phase0/rc1; aperture zero fields mean NOT ATTEMPTED,
+not secure return0. No FW release/HFI/DCVS this trial. Last phone observedTWRP.
+Raw4065lines/455993B SHA1fad9a200f8033cbdde060805de0ffc1d90fb0d79a791258a91edc7862dd3497;
+cycle1057B SHAefd093f811cf4319e94725149cbf19e5fbde75eddebe4072171531e6a9c5cf49;
+strict rejected report8378B SHA38dabc3f251c86484041234dca6c0e88c5e6f17566a79aa86a94ac6a81907403.
+Codex rehashed all full-reader inputs. Retain failures unchanged. THIS0138 user
+self-reset confirmation already recorded; it cannot attribute145/146.
+
+The exact erroneous clause was groups<8, not another geometry field. SMR slot
+count is independent of SID width; actual5 slots support SID4/5. Patch0147
+changes ONLY that clause to !groups, preserving max128/banks>=3/ID capture,
+all route/ASID/control checks and dynamic capacity resolution. No forced PT,
+secure takeover, hardware retry or gate bypass. Complete source1475288files,
+141 patches, SHA81e798edcceeb334e4722c017930f18d0ad896307077ce0228e192e65b21a489,
+only bsd/dev/gauguin_gpu_smmu.c differs from146. New model uses retained actual143
+IDs48016605/20008005/7511 plus actual1465-slot/5-bank receipt; preserves secure
+SID2 and GMU contexts; GPU resolves slot2/bank2/ASID3. Also covers minimum3 slots
+and 2-slot exhaustion ->GSM_ROUTING with no prepare/writes.
+
+Validation v1 stopped after four passed checks at my helper's Python f-string
+brace syntax error; original helper/report/log preserved. Explicit v2 fixes
+only helper syntax, rehashes original successes, runs remaining checks. DSH56344
+CLOSED0, actual validate147_v2.py0; all SEVEN checks0, all65 hosts passed.
+GPU fixture13,385,120 assertions. Old frozen146 fixture20,942,109 callbacks on
+both146/147, identical digesta224965072189c07. Actual146 cached numeric fields
+replayed through real pure checkers:146reason14 ->147reason0; callbacks forbidden.
+This is a software regression, not physical translation/SMC proof. Codex
+independently rehashed271 validation pins, both source snapshots and subreports.
+Validation33549B SHA f0e6ff0941d8a4d3e48420525408fefc60deb83add1f4c71575234571a7096cf;
+captured regression3411B SHA117ecc241b8ea8113f42c616af31a63d834b6c580b6501751ed3ae31f9b9fa64;
+frozen I/O3755B SHA6846b5db895ed196ff3c515869dcfa97e73f4bcf1aa0d7eb6e496f2ab7f31ae0.
+Native GPU SMMU45448B SHA0a4a5ea522907437a32dda646b0d48b64a82296082f85462e587a15086c1389b,
+using complete146yFYkK1 recipe. Current full recipe remains146yFYkK1.
+
+NEXT commit/publish sanitized147 source, execute reviewed build147.py and strict
+qualify_native0147.py for ONE standard local full build on committed HEAD.
+Then package/independent image review, strict parser fixtures including5-slot
+geometry and ONE temporary147 hardware boot. Need real GPU translations/scalar
+CP aperture before GPU OOB/core/SQE/commands. Whole goal ACTIVE/incomplete.
+Original mkadt7-line diff intact; no CI/flash/format/GPT/destructive actions.
+Codex critical code/Git/review, DSH reviewed compilation/tests/build/boot.
+
 ### 2026-11-07 —146 image/readers qualified; ONE rejection-reason hardware trial next
 
 DSH79868 CLOSED0; actual package0/independent review0, all9 inputs unchanged.

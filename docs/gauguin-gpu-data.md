@@ -206,9 +206,31 @@ all other words and the completion observation must match. There is no
 CP_MEM_WRITE in the captured native IB. This expectation is a plan, not an
 observed shader result.
 
-A new exclusive continuation after GGU is required, preserving the167 EOP
-path and current watchdog guards. No168 XNU driver, kernel image or physical
-shader experiment has been produced. The next work is the actual guarded
-compute engine/provider, followed by native comparisons, failure models,
-ARM64 compilation and one temporary device boot. Rendering, Metal, high
-refresh and daily-use acceptance remain unfinished.
+The168 patch now implements the GGK engine and private board provider. Cold
+mode6 selects this continuation directly after GGU20, preserving the old
+mode3/4/5 engines and providers. It stages146 words in fixed existing ring
+slots, submits seven direct words and requires device shadow27. Production
+callbacks admit no CPU DATA store. Full-page comparisons require31 shader
+values, EOP2 and992 untouched words; separate cached records retain actual
+CPU reads of all32 output words. Idle or an event marker alone cannot pass.
+
+The complete page-table, sole NC-alias, signed-parent, route, clock, fault
+and watchdog checks remain active. NC passes use at most64 words between
+full guards, following the existing first-CP policy; MMIO and standalone
+polls remain individually guarded. The4-second total,2-second phase and
+8-second entry requirements are unchanged. Failure poisons shared ownership
+before diagnostic output.
+
+The actual engine passed9589 host cases under ASan/UBSan, and the actual
+board model passed1333 new cases while preserving earlier suites. Its secure
+CPU page becomes inaccessible after authentication. Four ARM64 translation
+units compiled successfully; five traces matched the native91/32/16 words
+and direct seven-word append exactly. A clean replay of all162 patches and
+all82 host test files passed, followed by source/build preflight and an
+independent review of the complete input records, source and object files.
+
+These are source/model results. No168 complete kernel or physical shader
+experiment has been produced yet. The next step is one complete local
+kernel build and strict artifact qualification, then image/runtime gates
+and one temporary device boot. Rendering, Metal, high refresh and daily-use
+acceptance remain unfinished.

@@ -2,6 +2,90 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —168 GGK source/full82 host ACCEPTED; one full local kernel NEXT
+
+Current continuation PROGRESS: actual mode6 GGK compute engine/provider,
+coordinator/PAS/cold selector and official162nd patch implemented. Fresh
+162patch replay and ALL82 actual host test files passed FIRST execution.
+Fullgoal ACTIVE/unlimited. NO168 complete kernel/image/physical shader yet.
+Phone LASTTWRP167. All168 DSH stages terminal; no device IO this continuation.
+User away: ALLresets automatic, --manual-reset no; never ask attribution/UI,
+prompt only truly stuck needing manual recovery. Original mkadt7line diff
+SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+untouched. No flash/format/GPT. Existing temporaryboot/misc authorization stands.
+CURRENT native/generated KERNEL recipe STILL167 gauguin.NQU6PL/source167-codex,
+manifest7b32e93094505e6bcc81d7ddb7c6120aca68efebeff5fb2e965bfc8a4613d482.
+Do not use older generated TU recipes. Update this after successful168 build.
+
+Actual new source .deps-cache/p0-20261105/source168-codex:5312files SHA
+a927b7291ccea616a3d220ee83f3ae6ff2c33a36e9d8b42060626e43f5f12ba9.
+Exact7delta vs unchanged167: new gauguin_gpu_compute.c/.h, gmu_board.c/.h,
+bcm_coordinator.c, pas_stage.c and bsd/conf/files. Patch
+0168-gauguin-fixed-native-compute.patch,162active series. Existing modes3/4/5
+engine/provider bytes retained. Shared mode admission deliberately extends6;
+mode6 is frozen at cold DATA19 and runs exclusively directly after GGU20,
+before old mode5. Never append it after GGE under unchanged23s watchdog.
+
+GGK uses exact accepted native Mesa91word IB/32word program/16word descriptor,
+staged only at existingRO/NX ring+4000/+5000/+6000; direct7words20..26,
+IB_PRIV0/WHERE ending shadow27. No new map/alias/PTE/IRQ/PET/WDT changes.
+CPU stores only146 fixed ring/artifact words. FullDATA1024 before/after:
+expected final [2,1,2,...,31]+992zeros;31nonzero actual shader results AND
+separate EOP2 poll required. Idle/EOP alone rejected. Logs cache32 actual
+CPU before/after values, full counts,91/32/16/7 artifact words and guards.
+Private signed/GGU predecessor, all16KiB PTEs/eight sole NC CPU pages/routes/
+clock/IRQ/fault checks and4s total/2s phase/8s entry/minWDT guards retained.
+NewGGK NCpasses follow proven firstCP <=64word batching: full guards before/
+after each batch, exact per-word range checks; MMIO/polls individually guarded.
+Old GGE/GGI/GGW unchanged. Failure poisons all owners before diagnostics.
+
+DSH34171/v10 focus inner0 FIRSTexecution: actual engine9589cases/
+151139031assertions ASan+UBSan+Werror, all callback failure boundaries, all
+data/artifact corruption and EOP/idle-withoutshader negatives; four actual
+ARM64 TUs0 against CURRENT167 manifest. DSH4799/v11 board inner0 FIRST:
+1333new actual board cases plus retained GGW369/GGI436/GGE495; signed secure
+CPU page PROT_NONE after AUTH,44fault classes/7phases, PTE/NC/alias/mode/time/
+once/corruption checks. These are models, no actual shader proof.
+Initial generator author_compute_board_model168.py stopped on wrong header
+anchor BEFORE writing board fixture/test execution; original preserved,
+finish_compute_board_model168.py completed authoring. No failed test waived.
+
+Test default source paths then changed167->168 for official standalone use,
+so DSH5516/v12 refresh-models inner0 produced NEW canonical focus-result-v2.json
+SHA1e7ec9b758745a81293157f29bd3e28a458ac2d4bf64940628a5bcf6ceaf64e3
+and board-model-result-v2.json SHA
+09c4d897a382f1b3ac224ab84fc8676b3a5efde2fdbd885ee10351bada4890e8.
+Use these v2 gates/v2-*.log/port-traces-v2, not old reports whose entry hashes
+predate default edits. Candidate/fixture semantics unchanged. Root earlier
+engine/board review e43f293295216c2e131003dcc665d5e810b2dbe60dfd376ab18b68bdb30570a8.
+
+DSH4583/v13 integration actual terminal inner0: fresh162patch source/all82
+host files0, full input snapshot329pins, baseline/source unchanged. Report
+integration-result.json SHAa3600101740d4d04361dbe077275ed99691e3270ca48939ec3234c57ff7705ad.
+DSH21849/v14 preflight actual inner0 FIRST: binder/source contracts/shared
+qualifier/build helper syntax/staging and all primary native inputs passed.
+preflight-result.json includes12pins. Root independent_source_review168.py
+independent-source-review.json SHA
+7e1c7fea2a7ab4519d4a902fe57c9e0f6c175b3d0374121491dd4de589799b4a:
+rehashed all329+24+80+12pins/full5312source, four actualARM64 objects,
+five exact146store traces vs native91/32/16/7, old engine/provider bytes.
+No model or source report is physical GPU qualification.
+
+NEXT commit/publish this completed SOURCE milestone, same-tree sole public
+parent87cc12fff8b1237f95489b7d88c43e0aea46ea65, record immutable SOURCE_HEAD
+in research/tmp/dsh-0168/public-source-snapshot.json. Then DSH execute ONLY
+dispatch_once168v14.py build: ONE fullLOCAL8job build168.py/strict
+qualify_native0168.py. Freeze HEAD/source/binder/shared contract/qualifier/
+dispatcher until terminal. Source-only9compute flags true, all hardware
+flags remain false. No168 image/runtime/parser helpers authored yet; use
+new exact mode6/trialgwrt-0168-a1, same606B/fiveassets/defaultabsentINIT0/pasmem0
+and strict actual shader31/fullpage/artifact evidence before ONE tempboot.
+No re-boot167 to reconfirm. Preserve all old failed/raw reports; no filters,
+dedup, parser repair or guard waiver. Codex criticalC/Git/NOTES/acceptance,
+DSH execute-only via atomic once (duplicates poll existing, no edits/Git).
+Rendering/Metal/general scheduling/RAM/UFS/peripherals/90-120Hz/daily-use
+acceptance remain unfinished; fullgoal notcomplete.
+
 ### 2026-11-08 —168 primary A619 shader+submit capture ACCEPTED; actual compute engine NEXT
 
 Previous goal turn167 physical EOP was PROGRESS. This continuation PROGRESS:

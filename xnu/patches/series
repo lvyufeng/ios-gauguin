@@ -163,3 +163,4 @@
 0165-gauguin-batch-cached-gpu-success-records.patch
 0166-gauguin-fixed-native-indirect-buffer.patch
 0167-gauguin-native-ib-eop-completion.patch
+0168-gauguin-fixed-native-compute.patch

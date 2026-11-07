@@ -140,3 +140,4 @@
 0142-gauguin-gmu-native-bandwidth-test-transaction.patch
 0143-gauguin-gmu-native-register-dcvs.patch
 0144-gauguin-gpu-global-memory-cp-init.patch
+0145-gauguin-gpu-default-context-aperture.patch

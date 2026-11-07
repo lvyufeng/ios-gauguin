@@ -43,7 +43,8 @@ static struct {
     enum gpi_rc mem_result;
     enum gpm_state mem_state;
     struct gpm_receipt mem_receipt;
-    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf,gmubw,gmudcvs;
+    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf,gmubw,gmudcvs,gpucontext;
+    unsigned gpu_calls;
     unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
     unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
     enum gmb_result fw_result;struct gmf_plan fw_plan;struct gmb_firmware_receipt fw_receipt;
@@ -85,6 +86,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     if(!strcmp(key,"sweetgmuperf")){*(int*)out=mock.gmuperf;return true;}
     if(!strcmp(key,"sweetgmubw")){*(int*)out=mock.gmubw;return true;}
     if(!strcmp(key,"sweetgmudcvs")){*(int*)out=mock.gmudcvs;return true;}
+    if(!strcmp(key,"sweetgpucontext")){*(int*)out=mock.gpucontext;return true;}
     if(!strcmp(key,"sweetcxpower")){*(int*)out=mock.cxpower;return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,off_flags[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known flag");return false;
@@ -374,6 +376,11 @@ enum gmb_result sweet_gmu_firmware_dcvs_once(const struct sweet_pas_cpu_stage *s
 }
 enum gmb_state sweet_gmu_firmware_state(void)
 {CHECK(mock.fw_calls==1&&mock.fw_result!=GMB_OK,"state only after refused firmware return");++mock.fw_state_queries;return mock.fw_result>=GMB_CONTEXT?GMB_QUARANTINED:GMB_IDLE;}
+enum gmb_result sweet_gmu_firmware_gpu_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+{
+ CHECK(mock.gpucontext==1&&mock.gmudcvs==1&&mock.gmubw==1&&mock.gmuperf==1&&mock.gpu_calls++==0&&!mock.dcvs_calls&&!mock.bw_calls&&!mock.perf_calls,"GPU context selects one explicit cold entry");
+ CHECK(bw&&!memcmp(bw,&mock.bw_plan,sizeof(*bw)),"GPU uses exact same-boot BW plan");return firmware_mock(s,p,out);
+}
 #define printf test_printf
 @SOURCE@
 #undef printf
@@ -900,6 +907,22 @@ static void dcvs_cases(void)
  reset_bw("DCVS forbidden after failed watchdog arm");mock.gmudcvs=1;mock.arm_fail=1;run_worker();CHECK(!mock.transactions&&!mock.fw_calls&&!mock.dcvs_calls,"failed WDT prevents DCVS");
  reset_bw("DCVS excludes PAS");mock.gmudcvs=1;mock.pasinit=1;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.dcvs_calls,"PAS conflict before work");
 }
+static void gpu_cases(void)
+{
+ for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_bw("invalid GPU context flag");mock.gmudcvs=1;mock.gpucontext=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.gpu_calls,"GPU context exact0/1 before work");}
+ for(unsigned dep=0;dep<6;dep++){
+  reset_bw("GPU context missing prerequisite");mock.gmudcvs=mock.gpucontext=1;
+  if(dep==0)mock.gmudcvs=0;else if(dep==1)mock.gmubw=0;else if(dep==2)mock.gmuperf=0;else if(dep==3)mock.gmufw=0;else if(dep==4)mock.gmuclk=0;else mock.cxpower=0;
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.gpu_calls,"GPU context requires full validated chain before work");
+ }
+ for(unsigned n=GMB_ARGUMENT;n<=GMB_GPU;n++){
+  reset_bw("every GPU context refusal terminal");mock.gmudcvs=mock.gpucontext=1;mock.fw_result=(enum gmb_result)n;run_worker();
+  CHECK(mock.gpu_calls==1&&mock.fw_calls==1&&!mock.dcvs_calls&&!mock.bw_calls&&!mock.perf_calls&&!mock.after_sleeps&&mock.quarantines==1,"one GPU cold API, no fallback/retry");
+ }
+ reset_bw("GPU context full order");mock.gmudcvs=mock.gpucontext=1;run_worker();
+ CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.gpu_calls==1&&mock.fw_calls==1&&!mock.dcvs_calls&&mock.after_sleeps==30,"GPU cold entry consumes existing order and sole boot");
+ reset_bw("GPU context defaults off");mock.gmudcvs=1;run_worker();CHECK(mock.dcvs_calls==1&&!mock.gpu_calls,"legacy DCVS remains selected by default");
+}
 int main(void)
 {
     legacy_cases();
@@ -928,5 +951,7 @@ int main(void)
     printf("PASS: %u retained + %u BW/TEST coordinator cases (%u total); typed seams only\n",before_bw,cases-before_bw,cases);
     unsigned before_dcvs=cases;dcvs_cases();
     printf("PASS: %u retained + %u DCVS coordinator cases (%u total); typed seams only\n",before_dcvs,cases-before_dcvs,cases);
+    unsigned before_gpu=cases;gpu_cases();
+    printf("PASS: %u retained + %u GPU context coordinator cases (%u total); typed seams only\n",before_gpu,cases-before_gpu,cases);
     return 0;
 }

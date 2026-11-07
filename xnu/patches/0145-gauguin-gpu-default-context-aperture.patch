@@ -1,0 +1,732 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -125,6 +125,8 @@
+ bsd/dev/gauguin_gcc_votes.c		standard
+ bsd/dev/gauguin_gmu_memory.c		standard
+ bsd/dev/gauguin_gpu_memory.c		standard
++bsd/dev/gauguin_gpu_smmu.c		standard
++bsd/dev/gauguin_gpu_aperture.c		standard
+ bsd/dev/gauguin_gmu_hfi.c			standard
+ bsd/dev/gauguin_gmu_smmu.c		standard
+ bsd/dev/gauguin_gmu_board.c		standard
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -44,6 +44,8 @@
+ {int flag=0;(void)PE_parse_boot_argn("sweetgmubw",&flag,sizeof(flag));return flag==1;}
+ static bool bcm_dcvs_requested(void)
+ {int flag=0;(void)PE_parse_boot_argn("sweetgmudcvs",&flag,sizeof(flag));return flag==1;}
++static bool bcm_gpu_requested(void)
++{int flag=0;(void)PE_parse_boot_argn("sweetgpucontext",&flag,sizeof(flag));return flag==1;}
+ static bool bcm_context(void)
+ { return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
+ static void bcm_record(const char *line)
+@@ -78,6 +80,8 @@
+     if ((bw != 0 && bw != 1) || (bw == 1 && perf != 1)) return false;
+     int dcvs = 0; (void)PE_parse_boot_argn("sweetgmudcvs", &dcvs, sizeof(dcvs));
+     if ((dcvs != 0 && dcvs != 1) || (dcvs == 1 && bw != 1)) return false;
++    int gpu = 0; (void)PE_parse_boot_argn("sweetgpucontext", &gpu, sizeof(gpu));
++    if ((gpu != 0 && gpu != 1) || (gpu == 1 && dcvs != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -181,7 +185,8 @@
+             if(fw_requested){
+                 struct gmb_firmware_receipt fw;
+                 const bool perf=bcm_perf_requested(),dcvs=bcm_dcvs_requested();
+-                enum gmb_result result=dcvs?sweet_gmu_firmware_dcvs_once(&stage,&fw_plan,&bw_plan,&fw):
++                enum gmb_result result=bcm_gpu_requested()?sweet_gmu_firmware_gpu_once(&stage,&fw_plan,&bw_plan,&fw):
++                    dcvs?sweet_gmu_firmware_dcvs_once(&stage,&fw_plan,&bw_plan,&fw):
+                     bw_requested?sweet_gmu_firmware_bw_test_once(&stage,&fw_plan,&bw_plan,&fw):
+                     perf?sweet_gmu_firmware_perf_once(&stage,&fw_plan,&fw):
+                     sweet_gmu_firmware_once(&stage,&fw_plan,&fw);
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -207,6 +207,16 @@
+ static struct gmf_context gfw_context;
+ static struct gmb_firmware_receipt gfw_work;
+ static unsigned gfw_copy_issued,gfw_copy_compared;
++static struct ggs_context ggb_context;
++static struct ggp_plan ggb_plan;
++static struct ggs_receipt ggb_smmu;
++static struct gpa_context ggb_aperture;
++static struct gpa_receipt ggb_secure;
++static uint64_t ggb_deadline;
++static unsigned ggb_started;
++static enum gsm_result ggb_result;
++static enum gpa_result ggb_secure_result;
++static bool ggb_context_valid(void);
+ enum gmb_state sweet_gmu_firmware_state(void)
+ {return (enum gmb_state)__atomic_load_n(&gfw_lifecycle,__ATOMIC_ACQUIRE);}
+ static uint32_t gfw_load32(vm_offset_t address)
+@@ -222,16 +232,20 @@
+      * Device write before the engine's immediate post-write guard samples. */
+     __asm__ volatile("dsb sy" ::: "memory");
+ }
+-static bool gfw_faults(void)
++static bool gfw_faults(bool gpu_probe)
+ {
+     const struct gsm_receipt *s=&gmb_work.smmu;uint32_t v;uint64_t ttbr;
++    bool own_halt=gpu_probe&&ggb_context.state==1&&ggb_context.halt_attempted&&ggb_context.phase<GGS_FINAL;
++    uint32_t micro_mask=~(8u|(own_halt?4u:0u));
+     if(!gmb_read32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
+        !gmb_read32(NULL,0,&v)||v!=s->cr0_after||
+-       !gmb_read32(NULL,0x6000,&v)||(v&~8u)!=(s->micro_after&~8u)||(v&4))return false;
++       !gmb_read32(NULL,0x6000,&v)||(v&micro_mask)!=(s->micro_after&micro_mask)||((v&4)&&!own_halt))return false;
+     for(unsigned n=0;n<2;n++){
+         if(s->bank[n]>=GSM_BANKS||s->slot[n]>=GSM_STREAMS)return false;
+         uint32_t cb=0x8000+0x1000*s->bank[n];
+-        if(!gmb_read32(NULL,cb+0x58,&gfw_work.fsr[n])||(gfw_work.fsr[n]&GSM_FSR_FAULT_MASK)||
++        uint32_t own_tf=gpu_probe&&ggb_context.state==1&&ggb_context.probe_active&&
++            ggb_context.probe_hole&&ggb_context.probe_bank==s->bank[n]?2u:0u;
++        if(!gmb_read32(NULL,cb+0x58,&gfw_work.fsr[n])||(gfw_work.fsr[n]&GSM_FSR_FAULT_MASK&~own_tf)||
+            !gmb_read32(NULL,cb,&v)||v!=s->sctlr[n]||
+            !gmb_read32(NULL,cb+4,&v)||v!=s->actlr[n]||
+            !gmb_read32(NULL,cb+0x10,&v)||v!=s->tcr2||
+@@ -270,7 +284,7 @@
+     else if(phase==GMF_RELEASING){if(gfw_work.reset!=(gfw_work.release_attempted?0u:1u))return false;}
+     else if(!gfw_work.release_attempted||gfw_work.reset)return false;
+     if(gfw_work.oob_attempted&&phase<GMF_GX_REQUEST)return false;
+-    return gfw_faults()&&mach_absolute_time()<gfw_deadline&&
++    return gfw_faults(false)&&(!ggb_started||ggb_context_valid())&&mach_absolute_time()<gfw_deadline&&
+         gauguin_wdt_lease_check_budget(GMB_MIN);
+ }
+ static bool gfw_read(void *cookie,enum gmf_window w,uint32_t off,uint32_t *out)
+@@ -382,11 +396,118 @@
+         }
+     }
+ }
++/* GPU default-PT stage shares this TU's sole Device/NC aliases. */
++static bool ggb_context_valid(void)
++{
++    const struct ggs_receipt *s=&ggb_smmu;uint32_t v;uint64_t t;
++    if(ggb_context.state!=2||ggb_result!=GSM_OK||s->bank>=GSM_BANKS||s->slot>=GSM_STREAMS||
++       s->gpu_pages!=18||s->gmu_pages!=131||s->translations!=168)return false;
++    unsigned b=0x8000+4096*s->bank;
++    return gmb_read32(NULL,b,&v)&&v==s->sctlr&&gmb_read32(NULL,b+4,&v)&&v==0x70000000&&
++        gmb_read32(NULL,b+0x58,&v)&&!(v&GSM_FSR_FAULT_MASK)&&v!=UINT32_MAX&&
++        gmb_read32(NULL,b+0x10,&v)&&v==s->tcr2&&gmb_read32(NULL,b+0x30,&v)&&v==s->tcr&&
++        gmb_read32(NULL,b+0x38,&v)&&v==s->mair0&&gmb_read32(NULL,b+0x3c,&v)&&v==s->mair1&&
++        gmb_read32(NULL,0x1000+4*s->bank,&v)&&v==0x1f300&&gmb_read32(NULL,0x1800+4*s->bank,&v)&&v==1&&
++        gmb_read32(NULL,0xc00+4*s->slot,&v)&&v==s->s2cr&&
++        (!s->stream_match||(gmb_read32(NULL,0x800+4*s->slot,&v)&&v==s->smr))&&
++        gmb_read64(NULL,b+0x20,&t)&&t==s->ttbr0&&gmb_read64(NULL,b+0x28,&t)&&t==s->ttbr1;
++}
++static bool ggb_guard(void *cookie)
++{
++    (void)cookie;return ggb_started&&sweet_gmu_firmware_state()==GMB_RUNNING&&
++        sweet_gmu_board_state()==GMB_READY&&mach_absolute_time()<ggb_deadline&&
++        sweet_pas_stage_owner_valid(&gmb_stage)&&gmb_guard(NULL)&&gfw_faults(true)&&
++        (ggb_context.state!=2||ggb_context_valid())&&mach_absolute_time()<ggb_deadline;
++}
++static bool ggb_memory(unsigned offset,const uint32_t *source,unsigned bytes,bool check)
++{
++    if(!gmb_ram||offset<GGP_TABLE_OFFSET||(offset&4095)||!bytes||(bytes&4095)||
++       offset>GGP_ARENA_END||bytes>GGP_ARENA_END-offset)return false;
++    for(unsigned chunk=0;chunk<bytes;chunk+=4096){
++        if(!ggb_guard(NULL))return false;
++        volatile uint32_t *dst=(volatile uint32_t *)(gmb_ram+offset-GMB_PAGE+chunk);
++        for(unsigned i=0;i<1024;i++){
++            uint32_t expected=source?source[chunk/4+i]:0;
++            if(check){if(dst[i]!=expected)return false;}else dst[i]=expected;
++        }
++        __asm__ volatile("dsb sy" ::: "memory");
++        if(!ggb_guard(NULL))return false;
++    }
++    return true;
++}
++static bool ggb_prepare(void *cookie,unsigned ias,unsigned oas,struct ggp_s1_config *out)
++{
++    (void)cookie;if(!ggb_guard(NULL))return false;
++    /* Reuse the retained NC owner, after the protected MDT and GMU regions.
++     * Revalidate every16KiB tail page before writing; no second mapping. */
++    for(unsigned off=GGP_TABLE_OFFSET;off<GGP_ARENA_END;off+=GMB_PAGE){
++        ppnum_t pn=(ppnum_t)((gmb_stage.pa+off)>>PAGE_SHIFT);vm_offset_t va=gmb_ram+off-GMB_PAGE;
++        if(!ggb_guard(NULL)||pmap_valid_page(pn)||pmap_cache_attributes(pn)!=UINT32_C(0xd0000006)||
++           ml_vtophys(va)!=gmb_stage.pa+off||ml_vtophys(va+GMB_PAGE-1)!=gmb_stage.pa+off+GMB_PAGE-1)return false;
++    }
++    uint8_t *scratch=IOMalloc(GGP_TABLE_BYTES);if(!scratch)return false;
++    struct ggp_s1_config cfg;bool good=ggp_emit_tables(&ggb_plan,ias,oas,scratch,GGP_TABLE_BYTES,&cfg);
++    for(unsigned r=0;r<GGP_COUNT&&good;r++)good=
++        ggb_memory(ggb_plan.region[r].offset,NULL,ggb_plan.region[r].reserved,false)&&
++        ggb_memory(ggb_plan.region[r].offset,NULL,ggb_plan.region[r].reserved,true);
++    if(good)good=ggb_memory(GGP_TABLE_OFFSET,(const uint32_t *)scratch,GGP_TABLE_BYTES,false)&&
++        ggb_memory(GGP_TABLE_OFFSET,(const uint32_t *)scratch,GGP_TABLE_BYTES,true);
++    IOFree(scratch,GGP_TABLE_BYTES);if(!good||!ggb_guard(NULL))return false;
++    *out=cfg;return true;
++}
++static bool ggb_secure_guard(void *cookie,bool initial)
++{return ggb_guard(cookie)&&gauguin_wdt_lease_check_budget((initial?10u:3u)*GAUGUIN_WDT_CLOCK_HZ);}
++static bool ggb_before(void *cookie,unsigned fresh,const struct gpa_registers *r)
++{
++    (void)cookie;char line[192];
++    snprintf(line,sizeof(line),"SWEET GPU APERTURE: before fresh=%u bank=%u fn=%08llx info=%llx arg0=%08llx arg1=%08llx arg2=%08llx arg3=%08llx; four scalar args",fresh,ggb_smmu.bank,
++        r->x[0],r->x[1],r->x[2],r->x[3],r->x[4],r->x[5]);gmb_record(line);return true;
++}
++static void ggb_invoke(void *cookie,struct gpa_registers *r)
++{
++    (void)cookie;
++    register uint64_t x0 __asm__("x0")=r->x[0];register uint64_t x1 __asm__("x1")=r->x[1];
++    register uint64_t x2 __asm__("x2")=r->x[2];register uint64_t x3 __asm__("x3")=r->x[3];
++    register uint64_t x4 __asm__("x4")=r->x[4];register uint64_t x5 __asm__("x5")=r->x[5];
++    register uint64_t x6 __asm__("x6")=r->x[6];
++    __asm__ volatile("dsb sy" ::: "memory");
++    __asm__ volatile("smc #0" : "+r"(x0),"+r"(x1),"+r"(x2),"+r"(x3),"+r"(x4),"+r"(x5),"+r"(x6) : :
++        "x7","x8","x9","x10","x11","x12","x13","x14","x15","x16","x17","cc","memory");
++    r->x[0]=x0;r->x[1]=x1;r->x[2]=x2;r->x[3]=x3;r->x[4]=x4;r->x[5]=x5;r->x[6]=x6;
++}
++static bool ggb_delay_ms(void *cookie,unsigned ms)
++{if(ms!=30||!ggb_guard(cookie))return false;IOSleep(ms);return ggb_guard(cookie);}
++static bool ggb_run(void)
++{
++    ggb_started=1;clock_interval_to_deadline(8,NSEC_PER_SEC,&ggb_deadline);gmb_deadline=ggb_deadline;
++    if(!ggb_guard(NULL)||!ggp_plan_build(&gmb_context.plan,&ggb_plan))return false;
++    struct ggs_ops o={NULL,ggb_guard,gmb_read32,gmb_write32,gmb_read64,gmb_write64,gmb_barrier,gmb_delay,ggb_prepare};
++    ggb_result=ggs_configure_once(&ggb_context,&o,&ggb_plan,&gmb_work.smmu,&ggb_smmu);
++    if(ggb_result!=GSM_OK||!ggb_guard(NULL))return false;
++    clock_interval_to_deadline(5,NSEC_PER_SEC,&ggb_deadline);gmb_deadline=ggb_deadline;
++    struct gpa_ops secure={NULL,ggb_secure_guard,ggb_before,ggb_invoke,ggb_delay_ms};
++    ggb_secure_result=gpa_program_once(&ggb_aperture,&secure,ggb_smmu.bank,&ggb_secure);
++    return ggb_secure_result==GPA_OK&&ggb_aperture.state==2&&ggb_guard(NULL);
++}
++static void ggb_records(bool complete)
++{
++    if(!ggb_started)return;char line[224];const struct ggs_receipt *s=complete?&ggb_smmu:&ggb_context.work;
++    snprintf(line,sizeof(line),"SWEET GPU SMMU: %s phase=%u rc=%u slot=%u bank=%u asid=%u gpu_pages=%u gmu_pages=%u atos=%u writes=%u polls=%u",complete?"complete":"partial",ggb_context.phase,ggb_result,s->slot,s->bank,s->asid,s->gpu_pages,s->gmu_pages,s->translations,s->writes,s->polls);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU SMMU: ttbr0=%016llx ttbr1=%016llx sctlr=%08x smr=%08x s2cr=%08x micro=%08x/%08x; context only, no GPU commands",s->ttbr0,s->ttbr1,s->sctlr,s->smr,s->s2cr,s->micro_before,s->micro_after);gmb_record(line);
++    const struct gsm_diagnostics *d=&ggb_context.diagnostic;
++    if(!complete&&d->check){snprintf(line,sizeof(line),"SWEET GPU SMMU FAIL: phase=%u check=%u off=%05x mask=%016llx expected=%016llx actual=%016llx",ggb_context.phase,d->check,d->offset,d->mask,d->expected,d->actual);gmb_record(line);}
++    const struct gsm_atos_sample *a=&ggb_context.translation;
++    if(!complete&&a->valid){snprintf(line,sizeof(line),"SWEET GPU ATOS FAIL: sid=%u bank=%u iova=%08x expected=%016llx par=%016llx level=%u",a->stream,a->bank,a->iova,a->expected,a->par,a->level);gmb_record(line);}
++    const struct gpa_registers *r=&ggb_secure.returned;
++    snprintf(line,sizeof(line),"SWEET GPU APERTURE: %s rc=%u returned=%u calls=%u fresh=%u continuations=%u x0=%016llx x1=%016llx x2=%016llx x3=%016llx",complete?"complete":"partial",ggb_secure_result,ggb_secure.has_returned,ggb_secure.calls,ggb_secure.fresh,ggb_secure.continuations,r->x[0],r->x[1],r->x[2],r->x[3]);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU APERTURE: x4=%016llx x5=%016llx x6=%016llx; native transport only, no GPU execution",r->x[4],r->x[5],r->x[6]);gmb_record(line);
++}
+ static enum gmb_result gfw_fail(enum gmb_result rc,const char *why)
+ {
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+     /* Quarantine both owners and the shared lease BEFORE synchronous logs. */
+     gmb_fail(rc,why);
++    ggb_records(false);
+     char line[192];
+     snprintf(line,sizeof(line),"SWEET GMU FW: stopped phase=%u engine=%u reset=%08x gx=%08x release=%u oob=%u gfsr=%08x fsr=%08x/%08x ao=%08x info=%08x",
+         gfw_work.phase,(unsigned)gfw_work.result,gfw_work.reset,gfw_work.gx,
+@@ -423,9 +544,9 @@
+     return rc;
+ }
+ static enum gmb_result gfw_once(const struct sweet_pas_cpu_stage *stage,
+-    const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool dcvs)
+-{
+-    if((dcvs&&!bw)||!stage||!out||!gmf_plan_valid(plan)||(bw&&(!perf||!gmf_bw_plan_valid(bw))))return GMB_ARGUMENT;
++    const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool dcvs,bool gpu)
++{
++    if((gpu&&!dcvs)||(dcvs&&!bw)||!stage||!out||!gmf_plan_valid(plan)||(bw&&(!perf||!gmf_bw_plan_valid(bw))))return GMB_ARGUMENT;
+     unsigned expected=GMB_IDLE;
+     if(!__atomic_compare_exchange_n(&gfw_lifecycle,&expected,GMB_RUNNING,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMB_ALREADY;
+     if(!gmb_thread())return gfw_fail(GMB_CONTEXT,"firmware thread context");
+@@ -433,6 +554,7 @@
+     if(!sweet_gmu_irq_quiet(gfw_work.irq)||(gfw_work.irq[1]&0x1000))return gfw_fail(GMB_PARENT,"firmware NS IRQ policy before SMMU maps");
+     enum gmb_result rc=sweet_gmu_smmu_once(stage,&gfw_work.board);
+     if(rc!=GMB_OK){__atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);return rc;}
++    if(gpu&&!ggb_run())return gfw_fail(GMB_GPU,"GPU default context/ATOS/native CP aperture");
+     gfw_work.asset_pa=gfw_asset.pa;
+     clock_interval_to_deadline(8,NSEC_PER_SEC,&gfw_deadline);
+     /* Cold map helper retains its original predicates; refresh only this
+@@ -468,7 +590,9 @@
+        !gfw_context.dcvs_return_valid||gfw_context.dcvs_return||
+        !gfw_context.dcvs_clear_attempted||!gfw_context.dcvs_valid))return gfw_fail(GMB_FIRMWARE,"DCVS request/return receipt unavailable");
+     if(!sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_DONE))return gfw_fail(GMB_MEMORY,"final firmware owner/phase predicates");
++    if(gpu&&(ggb_context.state!=2||ggb_aperture.state!=2||!ggb_context_valid()))return gfw_fail(GMB_GPU,"final GPU context/aperture receipts");
+     *out=gfw_work;__atomic_store_n(&gfw_lifecycle,GMB_READY,__ATOMIC_RELEASE);
++    if(gpu)ggb_records(true);
+     gfw_hidden_records();
+     gfw_pdc_records();
+     gfw_ao_record();
+@@ -491,14 +615,17 @@
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
+-{return gfw_once(stage,plan,out,false,NULL,false);}
++{return gfw_once(stage,plan,out,false,NULL,false,false);}
+ enum gmb_result sweet_gmu_firmware_perf_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
+-{return gfw_once(stage,plan,out,true,NULL,false);}
++{return gfw_once(stage,plan,out,true,NULL,false,false);}
+ enum gmb_result sweet_gmu_firmware_bw_test_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+-{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,false);}
++{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,false,false);}
+ enum gmb_result sweet_gmu_firmware_dcvs_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+-{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true);}
++{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true,false);}
++enum gmb_result sweet_gmu_firmware_gpu_once(const struct sweet_pas_cpu_stage *stage,
++    const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
++{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true,true);}
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -3,9 +3,11 @@
+ #include "gauguin_gmu_smmu.h"
+ #include "gauguin_pas_stage.h"
+ #include "gauguin_gmu_firmware.h"
++#include "gauguin_gpu_smmu.h"
++#include "gauguin_gpu_aperture.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+-    GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE};
++    GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE,GMB_GPU};
+ struct gmb_receipt {uint64_t owner_pa;uint32_t reset_before,gx_before,irq_before[3];
+     enum gsm_result smmu_result;struct gsm_receipt smmu;};
+ /* Internal cold stage of the opt-in coherent GMU firmware initializer.
+@@ -49,5 +51,11 @@
+  * operational GPU/Metal. Original public receipts remain unchanged. */
+ enum gmb_result sweet_gmu_firmware_dcvs_once(const struct sweet_pas_cpu_stage *,
+     const struct gmf_plan *,const struct gmf_bw_plan *,struct gmb_firmware_receipt *);
++/* Same transaction with GPU SID0 default context/ATOS and native CP aperture
++ * configured while CM3 remains reset, BEFORE firmware release. Existing GMU
++ * maps/receipt and all later PERF/BW/TEST/DCVS guards are retained. No GPU
++ * core access, SQE load, CP submission, rendering or Metal qualification. */
++enum gmb_result sweet_gmu_firmware_gpu_once(const struct sweet_pas_cpu_stage *,
++    const struct gmf_plan *,const struct gmf_bw_plan *,struct gmb_firmware_receipt *);
+ enum gmb_state sweet_gmu_firmware_state(void);
+ #endif
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_aperture.c
+@@ -0,0 +1,42 @@
++/* Native19b63c8 _init_global_pt/scm_call2 register ABI. No extension at four
++ * arguments: FIRST_EXT_ARG_IDX3 is scalar x5 until arg count exceeds four. */
++#include <string.h>
++#include "gauguin_gpu_aperture.h"
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++enum gpa_result gpa_program_once(struct gpa_context *c,const struct gpa_ops *ops,
++    unsigned bank,struct gpa_receipt *out)
++{
++    if(!span(c,sizeof(*c))||!span(ops,sizeof(*ops))||!span(out,sizeof(*out))||bank>=8||
++       overlap(ops,sizeof(*ops),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
++       overlap(out,sizeof(*out),ops,sizeof(*ops))||!ops->guard||!ops->before||!ops->invoke||!ops->delay_ms)return GPA_ARGUMENT;
++    struct gpa_ops o=*ops;uint32_t expected=0;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GPA_ALREADY;
++    memset(&c->work,0,sizeof(c->work));c->work.bank=bank;enum gpa_result rc=GPA_BUSY;
++    for(unsigned fresh=0;fresh<68;fresh++){
++        struct gpa_registers r={{UINT64_C(0x42000c1b),4,UINT64_C(0xffff0000)|bank,
++            UINT64_C(0xffffffff),UINT64_C(0xffffffff),UINT64_C(0xffffffff),0}};
++        if(!o.guard(o.cookie,c->work.calls==0)){rc=GPA_GUARD;break;}
++        if(!o.before(o.cookie,fresh+1,&r)){rc=GPA_IO;break;}
++        bool first=true;
++        for(;;){
++            if(!o.guard(o.cookie,c->work.calls==0)){rc=GPA_GUARD;goto done;}
++            if(first)++c->work.fresh;else ++c->work.continuations;
++            ++c->work.calls;o.invoke(o.cookie,&r);c->work.returned=r;c->work.has_returned=1;
++            if(r.x[0]!=1)break;
++            if(c->work.continuations==8){rc=GPA_CONTINUATION;goto done;}
++            first=false;
++        }
++        if(!o.guard(o.cookie,false)){rc=GPA_GUARD;break;}
++        if((int32_t)r.x[0]==-12){
++            if(fresh+1==68){rc=GPA_BUSY;break;}
++            if(!o.delay_ms(o.cookie,30)){rc=GPA_IO;break;}
++            continue;
++        }
++        rc=r.x[0]==0?GPA_OK:GPA_TRANSPORT;break;
++    }
++done:
++    *out=c->work;__atomic_store_n(&c->state,rc==GPA_OK?2:3,__ATOMIC_RELEASE);return rc;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_aperture.h
+@@ -0,0 +1,32 @@
++#ifndef GAUGUIN_GPU_APERTURE_H
++#define GAUGUIN_GPU_APERTURE_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++struct gpa_registers {uint64_t x[7];};
++enum gpa_result {GPA_OK,GPA_ARGUMENT,GPA_ALREADY,GPA_GUARD,GPA_IO,
++    GPA_CONTINUATION,GPA_BUSY,GPA_TRANSPORT};
++struct gpa_receipt {struct gpa_registers returned;uint32_t bank,calls,fresh,continuations,has_returned;};
++struct gpa_ops {
++    void *cookie;
++    /* Initial requires10s remaining WDT, subsequent calls3s; every check also
++     * enforces CM3 reset/GX quiet/retained owner/context and CPU deadline. */
++    bool (*guard)(void *,bool initial);
++    bool (*before)(void *,unsigned fresh,const struct gpa_registers *);
++    void (*invoke)(void *,struct gpa_registers *);
++    bool (*delay_ms)(void *,unsigned);
++};
++struct gpa_context {uint32_t state;struct gpa_receipt work;};
++/* Sole trusted board owner, after qualified same-boot GPU context. Only
++ * MP/CP_SMMU_APERTURE_ID1b, SCM64 normal call with four scalar arguments.
++ * No buffers/PAS/auth/reset/general SCM interface. Max68 fresh attempts and
++ * eight total continuations; tight continuations retain all x0..x6 and have
++ * no log/sleep. The board supplies the5s deadline, actual SMC and WDT checks.
++ * Successful native transport x0==0 does not promise a zero x1 service value;
++ * raw x0..x6 are retained. Software bounds cannot cancel nonreturning SMC.
++ * After claim every terminal result publishes a deterministic receipt; no
++ * retry/unclaim/rollback. Board quarantines hardware authorization on failure.
++ */
++enum gpa_result gpa_program_once(struct gpa_context *,const struct gpa_ops *,
++    unsigned bank,struct gpa_receipt *);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_smmu.c
+@@ -0,0 +1,309 @@
++/* Pinned native19b63c8 arm-smmu/KGSL context controls and QSMMUv2 ATOS.
++ * Add only GPU SID0 to the already initialized, still quiescent controller. */
++#include <string.h>
++#include "gauguin_gpu_smmu.h"
++#define CB(n) (0x8000u+0x1000u*(n))
++#define SMR(n) (0x800u+4u*(n))
++#define S2CR(n) (0xc00u+4u*(n))
++#define VALID 0x80000000u
++#define MICRO 0x6000u
++#define HALT 4u
++#define IDLE 8u
++/* Native user context with non-stall/HUPCF enabled, NC owner overrides.
++ * Unlike existing GMU banks, GPU faults process subsequent independent work. */
++#define GPU_SCTLR 0x00c01167u
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++static bool r32(struct ggs_context *c,uint32_t off,uint32_t *v)
++{return off<=0xfffc&&!(off&3)&&c->ops.guard(c->ops.cookie)&&c->ops.read32(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);}
++static bool r64(struct ggs_context *c,uint32_t off,uint64_t *v)
++{return off<=0xfff8&&!(off&7)&&c->ops.guard(c->ops.cookie)&&c->ops.read64(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);}
++static bool w32(struct ggs_context *c,uint32_t off,uint32_t v)
++{
++    if(off>0xfffc||(off&3)||!c->ops.guard(c->ops.cookie))return false;
++    ++c->work.writes;return c->ops.write32(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);
++}
++static bool w64(struct ggs_context *c,uint32_t off,uint64_t v)
++{
++    if(off>0xfff8||(off&7)||!c->ops.guard(c->ops.cookie))return false;
++    ++c->work.writes;return c->ops.write64(c->ops.cookie,off,v)&&c->ops.guard(c->ops.cookie);
++}
++static bool barrier(struct ggs_context *c)
++{return c->ops.guard(c->ops.cookie)&&c->ops.barrier(c->ops.cookie)&&c->ops.guard(c->ops.cookie);}
++static bool delay(struct ggs_context *c,unsigned us)
++{return c->ops.guard(c->ops.cookie)&&c->ops.delay_us(c->ops.cookie,us)&&c->ops.guard(c->ops.cookie);}
++static enum gsm_result mismatch(struct ggs_context *c,enum gsm_check kind,uint32_t off,uint64_t mask,uint64_t want,uint64_t actual)
++{c->diagnostic=(struct gsm_diagnostics){c->phase,kind,off,mask,want,actual};return GSM_READBACK;}
++static enum gsm_result store(struct ggs_context *c,uint32_t off,uint32_t value,uint32_t mask)
++{
++    uint32_t v;if(!w32(c,off,value)||!barrier(c)||!r32(c,off,&v))return GSM_IO;
++    return (v&mask)==(value&mask)?GSM_OK:mismatch(c,GSD_STORE32,off,mask,value,v);
++}
++static enum gsm_result store64(struct ggs_context *c,uint32_t off,uint64_t value)
++{
++    uint64_t v;if(!w64(c,off,value)||!barrier(c)||!r64(c,off,&v))return GSM_IO;
++    return v==value?GSM_OK:mismatch(c,GSD_STORE64,off,UINT64_MAX,value,v);
++}
++static enum gsm_result poll(struct ggs_context *c,uint32_t off,uint32_t mask,uint32_t wanted,unsigned count,unsigned us)
++{
++    for(unsigned i=0;i<count;i++){
++        uint32_t v;if(!r32(c,off,&v))return GSM_IO;++c->work.polls;
++        if(v==UINT32_MAX)return mismatch(c,GSD_POLL32,off,mask,wanted,v);
++        if((v&mask)==wanted)return GSM_OK;
++        if(i+1<count&&!delay(c,us))return GSM_IO;
++    }
++    return GSM_TIMEOUT;
++}
++static bool active(const struct ggs_context *c,unsigned i)
++{return !c->work.stream_match||!!(c->smrs[i]&VALID);}
++static bool matches(const struct ggs_context *c,unsigned i,unsigned sid)
++{return c->work.stream_match?!((sid^(c->smrs[i]&0x7fff))&~((c->smrs[i]>>16)&0x7fff)):i==sid;}
++static bool bank_read(struct ggs_context *c,unsigned n,struct ggs_bank *b)
++{
++    unsigned base=CB(n);
++    return r32(c,base,&b->sctlr)&&r32(c,base+4,&b->actlr)&&r32(c,base+0x10,&b->tcr2)&&
++        r32(c,base+0x30,&b->tcr)&&r32(c,base+0x38,&b->mair0)&&r32(c,base+0x3c,&b->mair1)&&
++        r32(c,base+0x58,&b->fsr)&&r32(c,0x1000+4*n,&b->cbar)&&r32(c,0x1800+4*n,&b->cba2r)&&
++        r64(c,base+0x20,&b->ttbr0)&&r64(c,base+0x28,&b->ttbr1);
++}
++static bool baseline_valid(const struct gsm_receipt *s)
++{
++    if(!span(s,sizeof(*s))||s->groups<8||s->groups>GSM_STREAMS||s->banks<3||s->banks>GSM_BANKS||
++       s->s2banks>=s->banks||s->ias<32||s->ias>39||s->stream_match>1||
++       s->mapped_pages!=131||s->translations!=140||s->bank[0]==s->bank[1]||s->slot[0]==s->slot[1])return false;
++    for(unsigned n=0;n<2;n++)if(s->bank[n]<s->s2banks||s->bank[n]>=s->banks||
++        s->slot[n]>=s->groups||!s->asid[n]||s->asid[n]>255||s->sctlr[n]!=0xc01067||
++        s->actlr[n]!=0x70000000||s->s2cr_after[n]!=s->bank[n]||
++        s->smr_after[n]!=(s->stream_match?(VALID|4u+n):0))return false;
++    return s->asid[0]!=s->asid[1];
++}
++static enum gsm_result capture(struct ggs_context *c)
++{
++    const struct gsm_receipt *s=&c->gmu;struct ggs_receipt *w=&c->work;uint32_t v;
++    const uint32_t off[]={0x20,0x24,0x28};const uint32_t ids[]={s->id0,s->id1,s->id2};
++    for(unsigned i=0;i<3;i++){if(!r32(c,off[i],&v))return GSM_IO;if(v!=ids[i])return GSM_INHERITED;}
++    /* Revalidate the real controller geometry; never trust receipt sizes for
++     * iteration until actual ID fields and capabilities match that receipt. */
++    unsigned sidbits=(s->id0>>9)&15,match=!!(s->id0&(1u<<27));
++    unsigned groups=match?s->id0&255u:1u<<sidbits;
++    static const unsigned widths[]={32,36,40,42,44,48};
++    unsigned ia=(s->id2>>8)&15,oa=s->id2&15;
++    if(!(s->id0&(1u<<30))||(s->id0&((1u<<26)|(1u<<8)))||
++       (s->id1&(1u<<31))||((s->id1>>28)&7)!=2||!(s->id2&(1u<<12))||
++       sidbits<3||match!=s->stream_match||groups!=s->groups||
++       (s->id1&255)!=s->banks||((s->id1>>16)&255)!=s->s2banks||
++       ia>=6||oa>=6||s->ias!=(widths[ia]>39?39:widths[ia])||s->oas!=widths[oa])return GSM_CAPABILITY;
++    unsigned ips=oa;
++    uint32_t tcr=0x802000u|(64-s->ias);
++    if(s->tcr!=tcr||s->tcr2!=(ips|0x38010u)||s->mair0!=0xf404ff44||s->mair1!=0xe4)return GSM_INHERITED;
++    w->groups=s->groups;w->banks=s->banks;w->s2banks=s->s2banks;w->stream_match=match;w->ias=s->ias;w->oas=s->oas;
++    if(!r32(c,0,&w->cr0)||!r32(c,MICRO,&w->micro_before)||!r32(c,0x48,&v))return GSM_IO;
++    if(v||w->cr0!=s->cr0_after||(w->cr0&8)||w->cr0==UINT32_MAX||
++       (w->micro_before&~IDLE)!=(s->micro_after&~IDLE)||(w->micro_before&HALT)||w->micro_before==UINT32_MAX)return GSM_INHERITED;
++    for(unsigned i=0;i<w->groups;i++){
++        if((match&&!r32(c,SMR(i),&c->smrs[i]))||!r32(c,S2CR(i),&c->s2crs[i]))return GSM_IO;
++        if(c->s2crs[i]==UINT32_MAX)return GSM_INHERITED;
++    }
++    for(unsigned i=0;i<w->banks;i++){
++        struct ggs_bank *b=&c->before[i];if(!bank_read(c,i,b))return GSM_IO;
++        bool gmu=i==s->bank[0]||i==s->bank[1];
++        if(b->sctlr==UINT32_MAX||b->fsr==UINT32_MAX||(b->fsr&GSM_FSR_FAULT_MASK)||(!gmu&&(b->sctlr&1)))return GSM_INHERITED;
++    }
++    for(unsigned n=0;n<2;n++){
++        const struct ggs_bank *b=&c->before[s->bank[n]];
++        uint64_t ttbr0=(c->plan.owner_pa+(n?0x4000:0xa000))|((uint64_t)s->asid[n]<<48);
++        if(b->sctlr!=s->sctlr[n]||b->actlr!=s->actlr[n]||b->tcr2!=s->tcr2||b->tcr!=s->tcr||
++           b->mair0!=s->mair0||b->mair1!=s->mair1||b->cbar!=0x1f300||b->cba2r!=1||
++           b->ttbr0!=s->ttbr0[n]||b->ttbr1!=s->ttbr1[n]||
++           s->ttbr0[n]!=ttbr0||s->ttbr1[n]!=ttbr0+(n?0x5000:0x1000)||
++           c->s2crs[s->slot[n]]!=s->s2cr_after[n]||(match&&c->smrs[s->slot[n]]!=s->smr_after[n]))return GSM_INHERITED;
++    }
++    return GSM_OK;
++}
++static enum gsm_result resolve(struct ggs_context *c)
++{
++    struct ggs_receipt *w=&c->work;bool used[GSM_BANKS]={0};w->slot=w->bank=UINT32_MAX;
++    for(unsigned i=0;i<w->groups;i++)if(active(c,i)){
++        unsigned type=(c->s2crs[i]>>16)&3,bank=c->s2crs[i]&255;
++        if(type==3||(type==0&&bank>=w->banks))return GSM_ROUTING;
++        for(unsigned n=0;n<2;n++){
++            if(matches(c,i,4+n)&&i!=c->gmu.slot[n])return GSM_ROUTING;
++            if(type==0&&bank==c->gmu.bank[n]&&i!=c->gmu.slot[n])return GSM_ROUTING;
++        }
++        if(type==0)used[bank]=true;
++        if(matches(c,i,0)){
++            if(w->slot!=UINT32_MAX||(w->stream_match&&c->smrs[i]!=VALID))return GSM_ROUTING;
++            w->slot=i;if(type==0)w->bank=bank;
++        }
++    }
++    if(w->slot==UINT32_MAX){
++        for(unsigned i=0;i<w->groups;i++)if(!active(c,i)){w->slot=i;break;}
++        if(w->slot==UINT32_MAX)return GSM_ROUTING;
++    }
++    if(w->bank!=UINT32_MAX){
++        bool exclusive=w->bank>=w->s2banks&&!(c->before[w->bank].sctlr&1);
++        for(unsigned i=0;i<w->groups;i++)if(i!=w->slot&&active(c,i)&&
++            !((c->s2crs[i]>>16)&3)&&(c->s2crs[i]&255)==w->bank)exclusive=false;
++        if(!exclusive)w->bank=UINT32_MAX;
++    }
++    if(w->bank==UINT32_MAX){
++        for(unsigned i=w->s2banks;i<w->banks;i++)if(!used[i]&&!(c->before[i].sctlr&1)){w->bank=i;break;}
++        if(w->bank==UINT32_MAX)return GSM_ROUTING;
++    }
++    for(unsigned asid=1;asid<=255;asid++){
++        bool free=true;
++        for(unsigned i=0;i<w->banks;i++)if(i!=w->bank&&
++            ((c->before[i].ttbr0>>48)==asid||(c->before[i].ttbr1>>48)==asid))free=false;
++        if(free){w->asid=asid;break;}
++    }
++    if(!w->asid)return GSM_ROUTING;
++    w->smr_before=c->smrs[w->slot];w->s2cr_before=c->s2crs[w->slot];return GSM_OK;
++}
++static enum gsm_result unchanged(struct ggs_context *c,bool final)
++{
++    uint32_t v;struct ggs_receipt *w=&c->work;
++    if(!r32(c,0,&v))return GSM_IO;if(v!=w->cr0)return mismatch(c,GSD_FINAL32,0,UINT32_MAX,w->cr0,v);
++    if(!r32(c,MICRO,&v))return GSM_IO;if((v&~IDLE)!=(w->micro_before&~IDLE))return mismatch(c,GSD_MICRO32,MICRO,~IDLE,w->micro_before,v);
++    w->micro_after=v;
++    if(!r32(c,0x48,&v))return GSM_IO;if(v)return mismatch(c,GSD_FAULT32,0x48,UINT32_MAX,0,v);
++    for(unsigned i=0;i<w->groups;i++)if(!final||i!=w->slot){
++        if(!r32(c,S2CR(i),&v))return GSM_IO;if(v!=c->s2crs[i])return mismatch(c,GSD_FINAL32,S2CR(i),UINT32_MAX,c->s2crs[i],v);
++        if(w->stream_match){if(!r32(c,SMR(i),&v))return GSM_IO;if(v!=c->smrs[i])return mismatch(c,GSD_FINAL32,SMR(i),UINT32_MAX,c->smrs[i],v);}
++    }
++    for(unsigned i=0;i<w->banks;i++)if(!final||i!=w->bank){
++        struct ggs_bank b;if(!bank_read(c,i,&b))return GSM_IO;
++        if((b.fsr&GSM_FSR_FAULT_MASK)||b.fsr==UINT32_MAX)return mismatch(c,GSD_FAULT32,CB(i)+0x58,GSM_FSR_FAULT_MASK,0,b.fsr);
++        const struct ggs_bank *old=&c->before[i];
++        if(b.sctlr!=old->sctlr||b.actlr!=old->actlr||b.tcr2!=old->tcr2||b.tcr!=old->tcr||
++           b.mair0!=old->mair0||b.mair1!=old->mair1||b.cbar!=old->cbar||b.cba2r!=old->cba2r||
++           b.ttbr0!=old->ttbr0||b.ttbr1!=old->ttbr1)return GSM_INHERITED;
++    }
++    return GSM_OK;
++}
++static enum gsm_result prepare(struct ggs_context *c,struct ggp_s1_config *cfg)
++{
++    if(!c->ops.guard(c->ops.cookie)||!c->ops.prepare(c->ops.cookie,c->work.ias,c->work.oas,cfg)||
++       !c->ops.guard(c->ops.cookie)||!barrier(c))return GSM_IO;
++    struct ggs_receipt *w=&c->work;unsigned ips;
++    switch(w->oas){case 32:ips=0;break;case 36:ips=1;break;case 40:ips=2;break;case 42:ips=3;break;case 44:ips=4;break;case 48:ips=5;break;default:return GSM_CAPABILITY;}
++    uint64_t pa=c->plan.owner_pa+GGP_TABLE_OFFSET,tcr=((uint64_t)ips<<32)|UINT64_C(0x802000)|(64-w->ias);
++    const uint64_t expected[]={pa,pa+0x3000,tcr,0xf404ff44,0xe4,w->ias,w->oas};
++    const uint64_t actual[]={cfg->ttbr0,cfg->ttbr1,cfg->tcr,cfg->mair0,cfg->mair1,cfg->ias,cfg->oas};
++    for(unsigned i=0;i<7;i++)if(actual[i]!=expected[i])return mismatch(c,GSD_CONFIG,i,UINT64_MAX,expected[i],actual[i]);
++    w->tcr=(uint32_t)tcr;w->tcr2=(uint32_t)(tcr>>32)|0x38010;w->mair0=cfg->mair0;w->mair1=cfg->mair1;
++    return unchanged(c,false);
++}
++static enum gsm_result bank_init(struct ggs_context *c,const struct ggp_s1_config *cfg)
++{
++    struct ggs_receipt *w=&c->work;unsigned b=CB(w->bank);enum gsm_result r;
++    c->halt_attempted=1;r=store(c,MICRO,w->micro_before|HALT,~IDLE);if(r)return r;
++    r=poll(c,MICRO,IDLE,IDLE,300,10);if(r)return r;c->phase=GGS_BANK;
++    r=store(c,S2CR(w->slot),0x20000,UINT32_MAX);if(r)return r;
++    r=store(c,0x1800+4*w->bank,1,UINT32_MAX);if(r)return r;
++    r=store(c,0x1000+4*w->bank,0x1f300,UINT32_MAX);if(r)return r;
++    r=store(c,b+0x10,w->tcr2,UINT32_MAX);if(r)return r;
++    r=store(c,b+0x30,w->tcr,UINT32_MAX);if(r)return r;
++    w->ttbr0=cfg->ttbr0|((uint64_t)w->asid<<48);w->ttbr1=cfg->ttbr1|((uint64_t)w->asid<<48);
++    r=store64(c,b+0x20,w->ttbr0);if(r)return r;r=store64(c,b+0x28,w->ttbr1);if(r)return r;
++    r=store(c,b+0x38,w->mair0,UINT32_MAX);if(r)return r;r=store(c,b+0x3c,w->mair1,UINT32_MAX);if(r)return r;
++    r=store(c,b+4,0x70000000,UINT32_MAX);if(r)return r;
++    /* This unused bank was fault-free at capture. Clear only its status,
++     * never global or the two already proven GMU bank FSRs. */
++    if(!w32(c,b+0x58,c->before[w->bank].fsr)||!barrier(c))return GSM_IO;
++    w->sctlr=GPU_SCTLR;r=store(c,b,w->sctlr,UINT32_MAX);if(r)return r;
++    if(!w32(c,b+0x610,w->asid)||!w32(c,b+0x7f0,UINT32_MAX)||!barrier(c))return GSM_IO;
++    return poll(c,b+0x7f4,1,0,100,10);
++}
++static enum gsm_result translate(struct ggs_context *c,unsigned sid,unsigned bank,uint32_t va,uint64_t expected,unsigned level)
++{
++    unsigned b=CB(bank);uint64_t par;enum gsm_result r;
++    c->probe_active=1;c->probe_bank=bank;c->probe_hole=expected==UINT64_MAX;
++    if(!w64(c,b+0x800,va)||!barrier(c))return GSM_IO;
++    r=poll(c,b+0x8f0,1,0,10,5);if(r)return r;
++    if(!r64(c,b+0x50,&par))return GSM_IO;++c->work.translations;
++    bool accepted=par!=UINT64_MAX;
++    if(expected==UINT64_MAX)accepted=accepted&&level>=1&&level<=3&&
++        (par&UINT64_C(0x0000000ba00003ff))==(((uint64_t)level<<32)|UINT64_C(0x203));
++    else accepted=accepted&&!(par&1)&&(par&UINT64_C(0x0000fffffffff000))==expected;
++    if(accepted){
++        /* A successful deliberate ATOS hole may log TF in this bank. Under
++         * the board's reset/GX-quiet exclusion that fault belongs to our
++         * probe. Clear ONLY that TF, never arbitrary faults or a stalled
++         * request. Captured fault-free GMU state is restored after each test.
++         * Other fault reasons always quarantine without clearing them. */
++        uint32_t fsr;if(!r32(c,b+0x58,&fsr))return GSM_IO;
++        uint32_t allowed=expected==UINT64_MAX?2u:0u;
++        if(fsr==UINT32_MAX||(fsr&GSM_FSR_FAULT_MASK&~allowed))return mismatch(c,GSD_FAULT32,b+0x58,GSM_FSR_FAULT_MASK,0,fsr);
++        if(fsr&2u){
++            if(!w32(c,b+0x58,2u)||!barrier(c)||!r32(c,b+0x58,&fsr))return GSM_IO;
++            if(fsr==UINT32_MAX||(fsr&GSM_FSR_FAULT_MASK))return mismatch(c,GSD_FAULT32,b+0x58,GSM_FSR_FAULT_MASK,0,fsr);
++        }
++        c->probe_active=0;return GSM_OK;
++    }
++    c->translation=(struct gsm_atos_sample){expected,par,1,sid,bank,va,c->work.gpu_pages+c->work.gmu_pages,level};return GSM_TRANSLATION;
++}
++static enum gsm_result verify_translations(struct ggs_context *c)
++{
++    struct ggs_receipt *w=&c->work;enum gsm_result r;
++    for(unsigned n=0;n<GGP_COUNT;n++)for(unsigned off=0;off<c->plan.region[n].mapped;off+=4096){
++        const struct ggp_region *m=&c->plan.region[n];r=translate(c,0,w->bank,m->iova+off,c->plan.owner_pa+m->offset+off,0);if(r)return r;++w->gpu_pages;
++    }
++    static const uint32_t holes[]={0,0x60001000,0xfbfff000,0xfc011000,0xfc013000,0xfc015000,0xfc017000,0xfc018000,0xfc200000,0xfffff000};
++    static const unsigned levels[]={1,1,2,3,3,3,3,3,2,2};
++    for(unsigned i=0;i<sizeof(holes)/sizeof(*holes);i++){r=translate(c,0,w->bank,holes[i],UINT64_MAX,levels[i]);if(r)return r;}
++    struct ggm_plan p;if(!ggm_plan_build(c->plan.owner_pa,&p))return GSM_ARGUMENT;
++    for(unsigned n=0;n<GGM_COUNT;n++)for(unsigned off=0;off<p.region[n].bytes;off+=4096){
++        r=translate(c,5,c->gmu.bank[1],p.region[n].iova+off,p.owner_pa+p.region[n].offset+off,0);if(r)return r;++w->gmu_pages;
++    }
++    static const uint32_t oldholes[]={0,0x40000,0x80000,0x6000b000,0x80000000,0xfffff000};
++    static const unsigned oldlevels[]={3,3,3,3,1,1};
++    for(unsigned i=0;i<6;i++){r=translate(c,5,c->gmu.bank[1],oldholes[i],UINT64_MAX,oldlevels[i]);if(r)return r;}
++    static const uint32_t user[]={0x4000,0x60000000,0x60001000};
++    for(unsigned i=0;i<3;i++){r=translate(c,4,c->gmu.bank[0],user[i],UINT64_MAX,1);if(r)return r;}
++    return GSM_OK;
++}
++static enum gsm_result finalize(struct ggs_context *c)
++{
++    struct ggs_receipt *w=&c->work;enum gsm_result r;uint32_t v;
++    if(!r32(c,CB(w->bank)+0x58,&v))return GSM_IO;
++    if(v==UINT32_MAX||(v&GSM_FSR_FAULT_MASK))return mismatch(c,GSD_FAULT32,CB(w->bank)+0x58,GSM_FSR_FAULT_MASK,0,v);
++    w->smr=w->stream_match?VALID:0;w->s2cr=w->bank;
++    if(w->stream_match){r=store(c,SMR(w->slot),w->smr,UINT32_MAX);if(r)return r;}
++    r=store(c,S2CR(w->slot),w->s2cr,UINT32_MAX);if(r)return r;
++    /* Normal completion restore, never failure cleanup. No other MICRO bit
++     * is changed. GMU cannot execute until this and every final guard pass. */
++    r=store(c,MICRO,w->micro_before&~HALT,~IDLE);if(r)return r;
++    c->phase=GGS_FINAL;r=unchanged(c,true);if(r)return r;
++    struct ggs_bank b;if(!bank_read(c,w->bank,&b))return GSM_IO;
++    if(b.sctlr!=w->sctlr||b.actlr!=0x70000000||b.cbar!=0x1f300||b.cba2r!=1||
++       b.tcr!=w->tcr||b.tcr2!=w->tcr2||b.mair0!=w->mair0||b.mair1!=w->mair1||
++       b.ttbr0!=w->ttbr0||b.ttbr1!=w->ttbr1||b.fsr==UINT32_MAX||(b.fsr&GSM_FSR_FAULT_MASK))return GSM_READBACK;
++    if(!r32(c,S2CR(w->slot),&v))return GSM_IO;if(v!=w->s2cr)return GSM_READBACK;
++    if(w->stream_match){if(!r32(c,SMR(w->slot),&v))return GSM_IO;if(v!=w->smr)return GSM_READBACK;}
++    return barrier(c)?GSM_OK:GSM_IO;
++}
++enum gsm_result ggs_configure_once(struct ggs_context *c,const struct ggs_ops *ops,
++    const struct ggp_plan *plan,const struct gsm_receipt *gmu,struct ggs_receipt *out)
++{
++    if(!span(c,sizeof(*c))||!span(ops,sizeof(*ops))||!span(plan,sizeof(*plan))||
++       !span(gmu,sizeof(*gmu))||!span(out,sizeof(*out))||
++       overlap(plan,sizeof(*plan),c,sizeof(*c))||overlap(gmu,sizeof(*gmu),c,sizeof(*c))||
++       overlap(ops,sizeof(*ops),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
++       overlap(out,sizeof(*out),plan,sizeof(*plan))||overlap(out,sizeof(*out),gmu,sizeof(*gmu))||
++       overlap(out,sizeof(*out),ops,sizeof(*ops))||!ggp_plan_valid(plan)||!baseline_valid(gmu)||
++       !ops->guard||!ops->read32||!ops->write32||!ops->read64||!ops->write64||
++       !ops->barrier||!ops->delay_us||!ops->prepare)return GSM_ARGUMENT;
++    struct ggs_ops o=*ops;struct ggp_plan p=*plan;struct gsm_receipt s=*gmu;uint32_t expected=0;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GSM_ALREADY;
++    c->ops=o;c->plan=p;c->gmu=s;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));memset(&c->translation,0,sizeof(c->translation));
++    c->phase=GGS_CAPTURE;enum gsm_result r=capture(c);struct ggp_s1_config cfg;
++    if(!r){c->phase=GGS_RESOLVE;r=resolve(c);}
++    if(!r){c->phase=GGS_PREPARE;r=prepare(c,&cfg);}
++    if(!r){c->phase=GGS_HALT;r=bank_init(c,&cfg);}
++    if(!r){c->phase=GGS_ATOS;r=verify_translations(c);}
++    if(!r){c->phase=GGS_RESTORE;r=finalize(c);}
++    if(!r){c->phase=GGS_DONE;*out=c->work;}
++    __atomic_store_n(&c->state,r?3:2,__ATOMIC_RELEASE);return r;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_smmu.h
+@@ -0,0 +1,45 @@
++#ifndef GAUGUIN_GPU_SMMU_H
++#define GAUGUIN_GPU_SMMU_H
++#include "gauguin_gpu_memory.h"
++#include "gauguin_gmu_smmu.h"
++/* Separate cold GPU SID0 attach, after GMU context setup but while CM3 is
++ * still reset and GX quiet. Retained mapping/NC owner and physical exclusion
++ * are the sole board adapter's responsibility. Never call on a running GMU.
++ * No CR0, global TLB, reset, secure SID2 or implementation-DT replay. */
++struct ggs_ops {
++    void *cookie;
++    bool (*guard)(void *);
++    bool (*read32)(void *,uint32_t,uint32_t *);
++    bool (*write32)(void *,uint32_t,uint32_t);
++    bool (*read64)(void *,uint32_t,uint64_t *);
++    bool (*write64)(void *,uint32_t,uint64_t);
++    bool (*barrier)(void *);
++    bool (*delay_us)(void *,unsigned);
++    bool (*prepare)(void *,unsigned,unsigned,struct ggp_s1_config *);
++};
++enum ggs_phase {GGS_IDLE,GGS_CAPTURE,GGS_RESOLVE,GGS_PREPARE,GGS_HALT,
++    GGS_BANK,GGS_ATOS,GGS_RESTORE,GGS_FINAL,GGS_DONE};
++struct ggs_receipt {
++    uint32_t slot,bank,asid,ias,oas,groups,banks,s2banks,stream_match;
++    uint32_t cr0,micro_before,micro_after,smr_before,s2cr_before,smr,s2cr;
++    uint32_t sctlr,tcr,tcr2,mair0,mair1,writes,polls,gpu_pages,gmu_pages,translations;
++    uint64_t ttbr0,ttbr1;
++};
++struct ggs_bank {uint32_t sctlr,actlr,tcr2,tcr,mair0,mair1,fsr,cbar,cba2r;uint64_t ttbr0,ttbr1;};
++struct ggs_context {
++    uint32_t state,phase,halt_attempted,probe_active,probe_bank,probe_hole;
++    struct ggs_ops ops;struct ggp_plan plan;struct gsm_receipt gmu;
++    struct ggs_receipt work;struct gsm_diagnostics diagnostic;
++    struct gsm_atos_sample translation;
++    uint32_t smrs[GSM_STREAMS],s2crs[GSM_STREAMS];
++    struct ggs_bank before[GSM_BANKS];
++};
++/* Zero initialized single private owner. Output only on full success; started
++ * failure permanently quarantines without retry/rollback or failure cleanup.
++ * ATOS qualifies18 GPU leaves/holes AND all131 retained GMU leaves/old holes.
++ * Native local HALT is owned only during bank setup/ATOS, restored on success.
++ * CP aperture SCM, GPU core access and command submission are separate stages.
++ */
++enum gsm_result ggs_configure_once(struct ggs_context *,const struct ggs_ops *,
++    const struct ggp_plan *,const struct gsm_receipt *,struct ggs_receipt *);
++#endif

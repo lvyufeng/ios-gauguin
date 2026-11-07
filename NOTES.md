@@ -2,6 +2,84 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —145 GPU context/CP aperture integrated and validated; complete local build next
+
+Previous goal turn was progress:144 constructors committed/published and145
+native transport/probe ordering audited. THIS turn adds139th patch0145 with
+actual GPU SMMU transaction, exact native four-scalar SCM engine and guarded
+board/coordinator consumer. Whole GPU/Metal/RAM/storage/peripheral/high-refresh/
+daily-use goal ACTIVE/incomplete. No145 whole kernel/image/phone IO or actual
+GPU translation/SCM return yet. Current complete native recipe remains143
+gauguin.77lIOK. Phone last observedTWRP in143, not newly queried. Original
+mkadt7-line diff unchanged. No CI/flash/format/GPT/destructive action.
+
+New exact1 sweetgpucontext requires DCVS/BW/PERF/FW/clocks/CX and existing
+PAS exclusions. Same sole firmware once-state. After existing GMU SMMU setup,
+while actual CM3 reset1/GXquiet, a separate engine dynamically resolves GPU
+SID0 slot/unused or exclusive disabled bank and nonconflicting ASID. Secure
+SID2, GMU4/5 and unrelated routes/control are preserved. No CR0, global TLB,
+reset, DT-wide implementation replay or new mapping. Reuses retained NC tail
+with every16KiB physical/cache-attribute page revalidated before publication.
+Owned local HALT covers new context setup and168 ATOS:18 GPU leaves/10holes,
+131 old GMU leaves/6kernelholes/3empty-user probes. Success restores HALT;
+failed state never retries/rolls back/cleans up. GPU non-stall/HUPCF1 uses
+SCTLRc01167; old GMU controls remainc01067. Deliberate accepted ATOS holes
+may own TF alone; clear ONLY that TF and recheck, never another reason/SS.
+Board permits only that pending bank/hole TF and owned HALT during the core.
+Unexpected PAR/fault/config/route change quarantines without arbitrary clear.
+
+Then native MP/CP aperture42000c1b/info4/ffff0000|chosenCB/ffffffff three
+scalar suffixes, no buffer. Separate bounded5s CPU/10s initial3s subsequent
+WDT guard; max68 fresh attempts/eight total tight64bit continuations. Retains
+all x0..x6, no sleep/log inside continuation. No service-x1==0 assumption.
+Board raw SMC is the reviewed seven-register inline wrapper; same NC/Device
+aliases never escape this TU. After context/SCM, existing FW boot + all five
+HFI messages + native DCVS runs unchanged. Every later firmware guard also
+checks the GPU context/control/routes; final records follow all guards.
+Cold stage refreshes only CPU deadlines with live WDT checks, never pets or
+rearms the watchdog. No SQE load, GPU core access/commands or Metal claim.
+
+DSH44559 CLOSED0: first frozen isolated core run passed, GPU SMMU10,484,175
+assertions, aperture564,901. Then added pending-probe fields for board guards;
+the complete current source is covered by the later full replay/tests below.
+DSH13798 CLOSED0 but actual validate145.py1 at missing typed IOSleep host
+seam, after pristine139-patch replay passed. Original failed report/log/source
+preserved. Explicit v2 adds only host IOSleep plus GPU-only5s CPU/10s WDT
+expectations; production source unchanged. DSH83758 CLOSED0/actual v2 0:
+NINE checks0: retained pristine replay identity, actual port/native48B register
+equivalence, focused board, coordinator, all65 hosts and four ARM64 TUs.
+Report research/tmp/dsh-0145/validation-result-v2.json SHA
+a696b5f68dbb0f3061f20135597094e44ded09ac397e2039fa8b4d11146ac185.
+Source .deps-cache/p0-20261105/source145-codex5288files SHA
+8a366b6c82b98773dd4f911b938b82d6549a36fab9680c75c1ad69f2b16295f3.
+Only8 source paths differ from144: conf/files, newGPU smmu/aperture c/h,
+board c/h, coordinator. Firmware engine, old GMU SMMU and memory unchanged.
+New board3816 cases retain old3109; coordinator22 new/386total, retaining364.
+All three SMMU route modes/individual callback boundaries, exact fault types,
+NC publisher/owner/budget/attribute/final drift failures pass ASan/UBSan.
+Actual port initial x0..x5 equals compiled primary nativeCB2 vector48B SHA
+7d28053f662cebb2c15ad8081dd085f66a85e8b35470b90052f4bf4651e9bdf9;
+port equivalence report8718a81a65f075e68b83b4b20aaf9cd92ddf6969b470350a87ff6697428693f8.
+Codex independently rehashed all293 current validation pins and source/base.
+Native GPU SMMU45496B/561255ea...80f5f6, aperture7096B/8c24d111...74f97b,
+board107848B/424e34a6...f3cf9, coordinator49920B/4964b1ec...9dcea;
+compile.json under research/tmp/gauguin-nvt-p1/gpu145-*/run-*.
+Only known kernel/header style/reserved/C99/cast-alignment warnings; host
+strict warnings and sanitizers pass. All owned DSH tasks closed.
+
+NEXT: commit validated145 source; DSH one standard complete local build and
+strict qualifier (prepared build145.py/bind_host145.py/qualify_native0145.py).
+Current native reference14377lIOK until that full build succeeds. Then package
+new unique145 temporary image, extend strict runtime readers with source/
+image/flag/ordering/18+131/168/route/native scalar call/raw return and unchanged
+all143 evidence. Normal stream-match count186 baseline SMMU stores +0..19
+owned-TF clears (nomatch one fewer), minimum170 polls; reader must derive real
+bounded totals and classify partials. ONE temporary boot after qualification,
+save actual logs before any next change. Until hardware proves this stage,
+do not infer GPU execution from host walks/native transport bytes. Next GPU
+MMU-start hazard/DORA/default-PT/ownedOOB/core/SQE/ZAP/CP readback remains.
+Codex critical driver/Git/review; DSH reviewed exact compile/test/build/boot.
+
 ### 2026-11-07 —145 prerequisite audit PASS; prefer cold GPU default-PT qualification before FW release
 
 Whole goal ACTIVE/incomplete. Completed144 source is private6fc9d5f and
@@ -10,6 +88,11 @@ recordd3e4a4d. Correct staged source remains144-v2-codex/ec84a908...0724ff0;
 complete native build/recipe remains143 gauguin.77lIOK. No production145
 patch, full kernel, image or phone IO yet. Phone last observed TWRP in143.
 Original mkadt user diff intact. No CI, flash/format/GPT/destructive action.
+Audit handoff private6fe7f69dddc7e56a0ece8af5be2749ee64dc84f3 published as
+3ab6a8b352d48aa92aa9a0e64b64fdd45b8ce353, ls-remote verified, sole parent
+3ceba2a1ec8ef01993305726a550bdc6c5f36dad and same private tree. Exactly2
+NOTES/docs text paths; research/tmp/dsh-0145/public-audit-snapshot.json.
+No private ancestry/raw device data/downloaded native sources/binaries pushed.
 
 DSH13982 CLOSED0; exact audit_scm_inputs.py0 and native_scm_oracle.py0.
 Fresh pinned19b63c8 scm.c/h match previous cache; audit SHA

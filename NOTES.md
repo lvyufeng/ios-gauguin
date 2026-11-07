@@ -36,6 +36,130 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU work and complete local recipe are recorded in the latest151
 milestone below. No repeated reset question; only necessary manual recovery.
 
+### 2026-11-07 —152 PHYSICAL COMPLETE core/RGL accepted; first actual CP execution NEXT
+
+Concrete progress this turn: critical bounded-NC/guard-diagnostic C implemented,
+all69hosts/native TUs/source replay passed, one complete local152 kernel/image
+and strict runtime fixtures, then ONE physical trial accepted. Wholegoal still
+ACTIVE/incomplete. User away: no per-trial reset question. Last phoneTWRP152,
+no manual recovery necessary. All owned DSH jobs CLOSED; no live handles.
+Do NOT boot unchanged152 again, and do not loosen historical151 failure reader.
+
+DSH43848 CLOSED0, run_hardware152.py0/boot152.py0/observer0/fullreader0.
+ONE temporary boot started2026-11-07T06:13:32.679673Z,
+finished06:15:44.713322Z.19168KB send0.453s,boot0.134s,total0.590s; TWRP131s,
+freshbanner matched. Routine13byte BCB/readback and unique recoverygauguin /
+fastbootgauguinpro checks passed. Recorded manual_reset=no from standing user
+authority (not a fabricated separate response). Observed automatic recovery;
+intentional retained-lease/no-pet flow awaits watchdog, exact reset-cause register
+was not independently sampled. No flash/format/GPT/destructive action.
+
+NEW actual raw receipts at4001: COREcomplete phase10/rc0,reads71,writes146,
+memory133/1024,HWCGskip0,configured1,retained1. All10 private Device pages ready,
+6new mapattempts/4reuse. RGL IOVAfc014000/PAaa2b4000,66livepairs,132dataDWORDs,
+dynamicoffset72,544usedbytes. New MEMORYzero_checked1024/batch_words64.
+Final GUARDreason0/phase9, entry72cd49f9,now742cf6df,phase_entry742abb62,
+total_end7bf509fd,phase_end78be9b64 (hex raw CPU ticks). Cached entry-to-final
+interval1.2003853125s at actual19200000Hz CPU timebase; not GPU-command runtime.
+All66ordered rawlivepairs4006..4071; reconstructed list SHA
+f0fd4c8a0ff6be37e36eacb6c80534cb4d26a1ba334942fe6faff6fe2589a504.
+Line4072 coordinator CORE native/restore done. Accepted existing SQE8192copy/
+8192compare, full coldcontext/168ATOS/scalaraperture, full nativeFW/HFI/PERF/
+BW/TEST/DCVS/GGX request/retention chain. No SQE release or CP commands/ZAP/
+Metal. Individual fixed stores are source-bound, not separately raw-readback
+qualified. Framebuffer/SpringBoard/backboardd markers present; user away means
+no new human touch/display/stability/daily-use qualification.151 exact refusal
+cause remains unknown (no reason captured then); do not rewrite it as proven.
+
+Raw4147lines/461684B research/tmp/p3-gmuf-0152-native-observer-20261107.txt SHA
+fca60ea3efeb1b1e5c05399a371d3403ed9eefad3c24497a5ef13edd74c5fca4;
+cycle991B SHAb6fe9191e31c3d0a280196e857107f7e5bd3c034c0d3b003191d54f29aed0d31.
+Full report45844B research/tmp/dsh-0152/hardware-full-verification.json SHA
+1eee282b873fdefb15d6d151ebb7534e118e082ee7d26b108354d7d4e0fc56f6,
+all10 actual inputs independently rehashed. State verified core/FW/context/
+startup/reset, gpu_execution/metal NOTqualified. Reader remainsce8e3bc1...47a724.
+Independent Codex review hardware-codex-review.json records actual pins/timing.
+
+NEXT153 actual command milestone, gated after complete152 core/RGL in SAME
+boot. First audit/exercise exact pinned native bodies for15DWORD submission:
+ME_INIT12(ggp_cp_init_build existing) +WHERE_AM_I3:70620002/fc010000/00000000,
+RB0scratchoffset0, WPTR15/8192,32KiB ring0xaa, RB_CNTL20c. Require native
+RPTRshadow/RB/SQE address programming, SQE release1, keepalive true -> posted
+fencedWPTR/check WRITEDROPPED0(10us/100short/200long bounded retries) -> false,
+actual shadowRPTR==WPTR15 AND GMU AO CX_BUSY bit23clear/fault guards. Native
+CP init precedes properZAP, but no TRUST_CONTROL bypass or unsecured claim.
+Source audit research/tmp/dsh-0152/first-cp-source-audit.json2765B SHA
+6d8b60a4829f9604da226d03a35f2e40f4090bb8f8f852b6eb2a3b9c65894640,
+10 primary source pins. This is a proposed sequence/source audit ONLY; exact
+native execution oracle and resource/guard qualification still required.
+
+Implement critical CP C in Codex; DSH executes reviewed builds/tests/oneboot.
+Use a NEW one-shot live CP guard accepting GGC/GGX/FW READY and complete sameboot
+core/SQE owner/context receipts, not old ggc_board_guard (requiresRUNNING) or
+oldGGX guard. Validate full retained NC ring/scratch alias/physical endpoints/
+permissions and all SMMU routes/faults/clocks/IRQ/lease. Ring/scratch bounded
+CPU init/readback before any SQE release; do not confuse those copies with GPU
+completion. Runtimepreemption remainsdisabled (capabilityretained; proper
+normal+secure0x190000 records later exceed current1MiB owner). No retry/HOST
+release/rollback on startedfailure; quarantine then cached failure records.
+Fresh CP CPU/phase/WDT bounds must fit remaining lease; never extend existing
+watchdog or152 budgets. CPU ticks/configured bite suggest about13s left aftercore; a fresh actual
+watchdog-budget guard is still mandatory.
+Proposed firstCP CPU4s /nativeidle2s /entry8s WDT must be validated, not facts.
+Preserve touch/UI30Hz/UFS/memory baseline; no firmware/Apple dumps ingit.
+
+CURRENT complete recipe152gauguin.lIXZsa/source152-v2-codex5294 SHAcedcfc01...05a99,
+manifest160c4e62...d66a6; build captured12db24e; publicsource40a620c. All152
+artifacts/readers immutable. Original mkadt diff stilla74a0418...454860.
+
+### 2026-11-07 —152 local kernel/four-asset image/runtime readers QUALIFIED; one unattended boot NEXT
+
+Critical code private54622c2a89a43442bd214b302451149d1ad3eedb plus count-only
+handoff correction capturedHEAD12db24ed3d8c99ad8a29f38dec60bf41fc4e95f8.
+Published SAME tree40a620c32975c0064e40354ef9759836a559e050, soleparent
+fa51585ecebb13473643a01c773e3fdb4e151119, exact8 reviewed UTF8 paths.
+research/tmp/dsh-0152/public-source-snapshot.json. No private ancestry/raw/
+firmware published. Original mkadt diff still a74a0418...454860 untouched.
+
+DSH61024 CLOSED0/build152.py actual0, full build0/qualification0, ONE standard
+local8job run gauguin.lIXZsa, captured12db24e and same146patch source5294files
+cedcfc01a97d2af5367f3a10e33a8d910317158baf74e971e4a84a5628e05a99.
+Installed kernel16959752B SHA
+20cd6d8253244c6e5936d3fe789e68d4d142239bf803d53a101a897fcadf08e1,
+identityxnu-663a3405708247e28436c19e9c3917d2. Manifest908241B SHA
+160c4e62018741cb49551e4bf913ccd9e0461c97e0a3af24f72b15838b2d66a6;
+qualification14241B research/tmp/p3-native-0152-qualification-20261107.json
+SHA8f4feb0894321325b2a28e0e568d698865c7c1c5db40b8f608ec94ddaa355bd0.
+All inherited checks retained; new bounded NC source/cached guard formats bound.
+CURRENT complete native recipe NOW152gauguin.lIXZsa/source152-v2-codex;
+generated BSD files no longer151. Future actual TUs must use this new recipe.
+
+DSH51515 CLOSED0, package_and_review152.py0/package0/review0, then
+runtime_validate152.py0. Exact image19628032B
+shim/out/shim-p3-gmuf-0152-native-20261107.img SHA
+fbb04cbfeb99fdb26d5769f951aa2e1306441f1b3b21b3d7b6fabb8d283148c5;
+payload19300352B SHAbab60a4520235dcd220f52ae9a7f15e9b90db7092b5ad427b974ead30dc676fe;
+evidence4471B SHA602bbee4819a3cbd069dd58adf307c5a134e47f84036f22fd4ece4ee803a6a56.
+Unique607B command sweettrial=gcor-0152-a1, same4assets/geometry and alloldflags.
+Independent review also requires new NC batch/guard source flags. Package report
+1363B SHA4c723ff1bbc86f7e8bac55ad050cb7a3badafe2340f973c2d1de469e8e4d43b2,9pins.
+
+New immutable reader verify_gmuf152.py85617B SHA
+ce8e3bc1ea849ce2e8f184b05635c7606bc274714722aaa7664912ec8347a724:
+all151 checks preserved, plus complete1024zero/64wordbatch/guard reason0/final
+phase9 and ordered sane entry/phase/now/deadline ticks. Clock4valid/95reject,
+FW132/513 and full SYNTH31/479 passed; newguard/progress missing/duplicate/
+reorder/refusal/deadline cases included. These are SYNTHETIC, no hardware proof.
+Runtime report2916B SHAdf3055ffead7681d81e36f6475c8771049d8ff7cfcc8aa5746088349eba104c0,
+18pins independently rehashed. Old151 reader still375b66c9...e69c51b unchanged.
+
+NEXT ONE reviewed temporary152 boot (boot152.py/run_hardware152.py); same
+13byte BCB latch/readback + unique gauguin/gauguinpro identity and180sobserver.
+--manual-reset no uses standing user instruction, never a fabricated reply.
+All existing owned DSH tasks CLOSED; no phone IO in152 yet, last phoneTWRP151.
+Do not rerun build/package/readers-in-place; preserve all artifacts/failures.
+GPU/SQE execution/Metal remain unqualified. Wholegoal ACTIVE/incomplete.
+
 ### 2026-11-07 —152 bounded NC batches and cached guard reasons SOURCE QUALIFIED; full local build NEXT
 
 Codex authored critical C; DSH executed reviewed tests. No phone IO since151;

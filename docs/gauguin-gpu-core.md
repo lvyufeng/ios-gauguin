@@ -113,7 +113,12 @@ Host operation profiling reduces restore-phase SMMU reads197912 ->9152 and
 WDT checks8996 ->416, retaining2048 NC reads. These are operation counts,
 not real-device latency measurements or proof of the151 guard failure cause.
 Both changed C translation units compile under the current151 ARM64 recipe.
-A full152 kernel and physical result remain required for hardware qualification.
+The full152 local kernel and one physical trial subsequently passed this core
+configuration stage:71 register reads,146 writes,133 memory words published,
+1024 zero checks and1024 final comparisons; all66 live register pairs logged.
+The final guard reported reason0 within the unchanged deadlines. The device
+automatically returned to recovery after131s. This qualifies the source-bound
+core/list stage and retains its no-CP/no-Metal scope.
 
 The next CP submission must retain the native GMU keepalive vote around its
 fenced WPTR write. Native code checks WRITEDROPPED0 with a posted barrier and

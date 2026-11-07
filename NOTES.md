@@ -36,6 +36,84 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU source work and complete hardware recipe are recorded in the
 latest milestones below. No repeated reset question; only necessary manual recovery.
 
+### 2026-11-07 —154 live CP adapter/coordinator SOURCE QUALIFIED; one full local kernel/actual CP trial NEXT
+
+Concrete progress: Codex authored live CP adapter and coordinator, DSH actual
+ARM64 TUs/148patch replay/238realCP-core-GGX board cases/416coordinator/all70
+hosts passed. Source154-codex5296files SHA
+d39d826c1ea4a7d2485a8933da7a3ba059c7c21e6470de2f88846c9ff251341c.
+Only board.C/H +coordinator.C differ from immutable153; every older board
+function byte and153CP C/H unchanged, native34body/5exacttraces retained.
+No154 fullkernel/image/phone IO yet; lastphoneTWRP152, no manual action needed.
+Wholegoal ACTIVE/incomplete; user away, do not ask reset confirmation.
+
+New sweet_gpu_cp_once/state use separate READY-parent guard, not old GGC/GGX
+RUNNING guards. Require sameboot GGC DONE/state2/zero1024/mem133/1024/list132/72,
+actualretainedGGXreceiptidentity, SQE8192copied/checked +freshsameGSAview,
+accepted FW/PERF/BW/TEST/DCVS, sharedowner, clocks/GXon, IRQquiet/CM3reset0,
+GMU/GPUfaults/routes/roots/contextIDR0/TLBSACTIVE0/no staleACK24. Revalidate
+reused core/CSR/AO Device aliases and NC RGL +ring2pages/scratch1CPU16KiBpage
+attributes/endpoints; no newmap/unmap/reallocation/PTE/securecontext change.
+Enginecallbacks only nativewhitelist; NC ring32KiB/scratch4KiB, WAITshadowword0
+read only. Existing lowlevel load/store/barrier +new10us delay, fresh4s total/
+2s perphase(nativeWAIT2s)/entry8sWDT/min3s, no oldbudget extension. Fail once
+quarantines CP/core/GGX/FW/board/sharedlease beforecachedreason/ticks/status/
+progress logs, retainsaliases/HOSTrequests with no cleanup/retry/rollback.
+Success records raw initialPTRs/SQE, counts, fence+counter+keepalive, shadowRPTR/
+AO busy/faults, finalguard ticks and15words. No ZAP/trustbypass/rendering/Metal.
+
+Coordinator start1 now requires sole pinned SQE/FW ->core success ->CPonce;
+core terminal now explicitly BEFOREfirstCP; successCP terminal limitedME_INIT/
+WAI completion, pending watchdog. CPerrors terminal +exactlyonce fallback
+quarantine, no directGGX/CPU-copy fallback; existing default-off chain preserved.
+
+DSH63415 CLOSED0/native154.py0, bothchangedactual ARM64 TUs compile0 with CURRENT
+full152gauguin.lIXZsa/manifest160c4e62...d66a6 and153 dependencyheaders.
+Boardobject193368B SHAf52b4820806659f98dc680d2f82b040b85780ef8c2313773f6d593a923c66977;
+coordinator54880B SHAeab2b3a4eab1a253eea4b81b8e152118c34ab5538649c4a3557dfa9d95bc3d61.
+native-result.json874B SHAa529ddb44640968efeab7e9462fc26d535f06015922611c34ffe368f5edc3f2b,4pins.
+
+DSH55963 CLOSED0/focus154.py inner1: pristine148replay0, oldboardcases/core190
+passed, newCP negative case7664 expected dropped zero store to fail while
+scratch was alreadyzero. Test-harness assumption error, NOTdriverfailure:
+zero content still satisfies comparison when redundant zero write drops.
+Frozen failedlog/report/input-snapshot/failed-board-unit-v1.c retained.
+Production154 source/nativeTUs unchanged. Explicitv2 seeds private idle ring/
+scratch nonzero aftercore success to make all selected dropped writes observable.
+DSH32811 CLOSED0/focus154_v2.py0: same source154/retained replay, newCP238cases
+passed:6positive normal/HWCGskip/delay/slowfence100/199/counterwrap;20faulttypes
+ineach8phase;11registerstore-boundary clock/timefailures;64word memorybatch
+clock/time/drop +corruption;3NCpages attrs/managed/wrongphysical;fence200fail,
+2s missingRPTR/busydeadline, invalidRPTR/allonesbusy, entryWDT/SQE/parent/alias/
+NULL/once/output/quarantine-beforelogs. Whole1MiB owner unchanged outside
+ring32KiB/scratch4KiB in positive model (model/devicewrite scopes distinct).
+Coordinator416cases, full70hosts passed; no source/baseline drift.
+focus-result-v2.json34873B SHA
+1fec57cfdbe37219741d1ff9251b20668ff8525b0ece0e1815df2015abc1f8b0,286pins.
+Codex independently rehashed all286+4inputs and bothactual nativeobjects.
+
+DSH60259 CLOSED0/preflight154.py0 binds exactfinalhost/source/TUs and unchanged
+153native34function/5trace proof; separate154 build/qualifier/packer/review helper
+syntax passed. Helpers retain inherited152checks and add GGQsymbol/archive/
+native bit27+packet/fence/realshadow+busy/READY/NC/budget/format source checks.
+Image review additionally pins accepted152 image/options, allowing ONLY new
+trial token. Allhelpers ignored, no assets/binaries/rawlogs ingit.
+
+NEXT commit/publish reviewedsource, ONE standard full local8job154kernel with
+strictqualifier; no source/HEADchanges until build+qualcomplete. Then one4asset
+image, independentreview, separate154strictreader: preserve all152technical
+checks +newsamebootCPreceipt/15word/fencebounds/realshadowRPTR15+AO busybit23
+clear+noerrors/finalguardticks; --manual-reset no from standinguserauthority.
+Newtrial gcpi-0154-a1 (same607B flags). Reader must NOT accept memory copies or
+WPTRalone asGPUcompletion. Allnew+oldruntimefault/identity/artifact/flag checks
+before ONE unattended temporaryboot. NoCPU-only154boot and no unchanged152boot.
+ActualGPU/Metal/stability/dailyuse remain unqualified until appropriateproof.
+
+CURRENT fullnative recipe still152gauguin.lIXZsa/source152-v2-codex; generated
+BSD files152. Newlytested source154-codex has live dispatch but is NOT a full
+kernel/image yet. AllownedDSH jobs CLOSED; originalmkadt diff a74a0418...454860
+untouched. NoCI/flash/format/GPT/destructive actions.
+
 ### 2026-11-07 —153 first CP engine SOURCE/ACTUAL NATIVE PREFIX qualified; live adapter154 NEXT
 
 153 code committed privated37904290f3b13a31359eb1650aceae755c5f04a,

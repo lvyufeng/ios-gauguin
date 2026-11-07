@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — complete143 local native register DCVS kernel qualified; packaging/readers next
+
+DSH48112 CLOSED0, actual build143.py build0/qualification0; run
+gauguin.77lIOK/HEADcbf14703467c13eff5d1bc7f44b9880111039149, exact137-patch source
+6f77f55c0fc3431b7b6049a2373c8374392e9aaea242658245b6c9323da54258,
+5282files. Kernel16906408B SHA7626c64238f960fd26b0f6e809eab35a9a042bbaf83ac43dca865ed8911af79d,
+IDxnu-4727430828e1431ab29d09e79afb62db. Manifest SHA
+e8abacb6ff46b4aab8f673ec710498975616e28c142b40e50d267918af459a45. Qualification at
+research/tmp/p3-native-0143-qualification-20261107.json SHA
+c2c9d4ed4810ab4cbca80f205f03213e7b891ae1cf00be616886d5e3a869eb48.
+All142 qualifiers retained; native_dcvs_transaction_source_bound true, exact
+post-TEST fixed native TCM/OOB/request/flag/receipt/final-guard/kernel-format
+and actual installed symbols checked. Public firmware receipt unchanged.
+Hardware remains unqualified for143; no143 image/boot/DCVS reply/return yet.
+No CI used. CURRENT native generated recipe/source NOW14377lIOK,142NfYVjn
+is historical for future single-file compiles.
+
+Codex prepared143 pack/review/strict reader fixtures from142 with metadata
+hash/numeric invariants before explicit DCVS rules. New sweetgmudcvs1,
+unique143trial; prior142/all old image pins preserved. Reader requires the
+original ordered INIT/VERSION/PERF/BW/TEST and same-fresh-CMDDB plan, then
+exact native253MHz/BW5 request, fresh ACK31 with no error15, clear31 and
+return0. Counts94..244/9..9000/debug<=225. Record/flag/source/ordering/
+missing/duplicate/partial/native return anomalies must reject. CPU fixtures
+remain explicitly synthetic. NEXT DSH package/review, three runtime-reader
+suites and ONE temporary phone boot after passing. Phone last observedTWRP,
+all owned DSH handles CLOSED. Whole goal ACTIVE/incomplete; original mkadt
+diff unchanged, no flash/format/GPT/destructive step.
+
 ### 2026-11-07 —143 native register DCVS validated; active DT BW5 replaces provisional BW1
 
 Previous turn was progress: physical142 native BW/TEST ACK PASS. THIS turn

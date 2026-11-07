@@ -47,9 +47,11 @@ assets/layout/reservation/Android/recovery protection. Image review SHA
 2591f1f4449e631deb19f8cae673f57794d377c7477e0c26dfda7e2b88aa21af.
 NOT BOOTED. Physical triangle/Metal/UI/highrefresh/daily use unqualified.
 
-DSH v32 runtime RUNNING on live exec83546: clock0/.094s, firmware actual image
-binding0/1.382s; eight-worker complete full-trace gate still running. Keep exact
-same live handle, never retry claim. Every common/clock/FW/ZAP/GGU generator
+DSH v32 runtime now CLOSED inner0 FIRST: clock0/.094s, firmware actual image
+binding0/1.382s and full eight-worker trace gate0; all10962 negative parses
+actually executed exactly once,107 positive parses in EACH worker. Runtime
+report SHAc89f29b6199bcfdb7488c74205de0eb47ba118b00933e351254a3ee5b84b7f53.
+Every common/clock/FW/ZAP/GGU generator
 retained; new fixed-triangle specialization replaces old selected clear path.
 Workers audit identical complete negative manifests and exactly-once parse union.
 Explicit old console-framing + original26 clear metadata refusals and28 new
@@ -60,15 +62,25 @@ adcabceb590b3150846628f25a538c9bb328f7f9e6bffee3cbd1af647594b678;
 draw-metadata-result-v1.json SHAdd2788300abc9dc9eb2a6929158b4f72ff6f362672908003a01d94388abb556a,
 actual1positive/54negative, preserving26old clear flags plus28new triangle flags.
 
-Authored boot171.py/read_hardware171.py + exact unchanged observer171 helper,
-review_runtime171.py and review_physical171.py, but NO device command yet. Boot
-also explicitly requires passed auxiliary54metadata controls. Need complete32,
-root independent runtime/boot helper review (authored, not executed), then one
-guarded temporary fastboot boot,
-routine13B recovery misc latch/readback only, automated180s observer and actual
-pixel/event/source verification. Only prompt user if genuinely stuck/manual
+Root review_runtime171.py FIRST0, independent-runtime-boot-review.json SHA
+77e0bd6549da13d44b1d932e72f953841ffa7d315107c6149b67b444ebae0f21:
+all common fixture bytes except exact source-backed names/mode/specialization
+transforms retained, old integer conditions, identical complete worker manifests,
+all rejection bodies and old26/new28 metadata tests preserved; exact observer
+body/oneboot/guarded reader reviewed. No production parser shortcut.
+
+DSH v34 boot RUNNING via live exec56348, dispatch_once171v34.py boot. Verified
+unique gauguin recovery -> routine13B misc boot-recovery latch and exact readback
+-> unique gauguinpro fastboot -> ONE temporary171 fastboot boot submitted.
+boot-preflight.json state observer-running/image_boot_attempted true/misc_verified
+true. Poll SAME live handle, never relaunch a claimed stage.180s observer then
+actual readback is pending. Authored v35 read dispatcher (NOT executed yet),
+read_hardware171.py and root review_physical171.py. After v34 terminal0, execute
+v35 read once, then root independent raw binary/pixels/graph/EOP/source review.
+Only prompt user if genuinely stuck/manual
 recovery required; user away/all restarts automatic, --manual-reset no.
-Last phone state remains TWRP170. Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 intact.
+Current phone under171 diagnostic, no UI/reset-attribution question needed.
+Original mkadt7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 intact.
 
 ### 2026-11-08 —171 clean source/full84/current-recipe ARM64 ACCEPTED; full kernel next
 

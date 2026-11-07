@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source169-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source171v2-codex')))/'bsd/dev'
 S=D/'gauguin_pas_stage.c';F=R/'tests/fixtures/gpu-zap/owner_host.c'
 files=[Path(__file__),S,F,D/'gauguin_pas_stage.h',D/'gauguin_gpu_zap.h',D/'gauguin_gpu_zap_asset.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}

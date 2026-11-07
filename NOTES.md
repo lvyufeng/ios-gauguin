@@ -2,6 +2,254 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —171 clean source/full84/current-recipe ARM64 ACCEPTED; full kernel next
+
+Latest actual source is source171v2-codex (candidate171v5),5317files SHA
+cdf96fac265e882b9e171ea3cc2fd1297ef8b99de8823b019fca585a17669473,
+165active patches/EIGHT changed files vs170. Both actual coordinator AND actual
+PAS owner now explicitly admit8. Prior failed sources/reports retained below.
+DSH v26 CLOSED inner0 FIRST: fresh replay0/5.253s, actual coordinator focus0/
+2.232s (630old+35new=665), actual owner focus0/.848s (538cases,126copy guards),
+all84 public host files0/443.598s. Engine28458/823789025assertions, provider
+25551 cases and five exact1639-RING-write/native payload/padding/MMIO traces all
+pass. integration-result-v3.json SHA
+2db119232f8fba7a994bc85c072248f9483dfc9030a49b4daf2a30a58f7cea8c.
+Independent source review FIRST0 SHA
+8cb5580625b785e27bcfc8d704add0590d3da4c34e1cf78a6115041e2ff4eb0e.
+
+DSH v27 CLOSED inner0 FIRST: changed coordinator and PAS owner both compile
+ARM64 using current170 recipe/2119 header-config inputs, separate outputs and
+protected reference files unchanged. Old draw/board bytes and native objects
+remain exact. ARM64-result-v2.json SHAd224d47f4ff507559515281d103533eaee7a9d12e76e910d86b4217a02522047;
+independent-ARM64-review-v2.json SHA
+59e611eb1bf2d331912e4c05fa8606b1672d140cf02d03dc8c17efb5ccd83534.
+Root reviewer v1 failed BEFORE output comparing seven raw fields to the real
+eight-field Mach-O64 header; v2 uses source-supported8fields, all source/hash/
+recipe/compiler gates retained, NO recompile. Failed reviewer/diagnosis kept.
+DSH v24 CLOSED inner0 FIRST: strict171 all84/current-native/every old168 native
+foundation binder and complete artifact qualifier import/symbol preflight pass.
+kernel-preflight-result-v1.json records exact inputs. No complete kernel yet.
+
+NEXT: commit admission/fixture fixes and freeze DISTINCT KERNEL171_SOURCE_HEAD,
+one standard local8job full build171.py + all old artifact predicates and new
+triangle source/object/native-byte flags. Current generated recipe STILL170;
+after new build, only its new manifest may be used by future TU probes.
+DSH v28 standalone SYNTHETIC triangle parser is RUNNING on live exec15478;
+poll same handle, never restart claim. No parser result yet, no image/boot.
+Actual pixel/reference/EOP parser authored; runtime full/common/identity/image
+gates still need completion and verification before ONE temporary phone trial.
+User away/all resets automatic; last phone TWRP170, no new device I/O. Full goal
+ACTIVE: physical triangle/Metal/UI/highrefresh/daily use still unqualified.
+
+### 2026-11-08 —171 full-path admission omissions fixed; fresh canonical gate running
+
+Current continuation PROGRESS; full goal ACTIVE/unlimited. User away: all
+restarts automatic, never ask attribution/UI, only prompt for genuinely needed
+manual recovery. Last real phone trial remains170 automaticTWRP; no device I/O.
+Original mkadt user diff7lines SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 intact.
+
+Committed first171 production engine/provider/fixtures as private
+2a257905167136be23a0de073d3c6b65b241394b. Public still2a491b9c7545e07d5f26cb2bd7f9aea9125364a6;
+no new publication/CI/kernel/image/boot. Current generated build recipe still
+170 gauguin.Qwvb1c/source170-codex; never use older TU helpers against it.
+
+DSH v23 integration CLOSED inner1: clean165patch replay0/5.274s produced
+source171-codex5317 SHA2d6c5d18820a1b60830347b60cd3c4e50a667cb583b176670e818f03d6d99fd0,
+exact old candidate171v4/seven-file delta. Full84host1/440.533s:83 files passed,
+coordinator fixture link failed because its typed seams lacked three new draw
+APIs. New engine28458 cases/823789025assertions and full provider25551 cases
+passed in that run. Raw failed source/report/log/snapshot/5traces retained.
+
+Added real-header typed triangle coordinator seams and35 new mode8 ordering/
+failure/prerequisite/legacy-mode cases, preserving old case bodies; old invalid
+upper8 sentinel becomes9. Author v1 failed BEFORE writes (overlapping substring
+count); author_coordinator_fixture171v2.py produced current fixture. DSH v25
+integration CLOSED inner1: replay evidence reused unchanged, focused coordinator
+compile0, all630 old cases passed, firstmode8 failed. Full84 not rerun in v25.
+Actual cause: coordinator's boot-flag admission still ended at7. Source audit
+found PAS owner's psz_flags also ended at7. Earlier provider-only model/ARM64
+passes were real but did NOT qualify these two complete-path admission sites.
+
+New candidate171v5 preserves v4 and adds ONLY8 to the actual coordinator and
+actual PAS owner's existing accepted-mode sets; all start dependencies, legacy
+INIT/MEM exclusions, authentication/phase/owner/full64page/NC guards retained.
+Actual owner fixture extends modes1..7 full copy/AUTH/PROT_NONE/page checks to8;
+its unsupported sentinel8 becomes9. Production0171 patch now EIGHT changed files
+(adds bsd/dev/gauguin_pas_stage.c), SHA
+c770cba2736b58f94e6ba974965957b2302f5bfafc1ab7af525a7013ed601434.
+production-patch-result-v3.json pins current public files. Old v1/v2 artifacts
+remain immutable. New expected pristine source5317 SHA
+cdf96fac265e882b9e171ea3cc2fd1297ef8b99de8823b019fca585a17669473.
+Default new board/draw/coordinator/owner test source is source171v2-codex.
+
+DSH v26 integration RUNNING via live exec96247; script integrate171v3.py,
+dispatch_once171v26.py integration. It performs a fresh original export into
+source171v2-codex (old source171 untouched),165patch replay, focused coordinator
+and real owner, then all84 public host files and five new opt-in ring/MMIO traces
+with exact1639writes. Poll same live handle; do not relaunch a claimed job.
+Expected focused counts665coordinator/538owner must be verified, not assumed.
+
+Source-only draw constants/strict triangle parser and171 artifact qualifier/
+binder/preflight/build helpers are being authored in research/tmp/dsh-0171.
+They are NOT executed/accepted yet. Their old source2d6.../candidatev4 bindings
+need migration to candidatev5/sourcecdf... and v26 evidence before execution;
+update both exact owner and coordinator mode8 contracts. Need new current170
+ARM64 compiles for changed coordinator AND PAS owner; old draw/board object
+proofs remain for identical bytes. Then independent full84/source acceptance,
+strict preflight, commit/freeze distinct KERNEL171_SOURCE_HEAD, full8job local
+kernel build, complete artifact qualification/runtime parser/image tests,
+ONE temporary boot and automaticTWRP actual pixel/event review. No triangle GPU,
+Metal/UI/highrefresh/daily-use qualification yet; no user action pending.
+
+### 2026-11-08 —171 engine/provider/ARM64 ACCEPTED; production patch ready for replay
+
+Previous goal turn PROGRESS: native full draw command graph/frozen source
+reference committed674c09c, final private743abb59cd7d7e33c5ea77e43e1087cecb71b561,
+public2a491b9c7545e07d5f26cb2bd7f9aea9125364a6 SAME TREE
+21b6970696947155545275336a6702f62c61d413, sole public parent4ab00cef9b3ac0cdc35f1808a98fa09504679740.
+Publication verified in research/tmp/dsh-0171/public-draw-handoff.json.
+This goal continuation PROGRESS: actual new bounded triangle transaction engine,
+full provider model and three current-recipe ARM64 TUs pass. Full goal
+ACTIVE/unlimited; no physical triangle,
+Metal, UI acceleration, RAM/UFS/peripheral/highrefresh/daily-use qualification.
+
+Current XNU generated recipe remains170 gauguin.Qwvb1c/source170-codex:
+manifest710949a9d583a8d0547cbbfee9f04dfd54dad72242c78e725e3c1a693edd26bf,
+source5314 SHAef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3.
+Production0171 patch/series and public fixtures now authored; clean source
+replay/full84-host/kernel link/CI/image/boot NOT performed yet. Single-file
+native ARM64 candidate compiles HAVE passed; see exact current170 binding below.
+Do not use earlier TU helpers against shared generated files. Last observed
+phone automaticTWRP170; no device I/O in this continuation. ALL resets automatic,
+user away: never ask attribution or UI; prompt only if manual recovery needed.
+
+New actual portable core in draw-engine-v2/{gauguin_gpu_draw.c,.h,_native.h}
+under research/tmp/dsh-0171. PrefixGGT, source-fixed27 blob slots/26 nonempty;
+1158 original payload words, deterministic128B padding ->1632 staged words.
+Root append stays7words/20->27, mainIB203, existing32KiBRO/NX ring and DATA4KiB.
+All cold/staged/after blobs plus padding checked per-slot and in aggregate;
+all DATA1024 before/after; require256green/EOP6/767otherzero, separate true EOP
+poll and shadow/idle, USER32 high-neighbor0. CPU writes can only target exact
+RING artifact ranges/root append; no CPU DATA stores. One-shot/output-unchanged/
+quarantine/bounded64word NC rules preserved. No general shader or Metal API.
+
+DSH34523/v16 engine-v1 terminalinner1: missing string.h declarations; no test
+execution. Original failed files/report preserved. Engine-v2 adds header only.
+DSH32010/v17 terminalinner0 FIRST: ASan+UBSan actual core compile0/1.435s,
+hostile model0/21.413s. draw-engine-result-v2.json SHA
+c0842074aefe258f7790c9762e616d4822c9dc1eec03a5f41e3b8c9a38e5f2a7.
+Exact28458 cases/823789025 assertions; five native scenarios, all9193/9295
+callback boundaries injected for normal/delayed paths, all1632 padded words in
+capture/commands/verify corrupted, all1639 CPU write drops, DATA1024 corruption,
+all256 missing pixels, delayed/missing/wrongEOP6, faults/timeouts/once/alias/
+output/authorization checks. Explicit modeled DEVICE supplies pixels/EOP; this
+is not IR3 emulation or GPU execution. All input hashes unchanged. EngineC SHA
+f55689e145122e88315a4ff1b61db723d24f90451c58745e1976f87869203e9c;
+header4d14d1c7b9070ccaebf7cb066e297c15ae44fd0f499261da32b914dc9c539daa;
+host model draw_host171.c SHA11a5eaf6466852647fd64d03a8b9a3b049d76c6dff5bf3393b4239a581af1422.
+Root independent-draw-engine-review-v1.json FIRST0 SHA
+971bbf3d0f9a132d11213e49f5ab9a11451ae2bd95f38c8ef73776a26e08d8be.
+It rehashes actual logs/commands/source, exact ranges/loops/flags, native fixture
+identity, and old compute/clear module bytes and clear provider body preserved.
+All engine jobs closed. No ARM64/XNU build claim for new engine yet.
+
+Separate candidate171v4 is accepted provider/coordinator/build-input CANDIDATE,
+not active generated source. Original candidate171/v2/v3 failure inputs retained.
+author_draw_provider171.py cloned old live-guard/owner/NC/routes/IRQ/time/WDT
+policy into separate sweet_gpu_draw_once mode8, adds boot dispatch, public
+prototypes, bsd/conf/files and cold-mode8 freeze/flag recognition. New parent
+requires all modes3..7 stillidle plus exact signed INIT/GGU receipts. Same2s
+phase/4s total/8s entry/WDT policy, same sole aliases/full PTE validations, no
+new maps or permissions. Core files exactly accepted engine-v2. Old compute/
+clear files copied unchanged into candidate solely for test include paths;
+exclude those equal files from eventual patch. No old engine/provider logic
+relaxed. Success records must use existing gmb_record_cached and one final flush,
+failure existing gmb_record. New logs explicitly label native constant words
+REFERENCE; actual DATA pixels/receipt counts remain independently sampled.
+
+Provider host author v1 failed before output due replacement-order API name;
+author_draw_board_fixture171v2/v3 corrected before any compile. Current fixture
+board_host171v3.c +draw_board171v3.c retains all old case bodies and adds mode8
+active/owner/NC/physical primitive seams, actual signed/GGU setup, secure first
+CPU page PROT_NONE afterAUTH, all staged-word faults/store failures/perm/PTE/
+time/parent tests and per-slot receipt forgery. Prior unsupported upper mode8
+became supported; sentinel9 replaces it, old unsupported0/1 checks retained.
+No negative-case filtering/sharding/waivers introduced.
+
+DSH48027/v18 provider-v1 terminalinner1, compile1: OUR new recorder named an
+undefined sweet_log_cached_record. Failed candidate/report/log immutable.
+candidate171v2 corrects ONLY that new recorder to real primary
+complete?gmb_record_cached:gmb_record. No fake logging callback added.
+DSH20760/v19 provider-v2 terminalinner1: compile0, old14841 cases passed,
+new first triangle setup case14842 refused signed ZAP. Missing mode8 in
+sweet_gpu_zap_requested FLAG selector (gpzb_flags MODE selector already had8).
+candidate171v3 adds only flag==8; authentication/owner/deadline policy unchanged.
+DSH74578/v20 provider-v3 terminalinner1: compile0, old cases passed, first new
+case hit fixture log-length assertion. New TRIANGLE prefix made the five-tick
+GUARD line193B vs old CLEAR190B/generic fixture bound192. Actual primary UFS
+marker cap is4094. candidate171v4 shortens only new suffix by7B, retaining all
+five64-bit tick fields and the SAME strict192B fixture bound. No gate relaxed.
+provider-v3-log-diagnosis.json preserves that evidence.
+
+DSH37966/v21 provider-v4 terminalinner0 FIRST: compile0/5.580s, actual full
+provider model0/273.237s. Actual25551 cases =old14841 +new10710. Every previous
+stage's original case bodies retained; new54 fault kinds in all7 phases,
+all1642 store-boundary clock/deadline failures, all1639 CPU-write drops,
+all1632 padded words in three phases, all DATA PTE bits, NC/physical/parent/
+mode failures, receipt forgery and full phase/address read/write whitelist.
+Secure first page PROT_NONE after AUTH preserved. No physical GPU executed.
+provider-result-v4.json SHA
+181102dd1ec085dd2257661a6a343d397fc447f160b502fa248cb1da1c64e01d.
+All provider DSH sessions now CLOSED; stale claim state=running is NOT live.
+
+DSH51569/v22 terminalinner0 FIRST: actual native ARM64 Mach-O compiles0 for
+new draw engine, board and BCM coordinator using ONLY current170 manifest
+710949a9.../source170-codex and unmodified crosscompile_probe.py. 2119 header/
+configuration inputs checked each time, original generated Makefile/CFLAGS/
+reference object/dependency files unchanged. No old TU recipe used. Report
+ARM64-result-v1.json SHAe142d02327523243692519158f291081e07c8cd0a47f93a6ab51da1f807b2ff9;
+root independent-ARM64-review-v1.json SHA
+d9f07b1790a8feaa8c0d4e44cac3581e0ff95bd304461bef8b68328f1693f2e2.
+Objects under research/tmp/gauguin-nvt-p1/gpu171-{gauguin_gpu_draw,
+gauguin_gmu_board,gauguin_bcm_coordinator}/run-*/compile.json; exact hashes in
+the ARM64 report. All ARM64 jobs CLOSED. This is not a complete kernel link.
+
+Root provider reviewer v1 failed BEFORE output because it rejected the word
+failure inside original positive "failure cases PASS" line. V2 uses precise
+actual failure diagnostics, retaining exits/all numerical/source/guard gates;
+no model rerun. independent-provider-review-v2.json FIRST0 SHA
+7c7f1fa6d8c26f64d27ba88cec0c50a561911d49f1812ae4132a3019b696a06d.
+It proves old board source EXACT after reversing six explicit mode8 selectors
+and removing only the new provider block; old modules unchanged; all original
+case bodies retained, current ARM64/source/ASan evidence bound. Hardwarefalse.
+
+Promoted reviewed candidate171v4 into new seven-file production patch
+xnu/patches/0171-gauguin-native-triangle-draw.patch SHA
+a74d41048c4dc474009a7577f8b196c1415feff906e16ab47188602d18476fc7,
+series appended once. New files core.c/core.h/native.h, board.c/.h, BCM and
+bsd/conf/files only. Compute/clear copies excluded as byteequal. Public new
+tests/test_gpu_draw.py and fixtures gpu-draw/draw_host.c, gmu-board/draw_host.c;
+updated existing board fixture/runner with SAME private accepted model contents.
+Public standalone harness additionally has opt-in ring/MMIO trace output; its
+default assertions and hostile generators are retained. This trace-only branch
+is not yet run: canonical clean-source full84 gate must also capture and verify
+all five trace scenarios. production-patch-result-v2.json records current pins
+and this pending verification; immutable v1 records the earlier authoring pins.
+Expected new
+pristine source has5317 files (three new) and seven changed vs170,165active
+patches. Source replay must independently prove this; do not assume it yet.
+
+NEXT: commit this accepted source milestone, then pristine source171 replay,
+all84 public host files, strict new source/native binder and whole local8job
+kernel build, runtime parser/image contract, ONE temporary fastboot boot,
+automatic TWRP readback and independent actual pixel/event/source acceptance.
+Keep original mkadt7line user diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 untouched.
+No171 kernel artifact SOURCE_HEAD exists: existing SOURCE_HEAD=44f763c... and
+DRAW_PUBLICATION_SOURCE_HEAD=743abb5... bind earlier CPU source publications;
+never overwrite/reinterpret them. Use a distinct kernel source-head workspace.
+Codex critical code/review/Git; DSH execution-only/full-access. No user prompt.
+
 ### 2026-11-08 —171 complete native triangle command graph ACCEPTED; kernel mode8 NEXT
 
 This continuation PROGRESS: original native cache/program/3d-state/direct-draw/

@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —Standing user instruction: unattended resets are automatic; no repeated confirmation
+
+The user explicitly says: "我人不在旁边 重启肯定都是自动的 不用确认 只有卡住了需要我手动重启的时候 你会提示我".
+This supersedes older handoff requirements to ask a separate no-manual-reset
+question after every trial. For current pending148 and subsequent unattended
+trials, record no manual intervention using THIS standing user statement;
+do not keep attribution UNKNOWN just for lack of a per-trial reply. Notify the
+user only when the phone is actually stuck and manual recovery is necessary.
+Keep progressing automatically through authorized reversible bring-up work.
+
+Preserve raw observed timing/logs and distinguish automatic watchdog/panic/
+code-requested reset causes from guesses. This instruction supplies human-
+intervention attribution; it does not waive fresh trial identity, technical
+checks, qualify GPU execution or turn a failing trial into a success. If the
+automation itself commands a reboot, record that action accurately. Later
+explicit user manual actions take precedence for their affected trial.
+Do not alter strict generic readers or historical reports to implement this
+workflow preference: pass --manual-reset no from the user's standing authority
+in NEW unattended trial reports, retaining original inputs/guards. The
+unchanged148 reader completed into a separate attributed report, no phone IO.
+
+DSH47956 CLOSED0; attribute148-standing-user-policy.py actual0, SAME immutable
+verify_gmuf148.py actual0 with --manual-reset no. Authority is this user's
+explicit standing statement, not a fabricated separate148 reply or reused147
+answer. Original exit3/unknown report and reader bytes unchanged. New report
+research/tmp/dsh-0148/hardware-full-verification-attributed.json32472B SHA
+a46404812473dd17f40ae41fb1b0f21aa6d1fc9b4e72198c8c6cda83df55589f;
+Codex independently rehashed all10 technical inputs and both original pins.
+Helper result reset-attribution-standing-policy-result.json records exact
+authority and verifier exit. THIS148 attribution is now resolved automatic;
+no GPU-execution/Metal qualification or human UI/touch observation was added.
+Next GPU action remains151 board integration from source150-v2; complete local
+recipe remains148gauguin.E1ium7. All owned tasks CLOSED; no new device IO/build.
+
 ### 2026-11-07 —150 pure native A619 core engine qualified; board activation is NEXT
 
 Completed150 code private17a25bd2e9042109cf6cbdfcc5612e925878b5e7,
@@ -115,8 +149,8 @@ shadow-RPTR offset/protection, native RB0xaa initialization, SQE/RB pointers,
 SQE_CNTL1 then fenced WPTR protocol/posted barrier/AHB-fence sampling/bounded
 completion. Native CP init precedes real ZAP load; no trust-control bypass.
 ZAP auth/unsecured mode/preemption/resource/lifecycle/scheduler/iOS ABI remain.
-Last phone observedTWRP148; THIS148 reset attribution still PENDING, do not
-reuse user's147 confirmation. Whole GPU/Metal/daily-use goal ACTIVE/incomplete.
+Last phone observedTWRP148; its reset attribution is resolved by the newer
+standing user instruction above. Whole GPU/Metal/daily-use goal ACTIVE/incomplete.
 Original mkadt diff intact; no flash/format/GPT/destructive action or new phoneIO.
 
 ### 2026-11-07 —149 pinned SQE cold staging source validated; full A619 core/CP startup next

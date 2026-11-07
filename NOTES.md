@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —146 complete diagnostic kernel qualified; package running, runtime tests/ONE trial next
+
+DSH10487 CLOSED0; build146.py actual build0/qualification0, ONE standard
+local full build. Run gauguin.yFYkK1, captured private
+1cd00ffd07944357569986d1bc6a6b2e2cb62e21, exact140-patch source146b58684e4...
+162bb47/5288files. Kernel16924168B SHA
+0c121a32f04a5ef90ab23baadbf0ca8877c09f3673b74663834e1570af2909b1,
+ID xnu-42b6295ad1d54367894f1677561f475b. Manifest904793B SHA
+a656c93d1ee984aa7e1c0be9621a3590e4653917a0abb23a074fffc127904e8f.
+Qualification12780B research/tmp/p3-native-0146-qualification-20261107.json
+SHAa89f577b9c63d1edcf029286f3d8ca5cc466ab51e04a847035f0ee3a9e88af65.
+All145 checks retained; cached_gpu_argument_diagnostics_source_bound true,
+actual checker symbol and cached failure formats linked. Hardware unqualified.
+CURRENT full native recipe/source NOW146yFYkK1,145Ntf1zL historical.
+
+Code commit1cd00ff published f050834f9236623d9a8214670fe2b34babc8b55a,
+ls-remote verified, sole parentd32864b91402f4bdd9d2a5ec4a4e1518e9b545b5,
+same private tree. Exactly8 patch/series/tests/NOTES/docs text paths; report
+research/tmp/dsh-0146/public-source-snapshot.json. No private ancestry/raw
+device data/downloaded native sources/binaries/serials pushed.
+
+Validation v2 reportad6d6fee158ef291190e269b0a105f1b9ab74e865c59ade2b3c643315214acce;
+frozen I/O report81ad9b8367548a9261e08758c8e1eb7cb7f4caa412000c6f98c6d046026f85ad.
+New GPU fixture10,484,209 assertions, board3817new/old3109 retained. Codex
+independently rehashed269 full validation pins, frozen I/O inputs and sources.
+Native GPU SMMU45440B SHA50ccf53e97190804d9dde1cf18454bd578d1fbf678bae4c1180f0742ae9bfd60;
+board110392B SHA97e073616ad67eb21ee1158bab0fb3eb27d294025eaa89210d4f0adb28b52691.
+
+Packaging DSH79868 is currently active; poll SAME handle, never restart on a
+wait timeout. Prepared strict146 runtime modules preserve145 metadata numeric/
+40/64hex pins before explicit new source/head/cached-checker requirements.
+They add cached INPUT only to failure observations/unknown-line rejection,
+never to successful GPU proof. NEXT package outcome -> execute-runtime.txt
+after qualified146 artifacts exist -> ONE temporary146 boot with fresh inputs.
+Actual145 refusal remains unmodified. No146 image/boot/reason observed yet.
+Phone last observedTWRP in145. Whole goal ACTIVE/incomplete, original mkadt
+diff intact; no CI/flash/format/GPT/destructive operation.
+
 ### 2026-11-07 —146 pure rejection diagnostics validated; complete local diagnostic kernel next
 
 THIS goal turn first produced actual145 refusal evidence, then implemented

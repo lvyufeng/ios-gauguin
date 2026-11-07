@@ -10,6 +10,11 @@ recordd3e4a4d. Correct staged source remains144-v2-codex/ec84a908...0724ff0;
 complete native build/recipe remains143 gauguin.77lIOK. No production145
 patch, full kernel, image or phone IO yet. Phone last observed TWRP in143.
 Original mkadt user diff intact. No CI, flash/format/GPT/destructive action.
+Audit handoff private6fe7f69dddc7e56a0ece8af5be2749ee64dc84f3 published as
+3ab6a8b352d48aa92aa9a0e64b64fdd45b8ce353, ls-remote verified, sole parent
+3ceba2a1ec8ef01993305726a550bdc6c5f36dad and same private tree. Exactly2
+NOTES/docs text paths; research/tmp/dsh-0145/public-audit-snapshot.json.
+No private ancestry/raw device data/downloaded native sources/binaries pushed.
 
 DSH13982 CLOSED0; exact audit_scm_inputs.py0 and native_scm_oracle.py0.
 Fresh pinned19b63c8 scm.c/h match previous cache; audit SHA

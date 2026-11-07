@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —142 image and strict BW/TEST readers qualified; ONE phone trial next
+
+DSH66005 CLOSED0; actual package0/independent image-review0, normal passed
+report/inputs unchanged. Image19546112B SHA
+2be27bc379e57ea5ff33efd900c992adf611943d2e626f2683e69d7466b127eb;
+payload19218432B SHA
+2fcb312abd963c2b497ce9a98f5c80f1c2a266f507a8c24cc6297149e7c6b3b1.
+Evidence4019B SHA
+e2bb9df841f70a9c7ce607cef535f54f0c4fae2d45297cabddea1efc96316a60.
+Trialgmuf-0142-20261107-a1, sweetgmubw1/PERF1. Assets preserved NVT182558000/
+MDT18257c000/GMU182580000;140/all old image pins checked. No phone IO yet.
+
+DSH75004 CLOSED0, runtime_validate142.py0, three zero results: clock4/95,
+FW+BW/TEST126/401 and explicitly SYNTHETIC full23/113. Report2330B SHA
+5e1528a7a911be625aa33b7a8f8b209f0482ae998c488d82841adbf9138de13c;
+strict reader SHA07f5d839e89457032736831b7b240036266499b6985978af65f910b987327837.
+Requires four pre-WDT plan records agreeing with fresh CMDDB, correct ordered
+160-word BW/1-word TEST and bounded native ACK prefixes. All old140 source/
+clock/CX/SMMU/diagnostic/identity guards retained; missing/duplicate/partial/
+malformed/wrong flag/size/type/seq/status/plan/order refuse. CPU fixture
+results never hardware evidence. No142 physical BW/TEST ACK/reset/UI fact.
+
+Reviewed boot142/run_hardware142 prepared for ONE exact temporary image boot,
+routine13-byte recovery latch/readback, unique products,180s observer/freshpull,
+actual full banner/trial, unchanged strict full reader. Boot script owns the
+recovery->fastboot transition; no added external fastboot preflight. NEXT
+execute execute-hardware.txt. Current native recipe142NfYVjn, phone last
+observedTWRP, owned DSH handles CLOSED. Whole goal ACTIVE/incomplete;
+original mkadt diff intact, no flash/format/GPT/destructive operation/CI.
+
 ### 2026-11-07 — complete142 local native BW/TEST kernel qualified; pack/readers next
 
 DSH98473 CLOSED0; actual build142.py build0/qualification0. Run

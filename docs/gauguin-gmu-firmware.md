@@ -647,6 +647,19 @@ validate72 legal index pairs and the selected six-store stream. Actual port
 bootstrap emits those same six stores after five HFI messages. All62 host
 files,2735 new callback-failure boundaries,69 new board/29 coordinator cases,
 three ARM64 translation units and frozen legacy I/O comparisons pass. The
-137-patch source is qualified for a complete build; there is no0143 physical
-DCVS ACK/return yet. Requested253MHz/BW5 and even a future native return0 do
-not establish a measured clock rate, governor, GPU execution or Metal.
+137-patch source was built as a complete local native kernel and packaged
+into an independently reviewed temporary image.
+
+Physical0143 accepts the selected253MHz/BW5 request: the raw OOB completion
+is before00000000,ACK80000000,cleared00000000,return00000000. All five startup
+messages and the existing source/identity/CMDDB/SMMU/clock/power guards pass;
+the firmware receipt has94 controller stores,9 polls and no debug messages.
+The unchanged full reader accepts the technical evidence; this trial's reset
+attribution remains unknown. Prior-trial user confirmations are not reused.
+
+This proves the fixed native mailbox/OOB request and return0. It does not
+establish a measured clock rate, dynamic governor, GPU execution or Metal.
+Next requirements are native GPU MMU/global command memory, GPU power/access
+ownership and SQE/CP startup with bounded execution/readback. The A619 native
+path uses a630_sqe.fw (stripping its4-byte file header) and a615_zap; these
+stages remain separate from the validated GMU startup and request chain.

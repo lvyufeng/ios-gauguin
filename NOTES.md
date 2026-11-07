@@ -2,6 +2,79 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 — actual143 native register DCVS request ACK/return0 PASS; next GPU MMU/core/CP
+
+THIS turn is progress: native source/DT audit corrected provisional BW1 to
+actual253MHz row BW5, implemented/validated/published143 fixed register/OOB
+request, complete LOCAL kernel/image and strict readers passed, ONE physical
+temporary boot accepted the request after all five startup messages. Whole
+GPU/Metal/RAM/storage/peripheral/high-refresh/daily-use goal remains ACTIVE
+and incomplete. Request/return0 is not measured frequency/bandwidth, dynamic
+DVFS/governor, async power/IRQ lifecycle, GPU command execution or Metal.
+
+DSH26548 CLOSED0; actual run_hardware143.py0, observer0, unchanged strict
+full verifier3 (all technical evidence PASS, THIS143 reset attribution UNKNOWN).
+Start2026-11-07T01:13:53.374385Z,finish01:16:05.386913Z. Send19088KB0.442s,
+boot0.134s,total0.579s; TWRP observed131s includes boot/log/recovery, not a
+hardware reset-cause measurement. No duplicate/retry. Do not reuse prior117
+or138 user reset confirmation for THIS143; no new user UI/touch/reset fact
+and no attribution question is needed for the next technically proven stage.
+
+Actual raw request perf_index1/hz253000000/bw_index5/Bps2188000000,
+option00000000/perf30000001/bw00005005. Actual completion before00000000,
+ACK80000000,cleared00000000,return00000000. This proves fresh ACK31/clear
+and native return0, exactly the selected-DT request, not measured253MHz.
+All INIT/VERSION/PERF/BW/TEST retained; FWbabeface/reported10110000,
+phase6/copy8192/8192/writes94/polls9/debug0. SMMU131/140, BCM/ARC/CX/clocks,
+same-fresh-CMDDB BW plan, source/manifest/qualified image/full banner/trial
+and final owner/IRQ/clock/fault guards passed. No partial/refused diagnostic.
+Codex independently rehashed ALL full-report input paths/sizes before editing
+this handoff. Full state
+verified-GMU-firmware-PERF-BW-TEST-DCVS-HFI-SMMU-clock-CX-controller-reset-attribution-unverified;
+gmu_dcvs_result verified-fixed-native-register-OOB-request-return0.
+
+Raw4061lines/455840B research/tmp/p3-gmuf-0143-native-observer-20261107.txt
+SHAdcdcb46b455b581f5f16e9e8a711487f9fd689437cf1fa467160b412b1c132e0;
+cycle991B SHAf4f348ba50d3d3a7cda4b17b907308fd9bb8fc42057d03576e9fcec2a8efe4c3.
+Full report28756B SHA
+4d1f7443ea93d4faf03bcee13ba6ad66f1f239ca7134690a3d08483dcb7ee317
+at research/tmp/dsh-0143/hardware-full-verification.json. Kernel14377lIOK/
+HEADcbf1470/7626c642...8911af79d, imageb32b68f6...02d4ef3b preserved along
+with142/all earlier baselines. Runtime reader128/429/full24/133 (synthetic)
+and clock4/95 passed before boot; reportcec41b31...0735a21. Prep commits
+875225f and61e40fa. CURRENT full native recipe/source14377lIOK. Phone
+observedTWRP, all owned DSH handles CLOSED. Original7-line mkadt diff intact.
+No flash/format/GPT/destructive operation/CI. Source publication801c2dd
+remote verified; sanitized physical handoff publication next.
+
+NEXT144: preserve143 as reproducible native power-request baseline. Rebind
+exact19b63c8 adreno.c/adreno_a6xx.c/adreno-gpulist.h and GPU MMU helpers,
+decode retained/fresh live FDT GPU stream/context-bank/global-memory policy
+before changing GPU SMMU ownership. Native _adreno_start does AWARE (GMU
+startup/default DCVS), then kgsl_mmu_start BEFORE oob_gpu; only after that
+performs core setup and ring start. Do not blindly read/write gated GPU core
+or reuse GMU SID4/5 mappings as a GPU command context. Audit inherited GPU
+routes/banks without touching other/secure owners, build correct bounded GPU
+context/global memory plan, then coherent native MMU/owned GPU hold/core
+checks. A619 oob_gpu0 uses SET16/ACK24/ACKclear24 and later clear24; retain
+boot-slumber OOB until native start completes. Native hfi_start_msg returns0
+for HFI_USE_REG, so no extra START HFI after TEST.
+
+Cached-source observations to rebind before implementation: A619 descriptor
+uses a630_sqe.fw, not an invented a619_sqe filename; existing captured file
+32304B SHAa0e1b583f620fabe32729ce367959d1960638663244d7d0cfc21b9a5215a018b.
+Native _load_firmware strips first4-byte version/header, GPU readonly ucode
+32300B/8075words. Native ring start writes RPTR addr/RB config/base, SQE
+instruction base, SQE_CNTL1, sends12-word CP_ME_INIT, THEN loads a615_zap
+via PIL and sends unsecured-mode command/post-start. CP_ME_INIT is type7
+11-word payload including native ordinal mask/reglist pointer; do not skip
+MMU/powerup/protected-reglist dependencies or claim render proof from bytes.
+Prior116 INIT_IMAGE and117 MEM_SETUP returned0, but b02/auth_reset/ZAP/CP
+execution remain unqualified and cannot be inferred from those returns.
+Continue Codex critical drivers/plans/Git/review and DSH exact reviewed
+compile/test/build/temporary boot. Work toward actual bounded GPU execution
+and readback before userspace acceleration/Metal bridge and high refresh.
+
 ### 2026-11-07 —143 image and strict native DCVS readers qualified; ONE physical trial next
 
 DSH17808 CLOSED0: actual package0/independent review0, normal result passed,

@@ -56,13 +56,17 @@ Shared clear_source_contract169.py12 source-only flags accepted, no hardware
 flags promoted. Full host finalfixtures/defaultsource169 changes all tested.
 
 Implementation committed private b42130c87048e3c6474f75d50bf22d574eb58c68.
-HTTPS git transport returned403 twice, authenticated ghAPI read succeeded;
-API publication of SAME TREE with sole public parent is in progress (no
-private ancestry). No CI/fullkernel started. All DSH jobs terminal.
+Accepted source snapshot private df254c9e7e83aeb5f97056381d43d6be30650ca5 /
+public87192b803a65beca07f002ab270fed8603a54111, SAME TREE
+2267984a6ae76550e3d902bcf73391bfcf24b1fb, sole public parent
+ e4fe109ff7286bc91d5b72d00a8ed19b1107036b; remote head/tree/parent rechecked.
+HTTPS Git transport403 and GitHub connector GraphQL updateRefs FORBIDDEN;
+authenticated gh REST Git-data upload+nonforce ref update succeeded.
+No private ancestry uploaded. No kernel/CI build requested. All DSH jobs closed.
+Source publication exact report public-source-handoff.json; final docs-only
+publication IDs in public-source-final-handoff.json after this handoff commit.
 
-NEXT publish SAME TREE sole currentpublic parent
- e4fe109ff7286bc91d5b72d00a8ed19b1107036b; exact IDs in public-source-handoff.json.
-Then author and precheck source-bound build qualifier/runtime/reader, preserving
+NEXT author and precheck source-bound build qualifier/runtime/reader, preserving
 all168foundation checks; ONE fullLOCAL8job kernel/qualified image and bounded
 temporary boot. No169 SOURCE_HEAD frozen/fullkernel/image/device work yet.
 Previous169A source/native evidence below remains immutable.

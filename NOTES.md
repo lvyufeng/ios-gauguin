@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —145 complete local kernel and image qualified; strict runtime GPU reader/ONE boot next
+
+DSH31085 CLOSED0; actual build145.py build0/qualification0. ONE standard
+local full build, no retry/CI/device IO. Run gauguin.Ntf1zL captured private
+893d55bad7b7700bb0ae65762a24a7edfaaef25d, exact139-patch source145
+8a366b6c82b98773dd4f911b938b82d6549a36fab9680c75c1ad69f2b16295f3/5288files.
+Kernel16924280B SHA2e42ac98a2d1cb27f16b84f6f499275d340c048b9bb02b2df1c00e983d3c85d6,
+ID xnu-de80a67dc23d4bacb27b6ad8b5ec6339. Manifest904446B SHA
+815d000d23c578dd48519baf6e564fbf2afebce2ea110cdbda47de3f80af9dcd.
+Qualification research/tmp/p3-native-0145-qualification-20261107.json SHA
+f84f8cdd26f5bd7844362ffee98b185144a1263464f989345aa8614268b0c28a;
+all143 qualifiers plus native_gpu_default_context_source_bound and
+native_gpu_four_scalar_aperture_source_bound true, actual GPU archive
+members/symbols/formats/source/host binding checked. No145 hardware proof.
+CURRENT full native recipe/source NOW145 gauguin.Ntf1zL,14377lIOK historical.
+
+Validated source published0b7ed969de121b6bc8211a4f65a3fcba3c834720 and
+ls-remote verified; sole parent3ab6a8b352d48aa92aa9a0e64b64fdd45b8ce353,
+same tree as private893d55b. Exactly12 source patch/series/tests/NOTES/docs
+text paths, report research/tmp/dsh-0145/public-source-snapshot.json.
+No private ancestry/raw/FDT/downloaded sources/binaries/serials pushed.
+
+DSH10049 CLOSED0; actual package0/independent image-review0, normal package
+report passed and all9 inputs unchanged. Image shim/out/
+shim-p3-gmuf-0145-native-20261107.img19562496B SHA
+b08087f3b9cd0510ff19985b6423048c0e952a59de1b3a4f02782a29bc7ad54d;
+payload19234816B SHAed007419bebe9649f2a03b2a228981ed9e9270673351ece72ca743eec50f615f.
+Evidence4149B research/tmp/p3-gmuf-0145-native-evidence-20261107.json SHA
+9f5b43d4e2872c098ee61ad5b5cf653cb876c56f637ae820cff256ac6c3727e8.
+Unique trialgmuf-0145-20261107-a1, sweetgpucontext1, command600B/608B field.
+Actual assets shifted with this larger kernel: NVT18255c000, MDT182580000,
+GMU182584000. Contents/geometry/zero padding/owner request remain qualified;
+strict reader MUST bind these actual145 payload addresses, not143 locations.
+All old image pins retained, including new explicit143 baseline pin.
+Metadata transformation preserved40/64hex and AST numeric constants before
+explicit GPU flag/qualification/source-file-count rules. No package outcome
+is hardware evidence. Codex independently rehashed package pins and actual
+image after DSH. All owned DSH handles CLOSED. NEXT strict145 runtime verifier
+and synthetic fixtures, based on
+unchanged143 readers with new exact GPU context/SCM checks; never boot before
+that parser/identity/image qualification. Phone last observedTWRP in143,
+not queried this turn. Whole goal ACTIVE/incomplete, mkadt diff unchanged,
+no flash/format/GPT/destructive operation. Earlier code validation details next.
+
 ### 2026-11-07 —145 GPU context/CP aperture integrated and validated; complete local build next
 
 Previous goal turn was progress:144 constructors committed/published and145

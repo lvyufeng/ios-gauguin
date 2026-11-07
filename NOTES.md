@@ -36,6 +36,147 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU source work and complete hardware recipe are recorded in the
 latest milestones below. No repeated reset question; only necessary manual recovery.
 
+### 2026-11-07 —154 FIRST REAL GPU INIT qualified; same immutable boot, conservative console framing, ZAP NEXT
+
+Concrete hardware milestone: ONE temporary154 boot completed native RB0
+ME_INIT +WHERE_AM_I on the actual GPU. Not rendering/Metal or daily-use proof.
+Code/privateHEADa87b6871045ee0025e779129d7a2190a495d05ad, published
+c1a6f6bc6b701cd653283352f6cd1692c723893a; same kernel/image/source described
+below, no kernel C change or second boot for the logging correction.
+
+DSH43992 CLOSED0/run_hardware154.py2: boot154.py0/observer0, initial strict
+reader2. ONE actual trial gcpi-0154-a1 started2026-11-07T07:11:58.289257Z,
+finished07:14:10.325326Z, fresh qualified banner and automatic TWRP at131s.
+No manual intervention per standing user authority; do not ask again. The
+retained-owner terminal awaits watchdog; no reset-cause register was sampled,
+so elapsed131s alone does not independently prove the reset mechanism.
+Routine13byte recovery latch/readback only; no flash/format/GPT change.
+Logs show root/launchd/SpringBoard/backboardd and5 framebuffer swaps, not a
+human UI/touch observation (user away). Phone lastTWRP154, no action needed.
+
+Actual core phase10/rc0 reads71/writes146/memory133/1024/configured1/retained1.
+Actual CP phase9/rc0 reads12/writes11/commands15/8192/SQE1/submit1/complete1/
+retained1; full8192 ring and1024 scratch comparisons, initialPTRs0/SQE0.
+Fence accepted firstcheck/status0, keepalive1/1; final device-written shadow
+RPTR15, AO busy71000000 has bit23 CLEAR, RBBM0/CP0, guardreason0. All15 native
+words match source-bound packet. At same19200000Hz CPU timebase, guarded core
+entry-to-final1.188663229s andCP1.720676406s include diagnostic/guard overhead;
+these are not GPU performance benchmarks. No CPU shadow stores after SQEstart
+in qualified control flow. Full strict inherited power/clock/FW/HFI/DCVS/GPU
+context/core/source/identity/artifact/reset checks passed in new report below.
+
+Initial reader rejection was a logging-framing limitation, not missing WDT
+execution: the full exact single WDT arm event is in BOTH raw text/binary,
+but raw line3833 appends it after an interrupted IOKit XML key at ASCIIcol256.
+Original verify_gmuf154.py91753B SHA52827a58abe322b50f9f96561b52b4aa582b74024b37ea894d13532c449db381
+and hardware-full-verification.json18624B SHA
+1dc882ff006dc951fb53133cbbb5e0ff48a829472b7c55d6ef42f69dfab77629
+are frozen/preserved. No raw rewrite, gate waiver or old-report overwrite.
+
+New public tools/console_framing.py only detaches intact known diagnostics
+after an otherwise-valid interrupted IOServiceFirstMatch XML key, in memory;
+retains exact prefix/event hashes and raw line/column. Ambiguous markers,
+bad XML/value context, arbitrary prefixes and unterminated inline events
+cannot supply a receipt. No field repair/deduplication; failures stay visible.
+Separate ignored verify_gmuf154_v2.py changes ONLY framing/module input pin/
+framing metadata; every old technical acceptance/refusal gate is unchanged.
+
+DSH framing-v2 CLOSED/completed; runtime_validate154_v2.py0 then
+reverify_framing154.py0, once each, no phone IO/build/retry. DSH prose wrongly
+said six checks: authoritative JSON has FOUR checks, all0. New6 framing units,
+retainedclock4valid/95reject, FW132/515, fulltrace45valid/678reject passed.
+These fixtures are SYNTHETIC; actual result is from same physical154 boot.
+Earlier70 production host tests/238board/416coordinator still passed; the new
+framing test is file71 and ran separately, no claim of a second full71 suite.
+runtime-parser-result-v2.json3852B SHA
+6a372e76755d08ba32ea973b559250c65f045803e651f6694dda97071d22b60a,
+24 pins; framing-reverification-result.json1951B SHA
+4e864f47017abc7012f3e744f62ac5e81c73303b073c18fa6590e082090212a1,10pins.
+NEW hardware-full-verification-v2.json50205B SHA
+6986bb0339731dd3950296eb920d303b82f9c788010e2a665dbab15117d58c83,
+11pins, verified-first-native-ME_INIT-WHERE_AM_I-shadow-busy-completion;
+gpu_execution=verified-first-init-packet-only, rendering/Metal=not-qualified.
+One recovered event SHAa3b8d9e2b6c2c0fa458609f2bf956de755aefd5f1758aef63c7719e1afe69463.
+Codex independently rehashed all24+10+8old+11new input pins, original reader/
+rejected report, actual raw binary/text/cycle, kernel/manifest/image provenance.
+
+Raw observer465795B SHA5266ae8430512eabee42b48084f7a244075ab74debc2c05c1ed0e2f44686c000;
+binary4198400B SHA97ebc370a0cef5a440cead0c29ad60d050e231ecf6493d3ece0197f220e63318;
+cycle1077B SHAfeb1f5a72101eeddae93692efc1d773138640295211b33532943777fe8cf6e01.
+Private raw paths research/tmp/p3-gmuf-0154-native-{observer,cycle}-20261107.*;
+reports/helpers research/tmp/dsh-0154/, never publish dumps or firmware.
+
+NEXT: audit pinned native a6xx_zap_load/subsystem_get/PIL/PAS path for signed
+a615_zap, then proper unsecured transition and bounded actual submission.
+Do not use TRUST_CONTROL0 fallback as a substitute for signed ZAP loading.
+Current MDT is CPU-staged only, not secure-authenticated/segment-loaded.
+No unchanged154 reboot merely to repeat successful init. No full preemption,
+rendering, Metal, live DVFS/power lifecycle/highrefresh/daily-use qualification.
+Current full native recipe154gauguin.SlaKVj/source154-codex. All owned DSH work
+closed; original mkadt diff a74a0418...454860 untouched. Goal ACTIVE/incomplete.
+
+### 2026-11-07 —154 full LOCAL kernel/four-asset image/strict first-CP reader qualified; ONE real CP trial NEXT (historical, completed above)
+
+154 source committed privatea87b6871045ee0025e779129d7a2190a495d05ad,
+publishedc1a6f6bc6b701cd653283352f6cd1692c723893a, soleparent
+e5858f7a31ce10a4b7647b5c8fdfac5c78768955, same tree/exact8 reviewed UTF8paths.
+research/tmp/dsh-0154/public-source-snapshot.json. No raw/native/firmware/private
+ancestry published. Current source unchanged since source/native/70host proof.
+
+DSH38797 CLOSED0/build154.py0: ONE standard local8job full kernel0 and strict
+qualification0. Run gauguin.SlaKVj, capturedHEADa87b687, source154-codex5296/
+148patches SHAd39d826c1ea4a7d2485a8933da7a3ba059c7c21e6470de2f88846c9ff251341c.
+Installedkernel16977288B SHA
+11e57b6e72d18c2b0e26f922a472ce7ffb252e900317c463154a61278203874f,
+identityxnu-67d2718e6d3d4d90b08cb51366a9c88c. Manifest909201B SHA
+f99ed3da75f423a893fc9af2321ddb835a1fd7e0a02ed9ddb8abef7805ccba8f;
+qualification14788B research/tmp/p3-native-0154-qualification-20261107.json SHA
+82f225ee6cee313afcd464adf11fc18db2d5fcaa0fa05c360755928a5145ca1a.
+Inheritedsource/symbol/archive/layout/formatchecks retained; new actualGGQ
+member/symbols/firstCPsource+liveboard source flags true. Hardware flags false.
+Codex independently rehashed actual installedkernel/manifest and provenance.
+CURRENT COMPLETE NATIVE RECIPE NOW154gauguin.SlaKVj/source154-codex, generated
+BSD files no longer152. FutureactualTUs must use current154 manifest/source.
+
+DSH16399 CLOSED0/package_and_review154.py0/package0/review0 then
+runtime_validate154.py0. One same4asset image19644416B
+shim/out/shim-p3-gmuf-0154-native-20261107.img SHA
+adb4fbb0e172023bf36a55a1326b78cd2be401c5118e97499b254b848e56ed3e;
+payload19316736B SHAa709f61b467988cfc31fabec39c5cf092b9bbf7b8340e764ab5d0b9d1c9e5f2f;
+evidence4471B SHA70ea1a0e154dfad4111654530e2bbaf8517ac4ae6ba7d172cc4f9111e2005f1f.
+Unique gcpi-0154-a1,607B options unchanged from accepted152 excepttrial token,
+independentreviewexplicitlypins152 image/flags. Package result1363B SHA
+a0c113c95512f95dadf0b712a098feb3752cd56e6477b54137a08ceb0550767d,9pins rehashed.
+
+Separate new verify_gmuf154.py91753B SHA
+52827a58abe322b50f9f96561b52b4aa582b74024b37ea894d13532c449db381,
+preserves every152 technicalcheck and originalreaderbytes; requires actual
+samebootcorecomplete +CPphase9/rc0/15words/8192compare, native11+fenceretry
+writes, private ring/scratchfullinitcheck, initialPTR0, fence<=200accepted,
+keepalive1/1, nativecountervalidity, actualshadowRPTR15+AO busybit23clear and
+no decodedRBBM/CPerrors, ordered sane guardticks AFTERcore, all15nativewords
+and terminal. Packet/error mask derived from pinned native153 reference.
+Range-bounded native readcount accounts3/4 counterreads and conditionalAO polls,
+no invented raw fixed-register equality. Real GPUexecution field may qualify
+ONLYfirstinit; rendering/Metal remain unqualified. Generic manualunknown still
+cannotqualifyautomaticreset, actualcallerusesstanding no-manual authority.
+
+RuntimeSYNTH clock4valid/95reject; FW132/515; full40/633, allpassed. Retains old
+identity/artifact/source/flag/fault/route/HFI/SQE/core/cachedtime cases and adds
+firstCPstats/15word/fence/slowcounter/keepalive/actualshadow/busy/error/guard/
+order/missing/duplicate/partial/unknown record refusals. These are SYNTHETIC,
+not real GPU proof. runtime-parser-result.json3040B SHA
+a93719f62e2b6a4f1e6c8159af8f07623a309765ae91ca6bae6e36f7bb709859,19pins rehashed.
+
+NEXT ONE actual temporaryboot via boot154.py/run_hardware154.py; exactreviewed
+imagepin, routine13byteBCB/readback, unique gauguin/gauguinpro identities,
+180sobserver/freshlogs/fullstrict154reader. Useraway: --manual-reset no from
+standinginstruction, do notaskconfirmation; only notify if truly needsmanual
+recovery. All ownedDSH jobs CLOSED, no154 phoneIO yet, lastphoneTWRP152.
+This image actuallydispatches SQErelease/ME_INIT/WAI; no ZAP/rendering/Metal or
+fullpreemption. No unchanged152boot/flash/format/GPT/destructiveaction. Goal
+ACTIVE/incomplete. Originalmkadt diff a74a0418...454860 untouched.
+
 ### 2026-11-07 —154 live CP adapter/coordinator SOURCE QUALIFIED; one full local kernel/actual CP trial NEXT
 
 Concrete progress: Codex authored live CP adapter and coordinator, DSH actual

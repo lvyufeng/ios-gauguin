@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —145 strict GPU runtime reader validated; ONE temporary boot next
+
+THIS goal turn extends143 strict runtime binding/clock/FW/common readers with
+GPU SID0 context/168 ATOS/native scalar CP-aperture rules. Exact145 source,
+qualified kernel/image/assets/600B flags are bound, original CMDDB131072B,
+GMU131pages/140ATOS and all old HFI/DCVS/callback/guard policy retained.
+GPU checks require separate slot/bank/ASID from GMU, actual NC owner roots,
+SCTLRc01167/SID0 route, owned HALT restore,18+131 leaves/168ATOS,
+bounded stores/polls, correct four-scalar request/chosen bank/normal SCM64,
+returned full64 x0zero and bounded fresh/continuation counts. Retains raw
+x0..x6; native ignored x1 service payload is not required zero. Still no
+GPU command execution/Metal proof from these context/transport receipts.
+
+DSH67413 CLOSED0, runtime v1 actual1 after clock PASS: retained negative
+adjacent-swap fixture found GPU pre-SMC record could trade places with native
+implementation summary. Original files/report/logs frozen runtime-v1-failed.
+Explicit v2 tightens ONLY that ordering edge (pre must precede implementation
+summary, not just later SMMU identity), no kernel/image/old-check changes.
+DSH78362 CLOSED0/actual runtime_validate145_v2.py0. Three zero results:
+clock4valid/95rejected, FW131/501, full SYNTHETIC25/157. All current inputs
+independently rehashed after DSH. These fixtures are explicitly synthetic.
+Runtime report research/tmp/dsh-0145/runtime-parser-result-v2.json; boot145
+requires THIS passed v2 report, not failed v1. Image145 b08087f3...7ad54d,
+source1458a366b6c...95f3, buildNtf1zL/HEAD893d55b remain unchanged.
+
+Reviewed boot145.py/run_hardware145.py owns ONE temporary fastboot boot:
+unique recovery productgauguin, routine authorized13-byte boot-recovery BCB
+latch/readback, recovery->unique fastboot productgauguinpro, exact145 image,
+180s observer/fresh pull, full strict145 reader. No extra external USB/ADB/
+fastboot preflights or initial-fastboot requirement. No flash/format/GPT or
+userdata write. Manual-reset attribution starts UNKNOWN for THIS145; do not
+reuse117/138/other confirmations. No145 phone IO performed at this handoff.
+NEXT execute-hardware.txt, then save actual raw logs and full report before
+another code change. Whole goal ACTIVE/incomplete. Current full native
+recipe/source145Ntf1zL. Original mkadt diff intact, all owned DSH handles
+closed. Source/publication and artifact facts below remain authoritative.
+
 ### 2026-11-07 —145 complete local kernel and image qualified; strict runtime GPU reader/ONE boot next
 
 DSH31085 CLOSED0; actual build145.py build0/qualification0. ONE standard

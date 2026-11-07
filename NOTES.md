@@ -4,6 +4,15 @@
 
 ### 2026-11-07 —150 pure native A619 core engine qualified; board activation is NEXT
 
+Completed150 code private17a25bd2e9042109cf6cbdfcc5612e925878b5e7,
+published870c04977a05fc0e12a86421ead1bb569f924545, soleparent
+6fa5d5fcf4c7e1a57275bd813959cc02803b93e8; same tree/exact6 reviewed UTF8
+text paths. Remote verified, report research/tmp/dsh-0150/public-source-snapshot.json.
+Current working tree has ONLY original7-line tools/mkadt.py user diff; SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 unchanged.
+All executors/build probes CLOSED, no pending owned job. Next is151 board
+integration described below; goal remains ACTIVE, no new phone action needed yet.
+
 149 completed code privatec25e5bb34d1e1b2c8216b5ba0845e971d5ec2486, published
 6fa5d5fcf4c7e1a57275bd813959cc02803b93e8, soleparent07a75959...337ff0,
 same tree/exact12 reviewed UTF8 text paths. Report research/tmp/dsh-0149/public-source-snapshot.json.

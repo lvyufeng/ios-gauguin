@@ -2,6 +2,168 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —165 PHYSICAL ordinary GPU write/readback VERIFIED; native IB execution NEXT
+
+This goal turn PROGRESS:164 image/runtime/boot refusal diagnosed,165 critical
+logger fix authored by Codex, DSH model/native/full79/fullLOCAL/image/runtime/
+ONE physical boot all passed, actual ordinary GPU memory values verified.
+Full goal ACTIVE/unlimited; rendering/Metal/general scheduling/RAM/UFS/
+peripherals/high-refresh/daily-use are NOT complete. Phone LAST TWRP165.
+User away, ALL resets automatic, --manual-reset no. Never ask attribution;
+only prompt if actually stuck/manual recovery needed. Late0148 confirmation
+belongs only to0148. No flash/format/GPT; original mkadt diff intact.
+CURRENT generated/native recipe165 gauguin.of4pxl/source165-codex. Future TU
+helpers MUST use that actual manifest/recipe, never164/159. Source private
+b46cff28840d295445042ec385c0e6023ba9cf8e, public97163675c48acf64ac51a5ced371e51430f4f82f.
+All DSH jobs CLOSED. Root owns NOTES/Git; future DSH prompts explicitly forbid
+NOTES/source/script edits and Git mutations. Atomic once dispatcher remains
+mandatory. No new boot needed just to reconfirm this accepted trial.
+
+DSH21276 CLOSED0/dispatch-runtime child0, all4actual parser checks0,28pins
+independently rehashed. FW132valid/567negative (new cached-log source flag
+false/missing), full45/678, signed20/117, unsecure21/147+3duplicates,
+ordinary30/223; these fixtures remain SYNTHETIC. Runtime report SHA
+fdd56bbf15313adaf6abdb21fc9c7c1d27f95992e002f5f2deb960286de1563d.
+Independent runtime/boot helper syntax and original observer suffix checked.
+DSH27076 CLOSED0/dispatch-boot child0: ONE temporary165image boot, unique
+gwrt-0165-a1,2026-11-07T13:06:11.074115Z->13:08:23.092413Z, autoTWRP131s,
+observer0/fresh identity. All7root/launchd/SpringBoard/backboardd markers,
+3FBswaps/52GPUlookups; NO human UI/touch/refresh/smoothness observation.
+DSH34998 CLOSED0/dispatch-read child0/inner strict physical reader0, FIRST
+attempt, no parser or raw edits/repair/filter/dedup/waivers. Full physical
+report58277B SHAc1d13e423ffe58675f35acf6bc88af1b110b4fcfb69b27c922f3c84a5e5e9268,
+wrapper2213B SHA2812d5535be876b11feb2a99bf102061c988ae0f954398666b44def904ca68af.
+Observer text464837B SHAebc12ddb8ca66e651966803610e5aec89363c537cabfc9b63cf7b7363d57724f;
+binary4198400B SHA5101e2eb3af8f951191a02882809e247b47d05bfe09b2671c70d312fe5c17edb;
+cycle SHA0ff5fff778850d0e564568ed4c53a1c6e97c5d5fb5707c5615754fe2f45c6486.
+Text exact binary decode, zero framing recoveries. Raw evidence immutable.
+
+Actual165 chain: DATA19/131GMU/171ATOS, GPU SMMU writes189/polls173; all16KiB
+canonical PTE/8CPU NC page checks source-bound. CP ME_INIT/WHERE ->device15;
+signed full64 INIT/MEM/AUTH0, code1984/1984, owner8; native5word unsecured
+append ->device20; new direct two MEM_WRITE +WHERE11word append ->device31.
+GGW DONE8/rc0, sealed1, words11/11, prefix20/clean11, complete1/retained1;
+reads13/writes3, fence1/status0, idle polls1, AO71000000/busy23clear, faults0,
+FINALguard phase7/reason0. DATA1024pre/1024post,2edges/1022middle/31ring checked.
+ACTUAL cached CPU sample maskf, before0/0, after47504431/47504432; no production
+CPU data stores after cold setup. This qualifies ordinary GPU CP memory
+writes/readback, not shader/EOP/rendering/Metal/general scheduling/UI speed.
+signed_zap.unsecured_mode_qualified remainsfalse only for that stage; separate
+gpu_unsecure and gpu_write proofs are true. Build qualifier hardware flags
+remainfalse as source-only scope; NEVER rewrite that immutable qualifier.
+Codex independently rehashed wrapper pins plus ALL19 full physical report
+input records/bytes, checked actual values/source scopes:
+independent-hardware-review.json SHAdd2780392a7a3d72c68094df2574da5140697a09b58874ed8308fc7e331674b3;
+independent-hardware-full-inputs.json SHA2f0fb1c0824e117b3e9ffb339ae65e3bbabe7e37ad0e519d808b7742350e4e74.
+
+Observed19.2MHz timing after WDT arm: CORE entry9.339144/span1.359090s;
+CP entry10.712392/span1.975563s; ZAP entry12.697934/span0.170332s;
+GGU entry12.889328/span0.078034s; GGW entry13.017308/span3.198746s.
+ZAP nominal23s-bite budget10.302066s at entry, satisfying unchanged10s minimum.
+GGW finishes~16.216s after arm, so only~6.784s nominal bite budget remains.
+Do NOT append another stage requiring8s entry AFTER GGW in this diagnostic.
+No performance/frequency/high-refresh conclusion from these guard spans.
+Current kernel/image/79model/persistence details remain in previous blocks;
+new concise contract docs/gauguin-gpu-data.md. This mode3 is the preserved
+accepted memory-execution baseline, not a daily-use phone profile.
+
+NEXT166 concrete direction: implement the LIVE native indirect-buffer proof
+as one integrated stage, not another constructor-only detour. Need command
+fetch before shader/render work and iOS acceleration/Metal interface work.
+Primary pinned19b63c8 source already local:
+research/tmp/dsh-0149/native/adreno_ringbuffer.c SHA
+cf9accefdedc6fbbbd165e739c0e3241c25c51bd21c9beda4ea736a588ca0a1a,
+adreno_pm4types.h SHA7130be1a1ed1467af68883c2ec124e3e4be8d730bed9b8d6e65aa9c654e60305.
+Read actual normal user IB loop~1119 (not PWRON protected-mode override):
+cp_mem_packet(CP_INDIRECT_BUFFER_PFE,2,1), cp_gpuaddr64, (size>>2)&0xfffff;
+IB_PRIV bit20 MUST zero. CP_INDIRECT_BUFFER_PFE0x3f; derive bytes with unchanged
+native constructors/classifier, do not claim full userspace scheduling from
+a packet-only oracle. Existing41/38/34/10/PIL/native foundations stay bound.
+
+Proposed cold-layout-preserving plan (UNIMPLEMENTED, inspect before writing):
+- Keep mode3 path byte-identical, new explicit mode4 branch after SAME-BOOT
+  signed+native20, instead of executing GGW then IB. This avoids the late8s
+  budget refusal; no watchdog changes/rearm/cleanup. Preserve modes0/1/2.
+- Reuse unused second CPU16KiB of existing32KiB RO/NX user ring reservation
+  for a fixed8word IB at ring+0x4000 (IOVAfc00c000). No new mapping/alias/layout;
+  DATA19/171 and full canonical table/NC guards remain. Confirm all geometry
+  in actual source. Ring append20..26 = IB4words +WHERE3 ->device27; IB contains
+  two MEM_WRITE packets to existing normal page with distinct new test values.
+  CPU may write ONLY exact IB8words and exact ring7words, never data/scratch;
+  verify target8words initiallyAA and sealed/readback, prefix20/clean7, full
+  data1024pre/post and actual edge samples. Do NOT scan unused whole16KiB IB
+  padding per callback; GPU size is exactly8, ring was fully initialized and
+  RO, validate the accessed fixed32bytes and ownership/permissions. No existing
+  requirement is relaxed for a larger/untrusted submission surface.
+- Add explicit common data-layout predicate for modes3/4, preserving exact3
+  direct-write predicate. Thread cold selector/profile, owner exact flags,
+  native-mode request/coordinator/once/guards through4 deliberately; do not
+  change default/legacy signed SECURE/LATE scopes or read secure buffer.
+- New provider must use actual private completed GGU/signed/CP receipts,
+  fresh lifecycle/time budgets, whole-table/NC/routes/IRQ/fault/clock guards,
+  phase whitelists, quarantine-before-cached-failure and no cleanup. Require
+  exact source/native/model proof, full host/TU/build/image/runtime then ONE
+  physical boot. New source/trial gwrt-0166-a1/606B mode4 controls explicit;
+  never infer rendering/Metal from IB memory execution. This proposal is not
+  yet a qualified native oracle, source change, image or device result.
+
+Root should commit/publish this completed165 evidence/docs handoff only;
+publication IDs in dsh-0165/public-physical-handoff.json. Continue broader goal
+after preserving baseline. No user action required at present.
+
+### 2026-11-07 —165 complete LOCAL kernel QUALIFIED; packaging/runtime/ONE boot NEXT
+
+CURRENT full/generated recipe NOW165 gauguin.of4pxl/source165-codex; any future
+TU must use this actual manifest/recipe, never164/159 helpers. Source private
+b46cff28840d295445042ec385c0e6023ba9cf8e published97163675c48acf64ac51a5ced371e51430f4f82f,
+soleparentfa5c0acdf6cd3a6ae3c9c42983dbc5175e4f4d6a, same tree9d348d172ff670c79d92aba4a01780637f1e314b.
+Seven UTF8 paths, public-source-snapshot.json. Full goal ACTIVE/unlimited.
+Phone STILL TWRP164; no165device IO/hardware performance or GPU write proof.
+User away, all resets automatic, never ask attribution; prompt only manual
+recovery if actually stuck. Original mkadt diff intact. No flash/format/GPT.
+
+DSH28371 CLOSED0/dispatch-build child0, build165.py ONE standard LOCAL8job
+build0 + strict qualification0 FIRST attempts. No CI165 run. Kernel17015056B
+SHAb94f80880853cb9a24b4bf9456a7a04f1401331c2f8649029acb53ca23ad5020,
+banner Sat Nov7 20:54:58 CST2026/xnu-7ac0006cc00343edadb4c558b871e75b;
+manifestcce34be0739d838ce0fe7eee9724953de70b0c1a5c0c090baa176fc358e277a3,
+archive3de1b905c645ab3f8ecddf455cc3ef621fab3839196d2eae414779357e2ea5bb,
+qualification6c70c3ae9d77df30a524eabd32177c4a2c0d9f5c62ee31c32d987821a95980bb.
+Exact source5306files SHAd43f1210e3eced200e9fc10ad576fbdb12fbd7df75c5e5b160fa8d11b3565cf2.
+Codex independently rehashed actual kernel/manifest/archive/source and checked
+banner/new members in independent-build-review.json. New cached-success and
+linear/table source flags true, gpu_data_write_hardware_qualified staysfalse.
+live-execution.json is COMPLETED, no live build to restart. SourceHEAD for all
+165artifact/runtime checks remainsb46cff28840d295445042ec385c0e6023ba9cf8e.
+
+DSH41047 CLOSED0/dispatch-image-preflight child0: all helper syntax/qualified
+source/exact606B mode3 checks0,23pins root-rehashed. NEW165helpers derived from
+VERIFIED164v2, corrected dictionary baseline decoder retained. Independent
+review adds closest164 image7084ecae...616d2, permits ONLY trial change against
+it; older163/159/157/154/152 controls retained. Eleven new+existing data/write/
+linear/cached-success source flags required. No raw runtime-format changes.
+
+DSH76234 CLOSED0/dispatch-package child0: package0/independent image review0,
+all53 image input pins independently rehashed. Image19709952B SHA
+3be8f2d48c642327a3af8b0ec9862b2728e66976dcaa6c58b0b1ba69891f7f57,
+payload19382272B SHAb9c237ac76574b6a9cd6655278e34a6fddb2b39f6be30332a48d56e130698898;
+evidence SHAaf1a57b1d9e226cd24cd6160329d9c3807541227114163dc2dcffb8d21f1ed97,
+image review SHA90071fd60dd6fdd8fbafa66a527d0a1cf12e7aff162711d31527170152db67ee.
+Actual kernel/image size shrank16KiB versus164; asset PAs MUST derive from
+the actual165payload, never carry an old address into runtime verification.
+
+LIVE confirmed by same write_stdin DSH21276: dispatch_once165.py runtime,
+actual console-framing/clock/FW0, full trace running/buffered. Recover SAME
+handle/current reports; never restart merely for quiet output/tool timeout.
+Boot165/read_hardware165/observe_ready_fastboot165 helpers now AUTHORED from
+verified164 with ACTUAL new SHA/size/sourceHEAD/trial/runtime report paths,
+not executed. NEXT require all4actual runtime exits0/unchanged pins, independent
+runtime/boot helper review, then ONE temporary boot and fresh raw binary/text/
+cycle, --manual-reset no. All operations via atomic once dispatcher, no NOTES/
+Git/source edits by DSH. AutoTWRP normally131s. Signed/native20/ordinary-data31
+success and actual samples remain UNPROVEN; never repair failed raw evidence.
+No165device IO or physical speed/write proof yet at this image handoff.
+
 ### 2026-11-07 —164 physical budget refusal;165 cached-success logging SOURCE QUALIFIED, build NEXT
 
 Current goal turn PROGRESS:164 image/runtime/ONE boot completed, then actual

@@ -26,7 +26,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
     unsigned firmware,asset_calls,asset_fail,engine_calls,engine_fail,gx_on,allow_gx,core_irq,
         fw_read_corrupt,fw_fail_phase,fw_stop_at,fw_steps,fw_stores,fw_forbidden,diag_lines,impl_lines,atos_lines,ctx_fault,fw_diag_lines,fw_impl_lines,fw_pdc_lines,fw_ao_lines,fw_cm3_lines,fw_bootcfg_lines,fw_reply_lines,fw_word_lines,
         perf_mode,perf_engine_calls,perf_complete_lines,perf_partial_lines,
-        bw_mode,bw_engine_calls,bw_complete_lines,bw_partial_lines,test_complete_lines,test_partial_lines;} h;
+        bw_mode,bw_engine_calls,bw_complete_lines,bw_partial_lines,test_complete_lines,test_partial_lines,dcvs_mode,dcvs_engine_calls,dcvs_request_lines,dcvs_complete_lines,dcvs_partial_lines,dcvs_missing;} h;
 static unsigned cases;
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"GMU board failure case%u line%d\n",cases,__LINE__);abort();}}while(0)
 static const uint64_t owner=UINT64_C(0xaa200000);
@@ -51,6 +51,15 @@ static int host_printf(const char *s,...)
     }
     if(strstr(text,"SWEET GMU BW: partial"))CHECK(h.bw_mode&&h.quarantine==1&&!h.live&&h.bw_partial_lines++==0);
     if(strstr(text,"SWEET GMU TEST: partial"))CHECK(h.bw_mode&&h.quarantine==1&&!h.live&&h.test_partial_lines++==0);
+    if(strstr(text,"SWEET GMU DCVS: request")){
+        CHECK(h.dcvs_mode&&h.dcvs_engine_calls==1&&h.live&&!h.quarantine&&h.dcvs_request_lines++==0&&h.test_complete_lines==1);
+        CHECK(!strcmp(text,"SWEET GMU DCVS: request perf_index=1 hz=253000000 bw_index=5 Bps=2188000000 option=00000000 perf=30000001 bw=00005005; requested, not measured\n"));
+    }
+    if(strstr(text,"SWEET GMU DCVS: complete")){
+        CHECK(h.dcvs_mode&&h.dcvs_engine_calls==1&&h.live&&!h.quarantine&&h.dcvs_complete_lines++==0&&h.dcvs_request_lines==1);
+        CHECK(!strcmp(text,"SWEET GMU DCVS: complete before=00000000 ack=80000000 cleared=00000000 return=00000000; native register/OOB request only\n"));
+    }
+    if(strstr(text,"SWEET GMU DCVS: partial"))CHECK(h.dcvs_mode&&h.quarantine==1&&!h.live&&h.dcvs_partial_lines++<2);
     if(strstr(text,"SWEET GMU SMMU FAIL:")){CHECK(h.quarantine==1&&!h.live);++h.diag_lines;}
     if(strstr(text,"SWEET GMU SMMU IMPL:")){
         CHECK(!strcmp(text,"SWEET GMU SMMU IMPL: off=06b68 requested=9a82a382 readback=0a800082 policy=native-write; equality unqualified\n"));
@@ -297,6 +306,9 @@ static void fw_write32(vm_offset_t address,uint32_t value)
     CHECK(h.live);uint8_t *p=fw_address(address);++h.fw_stores;
     if(address==(uintptr_t)reset_page+0x2000){CHECK(gfw_work.release_attempted==1&&gfw_work.phase==GMF_RELEASING&&value==0);if(h.fw_fail_phase==24)return;}
     if(address==(uintptr_t)reset_page+0x2650&&value==(1u<<22)){CHECK(gfw_work.oob_attempted&&gfw_work.phase==GMF_GX_REQUEST);h.gx_on=1;}
+    if(address==(uintptr_t)reset_page+0x2650&&value==(1u<<23)){
+        CHECK(h.dcvs_mode&&gfw_work.phase==GMF_HANDSHAKE);uint32_t ret=h.engine_fail==23?7:0;memcpy(fw_page[3]+0x6ffc,&ret,4);
+    }
     memcpy(p,&value,4);
 }
 /* Typed engine seam: exercise every actual board callback and both critical
@@ -401,8 +413,30 @@ enum gmf_result gmf_bootstrap_bw_test_once(struct gmf_context *ctx,const struct 
     if(h.engine_fail==21)h.now=gfw_deadline;
     return GMF_OK;
 }
+enum gmf_result gmf_bootstrap_dcvs_once(struct gmf_context *ctx,const struct gmf_ops *o,
+    const struct gmf_plan *p,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
+{
+    CHECK(h.dcvs_mode&&h.dcvs_engine_calls++==0);ctx->dcvs_requested=1;
+    enum gmf_result rc=gmf_bootstrap_bw_test_once(ctx,o,p,bw,out);if(rc)return rc;
+    if(!o->guard(NULL,GMF_HANDSHAKE))return GMF_IO;ctx->dcvs_started=1;
+    const unsigned window[]={GMF_TCM,GMF_TCM,GMF_TCM,GMF_CSR,GMF_CSR,GMF_CSR};
+    const uint32_t off[]={0x6ff0,0x6ff4,0x6ff8,0x2650,0x2644,0x2650};
+    const uint32_t value[]={0,0x30000001,0x5005,1u<<23,1u<<31,1u<<31};
+    for(unsigned n=0;n<6;n++){
+        if(n==3)ctx->dcvs_trigger_attempted=1;
+        if(n==4){if(h.engine_fail==22)return GMF_TIMEOUT;ctx->dcvs_ack_valid=1;ctx->dcvs_ack=0x80000000;}
+        if(n==5){if(!o->read(NULL,GMF_TCM,0x6ffc,&ctx->dcvs_return))return GMF_IO;ctx->dcvs_return_valid=1;ctx->dcvs_clear_attempted=1;}
+        if(!o->guard(NULL,GMF_HANDSHAKE)||!o->barrier(NULL)||!o->write(NULL,(enum gmf_window)window[n],off[n],value[n])||!o->guard(NULL,GMF_HANDSHAKE))return GMF_IO;
+    }
+    if(ctx->dcvs_return)return GMF_DCVS_RESULT;
+    ctx->dcvs_valid=h.engine_fail!=24;
+    if(h.dcvs_missing){uint32_t *flag[]={&ctx->dcvs_requested,&ctx->dcvs_started,&ctx->dcvs_trigger_attempted,&ctx->dcvs_ack_valid,&ctx->dcvs_return_valid,&ctx->dcvs_clear_attempted,&ctx->dcvs_valid};
+        CHECK(h.dcvs_missing<=8);if(h.dcvs_missing==8)ctx->dcvs_return=1;else *flag[h.dcvs_missing-1]=0;}
+    if(h.engine_fail==25)h.now=gfw_deadline;
+    return GMF_OK;
+}
 static enum gmb_result firmware_run(struct gmb_firmware_receipt *out)
-{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;return h.bw_mode?sweet_gmu_firmware_bw_test_once(&s,&p,&bw,out):h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
+{struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;return h.dcvs_mode?sweet_gmu_firmware_dcvs_once(&s,&p,&bw,out):h.bw_mode?sweet_gmu_firmware_bw_test_once(&s,&p,&bw,out):h.perf_mode?sweet_gmu_firmware_perf_once(&s,&p,out):sweet_gmu_firmware_once(&s,&p,out);}
 static void firmware_failed(void)
 {
     struct gmb_firmware_receipt out,before;memset(&out,0xa3,sizeof(out));before=out;
@@ -497,6 +531,45 @@ static void firmware_bw_cases(void)
     CHECK(sweet_gmu_firmware_bw_test_once(&s,&p,&bw,&out)==GMB_ALREADY);
     printf("GMU BW/TEST board: %u shared ownership/once-state, prerequisites, ACK/guard refusals, post-quarantine partial and final-only completion cases PASS (typed seams)\n",cases-first);
 }
+static void firmware_dcvs_cases(void)
+{
+    unsigned first=cases;struct gmb_firmware_receipt out,before;
+    reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=1;
+    CHECK(firmware_run(&out)==GMB_OK&&h.dcvs_engine_calls==1&&h.bw_engine_calls==1&&h.perf_engine_calls==1&&h.engine_calls==1);
+    CHECK(h.dcvs_request_lines==1&&h.dcvs_complete_lines==1&&!h.dcvs_partial_lines&&h.test_complete_lines==1&&out.phase==GMF_DONE&&!h.quarantine);
+    struct sweet_pas_cpu_stage s={owner,6860,16384};struct gmf_plan p={0};p.address[0]=0x30000;
+    struct gmf_bw_plan bw={0};bw.db[0].address=0x50000;bw.db[3].address=0x50054;
+    unsigned stores=h.fw_stores,maps=h.maps,budgets=h.budgets;
+    CHECK(sweet_gmu_firmware_once(&s,&p,&out)==GMB_ALREADY&&sweet_gmu_firmware_perf_once(&s,&p,&out)==GMB_ALREADY&&sweet_gmu_firmware_bw_test_once(&s,&p,&bw,&out)==GMB_ALREADY&&firmware_run(&out)==GMB_ALREADY);
+    CHECK(h.fw_stores==stores&&h.maps==maps&&h.budgets==budgets&&h.dcvs_complete_lines==1);
+    for(unsigned n=1;n<=25;n++){
+        reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=1;h.engine_fail=n;firmware_failed();
+        CHECK(h.dcvs_partial_lines==2&&!h.dcvs_request_lines&&!h.dcvs_complete_lines&&!h.test_complete_lines);
+    }
+    for(unsigned n=1;n<=8;n++){
+        reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=1;h.dcvs_missing=n;firmware_failed();
+        CHECK(!h.dcvs_complete_lines&&!h.dcvs_request_lines);
+    }
+    for(unsigned n=1;n<=24;n++){
+        reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=1;h.fw_fail_phase=n;firmware_failed();CHECK(!h.dcvs_complete_lines);
+    }
+    for(unsigned n=3;n<=7;n++){
+        reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=1;h.map_fail=n;firmware_failed();CHECK(!h.dcvs_engine_calls&&!h.dcvs_partial_lines);
+    }
+    for(unsigned n=1;n<=2;n++){
+        reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=1;h.asset_fail=n;firmware_failed();CHECK(h.dcvs_engine_calls==n-1&&h.dcvs_partial_lines==2*(n-1)&&!gfw_context.dcvs_started);
+    }
+    reset();h.firmware=h.perf_mode=h.bw_mode=h.dcvs_mode=1;memset(&out,0xa3,sizeof(out));before=out;
+    CHECK(sweet_gmu_firmware_dcvs_once(&s,&p,NULL,&out)==GMB_ARGUMENT);
+    bw.db[3].address^=4;CHECK(sweet_gmu_firmware_dcvs_once(&s,&p,&bw,&out)==GMB_ARGUMENT);bw.db[3].address^=4;
+    CHECK(!gfw_lifecycle&&!h.maps&&!h.budgets&&!memcmp(&out,&before,sizeof(out)));
+    for(unsigned mode=0;mode<3;mode++){
+        reset();h.firmware=1;h.perf_mode=mode>0;h.bw_mode=mode>1;
+        CHECK(firmware_run(&out)==GMB_OK&&!h.dcvs_engine_calls&&!h.dcvs_request_lines&&!h.dcvs_complete_lines);
+        CHECK(sweet_gmu_firmware_dcvs_once(&s,&p,&bw,&out)==GMB_ALREADY);
+    }
+    printf("GMU DCVS board: %u native mailbox callback/owner/receipt/guard/four-entry once-state and quarantine cases PASS (typed engine seams)\n",cases-first);
+}
 int main(void)
 {
     happy();unsigned budgets=h.budgets,translations=h.translations,pmaps=h.pmap_calls;
@@ -520,4 +593,5 @@ int main(void)
     firmware_cases();
     firmware_perf_cases();
     firmware_bw_cases();
+    firmware_dcvs_cases();
 }

@@ -43,8 +43,8 @@ static struct {
     enum gpi_rc mem_result;
     enum gpm_state mem_state;
     struct gpm_receipt mem_receipt;
-    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf,gmubw;
-    unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step;struct gmf_bw_plan bw_plan;
+    int cxpower,after_rail_context,after_power_context,gmuclk,gmufw,gmuperf,gmubw,gmudcvs;
+    unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
     unsigned arc_calls,fwplan_calls,asset_calls,fw_calls,fw_state_queries,fw_fail_step;
     enum gmb_result fw_result;struct gmf_plan fw_plan;struct gmb_firmware_receipt fw_receipt;
     unsigned clock_queries,clock_calls,clock_states;enum gcx_rc clock_result;enum gcx_state clock_state;struct gmc_receipt clock_receipt;
@@ -84,6 +84,7 @@ bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
     if(!strcmp(key,"sweetgmufw")){*(int*)out=mock.gmufw;return true;}
     if(!strcmp(key,"sweetgmuperf")){*(int*)out=mock.gmuperf;return true;}
     if(!strcmp(key,"sweetgmubw")){*(int*)out=mock.gmubw;return true;}
+    if(!strcmp(key,"sweetgmudcvs")){*(int*)out=mock.gmudcvs;return true;}
     if(!strcmp(key,"sweetcxpower")){*(int*)out=mock.cxpower;return true;}
     for(unsigned i=0;i<7;++i)if(!strcmp(key,off_flags[i])){*(int*)out=mock.off[i];return true;}
     CHECK(false,"known flag");return false;
@@ -363,8 +364,13 @@ enum gmb_result sweet_gmu_firmware_perf_once(const struct sweet_pas_cpu_stage *s
 {CHECK(mock.gmuperf==1&&!mock.gmubw&&!mock.bw_calls&&mock.perf_calls++==0,"PERF uses its explicit once-only entry");return firmware_mock(s,p,out);}
 enum gmb_result sweet_gmu_firmware_bw_test_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
 {
- CHECK(mock.gmubw==1&&mock.gmuperf==1&&mock.bw_calls++==0&&!mock.perf_calls&&mock.bw_entries_calls==1&&mock.bw_plan_calls==1,"BW uses explicit combined entry and no separate bootstrap");
+ CHECK(mock.gmubw==1&&mock.gmuperf==1&&!mock.gmudcvs&&!mock.dcvs_calls&&mock.bw_calls++==0&&!mock.perf_calls&&mock.bw_entries_calls==1&&mock.bw_plan_calls==1,"BW uses explicit combined entry and no separate bootstrap");
  CHECK(bw&&!memcmp(bw,&mock.bw_plan,sizeof(*bw)),"exact same-boot BW plan supplied");return firmware_mock(s,p,out);
+}
+enum gmb_result sweet_gmu_firmware_dcvs_once(const struct sweet_pas_cpu_stage *s,const struct gmf_plan *p,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+{
+ CHECK(mock.gmudcvs==1&&mock.gmubw==1&&mock.gmuperf==1&&mock.dcvs_calls++==0&&!mock.perf_calls&&!mock.bw_calls&&mock.bw_entries_calls==1&&mock.bw_plan_calls==1,"DCVS uses one combined explicit cold API after all preflight");
+ CHECK(bw&&!memcmp(bw,&mock.bw_plan,sizeof(*bw)),"exact published BW plan passed into DCVS bootstrap");return firmware_mock(s,p,out);
 }
 enum gmb_state sweet_gmu_firmware_state(void)
 {CHECK(mock.fw_calls==1&&mock.fw_result!=GMB_OK,"state only after refused firmware return");++mock.fw_state_queries;return mock.fw_result>=GMB_CONTEXT?GMB_QUARANTINED:GMB_IDLE;}
@@ -419,6 +425,7 @@ static void run_worker(void)
         "MEM off preserves 116 with no MEM helper/state access");
     if(mock.init_result!=GPI_OK || !mock.init_calls) CHECK(!mock.mem_requested_queries && !mock.mem_calls && !mock.mem_state_queries,
         "no MEM option query or API before successful INIT");
+    if(!mock.gmudcvs)CHECK(!mock.dcvs_calls,"DCVS default0 adds no transaction API");
     if(!mock.gmubw)CHECK(!mock.bw_entries_calls&&!mock.bw_plan_calls&&!mock.bw_calls,"BW default0 makes no BW snapshot/plan/transaction calls");
     if(!mock.gmufw)CHECK(!mock.arc_calls&&!mock.fwplan_calls&&!mock.asset_calls&&!mock.fw_calls&&!mock.fw_state_queries,"firmware default0 makes no new API calls");
 }
@@ -866,6 +873,33 @@ static void bw_cases(void)
  reset_bw("BW forbidden after WDT arm failure");mock.arm_fail=1;run_worker();CHECK(!mock.transactions&&!mock.fw_calls&&!mock.bw_calls,"failed watchdog prevents all later writes");
  reset_bw("BW excludes PAS");mock.pasinit=1;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.bw_calls,"PAS conflict rejects before work");
 }
+static void dcvs_cases(void)
+{
+ for(int n=-1;n<=2;n++)if(n!=0&&n!=1){reset_bw("invalid DCVS flag");mock.gmudcvs=n;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.dcvs_calls,"DCVS exact0/1 before work");}
+ for(unsigned dep=0;dep<5;dep++){
+  reset_bw("DCVS prerequisite missing");mock.gmudcvs=1;
+  if(dep==0)mock.gmubw=0;else if(dep==1)mock.gmuperf=0;else if(dep==2)mock.gmufw=0;else if(dep==3)mock.gmuclk=0;else mock.cxpower=0;
+  run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.fw_calls&&!mock.dcvs_calls,"DCVS requires BW/PERF/FW/clocks/CX before any work");
+ }
+ for(unsigned n=1;n<=3;n++){
+  reset_bw("DCVS ARC/asset preflight failure");mock.gmudcvs=1;mock.fw_fail_step=n;run_worker();CHECK(!mock.arms&&!mock.transactions&&!mock.dcvs_calls&&!mock.quarantines,"DCVS cannot bypass ARC/asset preflight");
+ }
+ for(unsigned n=1;n<=3;n++){
+  reset_bw("DCVS BW metadata/plan/context preflight failure");mock.gmudcvs=1;mock.bw_fail_step=n;run_worker();CHECK(!mock.arms&&!mock.transactions&&!mock.dcvs_calls&&!mock.quarantines,"DCVS cannot bypass snapshot/plan/context before WDT");
+ }
+ for(unsigned n=GMB_ARGUMENT;n<=GMB_FIRMWARE;n++){
+  reset_bw("every DCVS bootstrap refusal terminal");mock.gmudcvs=1;mock.fw_result=(enum gmb_result)n;run_worker();
+  CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.fw_calls==1&&mock.dcvs_calls==1&&!mock.bw_calls&&!mock.perf_calls&&!mock.after_sleeps&&mock.quarantines==1,"one combined call; failure never retries/falls back");
+  CHECK(has("firmware stopped")&&!has("firmware complete")&&!has("native DCVS request done")&&!has("a5a5"),"failed output not consumed");
+ }
+ reset_bw("DCVS full order");mock.gmudcvs=1;run_worker();
+ CHECK(!strcmp(mock.order,"RPWTACGFQ")&&mock.fw_calls==1&&mock.dcvs_calls==1&&!mock.bw_calls&&!mock.perf_calls&&mock.after_sleeps==30,"one combined startup after clock with bounded reset wait");
+ CHECK(has("native DCVS request done")&&has("no measured rate/async HFI/power lifecycle/GPU commands/Metal")&&!has("PERF/BW/TEST startup done"),"request completion is not measured rate or GPU execution");
+ reset_bw("DCVS default0 keeps BW/TEST");run_worker();CHECK(mock.bw_calls==1&&!mock.dcvs_calls&&has("PERF/BW/TEST startup done"),"old opt-in path unchanged");
+ reset_bw("DCVS forbidden after failed clock");mock.gmudcvs=1;mock.clock_result=GCX_READBACK;run_worker();CHECK(!mock.fw_calls&&!mock.dcvs_calls,"failed clock prevents DCVS");
+ reset_bw("DCVS forbidden after failed watchdog arm");mock.gmudcvs=1;mock.arm_fail=1;run_worker();CHECK(!mock.transactions&&!mock.fw_calls&&!mock.dcvs_calls,"failed WDT prevents DCVS");
+ reset_bw("DCVS excludes PAS");mock.gmudcvs=1;mock.pasinit=1;run_worker();CHECK(!mock.claims&&!mock.arms&&!mock.dcvs_calls,"PAS conflict before work");
+}
 int main(void)
 {
     legacy_cases();
@@ -892,5 +926,7 @@ int main(void)
     printf("PASS: %u retained + %u PERF coordinator cases (%u total); typed seams only\n",before_perf,cases-before_perf,cases);
     unsigned before_bw=cases;bw_cases();
     printf("PASS: %u retained + %u BW/TEST coordinator cases (%u total); typed seams only\n",before_bw,cases-before_bw,cases);
+    unsigned before_dcvs=cases;dcvs_cases();
+    printf("PASS: %u retained + %u DCVS coordinator cases (%u total); typed seams only\n",before_dcvs,cases-before_dcvs,cases);
     return 0;
 }

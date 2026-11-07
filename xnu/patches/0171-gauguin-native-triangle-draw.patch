@@ -1,0 +1,1064 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -145,6 +145,7 @@
+ bsd/dev/gauguin_gpu_eop.c			standard
+ bsd/dev/gauguin_gpu_compute.c			standard
+ bsd/dev/gauguin_gpu_clear.c			standard
++bsd/dev/gauguin_gpu_draw.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -252,7 +252,16 @@
+                                 if(sweet_gpu_unsecure_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+                                 snprintf(line,sizeof(line),"SWEET GPU UNSECURE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)unsecure_result,(unsigned)sweet_gpu_unsecure_state());bcm_record(line);return;
+                             }
+-                            if(sweet_gpu_clear_requested()){
++                            if(sweet_gpu_draw_requested()){
++                                bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; before native A619 offscreen triangle; no Metal");
++                                struct ggt_receipt triangle;
++                                enum ggt_result triangle_result=sweet_gpu_draw_once(&triangle);
++                                if(triangle_result!=GGT_OK){
++                                    if(sweet_gpu_draw_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
++                                    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)triangle_result,(unsigned)sweet_gpu_draw_state());bcm_record(line);return;
++                                }
++                                bcm_record("SWEET GPU TRIANGLE BOOT: native A619 offscreen256 green pixels/EOP6 and shadow27 verified; GPU requests held; awaiting watchdog reset; no Metal");
++                            }else if(sweet_gpu_clear_requested()){
+                                 bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; before native A619 offscreen clear; no Metal");
+                                 struct ggl_receipt clear;
+                                 enum ggl_result clear_result=sweet_gpu_clear_once(&clear);
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -418,7 +418,8 @@
+          (ggb_data_mode==4&&sweet_gpu_ib_requested())||
+          (ggb_data_mode==5&&sweet_gpu_eop_requested())||
+          (ggb_data_mode==6&&sweet_gpu_compute_requested())||
+-         (ggb_data_mode==7&&sweet_gpu_clear_requested())):
++         (ggb_data_mode==7&&sweet_gpu_clear_requested())||
++         (ggb_data_mode==8&&sweet_gpu_draw_requested())):
+         (ggb_data_selected==0&&ggb_data_mode==0&&!sweet_gpu_data_requested());
+ }
+ static bool ggb_data_geometry(void)
+@@ -587,7 +588,7 @@
+     if(!ggb_guard(NULL)||!ggp_plan_build(&gmb_context.plan,&ggb_plan))return false;
+     struct ggs_ops o={NULL,ggb_guard,gmb_read32,gmb_write32,gmb_read64,gmb_write64,gmb_barrier,gmb_delay,ggb_prepare};
+     ggb_data_selected=(unsigned)sweet_gpu_data_requested();ggb_data_ready=0;
+-    ggb_data_mode=ggb_data_selected?(sweet_gpu_clear_requested()?7:sweet_gpu_compute_requested()?6:sweet_gpu_eop_requested()?5:sweet_gpu_ib_requested()?4:3):0;
++    ggb_data_mode=ggb_data_selected?(sweet_gpu_draw_requested()?8:sweet_gpu_clear_requested()?7:sweet_gpu_compute_requested()?6:sweet_gpu_eop_requested()?5:sweet_gpu_ib_requested()?4:3):0;
+     if(ggb_data_selected){
+         if(!ggd_plan_build(&ggb_plan,&ggb_data_plan))return false;
+         ggb_argument=ggs_data_argument_reason(&ggb_context,&o,&ggb_data_plan,&gmb_work.smmu,&ggb_smmu);
+@@ -1250,13 +1251,13 @@
+     PZB_FAULT,PZB_ROUTES,PZB_DEVICE,PZB_NC,PZB_SCOPE,PZB_TIME};
+ static struct {unsigned reason,phase,scope;uint64_t now;uint32_t rbbm,cp,shadow,busy;} gpzb_diagnostic;
+ bool sweet_gpu_zap_requested(void)
+-{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2||flag==3||flag==4||flag==5||flag==6||flag==7;}
++{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2||flag==3||flag==4||flag==5||flag==6||flag==7||flag==8;}
+ enum gmb_state sweet_gpu_zap_state(void)
+ {return (enum gmb_state)__atomic_load_n(&gpzb_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool gpzb_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7)return false;
++    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8)return false;
+     static const char *const on[]={"sweetbusvote","sweetpasprobe","sweetpasstage",
+         "sweetcxpower","sweetgmuclk","sweetgmufw","sweetgmuperf","sweetgmubw","sweetgmudcvs","sweetgpucontext","sweetgpustart"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet",
+@@ -1452,7 +1453,7 @@
+     UGD_DEVICE,UGD_NC,UGD_ENTRY_BUDGET};
+ static struct {unsigned reason,phase;uint64_t now;uint32_t rbbm,cp;} ggub_diagnostic;
+ bool sweet_gpu_unsecure_requested(void)
+-{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2||mode==3||mode==4||mode==5||mode==6||mode==7;}
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2||mode==3||mode==4||mode==5||mode==6||mode==7||mode==8;}
+ enum gmb_state sweet_gpu_unsecure_state(void)
+ {return (enum gmb_state)__atomic_load_n(&ggub_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool ggub_reject(enum ggu_phase phase,enum ggub_reason reason)
+@@ -1809,7 +1810,7 @@
+ }
+ 
+ bool sweet_gpu_data_requested(void)
+-{return sweet_gpu_write_requested()||sweet_gpu_ib_requested()||sweet_gpu_eop_requested()||sweet_gpu_compute_requested()||sweet_gpu_clear_requested();}
++{return sweet_gpu_write_requested()||sweet_gpu_ib_requested()||sweet_gpu_eop_requested()||sweet_gpu_compute_requested()||sweet_gpu_clear_requested()||sweet_gpu_draw_requested();}
+ 
+ /* Separate fixed native IB continuation; no old RUNNING guard reuse. */
+ static unsigned ggib_lifecycle,ggib_phase,ggib_sealed;
+@@ -2677,4 +2678,256 @@
+     *out=gglb_work;__atomic_store_n(&gglb_lifecycle,GMB_READY,__ATOMIC_RELEASE);gglb_records(true);return GGL_OK;
+ }
+ 
++/* Separate fixed A619 triangle continuation; modes3/4/5/6/7 remain independent. */
++static unsigned ggtb_lifecycle,ggtb_phase,ggtb_sealed;
++static uint64_t ggtb_entry,ggtb_phase_entry,ggtb_deadline,ggtb_phase_end,ggtb_last_now;
++static struct ggt_context ggtb_context;
++static struct ggt_receipt ggtb_work;
++static enum ggt_result ggtb_result;
++enum ggtb_reason {TGD_NONE,TGD_CONFIG,TGD_PHASE,TGD_CONTEXT,TGD_TIME,TGD_WDT,
++    TGD_PARENT,TGD_OWNER,TGD_CLOCK,TGD_IRQ,TGD_RESET,TGD_FAULT,TGD_ROUTES,
++    TGD_DEVICE,TGD_NC,TGD_ENTRY_BUDGET,TGD_ENGINE};
++static struct {unsigned reason,phase;uint64_t now;uint32_t rbbm,cp;} ggtb_diagnostic;
++static uint32_t ggtb_before_mask[8],ggtb_after_mask[8],ggtb_aux_mask;
++static uint32_t ggtb_before[GGT_OUTPUT_WORDS],ggtb_after[GGT_OUTPUT_WORDS];
++static uint32_t ggtb_before_control,ggtb_after_control,ggtb_before_hi,ggtb_after_hi,ggtb_before_tail,ggtb_after_tail;
++bool sweet_gpu_draw_requested(void)
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==8;}
++enum gmb_state sweet_gpu_draw_state(void)
++{return (enum gmb_state)__atomic_load_n(&ggtb_lifecycle,__ATOMIC_ACQUIRE);}
++static bool ggtb_reject(enum ggt_phase phase,enum ggtb_reason reason)
++{
++    if(!ggtb_diagnostic.reason){ggtb_diagnostic.reason=reason;ggtb_diagnostic.phase=phase;ggtb_diagnostic.now=mach_absolute_time();}
++    return false;
++}
++static bool ggtb_time(enum ggt_phase phase)
++{
++    uint64_t now=mach_absolute_time();ggtb_diagnostic.phase=phase;ggtb_diagnostic.now=now;
++    if(now<ggtb_last_now||now>=ggtb_deadline||now>=ggtb_phase_end)return ggtb_reject(phase,TGD_TIME);
++    ggtb_last_now=now;return true;
++}
++static bool ggtb_parent(void)
++{
++    return sweet_gpu_draw_requested()&&ggb_data_mode==8&&
++        sweet_gpu_clear_state()==GMB_IDLE&&gglb_context.state==0&&gglb_context.phase==GGL_IDLE&&
++        sweet_gpu_compute_state()==GMB_IDLE&&ggkb_context.state==0&&ggkb_context.phase==GGK_IDLE&&
++        sweet_gpu_eop_state()==GMB_IDLE&&ggeb_context.state==0&&ggeb_context.phase==GGE_IDLE&&
++        sweet_gpu_ib_state()==GMB_IDLE&&ggib_context.state==0&&ggib_context.phase==GGI_IDLE&&
++        sweet_gpu_write_state()==GMB_IDLE&&ggwb_context.state==0&&
++        ggwb_context.phase==GGW_IDLE&&ggwb_unsecured();
++}
++static bool ggtb_guard(void *cookie,enum ggt_phase phase)
++{
++    (void)cookie;if(ggtb_diagnostic.reason)return false;
++    if(phase<GGT_SEAL||phase>GGT_FINAL||phase<ggtb_phase||phase>ggtb_phase+1)return ggtb_reject(phase,TGD_PHASE);
++    if(phase!=ggtb_phase){
++        ggtb_phase=phase;ggtb_phase_entry=mach_absolute_time();
++        if(ggtb_phase_entry<ggtb_last_now||ggtb_phase_entry>=ggtb_deadline)return ggtb_reject(phase,TGD_TIME);
++        clock_interval_to_deadline(2,NSEC_PER_SEC,&ggtb_phase_end);
++    }
++    if(sweet_gpu_draw_state()!=GMB_RUNNING||
++       !((ggtb_context.state==1&&ggtb_context.phase==(unsigned)phase)||
++         (ggtb_context.state==2&&ggtb_context.phase==GGT_DONE&&phase==GGT_FINAL))||
++       (phase>GGT_SEAL&&(!ggtb_sealed||ggtb_context.work.sealed!=1)))return ggtb_reject(phase,TGD_PHASE);
++    if(ggtb_context.state==2){
++        const struct ggt_receipt *r=&ggtb_work;
++        if(memcmp(r,&ggtb_context.work,sizeof(*r))||r->sealed!=1||r->complete!=1||r->requests_retained!=1||
++           r->commands_written!=7||r->commands_checked!=7||r->prefix_checked!=20||r->clean_checked!=7||
++           r->artifact_clean_checked!=GGT_ARTIFACT_WORDS||r->artifact_written!=GGT_ARTIFACT_WORDS||
++           r->artifact_checked!=GGT_ARTIFACT_WORDS||r->artifact_after_checked!=GGT_ARTIFACT_WORDS||
++           r->data_before_checked!=1024||r->data_after_checked!=1024||r->pixels_checked!=256||r->foreground_checked!=256||r->background_checked||
++           r->eop_polls<1||r->eop_polls>GGT_EOP_LIMIT||r->eop_value!=GGT_EOP_VALUE||r->eop_complete!=1||r->eop_checked!=1||
++           r->unchanged_checked!=767||r->ring_after_checked!=27||r->max_nc_batch_words!=64||
++           r->initial_wptr!=20||r->initial_shadow!=20||r->rptr!=27||r->busy==UINT32_MAX||(r->busy&(1u<<23))||
++           (r->rbbm_status&GGQ_RBBM_ERRORS)||(r->cp_status&GGQ_CP_ERRORS)||
++           r->wait_samples!=r->idle_polls||!r->wait_samples||r->wait_control_hi||
++           ggtb_aux_mask!=63||ggtb_before_control||ggtb_before_hi||ggtb_before_tail||
++           ggtb_after_control!=GGT_EOP_VALUE||ggtb_after_hi||ggtb_after_tail)
++            return ggtb_reject(phase,TGD_ENGINE);
++        for(unsigned id=0;id<GGT_BLOBS;id++){
++            struct ggt_blob blob;
++            if(!ggt_blob_get(id,&blob)||r->blob_clean_checked[id]!=blob.words||r->blob_written[id]!=blob.words||
++               r->blob_checked[id]!=blob.words||r->blob_after_checked[id]!=blob.words)return ggtb_reject(phase,TGD_ENGINE);
++        }
++        for(unsigned i=0;i<8;i++)
++            if(ggtb_before_mask[i]!=UINT32_MAX||ggtb_after_mask[i]!=UINT32_MAX)return ggtb_reject(phase,TGD_ENGINE);
++        for(unsigned i=0;i<GGT_OUTPUT_WORDS;i++)
++            if(ggtb_before[i]||ggtb_after[i]!=GGT_FOREGROUND)return ggtb_reject(phase,TGD_ENGINE);
++    }
++    if(!gmb_thread())return ggtb_reject(phase,TGD_CONTEXT);
++    if(!ggtb_time(phase))return false;
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggtb_reject(phase,TGD_WDT);
++    if(!ggtb_time(phase))return false;
++    if(!ggtb_parent())return ggtb_reject(phase,TGD_PARENT);
++    if(!sweet_pas_zap_owner_authenticated(gmb_stage.pa))return ggtb_reject(phase,TGD_OWNER);
++    if(!ggtb_time(phase))return false;
++    if(!gmb_reset||!gmb_smmu||!gmb_ram||!ggx_core||!gfw_map[GMF_AO]||
++       gfw_map[GMF_CSR]!=gmb_reset||!ggc_maps_ready||ggc_created!=6)return ggtb_reject(phase,TGD_DEVICE);
++    uint32_t gx,irq[3],v;
++    if(!sweet_gmu_clock_live(true,&gx)||(gx&0x80000001u)!=0x80000000u)return ggtb_reject(phase,TGD_CLOCK);
++    if(!sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000))return ggtb_reject(phase,TGD_IRQ);
++    if(gfw_load32(gmb_reset+0x2000))return ggtb_reject(phase,TGD_RESET);
++    if(!gfw_faults(false))return ggtb_reject(phase,TGD_FAULT);
++    if(!ggb_context_valid()||(gfw_work.host_info&(1u<<24))||ggx_context.state!=2||ggx_context.phase!=GGX_DONE||ggx_result!=GGX_OK||
++       ggx_work.bank!=ggb_smmu.bank||ggx_work.asid!=ggb_smmu.asid||ggx_work.ttbr0!=ggb_smmu.ttbr0||
++       ggx_work.ack_valid!=1||ggx_work.ack_clear_attempted!=1||ggx_work.request_retained!=1||ggx_work.core_opened!=1||
++       memcmp(&ggc_work.start,&ggx_work,sizeof(ggx_work))||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x34,&v)||v||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x7f4,&v)||(v&1u))return ggtb_reject(phase,TGD_ROUTES);
++    if(ggc_alias[0]!=ggx_core||ggc_alias[8]!=gmb_reset||ggc_alias[9]!=gfw_map[GMF_AO]||
++       !ggc_device_valid(ggx_core,0x03d00000)||!ggc_device_valid(gmb_reset,0x03d7c000)||
++       !ggc_device_valid(gfw_map[GMF_AO],0x03d8c000))return ggtb_reject(phase,TGD_DEVICE);
++    if(!ggq_nc_valid())return ggtb_reject(phase,TGD_NC);
++    ggtb_diagnostic.rbbm=gfw_load32(ggx_core+4*0x201);ggtb_diagnostic.cp=gfw_load32(ggx_core+4*0x823);
++    if((ggtb_diagnostic.rbbm&GGQ_RBBM_ERRORS)||(ggtb_diagnostic.cp&GGQ_CP_ERRORS))return ggtb_reject(phase,TGD_FAULT);
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggtb_reject(phase,TGD_WDT);
++    return ggtb_time(phase);
++}
++static bool ggtb_seal(void *cookie,uint64_t pa)
++{
++    (void)cookie;
++    if(ggtb_sealed||ggtb_context.phase!=GGT_SEAL||ggtb_context.work.sealed||pa!=gmb_stage.pa||
++       !sweet_gpu_draw_requested()||!gpzb_flags()||!ggtb_parent()||!sweet_pas_zap_owner_authenticated(pa))return false;
++    ggtb_sealed=1;return true;
++}
++static bool ggtb_read(void *cookie,uint32_t reg,uint32_t *out)
++{
++    (void)cookie;if(!out||!ggt_register_allowed(reg,false))return false;
++    vm_offset_t va=ggq_address(reg,false);if(!va)return false;*out=gfw_load32(va);return true;
++}
++static bool ggtb_write(void *cookie,uint32_t reg,uint32_t value)
++{
++    (void)cookie;if(!ggt_register_allowed(reg,true)||ggtb_context.phase!=GGT_SUBMIT||
++       (reg==0x807?value!=GGT_END_DWORD:value>1))return false;
++    vm_offset_t va=ggq_address(reg,true);if(!va)return false;gfw_store32(va,value);return true;
++}
++static vm_offset_t ggtb_memory(enum ggt_memory memory,uint32_t off,bool write)
++{
++    if(!gmb_ram||!ggb_data_geometry()||(off&3))return 0;
++    enum ggt_phase phase=(enum ggt_phase)ggtb_context.phase;
++    bool ring=memory==GGT_RING&&off<4*GGT_END_DWORD,scratch=memory==GGT_SCRATCH&&off==0;
++    bool data=memory==GGT_DATA&&off<GGD_DATA_BYTES;
++    bool artifact=memory==GGT_RING&&ggt_artifact_allowed(off);
++    bool commands=ring&&off>=4*GGT_START_DWORD;
++    if(write){if(phase!=GGT_COMMANDS||!(commands||artifact))return 0;}
++    else if(!((phase==GGT_CAPTURE&&(ring||scratch||data||artifact))||
++              (phase==GGT_COMMANDS&&(commands||artifact))||
++              (phase==GGT_WAIT&&(scratch||(data&&(off==GGT_EOP_OFFSET||off==GGT_EOP_OFFSET+4))))||
++              (phase==GGT_VERIFY&&(ring||data||artifact))))return 0;
++    unsigned offset=data?ggb_data_plan.data.offset:ggb_plan.region[(ring||artifact)?GGP_RING:GGP_SCRATCH].offset;
++    return gmb_ram+offset-GMB_PAGE+off;
++}
++static bool ggtb_memory_read(void *cookie,enum ggt_memory memory,uint32_t off,uint32_t *out)
++{
++    (void)cookie;vm_offset_t va=ggtb_memory(memory,off,false);if(!va||!out)return false;
++    *out=gfw_load32(va);
++    if(memory==GGT_DATA&&ggtb_context.phase==GGT_CAPTURE){
++        if(off<4*GGT_OUTPUT_WORDS){ggtb_before[off/4]=*out;ggtb_before_mask[off/128]|=1u<<((off/4)%32);}
++        if(off==GGT_EOP_OFFSET){ggtb_before_control=*out;ggtb_aux_mask|=1;}
++        if(off==GGT_EOP_OFFSET+4){ggtb_before_hi=*out;ggtb_aux_mask|=2;}
++        if(off==GGD_DATA_BYTES-4){ggtb_before_tail=*out;ggtb_aux_mask|=4;}
++    }
++    if(memory==GGT_DATA&&ggtb_context.phase==GGT_VERIFY){
++        if(off<4*GGT_OUTPUT_WORDS){ggtb_after[off/4]=*out;ggtb_after_mask[off/128]|=1u<<((off/4)%32);}
++        if(off==GGT_EOP_OFFSET){ggtb_after_control=*out;ggtb_aux_mask|=8;}
++        if(off==GGT_EOP_OFFSET+4){ggtb_after_hi=*out;ggtb_aux_mask|=16;}
++        if(off==GGD_DATA_BYTES-4){ggtb_after_tail=*out;ggtb_aux_mask|=32;}
++    }
++    return true;
++}
++static bool ggtb_memory_write(void *cookie,enum ggt_memory memory,uint32_t off,uint32_t value)
++{(void)cookie;vm_offset_t va=ggtb_memory(memory,off,true);if(!va)return false;gfw_store32(va,value);return true;}
++static void ggtb_quarantine(void *cookie)
++{
++    (void)cookie;bool needs=sweet_gmu_board_state()!=GMB_QUARANTINED;
++    __atomic_store_n(&ggtb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggtb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&gglb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gglb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggkb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggkb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggeb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggeb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggib_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggib_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggwb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggwb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggub_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggub_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&gpzb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);sweet_pas_zap_quarantine();
++    __atomic_store_n(&ggq_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggc_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    if(needs)gmb_fail(GMB_GPU,"native A619 offscreen triangle execution");
++}
++static void ggtb_records(bool complete)
++{
++    const struct ggt_receipt *r=complete?&ggtb_work:&ggtb_context.work;char line[256];
++    /* Same success-only cached group and failure recorder as earlier native stages. */
++    void (*record)(const char *)=complete?gmb_record_cached:gmb_record;
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE: %s phase=%u rc=%u reads=%u writes=%u sealed=%u commands=%u/%u prefix=%u clean=%u complete=%u retained=%u",
++        complete?"complete":"stopped",ggtb_context.phase,ggtb_result,r->reads,r->writes,r->sealed,r->commands_written,r->commands_checked,r->prefix_checked,r->clean_checked,r->complete,r->requests_retained);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE INITIAL: wptr=%08x shadow=%08x busy=%08x; no ring/SQE/scratch reinitialization",r->initial_wptr,r->initial_shadow,r->initial_busy);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE FENCE: checks=%u status=%08x slow=%u counters=%u/%u before=%016llx after=%016llx keepalive=%u/%u submit=%u",
++        r->fence_checks,r->fence_status,r->fence_slow,r->counter_before_valid,r->counter_after_valid,r->counter_before,r->counter_after,r->keepalive_set_attempted,r->keepalive_clear_attempted,r->submit_attempted);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE IDLE: polls=%u rptr=%08x busy=%08x rbbm=%08x cp=%08x; device shadow27 and AO busy bit23",r->idle_polls,r->rptr,r->busy,r->rbbm_status,r->cp_status);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE DATA: before=%u after=%u pixels=%u foreground=%u background=%u eop=%u unchanged=%u ring=%u batch=%u; full ordinary4096-byte page checked",r->data_before_checked,r->data_after_checked,r->pixels_checked,r->foreground_checked,r->background_checked,r->eop_checked,r->unchanged_checked,r->ring_after_checked,r->max_nc_batch_words);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE EOP: polls=%u value=%08x complete=%u; actual native A619 USER32 RB_DONE5/CACHE_FLUSH6 readback, no IRQ request",r->eop_polls,r->eop_value,r->eop_complete);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE ARTIFACTS: clean=%u written=%u checked=%u after=%u blobs=%u native_words=%u; padded source RO subviews, existing mappings",r->artifact_clean_checked,r->artifact_written,r->artifact_checked,r->artifact_after_checked,GGT_BLOBS,GGT_NATIVE_WORDS);record(line);
++    for(unsigned id=0;id<GGT_BLOBS;id++){
++        struct ggt_blob blob;if(!ggt_blob_get(id,&blob))break;
++        snprintf(line,sizeof(line),"SWEET GPU TRIANGLE BUFFER: index=%u offset=%08x payload=%u words=%u clean=%u written=%u checked=%u after=%u",id,blob.offset,blob.payload_words,blob.words,r->blob_clean_checked[id],r->blob_written[id],r->blob_checked[id],r->blob_after_checked[id]);record(line);
++    }
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE WAIT: samples=%u control=%08x hi=%08x; actual idle-loop reads, separate final EOP poll required",r->wait_samples,r->wait_control,r->wait_control_hi);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE AUX: mask=%x before=%08x/%08x/%08x after=%08x/%08x/%08x; control/neighbor/tail actual CPU reads",ggtb_aux_mask,ggtb_before_control,ggtb_before_hi,ggtb_before_tail,ggtb_after_control,ggtb_after_hi,ggtb_after_tail);record(line);
++    for(unsigned i=0;i<8;i++){
++        snprintf(line,sizeof(line),"SWEET GPU TRIANGLE MASK: index=%u before=%08x after=%08x; actual256 pixel reads",i,ggtb_before_mask[i],ggtb_after_mask[i]);record(line);
++    }
++    if(complete)for(unsigned i=0;i<GGT_OUTPUT_WORDS;i++){
++        snprintf(line,sizeof(line),"SWEET GPU TRIANGLE PIXEL: index=%u before=%08x after=%08x",i,ggtb_before[i],ggtb_after[i]);record(line);
++    }
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE GUARD: reason=%u phase=%u now=%016llx entry=%016llx phase_entry=%016llx total_end=%016llx phase_end=%016llx; post-AUTH ticks",ggtb_diagnostic.reason,ggtb_diagnostic.phase,ggtb_diagnostic.now,ggtb_entry,ggtb_phase_entry,ggtb_deadline,ggtb_phase_end);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TRIANGLE FAULT: rbbm=%08x cp=%08x; cached authorized post-AUTH GPU samples, no secure-buffer read",ggtb_diagnostic.rbbm,ggtb_diagnostic.cp);record(line);
++    if(complete){
++        for(unsigned id=0;id<GGT_BLOBS;id++){
++            struct ggt_blob blob;if(!ggt_blob_get(id,&blob))break;
++            for(unsigned index=0;index<blob.words;index++){
++                uint32_t value;if(!ggt_blob_word(id,index,&value))break;
++                snprintf(line,sizeof(line),"SWEET GPU TRIANGLE REFERENCE: blob=%u index=%u value=%08x; source word, actual buffers checked above",id,index,value);record(line);
++            }
++        }
++        for(unsigned i=0;i<GGT_COMMAND_WORDS;i++){
++            snprintf(line,sizeof(line),"SWEET GPU TRIANGLE WORD: index=%u value=%08x",GGT_START_DWORD+i,ggtb_context.command.word[i]);record(line);
++        }
++    }else if(ggtb_context.diagnostic.valid){
++        const struct ggt_diagnostic *d=&ggtb_context.diagnostic;
++        snprintf(line,sizeof(line),"SWEET GPU TRIANGLE SAMPLE: phase=%u memory=%u off=%05x expected=%08x actual=%08x; last cached sample",ggtb_context.phase,d->memory,d->reg,d->expected,d->actual);record(line);
++    }
++    if(complete&&gmb_thread())sweet_log_flush_now();
++}
++enum ggt_result sweet_gpu_draw_once(struct ggt_receipt *out)
++{
++    if(!out||!sweet_gpu_draw_requested())return GGT_ARGUMENT;unsigned idle=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&ggtb_lifecycle,&idle,GMB_RUNNING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GGT_ALREADY;
++    ggtb_entry=ggtb_phase_entry=ggtb_last_now=mach_absolute_time();ggtb_phase=GGT_IDLE;ggtb_sealed=0;
++    clock_interval_to_deadline(4,NSEC_PER_SEC,&ggtb_deadline);ggtb_phase_end=ggtb_deadline;
++    memset(&ggtb_diagnostic,0,sizeof(ggtb_diagnostic));ggtb_result=GGT_GUARD;
++    memset(ggtb_before_mask,0,sizeof(ggtb_before_mask));memset(ggtb_after_mask,0,sizeof(ggtb_after_mask));
++    ggtb_aux_mask=ggtb_before_control=ggtb_after_control=ggtb_before_hi=ggtb_after_hi=ggtb_before_tail=ggtb_after_tail=0;
++    memset(ggtb_before,0,sizeof(ggtb_before));memset(ggtb_after,0,sizeof(ggtb_after));
++    if(!gpzb_flags()||!gmb_thread())ggtb_reject(GGT_IDLE,TGD_CONFIG);
++    else if(!gauguin_wdt_lease_check_budget(8u*GAUGUIN_WDT_CLOCK_HZ))ggtb_reject(GGT_IDLE,TGD_ENTRY_BUDGET);
++    else{
++        const struct ggt_ops ops={NULL,ggtb_guard,ggtb_seal,ggtb_read,ggtb_write,gmb_barrier,ggq_board_delay,ggtb_memory_read,ggtb_memory_write,ggtb_quarantine};
++        ggtb_result=ggt_start_once(&ggtb_context,&ops,&ggb_data_plan,&ggtb_work);
++    }
++    if(ggtb_result!=GGT_OK||!ggtb_guard(NULL,GGT_FINAL)){
++        if(ggtb_result==GGT_OK)ggtb_result=GGT_GUARD;
++        if(sweet_gpu_draw_state()!=GMB_QUARANTINED)ggtb_quarantine(NULL);
++        ggtb_records(false);return ggtb_result;
++    }
++    *out=ggtb_work;__atomic_store_n(&ggtb_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggtb_records(true);return GGT_OK;
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -15,6 +15,7 @@
+ #include "gauguin_gpu_eop.h"
+ #include "gauguin_gpu_compute.h"
+ #include "gauguin_gpu_clear.h"
++#include "gauguin_gpu_draw.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+     GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE,GMB_GPU};
+@@ -121,4 +122,8 @@
+ bool sweet_gpu_clear_requested(void);
+ enum ggl_result sweet_gpu_clear_once(struct ggl_receipt *);
+ enum gmb_state sweet_gpu_clear_state(void);
++/* Mode8: fixed source-native A619 triangle, full DATA/EOP6 readback. */
++bool sweet_gpu_draw_requested(void);
++enum ggt_result sweet_gpu_draw_once(struct ggt_receipt *);
++enum gmb_state sweet_gpu_draw_state(void);
+ #endif
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_draw.c
+@@ -0,0 +1,290 @@
++/* Fixed original Mesa24.3.4 A619 vertex/fragment rasterization diagnostic.
++ * Generated words are immutable source references, not a device result.
++ * The full native graph includes the USER32 event source specialization.
++ * Native shader code, empty VFD packet, masked binning program, null unused
++ * UBO descriptors, sysmem target setup/clear/draw/flush are not rewritten. */
++#include <string.h>
++#include "gauguin_gpu_draw.h"
++#include "gauguin_gpu_draw_native.h"
++_Static_assert(DRAW171_RING_BASE==0xfc008000u&&DRAW171_RING_BYTES==32768u,"native ring");
++_Static_assert(DRAW171_MAIN_IOVA==DRAW171_RING_BASE+GGT_IB_OFFSET,"native IB");
++_Static_assert(DRAW171_TARGET_IOVA==GGD_DATA_IOVA&&DRAW171_CONTROL_IOVA==GGD_DATA_IOVA+GGT_EOP_OFFSET,"native DATA");
++_Static_assert(DRAW171_COMPLETION_SEQUENCE==GGT_EOP_VALUE&&DRAW171_FOREGROUND==GGT_FOREGROUND,"native oracle");
++static bool span(const void *p,size_t n)
++{uintptr_t a=(uintptr_t)p;return a&&n&&a<=UINTPTR_MAX-n;}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{return (uintptr_t)a<(uintptr_t)b+bn&&(uintptr_t)b<(uintptr_t)a+an;}
++static const struct draw171_native_blob *native_blob(unsigned id)
++{return id<24?&draw171_rings[id]:id<GGT_BLOBS?&draw171_programs[id-24]:NULL;}
++bool ggt_blob_get(unsigned id,struct ggt_blob *out)
++{
++    const struct draw171_native_blob *n=native_blob(id);
++    if(!n||!span(out,sizeof(*out)))return false;
++    struct ggt_blob b={0};
++    if(n->words){
++        if(!n->data||n->iova<DRAW171_RING_BASE+4096u||n->iova%128u||
++           !n->gpu_serialized_extent||n->gpu_serialized_extent%128u||
++           n->words>n->cpu_requested_capacity/4u||n->words>n->gpu_serialized_extent/4u||
++           n->iova-DRAW171_RING_BASE>DRAW171_RING_BYTES||
++           n->gpu_serialized_extent>DRAW171_RING_BYTES-(n->iova-DRAW171_RING_BASE))return false;
++        b=(struct ggt_blob){n->iova-DRAW171_RING_BASE,n->gpu_serialized_extent/4u,n->words};
++    }else if(n->iova||n->gpu_serialized_extent||n->data||n->cpu_requested_capacity)return false;
++    *out=b;return true;
++}
++bool ggt_blob_word(unsigned id,unsigned index,uint32_t *out)
++{
++    struct ggt_blob b;
++    if(!span(out,sizeof(*out))||!ggt_blob_get(id,&b)||index>=b.words)return false;
++    const struct draw171_native_blob *n=native_blob(id);
++    *out=index<b.payload_words?n->data[index]:0;return true;
++}
++bool ggt_artifact_allowed(uint32_t off)
++{
++    if(off&3)return false;
++    for(unsigned id=0;id<GGT_BLOBS;id++){
++        struct ggt_blob b;if(!ggt_blob_get(id,&b))return false;
++        if(b.words&&off>=b.offset&&off-b.offset<4*b.words)return true;
++    }
++    return false;
++}
++bool ggt_command_build(const struct ggd_plan *p,struct ggt_command *out)
++{
++    if(!span(p,sizeof(*p))||!span(out,sizeof(*out))||overlap(p,sizeof(*p),out,sizeof(*out))||!ggd_plan_valid(p))return false;
++    const struct ggp_region *r=&p->bootstrap.region[GGP_RING];
++    if(r->mapped!=32768||r->reserved!=32768||r->privileged||!r->readonly||r->executable||
++       r->iova!=DRAW171_RING_BASE||p->data.iova!=DRAW171_TARGET_IOVA||
++       GGT_EOP_OFFSET<4*GGT_OUTPUT_WORDS||GGT_EOP_OFFSET+GGT_CONTROL_BYTES>p->data.mapped)return false;
++    unsigned count=0,words=0,payload=0;
++    for(unsigned id=0;id<GGT_BLOBS;id++){
++        struct ggt_blob b;if(!ggt_blob_get(id,&b))return false;
++        if(!b.words)continue;
++        if(b.offset<4*GGT_END_DWORD||b.offset>r->mapped||4*b.words>r->mapped-b.offset)return false;
++        for(unsigned before=0;before<id;before++){
++            struct ggt_blob other;if(!ggt_blob_get(before,&other))return false;
++            if(other.words&&b.offset<other.offset+4*other.words&&other.offset<b.offset+4*b.words)return false;
++        }
++        if(id==0&&(b.offset!=GGT_IB_OFFSET||b.payload_words!=GGT_IB_WORDS))return false;
++        ++count;words+=b.words;payload+=b.payload_words;
++    }
++    if(count!=GGT_ACTIVE_BLOBS||words!=GGT_ARTIFACT_WORDS||payload!=GGT_NATIVE_WORDS)return false;
++    struct ggt_command c={0};
++    c.word[0]=GGT_IB_HEADER;c.word[1]=r->iova+GGT_IB_OFFSET;c.word[3]=GGT_IB_WORDS;
++    c.word[4]=0x70620002u;c.word[5]=p->bootstrap.region[GGP_SCRATCH].iova;
++    *out=c;return true;
++}
++struct ggt_prefix {uint32_t word[GGT_START_DWORD];};
++bool ggt_register_allowed(uint32_t reg,bool write)
++{
++    if(write)return reg==0x807||reg==0x1f8c3;
++    return reg==0x807||reg==0x201||reg==0x823||reg==0x23b13||
++        reg==0x23b0c||reg==0x1f888||reg==0x1f889;
++}
++static bool guard(struct ggt_context *c)
++{return c->ops.guard(c->ops.cookie,(enum ggt_phase)c->phase);}
++static enum ggt_result sample(struct ggt_context *c,bool mem,uint32_t reg,uint32_t expected,uint32_t actual)
++{c->diagnostic=(struct ggt_diagnostic){1,mem,reg,expected,actual};return mem?GGT_MEMORY_ERROR:GGT_DIRTY_STATE;}
++static enum ggt_result rd(struct ggt_context *c,uint32_t reg,uint32_t *v)
++{
++    if(!guard(c))return GGT_GUARD;
++    ++c->work.reads;if(!c->ops.read32(c->ops.cookie,reg,v))return GGT_IO;
++    c->diagnostic=(struct ggt_diagnostic){1,0,reg,0,*v};
++    return guard(c)?GGT_OK:GGT_GUARD;
++}
++static enum ggt_result wr(struct ggt_context *c,uint32_t reg,uint32_t v)
++{
++    if(!guard(c))return GGT_GUARD;
++    if(reg==0x807)c->work.submit_attempted=1;
++    if(reg==0x1f8c3){if(v)c->work.keepalive_set_attempted=1;else c->work.keepalive_clear_attempted=1;}
++    ++c->work.writes;if(!c->ops.write32(c->ops.cookie,reg,v))return GGT_IO;
++    return guard(c)?GGT_OK:GGT_GUARD;
++}
++static enum ggt_result mr(struct ggt_context *c,enum ggt_memory mem,uint32_t off,uint32_t *v)
++{
++    if(!guard(c))return GGT_GUARD;
++    if(!c->ops.read_memory(c->ops.cookie,mem,off,v))return GGT_IO;
++    c->diagnostic=(struct ggt_diagnostic){1,1,(mem==GGT_SCRATCH?0x10000u:mem==GGT_DATA?0x20000u:0u)+off,0,*v};
++    return guard(c)?GGT_OK:GGT_GUARD;
++}
++static enum ggt_result barrier(struct ggt_context *c)
++{
++    if(!guard(c))return GGT_GUARD;
++    if(!c->ops.barrier(c->ops.cookie))return GGT_IO;
++    return guard(c)?GGT_OK:GGT_GUARD;
++}
++static enum ggt_result delay(struct ggt_context *c)
++{
++    if(!guard(c))return GGT_GUARD;
++    if(!c->ops.delay_us(c->ops.cookie,10))return GGT_IO;
++    return guard(c)?GGT_OK:GGT_GUARD;
++}
++#define TRY(x) do{enum ggt_result result=(x);if(result)return result;}while(0)
++static enum ggt_result counter(struct ggt_context *c,uint64_t *v)
++{
++    uint32_t h,l,h1;TRY(rd(c,0x1f889,&h));TRY(rd(c,0x1f888,&l));TRY(rd(c,0x1f889,&h1));
++    if(h!=h1)TRY(rd(c,0x1f888,&l));*v=((uint64_t)h1<<32)|l;return GGT_OK;
++}
++static enum ggt_result faults(struct ggt_context *c)
++{
++    TRY(rd(c,0x201,&c->work.rbbm_status));TRY(rd(c,0x823,&c->work.cp_status));
++    return (c->work.rbbm_status&GGQ_RBBM_ERRORS)||(c->work.cp_status&GGQ_CP_ERRORS)?GGT_FAULT:GGT_OK;
++}
++static uint32_t expected_data(unsigned index)
++{return index==GGT_EOP_OFFSET/4?GGT_EOP_VALUE:index<GGT_OUTPUT_WORDS?GGT_FOREGROUND:GGT_DATA_SEED;}
++/* Each NC pass is bracketed by full live guards; all per-word callbacks must
++ * independently admit the exact memory/phase/range. No callback can write DATA. */
++static enum ggt_result compare_nc(struct ggt_context *c,enum ggt_memory mem,
++    unsigned off,unsigned words,const uint32_t *expected,uint32_t seed,
++    unsigned blob,bool native,uint32_t *count)
++{
++    for(unsigned base=0;base<words;base+=GGT_BATCH_WORDS){
++        unsigned n=words-base;if(n>GGT_BATCH_WORDS)n=GGT_BATCH_WORDS;
++        if(!guard(c))return GGT_GUARD;
++        for(unsigned i=0;i<n;i++){
++            unsigned index=base+i,offset=off+4*index;uint32_t want=expected?expected[index]:seed,value;
++            if(native&&!ggt_blob_word(blob,index,&want))return GGT_ARGUMENT;
++            if(mem==GGT_DATA&&c->phase==GGT_VERIFY)want=expected_data(index);
++            if(!c->ops.read_memory(c->ops.cookie,mem,offset,&value))return GGT_IO;
++            if(value!=want)return sample(c,true,(mem==GGT_DATA?0x20000u:0u)+offset,want,value);
++            ++*count;
++            if(mem==GGT_DATA&&c->phase==GGT_VERIFY){
++                if(index==GGT_EOP_OFFSET/4)++c->work.eop_checked;
++                else if(index<GGT_OUTPUT_WORDS){++c->work.pixels_checked;++c->work.foreground_checked;}
++                else ++c->work.unchanged_checked;
++            }
++        }
++        if(c->work.max_nc_batch_words<n)c->work.max_nc_batch_words=n;
++        if(!guard(c))return GGT_GUARD;
++    }
++    return GGT_OK;
++}
++static enum ggt_result copy_nc(struct ggt_context *c,unsigned off,unsigned words,
++    const uint32_t *values,unsigned blob,uint32_t *count)
++{
++    for(unsigned base=0;base<words;base+=GGT_BATCH_WORDS){
++        unsigned n=words-base;if(n>GGT_BATCH_WORDS)n=GGT_BATCH_WORDS;
++        if(!guard(c))return GGT_GUARD;
++        for(unsigned i=0;i<n;i++){
++            unsigned index=base+i;uint32_t value;
++            if(values)value=values[index];else if(!ggt_blob_word(blob,index,&value))return GGT_ARGUMENT;
++            ++*count;if(!c->ops.write_memory(c->ops.cookie,GGT_RING,off+4*index,value))return GGT_IO;
++        }
++        if(c->work.max_nc_batch_words<n)c->work.max_nc_batch_words=n;
++        if(!guard(c))return GGT_GUARD;
++    }
++    return GGT_OK;
++}
++static enum ggt_result capture(struct ggt_context *c,const struct ggt_prefix *prefix)
++{
++    TRY(faults(c));TRY(rd(c,0x807,&c->work.initial_wptr));
++    if(c->work.initial_wptr!=GGT_START_DWORD)return sample(c,false,0x807,GGT_START_DWORD,c->work.initial_wptr);
++    TRY(mr(c,GGT_SCRATCH,0,&c->work.initial_shadow));
++    if(c->work.initial_shadow!=GGT_START_DWORD)return sample(c,true,0x10000u,GGT_START_DWORD,c->work.initial_shadow);
++    TRY(rd(c,0x23b0c,&c->work.initial_busy));if(c->work.initial_busy&(1u<<23))return GGT_FAULT;
++    TRY(compare_nc(c,GGT_RING,0,GGT_START_DWORD,prefix->word,0,0,false,&c->work.prefix_checked));
++    TRY(compare_nc(c,GGT_RING,4*GGT_START_DWORD,GGT_COMMAND_WORDS,NULL,0xaaaaaaaau,0,false,&c->work.clean_checked));
++    for(unsigned id=0;id<GGT_BLOBS;id++){
++        struct ggt_blob b;if(!ggt_blob_get(id,&b))return GGT_ARGUMENT;
++        TRY(compare_nc(c,GGT_RING,b.offset,b.words,NULL,0xaaaaaaaau,id,false,&c->work.blob_clean_checked[id]));
++        c->work.artifact_clean_checked+=c->work.blob_clean_checked[id];
++    }
++    return compare_nc(c,GGT_DATA,0,GGD_DATA_BYTES/4,NULL,GGT_DATA_SEED,0,false,&c->work.data_before_checked);
++}
++static enum ggt_result commands(struct ggt_context *c)
++{
++    for(unsigned id=0;id<GGT_BLOBS;id++){
++        struct ggt_blob b;if(!ggt_blob_get(id,&b))return GGT_ARGUMENT;
++        TRY(copy_nc(c,b.offset,b.words,NULL,id,&c->work.blob_written[id]));
++        TRY(barrier(c));
++        TRY(compare_nc(c,GGT_RING,b.offset,b.words,NULL,0,id,true,&c->work.blob_checked[id]));
++        c->work.artifact_written+=c->work.blob_written[id];c->work.artifact_checked+=c->work.blob_checked[id];
++    }
++    TRY(copy_nc(c,4*GGT_START_DWORD,GGT_COMMAND_WORDS,c->command.word,0,&c->work.commands_written));
++    TRY(barrier(c));
++    TRY(compare_nc(c,GGT_RING,4*GGT_START_DWORD,GGT_COMMAND_WORDS,c->command.word,0,0,false,&c->work.commands_checked));
++    return barrier(c);
++}
++static enum ggt_result submit(struct ggt_context *c)
++{
++    TRY(wr(c,0x1f8c3,1));TRY(wr(c,0x807,GGT_END_DWORD));
++    TRY(counter(c,&c->work.counter_before));c->work.counter_before_valid=1;
++    unsigned i;
++    for(i=0;i<GGQ_FENCE_LIMIT;i++){
++        TRY(barrier(c));TRY(rd(c,0x23b13,&c->work.fence_status));++c->work.fence_checks;
++        if(!(c->work.fence_status&1u))break;
++        TRY(delay(c));TRY(wr(c,0x807,GGT_END_DWORD));
++    }
++    if(i>=100){c->work.fence_slow=1;TRY(counter(c,&c->work.counter_after));c->work.counter_after_valid=1;}
++    if(i==GGQ_FENCE_LIMIT)return GGT_TIMEOUT;
++    return wr(c,0x1f8c3,0);
++}
++static enum ggt_result wait_idle(struct ggt_context *c)
++{
++    for(unsigned i=0;i<GGQ_IDLE_LIMIT;i++){
++        TRY(faults(c));TRY(barrier(c));TRY(mr(c,GGT_SCRATCH,0,&c->work.rptr));++c->work.idle_polls;
++        TRY(mr(c,GGT_DATA,GGT_EOP_OFFSET,&c->work.wait_control));
++        TRY(mr(c,GGT_DATA,GGT_EOP_OFFSET+4,&c->work.wait_control_hi));++c->work.wait_samples;
++        if(c->work.wait_control_hi)return sample(c,true,0x20000u+GGT_EOP_OFFSET+4,0,c->work.wait_control_hi);
++        if(c->work.rptr>=GGQ_RING_WORDS)return sample(c,true,0x10000u,GGT_END_DWORD,c->work.rptr);
++        if(c->work.rptr!=GGT_END_DWORD)continue;
++        TRY(rd(c,0x23b0c,&c->work.busy));
++        if(c->work.busy==UINT32_MAX)return GGT_FAULT;
++        if(!(c->work.busy&(1u<<23)))return GGT_OK;
++    }
++    return GGT_TIMEOUT;
++}
++static enum ggt_result wait_eop(struct ggt_context *c)
++{
++    for(unsigned i=0;i<GGT_EOP_LIMIT;i++){
++        TRY(barrier(c));TRY(mr(c,GGT_DATA,GGT_EOP_OFFSET,&c->work.eop_value));++c->work.eop_polls;
++        if(c->work.eop_value==GGT_EOP_VALUE){c->work.eop_complete=1;return GGT_OK;}
++        if(c->work.eop_value)return sample(c,true,0x20000u+GGT_EOP_OFFSET,GGT_EOP_VALUE,c->work.eop_value);
++    }
++    return GGT_TIMEOUT;
++}
++static enum ggt_result verify_data(struct ggt_context *c,const struct ggt_prefix *prefix)
++{
++    TRY(barrier(c));
++    TRY(compare_nc(c,GGT_DATA,0,GGD_DATA_BYTES/4,NULL,0,0,false,&c->work.data_after_checked));
++    TRY(compare_nc(c,GGT_RING,0,GGT_START_DWORD,prefix->word,0,0,false,&c->work.ring_after_checked));
++    TRY(compare_nc(c,GGT_RING,4*GGT_START_DWORD,GGT_COMMAND_WORDS,c->command.word,0,0,false,&c->work.ring_after_checked));
++    for(unsigned id=0;id<GGT_BLOBS;id++){
++        struct ggt_blob b;if(!ggt_blob_get(id,&b))return GGT_ARGUMENT;
++        TRY(compare_nc(c,GGT_RING,b.offset,b.words,NULL,0,id,true,&c->work.blob_after_checked[id]));
++        c->work.artifact_after_checked+=c->work.blob_after_checked[id];
++    }
++    return faults(c);
++}
++static enum ggt_result execute(struct ggt_context *c,const struct ggd_plan *p,const struct ggt_prefix *prefix)
++{
++    c->phase=GGT_SEAL;if(!guard(c))return GGT_GUARD;
++    if(!c->ops.seal(c->ops.cookie,p->bootstrap.owner_pa))return GGT_OWNER;
++    c->work.sealed=c->work.requests_retained=1;if(!guard(c))return GGT_GUARD;
++    c->phase=GGT_CAPTURE;TRY(capture(c,prefix));
++    c->phase=GGT_COMMANDS;TRY(commands(c));
++    c->phase=GGT_SUBMIT;TRY(submit(c));
++    c->phase=GGT_WAIT;TRY(wait_idle(c));TRY(wait_eop(c));
++    c->phase=GGT_VERIFY;TRY(verify_data(c,prefix));
++    c->phase=GGT_FINAL;TRY(barrier(c));if(!guard(c))return GGT_GUARD;
++    c->work.complete=1;return GGT_OK;
++}
++#undef TRY
++enum ggt_result ggt_start_once(struct ggt_context *c,const struct ggt_ops *ops,const struct ggd_plan *p,struct ggt_receipt *out)
++{
++    const void *ptr[]={c,ops,p,out};size_t len[]={sizeof(*c),sizeof(*ops),sizeof(*p),sizeof(*out)};
++    for(unsigned i=0;i<4;i++){
++        if(!span(ptr[i],len[i]))return GGT_ARGUMENT;
++        for(unsigned j=0;j<i;j++)if(overlap(ptr[i],len[i],ptr[j],len[j]))return GGT_ARGUMENT;
++    }
++    struct ggt_command cmd;struct ggt_prefix prefix;struct ggq_command init;struct ggu_command mode;
++    if(!ggt_command_build(p,&cmd)||!ggq_command_build(&p->bootstrap,&init)||!ggu_command_build(&p->bootstrap,&mode)||!ops->guard||!ops->seal||
++       !ops->read32||!ops->write32||!ops->read_memory||!ops->write_memory||
++       !ops->barrier||!ops->delay_us||!ops->quarantine)return GGT_ARGUMENT;
++    memcpy(prefix.word,init.word,sizeof(init.word));memcpy(prefix.word+GGQ_COMMAND_WORDS,mode.word,sizeof(mode.word));
++    const struct ggt_ops saved=*ops;const struct ggd_plan plan=*p;unsigned idle=0;
++    if(!__atomic_compare_exchange_n(&c->state,&idle,1,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GGT_ALREADY;
++    c->ops=saved;c->command=cmd;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));
++    enum ggt_result result=execute(c,&plan,&prefix);
++    if(result){__atomic_store_n(&c->state,3,__ATOMIC_RELEASE);c->ops.quarantine(c->ops.cookie);}
++    else{c->phase=GGT_DONE;*out=c->work;__atomic_store_n(&c->state,2,__ATOMIC_RELEASE);}
++    return result;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_draw.h
+@@ -0,0 +1,83 @@
++#ifndef GAUGUIN_GPU_DRAW_H
++#define GAUGUIN_GPU_DRAW_H
++#include "gauguin_gpu_data.h"
++#include "gauguin_gpu_unsecure.h"
++enum ggt_phase {GGT_IDLE,GGT_SEAL,GGT_CAPTURE,GGT_COMMANDS,GGT_SUBMIT,
++    GGT_WAIT,GGT_VERIFY,GGT_FINAL,GGT_DONE};
++enum ggt_result {GGT_OK,GGT_ARGUMENT,GGT_ALREADY,GGT_GUARD,GGT_OWNER,GGT_IO,
++    GGT_DIRTY_STATE,GGT_MEMORY_ERROR,GGT_FAULT,GGT_TIMEOUT};
++enum ggt_memory {GGT_RING,GGT_SCRATCH,GGT_DATA};
++#define GGT_START_DWORD 20u
++#define GGT_COMMAND_WORDS 7u
++#define GGT_END_DWORD 27u
++#define GGT_IB_OFFSET 0x4000u
++#define GGT_IB_WORDS 203u
++#define GGT_IB_HEADER 0x70bf8003u
++#define GGT_EOP_OFFSET 0xc00u
++#define GGT_EOP_VALUE 6u
++#define GGT_EOP_LIMIT 1024u
++#define GGT_OUTPUT_WORDS 256u
++#define GGT_BATCH_WORDS 64u
++#define GGT_FOREGROUND 0xff00ff00u
++#define GGT_BACKGROUND 0xffff0000u
++#define GGT_DATA_SEED 0u
++#define GGT_CONTROL_BYTES 288u
++#define GGT_BLOBS 27u
++#define GGT_ACTIVE_BLOBS 26u
++#define GGT_NATIVE_WORDS 1158u
++#define GGT_ARTIFACT_WORDS 1632u
++struct ggt_blob {uint32_t offset,words,payload_words;};
++struct ggt_command {uint32_t word[GGT_COMMAND_WORDS];};
++struct ggt_ops {
++    void *cookie;
++    bool (*guard)(void *,enum ggt_phase);
++    bool (*seal)(void *,uint64_t);
++    bool (*read32)(void *,uint32_t,uint32_t *);
++    bool (*write32)(void *,uint32_t,uint32_t);
++    bool (*barrier)(void *);
++    bool (*delay_us)(void *,unsigned);
++    bool (*read_memory)(void *,enum ggt_memory,uint32_t,uint32_t *);
++    bool (*write_memory)(void *,enum ggt_memory,uint32_t,uint32_t);
++    void (*quarantine)(void *);
++};
++struct ggt_receipt {
++    uint32_t reads,writes,prefix_checked,clean_checked,commands_written,commands_checked;
++    uint32_t sealed,initial_wptr,initial_shadow,initial_busy,submit_attempted;
++    uint32_t keepalive_set_attempted,keepalive_clear_attempted,fence_checks,fence_status;
++    uint32_t fence_slow,counter_before_valid,counter_after_valid,idle_polls;
++    uint32_t rptr,busy,rbbm_status,cp_status,complete,requests_retained;
++    uint32_t data_before_checked,data_after_checked,pixels_checked,foreground_checked,background_checked,unchanged_checked,ring_after_checked;
++    uint32_t blob_clean_checked[GGT_BLOBS],blob_written[GGT_BLOBS],blob_checked[GGT_BLOBS],blob_after_checked[GGT_BLOBS];
++    uint32_t artifact_clean_checked,artifact_written,artifact_checked,artifact_after_checked;
++    uint32_t max_nc_batch_words;
++    uint32_t eop_polls,eop_value,eop_complete,eop_checked;
++    uint32_t wait_samples,wait_control,wait_control_hi;
++    uint64_t counter_before,counter_after;
++};
++struct ggt_diagnostic {uint32_t valid,memory,reg,expected,actual;};
++struct ggt_context {
++    uint32_t state,phase;
++    struct ggt_ops ops;
++    struct ggt_command command;
++    struct ggt_receipt work;
++    struct ggt_diagnostic diagnostic;
++};
++/* Fixed, source-generated native byte views, including deterministic zero
++ * padding. No supplied address, code, or arbitrary buffer is admitted. */
++bool ggt_blob_get(unsigned,struct ggt_blob *);
++bool ggt_blob_word(unsigned,unsigned,uint32_t *);
++bool ggt_artifact_allowed(uint32_t);
++bool ggt_command_build(const struct ggd_plan *,struct ggt_command *);
++bool ggt_register_allowed(uint32_t,bool);
++/* Fixed A619 SYSMEM triangle: unchanged signed INIT/GGU parent20 ->27.
++ * Entire generated graph/shaders/padding staged in existing RO/NX32KiB ring;
++ * same ordinary RW/NX DATA4KiB, 256 green pixels + separate actual EOP6 poll,
++ * all767 other DATA words stayzero. Native zero-count VFD and masked binning
++ * dummy-FS packets are preserved. Not a general shader/submission/Metal API.
++ * All cold/staged/after artifacts checked, all DATA before/after checked.
++ * Individually guarded MMIO/polls, <=64word guarded NC batches, one-shot,
++ * quarantine before diagnostics, output untouched on failure. No CPU DATA
++ * store, new mapping/IRQ, reinit, protected override, watchdog PET or retry. */
++enum ggt_result ggt_start_once(struct ggt_context *,const struct ggt_ops *,
++    const struct ggd_plan *,struct ggt_receipt *);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_draw_native.h
+@@ -0,0 +1,321 @@
++/* Generated from reviewed, original Mesa 24.3.4 A619 command emitters.
++ * Primary Mesa commit 769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de.
++ * Authored NIR input: native_nir_programs.h; explicit A619 USER32 profile1.
++ * CPU generated reference ONLY: no GPU triangle, Metal or UI qualification.
++ * Preserves native zero-count VFD_DECODE and binning dummy-FS packets.
++ * Binning program is masked out for SYSMEM. Null UBO descriptors use native
++ * bad00000/size0 sentinels; these shaders never read UBOs or textures.
++ * CPU capacities are emitter backing maxima, NOT device allocation extents.
++ * Planned RO subviews use actual serialized size padded to 128 bytes.
++ * See native_provenance.json. No Apple artifact or device dump is included.
++ */
++#ifndef GAUGGUIN_NATIVE_DRAW171_WORDS_H
++#define GAUGGUIN_NATIVE_DRAW171_WORDS_H
++#include <stdint.h>
++#define DRAW171_RING_BASE 0xfc008000u
++#define DRAW171_RING_BYTES 32768u
++#define DRAW171_MAIN_IOVA 0xfc00c000u
++#define DRAW171_DRAW_IOVA 0xfc00b800u
++#define DRAW171_TARGET_IOVA 0xfc018000u
++#define DRAW171_CONTROL_IOVA 0xfc018c00u
++#define DRAW171_COMPLETION_SEQUENCE 6u
++#define DRAW171_WIDTH 16u
++#define DRAW171_HEIGHT 16u
++#define DRAW171_PITCH 64u
++/* Semantic expected words; not observed pixels. */
++#define DRAW171_BACKGROUND 0xffff0000u
++#define DRAW171_FOREGROUND 0xff00ff00u
++struct draw171_native_blob {
++    uint32_t iova, words, gpu_serialized_extent, cpu_requested_capacity;
++    const uint32_t *data;
++};
++
++/* 0: sysmem-main */
++static const uint32_t draw171_ring_00[203] = {
++    0x70e30001u,0x00000000u,0x70460001u,0x00000019u,0x70460001u,0x00000018u,0x70460001u,0x00000031u,
++    0x40bb0801u,0x000fffffu,0x70268000u,0x70bf8003u,0xfc00d000u,0x00000000u,0x000000c2u,0x70268000u,
++    0x408e0701u,0x08000000u,0x70d58003u,0xfc00e000u,0x00000000u,0x001000cdu,0x70d58003u,0x00000000u,
++    0x00000000u,0x00000000u,0x70d58003u,0x00000000u,0x00000000u,0x00200000u,0x70460001u,0x00000026u,
++    0x4080f002u,0x00000000u,0x000f000fu,0x48840a02u,0x00000000u,0x000f000fu,0x48889001u,0x00000000u,
++    0x4888d401u,0x00000000u,0x48b4d101u,0x00000000u,0x48b30701u,0x00000000u,0x4880a101u,0x00c00000u,
++    0x48880001u,0x00c00000u,0x4088d301u,0x00000000u,0x70e50001u,0x00000001u,0x709d0001u,0x00000000u,
++    0x70230001u,0x00000001u,0x48930601u,0x00000000u,0x70640001u,0x00000001u,0x48887286u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48809801u,0x00000000u,0x48888101u,
++    0x00000000u,0x48882286u,0x00000030u,0x00000001u,0x00000040u,0xfc018000u,0x00000000u,0x00000000u,
++    0x48a99601u,0x00000030u,0x40890383u,0x00000000u,0x00000000u,0x00000000u,0x40810201u,0x00000030u,
++    0x48880f01u,0x00000000u,0x40a98a01u,0x00000000u,0x48800401u,0x00000000u,0x40b30002u,0x00000000u,
++    0x00000004u,0x4880a202u,0x00000000u,0x00000004u,0x40880202u,0x00000000u,0x00000004u,0x4088d501u,
++    0x00000000u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000001u,0x70460001u,0x00000019u,
++    0x48840502u,0x00000000u,0x000f000fu,0x488c2c04u,0x00000000u,0x00000000u,0x000000ffu,0x000000ffu,
++    0x408c0001u,0x10f03080u,0x48840001u,0x10f03080u,0x48acc001u,0x0000f180u,0x488c0101u,0x00000000u,
++    0x408c1704u,0x00000030u,0xfc018000u,0x00000000u,0x00000001u,0x70460001u,0x0000003fu,0x70268000u,
++    0x408e0401u,0x04100000u,0x702c0001u,0x00000003u,0x70268000u,0x408e0401u,0x00000000u,0x70460004u,
++    0x0000001du,0xfc018c00u,0x00000000u,0x00000002u,0x70460001u,0x00000019u,0x70268000u,0x408e0701u,
++    0x08000000u,0x706d8003u,0x00000002u,0x00008801u,0x00000010u,0x48810385u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x70bf8003u,0xfc00b800u,0x00000000u,0x0000004cu,0x709d0001u,
++    0x00000000u,0x70460001u,0x00000026u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000003u,
++    0x70460004u,0x0000001cu,0xfc018c00u,0x00000000u,0x00000004u,0x70460004u,0x00000016u,0xfc018c00u,
++    0x00000000u,0x00000005u,0x70bc8006u,0x00000013u,0xfc018c00u,0x00000000u,0x00000005u,0xffffffffu,
++    0x00000010u,0x70460004u,0x00000004u,0xfc018c00u,0x00000000u,0x00000006u,0x70940004u,0x00000000u,
++    0xfc018c00u,0x00000000u,0x00000006u,
++};
++
++/* 1: direct-draw */
++static const uint32_t draw171_ring_01[76] = {
++    0x40a00e01u,0x00000000u,0x48a00f01u,0x00000000u,0x40980301u,0xffffffffu,0x48888701u,0x00000000u,
++    0x48801086u,0x41000000u,0x41000000u,0x41000000u,0x41000000u,0x3f000000u,0x3f000000u,0x4880d002u,
++    0x00000000u,0x000f000fu,0x40800601u,0x0007fdffu,0x70438033u,0x00700018u,0xfc009000u,0x00000000u,
++    0x0160006fu,0xfc009080u,0x00000000u,0x0210005cu,0xfc009280u,0x00000000u,0x03600012u,0xfc009400u,
++    0x00000000u,0x04700009u,0xfc009480u,0x00000000u,0x05700008u,0xfc009500u,0x00000000u,0x06700001u,
++    0xfc009580u,0x00000000u,0x07720000u,0x00000000u,0x00000000u,0x0870000cu,0xfc009600u,0x00000000u,
++    0x10700011u,0xfc009680u,0x00000000u,0x11700010u,0xfc009700u,0x00000000u,0x1270000au,0xfc009780u,
++    0x00000000u,0x13700003u,0xfc009800u,0x00000000u,0x14700005u,0xfc009880u,0x00000000u,0x15700006u,
++    0xfc009900u,0x00000000u,0x1c500002u,0xfc009980u,0x00000000u,0x1d200002u,0xfc009a00u,0x00000000u,
++    0x70388003u,0x00000184u,0x00000001u,0x00000003u,
++};
++
++/* 2: zsa-default */
++static const uint32_t draw171_ring_02[16] = {
++    0x40886401u,0x00000000u,0x40888001u,0x00000000u,0x40811501u,0x00000000u,0x48887101u,0x0000001cu,
++    0x48811401u,0x00000000u,0x48888802u,0x00000000u,0x00000000u,0x48887802u,0x00000000u,0x00000000u,
++};
++
++/* 3: zsa-no-alpha-unused */
++static const uint32_t draw171_ring_03[16] = {
++    0x40886401u,0x00000000u,0x40888001u,0x00000000u,0x40811501u,0x00000000u,0x48887101u,0x0000001cu,
++    0x48811401u,0x00000000u,0x48888802u,0x00000000u,0x00000000u,0x48887802u,0x00000000u,0x00000000u,
++};
++
++/* 4: zsa-depth-clamp-unused */
++static const uint32_t draw171_ring_04[16] = {
++    0x40886401u,0x00000000u,0x40888001u,0x00000000u,0x40811501u,0x00000000u,0x48887101u,0x0000003cu,
++    0x48811401u,0x00000000u,0x48888802u,0x00000000u,0x00000000u,0x48887802u,0x00000000u,0x00000000u,
++};
++
++/* 5: zsa-combined-unused */
++static const uint32_t draw171_ring_05[16] = {
++    0x40886401u,0x00000000u,0x40888001u,0x00000000u,0x40811501u,0x00000000u,0x48887101u,0x0000003cu,
++    0x48811401u,0x00000000u,0x48888802u,0x00000000u,0x00000000u,0x48887802u,0x00000000u,0x00000000u,
++};
++
++/* 6: vertex-id-only-zero-decode */
++static const uint32_t draw171_ring_06[1] = {
++    0x48a09080u,
++};
++
++/* 7: sample-locations-disabled */
++static const uint32_t draw171_ring_07[6] = {
++    0x4880a401u,0x00000000u,0x40880401u,0x00000000u,0x48b30401u,0x00000000u,
++};
++
++/* 8: binning-preamble-registered */
++static const uint32_t draw171_ring_08[205] = {
++    0x408e0401u,0x04100000u,0x48ae0401u,0x00000008u,0x40ae0001u,0x00000000u,0x40ae0f01u,0x0000003fu,
++    0x40b60501u,0x00000044u,0x40b60001u,0x00108000u,0x48be0001u,0x00000080u,0x40be0101u,0x00000000u,
++    0x48960001u,0x00000000u,0x40860001u,0x00000880u,0x40be0401u,0x00080000u,0x40ae0301u,0x00000430u,
++    0x48ab2001u,0x00000000u,0x48b18201u,0x00000000u,0x48bb1101u,0x00000000u,0x400e1201u,0x00000001u,
++    0x480e1901u,0x00000004u,0x408e0101u,0x00000001u,0x40a9a801u,0x00000000u,0x40ab0001u,0x00000005u,
++    0x48a00901u,0x00000001u,0x48910701u,0x00000000u,0x48881101u,0x00000010u,0x48980401u,0x0000001fu,
++    0x40810101u,0x00000000u,0x48810901u,0x00000000u,0x40811001u,0x00000002u,0x48881801u,0x00000000u,
++    0x40881901u,0x00000000u,0x40881a01u,0x00000000u,0x48881b01u,0x00000000u,0x40881c01u,0x00000000u,
++    0x48881d01u,0x00000000u,0x48881e01u,0x00000000u,0x4888f001u,0x00000000u,0x40923601u,0x00000000u,
++    0x48930001u,0x00000000u,0x48930601u,0x00000001u,0x40998001u,0x00000000u,0x489b0701u,0x00000000u,
++    0x40b18301u,0x00000000u,0x40809901u,0x00000000u,0x48809b01u,0x00000000u,0x4080a001u,0x00000002u,
++    0x4080af01u,0x00000000u,0x48921001u,0x00000000u,0x40921101u,0x00000000u,0x40960201u,0x00000000u,
++    0x409e7201u,0x00000000u,0x40b30901u,0x000000a2u,0x48b98601u,0x0000fcfcu,0x40a00701u,0x00000000u,
++    0x40a00801u,0x00000000u,0x70438003u,0x00040000u,0x00000000u,0x00000000u,0x48930501u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x40887001u,0x00000000u,0x48809401u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x48a01201u,0x00000000u,0x40a01601u,0x00000000u,
++    0x40a01a01u,0x00000000u,0x48a01e01u,0x00000000u,0x48a02201u,0x00000000u,0x40a02601u,0x00000000u,
++    0x40a02a01u,0x00000000u,0x48a02e01u,0x00000000u,0x40a03201u,0x00000000u,0x48a03601u,0x00000000u,
++    0x48a03a01u,0x00000000u,0x40a03e01u,0x00000000u,0x48a04201u,0x00000000u,0x40a04601u,0x00000000u,
++    0x40a04a01u,0x00000000u,0x48a04e01u,0x00000000u,0x40a05201u,0x00000000u,0x48a05601u,0x00000000u,
++    0x48a05a01u,0x00000000u,0x40a05e01u,0x00000000u,0x40a06201u,0x00000000u,0x48a06601u,0x00000000u,
++    0x48a06a01u,0x00000000u,0x40a06e01u,0x00000000u,0x48a07201u,0x00000000u,0x40a07601u,0x00000000u,
++    0x40a07a01u,0x00000000u,0x48a07e01u,0x00000000u,0x48a08201u,0x00000000u,0x40a08601u,0x00000000u,
++    0x40a08a01u,0x00000000u,0x48a08e01u,0x00000000u,0x48b30202u,0xfc008000u,0x00000000u,0x40b18002u,
++    0xfc008000u,0x00000000u,0x70268000u,0x408e0701u,0x08000000u,0x40980501u,0x00000000u,0x40a0f801u,
++    0x00000000u,0x70c28003u,0x01000c38u,0xfc018ca0u,0x00000000u,
++};
++
++/* 9: restore */
++static const uint32_t draw171_ring_09[194] = {
++    0x408e0401u,0x04100000u,0x48ae0401u,0x00000008u,0x40ae0001u,0x00000000u,0x40ae0f01u,0x0000003fu,
++    0x40b60501u,0x00000044u,0x40b60001u,0x00108000u,0x48be0001u,0x00000080u,0x40be0101u,0x00000000u,
++    0x48960001u,0x00000000u,0x40860001u,0x00000880u,0x40be0401u,0x00080000u,0x40ae0301u,0x00000430u,
++    0x48ab2001u,0x00000000u,0x48b18201u,0x00000000u,0x48bb1101u,0x00000000u,0x400e1201u,0x00000001u,
++    0x480e1901u,0x00000004u,0x408e0101u,0x00000001u,0x40a9a801u,0x00000000u,0x40ab0001u,0x00000005u,
++    0x48a00901u,0x00000001u,0x48910701u,0x00000000u,0x48881101u,0x00000010u,0x48980401u,0x0000001fu,
++    0x40810101u,0x00000000u,0x48810901u,0x00000000u,0x40811001u,0x00000002u,0x48881801u,0x00000000u,
++    0x40881901u,0x00000000u,0x40881a01u,0x00000000u,0x48881b01u,0x00000000u,0x40881c01u,0x00000000u,
++    0x48881d01u,0x00000000u,0x48881e01u,0x00000000u,0x4888f001u,0x00000000u,0x40923601u,0x00000000u,
++    0x48930001u,0x00000000u,0x48930601u,0x00000001u,0x40998001u,0x00000000u,0x489b0701u,0x00000000u,
++    0x40b18301u,0x00000000u,0x40809901u,0x00000000u,0x48809b01u,0x00000000u,0x4080a001u,0x00000002u,
++    0x4080af01u,0x00000000u,0x48921001u,0x00000000u,0x40921101u,0x00000000u,0x40960201u,0x00000000u,
++    0x409e7201u,0x00000000u,0x40b30901u,0x000000a2u,0x48b98601u,0x0000fcfcu,0x40a00701u,0x00000000u,
++    0x40a00801u,0x00000000u,0x70438003u,0x00040000u,0x00000000u,0x00000000u,0x48930501u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x40887001u,0x00000000u,0x48809401u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x48a01201u,0x00000000u,0x40a01601u,0x00000000u,
++    0x40a01a01u,0x00000000u,0x48a01e01u,0x00000000u,0x48a02201u,0x00000000u,0x40a02601u,0x00000000u,
++    0x40a02a01u,0x00000000u,0x48a02e01u,0x00000000u,0x40a03201u,0x00000000u,0x48a03601u,0x00000000u,
++    0x48a03a01u,0x00000000u,0x40a03e01u,0x00000000u,0x48a04201u,0x00000000u,0x40a04601u,0x00000000u,
++    0x40a04a01u,0x00000000u,0x48a04e01u,0x00000000u,0x40a05201u,0x00000000u,0x48a05601u,0x00000000u,
++    0x48a05a01u,0x00000000u,0x40a05e01u,0x00000000u,0x40a06201u,0x00000000u,0x48a06601u,0x00000000u,
++    0x48a06a01u,0x00000000u,0x40a06e01u,0x00000000u,0x48a07201u,0x00000000u,0x40a07601u,0x00000000u,
++    0x40a07a01u,0x00000000u,0x48a07e01u,0x00000000u,0x48a08201u,0x00000000u,0x40a08601u,0x00000000u,
++    0x40a08a01u,0x00000000u,0x48a08e01u,0x00000000u,0x48b30202u,0xfc008000u,0x00000000u,0x40b18002u,
++    0xfc008000u,0x00000000u,
++};
++
++/* 10: program-binning-sysmem-excluded */
++static const uint32_t draw171_ring_10[92] = {
++    0x40a80001u,0x00100100u,0x40a82401u,0x00000001u,0x40a81b07u,0x00000000u,0xfc00f100u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48a82501u,0x00000000u,0x70328003u,0x00620000u,
++    0xfc00f100u,0x00000000u,0x70320007u,0x00604001u,0x00000000u,0x00000000u,0xbf800000u,0x40000000u,
++    0xd0d0d0d0u,0xd0d0d0d0u,0x489b0701u,0x00000000u,0x48a00001u,0x00000000u,0x40a00186u,0xfcfcfc00u,
++    0x0000fcfcu,0xfcfcfcfcu,0x000000fcu,0x0000fcfcu,0x00000000u,0x40921204u,0xffffffffu,0xffffffffu,
++    0xffffffffu,0xffffffffu,0x40a80301u,0x00000f02u,0x48a81301u,0x00000000u,0x40930101u,0x00ff0004u,
++    0x48910101u,0x00ffff00u,0x48931101u,0x00ffff00u,0x48800101u,0x00000000u,0x489b0101u,0x00000004u,
++    0x48a80201u,0x00000001u,0x48910401u,0x00ffffffu,0x48931401u,0x00ffffffu,0x48809b01u,0x00000000u,
++    0x40980601u,0x00000000u,0x40930401u,0xff00ff00u,0x40a99e01u,0x00000008u,0x40b98285u,0x00000007u,
++    0xfcfcfcfcu,0xfcfcfcfcu,0xfcfcfcfcu,0x0000fcfcu,0x48b98001u,0x00000000u,0x40800501u,0x00000000u,
++    0x48880902u,0x00000000u,0x00000000u,0x40881001u,0x00000000u,0x40810101u,0x00000000u,0x48810901u,
++    0x00000000u,0x40a98c01u,0xfcfcfc00u,0x48a98e80u,
++};
++
++/* 11: program-draw */
++static const uint32_t draw171_ring_11[111] = {
++    0x40a80001u,0x00100100u,0x40a82401u,0x00000001u,0x40a81b07u,0x00000000u,0xfc00f000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48a82501u,0x00000000u,0x70328003u,0x00620000u,
++    0xfc00f000u,0x00000000u,0x70320007u,0x00604001u,0x00000000u,0x00000000u,0xbf800000u,0x40000000u,
++    0xd0d0d0d0u,0xd0d0d0d0u,0x40a98001u,0x81100080u,0x40ab0501u,0x00000001u,0x48a98207u,0x00000000u,
++    0xfc00f200u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48a9a901u,0x00000000u,
++    0x70348003u,0x00720000u,0xfc00f200u,0x00000000u,0x489b0701u,0x00000000u,0x48a00001u,0x00000000u,
++    0x40a00186u,0xfcfcfc00u,0x0000fcfcu,0xfcfcfcfcu,0x000000fcu,0x0000fcfcu,0x00000000u,0x40921204u,
++    0xffffffffu,0xffffffffu,0xffffffffu,0xffffffffu,0x40a80301u,0x00000f02u,0x48a81301u,0x00000000u,
++    0x40930101u,0x00ff0004u,0x48910101u,0x00ffff00u,0x48931101u,0x00ffff00u,0x48800101u,0x00000000u,
++    0x489b0101u,0x00000004u,0x48a80201u,0x00000001u,0x48910401u,0x00ffffffu,0x48931401u,0x00ffffffu,
++    0x48809b01u,0x00000000u,0x40980601u,0x00000000u,0x40930401u,0xff00ff00u,0x40a99e01u,0x00000008u,
++    0x40b98285u,0x00000007u,0xfcfcfcfcu,0xfcfcfcfcu,0xfcfcfcfcu,0x0000fcfcu,0x48b98001u,0x00000001u,
++    0x40800501u,0x00000000u,0x48880902u,0x00000000u,0x00000000u,0x40881001u,0x00000000u,0x40810101u,
++    0x00000000u,0x48810901u,0x00000000u,0x40a98c01u,0xfcfcfc00u,0x48a98e01u,0x00000000u,
++};
++
++/* 12: program-config */
++static const uint32_t draw171_ring_12[24] = {
++    0x40bb0801u,0x000000ffu,0x48b80001u,0x00000101u,0x40b80101u,0x00000000u,0x40b80201u,0x00000000u,
++    0x48b80301u,0x00000000u,0x40bb1001u,0x00000100u,0x48a82301u,0x00000100u,0x48a83b01u,0x00000000u,
++    0x40a86301u,0x00000000u,0x48a89401u,0x00000000u,0x48ab0401u,0x00000100u,0x48ab2001u,0x00000000u,
++};
++
++/* 13: program-interpolation */
++static const uint32_t draw171_ring_13[18] = {
++    0x40920008u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x48920808u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,
++};
++
++/* 14: fragment-outputs */
++static const uint32_t draw171_ring_14[9] = {
++    0x40880b02u,0x00000000u,0x00000001u,0x48a98d01u,0x00000001u,0x48a98b01u,0x0000000fu,0x40880d01u,
++    0x0000000fu,
++};
++
++/* 15: lrz-disabled */
++static const uint32_t draw171_ring_15[8] = {
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x40887001u,0x00000001u,0x48809401u,0x00000001u,
++};
++
++/* 17: unused-UBO-slot-descriptors */
++static const uint32_t draw171_ring_17[12] = {
++    0x70328005u,0x00608000u,0x00000000u,0x00000000u,0xbad00000u,0x00000000u,0x70348005u,0x00708000u,
++    0x00000000u,0x00000000u,0xbad00000u,0x00000000u,
++};
++
++/* 18: rasterizer */
++static const uint32_t draw171_ring_18[17] = {
++    0x40800001u,0x00000080u,0x40809001u,0x00000010u,0x48809102u,0x00100010u,0x00000010u,0x40809583u,
++    0x00000000u,0x00000000u,0x00000000u,0x409b0001u,0x00000002u,0x48910801u,0x00000003u,0x48998101u,
++    0x00000003u,
++};
++
++/* 19: blend-disabled */
++static const uint32_t draw171_ring_19[10] = {
++    0x48882101u,0x00010001u,0x40882001u,0x000007e0u,0x40880e01u,0x00000000u,0x40a98901u,0x00000100u,
++    0x48886501u,0xffff0000u,
++};
++
++/* 20: scissor */
++static const uint32_t draw171_ring_20[3] = {
++    0x4880b002u,0x00000000u,0x000f000fu,
++};
++
++/* 21: blend-color */
++static const uint32_t draw171_ring_21[5] = {
++    0x48886004u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++/* 22: sysmem-primitive-mode */
++static const uint32_t draw171_ring_22[2] = {
++    0x4080a001u,0x00000002u,
++};
++
++/* 23: gmem-primitive-mode-excluded */
++static const uint32_t draw171_ring_23[2] = {
++    0x4080a001u,0x00000002u,
++};
++
++static const struct draw171_native_blob draw171_rings[24] = {
++    {0xfc00c000u,203u,896u,4096u,draw171_ring_00},
++    {0xfc00b800u,76u,384u,2048u,draw171_ring_01},
++    {0xfc009700u,16u,128u,64u,draw171_ring_02},
++    {0xfc009a80u,16u,128u,64u,draw171_ring_03},
++    {0xfc009b00u,16u,128u,64u,draw171_ring_04},
++    {0xfc009b80u,16u,128u,64u,draw171_ring_05},
++    {0xfc009580u,1u,128u,4u,draw171_ring_06},
++    {0xfc009900u,6u,128u,24u,draw171_ring_07},
++    {0xfc00e000u,205u,896u,4096u,draw171_ring_08},
++    {0xfc00d000u,194u,896u,4096u,draw171_ring_09},
++    {0xfc009280u,92u,384u,4096u,draw171_ring_10},
++    {0xfc009080u,111u,512u,4096u,draw171_ring_11},
++    {0xfc009000u,24u,128u,400u,draw171_ring_12},
++    {0xfc009400u,18u,128u,72u,draw171_ring_13},
++    {0xfc009480u,9u,128u,36u,draw171_ring_14},
++    {0xfc009500u,8u,128u,32u,draw171_ring_15},
++    {0x00000000u,0u,0u,0u,0},
++    {0xfc009600u,12u,128u,48u,draw171_ring_17},
++    {0xfc009680u,17u,128u,104u,draw171_ring_18},
++    {0xfc009780u,10u,128u,152u,draw171_ring_19},
++    {0xfc009800u,3u,128u,12u,draw171_ring_20},
++    {0xfc009880u,5u,128u,20u,draw171_ring_21},
++    {0xfc009980u,2u,128u,8u,draw171_ring_22},
++    {0xfc009a00u,2u,128u,8u,draw171_ring_23},
++};
++
++static const uint32_t draw171_vs[32] = {
++    0x20010000u,0x46d00001u,0x20020000u,0x43900000u,0x00000000u,0x204cc004u,0x3f800000u,0x204cc005u,
++    0x20020001u,0x43900001u,0x00000000u,0x200c4000u,0x00000000u,0x00000100u,0x00000001u,0x200c4001u,
++    0x10049005u,0x63800003u,0x10041005u,0x63808002u,0x00000000u,0x03000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t draw171_bs[32] = {
++    0x20010000u,0x46d00001u,0x20020000u,0x43900000u,0x00000000u,0x204cc004u,0x3f800000u,0x204cc005u,
++    0x20020001u,0x43900001u,0x00000000u,0x200c4000u,0x00000000u,0x00000100u,0x00000001u,0x200c4001u,
++    0x10049005u,0x63800003u,0x10041005u,0x63808002u,0x00000000u,0x03000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t draw171_fs[32] = {
++    0x00000000u,0x204cc000u,0x3f800000u,0x204cc001u,0x00000000u,0x204cc002u,0x3f800000u,0x204cc003u,
++    0x00000000u,0x03000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const struct draw171_native_blob draw171_programs[3] = {
++    {0xfc00f000u,32u,128u,128u,draw171_vs},
++    {0xfc00f100u,32u,128u,128u,draw171_bs},
++    {0xfc00f200u,32u,128u,128u,draw171_fs},
++};
++#endif

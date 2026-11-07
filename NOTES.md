@@ -76,7 +76,13 @@ gmu143-gauguin_gmu_board/run-f4fmjq42/compile.json; coordinator49184B SHA
 gmu143-gauguin_bcm_coordinator/run-cioi7fxh/compile.json, all under
 research/tmp/gauguin-nvt-p1. Uses CURRENT142NfYVjn full native recipe/source.
 
-NEXT: publish validated source, DSH full LOCAL build143 and all inherited
+Validated source published and ls-remote verified 801c2dddbd5e8d31186d6e86f406eb2eb3b4b97d, sole
+parentafb3a92abc30d5925e8a0206fbfd5fcd6e6c7ad5, same tree as private6d3929f8b078c3c968bebe111375f874f2073b5b.
+Exactly10 text paths; report research/tmp/dsh-0143/public-snapshot-0143.json.
+No private ancestry/raw/FDT/downloaded native sources/binaries/serials pushed;
+no CI run.
+
+NEXT: DSH full LOCAL build143 and all inherited
 qualifiers + native DCVS source/order/flags/symbol/record binding. Pack unique
 sweetgmudcvs1 trial, require post-TEST DCVS request/fresh ACK31/clear/return0,
 source-bound fixed253MHz/BW5 request and final guards. Bounds94..244 stores,

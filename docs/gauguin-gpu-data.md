@@ -45,13 +45,12 @@ single-run bring-up timings, not GPU throughput or UI benchmarks. Service and
 framebuffer logs provide no human observation of touch, smoothness or refresh
 rate during this unattended test.
 
-The next execution capability is native indirect command-buffer fetching,
-followed by shader/render work and the iOS acceleration interface. New work
-must retain this proven mode3 path and its raw evidence, preserve signed and
-unsecured prerequisites, and obtain separate physical evidence for each new
-capability.
+The166 diagnostic below adds native indirect command-buffer fetching.
+Further work needs GPU completion fences, shader/render execution and the
+iOS acceleration interface, each with separate physical evidence. The proven
+mode3 path and its signed/unsecured prerequisites remain preserved.
 
-## Fixed indirect-buffer diagnostic (166 source)
+## Fixed indirect-buffer execution (166 verified)
 
 Mode4 adds a separate continuation at native shadow20, replacing mode3's
 ordinary write stage for this trial. The exact mode is frozen when DATA19 is
@@ -74,6 +73,29 @@ kernel plus the exact normal-user three-statement IB builder block in a typed
 wrapper. This does not execute the entire KGSL user submission function. Five
 packet/fence/idle traces match the port exactly. The actual board fixture also
 runs signed/unsecured prerequisites while the secure CPU page is inaccessible.
-These checks and ARM64 object compilation are source/model evidence. A full
-qualified kernel and separate physical raw-log acceptance are still required
-before claiming device IB execution, shader rendering or iOS acceleration.
+These checks and ARM64 object compilation are source/model evidence.
+
+The166 local kernel`gauguin.MVqkS8` completed one temporary physical trial
+with token`gwrt-0166-a1`. The separate strict physical verifier returned0.
+Signed loading and native shadow20 preceded the IB stage. All eight indirect
+words and seven direct words matched; device shadow27 and idle status were
+observed. CPU reads before submission were zero, and after submission the
+actual first/last values were`0x47494231`/`0x47494232`. All1022 middle words
+remained zero. Decoded GPU faults and the final guard reason were zero.
+The full DATA19/171 ATOS, page-table and sole NC-alias checks remained active.
+
+The phone returned to TWRP automatically after131 seconds. Raw text matches
+the immutable binary decode with zero console framing recoveries. The full
+physical report is`research/tmp/dsh-0166/hardware-full-verification.json`,
+SHA256`13b8a9c50e350ad0e0c2e883645cc163784d331d61c8191826e677db1553d55c`.
+An independent review rehashed all19 complete report inputs and15 wrapper
+inputs, checked the actual values and independently decoded the binary log.
+The source-only kernel qualification retains its hardware flags as false;
+the physical execution evidence is a separate immutable report.
+
+The guarded IB stage took3.3753 seconds, including full CPU guards and page
+comparisons. It is not a throughput or UI benchmark. Service logs and five
+framebuffer swaps provide no human observation of touch, smoothness or refresh
+rate. This result establishes fixed reduced-privilege IB command fetching and
+indirect ordinary memory writes. Shader execution, EOP completion fences,
+rendering, general scheduling, Metal and iOS acceleration remain unqualified.

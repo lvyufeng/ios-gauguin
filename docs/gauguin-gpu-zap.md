@@ -5,6 +5,22 @@ the first native ME_INIT/WHERE_AM_I completion. Historical trial117 separately
 proved PAS13 INIT_IMAGE and MEM_SETUP4096 acceptance. Those are different boots;
 neither run authenticated or loaded the ZAP code segment.
 
+Patch0155 now implements the optional immutable b02 source asset. The packer
+adds `--zap-code` and an `A615ZapCode` raw1984-byte descriptor with16KiB reserved
+extent and14400 zero padding bytes. It appends after the four old assets and
+updates final top/PAS accounting. The kernel's `sweet_gpu_zap_asset_view` checks
+the fixed pin, padding, direct-map endpoints, coherent five-descriptor layout
+and all pairwise overlaps. It requires the high DRAM bank, disjoint from any
+permitted below-4GiB PAS allocation; it does not validate a current low owner.
+It returns only an immutable source view and performs no firmware loading.
+
+Validation passed the actual ARM64 asset translation unit,84 real-SHA256
+ASan/UBSan consumer cases with captured b02,64 synthetic layout combinations,
+128 exact byte/info comparisons with the actual frozen pre155 packer, the
+actual shim loader's five-asset copy/zero/ADT/bootargs path and88 PAS metadata
+cases. All73 host test files pass. The offline five-asset pack used the old154
+kernel to verify packaging only; no155 full kernel or device trial was made.
+
 The primary reference remains LineageOS/android_kernel_xiaomi_gauguin commit
 `19b63c8192b1c9b7c4d931d7d3be92024bc2d778`. The read-only155 source audit
 rehashes12 pinned native files, all seven captured firmware files and original
@@ -46,11 +62,12 @@ later loading phases. Their existing semantics must remain intact.
 
 The implementation proceeds in these bounded stages:
 
-1. Add a fifth optional, pinned b02 asset through payload packing, shim layout,
+1. Implemented in155: a fifth optional, pinned b02 asset through payload packing, shim layout,
    ADT descriptor and a kernel read-only view. Validate its exact1984-byte hash,
    raw/padded size, direct-map endpoints, DRAM/top bounds and separation from
    all existing assets and the low reservation. With the asset absent, retain
-   existing payload bytes and options. Keep binaries outside Git.
+   existing payload bytes and options. Keep binaries outside Git. The remaining
+   steps below are unfinished and start with integrated loader156.
 2. Add a distinct default-off ZAP entry after successful live CP completion.
    Seal the actual same-boot CP/firmware/core/owner state before INIT. Retain
    original MDT checks before the transfer; use separate phase-aware geometry,

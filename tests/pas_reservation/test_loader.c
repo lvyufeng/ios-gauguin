@@ -102,5 +102,5 @@ int main(int argc,char **argv) {
         for(size_t i=0;i<span;i++)assert(managed[i]==0xa5);
     }
     free(original);free(p);free(dt);assert(!munmap(map,2*span));
-    puts("actual loader: valid default segments/zero fill/ADT/boot_args verified; 10 malformed/non-XNU/non-RAM cases stop before reads/copies/fallback; announce preserves invalid input");return 0;
+    puts("actual loader: valid payload segments/zero fill/ADT/boot_args verified; 10 malformed/non-XNU/non-RAM cases stop before reads/copies/fallback; announce preserves invalid input");return 0;
 }

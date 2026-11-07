@@ -49,8 +49,9 @@ def main():
         subprocess.run(flags + [str(FIXTURES / 'test_loader.c'), str(host),
                                str(ROOT / 'shim/pas_reservation.c'), '-o', str(loader)],
                        check=True, timeout=60)
-        default = next(c['path'] for c in cases if c['name'] == 'default')
-        subprocess.run([str(loader), default], check=True, timeout=30)
+        for name in ('default', 'five-assets'):
+            payload = next(c['path'] for c in cases if c['name'] == name)
+            subprocess.run([str(loader), payload], check=True, timeout=30)
         print(f'{len(cases)} PAS metadata cases and actual loader passed ASan/UBSan')
 
 

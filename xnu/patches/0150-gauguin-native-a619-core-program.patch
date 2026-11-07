@@ -1,0 +1,447 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -128,6 +128,7 @@
+ bsd/dev/gauguin_gpu_smmu.c		standard
+ bsd/dev/gauguin_gpu_aperture.c		standard
+ bsd/dev/gauguin_gpu_start.c		standard
++bsd/dev/gauguin_gpu_core.c		standard
+ bsd/dev/gauguin_gmu_hfi.c			standard
+ bsd/dev/gauguin_gmu_smmu.c		standard
+ bsd/dev/gauguin_gmu_board.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_core.c
+@@ -0,0 +1,378 @@
++/* A619 core policy from native19b63c8192b1c9b7c4d931d7d3be92024bc2d778.
++ * Retained FDT highest-bank14/min-access32/UBWC2; native runtime-preemption-off
++ * startup with GMU enabled and no APRIV/LM feature. No GPU commands yet. */
++#include <string.h>
++#include "gauguin_gpu_core.h"
++struct ggc_reg {uint32_t reg,mask,value;};
++static const struct ggc_reg addresses[]={
++    {0x00842u,0x00000000u,0x00000001u},
++    {0x00c01u,0x00000000u,0x00000001u},
++    {0x08601u,0x00000000u,0x00000001u},
++    {0x08e05u,0x00000000u,0x00000001u},
++    {0x09e01u,0x00000000u,0x00000001u},
++    {0x0be05u,0x00000000u,0x00000001u},
++    {0x0a601u,0x00000000u,0x00000001u},
++    {0x09601u,0x00000000u,0x00000001u},
++    {0x00e00u,0x00000000u,0x00000001u},
++    {0x0ae01u,0x00000000u,0x00000001u},
++    {0x0b601u,0x00000000u,0x00000001u},
++    {0x0f810u,0x00000000u,0x00000001u},
++};
++static const struct ggc_reg gmu_hwcg[]={
++    {0x23b09u,0x00000000u,0x00000222u},
++    {0x23b0au,0x00000000u,0x00000111u},
++    {0x23b0bu,0x00000000u,0x00000555u},
++    {0x1f802u,0x00000000u,0x00000000u},
++};
++static const struct ggc_reg hwcg[]={
++    {0x000b0u,0x00000000u,0x02222222u},
++    {0x000b4u,0x00000000u,0x02222220u},
++    {0x000b8u,0x00000000u,0x00000080u},
++    {0x000bcu,0x00000000u,0x0000f3cfu},
++    {0x000c0u,0x00000000u,0x02222222u},
++    {0x000c1u,0x00000000u,0x02222222u},
++    {0x000c4u,0x00000000u,0x22222222u},
++    {0x000c5u,0x00000000u,0x22222222u},
++    {0x000c8u,0x00000000u,0x22222222u},
++    {0x000c9u,0x00000000u,0x22222222u},
++    {0x000ccu,0x00000000u,0x00022222u},
++    {0x000cdu,0x00000000u,0x00022222u},
++    {0x000e0u,0x00000000u,0x77777777u},
++    {0x000e1u,0x00000000u,0x77777777u},
++    {0x000e4u,0x00000000u,0x77777777u},
++    {0x000e5u,0x00000000u,0x77777777u},
++    {0x000e8u,0x00000000u,0x77777777u},
++    {0x000e9u,0x00000000u,0x77777777u},
++    {0x000ecu,0x00000000u,0x00077777u},
++    {0x000edu,0x00000000u,0x00077777u},
++    {0x000d0u,0x00000000u,0x11111111u},
++    {0x000d1u,0x00000000u,0x11111111u},
++    {0x000d4u,0x00000000u,0x11111111u},
++    {0x000d5u,0x00000000u,0x11111111u},
++    {0x000d8u,0x00000000u,0x11111111u},
++    {0x000d9u,0x00000000u,0x11111111u},
++    {0x000dcu,0x00000000u,0x00011111u},
++    {0x000ddu,0x00000000u,0x00011111u},
++    {0x0010bu,0x00000000u,0x22222222u},
++    {0x0010cu,0x00000000u,0x22222222u},
++    {0x0010du,0x00000000u,0x22222222u},
++    {0x0010eu,0x00000000u,0x00222222u},
++    {0x00110u,0x00000000u,0x00000004u},
++    {0x0010fu,0x00000000u,0x00000002u},
++    {0x000f0u,0x00000000u,0x22222222u},
++    {0x000f4u,0x00000000u,0x00002222u},
++    {0x000f8u,0x00000000u,0x00002020u},
++    {0x000f9u,0x00000000u,0x00002220u},
++    {0x000fau,0x00000000u,0x00002220u},
++    {0x000fbu,0x00000000u,0x00002220u},
++    {0x00100u,0x00000000u,0x00040f00u},
++    {0x00101u,0x00000000u,0x00040f00u},
++    {0x00102u,0x00000000u,0x00040f00u},
++    {0x00103u,0x00000000u,0x00040f00u},
++    {0x00104u,0x00000000u,0x05022022u},
++    {0x00105u,0x00000000u,0x00005555u},
++    {0x00106u,0x00000000u,0x00000011u},
++    {0x00107u,0x00000000u,0x00445044u},
++    {0x00108u,0x00000000u,0x04222222u},
++    {0x00114u,0x00000000u,0x00222222u},
++    {0x00111u,0x00000000u,0x00002222u},
++    {0x0010au,0x00000000u,0x00000000u},
++    {0x00116u,0x00000000u,0x04104004u},
++    {0x00113u,0x00000000u,0x00000000u},
++    {0x0011cu,0x00000000u,0x00000000u},
++    {0x00109u,0x00000000u,0x00004000u},
++    {0x00115u,0x00000000u,0x00000200u},
++    {0x00112u,0x00000000u,0x00002222u},
++    {0x00117u,0x00000000u,0x00000002u},
++    {0x0011bu,0x00000000u,0x00002222u},
++    {0x00118u,0x00000000u,0x00000222u},
++    {0x00119u,0x00000000u,0x00000111u},
++    {0x0011au,0x00000000u,0x00000555u},
++};
++static const struct ggc_reg config[]={
++    {0x00010u,0x00000000u,0x00000003u},
++    {0x0050bu,0x00000000u,0xffffffffu},
++    {0x00e05u,0x00000000u,0xffffffc0u},
++    {0x00e06u,0x00000000u,0x0001ffffu},
++    {0x00e09u,0x00000000u,0xfffff000u},
++    {0x00e0au,0x00000000u,0x0001ffffu},
++    {0x00e07u,0x00000000u,0xfffff000u},
++    {0x00e08u,0x00000000u,0x0001ffffu},
++    {0x00e0bu,0x00000000u,0x00100000u},
++    {0x00e0cu,0x00000000u,0x00000000u},
++    {0x00e0du,0x00000000u,0x0017ffffu},
++    {0x00e0eu,0x00000000u,0x00000000u},
++    {0x00e18u,0x00000000u,0x00000804u},
++    {0x00e17u,0x00000000u,0x00000004u},
++    {0x008c2u,0x00000000u,0x010000c0u},
++    {0x008c1u,0x00000000u,0x8040362cu},
++    {0x008c3u,0x00000000u,0x00000080u},
++    {0x09e00u,0x00000000u,0x00018000u},
++    {0x0098du,0x00000000u,0x00000001u},
++    {0x00500u,0x00000000u,0x00000001u},
++    {0x1f842u,0x000000ffu,0x00000004u},
++    {0x08e08u,0x00000000u,0x00000002u},
++    {0x0b604u,0x00000000u,0x00000002u},
++    {0x0ae02u,0x00000000u,0x00000002u},
++    {0x00e01u,0x00000000u,0x00200000u},
++    {0x0001fu,0x00000000u,0x403fffffu},
++    {0x00e19u,0x00000000u,0x00000001u},
++    {0x23b0eu,0x00000000u,0xff000000u},
++    {0x1f841u,0x000000ffu,0x00000020u},
++    {0x1f840u,0x00000000u,0x00000001u},
++};
++static const struct ggc_reg protect[]={
++    {0x0084fu,0x00000000u,0x0000000bu},
++    {0x00850u,0x00000000u,0x13fc0000u},
++    {0x00851u,0x00000000u,0x00140501u},
++    {0x00852u,0x00000000u,0x0bd0050bu},
++    {0x00853u,0x00000000u,0x8000050eu},
++    {0x00854u,0x00000000u,0x80000510u},
++    {0x00855u,0x00000000u,0x80000534u},
++    {0x00856u,0x00000000u,0x82080800u},
++    {0x00857u,0x00000000u,0x802008a0u},
++    {0x00858u,0x00000000u,0x809008abu},
++    {0x00859u,0x00000000u,0x02f008d0u},
++    {0x0085au,0x00000000u,0x81340900u},
++    {0x0085bu,0x00000000u,0x89c8098du},
++    {0x0085cu,0x00000000u,0x80040e00u},
++    {0x0085du,0x00000000u,0x80300e03u},
++    {0x0085eu,0x00000000u,0x830c3c00u},
++    {0x0085fu,0x00000000u,0x7ffc3cc4u},
++    {0x00860u,0x00000000u,0x873c8630u},
++    {0x00861u,0x00000000u,0x80008e00u},
++    {0x00862u,0x00000000u,0x80008e08u},
++    {0x00863u,0x00000000u,0x807c8e50u},
++    {0x00864u,0x00000000u,0x876c9624u},
++    {0x00865u,0x00000000u,0x80049e70u},
++    {0x00866u,0x00000000u,0x861c9e78u},
++    {0x00867u,0x00000000u,0x873ca630u},
++    {0x00868u,0x00000000u,0x8000ae02u},
++    {0x00869u,0x00000000u,0x8cbcae50u},
++    {0x0086au,0x00000000u,0x8000b604u},
++    {0x0086bu,0x00000000u,0x8004be02u},
++    {0x0086cu,0x00000000u,0xdf7cbe20u},
++    {0x0086du,0x00000000u,0xaffcf000u},
++    {0x0086eu,0x00000000u,0x7ffcfc00u},
++    {0x0086fu,0x00000000u,0x80011c00u},
++};
++static const uint32_t restore[]={
++    0x00841u,
++    0x00843u,
++    0x0084fu,
++    0x00850u,
++    0x00851u,
++    0x00852u,
++    0x00853u,
++    0x00854u,
++    0x00855u,
++    0x00856u,
++    0x00857u,
++    0x00858u,
++    0x00859u,
++    0x0085au,
++    0x0085bu,
++    0x0085cu,
++    0x0085du,
++    0x0085eu,
++    0x0085fu,
++    0x00860u,
++    0x00861u,
++    0x00862u,
++    0x00863u,
++    0x00864u,
++    0x00865u,
++    0x00866u,
++    0x00867u,
++    0x00868u,
++    0x00869u,
++    0x0086au,
++    0x0086bu,
++    0x0086cu,
++    0x0086du,
++    0x0086eu,
++    0x0086fu,
++    0x0098du,
++    0x00c01u,
++    0x08601u,
++    0x08e05u,
++    0x09e01u,
++    0x0be05u,
++    0x0a601u,
++    0x09601u,
++    0x00e00u,
++    0x0ae01u,
++    0x0b601u,
++    0x00e05u,
++    0x00e06u,
++    0x00e09u,
++    0x00e0au,
++    0x00e07u,
++    0x00e08u,
++    0x00e0bu,
++    0x00e0cu,
++    0x00e0du,
++    0x00e0eu,
++    0x00e18u,
++    0x00e17u,
++    0x00e01u,
++    0x08e08u,
++    0x0b604u,
++    0x0ae02u,
++    0x09e00u,
++    0x08e50u,
++    0x00010u,
++    0x00e3au,
++};
++static const uint32_t pages[]={0x0u,0xc000u,0x20000u,0x24000u,0x28000u,0x2c000u,0x3c000u,0x68000u,0x7c000u,0x8c000u};
++
++#define COUNT(a) (sizeof(a)/sizeof((a)[0]))
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++static bool guard(struct ggc_context *c)
++{return c->ops.guard(c->ops.cookie,(enum ggc_phase)c->phase);}
++static enum ggc_result read32(struct ggc_context *c,uint32_t reg,uint32_t *v)
++{
++    if(!guard(c))return GGC_GUARD;
++    ++c->work.reads;
++    if(!c->ops.read32(c->ops.cookie,reg,v))return GGC_IO;
++    c->diagnostic=(struct ggc_diagnostic){1,reg,*v};
++    return guard(c)?GGC_OK:GGC_GUARD;
++}
++static enum ggc_result write32(struct ggc_context *c,uint32_t reg,uint32_t v)
++{
++    if(!guard(c))return GGC_GUARD;
++    ++c->work.writes;
++    if(!c->ops.write32(c->ops.cookie,reg,v))return GGC_IO;
++    return guard(c)?GGC_OK:GGC_GUARD;
++}
++static enum ggc_result barrier(struct ggc_context *c)
++{
++    if(!guard(c))return GGC_GUARD;
++    if(!c->ops.barrier(c->ops.cookie))return GGC_IO;
++    return guard(c)?GGC_OK:GGC_GUARD;
++}
++static enum ggc_result program(struct ggc_context *c,const struct ggc_reg *a,size_t n)
++{
++    for(size_t i=0;i<n;i++){
++        uint32_t v=a[i].value;enum ggc_result rc;
++        if(a[i].mask){uint32_t old;rc=read32(c,a[i].reg,&old);if(rc)return rc;v=(old&~a[i].mask)|v;}
++        rc=write32(c,a[i].reg,v);if(rc)return rc;
++    }
++    return GGC_OK;
++}
++static enum ggc_result reglist(struct ggc_context *c)
++{
++    for(unsigned i=0;i<GGC_REGLIST_VALUES;i++){
++        c->reglist[4+2*i]=restore[i];
++        enum ggc_result rc=read32(c,restore[i],&c->reglist[5+2*i]);if(rc)return rc;
++    }
++    c->reglist[3]=(GGC_REGLIST_OFFSET<<16)|(2u*GGC_REGLIST_VALUES);
++    /* A private zeroed NC region is required; no executing CP can own it.
++     * Capture live values before publishing the list. Header length is last. */
++    for(unsigned i=0;i<1024;i++){
++        uint32_t v;
++        if(!guard(c))return GGC_GUARD;
++        if(!c->ops.read_reglist(c->ops.cookie,4*i,&v))return GGC_IO;
++        if(!guard(c))return GGC_GUARD;
++        if(v)return GGC_MEMORY;
++    }
++    for(unsigned i=4;i<GGC_REGLIST_WORDS;i++){
++        if(!guard(c))return GGC_GUARD;
++        ++c->work.mem_written;
++        if(!c->ops.write_reglist(c->ops.cookie,4*i,c->reglist[i]))return GGC_IO;
++        if(!guard(c))return GGC_GUARD;
++    }
++    enum ggc_result rc=barrier(c);if(rc)return rc;
++    if(!guard(c))return GGC_GUARD;
++    ++c->work.mem_written;
++    if(!c->ops.write_reglist(c->ops.cookie,12,c->reglist[3]))return GGC_IO;
++    if(!guard(c))return GGC_GUARD;
++    rc=barrier(c);if(rc)return rc;
++    for(unsigned i=0;i<1024;i++){
++        uint32_t v,expected=i<GGC_REGLIST_WORDS?c->reglist[i]:0;
++        if(!guard(c))return GGC_GUARD;
++        if(!c->ops.read_reglist(c->ops.cookie,4*i,&v))return GGC_IO;
++        if(!guard(c))return GGC_GUARD;
++        if(v!=expected)return GGC_MEMORY;
++        ++c->work.mem_compared;
++    }
++    c->work.list_length=2u*GGC_REGLIST_VALUES;c->work.list_offset=GGC_REGLIST_OFFSET;
++    return GGC_OK;
++}
++static bool table_has(const struct ggc_reg *a,size_t n,uint32_t reg,bool write)
++{for(size_t i=0;i<n;i++)if(a[i].reg==reg&&(write||a[i].mask))return true;return false;}
++bool ggc_register_allowed(uint32_t reg,bool write)
++{
++    if(table_has(addresses,COUNT(addresses),reg,write)||table_has(gmu_hwcg,COUNT(gmu_hwcg),reg,write)||
++       table_has(hwcg,COUNT(hwcg),reg,write)||table_has(config,COUNT(config),reg,write)||
++       table_has(protect,COUNT(protect),reg,write))return true;
++    if(write)return reg==0x3c45u||reg==0xaeu||reg==0x1a880u;
++    if(reg==0xaeu||reg==0x1a880u)return true;
++    for(size_t i=0;i<COUNT(restore);i++)if(restore[i]==reg)return true;
++    return false;
++}
++size_t ggc_register_page_count(void){return COUNT(pages);}
++bool ggc_register_page(size_t n,uint32_t *out)
++{if(n>=COUNT(pages)||!out)return false;*out=pages[n];return true;}
++#define TRY(x) do{rc=(x);if(rc)goto done;}while(0)
++enum ggc_result ggc_core_once(struct ggc_context *c,const struct ggc_ops *ops,
++    const struct ggp_plan *plan,const struct ggs_receipt *gpu,struct ggc_receipt *out)
++{
++    const void *ptr[]={c,ops,plan,gpu,out};size_t len[]={sizeof(*c),sizeof(*ops),sizeof(*plan),sizeof(*gpu),sizeof(*out)};
++    for(unsigned i=0;i<5;i++){
++        if(!span(ptr[i],len[i]))return GGC_ARGUMENT;
++        for(unsigned j=0;j<i;j++)if(overlap(ptr[i],len[i],ptr[j],len[j]))return GGC_ARGUMENT;
++    }
++    if(!ggp_plan_valid(plan)||gpu->bank>=gpu->banks||gpu->banks>GSM_BANKS||gpu->banks<3||
++       gpu->bank<gpu->s2banks||!gpu->groups||gpu->groups>GSM_STREAMS||gpu->slot>=gpu->groups||
++       !gpu->asid||gpu->asid>255||gpu->stream_match>1||gpu->s2cr!=gpu->bank||
++       (!gpu->stream_match&&gpu->slot!=0)||gpu->smr!=(gpu->stream_match?0x80000000u:0u)||gpu->sctlr!=0xc01167||
++       gpu->gpu_pages!=18||gpu->gmu_pages!=131||gpu->translations!=168||
++       gpu->ttbr0!=((plan->owner_pa+GGP_TABLE_OFFSET)|((uint64_t)gpu->asid<<48))||
++       gpu->ttbr1!=((plan->owner_pa+GGP_TABLE_OFFSET+0x3000)|((uint64_t)gpu->asid<<48))||
++       !ops->guard||!ops->read32||!ops->write32||!ops->barrier||!ops->start_gpu||
++       !ops->open_registers||!ops->read_reglist||!ops->write_reglist)return GGC_ARGUMENT;
++    struct ggc_ops saved=*ops;struct ggs_receipt parent=*gpu;uint32_t expected=0;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GGC_ALREADY;
++    c->ops=saved;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));memset(c->reglist,0,sizeof(c->reglist));
++    enum ggc_result rc=GGC_OK;c->phase=GGC_BUS;
++    TRY(write32(c,0x3c45u,0));TRY(barrier(c));
++    c->phase=GGC_MMU_OOB;
++    if(!guard(c)){rc=GGC_GUARD;goto done;}
++    if(!c->ops.start_gpu(c->ops.cookie,&c->work.start)){rc=GGC_PARENT;goto done;}
++    if(!guard(c)){rc=GGC_GUARD;goto done;}
++    const struct ggx_receipt *s=&c->work.start;
++    if(s->bank!=parent.bank||s->asid!=parent.asid||s->ttbr0!=parent.ttbr0||s->contextidr||(s->tlb_status&1u)||
++       s->writes32!=7||s->writes64!=1||!s->tlb_polls||s->tlb_polls>20000||!s->oob_polls||s->oob_polls>1000||
++       s->request_attempted!=1||s->ack_valid!=1||s->ack_clear_attempted!=1||s->core_opened!=1||s->request_retained!=1||
++       (s->oob_before&(0x8000u|(1u<<24)))||(s->oob_ack&(0x8000u|(1u<<24)))!=(1u<<24)||
++       (s->oob_cleared&(0x8000u|(1u<<24)))){rc=GGC_PARENT;goto done;}
++    c->phase=GGC_MAP;
++    if(!guard(c)){rc=GGC_GUARD;goto done;}
++    if(!c->ops.open_registers(c->ops.cookie)){rc=GGC_IO;goto done;}
++    if(!guard(c)){rc=GGC_GUARD;goto done;}
++    c->phase=GGC_ADDRESS;TRY(program(c,addresses,COUNT(addresses)));
++    c->phase=GGC_HWCG;TRY(program(c,gmu_hwcg,COUNT(gmu_hwcg)));
++    uint32_t clock;TRY(read32(c,0xaeu,&clock));
++    if(clock==0x8aa8aa82u)c->work.hwcg_skipped=1;
++    else{
++        const struct ggc_reg sp_off={0x1a880u,1,0},sp_on={0x1a880u,0,1};
++        TRY(program(c,&sp_off,1));TRY(program(c,hwcg,COUNT(hwcg)));
++        /* Native mask0/value1 is still a RMW: preserve all existing bits. */
++        uint32_t sp;TRY(read32(c,sp_on.reg,&sp));TRY(write32(c,sp_on.reg,sp|sp_on.value));
++        TRY(write32(c,0xaeu,0x8aa8aa82u));
++    }
++    c->phase=GGC_CONFIG;TRY(program(c,config,COUNT(config)));
++    c->phase=GGC_PROTECT;TRY(program(c,protect,COUNT(protect)));
++    c->phase=GGC_REGLIST;TRY(reglist(c));
++    c->phase=GGC_FINAL;TRY(barrier(c));
++    if(!guard(c)){rc=GGC_GUARD;goto done;}
++    c->work.configured=1;c->work.requests_retained=1;*out=c->work;c->phase=GGC_DONE;
++done:
++    __atomic_store_n(&c->state,rc==GGC_OK?2:3,__ATOMIC_RELEASE);return rc;
++}
++#undef TRY
++#undef COUNT
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_core.h
+@@ -0,0 +1,53 @@
++#ifndef GAUGUIN_GPU_CORE_H
++#define GAUGUIN_GPU_CORE_H
++#include "gauguin_gpu_start.h"
++enum ggc_phase {GGC_IDLE,GGC_BUS,GGC_MMU_OOB,GGC_MAP,GGC_ADDRESS,
++    GGC_HWCG,GGC_CONFIG,GGC_PROTECT,GGC_REGLIST,GGC_FINAL,GGC_DONE};
++enum ggc_result {GGC_OK,GGC_ARGUMENT,GGC_ALREADY,GGC_GUARD,GGC_IO,
++    GGC_PARENT,GGC_MEMORY};
++struct ggc_ops {
++    void *cookie;
++    bool (*guard)(void *,enum ggc_phase);
++    bool (*read32)(void *,uint32_t,uint32_t *);
++    bool (*write32)(void *,uint32_t,uint32_t);
++    bool (*barrier)(void *);
++    bool (*start_gpu)(void *,struct ggx_receipt *);
++    bool (*open_registers)(void *);
++    bool (*read_reglist)(void *,uint32_t,uint32_t *);
++    bool (*write_reglist)(void *,uint32_t,uint32_t);
++};
++#define GGC_REGLIST_VALUES 66u
++#define GGC_REGLIST_WORDS (4u+2u*GGC_REGLIST_VALUES)
++#define GGC_REGLIST_OFFSET 72u
++struct ggc_receipt {
++    struct ggx_receipt start;
++    uint32_t reads,writes,mem_written,mem_compared,hwcg_skipped;
++    uint32_t list_length,list_offset,configured,requests_retained;
++};
++struct ggc_diagnostic {uint32_t valid,reg,value;};
++struct ggc_context {
++    uint32_t state,phase;
++    struct ggc_ops ops;
++    struct ggc_receipt work;
++    struct ggc_diagnostic diagnostic;
++    uint32_t reglist[GGC_REGLIST_WORDS];
++};
++/* Register arguments are native DWORD offsets, never byte offsets. Board
++ * callbacks retain private aliases, require authenticated cold SQE staging,
++ * validate live clocks/routes/faults/IRQ/WDT/ownership and enforce deadlines.
++ * BUS must reject stale GPU ACK before its only GBIF store. start_gpu runs
++ * the existing native MMU/OOB engine once; open_registers occurs AFTER OOB.
++ * Runtime preemption is explicitly not enabled; target capability unchanged.
++ * Native fixed core writes have no invented readback-equality requirements.
++ * RMW/register-list reads retain raw values, including legitimate all-ones.
++ * No SQE halt release, RB/CP command, ZAP, unsecured-mode or Metal operation.
++ * A started failure is permanent: board quarantines shared owners before
++ * logging cached diagnostics, with no retry, HOST release or rollback.
++ * Outputs change only after complete success; callbacks may have side effects.
++ */
++enum ggc_result ggc_core_once(struct ggc_context *,const struct ggc_ops *,
++    const struct ggp_plan *,const struct ggs_receipt *,struct ggc_receipt *);
++bool ggc_register_allowed(uint32_t,bool);
++size_t ggc_register_page_count(void);
++bool ggc_register_page(size_t,uint32_t *);
++#endif

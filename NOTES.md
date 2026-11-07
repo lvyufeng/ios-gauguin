@@ -2,6 +2,114 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —150 pure native A619 core engine qualified; board activation is NEXT
+
+149 completed code privatec25e5bb34d1e1b2c8216b5ba0845e971d5ec2486, published
+6fa5d5fcf4c7e1a57275bd813959cc02803b93e8, soleparent07a75959...337ff0,
+same tree/exact12 reviewed UTF8 text paths. Report research/tmp/dsh-0149/public-source-snapshot.json.
+No raw dumps/native downloads/firmware/binaries/private ancestry published.
+
+150 adds ONLY new pure ggc module/header plus bsd/conf/files linkage (144th
+patch), docs and one new test/fixture. No board/coordinator caller yet, so no
+new hardware operation is activated. Exact staged source is NOW
+.deps-cache/p0-20261105/source150-v2-codex,5294files SHA
+9ff17ed2ffd7c4a668c55f56b64a08eb43e52de9800c5930cba7d5f3ae1da820.
+Original source150-codex is immutable historical v1; do not use it for next work.
+All pre-existing149 XNU files remain identical except bsd/conf/files adds module.
+
+Native contract uses EXACT fixed19b63c8 function bodies for GBIF release,
+64-bit setup, HWCG/protect/a6xx_start/live powerup list and actual LM helper.
+All target arrays/descriptor are exact native; FDT reparsed for actual named
+quirks (not generic qcom,gpu-quirks): HFI_USE_REG +SECVID_SET_ONCE only; no SOC
+HW revision child. Feature APRIV/LM absent; runtime preemption0 explicitly
+supported native mode (typed preemption callback asserts disabled). Four real
+compiled native scenarios:0clockoff,1already-on,2otherpattern,3opaqueallones.
+Native reads71/writes146, except already-on69/80; HWCG63 table entries. Live
+restore66values ->132DWORDs, offset72, lock16bytes/total544bytes, not guessed.
+Exact primary KBUILD base flags are Wall/Wundef/Wstrict-prototypes; new candidate
+remains Wall/Wextra/Werror. Native reference adds Werror to its actual base.
+
+Native scaffold failures preserved, no production/hardware changes: v1 regex
+excluded digit-bearing quirk identifiers; v2 Wextra exposed native int/u32 loop
+comparisons; v3 checked a hypothesized Wno-sign-compare flag, found absent and
+stopped; v4 actual KBUILD base found two unused scaffold target selectors; v5
+asserts their real A619/A618 outcomes. DSH11565/1402/92396/70498 all CLOSED0
+wrappers with actual inner1 as recorded, no retries/overwrites. DSH41046 CLOSED0,
+native_core_contract150_v5.py actual0/compile0/all4scenarios0. Native report
+14270B research/tmp/dsh-0150/native-core-v5/result.json SHA
+ebb6f52289704a6af1656a1b69ca1329f72c8b819f341c1a05592a78b3d9e950,
+24 input pins independently rehashed. Fixed primary Makefile retained under
+native-core-v3; do not invent a native Wno-sign-compare requirement.
+
+GGC order: GBIF DWORD3c45=0 -> existing GGX MMU/OOB callback once -> extra-page
+open AFTER OOB ->12 native64bit writes ->4GMU HWCG controls ->read clock/optional
+63HWCG table with SP RMW ->30target configuration steps (including2counterRMW)
+->protectCNTL+32spans ->66 actual live restore reads. Zero4KiB NC RGL required;
+publish132captured words, DSB, header length/offset LAST, DSB, compareall1024words.
+One-shot, output unchanged failure, cacheddiagnostic/partialcounts; no rollback,
+HOST release, IRQ, CP/SQE start or secure bypass. New typed register/page
+whitelist, no CPdoorbell807/SQE_CNTL808/unowned HOST controls/arbitrary address.
+See docs/gauguin-gpu-core.md. Board must impose real deadlines/ownership checks.
+
+DSH49119 CLOSED0/focus150.py0: pristine144patch replay, actual engine model,
+4 exact native ordered R/W + fullRGL/header comparisons, actual ARM64 TU and
+all69 host files passed. Review then found parent TLBSTATUS must test only
+native SACTIVE bit0, not require all raw bits zero. Source/model corrected;
+v1 report/source/log remain preserved. DSH16999 CLOSED0/focus150_v2.py0:
+fresh144patch replay ->new source150-v2, only4 reviewed pinned inputs differ,
+changed model now uses rawTLB2 positive on all paths/busy1 negative, same exact
+native traces and new ARM64 TU all0. No redundant69-suite repeat: immutable v1
+full69 retained with SHA23b28013c9beb1545a31546abeb30f3472e82c439ed055a1417eecc43005fb9a.
+Both model versions834020assertions,251/183/251/251 I/O/map/parent/barrier/memory/
+phase failure points; dirty/corrupt/omittedNC writes,9badparent variants, opaque
+allones/liveRGL/RMW preservation, outputcanary/recursion/once-state/rangechecks.
+Final focus23403B research/tmp/dsh-0150/focus-result-v2.json SHA
+28126bf41e3a549bcf3786f571f2f647509692dbd5a12ad6dc34dabf3bd29089;
+172 final inputs and native object independently rehashed. New core24616B SHA
+b44da1ada7ae16333bb972df8bcbb58a7189681575f5f330f9949023b19b530a,
+using CURRENT COMPLETE148gauguin.E1ium7 flags/source, not an old generated recipe.
+No149/150 completekernel/image/physicalboot yet; all owned DSH tasks CLOSED.
+
+NEXT patch151 integrate new sweet_gpu_core_once() board adapter and coordinator
+start path with ggc_core_once; retain public GGX API/old off paths unchanged.
+Use source150-v2-codex as baseline. GGC BUS guard requires real loaded149 SQE,
+GFW/GMBREADY, accepted PERF/BW/TEST/DCVS, live owner/routes/faults/clocks/IRQ/CM3
+and stale GPU ACK24 refusal BEFORE GBIF. Only BUS accesses GBIF via existing
+gfw MISC03d0c000 alias+3114. Its start_gpu callback invokes existing
+sweet_gpu_start_once exactly once, preserving original GGX receipts and limits.
+GGC MMU/OOB guards allow GGXIDLE before callback/READY afterward; later guards
+must validate GGXREADY/private completed context/ACK clear/GXon/CONTEXTIDR0 and
+retained GPU/root state. Cannot call ggx_board_guard directly after success:
+that helper intentionally requires GGXRUNNING and has its own4s deadline.
+New GGC board guard must provide fresh total/phase CPU deadlines and WDT budget,
+not rearm watchdog or drop live parent predicates. Failure quarantines all
+shared owners BEFORE cached GGC diagnostics, no HOST release/retry/cleanup.
+
+Required page offsets from03d00000:0,c000,20000,24000,28000,2c000,3c000,68000,
+7c000,8c000. Reuse GGXcore0, GFW_MISCc000, resetCSR7c000, GFWAO8c000; map ONLY
+six missing16KiB pages20000/24000/28000/2c000/3c000/68000 AFTER acceptedOOB.
+These are disjoint SMMU40000+10000 and TCM6c000+c000. Revalidate Device attrs7,
+alignment/overflow/physical endpoints; retain every alias on failure. Translate
+native DWORD offsets exactlyonce tobytes (reg*4); whitelist everyread/write.
+RGL callbacks use existing NC gmb_ram+plan.region[REGLIST].offset-GMB_PAGE,
+only4KiB window; revalidate16KiB NCowner attributes/endpoints with live guards.
+Use existing gfw_load32/store32 and gmb_barrier to preserve actual asm/seams.
+Then typed BOARD integration/fault models + coordinator tests/actual native
+TUs/fullhost ->commit/publish ->standard ONE local fullbuild with capturedHEAD
+and sole original mkadt diff ->new uniquelybound image includingSQEasset ->
+strict runtime readers/fixtures ->ONE temporary real trial. Do not blindly
+replace numeric148/149 strings when adapting artifacts: protect all NUMBER
+tokens/hex/hashes and preserve old build/images/readers. No CI needed presently.
+
+After core stage, native CP needs full15words (ME_INIT12 + WHERE_AM_I3), actual
+shadow-RPTR offset/protection, native RB0xaa initialization, SQE/RB pointers,
+SQE_CNTL1 then fenced WPTR protocol/posted barrier/AHB-fence sampling/bounded
+completion. Native CP init precedes real ZAP load; no trust-control bypass.
+ZAP auth/unsecured mode/preemption/resource/lifecycle/scheduler/iOS ABI remain.
+Last phone observedTWRP148; THIS148 reset attribution still PENDING, do not
+reuse user's147 confirmation. Whole GPU/Metal/daily-use goal ACTIVE/incomplete.
+Original mkadt diff intact; no flash/format/GPT/destructive action or new phoneIO.
+
 ### 2026-11-07 —149 pinned SQE cold staging source validated; full A619 core/CP startup next
 
 Codex implemented0149 (143rd patch), optional pinned SQE payload/view and cold

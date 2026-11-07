@@ -2,6 +2,127 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —146 pure rejection diagnostics validated; complete local diagnostic kernel next
+
+THIS goal turn first produced actual145 refusal evidence, then implemented
+140th patch0146 to identify the exact input predicate without weakening it.
+New ggs_argument_reason is pure/read-only and is the SAME checker gating
+ggs_configure_once. Reasons1..5 pointer spans,6..12 aliases,13 GPU plan,
+14 baseline geometry,15 leaf/ATOS counts,16 distinct banks/slots,17 bounds,
+18 ASID,19 controls,20 routes,21 distinct ASIDs,22 callbacks. Same logical
+conditions and order of hardware callbacks as145. Board caches this reason
+before the attempt and logs it plus bounded actual baseline fields ONLY after
+quarantine on GSM_ARGUMENT. No pointers/device serials/extra MMIO/SMC/retry
+or relaxed failure policy. A zero reason is not physical ownership or success.
+
+DSH13840 CLOSED0/actual validate146.py1 after pristine140-patch replay and
+board passed: strict host compiler found an uninitialized test output passed
+as const pointer to the pure checker. Original fixture/report/log preserved.
+Explicit v2 initializes the test canary and proves it stays unchanged; no
+production/warning-suppression change. DSH91749 CLOSED0/actual v2 0. SEVEN
+checks0: retained pristine replay, board, GPU pure reasons, frozen145 I/O,
+all65 hosts, actual ARM64 GPU SMMU and board TUs. Source1465288files SHA
+b58684e4624be5d15405cd86cc8c8ecb100a6197f989ce794eb84fdbf162bb47
+at .deps-cache/p0-20261105/source146-codex. Only board.c and GPU smmu.c/h
+differ from145; old firmware/SMC/memory/coordinator/receipts unchanged.
+Frozen145 original normal/error fixture produces20,942,109 callback records
+on BOTH145 and146, identical digesta224965072189c07. Thus diagnostics do
+not alter the established I/O sequence. Pure checker22 reasons/canaries and
+post-quarantine-only cached board logging pass ASan/UBSan. Codex independently
+rehashes full146 validation, frozen I/O inputs and both complete source trees.
+All owned DSH tasks closed. Original7-line mkadt diff intact.
+
+Actual145 raw3997lines/449936B SHA
+fe6d9386a672ad7f37ac8c913fd0ccff5baf31da24198bee4f4b1baeb1abe5b1;
+cycle991B SHAafc171b4c17752c9c286053be7d35090d83b5ea1994a492cc80c3a3650261d01.
+Full strict rejected report7445B SHA
+c344d61d4e59f77c3bb39db2143d9b0567db550831e139116ab65ce408dac62c.
+Do not relabel it as success or SMC return0: source145 rejected arguments
+atphase0/rc1 with0writes/ATOS and0secure calls. THIS145 reset attribution
+UNKNOWN, phone observedTWRP. Current qualified full native recipe145Ntf1zL.
+
+NEXT: commit146 diagnostics and execute prepared build146.py/bind_host146.py/
+qualify_native0146.py for ONE standard complete local build, then prepared
+pack/review146 scripts. Only cached_gpu_argument_diagnostics_source_bound is
+new; all145 requirements remain. Extend strict146 reader/fixtures/unique image
+identity to accept cached INPUT lines only as failure observations, never a
+successful GPU context. ONE temporary146 boot after qualification; determine
+actual reason/raw fields before choosing any predicate fix or GPU OOB/core.
+No146 image/boot/argument reason observed yet. Whole goal ACTIVE/incomplete;
+no CI/flash/format/GPT/destructive operation. Codex critical code/Git/review,
+DSH exact reviewed compile/test/build/temporary boot.
+
+### 2026-11-07 —actual145 refused GPU inputs before any new SMMU write/SMC; diagnose exact argument next
+
+THIS goal turn is progress: strict145 reader/fixtures validated and ONE actual
+temporary145 boot completed. DSH81970 CLOSED0, actual run_hardware145.py2,
+observer0/full verifier2. Source/image not relaxed or boot retried. Start
+2026-11-07T02:39:38.670879Z,finish02:41:50.430124Z; send19104KB0.442s,
+boot0.135s,total0.579s; observer saw TWRP131s. THIS145 reset attribution
+UNKNOWN; no prior117/138 confirmation reused and no attribution question is
+needed to diagnose this rejected stage. Phone last observedTWRP in145.
+
+Actual log reaches existing GMU SMMU complete131/140. Then ggb_run reaches
+ggs_configure_once, which returns GSM_ARGUMENT1 before claiming context:
+GPU partial phase0/rc1, slot/bank/asid0, GPU/GMU pages0/0,ATOS0,writes0,polls0.
+CP aperture partial rc0 is a zero-initialized NOT-ATTEMPTED field: returned0,
+calls0/fresh0/continuations0. It is NOT a secure return0. No new GPU SMMU
+write/ATOS or SMC, no GMU FW release or HFI/DCVS this trial. Board stopped
+GMB_GPU12; shared lease quarantined and routine observer recovered logs.
+Full strict reader correctly rejects; every full145 hardware result remains
+not verified. Existing143 firmware/DCVS physical baseline remains preserved.
+No145 GPU execution/Metal claim. Source145/qualified buildNtf1zL/imageb080...
+remain unchanged. Codex independently rehashed ALL full-reader input records.
+
+NEXT146: determine EXACT argument predicate/actual received field causing
+the early rejection. Host model and native compile passed but are insufficient
+to explain actual pointer/receipt geometry. Add pure cached argument reason
+diagnostics and raw bounded baseline fields, without weakening any predicate,
+changing maps/writes/retries or reaching SCM after refusal. Preserve145 raw
+failure/full report and all baselines. Validate unchanged engine I/O for old
+inputs and meaningful diagnostic cases, native TU then one complete local
+build/image/strict reader and ONE new trial if needed. Do not continue to
+GPU OOB/core/SQE before real default-context/aperture success. Whole goal
+ACTIVE/incomplete. Current full native recipe145Ntf1zL. All DSH tasks closed;
+original mkadt diff intact, no CI/flash/format/GPT/destructive action.
+
+### 2026-11-07 —145 strict GPU runtime reader validated; ONE temporary boot next
+
+THIS goal turn extends143 strict runtime binding/clock/FW/common readers with
+GPU SID0 context/168 ATOS/native scalar CP-aperture rules. Exact145 source,
+qualified kernel/image/assets/600B flags are bound, original CMDDB131072B,
+GMU131pages/140ATOS and all old HFI/DCVS/callback/guard policy retained.
+GPU checks require separate slot/bank/ASID from GMU, actual NC owner roots,
+SCTLRc01167/SID0 route, owned HALT restore,18+131 leaves/168ATOS,
+bounded stores/polls, correct four-scalar request/chosen bank/normal SCM64,
+returned full64 x0zero and bounded fresh/continuation counts. Retains raw
+x0..x6; native ignored x1 service payload is not required zero. Still no
+GPU command execution/Metal proof from these context/transport receipts.
+
+DSH67413 CLOSED0, runtime v1 actual1 after clock PASS: retained negative
+adjacent-swap fixture found GPU pre-SMC record could trade places with native
+implementation summary. Original files/report/logs frozen runtime-v1-failed.
+Explicit v2 tightens ONLY that ordering edge (pre must precede implementation
+summary, not just later SMMU identity), no kernel/image/old-check changes.
+DSH78362 CLOSED0/actual runtime_validate145_v2.py0. Three zero results:
+clock4valid/95rejected, FW131/501, full SYNTHETIC25/157. All current inputs
+independently rehashed after DSH. These fixtures are explicitly synthetic.
+Runtime report research/tmp/dsh-0145/runtime-parser-result-v2.json; boot145
+requires THIS passed v2 report, not failed v1. Image145 b08087f3...7ad54d,
+source1458a366b6c...95f3, buildNtf1zL/HEAD893d55b remain unchanged.
+
+Reviewed boot145.py/run_hardware145.py owns ONE temporary fastboot boot:
+unique recovery productgauguin, routine authorized13-byte boot-recovery BCB
+latch/readback, recovery->unique fastboot productgauguinpro, exact145 image,
+180s observer/fresh pull, full strict145 reader. No extra external USB/ADB/
+fastboot preflights or initial-fastboot requirement. No flash/format/GPT or
+userdata write. Manual-reset attribution starts UNKNOWN for THIS145; do not
+reuse117/138/other confirmations. No145 phone IO performed at this handoff.
+NEXT execute-hardware.txt, then save actual raw logs and full report before
+another code change. Whole goal ACTIVE/incomplete. Current full native
+recipe/source145Ntf1zL. Original mkadt diff intact, all owned DSH handles
+closed. Source/publication and artifact facts below remain authoritative.
+
 ### 2026-11-07 —145 complete local kernel and image qualified; strict runtime GPU reader/ONE boot next
 
 DSH31085 CLOSED0; actual build145.py build0/qualification0. ONE standard
@@ -23,6 +144,10 @@ ls-remote verified; sole parent3ab6a8b352d48aa92aa9a0e64b64fdd45b8ce353,
 same tree as private893d55b. Exactly12 source patch/series/tests/NOTES/docs
 text paths, report research/tmp/dsh-0145/public-source-snapshot.json.
 No private ancestry/raw/FDT/downloaded sources/binaries/serials pushed.
+Kernel/image handoff published d32864b91402f4bdd9d2a5ec4a4e1518e9b545b5,
+ls-remote verified, sole parent0b7ed969de121b6bc8211a4f65a3fcba3c834720,
+same tree as private2d369a77f77e294fe6172818298a12e98ee88624. ExactlyNOTES.md;
+report research/tmp/dsh-0145/public-image-handoff-snapshot.json.
 
 DSH10049 CLOSED0; actual package0/independent image-review0, normal package
 report passed and all9 inputs unchanged. Image shim/out/

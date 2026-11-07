@@ -169,4 +169,31 @@ static void gpu_bad(void)
         CHECK(gpu_run(f,&r)!=GSM_OK&&!f->writes&&!f->prepared);gpu_stopped(f);free(f);
     }
 }
-int main(void){gpu_good();gpu_bad();for(unsigned i=0;i<3;i++)free(templates[i]);printf("GPU SMMU: %u total assertions PASS; independent real-table walks/route and GMU preservation, exact fault classification, all callback failures; no hardware qualification\n",checks);}
+static void gpu_arguments(void)
+{
+    struct gpu_fake *f=gpu_fresh(2);struct ggs_ops o=gpu_ops(f);struct ggs_receipt out={0};struct ggs_receipt saved_out=out;
+    struct ggs_context saved=f->gpu;CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,&out)==0&&!f->step&&!memcmp(&saved,&f->gpu,sizeof(saved)));
+    CHECK(ggs_argument_reason(NULL,&o,&f->plan,&f->baseline,&out)==1);
+    CHECK(ggs_argument_reason(&f->gpu,NULL,&f->plan,&f->baseline,&out)==2);
+    CHECK(ggs_argument_reason(&f->gpu,&o,NULL,&f->baseline,&out)==3);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,NULL,&out)==4);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,NULL)==5);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->gpu.plan,&f->baseline,&out)==6);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->gpu.gmu,&out)==7);
+    CHECK(ggs_argument_reason(&f->gpu,&f->gpu.ops,&f->plan,&f->baseline,&out)==8);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,&f->gpu.work)==9);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,(const struct ggs_receipt *)&f->plan)==10);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,(const struct ggs_receipt *)&f->baseline)==11);
+    CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,(const struct ggs_receipt *)&o)==12);
+    struct ggp_plan p=f->plan;p.region[0].offset^=4096;CHECK(ggs_argument_reason(&f->gpu,&o,&p,&f->baseline,&out)==13);
+    for(unsigned code=14;code<=21;code++){
+        struct gsm_receipt m=f->baseline;
+        switch(code){case 14:m.groups=0;break;case 15:m.mapped_pages=130;break;case 16:m.bank[1]=m.bank[0];break;
+        case 17:m.slot[0]=m.groups;break;case 18:m.asid[0]=0;break;case 19:m.sctlr[0]^=1;break;case 20:m.smr_after[0]^=1;break;case 21:m.asid[1]=m.asid[0];break;}
+        CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&m,&out)==code);
+        CHECK(ggs_configure_once(&f->gpu,&o,&f->plan,&m,&out)==GSM_ARGUMENT&&!f->step&&!f->gpu.state);
+    }
+    o.prepare=NULL;CHECK(ggs_argument_reason(&f->gpu,&o,&f->plan,&f->baseline,&out)==22);
+    CHECK(!f->step&&!memcmp(&saved,&f->gpu,sizeof(saved))&&!memcmp(&saved_out,&out,sizeof(out)));free(f);
+}
+int main(void){gpu_good();gpu_bad();gpu_arguments();for(unsigned i=0;i<3;i++)free(templates[i]);printf("GPU SMMU: %u total assertions PASS; independent real-table walks/route and GMU preservation, exact fault classification, all callback failures and pure argument diagnostics; no hardware qualification\n",checks);}

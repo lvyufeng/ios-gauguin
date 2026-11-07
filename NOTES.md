@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —148 complete native kernel qualified; package running, strict runtime fixtures next
+
+DSH74741 CLOSED0, build148.py actual0/build0/qualification0, exactly ONE standard
+complete local build on captured private4e407cf1f2e6a8e578d495d49be92eba647c89d3,
+sole original mkadt diff, no source/HEAD changes during build. Run gauguin.E1ium7,
+source1489268d4e0...67c1865/5290files/142patches. Kernel16957792B SHA
+0e34c5766c6034840cf4f1db73bdf5510e4ce7f9a7e85249e006653b32f133f7,
+ID xnu-01697f84992f4d1a9c5e2d924af39135. Manifest905772B SHA
+c33dace4788fae14c45818924eb75d2281bf8db533fedcfa6304d508ede8e460.
+Qualification13156B research/tmp/p3-native-0148-qualification-20261107.json
+SHAfc299902661ce122985c266bc81bb3a981b3bcc00f7fb1a9efb9ed3c035bb207.
+All147 checks retained; new native_gpu_start_source_bound true, linked new
+engine/board/coordinator symbols and exactly one gpu_start.o. Hardware remains
+unqualified. Codex independently rehashed actual kernel and manifest.
+CURRENT complete native recipe/source NOW148gauguin.E1ium7;1473eaEOm historical.
+Future real TU probes must use current148 manifest/source, not old generated BSD
+Makefiles which now belong to148. Prior147-based TU proofs remain historical.
+
+Private4e407cf source published3b1263a0bc5063dd84a1638bb6c15204d793b2ad,
+sole parent7e86283da15ed6ab9292eb306e1785fd6304423a, same tree, exactly10 reviewed
+UTF8 text paths. Remote verified; report research/tmp/dsh-0148/public-source-snapshot.json.
+No private ancestry/raw device logs/serials/native downloads/binaries pushed.
+This also publishes147 attributed baseline handoff from private273b570.
+
+DSH60475 currently executing execute-package.txt on qualified148 kernel. Poll
+SAME handle; never restart on a timeout. New607B command verified from exact
+104 baseline options, short unique sweettrial=gpus-0148-a1 leaves final NUL in
+608B field. sweetgpustart1 explicit, all prior flags/assets/baseline pins retained.
+No148 physical boot yet. Strict148 runtime modules prepared with new MMU/TLB/
+OOB/core/retained-HOST receipt and complete ordering, unknown/partial/duplicate/
+missing/drift rejection. They preserve every147 FW/context/aperture check and
+add actual5-slot full synthetic positive plus raw-zero core/HUM/DORA acceptance.
+DO NOT rerun prepare_artifact_helpers.py: it would replace subsequent reader
+extensions. It was used only for initial protected metadata copying. NEXT
+qualified package -> execute-runtime.txt -> ONE temporary148 boot. Original
+mkadt diff intact; all other owned DSH tasks closed, no CI/flash/format/GPT/
+destructive action. Last phone observedTWRP147; whole goal ACTIVE/incomplete.
+
 ### 2026-11-07 —148 native MMU/GPU OOB/core driver validated; complete local build next
 
 THIS goal turn progresses from attributed physical147 baseline to implemented,

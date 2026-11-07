@@ -2,6 +2,139 @@
 
 ## Agent handoff / active work
 
+
+### 2026-11-07 —157 SAME-BOOT signed ZAP HARDWARE QUALIFIED; native unsecured transition NEXT
+
+PROGRESS: first physical combined CP_INIT -> PAS13 INIT/MEM -> exact1984b02
+copy/readback -> AUTH_AND_RESET accepted in ONE fresh157 boot. This closes the
+signed-load prerequisite, NOT unsecured mode/rendering/Metal/daily-use/highrefresh.
+Whole goal ACTIVE, unlimited. Phone now TWRP157 after automatic return131s;
+standing user says all unattended resets automatic, do NOT ask confirmation.
+Only notify/request user if genuinely stuck and manual recovery is necessary.
+No new human UI/touch observation because user away. No further phone IO needed
+to establish this milestone; do NOT repeat157 just to reconfirm it.
+
+Source/build private8b4562966d9de0f4306b90e062d5626cd804cc6f / published
+b8935bcafa4a110cb1e8d9d08e5dd4c2006051c4. Current full/native generated recipe
+157gauguin.wTGOGo/source157-codex,5300files/151patch SHA
+37bc7fece069cd3f21cedf2bb5eea6e581d1376ed6faf613c7f8dbd5753d9cea.
+Actual local8job build0/qualification0, kernel16995320B SHA
+f343ff722882abaa1f2ec955dc1b0252ea0d5264190eed65875b90fbd3e3166b,
+IDxnu-4968d149ca024346ad2972681e7448a1. DO NOT use154 TU helpers with the shared
+157generated BSD Makefiles. Build/image evidence and v1 matcher refusal are
+recorded below; no build/repack/reboot retry was used.
+
+DSH77952 CLOSED0/runtime_validate157.py0: all4check exits0 and25inputpins stable.
+Retained clock4valid/95reject, FW132/515, full45/678; signed-ZAP adds20/117.
+Console-framing test0, strict reader15382bb8a17b6fb9aa59214e5ceb1bfb96e32f30e457de082c3fc8ce9b7ceba2,
+zap_records157.py0008a2042f62105baae60013613ebcf656428059c891ebabc72ed6e432972730.
+Runtime report3901B SHA7fb4bc04205baa7c2dd01e270dd742d781bf3ce38608cd0bf0690a9bc5510329.
+Codex independently rehashed every runtime pin before boot.
+
+DSH51965 CLOSED0/boot157.py0/observer0: single temporary fastboot boot,
+2026-11-07T09:07:33.345456Z ->09:09:45.304122Z; uniquegauguin recovery,
+13B recovery latch/readback, uniquegauguinpro fastboot, no flash/format/GPT.
+Image19693568B SHA33925b3ef7c62b959cfc5c369d98748583e016b9b7ea183622592c56dcae73ec,
+uniquegzap-0157-a1, exact606B command; fresh matching full build banner.
+Observer saw TWRP after131s. Root/launchd/SpringBoard/backboardd markers and
+3FB swaps, not human UI/touch/performance proof. Auto attribution from explicit
+standing user authority. WDT reset mechanism not independently register-proven.
+
+DSH13540/read_hardware157.py0 / verify_gmuf157.py0; all old technical gates
+retained plus actual sameboot signed-load gates. Raw text exact binary decode,
+no console-framing recovery. INIT fresh1/calls5/cont4 finalx0..x6all0;
+MEM fresh1/calls1/cont0 finalx0/x1zero,x4=4096; AUTHfresh1/calls1/cont0
+finalx0..x6all0. ActualsameownerAA200000, sourcePA1825a8000/pinned1984B;
+copy1984/1984, sealed1, phase7/rc0/owner8/retained1. Guardreason0/scopeLATE2/
+phaseFINAL6; cachedpreAUTHrbbm/cp0,shadow15,busy71000000(bit23clear).
+No GPU or secure-buffer read afterAUTH0. Guard interval2275429ticks/19.2MHz
+~0.118512s includes logging/guards, NOT a benchmark. FirstCPcompletephase9/
+rc0/reads12writes11, fifteen nativewords, ring8192/scratch1024/fullreadback.
+
+Reports under research/tmp/dsh-0157:
+hardware-full-verification.json53809B SHA
+ afa88bcfa700b1523f4e9be9da55dd95ff1f7b88e2ebaf9a934190d4d1b80243;
+hardware-verification-result.json1935B SHA
+ 3ea5d592e20fd0e6c1d1bc03ce88deaf6a9a6c31744a95873e76798cf083018f.
+Codex independent-hardware-review.json rehashed all17verifier and13wrapper
+inputs, scope flags, text/bin/cycle; no artifact/source changes during checks.
+Raw research/tmp/p3-gmuf-0157-native-observer-20261107.txt462195B SHA
+ fcf7c4a0ff7ccd606fa7088b31388c6e0dd61d2fa1899cc7413d9128b6d0da19;
+.bin4198400B SHA f43f9f935c6b4d42cf3f48737000c82402e57e5292b2f7d33b42b79aeb788ffe;
+cycle991B SHA5b1fabc997c88071f6d7e32a546e815bf7fd12c722a399ffa7db9a265952dd96.
+Raw/binary/native firmware remain ignored, never stage or publish.
+
+NEXT158: derive native adreno_switch_to_unsecure_mode/cp_secure_mode/
+adreno_ringbuffer_submit_spin + allocspace/wptr/fence/spin_idle from immutable
+Lineage19b63c8192b1c9b7c4d931d7d3be92024bc2d778 local pinned originals in
+research/tmp/dsh-0149/native. The actual native appends2 SET_SECURE_MODE0 words
+plus3 WHERE_AM_I words to existingRB0 atDW15, candidateWPTR20, no ring/SQE/
+scratch reinitialization. Verify exact packets/addresses/featurebranches and
+submission/idle sequence against unchanged native functions BEFORE newkernel.
+Add separate postAUTH private receipt/phase authority and live guard path:
+actualsameboot157signed-load/CP/core/FW must authorize; no caller-made receipt,
+legacy MDT hash/lowbuffer read, TRUST_CONTROL0 fallback, HOST release/PET/retry.
+Only then one bounded native append/readback/WPTR/fence/shadow20+idle/fault
+trial under fresh WDT budget. Decide explicit flag mode within607B command;
+preserve exact157default/legacy behavior. Codex critical C, DSH reviewed
+compile/tests/build/tempboot, Codex independent review. All completed ownedDSH
+jobs closed; no158source/kernel/trial yet. Commit/push this docs/handoff with
+sanitized public parent and same reviewed tree; snapshot will hold exact IDs.
+Original user tools/mkadt.py7line diff a74a0418...454860 untouched.
+
+
+### 2026-11-07 —157 full LOCAL kernel and five-asset image QUALIFIED; strict runtime fixtures running
+
+Source committed private8b4562966d9de0f4306b90e062d5626cd804cc6f; published
+b8935bcafa4a110cb1e8d9d08e5dd4c2006051c4, soleparent5de1004b4ec6c3ec9584d3ec02b0f996c11dd45c,
+same tree1c10068bc5995e91e02a2b28072567a4ee2a3035; public-source-snapshot.json
+pins12 reviewed UTF8 paths, no private/native/raw/binary artifacts published.
+Current generated/full-native BSD recipe is NOW157gauguin.wTGOGo/source157-codex;
+do not reuse154 TU helpers against shared157 generated Makefiles.
+
+DSH94768 CLOSED: first actual full157 standard LOCAL8job build actual0 and
+qualify_native0157.py actual0. native157-execution-result.json records unique
+run gauguin.wTGOGo. Source5300/151patch SHA37bc7fe...9cea unchanged. Installed
+kernel16995320B SHA f343ff722882abaa1f2ec955dc1b0252ea0d5264190eed65875b90fbd3e3166b,
+ID xnu-4968d149ca024346ad2972681e7448a1. Manifest SHA
+896208cbee04f743ec6f47163a69aa63e6e3a6bbd58e9f77ebd0d003c571fdca;
+qualification research/tmp/p3-native-0157-qualification-20261107.json SHA
+03697d3c8b9c16b33aa8d09fc7e90a94da444418904589f92895c0310278e93e.
+Codex independent-build-review.json rehashed kernel/manifest/archive/report.
+Earlier DSH97024 missing-instruction wrapper did NOT start a build; preserved.
+Staged diff-check flagged4 legitimate blank patch context lines, audited without
+changing patch bytes. Actual full build only94768, no fallback/repeat.
+
+DSH60258 package0 / image-review2: exact compact-C missing legacy INIT0 matcher
+mismatch, NOT changed native source. v1 report/log/helpers immutable. Separate
+source_defaults157_v2.py corrects literal compact `int v=0;...if(v)return false;`.
+DSH50405 CLOSED0 / review_only157_v2.py0 / review_image157_v2.py0 on SAME immutable
+packed image, no repack. All inherited artifact/source/default0/command/ADT/
+Mach-O gates retained. Codex independently rehashed every review input in
+independent-image-review.json. Reviewf38d8b5f7fd355ced29f11010a6b3d18ff86ab3600f423fc17dc2562896cf17b.
+
+Image shim/out/shim-p3-gmuf-0157-native-20261107.img19693568B SHA
+33925b3ef7c62b959cfc5c369d98748583e016b9b7ea183622592c56dcae73ec;
+payload19365888B SHAedbdd19f48d5d69da0242aa55a14533ec6314b176f1e207421046788a5e3a00c;
+evidence SHA61d8183002f291d843ebad3cb4b4239b02bb04a33a9c6c27a143939c72f240d8.
+Unique sweettrial=gzap-0157-a1, exact606B, sweetgpuzap1 replaces omitted
+sweetpasinit(default0 source-bound), all other controls preserved. New b021984B
+atPA1825a8000/16KiB, fixedSHA61be42f...e878/padding14400zero. All earlier4asset
+placements/contents/descriptors match samekernel4asset control. No phone IO yet.
+
+Codex authored verify_gmuf157.py derived byte-preserving154_v2 old technical
+gates with explicit157 identity/options/fifthasset/source binding, new separate
+zap_records157.py for actual INIT/MEM/copy/AUTH raw7/count/caps/order/owner/
+phase/scope/deadline/final predicates and preflight before WDT. Typed fixtures
+retain old clock/FW/full/core/CP/refusal/framing checks plus newZAP cases.
+DSH77952/runtime_validate157.py currently RUNNING; inspect same handle/result
+before further action, do NOT retry or infer pass. Planned157 boot helper is
+prepared but NOT executed: boot157.py + byte-identical154observer tail. Only
+if all4 parser test exits0 and immutable pins pass: ONE fastboot boot, fresh
+<=180s TWRP log, strict reader --manual-reset no from standing user authority.
+Phone lastTWRP154. No signed-load/unsecured/rendering/Metal/highrefresh claim.
+Whole goal ACTIVE. Original user tools/mkadt.py diff a74a0418...454860 intact.
+
 ### 2026-11-07 —157 LIVE signed-ZAP source QUALIFIED; standard full kernel/image/strict runtime proof NEXT
 
 Previous turn was PROGRESS: fixed156 engine compiled/native3-descriptor/74host
@@ -93,6 +226,18 @@ Run runtime valid/refusal fixtures before ONE temporary fastboot boot. Standing
 no-manual user authority, only request manual recovery if truly stuck. No
 unchanged154/CPU-only boot. All ownedDSH jobs CLOSED; full native/generated
 BSD recipe STILL154gauguin.SlaKVj/source154-codex pending full157 build.
+UPDATE (review-only v2): package-review-execution-result.json failed with
+package0/image-review2, log "REJECTED: INIT absence/default0 source changed:
+bsd/dev/gauguin_gmu_board.c" -- oracle matcher used spaced C form
+("int value = 0; ... if (value != 0)") vs actual compact form
+('int v=0;(void)PE_parse_boot_argn(off[i],&v,sizeof(v));if(v)return false;').
+v1 inputs pinned/preserved. review_only157_v2.py ran ONCE (exit0); its
+subprocess IMAGE REVIEW PASSED (review_exit0, hardware UNQUALIFIED:
+"NOT VERIFIED"), inputs_unchanged true, image-review-execution-result-v2.json
+state passed; report research/tmp/dsh-0157/image-parent-review-v2.json
+(15150B, marker sweettrial=gzap-0157-a1, 10 native segments compared). Packed
+image/payload SHA unchanged vs p3-gmuf-0157-native-evidence; no repack/build/
+device IO. NEXT: same-boot strict runtime reader + ONE temporary fastboot boot.
 Original user mkadt diff a74a0418...454860 untouched; no CI/flash/format/GPT.
 
 ### 2026-11-07 —Standing user instruction: unattended resets are automatic; no repeated confirmation

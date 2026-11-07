@@ -26,7 +26,9 @@ native frames, serialized owner-action sequence, copy counts, continuation/BUSY
 handling and terminal quarantine. It contains no SMC instruction or live board
 dispatch. Its provider must establish the actual same-boot CP/owner authority
 and perform the owner-local copy; the PA argument is only a comparison key.
-That live binding remains implementation157, before any integrated device trial.
+Implementation157 now supplies the live binding described below. An integrated
+kernel/image and physical trial remain required before signed-load acceptance
+can be qualified.
 
 The engine separates pre-transaction live checks from the tight secure-call
 checks and the checks after AUTH success. Continuations preserve all seven
@@ -46,6 +48,24 @@ register frames as the port under typed OS/normal64 scalar-frame seams. This
 verifies descriptor construction, not native assembly, the full PIL loader or
 signature authentication. The original oracle's failed macro-extraction run
 is preserved; a separate version uses the source's actual command enum.
+
+Patch0157 binds the engine to the actual private CLAIMED owner, retained first
+page mapping and same-boot CP/core/FW completion. The owner validates original
+MDT bytes until INIT_ENTER, then uses phase-aware geometry checks. It copies
+and compares exactly1984 bytes in64-byte batches, with no tail clearing or
+new alias. The board checks private engine receipts before owner accept actions
+and checks deadlines inside nested copy guards. Secure/late scopes avoid GPU
+and low-buffer reads; failure quarantines all shared owners before diagnostics.
+The coordinator preflights b02 before watchdog/RSC writes and dispatches only
+after successful CP completion under the separate exact opt-in.
+
+Source validation passed all three changed ARM64 translation units,530 actual
+owner cases with real SHA256/guard pages,444 coordinator cases,237 new board
+cases running the actual CP/ZAP engines under typed hardware/owner seams, and
+all75 host files. These prove implementation behavior under those seams. They
+do not establish real secure authentication, rendering or Metal. The proposed
+606-byte command preserves the disabled legacy INIT default while adding the
+new opt-in; image review must verify its exact decoded bytes before boot.
 
 The primary reference remains LineageOS/android_kernel_xiaomi_gauguin commit
 `19b63c8192b1c9b7c4d931d7d3be92024bc2d778`. The read-only155 source audit
@@ -93,8 +113,8 @@ The implementation proceeds in these bounded stages:
    raw/padded size, direct-map endpoints, DRAM/top bounds and separation from
    all existing assets and the low reservation. With the asset absent, retain
    existing payload bytes and options. Keep binaries outside Git. The remaining
-   steps below are unfinished. The fixed transaction engine156 is tested;
-   actual private-owner/board/coordinator integration starts in157.
+   fixed engine156 and live binding157 are now source/model/TU qualified;
+   linked-kernel, package and physical qualification remain unfinished.
 2. Add a distinct default-off ZAP entry after successful live CP completion.
    Seal the actual same-boot CP/firmware/core/owner state before INIT. Retain
    original MDT checks before the transfer; use separate phase-aware geometry,

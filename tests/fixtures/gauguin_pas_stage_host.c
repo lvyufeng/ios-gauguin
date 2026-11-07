@@ -26,6 +26,14 @@
 #include <string.h>
 #include <pthread.h>
 #include "gauguin_pas_stage.h"
+#ifdef GAUGUIN_GPU_ZAP_H
+#include "gauguin_gpu_zap_asset.h"
+/* Legacy-only fixture: new post-CP entry is unavailable. */
+bool sweet_gpu_zap_owner_phase(enum gpz_phase phase,uint64_t pa){(void)phase;(void)pa;return false;}
+bool sweet_gpu_zap_owner_action_allowed(enum gpz_owner_action a,uint64_t pa){(void)a;(void)pa;return false;}
+bool sweet_gpu_zap_copy_live(void){return false;}
+bool sweet_gpu_zap_asset_view(struct gza_view *out){(void)out;return false;}
+#endif
 #define GAUGUIN 1
 #define PAGE_SHIFT 14
 #define kSuccess 0

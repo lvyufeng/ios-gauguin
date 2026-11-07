@@ -1,0 +1,270 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -129,6 +129,7 @@
+ bsd/dev/gauguin_gpu_aperture.c		standard
+ bsd/dev/gauguin_gpu_start.c		standard
+ bsd/dev/gauguin_gpu_core.c		standard
++bsd/dev/gauguin_gpu_cp.c		standard
+ bsd/dev/gauguin_gmu_hfi.c			standard
+ bsd/dev/gauguin_gmu_smmu.c		standard
+ bsd/dev/gauguin_gmu_board.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_cp.c
+@@ -0,0 +1,189 @@
++/* Fixed19b63c8 native A619 first CP init. Platform/ownership belongs to board. */
++#include <string.h>
++#include "gauguin_gpu_cp.h"
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++bool ggq_command_build(const struct ggp_plan *p,struct ggq_command *out)
++{
++    if(!span(p,sizeof(*p))||!span(out,sizeof(*out))||overlap(p,sizeof(*p),out,sizeof(*out)))return false;
++    struct ggp_cp_init init;if(!ggp_cp_init_build(p,&init))return false;
++    struct ggq_command q;memcpy(q.word,init.word,sizeof(init.word));
++    /* Exact cp_type7_packet(CP_WHERE_AM_I,2) and native RB0 scratch offset0. */
++    q.word[12]=0x70620002u;q.word[13]=p->region[GGP_SCRATCH].iova;q.word[14]=0;
++    *out=q;return true;
++}
++bool ggq_register_allowed(uint32_t reg,bool write)
++{
++    if(write)return reg==0x800||reg==0x801||reg==0x802||reg==0x804||reg==0x805||
++        reg==0x807||reg==0x808||reg==0x830||reg==0x831||reg==0x1f8c3;
++    return reg==0x806||reg==0x807||reg==0x808||reg==0x201||reg==0x823||
++        reg==0x23b13||reg==0x23b0c||reg==0x1f888||reg==0x1f889;
++}
++static bool parent_valid(const struct ggp_plan *p,const struct ggc_receipt *r)
++{
++    const struct ggx_receipt *s=&r->start;
++    return r->hwcg_skipped<=1&&r->reads==(r->hwcg_skipped?69u:71u)&&
++        r->writes==(r->hwcg_skipped?80u:146u)&&r->mem_written==133&&r->mem_compared==1024&&
++        r->list_length==132&&r->list_offset==72&&r->configured==1&&r->requests_retained==1&&
++        s->bank<GSM_BANKS&&s->asid&&s->asid<=255&&
++        s->ttbr0==((p->owner_pa+GGP_TABLE_OFFSET)|((uint64_t)s->asid<<48))&&
++        !s->contextidr&&!(s->tlb_status&1u)&&s->writes32==7&&s->writes64==1&&
++        s->tlb_polls&&s->tlb_polls<=20000&&s->oob_polls&&s->oob_polls<=1000&&
++        s->request_attempted==1&&s->ack_valid==1&&s->ack_clear_attempted==1&&
++        s->core_opened==1&&s->request_retained==1&&
++        !(s->oob_before&(0x8000u|(1u<<24)))&&
++        (s->oob_ack&(0x8000u|(1u<<24)))==(1u<<24)&&!(s->oob_cleared&(0x8000u|(1u<<24)));
++}
++static bool guard(struct ggq_context *c)
++{return c->ops.guard(c->ops.cookie,(enum ggq_phase)c->phase);}
++static enum ggq_result sample(struct ggq_context *c,bool mem,uint32_t reg,uint32_t expected,uint32_t actual)
++{c->diagnostic=(struct ggq_diagnostic){1,mem,reg,expected,actual};return mem?GGQ_MEMORY_ERROR:GGQ_DIRTY_STATE;}
++static enum ggq_result rd(struct ggq_context *c,uint32_t reg,uint32_t *v)
++{
++    if(!guard(c))return GGQ_GUARD;
++    ++c->work.reads;if(!c->ops.read32(c->ops.cookie,reg,v))return GGQ_IO;
++    c->diagnostic=(struct ggq_diagnostic){1,0,reg,0,*v};
++    return guard(c)?GGQ_OK:GGQ_GUARD;
++}
++static enum ggq_result wr(struct ggq_context *c,uint32_t reg,uint32_t v)
++{
++    if(!guard(c))return GGQ_GUARD;
++    if(reg==0x808)c->work.sqe_start_attempted=1;
++    if(reg==0x807)c->work.submit_attempted=1;
++    if(reg==0x1f8c3){if(v)c->work.keepalive_set_attempted=1;else c->work.keepalive_clear_attempted=1;}
++    ++c->work.writes;if(!c->ops.write32(c->ops.cookie,reg,v))return GGQ_IO;
++    return guard(c)?GGQ_OK:GGQ_GUARD;
++}
++static enum ggq_result barrier(struct ggq_context *c)
++{
++    if(!guard(c))return GGQ_GUARD;
++    if(!c->ops.barrier(c->ops.cookie))return GGQ_IO;
++    return guard(c)?GGQ_OK:GGQ_GUARD;
++}
++static enum ggq_result delay(struct ggq_context *c)
++{
++    if(!guard(c))return GGQ_GUARD;
++    if(!c->ops.delay_us(c->ops.cookie,10))return GGQ_IO;
++    return guard(c)?GGQ_OK:GGQ_GUARD;
++}
++#define TRY(x) do{enum ggq_result result=(x);if(result)return result;}while(0)
++static enum ggq_result fill(struct ggq_context *c,enum ggq_memory memory,unsigned words,uint32_t value,uint32_t *count)
++{
++    for(unsigned base=0;base<words;base+=GGQ_BATCH_WORDS){
++        if(!guard(c))return GGQ_GUARD;
++        for(unsigned i=base;i<base+GGQ_BATCH_WORDS;i++){
++            ++*count;if(!c->ops.write_memory(c->ops.cookie,memory,4*i,value))return GGQ_IO;
++        }
++        if(!guard(c))return GGQ_GUARD;
++    }
++    return GGQ_OK;
++}
++static enum ggq_result compare(struct ggq_context *c,enum ggq_memory memory,unsigned words,bool commands,uint32_t *count)
++{
++    for(unsigned base=0;base<words;base+=GGQ_BATCH_WORDS){
++        if(!guard(c))return GGQ_GUARD;
++        for(unsigned i=base;i<base+GGQ_BATCH_WORDS;i++){
++            uint32_t value,expected=memory==GGQ_SCRATCH?0:commands&&i<GGQ_COMMAND_WORDS?c->command.word[i]:0xaaaaaaaau;
++            if(!c->ops.read_memory(c->ops.cookie,memory,4*i,&value))return GGQ_IO;
++            if(value!=expected)return sample(c,true,(memory==GGQ_SCRATCH?0x10000u:0u)+4*i,expected,value);
++            ++*count;
++        }
++        if(!guard(c))return GGQ_GUARD;
++    }
++    return GGQ_OK;
++}
++static enum ggq_result counter(struct ggq_context *c,uint64_t *value)
++{
++    uint32_t h,l,h1;TRY(rd(c,0x1f889,&h));TRY(rd(c,0x1f888,&l));TRY(rd(c,0x1f889,&h1));
++    if(h!=h1)TRY(rd(c,0x1f888,&l));*value=((uint64_t)h1<<32)|l;return GGQ_OK;
++}
++static enum ggq_result faults(struct ggq_context *c)
++{
++    TRY(rd(c,0x201,&c->work.rbbm_status));TRY(rd(c,0x823,&c->work.cp_status));
++    return (c->work.rbbm_status&GGQ_RBBM_ERRORS)||(c->work.cp_status&GGQ_CP_ERRORS)?GGQ_FAULT:GGQ_OK;
++}
++static enum ggq_result submit(struct ggq_context *c)
++{
++    TRY(wr(c,0x1f8c3,1));TRY(wr(c,0x807,GGQ_COMMAND_WORDS));
++    TRY(counter(c,&c->work.counter_before));c->work.counter_before_valid=1;
++    unsigned i;
++    for(i=0;i<GGQ_FENCE_LIMIT;i++){
++        TRY(barrier(c));TRY(rd(c,0x23b13,&c->work.fence_status));++c->work.fence_checks;
++        if(!(c->work.fence_status&1u))break;
++        TRY(delay(c));TRY(wr(c,0x807,GGQ_COMMAND_WORDS));
++    }
++    if(i>=100){
++        c->work.fence_slow=1;TRY(counter(c,&c->work.counter_after));c->work.counter_after_valid=1;
++    }
++    if(i==GGQ_FENCE_LIMIT)return GGQ_TIMEOUT;
++    return wr(c,0x1f8c3,0);
++}
++static enum ggq_result wait_idle(struct ggq_context *c)
++{
++    for(unsigned i=0;i<GGQ_IDLE_LIMIT;i++){
++        TRY(faults(c));TRY(barrier(c));
++        if(!guard(c))return GGQ_GUARD;
++        if(!c->ops.read_memory(c->ops.cookie,GGQ_SCRATCH,0,&c->work.rptr))return GGQ_IO;
++        if(!guard(c))return GGQ_GUARD;
++        ++c->work.idle_polls;
++        if(c->work.rptr>=GGQ_RING_WORDS)return sample(c,true,0x10000,GGQ_COMMAND_WORDS,c->work.rptr);
++        if(c->work.rptr!=GGQ_COMMAND_WORDS)continue;
++        TRY(rd(c,0x23b0c,&c->work.busy));
++        if(c->work.busy==UINT32_MAX)return GGQ_FAULT;
++        if(!(c->work.busy&(1u<<23)))return GGQ_OK;
++    }
++    return GGQ_TIMEOUT;
++}
++static enum ggq_result execute(struct ggq_context *c,const struct ggp_plan *p)
++{
++    c->phase=GGQ_CAPTURE;
++    TRY(faults(c));TRY(rd(c,0x806,&c->work.initial_rptr));TRY(rd(c,0x807,&c->work.initial_wptr));
++    TRY(rd(c,0x808,&c->work.initial_sqe));
++    if(c->work.initial_rptr)return sample(c,false,0x806,0,c->work.initial_rptr);
++    if(c->work.initial_wptr)return sample(c,false,0x807,0,c->work.initial_wptr);
++    if(c->work.initial_sqe==UINT32_MAX)return GGQ_FAULT;
++    c->phase=GGQ_MEMORY;
++    TRY(fill(c,GGQ_RING,GGQ_RING_WORDS,0xaaaaaaaa,&c->work.ring_written));
++    TRY(fill(c,GGQ_SCRATCH,GGQ_SCRATCH_WORDS,0,&c->work.scratch_written));TRY(barrier(c));
++    TRY(compare(c,GGQ_RING,GGQ_RING_WORDS,false,&c->work.ring_checked));
++    TRY(compare(c,GGQ_SCRATCH,GGQ_SCRATCH_WORDS,false,&c->work.scratch_checked));
++    c->phase=GGQ_REGISTERS;
++    TRY(wr(c,0x804,p->region[GGP_SCRATCH].iova));TRY(wr(c,0x805,0));TRY(wr(c,0x802,GGQ_RB_CNTL));
++    TRY(wr(c,0x800,p->region[GGP_RING].iova));TRY(wr(c,0x801,0));
++    TRY(wr(c,0x830,p->region[GGP_SQE].iova));TRY(wr(c,0x831,0));
++    c->phase=GGQ_START;TRY(wr(c,0x808,1));
++    c->phase=GGQ_COMMANDS;
++    if(!guard(c))return GGQ_GUARD;
++    for(unsigned i=0;i<GGQ_COMMAND_WORDS;i++){
++        ++c->work.commands_written;
++        if(!c->ops.write_memory(c->ops.cookie,GGQ_RING,4*i,c->command.word[i]))return GGQ_IO;
++    }
++    if(!guard(c))return GGQ_GUARD;
++    TRY(barrier(c));TRY(compare(c,GGQ_RING,GGQ_RING_WORDS,true,&c->work.commands_checked));
++    c->phase=GGQ_SUBMIT;TRY(submit(c));
++    c->phase=GGQ_WAIT;TRY(wait_idle(c));
++    c->phase=GGQ_FINAL;TRY(barrier(c));if(!guard(c))return GGQ_GUARD;
++    c->work.complete=1;c->work.requests_retained=1;return GGQ_OK;
++}
++#undef TRY
++enum ggq_result ggq_start_once(struct ggq_context *c,const struct ggq_ops *ops,
++    const struct ggp_plan *plan,const struct ggc_receipt *parent,struct ggq_receipt *out)
++{
++    const void *ptr[]={c,ops,plan,parent,out};size_t len[]={sizeof(*c),sizeof(*ops),sizeof(*plan),sizeof(*parent),sizeof(*out)};
++    for(unsigned i=0;i<5;i++){
++        if(!span(ptr[i],len[i]))return GGQ_ARGUMENT;
++        for(unsigned j=0;j<i;j++)if(overlap(ptr[i],len[i],ptr[j],len[j]))return GGQ_ARGUMENT;
++    }
++    struct ggq_command cmd;
++    if(!ggq_command_build(plan,&cmd)||!parent_valid(plan,parent)||!ops->guard||!ops->read32||
++       !ops->write32||!ops->barrier||!ops->delay_us||!ops->read_memory||!ops->write_memory)return GGQ_ARGUMENT;
++    struct ggq_ops saved=*ops;struct ggp_plan p=*plan;uint32_t expected=0;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GGQ_ALREADY;
++    c->ops=saved;c->command=cmd;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));
++    enum ggq_result result=execute(c,&p);
++    if(!result){c->phase=GGQ_DONE;*out=c->work;__atomic_store_n(&c->state,2,__ATOMIC_RELEASE);}
++    else __atomic_store_n(&c->state,3,__ATOMIC_RELEASE);
++    return result;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_cp.h
+@@ -0,0 +1,65 @@
++#ifndef GAUGUIN_GPU_CP_H
++#define GAUGUIN_GPU_CP_H
++#include "gauguin_gpu_core.h"
++enum ggq_phase {GGQ_IDLE,GGQ_CAPTURE,GGQ_MEMORY,GGQ_REGISTERS,GGQ_START,
++    GGQ_COMMANDS,GGQ_SUBMIT,GGQ_WAIT,GGQ_FINAL,GGQ_DONE};
++enum ggq_result {GGQ_OK,GGQ_ARGUMENT,GGQ_ALREADY,GGQ_GUARD,GGQ_IO,
++    GGQ_DIRTY_STATE,GGQ_MEMORY_ERROR,GGQ_FAULT,GGQ_TIMEOUT};
++enum ggq_memory {GGQ_RING,GGQ_SCRATCH};
++#define GGQ_COMMAND_WORDS 15u
++#define GGQ_RING_WORDS 8192u
++#define GGQ_SCRATCH_WORDS 1024u
++#define GGQ_BATCH_WORDS 64u
++#define GGQ_FENCE_LIMIT 200u
++#define GGQ_IDLE_LIMIT 200000u
++#define GGQ_RB_CNTL 0x0800020cu
++#define GGQ_RBBM_ERRORS ((1u<<1)|(1u<<6)|(1u<<7)|(1u<<9)|(1u<<22)| \
++    (1u<<23)|(1u<<24)|(1u<<25)|(1u<<28))
++#define GGQ_CP_ERRORS 0xf7u
++struct ggq_command {uint32_t word[GGQ_COMMAND_WORDS];};
++struct ggq_ops {
++    void *cookie;
++    bool (*guard)(void *,enum ggq_phase);
++    bool (*read32)(void *,uint32_t,uint32_t *);
++    bool (*write32)(void *,uint32_t,uint32_t);
++    bool (*barrier)(void *);
++    bool (*delay_us)(void *,unsigned);
++    bool (*read_memory)(void *,enum ggq_memory,uint32_t,uint32_t *);
++    bool (*write_memory)(void *,enum ggq_memory,uint32_t,uint32_t);
++};
++struct ggq_receipt {
++    uint32_t reads,writes,ring_written,ring_checked,scratch_written,scratch_checked;
++    uint32_t commands_written,commands_checked,sqe_start_attempted,submit_attempted;
++    uint32_t keepalive_set_attempted,keepalive_clear_attempted,fence_checks,fence_status;
++    uint32_t fence_slow,counter_before_valid,counter_after_valid,idle_polls;
++    uint32_t rptr,busy,rbbm_status,cp_status,initial_rptr,initial_wptr,initial_sqe;
++    uint32_t complete,requests_retained;
++    uint64_t counter_before,counter_after;
++};
++struct ggq_diagnostic {uint32_t valid,memory,reg,expected,actual;};
++struct ggq_context {
++    uint32_t state,phase;
++    struct ggq_ops ops;
++    struct ggq_command command;
++    struct ggq_receipt work;
++    struct ggq_diagnostic diagnostic;
++};
++bool ggq_command_build(const struct ggp_plan *,struct ggq_command *);
++bool ggq_register_allowed(uint32_t,bool);
++/* Execute the first native A619 RB0 init, not an acceleration/Metal API.
++ * Board must require SAME-BOOT complete core/RGL, authenticated cold SQE,
++ * retained GPU/GMU context/routes/permissions, private NC ring/scratch and
++ * live clocks/IRQ/fault/owner/WDT guards. Register offsets are DWORDs;
++ * memory offsets are bytes. All aliases stay owned; no other CP may run.
++ * Guard bounds total CPU/phase time and the native2s idle wait. Every MMIO
++ * has pre/post guards; only private NC passes batch at most64 words.
++ * Native WPTR reissues are bounded protocol retries, never a stage retry.
++ * Any started failure is permanent; board quarantines shared owners before
++ * cached diagnostics. No further store, keepalive clear, reset, HOST release
++ * or rollback after refusal. Output stays unchanged until complete success.
++ * No APRIV/runtime preemption/ZAP/unsecured-mode/IRQ-enable/Metal operation.
++ * Linking this module does not dispatch it; a separate board adapter is needed.
++ */
++enum ggq_result ggq_start_once(struct ggq_context *,const struct ggq_ops *,
++    const struct ggp_plan *,const struct ggc_receipt *,struct ggq_receipt *);
++#endif

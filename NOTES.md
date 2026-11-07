@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —146 image/readers qualified; ONE rejection-reason hardware trial next
+
+DSH79868 CLOSED0; actual package0/independent review0, all9 inputs unchanged.
+Image shim/out/shim-p3-gmuf-0146-native-20261107.img19562496B SHA
+ca15aee0810f71dc253d5d907a68bef49b3a3bc29510eea1219b55b7d1f9eb9f;
+payload19234816B SHA5d6d1236b2e4f82f3bdb0e52eaa8eea1ffab3f3d7e89150e2974f4d09d51e431.
+Evidence4149B SHAe21da5333c0de6d2045b43d731d025559cd9d10503f20c928b23cbc73a3a9c26.
+Unique trialgmuf-0146-20261107-a1,600B command/sweetgpucontext1. Actual
+NVT18255c000/MDT182580000/GMU182584000 match145 geometry/content. All old
+image pins retained, including145. Codex independently rehashed actual image.
+
+DSH96601 CLOSED0; runtime_validate146.py0, three zero checks:clock4/95,
+FW131/503, full SYNTHETIC25/157. No bypass/relaxation. Adds cached INPUT
+only as failure observation/unknown-record refusal; retains all145 successful
+GPU/SCM/native guards, source/image/flag binding and raw transport semantics.
+Codex independently rehashed all current runtime report input pins. Fixtures
+remain synthetic, no146 argument reason/translation/SMC proof yet.
+
+Reviewed boot146/run_hardware146 owns ONE temporary image boot after same
+routine13-byte BCB/product/recovery->fastboot checks,180s observer/fresh pull
+and strict full reader. No extra device commands or initial-fastboot condition.
+NEXT execute-hardware.txt, capture exact reason and cached actual fields.
+Do not modify a rejecting predicate from guesses or continue to GPU OOB/core.
+Phone last observedTWRP in145. Current full recipe/source146yFYkK1, captured
+HEAD1cd00ff. Whole goal ACTIVE/incomplete; all owned DSH tasks closed,
+original mkadt diff intact, no CI/flash/format/GPT/destructive action.
+
 ### 2026-11-07 —146 complete diagnostic kernel qualified; package running, runtime tests/ONE trial next
 
 DSH10487 CLOSED0; build146.py actual build0/qualification0, ONE standard

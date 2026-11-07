@@ -2,6 +2,96 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —141 native BW encoder and snapshot exporter validated; next real BW/TEST transaction
+
+Previous goal turn was progress: actual140 PERF ACK passed and source/handoff
+published. THIS turn verifies native BW inputs/arithmetic and implements its
+CPU encoder/metadata exporter. Whole daily-use/GPU/Metal/RAM/storage/
+peripheral/high-refresh objective remains ACTIVE/incomplete; no141 BW/TEST
+firmware send/ACK, normal HFI_ON, GPU execution or Metal proof.
+
+DSH72511 CLOSED0 wrapped actual audit_inputs.py1: eight native primary files
+downloaded/pinned, then extractor import failed (kernel_banner module path).
+Original script/report/log retained. Explicit reviewed v2 adds tools import
+path, reuses/rechecks the same8 files. DSH42923 CLOSED0, actual audit_inputs_v2.py0,
+normal input-audit-v2.json PASS/inputs unchanged. Exact native19b63c8 arb,
+fabric,of,rpmh/types/tcs source SHA/Gitblob pinned; cached files matched the
+previous primary registry. Live139 FDT0b73e7af...fcc08d2 decoded; SAME140
+CMDDB131072B SHAc016bc0169875f5097261eb9a14bf09beb53229f269bbe7e70ef7ada7a9a484f
+extracted with unchanged strict protocol, actual ASan/UBSan C ndb_lookup probe
+confirms MC0 addr50000/unit2050000/width16/vcd0,SH0 addr50004/unit3650000/
+width32/vcd1,ACV addr50080/unit1/width0/vcd11,SN10 addr50054/unit530000/
+width8/vcd3; all owner5/bankver1000/reserved0. No new phone/controller I/O.
+
+DSH83697 CLOSED0; actual native_bw_oracle.py --out native-oracle-proof-v1 0,
+compile0/run0. Compiles EXACT native query_path/query_usecase, node query
+aggregation, BCM query/ACV/div64, VCD list ordering/TCS generation,
+build_rpmh_bw_votes/build_bwtable_cmd_cache and hfi_send_bwtbl bodies. Only
+kernel device/list/discovery/send seams reconstructed for the uniquely
+captured paths; active other query slots zero, native cleanup runs. Native
+640-byte sequence4 wire SHA03030a35553dfd3231a33e7ff80e356eb41f0a8cbeb31624cd2dbe1e197ce5bb.
+13 DDR/2 CNOC usecases,3 DDR/1 CNOC commands, wait masks0/0. Source confirms
+TCS wait never set in zero-initialized query records; BIT(i) quirk does not
+change those zero masks. Width0 ACV inherits MC0 normalized intermediate in
+the native per-node loop, giving off0/nonzero APPS8. Decimal KBTOB(*1000),
+fourth nonzero DDR vector1804800KBps (not rounded1800000). Native max MC0
+3fce,SH011ea; CNOC on minimum rounding vote1. No physical ACK from oracle.
+
+Private core770127c7970b184f613073406503f625db8abbd1 adds135th patch
+0141-gauguin-gmu-native-bandwidth-plan.patch. Fresh source1415282files SHA
+d0c69f867533c20e72201ee67532d1bd27e1914b0b2c1909c8d5e3bf183892ac.
+Only firmware.c/h and bus_probe.c/h differ from frozen140ab8fdb34...a0a7a1f.
+New gmf_bw_plan_build/valid uses actual generic BCM aux decoder plus exact
+MC0/SH0/ACV/SN10 policy; bank version retained, not gated. gmf_bw_table_build
+encodes160 words, fixed native capacities, zero unused cells/waits, all13
+numeric rows and2 CNOC rows, bounded sequence1..4095. CPU-only, no runtime
+sender or bootstrap/receipt/context change. New sweet_bus_bw_entries exports
+the four resources from already published matching CPU copies, no recapture/
+mapping/MMIO/RSC submission; publishes output only after all lookups succeed.
+New host suite plus same-snapshot exporter negative tests added.
+
+DSH65349 CLOSED0; actual validate141.py0, normal SEVEN zero results: pristine
+replay, exact candidate native BW oracle (all4095 sequences byte-identical),
+all62 hosts, exact native PERF byte oracle, frozen ORIGINAL129-model default
+I/O equivalence and real ARM64 firmware/bus TUs. Source/baseline/inputs
+unchanged. Validation report SHA
+bdfdaf110224141056b863830fa078d39ef2f322a94f074f092ea95cdb0db053.
+New ASan/UBSan BW suite12611 checks: exact640-byte wire/13 numeric DDR rows,
+CNOC minimum1, unused cells0, all4095 seqs; invalid name/owner/aux/resources/
+plan/sequence/null/wrap/alias output preservation; observed bank versions
+remain unqualified. Actual CPU exporter tested before publication, missing
+last SN10, both-copy mismatch, bad context and unchanged outputs; no extra
+MMIO/capture/map/RSC. All legacy firmware/PERF/board/coordinator tests retained.
+Default140/1411,009,420 I/O requests identical digest42c8a43275281f5b.
+Native firmware63792B SHAfa1620ee5bb58db8fe98aa56cdc5681cd848ac8384d5b5c8a9f997b1705fb034
+at gmu141-gauguin_gmu_firmware/run-z8xv4ukm/compile.json; bus61928B SHA
+c340282fd944b5006e6fb927cbb14b2e5fb5fcf1ed0582ec57896b590774a517
+at gmu141-gauguin_bus_probe/run-5lcg9mz1/compile.json (under
+research/tmp/gauguin-nvt-p1). Uses CURRENT140 P3pyBC native recipe/source.
+
+NEXT142: implement actual BW+TEST after PERF on SAME retained HFI channel.
+Suggested explicit gmf_bootstrap_bw_test_once/sweet_gmu_firmware_bw_test_once
+entry accepting a validated gmf_bw_plan, sharing the original once-state,
+public receipts and guards. sweetgmubw defaults0; exact1 requires existing
+sweetgmuperf1/FW/clocks/CX/PAS exclusions. Coordinator exports/builds BW plan
+before WDT/RSC, stops if unavailable; no silent fallback. Request sequence4
+BW160 words (0040a003), then sequence5 TEST1 word (00500105) for captured
+HFI_USE_REG quirk. Each ACK type2/prefix3..19/sequence4 or5/status!=ffffffff;
+copy only3 prefix words. Preserve cached refusal site/request distinction,
+private started/accepted flags, final guards, no extra reset/OOB/alias/PAS/
+rearm/PET/retry. Log required BW and TEST records only after final guards;
+partial records only after board/lease quarantine. Source/runtime qualifier
+must bind these new records and original constructor/query oracle. Bounds
+for five requests:88..238 controller stores,8..8000 polls,debug<=225.
+Retain default140/141 I/O equivalence, add every callback/ACK/refusal and
+missing-preflight/flag tests, then full new kernel/image/strict-reader/ONE
+phone trial. Legacy startup message sequence completion is not full async
+interrupt/power lifecycle, GPU commands/rendering/Metal proof. Do not spend a
+whole image on this constructor-only unchanged runtime path. No141 whole
+kernel/image/phone/CI trial.140 remains physical PERF baseline. All owned
+handles CLOSED, phone last observedTWRP. Original7-line mkadt diff untouched;
+no flash/format/GPT/destructive action. Whole objective remains ACTIVE.
+
 ### 2026-11-07 — actual140 native PERF table ACK PASS; next bandwidth table and TEST
 
 THIS goal turn is progress:140 opt-in engine/board/coordinator implemented,

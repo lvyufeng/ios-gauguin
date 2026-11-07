@@ -36,7 +36,93 @@ no GPU-execution/Metal qualification or human UI/touch observation was added.
 Current GPU source work and complete hardware recipe are recorded in the
 latest milestones below. No repeated reset question; only necessary manual recovery.
 
-### 2026-11-07 —155 immutable b02 asset/plumbing QUALIFIED; post-CP owner/PAS loader156 NEXT
+### 2026-11-07 —156 fixed INIT/MEM/copy/AUTH ENGINE qualified; real owner/board binding157 NEXT
+
+Previous goal turn was PROGRESS: pinned b02 plumbing/immutable view completed
+and all73 hosts passed, published sourcec6c726abf5eb5f26a9355718f4cf926dacc57fb5.
+Its handoff private6a81ba01d1ad7f8338a462ebad817858a7e0eb62 was published as
+9267858d313dfcaceafad8ff41399f35ff57c051, soleparentc6c726a, same tree;
+dsh-0155/public-assets-handoff-snapshot.json. Current156 milestone is the
+required fixed transaction engine, NOT the complete live post-CP loader yet.
+The integrated owner/board work remains next157; daily-use goal ACTIVE/full.
+
+Codex authored gauguin_gpu_zap.C/H and bsd/conf/files member in patch0156.
+Only3 staged paths differ from155; old board/coordinator/owner/legacy PAS code
+and dispatch remain byte-identical. No new SMC instruction, mapping or mutable
+destination pointer. Private live provider must seal completed CP/core/FW and
+actual owner; plan PA is ONLY a comparison key, never an owner setter.
+Engine fixes native INIT42000201/82/13/PA, MEM42000202/3/13/PA/4096,
+copyexact1984/readback1984/nozero-tail, AUTH42000205/1/13/0/0/0/0.
+Owner actions explicit SEAL/INIT_ENTER/INIT_ACCEPT/MEM_ACCEPT/AUTH_ACCEPT;
+actual owner-local copy and stage authority are NOT supplied by156 alone.
+
+Source control flow preserves FULL7 returned registers across full64x0==1;
+no logs/sleep/fresh frame in interrupted chain. BUSY signedlow32-12 gets30ms
+fresh retry, max68 attempts/8 total continuations PER transaction. Full64x0/x1
+must bothzero. Bounds:20s total,5s per SCM stage,2s copy,1s seal/final;10s
+initial-call/3s later WDT budgets. These are reviewed diagnostic policies,
+not native AUTH limits or a cancellation mechanism for nonreturning SMC.
+LIVE checks before transactions/copy; SECURE callbacks are CPU/context/time/
+WDT/owner-metadata only, no GPU registers/secure-buffer/diagnostic IO. LATE
+after AUTH0 forbids GPU/secure-buffer access. Known failure raw/terminal logs
+follow shared quarantine; no cleanup/restarted stage, caller out unchanged
+on failure/argument/already. Cached work retains partial progress.
+
+DSH24511 CLOSED0/native156.py0 then focus156.py1. ARM64 TU passed using current
+154gauguin.SlaKVj/source154-codex recipe. Object18144B SHA
+e1a76f71bd2950dd55ca26ef29fc4cf44e4f00893266be412899cc0f340157a1,
+candidateC SHA91a2b08376f9de35687671af42244faabd4e82001434381c5a9b1e424d8eabf6.
+native-result.json816B SHA67dfb67dde816d3ff0af6095a644eaa6049a63d702bd836e6fb8edbf3d76adc6,4pins.
+Pristine150patch replay/source156-codex5300files SHA
+cbef2a1d251e0493499efdeb87a86baadd2ca90bb7f6e3bb92f82f4908f24893.
+Initial126 engine cases passed; native oracle then FAILED before compilation:
+helper assumed PAS commands were macros; original source uses enum scm_cmd.
+Original helper/log/report+294-pin input snapshot frozen, not overwritten.
+focus-result.json35629B SHA57be7ce3f51b62cf34df3c47ca62cb341a4c313ddbe19f7fdc47664b6d74ca12.
+
+Explicitv2 uses exact ORIGINAL enum and original3 PIL bodies, no function
+rewrite. Production C/H/native TU/pristine source unchanged. Only host fixture
+changed: raw terminal BUSY uses fresh-attempt count, not totalSMC count, and
+adds mixed8continuations+67BUSY plus interrupted/BUSY multi-chain cap cases.
+DSH94350 CLOSED0/focus156_v2.py0.130 actual-engine ASan/UBSan cases, all18guard/
+42clock/7deadline/4barrier boundaries injected; everyowneraction/copy/arg/
+service/full64transport/busy/continuation/reentry/once/snapshot/timing refusal
+covered. Three unchanged native pil_init_image_trusted/pil_mem_setup_trusted/
+pil_auth_and_reset bodies compile and execute under typed OS+normal64 scalar-
+frame seams; ALL3 fresh7register frames byte-equal to engine trace SHA
+5d89d36d5563c18ab8b3add3fc5e44ca7122df0762807f9b827439d12a4b6840.
+This is exact DESCRIPTOR-body evidence, not native assembly/full PIL loader/
+secure firmware execution. v2oracle result1638B SHA
+b3bb245acd225b686897dfcdb6fc96e8e3f21e8c5336db74cbb5817e1df97d1e,8pins.
+All74 host files ran once/passed. focus-result-v2.json36332B SHA
+1f3b26d2af04d91370dad88250f22bb1d68acdf9fe1e34c73a2a210e325463d8,297pins.
+Codex independently rehashed4native+297v2+8oracle pins, all294 frozen-v1
+snapshot pins, actualARM64 object/source, both source snapshots, exact3
+verbatim native bodies/generated unit/identical traces and all74 named runs.
+research/tmp/dsh-0156/independent-review.json1358B SHA
+4ee3d842cb5059fe2461dcdb2f5ab83b83b71d6dd9225eed4ae96b7502075ec3.
+
+NEXT CONCRETE157: bind this tested engine to actual post-CP board state and
+private pst_mapping/pst_ready owner, add exact default-off sweetgpuzap gate
+with old init/mem flags0, and coordinator call ONLY after actual CP success.
+Do not reuse expired ggq RUNNING/deadline guards or globally relax old MDT
+checks. SEAL performs last original-MDT check; INIT_ENTER transfers to geometry-
+only owner validation before possible SCM_RW. Later accept actions require
+private engine current phase/actual full64 receipt and matching private PA.
+Owner-local COPY uses retained NC alias, fixed saved b02 view and64byte batches
+with live pre/post checks; exact1984 write/readback, no tail clear/new alias.
+SCM callback may reuse verified seven-register scalar wrapper via typed copies;
+SECURE/LATE guards must obey limits above. Shared quarantine must poison owner/
+CP/core/GGX/FW/board/lease BEFORE cached failure diagnostics. No CPU region
+access or GPU polling after AUTH0. Add real-owner model +live-board/coordinator
+tests, ARM64 TUs and full74 hosts, then ONE integrated157 kernel/five-asset
+image/new strict same-boot reader/trial. No standalone156 or copy-only reboot.
+Unsecured-mode submission/rendering/Metal/highrefresh/daily-use remain open.
+No156 full kernel/image/device IO; phone LAST TWRP154. Full native recipe is
+STILL154gauguin.SlaKVj/generated BSD source154. All ownedDSH CLOSED. Original
+mkadt diff a74a0418...454860 unchanged; no manual action/CI/flash/format/GPT.
+
+### 2026-11-07 —155 immutable b02 asset/plumbing QUALIFIED; post-CP owner/PAS loader156 NEXT (engine156 completed above, live binding157 pending)
 
 Completed155 source committed private3b73242d34389a2e21d410f2cd685f7823754b70,
 publishedc6c726abf5eb5f26a9355718f4cf926dacc57fb5, solepublicparent

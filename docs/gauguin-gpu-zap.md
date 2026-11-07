@@ -21,6 +21,32 @@ actual shim loader's five-asset copy/zero/ADT/bootargs path and88 PAS metadata
 cases. All73 host test files pass. The offline five-asset pack used the old154
 kernel to verify packaging only; no155 full kernel or device trial was made.
 
+Patch0156 adds the fixed `gpz_start_once` transaction engine. It owns the three
+native frames, serialized owner-action sequence, copy counts, continuation/BUSY
+handling and terminal quarantine. It contains no SMC instruction or live board
+dispatch. Its provider must establish the actual same-boot CP/owner authority
+and perform the owner-local copy; the PA argument is only a comparison key.
+That live binding remains implementation157, before any integrated device trial.
+
+The engine separates pre-transaction live checks from the tight secure-call
+checks and the checks after AUTH success. Continuations preserve all seven
+registers and admit only CPU/context/time/watchdog/owner-metadata checks, with
+no logging, GPU access or secure-buffer inspection. After AUTH0, the late
+scope also forbids GPU register and secure-region access. Known terminal raw
+errors are emitted after shared quarantine. Failed output remains untouched.
+Diagnostic bounds are20s overall,5s per secure transaction,2s for copy and1s
+for seal/final, alongside the independent watchdog budget; these do not bound
+or cancel the execution time of a secure call that never returns.
+
+Validation passes130 actual-engine host cases and all74 host files, including
+all guard/clock/deadline/barrier boundaries, full64 errors, partial copies,
+multiple interrupted/BUSY chains and8 continuations combined with67 BUSYs.
+Three unchanged original PIL function bodies produce exactly the same fresh
+register frames as the port under typed OS/normal64 scalar-frame seams. This
+verifies descriptor construction, not native assembly, the full PIL loader or
+signature authentication. The original oracle's failed macro-extraction run
+is preserved; a separate version uses the source's actual command enum.
+
 The primary reference remains LineageOS/android_kernel_xiaomi_gauguin commit
 `19b63c8192b1c9b7c4d931d7d3be92024bc2d778`. The read-only155 source audit
 rehashes12 pinned native files, all seven captured firmware files and original
@@ -67,7 +93,8 @@ The implementation proceeds in these bounded stages:
    raw/padded size, direct-map endpoints, DRAM/top bounds and separation from
    all existing assets and the low reservation. With the asset absent, retain
    existing payload bytes and options. Keep binaries outside Git. The remaining
-   steps below are unfinished and start with integrated loader156.
+   steps below are unfinished. The fixed transaction engine156 is tested;
+   actual private-owner/board/coordinator integration starts in157.
 2. Add a distinct default-off ZAP entry after successful live CP completion.
    Seal the actual same-boot CP/firmware/core/owner state before INIT. Retain
    original MDT checks before the transfer; use separate phase-aware geometry,

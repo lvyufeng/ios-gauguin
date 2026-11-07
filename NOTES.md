@@ -2,6 +2,86 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —164 complete LOCAL kernel QUALIFIED; image/runtime/ONE temporary boot NEXT
+
+Broad daily-use goal ACTIVE/full/unlimited, no GPU data-write/rendering/Metal
+hardware success yet. Phone last observed TWRP163. User away: ALL resets are
+automatic, --manual-reset no; NEVER ask reset attribution. Only prompt when
+actually stuck requiring manual recovery. All DSH jobs CLOSED at this handoff.
+Original mkadt7line diff SHAa74a0418...454860 untouched. No flash/format/GPT.
+
+CURRENT generated/native recipe NOW164 gauguin.1GkM5N/source164-codex. Never
+use159/163 TU helpers against this shared build directory. Any future native
+TU must use actual current164 manifest/recipe, until another full build.
+Source164 private6e80ab2b507295c851ae05fd8b393a7e9b979263, published2da448b7df7c6fb352bebfe1b9af339617a768aa
+soleparent2340f53a2587aa8c3251ade9aa8ffb8cd1d2b8f2, same tree7b2714fedcf5e8e38263a8e577f91a926b79b2f4;
+three UTF8 paths only, dsh-0164/public-source-snapshot.json. No CI164 dispatched.
+
+DSH59517 CLOSED0/build164.py actual full LOCAL8job build0, then qualifier2:
+one metadata hash path still named nonexistent full-host-result.json instead
+of actual validated integration-result.json. No qualification report created;
+native164-execution-result.json and native164-qualification.log immutable.
+No kernel/driver/source/test failure, no second build. Separate v2 qualifier
+changes EXACTLY that one report path, all artifact/native/board/WDT/source
+gates retained; requalify164.py asserts exact delta and same existing kernel.
+DSH9405 CLOSED0/requalify164.py0/inner strict qualification0, same run/kernel,
+native164-requalification-result.json SHA
+0ada2026aa7b1c2352d5fe85b6364a666fa49972dfd9557e98ea1199bbfd2cc1.
+Original build report SHAeb264c702247aca5ed03d7eb3dd3090a81787d1e90d742fa9741a051062e08fa.
+Canonical p3-native-0164-qualification-20261107.json SHA
+d0ee6646de839b7b07b3adfb46849a2850932e878850be4b5304064230f4a49e,
+committed/buildcaptured sourceHEAD stays6e80ab2b507295c851ae05fd8b393a7e9b979263.
+Kernel17031408B SHA4320cde7df85d51f2220f9359f880639490a8db2408ee26ac17371ad27bab673,
+banner Sat Nov7 20:11:41 CST2026/xnu-af97ad8d6aa94f30bd471cbb4f3abe73;
+manifest2f3d7c1f1c19e78c9756e86aabd2e136966c56c0d9287a431a63491b4e35ed46,
+archive93571fd18cceef8c4da0bce5db1d42d321bcd637fede94ac7cc22f8bf10fd380.
+Fresh source5306files SHA
+c586524563f3b2cf915490d27635f7e26d72c9782d8de8ece1beb289cc20eb17.
+Codex independently rehashed actual kernel/manifest/archive/source/all old+new
+members/requalification input pins, checked exact banner and full model-bound
+source in independent-build-review.json. native_gpu_linear_whole_table_source_bound
+true; gpu_data_write_hardware_qualified remainsfalse. live-execution.json
+updated COMPLETED, no live build to restart. Original failure was a helper
+path error, not evidence to change tests, rebuild, or relax watchdog checks.
+
+PREPARED, NOT EXECUTED after full build:
+- image_preflight164.py <sourceHEAD6e80...> ->image-preflight-result.json:
+  whole new packaging/runtime helpers syntax, canonical qualified source,
+  successful requalification, exact606B mode3 command from pinned163image,
+  ONLY unique trial changed to gwrt-0164-a1. Separates source preflight (already
+  passed before build) from these newly authored image helpers.
+- package_and_review164.py <sourceHEAD6e80...>, pack_native0164.py and
+  review_image164.py. Requires successful native164-requalification-result,
+  original failure pinned, both v1/v2 qualifiers retained; new linear source
+  flag required plus ALLold163 gates. Independent review additionally pins
+  actual163image80b6b8...70f8f7 and permits ONLY new trial versus that command;
+  older159/157/154/152 controls still retained. Five firmware assets unchanged.
+- runtime_validate164.py, verify_gmuf164.py, clock/FW/full host fixtures,
+  source_defaults164.py, zap/unsecure/write_records164.py and fixtures.
+  Derived from163 successful v2 fullfixture (stale-trial negative fixed), all
+  technical/native/raw framing/reset gates retained. Production reader changes
+  ONLY source/identity/helper names plus additional required linear source
+  flag; DATA19/171/full16KiB/full4096byte/31/native words/actual CPU samples
+  rules identical. New flag false/missing metadata negatives added. No164
+  runtime fixtures have run yet. Must run actual four checks after image review.
+
+NEXT concrete action: DSH run image_preflight164.py ONCE, then package/review
+ONCE. On any failure preserve original output/script/log, correct a separate
+version; never repack/modify raw evidence or waive gates. Independently rehash
+new image + runtime proof after all four checks. Then author boot164.py /
+read_hardware164.py from163helpers with ACTUAL new image hash/size, sourceHEAD
+6e80..., trial gwrt-0164-a1, runtime-parser-result.json (not old v2 filename),
+fresh164 output paths and --manual-reset no. Only ONE temporary boot, routine
+13byte recovery latch/readback, no extra device writes. AutoTWRP normally131s.
+Check actual same-boot CP15 -> signed full64 INIT/MEM/AUTH -> native20 ->
+ordinary MEM_WRITE pair/full4096byte actual samples/shadow31, plus prior
+runtime gates. 164 optimization's real timing/success remains UNPROVEN until
+that boot; never infer shader, rendering, Metal or high refresh from it.
+No164image/package/device IO yet. NOTES-only handoff changes after build are
+allowed by independent image review; always pass original sourceHEAD6e80...
+for qualification/evidence checks. Do not rerun the full build just to update
+NOTES. Next publication IDs go in dsh-0164/public-build-handoff.json.
+
 ### 2026-11-07 —163 physical WDT refusal preserved;164 equivalent full-table scan SOURCE QUALIFIED
 
 Goal remains ACTIVE/full/unlimited. Phone last observed TWRP after ONE163boot;

@@ -3,6 +3,113 @@
 ## Agent handoff / active work
 
 
+### 2026-11-08 —170 USER32 kernel source/all83host ACCEPTED; full build NEXT
+
+Fullgoal ACTIVE/unlimited; no170kernel/image/device yet. Current generated
+XNU recipe still169 gauguin.v8Ky8T. Phone last TWRP169; ALLresetsautomatic,
+never ask attribution. No new destructive actions; original mkadt diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 unchanged.
+
+New164th active patch0170-gauguin-clear-user32-event-source.patch changes
+exactly3files vs169: native clear149 array ONLY7source-generated headers,
+comments/provenance, one board diagnostic TIMESTAMP->FENCE/USER32 suffix.
+All other clear engine logic/header geometry and entire board outside that
+diagnostic are byte/semantic identical; all older modes0..6/engines/mappings
+unchanged. No oracle, seq7, masks/highneighbor/zero checks, timeout/guard or
+quarantine relaxation. Original169patch/raw/image/fixtures preserved. New
+source_profile_words.h from accepted native capture; original native_words.h
+remains exact169control. Updated test input pins now include actual new header.
+
+DSH34839/v5focus failed after clear model0; board model never compiled due
+missing unchanged board.h/compute files in narrow candidate view. ALLfailed
+inputs preserved in focus-v1-input-snapshot before later test input-pin updates.
+Codex fixed only host view/bindings, newv6focus full rerun. DSH66865 terminal
+inner0 FIRSTv2,123.18s: clear14875cases/280494724assertions incl observed169
+213samples/control0x0cf49802/hi0/shadow20 guard rejection +wrongfinalseqs;
+board4055newclearcases plusallold; actual two changed ARM64TUs0 using then
+current169manifest52727645fa0536302971170d36094367daeae420e9073c4bd233347d978f547c.
+No sanitizer/native-device success conflation.
+
+DSH22466/v6integration terminalinner0 FIRST,260.93s: pristine164patch replay,
+all83actual hostfiles0,5314sourcefiles SHA
+ef39ff64161d325d7e5a61f80e71af76704aaef139f2950f1b04dabb6641fbf3.
+Replayed delta equals exact3candidatefiles, independently predicted hash;
+source169unchanged. Root review_source170 FIRST0
+independent-source-review.json SHA
+52d2e3801f89e3da46ae55ea16913a3f84884456357a9da921d557dd2c117f9d:
+allinput/snapshot hashes/full83log/twoobjects/five555wordtraces/nativeprofile/
+old169fixture/failedfocus snapshot/unchangedoldproviders/guards accepted.
+
+DSH39986/v7standalone clear parser terminalinner0 FIRST,22.63s. New production
+parser/source metadata accurately name USER32, FENCE and sequence7, bit30false;
+all previous actual pixel/fullpage/nativebytes/ordering/time/fault criteria
+retained. Additional actualclock-as-completion and oldbit30 packet mutations
+rejected; clear-parser-standalone-result.json records exact counts/pins.
+This and all build source flags are SYNTHETIC/source-only, hardwarefalse.
+
+Codex authored bind_host170/qualify_native0170/build170, preserving older native
+assembler/CP/PIL/data/EOP/GGK foundations verbatim and accurate12clear flags
+(oldbit30source flag replaced by USER32source flag). Preflight not yet run.
+Two author_contract170 helpers failed only pre-write indentation during source
+generation; expected-source170.json writtenonce, actualcontract createdv3.
+Original failures preserved; no gate/device executed by either helper.
+Runtime fixture/parser170helpers authored but full actual-artifact gate pending.
+Optional8worker negative-parse partition runner authored, NOTRUN/qualified;
+every original positive/generator/rejection-body must remain unchanged and
+allcase SHA manifests identical/exactunion before using any parallel result.
+
+NEXT: freeze this committed source/private-public SAME TREE snapshot, DSH once
+preflight then one fullLOCAL8job170build; independently review. Then package,
+full runtime/metadata/framing/clock/FW gates, one temporary trial and readback.
+No physical clear/render/Metal/highrefresh/UIperformance claim until actual
+strictgates pass. No user action needed. Codex criticalcode/review, DSH execution.
+
+
+### 2026-11-08 —170 explicit A619 event-source native profile ACCEPTED; kernel NEXT
+
+Full goal ACTIVE/unlimited. Source/native milestone only, NO170kernel/image/
+device trial yet. Current generated XNU recipe remains169 gauguin.v8Ky8T;
+never run old TU helpers against shared generated files. Phone last TWRP169.
+Useraway: ALL resets automatic; NEVERask reset/UI attribution. Temporaryboot
+only, no new destructive actions. Original mkadt7line diff untouched.
+
+Primary-source comparison now includes same Mesa24.3.4 computerator sequence
+emitter(no bit30), Gallium USER32 vs ALWAYSON callers(A6XX ignores source),
+XML timestamp-instead-of-value description, actual fd6_query ALWAYSON use,
+and historical primary Chromium Mesa commit9fc5ee58de44223e9f92064ad0f547302d1db55f
+fd6_emit.h(no bit30). Historical source SHAe6d338dfd672580d02beefac160c3986294111676d84f80e5a8573343a014d08;
+provenance stored dsh-0170/event-primary-history-v1. No universal upstream bug
+or proven physical root-cause claim.
+
+Codex authored explicit port template specialization in committed fixture
+a619_event_source_profile.h: USER32 packet value, RB_DONE/ALWAYSON timestamp
+retained; unsupported source/dst/index abort BEFORE header. Original Mesa
+tree immutable. No binary masking, seq7/oracle/guards/timeouts relaxation.
+New native host original-control/profile recompile whole emit/barrier using
+actual upstream driver CXX recipe, typed existing BO/ring seams only.
+
+DSH83735/v3 invocation FAILED before claim: root prompt accidentally included
+standalone punctuation dot as argument. No stage/artifact/device action;
+original invocation/script/events preserved, no retry of a claimed job.
+Fresh v4 DSH48528 terminalinner0 FIRST stage,11.665s. All10compiles/4links/
+2event suites/4captures0;18 unsupported aborts SIGABRT with read-only ring,
+not write/SIGSEGV. Both profiles432 USER32 cases plus native ALWAYSON query.
+Original captures byteequal169 in both scenarios; new source-generated IB
+differs ONLY7 event headers. Restore194/preamble205/4096B semantic oracle
+identical. Original primary10642files SHA598f1abe0af15e1ebf584c9dfb04acd14d41644d8a8597c120184da11767187d.
+Root review_event_profile170 FIRST0; independent-event-profile-review-v1.json
+SHA275b73a58ebd32f05f53f7a339e7ca362a93c93979174a10954f501bf5d0b425.
+Native/source checks only; NOASan claim, GPU/clear/render/Metal qualification.
+
+NEXT: port these source-generated seven headers into a NEW170incremental
+patch, accurate USER32 provenance/diagnostics/source flag, preserve complete
+169failure and all3/4/5/6 accepted paths. Full focused/real board/old-host/
+patch replay/TU/build/runtime/image checks before one new temporary trial.
+Keep2s/4s/8s/23s guards, full256pixels/192blue/64green/767unchanged/EOP7/hi0.
+Codex critical driver/review/Git; DSH execute-only builds/tests/boot with once
+claims. No user action needed.
+
+
 ### 2026-11-08 —169 PHYSICAL clear REJECTED at sync; event-write protocol NEXT
 
 Previous source/native turn PROGRESS. This continuation PROGRESS: ONE local8job

@@ -3,11 +3,11 @@
 from pathlib import Path
 import hashlib,os,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source169-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source170-codex')))/'bsd/dev'
 S=Path(os.environ.get('GPU_CLEAR_SOURCE',str(D)))
 F=R/'tests/fixtures/gpu-clear/clear_host.c'
 names=['gauguin_gpu_unsecure','gauguin_gpu_cp','gauguin_gpu_data','gauguin_gpu_memory','gauguin_gmu_memory']
-inputs=[Path(__file__),F,F.with_name('native_words.h'),S/'gauguin_gpu_clear.c',S/'gauguin_gpu_clear.h',*[D/(n+s) for n in names for s in ('.c','.h')]]
+inputs=[Path(__file__),F,F.with_name('source_profile_words.h'),S/'gauguin_gpu_clear.c',S/'gauguin_gpu_clear.h',*[D/(n+s) for n in names for s in ('.c','.h')]]
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
 env=dict(os.environ,ASAN_OPTIONS='halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
 with tempfile.TemporaryDirectory(prefix='gpu-clear-') as tmp:

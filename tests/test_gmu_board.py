@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source169-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source170-codex')))/'bsd/dev'
 C=Path(os.environ.get('GMU_BOARD_SOURCE_DIR',str(D)))
 S=C/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 G=R/'tests/fixtures/gmu-board/write_host.c'
@@ -11,7 +11,7 @@ I=R/'tests/fixtures/gmu-board/ib_host.c'
 E=R/'tests/fixtures/gmu-board/eop_host.c'
 K=R/'tests/fixtures/gmu-board/compute_host.c'
 L=R/'tests/fixtures/gmu-board/clear_host.c'
-LV=R/'tests/fixtures/gpu-clear/native_words.h'
+LV=R/'tests/fixtures/gpu-clear/source_profile_words.h'
 V=R/'tests/fixtures/gpu-compute/native_words.h'
 inputs=[S,F,G,I,E,K,L,V,LV,C/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
 inputs += [D/'gauguin_gpu_sqe_asset.h',D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']

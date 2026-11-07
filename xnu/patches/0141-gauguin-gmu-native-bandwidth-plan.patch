@@ -1,0 +1,151 @@
+diff --git a/bsd/dev/gauguin_bus_probe.c b/bsd/dev/gauguin_bus_probe.c
+--- a/bsd/dev/gauguin_bus_probe.c
++++ b/bsd/dev/gauguin_bus_probe.c
+@@ -570,6 +570,17 @@
+     memcpy(out,entries,sizeof(entries));return true;
+ }
+ 
++bool sweet_bus_bw_entries(struct ndb_entry *out)
++{
++    if(!out||!bus_context()||!__atomic_load_n(&bus_plan_ready,__ATOMIC_ACQUIRE)||!bus_work||
++       memcmp(bus_work->raw[0],bus_work->raw[1],BUS_RAW_BYTES))return false;
++    static const char *const names[]={"MC0","SH0","ACV","SN10"};
++    struct ndb_entry entries[4];
++    for(unsigned i=0;i<4;i++)if(ndb_lookup(bus_work->raw[0],BUS_RAW_BYTES,names[i],
++        strlen(names[i]),&entries[i])!=NDB_OK)return false;
++    memcpy(out,entries,sizeof(entries));return true;
++}
++
+ static void
+ bus_worker(void *argument, wait_result_t result)
+ {
+diff --git a/bsd/dev/gauguin_bus_probe.h b/bsd/dev/gauguin_bus_probe.h
+--- a/bsd/dev/gauguin_bus_probe.h
++++ b/bsd/dev/gauguin_bus_probe.h
+@@ -17,4 +17,9 @@
+  * lookups succeed and both retained copies still match. Consumer applies its
+  * own board policy before any firmware/OOB/resource programming. */
+ bool sweet_bus_arc_entries(struct ndb_entry *);
++/* Copy fixed GPU BW resources MC0/SH0/ACV/SN10 from the same published CPU
++ * snapshot, under the identical context/immutability gate. No new capture,
++ * mapping/MMIO/submission or ownership claim; consumer validates its policy.
++ * Output is published only after all four lookups succeed. */
++bool sweet_bus_bw_entries(struct ndb_entry *);
+ #endif
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -370,6 +370,75 @@
+     table.word[38]=200000;
+     *out=table;return true;
+ }
++static const char bw_names[4][9]={"MC0","SH0","ACV","SN10"};
++static const uint32_t bw_addr[]={0x50000,0x50004,0x50080,0x50054};
++static const uint32_t bw_unit[]={2050000,3650000,1,530000};
++static const uint16_t bw_width[]={16,32,0,8};
++static const uint8_t bw_vcd[]={0,1,11,3};
++bool gmf_bw_plan_valid(const struct gmf_bw_plan *p)
++{
++    if(!span(p,sizeof(*p)))return false;
++    for(unsigned i=0;i<GMF_BW_RESOURCES;i++)if(p->db[i].address!=bw_addr[i]||
++        p->db[i].unit!=bw_unit[i]||p->db[i].width!=bw_width[i]||
++        p->db[i].vcd!=bw_vcd[i]||p->db[i].reserved)return false;
++    return true;
++}
++bool gmf_bw_plan_build(const struct ndb_entry *entries,struct gmf_bw_plan *out)
++{
++    if(!span(entries,GMF_BW_RESOURCES*sizeof(*entries))||!span(out,sizeof(*out))||
++       overlap(entries,GMF_BW_RESOURCES*sizeof(*entries),out,sizeof(*out)))return false;
++    struct gmf_bw_plan p={0};
++    for(unsigned i=0;i<GMF_BW_RESOURCES;i++){
++        struct gbcm_db db;
++        if(memcmp(entries[i].name,bw_names[i],sizeof(bw_names[i]))||
++           gbcm_decode(&entries[i],&db)!=GBCM_OK)return false;
++        /* Copy fields, never an uninitialized generic decoder padding byte. */
++        p.db[i].address=db.address;p.db[i].unit=db.unit;p.db[i].width=db.width;
++        p.db[i].bank_version=db.bank_version;p.db[i].vcd=db.vcd;p.db[i].reserved=db.reserved;
++    }
++    if(!gmf_bw_plan_valid(&p))return false;*out=p;return true;
++}
++static uint64_t bw_div(uint64_t n,uint32_t base)
++{return n&&n<base?1:n/base;}
++static uint32_t bw_command(uint64_t vote)
++{
++    /* Every captured command has a distinct VCD and is its group's last
++     * command. Native marks valid only for nonzero votes and caps14 bits. */
++    return 0x40000000u|(vote?0x20000000u:0u)|(uint32_t)(vote>0x3fffu?0x3fffu:vote);
++}
++bool gmf_bw_table_build(const struct gmf_bw_plan *plan,uint32_t sequence,
++    struct gmf_bw_table *out)
++{
++    if(!span(plan,sizeof(*plan))||!span(out,sizeof(*out))||
++       overlap(plan,sizeof(*plan),out,sizeof(*out))||!sequence||sequence>4095||
++       !gmf_bw_plan_valid(plan))return false;
++    /* Exact live DT vectors-KBps converted by native KBTOB(*1000); AB0.
++     * Preserve1804800, not a rounded1800000. GPU->DDR passes LLCC16 and
++     * EBI4; GPU->CNOC passes GEMNOC8 with the SN10 BCM. */
++    static const uint32_t kbps[]={0,400000,800000,1200000,1804800,2188000,
++        2724000,3072000,4068000,5412000,6220000,7216000,8371200};
++    struct gmf_bw_table table={0};
++    table.word[0]=(sequence<<20)|(GMF_BW_WORDS<<8)|3u;
++    table.word[1]=13;table.word[2]=1;table.word[3]=3;
++    /* Native zero-initialized TCS records never set wait in query generation.
++     * Its build_rpmh_bw_votes therefore yields both wait masks0. */
++    table.word[6]=plan->db[3].address;
++    table.word[12]=bw_command(0);
++    table.word[18]=bw_command(bw_div(bw_div(UINT64_C(100000)*plan->db[3].width,8),plan->db[3].unit));
++    for(unsigned i=0;i<3;i++)table.word[24+i]=plan->db[i].address;
++    for(unsigned i=0;i<13;i++){
++        uint64_t ib=(uint64_t)kbps[i]*1000;
++        uint64_t mc=bw_div(bw_div(ib*plan->db[0].width,4),plan->db[0].unit);
++        uint64_t sh=bw_div(bw_div(ib*plan->db[1].width,16),plan->db[1].unit);
++        /* Native EBI lists MC0 before width0 ACV, retaining MC0's normalized
++         * intermediate in bcm_query_bus_req. Exact native oracle confirms
++         * ACV APPS8 for these nonzero rows and0 for the off row. */
++        table.word[32+8*i]=bw_command(mc);
++        table.word[33+8*i]=bw_command(sh);
++        table.word[34+8*i]=bw_command(mc?8:0);
++    }
++    *out=table;return true;
++}
+ static enum gmf_result bootstrap(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,struct gmf_receipt *out,bool perf)
+ {
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -1,6 +1,7 @@
+ #ifndef GAUGUIN_GMU_FIRMWARE_H
+ #define GAUGUIN_GMU_FIRMWARE_H
+ #include "gauguin_gmu_hfi.h"
++#include "gauguin_bcm_plan.h"
+ struct ndb_entry;
+ #define GMF_FW_BYTES 32768u
+ /* Pinned rpmh-rsc.c: WRITE bit16 and RESP_REQ bit8. PDC length and other
+@@ -28,6 +29,26 @@
+ struct gmf_perf_table {uint32_t word[GMF_PERF_WORDS];};
+ bool gmf_perf_table_build(const struct gmf_plan *,uint32_t sequence,
+     struct gmf_perf_table *);
++/* CPU-only fixed gauguin native GPU bandwidth policy. Input order is
++ * MC0/SH0/ACV/SN10, copied from the published SAME-BOOT binary CMDDB.
++ * Generic BCM aux decoder plus exact name/address/unit/width/VCD policy;
++ * bank version is retained observation, not a newly invented version gate.
++ * Plan/table outputs are unchanged on failure and must not alias inputs.
++ * No MMIO, HFI send, allocation, RSC vote or live bandwidth measurement.
++ */
++#define GMF_BW_RESOURCES 4u
++#define GMF_BW_WORDS 160u
++struct gmf_bw_plan {struct gbcm_db db[GMF_BW_RESOURCES];};
++struct gmf_bw_table {uint32_t word[GMF_BW_WORDS];};
++bool gmf_bw_plan_build(const struct ndb_entry *,struct gmf_bw_plan *);
++bool gmf_bw_plan_valid(const struct gmf_bw_plan *);
++/* Native fixed capacities6 CNOC addresses/2x6 rows and8 DDR addresses/16x8
++ * rows;13/2 active usecases,3 DDR commands and1 CNOC command. Full640 bytes,
++ * zero unused capacity and native zero wait masks. Sequence1..4095 only.
++ * Bytes match the pinned native query/aggregation/VCD/TCS/serializer oracle;
++ * construction alone is not a BW ACK, TEST, normal HFI_ON or GPU proof. */
++bool gmf_bw_table_build(const struct gmf_bw_plan *,uint32_t sequence,
++    struct gmf_bw_table *);
+ /* Byte offsets from the fixed private board mappings, NOT native word
+  * offsets: CSR03d7c000, AO/RSC03d8c000, PDCcfg0b294000, PDCseq0b490000,
+  * TCM03d6c000. Native GPU-relative register names are converted in this TU. */

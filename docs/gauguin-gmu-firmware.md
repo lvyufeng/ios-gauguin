@@ -543,3 +543,46 @@ The earlier0138 user attribution does not apply to this run. No new UI/touch
 or daily stability conclusion follows. PERF acceptance proves the table
 transaction; bandwidth, TEST, normal HFI_ON, live DVFS, GPU commands,
 rendering and Metal remain later requirements.
+
+## Native0141 bandwidth policy and wire construction
+
+The live DT's GPU26→DDR512 route uses SH0 at the16-byte LLCC node, then
+MC0/ACV at the4-byte EBI node. GPU26→CNOC10036 uses SN10 at the8-byte GEMNOC
+node. The same0140 binary CMDDB independently confirms these four resource
+addresses, units, widths and VCDs. `sweet_bus_bw_entries` copies those exact
+resources from the existing immutable two-copy CPU snapshot; it adds no map,
+device read or RSC operation. The consumer applies its own strict policy.
+
+`gmf_bw_plan_build` reuses the generic BCM aux decoder and requires fixed
+MC0/SH0/ACV/SN10 identity and metadata. Bank version remains an observed field.
+`gmf_bw_table_build` emits the full native640-byte legacy BW command:160 words,
+13 DDR levels,2 CNOC levels,3 DDR commands,1 CNOC command, fixed6/8 address
+capacities and zero unused row cells. Sequence is limited to1..4095; invalid
+inputs and overlaps leave outputs unchanged. This constructs ordinary RAM
+bytes and does not submit bandwidth or execute HFI.
+
+The implementation follows decimal KBTOB conversion and native minimum1 for
+positive values below a divisor. In particular the DT row1804800KBps is
+preserved exactly. The native EBI node lists MC0 before ACV and carries the
+MC0 normalized intermediate into width0 ACV handling. Its query records are
+zero-initialized and never assign TCS wait; the resulting two HFI wait masks
+are0. DDR commands are sorted by VCD0/1/11; CNOC has VCD3. Off rows retain
+commit with valid0; active ACV uses APPS8. These are native table-policy
+observations, not measured bandwidth or live voltage/current constraints.
+
+The local oracle compiles the exact pinned native query path/usecase, query
+aggregation, BCM/ACV/division, VCD/TCS ordering, bandwidth cache and sender
+bodies. Kernel discovery/device/list/send seams are supplied for the uniquely
+captured paths. Its native640-byte command and the port encoder match for
+all4095 permitted sequences. This is independent software byte evidence;
+actual BW/TEST requests and firmware ACKs remain required after PERF.
+
+All62 host suites and real ARM64 firmware/bus translation units pass. The new
+BW suite checks exact wire fields, all13 numeric DDR rows, minimum rounding,
+unused capacity, sequence boundaries and unchanged outputs for invalid
+resource/aux/plan/null/wrap/alias cases. Actual snapshot-export tests reject
+unpublished, missing-last-resource, mismatched-copy and invalid-context inputs
+without further MMIO. Original firmware/PERF tests and default bootstrap I/O
+equivalence remain intact. No new runtime consumer sends this table yet;
+the next opt-in transaction must send BW and TEST after PERF, validate each
+actual ACK and retain the shared once-state, guards and quarantine behavior.

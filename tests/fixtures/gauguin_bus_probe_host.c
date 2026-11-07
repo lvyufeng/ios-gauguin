@@ -539,6 +539,34 @@ static void arc_cases(void)
         "no recapture/map/RSC access");
     cx_no_hardware();
 }
+static void bw_cases(void)
+{
+    cx_reset("BW export uses the published CPU snapshot only");
+    struct ndb_entry e[4],saved[4];memset(e,0xa9,sizeof(e));memcpy(saved,e,sizeof(saved));
+    CHECK(!sweet_bus_bw_entries(e)&&!memcmp(e,saved,sizeof(e))&&!mock.map_count,"BW export rejects before publication");
+    cx_success();unsigned maps=mock.map_count,loads=mock.db_loads;
+    CHECK(!sweet_bus_bw_entries(e)&&!memcmp(e,saved,sizeof(e)),"missing last SN10 entry publishes no first three entries");
+    /* Independently synthesize the BW dictionary in PRIVATE host-retained
+     * copies, replacing the unused-for-BW SN6 fixture row with SN10. The
+     * actual fake device is then changed to prove no recapture occurs. */
+    for(unsigned copy=0;copy<2;copy++){
+        uint8_t *raw=bus_work->raw[copy];unsigned row=240+3*24;
+        memset(raw+row,0,8);memcpy(raw+row,"SN10",4);put32(raw+row+16,0x50054);
+        unsigned aux=144+(unsigned)raw[28]+((unsigned)raw[29]<<8)+24;
+        put16(raw+aux+4,8);
+    }
+    db[0][0]^=1;db[1][0]^=1;
+    CHECK(sweet_bus_bw_entries(e),"BW export from both retained matching copies");
+    const char *names[]={"MC0","SH0","ACV","SN10"};const uint32_t addr[]={0x50000,0x50004,0x50080,0x50054};
+    for(unsigned i=0;i<4;i++)CHECK(!strcmp(e[i].name,names[i])&&e[i].address==addr[i]&&e[i].owner_slave==5,"fixed ordered BW resources from actual parser");
+    memset(e,0xa9,sizeof(e));memcpy(saved,e,sizeof(saved));
+    bus_work->raw[1][DB_BYTES-1]^=1;CHECK(!sweet_bus_bw_entries(e)&&!memcmp(e,saved,sizeof(e)),"BW copied mismatch refuses atomically");bus_work->raw[1][DB_BYTES-1]^=1;
+    bus_work->raw[0][312]='Q';bus_work->raw[1][312]='Q';CHECK(!sweet_bus_bw_entries(e)&&!memcmp(e,saved,sizeof(e)),"BW last failed lookup preserves entire output");bus_work->raw[0][312]='S';bus_work->raw[1][312]='S';
+    for(int context=1;context<=3;context++){mock.context=context;CHECK(!sweet_bus_bw_entries(e)&&!memcmp(e,saved,sizeof(e)),"BW invalid export context");}
+    mock.context=0;CHECK(!sweet_bus_bw_entries(NULL),"BW NULL output refused");
+    CHECK(sweet_bus_bw_entries(e)&&mock.map_count==maps&&mock.db_loads==loads&&!mock.rsc_loads,"BW export never maps/captures/accesses RSC");
+    cx_no_hardware();printf("PASS: BW same-snapshot export; fixed four resources, missing/changed/context failures preserve outputs, no additional hardware access\n");
+}
 int main(int argc,char **argv)
 {
     make_positive_db();
@@ -670,6 +698,7 @@ int main(int argc,char **argv)
     cx_cases(argv[4]);
     printf("PASS: 106 retained + %u CX prepare cases (%u total); real parser/planners, one CMDDB snapshot, no RSC\n",cases-retained,cases);
     arc_cases();
+    bw_cases();
     free(mock.allocation); mock.allocation=NULL; bus_work=NULL;
     printf("PASS: %u worker cases; ASan/UBSan; read-only mappings, exact MMIO whitelist, actual RAW log exported; SHA itself is a seam\n",cases);
     return 0;

@@ -663,3 +663,30 @@ Next requirements are native GPU MMU/global command memory, GPU power/access
 ownership and SQE/CP startup with bounded execution/readback. The A619 native
 path uses a630_sqe.fw (stripping its4-byte file header) and a615_zap; these
 stages remain separate from the validated GMU startup and request chain.
+
+## GPU memory and CP initialization constructors (0144)
+
+The selected native DT assigns GPU user traffic SID0 and secure traffic SID2;
+the running GMU uses separate SID4/5 contexts. A619 has no APRIV feature. Its
+native 64-bit global window begins at `fc000000`. The CPU-only constructors
+reserve the retained NC owner's unused tail for separate GPU tables, SQE,
+32KiB ring, scratch and powerup register list. Exactly18 4KiB leaves map SQE
+as user read-only executable, ring as user read-only non-executable, and
+scratch/reglist as privileged read/write non-executable. CPU16KiB reservation
+padding stays unmapped, and TTBR1 is empty. This is a bounded NC bring-up
+profile, not a complete Android caching or allocation implementation.
+
+The native PM4 byte comparison caught and corrected an extra HEADER_DUMP
+address word before publication. The correct12-word CP_ME_INIT has operation
+mode at word7, reglist pointer at word8 and native padding at word11. Its
+bytes and all18 leaf protection encodings match compiled fixed primary
+native helpers. Fresh138-patch replay, all63 host files,2,448,251 new memory
+checks and an ARM64 translation-unit compile pass.
+
+These constructors have no runtime consumer yet. They do not bind a GPU
+context, populate the live powerup list, validate/load SQE, perform MMIO or
+submit commands. The next integration must preserve live GMU/secure/unrelated
+contexts instead of using the cold SMMU configuration path. Actual DT lacks
+`qcom,global_pt`; audit the native four-argument CP aperture SCM transport
+before implementing that path. Owned GPU power/access, core/SQE/ZAP startup
+and bounded execution/readback remain prerequisites for acceleration.

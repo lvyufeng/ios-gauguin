@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —147 complete local kernel and independent image qualified; runtime fixtures running
+
+Source/code private5c6050648130b08eba55cde3b05ccca56262f20e published as
+97bfcd5c3eabc1d6a284b509d99c4fcda39d5d66, sole parentf050834f9236623d9a8214670fe2b34babc8b55a,
+same tree, exactly6 text paths. Read-only remote verified; no CI. Git push itself
+updated the tracking ref; a redundant guarded local update failed, no push repeated.
+Report public-source-snapshot.json retained. First DSH32400 stopped without a
+build because that shell failure prevented writing execute-build.txt. Explicit
+subsequent DSH59249 CLOSED0: actual build147.py0, build0/qualification0, exactly
+ONE standard full local run gauguin.3eaEOm on captured HEAD5c60506, sole original
+mkadt diff. Source14781e798ed...21a489/5288files/141patches unchanged.
+
+Kernel16924168B SHAadd15b1216212034d2015d099d82c735859eeea70f66d4d3260725a1a04683e8,
+ID xnu-11644a8eb9e74d0b815fff42bbcddad3. Manifest905133B SHA
+a3afb34d7bd6adbc8866839cca1a445e221ee8de6a72ae766dec38e9807fc267.
+Qualification12823B SHAd0caaed2e75bae367a22d4cd8471092c5288aaa3176a87c643ee04a68766cc10
+at research/tmp/p3-native-0147-qualification-20261107.json. All146 checks retained,
+new gpu_match_capacity_source_bound true. Hardware remains unqualified.
+CURRENT complete native recipe/source NOW147gauguin.3eaEOm;146yFYkK1 historical.
+
+DSH60201 CLOSED0; actual package0/independent image review0,9inputs unchanged.
+Image shim/out/shim-p3-gmuf-0147-native-20261107.img19562496B SHA
+2e68e4da114c7b04fd0e3fb4ad014216b942911f1436511f0b69b8d2e7ae3d11;
+payload19234816B SHA57afc51503552245ce524c6b5d4401989af8d00e10abe5b76f553f206a4df6a0.
+Evidence4149B SHA553c2b16e89f72fc7090a792a69a645446f51d3498845b40f3357e28608e7de0.
+Unique gmuf-0147-20261107-a1,600B command/sweetgpucontext1. NVT18255c000,
+MDT182580000,GMU182584000 unchanged geometry/content. All old pins retained,
+including146. Codex independently rehashed package pins/image-review inputs and
+actual image/native kernel/manifest. No147 physical trial yet.
+
+Runtime DSH36664 currently executing execute-runtime.txt on actual147 artifacts;
+strict inherited parsers plus new5-slot/5-bank synthetic positive and required
+capacity-fix qualification binding. Poll SAME handle, no restart on timeout.
+NEXT results -> reviewed ONE temporary boot147/run_hardware147. Preserve every
+rejected stage; need real GPU18+GMU131/168ATOS and scalar aperture before
+MMU-start/OOB/core/SQE. Last phone observedTWRP146; no147 ownership/SMC/rendering
+claim. Whole goal ACTIVE/incomplete. Original mkadt diff intact, no CI/flash/
+format/GPT/destructive actions. No source changes during completed full build.
+
 ### 2026-11-07 —147 fixes actual five-slot rejection; validated source, complete local kernel next
 
 Actual146 ONE trial finished03:03:48.136288Z after start03:01:31.327000Z;

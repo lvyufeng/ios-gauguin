@@ -3,11 +3,11 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source146-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source148-codex')))/'bsd/dev'
 S=D/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 inputs=[S,F,D/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
 inputs += [D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']
-inputs += [D/(n+s) for n in ['gauguin_gpu_memory','gauguin_gpu_aperture'] for s in ['.c','.h']]+[D/'gauguin_gpu_smmu.h']
+inputs += [D/(n+s) for n in ['gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start'] for s in ['.c','.h']]+[D/'gauguin_gpu_smmu.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
 source=re.sub(r'^#include .*\n','',S.read_text(),flags=re.M)
 # Only the physical SMC instruction/register binding is replaced. The real
@@ -34,6 +34,6 @@ fixture=F.read_text();assert fixture.count('@SOURCE@')==1
 env=os.environ.copy();env.update(ASAN_OPTIONS='halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
 with tempfile.TemporaryDirectory(prefix='gmu-board-') as tmp:
     unit=Path(tmp)/'test.c';binary=Path(tmp)/'test';unit.write_text(fixture.replace('@SOURCE@',source))
-    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(D),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture']],'-o',str(binary)],env=env,check=True)
+    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(D),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start']],'-o',str(binary)],env=env,check=True)
     subprocess.run([str(binary)],env=env,check=True)
 assert pins=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in pins}

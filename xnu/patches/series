@@ -143,3 +143,4 @@
 0145-gauguin-gpu-default-context-aperture.patch
 0146-gauguin-gpu-input-rejection-diagnostics.patch
 0147-gauguin-gpu-match-group-capacity.patch
+0148-gauguin-native-gpu-mmu-oob-core-start.patch

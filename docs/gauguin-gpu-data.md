@@ -267,3 +267,50 @@ RGBA target fits in the existing DATA page with disjoint completion storage;
 native layout, CCU configuration, command capture and all addresses must be
 verified before implementation. A clear/blit result will not establish a
 working Metal driver or desktop acceleration.
+
+## Offscreen command source baseline (169)
+
+The original Mesa FDL layout function has now been executed for the proposed
+16x16 RGBA surface. Its default pitch is256 bytes. An explicit pitch of64 is
+accepted, with1024 bytes of pixels and a4096-byte padded resource. Giving the
+surface an explicit1024-byte offset increases the declared resource to5120
+bytes. The new candidate therefore puts the pixels at DATA+0 and a separate
+288-byte logical control view at DATA+0xc00, inside unused padding. Both views
+remain within the existing4KiB mapping. These are fixed diagnostic views;
+general allocation and alias handling remain unfinished.
+
+Two original clear paths have been captured offline using the same pinned
+Mesa source: a solid red surface and a blue surface with an8x8 green center.
+The chosen command sequences include the original static register restore,
+preamble, clear setup, clear operations and post-clear cache flushes. Their
+main command buffers contain118 and149 words, with a194-word restore object
+and205-word preamble. The sequence includes a nested restore IB and an explicit
+preamble registration. The border-color base references the existing32KiB
+read-only ring; texture contents and sampling are not qualified.
+
+The original setup emits color/depth cache events1 and2; post-clear flushes
+emit3,4,5; final RB_DONE and CACHE_FLUSH events use6 and7. The captured wait
+operations require those final values. These events set native bit30 while
+leaving the IRQ bit31 clear. The preceding168 experiment did not use bit30,
+so this protocol still needs its own physical readback.
+
+An independent review rehashed the complete10642-file source, capture inputs,
+outputs, executable and object. It compared the selected native functions
+byte-for-byte, decoded packet parity and extents, checked all fixed addresses,
+and verified the separate proposed pixel/page oracles. No CP_MEM_WRITE appears
+in these buffers. The accepted source/packet report is
+`research/tmp/dsh-0169/independent-native-review-v2.json`, SHA256
+`80dd8dc5a311fe543c3f7d78bdac7b921b3d09b83e3f67ca7c1362fc54a5f79f`.
+
+The complete original blitter file exposed a stock-Clang narrowing error in
+an unrelated copy branch. That failed result remains preserved. The selected
+clear functions were copied verbatim from the primary source and compiled
+with unchanged headers and packing functions, alongside the original complete
+CCU/barrier objects. Unused retained texture, bindless and trace interfaces
+abort if called. BO, ring and context storage are explicit host seams. This
+qualifies the selected source/command path, not the complete Mesa lifecycle.
+
+No169 kernel or physical clear test exists yet. The next work is the bounded
+kernel engine and board provider, failure models, complete native build and
+temporary physical trial. Passing will require actual pixel values, completion7
+and the complete page comparison; the offline expected image is not GPU output.

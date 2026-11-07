@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-07 —147 explicitly attributed normal runtime reset;148 driver implementation in progress
+
+User explicitly confirmed THIS147 self-restarted with no buttons/manual reboot.
+DSH78166 CLOSED0, SAME immutable strict147 verifier actual0 with --manual-reset no;
+new research/tmp/dsh-0147/hardware-full-verification-attributed.json30830B SHA
+0ccf292e20c233f497ec68f6d29dc2eb2e922160d4dc70ae9bea350ef5286723. Original
+pending report30813B/4c63340d...cb8581 retained. Codex rehashed every attributed
+report input size/hash.147 is now the preserved context/aperture + full native
+GMU/DCVS + THIS normal runtime reset baseline, not GPU execution/Metal proof.
+Last phone observedTWRP147; no new device IO. Previous milestone private752d240
+published7e86283da15ed6ab9292eb306e1785fd6304423a, sole public parent97bfcd5c...,
+NOTES-only same-tree text delta; report dsh-0147/public-hardware-snapshot.json.
+
+148 critical driver being written by Codex under research/tmp/dsh-0148/combined,
+not yet compiled/integrated/committed. Separate ggx engine does native user MMU
+start/TLB sync -> legacy GPU SET16/ACK24 -> bounded core status reads; no
+HUM/DORA equality invention, no cold replay, no HOST release before subsequent
+CP startup. Default-off sweetgpustart requires147 chain. Pure/fault-model and
+board/coordinator integration tests next via DSH; keep147 source/recipe3eaEOm
+and images immutable. Whole goal ACTIVE/incomplete; original mkadt diff intact.
+
 ### 2026-11-07 —147 PHYSICAL GPU context/aperture plus complete GMU startup verified; reset attribution pending
 
 DSH36135 CLOSED0; run_hardware147.py0, observer0/full reader3. ONE temporary147

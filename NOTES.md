@@ -3,6 +3,103 @@
 ## Agent handoff / active work
 
 
+### 2026-11-07 —159 integrated native unsecured source QUALIFIED; full LOCAL kernel/image/runtime NEXT
+
+Previous goal turn PROGRESS:158engine+ARM64TU/native38body5trace/full76host
+qualified, committed privated91dbba35e098cd722d9f8d984b72cc2feb566d7 and published
+927eaee0a3276785916e439e9efdb63455eae9ef (same treef09ff76ae9900209fcba958995d81235289429e6).
+This turn completes actual159 authenticated owner/live board/coordinator
+binding. Source/model/native3TUs/76hosts qualified, NOT a physical mode switch.
+Goal ACTIVE/full/unlimited; phone lastTWRP157. No159 phone IO/image/fullkernel
+YET. Current full/generated native recipe STILL157gauguin.wTGOGo/source157-codex.
+
+Fresh pristine153patch source159-codex5302files SHA
+cac45cf551989c0e9c73f4ac0f83dcebaa3990d2d4d48f8c637bb82f6c09b9cd.
+Exact5delta vs158: pas_stage.C/H, gmu_board.C/H, bcm_coordinator.C. Pure158GGU,
+CP/GPZ/b02 asset C/H byte-identical. Old owner/board bodies remain byte-equal
+except explicit mode1/2 parser extension; new owner predicate/board append
+added before outerendif. Original signed SECURE/LATE scopes unchanged.
+
+Modes sweetgpuzap0off/1exact157signed-only/2signed+native5word unsecure append.
+Other values rejected. Mode2proposed606B command changes only157flag1->2 and
+unique token gzap-0157-a1 ->gusr-0159-a1 (actual preflight exact string); no extra token/truncation, missinglegacyINIT remainsdefault0,
+sweetpasmem0/allothercontrols preserved. Real pack/review MUST decode exact
+command. Same five assets, no new GPU register mapping or firmware object.
+
+New actual-owner authenticated(pa) checks PSZ_AUTH_DONE/private pst_ready/
+psz_geometry ONLY; no hash/read/rewrite of low secure memory. Board seals
+actual gpzb_context/gpzb_work READY/DONE/complete/sealed/memcmp/full64INIT-MEM-
+AUTH0/copy1984 plus existing private CP/core/GGX/FW/board authority and real
+owner. No caller-supplied completion receipt or pointer/PA setter. New live
+GGUguard owns postAUTH GPU/RB access independently; it never calls old MDT
+validators or gpzb_guard. Requires clocks/IRQ/reset/routes/faults/Device/NC,
+thread/context, monotonic4s total/2s phases, entry8s/later3sWDT. Explicit
+phase memory whitelist: capture ringDW0..19/scratch0, commands write/read
+DW15..19 only, wait scratch0 only. No CPUshadowstore or ring/SQE reset.
+All new/GPZ/CP/core/GGX/FW/board/lease ownership quarantines BEFORE cached
+failure logs. No cleanup/retry/HOSTrelease/PET/TRUST_CONTROL0 fallback.
+Mode2coordinator dispatches only after signed success, logs beforeunsecure
+then native completion; mode1oldterminal/dispatch retained.
+
+DSH33615 CLOSED0/native159.py0:3actual ARM64TUs on CURRENT157recipe plus158
+engine headers. Owner28024B SHA715cb6d45f75e6a58577e16ad8738b0da42c16769de5bb1b35dca601a9747d0c;
+board259784B SHA0fa05f2759a69a71e4cef7084e083d977b32ad4332336469e31d5113ee039bf9;
+coordinator60120B SHAc959f9717c4212c50b7e991b8f201267e6330bc754011ef327af94edc69a9036.
+Native result1372B SHA2f7693e149b4a4d829479ab769ce8e04024b5f3dcc8807b3a28d7bd0771153b3,7pins.
+No source changes after these TUs; fixture corrections below only.
+
+DSH78077 CLOSED actualowner159.py1: replay0/realowner5320/oldstaging0/coordinator1.
+Original failedreport/source/175inputs snapshot preserved. Owner532 includes
+realMDT+b02/SHA/guardpages, PROT_NONE afterAUTH, newpredicate acrossall64attrs/
+states/context/translation, exact1984copy and old126copyguard failures.
+Coordinator failed ONLY typed dependency seam still excluded new mode2 failed
+GGUhelper fallback quarantine. Separate coordinator159_v2.py adds exact new
+legal mode2branch while retaining every old rule. DSH11279 CLOSED0/coordinator0:
+444old+26new=470 cases. Result977B SHA44ecf948d5808ad0840231d9279209af4be24a7911fe7847f692a8f682c91963,6pins.
+
+DSH22818 CLOSED wrapper0/board159.py1: alloldboard cases including237ZAP
+passed, newcase7957 failed expected injection kind16. Preserved v1 fixture,
+unit/log/report. DSH57164 CLOSED0/debug compile0/runSIGABRT(-6) reproduced
+exact failure: phaseSEAL kind16 fired,resultOK,reason0,softwarehost_info0,
+actualCSRhost0. Injection changed ONLY software cache; gfw_faults refreshed it
+from realCSR0. DSH prose missed DEBUG_UNSECURE in run.log; Codex read raw line1.
+Separate board159_v2.py changes exactlykind16 to inject actualCSR HOST ACK24
+reset_page+2648. Driver/source/old assertions unchanged. DSH22426 CLOSED0/
+board0:217new actualCP+ZAP+GGU/private-receipt/mode/PROT_NONE/21faults-perphase/
+partialstore/corruption/fence/deadline/once cases passed, oldcases retained.
+Result1204B SHA58f90a05665dfcf8ac6b2671ed817ba973fdedf7367360abf268c38962681fce,8pins.
+New193Bguard format fits actual256B gmb_record and4KiB UFSmarker; host mark
+seam allows256 ONLYnewprefix, keeps old192B checks; no truncation/sourcefix.
+
+DSH20156 CLOSED0/full159.py0: all76actualhost files observed once passed,
+final source stable, report35931B SHA
+5d8c6c8e6c98e7107fb17c422557dea9d42b7e3801e5b3c2b6739e5197ee58b6,302pins.
+DSH24733 CLOSED0/preflight159.py0: bind_host159 retains old CP/native/PIL/real
+pack proof, unchanged15838body/5trace, all source/TU/currentfullhost pins;
+helper syntax and proposed606B command. Report1760B SHA
+c632878518025ee6e6f2e82adcf94261bc1c44a0a017d69c5e8cd8ab4ec92b46,6pins.
+Codex independent-source-review.json rehashed7+6+8+302+6 current and175
+original inputs, actual3objects, source5302, exact76run filenames/counts.
+
+NEXT: commit/publish reviewed10source/test/docs paths, then ONE standard
+LOCAL8job build159.py <capturedHEAD>, strictqualify_native0159.py. Helpers
+ready/syntaxchecked, preserve every old157 artifact gate, explicit expanded
+modepolicy, new nativeGGUarchive/symbol/private-authorization/append/guard/
+quarantine/dispatch/format checks. Keep HEAD/source fixed during build+qual.
+After full qualification independently hash artifacts, update current full
+recipe immediately to159run. Prepare independent fiveasset pack/image review
+with mode2uniquegusr-0159-a1 exact606B; strict new runtime reader retaining
+ALL157 identity/source/clock/FW/CP/ZAP/reset gates, new ZAPbeforeunsecure
+terminal, GGU sealed/copy5/prefix15/clean5, initialWPTR/shadow15, nativefence/
+keepalive, deviceRPTR20/busy23clear/errors0/guardtime/source/quarantine and
+5 exactnativewords. Fixtures before ONE temporary159fastbootboot, freshraw/
+cycle, --manual-reset no from standing user authority. Only ask manual help
+if genuinely stuck. No159fullkernel/image/phone proof yet; no Metal/rendering
+claim. All ownedDSH jobs CLOSED. No flash/format/GPT. User mkadt7line edit
+SHAa74a0418...454860 unchanged. This milestone's source publication snapshot
+will contain exact private/public commits; no raw/native/firmware/binaries.
+
+
 ### 2026-11-07 —158 fixed native unsecured append ENGINE qualified; live159 binding NEXT
 
 Previous turn PROGRESS: physical157 sameboot firstCP+signedZAP qualified;

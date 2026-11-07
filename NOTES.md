@@ -38,6 +38,12 @@ latest milestones below. No repeated reset question; only necessary manual recov
 
 ### 2026-11-07 —153 first CP engine SOURCE/ACTUAL NATIVE PREFIX qualified; live adapter154 NEXT
 
+153 code committed privated37904290f3b13a31359eb1650aceae755c5f04a,
+published64d856271438019ff24b25fcef1fefe55eba28c4, soleparent
+59bdcfbdff4c931f5c8dff944d33461972cb0ada, same tree/exact6 reviewed UTF8
+paths. research/tmp/dsh-0153/public-source-snapshot.json. No raw/native assets
+or private ancestry published. No GitHub CI/full153 build/phone IO.
+
 This goal turn made concrete progress: Codex implemented critical first CP C,
 DSH ran pristine147 replay, actual port/fault tests and ARM64 TU, executed34
 UNCHANGED native function bodies, compared5 complete positive traces byte-for-

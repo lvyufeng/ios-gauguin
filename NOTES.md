@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —175 launch-path fix READY; new1.41MiB write confirmation PENDING
+
+Original approved1.72MiB/440block write v25 really PASSED;175boot v26 autoTWRP
+131s / native source identity + GPU service READY pass; actual dynamic user API
+UNQUALIFIED because the job did not launch. Cause PROVEN from actual launchd
+embedded Bootstrap.Paths: /Library/LaunchDaemons excluded, /System/Library/
+LaunchDaemons included. Our original directory choice was wrong. Cache531jobs,
+job404B and CLI87360B/root:root0755 persisted correctly; BOTH probe logs absent.
+Actual first-trial artifacts immutable; no GPU submission/fence success claim.
+
+Fresh postboot full16GiB backup b1c802db.../root-post175-v1/iosroot-after175.hfsx
+readonly0444/header before-after equal; original9c9f8777... retained. DSHv28
+READONLY audit+backup0. v29 LOCAL stage0 moved SAME job CNID592088 into System
+and changed compiled-cache path key only; all530other jobs/job body/probe bytes
+retained. Its delta1 refused two removed fseventsd files; failed v1 source/
+partial image/report/log preserved. Inventory confirmed ONLY54exact native
+temp+CNID orphans and two old internal event logs (222B/72B) besides job move;
+two new internal event logs. v30 fresh delta-v2/fsck/model ALL0, reusing the
+already-detached stage image, no remount/repeated stage. On-disk ownership and
+old event UUID restored; all unrelated allocated file data/permissions retained.
+Writer source equals validatedv2 a7f1252f... EXCEPT the original-volume SHA
+literal9c9...->b1c...; all102fake IO approval/partialwrite/readback/rollback/report-
+failure assertions0. Native175kernel/image/probe unchanged, no compile/CI.
+
+FINAL new plan launchfix-final-v2/delta-plan.json SHA
+c60548b9bf9b71b6f7fcf24dbc73d54724228028d8606837e4bff61d2764baf6:
+38runs /362x4096=1,482,752B (~1.41MiB), all old/new run files saved. Final
+local readonly image SHAeecb9309edbe7c19647c0789f1301403c581cce8b25ff7e1767744e8d877d2e5.
+Apple read-only HFS fsck0/detach0/full SHA unchanged. ROOT independent complete
+byte/catalog/job review PASSED499f77b3de14b32c00c48aff24d9a806a42af36251dc6118a5e01c7f2e09cb3e:
+full before/after16GiB streamed, exact362blocks/38run data hashes, same job CNID
+and bytes, actual launchd path membership, all530old jobs, clean-unmount bit,
+event UUID/owners/known metadata cleanup checked. No second device write.
+
+Generic boot_reviewed_profile.py/read_probe_profile.py use immutable JSON
+instead of overwriting trial175 files; DSHv31 actual wrapper model0,8boot
+success/refusal/timeout cases and actual LOCAL HFS capture equivalence, no
+real device call. Frozen strict175qualifier reused unchanged through
+qualify_profile175.py; keep GPU expectations and full8192+1024word checks.
+launchfix-execution-plan.json has exact command vectors/input pins;
+launchfix-{boot,capture,qualify}-profile.json prepared. Same403ff4ed...175image;
+future logs in trial-launchfix-v1 / probe-capture-launchfix-v1, not old outputs.
+
+FRESH async permission question for this DIFFERENT1.41MiB/362block correction
+was ASKED and is PENDING; no affirmative reply, no launchfix-user-approval.json
+and no root-apply-launchfix exists. Original fd80e691... permission was consumed
+by its successful install; do not reuse it to authorize another block set.
+AGENTS requires each destructive step confirmed. Before asking, all local
+files/delta/fsck/writer/boot/capture/strict qualification work was concrete and
+reviewed. DSHv32 LIVE READONLY verification of all38actual current old ranges;
+observe same claim, no retry on timeout. After actual new user YES: create
+receipt approved/allow_rollback bound EXACTc60548b9..., run reviewed apply argv
+-> only after verified success boot argv ONCE -> capture -> strict qualification.
+Do not change backup/image/plan or autoapprove. On root-write failure restore
+only touched saved blocks and verify, no boot. After boot do not blindly roll
+back preboot filesystem metadata. User away/allresets automatic, manual help
+only if truly stuck. Full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh
+goal remains incomplete; current user already resumed work by first approval.
+
 ### 2026-11-08 —175 launch path cause PROVEN; postboot backup0, LOCAL fix running
 
 DSHv28 both READONLY jobs TERMINAL0/inputs unchanged. Actual phone cache still

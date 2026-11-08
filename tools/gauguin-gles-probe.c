@@ -1,0 +1,115 @@
+/* Compile real GLES shaders with Mesa, render a dynamic checker, sample it into
+ * an imported IOSurface and compare every pixel. No software renderer may pass.
+ * This is a separate future root probe; never part of the frozen175 image/job.
+ */
+#define GL_GLEXT_PROTOTYPES 1
+#include <GLES3/gl3.h>
+#include <GL/osmesa.h>
+#include <IOKit/IOKitLib.h>
+#include <IOSurface/IOSurfaceRef.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+enum { WIDTH=32, HEIGHT=32, PIXELS=WIDTH*HEIGHT };
+struct param {uint32_t pipe,param;uint64_t value;uint32_t len,pad;};
+_Static_assert(sizeof(struct param)==24,"msm GET_PARAM wire layout");
+static int fail(const char *where)
+{fprintf(stderr,"GAUGUIN GLES FAIL: %s\n",where);fflush(stderr);return 1;}
+static void number(CFMutableDictionaryRef p,CFStringRef key,int32_t value)
+{CFNumberRef n=CFNumberCreate(NULL,kCFNumberSInt32Type,&value);CFDictionarySetValue(p,key,n);CFRelease(n);}
+static int query_identity(void)
+{
+    io_service_t service=IOServiceGetMatchingService(kIOMainPortDefault,IOServiceMatching("HakiosGPU"));
+    if(!service)return fail("no real HakiosGPU service");
+    io_connect_t c=0;kern_return_t rc=IOServiceOpen(service,mach_task_self(),0,&c);IOObjectRelease(service);
+    if(rc)return fail("GPU user client open");
+    const uint32_t ids[]={1,2,3,6};uint64_t values[4]={0};
+    for(unsigned i=0;i<4;i++) {
+        struct param p={0x10,ids[i],0,0,0};size_t size=sizeof(p);
+        rc=IOConnectCallStructMethod(c,0x40,&p,sizeof(p),&p,&size);
+        if(rc||size!=sizeof(p)){IOServiceClose(c);return fail(ids[i]==6?"kernel must implement actual GMEM-base parameter6 before GLES":"hardware query");}
+        values[i]=p.value;
+    }
+    rc=IOServiceClose(c);
+    if(rc||values[0]!=619||values[1]!=512*1024||values[2]!=0x06010900)return fail("actual A619 identity differs");
+    printf("GAUGUIN GLES identity gpu=%llu chip=%llx gmem=%llu base=%llx\n",(unsigned long long)values[0],(unsigned long long)values[2],(unsigned long long)values[1],(unsigned long long)values[3]);fflush(stdout);return 0;
+}
+static GLuint shader(GLenum type,const char *source)
+{
+    GLuint s=glCreateShader(type);glShaderSource(s,1,&source,NULL);glCompileShader(s);GLint ok=0;glGetShaderiv(s,GL_COMPILE_STATUS,&ok);
+    if(!ok){char log[2048];GLsizei n=0;glGetShaderInfoLog(s,sizeof(log),&n,log);fprintf(stderr,"GLSL compile: %.*s\n",(int)n,log);glDeleteShader(s);return 0;}return s;
+}
+static GLuint program(const char *fs)
+{
+    const char *vs="#version 300 es\nout vec2 uv;\nvoid main(){vec2 p=vec2((gl_VertexID==1)?3.0:-1.0,(gl_VertexID==2)?3.0:-1.0);uv=(p+1.0)*0.5;gl_Position=vec4(p,0.0,1.0);}\n";
+    GLuint v=shader(GL_VERTEX_SHADER,vs),f=shader(GL_FRAGMENT_SHADER,fs);if(!v||!f)return 0;
+    GLuint p=glCreateProgram();glAttachShader(p,v);glAttachShader(p,f);glLinkProgram(p);glDeleteShader(v);glDeleteShader(f);GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);
+    if(!ok){char log[2048];GLsizei n=0;glGetProgramInfoLog(p,sizeof(log),&n,log);fprintf(stderr,"GLSL link: %.*s\n",(int)n,log);glDeleteProgram(p);return 0;}return p;
+}
+static uint32_t expected(uint32_t seed,unsigned x,unsigned y)
+{
+    unsigned cell=((x/4)+(y/4)+(seed&1))&1;
+    unsigned bits=((seed>>1)&7)^(cell?7:0);
+    return 0xff000000u|((bits&1)?0x000000ffu:0)|((bits&2)?0x0000ff00u:0)|((bits&4)?0x00ff0000u:0);
+}
+int main(void)
+{
+    if(getuid()!=0)return fail("root-only GPU prototype");
+    if(query_identity())return 1;
+    const int attribs[]={OSMESA_FORMAT,OSMESA_BGRA,OSMESA_DEPTH_BITS,0,OSMESA_STENCIL_BITS,0,OSMESA_PROFILE,OSMESA_ES_PROFILE,OSMESA_CONTEXT_MAJOR_VERSION,3,OSMESA_CONTEXT_MINOR_VERSION,0,0};
+    OSMesaContext context=OSMesaCreateContextAttribs(attribs,NULL);uint32_t memory[PIXELS];memset(memory,0x5a,sizeof(memory));
+    if(!context||!OSMesaMakeCurrent(context,memory,GL_UNSIGNED_BYTE,WIDTH,HEIGHT))return fail("real ES3 context");
+    const char *renderer=(const char *)glGetString(GL_RENDERER),*version=(const char *)glGetString(GL_VERSION);
+    printf("GAUGUIN GLES renderer=%s version=%s\n",renderer?renderer:"null",version?version:"null");fflush(stdout);
+    if(!renderer||!version||(!strstr(renderer,"FD619")&&!strstr(renderer,"Adreno (TM) 619"))||strstr(renderer,"softpipe")||strstr(renderer,"llvmpipe")||!strstr(version,"OpenGL ES 3"))return fail("hardware renderer identity");
+    GLuint draw=program("#version 300 es\nprecision highp float;\nuniform vec4 tint;uniform int phase;out vec4 color;void main(){ivec2 p=ivec2(gl_FragCoord.xy);bool odd=((p.x/4+p.y/4+phase)&1)!=0;color=vec4(odd?vec3(1.0)-tint.rgb:tint.rgb,1.0);}\n");
+    GLuint sample=program("#version 300 es\nprecision highp float;in vec2 uv;uniform sampler2D src;out vec4 color;void main(){color=texture(src,uv);}\n");
+    if(!draw||!sample)return fail("runtime GLSL programs");
+    struct timespec t;clock_gettime(CLOCK_MONOTONIC_RAW,&t);uint32_t seed=(uint32_t)t.tv_nsec^((uint32_t)getpid()*0x9e3779b9u);
+    GLuint texture=0,framebuffer=0,vao=0;glGenVertexArrays(1,&vao);glBindVertexArray(vao);
+    glGenTextures(1,&texture);glBindTexture(GL_TEXTURE_2D,texture);glTexStorage2D(GL_TEXTURE_2D,1,GL_RGBA8,WIDTH,HEIGHT);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+    glGenFramebuffers(1,&framebuffer);glBindFramebuffer(GL_FRAMEBUFFER,framebuffer);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,texture,0);
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)return fail("normal framebuffer");
+    glViewport(0,0,WIDTH,HEIGHT);glUseProgram(draw);unsigned bits=(seed>>1)&7;
+    glUniform4f(glGetUniformLocation(draw,"tint"),(bits&1)?1:0,(bits&2)?1:0,(bits&4)?1:0,1);
+    glUniform1i(glGetUniformLocation(draw,"phase"),seed&1);glDrawArrays(GL_TRIANGLES,0,3);glFinish();
+    uint32_t result[PIXELS];glReadPixels(0,0,WIDTH,HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE,result);
+    if(glGetError()!=GL_NO_ERROR)return fail("normal shader draw/readback GL error");
+    uint32_t hash=2166136261u;
+    for(unsigned i=0;i<PIXELS;i++) {
+        if(result[i]!=expected(seed,i%WIDTH,i/WIDTH)){fprintf(stderr,"normal mismatch pixel=%u actual=%08x expected=%08x\n",i,result[i],expected(seed,i%WIDTH,i/WIDTH));return 1;}
+        hash=(hash^result[i])*16777619u;
+    }
+    printf("GAUGUIN GLES normal seed=%u pixels=%u hash=%08x\n",seed,PIXELS,hash);fflush(stdout);
+    CFMutableDictionaryRef props=CFDictionaryCreateMutable(NULL,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
+    number(props,kIOSurfaceWidth,WIDTH);number(props,kIOSurfaceHeight,HEIGHT);number(props,kIOSurfaceBytesPerRow,4*WIDTH);number(props,kIOSurfaceBytesPerElement,4);number(props,kIOSurfacePixelFormat,0x42475241);
+    number(props,CFSTR("IOSurfaceOffset"),64);number(props,kIOSurfaceAllocSize,16384);
+    IOSurfaceRef surface=IOSurfaceCreate(props);CFRelease(props);if(!surface)return fail("IOSurface create");
+    if(IOSurfaceLock(surface,0,NULL))return fail("surface init lock");
+    void *base=IOSurfaceGetBaseAddress(surface);if(!base)return fail("surface base");memset(base,0xa5,PIXELS*4);
+    if(IOSurfaceUnlock(surface,0,NULL))return fail("surface init unlock");
+    typedef void (*ImportImage)(GLenum,void *);
+    ImportImage import=(ImportImage)OSMesaGetProcAddress("glEGLImageTargetTexture2DOES");if(!import)return fail("IOSurface import entry");
+    GLuint shared=0;glGenTextures(1,&shared);glBindTexture(GL_TEXTURE_2D,shared);import(GL_TEXTURE_2D,(void *)(uintptr_t)IOSurfaceGetID(surface));
+    glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,shared,0);
+    if(glGetError()!=GL_NO_ERROR||glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)return fail("IOSurface framebuffer/import");
+    glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,texture);glUseProgram(sample);glUniform1i(glGetUniformLocation(sample,"src"),0);glDrawArrays(GL_TRIANGLES,0,3);glFinish();
+    if(glGetError()!=GL_NO_ERROR)return fail("IOSurface sampled draw/fence");
+    if(IOSurfaceLock(surface,kIOSurfaceLockReadOnly,NULL))return fail("surface result lock");
+    volatile uint32_t *pixels=(volatile uint32_t *)IOSurfaceGetBaseAddress(surface);if(!pixels)return fail("surface result base");hash=2166136261u;
+    for(unsigned i=0;i<PIXELS;i++) {
+        uint32_t rgba=expected(seed,i%WIDTH,i/WIDTH);uint32_t bgra=(rgba&0xff00ff00u)|((rgba&0xffu)<<16)|((rgba>>16)&0xffu);uint32_t have=pixels[i];
+        if(have!=bgra){fprintf(stderr,"surface mismatch pixel=%u actual=%08x expected=%08x\n",i,have,bgra);return 1;}
+        hash=(hash^have)*16777619u;
+    }
+    if(IOSurfaceUnlock(surface,kIOSurfaceLockReadOnly,NULL))return fail("surface result unlock");
+    printf("GAUGUIN GLES surface seed=%u pixels=%u hash=%08x\n",seed,PIXELS,hash);fflush(stdout);
+    glBindFramebuffer(GL_FRAMEBUFFER,0);glDeleteFramebuffers(1,&framebuffer);glDeleteTextures(1,&shared);glDeleteTextures(1,&texture);glDeleteVertexArrays(1,&vao);glDeleteProgram(sample);glDeleteProgram(draw);CFRelease(surface);OSMesaDestroyContext(context);
+    puts("GAUGUIN GLES PASS real-GLSL-draw-texture-IOSurface");return 0;
+}

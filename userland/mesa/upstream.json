@@ -1,0 +1,34 @@
+{
+  "mesa_version": "25.0.7",
+  "mesa_archive_url": "https://archive.mesa3d.org/mesa-25.0.7.tar.xz",
+  "mesa_archive_sha256": "592272df3cf01e85e7db300c449df5061092574d099da275d19e97ef0510f8a6",
+  "hakios_repository": "oosexgang/hakios-xnu-kernel",
+  "hakios_commit": "63fc2b4633bac3af8e57dadab9f5a8d4cb940438",
+  "files": [
+    {
+      "path": "tools/mesa/freedreno-darwin.patch",
+      "git_blob": "4d29a6f8b1faa56eafb1758a29a01c831c9a7ed1",
+      "sha256": "2a9817e2e575a5f768cf778204f502106de11b8a88a5beb8c19fc4548c5c9c6a",
+      "bytes": 11994
+    },
+    {
+      "path": "tools/mesa/osmesa-es-profile.patch",
+      "git_blob": "be8f5631807329e4749c648c71226087ee8f8c54",
+      "sha256": "9ca1cbbd0becbc1bc57a5cd616d60b8a53e3e42f4208241b34bded686bcfb0bd",
+      "bytes": 1279
+    },
+    {
+      "path": "tools/mesa/hakios-drm/hakios.drm.c",
+      "git_blob": "b729fba20ead0b5c389fe2408a3e24eadf48c28a",
+      "sha256": "1b313282a24da45b71fc6b1637bea41fb63f2f14dde64aebc759d83812b42356",
+      "bytes": 20267
+    },
+    {
+      "path": "tools/mesa/hakios-drm/xf86drm.h",
+      "git_blob": "5449a1cc426a86d184611166f37927ff6b0fb8d9",
+      "sha256": "8c54b98f5b398be4f76759f36d26e0550ea674bcf2159352a41bd2efba61af91",
+      "bytes": 5783
+    }
+  ],
+  "scope": "GLES-only port; AIR frontend and direct Metal backend are separate future integrations"
+}

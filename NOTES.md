@@ -2,6 +2,177 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —ISOLATED GLES userland software accepted;175 write still pending
+
+This is the ISOLATED codex/gauguin-gles-userland-20261108 worktree, based on
+main privateb700a61. Main working tree/kernel175/root delta remain unchanged.
+Full daily-use/GPU/Metal/RAM/UFS/peripheral/90–120Hz goal ACTIVE/incomplete.
+Phone last automaticTWRP174, NO175 boot, no fresh userdata write approval.
+The existing async1.72MiB175 root-delta question is STILL PENDING. Do not create
+an approval receipt or install either component without its actual user answer.
+All resets automatic per unattended user policy; never ask attribution/UI.
+
+New tracked tools/prepare-ios-gles.py, tools/build-ios-gles.py,
+tools/gauguin-gles-probe.c, tools/gpu-mesa-abi-check.c and userland/mesa/*.
+Full instructions/limits in userland/mesa/README.md. Primary Mesa25.0.7 archive
+SHA592272df... and4original HakiOS63fc2b46 blobs pinned. Original Mesa24/native
+XNU generated headers/recipe untouched. HakiOS directMetal pipe1 differs from
+our Linux0x10; this GLES path uses real Mesa UAPI0x10 and A619 device table,
+requires actual619/06010900/512KiB identity, clears ignored submit fields and
+fence_fd, ignores only BO_DUMP capture hint, disables native fenceFD capability,
+checks struct/mapping lengths. GPU-only OSMesa winsys; no softpipe/LLVM linked.
+Retained A619 USER32 event-source profile ported into equivalent Mesa25 emitter.
+
+DSH private research/tmp/dsh-gles-0176 (in MAIN root, not this worktree):
+v1 source fetch0;v2 prepare-v1 0;v3 config1 (requires shared-glapi enabled);
+v4 config1 (original OSMesa software-only guard);v5 fresh prepared-v2 0, ONE
+native8job1090step configure/compile/link0, then packaging1 on nonexistent
+libglapi.dylib. On Darwin actual dispatch is statically linked libglapi.a.
+All failed scripts/inputs/logs preserved; no full build repeated for packaging.
+v6 actual Mesa/HakiOS/kernel wire-size/offset/selectors check native0/run0 and
+iOS16 object0. v7 exact-existing-build packaging0, probe compile/link0, both
+ad-hoc signatures/strict verification0, actual platform iOS2/min16.0; no Mesa
+recompile. v8 actual HFS hardlink->393216B main dyld cache/2710image paths0;
+all175 probe + new GLES library/probe dependency names match the real root,
+including versioned IOKit path. This checks PATHS, not symbol/version/runtime.
+ROOT independent-software-review.json PASSED: all13native executable/data
+sections byte-exact through packaging, actual freedreno/IR3 symbols present,
+no software-driver implementations, complete source/input/exits/ABI bindings.
+All workers terminal; no device command, newCI or firmware/Apple image download.
+
+Final package-v1/product/libGauguinOSMesa.8.dylib16,026,608B SHA
+bdb488489af86febc55d8043bca88381bd5be194ada232ebe903116f4984386a;
+gauguin-gles-probe72,880B SHA
+a036a7bfaa96cba42bcd0ea445d6a219c215946d7aedca609298f3f4ae2dea19.
+Probe requires real root GPU query incl param6, real ES3 hardware renderer,
+dynamic GLSL checkerboard + all1024RGBA words, sampled IOSurface(offset64) +
+all1024BGRA words. It is NOT installed or run; NO physical GLSL/Metal/UI/FPS proof.
+Before use:175 physical ABI trial, persistent WDT/power/recovery ownership,
+actual GMEM-base param6, and multiple queue IDs (Mesa screen + context pipes;
+175 allows only one). Isolate clients before ordinary UI access, then EAGL/
+compositor and actual A619-parametrized direct Metal. Do NOT claim complete
+UI/GPU support, substitute old fixed samples or replace frozen175 artifacts.
+Keep all artifacts in main research/tmp ignored. This branch is not merged
+into main and is not remote-published. Main's next public base35d706fd/... and
+frozen175 source74b77c0/... remain as below; its mkadt user diff stays untouched.
+
+### 2026-11-08 —175 image/root delta READY; fresh write approval PENDING
+
+Full daily-use/GPU/Metal/RAM/UFS/peripheral/90–120Hz goal ACTIVE/unlimited.
+Phone STILL automaticTWRP174. NO175 boot/root/partition write. User AWAY: ALL
+resets automatic; never ask reset attribution/UI. Codex critical driver/review,
+DSH compile/test/device execution. No live DSH worker; stages1..24 terminal.
+Fresh async approval for EXACT1,802,240B/440blocks root delta was ASKED and is
+PENDING; no reply/approval receipt yet. Do NOT infer approval from elapsed time,
+prior temporaryboot/push authorization or the old userdata-install permission.
+Source requirement is AGENTS: confirm each destructive step before running it.
+
+Native175 image independently ACCEPTED, NOT BOOTED:
+shim/out/shim-p3-gmuf-0175-native-20261108.img,19,972,096B SHA
+403ff4ed7d671178b65b1ee55c82fe3675d680070ec2aa578d27d7979025e2a6.
+Payload19,644,416B SHA
+ffae1e03cbfc2de33ff394bfbd51883084c843934bf82ea783c6df866f06418c.
+Mode12/sweettrial=gwrt-0175-a1; soleNUL608byte command, inherited
+launchd_unsecure_cache=1, unchanged proven lowPAS loader/five firmware assets.
+Independent image proof1c606bd94d20dd5847bb61686673e66b29c1711b102b66ed73ded07a9b050b92.
+Compiled source remains74b77c0c62c715237cfae19c11ac99335aceb46d/f4ba1885...;
+CURRENT genuine native recipe1CAtln/c959c29a.../2128headers. NEVER olderTUhelpers.
+Full89host/native kernel acceptance610618bd... remains valid; no newCI/build.
+
+All private files below in research/tmp/dsh-0175 (W), ignored, never git-add:
+DSHv17 LOCAL COW staging0 adds signed probe + loose job and ONE compiled cache
+entry; ALL530 original job dictionaries preserved. Actual HFS packed layout
+verified by compiler against pinned native header. v18 old strict reader1 on
+real overflow extents (image review0), original failure retained. v19 complete
+all8inline+overflow reader0. v20 LOCAL delta preparation0; root final readonly
+root-final-v1/iosroot175-final.hfsx SHA
+34ddf76d01aebc0f51d39cd64618a2c2630f2481f2f0b08cb5801c2c6bc3f606.
+Original read-only16GiB backup SHA9c9f8777... remains intact. EXACT48runs/440x4096
+=1,802,240B (~1.72MiB), all old/new run bytes saved. Delta-plan SHA
+fd80e69175f5ea0192ac85ca4c81f14b17a6da17dfa7de2bb6c51db8d85aed79.
+New /usr/libexec/gauguin-gpu-probe (87360B/775622b6...,root:root0755),
+/Library/LaunchDaemons/org.gauguin.gpu-probe.plist(root:root0644), changes
+/System/Library/xpc/launchd.plist compiled dictionary(root:root0644).
+Normal local HFS mount also cleaned54 exact private temp+CNID unlinked orphans
+and added2filesystem event logs; these are included/explicitly reviewed. Original
+event UUID/permissions restored; SystemVersion exact bytes retained despite
+fork relocation. No unrelated allocated file data/permissions changed. No bytes
+outside the440 approved blocks differ between original and final16GiB images.
+ROOT review_root_delta175.py separately streamed both entire images, all48old/new
+runs, all target content/owners, complete531-vs530job dictionary and orphan rule;
+independent-root-delta-review.json PASSED. On-disk clean-unmount bit set.
+
+DSHv21 writer fake IO0/57assertions. v22 enhanced actual writer fakeIO0/102
+assertions incl mounted/mapped/wrong-capacity refusal, partialwrites/readback/
+rollback/report-storage failures; READONLY PHONE preflight0: exact gauguin,
+114919714816B userdata, unmounted/no holders, all48old-range hashes matched.
+v22 LOCAL fsck1 because ordinary image path lacks device ioctl; original input/
+log retained. Freshv23 readonly/nomount virtual block attachment fsck_hfs -f -n0:
+extents/catalog/hardlinks/hierarchy/attributes/bitmap/volume all checked; iOSRoot
+appears OK. Detached0, final full SHA unchanged. NO phone commands in fsck job.
+v24 local HFS old/new/stream reader exact catalog/fork equivalence0; offline
+acceptance parser1valid/8rejected synthetic cases0. NOT physical API proof.
+
+ROOT execution-plan-review.json has exact command vectors/input pins and review
+limits. No root-write-user-approval.json, root-apply-v2, hardware-trial-result or
+hardware-qualification exists. Next ONLY AFTER affirmative fresh user answer:
+create receipt approved=true, allow_rollback=true, plan_sha256 EXACTfd80e691...
+with response basis; DSH execute pinned write_root_delta175v2.py per review into
+root-apply-v2. Before writes it rechecks all old ranges + product/capacity/mounts;
+headers last, failed partial run included, flush+readback each. Any failure
+restores touched old blocks in reverse and verifies; NO boot on failure. Loss of
+power/process cannot be atomic; full backup and old ranges retained for recovery.
+After success DSH boot175.py ONCE (temporaryboot/routine13B latch authorized),
+observe180s/automatic ~131sTWRP, capture_probe175.py reads CURRENT on-phone HFS
+catalog+overflow/files without mounting/writing, then qualify_hardware175.py.
+Require fresh175 kernel/trial/seed, actual8192normal+1024surface words/hash,
+fences1/2/3 + native EOP/shadows20/32/44/56. Never substitute earlier logs or
+call a parser/model success physical acceptance. If truly stuck ask manual
+recovery; no reset-attribution/UI question. Mode12 still20s privileged prototype,
+NOT persistent GPU/Metal/accelerated UI/FPS/highrefresh. Persistent watchdog/
+power/recovery and MesaGLES/direct HakiOSMetal with actual A619 params next.
+
+NEXT PUBLICATION base unchanged PUBLIC35d706fd0564b080989b492eba1e024896ee0cea
+=PRIVATEde03753daa040de3bd07c65519a449b96b5e83bb
+/TREE6e075e7ebe7edfe15fca649d5361bca98dcbf703; not mirrored locally. Routine docs
+commits after source74b77 do not change compiled source identity. Original
+tools/mkadt.py7line dirty diff SHAa74a0418... unchanged; never edit/stage it.
+
+### 2026-11-08 —175 software handoff PUBLISHED; local root staging next
+
+Full goal ACTIVE/unlimited, incomplete. Published source/full software handoff
+SAME TREE/sole existing public parent/nonforce ref and remote rechecks PASSED:
+PUBLIC35d706fd0564b080989b492eba1e024896ee0cea
+=PRIVATEde03753daa040de3bd07c65519a449b96b5e83bb
+TREE6e075e7ebe7edfe15fca649d5361bca98dcbf703,
+sole public parentd8413b7ea67a924031c914fbad11553edf090da4.
+THIS is NEXT publication base. Public API objects not mirrored into local Git.
+Kernel compiled source stays74b77c0c62c715237cfae19c11ac99335aceb46d,
+implementation9c1e780..., sourcef4ba1885.../5329files/169patches; do NOT replace
+KERNEL175_SOURCE_HEAD with this docs/publication commit. All DSH1..16 + ROOT
+publication terminal, no live worker/input. Phone still automaticTWRP174.
+No175image, device boot, root-file/partition write, or manual UI question.
+Current native175 recipe1CAtln/c959c29a.../2128headers; olderTUhelpers invalid.
+Full89coverage(84fresh+5exact-source reused) + kernel17275384B/32c0bd43... accepted;
+proof610618bd... and user probe87360B/775622b6... frozen. No hardware API/Metal/UI
+or persistent-runtime/highrefresh qualification. No new CI.
+
+Fresh read-only16GiB HFSX backup9c9f8777... retained0444, before/afterheaderexact.
+NEXT: DSH local COW clone/mount/stage only, preserving original backup. Existing
+iOS uses compiled /System/Library/xpc/launchd.plist LaunchDaemons dictionary;
+install CLI + loose job + ONE compiled job entry without changing other jobs.
+Prepare on-disk ownership/signature/content/block-delta review and final mode12
+image BEFORE any destructive write approval. Root metadata layout verified
+against actual BSD HFS header/Apple primary format. Do not trust old hfs-read.py
+size column or truncate fragmented extents; fork.logicalSize is at file+88 and
+fork.extents at+104 in packed248byte HFSPlusCatalogFile; BSD info at+32.
+Keep recovery/bootloaders/modem/persist/GPT intact. Temporaryboot/13B latch already
+authorized; fresh confirmation required for destructive root/raw-block writes.
+Do not write a stale17GB root image or use fastboot flash for a sparse delta.
+User away: all resets automatic, ask only for genuinely needed manual recovery.
+Originalmkadt7line a74a0418... unchanged. No filesystem install approval pending
+until the concrete local files/delta/image are ready and reviewable.
+
 ### 2026-11-08 —175 full host/native kernel ACCEPTED; root probe install next
 
 Full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh goal ACTIVE/unlimited.

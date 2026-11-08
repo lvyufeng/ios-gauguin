@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 frozen texture references ACCEPTED/promoted; critical core next
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Phone automaticTWRP173;
+no174kernel/image/boot/device I/O. User away/allresets automatic, never ask
+attribution/UI; only trulyneeded manualrecovery. All174DSH1..4 TERMINAL;
+v1/v2failednativeartifacts retained, v3native/v4fixtureacceptedFIRST0 on their
+freshversions. Currentgenuine XNUrecipe STILL173 gauguin.mqtgMg/4b98a4e7...,
+source173-codex5323/cee256..., never olderTUhelpers/sharedgeneratedfiles.
+RemoteNEXTbase267fd63d/private dc125660/tree5f1e09b8; KERNEL173_SOURCE_HEAD28137449
+unchanged and distinct from newsource-reference/docs commits. No174source
+productionpatch/candidate/core/provider/model/nativeXNU TU/fullkernel yet.
+
+DSH v4 frozenfixture CLOSED inner0 FIRST: strictC11hostcompile0/materialize0,
+all3full32KiBRO images BYTEEXACT originalnativecaptures; freestandingAARCH64
+referencecompile0.31distinct completepayload arrays, dedupwholeidenticalbytes
+only.31slots/30active/2221payload/2752padded words perprofile; payloadincludes
+immutable4KiBtextureinput. Native27ringobjects include rawsampler4words and
+rawdescriptor16words, separate from executablePM4.3shader128B,private0. Native
+IB203/draw79, existingROfc008000..fc010000 withtexturefc00a000+4096, no newmap;
+DATAtargetfc018000+4096/controlfc018c00 unchanged. All3seed/EOP0-16-32/6-22-38.
+Root review_frozen174.py FIRST0 SHA
+6085b8cbdd797733268189634c1c6acc031f197c1f98e07971fa1cccfbc75bfc.
+Nativegraphrootproof0074e6159ea5626a5daef4240f1628c4e468b83f36e2f0990dda1083898fa694,
+all32steps originalfactory/cache/program/descriptor/PM4/typed-data checks0.
+
+Promoted exact native_words.h/provenance to tests/fixtures/gpu-texture, plus
+README and authored gpu-draw/native_nir_textures174.h. PublicNIR differs from
+compiled privatev3 header ONLY by173headerinclude path normalization; private
+included173header byte-exact existingpublic173header, body unchanged. Promotion
+receipt public-reference-promotion-v1.json pins fourpublicoutputs. NoGPU/pixels
+or fullGLresource/lifecycle/scheduler/API/Metal/UI proof in these references.
+Expectedsourcepixels fixed beforephone:4x4endpointRGBA bitplane pattern,
+normalizednearest LOD0/clamp-to-edge, UV/VU/UV+1upperclamp,16/16/4colors. All
+RGBAcomponents0or255 allow exactchecks, blenddisabled; no empiricaltolerance.
+Fractionoracle sourcein texture_oracle174.py andpublicprovenance. New3profile
+nativeRO bytes andlegacygreen/repeatbyteequality already accepted.
+
+NEXT commit completed fourpublicsource-referencefiles +thishandoff. Author
+separate mode11 texture GGF core (nameunused, checkbeforeuse), preserving173GGV/
+172GGJ/171GGT, existingRING/DATA/one signedINIT-MEM-AUTH/GGU20 and2sphase/4stotal/
+8sentry/once/quarantine/noCPUDATAstore policies. Include sourceinputtexture in
+ALLbefore/copy/compare/after immutableRO passes and exact previousOBSERVED
+pixel cache. ExpectedCPU RINGwrites3*(2752+7)=8277; metadata31/30/2221/2752.
+Hostilemodels must preserve alloldguards and test everynewnative/input word,
+missing/current/prior pixels, descriptor/pointer/resource drift, contextmutable
+attacks/fence/EOP/state/time/NC/quarantine controls. Then current173genuineARM64
+TU +actualprovider/admissions/liveboard/full87/fresh168patch gates before
+kernel/image/runtime/ONEtempboot. No174 physicaltexture/API/Metal/UI/performance/
+highrefresh/dailyusequalification. Original mkadt7line diff a74a0418... intact.
+
 ### 2026-11-08 —174 native texture graph ACCEPTED; frozen source fixture next
 
 Previous goalturn PROGRESS:173physicalsmooth/flataccepted andpublished. Goal

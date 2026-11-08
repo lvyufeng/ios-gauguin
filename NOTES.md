@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —PHYSICAL176 userspace dynamic GPU API / IOSurface PASSED
+
+DSH0176v6 package0: image shim/out/shim-p3-gmuf-0176-native-20261108.img,
+19,972,096B SHA22358ab379bfa9c5b958b1ade3693e1655abefb3edac28610c1ab1d1e14978f5;
+payload19,644,416B SHA786e0bda8459d92f1578fb326e302f43b2b1a856ec9636348a54ed4102aca8c6.
+SAME175installed CLI775622b6.../job/cache/mode12 args/trial, same loader/assets;
+NEW176 kernel BuildIDacb89b6664af427e9aa08170da6fe0f4 binds identity. DSHv7
+ONE temporaryboot0/inputs unchanged, automaticTWRP130s, all root/launchd/UI
+startup markers, no phystokv panic or other native panic. Three REAL user
+submissions rc0/ibs1/fences1,2,3 completed1,2,3/shadow32,44,56/polls1,2,3.
+This is the first physical dynamic user-owned BO/map/submit/EOP/IOSurface pass.
+
+DSHv8 CURRENT readonly HFS capture0. Stdout1056B actually APPENDS prior failed
+175boot's immutable183B; allraw bytes preserved. Current176slice873B excludes
+ONLY that exactb5ee9969... historical prefix, requires NEW image/native/probe
+banner match, retains all current11events. DSHv9 frozen175strict GPU validator
+UNCHANGED SHA16a155bf... PASSED0, hardware-qualification.json. Current probe
+reports GPU619/chip06010900, two owned BOs at40000000/40010000, dynamic seed
+3258985409; normal8192words hash848757370 (incl16KiB boundary), IOSurface1024
+words/offset64 hash3902015912, all3fences and final close/PASS. StdoutFNV values
+recomputed independently by ROOT, CLI raw binary7756.../root:root0755 checked,
+native3EOP/shadow records and no panic checked. Independent physical review:
+research/tmp/dsh-0176/independent-physical-review.json. No current event was
+waived and no CPU/model data is claimed as hardware. Original failed175trial
+and183B output remain immutable; strict175v37 failed1 remains failure evidence.
+
+CURRENT source176 commit4d6b2a8..., full treee6413b4e.../170patches/5329files;
+current native recipe gauguin.tKac3D, kernel79a32f09...; never older175recipe
+after shared generated-header replacement. AllDSH workers terminal; phone is
+TWRP. Only originalmkadt7line dirty diff remains. Commit/publish this milestone
+with remote MAIN base35d706fd...=PRIVATEde03753d.../TREE6e075e7e...; isolatedGLES
+branch still713ea8af.../0d4c9389.../d3d653a5..., do not merge it into kernel gate.
+
+NEXT actual work: persistent watchdog/power/DMA lifecycle; owned multiple
+queue IDs and actual GMEM-base parameter required by Mesa screen/context;
+then install/run reviewed GLES shader+IOSurface probe under a NEW exact root
+delta consent. Existing176 pass is root-only/ONEclient/bounded20s; no persistent
+GPU, GLSL, Metal, accelerated SpringBoard, UI FPS or90/120Hz acceptance. Full
+daily-use/RAM/UFS/peripheral/highrefresh goal remains incomplete. User away,
+ALLresets automatic; no reset-attribution/UI questions. Different destructive
+root writes still require fresh confirmation; no blind preboot metadata rollback.
+
 ### 2026-11-08 —Native176 build0/qualification0; same-probe package LIVE
 
 Source commit/frozen KERNEL176_SOURCE_HEAD4d6b2a8d56acdcf5e1eda2dfc88df3598337d6e0.

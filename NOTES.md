@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —187 actual temporary boot LIVE; wait same8598 handle
+
+187v13 atomicprofile claimedLOCALdispatcher84973 at1794164136.654712; actual
+fastbootSending/BootingOKAY,0.594s. Preflightobserver-running/miscverified,
+profilef77c13e3...; runnerprofilec5bcfa84a3be8a969110f9e13a53bde66f709fa5a1b3cf4ed9b19758c823e6a0.
+CURRENTphone running187, noUSBexpecteduntilautomaticTWRP. Wait sameLOCALouter8598
+terminal (780sobserver860sbound/600sservice); neverlaunchanotherbootonnoUSB or
+observationtimeoutalone. NoUI/manualresetquestions; useraway.
+
+DSHouter77751 originallypending247s withonly3session/turn/step-start events,
+zeroactualtool/claim. Userinformed; sameatomicprofileexecutedCODEXLOCALFALLBACK.
+Origin W187/execution-origin-v13.json. DSHmayrespondlaterbutcannotclaimtwice;
+leaveorcloseONLYthisownedidleheadlessclientafterverifyingauthoritativeterminal.
+No userTUI touched. Newkernelimageb16d/sourcef1cca7e/buildID6d7eff8; sameinstalled
+186root/smalladmission/Mesa185. No187userdatawrites. FullgoalACTIVE andphysical
+injection/actualUID/budget/GPUUI stillunqualifiedatthisentry.
+
+NEXT afterterminal: READONLY12-filecapture W187/post-trial-capture-profile.json
+using186read_files186.py intoW187/post-trial-capture-v1; qualify_trial187.py keeps
+allfullfrozenGLES/API + strictAMFI90/186admission; review_stderr187.py and
+review_physical187.py separately. No reruns/waivers onFAIL. Allnewplanning source-
+backedgates storedW187/next-compositor-plan187.json; do notimplementordinaryapp
+accessorclaimdailyusefromthistrial. Prior186backup855cHISTORICAL/consentconsumed.
+
 ### 2026-11-09 —187 native kernel/image READY; DSH one-boot request pending
 
 Kernel187source integrated mainPRIVATE f1cca7ee25f82066839adba207a073f4c9557160

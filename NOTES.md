@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 native references/C/ARM64 ACCEPTED; sequence engine next
+
+Goal ACTIVE/unlimited; this continuation PROGRESS. Physical baseline remains
+accepted171, phone last automaticTWRP171. No172 kernel/image/boot or device I/O.
+User away: ALL resets automatic, --manual-reset no; never ask attribution/UI,
+prompt only if genuinely stuck and manual recovery is needed. Codex authors
+critical code/plans/reviews, DSH executes compiles/tests/build/package/boot/read.
+
+DSH172 v1 and v2 native stages CLOSED inner0, no live jobs. Original full Mesa
+graph/IR3 CPU captures (28 actual steps each) retained as native-controls-v1/v2.
+New authored native_nir_controls.h uses exact clip bias -15/32, window vertices
+(4.25,4.25),(20.25,4.25),(4.25,20.25). Independent integer geometry gives116
+green/140blue pixels and no edge passes a pixel center. Expected source oracle,
+NOT physical rasterization. Fullgreen output is byte-exact physical171's source.
+V2 initializes ORIGINAL native context seqno to0/16/32 before each independent
+capture. Original unmodified emitters produce EOP6/22/38; no packet/ISA rewriting.
+Exactly eight native main-IB counter fields change by the seed; all other bytes
+match v1. VS/BS/FS private memory/resource counts remainzero, same27slots,
+26nonempty/1158payload/1632padded words, same32KiBRO ring/4KiBDATA layout.
+
+Root review_native_controls172.py completed FIRST0; accepted report
+research/tmp/dsh-0172/independent-native-controls-review-v1.json SHA
+ef08b41b91186dbef34f4a7500b741330bb5004c6055350c1e71021c79bb2e91.
+It rehashes both actual captures/dispatches/compiler logs/original Mesa tree,
+all packet parity/lengths, exact native event seeds, integer geometry and
+unchanged171 source. Current171 native recipe remains gauguin.inYn00, manifest
+e0eb9f7639f4480e8364d15519fefa8393742da3390d0b9e95408e2ca5c203fe;
+never run old170/older TU helpers against shared generated files.
+
+NEXT concrete action: freeze immutable native green/red/inset profiles and
+source provenance, then separate bounded three-job sequence module (new mode9)
+without changing fixedgreen GGT/mode8. Same signed INIT/GGU20 once; WPTR
+20->27->34->41, unique EOP6/22/38, verify all previous pixels/native blobs before
+staging next job, no CPU DATA stores. Require per-job idle plus fresh trueEOP,
+all previous owner/NC/PTE/MMIO/time/WDT guards, strict hostile/fullpath/ARM64
+gates before any new kernel or temporary boot. No UI/Metal/API qualification.
+DSH172 v3 fixture CLOSED inner0 FIRST: generated three immutable native
+profiles, strict C11 host compile/materialize0, freestanding ARM64 compile0.
+All three materialized32KiB images byte-exact to independent native captures.
+Only28 distinct COMPLETE payload arrays shared by exactbytes; no delta/patch
+program. Root independent-frozen-sequence-review-v1.json FIRST0 SHA
+5d83cee7bcd5a672e6cd8407f396051a2014326116634f7e555652a9a9b3d3b9.
+Reviewed references/provenance/README promoted to tests/fixtures/gpu-sequence;
+new sequence core/header remain private uncompiled candidates under
+research/tmp/dsh-0172/sequence-engine-v1. No provider/test/kernel/image/boot yet.
+No live DSH jobs. Preserve user's tools/mkadt.py7line diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+Last public100dca02db06ad21f03bf116fd6b111eb48e9169 equals PRIVATE22206b906333b0b0a10adf7d3f508130c29af1ef
+tree755753373ca59fcf5e6e7b57bb6f12e1da861439; use that tuple for next publication.
+
 ### 2026-11-08 —171 physical native triangle ACCEPTED; color/coverage controls next
 
 This goal turn PROGRESS: first physical fixed A619 vertex/fragment triangle

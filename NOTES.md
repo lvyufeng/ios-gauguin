@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —Actual EAGL six method encodings collected; no UI install
+
+185realGLESacceptance baseline unchanged (installedMesa3a4/kernel180image6825),
+phoneidleTWRP, no newdevicewrite/boot. FullgoalACTIVE. CurrentGLESpublicationbase
+PUBLICeac33438...=PRIVATE1d365d427.../TREE613176e3... asbelow.
+UI183v6 TERMINAL0/inputsunchanged. Actual20H392 EAGLContext method types:
+API Q16@0:8; initWithAPI:properties: @32@0:8Q16@24;
+setParameter:to: Q28@0:8I16^i20;
+getMacroContextPrivate ^{EAGLMacroContext=}16@0:8;
+attachImage:toCoreSurface:invertedRender: B36@0:8Q16^{__IOSurface=}24B32;
+texImageIOSurface... B72@0:8^{__IOSurface=}16Q24Q32I40I44Q48Q56I64B68.
+Independentwidthreview inUI183/six-method-ABI-review.json: primaryHakiOS hook
+register/stackwidths match, but actualwidth/height areuint32 I40/I44 whileprimary
+uses signedGLsizei. Futureportmust keepuint32methodparams andbound<=INT_MAX
+beforeconversion. Methodwidth review isNOTdispatchslotABI/UIacceptance.
+
+Selectorbase0x18229979f derivedbyONE EXACTconstraintsolution acrossALL6actual
+QuartzCore/OpenGLES callerSELrefs and actualEAGLContextmethodnameoffsets; full
+selector-base-constraint-witness.json inactual-eagl-metadata-v5. This isdocumented
+inference, not an executedruntimegetter. Appleprimaryobjc-magicsel.m blob5a4d...
+names sentinelU+1F92F;5mappedoccurrencesfound. Earlierfield-relativedecode failed;
+unique-sentinelassertfailed; actualgetternameabsentfromlocalandexternal symbols.
+AllUI183failedv2/v3/v4/v5 profiles/logs retained. Newexactwitness validatesall6,
+withoutguessingdispatchslots. TodayAppleobjc4headerde2da... onlylayoutreference,
+notclaimaboutfirmwareversion. No Applecachebytes Git.
+
+PinnedadditionalHakiOS63fc2b4primary sources: mkeagl.py25d36c..., eagl_slots.txt
+89259c..., build.shc60412..., LICENSE8814a9...; privateprimarymanifestverified.
+LicenseexplicitlyMITforuserland/tools: preserveMITnoticeifporting. Primaryslots
+explicitlyiOS16.5/20F66, MUSTcompareactual16.7.16/20H392GLstuboffsets beforeusing.
+CURRENT UI183v7 offlinecollector LIVE outer51156, inspect_gl_stubs.py/checks-v7/events-v7. No phoneIO.
+NEXT collectactualexportGLstubinstructions, derivealltableoffsets, comparepinned
+slots thencompilebridgeagainstaccepted3a4Mesa. Do not claimUI basedonlywidths.
+AfterABIproof, designcompositor-scopedclient/order: actualbackboarddUIDmobile;
+GPUstillroot-onlysingleclient/globalPT. Keepordinaryappsdenied; don'tmerelydrop
+privcheck orrunbackboarddasroot. Trustedcompositorauthorizationusingexactexec
+vnode+UID/rootimmutableownership isonlyPROPOSED/notimplemented. Diagnosticprobe
+jobmustnotcompete forsingleowner duringfutureUItrial. Newrootdelta requiresfresh
+post185backup+concreteconsent; pre185305bbackup historical, neverrawrollback.
+
 ### 2026-11-08 —185 physical acceptance documentation published
 
 NewverifiedDOCpublication PUBLICeac33438b14960481174ffecc30cf6d5a66aa907

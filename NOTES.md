@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 parser/package ACCEPTED; full runtime tests running
+
+Goal ACTIVE/unlimited. Phone last actual automaticTWRP171; NO172 device action
+at this milestone. Standing unattended policy: ALL resets automatic, no human
+UI/attribution question; ask only for genuinely needed manual recovery.
+Frozen source24587b1/public42d5240/treee5d039d and native172 recipe/kernel remain
+exactly as below; no extra full build or CI. Current private pre-doc head9d4c0b3.
+
+DSH v16 strict standalone sequence parser CLOSED inner0 FIRST:26valid/6832
+rejected; all929 selected records,3*256 before/after actual-value pixel fields,
+3*27native buffer receipts, unique6/22/38EOP and17guardsteps/deadlines. v17
+actual-C-format compatibility CLOSED inner0 FIRST: five original provider
+MODEL scenarios emit928 actual C records each; ONE coordinator terminal is
+explicitly SYNTHETIC seam. This is format/model evidence, NOT phone execution.
+Root parser review977242411b30306b2e19a3d0b94bfb0a8d4b5093144f77ccc45f135959d304e1.
+
+DSH v18 image preflight CLOSED inner0 FIRST, all20 artifact hardware flagsFALSE;
+retains standalone/build/source gates, exact606B mode8->9/unique172trial only.
+v19 package+full independent boot/payload/ADT/native segment/fiveasset checks
+CLOSED inner0 FIRST. Image shim/out/shim-p3-gmuf-0172-native-20261108.img,
+19873792B SHA5313f887a22d145c5f7b9fa3eae5cf1c34e87b54a8b894f06e7e97772ae59eef;
+payload19546112B SHAe7f01cd8b488c8b87ab92604862cd748e84f6de8a477232f89c11ceaa9920c27.
+No boot. Image review17951168530b63a878833e9056e792d6f0696c2cd388c7109dbc5388b13d73a3.
+Root static preservation review independent-runtime-source-review-v4.json:
+all230 prior production need predicates,114packer assertions,119independent
+image predicates,213common fixture AST nodes retained; oldclock/FW/ZAP/GGU
+bodies unchanged except exact current source/trial/mode identities. Earlier
+review scripts1..3 retained (syntax/normalization defects); no production guard
+or generator removed. Unexecuted runtime172.py has old host filenames found
+statically; fresh runtime172v2.py fixes names/adds new helper pins, original kept.
+
+DSH v21 aux CLOSED inner0 FIRST: originalconsoleframing +all26clear/28triangle
+metadata refusals retained +32sequence refusals =86. v20 main runtime RUNNING,
+exec10601; poll existing live handle only. Actual clock0/firmware0 already
+completed; full eight deterministic shards still executing complete identical
+case generators and original rejection body. No full-runtime acceptance yet.
+All1..19 and21 terminal, onlyv20 live; no user input pending. New boot172.py,
+read_hardware172.py and byte-identical observer helper authored but UNEXECUTED.
+NEXT finish exact full-shard union/common identity gates +root boot/read review,
+then ONE temporary fastboot boot +automaticTWRP read/physical review. No API,
+UI acceleration, Metal, throughput or highrefresh qualification. Preserve
+original tools/mkadt.py7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
 ### 2026-11-08 —172 local full kernel/artifacts ACCEPTED; runtime/parser/image next
 
 Continuation PROGRESS; full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh

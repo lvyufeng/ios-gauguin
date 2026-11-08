@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —187 loader probe software PASS;175-patch replay; full build next
+
+Actualdyld1067 binary58068345 queriedAMFI/call90 with16Bwire(0flags/8pointer),
+returnszeropolicyflagsonerror, usesoutputbit1(PATHmask2) forDYLDpathvars including
+INSERT_LIBRARIES. Current180 lacksAMFI policy. W187/loader-policy-evidence187.json
+pinsactualinstructions; official1066.10 isreferenceonly. This is source-backed
+explanationfor186missingmarkers, not measuredruntimeUID/return/injectionproof.
+
+W187=research/tmp/dsh-eagl-0187-loader; isolatedcandidateprivate5c3b20747ef96259006d9d81fd2b72901ee04419
+/tree0b8f81c61ee682a8ffab8e3e3f71be7e54d41168. Fourcodefiles copiedexactlyto main;
+new0181patch changesONLYbsd/kern/sweet_amfi.c. Bootarg sweet_dyld_probe=1 DEFAULT0
+addsAMFI90diagnosisforcurrentprotectedbackboardd/root-or-mobileUID+ruid only;
+exactexecvnode/rootmount/rootowner/nonwritablemode+effectiveACLdenial, balanced
+refs, checked16Bcopyin/8Bcopyout, outputPATHmask2 only. OthercallersENOPOLICY;
+existingSWEETAMFI/Sandbox/GPUroot-onlysingleownerPTunchanged. Developmentprobe,
+NOTlaunchd-jobattestation/generalapppolicy. Actualinjectionstillunqualified.
+
+V1host38PASS/nativeCFAIL(publicPROC_NULLundefined) retainedfailed-v1-inputs;
+V2usesNULL. V5ALL3jobs0/inputsunchanged:38completeproductionhelper+handler and
+originalMACdispatcherASAN/UBSANcases, nativeARM64C via2128frozen180headers/config,
+CIdefaultXNU_SOURCEentry38cases. V6BOTHjobs0/inputsunchanged: pristine175patches,
+all5329filescomparefrozen180ONLYAMFICchanged; newsourceSHA
+b68056e2a5268b32f8fea880a979f33d3daabb939761f3ea07e0159ac201f3bd.
+S=.deps-cache/p0-20261105/source187-codex; SEPARATE W187/source-state. Reference180
+source/build/headerhashes/mtime unchanged. W187/independent-software-review187.json.
+
+DSHv3/v4stalledbeforefirsttool/claim; sameatomicjobsranCODEXLOCALFALLBACK and
+onlyidleclients46558/46854terminatedafterterminal. V5/v6alsolocalfallback;
+executionoriginrecorded, notattributedDSH. Userinformed; DSHpreferredexecutor.
+InstalledGPUprobeprintsactualkern.version; frozenphysical_api_core180 derives
+image/native/stdoutidentity dynamically. NEWkernelcanreuseALLunchanged181v2/180
+GLEScontracts/probes/Mesa WITHOUTrootwritejustfornewversion. Neednew187actual
+image/sourceprofile andderiveexpectedbanner, neverfakeold7f61identity.
+
+PhoneTWRPafter186; acceptedMesa3a4+smalladmission67f7/job33f5/cache05b8 installed.
+186consent403blocksconsumed, PRE186BOOT855cbackupHISTORICAL; neverrawrollbacknow.
+GLESregressionPASS/admissionFAIL retained. NEXT publish187newkernelbranch, full
+nativebuildinFRESHbuildroot withclonedSDK/deps andfreshobjects; no187image/CI/boot
+yet. Thenpackageopt-inprobeimage andtemporaryfastbootboot/readevidence. No new
+userdatawritesrequired. FullgoalACTIVE; UI/Metal/highrefresh/fullRAM unqualified.
+Originalmainmkadt a74a... unchanged. All187v1..v6jobs TERMINAL.
+
 ### 2026-11-09 —186 GLES regression PASS; compositor admission FAILED/missing;187offline live
 
 Phone autoTWRP after741.804095s (17:15:46.116363..17:28:07.920458UTC), observer0,

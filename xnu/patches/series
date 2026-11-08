@@ -176,3 +176,4 @@
 0178-gauguin-watchdog-reset-acknowledgement.patch
 0179-gauguin-gpu-queues-and-gmem-parameters.patch
 0180-gauguin-watchdog-adjacent-counter-confirmation.patch
+0181-gauguin-compositor-dyld-probe.patch

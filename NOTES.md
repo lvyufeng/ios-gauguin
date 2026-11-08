@@ -2,6 +2,75 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 physical handoff PUBLISHED;175 dynamic userspace batch next
+
+Full goal ACTIVE/unlimited (get_goal verified), not complete. 174 milestone is
+closed: all DSH jobs/publication terminal, no live worker/pending input. Phone
+last automatically TWRP174 after131s. User away; all resets automatic, no repeated
+attribution/UI questions. Routine temporaryboot/13B latch authorized; destructive
+userdata/GPT/flash steps still require fresh confirmation. mkadt7line a74a0418...
+unchanged; no new destructive action or CI build.
+
+Published physical NOTES-only handoff via nonforce REST, SAME TREE verified:
+PUBLIC d8413b7ea67a924031c914fbad11553edf090da4
+= PRIVATE 512e8f7e51116cae496fd0f59f3f1056bec9dec2
+TREE 0af84b9d200894648761f841324d8e9ba8d58895
+sole public parent f3914a1167379a86c8f7a732780a360a81c261f3.
+THIS tuple is NEXT publication base. API public commits not mirrored locally.
+Do not reuse f391/7e48/6f8a as nextbase; that older tuple is the frozen174 SOURCE
+identity only. KERNEL174_SOURCE_HEAD remains7e48ca393fb719d4951f9c1a3893adba6161f9e5.
+Physical proof6636f45aa61c43a1af5bddb67b619d70fbebd43a17de106cd81e0e526255b73f,
+40technical inputs,768 exact endpoint/prior pixels,93native buffers,16/16/4colors,
+EOP6/22/38/root20-27-34-41; no generalAPI/Metal/UI/highrefresh performance proof.
+Current genuine XNU recipe174 gauguin.FxICIV/1d05972654801dba686e27e401711c9df9eb2036403725c88fcb7dcd56f70586,
+source174-codex5326/4e9999c3...,2127headers,168patches. NEVER oldernativeTUhelpers.
+
+User's side-research steering is integrated: speed through reuse + layered tests;
+next milestone MUST user-space dynamic BO/map/submit/fence/pixel readback then
+IOSurface presentation, rather than more fixed PM4 samples. Use HakiOS msm-style
+IOKit transport as the closest common user API for MesaGLES and its iOS16 Metal
+path. Evaluate directHakiOSMetal first for Metal; UniXNU/m2v/Turnip remains the
+alternative, especially through HakiOS's already-adapted iOS16 patch stack.
+Keep working A619 firmware/clock/SMMU/PIL bootstrap; no whole-kernel/UEFI migration.
+This is an implementation priority, not a claim that a frontend already runs.
+
+NEXT concrete175 work (no175 code/build/boot authored yet):
+1. Inspect current IOBuffer/SMMU bootstrap and Linux-msm struct-method sizes;
+   connect an IOKit GPU client to real A619 query/BO ownership/map/submit/fence
+   backend. Preserve below4GiB GPUVA,16KiBCPU->4KiBGPU split, physical-bank bounds,
+   cache coherence, live mapping lifetime and stop-DMA-before-free on timeout.
+   Keep prototype permissions narrow until multi-client isolation is implemented.
+2. Adapt HakiOS Surface request0x7e to existing SweetSurface, NOT a cast. Critical
+   source difference found: MiniIOSurface embeds shared state before pixels and
+   its GPU service skips PAGE_SIZE; SweetSurface::memory is pixels already and
+   ::state is separate. Do NOT copy that PAGE_SIZE offset. sweet_surface_copy(id)
+   returns an OSObject retain (release when done). Bridge retained descriptor,
+   actual offset/geometry/cache metadata, and completion before framebuffer read.
+   SweetSurface currently has no MiniIOSurface::drawn GPU-fence field.
+3. Build one iOS user CLI using the same real msm struct-method/map API as the
+   reused frontend: query A619, allocate/map, dynamic commands/texture data,
+   submit/fence/CPU readback and one IOSurface result. Keep this end-to-end and
+   use stable tools + immutable run profile/manifest; avoid trial-name script
+   duplication. Exact ABI validation, handle ownership, range/overflow and fence
+   failure tests are relevant; no repeated full87 for labels/plumbing. Full checks
+   at the integrated ABI/MMU/recovery image milestone, not every small edit.
+4. Then MesaGLES compositor (available in HakiOS's path) / directMetal client;
+   parameterize hardcoded a6xx::kChipId/compiler and actual hardware params for
+   A619, never merely rename the device. Verify ondevice shader compilation,
+   IOSurface imports/presentation and backboardd before FPS/90/120Hz claims.
+
+Read-only source cache gpu-reuse-20261108-v1 now has26primary files +5extras,
+selected Gitblob/SHA256 receipts, pinned HakiOS63fc2b46,AdrenoMetal6d7f7343,
+Adreno7406fa7bae2. HakiOS device manifest additionally pins redwood repository
+https://github.com/oosexgang/hakios-sm7325 at af52dfba33f91340bde68dbbe238ae583f9fd472;
+metadata tree only fetched (NOprebuilt/firmware/Apple artifacts downloaded).
+Review selected build/device layers before treating stale comments as a complete
+capability matrix: generic GPU header says polling/sharedVA/no full hang recovery,
+while Metal header/docs refer to gpu_recover; do not silently assume consistency.
+Known m2v recipe pins AdrenoMetal243d63cf and metal2vulkan624bab39, not newmain.
+Published UI rates belong to642L, with resolution/wallpaper/tuning conditions;
+no extrapolation to A619 or native120fps acceptance. Full goal still unfinished.
+
 ### 2026-11-08 —174 PHYSICAL nearest texture ACCEPTED; dynamic client/presentation next
 
 Goal ACTIVE/unlimited, progress; full GPU/Metal/UI/highrefresh/daily-use goal

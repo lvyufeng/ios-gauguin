@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 original native varying graphs/references ACCEPTED; core next
+
+Continuation PROGRESS; full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh
+goal ACTIVE/unlimited. Last actual phone automaticTWRP172; no173 kernel/image/
+boot/device I/O. User away/allresetsautomatic, ask only for genuinely needed
+manual recovery. AllDSH1..3terminal, no live job/pending input at this milestone.
+
+DSH173 v1 native CLOSED inner0 FIRST:29 actual full native compile/generate/
+link/capture steps0, all five smoothRG/smoothGR/flat-firstRG/repeat/legacygreen
+captures. OriginalMesa24.3.4 tree10642/598f1abe... unchanged, real A619128B
+VS/BS/FS, private0/no texture/UBO/SSBO resources. Actual VARYING_SLOT_VAR0
+VSoutreg2/FSinloc0/compmask3, original VPC program words/linkage/INTERP0 or5,
+first-provokingvertex control0, native bary.f/flat.b. No fragment-coordinate
+substitution. All24native ring objects +3shaders retain27slots/1158payload/
+1632padded extents. Separatelegacygreen byte-exact physical171/172 reference.
+Root independent-native-review-v1.json FIRST0 SHA
+70d128c982bfb6916d979bf642c9ca4aa5376fdad4122aea5f57d2bce07c6d7d.
+This is CPU source/command evidence, NOT actual interpolation/GPU execution.
+
+AuthoredNIR clip(-1,-1),(3,-1),(-1,3), W1 gives window(0,0),(32,0),(0,32),
+varying(0,0),(2,0),(0,2). Independent rational oracle: each pixelcenter samples
+((2*x+1)/32,(2*y+1)/32), swappedGR or firstvertexflat0/0; blue1/4 alpha1.
+Predeclared OpenGL4.6 sections14.6.1/2.3.5.2: RGBA8 perchannel floor/ceil only,
+no empirical tolerance. Alpha255 exact, blue63or64. Each smooth image has256
+spatially distinct preferred colors. Require exact previous OBSERVED pixels
+before the next job, including previous legal rounding choices; never compare
+only against an allowed source range for that prior-state check.
+
+v2 fixture FAILED beforecompile: script input named verify_sequence_fixture173.c
+but authored file is verify_varying_fixture173.c. Originalfailedscript/log and
+emptyfrozen-v1 kept, no guard waiver or second native capture. Freshv3/scriptv2
+CLOSED inner0 FIRST: strictC11 materialize0, all3full32KiB images byte-exact0,
+freestandingARM64 reference0. Frozen30distinctcomplete native payload arrays,
+dedup onlyexactbytes. Root independent-frozen-review-v2.json FIRST0 SHA
+a889f4d9b6a8b8f8fb653590534f6b971d0a3f215c4d29190cde4264b11de9ad.
+Earlier root frozenreview attempted while v2 failed/no report; retained unchanged.
+Promoted source refs under tests/fixtures/gpu-varying and authoredNIR under
+GPU-draw/native_nir_varyings173.h, exact nativebytes. Ready to commit completed
+reference milestone; no173 criticalcore/provider/model/nativeXNU/fullbuild yet.
+
+NEXT author separate bounded GGV mode10 (proposed unused), same3nativejobs/
+root20-27-34-41/EOP6-22-38/mapping/guard/deadline policies, preserving172GGJ.
+New readback accepts only predeclared perchannel source bounds after GPU work,
+but keeps exact prior observed pixels in private core-local storage for the
+next beforepass. Host attacks must cover allallowedrounding choices, every
+invalid channel byte, previous-state drift within a legal range, packet/DATA
+corruption, callback/context mutation and quarantine. Then current172 genuine
+native ARM64 TU, liveprovider/admissions/fullhost before any kernel/phone trial.
+Currentnative recipe STILL172 gauguin.d14eqT/87cc5799..., never use older TU
+recipes against shared generated files. Public9a4fd500/private2ff5d367/
+tree81a65a91 is NEXT publication base; KERNEL172_SOURCE_HEAD remains24587b1.
+Original tools/mkadt.py7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 unchanged.
+
 ### 2026-11-08 —172 physical evidence published;173 next, no live jobs
 
 Continuation PROGRESS; full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh

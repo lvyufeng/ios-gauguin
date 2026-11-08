@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —188 native/image/preboot PASS; DSH boot request pending
+
+188sourcePRIVATE51dc5e84609db42e2b10dbb3667740c4ca87cf9c/TREE
+d622e67a8fb0f0b91f032e0307b122ed61a8e5ea. PublishedNEWkernelbranch
+codex/gauguin-loader-evidence-20261109 PUBLICc24186763efabd7c37731d0d0e2eb01b8b3f4bb9,
+exactTREE/soleparent187public3d94eb6/refverified. FiveUTF8textfilesonly; old187/main/
+UIpublicrefsunchanged. InitialpubscriptlocalBASETREEreplacementcollisionfailed
+BEFOREanyAPI; retainedv1, correctedv2published. NoCI dispatch, ghfallback/no force.
+
+V5pristine176patches0, all5329filescomparefrozen187: ONLYkern_exec.c/sweet_amfi.c
+changed, bothcandidate-v2exact. S=.deps-cache/p0-20261105/source188-codex SHA
+61345456fcc5576525198a9c97be5350adcd4253988696ff45f5c8eab568b16b;
+separatesource-state W188/source-state; frozen187unchanged. V6actualCIdefaultentry
+49cases0. W188/independent-software-review188.json pinsnew49+retained38/native2TUs/
+2128headers. V7fullLOCALnative inFRESHbuild188-loader/makeinstall0/qualification0
+in136.765s, run gauguin.zAeM74. Original187manifest/source-state hash+mtime kept.
+KernelSHA7d6169a630900c6c2a456501a93eb08984356a21da94b56fd5b9fd8359bb8303,
+buildIDxnu-28625b4c97ae4aaeb1068b33408a6cf2. Alloldprovenance/symbol/cache64checks
+PLUSnewopen/mmapcallbacksdefined; DATAconfdefinitioncheckretained. Nohardware188yet.
+
+V8readonlycurrent9files+3WHOLEprefixes0 after187: stdout9884B SHA4e38419b...,
+stderr2879B79d1b8c5..., BBoard453728B227b04a8...; fullpinsreceipt W188/
+installed-preflight.json. CURRENTunmountedrootheader90dead311407823c703dff379854103de3b3954a49ce43d9a9113ceed9a1a794.
+Same186smalllib67f7/job33f5/cache05b8/Mesa1853a4/128MiBprobe policies. No188rootwrite.
+V9package0 image shim/out/shim-p3-gmuf-0188-native-20261109.img19988480B SHA
+17509dcf010049a9c3f68121f813f90e60f96ee8d47fdf11bc0a79ae1ba52996;
+payload4f0fefbe432c577e20f9afb1f88474b2877b7c04beec82e0e5e3df87799adfcf.
+Exact605-byte187command/3NULs, same4GiBmemorywindow/shim/DTB/fivefirmwarebytes.
+MACfilehooksarePRECHECKS/attempts, NOTsuccessfulmappingproof. NoGPUauthoritychange.
+
+V10pureloaderframingMODEL35cases0: acceptallvalididempotentAMFIqueries(noexact1
+assumption), rejecteverymalformed/bad-role/flag/overflow/uncorrelatedrecord. Keep
+ALLexec/fileobservations. IfnoEAGLmarker: reportinjectionfalse/observationsonly;
+ifmarkerspresent: invokeFULLunchanged186admissioncontract, thenindependent8actual
+methodtypes/GET8VMcomparison. Nevermmap-check=>mapping-success. Fullfrozen181v2/
+180GLES/API unchanged. V11preboot0: original186bootflowBYTEIDENTICAL/24bootcases,
+41admissioncases retained, model35, static9/prefixes/image/source/assetpinschecked.
+Actual1067initializer0x16support+currentinstalledconstructorbodyreviewedoffline;
+thisiseligibilityonly, notphysicalinit. W188/initializer-eligibility-review.json.
+
+CURRENTatentry: phoneTWRP/unmounted, no188bootyet. DSH188v12LIVE outer10254,
+events-v12/checks-v12: firsttoolpending (inspectclaimBEFOREanyfallback). Atomic
+runnerprofileSHA61524839bfe396a606f93a94782f2629e29cb5f4526bfbf92ba3d9ca1f57a0d0;
+bootprofileSHAbe41dc86f69d2f2cbeb29f57032b307e589d195f9bac2125b6db60c078c0423c.
+ONEtempimage/600sservice/780sobserver860sbound, routine13Bmisc only. All188actual
+worksofarCODEXLOCALFALLBACK duringDSHupstreamoutage; retriedDSHforactualboot.
+NoUI/resetquestions(useraway); askonlygenuinelystuckmanualaction.
+
+NEXT onactual188v12terminal0: python3 W188/prepare_post188.py thenrun-pinned-stage
+W188/checks-v13.json. Guardedsequentialrun_post188.py does12-filereadonlycapture,
+qualify_trial188.py (fullfrozenGLES+allloaderrecords),review_stderr188.py (only
+exact269B185primary-reviewedwarning),review_physical188.py. Keepall3WHOLEprefixes.
+State collected188-physical-loader-observations-GLES-PASS-pending-independent-
+review doesNOTmeaninjectionPASS; explicitcompositor_injection_qualified only
+fromactualfulladmission. No188hardware/env/admissionfacts yet. GoalACTIVE, realRAM
+4GiB/GPUUI/Metal/highrefresh/dailyuse unqualified. No newuserdatawriteauthorized;
+186consentCONSUMED/855cPREBOOTbackupHISTORICAL, neverrawrollbackafterboot.
+Originalmkadt a74a preserved. Allprior188handles83742/27595/76473closed.
+
 ### 2026-11-09 —188 read-only loader observation code;49+38host and2nativeTUs PASS
 
 187actualbaseline retained: 746.262208s/autoTWRP, root-onlyGLES600s/595renewals/

@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Native179 ONE build0/requalification0; temporary60s compatibility LIVE
+
+KERNEL179_SOURCE_HEAD12d921b5c67454a9d2fa6b303f9f501e1a58e74f.
+DSH179v5 ONE local8job native build0; new CURRENT recipegauguin.jfRN14, BuildID
+xnu-a61dbc724449497eb39515144c5fd6e4, kernel SHA
+9545cd192439c15f0b648beaf3ce30cdee5c6d1228e2b7783c8ce1c4abbc36ef.
+Shared generated headers/Makefiles replaced: NOT1785XaXo7 for any new TU.
+Original qualifier1 after generic provenance/symbol checks: Codex copied172->173
+with broad text replacement, corrupting the inherited178SHA literal before its
+intended replacement matched. This was a QUALIFIER INPUT ERROR, not a native
+build or driver success. Failed qualify179.py/log/kernel-result.json/v5 retained.
+New immutable qualify179_v2.py changes ONLY that wrong literal to independently
+pinned/replayed17964c40dc3...; DSHv6 SAME artifact strict qualifier0/no rebuild,
+all generic source/SDK/install/archive/defined-symbol/cache64bit gates retained,
+newggc_gmem_layout defined. ROOT root-build-review.json PASSED; oldfailedresult
+remains qualification-failed, new canonical kernel-qualification.json is v6proof.
+
+v7 CURRENT read-only root/probe/job/cache/HFSheader0, same installed175binaries.
+v8 package0, unchanged loader/5assets,179kernel and service1/60seconds command
+601B+7NULs. Image SHA7cbc07554e63a43cc2a1c833fab75621b7344cfeeb5879d34c4856aee91cc765.
+v9 ONE temporaryboot LIVE under standing unattended/automatic-reset policy,
+240s observation/320s outer timeout. This is a FOCUSED60s legacy single-queue
+API/service compatibility smoke of changed179IOKit.178's600s acceptance remains
+separate/unchanged; do not relabel60s as600s, and old175probe does NOT queryGMEM6
+or create multiple queues. New179qualifier freezes that narrower physicalscope,
+requires exact2803B historical stdout SHA505ce650... prefix,3actual submissions,
+full8192+1024hashes and30..60healthy renewals. After SAMEv9 terminal, fresh capture
+v10 -> strictsmokev11. No UI/reset-attribution questions; no root write/CI.
+
+Independent GLES source work: queue-local-fences.patch/prepare update +typed
+actual-shim host tests authored. DSH-GLES179v1 fresh pinned Mesa preparation0,
+actual resulting hakios.drm.c equals reviewed private draft exactly. v2host0:
+OLD prepared176source compiled0 then functional RED at poll(queue1point1) because
+it askedqueue0; NEW shim40checks GREEN (interleaved localfences, pending/transfer
+queueID, verified cached completion before close, kernel failure, empty-command
+refusal matching kernel, pending-capacity failure never promotes reached). All
+raw inputs/results/source retained; this is host-only, not Vulkan acceptance.
+No global last_fence borrowed across queues. Current signed176Mesa package has
+oldshim and is NOT the179candidate. Next modify GLESprobe to sequence installed
+GPUAPI probe then90s real idle delay, actual runtimeGLSL/texture/IOSurface checks;
+build/sign newiOSpackage once after source/probe review. New root install still
+requires fresh complete root backup/reviewed concrete delta +NEW user consent.
+No raw preboot HFS rollback after a boot. Full original daily-use goal ACTIVE.
+
 ### 2026-11-08 —178 source PUBLISHED;179 host/native/clean replay PASSED
 
 Completed178source publication VERIFIED: MAIN/CI public

@@ -2,6 +2,181 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —188 read-only loader observation code;49+38host and2nativeTUs PASS
+
+187actualbaseline retained: 746.262208s/autoTWRP, root-onlyGLES600s/595renewals/
+6jobs/allpixelsPASS; AMFI90PID57UID/ruid501protectedexec/PATH2/rc0TWICE, noEAGL186
+markers. V14strictFAIL assumption1call kept, V15independentpartialsuccess0;
+actualinjection/env/constructor/budgetunknown. PhoneTWRP, unchanged186root, no188
+phonecommands/rootwrites/image. FullgoalACTIVE, UI/Metal/highrefresh/fullRAM not
+qualified; originalmkadt a74a... preserved.
+
+W188=research/tmp/dsh-eagl-0188-loader. Actualdyld1067 forEachInitializer VAec50
+andblock_invoke_4 VA577c8 staticallyreviewed: cmpsectiontype0x16, readonly/size/
+alignment/executable-rangechecks, uint32offset callback. Official1066.10 common/
+MachOAnalyzer.cpp blobf7d1395eb27d6f442390bc7874356ca1f6fb555b andMachOFile.cpp
+blobfb0fb46c0b2f1e76a420fdd027017350a82c9c57 referenceONLY; extractsprivatelysaved,
+notGit. Initializerformatrecognizedbyactual1067; thisdoesNOTprovephysicalloading.
+
+New0182 changesONLYkern_exec.c andsweet_amfi.c over187. Sameexistingopt-in
+sweet_dyld_probe=1/default0, noextraargs/permissions. AfterSUCCESSFULexec string/
+pointer/argc copyout, boundedkernel-execargs parserrecognizesonlyfullsaved
+backboardd/xpcproxy path, reportsPID/imagecode/argc/envc/joblabelcount andcounts
+ofDYLD_INSERT_LIBRARIES/exactknownlibvalue/GAUGUIN_EAGL_MODE/admission. Neverraw
+argv/envtext, noenvmutation orreturnchange. Allpointerordering/address-overflow/
+allocationlimit/count/NULchecks precedereads. Boundsfromactualexecargs_alloc:
+NCARGS+PAGE_SIZE bytes beforeseparateheaderpage.
+
+AMFIopt-inadditionalvnode-open/file-mmap hooksalwaysreturn0, NEVERmaxprotwrite.
+Onlyexpectedinertlibfullnamecachepath forbackboardd/xpcproxy printsoperation/
+prot/flags/full64offset; borrowedvnodenotreleased, cachednamerefbalanced. vn_getpath
+APIexplicitlydoesnotenterfilesystem. fileglobtypecheckedbeforefg_get_data.
+ActualMACmmap/open signaturesreviewed; inheritedROOT-onlysingleGPUowner/AMFI90
+PATH2 anddefaultpolicybehavior unchanged. Thisisobservation, notjobattestation.
+
+V1nativecompileFAIL missingquotedneighbor kern_exec_internal.h inisolatedcandidate
+folder; retainedoriginal. V2 exactUNCHANGEDneighborstagedfromfrozen187, twoactual
+ARM64TUscompile0 via2128generatedheader/configinputs; referencehashes/mtimekept.
+V3host49compileFAIL SDK__unusedmacroredefinition; originalfixture/driverkeptin
+W188/tests, retained18738casesPASS. V4newtests-v2 guardsSDKmacro, all49actual
+completeexec/filehelpers+callbacks underASAN/UBSAN0; noimplementationchange.
+Readonlyargv/envbytes, maximumprotectionandnamereferencesvalidated. Copiedtested
+driver/fixtureto main tests; inherited18738casesunchanged. All188handles13529/
+34938/40882/11023closed. ActualexecutionCODEXLOCALFALLBACK duringDSHoutage, notDSH.
+
+NEXT commitsource; pristine176patchreplayusingNEWsource-state; all5329files should
+match187except2Cfiles, bothmatchcandidate-v2. Thenpublishnewkernelbranch, fresh
+nativefullbuild/qualify/package. Reuseunchanged186root/605-bytecommand/fiveassets;
+no destructiveconsentneededfornewtemporaryimage, butnonewuserdatawriteallowed.
+188physicalvalidationmustreportloaderobservationsseparatelyfrominjection/GLES:
+AMFIqueryinterfaceisidempotent, doNOTimposeunsupportedexact1call assumption;
+validateALLactualrecords andfullpriorGLEScontracts. No188trialpreparedyet.
+
+### 2026-11-09 —187 physicalGLES PASS; AMFI90 worksUID501; admission STILLmissing
+
+187ONEtemporarybootfinishedautoTWRP, observer0,746.262208s at18:55:41.690211..
+19:08:07.952419UTC Nov8. V13terminal0/inputsunchanged, outer8598closed. Actualimage
+b16d/sourcePRIVATEf1cca7e/PUBLIC3d94eb6/buildID6d7eff8 validatedfromimage/native/
+stdout. PhoneNOWTWRP/unmounted, NOlivephysicaltrial. No187userdatawrite;186static
+smalllib67f7/job33f5/cache05b8/Mesa3a4 allretainedexact9hashes inV14capture0.
+All3WHOLEprefixes7841/2610/448572B preserved.186PREBOOT855cbackupHISTORICAL;
+no rawrollback;186consent403blocksCONSUMED, no newwriteauthorized byit.
+
+Important actualkerneloutput: AMFIregistrationrc0 ONCE, backboardd nativeexec
+ONCE; PID57 UID501 ruid501 protected-exec1/PATHmask2/rc0 observedTWICE, distinct
+nativepositions756/816. Existingstrict187validatorincorrectlyassumedexact1call,
+so V14overallFAIL1 atactual-policy-query; preservedoriginalcode/result/error.
+DoNOTrewriteitPASS orassumethesearetwoexecs. MoreimportantlynewBBoard5156B has
+ZEROEAGL186markers, so runtimeinjection/constructorgetprogname/budget remain
+UNQUALIFIEDdespiteworkingAMFI90. NoBBoardcrash. Causeundetermined: environment
+maynotreachdyld, librarymaynotmap, orsilentlibraryguard/constructorissue.
+Needactualenv/libraryinitializationevidence; norepeatunchangedboot.
+
+V15 independentpartialreview0/inputsunchanged keepsfullnewactualdata/6GPUjobs/
+allpixels andsource-backedENTIRE269Bstderr(reviewedexact185warning; unchanged
+Mesa3a4). W187/independent-partial-review.json state
+reviewed187-GLES-regression-PASS-AMFI90-success-injection-unqualified.
+FD619/ES3.1Mesa25.0.7,wait90.057281562s; startupseed1968197381 complete8192+
+1024wordreads; shaderseed1615459285,1024RGBA/1024BGRApixels eachhash2621291461;
+EOP1..6/rings32/44/56/68/80/92;595renewals/full600shealth. Six128MiBHARDGET8phases,
+footprints786672/16171328/16171328/25215296/25395520/25444672B. AllUI/Metal/high
+refresh/dailyuseflagsFALSE; no compositorbudgetreport. AMFIwireonlyqualified,
+notfullinjectororGPUUI. Preservefullv14FAIL andpartialsuccessseparately.
+
+DSHv13only3initialevents/no toolfor>13min; local84973 atomicbootindependenttree.
+Ownedidleheadless84829terminatedwithancestorcheck preservingactualobserver;
+outer77751closed. All187actualcompile/tests/boot/postworksincev3wasLOCALFALLBACK,
+NOTDSH; userinformedofrepeatedupstreamwait. DSHpreferredwhenresponsive; userTUI
+untouched. All187v13..v15handles8598/82888/77751closed, no morebootpending.
+
+NEXT188 READONLYloaderdiagnostic: inspectactualdyld1067initializerhandling and
+actualexecenv-copy source beforecode. Addboundedopt-inpresence/exact-known-value
+(notallenvtext) diagnostics atvalidatedexecenvironmentcopy forbackboardd/xpcproxy,
+andobservemapping/signatureofexistinginertlibrary ifneeded. RetainPATH2only,
+defaultoff, noGPUpermissionchange/newrootwrite. Needcompletebodyhostboundaries,
+actualARM64TU beforefullkernelbuild. Thisisproposed, no188code/source/imageyet.
+CheckmissingDYLDenv vsnotmappedvsconstructor/identity beforechanginguserland.
+Other188renderinggates inW187/next-compositor-plan187.json remainfuture; current
+compiledfullbridgegatealways0. FullgoalACTIVE, actualRAMstill4GiB. Originalmain
+mkadt a74a preserved. Sourcepubbranch3d94eb6 immutablecurrentcodebaseline.
+
+### 2026-11-09 —187 actual temporary boot LIVE; wait same8598 handle
+
+187v13 atomicprofile claimedLOCALdispatcher84973 at1794164136.654712; actual
+fastbootSending/BootingOKAY,0.594s. Preflightobserver-running/miscverified,
+profilef77c13e3...; runnerprofilec5bcfa84a3be8a969110f9e13a53bde66f709fa5a1b3cf4ed9b19758c823e6a0.
+CURRENTphone running187, noUSBexpecteduntilautomaticTWRP. Wait sameLOCALouter8598
+terminal (780sobserver860sbound/600sservice); neverlaunchanotherbootonnoUSB or
+observationtimeoutalone. NoUI/manualresetquestions; useraway.
+
+DSHouter77751 originallypending247s withonly3session/turn/step-start events,
+zeroactualtool/claim. Userinformed; sameatomicprofileexecutedCODEXLOCALFALLBACK.
+Origin W187/execution-origin-v13.json. DSHmayrespondlaterbutcannotclaimtwice;
+leaveorcloseONLYthisownedidleheadlessclientafterverifyingauthoritativeterminal.
+No userTUI touched. Newkernelimageb16d/sourcef1cca7e/buildID6d7eff8; sameinstalled
+186root/smalladmission/Mesa185. No187userdatawrites. FullgoalACTIVE andphysical
+injection/actualUID/budget/GPUUI stillunqualifiedatthisentry.
+
+NEXT afterterminal: READONLY12-filecapture W187/post-trial-capture-profile.json
+using186read_files186.py intoW187/post-trial-capture-v1; qualify_trial187.py keeps
+allfullfrozenGLES/API + strictAMFI90/186admission; review_stderr187.py and
+review_physical187.py separately. No reruns/waivers onFAIL. Allnewplanning source-
+backedgates storedW187/next-compositor-plan187.json; do notimplementordinaryapp
+accessorclaimdailyusefromthistrial. Prior186backup855cHISTORICAL/consentconsumed.
+
+### 2026-11-09 —187 native kernel/image READY; DSH one-boot request pending
+
+Kernel187source integrated mainPRIVATE f1cca7ee25f82066839adba207a073f4c9557160
+/TREE8d8dc858ef81d81cfc7545ed514dd5e8224193b2 (fourcodefiles exactcandidate5c3b207).
+PublishedNEWbranch codex/gauguin-compositor-dyld-20261109 PUBLIC
+3d94eb6cb3c7efaa68f77c81303a8d3bd736a82f, sameTREE, soleparentmainpublic6d5a7bb.
+FiveUTF8textfilesonly; exactremoteTREE/ref/parentverified. Mainpublic6d5a7bb and
+UIeca39329 unchanged. Existingauthenticatedghfallback, noforce/noCI dispatch.
+
+W187v7 fullLOCALnative makeinstall0 in252s, FRESHbuild187-loader SDK/depsAPFSclones
+andfreshobjects; run gauguin.TYb0OC. Frozen180manifest/source-state hash+mtime
+unchanged. FirstqualificationFAILED1: newlyaddedmutableconfDATA symbol fed to
+oldtext-onlychecker. V7overallFAIL retained. SamebinaryV9qualified0 underoriginal
+textchecksPLUS exactaddress/__DATA,__data/nonexternal/unique definition check.
+Originalfailure retainedfailed-native-qualification-v1; NOsourcechange/rebuild.
+KernelSHA3b684d9b49be158d9deb8c702080748c9904965427112ea5b938f728f97eba2a,
+sourceSHA b68056e2a5268b32f8fea880a979f33d3daabb939761f3ea07e0159ac201f3bd;
+actualbannerbuildID xnu-6d7eff830b4a4fbebed1def62c451cda. W187/root-build-review.json.
+
+V8 READONLYcurrent9staticfiles+3WHOLEprefixes0; unchanged186installedroot and
+stableCURRENTrootheader pinned W187/installed-preflight.json. Savedprefixes7841/
+2610/448572B stdout/stderr/BBoard, exactprevious186rawfiles. NOuserdatawrite187.
+V10package0: image shim/out/shim-p3-gmuf-0187-native-20261109.img19988480B SHA
+b16d0aaff1c8ac949996a1bb8abf141bce95156cd153e42e5be1d53bbbeaab61.
+Onlyeffectivebootargchange sweet_dyld_probe=1; omitexplicit sweetnvtprobe=0, all3
+actualconsumerdefaultsverified0.605/608commandbytes/3NULs, same600sGPUservice,
+4GiBADT/shim/DTB/fivefirmwarebytes+physicalPA+reservedsizes identical180.
+AssetFILEoffsetsmove+432(nativekernelgrowth), correctlyreparsedallbytes/padding.
+V11reviewincorrectlyrequiredFILEoffsetidentityFAIL preserved; V12newreview0
+retainsphysicalPA/size/hashidentity ANDindependentlyhashesallnewpayloadoffsets.
+Original186bootflowBYTEIDENTICAL,24retainedbootcases/41admissioncases,fullfrozen
+181v2+180GLES/API contracts unchanged. New187actualbannerderivedfromimage.
+
+CURRENTphoneTWRP/unmounted, no187bootyet atthisentry. DSHv13 one-bootrequestLIVE
+outer77751, events-v13/checks-v13: firsttoolpending. Itmustclaimatomicprofileonce,
+thenwaitsamehandleterminal. BootprofileSHA
+f77c13e36307a9f46f963f453e3a847b83261668db4031f4077f34cc291ef531.
+ONEtemporary187image/600sservice/780sobserver860sbound, routine13Bmisc only.
+DSHv7 had~4mindelayedfirsttool AFTERlocalclaimed; nosecondbuildpossible. Owned
+idleheadless48667terminatedafterterminal; outer7572closed. V7-V12 actualworkwas
+CODEXLOCALFALLBACK (upstreamlatency), notDSH; executionoriginrecorded. No userTUI
+processestouched. Useraway; automaticresetattributionstanding, noUI/resetquestions.
+
+NEXT inspectv13claim/actualtrialbeforeanyfallback/retry. AfterONEactualbootterminal,
+READONLYcapturevia186read_files186.py + W187/post-trial-capture-profile.json,
+thenW187/qualify_trial187.py. FULLunchangedGLES181v2/180 plusactualAMFIregistered0,
+UID/ruid501/protectedexec/PATH2/rc0 andunchanged186admissioncontract. Preserveall
+3WHOLEprefixes. Thenreview_stderr187.py (onlyexact269Bprimary-reviewed185warning)
+andindependentreview_physical187.py; deriveactualbanner, noold7f61literal.
+Actualinjection/UID/budgetstillUNQUALIFIED untilphysicaldata. FullgoalACTIVE,
+GPUUI/Metal/highrefresh/dailyuse/fullRAM unqualified.186consentCONSUMED and855c
+PRE186BOOTbackupHISTORICAL, neverrawrollbackafterboot. Originalmkadt a74a preserved.
+
 ### 2026-11-09 —187 loader probe software PASS;175-patch replay; full build next
 
 Actualdyld1067 binary58068345 queriedAMFI/call90 with16Bwire(0flags/8pointer),

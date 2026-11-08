@@ -1,0 +1,200 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -5397,6 +5397,106 @@
+  * to a pointer boundary so that the exec_path, env[i], and argv[i] pointers
+  * which preceed it on the stack are properly aligned.
+  */
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++static TUNABLE(uint32_t, sweet_exec_loader_probe, "sweet_dyld_probe", 0);
++/* SWEET_DYLD_EXEC_PROBE_BEGIN: complete body used by the host boundary test. */
++struct sweet_dyld_env_record {
++	unsigned image, job, insert, expected, mode, admission;
++};
++
++static bool
++sweet_dyld_env_equal(const char *s, size_t length, const char *expected)
++{
++	size_t n = strlen(expected);
++	return length == n && memcmp(s, expected, n) == 0;
++}
++
++static bool
++sweet_dyld_env_scan(const char *start, const char *end, int count,
++    bool environment, struct sweet_dyld_env_record *record)
++{
++	if (count < 0 || (size_t)count > (size_t)(end - start)) {
++		return false;
++	}
++	for (int i = 0; i < count; ++i) {
++		const char *nul = memchr(start, 0, (size_t)(end - start));
++		if (nul == NULL) {
++			return false;
++		}
++		size_t n = (size_t)(nul - start);
++		if (!environment) {
++			record->job += sweet_dyld_env_equal(start, n, "com.apple.backboardd");
++		} else {
++			static const char insert[] = "DYLD_INSERT_LIBRARIES=";
++			static const char mode[] = "GAUGUIN_EAGL_MODE=";
++			if (n >= sizeof(insert) - 1 &&
++			    memcmp(start, insert, sizeof(insert) - 1) == 0) {
++				record->insert++;
++				record->expected += sweet_dyld_env_equal(start, n,
++				    "DYLD_INSERT_LIBRARIES=/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib");
++			}
++			if (n >= sizeof(mode) - 1 &&
++			    memcmp(start, mode, sizeof(mode) - 1) == 0) {
++				record->mode++;
++				record->admission += sweet_dyld_env_equal(start, n,
++				    "GAUGUIN_EAGL_MODE=admission");
++			}
++		}
++		start = nul + 1;
++	}
++	return true;
++}
++
++static void
++sweet_dyld_exec_trace(struct image_params *imgp, proc_t p)
++{
++	struct sweet_dyld_env_record record = {0};
++	if (!sweet_exec_loader_probe || imgp == NULL || p == NULL ||
++	    imgp->ip_strings == NULL) {
++		return;
++	}
++	/* These are kernel execargs pointers, not user addresses. Reject malformed
++	 * ranges before subtraction or reading. execargs_alloc provides exactly
++	 * NCARGS+PAGE_SIZE string bytes, followed by a separate file-header page. */
++	uintptr_t base = (uintptr_t)imgp->ip_strings;
++	uintptr_t argv = (uintptr_t)imgp->ip_startargv;
++	uintptr_t env = (uintptr_t)imgp->ip_endargv;
++	uintptr_t end = (uintptr_t)imgp->ip_endenvv;
++	uintptr_t tail = (uintptr_t)imgp->ip_strendp;
++	if (base > UINTPTR_MAX - (NCARGS + PAGE_SIZE) || argv <= base ||
++	    env < argv || end < env || tail < end || tail > base + NCARGS + PAGE_SIZE) {
++		return;
++	}
++	const char *path = imgp->ip_strings;
++	const char *nul = memchr(path, 0, argv - base);
++	if (nul == NULL) {
++		return;
++	}
++	size_t path_length = (size_t)(nul - path);
++	if (sweet_dyld_env_equal(path, path_length,
++	    "executable_path=/usr/libexec/backboardd")) {
++		record.image = 1;
++	} else if (sweet_dyld_env_equal(path, path_length,
++	    "executable_path=/usr/libexec/xpcproxy")) {
++		record.image = 2;
++	} else {
++		return;
++	}
++	if (!sweet_dyld_env_scan(imgp->ip_startargv, imgp->ip_endargv,
++	    imgp->ip_argc, false, &record) ||
++	    !sweet_dyld_env_scan(imgp->ip_endargv, imgp->ip_endenvv,
++	    imgp->ip_envc, true, &record)) {
++		return;
++	}
++	/* Only counts and fixed image codes; never print arbitrary argv/env text.
++	 * This observation cannot grant loader permissions or change exec status. */
++	printf("SWEET DYLD EXEC: pid=%d image=%u argc=%d envc=%d job=%u insert=%u expected=%u mode=%u admission=%u\n",
++	    proc_pid(p), record.image, imgp->ip_argc, imgp->ip_envc, record.job,
++	    record.insert, record.expected, record.mode, record.admission);
++}
++/* SWEET_DYLD_EXEC_PROBE_END */
++#endif
++
+ __attribute__((noinline))
+ static int
+ exec_copyout_strings(struct image_params *imgp, user_addr_t *stackp)
+@@ -5568,6 +5668,9 @@
+ 	if (error) {
+ 		goto bad;
+ 	}
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	sweet_dyld_exec_trace(imgp, p);
++#endif
+ 
+ bad:
+ 	return error;
+diff --git a/bsd/kern/sweet_amfi.c b/bsd/kern/sweet_amfi.c
+--- a/bsd/kern/sweet_amfi.c
++++ b/bsd/kern/sweet_amfi.c
+@@ -28,6 +28,8 @@
+ #include <libkern/amfi/amfi.h>
+ #include <mach/kern_return.h>
+ #include <sys/codesign.h>
++#include <sys/file_internal.h>
++#include <sys/param.h>
+ #include <sys/kauth.h>
+ #include <sys/mount.h>
+ #include <sys/priv.h>
+@@ -164,8 +166,67 @@
+ }
+ /* SWEET_DYLD_PROBE_END */
+ 
++/* SWEET_DYLD_FILE_PROBE_BEGIN: complete body used by the host boundary test. */
++static void
++sweet_dyld_file_trace(vnode_t vp, unsigned operation, int prot, int flags,
++    uint64_t offset)
++{
++	proc_t p = current_proc();
++	char name[32];
++	if (!sweet_dyld_probe || p == NULL || vp == NULLVP || vnode_vtype(vp) != VREG) {
++		return;
++	}
++	proc_name(proc_pid(p), name, sizeof(name));
++	if (strcmp(name, "backboardd") != 0 && strcmp(name, "xpcproxy") != 0) {
++		return;
++	}
++	const char *leaf = vnode_getname(vp);
++	if (leaf == NULL) {
++		return;
++	}
++	bool match = strcmp(leaf, "libGauguinEAGLAdmission.dylib") == 0;
++	vnode_putname(leaf);
++	if (!match) {
++		return;
++	}
++	/* vn_getpath walks the name cache and does not enter the filesystem. */
++	char path[MAXPATHLEN];
++	int length = sizeof(path);
++	if (vn_getpath(vp, path, &length) != 0 || length <= 0 ||
++	    (size_t)length > sizeof(path) || path[length - 1] != 0 ||
++	    strcmp(path, "/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib") != 0) {
++		return;
++	}
++	printf("SWEET DYLD FILE: pid=%d op=%u prot=%d flags=%d offset=%llu expected-path=1\n",
++	    proc_pid(p), operation, prot, flags, offset);
++}
++
++static int
++sweet_dyld_probe_open(__unused kauth_cred_t cred, vnode_t vp,
++    __unused struct label *label, int mode)
++{
++	sweet_dyld_file_trace(vp, 1, mode, 0, 0);
++	return 0;
++}
++
++static int
++sweet_dyld_probe_mmap(__unused kauth_cred_t cred, struct fileglob *fg,
++    __unused struct label *label, int prot, int flags, uint64_t offset,
++    __unused int *maxprot)
++{
++	if (sweet_dyld_probe && fg != NULL && fg->fg_ops != NULL &&
++	    FILEGLOB_DTYPE(fg) == DTYPE_VNODE) {
++		sweet_dyld_file_trace((vnode_t)fg_get_data(fg), 2, prot, flags, offset);
++	}
++	/* Diagnostic only: never change maximum protections or deny an operation. */
++	return 0;
++}
++/* SWEET_DYLD_FILE_PROBE_END */
++
+ static const struct mac_policy_ops sweet_dyld_probe_ops = {
+ 	.mpo_policy_syscall = sweet_dyld_probe_syscall,
++	.mpo_vnode_check_open = sweet_dyld_probe_open,
++	.mpo_file_check_mmap = sweet_dyld_probe_mmap,
+ };
+ static struct mac_policy_conf sweet_dyld_probe_conf = {
+ 	.mpc_name = "AMFI",

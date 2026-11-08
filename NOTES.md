@@ -2,6 +2,22 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —0176 cache-address fix replay and red/green PASSED
+
+DSH0176v1 TERMINAL0/inputs unchanged. Fresh170patch replay5329files SHA
+e6413b4e3db14da79aca49f8c763c8494aef1c0fb039ae326205806362305966;
+compared complete175tree, ONLY osfmk/arm/pmap/pmap.c differs. Real unmodified
+175function regression fails1 at PA0x100000000->0; corrected176 passes18cases
+over4KiB/16KiB pages, including observed address suffix/high RAM/max ppnum.
+Native installed175 disassembly at pmap_sync_page_attributes_phys is literally
+lsl w0,w0,#14, confirming the truncation exists in the booted artifact. Full
+diagnosis receipt now saved; no actual backtrace claim. No GPU hardware pass.
+Committing0176+regression then pin source HEAD before ONE local8job build.
+Only changed pmap behavior needs new regression; old89tests remain exact-source
+evidence for otherwise byte-identical175tree, no repeat950second board suite.
+Existing175 full build/reference retained; do not use its generated recipe once
+new176 build replaces shared headers/Makefiles. No root write or new CI needed.
+
 ### 2026-11-08 —Launch correction WORKS; actual user open exposes cache PA truncation
 
 DSHv34 boot TERMINAL0, same403ff4ed...175image, automaticTWRP131s. Actual

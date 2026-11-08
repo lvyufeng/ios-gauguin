@@ -2,6 +2,894 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —187 loader probe software PASS;175-patch replay; full build next
+
+Actualdyld1067 binary58068345 queriedAMFI/call90 with16Bwire(0flags/8pointer),
+returnszeropolicyflagsonerror, usesoutputbit1(PATHmask2) forDYLDpathvars including
+INSERT_LIBRARIES. Current180 lacksAMFI policy. W187/loader-policy-evidence187.json
+pinsactualinstructions; official1066.10 isreferenceonly. This is source-backed
+explanationfor186missingmarkers, not measuredruntimeUID/return/injectionproof.
+
+W187=research/tmp/dsh-eagl-0187-loader; isolatedcandidateprivate5c3b20747ef96259006d9d81fd2b72901ee04419
+/tree0b8f81c61ee682a8ffab8e3e3f71be7e54d41168. Fourcodefiles copiedexactlyto main;
+new0181patch changesONLYbsd/kern/sweet_amfi.c. Bootarg sweet_dyld_probe=1 DEFAULT0
+addsAMFI90diagnosisforcurrentprotectedbackboardd/root-or-mobileUID+ruid only;
+exactexecvnode/rootmount/rootowner/nonwritablemode+effectiveACLdenial, balanced
+refs, checked16Bcopyin/8Bcopyout, outputPATHmask2 only. OthercallersENOPOLICY;
+existingSWEETAMFI/Sandbox/GPUroot-onlysingleownerPTunchanged. Developmentprobe,
+NOTlaunchd-jobattestation/generalapppolicy. Actualinjectionstillunqualified.
+
+V1host38PASS/nativeCFAIL(publicPROC_NULLundefined) retainedfailed-v1-inputs;
+V2usesNULL. V5ALL3jobs0/inputsunchanged:38completeproductionhelper+handler and
+originalMACdispatcherASAN/UBSANcases, nativeARM64C via2128frozen180headers/config,
+CIdefaultXNU_SOURCEentry38cases. V6BOTHjobs0/inputsunchanged: pristine175patches,
+all5329filescomparefrozen180ONLYAMFICchanged; newsourceSHA
+b68056e2a5268b32f8fea880a979f33d3daabb939761f3ea07e0159ac201f3bd.
+S=.deps-cache/p0-20261105/source187-codex; SEPARATE W187/source-state. Reference180
+source/build/headerhashes/mtime unchanged. W187/independent-software-review187.json.
+
+DSHv3/v4stalledbeforefirsttool/claim; sameatomicjobsranCODEXLOCALFALLBACK and
+onlyidleclients46558/46854terminatedafterterminal. V5/v6alsolocalfallback;
+executionoriginrecorded, notattributedDSH. Userinformed; DSHpreferredexecutor.
+InstalledGPUprobeprintsactualkern.version; frozenphysical_api_core180 derives
+image/native/stdoutidentity dynamically. NEWkernelcanreuseALLunchanged181v2/180
+GLEScontracts/probes/Mesa WITHOUTrootwritejustfornewversion. Neednew187actual
+image/sourceprofile andderiveexpectedbanner, neverfakeold7f61identity.
+
+PhoneTWRPafter186; acceptedMesa3a4+smalladmission67f7/job33f5/cache05b8 installed.
+186consent403blocksconsumed, PRE186BOOT855cbackupHISTORICAL; neverrawrollbacknow.
+GLESregressionPASS/admissionFAIL retained. NEXT publish187newkernelbranch, full
+nativebuildinFRESHbuildroot withclonedSDK/deps andfreshobjects; no187image/CI/boot
+yet. Thenpackageopt-inprobeimage andtemporaryfastbootboot/readevidence. No new
+userdatawritesrequired. FullgoalACTIVE; UI/Metal/highrefresh/fullRAM unqualified.
+Originalmainmkadt a74a... unchanged. All187v1..v6jobs TERMINAL.
+
+### 2026-11-09 —186 GLES regression PASS; compositor admission FAILED/missing;187offline live
+
+Phone autoTWRP after741.804095s (17:15:46.116363..17:28:07.920458UTC), observer0,
+186v14terminal0/inputsunchanged. Noresetquestions/manualaction. v15READONLY12files0,
+9staticfilesretainedexact9hashes (small67f7/job33f5/cache05b8/Mesa3a4 unchanged),
+old5797/2341/443416Bprefixes exact. Backup855cbdea isPRE186BOOT/HISTORICALnow;
+NEVERrawrollbackitsmetadata. 403blockconsentcallbd4...consumed; no newrootwrite.
+
+v16 STRICToverallqualification correctlyFAILED1: ValueError missing/duplicate
+admissiondiagnostic session. Frozen181v2+180 GLES nestedresult PASSED unchanged,
+butcurrentBBoardlog5156B hasZERO GAUGUINEAGL186markers. PreserveoriginalFAIL json,
+raw/currentdata andallcode. DoNOTweakenparser orcallthisinjectionPASS. BBoard
+nativeexecONCE, objcPID57normalHIDpluginwarnings, noBBoardcrash. UID/eUID and
+budgetnotobserved: cannotdistinguishlibrarynotloaded fromsilentidentitygateyet.
+
+v17 independentreview0/inputsunchanged separatelyverifiesphysical GLES regression:
+FD619/OpenGLES3.1Mesa25.0.7,90.099093854swait, startupseed1291444574 full8192+
+1024wordreadbacks; shaderseed1770276245, all1024RGBA and1024BGRApixels eachhash
+2621291461, sixnativejobs/EOP1..6/rings32/44/56/68/80/92,595renewals/full600shealth.
+Sixactual128MiBHARDmemorycheckpoints,footprints852208/16187672/16187672/25248064/
+25461056/25510208B. ALL269newGLESstderrbytes identicalpriorprimary-reviewedMesa
+fd-comparisonwarning withunchanged3a4library; no GPUtimeout/errorwaiver. Report:
+W186/independent-failure-review.json explicitlyGLES_regressiontrue/injectionfalse,
+noUID/budget/GPUUI/Metal/refresh/dailyusequalification. WholegoalACTIVE.
+
+NEXT loaderinvestigation: actualkernel source registers policy SWEET AMFI only
+withvnode-signaturehook; rootbinarymarkedPLATFORM_BINARY. __mac_syscall returns
+ENOPOLICYforunregisteredpolicy. This makesDYLDfilteringplausible, NOTphysicalcause
+proof. LibrarycouldalsofailitsUID/nameguard. Existing sampler onlyPC/LR/SP, not
+runtimeUID/env/images, so do not repeatunchangedboot expectingnewfacts.
+PrivateW186/compositor-access-design186.json pinsactualnativeAPIs forfuturetrusted
+BBoardaccess: currenttask/currentproc, uid+ruid501, exactexecutablevnode identity,
+rootownednon-group/other-writableexpectedpathonrootmount, IOcountsbalancedbefore
+GPUgLock; stillPROPOSED/unimplemented. Retainrootadmin/singleowner; ordinaryapps
+stilldenied. Needfutureper-contextisolationbeforegeneralapps.
+
+NEW W187=research/tmp/dsh-eagl-0187-loader. DSHv1offline actualdyldsourceversion/
+policy-symbol inventoryLIVE outer23487, checks-v1/events-v1. ReadsONLYhistorical
+backup855cbdea static/usr/lib/dyld, resolvesHFShardlink, neverphone/mount/write.
+Waitsamehandle; thenmatchactualdyldversiontoAppleprimarysource andinspectactual
+policybranch before choosingloaderfix. No187kernel/library/rootdelta yet.
+All186handles46538/19567/93416/82720closed. SourceUIpubliceca39329/private0fb810d
+unchanged. NeedlaterDOCcommit/pubsourcebrancharoundfinalverifiedbehavior, not
+claimprior8filesenabledUI. MainonlyNOTES commits; originalmkadt a74a preserved.
+
+### 2026-11-09 —186 actual temporary boot LIVE; wait same46538 handle
+
+186v12purecontract41cases0; v13independentprebootreview0. ALL24bootgates and
+41diagnosticnegative/positivecases PASS, eightexpectedtypes matchactual20H392
+metadata. Fullfrozen181v2/180 GLES/API contracts unmodified. SavedWHOLE3prefixes
+and9staticfiles alreadyreadback0. Original185bootflowbyte-identical afteronly
+newplan/cache/state literals andtwoadditionalinstalledhashgates are normalized.
+
+CURRENT W186v14 LIVE outer46538, checks-v14/events-v14. BootprofileSHA
+5fca5b690a25a1417e767160968c05222199203eb30e191ecdf19a531a815888;
+runnerprofileSHAc67e4ab618021bb3d889d55d8de6ca739c7c896fcd681c44b8c14f3f5a7eeac3.
+Actualfastbootboot Sending/BootingOKAY0.590s; liveOSobserverPID43816, bootwrapper
+PID43796, runner43794 verified. Trialpreflightobserver-running/miscverified.
+ONEunchanged180image6825/600sservice,780sobservation860sbound. Noanotherboot or
+manualresetquestions. Wait samehandle; observationtimeoutnotterminalproof.
+PhonecurrentlyrunningiOS, noUSBexpecteduntilautomaticTWRP. 186newconsentCONSUMED
+by48readbackverifiedwrites; backup855cbdea PRE186BOOT/HISTORICALafterthisrun,
+NEVERrawrollbackit afterboot. FullgoalACTIVE, noUI/Metal/refresh/fullRAMacceptance.
+
+NEXT onterminal: DSHread_files186.py post-trial-capture-profile.json into fresh
+post-trial-capture-v1 (12files), thenqualify_trial186.py (alreadybootprofilepinned)
+retainingfullunchanged181v2+180 GLES/API andpureeagl_contract186 SHA
+4bace1ad154ef63ab58ed11636a9c274acaf4008e6fd392c817773e3c0a01e01.
+Fullstdout5797/stderr2341/BBoard443416oldprefixes MUSTremainexact. NewBBoard
+12diagnosticlines proveonlyinertinjection, eightmethodtypes, actualGET8/VM.
+Evenmethod/serviceregistrationPASSdoesnotproveGPUcontextorUI. Earlyservicefalse
+andemptykern.osversionareobservations, notinventedGPUready/firmwareproof.
+AftercanonicalPASS, independentactualdata/pixels/EOP/health/BBoard/stderrreview
+stillrequired. Prospectiveindependentreview186notyetwritten atthisentry; old185
+reviewalgorithm/source-backed269Bwarning retained unchangedforreference. Ifnew
+stderrdiffers, donotblindlywaiveit. AllDSHhandlesexcept46538closed.
+
+### 2026-11-09 —186403blocks APPROVED/APPLIED;9files+3prefixes read back; no boot yet
+
+New explicit call_bd4ce7cc0a994c3dbce5756b1c665111 item0 approved exact403block
+3f03aa6d plan pluswrite/readback failure rollback. W186/approval.json createdand
+CONSUMED by186v10 successful48/48runs,1650688B,48writeattempts/readbacks,header0last,
+no rollback. Rebootpermitted. Do NOTreuseconsent for anotherdelta/repeatwrite.
+ActualTWRP/currentroot headernow f60788b48bc38775e62cb03f0b8538f82d7990a06a431143b4becc1789528010.
+Full855cbdeabackup remainsPRE186BOOT; neverrawrollbackmetadata afterfutureiOSboot.
+
+186v11 BOTHjobsTERMINAL0/inputsunchanged: READONLYall9actualstaticfiles match,
+newsmalladmission67f7.../BBoardjob33f5.../cache05b8..., acceptedMesa3a4 unchanged;
+all3WHOLEoldlogprefixes savedinW186/installed-current-v1. stdout5797B SHA
+142b20198a2bc112ea8c55f84aa815adcca2a7f156806ad8ce09cd66eb4ff1cb;
+stderr2341B SHA310dc2516305f5899d7fb2d8d5dcc522e379eaea7ffabb260c5d0cbb7bba8546;
+BBoard443416B SHAa3f573adcfd16c25da0ac2783b38458199138d35a6671831af7d4d8805b67dd7.
+BBoardlogactualBSD501:501/0666 preserved. Newbootwrapperboot_eagl186.py models
+ALL17retainedcases+7additionaladmission/BBoard/cache/job/receiptgates=24cases0,
+noactualdeviceIO. Read_files186.py boundedBBoardlog32MiB; captureprofiles12files.
+
+CURRENT actualphone TWRP/unmounted, NO186bootyet. DSHv12 pureadmissioncontract
+MODEL live outer18532/checks-v12/events-v12. Parser validatesactual8methodtypes,
+UID/eUID501,GET8/VMqueries, zeroGPUopens/hooks; records earlyservicepresence and
+kern.osversion(whichmaystillbeempty) withoutcallingregistrationGPUready or
+requiringunobservedrenderbudget. Allfullfrozen181v2/180 GLES/API checks untouched.
+NEWqualify_trial186.py willpreserveWHOLE3prefixes, evaluatefullfrozenGLES separately,
+thenadmission; noold/currentlogfailurediscarding orUI/GPUrenderclaimfromadmission.
+Beforeactualboot: finishv12negativefixtures, preparepinnedbootprofile andindependent
+prebootreview; useONEunchanged180image6825/600sservice/780sobserver860sbound.
+No furtherpermission requiredforalreadyapproved186write/routine temporaryboot.
+AllpreviousDSH12430/44424closed. UIpublishedbaselineeca39329/private0fb810d/tree996a
+unchanged. FullgoalACTIVE, realRAM4GiB, UI/Metal/highrefresh/dailyuse unqualified.
+
+### 2026-11-09 —186 EAGL admission software published;403-block delta READY for new consent
+
+All186handles TERMINAL, no phonewrite/boot in186. Phone TWRP/userdataunmounted;
+accepted185Mesa3a4/kernel180image6825 unchanged, physicalRAMstill4GiB. Fullgoal
+ACTIVE. Don't ask automatic-reset attribution; useraway. Codexcriticalcode/review/
+Git, DSHcompile/test/deviceexecution. Originaldirtymkadt a74a... preserved.
+
+186v2 localARM64iOS16build/sign/strictverify0, v4complete productionadmission C14
+hostscenarios underASAN/UBSAN0, everyoriginalIMPunchanged/return0. v6independent
+software review0. Smalllib69184B SHA67f7be397c84e0fea45800925d256186ef61d77b20361cf190cb7dcddfbb251e;
+disabledbridge561392B SHAac9171b4c1d6adb7bb9903ccc3eb84518ff7b82d1ec427523c063645e7231db6.
+All62primaryCA-markedslotshaveMesaorby-handimplementation;23coldmissingentries
+retained/documented. AdmissionlibhasnoMesa dependency, GPUopen, methodmutation
+or dynamic-lookupimports. Bothproducts haveexactone modern__init_offsets ctor
+(S_INIT_FUNC_OFFSETS0x16) matchednlist. Fullbridgegatealways0: no mode enables
+rendering. Onlysmalllibproposedforinstall. V1 GNUtypeof/unsafe-frame diagnostics
+andv5 old__mod_init_func assumptionFAIL kept; no warningssuppressed. Actual
+injection, compositorbudget, GPUUI/Metal/highrefresh/dailyuse unqualified.
+
+Source8textfiles committed UIprivate0fb810d12920f816a5f3bcbc9c8af964fae7d53e
+andpublished newbranch codex/gauguin-ui-userland-20261109 PUBLIC
+ eca393299b1c2dc72a51cb721430d86066ce481b
+/TREE996abaedd52c446539598c3af576414d701be42a,
+solepublicparent eac33438b14960481174ffecc30cf6d5a66aa907. W186/source-publication.json.
+Exactremote tree/ref/parentchecked, noforce/noCI. THIS is next UIpublicationbase;
+GLESbranchbase stillpubliceac/private1d3/tree6131, mainpublic6d5unchanged. Never
+merge oldkernel treefromUI/GLESworktrees into main. MIT notices retained, noApple
+artifacts/dumps/serials Git. CurrentUIworktree clean0fb810d.
+
+NEWfreshAFTER185boot16GiB0444 backup W186/root-backup-v1/
+iosroot-before-eagl186-admission.hfsx SHA
+855cbdeaa823f6da98209231ee029d20bf6dc60b3cbb0cc3b34fa7fe63221078;
+header c04016f8684b5ebd6c3e6e642e9a9184ea677a2ecf4dd768fae9850449e70dd6.
+DSH186v3readonlybackup0. V7localCOWstage/delta/fsck/102writermodel0; v8all48
+actualOLD ranges READONLY0; v9independentlocalreview0. Bothfullbase/finalSHA
+recomputed, inputsunchanged. FinalreadonlylocalimageSHA
+ d3454235d3f8ee5a28d60edec02db17ab429c96cced7d2d6dac0a210d2aba73e.
+EXACTplan research/tmp/dsh-eagl-0186/delta-v1/delta-plan.json SHA
+3f03aa6d7886b30753cf71ccaa40af144be1958747b63d3b9ef587d78a34ae46:
+403blocks/1650688B=1.57421875MiB/48runs, header0lastinprovenwriter.
+Independentreview W186/independent-local-review.json saysREADY/newconsentrequired.
+Noapprovalfilecreated/consentconsumed. A NEW async question for403blocks/1.57MiB
+and write/readback-failure rollback has been SENT and is PENDING user reply.
+Prior185callf942... is ALREADYCONSUMED and MUSTNOT authorize186. Wait for the
+new exact403-block consent; no timeout/elapsed-time approval inference. AGENTS.md explicitlyrequiresconfirm eachdestructivestep.
+
+ONLYtargets: new /usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib69184B67f7...
+root0755; existingBBoardjob1218B SHA33f51859e1015d7e5aa9f33a20f2b37d76eb92ace171947fdef2f751b976ccfa
+andlaunchdcache795934B SHA05b83ce43d3c602376660839547f75df7e8f07eeac5f908d68870d8efb971079
+root0644. AddONLYDYLD_INSERT_LIBRARIES=smalllib andGAUGUIN_EAGL_MODE=admission
+tooneexistingBBoardjob+cache.
+Preserveexisting2cachedloggingenvvars, mobileUserName/executable/memorypolicies,
+other530jobs/total531, Mesa3a4/probes128MiBpolicies andcompleteoldlogs. RawoldGLES
+stdout5797B/stderr2341B retained; BBoardlog/executable alsoexactbytes/BSD retained.
+NativeHFSorphan cleanup56tempCNIDs (26files30dirs) scopedbyactualAppleHFS source;
+2old/2newfseventhexlogs, UUIDCNID599247->600043 withbytes/BSD/parent/typepreserved.
+102writerfaultcases0, writerbodyidentical175v2 exceptnewbase/imagepins/key/label.
+
+NEXT afternewconsent: createexactplan-boundapprovalrecord, DSHprovenwriter186
+once/readbacktarget3+retainedfiles; prepare new186bootadmission/profile+models
+beforetemporaryunchanged180imageboot. CaptureWHOLEoldBBoardlogprefixbeforeboot,
+pluscurrentGLESstdout/stderrprefixes. New186capture/qualifier mustaddadmissionlib/
+BBoardjob/cachetargets while retainingFULLfrozen181v2/180 actualGLES/API checks.
+No edits to oldcontracts. IndependentlyverifynewBBoardUID501,8methodencodings,
+GET8 andVMfootprintdiagnostic; absence/failures arepartial/notinjectionPASS.
+Servicepresencecanbeearlyfalse; recordstartuporderratherthaninventreadyproof.
+FullGPUUIstillrequirescompositor-scopedauth/startupordering; ordinaryappsdenied.
+NeverrawrollbackthisprebootHFSmetadata AFTERanyfutureiOSboot. No186bootprofile
+orphysicaltrial preparedyet. All DSHevents/profiles/failures private andkept.
+
+### 2026-11-09 —All457 actual EAGL dispatch offsets reviewed; inert admission build
+
+UI183v10/v13 TERMINAL0, input pins unchanged. Actual20H392 GL exports have
+457 names/409 unique slot rows, all equal pinned HakiOS20F66 slots; all62
+primary QuartzCore-marked rows covered by the offset comparison. Actual macro
+getter bias32 verified from original bytes. Independent backward dependency
+review confirms444 tail br +13 returning blr calls; no mismatches/unresolved,
+all457 decoder stderr files empty. Private review:
+research/tmp/dsh-gles-ui-0183/offline-compositor-admission-v3/dispatch-review.json.
+Scope ONLY named offsets/hidden context and eight method widths, NOT arbitrary
+GL arguments, hooks, compositor drawing or performance. Method width/height are
+uint32; bridge port bounds before signed GLsizei conversion. Failed earlier
+symbolic/parser and independent-direct-load profiles retained (the last17 stubs
+copy context via x8); no firmware offsets were guessed or changed to make PASS.
+
+Hardlink-aware static compositor inventory v13 also PASS: backboardd executable
+1184848B root0755, job1067B root0644 and cache795801B root0644 are plain files,
+no hardlink aliases. All531 cached jobs preserved. Actual file job lacks env;
+cache differs EXACTLY by CFLOG_FORCE_STDERR=1 and OS_ACTIVITY_DT_MODE=YES.
+Earlier equality assertion correctly failed; v3 documents/checks exact existing
+logging difference and known1a64 cache SHA, not arbitrary job differences.
+Only installed custom library is accepted3a4Mesa. This uses historical184backup
+for static inventory ONLY; fresh post185 backup/live comparisons before write.
+
+Pinned primary inject.c blob217e8f... says HakiOS loads EAGL with libhakios into
+backboardd; our baseline has no such injector/env. Do not copy its20F66 vtables
+or touch/input fixes. Admission-only separate library planned to verify real
+DYLD insertion, all8 actual method types, GET8 and footprint, service presence.
+No method replacement, Mesa link, GPU open or memory policy change in admission.
+Full compiled bridge gate deliberately always0; no env/bootarg enables it yet.
+Compositor GPU scoped authorization/order remain future kernel work; retain
+root-only single-owner baseline, ordinary apps denied. No root BBoard shortcut.
+
+NEW isolated UI worktree research/tmp/gauguin-ui-worktree-20261109 branch
+codex/gauguin-ui-userland-20261109 from private1d365d4 (same public eac33438 tree).
+Userland-only; do not merge stale kernel from this worktree into main. Code in
+userland/eagl and tools/build-ios-eagl.py, preserving pinned MIT notices.
+CURRENT DSH186v1 inert admission + disabled bridge cross-build LIVE outer10599,
+research/tmp/dsh-eagl-0186/checks-v1.json/events-v1.jsonl; wait same handle.
+No186 device writes/boot/approval requested. Phone last TWRP, accepted185installed
+Mesa3a4/kernel180image6825, current realRAM4GiB. Full goal ACTIVE. All UI183
+handles91223/49559/70762/16038 closed; no CI or Mesa/kernel rebuild. Original
+mkadt dirty diff a74a... preserved. GLES publication base publiceac33438... /
+private1d365d4/tree613176e3..., mainpublic6d5a... unchanged.
+
+### 2026-11-09 —Actual EAGL six method encodings collected; no UI install
+
+185realGLESacceptance baseline unchanged (installedMesa3a4/kernel180image6825),
+phoneidleTWRP, no newdevicewrite/boot. FullgoalACTIVE. CurrentGLESpublicationbase
+PUBLICeac33438...=PRIVATE1d365d427.../TREE613176e3... asbelow.
+UI183v6 TERMINAL0/inputsunchanged. Actual20H392 EAGLContext method types:
+API Q16@0:8; initWithAPI:properties: @32@0:8Q16@24;
+setParameter:to: Q28@0:8I16^i20;
+getMacroContextPrivate ^{EAGLMacroContext=}16@0:8;
+attachImage:toCoreSurface:invertedRender: B36@0:8Q16^{__IOSurface=}24B32;
+texImageIOSurface... B72@0:8^{__IOSurface=}16Q24Q32I40I44Q48Q56I64B68.
+Independentwidthreview inUI183/six-method-ABI-review.json: primaryHakiOS hook
+register/stackwidths match, but actualwidth/height areuint32 I40/I44 whileprimary
+uses signedGLsizei. Futureportmust keepuint32methodparams andbound<=INT_MAX
+beforeconversion. Methodwidth review isNOTdispatchslotABI/UIacceptance.
+
+Selectorbase0x18229979f derivedbyONE EXACTconstraintsolution acrossALL6actual
+QuartzCore/OpenGLES callerSELrefs and actualEAGLContextmethodnameoffsets; full
+selector-base-constraint-witness.json inactual-eagl-metadata-v5. This isdocumented
+inference, not an executedruntimegetter. Appleprimaryobjc-magicsel.m blob5a4d...
+names sentinelU+1F92F;5mappedoccurrencesfound. Earlierfield-relativedecode failed;
+unique-sentinelassertfailed; actualgetternameabsentfromlocalandexternal symbols.
+AllUI183failedv2/v3/v4/v5 profiles/logs retained. Newexactwitness validatesall6,
+withoutguessingdispatchslots. TodayAppleobjc4headerde2da... onlylayoutreference,
+notclaimaboutfirmwareversion. No Applecachebytes Git.
+
+PinnedadditionalHakiOS63fc2b4primary sources: mkeagl.py25d36c..., eagl_slots.txt
+89259c..., build.shc60412..., LICENSE8814a9...; privateprimarymanifestverified.
+LicenseexplicitlyMITforuserland/tools: preserveMITnoticeifporting. Primaryslots
+explicitlyiOS16.5/20F66, MUSTcompareactual16.7.16/20H392GLstuboffsets beforeusing.
+CURRENT UI183v7 offlinecollector LIVE outer51156, inspect_gl_stubs.py/checks-v7/events-v7. No phoneIO.
+NEXT collectactualexportGLstubinstructions, derivealltableoffsets, comparepinned
+slots thencompilebridgeagainstaccepted3a4Mesa. Do not claimUI basedonlywidths.
+AfterABIproof, designcompositor-scopedclient/order: actualbackboarddUIDmobile;
+GPUstillroot-onlysingleclient/globalPT. Keepordinaryappsdenied; don'tmerelydrop
+privcheck orrunbackboarddasroot. Trustedcompositorauthorizationusingexactexec
+vnode+UID/rootimmutableownership isonlyPROPOSED/notimplemented. Diagnosticprobe
+jobmustnotcompete forsingleowner duringfutureUItrial. Newrootdelta requiresfresh
+post185backup+concreteconsent; pre185305bbackup historical, neverrawrollback.
+
+### 2026-11-08 —185 physical acceptance documentation published
+
+NewverifiedDOCpublication PUBLICeac33438b14960481174ffecc30cf6d5a66aa907
+=PRIVATE1d365d427ea2d40e6cc01d65b272254beab4b7b2
+/TREE613176e3c9631fc0cddd1118c901d24aefcdfb31;
+sole publicparent071645ebb... .Two docs only/nonforce/tree-parent-refverified,
+W185/documentation-publication.json. THIS is next GLESpublicationbase. Actual
+physicalacceptance is in W185/independent-physical-review.json (not the generic
+publisher's historical physical_qualifiedfalse field). No rebuild/CI/deviceaction.
+Mainpublic6d5a... unchanged. GoalACTIVE; current phoneTWRP accepted185Mesa3a4,
+no liveDSH. Continue compositor EAGL ABI/access/order work, notanotherrootwrite.
+
+### 2026-11-08 —185 REAL GPU GLES shader/texture/IOSurface ACCEPTED
+
+W185v12/v13/v14 ALLterminal0/inputsunchanged; phone autoTWRP after746.322147s
+(15:20:22.625406..15:32:48.947553UTC). ONEtemporarykernel180image682511e7...,
+newinstalledMesa3a447524.../sameprobe2e3b.../128MiBpolicies/allotherfiles retained.
+FROZEN181v2+180canonical contract PASSED unmodified. Rootindependentphysicalreview
+PASSED: research/tmp/dsh-gles-0185-root/independent-physical-review.json.
+ActualFD619/OpenGLES3.1Mesa25.0.7,90.008459166s latewait; bothGLSLprograms,
+seed1974743159,all1024RGBApixels hash9af64bc5 andall1024BGRAtexture/IOSurfacepixels
+hash46f1bbc5 correct. NativeEOP1..6 complete,3startupAPI+3newGLESjobs,shadows
+32/44/56/68/80/92. Fullstartup8192+1024word dynamicreadbacks seed3380874993
+alsoverified.600shealthservice595renewals/all20samples/finitequarantine-stop
+accepted. NoGLEScrash/panic/owner-healthfailure. All6actualGET8checkpoints128MiB
+active/inactive HARDattr1; footprint967016/16335248/16335248/25280912/25575824/
+25624976B. Independentreview recomputesdynamicdata andchecksEOP/queue/service.
+
+Fullrawstdout5797B/stderr2341B preserved,old3754/2072Bprefixes intact. Current
+2043/269B in post-trial-capture-v1/current-{stdout,stderr}.log. ALL269stderrbytes
+matched exactprimaryMesa u_screen/os_file warning. Darwinfallbackcannotcompare
+fdnumbers anddoesnotseterrno; printedtimeout is inheritederrno, notGPUtimeout.
+Currenttransportdup()s ONEcached/dev/null/IOKitconnection, soaliasassumptionvalid
+forthissingle-clientprototype. Source-backedstderr-independent-review.json,
+notblanketwarningwaiver. Canonicalresult+allfiles/currentdata pinned; no edits
+allowed toretroactively manufacture PASS. Prior180/181/184FAILED evidence kept.
+
+ACCEPTANCE SCOPE: root-only standaloneES3shader+texture+IOSurface,6nativejobs and
+600s service. AcceleratedUI/Metal/highrefresh/dailyuse FALSE. Currentrealimage
+RAMstill4GiB upperbank;1826GiB evidencewaspartialQEMUonly. GPUdriverstillone
+privilegedclient/globaltables. Next GPUwork: exact20H392EAGLdispatchABI and
+compositor-scopedclient/access/ordering plan, then controlledUIintegration.
+Don't enableordinarymobileappaccess bymerelyremovingprivilegecheck. RAM/UFS/
+peripherals/full90/120Hz daily-use goalremainsACTIVE, notcomplete orshrunk.
+
+CURRENTphone TWRP/userdataunmounted; NOliveDSHhandles.36753/96866/7165/98175
+closed.185approval CONSUMED; full305b3ef2backup isPRE185BOOT/HISTORICALnow.
+Never rawrollbackit afterthisboot. Anyfuture rootdelta needs NEWfreshbackup+
+exactconcreteconsent.185actualinstalledbaseline3a4lib accepted; don'trestoreb4.
+Sourcecodepublished071645ebb...=PRIVATE688b7e35.../TREE510b977... asbelow; pending
+newsourceDOCcommit forrealphysicalacceptance must advancefromTHATbase. No new
+kernelbuild/CI. Originaldirtymkadt diff a74a... preserved.
+
+UIoffline183: actualcache44shards/2710images/fourframeworkMachOheader inventory0.
+BothactualEAGL class names andall6selectorstrings present. NEWmetadataDSHv2
+FAILED on selector decode (UTF8invalid), preserved. Primaryobjc4 headerblob
+ de2da88fb949d1398b6d3377af4314703db08025 verifiesrelative-direct selectors use
+sharedCacheRelativeMethodBase, notmethodfield-relative. Needactual20H392selector
+base before retry; methodtypes/dispatchslotABI NOTaccepted. TodayAppleobjc4
+header isonlylayoutreference, notproofoffirmwareversion. See183/offline-eagl-abi-
+status.json. NoheuristicABI/slotmatch, noUIinstall. No Applebytes/dumps Git.
+
+### 2026-11-08 —1854017blocks APPLIED/readback0; real new-Mesa trial LIVE
+
+User explicitly approved call_f942d41aaa904fa8b9aaacea8085bc23 item0:
+15.69MiB/4017blocks +write/readback-failure rollback. Consent CONSUMED by W185v10
+successful76/76runs,16,453,632B,76attempts,header0last,no rollback; reboot_permitted.
+ExactplanSHAb23a44f5cf9ccdfb2642ad32ac66daeeb93c4490db5681ef4916cefae85dfe31.
+New signedMesa16026608B SHA3a44752493fb204d62817934dcee10c48ed3be857908402f93e06cc77128a2ea.
+ONLY library+scopedHFSmetadata changed; probe2e3b/API7756/job1556/cache1a64/two
+128MiB policies/all531jobs/fulloldlogs preserved. Before185post184boot16GiB0444
+backupSHA305b3ef293b111d8704fe6013dcf59582bce4ec3653a760babf51b344efc3d69;
+final local16GiB0444 SHA07a1a9085a78fab31708f0a365e7ab4431a48a8280c52826916c40931ca2c83b.
+Localfsck0/102writercases0/76currentoldranges0/independent-local-review0.
+ScopedlocalHFScleanup24files/33dirs; fseventUUID CNID598475->599247 only, exact
+bytes/BSD/parent/type restored. NoGPT/format/otherpartition mutation.
+
+W185v11 current7staticfiles/oldlogs/header READONLY0; newMesa exact3a4475...,
+other6staticfiles unchanged. Stableprebootheader a46457e60bc44a70edde5c641e1ba048cf985f804abd865b049f087037f56b58.
+Fullpriorstdout3754B/stderr2072B retained underinstalled-current-v1/*-prior.log.
+ALLpast180/181/184failures stay in those exactprefixes; striponlyWHOLEsavedprefix
+fromfuture185rawlogs.17boot-admissionfakeIOcases0/preboot-review0. Production
+bootwrapper EXACT184flow exceptplan+libraryhash. Qualifier185 exacttargetset is
+ONE library (not184's two policies); still checks all7actualstaticfiles. Frozen
+GLES181v2a6a9.../180f8a63... contract unchanged and required before independent
+review_physical_gles185.py. All newstderr must be source-backed reviewed on PASS.
+
+CURRENT W185v12 outer36753,checks-v12/events-v12,trial-v1. ONE temporaryunchanged
+180kernel/image682511e7.../Build7f61cbbf...,600sservice/780sobserver/860sbound.
+ProfileSHA4e270c807d423abd8cf63a78ead604847d1d1cf3e68ee55e3f06a9414704196a.
+Wait SAMEhandle toterminal; no repeatboot, rootwrites or manual-resetquestions.
+Neverrawrollback prebootHFSmetadata AFTERthisrealboot. Afterterminal: DSH
+read_files185.py post-trial-capture-profile.json into freshpost-trial-capture-v1;
+then pinnedqualify_gles185.py unchangedcontract. PASSisnotfinal until independent
+pixels/nativeEOP/queue/128MiB/600s-health/ALLstderr review. Failurepreserveexactraw
+andstrictrejection, diagnoseactualphase; no evidence/contractwaiver. UI/Metal/
+highrefresh/fullRAM/dailyuse stillunqualified. Full originalgoal ACTIVE.
+
+185SOFTWAREdone: actualfullMesa flush+libdrm+originalnative-submit+runtime helpers
+REDold-22/no fakejob/GREENret0/readonlyflags1,writable3.8scenarios/29checks0,
+ASAN/UBSAN, retainedqueuetests0. Twoinitialfixturecompileerrors preserved;
+no productionfailure waived. Crossbuild/sign/strictverify0 in60.18s/all10989pins
+unchanged, probe EXACTold73328B2e3b...,10977Mesafilescompared only2changed, exports
+unchanged. SourcePUBLIC071645ebb7799a9724d72bfd9c5e572da4dcab78
+=PRIVATE688b7e35e43f207fecdd7262670a2a16a9680c36
+/TREE510b977ba9ead864ad799ac5ec9a42a8fc48f3b5;
+sole publicparent0d6df19... .THIS is next GLESpublicationbase,7textfiles only,
+nonforce/tree-parent-ref verified,W185/source-publication.json. Mainpublic6d5a...
+unchanged/noCI/no kernelbuild. Originaldirtymkadt a74a... preserved. Allother185
+DSHhandles84231/15879/22019/62296/16507/78339/31149/52466/58706/13347/57862/76255
+terminal. Rootcritical-review65275 also closed. Only36753 LIVE.
+
+### 2026-11-08 —184 real memory/context/link PASS; GLES pixels FAIL;185 backup LIVE
+
+184v9/v10 terminal0/inputs unchanged. ONE boot14:31:49.456285..14:44:16.141522UTC,
+746.685237s, automaticTWRP. ActualGET8 ALL four observedphases128MiB active/inactive
+HARD attr1. Contextcreated/current, rendererFD619/OpenGLES3.1Mesa25.0.7, bothGLSL
+programs linked. Footprints868712/16286096/16286096/25313680B. This fixes1816MiB
+admission. Fullrawstdout3754B/stderr2072B saved; exactold2141/69Bprefixes preserved,
+new1613/2003B in post-trial-capture-v1/diagnostic-current-{stdout,stderr}.log.
+
+Actual shader draw FAILED. Two Mesa submit returns-22, normalpixel0 zero instead
+of expectedffffff00; no newnativeGLESjob (only3startupAPIjobs). Kernel180600s
+idlehealth stillPASS595renewals/all20samples/EOP1..3/fullAPI dynamicreadbacks.
+NoGPU/servicepanic, ownerfailure orGLESprocesscrash. Frozencontract181v2/180
+UNCHANGED; W184v11 correctlyFAILED1 on mismatchpixel, inputsunchanged. Root
+review_failure184.py/ gles-failure-review.json independently verifies partial
+milestones and rejects GLES/Metal/UI/refresh. All184handles65453/98303/89793closed.
+PhoneTWRP,userdataunmounted. Never rawrollbackpreboot184HFSmetadata now.
+
+CURRENT W185=research/tmp/dsh-gles-0185-root: newfull16GiB READONLYpost184backup
+running,checks-v1/events-v1 outer84231. Wait SAMEhandle; no write/boot/consent.
+Futurelibraryfixneedsnewexactdelta/concretepermission afterbackup/localreview.
+Codex source hypothesis: Mesa FD_RELOC_FLAGS_INIT=READ|WRITE for ALLBOs, including
+ring BO allocations withFD_BO_GPUREADONLY. ActualnativeGauguinGPU.cpp submit
+rejects WRITE flag for readonly BO before ringing hardware; captured commandBO
+index8/handle10 hasflags3. This is a source-backed INFERENCE, not yet physical
+rejection-reason capture. Need actualproductionflush+strictnative-submit RED/GREEN
+boundary test beforeacceptingfix. Preserve kernelreadonlySMMU/admission checks.
+Also transport clears consumed private syncobj pointers/counts but leaves stride,
+which actualnativeABI rejects; correctthat in same ABIboundary test. The printed
+'Operation timedout' is staleerrno: actualreturn-22mapsBadArgument/EINVAL, no
+newnativeGPUsubmit/timeout proof. Logging should use returnednegativeerrno.
+
+No185sourcefix/build yet atthisentry. Next author Mesa readonlyBO submitflags
+and consumed-syncstride normalization +production-function typedboundary tests;
+DSHprepare/build/test. Keep oldprepared179/source/b4a0library andallfailuresfrozen.
+Kernel180/image6825 unchanged; fullgoal ACTIVE. Originalmkadt dirtydiffa74a intact.
+
+UI offlineDSHv1 completed0 under research/tmp/dsh-gles-ui-0183: actual20H392
+HFS hardlink-resolved44cache shards(3330359296B),2710images/fourframeworkMachOmaps.
+OpenGLES has allsix HakiOS hook selector strings. NOT methodtypes/dispatchABI/UI
+acceptance; actual-cache-map-v1/result.json. No phoneIO/ApplebytesGit. Original
+rawcatalog zeroforks arehardlinkstubs, NOT missingcacheevidence. Use nativeinode
+resolution (finderhlnkhfs+,BSDspecialiNodeNum). Do notuseoldtools/hfs-read.py's
+unverified 4-extent reader; strict local_hfs175v3 plus nativehardlinklayout used.
+
+### 2026-11-08 —184 source publication VERIFIED; real trial remains LIVE
+
+PUBLIC0d6df19f534e88ea7b4db23ed196608eb48ab703
+=PRIVATE29eb69d7af1ded4f438d4ae475d10bf1a32558f6
+/TREE00c0733cdb8b8290df0941044e34aac159068d80;
+sole publicparent921da0be... .Four textfiles only/nonforce/tree-parent-ref checked.
+GitHubconnector blob403 -> existing authenticated gh filebody fallback success.
+Mainpublic6d5a7bb... unchanged, noCI/deviceactions. THIS is next GLESpublication
+base; W184/source-publication.json authoritative. Separate future source notes
+must not reset this base to181. Real184v9 SAME outer65453/temporary180image
+trial ongoing; no secondboot. Continue postcapture/frozencontract as below.
+
+### 2026-11-08 —184 approved185blocks APPLIED; real late-GLES trial LIVE
+
+Human call27b1ac0f... consent consumed by successful W184v6 write/readback0:
+38/38runs,757760B/185blocks,38writeattempts,header0last,no rollback.
+Exact planSHA8e9740c210c2985ab53012228201dd45c756f741f1f38684780eebec327b2986;
+final local16GiB0444 SHA8d0b5d930ca268533e563b356aafe520b33d5440f66b39e27df80f7498c3a0e4.
+ONLY two D22/D221 policies gain probe-label Override ActiveSoft=-1/ActiveHard128/
+InactiveHard128 plus scoped HFS metadata. Global/other-label/all531jobs/cache/
+probe/Mesa/API/oldlogs unchanged. Full fresh post181backupbc37c193... retained.
+Localfsck0/original-launchd14cases0/writer102cases0/fresh38oldrange READONLY0/
+independent-local-review.json0. Original failed review kept: localfseventUUID
+alone had newCNID597665->598475, data/BSD/parent/type preserved. Corrected review
+admits only that exact metadata recreation. Native cleanup24files/33dirs.
+
+W184v7 current7files/headerREADONLY0: policyD22 SHA09abc10f.../D2213975392b...,
+both40952B/root0/0644, other5filesexact; fullpriorstdout2141B/stderr69B saved.
+Header efb4102958bab9f922954eefae82141cbe5b203b47c78fca8647142bdafdae49.
+v7 hostmodel1 due wrong MesaSHA in fakefixture ONLY; actualwrapper correctly
+refused. Originalfailedcase preserved; v8 correctedfixture17admission cases0.
+Frozen181v2GLEScontracta6a9c99e.../full180f8a63... unchanged; preboot-review0.
+
+CURRENT W184v9 outer65453,checks-v9/events-v9,trial-v1: SAME180kernel/image6825...
+ONE temporary fastbootboot0(send0.455s/boot0.134s,total0.595s), observer-running.
+ProfileSHAc4af8b35d82f50bbffa8ebca72b45d3534995ffb80f8888a222842cda3de106b;
+600sservice,780sobserver,860sbound. Wait SAMEhandle; no repeatboot/rootwrite/
+UI-resetquestions/raw-prebootHFSrollback. After terminal: read_files184.py with
+post-trial-capture-profile.json; then qualify_gles184.py (UNCHANGED181v2contract,
+exact2141/69Bpriorprefixes,sevenstaticfiles). AnyPASSneedsindependentnativeEOP/
+queue/pixel/memory/600shealth/ALLstderrreview. No GLES/Metal/UI/refreshclaim yet.
+
+Source4textfiles committed PRIVATE29eb69d7af1ded4f438d4ae475d10bf1a32558f6,
+TREE00c0733cdb8b8290df0941044e34aac159068d80. GitHub connector blob403; fallback
+existing authenticated gh file bodies (no approval block). Publicationreceipt
+W184/source-publication.json is authoritative; see next entry/update for final
+publicSHA. Mainremote6d5a7bb... unchanged, no kernel/Mesa rebuild/CI. Original
+mkadt dirtydiffa74a... preserved. Full daily-use goal ACTIVE and incomplete.
+
+### 2026-11-08 —181 physical memory admission FAILED;184 fresh backup complete
+
+The approved181 delta was applied and read back successfully; consent3988 is
+consumed. Actual temporary boot completed and auto-returned to TWRP after
+741.877098s. DSHv9/v10 readback0. The strict GLES probe observed active6MiB/
+nonfatal and inactive6MiB/fatal, then exited1 BEFORE context creation. Rawstdout
+2141B and stderr69B are preserved. DSHv11 canonical qualifier FAILED as required;
+no GLES/context/Metal/UI acceptance. See W181/gles-failure-review.json. No rollback
+of preboot HFS metadata is permitted after this real boot.
+
+Actual launchd (SHA12370e5e...) disassembly establishes per-key precedence:
+Daemon.Override[label] > Override.Global > job > Default[label] > Default.Global.
+The actual device policy Override.Global supplies ActiveSoftMemoryLimit6 and
+InactiveHardMemoryLimit6. Positive soft6 wins the conflict against job hard128;
+the inactive global6 wins directly. Prior job-only128MiB change was insufficient.
+Proposed184 fix is a probe-label-specific entry with ActiveSoftMemoryLimit=-1,
+ActiveHardMemoryLimit128, InactiveHardMemoryLimit128 in existing D22/D221 policy
+plists. Verify original ARM64 merge/conflict machine code before staging; no
+acceptance based only on a plist or a hand-written interpretation.
+
+W184=research/tmp/dsh-gles-0184-root. DSHv1 TERMINAL0/inputs unchanged. New full
+16GiB post181-boot backup0444 SHA
+bc37c193800ee1f902666f19a329425d614df8f7a5409edc3d079e7ddf493286,
+header before/after stable c40b9c20..., no device writes or reboot. Outer50436
+closed. Current phone TWRP, userdata unmounted. No184stage/plan/approval/write yet.
+Next: original-launchd machine-code host model; local COW policy-only stage,
+strict HFS/delta/fsck/writer-model/read-only old-range review; then NEW concrete
+write permission. Old181 approval cannot authorize this different delta.
+
+Full daily-use GPU/Metal/safeRAM/UFS/peripherals/high-refresh goal ACTIVE and
+incomplete. Codex authors/reviews critical logic; DSH executes builds/tests/boot.
+All resets automatic while user away. No repeated reset-attribution questions.
+Original dirty tools/mkadt.py SHAa74a0418... is preserved. No kernel/Mesa rebuild.
+
+### 2026-11-08 —18137/37 APPLIED/readback0; real late-GLES trial LIVE
+
+New human3988consent call42991219... consumed by successful EXACT371block write.
+DSHW181v7 TERMINAL0/inputs unchanged: apply-v1/result.json applied-approved-
+delta-readback-verified,37runs/1,519,616B,37writeattempts/readbacks, header0last,
+no rollback, reboot_permittedtrue. NoGPT/format/otherpartition change. v8 fresh
+READONLY actual5files/header0/inputs unchanged, all exactnewprobe2e3b...73328B,
+job15561948...919B/cache1a64...795801B, libraryb4a0.../API7756... unchanged,
+allroot0/modes0755or0644. Actualjobcache memoryprops ActiveHardMemoryLimit128 +
+InactiveHardMemoryLimit128; other530jobs preserved. Actual rootheaderSHA
+2e96a27b3d98ad21deffe5cc9656025659799ed8824dd48e71cbfe1e528651bf.
+Exactpriorstdout1046B SHAa28fda67... retained andstderr0; oldfailed180raw data
+neverdiscarded, stripONLYthisfull saved prefix from future181log.
+
+CURRENT W181v9 LIVE, outerexec83890, dispatcher25609, checks-v9/events-v9 and
+trial-v1. Actualfastboottemporaryboot0: send0.457s/boot0.135s,total0.595s;
+preflight observer-running/image_boot_attemptedtrue/routine13Bmiscverified.
+Same accepted180kernel/image682511e7.../build7f61cbbf...,600s service,780s observer/
+860s bound. Wait SAMEhandle; no restart, secondboot, UI/resetattributionask.
+Frozen beforethisboot contract181v2 SHAa6a9c99e... unchanged plusfull180contract
+f8a63b8d..., all5files/currentprefix/source/image/readbackreceipts bound in
+boot-profile.json SHA35fea3c4c996b3724b8a7f5d939edf6cc04e0b72cce826e65c418a11622ac87f.
+preboot-review.json0 exactbundle+cachedjob+14modelgates/11parsercases reviewed.
+No actualGLES/context/shader/Metal/UI/refresh acceptance from successfulboot.
+
+After SAMEv9 terminal: DSHread_files181.py post-trial-capture-profile.json into
+freshpost-trial-capture-v1 (all5files+fullrawlogs). Then pinnedqualify_gles181.py
+requires all5hash/mode/rootowners, exactprior1046B/0 prefixes, unchangedold full
+API/realnativejobs/600sservice +sixactual128MiB hardlimits/physicalfootprints,
+full1024RGBA+1024BGRAshader/texture/surfacechecks andnoGLESprocesscrash. Frozen
+contract MUST NOT be edited. Qualifierpass stillpendingROOTindependentreview,
+especiallyallrawstderr, dynamicpixels/nativeEOP/owners. If failurepreserveexact
+raw andstrictrejection, diagnoseactualphase. Never rawrollback prebootHFSmetadata
+AFTERthisboot; anynewrootdelta needs newfreshbackup/concreteconsent. Userapp
+explicitlysetgoal ACTIVE afterapproval. FulloriginalGPU/Metal/fullsafeRAM/UFS/
+peripherals90/120Hzdaily-use objective ACTIVE/incomplete. No kernel/Mesa rebuild.
+
+### 2026-11-08 —NEW3988 explicit consent RECEIVED; approved181writer ready
+
+User replied to asyncquestion call_42991219d26f42a183e0db31547211b0 item0:
+"允许写入，并允许写入或读回失败时回滚" for the EXACT1.45MiB/371block
+probe+128MiB active/inactive hardlimit job/cache/HFS delta. Prior consent blocker
+is RESOLVED; don't ask again. W181/approval.json records actual humanreply,
+approved=true/allow_rollback=true bound planSHA
+3988717a76d34ab02cfaa7314e6ac7c8453bda4de4494bb1f43113734d6039df, readonly0444.
+All independent-local-review input pins freshly rechecked identical; base/final
+16GiB0444 intact, originalmkadt dirtydiffa74a... preserved. New W181/checks-v7
+profile prepared for proven write_root_delta181.py (SHA62287664...), EXACT37runs/
+1,519,616B, alloldranges rechecked beforeanywrite, perrun sync/readback, headerlast,
+partial/write/readback/report failure rollback of touchedblocks. No write yet
+at this entry. Next dispatch SAMEv7 viaDSH once, inspect terminalreceipt0; then
+freshcapture_bundle181.py actual5files/header and same180600s image,780s observer.
+Currentkernel/image/Mesa unchanged; no newbuild. Allprevious failures retained.
+Never rawrollback preboot HFSmetadata AFTER ensuing iOSboot. Goal fullobjective
+unchanged; UI get_goal still saysblocked on resume (goal status is user/system
+controlled), but missing userconsent is now supplied and authorized work resumes.
+
+### 2026-11-08 —Third same-consent audit; goal BLOCKED awaiting3988authorization
+
+Previous continuation classified PROGRESS: fresh readonlyRAM reconciliation and
+actualQMP+2GiB observation, with both fullQEMUboot failures preserved. This
+continuation revalidated the SAME new371block consent blocker for the third
+consecutivegoalturn (originalMesa-install turn asked; RAM continuation pending;
+this revalidation pending). No explicit user reply to that newquestion exists.
+Automatic "continue goal" is NOT matching approval for the new destructive
+3988plan. All safe preparation/actual-needed validation is already complete;
+next critical evidence needs realGLES runtime after that exact authorized write.
+No live work is being waited on. Do not churn unchangedtests/QEMU models or
+change the pinnedGPUcandidate to manufacture progress while consent is pending.
+
+CURRENT authoritative readonlyrecheck: gauguin recovery, userdata unmounted,
+noholders;4KiB rootheader still matches181currentpreflight. ExactplanSHA
+3988717a76d34ab02cfaa7314e6ac7c8453bda4de4494bb1f43113734d6039df still371blocks/
+1,519,616B. approval.json/apply-v1/result/boot-profile/trial-v1 allABSENT.
+Both181v6 and182v6 are terminal; recordeddispatcher PIDs are absent now.
+Mainstatus only originaldirtytools/mkadt.py; latestpreviousnotescommitbcdeb2c.
+No write/boot/test dispatch in this continuation. Goal blocked audit satisfied;
+mark fullunchanged objective BLOCKED after thishandoffcommit, pending NEWexact
+plan authorization including write/readback-failure rollback. No paused or
+complete status. Existing pendingquestion retained; do NOT repeatedly ask it.
+When user approves/resumes: audit fresh consent and recovery/current oldranges,
+then execute proven181writer/readback/unchanged180600s trial as detailed below.
+Never rawrollback HFSmetadata AFTER boot. Full daily-use objective unachieved.
+
+### 2026-11-08 —182 readonly RAM inventory/partialVM evidence;181consent PENDING
+
+Previous goal turn classified PROGRESS (actual Mesa trial/failure diagnosis,
+compiled/published181fix, reviewed concrete delta). This continuation also makes
+new evidence progress while awaiting the SAME explicit371block permission;
+no newapproval reply/file, no181rootwrite/boot. Do NOT repeat the question or
+infer consent from automatic goal continuation. Original daily-use goal ACTIVE.
+
+W182=research/tmp/dsh-memory-0182. DSHv1 freshCURRENT TWRP FDT/iomem/meminfo
+capture0; headerbefore/after identical ANDmatches181oldrangepreflight. No mount,
+write/reboot;8KiB rootheader read only, raw DT/serial-related data ignored/private.
+v2 local FDTget actual fixed/dynamic/header-reservations andLinux SystemRAM
+reconciliation0. recoveryMemTotal7,742,414,848B. Current180payload EXACT memBase
+0x180000000/managed0xfff00000 (4GiBminus1MiB). Proposed FUTURE contiguous window
+[0x100000000,0x280000000) fits actualLinux SystemRAM, has NO fixedFDT reservation
+or dynamicfirmware alloc-range overlap, and adds2GiB to existingwindow. ALL
+dynamicpools arebelow4GiB. Important correction: memorybankC0000000+C0000000 is
+NOT wholly offline; actual removed_region isONLY[C0000000,C7B00000),123MiB.
+Currentmkadt comment sayswhole3GiBoffline incorrectly; DO NOT edit the user's
+existing7line dirtymkadt diff yet. Originala74a... hash preserved. This range
+reconciliation isNOT proof of physical DDR/pressure/DMA or fullsafeRAM.
+
+QEMU comparison using unchangedactual180kernel7e368fa...: firstdispatchv3 had
+missingprofile (absent optionalD22Appleartifact), neverran; logpreserved. v4
+failed beforeQEMU dueLLVM PATH; preserved. v5 actualbaseline4GiB rootmockfs/static
+PID1 attempt FAILED (helper2/stage1): unmodelled QualcommSPMI externalabort at
+sweet_spmi_init+0xa8 (pcfffffe0007562968,ESR96000010). Do NOT waive it or call
+fullboot/PID1 test passed. QEMU uses oldmkadt fallbackproduct andsimulatedGIC/
+timer/framebuffer9c000000, no realphoneimage. No source/kernel rebuild.
+
+v6 SEPARATE capture-only6GiB attempt: collection0/inputs unchanged, but actual
+QEMU boot ALSO2/sameSPMIpanic. Captured real QMPsymbol reads fromsamekernel:
+baseline gPhysBase180000000,max_mem=mem_actual=mem_sizefff00000,sane_sizefd904000;
+6GiB gPhysBase100000000,max_mem=mem_actual=mem_size17ff00000,sane_size17d904000.
+VM recognizedexact+2GiB BEFORE device-model fault; noPID1 or fullboot acceptance.
+All originalfailedreports andrawdebug/screens preserved. Independentmemory-
+review.json0 verifies actualcapture/DT ranges/samekernel/QMP+2GiB/originalboot
+failures/unchanged181plan. Real6GiB image, owned-buffer/pressure/DMA test and
+remaining lower-bank exclusions are UNFINISHED; all full/hardwareRAM flagsFALSE.
+Do not change current181GPU trial's memory/image or spend a kernel build on this
+until its actual delayedGLES result isknown. Reportsource onlyNOTES; raw/private
+data/artifacts remain outgit. All182DSHhandles51384/91736/40577/24068/59326/57626
+terminal; no live process. Currentphone recovery, lastrealboot still180GLESfail.
+
+NEXT CRITICALACTION remains await NEW3988plan consent, then proven181writer/
+freshbundlecapture/same180600s boot/frozen181v2contract andindependent review,
+as detailed below. Optional later QEMU work must model/gate absentSPMI before
+claiming completeVM/PID1/pressure testing. Full originalGPU/Metal/RAM/UFS/
+peripherals90/120Hzdaily-use objective remains ACTIVE, no goalcompletion/block.
+
+### 2026-11-08 —181 concrete371block fix READY; new explicit consent PENDING
+
+CURRENT phone idle TWRP, no181write/boot. User's5802approval was consumed by the
+successful85run Mesa install and first failed GLES180 trial. A NEW asyncquestion
+now asks permission for1.45MiB/371block probe-memory fix and write/readback-failure
+rollback; no reply yet. DO NOT infer approval from old16.64MiB consent/time passed.
+AGENTS requires confirming each destructive step. No181approval.json exists.
+
+W181=research/tmp/dsh-gles-0181-root. DSHv1 TERMINAL0, fresh AFTER-BOOT full
+16GiB backup0444 SHA06873d765bc843f8cedf7d24e4b35b56a587f575613aaa05f6b49449229a0fdb,
+stablebefore/afterheader, no writes/reboot. v4 local COWstage/delta/audit/fsck/
+boundwriter-model ALL0;102writer model cases0, readonly LOCALfsck0/detach0,
+finalclone0444 SHA165ba2c97a317bf3085dce0172e23b564e2ded58dd9fdbeed392ceb417d355a0.
+Exact planSHA3988717a76d34ab02cfaa7314e6ac7c8453bda4de4494bb1f43113734d6039df;
+371blocks=1,519,616B=1.44921875MiB/37runs. ONLY existing GLES probe, systemjob,
+launchcache +scopedHFSmetadata; no newfile/dir. Probe73328B2e3b5719..., job919B
+15561948..., cache795801B1a64dafa... .Job sole semantic addition JetsamProperties
+ActiveHardMemoryLimit128/InactiveHardMemoryLimit128. API7756.../Mesa b4a0.../
+kernelimage6825.../oldlogs preserved, other530jobs unchanged. Native orphan
+cleanup exact privatefolder/temp+CNID24files+30dirs; twoeventlogs rotated/UUID
+restored. Existing fullbackup and all failures retained.
+
+v4 overall1 ONLYbecause first NEW181 parser model matched old API child's
+"identity" marker instead of GLES phase. Original gles_contract181.py/model log
+preserved; no actual181trial yet. IMMUTABLE NEWgles_contract181_v2.py restricts
+phase search to the GLES section after exact ordered-child receipt; it wraps
+UNCHANGED180frozencontract, adds six quota/footprint receipts and noGLESprocess
+crash. SHAa6a9c99e034d406519b75b6fe967db072b9d81cbb1f1ad013b4950c915b2dbdb.
+DSHv5 corrected11parser cases0 PLUS actualREADONLY all37oldranges0, inputs
+unchanged, header matches freshbackup. Root review_delta181.py independent0:
+independent-local-review.json READY exact3988plan, all targetdata/rootowners/
+modes/cache/retainedfiles/old-newruns/nativecleanup/provenwriter reviewed.
+No newphysicalGLES/Metal/UI/FPS claim.
+
+Prepared following local helpers (NOT realboot/write): read_files181.py byte-
+identical proven180v2reader; capture_bundle181.py exactnew5file/plan+appliedreceipt
+gates, installed/postcaptureprofiles; boot_gles181.py ONLY4expectedhash changes
+vs proven180wrapper. DSHv6 same14actualboot-admission fakeIO cases0/no phoneIO,
+inputs unchanged. qualify_gles181.py AST-authored for future real capture:
+all5files/modes/hashes +onlyexactfullsaved priorstdout/stderr prefix, unchanged
+600s180data/native +newactualmemorycontract, finalindependentreviewstillrequired.
+No boot-profile yet: must create AFTER approved writer0+fresh installedcapture0,
+pin actual currentheader, all5files/priorlogs/contract181v2/source/image/proof
+receipts. One unchanged180600s temporary fastboot boot, observe780/timeout860,
+then readonly capture and frozen qualification/review. No rebuild needed.
+
+If NEW explicit3988consent arrives: create0444approval bound exactplanSHA and
+allow_rollback; DSH execute write_root_delta181.py --plan W181/delta-v1/delta-plan.json
+--approval W181/approval.json --out W181/apply-v1 under fresh pinnedstage, inspect
+actual writer result0/reboot_permitted. Then DSH capture_bundle181.py and review
+newcurrentfiles/header, make pinnedbootprofile, runONEtemporaryboot. NEVER raw
+rollback preboot HFSmetadata AFTER thatboot; automaticwrite/readbackrollback is
+only beforeboot. User away: resets automatic, noUI/attribution questions.
+
+MAIN notes commits99f8ba5/f8d3843; GLESsourceec5530a/public921da0be.../tree4ccfc8ad...
+is nextpublicationbase, mainpublic6d5a7bb... unchanged. Latestpub details below.
+AllDSHexec handles66737/24335/78237/88947 terminal; no live subprocess remains.
+Full original daily-use GPU/Metal/fullsafeRAM/UFS/peripherals90/120Hz goal ACTIVE.
+
+### 2026-11-08 —Finite probe quota software ready/published; new backup pending
+
+W181=research/tmp/dsh-gles-0181-root. Readonly WROOTv11 diagnostic capture0:
+actual JetsamEvent for gauguin-gles-probe says per-process-limit, abundant free
+RAM; actual D22 daemon default inactive-hard6MiB/active-soft6MiB. Resident pages
+are NOT physical footprint; don't infer exact killed ledger value from them.
+Actual root launchd binary recognizes ActiveHardMemoryLimit/InactiveHardMemoryLimit
+and explicitly says obsolete JetsamMemoryLimit is ignored. Frozen XNU GET8
+reads16B memlimit properties. W181/memory-policy-review.json records primaries.
+
+Codex adds probe-only128MiB active/inactive HARD job template and six READONLY
+effective-quota/physical-footprint checkpoints to probe. No setter/global
+policy disable/GPU algorithm change. DSH181v2 two actual-function models0:
+14memory query/error/ABI cases +14retained API-child/90s POSIX cases. iOSlinkv1
+failed missing task_info prototype; originalsource/log preserved. ONLYinclude
+changed to mach/mach.h. v3 probe-only link/sign/strictverify0, allpins unchanged,
+newprobe73328B SHA2e3b57199f515fd9dfaed1b129426d209876f5dac9eab3dd74884fcedca956e0.
+Mesa b4a0c657... and600s180image682511e7... unchanged, no rebuild. Independent
+software-review1810; no actual override application or physical GLES acceptance.
+
+GLES five-textfile same-tree publication VERIFIED nonforce/soleparent/ref:
+PUBLIC921da0be702b1be9b749e9d586d1c5e88c5d47cb
+=PRIVATEec5530a65b7fcc71aa2a26cd8c1dca5ddb4272b2
+/TREE4ccfc8ad1d4ac64a1637a48924424cdea1d3b046;
+sole public parentbd384172... .W181/source-publication.json. THIS is next GLES
+publication base. Main publication6d5a7bb... remains unchanged, no CI dispatch.
+
+CURRENT181v1 outer66737 SAME full AFTER-BOOT16GiB READONLY backup ongoing,
+last14.77GiB. Do not restart/mount root/boot. LOCAL-only181stage/planner/fsck/
+boundwriter-model scripts authored, not yet run; require backup terminal0.
+They change ONLY existing diagnostic probe/job/cache plus scoped HFSmetadata,
+preserve installed library/API/kernel/logs/other530jobs. New181contract wraps
+UNCHANGEDfrozen180contract and requires six real128MiB hard-quota/footprint
+receipts/no GLES process crash. Model notyet run. Next backup0 ->local COW
+prep/audit/fsck/model ->current oldranges READONLY ->independent exactplan review
+->NEW concrete consent. No181approval/write yet, old5802consent consumed. NEVER
+rawrollback preboot HFSmetadata after boot. Full daily-use goal ACTIVE.
+
+### 2026-11-08 —First late GLES FAILED: Jetsam per-process limit; recovery idle
+
+WROOT=research/tmp/dsh-gles-0180-root. SAMEv7 temporary180 boot TERMINAL0,
+12:22:56..12:35:22UTC, automaticTWRP746.283468s, no manual reset. DSHv9 fresh
+readonly actual seven-file capture0/inputs unchanged; all five installed files
+retain approved exact hashes/root0/modes. stdout1046B SHAa28fda67...; stderr0.
+Unchanged signed API child passed all8192normal+1024surface data/3real native
+EOPjobs. Actual90.078980157s delay and GPU619/chip06010900/GMEM512KiB/base1MiB
+query succeeded. NO renderer/context success, shader draw or new GPU job.
+Native exact crash: gauguin-gles-pro[25] SIGKILL9, reason namespace1/code7.
+Actual frozen XNU reason.h/kern_memorystatus.h defines OS_REASON_JETSAM /
+JETSAM_REASON_MEMORY_PERPROCESSLIMIT. Exact quota and footprint NOT yet measured.
+Do not blame a GPU shader fault or claim a driver/context pass from this result.
+
+Preboot frozen GLEScontract remains f8a63b8d... UNCHANGED. DSHv10 actual physical
+qualifier TERMINAL1/inputs unchanged, correctly REJECTED "no two post-startup
+GPU jobs". All raw files, failed stage, preboot pins preserved; no GLES hardware
+qualification generated. Root gles-failure-review.json independently verifies
+the old startupAPI contract and FULL600s idle service595renewals/20samples/
+3jobs/shadow56/quarantine+finite-stop; no native WDT/owner failure/panic. GLES,
+Metal, compositor, UI/highrefresh acceptance remain FALSE.
+
+CURRENT phone recovery/unmounted. DSHv11 (outer38193/events-v11/checks-v11)
+reading only dedicated GLES/Jetsam reports and jetsam config, fresh output
+memory-diagnostics-v1. Wait same handle, no reboot or write. Need exact process
+quota/footprint and Mesa initialization allocation evidence, then prepare the
+smallest fix. Existing job has no JetsamProperties override. Do not guess quota
+or disable global memory protection. Approved5802delta consumed successfully;
+any newroot change requires fresh current backup/review/newexplicitconsent.
+NEVER raw-rollback preboot565e HFSmetadata after this iOS boot. Mainpub/GLESpub
+bases6d5a7bb/bd384172 unchanged. Full original daily-use objective ACTIVE.
+
+### 2026-11-08 —EXPLICIT5802consent APPLIED85/85; real late-GLES trial LIVE
+
+USER explicitly approved16.64MiB/4259block Mesa/library/probe/job/cache/HFS delta
+AND write/readback failure rollback, questioncall48c658ec8dd34e11b5c287c408dfc0db.
+Bound planSHA5802c01f071636f9201ece937ef9ce544abf7b615cc5522ad52f964b44b06529;
+private approval.json0444 in research/tmp/dsh-gles-0180-root (WROOT). This consent
+is for THIS exact delta only, no additional root update. Full fresh16GiB backup
+completedread-only0, SHA565ede6d998fa7b51b5e5bb2091fa4b389e06c0554d52616ef1379892aa71e6f,
+readonly0444. Local COW stage/audit/finalclone/fsck0/writermodel102checks0,
+85currentoldranges verifiedREADONLY0. Indepreviewv1 wrongly assumed file-only
+HFS orphan cleanup; rejected attype2assertion, failure record retained. Native
+hfs_remove_orphans explicitly deletes both filesANDdirectories namedtemp+CNID
+in privatefolder. Corrected review_delta180.py verifies exact rule24files+33dirs,
+allotherchecks unchanged, independent-local-review.json READY, no waived FS test.
+
+WROOTv4 generation/AST +14actual boot-admission fakeIO scenarios0, includingwrong
+library/probe/plan/unapproved-write/receipt. No phone calls. v5 EXACT approved
+writer TERMINAL0/inputs unchanged: ALL85runs/17,444,864Bwrittenandreadbackverified,
+volumeheaderlast, no rollback. apply-v1/result.json stateapplied-approved-delta-
+readback-verified/reboot_permittedtrue. No GPT/format/otherpartition changes.
+Original helpers preserved; beforefirstactualcapture corrected copiedreader's
+private import search path in read_files180_v2.py/capture_bundle180_v2.py only,
+not filesystem or gate behavior. v6 actual CURRENT HFS file+rootheader readonly0:
+newlibrary b4a0c657...16026608B, newglesprobe28722b03...73168B, retainedGPUCLI7756...
+87360B allroot0gid0/mode0755. Systemjob751B SHA95e3356e86b33b7675c94987a106ab96509b13cda9f78ba2ef45bf6fac7b42bd;
+cache795726B SHA2a8b3eb9fb8c5234b3ea36f3869c57549921279857ca6e42bc2f08fbe32d3c47,
+bothroot0gid0/mode0644. Actual newjob invokes /usr/libexec/gauguin-gles-probe
+--after-gpu-api; oldGPUCLI child ->successful exit ->90s delay ->real GLSL/texture/
+IOSurface checks. stdout/stderr /private/var/tmp/gauguin-gles180{,.stderr}.log,
+bothABSENTbeforeboot (emptypriorprefix captured). Other530jobs/oldCLI preserved.
+
+CURRENT WROOTv7 ONE temporary accepted180image boot LIVE, outerexec21933,
+checks-v7/events-v7/trial-v1. SAME600s service image682511e7.../kernel7f61cbbf...,
+no newkernelbuild;780s observation/860s bound. Wait SAME observer, no restart.
+All resets automatic, noUI/attributionquestions. This is FIRST real GLES test;
+DO NOT infer shader/lateworkload/GMEM/multi-queue acceptance from boot0. WROOT
+boot_gles180.py adds exact bundle/plan+appliedwrite receipt gates to provenflow;
+actual14case model0. Current installed-preflight pins rootheader +5files.
+
+Frozen-before-boot gles_contract180.py pins unchanged180APIcore and preserves
+all11events/8192+1024data/first3EOP checks on startupnativeprefix; FULLnative
+then requires >=2newGPUcompletions, nofailures, trueA619/configuredGMEMquery,
+>=90s late wait,hardwareES3renderer, complete1024RGBA+1024BGRA hashes, finalPASS,
+all600s/300..600renewals/shadowcounter/finite-stop ordering. Raw data nevertrimmed
+except EXACT saved prior stdout/stderr prefixes (emptyonfirsttrial). Contract
+file is pinned in runningboot profile: DO NOT edit it. Tests/main postcapture
+adapter still need finish. Additionalstderr mustbe retained/independentlyreviewed,
+never silentlydrop or treatpositive text asUI/Metal/FPSproof. No actualGLESaccept yet.
+
+After SAMEv7 terminal: use read_files180_v2.py +post-trial-capture-profile.json
+(trial resultpointsWROOT/trial-v1; filesincludeall5binaries/job/cache +newlogs),
+freshoutpost-trial-capture-v1. Then full frozencontract+source/file/header pins,
+review realshaderdriverfailureorpositive data. DO NOT use oldreadhelper1MiB limit
+for16MB library, or oldGPU175stdout (childnowwritesnewGLESlog). Once this boot
+has occurred, NEVER roll back rawpreboot HFSmetadata blocks. Anylaterroot delta
+needs freshbackup/newexplicitconsent; preserve all backups and failures.
+Mainpubbase6d5a7bb...=bcf7eb7.../ead58285..., GLESbd384172...=ba31e7e.../d561973... .
+Native sourceidentity698ef7e/source2a8fc45f; currentnativeTUrecipevbmAXT.
+Full original daily-use GPU/Metal/fullsafeRAM/UFS/peripherals90/120Hz goal ACTIVE.
+
+### 2026-11-08 —180 kernel source PUBLISHED; final fresh backup still streaming
+
+MAIN/CI source publication VERIFIED,12textfiles only/non-force/ref/tree/parent:
+PUBLIC6d5a7bb3a6a06b2bd2a5fb85519c5517b71696be
+=PRIVATEbcf7eb7895685cb5b3e7125fc2d24b80910ce6db
+/TREEead582854b1a575313e483bfaf87636007f65495,
+sole public parent5eb6eff... .Receipt dsh-0180/source-publication.json. THIS is
+next MAIN publication base; compiledkernelidentity stays698ef7e/source2a8fc45f.
+GLESbase bd384172...=ba31e7e.../d561973... remains independent. No CI dispatch.
+
+Full read-only root backup still SAME dsh-gles-0180-root/checks-v1/outer35330;
+at11:53:53UTC12.31GiB/16GiB, not yet complete/accepted. Keep phoneTWRP/no boot.
+New LOCAL sequential wrapper prepare_bundle180.py is authored: stageCOW ->
+audit/delta -> read-only LOCALfsck -> boundwriter/fakeIOmodel. It requires fresh
+backup/result0; not yet run. Full root preparation/native GLSL runtime remains
+unfinished and no newroot approval has been requested or granted. After all
+local preparation/review, ask ONE fresh concrete delta consent perAGENTS; old175
+permissions consumed. Full original daily-use objective ACTIVE/incomplete.
+
 ### 2026-11-08 —180 PHYSICAL600s PASS; fresh GLES root backup LIVE (no install)
 
 180v6 temporaryboot0/inputs unchanged;11:30:32..11:42:58UTC, automaticTWRP746s

@@ -2,6 +2,58 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 varying core/model +CURRENT172native ARM64 ACCEPTED; provider checks
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP172,
+no173kernel/image/boot/device I/O. User AWAY/allresetsautomatic, no attribution/
+UI question; prompt only if manual recovery genuinely needed. Current source
+reference commitdee9a7a includes native NIR/graph/UNORM declarations. Not yet
+published; public9a4fd500/private2ff5d367/tree81a65a91 remains publication base.
+
+Accepted private core research/tmp/dsh-0173/varying-engine-v1, GGV, separate
+from unchanged171GGT/172GGJ. Same3jobs/root20-27-34-41/EOP6-22-38 and all
+before/after native1632/DATA1024/guard/NC/once/quarantine rules. Perchannel
+predeclaredfloor/ceil only afterGPU; exact previousOBSERVED pixel words held
+in core-local256word array, never mutable callback-visible context storage.
+DSH v4 CLOSED inner0 FIRST: strict ASan+UBSancompile0, hostilemodel0;95790
+cases/7423873215assertions. All27601normal/27907delayed callback failures,
+4917silentwrites,768missingpixelcontrols retained (identical previous values
+harmless), all4608single-pixel legal choices,512within-previous-range drift
+refusals, exhaustive256bytes/channel and all3072invalid-pixel/channel sessions.
+Root review_engine173.py FIRST0 SHA
+50888e52c995907d05e992e903191f4dad67d4cae985768a496491533d561c9a.
+These are MODEL/source results, not physical interpolation or GPU/API proof.
+
+DSH v5 CLOSED inner0 FIRST: genuine CURRENT172 XNU ARM64 TU with2123 current
+header/config inputs, manifest87cc579911c9c444803597e5d7b5e551576b9794dd8d2e2b6f11667c027b8b9f
+(run gauguin.d14eqT/source172-codex). Reference generated files unchanged;
+object66656B/e9f92730c1bc45fac5de1c25eba7852f72a019dfe3dbd00c9beccc520627db89.
+Root review_arm64173.py FIRST0 SHA
+637490cec76172dca23c3cea121766fe24b658bfa09df27ba2a4a9ae49f70aa0.
+NEVER run previous171/older TU helpers against shared generated files.
+
+Isolated candidate173v1 now AUTHORED eight files, provider-candidate-result-v1
+SHAa9a2d14450b4d68cfd97b97e34b3c81b9f5ac8838b928e21397860fa01609e5f.
+OriginalGGT/GGJ providerbodies unchanged. Newexclusive mode10 GGv provider:
+all172 live authority/clock/IRQ/route/PTE/NC/time policy cloned, adds GGJidle,
+actual/coordinator/PAS/sharedGPZ/GGU/coldDATA selectors admit10, exact cached
+previous-pixel validation plus declaredcurrent bounds, quarantine beforediag.
+Same2sphase/4stotal/8sentry watchdog limits. CandidateNOTyetaccepted/production.
+New image command will be607B (mode9->10 adds1byte), still608Bfield with1NUL;
+retain every old argument/fiveasset and unique173trial. Noimage yet.
+
+v6 admissions FAILED wrapper after actual coordinatorcompile0/cases0,738cases
+(all701old+37new). Assertion mistakenly expected oldmode9 print to show738;
+it correctly reports701 before newgroup. Originalscript/log/output retained;
+no C guard/test body change. Freshv7 actualadmissions RUNNING exec54625closed,
+newliveexec handle in tool output; poll existing only. It uses corrected701
+oldprint assertion, same complete coordinator/PAS tests; owner not yetaccepted.
+NEXT finish admissions/liveboard hostilemodel +native board/coordinator/PAS
+TUs; preserve alloldboardcases and extend typed seams. Then productionpatch/
+freshsource/fullhost before any fullkernel/phone. No173physical varying,
+textures/generalbuffers/submission/UI/Metal/highrefresh proof. Original mkadt
+diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860 preserved.
+
 ### 2026-11-08 —173 original native varying graphs/references ACCEPTED; core next
 
 Continuation PROGRESS; full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh

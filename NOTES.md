@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —175 software handoff PUBLISHED; local root staging next
+
+Full goal ACTIVE/unlimited, incomplete. Published source/full software handoff
+SAME TREE/sole existing public parent/nonforce ref and remote rechecks PASSED:
+PUBLIC35d706fd0564b080989b492eba1e024896ee0cea
+=PRIVATEde03753daa040de3bd07c65519a449b96b5e83bb
+TREE6e075e7ebe7edfe15fca649d5361bca98dcbf703,
+sole public parentd8413b7ea67a924031c914fbad11553edf090da4.
+THIS is NEXT publication base. Public API objects not mirrored into local Git.
+Kernel compiled source stays74b77c0c62c715237cfae19c11ac99335aceb46d,
+implementation9c1e780..., sourcef4ba1885.../5329files/169patches; do NOT replace
+KERNEL175_SOURCE_HEAD with this docs/publication commit. All DSH1..16 + ROOT
+publication terminal, no live worker/input. Phone still automaticTWRP174.
+No175image, device boot, root-file/partition write, or manual UI question.
+Current native175 recipe1CAtln/c959c29a.../2128headers; olderTUhelpers invalid.
+Full89coverage(84fresh+5exact-source reused) + kernel17275384B/32c0bd43... accepted;
+proof610618bd... and user probe87360B/775622b6... frozen. No hardware API/Metal/UI
+or persistent-runtime/highrefresh qualification. No new CI.
+
+Fresh read-only16GiB HFSX backup9c9f8777... retained0444, before/afterheaderexact.
+NEXT: DSH local COW clone/mount/stage only, preserving original backup. Existing
+iOS uses compiled /System/Library/xpc/launchd.plist LaunchDaemons dictionary;
+install CLI + loose job + ONE compiled job entry without changing other jobs.
+Prepare on-disk ownership/signature/content/block-delta review and final mode12
+image BEFORE any destructive write approval. Root metadata layout verified
+against actual BSD HFS header/Apple primary format. Do not trust old hfs-read.py
+size column or truncate fragmented extents; fork.logicalSize is at file+88 and
+fork.extents at+104 in packed248byte HFSPlusCatalogFile; BSD info at+32.
+Keep recovery/bootloaders/modem/persist/GPT intact. Temporaryboot/13B latch already
+authorized; fresh confirmation required for destructive root/raw-block writes.
+Do not write a stale17GB root image or use fastboot flash for a sparse delta.
+User away: all resets automatic, ask only for genuinely needed manual recovery.
+Originalmkadt7line a74a0418... unchanged. No filesystem install approval pending
+until the concrete local files/delta/image are ready and reviewable.
+
 ### 2026-11-08 —175 full host/native kernel ACCEPTED; root probe install next
 
 Full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh goal ACTIVE/unlimited.

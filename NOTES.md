@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —186 actual temporary boot LIVE; wait same46538 handle
+
+186v12purecontract41cases0; v13independentprebootreview0. ALL24bootgates and
+41diagnosticnegative/positivecases PASS, eightexpectedtypes matchactual20H392
+metadata. Fullfrozen181v2/180 GLES/API contracts unmodified. SavedWHOLE3prefixes
+and9staticfiles alreadyreadback0. Original185bootflowbyte-identical afteronly
+newplan/cache/state literals andtwoadditionalinstalledhashgates are normalized.
+
+CURRENT W186v14 LIVE outer46538, checks-v14/events-v14. BootprofileSHA
+5fca5b690a25a1417e767160968c05222199203eb30e191ecdf19a531a815888;
+runnerprofileSHAc67e4ab618021bb3d889d55d8de6ca739c7c896fcd681c44b8c14f3f5a7eeac3.
+Actualfastbootboot Sending/BootingOKAY0.590s; liveOSobserverPID43816, bootwrapper
+PID43796, runner43794 verified. Trialpreflightobserver-running/miscverified.
+ONEunchanged180image6825/600sservice,780sobservation860sbound. Noanotherboot or
+manualresetquestions. Wait samehandle; observationtimeoutnotterminalproof.
+PhonecurrentlyrunningiOS, noUSBexpecteduntilautomaticTWRP. 186newconsentCONSUMED
+by48readbackverifiedwrites; backup855cbdea PRE186BOOT/HISTORICALafterthisrun,
+NEVERrawrollbackit afterboot. FullgoalACTIVE, noUI/Metal/refresh/fullRAMacceptance.
+
+NEXT onterminal: DSHread_files186.py post-trial-capture-profile.json into fresh
+post-trial-capture-v1 (12files), thenqualify_trial186.py (alreadybootprofilepinned)
+retainingfullunchanged181v2+180 GLES/API andpureeagl_contract186 SHA
+4bace1ad154ef63ab58ed11636a9c274acaf4008e6fd392c817773e3c0a01e01.
+Fullstdout5797/stderr2341/BBoard443416oldprefixes MUSTremainexact. NewBBoard
+12diagnosticlines proveonlyinertinjection, eightmethodtypes, actualGET8/VM.
+Evenmethod/serviceregistrationPASSdoesnotproveGPUcontextorUI. Earlyservicefalse
+andemptykern.osversionareobservations, notinventedGPUready/firmwareproof.
+AftercanonicalPASS, independentactualdata/pixels/EOP/health/BBoard/stderrreview
+stillrequired. Prospectiveindependentreview186notyetwritten atthisentry; old185
+reviewalgorithm/source-backed269Bwarning retained unchangedforreference. Ifnew
+stderrdiffers, donotblindlywaiveit. AllDSHhandlesexcept46538closed.
+
 ### 2026-11-09 —186403blocks APPROVED/APPLIED;9files+3prefixes read back; no boot yet
 
 New explicit call_bd4ce7cc0a994c3dbce5756b1c665111 item0 approved exact403block

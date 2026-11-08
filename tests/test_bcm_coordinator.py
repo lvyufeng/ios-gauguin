@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source171v2-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source172-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
@@ -42,7 +42,7 @@ def main(temporary):
              bus / 'gauguin_bus_probe.h', shared / 'gauguin_cx_rail.h', power / 'gauguin_cx_power.h', power / 'gauguin_gmu_clock.h',
              *(header_dev / name for name in ('gauguin_pas_stage.h', 'gauguin_bcm_transport.h',
                  'gauguin_wdt_lease.h', 'gauguin_bcm_plan.h'))]
-    files += [dev/n for n in ['gauguin_gpu_unsecure.h','gauguin_gpu_data.h','gauguin_gpu_write.h','gauguin_gpu_ib.h','gauguin_gpu_eop.h','gauguin_gpu_compute.h','gauguin_gpu_clear.h','gauguin_gpu_draw.h']]
+    files += [dev/n for n in ['gauguin_gpu_unsecure.h','gauguin_gpu_data.h','gauguin_gpu_write.h','gauguin_gpu_ib.h','gauguin_gpu_eop.h','gauguin_gpu_compute.h','gauguin_gpu_clear.h','gauguin_gpu_draw.h','gauguin_gpu_sequence.h']]
     files += [dev/name for name in ('gauguin_gmu_board.h','gauguin_gmu_asset.h',
         'gauguin_gmu_firmware.h','gauguin_gmu_hfi.h','gauguin_gmu_memory.h',
         'gauguin_gmu_smmu.h','gauguin_gpu_smmu.h','gauguin_gpu_memory.h','gauguin_gpu_aperture.h','gauguin_gpu_start.h','gauguin_gpu_core.h','gauguin_gpu_cp.h','gauguin_gpu_zap.h','gauguin_gpu_zap_asset.h','cmd_db_snapshot.h')]
@@ -95,9 +95,11 @@ def main(temporary):
         assert perf and int(perf[1]) == int(firmware[3]) and int(perf[2]) == 23 and int(perf[3]) == int(perf[1]) + 23
         triangle=re.search(r'PASS: (\d+) new mode8 coordinator cases \((\d+) total\); old cases retained',output)
         assert triangle and int(triangle[1])==35
+        sequence=re.search(r'PASS: (\d+) new mode9 coordinator cases \((\d+) total\); old cases retained',output)
+        assert sequence and int(sequence[1])==36 and int(sequence[2])==int(triangle[2])+36
         report.update(state='passed', original_cases=58, init_cases=42, mem_cases=49,
                       cx_cases=int(counts[1]), clock_cases=int(clock[1]),
-                      firmware_cases=int(firmware[2]), perf_cases=int(perf[2]), total_cases=int(triangle[2]), triangle_cases=int(triangle[1]))
+                      firmware_cases=int(firmware[2]), perf_cases=int(perf[2]), total_cases=int(sequence[2]), triangle_cases=int(triangle[1]), sequence_cases=int(sequence[1]))
     except Exception as error:
         report.update(state='failed', error=str(error))
         print(f'FAIL: {error}; {log_path}', file=sys.stderr)

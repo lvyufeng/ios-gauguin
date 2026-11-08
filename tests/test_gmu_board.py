@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source171v2-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source172-codex')))/'bsd/dev'
 C=Path(os.environ.get('GMU_BOARD_SOURCE_DIR',str(D)))
 S=C/'gauguin_gmu_board.c';F=R/'tests/fixtures/gmu-board/board_host.c'
 G=R/'tests/fixtures/gmu-board/write_host.c'
@@ -13,12 +13,14 @@ K=R/'tests/fixtures/gmu-board/compute_host.c'
 L=R/'tests/fixtures/gmu-board/clear_host.c'
 T=R/'tests/fixtures/gmu-board/draw_host.c'
 TV=R/'tests/fixtures/gpu-draw/native_words.h'
+J=R/'tests/fixtures/gmu-board/sequence_host.c'
+JV=R/'tests/fixtures/gpu-sequence/native_words.h'
 LV=R/'tests/fixtures/gpu-clear/source_profile_words.h'
 V=R/'tests/fixtures/gpu-compute/native_words.h'
-inputs=[S,F,G,I,E,K,L,T,TV,V,LV,C/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
+inputs=[S,F,G,I,E,K,L,T,TV,J,JV,V,LV,C/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
 inputs += [D/'gauguin_gpu_sqe_asset.h',D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']
 inputs += [D/(n+s) for n in ['gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib'] for s in ['.c','.h']]+[D/'gauguin_gpu_smmu.h']
-inputs += [D/'gauguin_gpu_eop.c',D/'gauguin_gpu_eop.h',C/'gauguin_gpu_compute.c',C/'gauguin_gpu_compute.h',C/'gauguin_gpu_clear.c',C/'gauguin_gpu_clear.h',C/'gauguin_gpu_draw.c',C/'gauguin_gpu_draw.h',C/'gauguin_gpu_draw_native.h']
+inputs += [D/'gauguin_gpu_eop.c',D/'gauguin_gpu_eop.h',C/'gauguin_gpu_compute.c',C/'gauguin_gpu_compute.h',C/'gauguin_gpu_clear.c',C/'gauguin_gpu_clear.h',C/'gauguin_gpu_draw.c',C/'gauguin_gpu_draw.h',C/'gauguin_gpu_draw_native.h',C/'gauguin_gpu_sequence.c',C/'gauguin_gpu_sequence.h',C/'gauguin_gpu_sequence_native.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
 source=re.sub(r'^#include .*\n','',S.read_text(),flags=re.M)
 # Only the physical SMC instruction/register binding is replaced. The real
@@ -48,11 +50,16 @@ assert fixture.count('@EOP_FIXTURE@')==1;fixture=fixture.replace('@EOP_FIXTURE@'
 assert fixture.count('@COMPUTE_FIXTURE@')==1;fixture=fixture.replace('@COMPUTE_FIXTURE@',K.read_text())
 assert fixture.count('@CLEAR_FIXTURE@')==1;fixture=fixture.replace('@CLEAR_FIXTURE@',L.read_text())
 assert fixture.count('@TRIANGLE_FIXTURE@')==1;fixture=fixture.replace('@TRIANGLE_FIXTURE@',T.read_text())
+assert fixture.count('@SEQUENCE_FIXTURE@')==1;fixture=fixture.replace('@SEQUENCE_FIXTURE@',J.read_text())
 env=os.environ.copy();env.update(ASAN_OPTIONS='halt_on_error=1',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
 with tempfile.TemporaryDirectory(prefix='gmu-board-') as tmp:
     unit=Path(tmp)/'test.c';binary=Path(tmp)/'test';unit.write_text(fixture.replace('@SOURCE@',source))
     if os.environ.get('GMU_BOARD_UNIT_COPY'):
         with Path(os.environ['GMU_BOARD_UNIT_COPY']).open('x') as f:f.write(unit.read_text())
-    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(C),'-I'+str(D),'-I'+str(V.parent),'-I'+str(R/'tests/fixtures'),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib']],str(D/'gauguin_gpu_eop.c'),str(C/'gauguin_gpu_compute.c'),str(C/'gauguin_gpu_clear.c'),str(C/'gauguin_gpu_draw.c'),'-o',str(binary)],env=env,check=True)
+    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(C),'-I'+str(D),'-I'+str(V.parent),'-I'+str(R/'tests/fixtures'),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib']],str(D/'gauguin_gpu_eop.c'),str(C/'gauguin_gpu_compute.c'),str(C/'gauguin_gpu_clear.c'),str(C/'gauguin_gpu_draw.c'),str(C/'gauguin_gpu_sequence.c'),'-o',str(binary)],env=env,check=True)
     subprocess.run([str(binary)],env=env,check=True)
+    if os.environ.get('GPU_SEQUENCE_BOARD_TRACE_DIR'):
+        out=Path(os.environ['GPU_SEQUENCE_BOARD_TRACE_DIR']);out.mkdir(exist_ok=False)
+        for i in range(5):
+            with (out/('scenario'+str(i)+'.log')).open('x') as f:subprocess.run([str(binary),str(i)],env=env,stdout=f,stderr=subprocess.STDOUT,check=True)
 assert pins=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in pins}

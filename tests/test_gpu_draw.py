@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source171v2-codex')))/'bsd/dev'
+D=Path(os.environ.get('XNU_SOURCE',str(R/'.deps-cache/p0-20261105/source172-codex')))/'bsd/dev'
 S=Path(os.environ.get('GPU_DRAW_SOURCE',str(D)))
 F=R/'tests/fixtures/gpu-draw/draw_host.c'
 names=['gauguin_gpu_unsecure','gauguin_gpu_cp','gauguin_gpu_data','gauguin_gpu_memory','gauguin_gmu_memory']

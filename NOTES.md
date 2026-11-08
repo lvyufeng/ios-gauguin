@@ -2,12 +2,183 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 clean166/full85/native preflight ACCEPTED; full kernel next
+
+Continuation PROGRESS; full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh
+goal ACTIVE/unlimited. Physical baseline remains171; phone last automaticTWRP171.
+No172 full kernel/image/boot or device I/O. User away: ALL resets automatic,
+--manual-reset no; ask only for genuinely needed manual recovery, never attribution/UI.
+Codex code/plan/review; DSH compilation/tests/build/package/boot/read, full access.
+
+Current accepted private candidate is research/tmp/dsh-0172/candidate172v3,
+EIGHT changed/new kernel files. Original mode8 GGT provider body and all three
+GGT module files unchanged. Separate GGJ mode9: same signed INIT/GGU parent20,
+root20->27->34->41, native EOP6/22/38, green/red/inset116green/140blue. All1024
+DATA words and1632 native/padding words checked before/after EACH job. CPU
+stores RING only; new native bytes staged after previous verified completion.
+Same old live owner/PTE/NC/IRQ/route/clock/fault policy and2sphase/4stotal/
+8sentry/WDT limits. Seventeen monotonic guard steps, no reinit/newmapping/retry.
+
+DSH v11 board CLOSED inner0 FIRST on candidate3: ASan+UBSan compile0/3.344s,
+all5 exact native trace scenarios0, full provider0/172.634s. All old25551 cases
+retained +2817 new =28368. All4917 RING writes pertrace match original native
+profiles/padding/root appends; exact MMIO ordering9/12/309/606/9 writes for
+normal/1/100/199/wrap scenarios. First secure CPU page remains PROT_NONE.
+v10 admissions CLOSED inner0 FIRST: actual coordinator all665old+36new=701;
+actual PAS owner539cases/all126copyguards, modes1..9 with64page/PROT_NONE checks.
+v12 CLOSED inner0 FIRST: board/coordinator/PAS all compile with CURRENT171
+native BSD recipe/2121header-config inputs; reference build files unchanged.
+Core's exact unchanged candidate bytes already passed v4 model87558cases/
+6480720937assertions and v5 actual native ARM64, see preceding entry.
+Root review_provider172.py FIRST0 SHA
+0ffa522df64efabb4590b84fc2d87914698c3005c33a0b6b6a32e36661ed6df6;
+root core ARM64 review93e54a49f5f8caa2f105a5f9d114c7aa67403412d8a808d53fd69245cb581cb8.
+These are explicit MODEL/source/TU results, NOT GPU sequence/Metal/UI proof.
+
+Failure history retained, no gate waived: v6 nonexistent input filename before
+compile; v7 old unsupported9 test moved to unsupported10 with same rejection
+body/count. v8 candidate1 trace stopped at signed entry: actual shared
+gpzb_flags still excluded9. Candidate2 fixes that admission only. v9 candidate2
+executed all3submissions but original sync-log <192length check rejected the
+new long records. Candidate3 splits FENCE/SUBMIT and GUARD/DEADLINE, retains
+every field AND original length bounds; v11 then passes all old/new cases.
+Earlier candidate/scripts/raw logs/reports immutable. No second device trial.
+
+Production0172-gauguin-native-three-job-sequence.patch authored from accepted
+candidate3, SHA d9bae032bdca5053362180dbba61863916a0141405338fb87929ac85893b2e74;
+series166. Public core/board/coordinator/owner fixtures and new sequence host
+runner now passed canonical fresh-source/full85. Completed source/fixtures/docs
+are ready to commit; no full kernel/image/device result claimed.
+Expected fresh172 source5320 files SHA
+f4745164870a882ec14df1e113b61d79de68cb39a2260864469794f5c82efea3,
+exact eight-file delta vs immutable171CDF. DSH v13 integration CLOSED inner0
+FIRST: fresh original export/replay166patches0/2.526s, actual coordinator focus0/
+1.395s, real owner0/.605s, ALL85 public host files0/327.603s. Ten exact4917-RING-
+write traces (five core/five provider) and oldGGT traces passed; source172 and
+baseline171 rehashed unchanged. Root review_source172.py FIRST0 SHA
+e263c73cc7ce100786d101a737e568c1de966029bb73882e1c14ab1fd756b3bc.
+DSH v14 preflight CLOSED inner0 FIRST: all current85 and original native
+foundations bound, complete artifact qualifier AST/import/all new symbols pass.
+Root review_preflight172.py FIRST0 SHA
+35314179a55a4a93cec4da9fb519fa05c9b2bbb169cf0d8c544693f4d0a362fa:
+all180 old qualifier require calls retained (exact new source/mode9 literals),
+184 total; all original compute/clear/GGT predicates preserved. All DSH1..14
+jobs terminal; no live build/test/boot or pending user input at this milestone.
+
+NEXT: commit completed patch/tests/docs, freeze distinct KERNEL172_SOURCE_HEAD
+from that actual commit; one standard local8job full kernel + complete artifact
+qualification. Runtime/parser/metadata/identity/606B mode9 image gates before
+one temporary phone trial. Current generated
+recipe STILL171 gauguin.inYn00, manifest e0eb9f7639f4480e8364d15519fefa8393742da3390d0b9e95408e2ca5c203fe;
+never use old170/older TU helpers. Native reference commit92c5af6 remains HEAD
+until this new source milestone is committed; no source-head marker frozen yet.
+Last public100dca02db06ad21f03bf116fd6b111eb48e9169
+equals PRIVATE22206b906333b0b0a10adf7d3f508130c29af1ef tree755753373ca59fcf5e6e7b57bb6f12e1da861439;
+use that tuple as next publication parent/base. No172 source publication/CI yet.
+Preserve user's original tools/mkadt.py7line diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
+### 2026-11-08 —172 sequence core/ARM64 ACCEPTED; actual provider validation in progress
+
+Goal ACTIVE/unlimited; this continuation PROGRESS. Physical baseline remains
+accepted171, phone last automaticTWRP171. No172 kernel/image/boot or device I/O.
+User away: ALL resets automatic, --manual-reset no; never ask attribution/UI,
+prompt only if genuinely stuck and manual recovery is needed. Codex authors
+critical code/plans/reviews, DSH executes compiles/tests/build/package/boot/read.
+
+DSH172 v1 and v2 native stages CLOSED inner0, no live jobs. Original full Mesa
+graph/IR3 CPU captures (28 actual steps each) retained as native-controls-v1/v2.
+New authored native_nir_controls.h uses exact clip bias -15/32, window vertices
+(4.25,4.25),(20.25,4.25),(4.25,20.25). Independent integer geometry gives116
+green/140blue pixels and no edge passes a pixel center. Expected source oracle,
+NOT physical rasterization. Fullgreen output is byte-exact physical171's source.
+V2 initializes ORIGINAL native context seqno to0/16/32 before each independent
+capture. Original unmodified emitters produce EOP6/22/38; no packet/ISA rewriting.
+Exactly eight native main-IB counter fields change by the seed; all other bytes
+match v1. VS/BS/FS private memory/resource counts remainzero, same27slots,
+26nonempty/1158payload/1632padded words, same32KiBRO ring/4KiBDATA layout.
+
+Root review_native_controls172.py completed FIRST0; accepted report
+research/tmp/dsh-0172/independent-native-controls-review-v1.json SHA
+ef08b41b91186dbef34f4a7500b741330bb5004c6055350c1e71021c79bb2e91.
+It rehashes both actual captures/dispatches/compiler logs/original Mesa tree,
+all packet parity/lengths, exact native event seeds, integer geometry and
+unchanged171 source. Current171 native recipe remains gauguin.inYn00, manifest
+e0eb9f7639f4480e8364d15519fefa8393742da3390d0b9e95408e2ca5c203fe;
+never run old170/older TU helpers against shared generated files.
+
+NEXT concrete action: freeze immutable native green/red/inset profiles and
+source provenance, then separate bounded three-job sequence module (new mode9)
+without changing fixedgreen GGT/mode8. Same signed INIT/GGU20 once; WPTR
+20->27->34->41, unique EOP6/22/38, verify all previous pixels/native blobs before
+staging next job, no CPU DATA stores. Require per-job idle plus fresh trueEOP,
+all previous owner/NC/PTE/MMIO/time/WDT guards, strict hostile/fullpath/ARM64
+gates before any new kernel or temporary boot. No UI/Metal/API qualification.
+Native reference milestone committed private92c5af6 (full hash via git). No
+new remote publication/CI/kernel/image/boot. Latest public/private equivalent
+tuple at the bottom of this entry remains the next publication parent/base.
+
+DSH172 v3 fixture CLOSED inner0 FIRST: generated three immutable native
+profiles, strict C11 host compile/materialize0, freestanding ARM64 compile0.
+All three materialized32KiB images byte-exact to independent native captures.
+Only28 distinct COMPLETE payload arrays shared by exactbytes; no delta/patch
+program. Root independent-frozen-sequence-review-v1.json FIRST0 SHA
+5d83cee7bcd5a672e6cd8407f396051a2014326116634f7e555652a9a9b3d3b9.
+Reviewed references/provenance/README promoted to tests/fixtures/gpu-sequence;
+new actual bounded sequence core/header/table under sequence-engine-v1 now
+PASSED DSH v4 ASan+UBSan compile0/2.496s and model0/88.126s FIRST. Actual87558
+cases/6480720937assertions, all27601normal/27907delayed callback failures,
+three-job native/padding/DATA corruptions, all4917silentwrite drops and768
+missingpixel controls; old/intermediate/regressing/future EOP and mutable
+context/command/job/phase/ops/completed-count quarantine. Rewriting a byte
+already identical to previous native bytes may be silently dropped safely;
+the model explicitly distinguishes these from changed bytes/root commands.
+Root independent-sequence-engine-review-v1.json FIRST0 SHA
+661adc937e7c82437897582e902d23e850a54ea714aaa6a44789772174067d9b.
+DSH v5 CLOSED inner0 FIRST: current171 genuine XNU ARM64 core TU,2121 header/
+config inputs and protected reference files unchanged;63784B Mach-O object SHA
+fbf47c03a04f3dd130962ee16f87c267d4d4d71ae71fd17bd1a1e4431fd1e3ac.
+All engine/model/object evidence is source/MODEL only, NOT physical execution.
+
+New private candidate172v1 contains8changed/new files, including separate GGJ
+provider, coordinator/PAS real mode9 admission, all shared selectors, build
+entry, and immutable engine-v1 bytes. Original mode8 GGT provider body preserved
+exactly. Same owner/NC/PTE/IRQ/routes/clock/reset/2sphase/4stotal/8sentry/WDT
+policy. author/provider-candidate-result-v1.json SHA
+b754e05feeadc3a34ea4eefb891400c107278ed962b00d5dc534e06d856a9478.
+No provider acceptance, production patch/replay, full85host/kernel/image/boot yet.
+
+DSH v6 board FAILED inner1 BEFORE compile: input manifest named nonexistent
+clear/compute _native.h; both modules actually embed vectors in their pinned C.
+Failed script/executor/dispatch retained. v7 board compile0/6.32s, full old+new
+model FAILED -6/9.44s in an OLD unsupported-mode test at generated line4756:
+old sentinel9 is now supported. Original rejection body/count preserved with
+unsupported10 and explicit exclusion9 in board_host172v2.c. No production guard
+changed. Original failed v1/v2 evidence retained. v8 board RUNNING live exec65152
+via dispatch_once172v8.py board/check_sequence_board172v3.py; poll same handle,
+never restart claim. It runs all5new native trace scenarios then full old25551
+plus new provider cases. New result NOT accepted yet. Need provider/native
+ARM64, real coordinator/owner fixtures, source replay/full85host/artifact/runtime
+gates before any new phone trial. Preserve user's tools/mkadt.py7line diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+Last public100dca02db06ad21f03bf116fd6b111eb48e9169 equals PRIVATE22206b906333b0b0a10adf7d3f508130c29af1ef
+tree755753373ca59fcf5e6e7b57bb6f12e1da861439; use that tuple for next publication.
+
 ### 2026-11-08 —171 physical native triangle ACCEPTED; color/coverage controls next
 
 This goal turn PROGRESS: first physical fixed A619 vertex/fragment triangle
 accepted. Full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh goal remains
 ACTIVE/unlimited. This is one closed16x16 diagnostic, NOT UI acceleration or a
 general rendering API. No human touch/UI regression or GPU throughput claimed.
+
+Physical milestone docs private22206b906333b0b0a10adf7d3f508130c29af1ef published
+as public100dca02db06ad21f03bf116fd6b111eb48e9169, sole public parente0ef4b32e59cd319ba7b89ffa61cf57070efa5b0,
+SAME TREE755753373ca59fcf5e6e7b57bb6f12e1da861439. Verified ref/tree/parent in
+public-physical171-handoff.json. For the next same-tree source publication use
+that public parent and PRIVATE equivalent22206b9 as diff base; public API commit
+objects are not mirrored locally. This final handoff note is a later local docs
+commit. ALL DSH jobs16..35 now terminal; no live build/test/boot or pending user
+input. Phone TWRP171. No172 work started yet. Do not rerun completed stages.
 
 DSH v34 CLOSED inner0: ONE temporary171 fastboot boot, sending0.450s/booting.134s,
 AUTOMATIC TWRP after131s, fresh banner matched; no user action/attribution asked.

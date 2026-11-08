@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —USER APPROVED175 delta; exact root write/readback PASSED
+
+User ACTUALLY answered the pending question: "允许写入，并允许失败时回滚".
+This is explicit consent/resume, not automatic continuation. Prior missing-
+approval blocker is resolved. Full daily-use/GPU/Metal/RAM/UFS/peripheral/
+90–120Hz objective remains incomplete and unchanged; continue authorized work.
+get_goal still returned old BLOCKED metadata at turn start; no tool supports
+setting ACTIVE (user/system controls resume). Do not treat that stale status
+as a reason to stop the explicitly resumed task or ask for the same approval.
+
+Immutable research/tmp/dsh-0175/root-write-user-approval.json records actual
+question IDcall_8421dbca64534ccfb1564ee58a36f334, exact answer and planfd80e691...
+with approved=true/allow_rollback=true. Scope ONLY the previously reviewed
+1,802,240B/440blocks and failure restoration; no other destructive root writes.
+DSHv25 TERMINAL0 / inputs unchanged. write_root_delta175v2.py rechecked exact
+gauguin recovery,114919714816B userdata, unmounted/no holders, ALL old ranges
+before the first write. EXACT48runs/440blocks applied,48write attempts, all
+48flush+readbacks verified, volume header last; NO rollback needed. Result
+root-apply-v2/result.json state applied-approved-delta-readback-verified,
+planSHAfd80e69175f5ea0192ac85ca4c81f14b17a6da17dfa7de2bb6c51db8d85aed79,
+reboot_permitted=true. Original16GiB backup/old run bytes retained untouched.
+
+NEXT ONE reviewed boot175.py via new immutable DSHv26 profile, then automatic
+recovery/log pull, capture_probe175.py readonly CURRENT HFS metadata/files and
+qualify_hardware175.py. No175boot result yet at this checkpoint. Native175
+kernel/image/source/recipe remain frozen; main changes only NOTES + original
+mkadt diff. User away/ALLresets automatic, no attribution/UI question. Ask
+manual recovery only if genuinely stuck. Existing temporaryboot/13B latch
+permission remains valid. GLES isolated/public branch unchanged; no GL/Metal
+physical claim until its actual later test and persistent/multiqueue work.
+
 ### 2026-11-08 —GLES SOURCE PUBLISHED; full goal BLOCKED awaiting175 approval
 
 Full daily-use/GPU/Metal/RAM/UFS/peripheral/90–120Hz goal remains INCOMPLETE and

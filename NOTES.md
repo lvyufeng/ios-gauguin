@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 PHYSICAL smooth/flat varying ACCEPTED; texture sampling next
+
+Goal ACTIVE/unlimited; continuation PROGRESS, not full GPUAPI/Metal/UI/highrefresh/
+daily-use completion. Phone automaticTWRP173 after130s, allDSH173 v1..23 now
+TERMINAL (v2/v6/v10/v15/v18 failed artifacts retained); no live job/pendinginput.
+User AWAY: ALL resets automatic --manual-reset no; never ask attribution/UI,
+prompt only for genuinely needed manual recovery. Criticalsource stays
+KERNEL173_SOURCE_HEAD28137449ca9cb7b54e6e95ffb22e42c59516d224, source173-codex
+5323files/167patches/cee256ba3ef7576f950d285312475b31f716cd8c5ac5a8b0ab73edd128dd3d3a.
+Current native recipe gauguin.mqtgMg/4b98a4e70a2b747eefd67679e69fd326f13f36d511fa8c9825b382b514be3dc2,
+NEVER prior172/171/olderTUhelpers against shared generatedheaders. RemoteNEXT
+publication base remains940220ae/private28137449/tree219609a6 until below docs
+publication completes; frozen sourceidentity separate from docs/publicidentity.
+
+DSH v22 boot CLOSED inner0 FIRST: uniquegauguinrecovery/13Bmisc recoverylatch
+readback/uniquegauguinprofastboot, ONE tempboot173, send.452s/boot.134s,
+automaticTWRP130s, fresh rawbinary/textpull +exactkernelbanner0. No manual
+attribution question; standingpolicy honored. DSH v23 read CLOSED inner0 FIRST:
+strictcompletephysicalverifier0, exactbinary->textdecode0, all35fulltechnical
+inputs/currentkernel/image/trial/INIT-MEM-AUTH/GGU/clock/context/fault/time
+bindings retained. Root review_physical173.py FIRST0, proof SHA
+55d9e90f851d615c486598cd5200598adbd1ebaeac8b0fb5e700357a138c2b7b.
+All768actual before/afterpixel samples,81nativebuffer receipts,3completejobs,
+freshUSER32EOP6/22/38/root20-27-34-41. SmoothRG andGR each256distinct actual
+pixelwords; first-provoking flatRG oneactualpixelword. All channels within
+PREDECLARED Fraction floor/ceil UNORM ranges, exact previousOBSERVED image
+required at each nextcapture. No tolerance/source expectation change after
+phone. Native1158payload/1632padded words and entire1024word DATA perjob
+compared; onlyCPU RING stores, no CPU DATA image or shadow writes. One signed
+INIT/MEM/AUTH+native GGU20, original171GGT/172GGJ modules preserved.
+Guarded3jobstage1.337687917s,2.662312396s remaining4sbudget; timing is diagnostic
+control-flow span, NOT throughput/FPS/UI benchmark. No humanUI/touch/performance
+observation. All22artifacthardware flags STILLFALSE; separatephysicalproof only.
+
+Kernel17195760B/66639cc7228294dc3e1baacf19747d00aa3ae78efc8d012591bffff1fa3be003,
+IDxnu-6ebe29c9838c4ae8b50fcac7efe7aeeb. Image19890176B/
+400534b21c262a9b95cdde00608c4f8bde6f8d674209a94fd154d8eb887a6524,
+payload19562496B/c43a7abfcf0aa36df9760b18f09cf1ba62dee5268f965ed6d761a785801603e9,
+607Bmode10/uniquegwrt-0173-a1/608Bfield1NUL/fiveassets.
+Fullreport e688a75465a58970df4c27c70ca4380d6ace9e4b7a3a41ee1f8e4b24de09cef4;
+rawtext 96f1e980f2ec913122150dc287466dbda8b89e0625251807f3cab39333f2cd48,
+rawbinary f7ac9af9ee0b7a4708c41311369c8770dbf548963331ef12ca6fdda5bb5af6d7.
+Allrawdeviceartifacts remain ignored/private, neverGit. Earlier softwaregates:
+full86host0,95790newcore/7423873215assertions,31280board,738coord/540owner,
+184oldqualifierconditionsretained,4634parserpositives/10416negatives,
+7848actualfullnegativeunion/everyworker120positives,120metadatarefusals0.
+
+NEXT publish completed physicalhandoff via SAME TREE/sole940220aeparent and
+nonforce REST; then174 primary-source native texture/sampler capture first.
+OriginalMesa24.3.4 fd6_texture.cc/.h provide sampler/view/texture-state emitters;
+source was only READ thisturn, no174 capture/compiler/kernel/image/boot yet.
+Aim bounded2D nearest sampler +actual declared texture pattern/control first,
+using original NIR/IR3/linkage/descriptor/cache emitters; decide existingRO
+layout/extents/immutableinput integrity from actual native outputs before new
+criticalC. Preserve173nativevarying and allolder physical/sourcebaselines.
+General resource/submission/API, IOSurface/presentation, iOSGPU/Metal ABI,
+UIacceleration, memory/storage/peripherals/highrefresh remain fullgoal work.
+Original mkadt7line diff a74a0418... intact; no userdata/GPT/flash operation.
+
 ### 2026-11-08 —173 full runtime/one-boot protocol ACCEPTED; ready for ONE tempboot
 
 Goal ACTIVE/unlimited; continuation PROGRESS. Phone lastautomaticTWRP172;

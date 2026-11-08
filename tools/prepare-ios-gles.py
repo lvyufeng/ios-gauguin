@@ -103,6 +103,12 @@ def main():
     with (out/'gauguin-queue-fences.log').open('x') as f:
         r=subprocess.run(['patch','--batch','--forward','--fuzz=0','-p1','-d',str(source),'-i',str(local)],stdout=f,stderr=subprocess.STDOUT)
     assert r.returncode==0,'local queue/fence source patch failed'
+    # Preserve native readonly BO protection and strict unused-field admission.
+    local=repo/'userland/mesa/submit-admission.patch'
+    pins[str(local)]=sha(local)
+    with (out/'gauguin-submit-admission.log').open('x') as f:
+        r=subprocess.run(['patch','--batch','--forward','--fuzz=0','-p1','-d',str(source),'-i',str(local)],stdout=f,stderr=subprocess.STDOUT)
+    assert r.returncode==0,'local submit admission source patch failed'
     changed={};original={}
     with tarfile.open(a.archive) as t:
         for m in t:

@@ -1,0 +1,34 @@
+--- a/src/freedreno/drm/msm/msm_ringbuffer_sp.c
++++ b/src/freedreno/drm/msm/msm_ringbuffer_sp.c
+@@ -120,6 +120,11 @@
+ 
+    for (unsigned i = 0; i < fd_submit->nr_bos; i++) {
+       submit_bos[i].flags = fd_submit->bos[i]->reloc_flags & ~MSM_SUBMIT_BO_DUMP;
++      /* Relocation tracking starts pessimistically READ|WRITE, including ring
++       * BOs allocated GPU_READONLY. Match their actual SMMU permissions; never
++       * ask the native client to write a readonly command/shader allocation. */
++      if (fd_submit->bos[i]->alloc_flags & FD_BO_GPUREADONLY)
++         submit_bos[i].flags &= ~MSM_SUBMIT_BO_WRITE;
+       submit_bos[i].handle = fd_submit->bos[i]->handle;
+       submit_bos[i].presumed = 0;
+    }
+@@ -134,7 +139,7 @@
+    ret = drmCommandWriteRead(pipe->dev->fd, DRM_MSM_GEM_SUBMIT, &req,
+                              sizeof(req));
+    if (ret) {
+-      ERROR_MSG("submit failed: %d (%s)", ret, strerror(errno));
++      ERROR_MSG("submit failed: %d (%s)", ret, strerror(-ret));
+       msm_dump_submit(&req);
+    } else if (!ret) {
+       fd_submit->out_fence->kfence = req.fence;
+--- a/src/hakios-drm/hakios.drm.c
++++ b/src/hakios-drm/hakios.drm.c
+@@ -566,6 +566,8 @@
+ 	submit->flags &= ~(uint32_t)(MSM_SUBMIT_SYNCOBJ_IN | MSM_SUBMIT_SYNCOBJ_OUT);
+ 	submit->in_syncobjs = submit->out_syncobjs = 0;
+ 	submit->nr_in_syncobjs = submit->nr_out_syncobjs = 0;
++	/* Private syncobjs were consumed here; no array/stride reaches native ABI. */
++	submit->syncobj_stride = 0;
+ 	error = call((unsigned)(DRM_COMMAND_BASE + DRM_MSM_GEM_SUBMIT), submit, size);
+ 	if (error != 0) return -error;
+ 	if (submit->fence == 0) return -EPROTO;

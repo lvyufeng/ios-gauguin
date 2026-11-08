@@ -118,7 +118,11 @@ The actual iOS16 launchd recognizes `ActiveHardMemoryLimit` and
 through XNU GET command8 and its physical footprint through `TASK_VM_INFO`
 before/during context creation, shader linking and both readbacks. It refuses
 unlimited, soft, incorrect or unreadable limits. It never sets memory policy.
-These changes need a new physical trial; they do not establish GLES success.
+The device-policy trial applied these limits: all four observed checkpoints
+reported active/inactive 128 MiB hard limits. It created a current FD619
+OpenGL ES 3.1 context and linked both GLSL programs. Drawing then failed with
+submit return `-22` and a pixel mismatch; only the three startup API jobs reached
+native submission. This remains a failed physical GLES trial.
 
 ```sh
 python3 tests/test_gles_probe_memory.py \
@@ -130,6 +134,31 @@ python3 tests/test_gles_probe_order.py
 The memory test uses the actual kernel's independent struct and command
 definitions, then exercises the production query function with typed syscall
 seams. It cannot establish that launchd applied the installed policy.
+
+`submit-admission.patch` fixes the next transport mismatch. Mesa initializes BO
+relocation flags to `READ|WRITE`, including command BOs allocated GPU read-only.
+The native client rejects a write declaration for such a BO. Clear only the
+write declaration for allocations with `FD_BO_GPUREADONLY`; preserve writable
+BO flags and all unknown-flag/range rejection. Native permission checks and
+page-table permissions are unchanged. The patch also clears the private syncobj
+stride after consuming its arrays and counts, as required by the strict native
+ABI. This does not advertise new syncobj capabilities. Submit diagnostics use
+the returned negative errno; the earlier timeout text came from stale `errno`.
+
+```sh
+python3 tests/test_mesa_submit_admission.py \
+  --old-source /absolute/path/previous-prepared/mesa-25.0.7 \
+  --source /absolute/path/fresh-prepared/mesa-25.0.7 \
+  --kernel-source /absolute/path/actual-patched-XNU \
+  --out /absolute/path/fresh-submit-boundary-results
+```
+
+The test compiles the complete production Mesa flush function, libdrm transport,
+native submit method and runtime range helpers. It uses typed fake object/list
+storage, IOKit calls and ring execution. Old source must reproduce `-22` for the
+captured 13-BO request shape; new source must pass eight scenarios, including
+writable BOs, unknown flags, invalid ranges, timeout propagation and consumed
+syncobj fields. These host results require a new physical pixel test.
 
 Kernels 179/180 provide the source profile for this package: a health-gated watchdog
 service, up to 32 logical queues over one synchronous serialized ring, and

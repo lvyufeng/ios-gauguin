@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —185 actual-submit RED/GREEN PASS; signed Mesa build PASS
+
+184 real trial fixed memory128MiB hard and created FD619/OpenGLES3.1 context,
+linked bothGLSLprograms, thenFAILEDpixels with submit-22 (only3API nativejobs).
+Root orchestrator W184/gles-failure-review.json retains originalstrictFAIL and
+allold/rawlogs. No GLES/Metal/UI/refresh acceptance. The timeout string was stale
+errno; current negativeerror correspondsBadArgument/EINVAL before hardware.
+
+This change adds submit-admission.patch: clearWRITE declaration ONLY for known
+GPU_READONLY allocations, keepwritable/unknownflag/range behavior; zero stride
+of consumed private syncobj arrays; print actualnegativeerrno. NativeBO/SMMU/
+range protection and kernel180 remain unchanged. ActualRING_FLAGS includes
+FD_BO_GPUREADONLY while FD_RELOC_FLAGS_INIT defaultsREAD|WRITE. Productionflush
+and fullnative submit method now reproduce the captured13BO command shape:
+oldret-22/fakejobs0/readonlyflags3, newret0/fakejobs1/readonlyflags1/writable3.
+DSH185v5 eightproduction-boundary scenarios/29assertions PASS underASAN/UBSAN;
+retainedqueue/fence cases v3 PASS. Typedlist/object/IO/ring execution is fake;
+physicalshader/pixel success stillrequired. Initialtwo fixturecompile errors
+(staticlinkage, childfield placement) preserved in failed-v3/v4-inputs andlogs;
+no productioncase waived. Exactfulloriginalnative submit body compiled unchanged.
+
+DSH185v6 ONE8job iOS16cross-build/sign/strictverify0 in60.18s/all10989pinsunchanged.
+New signedMesa16026608B SHA3a44752493fb204d62817934dcee10c48ed3be857908402f93e06cc77128a2ea;
+probe73328B SHA2e3b5719... EXACTinstalled181probe unchanged. Independentreview185
+compares10977sourcefiles: ONLY hakios.drm.c andmsm_ringbuffer_sp.c differ from179;
+publicexports identical, iOSplatform2/min16.0, no kernelrebuild/CI. PhoneTWRP.
+
+Fresh AFTER184boot16GiB0444 backup305b3ef2... complete0. Root mainNOTES has
+currentdeviceorchestration. DSH185v7 localCOWsingle-library delta/audit/fsck/model
+is ongoing. No185rootwrite/boot/approval; futureexactdelta requiresconcreteconsent.
+GLES nextpublicationbase PUBLIC0d6df19f...=PRIVATE29eb69d7.../TREE00c0733... until
+next verifiedreceipt. Full GPU/Metal/RAM/UFS/peripherals/highrefresh goal ACTIVE.
+
 ### 2026-11-08 —184 probe-label policy fix; original-launchd model14 PASS
 
 The approved181 probe/job/cache write/readback passed, but actual181 trial

@@ -13,7 +13,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source174-codex'))) / 'bsd/dev'
+DEFAULT = Path(os.environ.get('XNU_SOURCE',str(ROOT / '.deps-cache/p0-20261105/source177-codex'))) / 'bsd/dev'
 PAS_INIT = BASELINE = DEFAULT
 FIXTURE = HERE / 'fixtures/gauguin_bcm_coordinator_host.c'
 
@@ -103,9 +103,11 @@ def main(temporary):
         assert texture and int(texture[1])==38 and int(texture[2])==int(varying[2])+38
         runtime=re.search(r'PASS: (\d+) new mode12 coordinator cases \((\d+) total\); old cases retained',output)
         assert runtime and int(runtime[1])==22 and int(runtime[2])==int(texture[2])+22
+        service=re.search(r'PASS: (\d+) new service coordinator cases \((\d+) total\); default798 retained',output)
+        assert service and int(service[1])>0 and int(service[2])==int(runtime[2])+int(service[1])
         report.update(state='passed', original_cases=58, init_cases=42, mem_cases=49,
                       cx_cases=int(counts[1]), clock_cases=int(clock[1]),
-                      firmware_cases=int(firmware[2]), perf_cases=int(perf[2]), total_cases=int(runtime[2]), runtime_cases=int(runtime[1]), triangle_cases=int(triangle[1]), sequence_cases=int(sequence[1]), varying_cases=int(varying[1]), texture_cases=int(texture[1]))
+                      firmware_cases=int(firmware[2]), perf_cases=int(perf[2]), total_cases=int(service[2]), service_cases=int(service[1]), runtime_cases=int(runtime[1]), triangle_cases=int(triangle[1]), sequence_cases=int(sequence[1]), varying_cases=int(varying[1]), texture_cases=int(texture[1]))
     except Exception as error:
         report.update(state='failed', error=str(error))
         print(f'FAIL: {error}; {log_path}', file=sys.stderr)

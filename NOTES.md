@@ -2,6 +2,325 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —178 PHYSICAL600s idle service PASS; next Mesa queue/GMEM gate
+
+KERNEL178_SOURCE_HEAD cb28e30d747b9c29688180897cd08a3b4e20c380 remains frozen.
+DSH178v5 package0: 19,972,096B image SHA
+2860e8bcc7ec939ba9b8836ffbe719f1cab70b3c7d969851333e50210aacde7a,
+payload7a5e188f39a924298623b23b4340719075242ba3cfe295a04d82435ccebc0e24.
+v6 ONE temporaryboot0/inputs unchanged;10:39:08..10:51:35UTC, automaticTWRP746s
+(observer746.794232s), no manual reset/root write/new CI. Actual native banner
+31e01e27749c4a7b9f32e1ad93f0080b exact, all root/launchd/SpringBoard/backboardd
+markers. Three real startup submissions rc0/EOP1,2,3/shadows32,44,56. Healthy
+service completed595renewals over600s, sampled1/30..570 all decreased real WDT
+counter (first460847->3; subsequent about33000->0..14). Finite deadline first
+poisons owners, records completed3/shadow56, then stops refresh; hardware reset
+returns to recovery. NO WDT/service failure/panic. Delayed stable ACK fix now
+has physical positive evidence versus177's immediate-readback failure.
+
+v7 CURRENT readonly HFS capture0, CLI775622b6... still exact/root0755; raw2803B
+preserves all1929B historical stdout then874B current11events. New seed3636990113,
+8192normal hash3612219514,1024surface hash3449927144, final3fence/PASS,stderr0.
+v8 unchanged frozen API checks plus strict600s service qualifier0; ROOT
+review_physical178.py independently recomputed both hashes and verified all
+native EOP/sampled renewals/final stop/image/source pins, output
+research/tmp/dsh-0178/independent-physical-review.json PASSED. This acceptance
+is startup API +600s IDLE health/route/power/WDT ownership, not a late GPU job,
+GLSL/Metal/ordinary-app UI/FPS/refresh qualification. Full original goal ACTIVE.
+
+NEXT0179 private candidate-v2: bounded32logical queues over one serialized
+synchronous hardware ring, queue-local sequential completed fences, no ID reuse,
+legacy queue0 only default/unambiguous singlequeue; GMEM params2/6 derive from
+actual native UCHE config table (base1MiB/size512KiB), require live READY owner.
+These are configured GPU addresses, NOT new physical RAM or MMIO measurements.
+DSH179v1 old178 functional RED at second queue create (compiled0); newv1 failed
+-Werror misleading-indentation before test, retained immutable candidate-v1.
+Only allocation braces corrected in candidate-v2; DSHv2 GREEN0, actual transport
+legacy submit/sync assertions plus207interleaved-queue checks (cross-queue holes,
+closed IDs, ambiguous0, capacity, output unchanged on failure). Host-only, no179
+native build/boot yet. Public178fixtures/source NOT modified. Need focused GMEM
++actual board parameter tests, native3TUs with CURRENT1785XaXo7 recipe, clean
+173patch replay/review. Also update isolated GLES shim: carry actual queueID in
+pending syncobjs/waits/transfers; global last_fence cannot survive queue-local
+fences unchanged. Existing signed Mesa package has old shim, not yet compatible.
+
+Phone now TWRP. Before any next boot capture fresh current installed files/HFS
+header (178preflight consumed). Before eventual GLES install: fresh full root
+backup, concrete reviewed delta and NEW explicit destructive-write consent;
+previous175install/path-fix permissions were consumed. No stale HFS rollback
+after boot. Preserve original mkadt7line diff a74a0418... untouched.
+Publish completed177/178source +this handoff from current MAIN PUBLIC4e3a503...
+=PRIVATEf0671f4.../TREE1b354f7... only; isolated GLES public713ea8... stays separate.
+No need to repeat old whole-board suites or dispatch CI for this locally built
+artifact. Late workload/GLES, client isolation, compositor/Metal, fullsafeRAM/
+UFS/peripherals/highrefresh remain unfinished under full daily-use goal.
+
+### 2026-11-08 —Native178 build/qualifier0; fresh root0; ACK image package LIVE
+
+Frozen KERNEL178_SOURCE_HEAD cb28e30d747b9c29688180897cd08a3b4e20c380.
+DSH178v3 ONE local8job full native build0 +strict native source/SDK/install/
+archive/service+IODelay symbol qualification0, inputs unchanged. CURRENT
+recipe gauguin.5XaXo7 (shared generated headers/Makefiles replaced; not177
+MZBj9d), kernel SHA4ac4790bce4fdee674a5d941ddcc49340f1d26bca63a368ab0bba8d964cb509a.
+Source c6af8239.../172patches/5329files. ROOT root-build-review.json PASSED;
+private WDT header ABI unchanged, only ack C +documentation differ from177,
+other177driver host/native checks bound through historical fixture snapshots.
+
+DSHv4 READONLY CURRENT recovery/unmounted installed files/cache +stable current
+HFSheader0; sameCLI775622b6.../Systemjobe308770e.../cacheb4f9bcff.../root modes.
+No userdata write/boot yet this retry. New boot_service178.py BYTE IDENTICAL to
+tested177wrapper; reuse9case host admission proof rather than rerun unchanged
+plumbing. Current178profile will pin fresh header; old177header is consumed.
+DSHv5 package LIVE with SAME602B service1/600s command and6NULpadding, same
+loader/5assets, NEW178kernel only. Next inspect SAMEv5 -> one temporaryboot,
+780s observation/860s outer bound -> fresh capture -> strict600s verifier.
+Exact historical stdout prefix now1929B SHA
+4fcb6a28db9b990fa27565f459b500124fd706471168957c36ddaf35bb7ea12a
+(all175/176/177raw bytes). Do not remove any new event/failure or replace this
+with only the last successful run. Full raw capture retained separately.
+
+0178 checks confirm a bounded number of samples and CPU-time limit when the
+platform read/delay callbacks return; they do not prove cancellation of a hung
+MMIO/IODelay or arbitrary secure-world stall. Hardware WDT remains enabled and
+there is only one pulse in this path, so no independent petter conceals a hung
+GPU owner. Actual delayed reset confirmation/persistent service still awaits
+physical acceptance. No late GPU workload/GLSL/Metal/UI/highrefresh claim.
+Full original goal ACTIVE/incomplete; no new destructive root consent needed.
+
+### 2026-11-08 —178 clean172 replay and independent ACK review PASSED
+
+DSH178v2 TERMINAL0/inputs unchanged. Source178-codex172patches/5329files SHA
+c6af8239a294c67bdf2377617223844169b0447dc3d3756c6e786be0e7e1105a
+equals tested candidate-v1. ROOT independent-implementation-review.json binds
+actual WDT nativeTU object/current177recipe and delayed-ack RED177/GREEN178;
+verified exactly ONE RST write in refresh, read-only ack2ms/256sample/two-stable
+guards, no IOSleep/pulse replay. Other177coordinator/board/core/IOKit sources
+byte-identical; WDT private header only comment change, ABI unchanged. Existing
+177host/native proofs checked against pre178-fixture-snapshot for the two
+changed public WDT test files; all other old proof inputs still exact. No broad
+suite replay/new GPU algorithm. Commit178+regression/handoff and pin sourceHEAD,
+then ONE8job build. No178hardware acceptance;177failed service retained, current
+phone TWRP. No UI/reset-attribution questions. Full goal ACTIVE/incomplete.
+
+### 2026-11-08 —178 delayed watchdog ACK regression/TU PASSED; clean replay LIVE
+
+177v12 terminal: startup-only GPU qualifier0 (seed3659183001/full8192+1024
+hashes/3fences correct), strict600service validator correctly REJECTED1 on
+elapsed147s. No full hardware-qualification.json. All177workers terminal.
+Before178fixture changes,177passing WDT fixture/script saved with SHA receipts
+in research/tmp/dsh-0177/pre178-fixture-snapshot; source commitbcd3a06 retains
+all historical public inputs. Do not revalidate177proofs against later178fixtures.
+
+Codex178 changes ONLY WDT C +header acknowledgement documentation; no queue,
+power/bootstrap/GPU packet or wire ABI change. ONE RST1 -> read-only STS samples
+with10us busy delays -> two matching decreased counts, BOTH2ms CPU bound and
+256sample bound, exact post EN/BARK/BITE/status check -> only then publish new
+epoch. No pulse replay/disable/threshold write. Failed attempts keep old epoch,
+quarantine and retain owners. Cached failure log now includes ack_ns/samples.
+Primary native watchdog_v2.c pet_watchdog observed as documented below; local
+reference shows single RST and stable pre-counter sampling, no immediate-zero
+assumption. Actual clock-domain delay diagnosis awaits new physical success.
+
+DSH178v1 TERMINAL0/inputs unchanged. Actual177 functional RED1 at first delayed
+reset "healthy owner refreshes" assertion (compiled0, not a build error),
+actual178 GREEN0 with all original87/lease cases +46service cases/600stress
+refreshes. New cases cover0/1/3/32/128stale reads, >2ms/never-ack, frozen CPU
+clock bounded256, transient low sample lacking stability; all require ONEpulse.
+Native WDT ARM64 TU0/current177MZBj9d recipe/2128headers, references unchanged.
+Failed177software behavior preserved, not waived. DSHv2 LIVE fresh original
+export/172patch replay into source178-codex, must match candidate-v1 full hash
+recorded expected-source178.json. Next ROOT review/reuse untouched177checks via
+historical snapshots, commit178/tests, freezeHEAD, ONE native8job build/package,
+fresh actual installed files/header,600s temporaryboot. No userdata writes or
+new consent needed. No178fullbuild/boot/runtime acceptance yet. Goal ACTIVE,
+full daily-use/GPU/Metal/RAM/UFS/peripherals/highrefresh remains incomplete.
+
+### 2026-11-08 —177 physical startup GPU PASS, SERVICE FAILED at first RST readback
+
+DSHv9 package0: same19,972,096B image SHA
+eaf434fce40cd2e0f547c83994977c456b244602d42342e5d9bcdf3da9cb6d3a,
+payload19be99dc132a1290e64cec2aa8c30d3e6afad56ab082b0b458b629b43b8a4bf3.
+602Bcmd/6NULpadding, actual service1/600s present; same loader/5assets/probe.
+DSHv10 ONE temporaryboot TERMINAL0/inputs unchanged, started10:13:05UTC,
+automaticTWRP146s, finished10:15:32UTC. Actual kernel cf1e91bb... banner matches.
+Root/launchd/SpringBoard/backboardd markers, serviceREADY+600owner online, real
+3GPUsubmit/EOP completions rc0/shadow32,44,56 retained, NO native panic.
+
+At FIRST refresh, actual WDT cached failure: reason6 seq0 before459738
+after459738 dt_ns13026887760 EN3/BARK655300/BITE753595. ONE RST1 was written;
+immediate post-write status had not decreased, so code correctly refused to
+advance CPU epoch, quarantined all owners, logged final renewals0/completed3/
+shadow56 and stopped refreshing. This is a FAILED600s service trial; do NOT
+interpret boot0 or3GPU jobs as persistent-runtime acceptance. Auto reset146s
+versus prior130s is consistent with that pulse taking effect later, but delayed
+clock-domain delivery is still the diagnosis/inference, not yet proven ack.
+
+DSHv11 CURRENT readonly HFS capture0: installedCLI775622b6... still exact;
+raw stdout appends prior1056B and new startup11events. New seed3659183001,
+normal8192hash378613978, surface1024hash1756997112, final3fence/PASS, stderr0.
+DSHv12 LIVE startup-only exact-prefix/frozen-GPU-contract qualification plus
+full600service validator EXPECTED to reject elapsed147s. Results distinct:
+startup-api-qualification.json may pass with SERVICE-FAILED; full
+hardware-qualification.json MUST NOT exist/pass. Original failed177image/
+source/model/profile/native/stdout all retained, no retry of claimed jobs.
+
+Read primary pinned native watchdog_v2.c pet_watchdog: samples STS until two
+matching counts BEFORE RST1, performs one write, never assumes immediate
+postRSTzero. Existing177fixture simulated instantaneous reset, missed real
+readback latency. NEXT0178: bounded READ-ONLY post-pulse acknowledgement wait
+(same ONE RST1; no retry/disable/threshold change), require stable decreased
+counter, CPU deadline/context/lease guards, then publish epoch. Add delayed/
+never-ack counter fixtures that fail177 and pass178, retain all old failure
+checks. Use CURRENT native recipeMZBj9d for focused WDT/board TUs BEFORE next
+native build. No multiple-queue work started; prioritise this observed failure.
+Before next boot reread actual root/header; current177preflight consumed. No
+root writes/new consent needed for a kernel-only retry. Phone now TWRP; user
+away/allresets automatic. Full original goal ACTIVE/incomplete, not blocked.
+
+### 2026-11-08 —Native177 build/qualification0; fresh installed files0; package LIVE
+
+Frozen KERNEL177_SOURCE_HEAD bcd3a064951b9102f9c6f2e1e211b03119f6b40f.
+DSH177v6 ONE full local8job native build0 +strict generic source/SDK/install/
+archive/defined-symbol qualification0, inputs unchanged. Current recipe
+gauguin.MZBj9d (NOT176tKac3D after shared headers/Makefiles replaced), BuildID
+xnu-cf1e91bbcc3749dbb2f914feaa628796; installed kernel SHA
+d68ef803384ea5fd0778eb6421f3fc9eec6c28a9bb76fe7047c2cdfb18846f35.
+All5new service/idle/WDTrefresh symbols defined;17664-bit cache fix retained.
+Private qualifier's state label still says native177-cache-physical-address-fix
+from its176template, but its source177hash/service fields/required symbols and
+ROOT independent review explicitly check177service; no report/code edited or
+checks waived. ROOT root-build-review.json PASSED native/source/host binding.
+
+DSHv7 CURRENT recovery/unmounted read-only installed files/cache/header0;
+sameCLI775622b6..., Systemjobe308770e..., cacheb4f9bcff... all exact/root:root/
+modes correct, fresh stable HFSheader recorded installed-preflight.json. No
+userdata mutation/boot yet. v8 actual boot-wrapper model9cases0 inclinvalid
+observation duration refused before any IO. New boot_service177.py retains
+prior recovery/product/latch/source/image guard flow; bounded observation780s,
+outer timeout860s for the600s service test (original180/260defaults retained).
+DSHv9 package LIVE: same176loader/assets and installed175probe/trial; only new
+kernel +service1/600s flags. Remove ONLY three explicit default-zero diagnostic
+tokens to fit608B bootargs (actual init defaults0 read in source), never truncate.
+
+Next inspect SAMEv9 result, one temporaryboot after all pins/profile review,
+observe automatic recovery (expected roughly old130s+600s), capture current
+stdout plus native. Prior raw1056B stdout must be exact saved prefix; do not
+discard any new events. New physical_api_core177.py preserves frozen175API
+logic byte-for-byte EXCEPT mode177runtime admission; qualify_service177.py
+adds600s elapsed, startup3submits/full8192+1024readbacks, sampled health/real
+counter reset receipts/final renewal count, finite stop and no panic/failure.
+Actual renewal count may be below599 because live health/IO take time; require
+300..600 with exact sampled sequence +same completed3/shadow56. This stage
+can qualify sustained IDLE service; it cannot prove late workload/GLSL/Metal/UI.
+Full original goal ACTIVE/incomplete; no destructive root write/new CI needed.
+
+### 2026-11-08 —177 clean replay/implementation review PASSED; commit before build
+
+DSHv5 TERMINAL0, source177-codex fresh171patch replay EXACT candidate-v3 SHA
+24de20d668e9c4566b607487519d5b1b2e4d12e72bf4a85206bd9869965ede35/5329files.
+ROOT independent-implementation-review.json binds final7kernel files to their
+actual native ARM64 TU objects/current176tKac3D recipe and selected successful
+host outputs, all private header bytes checked. Full legacy board prefix before
+dynamic runtime unchanged. No full90suite claim; changed driver5tests include
+original798coordinator/87WDT/17214core and new29coord/38WDTservice/72core-health/
+158board-heartbeat plusIOKit64+58. Failed initial fixture and all candidates/
+profiles/results retained. All pinned stages1..5 terminal; v1 only fixture1 as
+described below, production C unchanged; v2corrected coordinator0. No phone
+command/new root write yet this turn. Commit177+tests+handoff, freeze sourceHEAD,
+ONE local8job native build/strict artifact qualification next. The physical
+service test will use600s and current installedCLI; persistent GPU operation
+beyond20s is still UNQUALIFIED. Future multiple queues/GMEM/GLSL/Metal/highrefresh
+remain required. Full original goal ACTIVE/incomplete, not a narrower milestone.
+
+### 2026-11-08 —177 health-gated GPU service SOFTWARE checks/TUs PASSED; replay LIVE
+
+Previous goal turn PROGRESS:176 real user BO/map/3EOP/fence/IOSurface acceptance
+and publication. User has explicitly set full original goal ACTIVE; get_goal
+confirms ACTIVE/unlimited. No objective reduction. Current work is persistent
+GPU ownership, not another fixed PM4 sample or a larger diagnostic timeout.
+
+Codex authored0177 (7kernel files) from immutable176 in private candidate-v1/v2/
+v3; originals preserved. New opt-in sweetgpuservice=1 only withmode12; optional
+sweetgpuservicesecs=60..3600 for finite recovery trials,0 for ongoing service.
+Legacy flag0 retains original20s runtime/30s stop. Same IOKit operation lock
+serializes heartbeat with submit/map/close, so a stalled owner cannot be hidden
+by an independent petter. Actual idle health checks real WPTR/shadow/EOP/faults;
+board rechecks existing MMU/GMU/power/ownership. Only then WDT refresh may issue
+ONE RST1 pulse, exact EN3/BARK655300/BITE753595 untouched. Each epoch needs fresh
+advancing counter, agreement with independent CPU time,3s margin, quiet NSIRQ,
+reset counter/readbacks; errors poison authority and retain all DMA owners.
+No retry/disable/rearm/threshold changes. Cached failure reasons and final
+renewal/fence/shadow receipt added; quarantine precedes final diagnostics.
+Coordinator invalid-context path does software quarantine without GPU mutex.
+
+DSH177v1 inputs unchanged: WDT0 (87original+lease cases retained,38newservice
+cases/600actual mock refreshes), actualGPUcore0 (17214old+72newhealth asserts),
+IOKit0 (64submit/58sync inclheartbeat locking/retention), all5nativeARM64TUs0
+with current176tKac3D recipe/2128headers/protected references unchanged. Only
+coordinator fixture1 wrongly expected invalid flags before thread creation;
+actual flags are checked by scheduled worker before delay/hardware. Failed
+fixture copied failed-v1-inputs; corrected assertion, production code unchanged.
+DSHv2 coordinator0 (798old+29service=827), actual board ready/heartbeat + actual
+GPUcore0 (158asserts, no pet after failed GPU/route/lease). v3 focused WDT
+diagnostics regression0 +WDTnativeTU0. v4 focused final cached status/heartbeat0
++boardnativeTU0. No repeated950s whole-board sweep. Final candidate-v3 complete
+tree24de20d668e9c4566b607487519d5b1b2e4d12e72bf4a85206bd9869965ede35,
+5329files,7kernel-file delta; patch0177 SHA recorded expected-source177.json.
+
+DSHv5 LIVE fresh original export/171patch replay -> source177-codex must equal
+the full tested candidate hash. Next ROOT source/test/native binding review,
+commit completed177/tests, pin sourceHEAD, ONE native8job build/strict qualifier/
+package, SAME installed175CLI temporaryboot with600second service trial. Need
+fresh read-only installed files+HFSheader before boot; old176preflight is stale.
+No new root write/install/permission needed for this kernel-only trial. No
+actual177boot/persistent acceptance yet; all tests above are host/native only.
+Preserve originalmkadt7line a74a0418... diff. Phone last actual state TWRP.
+Full GPU/Metal/RAM/UFS/peripherals/90-120Hzdaily-use goal remains incomplete.
+
+### 2026-11-08 —176 physical API milestone PUBLISHED; next persistent-runtime gate
+
+Reviewed REST non-force fast-forward publication PASSED, only4textfiles
+(NOTES, actual pmap regression,0176patch,series), no binaries/Apple blobs/dumps/
+device identifiers. MAIN/CI remote codex/gauguin-p0-ci-20261105 is now
+PUBLIC4e3a503e76068b0195e7c1d4111700ad71862697
+=PRIVATEf0671f448470fb3a53c2afc7fa4ad4b79e8c5cbc
+/TREE1b354f711e401e996d66d593d6a8b9acb63ac2b8,
+sole public parent35d706fd0564b080989b492eba1e024896ee0cea. Remote ref/tree/parent
+rechecked, receipt research/tmp/dsh-0176/source-publication.json. THIS tuple is
+the NEXT MAIN publication base; public objects not mirrored locally. Kernel
+source identity remains4d6b2a8..., not this later docs commit or receipt HEAD.
+Independent GLES branch713ea8af...=0d4c9389.../d3d653a5... remains separate.
+No CI dispatched: local native8job build0, same-artifact strict qualifierv5=0;
+all9DSH profiles terminal (v2 inner1 was ONLY initial qualifier import failure,
+native build0; original failed helper/log retained). Physical bootv7=0,
+readonly capturev8=0, frozen physical contractv9=0, ROOT acceptance0 as below.
+
+Phone last verified TWRP/unmounted by actual post176capture; no live boot now.
+Do NOT reuse installed-preflight.json header422feb21... for another boot: iOS
+changed HFS metadata. Before any next temporary boot, reread current files/cache
+and stable current header. Raw stdout now1056B includes historical175183B+
+successful176873B; next-run extraction must pin that WHOLE saved previous raw
+prefix and retain all new events/banners. Never silently skip a current failure.
+No rollback of preboot raw metadata after an iOS boot. Full backups retained;
+any GLES/library root install needs a fresh post176full snapshot and separately
+reviewed exact-delta permission. No new destructive userdata operation approved.
+
+Concrete next gate, starting from source176-codex and native tKac3D: audit the
+existing20s ggrb_end/operation2s/watchdog lease + coordinator30s stop path before
+designing persistent ownership. A larger timeout alone does not provide safe
+watchdog/power/DMA recovery. Add owned queue IDs and per-queue fence validation
+for Mesa's separate screen/context pipes, obtain actual A619 GMEM-base evidence
+before parameter6 support, preserve root-only isolation until command/client
+authority is implemented. Use focused new driver regressions/native TUs, reuse
+unchanged89test-source evidence, one native build per actual kernel change,
+DSH execution and real probes. Then GLES shader+IOSurface, followed by actual
+compositor/EAGL/Metal integration; RAM/UFS/peripheral/highrefresh gates remain.
+Full original daily-use goal INCOMPLETE; no complete/paused status set. Old
+BLOCKED goal metadata predates the actual user approvals; API has no ACTIVE
+setter, so do not infer that explicitly resumed work is forbidden. Only original
+mkadt7line a74a0418... is dirty. User away/ALLresets automatic; prompt only for
+genuinely stuck manual recovery or each concrete new destructive root delta.
+
 ### 2026-11-08 —PHYSICAL176 userspace dynamic GPU API / IOSurface PASSED
 
 DSH0176v6 package0: image shim/out/shim-p3-gmuf-0176-native-20261108.img,

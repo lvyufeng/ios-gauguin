@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-D=Path(os.environ.get('GPU_USER_SOURCE',str(R/'.deps-cache/p0-20261105/source175-codex/bsd/dev')))
+D=Path(os.environ.get('GPU_USER_SOURCE',str(R/'.deps-cache/p0-20261105/source177-codex/bsd/dev')))
 F=R/'tests/fixtures/gpu-user/runtime_host.c'
 files=[Path(__file__),F,D/'gauguin_gpu_runtime.c',D/'gauguin_gpu_runtime.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}

@@ -41,6 +41,12 @@ static struct {
     bool bus_mode, budget_mode, quarantine_on_ready_log, quarantine_on_bus_arg, quarantine_during_budget;
     unsigned bus_wait_context, publication_context, readiness_failure, budget_reads, clock_conversions;
     uint32_t budget_count;
+    int gpu_service,gpu_mode;
+    bool refresh_mode,refresh_irq_bad;
+    unsigned refresh_fault,refresh_pulses;
+    unsigned refresh_delay_reads,refresh_pending_reads,refresh_ack_reads,refresh_delay_calls;
+    uint32_t refresh_before_count;
+    bool refresh_ack_polling,refresh_frozen_clock,refresh_oscillate;
     uint64_t clock_ticks;
     unsigned starts,deallocations,terminations,sleeps,map_count,translations,pmap_calls,attr_calls;
     unsigned managed,attr,map_failure,translation_failure;
@@ -69,6 +75,10 @@ static void fake_dsb(void)
 static uint32_t fake_gicd_read32(unsigned offset)
 {
     idle_barriers(); CHECK(offset==0x104,"only GICD_ISENABLER1 read");
+    if(mock.refresh_mode) {
+        CHECK(gicd_base==FAKE_GIC,"known runtime GIC mapping");
+        ++mock.gic_reads;mock.pending_dmb=2;return mock.refresh_irq_bad?1u:0u;
+    }
     CHECK(gicd_base==FAKE_GIC && mock.gic_reads<2,"known GIC mapping, at most two guards");
     mock.pending_dmb=2; return mock.gic_value[mock.gic_reads++];
 }
@@ -95,6 +105,18 @@ static uint32_t fake_wdt_read(unsigned offset)
     idle_barriers(); CHECK(mock.map_count==1 && mock.translations==2,"translated WDT before reads");
     CHECK(offset==8 || offset==12 || offset==16 || offset==20,"WDT exact read whitelist, never RST");
     ++mock.reads;
+    if(mock.refresh_mode&&mock.refresh_ack_polling) {
+        if(offset==8)mock.refresh_ack_polling=false; /* final full register verification */
+        else {
+            CHECK(offset==12,"post-pulse wait only reads STS");++mock.refresh_ack_reads;
+            if(mock.refresh_pending_reads)--mock.refresh_pending_reads;
+            else if(mock.refresh_fault!=1) {
+                mock.budget_count=mock.refresh_fault==5?32765u:10u;
+                if(mock.refresh_oscillate&&(mock.refresh_ack_reads&1))mock.budget_count=mock.refresh_before_count;
+            }
+            mock.pending_dmb=1;return mock.budget_count<<1;
+        }
+    }
     if(mock.budget_mode) {
         static const unsigned offsets[]={8,16,20,12};
         CHECK(offset==offsets[mock.budget_reads%4],"budget reads EN/BARK/BITE/STS exactly once in order");
@@ -135,6 +157,18 @@ static void fake_wdt_write(unsigned offset,uint32_t value)
     static const unsigned offsets[]={16,20,8,4};
     static const uint32_t values[]={655300,753595,3,1};
     idle_barriers(); CHECK(mock.map_count==1 && mock.translations==2,"translation before stores");
+    if(mock.refresh_mode) {
+        CHECK(offset==4&&value==1&&mock.regs[2]==3,"runtime can only pulse RST1 on an enabled watchdog");
+        ++mock.refresh_pulses;++mock.writes;mock.pending_dsb=1;
+        mock.refresh_before_count=mock.budget_count;mock.refresh_pending_reads=mock.refresh_delay_reads;
+        mock.refresh_ack_polling=true;mock.refresh_ack_reads=0;
+        if(mock.refresh_fault==2)mock.regs[2]=0;
+        if(mock.refresh_fault==3)mock.regs[4]^=1;
+        if(mock.refresh_fault==4)mock.regs[5]^=1;
+        if(mock.refresh_fault==6)gauguin_wdt_lease_quarantine();
+        if(mock.refresh_fault==7)mock.clock_ticks-=2*HOST_CPU_HZ;
+        return;
+    }
     CHECK(mock.gic_reads==2 && mock.dmb_gic==2 && (mock.gic_value[1]&3)==0,
         "both GIC guards completed before any WDT write");
     CHECK(mock.sleeps==(mock.bus_mode ? 0u:45u) && mock.en_reads==2,"initial+pre-write EN read disabled, correct mode delay");
@@ -154,6 +188,8 @@ static int test_printf(const char *fmt,...)
 bool PE_parse_boot_argn(const char *key,void *value,size_t bytes)
 {
     CHECK(bytes==sizeof(int),"integer boot arg");
+    if(!strcmp(key,"sweetgpuservice")){*(int*)value=mock.gpu_service;return true;}
+    if(!strcmp(key,"sweetgpuzap")){*(int*)value=mock.gpu_mode;return true;}
     if(!strcmp(key,"sweetwdttest")) { *(int*)value=mock.requested; return true; }
     if(!strcmp(key,"sweetbusvote")) {
         if(mock.quarantine_on_bus_arg) gauguin_wdt_lease_quarantine();
@@ -175,6 +211,12 @@ int ml_get_interrupts_enabled(void) { return mock.context!=1; }
 int ml_at_interrupt_context(void) { return mock.context==2; }
 int get_preemption_level(void) { return mock.context==3 ? 1:0; }
 unsigned long long mach_absolute_time(void) { return mock.clock_ticks; }
+void IODelay(unsigned us)
+{
+    idle_barriers();CHECK(mock.refresh_mode&&mock.refresh_ack_polling&&us==10,"only bounded10us read-only acknowledgement delay");
+    ++mock.refresh_delay_calls;
+    if(!mock.refresh_frozen_clock)mock.clock_ticks+=HOST_CPU_HZ/100000;
+}
 void absolutetime_to_nanoseconds(uint64_t ticks,uint64_t *out)
 {
     CHECK(out && ticks <= UINT64_C(1000000000000),"bounded host clock conversion");
@@ -199,7 +241,7 @@ void IOSleep(unsigned ms)
 void sweet_log_mark_sync(const char *s)
 {
     CHECK(mock.context==0,"synchronous mark requires preemptible thread context");
-    idle_barriers(); CHECK(!strncmp(s,"SWEET WDT TEST: ",16) || !strncmp(s,"SWEET WDT LEASE: ",17),"marker namespace");
+    idle_barriers(); CHECK(!strncmp(s,"SWEET WDT TEST: ",16) || !strncmp(s,"SWEET WDT LEASE: ",17) || !strncmp(s,"SWEET WDT SERVICE: ",19),"marker namespace");
     CHECK(mock.lines && strlen(s)+1==strlen(mock.log[mock.lines-1]) &&
         !strncmp(s,mock.log[mock.lines-1],strlen(s)),"marker matches printed record");
     CHECK(mock.markers==mock.flushes,"previous marker flushed"); ++mock.markers;
@@ -264,6 +306,7 @@ static void reset(const char *name)
     mock.clock_ticks=300*HOST_CPU_HZ;
     wdt_lease_state=WDL_IDLE; wdt_budget_busy=0; memset(&wdt_lease_record,0,sizeof(wdt_lease_record));
     wdt_lease_last_count=0; wdt_lease_last_at=0;
+    wdt_refresh_sequence=0;
 }
 static unsigned count_line(const char *needle)
 { unsigned n=0; for(unsigned i=0;i<mock.lines;++i) if(strstr(mock.log[i],needle)) ++n; return n; }
@@ -594,6 +637,87 @@ static void lease_cases(void)
     reset_bus("explicit post-arm quarantine has zero hardware effects"); (void)lease_ready(); effects=effects_now(); gauguin_wdt_lease_quarantine();
     effects_equal(effects,"quarantine never pets/disables/remaps/reads"); permanently_refused();
 }
+static void refresh_ready(const char *name)
+{
+    reset_bus(name);(void)lease_ready();mock.gpu_service=1;mock.gpu_mode=12;mock.refresh_mode=true;
+    mock.refresh_delay_reads=3; /* real177: immediate post-RST still showed old count */
+    mock.clock_ticks+=HOST_CPU_HZ;mock.budget_count+=32765;
+}
+static void refresh_failure(unsigned expected_pulses)
+{
+    struct gauguin_wdt_refresh_record out,before;memset(&out,0xa5,sizeof(out));before=out;
+    uint64_t epoch=wdt_lease_record.armed_at_ticks;unsigned writes=mock.writes;
+    CHECK(!gauguin_wdt_lease_refresh(&out)&&!memcmp(&out,&before,sizeof(out)),"failed refresh leaves output untouched");
+    CHECK(mock.refresh_pulses==expected_pulses&&mock.writes==writes+expected_pulses,"exact failed refresh pulse boundary, no enable/disable/retry");
+    CHECK(wdt_lease_state==WDL_QUARANTINED&&wdt_lease_record.armed_at_ticks==epoch,"failure cannot move CPU epoch or restore READY");
+    writes=mock.writes;
+    CHECK(!gauguin_wdt_lease_refresh(&out)&&mock.writes==writes,"quarantine cannot refresh again");
+    permanently_refused();idle_barriers();
+}
+static void service_cases(void)
+{
+    unsigned first=cases;
+    const int off[]={0,2,-1};
+    struct gauguin_wdt_refresh_record out,before;
+    for(unsigned i=0;i<sizeof(off)/sizeof(off[0]);i++) {
+        refresh_ready("service exact flag");mock.gpu_service=off[i];struct effects e=effects_now();
+        memset(&out,0xa5,sizeof(out));before=out;
+        CHECK(!gauguin_wdt_lease_refresh(&out)&&!memcmp(&out,&before,sizeof(out)),"service off leaves output");
+        effects_equal(e,"no service no pulse/read/log");CHECK(wdt_lease_state==WDL_READY,"legacy lease remains usable");
+        refresh_ready("service exact mode12");mock.gpu_mode=off[i];e=effects_now();
+        CHECK(!gauguin_wdt_lease_refresh(&out),"service requires dynamic mode12");effects_equal(e,"wrong mode inert");
+    }
+    refresh_ready("NULL refresh output");struct effects e=effects_now();CHECK(!gauguin_wdt_lease_refresh(NULL),"NULL refresh inert");effects_equal(e,"NULL output no effects");
+    for(unsigned state=WDL_IDLE;state<=WDL_QUARANTINED;state++)if(state!=WDL_READY) {
+        refresh_ready("not READY cannot refresh");wdt_lease_state=state;e=effects_now();
+        CHECK(!gauguin_wdt_lease_refresh(&out),"READY required");effects_equal(e,"non-ready no hardware");
+    }
+    refresh_ready("600 healthy renewals beyond original 23-second epoch");
+    for(unsigned i=1;i<=600;i++) {
+        uint32_t count=mock.budget_count;uint64_t now=mock.clock_ticks;
+        CHECK(gauguin_wdt_lease_refresh(&out),"healthy owner refreshes");
+        CHECK(out.sequence==i&&out.before_count==count&&out.after_count==10&&out.refreshed_at_ticks==now,"exact refresh receipt");
+        CHECK(mock.refresh_pulses==i&&mock.writes==4+i&&mock.dsb==mock.writes,"one RST1 per refresh, every store DSB");
+        CHECK(wdt_lease_record.armed_at_ticks==now&&wdt_lease_record.ready_count==10&&wdt_lease_state==WDL_READY,"verified new CPU/counter epoch");
+        CHECK(mock.sleeps==1&&mock.map_count==1&&mock.regs[2]==3&&mock.regs[4]==655300&&mock.regs[5]==753595,"no sleep/remap/threshold/enable changes");
+        budget_success(32765);
+        mock.clock_ticks+=HOST_CPU_HZ;mock.budget_count+=32765;
+    }
+    for(int bad=1;bad<=3;bad++){refresh_ready("refresh wrong context");mock.context=bad;refresh_failure(0);}
+    refresh_ready("lost exclusive owner");mock.bus_vote=0;refresh_failure(0);
+    refresh_ready("runtime NS IRQ conflict");mock.refresh_irq_bad=true;refresh_failure(0);
+    refresh_ready("concurrent lease operation");wdt_budget_busy=1;refresh_failure(0);CHECK(wdt_budget_busy==1,"contender cannot release another guard");
+    refresh_ready("refresh sequence cannot wrap");wdt_refresh_sequence=UINT32_MAX;refresh_failure(0);
+    for(unsigned n=0;n<3;n++) {
+        refresh_ready("pre-pulse enable/threshold corruption");mock.regs[n==0?2:n==1?4:5]^=1;refresh_failure(0);
+    }
+    refresh_ready("counter moved backwards");mock.budget_count=wdt_lease_last_count-1;refresh_failure(0);
+    refresh_ready("counter stuck since epoch");mock.budget_count=wdt_lease_record.ready_count;refresh_failure(0);
+    refresh_ready("counter progressing too slowly");mock.budget_count=wdt_lease_record.ready_count+1;refresh_failure(0);
+    refresh_ready("counter progressing implausibly quickly");mock.budget_count+=200000;refresh_failure(0);
+    refresh_ready("counter too close to bite");mock.budget_count=753595-3*32765+1;refresh_failure(0);
+    refresh_ready("counter cannot wrap");mock.budget_count=0;refresh_failure(0);
+    refresh_ready("CPU moved backwards");mock.clock_ticks=wdt_lease_record.ready_at_ticks-1;refresh_failure(0);
+    refresh_ready("expired CPU epoch cannot be revived");mock.clock_ticks=wdt_lease_record.armed_at_ticks+23*HOST_CPU_HZ;refresh_failure(0);
+    refresh_ready("refresh too early to prove advancement");mock.clock_ticks=wdt_lease_record.ready_at_ticks+HOST_CPU_HZ/100;mock.budget_count=wdt_lease_record.ready_count+327;refresh_failure(0);
+    refresh_ready("quarantine during pre-pulse reads");mock.quarantine_during_budget=true;refresh_failure(0);
+    for(unsigned fault=1;fault<=7;fault++) {
+        refresh_ready("post-pulse counter/enable/threshold/context/quarantine failure");mock.refresh_fault=fault;refresh_failure(1);
+    }
+    const unsigned delays[]={0,1,3,32,128};
+    for(unsigned i=0;i<sizeof(delays)/sizeof(delays[0]);i++) {
+        refresh_ready("asynchronous counter reset acknowledged without another pulse");mock.refresh_delay_reads=delays[i];
+        CHECK(gauguin_wdt_lease_refresh(&out)&&mock.refresh_pulses==1,"delayed acknowledgement succeeds with exactly ONE RST1");
+        CHECK(mock.refresh_ack_reads>=delays[i]+2&&mock.refresh_delay_calls>=delays[i]+1,"two stable decreased reads after delayed hardware delivery");
+        CHECK(out.after_count==10&&wdt_lease_state==WDL_READY,"publish epoch only after acknowledgement");
+    }
+    refresh_ready("acknowledgement past2ms refuses without pulse replay");mock.refresh_delay_reads=250;refresh_failure(1);
+    CHECK(mock.refresh_delay_calls<=200,"independent2ms CPU bound");
+    refresh_ready("stalled CPU clock cannot make acknowledgement unbounded");mock.refresh_fault=1;mock.refresh_frozen_clock=true;refresh_failure(1);
+    CHECK(mock.refresh_delay_calls<=256&&mock.refresh_ack_reads<=256,"independent256-sample bound with stuck clock");
+    refresh_ready("one transient low sample cannot acknowledge");mock.refresh_oscillate=true;refresh_failure(1);
+    printf("PASS: %u watchdog service cases; 600 actual refresh calls, exact RST-only writes and terminal failures; host-only\n",cases-first);
+}
 int main(void)
 {
     legacy_cases();
@@ -601,5 +725,6 @@ int main(void)
     lease_cases();
     printf("PASS: %u original + %u lease cases (%u total); actual worker/header/GIC helper/start gate; host-only, no reset qualification\n",
         legacy,cases-legacy,cases);
+    service_cases();
     return 0;
 }

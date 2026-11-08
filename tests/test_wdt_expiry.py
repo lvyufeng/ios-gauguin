@@ -82,7 +82,7 @@ def invoke(command, log, env):
 
 def main(temporary):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-root", type=Path, default=Path(os.environ.get("XNU_SOURCE", str(REPO / ".deps-cache/p0-20261105/source115-codex"))),
+    parser.add_argument("--source-root", type=Path, default=Path(os.environ.get("XNU_SOURCE", str(REPO / ".deps-cache/p0-20261105/source178-codex"))),
                         help="optional complete integrated XNU tree; otherwise use authored candidate files")
     args = parser.parse_args()
     if args.source_root:
@@ -125,7 +125,11 @@ def main(temporary):
         assert 'PASS: retained 87 original WDT worker/helper cases' in output
         match = re.search(r'PASS: 87 original \+ (\d+) lease cases \((\d+) total\);', output)
         assert match and int(match[1]) > 0 and int(match[2]) == 87 + int(match[1])
-        report.update(state="passed", original_cases=87, lease_cases=int(match[1]), total_cases=int(match[2]))
+        service = re.search(r'PASS: (\d+) watchdog service cases; 600 actual refresh calls', output)
+        assert service and int(service[1]) > 0
+        report.update(state="passed", original_cases=87, lease_cases=int(match[1]),
+                      service_cases=int(service[1]), service_refreshes=600,
+                      total_cases=int(match[2])+int(service[1]))
     except Exception as error:
         report.update(state="failed", error=str(error))
         print(f"FAIL: {error}; {log_path}", file=sys.stderr)

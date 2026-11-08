@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 full native kernel/parser ACCEPTED; image/runtime gates next
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Phone remains automaticTWRP172;
+no173 image/package/device I/O. User away/allresets automatic, no attribution/
+UI questions. AllDSH173 v1..16 TERMINAL (v2/v6/v10/v15 failures retained).
+Critical source frozen KERNEL173_SOURCE_HEAD28137449ca9cb7b54e6e95ffb22e42c59516d224,
+separate from subsequent handoff/docs commits. Same-tree source published via
+nonforce REST: PUBLIC940220ae1b1866bc6aef17eadccadb5148a5895d,
+PRIVATE28137449ca9cb7b54e6e95ffb22e42c59516d224,
+TREE219609a62c4234c0fb9cccd0837e45a5a629a4eb, sole publicparent9a4fd500.
+THIS tuple is NEXT publication base. Previous172source24587b1 unchanged.
+
+DSH v13 build CLOSED inner0 FIRST: ONE standard local8job fullkernel build0
+and strict complete qualification0; no CI run. New run gauguin.mqtgMg,
+CURRENT native recipe/manifest SHA
+4b98a4e70a2b747eefd67679e69fd326f13f36d511fa8c9825b382b514be3dc2,
+source173-codex5323/cee256ba3ef7576f950d285312475b31f716cd8c5ac5a8b0ab73edd128dd3d3a.
+NEVER run prior172/171/older TU helpers against shared generated build files.
+Kernel17195760B SHA66639cc7228294dc3e1baacf19747d00aa3ae78efc8d012591bffff1fa3be003,
+archive14bfa664860bb04a56a993df701fa210fe27d94485a33ca899f251c3fd0a135b,
+buildIDxnu-6ebe29c9838c4ae8b50fcac7efe7aeeb. All oldsource flags retained,
+15newvarying flags true; ALL22artifact hardware flags FALSE. Root full source/
+kernel/banner/archive/nativeGGT/GGJ/GGV review FIRST0 SHA
+faa449aeb27bd99c63222f377b329db60820134e6a589fb81414c1f5d20605a8.
+Source/build snapshot kernel173-source-snapshot.json frozen independently.
+Git diff --check reported three patch-data context-only blank lines; source
+bytes and successful167patch replay unchanged, no whitespace edits after freeze.
+
+DSH v14 standalone parser CLOSED inner0 FIRST:4634accepted/10416refused
+SYNTHETIC929record fixtures; all4608singlepixellegal UNORM choices (including
+next exact before),3072invalidchannel and512within-previous-legal-range history
+drifts. Retains6832original format/pixel/native/EOP/order/control refusals with
+current pixel corruption chosen outside declared channel bounds. v15actualC
+compatcompile0 +fivevalid publicscenarios0; extra scenario8 aborted at the
+public s<5 argument guard (test harness misuse, no driver/parser defect).
+Original failedscript/log/report unchanged. Freshv16/scriptv2 CLOSED inner0
+FIRST: original5publicscenarios +explicit private printer-only quantization
+branch0; all6*928actualCformats parsed with explicit synthetic coordinator
+terminal. Actualquantized pixels satisfy declaredbounds and exactobservedprior.
+Root parser proof1246a2f65404320a03ecb16b796b37d3d8b02af57e70acf7ad2690a99e1e34a4.
+
+NEXT copy retained common runtime/identity/metadata/helper gates without
+changing old rejection bodies; add mode10 varying source transition and actual
+prior/currentpixel parser,607B command/608Bfield1NUL. Then imagepreflight,
+package/review, all common clock/FW/fullruntime/metadata gates, root acceptance,
+ONE tempfastbootboot and automaticTWRP rawpull/strictphysicalreview. No physical
+varying, textures/generalGPUAPI/Metal/UI/performance/highrefresh proof yet.
+Original mkadt7line diff a74a0418... preserved; no destructive userdata action.
+
 ### 2026-11-08 —173 clean167/full86 and strict preflight ACCEPTED; source freeze next
 
 Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP172,

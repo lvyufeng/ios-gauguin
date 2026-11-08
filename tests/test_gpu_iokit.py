@@ -3,7 +3,7 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-C=Path(os.environ.get('GPU_USER_TREE',str(R/'.deps-cache/p0-20261105/source177-codex')))
+C=Path(os.environ.get('GPU_USER_TREE',str(R/'.deps-cache/p0-20261105/source179-codex')))
 F=R/'tests/fixtures/gpu-user/iokit_host.cpp';D=C/'bsd/dev'
 S=C/'iokit/Kernel/arm/GauguinGPU.cpp';H=C/'iokit/Kernel/arm/SweetSurface.h'
 files=[Path(__file__),F,S,H,D/'gauguin_gpu_runtime.c',D/'gauguin_gpu_runtime.h']
@@ -20,4 +20,5 @@ with tempfile.TemporaryDirectory(prefix='gpu-iokit-') as tmp:
     subprocess.run(['clang++','-std=c++17',*common,str(unit),str(tmp/'core.o'),'-o',str(tmp/'test')],env=env,check=True)
     subprocess.run([str(tmp/'test'),'submit'],env=env,check=True)
     subprocess.run([str(tmp/'test'),'sync'],env=env,check=True)
+    subprocess.run([str(tmp/'test'),'queues'],env=env,check=True)
 assert pins=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files},'inputs changed'

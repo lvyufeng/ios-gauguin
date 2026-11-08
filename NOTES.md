@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —178 source PUBLISHED;179 host/native/clean replay PASSED
+
+Completed178source publication VERIFIED: MAIN/CI public
+5eb6effc26539aeaea852f505c139f1a25d9f10e
+=PRIVATE39211e232f6567863d744a9d5c270b4e9a67024c
+/TREE81cc6d9a8c7d19e609e4b106c340550f25bf9c6f,
+sole public parent4e3a503...,14text files only/non-force/ref-tree-parent rechecked.
+Receipt research/tmp/dsh-0178/source-publication.json. THIS is the NEXT main
+publication base; GLES713ea8... separate. No CI run;178build remained LOCAL.
+
+179v3 TERMINAL0/inputs unchanged: actual core2,308,355assertions (all prior
+native scenarios/failure matrix plus GMEM helper), actual board params67checks
+(READY gate/GMEM/identity/unadvertised params/output preservation), native3TUs0
+(IOKit/core/board) using1785XaXo7 recipe with2128header/config checks and all
+reference objects unchanged.179v4 fresh ORIGINAL173patch replay0/5329files SHA
+64c40dc3c99eceb3fb8c37e4f8b583ea22aaabd115464f15ed93ab9af9829f4b
+EXACT candidate-v2. ROOT independent-implementation-review.json PASSED binding
+native objects/current source/private executed fixtures/public identical fixtures;
+public parameter runner is a direct equivalent of the exercised private runner.
+Public IOKit/core runners now defaultsource179 and IOKit also runs queue mode.
+Old4public fixtures/runners preserved with SHA receipts in
+research/tmp/dsh-0178/pre179-fixture-snapshot; use those for historical178proofs.
+
+Commit179patch/tests/this handoff, freeze sourceHEAD, ONE local8job native build
+and strict source/SDK/install/archive/symbol qualifier inclggc_gmem_layout and
+retained64bit cache-address disassembly. No179build/boot/hardware claim yet.
+GPU/WDT/coordinator algorithms, firmware, power and pre-param board code are
+byte-identical to physically accepted178.179 only exposes bounded logical queues
+with queue-local completed fences and configured UCHE GMEM params2/6. One root
+client/shared serialized hardware ring remains; ordinary UI isolation pending.
+After native qualify, fresh installed-file/header preflight and temporaryboot
+are authorized. New Mesa/root bundle still requires freshly backed-up/reviewed
+concrete delta plus new explicit consent; old175permissions consumed. PhoneTWRP.
+Next in independent GLES worktree: queue IDs in syncobj pending/waits/transfers,
+fix global last_fence assumption for this synchronous backend, source/host/ABI
+checks and signed iOS package; then combined late-workload+actual shader probe.
+Full daily-use GPU/Metal/RAM/UFS/peripherals90/120Hz goal ACTIVE/incomplete.
+
 ### 2026-11-08 —178 PHYSICAL600s idle service PASS; next Mesa queue/GMEM gate
 
 KERNEL178_SOURCE_HEAD cb28e30d747b9c29688180897cd08a3b4e20c380 remains frozen.

@@ -109,6 +109,14 @@ static void check_good(struct fake *f,unsigned scenario)
 }
 int main(int argc,char **argv)
 {
+    uint64_t configured_base=0,configured_size=0;
+    CHECK(ggc_gmem_layout(&configured_base,&configured_size));
+    CHECK(configured_base==UINT64_C(0x100000)&&configured_size==512*1024);
+    configured_base=123;configured_size=456;
+    CHECK(!ggc_gmem_layout(NULL,&configured_size)&&configured_size==456);
+    CHECK(!ggc_gmem_layout(&configured_base,NULL)&&configured_base==123);
+    CHECK(!ggc_gmem_layout(&configured_base,&configured_base)&&configured_base==123);
+
     if(argc==2){unsigned s=(unsigned)strtoul(argv[1],NULL,10);CHECK(s<4);struct fake *f=fresh(s);f->trace=1;printf("BEGIN %u\n",s);check_good(f,s);printf("HEADER 132 72\n");for(unsigned i=0;i<GGC_REGLIST_WORDS;i++)printf("L %u %08x\n",i,f->memory[i]);free(f);return 0;}
     CHECK(argc==1);
     for(unsigned s=0;s<4;s++){

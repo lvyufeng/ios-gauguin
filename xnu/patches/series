@@ -174,3 +174,4 @@
 0176-arm64-preserve-cache-flush-physical-address.patch
 0177-gauguin-health-gated-gpu-service.patch
 0178-gauguin-watchdog-reset-acknowledgement.patch
+0179-gauguin-gpu-queues-and-gmem-parameters.patch

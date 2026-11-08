@@ -46,7 +46,9 @@ static struct {
     unsigned refresh_fault,refresh_pulses;
     unsigned refresh_delay_reads,refresh_pending_reads,refresh_ack_reads,refresh_delay_calls;
     uint32_t refresh_before_count;
-    bool refresh_ack_polling,refresh_frozen_clock,refresh_oscillate;
+    bool refresh_ack_polling,refresh_frozen_clock,refresh_oscillate,refresh_running_counter;
+    unsigned refresh_delay_us,refresh_read_us,refresh_phase_us;
+    uint64_t refresh_reset_ticks;
     uint64_t clock_ticks;
     unsigned starts,deallocations,terminations,sleeps,map_count,translations,pmap_calls,attr_calls;
     unsigned managed,attr,map_failure,translation_failure;
@@ -106,12 +108,20 @@ static uint32_t fake_wdt_read(unsigned offset)
     CHECK(offset==8 || offset==12 || offset==16 || offset==20,"WDT exact read whitelist, never RST");
     ++mock.reads;
     if(mock.refresh_mode&&mock.refresh_ack_polling) {
-        if(offset==8)mock.refresh_ack_polling=false; /* final full register verification */
+        if(offset==8) {
+            mock.refresh_ack_polling=false; /* final full register verification */
+            if(mock.refresh_fault==8)mock.clock_ticks+=HOST_CPU_HZ/100; /* final readbacks exceed2ms */
+            if(mock.refresh_fault==9)mock.budget_count=9; /* counter reverses after equal10pair */
+        }
         else {
             CHECK(offset==12,"post-pulse wait only reads STS");++mock.refresh_ack_reads;
+            if(!mock.refresh_frozen_clock)mock.clock_ticks+=HOST_CPU_HZ*mock.refresh_read_us/1000000;
             if(mock.refresh_pending_reads)--mock.refresh_pending_reads;
             else if(mock.refresh_fault!=1) {
-                mock.budget_count=mock.refresh_fault==5?32765u:10u;
+                if(mock.refresh_running_counter) {
+                    if(!mock.refresh_reset_ticks)mock.refresh_reset_ticks=mock.clock_ticks-HOST_CPU_HZ*mock.refresh_phase_us/1000000;
+                    mock.budget_count=10+(uint32_t)((mock.clock_ticks-mock.refresh_reset_ticks)*32765/HOST_CPU_HZ);
+                } else mock.budget_count=mock.refresh_fault==5?32765u:10u;
                 if(mock.refresh_oscillate&&(mock.refresh_ack_reads&1))mock.budget_count=mock.refresh_before_count;
             }
             mock.pending_dmb=1;return mock.budget_count<<1;
@@ -161,7 +171,7 @@ static void fake_wdt_write(unsigned offset,uint32_t value)
         CHECK(offset==4&&value==1&&mock.regs[2]==3,"runtime can only pulse RST1 on an enabled watchdog");
         ++mock.refresh_pulses;++mock.writes;mock.pending_dsb=1;
         mock.refresh_before_count=mock.budget_count;mock.refresh_pending_reads=mock.refresh_delay_reads;
-        mock.refresh_ack_polling=true;mock.refresh_ack_reads=0;
+        mock.refresh_ack_polling=true;mock.refresh_ack_reads=0;mock.refresh_reset_ticks=0;
         if(mock.refresh_fault==2)mock.regs[2]=0;
         if(mock.refresh_fault==3)mock.regs[4]^=1;
         if(mock.refresh_fault==4)mock.regs[5]^=1;
@@ -215,7 +225,7 @@ void IODelay(unsigned us)
 {
     idle_barriers();CHECK(mock.refresh_mode&&mock.refresh_ack_polling&&us==10,"only bounded10us read-only acknowledgement delay");
     ++mock.refresh_delay_calls;
-    if(!mock.refresh_frozen_clock)mock.clock_ticks+=HOST_CPU_HZ/100000;
+    if(!mock.refresh_frozen_clock)mock.clock_ticks+=HOST_CPU_HZ*(mock.refresh_delay_us?mock.refresh_delay_us:10)/1000000;
 }
 void absolutetime_to_nanoseconds(uint64_t ticks,uint64_t *out)
 {
@@ -708,7 +718,7 @@ static void service_cases(void)
     for(unsigned i=0;i<sizeof(delays)/sizeof(delays[0]);i++) {
         refresh_ready("asynchronous counter reset acknowledged without another pulse");mock.refresh_delay_reads=delays[i];
         CHECK(gauguin_wdt_lease_refresh(&out)&&mock.refresh_pulses==1,"delayed acknowledgement succeeds with exactly ONE RST1");
-        CHECK(mock.refresh_ack_reads>=delays[i]+2&&mock.refresh_delay_calls>=delays[i]+1,"two stable decreased reads after delayed hardware delivery");
+        CHECK(mock.refresh_ack_reads>=delays[i]+2&&mock.refresh_delay_calls>=delays[i],"two stable decreased reads after delayed hardware delivery");
         CHECK(out.after_count==10&&wdt_lease_state==WDL_READY,"publish epoch only after acknowledgement");
     }
     refresh_ready("acknowledgement past2ms refuses without pulse replay");mock.refresh_delay_reads=250;refresh_failure(1);
@@ -716,6 +726,19 @@ static void service_cases(void)
     refresh_ready("stalled CPU clock cannot make acknowledgement unbounded");mock.refresh_fault=1;mock.refresh_frozen_clock=true;refresh_failure(1);
     CHECK(mock.refresh_delay_calls<=256&&mock.refresh_ack_reads<=256,"independent256-sample bound with stuck clock");
     refresh_ready("one transient low sample cannot acknowledge");mock.refresh_oscillate=true;refresh_failure(1);
+    refresh_ready("179 running counter advances across delayed samples");
+    mock.refresh_running_counter=true;mock.refresh_read_us=2;mock.refresh_delay_us=48;
+    CHECK(gauguin_wdt_lease_refresh(&out)&&mock.refresh_pulses==1,"running counter confirms an adjacent pair without another reset pulse");
+    CHECK(mock.refresh_ack_reads==mock.refresh_delay_reads+2&&mock.refresh_delay_calls==mock.refresh_delay_reads,"no delay between equal confirmation reads");
+    const unsigned read_us[]={0,2,10,20},delay_us[]={31,48,100,500},phase_us[]={0,15,29};
+    for(unsigned r=0;r<4;r++)for(unsigned d=0;d<4;d++)for(unsigned p=0;p<3;p++) {
+        refresh_ready("counter continues ticking; adjacent pair can straddle one tick");mock.refresh_delay_reads=0;
+        mock.refresh_running_counter=true;mock.refresh_read_us=read_us[r];mock.refresh_delay_us=delay_us[d];mock.refresh_phase_us=phase_us[p];
+        CHECK(gauguin_wdt_lease_refresh(&out)&&mock.refresh_pulses==1&&wdt_lease_state==WDL_READY,"bounded equal adjacent pair on a running counter");
+        CHECK(mock.refresh_ack_reads>=2&&mock.refresh_ack_reads<=256,"at most256total STS loads, not256pairs");
+    }
+    refresh_ready("final register verification exceeds2ms after equal pair");mock.refresh_fault=8;refresh_failure(1);
+    refresh_ready("final counter must not reverse after equal confirmation");mock.refresh_fault=9;refresh_failure(1);
     printf("PASS: %u watchdog service cases; 600 actual refresh calls, exact RST-only writes and terminal failures; host-only\n",cases-first);
 }
 int main(void)

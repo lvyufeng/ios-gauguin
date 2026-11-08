@@ -2,6 +2,230 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —180 PHYSICAL600s PASS; fresh GLES root backup LIVE (no install)
+
+180v6 temporaryboot0/inputs unchanged;11:30:32..11:42:58UTC, automaticTWRP746s
+(observer746.573787s), no manual reset. Actual kernel7f61cbbf.../image682511e7...
+exact;3real startup submissions/EOP1,2,3/shadows32,44,56. FULL600s idle service
+completed595renewals;20sampled seq1/30..570 allcounter decrease, first449657->0.
+Final owners quarantined/completed3/shadow56, finite deadline stopsrefresh then
+hardware reset. No WDT/service/owner failure or nativepanic. This is physical
+positive evidence for adjacent-pair fix versus179's43delayed-sample timeout.
+
+v7 readonly CURRENT capture0, installedCLI775622b6... root0gid0/mode0755 exact;
+raw4549B SHA87397e78... retains all3675B historical175..179prefix then874B current
+11events, stderr0. New seed3920258985,8192normal hash2567742586,1024surface hash
+1823889144, final3fences/PASS. v8 frozen fullAPI+strict600s service qualifier0,
+ROOT review_physical180.py independently recomputed hashes/boundnativeEOP/all
+sampled renewals/finalstop/image/source proof0. Result independent-physical-
+review.json PASSED. Scope startupSINGLEqueueAPI+600s IDLEGPU/power/routes/WDT;
+GMEM6/multi-queue path is host/native only until actual Mesa, no late GLSL/Metal/
+ordinaryUI/FPS/highrefresh claim. All179failure artifacts and178positive retained.
+
+GLES source publication VERIFIED, independent branch
+PUBLICbd3841720e0c41530bbc0d4cbddcf6955ad97d2b
+=PRIVATEba31e7ed9bfba1db5a6fda1a0a693e2f92a5cd9e
+/TREEd561973d8cea750aeb872c32c5eca5d7dde8bf55,
+sole public parent713ea8... .9textfiles only/non-force/tree-parent-ref rechecked;
+receipt dsh-gles-0179/source-publication.json. THIS is next GLES publicationbase.
+Mainbase remains5eb6eff...=39211e2.../81cc6d9...pending179+180source publication.
+No CI dispatched; actual native and Mesa builds LOCAL. No GLES device install.
+
+CURRENT DSH root stage at research/tmp/dsh-gles-0180-root/checks-v1 LIVE,
+outerexec35330, full READONLY current16GiB HFSX backup after180acceptance, no
+partition writes/mount/boot. At11:48:58UTC exported5.04GiB, still streaming; wait
+SAMEstage/handle, never restart. Phone TWRP/unmounted/noholders. Do NOT boot or
+change root during backup/plan/approval. Need exact16GiB/fullSHA/stableheader/
+readonly0444 receipt before staging. Previous175backups preserved.
+
+Prepared LOCAL-only scripts in dsh-gles-0180-root (not executed/staged yet):
+stage_gles180.py requires physical180PASS/freshbackup, COWmount installs new
+signed16MBMesa +lateprobe, retargets existingSystemjob to --after-gpu-api and
+newGLES180stdout/stderr, updates cache preserving530otherjobs/oldGPUCLI. Planner
+prepare_delta180.py audits namespace/permissions/forks/allchangedallocatedblocks,
+restores eventUUID, builds minimal finalclone +old/new runs with rootowners.
+check_fs180.py read-only LOCAL fsck; prepare_writer180.py binds proven writer's
+base/image pins/key and runs same approval/partialwrite/readback/rollback model.
+Syntax parsed; these scripts still need actualfreshCOW/delta/fsck/model execution
+and independent review. No approvalfile created, no write authorised for GLES.
+New explicit consent MUST bind concrete finalplan after allpreparation; old175
+install/path-fix authorizations consumed. No raw preboot HFSmetadata rollback
+after boot. Next prepare safe newbundle readback/boot/qualifier against same
+accepted180600s image; rootwrite+trial not yet permitted by oldconsent.
+Full original daily-use GPU/Metal/fullsafeRAM/UFS/peripherals90/120Hz goal ACTIVE.
+
+### 2026-11-08 —Native180 build/qualifier0;600s adjacent-ACK physical trial LIVE
+
+KERNEL180_SOURCE_HEAD698ef7ec395dbcd428897e7dc9255d5f0532a163. DSH180v3 ONE
+local8job full native build0 +strict native qualifier0, all inputs unchanged.
+BuildIDxnu-7f61cbbf8a3b47b0871acde9fbcacc98, kernelSHA
+7e368fa223e9551d997c0d50ec3310d968287f2ec8e08af86a4a64456b527545,
+source2a8fc45f.../174patches/5329files. NEW CURRENT recipegauguin.vbmAXT;
+shared generated headers/Makefiles replaced (not179jfRN14 for futureTUs).
+ROOT root-build-review.json PASSED actual179RED/180GREEN/native/source binding,
+all old generic provenance/definedsymbols/64bit cache fix retained. No CI run.
+
+v4 fresh CURRENT readonly installed175CLI/job/cache/HFSheader0; sameCLI7756...,
+root0gid0/modes, no userdata writes. v5 package0: unchanged loader/fiveassets,
+new180kernel +service1/600s command602B+6NULs. Image19,988,480B SHA
+682511e72e700c1ffcfedd10da85a33d03d557b5288d965a530583a6b66e9462,
+payload2bb0bd036ca5781692c64fa462b906278e3f90ea83a3ac135de918645b50401e.
+v6 ONE temporaryboot LIVE (outer exec29900, DSH events-v6.jsonl/checks-v6),
+780s observation/860s bound. Wait SAME live observer, no restart. No destructive
+root install or permission needed. All resets automatic; no UI/attributionask.
+Next SAMEv6 terminal -> fresh captured probev7 -> frozen strict600s qualifierv8.
+Current EXACT historical stdout prefix3675B SHA
+aac8b453296d3d0a88efa386d8d344a7c3d033483c3da7ebb98d734d2c217e47
+contains ALL175..179raw bytes, including failures. Preserve raw, strip ONLY this
+whole exact prefix; new180events must match actualkernel/banner/full8192+1024
+hashes/3EOP and full600s renewals300..600/finite stop/no failures. Scope startup
+singlequeueAPI +IDLE service; no newmulti-queue/GMEM6physical/GLSL/Metal/UI claim.
+179failure and178positive remain separate frozen evidence. Main publication base
+PUBLIC5eb6eff...=PRIVATE39211e2.../TREE81cc6d9... unchanged until180physicalpasses.
+
+GLES179 signed Mesa/probe build0; DSH-GLESv4 independent180kernel/Mesa UAPI
+native execution+iOS ABI compile0, actual extracted API-child/90s ordering
+14POSIX scenarios0 (wait/sleep EINTR, child failure/signal, clock/error/shortdelay
+all refuse correctly), no device/real sleep. Source/probe bytes unchanged from
+signedbuild; no repeat Mesa build needed. New worktree tests/docs may be committed
+and source published separately from713ea8...base. Before installing: fresh
+full root backup AFTER finalboot, reviewed concrete library/probe/job/cache/HFS
+delta and NEW explicit user approval. No old raw metadata rollback after boot.
+Full original daily-use GPU/Metal/RAM/UFS/peripheral90/120Hz goal ACTIVE.
+
+### 2026-11-08 —179 service FAILED;180 adjacent-counter regression/native/replay0
+
+179v9 automaticTWRP147s,11:11:07..11:13:35UTC. Exact kernel a61dbc72... and
+3startupGPU EOP/shadows32,44,56, but FIRST refresh FAILED reason6 seq0:
+before457699 after63 dt_ns12964525000 ack_ns2028593 samples43 EN3/
+BARK655300/BITE753595. Reset WAS visible, but delayed reads never formed an
+EQUALpair before2ms; final0renewals/quarantine/healthfailure and hardware reset.
+179v10 readonlycapture0; v11 startup-onlyGPU qualifier0/full60service correctly
+REJECTED1. No179hardware-qualification.json; no persistent179acceptance. Failed
+source/image/profiles/all raw logs preserved.178595renewal/600s positive remains
+valid historical result, not proof that its sampling method works on everyboot.
+
+Codex180 changes ONLY WDT C +private header comments,179GPU/queue/GMEM/board/
+coordinator byte-identical. Native watchdog_v2.c uses adjacent STS loads;178had
+an IODelay and CPU/context checks between samples. New loop takes candidate+
+confirmation STS BACK-TO-BACK, delays only after failed pair/stale count. ONE
+RST1 remains, at most256TOTAL STS loads (not256pairs), same2ms success deadline
+now also enforced through final readbacks, no backwards final counter. No WDT
+threshold/enable/disable/retry, independentpetter or DMA release. Bounds apply
+when platform MMIO/delay calls return; arbitrary hung callbacks not cancelled.
+
+DSH180v1 TERMINAL0/inputs unchanged: actual179compiles0 then functional RED at
+"179 running counter advances across delayed samples";180GREEN all87original+
+103lease+97service cases,600stress refreshes. New48read-latency/delay/phase cases,
+exact adjacent pair/pulse boundary, final post-ACK >2ms/reversal refused; old
+neverACK/frozenCPU/unstablelow/security/context/failure cases retained. Native
+ONE WDT ARM64TU0/CURRENT179jfRN14recipe/2128header-config inputs unchanged.
+v2 fresh ORIGINAL174patch replay0/5329files EXACT candidate-v1 SHA
+2a8fc45f63bfcb26a71c76a7996d2c135a53b6e25498ebf92b234f7476b20088.
+ROOT independent-implementation-review.json PASSED; unchanged179checks reused,
+oldseries pin bound explicitly to frozen12d921b commit. Old2publicWDTfixtures
+saved with SHA receipts in research/tmp/dsh-0179/pre180-fixture-snapshot;
+publicfixture now EXACT executed180fixture, runner defaultsource180.
+
+Commit180/tests/this handoff, freezeHEAD, ONE8job native build/strict qualifier.
+Next fresh currentroot/header and600s temporaryboot, same installed175CLI.
+Historical stdout prefix now3675B SHAaac8b453... (verified from179capture);
+retain ALL prior failures/events, not only latestPASS. No180native build/boot or
+service acceptance yet. PhoneTWRP, all resets automatic. No UI/reset questions.
+
+GLES179 ONE actual iOS build/sign0 at dsh-gles-0179/build-v1, lib16026608B
+SHAb4a0c657283ccfb905505c71e689c9421a07c903e2d7a6a2bb199f8d1819512c,
+late-probe73168B SHA28722b03720977ce51fd3bc1b5543ef18e469573511291735298016e45aa8274.
+Source worktree commit e0633fc, host40checks RED/GREEN0, no device install/run.
+Newkernel180 transport ABI is unchanged179, so no repeat Mesa build needed.
+Review iOS ABI and child/delay ordering; eventual bundle uses600s service and
+--after-gpu-api90s delay. Root install needs fresh full backup AFTER finalboot,
+concrete reviewed delta and NEW explicit consent. Old175write permissions used.
+Main publication base remains5eb6eff...=39211e2.../81cc6d9...; GLES713ea8...separate.
+Full original daily-use GPU/Metal/RAM/UFS/peripherals90/120Hz goal ACTIVE.
+
+### 2026-11-08 —Native179 ONE build0/requalification0; temporary60s compatibility LIVE
+
+KERNEL179_SOURCE_HEAD12d921b5c67454a9d2fa6b303f9f501e1a58e74f.
+DSH179v5 ONE local8job native build0; new CURRENT recipegauguin.jfRN14, BuildID
+xnu-a61dbc724449497eb39515144c5fd6e4, kernel SHA
+9545cd192439c15f0b648beaf3ce30cdee5c6d1228e2b7783c8ce1c4abbc36ef.
+Shared generated headers/Makefiles replaced: NOT1785XaXo7 for any new TU.
+Original qualifier1 after generic provenance/symbol checks: Codex copied172->173
+with broad text replacement, corrupting the inherited178SHA literal before its
+intended replacement matched. This was a QUALIFIER INPUT ERROR, not a native
+build or driver success. Failed qualify179.py/log/kernel-result.json/v5 retained.
+New immutable qualify179_v2.py changes ONLY that wrong literal to independently
+pinned/replayed17964c40dc3...; DSHv6 SAME artifact strict qualifier0/no rebuild,
+all generic source/SDK/install/archive/defined-symbol/cache64bit gates retained,
+newggc_gmem_layout defined. ROOT root-build-review.json PASSED; oldfailedresult
+remains qualification-failed, new canonical kernel-qualification.json is v6proof.
+
+v7 CURRENT read-only root/probe/job/cache/HFSheader0, same installed175binaries.
+v8 package0, unchanged loader/5assets,179kernel and service1/60seconds command
+601B+7NULs. Image SHA7cbc07554e63a43cc2a1c833fab75621b7344cfeeb5879d34c4856aee91cc765.
+v9 ONE temporaryboot LIVE under standing unattended/automatic-reset policy,
+240s observation/320s outer timeout. This is a FOCUSED60s legacy single-queue
+API/service compatibility smoke of changed179IOKit.178's600s acceptance remains
+separate/unchanged; do not relabel60s as600s, and old175probe does NOT queryGMEM6
+or create multiple queues. New179qualifier freezes that narrower physicalscope,
+requires exact2803B historical stdout SHA505ce650... prefix,3actual submissions,
+full8192+1024hashes and30..60healthy renewals. After SAMEv9 terminal, fresh capture
+v10 -> strictsmokev11. No UI/reset-attribution questions; no root write/CI.
+
+Independent GLES source work: queue-local-fences.patch/prepare update +typed
+actual-shim host tests authored. DSH-GLES179v1 fresh pinned Mesa preparation0,
+actual resulting hakios.drm.c equals reviewed private draft exactly. v2host0:
+OLD prepared176source compiled0 then functional RED at poll(queue1point1) because
+it askedqueue0; NEW shim40checks GREEN (interleaved localfences, pending/transfer
+queueID, verified cached completion before close, kernel failure, empty-command
+refusal matching kernel, pending-capacity failure never promotes reached). All
+raw inputs/results/source retained; this is host-only, not Vulkan acceptance.
+No global last_fence borrowed across queues. Current signed176Mesa package has
+oldshim and is NOT the179candidate. Next modify GLESprobe to sequence installed
+GPUAPI probe then90s real idle delay, actual runtimeGLSL/texture/IOSurface checks;
+build/sign newiOSpackage once after source/probe review. New root install still
+requires fresh complete root backup/reviewed concrete delta +NEW user consent.
+No raw preboot HFS rollback after a boot. Full original daily-use goal ACTIVE.
+
+### 2026-11-08 —178 source PUBLISHED;179 host/native/clean replay PASSED
+
+Completed178source publication VERIFIED: MAIN/CI public
+5eb6effc26539aeaea852f505c139f1a25d9f10e
+=PRIVATE39211e232f6567863d744a9d5c270b4e9a67024c
+/TREE81cc6d9a8c7d19e609e4b106c340550f25bf9c6f,
+sole public parent4e3a503...,14text files only/non-force/ref-tree-parent rechecked.
+Receipt research/tmp/dsh-0178/source-publication.json. THIS is the NEXT main
+publication base; GLES713ea8... separate. No CI run;178build remained LOCAL.
+
+179v3 TERMINAL0/inputs unchanged: actual core2,308,355assertions (all prior
+native scenarios/failure matrix plus GMEM helper), actual board params67checks
+(READY gate/GMEM/identity/unadvertised params/output preservation), native3TUs0
+(IOKit/core/board) using1785XaXo7 recipe with2128header/config checks and all
+reference objects unchanged.179v4 fresh ORIGINAL173patch replay0/5329files SHA
+64c40dc3c99eceb3fb8c37e4f8b583ea22aaabd115464f15ed93ab9af9829f4b
+EXACT candidate-v2. ROOT independent-implementation-review.json PASSED binding
+native objects/current source/private executed fixtures/public identical fixtures;
+public parameter runner is a direct equivalent of the exercised private runner.
+Public IOKit/core runners now defaultsource179 and IOKit also runs queue mode.
+Old4public fixtures/runners preserved with SHA receipts in
+research/tmp/dsh-0178/pre179-fixture-snapshot; use those for historical178proofs.
+
+Commit179patch/tests/this handoff, freeze sourceHEAD, ONE local8job native build
+and strict source/SDK/install/archive/symbol qualifier inclggc_gmem_layout and
+retained64bit cache-address disassembly. No179build/boot/hardware claim yet.
+GPU/WDT/coordinator algorithms, firmware, power and pre-param board code are
+byte-identical to physically accepted178.179 only exposes bounded logical queues
+with queue-local completed fences and configured UCHE GMEM params2/6. One root
+client/shared serialized hardware ring remains; ordinary UI isolation pending.
+After native qualify, fresh installed-file/header preflight and temporaryboot
+are authorized. New Mesa/root bundle still requires freshly backed-up/reviewed
+concrete delta plus new explicit consent; old175permissions consumed. PhoneTWRP.
+Next in independent GLES worktree: queue IDs in syncobj pending/waits/transfers,
+fix global last_fence assumption for this synchronous backend, source/host/ABI
+checks and signed iOS package; then combined late-workload+actual shader probe.
+Full daily-use GPU/Metal/RAM/UFS/peripherals90/120Hz goal ACTIVE/incomplete.
+
 ### 2026-11-08 —178 PHYSICAL600s idle service PASS; next Mesa queue/GMEM gate
 
 KERNEL178_SOURCE_HEAD cb28e30d747b9c29688180897cd08a3b4e20c380 remains frozen.

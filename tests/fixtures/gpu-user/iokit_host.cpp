@@ -11,6 +11,10 @@
 #include <mutex>
 #include <vector>
 #include "gauguin_gpu_runtime.h"
+/* The baseline lacks this new capacity constant; still compile it to obtain a functional RED. */
+#ifndef GGR_MAX_QUEUES
+#define GGR_MAX_QUEUES 32u
+#endif
 #define GAUGUIN 1
 #define SWEET 1
 #define APPLE_KEXT_OVERRIDE override
@@ -165,11 +169,12 @@ static unsigned checks;
 #define CHECK(x) do{++checks;assert(x);}while(0)
 template<class T>static IOReturn request(GauguinGPUUserClient *c,uint32_t selector,T *r,int shape=0)
 {
-    T out={};IOExternalMethodArguments a={r,&out,sizeof(T),sizeof(T),0,0,nullptr,nullptr};
+    T out;memset(&out,0xa5,sizeof(out));T unchanged=out;IOExternalMethodArguments a={r,&out,sizeof(T),sizeof(T),0,0,nullptr,nullptr};
     if(shape==1)--a.structureInputSize;if(shape==2)--a.structureOutputSize;
     if(shape==3)a.scalarInputCount=1;if(shape==4)a.structureInputDescriptor=r;
     IOReturn result=c->externalMethod(selector,&a,nullptr,nullptr,nullptr);
     if(result==0)*r=out;
+    else CHECK(memcmp(&out,&unchanged,sizeof(out))==0);
     return result;
 }
 static uint32_t new_bo(GauguinGPUUserClient *c,uint64_t size,uint32_t flags=0)
@@ -206,6 +211,52 @@ int main(int argc,char **argv)
     struct ggr_submit_bo bos[]={{3,data,data_va},{1,commands,command_va}};
     struct ggr_submit_cmd cmd={1,1,0,sizeof(cmdwords),0,0,0};
     struct ggr_submit s={};s.flags=0x10;s.nr_bos=2;s.nr_cmds=1;s.bos=(uintptr_t)bos;s.cmds=(uintptr_t)&cmd;s.fence_fd=-1;
+    if(argc>1&&strcmp(argv[1],"queues")==0) {
+        struct ggr_queue q1={0,0,0},q2={0,0,0},bad={1,0,0};
+        CHECK(request(c,0x4a,&bad)==kIOReturnBadArgument);
+        bad={0,1,0};CHECK(request(c,0x4a,&bad)==kIOReturnBadArgument);
+        bad={0,0,123};CHECK(request(c,0x4a,&bad)==kIOReturnBadArgument);
+        CHECK(request(c,0x4a,&q1)==0&&q1.id==1);
+        CHECK(request(c,0x4a,&q2)==0&&q2.id==2);
+        s.queueid=q1.id;CHECK(request(c,0x46,&s)==0&&s.fence==1&&completed==1);
+        s.queueid=q2.id;s.fence=0;CHECK(request(c,0x46,&s)==0&&s.fence==1&&completed==2);
+        struct ggr_wait w={2,0,{1,0},q1.id};
+        CHECK(request(c,0x47,&w)==kIOReturnBadArgument); /* q2's hardware2 is not q1's fence2 */
+        w.fence=1;CHECK(request(c,0x47,&w)==0);
+        w.queueid=q2.id;CHECK(request(c,0x47,&w)==0);
+        w.queueid=0;CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        s.queueid=0;s.fence=0;CHECK(request(c,0x46,&s)==kIOReturnBadArgument&&submit_calls==2);
+        s.queueid=q1.id;CHECK(request(c,0x46,&s)==0&&s.fence==2&&completed==3);
+        w={2,0,{1,0},q1.id};CHECK(request(c,0x47,&w)==0);
+        w.queueid=q2.id;CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        uint32_t closing=q2.id;CHECK(request(c,0x4b,&closing)==0);
+        CHECK(request(c,0x4b,&closing)==kIOReturnBadArgument);
+        w.fence=1;CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        w.queueid=0;w.fence=2;CHECK(request(c,0x47,&w)==0); /* unambiguous legacy alias */
+        std::vector<uint32_t> ids={q1.id};
+        for(unsigned i=1;i<GGR_MAX_QUEUES;i++) {
+            struct ggr_queue q={0,0,0};CHECK(request(c,0x4a,&q)==0&&q.id>q2.id);
+            ids.push_back(q.id);
+            w={1,0,{1,0},q.id};CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        }
+        struct ggr_queue full={0,0,0};CHECK(request(c,0x4a,&full)==kIOReturnNoResources&&full.id==0);
+        s.queueid=ids.back();s.fence=0;CHECK(request(c,0x46,&s)==0&&s.fence==1&&completed==4);
+        w={2,0,{1,0},ids.back()};CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        w.fence=1;CHECK(request(c,0x47,&w)==0);
+        closing=0;CHECK(request(c,0x4b,&closing)==kIOReturnBadArgument);
+        for(auto id:ids){closing=id;CHECK(request(c,0x4b,&closing)==0);}
+        w={1,0,{1,0},q1.id};CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        /* Empty default namespace cannot inherit a closed explicit queue's completion. */
+        w.queueid=0;CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        s.queueid=0;s.fence=0;CHECK(request(c,0x46,&s)==0&&s.fence==1&&completed==5);
+        struct ggr_queue later={0,0,0};CHECK(request(c,0x4a,&later)==0&&later.id>ids.back());
+        w={1,0,{1,0},0};CHECK(request(c,0x47,&w)==0); /* default keeps its identity */
+        w.queueid=later.id;CHECK(request(c,0x47,&w)==kIOReturnBadArgument);
+        data_m->release();command_m->release();CHECK(c->clientClose()==0);c->release();
+        CHECK(!*pte(data_va)&&!*pte(command_va));
+        printf("PASS: %u actual IOKit queue assertions; interleaved native completions, local fences, no hardware claim\n",checks);
+        return 0;
+    }
     cmd.submit_offset=32768;CHECK(request(c,0x46,&s)==kIOReturnBadArgument&&submit_calls==0);cmd.submit_offset=0;
     bos[1].flags=3;CHECK(request(c,0x46,&s)==kIOReturnBadArgument&&submit_calls==0);bos[1].flags=1;
     bos[1].handle=data;CHECK(request(c,0x46,&s)==kIOReturnBadArgument&&submit_calls==0);bos[1].handle=commands;

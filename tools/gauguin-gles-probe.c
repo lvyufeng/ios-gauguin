@@ -17,13 +17,36 @@
 #include <errno.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <mach/mach.h>
 extern char **environ;
+/* Read-only XNU SPI, also imported by this root's own launchd. Wire layout and
+ * command8 are checked against the kernel which runs the probe. No SET command
+ * or global memory policy change is made by this executable. */
+extern int memorystatus_control(uint32_t,int32_t,uint32_t,void *,size_t);
+struct probe_memlimit {
+    int32_t active;
+    uint32_t active_attr;
+    int32_t inactive;
+    uint32_t inactive_attr;
+};
+_Static_assert(sizeof(struct probe_memlimit)==16,"XNU memlimit query wire size");
 
 enum { WIDTH=32, HEIGHT=32, PIXELS=WIDTH*HEIGHT };
 struct param {uint32_t pipe,param;uint64_t value;uint32_t len,pad;};
 _Static_assert(sizeof(struct param)==24,"msm GET_PARAM wire layout");
 static int fail(const char *where)
 {fprintf(stderr,"GAUGUIN GLES FAIL: %s\n",where);fflush(stderr);return 1;}
+static int memory_checkpoint(const char *phase)
+{
+    struct probe_memlimit limits={0};
+    if(memorystatus_control(8,getpid(),0,&limits,sizeof(limits)))return fail("read actual probe memory limits");
+    task_vm_info_data_t vm={0};mach_msg_type_number_t count=TASK_VM_INFO_REV1_COUNT;
+    if(task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&vm,&count)!=KERN_SUCCESS||count<TASK_VM_INFO_REV1_COUNT)return fail("read actual probe physical footprint");
+    printf("GAUGUIN GLES memory phase=%s active_mb=%d active_attr=%u inactive_mb=%d inactive_attr=%u footprint_bytes=%llu\n",phase,limits.active,limits.active_attr,limits.inactive,limits.inactive_attr,(unsigned long long)vm.phys_footprint);fflush(stdout);
+    if(limits.active!=128||limits.inactive!=128||limits.active_attr!=1||limits.inactive_attr!=1)return fail("expected finite128MiB active/inactive hard limits");
+    if(!vm.phys_footprint||vm.phys_footprint>UINT64_C(128)*1024*1024)return fail("invalid probe physical footprint for configured limit");
+    return 0;
+}
 static void number(CFMutableDictionaryRef p,CFStringRef key,int32_t value)
 {CFNumberRef n=CFNumberCreate(NULL,kCFNumberSInt32Type,&value);CFDictionarySetValue(p,key,n);CFRelease(n);}
 static int query_identity(void)
@@ -88,16 +111,21 @@ int main(int argc,char **argv)
     if(argc==2&&!strcmp(argv[1],"--after-gpu-api")) {
         if(api_then_late_workload())return 1;
     } else if(argc!=1)return fail("unsupported probe arguments");
+    if(memory_checkpoint("before-context"))return 1;
     if(query_identity())return 1;
     const int attribs[]={OSMESA_FORMAT,OSMESA_BGRA,OSMESA_DEPTH_BITS,0,OSMESA_STENCIL_BITS,0,OSMESA_PROFILE,OSMESA_ES_PROFILE,OSMESA_CONTEXT_MAJOR_VERSION,3,OSMESA_CONTEXT_MINOR_VERSION,0,0};
     OSMesaContext context=OSMesaCreateContextAttribs(attribs,NULL);uint32_t memory[PIXELS];memset(memory,0x5a,sizeof(memory));
-    if(!context||!OSMesaMakeCurrent(context,memory,GL_UNSIGNED_BYTE,WIDTH,HEIGHT))return fail("real ES3 context");
+    if(!context)return fail("real ES3 context creation");
+    if(memory_checkpoint("context-created"))return 1;
+    if(!OSMesaMakeCurrent(context,memory,GL_UNSIGNED_BYTE,WIDTH,HEIGHT))return fail("real ES3 context current");
+    if(memory_checkpoint("context-current"))return 1;
     const char *renderer=(const char *)glGetString(GL_RENDERER),*version=(const char *)glGetString(GL_VERSION);
     printf("GAUGUIN GLES renderer=%s version=%s\n",renderer?renderer:"null",version?version:"null");fflush(stdout);
     if(!renderer||!version||(!strstr(renderer,"FD619")&&!strstr(renderer,"Adreno (TM) 619"))||strstr(renderer,"softpipe")||strstr(renderer,"llvmpipe")||!strstr(version,"OpenGL ES 3"))return fail("hardware renderer identity");
     GLuint draw=program("#version 300 es\nprecision highp float;\nuniform vec4 tint;uniform int phase;out vec4 color;void main(){ivec2 p=ivec2(gl_FragCoord.xy);bool odd=((p.x/4+p.y/4+phase)&1)!=0;color=vec4(odd?vec3(1.0)-tint.rgb:tint.rgb,1.0);}\n");
     GLuint sample=program("#version 300 es\nprecision highp float;in vec2 uv;uniform sampler2D src;out vec4 color;void main(){color=texture(src,uv);}\n");
     if(!draw||!sample)return fail("runtime GLSL programs");
+    if(memory_checkpoint("programs-linked"))return 1;
     struct timespec t;clock_gettime(CLOCK_MONOTONIC_RAW,&t);uint32_t seed=(uint32_t)t.tv_nsec^((uint32_t)getpid()*0x9e3779b9u);
     GLuint texture=0,framebuffer=0,vao=0;glGenVertexArrays(1,&vao);glBindVertexArray(vao);
     glGenTextures(1,&texture);glBindTexture(GL_TEXTURE_2D,texture);glTexStorage2D(GL_TEXTURE_2D,1,GL_RGBA8,WIDTH,HEIGHT);
@@ -115,6 +143,7 @@ int main(int argc,char **argv)
         hash=(hash^result[i])*16777619u;
     }
     printf("GAUGUIN GLES normal seed=%u pixels=%u hash=%08x\n",seed,PIXELS,hash);fflush(stdout);
+    if(memory_checkpoint("normal-readback"))return 1;
     CFMutableDictionaryRef props=CFDictionaryCreateMutable(NULL,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
     number(props,kIOSurfaceWidth,WIDTH);number(props,kIOSurfaceHeight,HEIGHT);number(props,kIOSurfaceBytesPerRow,4*WIDTH);number(props,kIOSurfaceBytesPerElement,4);number(props,kIOSurfacePixelFormat,0x42475241);
     number(props,CFSTR("IOSurfaceOffset"),64);number(props,kIOSurfaceAllocSize,16384);
@@ -138,6 +167,7 @@ int main(int argc,char **argv)
     }
     if(IOSurfaceUnlock(surface,kIOSurfaceLockReadOnly,NULL))return fail("surface result unlock");
     printf("GAUGUIN GLES surface seed=%u pixels=%u hash=%08x\n",seed,PIXELS,hash);fflush(stdout);
+    if(memory_checkpoint("surface-readback"))return 1;
     glBindFramebuffer(GL_FRAMEBUFFER,0);glDeleteFramebuffers(1,&framebuffer);glDeleteTextures(1,&shared);glDeleteTextures(1,&texture);glDeleteVertexArrays(1,&vao);glDeleteProgram(sample);glDeleteProgram(draw);CFRelease(surface);OSMesaDestroyContext(context);
     puts("GAUGUIN GLES PASS real-GLSL-draw-texture-IOSurface");return 0;
 }

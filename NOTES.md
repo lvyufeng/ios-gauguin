@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Probe-specific finite memory admission; physical retry pending
+
+Actual first Mesa180 trial failed BEFORE renderer/new GPU submission: SIGKILL9,
+OS_REASON_JETSAM namespace1/code7 per-process-limit. Readonly current dedicated
+Jetsam report confirms this cause; device daemon default has6MiB inactive hard
+limit. Kernel180 startup API/full600s idle service still pass595renewals/3jobs.
+Frozen late-GLES contract correctly rejected the trial; no physical GLES/Metal/
+UI/highrefresh acceptance. Root main NOTES carries current device orchestration.
+
+This branch adds a system job template with ONLY probe-specific128MiB ACTIVE+
+INACTIVE HARD limits and read-only effective-limit/physical-footprint checkpoints
+in the actual probe. Actual iOS16 launchd binary recognizes these keys and says
+oldJetsamMemoryLimit is ignored. No global protection bypass/SET SPI/GPU changes.
+New14case boundary test compares actual frozenkernel memory struct/offsets/GET8
+and exercises production function. Retained14case API-child/90s ordering test0.
+DSH research/tmp/dsh-gles-0181-root/v2: BOTHtests0, initial iOScross-link1 due
+missing task_info prototype. Originalsource+failedlog retained. v3 changes ONLY
+include to mach/mach.h; probe-only iOS16 link/sign/strictverify0, signedprobe
+73328B SHA2e3b57199f515fd9dfaed1b129426d209876f5dac9eab3dd74884fcedca956e0.
+Mesa16MB b4a0c657... and kernel180682511e7... unchanged; no library/kernel rebuild.
+
+No newroot write approved or attempted. Fresh AFTER-BOOT16GiB readonly backup
+is ongoing under root orchestration. Next local COW probe/job/cache delta,
+fsck/model/currentblock review, then NEW explicit concrete destructive consent
+before writing. Old5802consent consumed. Never rawrollback preboot HFS metadata.
+GLES publicationbase PUBLICbd384172...=PRIVATEba31e7e.../TREEd561973... until
+next receipt. Full daily-use GPU/Metal/RAM/UFS/peripheral/highrefresh goal ACTIVE.
+
+### 2026-11-08 —GLES179 source PUBLISHED; main180600s physical service PASS
+
+GLES publication VERIFIED9textfiles/non-force/tree-parent-ref rechecked:
+PUBLICbd3841720e0c41530bbc0d4cbddcf6955ad97d2b
+=PRIVATEba31e7ed9bfba1db5a6fda1a0a693e2f92a5cd9e
+/TREEd561973d8cea750aeb872c32c5eca5d7dde8bf55;
+sole public parent713ea8... .Receipt research/tmp/dsh-gles-0179/source-publication.json.
+THIS is next GLES base. MAIN separately advanced to
+PUBLIC6d5a7bb3a6a06b2bd2a5fb85519c5517b71696be
+=PRIVATEbcf7eb7895685cb5b3e7125fc2d24b80910ce6db
+/TREEead582854b1a575313e483bfaf87636007f65495 (kernel source698ef7e).
+Main180physical startup3GPUjobs/full8192+1024readbacks +600s idle service/595
+renewals now PASSED, automaticTWRP746s/no panic. No physicalGLES/lateworkload/
+Metal/UI/refresh acceptance. No CI dispatch; builds LOCAL.
+
+PhoneTWRP, fresh full16GiB read-only snapshot for GLES currently streaming at
+research/tmp/dsh-gles-0180-root/checks-v1 (12.31GiB at11:53:53UTC). No root install
+or new consent yet. Keep installedCLI/job/cache untouched until exactbackup,
+COW file/cache/delta audit, localreadonlyfsck and writerrollbackmodel allpass,
+then request NEW concrete-delta permission. This branch's signed library/probe
+and software proofs are ready; do not rebuild unchanged products. Goal ACTIVE.
+
 ### 2026-11-08 —GLES179 signed build/ABI/order checks0; independent review PASSED
 
 DSH-GLES179v3 ONE8job actual iOS Mesa build/package0 in51.5s, all10983input pins

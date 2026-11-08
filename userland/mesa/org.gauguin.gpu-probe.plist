@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>org.gauguin.gpu-probe</string>
+    <key>ProgramArguments</key>
+    <array><string>/usr/libexec/gauguin-gles-probe</string><string>--after-gpu-api</string></array>
+    <key>UserName</key><string>root</string>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><false/>
+    <key>LaunchOnlyOnce</key><true/>
+    <key>ProcessType</key><string>Background</string>
+    <key>JetsamProperties</key>
+    <dict>
+        <key>ActiveHardMemoryLimit</key><integer>128</integer>
+        <key>InactiveHardMemoryLimit</key><integer>128</integer>
+    </dict>
+    <key>StandardOutPath</key><string>/private/var/tmp/gauguin-gles180.log</string>
+    <key>StandardErrorPath</key><string>/private/var/tmp/gauguin-gles180.stderr.log</string>
+</dict>
+</plist>

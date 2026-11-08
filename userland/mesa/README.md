@@ -78,6 +78,34 @@ orders the clients, so they cannot race for the privileged single-client slot.
 This mode requires the 600-second service image, not a 60-second smoke image.
 Cross-compilation, signing and ABI checks do not prove that any shader has run.
 
+The first physical trial reached the delayed hardware/GMEM query, then iOS
+terminated the process with Jetsam `per-process-limit` before a renderer or new
+GPU submission appeared. The device's daemon policy has a 6 MiB inactive hard
+limit for jobs without an override. This is a failed GLES trial; the separate
+startup API and 600-second idle GPU service passed.
+
+`org.gauguin.gpu-probe.plist` supplies finite 128 MiB active/inactive hard limits
+only for this prototype. Install it in the same existing system job location
+and update its entry in the launch cache as part of a reviewed root delta.
+The actual iOS16 launchd recognizes `ActiveHardMemoryLimit` and
+`InactiveHardMemoryLimit`; its binary explicitly says the older
+`JetsamMemoryLimit` key is ignored. The probe reads its own effective limits
+through XNU GET command8 and its physical footprint through `TASK_VM_INFO`
+before/during context creation, shader linking and both readbacks. It refuses
+unlimited, soft, incorrect or unreadable limits. It never sets memory policy.
+These changes need a new physical trial; they do not establish GLES success.
+
+```sh
+python3 tests/test_gles_probe_memory.py \
+  --kernel-source /absolute/path/actual-patched-XNU \
+  --out /absolute/path/fresh-memory-boundary-results
+python3 tests/test_gles_probe_order.py
+```
+
+The memory test uses the actual kernel's independent struct and command
+definitions, then exercises the production query function with typed syscall
+seams. It cannot establish that launchd applied the installed policy.
+
 Kernels 179/180 provide the source profile for this package: a health-gated watchdog
 service, up to 32 logical queues over one synchronous serialized ring, and
 GMEM queries derived from the driver's native UCHE aperture configuration

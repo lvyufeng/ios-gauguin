@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —180 kernel source PUBLISHED; final fresh backup still streaming
+
+MAIN/CI source publication VERIFIED,12textfiles only/non-force/ref/tree/parent:
+PUBLIC6d5a7bb3a6a06b2bd2a5fb85519c5517b71696be
+=PRIVATEbcf7eb7895685cb5b3e7125fc2d24b80910ce6db
+/TREEead582854b1a575313e483bfaf87636007f65495,
+sole public parent5eb6eff... .Receipt dsh-0180/source-publication.json. THIS is
+next MAIN publication base; compiledkernelidentity stays698ef7e/source2a8fc45f.
+GLESbase bd384172...=ba31e7e.../d561973... remains independent. No CI dispatch.
+
+Full read-only root backup still SAME dsh-gles-0180-root/checks-v1/outer35330;
+at11:53:53UTC12.31GiB/16GiB, not yet complete/accepted. Keep phoneTWRP/no boot.
+New LOCAL sequential wrapper prepare_bundle180.py is authored: stageCOW ->
+audit/delta -> read-only LOCALfsck -> boundwriter/fakeIOmodel. It requires fresh
+backup/result0; not yet run. Full root preparation/native GLSL runtime remains
+unfinished and no newroot approval has been requested or granted. After all
+local preparation/review, ask ONE fresh concrete delta consent perAGENTS; old175
+permissions consumed. Full original daily-use objective ACTIVE/incomplete.
+
 ### 2026-11-08 —180 PHYSICAL600s PASS; fresh GLES root backup LIVE (no install)
 
 180v6 temporaryboot0/inputs unchanged;11:30:32..11:42:58UTC, automaticTWRP746s

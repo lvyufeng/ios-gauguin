@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —185 REAL GPU GLES shader/texture/IOSurface ACCEPTED
+
+W185v12/v13/v14 ALLterminal0/inputsunchanged; phone autoTWRP after746.322147s
+(15:20:22.625406..15:32:48.947553UTC). ONEtemporarykernel180image682511e7...,
+newinstalledMesa3a447524.../sameprobe2e3b.../128MiBpolicies/allotherfiles retained.
+FROZEN181v2+180canonical contract PASSED unmodified. Rootindependentphysicalreview
+PASSED: research/tmp/dsh-gles-0185-root/independent-physical-review.json.
+ActualFD619/OpenGLES3.1Mesa25.0.7,90.008459166s latewait; bothGLSLprograms,
+seed1974743159,all1024RGBApixels hash9af64bc5 andall1024BGRAtexture/IOSurfacepixels
+hash46f1bbc5 correct. NativeEOP1..6 complete,3startupAPI+3newGLESjobs,shadows
+32/44/56/68/80/92. Fullstartup8192+1024word dynamicreadbacks seed3380874993
+alsoverified.600shealthservice595renewals/all20samples/finitequarantine-stop
+accepted. NoGLEScrash/panic/owner-healthfailure. All6actualGET8checkpoints128MiB
+active/inactive HARDattr1; footprint967016/16335248/16335248/25280912/25575824/
+25624976B. Independentreview recomputesdynamicdata andchecksEOP/queue/service.
+
+Fullrawstdout5797B/stderr2341B preserved,old3754/2072Bprefixes intact. Current
+2043/269B in post-trial-capture-v1/current-{stdout,stderr}.log. ALL269stderrbytes
+matched exactprimaryMesa u_screen/os_file warning. Darwinfallbackcannotcompare
+fdnumbers anddoesnotseterrno; printedtimeout is inheritederrno, notGPUtimeout.
+Currenttransportdup()s ONEcached/dev/null/IOKitconnection, soaliasassumptionvalid
+forthissingle-clientprototype. Source-backedstderr-independent-review.json,
+notblanketwarningwaiver. Canonicalresult+allfiles/currentdata pinned; no edits
+allowed toretroactively manufacture PASS. Prior180/181/184FAILED evidence kept.
+
+ACCEPTANCE SCOPE: root-only standaloneES3shader+texture+IOSurface,6nativejobs and
+600s service. AcceleratedUI/Metal/highrefresh/dailyuse FALSE. Currentrealimage
+RAMstill4GiB upperbank;1826GiB evidencewaspartialQEMUonly. GPUdriverstillone
+privilegedclient/globaltables. Next GPUwork: exact20H392EAGLdispatchABI and
+compositor-scopedclient/access/ordering plan, then controlledUIintegration.
+Don't enableordinarymobileappaccess bymerelyremovingprivilegecheck. RAM/UFS/
+peripherals/full90/120Hz daily-use goalremainsACTIVE, notcomplete orshrunk.
+
+CURRENTphone TWRP/userdataunmounted; NOliveDSHhandles.36753/96866/7165/98175
+closed.185approval CONSUMED; full305b3ef2backup isPRE185BOOT/HISTORICALnow.
+Never rawrollbackit afterthisboot. Anyfuture rootdelta needs NEWfreshbackup+
+exactconcreteconsent.185actualinstalledbaseline3a4lib accepted; don'trestoreb4.
+Sourcecodepublished071645ebb...=PRIVATE688b7e35.../TREE510b977... asbelow; pending
+newsourceDOCcommit forrealphysicalacceptance must advancefromTHATbase. No new
+kernelbuild/CI. Originaldirtymkadt diff a74a... preserved.
+
+UIoffline183: actualcache44shards/2710images/fourframeworkMachOheader inventory0.
+BothactualEAGL class names andall6selectorstrings present. NEWmetadataDSHv2
+FAILED on selector decode (UTF8invalid), preserved. Primaryobjc4 headerblob
+ de2da88fb949d1398b6d3377af4314703db08025 verifiesrelative-direct selectors use
+sharedCacheRelativeMethodBase, notmethodfield-relative. Needactual20H392selector
+base before retry; methodtypes/dispatchslotABI NOTaccepted. TodayAppleobjc4
+header isonlylayoutreference, notproofoffirmwareversion. See183/offline-eagl-abi-
+status.json. NoheuristicABI/slotmatch, noUIinstall. No Applebytes/dumps Git.
+
 ### 2026-11-08 —1854017blocks APPLIED/readback0; real new-Mesa trial LIVE
 
 User explicitly approved call_f942d41aaa904fa8b9aaacea8085bc23 item0:

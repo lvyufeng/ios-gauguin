@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Native176 build0/qualification0; same-probe package LIVE
+
+Source commit/frozen KERNEL176_SOURCE_HEAD4d6b2a8d56acdcf5e1eda2dfc88df3598337d6e0.
+DSH0176v2 ONE local8job build EXIT0 in run gauguin.tKac3D; initial qualifier
+failed1 before checks on missing Python import path for retained174contracts.
+Original helper/log retained; v5 uses qualify176v2.py on SAME kernel, all generic
+provenance/SDK/source/install/archive/defined-symbol checks PASSED0, no rebuild.
+BuildIDxnu-acb89b6664af427e9aa08170da6fe0f4; kernel SHA
+79a32f09aa6a0c243363daf57d8d9e4af7fc0fec34feb062ddb0312af70988ac.
+Actual installed function now ubfiz x0,x0,#14,#32, replacing truncating175
+lsl w0,w0,#14. Current recipe is tKac3D, not older1751CAtln; shared generated
+headers/Makefiles replaced. ROOT full source comparison + focused regression/
+native artifact review PASSED root-build-review.json; only pmap.c differs.
+
+DSHv3 READONLY current HFS0: CLI775622b6..., System jobe308770e..., cache
+b4f9bcff... all exact/root:root correct modes; header422feb21... stable before/
+after capture. v4 new boot admission model8cases0/no phone commands. Subsequent
+temporary boots use CURRENT installed-file/header receipt, not stale post-write
+raw metadata (iOS already changed metadata during prior boot). Routine13B misc
+latch remains only direct write; no new userdata delta. Installed CLI/trial
+gwrt-0175-a1 reused, NEW176kernel banner binds actual identity. DSHv6 package
+LIVE unchanged lowPAS loader/5firmware assets/mode12 args. Next inspect SAME
+worker, pin image + current files, one temporary176boot/capture/frozen175strict
+GPU API validator. Full goal incomplete; no dynamic GPU API pass yet. No CI.
+
 ### 2026-11-08 —0176 cache-address fix replay and red/green PASSED
 
 DSH0176v1 TERMINAL0/inputs unchanged. Fresh170patch replay5329files SHA

@@ -2,6 +2,85 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 PHYSICAL nearest texture ACCEPTED; dynamic client/presentation next
+
+Goal ACTIVE/unlimited, progress; full GPU/Metal/UI/highrefresh/daily-use goal
+unfinished. All174 executed DSH1..23 TERMINAL (1/2/13/14/16 failed artifacts
+retained, no claimed-job restart). No live worker/pending user input. Phone now
+automaticTWRP174 after131s; user AWAY, ALLresets automatic --manual-reset no,
+never attribution/UI questions. Manual assistance only for genuinely stuck phone.
+
+DSH22 boot FIRST0: uniquegauguin recovery/13Bmisc recovery latch readback,
+uniquegauguinpro fastboot, ONE temporary fastboot boot174, fresh observer binary/
+text/cycle, exact newkernel banner, automaticrecovery131s. No flash/GPT/userdata
+or newdestructive step. DSH23 read FIRST0: strict complete physical verifier0,
+immutable text exactly rawbinary decoding,32wrapperinputs unchanged. ROOT
+review_physical174.py FIRST0 accepted ALL40full technical inputs and exact
+pre-phone independently computed normalized-nearest endpoint oracle.
+Physicalproof SHA6636f45aa61c43a1af5bddb67b619d70fbebd43a17de106cd81e0e526255b73f
+Fullreport SHA4aacdb53c9f0d6ecc9f292216047205ba51a03e4fedcede41ca85d24087b45be
+
+Same one signed INIT/MEM/AUTH andGGU20 context; three native originalMesaA619
+sampler/view/IR3 graphs UV,VU,upper-U-clamp. ALL768 prior/current pixels EXACT,
+16/16/4distinctcolors,93nativebufferreceipts,2221payload/2752paddedwords perjob,
+full4KiBDATA before/after, independent EOP6/22/38/root20-27-34-41. No CPU DATA
+stores or source-reference dump substituted for actual samples. Texture4x4RGBA8,
+pitch64,immutable4KiBinput inexistingRO32KiBmapping; no newmapping. Exactprevious
+OBSERVEDpixels preserved. Guarded3job span1.8262078125s with2.1737925s totalbudget
+remaining; includes guarded scans/diagnostics, NOT a throughput/FPS/UI benchmark.
+This proves fixed nearest sampling and upper-U control; no arbitrarytextures,
+filtering/lifecycle/generalAPI, Metal, IOSurface/UI acceleration, lowerclamp,
+highrefresh, appcompatibility or human-perceived performance qualification.
+All24 artifact hardware flags remain FALSE; separate physical proof above.
+
+Frozen174sourcePRIVATE7e48ca393fb719d4951f9c1a3893adba6161f9e5,
+PUBLICf3914a1167379a86c8f7a732780a360a81c261f3,
+TREE6f8a5c2f1e1aa184641c48a80c71109cd0aac19e. CURRENTgenuine174recipe
+.deps-cache/p0-20261105/build/runs/gauguin.FxICIV/build-manifest.json
+SHA1d05972654801dba686e27e401711c9df9eb2036403725c88fcb7dcd56f70586,
+source174-codex5326/4e9999c3275627baec8114153f822021f46b48530978ee7b7a44f2415be00e85,
+168patches/2127headers. NEVER old173/172/171nativeTUhelpers onsharedheaders.
+Kernel17232376B/34d50e5af17bef9c8dd1addcc03d3be11e79c7b441a101fdf1300b5f7034d9c3;
+image19922944B/048730799c0406575e51774d6e5a263f682995ee49422f25ed4499ece3233d0b;
+payload19595264B/a4e09a2c4f66da06a1bbba48cab31d23fb38f6e3787912465739c245edc6bb9b.
+Trialgwrt-0174-a1,607Bcmd/608Bfield1NUL,fiveassets. One local8job build, no newCI.
+Core144011/15797488936assertions,board41147(allold31280+new9867),776coord/541owner,
+all87cleanhost1299.38s,188oldartifactpredicates retained/192total. Parser26valid/
+29248refused; full7997negative actual-execution union,112positives EVERYworker,
+160metadatacontrols. Originalmkadt7line diff a74a0418... intact.
+
+NEXT commit this physicalhandoff, publish NOTES-only SAME TREE onto current
+PUBLICf3914a1 with PRIVATE7e48ca3 as base (solepublicparent/nonforce); record new
+public/private/tree tuple as NEXTbase. Sourceidentity7e48ca3 stays frozen.
+Then implement real userspace BO allocate/map/submit/fence/readback and IOSurface
+presentation, not another fixed-command feature as the main nextmilestone.
+
+USER SPEED steering now supersedes any blanket every-change full-regression
+practice. Small isolated edits: relevant host checks + nativeTUs as needed.
+ABI/MMU/ownership/recovery changes and important integrated image milestones:
+broader/full checks. Preserve recovery, memory safety and authenticity; do not
+rerun full87 or thousands of parser cases merely for trial names/labels.
+Avoid copying a whole new parser/helper stack for each trial; use immutable run
+profiles/manifests over stable tools when building the next pipeline.
+
+Updated primary-code research, still read-only, pinned in gpu-reuse-20261108-v1:
+HakiOS63fc2b4633bac3af8e57dadab9f5a8d4cb940438,
+UniXNUAdrenoMetal6d7f73437087c57ee54a41adceb1735daaea405e,
+Adreno7406fa7bae2a5b3b523e790eb3e0348af4d98969e4d.
+Closest reusable path to evaluate FIRST: HakiOS msm-numbered IOKit transport/
+BO/fence and iOS16 frontend (MesaGLES first available, directMetalAIR->NIR->IR3
+next), retaining our proven A619 bootstrap. UniXNU m2v/Turnip remains a reusable
+alternative; HakiOS already has iOS16 port patches, pin243d63cf +m2v624bab39,
+DO NOT mix latestAdrenoMetal with that patch stack without interface checks.
+Actual code caveats: HakiOScompiler uses a6xx::kChipId (642L), backend hardcodes
+chip0x06030500/a660firmware/sc7280 and hardwareformatparams; parameterize for real
+A619, never copy board literals/firmware. HakiOS GPU service uses MiniIOSurface;
+ours is SweetSurface (0046/0068), needs retained-memory/surface adapter. Its own
+service header also notes polling/sharedclientVA/no complete hang recovery;
+owned mapping/lifetime/isolation and timeout behavior remain required before
+ordinary multi-process use. Do not claim its reported UI FPS on A619; published
+rates depend on resolution/wallpaper/tuning and do not prove native120fps.
+
 ### 2026-11-08 —174 image/runtime ACCEPTED; ONE temporary hardware trial next
 
 Goal ACTIVE/unlimited; progress. Phone last automaticTWRP173. NO174boot yet at

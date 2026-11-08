@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —187 native kernel/image READY; DSH one-boot request pending
+
+Kernel187source integrated mainPRIVATE f1cca7ee25f82066839adba207a073f4c9557160
+/TREE8d8dc858ef81d81cfc7545ed514dd5e8224193b2 (fourcodefiles exactcandidate5c3b207).
+PublishedNEWbranch codex/gauguin-compositor-dyld-20261109 PUBLIC
+3d94eb6cb3c7efaa68f77c81303a8d3bd736a82f, sameTREE, soleparentmainpublic6d5a7bb.
+FiveUTF8textfilesonly; exactremoteTREE/ref/parentverified. Mainpublic6d5a7bb and
+UIeca39329 unchanged. Existingauthenticatedghfallback, noforce/noCI dispatch.
+
+W187v7 fullLOCALnative makeinstall0 in252s, FRESHbuild187-loader SDK/depsAPFSclones
+andfreshobjects; run gauguin.TYb0OC. Frozen180manifest/source-state hash+mtime
+unchanged. FirstqualificationFAILED1: newlyaddedmutableconfDATA symbol fed to
+oldtext-onlychecker. V7overallFAIL retained. SamebinaryV9qualified0 underoriginal
+textchecksPLUS exactaddress/__DATA,__data/nonexternal/unique definition check.
+Originalfailure retainedfailed-native-qualification-v1; NOsourcechange/rebuild.
+KernelSHA3b684d9b49be158d9deb8c702080748c9904965427112ea5b938f728f97eba2a,
+sourceSHA b68056e2a5268b32f8fea880a979f33d3daabb939761f3ea07e0159ac201f3bd;
+actualbannerbuildID xnu-6d7eff830b4a4fbebed1def62c451cda. W187/root-build-review.json.
+
+V8 READONLYcurrent9staticfiles+3WHOLEprefixes0; unchanged186installedroot and
+stableCURRENTrootheader pinned W187/installed-preflight.json. Savedprefixes7841/
+2610/448572B stdout/stderr/BBoard, exactprevious186rawfiles. NOuserdatawrite187.
+V10package0: image shim/out/shim-p3-gmuf-0187-native-20261109.img19988480B SHA
+b16d0aaff1c8ac949996a1bb8abf141bce95156cd153e42e5be1d53bbbeaab61.
+Onlyeffectivebootargchange sweet_dyld_probe=1; omitexplicit sweetnvtprobe=0, all3
+actualconsumerdefaultsverified0.605/608commandbytes/3NULs, same600sGPUservice,
+4GiBADT/shim/DTB/fivefirmwarebytes+physicalPA+reservedsizes identical180.
+AssetFILEoffsetsmove+432(nativekernelgrowth), correctlyreparsedallbytes/padding.
+V11reviewincorrectlyrequiredFILEoffsetidentityFAIL preserved; V12newreview0
+retainsphysicalPA/size/hashidentity ANDindependentlyhashesallnewpayloadoffsets.
+Original186bootflowBYTEIDENTICAL,24retainedbootcases/41admissioncases,fullfrozen
+181v2+180GLES/API contracts unchanged. New187actualbannerderivedfromimage.
+
+CURRENTphoneTWRP/unmounted, no187bootyet atthisentry. DSHv13 one-bootrequestLIVE
+outer77751, events-v13/checks-v13: firsttoolpending. Itmustclaimatomicprofileonce,
+thenwaitsamehandleterminal. BootprofileSHA
+f77c13e36307a9f46f963f453e3a847b83261668db4031f4077f34cc291ef531.
+ONEtemporary187image/600sservice/780sobserver860sbound, routine13Bmisc only.
+DSHv7 had~4mindelayedfirsttool AFTERlocalclaimed; nosecondbuildpossible. Owned
+idleheadless48667terminatedafterterminal; outer7572closed. V7-V12 actualworkwas
+CODEXLOCALFALLBACK (upstreamlatency), notDSH; executionoriginrecorded. No userTUI
+processestouched. Useraway; automaticresetattributionstanding, noUI/resetquestions.
+
+NEXT inspectv13claim/actualtrialbeforeanyfallback/retry. AfterONEactualbootterminal,
+READONLYcapturevia186read_files186.py + W187/post-trial-capture-profile.json,
+thenW187/qualify_trial187.py. FULLunchangedGLES181v2/180 plusactualAMFIregistered0,
+UID/ruid501/protectedexec/PATH2/rc0 andunchanged186admissioncontract. Preserveall
+3WHOLEprefixes. Thenreview_stderr187.py (onlyexact269Bprimary-reviewed185warning)
+andindependentreview_physical187.py; deriveactualbanner, noold7f61literal.
+Actualinjection/UID/budgetstillUNQUALIFIED untilphysicaldata. FullgoalACTIVE,
+GPUUI/Metal/highrefresh/dailyuse/fullRAM unqualified.186consentCONSUMED and855c
+PRE186BOOTbackupHISTORICAL, neverrawrollbackafterboot. Originalmkadt a74a preserved.
+
 ### 2026-11-09 —187 loader probe software PASS;175-patch replay; full build next
 
 Actualdyld1067 binary58068345 queriedAMFI/call90 with16Bwire(0flags/8pointer),

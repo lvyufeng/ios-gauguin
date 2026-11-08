@@ -2,6 +2,67 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 PHYSICAL bounded native three-job sequence ACCEPTED
+
+Goal ACTIVE/unlimited. This continuation is PROGRESS, not full GPU API/Metal/
+UI acceleration/highrefresh/daily-use completion. Phone now automaticTWRP172.
+User AWAY; ALL resets automatic --manual-reset no by standing policy, never
+ask attribution/UI; only prompt if manual recovery genuinely needed. All DSH
+1..23 TERMINAL, no live jobs or pending user input. No new CI run this stage.
+Codex critical driver/plan/review/Git; DSH compile/tests/build/package/boot/read.
+
+DSH v22 CLOSED inner0 FIRST: uniquegauguin recovery/product +13B misc recovery
+latch/readback +uniquegauguinpro fastboot; ONE temporary boot0172, send0.452s/
+boot0.134s, automaticTWRP after130s, fresh raw ring pull +exactkernel banner0.
+v23 CLOSED inner0 FIRST: strict physical verifier0, raw binary/text identity0,
+all old same-boot source/image/INIT/MEM/AUTH/GGU/clock/context/fault/time gates
+retained. Root review_physical172.py FIRST0, accepted independent-hardware-
+review.json SHAd9d989531396485f389e7e185cb709fc92a0c1a231e69ae5fed743c90e87ef4c.
+It rehashes all30 full-report inputs (26retained +4sequence), full5320-source,
+all768actual prior/current pixel samples, all81native buffer receipts, unique
+fresh USER32 EOP6/22/38 and root20->27->34->41, no source references substituted
+for RAM. Source artifact ALL20hardware flags remain FALSE; actual phone proof
+is the separate strict report. Signed INIT/MEM/AUTH and GGU20 ran ONCE, original
+mode8 GGT unchanged. No CPU DATA stores, no new mapping or reinit betweenjobs.
+
+Actual results: job0 all256green, job1 all256red with prior allgreen, job2
+116green/140blue with prior allred. Every job before/after1024DATA words,
+767unchanged words +control/neighbor/tail, all27slots/26nonempty/1158native/
+1632padded words verified. Each job reads13/writes3, own shadow27/34/41,
+EOP6/22/38 polls1, finalguard reason0/step17/rbbm0/cp0. Three-job guarded span
+1.339674479s, remaining4s-total budget2.660325781s; this includes defensive
+copy/readback/guards, NOT throughput/frame-rate/UI performance benchmark.
+Raw text542451B SHA0c862cd69e7eabe31bdd088a425d7a2ff732f538f4fa746f0f73e69613ccf718;
+binary4198400B SHAefe5041ca5e8f23ada4b84f52f390f8532ac7a5014f30586e7002f7b9ad83ae6.
+Full report SHA6704480d35fe8431c86ea246a5a877e5250598c1faa54c6db3d86f615b354e57.
+No human UI/touch/performance observation this unattended trial. Reaching
+SpringBoard/backboardd in raw log is only process evidence, not UI acceptance.
+
+Frozen kernel source24587b16123e10341903cdc7a5d26d92b11f9767/source172-codex,
+5320files/F474...,166patches. CURRENT GENERATED RECIPE172 gauguin.d14eqT,
+manifest87cc5799... ONLY; do not run older TU helpers against shared generated
+files. Kernel17175648B/a5d5e92e..., buildID1daf40ff1dee490db70f8b921f4a811d;
+acceptedimage19873792B/5313f887..., trialgwrt-0172-a1/mode9. Preserve all171/172
+baselines and original tools/mkadt.py7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
+NEXT concrete173 action: preserve172 as known-good repeated submission;
+inspect unchanged Mesa24.3.4 A619 native NIR/IR3/program/draw interfaces and
+capture a nonuniform triangle with vertex-to-fragment varyings. Derive a
+source-backed independent per-pixel oracle and native resource extent/packet
+proof before writing any new XNU driver path. Current fullgreen/red/inset
+profiles use fixed fragment colors; no texture sampling, dynamic buffers or
+arbitrary app shaders validated yet. In parallel planning only: tie subsequent
+resource ownership/fences to IOSurface and the actual compositor entrypoint;
+no fake accelerator service/Metal success flags. Daily-use path still requires
+persistent GPU lifetime, safe general resources/submission, presentation/API,
+RAM/UFS/peripherals/highrefresh and real UI acceptance. No173 execution yet.
+
+Completed evidence/docs ready to commit and publish using PUBLIC42d5240b4805fdc7cbd7db651aea09dba30abb48
+/PRIVATE24587b16123e10341903cdc7a5d26d92b11f9767/treee5d039d50724c7fb4b6b3791c5499c2ebe07473d
+as publication parent/base. OnlyNOTES changed vs that frozen source; no new
+kernel source commit or source marker overwrite. Record new public/private
+same-tree tuple after publication; never use old100dca02/22206b9 again.
+
 ### 2026-11-08 —172 complete runtime ACCEPTED; one temporary trial next
 
 Goal ACTIVE/unlimited, no172 device result yet. DSH v20 CLOSED inner0 FIRST:

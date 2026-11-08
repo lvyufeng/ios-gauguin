@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —187 physicalGLES PASS; AMFI90 worksUID501; admission STILLmissing
+
+187ONEtemporarybootfinishedautoTWRP, observer0,746.262208s at18:55:41.690211..
+19:08:07.952419UTC Nov8. V13terminal0/inputsunchanged, outer8598closed. Actualimage
+b16d/sourcePRIVATEf1cca7e/PUBLIC3d94eb6/buildID6d7eff8 validatedfromimage/native/
+stdout. PhoneNOWTWRP/unmounted, NOlivephysicaltrial. No187userdatawrite;186static
+smalllib67f7/job33f5/cache05b8/Mesa3a4 allretainedexact9hashes inV14capture0.
+All3WHOLEprefixes7841/2610/448572B preserved.186PREBOOT855cbackupHISTORICAL;
+no rawrollback;186consent403blocksCONSUMED, no newwriteauthorized byit.
+
+Important actualkerneloutput: AMFIregistrationrc0 ONCE, backboardd nativeexec
+ONCE; PID57 UID501 ruid501 protected-exec1/PATHmask2/rc0 observedTWICE, distinct
+nativepositions756/816. Existingstrict187validatorincorrectlyassumedexact1call,
+so V14overallFAIL1 atactual-policy-query; preservedoriginalcode/result/error.
+DoNOTrewriteitPASS orassumethesearetwoexecs. MoreimportantlynewBBoard5156B has
+ZEROEAGL186markers, so runtimeinjection/constructorgetprogname/budget remain
+UNQUALIFIEDdespiteworkingAMFI90. NoBBoardcrash. Causeundetermined: environment
+maynotreachdyld, librarymaynotmap, orsilentlibraryguard/constructorissue.
+Needactualenv/libraryinitializationevidence; norepeatunchangedboot.
+
+V15 independentpartialreview0/inputsunchanged keepsfullnewactualdata/6GPUjobs/
+allpixels andsource-backedENTIRE269Bstderr(reviewedexact185warning; unchanged
+Mesa3a4). W187/independent-partial-review.json state
+reviewed187-GLES-regression-PASS-AMFI90-success-injection-unqualified.
+FD619/ES3.1Mesa25.0.7,wait90.057281562s; startupseed1968197381 complete8192+
+1024wordreads; shaderseed1615459285,1024RGBA/1024BGRApixels eachhash2621291461;
+EOP1..6/rings32/44/56/68/80/92;595renewals/full600shealth. Six128MiBHARDGET8phases,
+footprints786672/16171328/16171328/25215296/25395520/25444672B. AllUI/Metal/high
+refresh/dailyuseflagsFALSE; no compositorbudgetreport. AMFIwireonlyqualified,
+notfullinjectororGPUUI. Preservefullv14FAIL andpartialsuccessseparately.
+
+DSHv13only3initialevents/no toolfor>13min; local84973 atomicbootindependenttree.
+Ownedidleheadless84829terminatedwithancestorcheck preservingactualobserver;
+outer77751closed. All187actualcompile/tests/boot/postworksincev3wasLOCALFALLBACK,
+NOTDSH; userinformedofrepeatedupstreamwait. DSHpreferredwhenresponsive; userTUI
+untouched. All187v13..v15handles8598/82888/77751closed, no morebootpending.
+
+NEXT188 READONLYloaderdiagnostic: inspectactualdyld1067initializerhandling and
+actualexecenv-copy source beforecode. Addboundedopt-inpresence/exact-known-value
+(notallenvtext) diagnostics atvalidatedexecenvironmentcopy forbackboardd/xpcproxy,
+andobservemapping/signatureofexistinginertlibrary ifneeded. RetainPATH2only,
+defaultoff, noGPUpermissionchange/newrootwrite. Needcompletebodyhostboundaries,
+actualARM64TU beforefullkernelbuild. Thisisproposed, no188code/source/imageyet.
+CheckmissingDYLDenv vsnotmappedvsconstructor/identity beforechanginguserland.
+Other188renderinggates inW187/next-compositor-plan187.json remainfuture; current
+compiledfullbridgegatealways0. FullgoalACTIVE, actualRAMstill4GiB. Originalmain
+mkadt a74a preserved. Sourcepubbranch3d94eb6 immutablecurrentcodebaseline.
+
 ### 2026-11-09 —187 actual temporary boot LIVE; wait same8598 handle
 
 187v13 atomicprofile claimedLOCALdispatcher84973 at1794164136.654712; actual

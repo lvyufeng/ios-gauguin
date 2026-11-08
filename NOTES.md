@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —USER APPROVED launch fix; second exact write/readback PASSED
+
+Actual new user answer: "允许写入这次修复，并允许失败回滚" for question
+call_cf6ca38fc134467eac082412ccae5a32. Immutable launchfix-user-approval.json
+binds EXACTc60548b9.../362blocks/1,482,752B; this is the second independent
+consent, not reuse of the440block permission. DSHv33 TERMINAL0/inputs unchanged:
+write_root_delta175_launchfix.py verified exact recovery/product/capacity/
+unmounted/no holders and all38old ranges before first write, wrote38runs,
+38flush+readbacks PASSED, header last. Result root-apply-launchfix/result.json
+state applied-approved-delta-readback-verified, reboot_permitted=true. NO
+rollback needed; fresh b1c802db... and original9c9f8777... backups preserved.
+
+Root job is now at actual iOS bootstrap path /System/Library/LaunchDaemons/
+org.gauguin.gpu-probe.plist with matching compiled-cache key. Probe/job body/
+all530other jobs/native175kernel/image403ff4ed... unchanged. NEXT one pinned
+DSHv34 reviewed boot profile -> automatic recovery capture -> frozen strict
+GPU qualifier. Future outputs trial-launchfix-v1 and probe-capture-launchfix-v1;
+do not overwrite prior missing-job trial. No new boot result yet at checkpoint.
+No dynamic GPU API/Metal/UI/FPS acceptance until actual readback qualifies.
+Full goal continues incomplete; user away/ALLresets automatic, no attribution
+or UI questions, manual recovery only if genuinely stuck. Further DIFFERENT
+destructive writes are not authorized by this exact-delta consent.
+
 ### 2026-11-08 —175 launch-path fix READY; new1.41MiB write confirmation PENDING
 
 Original approved1.72MiB/440block write v25 really PASSED;175boot v26 autoTWRP

@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 physical evidence published;173 next, no live jobs
+
+Continuation PROGRESS; full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh
+goal ACTIVE/unlimited. Last phone automaticTWRP172, no human input needed. All
+DSH1..23 and Git publication terminal; no pending compile/test/boot/read job.
+Private physical-evidence commit2ff5d367e17bc6e46ba2e731709754d721af0558
+published via nonforce REST SAME TREE, sole public parent42d5240b4805fdc7cbd7db651aea09dba30abb48.
+Verified PUBLIC9a4fd500dd41e28ac86353ace0dcf43ad14deb04
+=PRIVATE2ff5d367e17bc6e46ba2e731709754d721af0558
+TREE81a65a9193c4eb97085e00f6986688b69e107890. NEXT publication parent/base is
+THIS public9a4fd500/private2ff5d367/tree81a65a91 tuple; API commit not mirrored
+locally. Do not reuse public42/private245 as future publication base. Frozen
+KERNEL172_SOURCE_HEAD stays24587b16123e10341903cdc7a5d26d92b11f9767; this is
+source identity, separate from docs/publication identity. This receipt will be
+one local NOTES-only commit after the published physical-evidence commit.
+
+Actual172 strict/root physical proof d9d989531396485f389e7e185cb709fc92a0c1a231e69ae5fed743c90e87ef4c,
+all3 native jobs/768prior-currentpixels/81bufferreceipts/freshEOP6-22-38,
+automaticTWRP130s. Detailed kernel/image/runtime/actual pins and173 next action
+immediately below. No173 execution/source changes yet. User away: automatic
+reset attribution is standing; ask only for truly needed manual recovery.
+Current generated native recipe172 gauguin.d14eqT only, all prior baselines and
+original mkadt diff unchanged. Source and physical evidence are published;
+no UI/Metal/general resource/submission/performance/highrefresh qualification.
+
 ### 2026-11-08 —172 PHYSICAL bounded native three-job sequence ACCEPTED
 
 Goal ACTIVE/unlimited. This continuation is PROGRESS, not full GPU API/Metal/

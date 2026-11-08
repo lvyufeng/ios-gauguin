@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —175 native service physically READY; user probe NOT launched yet
+
+Actual user-approved1.72MiB install v25 PASSED as below. DSHv26 temporary
+fastboot175boot0/inputs unchanged; automaticTWRP131s, exact native175 banner,
+mounted iOSRoot/launchd/ignition/SpringBoard/backboardd observed. Native signed
+ZAP/unsecured shadow20 pass; GPU USER service=1 and runtime READY20s published.
+NO USER submit lines/PROBE console events. DSHv27 CURRENT phone HFS/forks read0:
+installed CLI87360B SHA775622b6.../root:root0755 verified; BOTH stdout/stderr
+paths ABSENT. Physical dynamic BO/map/submit/fence/IOSurface NOT QUALIFIED.
+No parser success exists; do not interpret boot/reader exits0 as GPU API pass.
+Observe launch/startup chain first; missing logs do not establish a GPU fault.
+Native boot log confirms launchd_cache_loader actually used unsecure compiled
+/System/Library/xpc/launchd.plist and sent it to launchd successfully.
+
+DSHv28 LIVE (immutable checks-v28.json): two READONLY jobs: current actual
+compiled cache/loose job/launchd program audit -> launch-audit-v1; fresh postboot
+16GiB root backup -> root-post175-v1/iosroot-after175.hfsx. The backup may take
+~11minutes (originalv12 took655s). Observe SAME process/claim, no rerun on poll
+timeout. Main native recipe/source/image175 unchanged. NO second root write
+authorized or attempted. Initial approval bound exact planfd80e691... only;
+prepare/review any different root delta before asking fresh confirmation if
+necessary. Preserve installed root, original backup and all failed-trial data.
+Next diagnose real launch job import/activation, then fix and repeat physical
+API test, not another fixed PM4 sample. User away/ALLresets automatic, only
+manual recovery if stuck. Full daily-use/GPU/Metal/peripheral/highrefresh goal
+still incomplete; prior approval blocker resolved by actual user answer.
+
 ### 2026-11-08 —USER APPROVED175 delta; exact root write/readback PASSED
 
 User ACTUALLY answered the pending question: "允许写入，并允许失败时回滚".

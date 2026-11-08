@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —177 physical startup GPU PASS, SERVICE FAILED at first RST readback
+
+DSHv9 package0: same19,972,096B image SHA
+eaf434fce40cd2e0f547c83994977c456b244602d42342e5d9bcdf3da9cb6d3a,
+payload19be99dc132a1290e64cec2aa8c30d3e6afad56ab082b0b458b629b43b8a4bf3.
+602Bcmd/6NULpadding, actual service1/600s present; same loader/5assets/probe.
+DSHv10 ONE temporaryboot TERMINAL0/inputs unchanged, started10:13:05UTC,
+automaticTWRP146s, finished10:15:32UTC. Actual kernel cf1e91bb... banner matches.
+Root/launchd/SpringBoard/backboardd markers, serviceREADY+600owner online, real
+3GPUsubmit/EOP completions rc0/shadow32,44,56 retained, NO native panic.
+
+At FIRST refresh, actual WDT cached failure: reason6 seq0 before459738
+after459738 dt_ns13026887760 EN3/BARK655300/BITE753595. ONE RST1 was written;
+immediate post-write status had not decreased, so code correctly refused to
+advance CPU epoch, quarantined all owners, logged final renewals0/completed3/
+shadow56 and stopped refreshing. This is a FAILED600s service trial; do NOT
+interpret boot0 or3GPU jobs as persistent-runtime acceptance. Auto reset146s
+versus prior130s is consistent with that pulse taking effect later, but delayed
+clock-domain delivery is still the diagnosis/inference, not yet proven ack.
+
+DSHv11 CURRENT readonly HFS capture0: installedCLI775622b6... still exact;
+raw stdout appends prior1056B and new startup11events. New seed3659183001,
+normal8192hash378613978, surface1024hash1756997112, final3fence/PASS, stderr0.
+DSHv12 LIVE startup-only exact-prefix/frozen-GPU-contract qualification plus
+full600service validator EXPECTED to reject elapsed147s. Results distinct:
+startup-api-qualification.json may pass with SERVICE-FAILED; full
+hardware-qualification.json MUST NOT exist/pass. Original failed177image/
+source/model/profile/native/stdout all retained, no retry of claimed jobs.
+
+Read primary pinned native watchdog_v2.c pet_watchdog: samples STS until two
+matching counts BEFORE RST1, performs one write, never assumes immediate
+postRSTzero. Existing177fixture simulated instantaneous reset, missed real
+readback latency. NEXT0178: bounded READ-ONLY post-pulse acknowledgement wait
+(same ONE RST1; no retry/disable/threshold change), require stable decreased
+counter, CPU deadline/context/lease guards, then publish epoch. Add delayed/
+never-ack counter fixtures that fail177 and pass178, retain all old failure
+checks. Use CURRENT native recipeMZBj9d for focused WDT/board TUs BEFORE next
+native build. No multiple-queue work started; prioritise this observed failure.
+Before next boot reread actual root/header; current177preflight consumed. No
+root writes/new consent needed for a kernel-only retry. Phone now TWRP; user
+away/allresets automatic. Full original goal ACTIVE/incomplete, not blocked.
+
 ### 2026-11-08 —Native177 build/qualification0; fresh installed files0; package LIVE
 
 Frozen KERNEL177_SOURCE_HEAD bcd3a064951b9102f9c6f2e1e211b03119f6b40f.

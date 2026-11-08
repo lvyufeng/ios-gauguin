@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Native180 build/qualifier0;600s adjacent-ACK physical trial LIVE
+
+KERNEL180_SOURCE_HEAD698ef7ec395dbcd428897e7dc9255d5f0532a163. DSH180v3 ONE
+local8job full native build0 +strict native qualifier0, all inputs unchanged.
+BuildIDxnu-7f61cbbf8a3b47b0871acde9fbcacc98, kernelSHA
+7e368fa223e9551d997c0d50ec3310d968287f2ec8e08af86a4a64456b527545,
+source2a8fc45f.../174patches/5329files. NEW CURRENT recipegauguin.vbmAXT;
+shared generated headers/Makefiles replaced (not179jfRN14 for futureTUs).
+ROOT root-build-review.json PASSED actual179RED/180GREEN/native/source binding,
+all old generic provenance/definedsymbols/64bit cache fix retained. No CI run.
+
+v4 fresh CURRENT readonly installed175CLI/job/cache/HFSheader0; sameCLI7756...,
+root0gid0/modes, no userdata writes. v5 package0: unchanged loader/fiveassets,
+new180kernel +service1/600s command602B+6NULs. Image19,988,480B SHA
+682511e72e700c1ffcfedd10da85a33d03d557b5288d965a530583a6b66e9462,
+payload2bb0bd036ca5781692c64fa462b906278e3f90ea83a3ac135de918645b50401e.
+v6 ONE temporaryboot LIVE (outer exec29900, DSH events-v6.jsonl/checks-v6),
+780s observation/860s bound. Wait SAME live observer, no restart. No destructive
+root install or permission needed. All resets automatic; no UI/attributionask.
+Next SAMEv6 terminal -> fresh captured probev7 -> frozen strict600s qualifierv8.
+Current EXACT historical stdout prefix3675B SHA
+aac8b453296d3d0a88efa386d8d344a7c3d033483c3da7ebb98d734d2c217e47
+contains ALL175..179raw bytes, including failures. Preserve raw, strip ONLY this
+whole exact prefix; new180events must match actualkernel/banner/full8192+1024
+hashes/3EOP and full600s renewals300..600/finite stop/no failures. Scope startup
+singlequeueAPI +IDLE service; no newmulti-queue/GMEM6physical/GLSL/Metal/UI claim.
+179failure and178positive remain separate frozen evidence. Main publication base
+PUBLIC5eb6eff...=PRIVATE39211e2.../TREE81cc6d9... unchanged until180physicalpasses.
+
+GLES179 signed Mesa/probe build0; DSH-GLESv4 independent180kernel/Mesa UAPI
+native execution+iOS ABI compile0, actual extracted API-child/90s ordering
+14POSIX scenarios0 (wait/sleep EINTR, child failure/signal, clock/error/shortdelay
+all refuse correctly), no device/real sleep. Source/probe bytes unchanged from
+signedbuild; no repeat Mesa build needed. New worktree tests/docs may be committed
+and source published separately from713ea8...base. Before installing: fresh
+full root backup AFTER finalboot, reviewed concrete library/probe/job/cache/HFS
+delta and NEW explicit user approval. No old raw metadata rollback after boot.
+Full original daily-use GPU/Metal/RAM/UFS/peripheral90/120Hz goal ACTIVE.
+
 ### 2026-11-08 —179 service FAILED;180 adjacent-counter regression/native/replay0
 
 179v9 automaticTWRP147s,11:11:07..11:13:35UTC. Exact kernel a61dbc72... and
@@ -38,7 +77,7 @@ publicfixture now EXACT executed180fixture, runner defaultsource180.
 
 Commit180/tests/this handoff, freezeHEAD, ONE8job native build/strict qualifier.
 Next fresh currentroot/header and600s temporaryboot, same installed175CLI.
-Historical stdout prefix now3677B (see179capture exact size/SHA before pinning);
+Historical stdout prefix now3675B SHAaac8b453... (verified from179capture);
 retain ALL prior failures/events, not only latestPASS. No180native build/boot or
 service acceptance yet. PhoneTWRP, all resets automatic. No UI/reset questions.
 

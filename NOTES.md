@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —All457 actual EAGL dispatch offsets reviewed; inert admission build
+
+UI183v10/v13 TERMINAL0, input pins unchanged. Actual20H392 GL exports have
+457 names/409 unique slot rows, all equal pinned HakiOS20F66 slots; all62
+primary QuartzCore-marked rows covered by the offset comparison. Actual macro
+getter bias32 verified from original bytes. Independent backward dependency
+review confirms444 tail br +13 returning blr calls; no mismatches/unresolved,
+all457 decoder stderr files empty. Private review:
+research/tmp/dsh-gles-ui-0183/offline-compositor-admission-v3/dispatch-review.json.
+Scope ONLY named offsets/hidden context and eight method widths, NOT arbitrary
+GL arguments, hooks, compositor drawing or performance. Method width/height are
+uint32; bridge port bounds before signed GLsizei conversion. Failed earlier
+symbolic/parser and independent-direct-load profiles retained (the last17 stubs
+copy context via x8); no firmware offsets were guessed or changed to make PASS.
+
+Hardlink-aware static compositor inventory v13 also PASS: backboardd executable
+1184848B root0755, job1067B root0644 and cache795801B root0644 are plain files,
+no hardlink aliases. All531 cached jobs preserved. Actual file job lacks env;
+cache differs EXACTLY by CFLOG_FORCE_STDERR=1 and OS_ACTIVITY_DT_MODE=YES.
+Earlier equality assertion correctly failed; v3 documents/checks exact existing
+logging difference and known1a64 cache SHA, not arbitrary job differences.
+Only installed custom library is accepted3a4Mesa. This uses historical184backup
+for static inventory ONLY; fresh post185 backup/live comparisons before write.
+
+Pinned primary inject.c blob217e8f... says HakiOS loads EAGL with libhakios into
+backboardd; our baseline has no such injector/env. Do not copy its20F66 vtables
+or touch/input fixes. Admission-only separate library planned to verify real
+DYLD insertion, all8 actual method types, GET8 and footprint, service presence.
+No method replacement, Mesa link, GPU open or memory policy change in admission.
+Full compiled bridge gate deliberately always0; no env/bootarg enables it yet.
+Compositor GPU scoped authorization/order remain future kernel work; retain
+root-only single-owner baseline, ordinary apps denied. No root BBoard shortcut.
+
+NEW isolated UI worktree research/tmp/gauguin-ui-worktree-20261109 branch
+codex/gauguin-ui-userland-20261109 from private1d365d4 (same public eac33438 tree).
+Userland-only; do not merge stale kernel from this worktree into main. Code in
+userland/eagl and tools/build-ios-eagl.py, preserving pinned MIT notices.
+CURRENT DSH186v1 inert admission + disabled bridge cross-build LIVE outer10599,
+research/tmp/dsh-eagl-0186/checks-v1.json/events-v1.jsonl; wait same handle.
+No186 device writes/boot/approval requested. Phone last TWRP, accepted185installed
+Mesa3a4/kernel180image6825, current realRAM4GiB. Full goal ACTIVE. All UI183
+handles91223/49559/70762/16038 closed; no CI or Mesa/kernel rebuild. Original
+mkadt dirty diff a74a... preserved. GLES publication base publiceac33438... /
+private1d365d4/tree613176e3..., mainpublic6d5a... unchanged.
+
 ### 2026-11-09 —Actual EAGL six method encodings collected; no UI install
 
 185realGLESacceptance baseline unchanged (installedMesa3a4/kernel180image6825),

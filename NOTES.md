@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —184 real memory/context/link PASS; GLES pixels FAIL;185 backup LIVE
+
+184v9/v10 terminal0/inputs unchanged. ONE boot14:31:49.456285..14:44:16.141522UTC,
+746.685237s, automaticTWRP. ActualGET8 ALL four observedphases128MiB active/inactive
+HARD attr1. Contextcreated/current, rendererFD619/OpenGLES3.1Mesa25.0.7, bothGLSL
+programs linked. Footprints868712/16286096/16286096/25313680B. This fixes1816MiB
+admission. Fullrawstdout3754B/stderr2072B saved; exactold2141/69Bprefixes preserved,
+new1613/2003B in post-trial-capture-v1/diagnostic-current-{stdout,stderr}.log.
+
+Actual shader draw FAILED. Two Mesa submit returns-22, normalpixel0 zero instead
+of expectedffffff00; no newnativeGLESjob (only3startupAPIjobs). Kernel180600s
+idlehealth stillPASS595renewals/all20samples/EOP1..3/fullAPI dynamicreadbacks.
+NoGPU/servicepanic, ownerfailure orGLESprocesscrash. Frozencontract181v2/180
+UNCHANGED; W184v11 correctlyFAILED1 on mismatchpixel, inputsunchanged. Root
+review_failure184.py/ gles-failure-review.json independently verifies partial
+milestones and rejects GLES/Metal/UI/refresh. All184handles65453/98303/89793closed.
+PhoneTWRP,userdataunmounted. Never rawrollbackpreboot184HFSmetadata now.
+
+CURRENT W185=research/tmp/dsh-gles-0185-root: newfull16GiB READONLYpost184backup
+running,checks-v1/events-v1 outer84231. Wait SAMEhandle; no write/boot/consent.
+Futurelibraryfixneedsnewexactdelta/concretepermission afterbackup/localreview.
+Codex source hypothesis: Mesa FD_RELOC_FLAGS_INIT=READ|WRITE for ALLBOs, including
+ring BO allocations withFD_BO_GPUREADONLY. ActualnativeGauguinGPU.cpp submit
+rejects WRITE flag for readonly BO before ringing hardware; captured commandBO
+index8/handle10 hasflags3. This is a source-backed INFERENCE, not yet physical
+rejection-reason capture. Need actualproductionflush+strictnative-submit RED/GREEN
+boundary test beforeacceptingfix. Preserve kernelreadonlySMMU/admission checks.
+Also transport clears consumed private syncobj pointers/counts but leaves stride,
+which actualnativeABI rejects; correctthat in same ABIboundary test. The printed
+'Operation timedout' is staleerrno: actualreturn-22mapsBadArgument/EINVAL, no
+newnativeGPUsubmit/timeout proof. Logging should use returnednegativeerrno.
+
+No185sourcefix/build yet atthisentry. Next author Mesa readonlyBO submitflags
+and consumed-syncstride normalization +production-function typedboundary tests;
+DSHprepare/build/test. Keep oldprepared179/source/b4a0library andallfailuresfrozen.
+Kernel180/image6825 unchanged; fullgoal ACTIVE. Originalmkadt dirtydiffa74a intact.
+
+UI offlineDSHv1 completed0 under research/tmp/dsh-gles-ui-0183: actual20H392
+HFS hardlink-resolved44cache shards(3330359296B),2710images/fourframeworkMachOmaps.
+OpenGLES has allsix HakiOS hook selector strings. NOT methodtypes/dispatchABI/UI
+acceptance; actual-cache-map-v1/result.json. No phoneIO/ApplebytesGit. Original
+rawcatalog zeroforks arehardlinkstubs, NOT missingcacheevidence. Use nativeinode
+resolution (finderhlnkhfs+,BSDspecialiNodeNum). Do notuseoldtools/hfs-read.py's
+unverified 4-extent reader; strict local_hfs175v3 plus nativehardlinklayout used.
+
 ### 2026-11-08 —184 source publication VERIFIED; real trial remains LIVE
 
 PUBLIC0d6df19f534e88ea7b4db23ed196608eb48ab703

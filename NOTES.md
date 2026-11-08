@@ -2,6 +2,133 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 clean source/all87/strict preflight ACCEPTED; full kernel next
+
+Goal ACTIVE/unlimited, progress. Phone automaticTWRP173; NO174kernel/image/
+boot/device I/O. User away/all resets automatic; never attribution/UI questions.
+All executed174DSH jobs now TERMINAL. Native1/2, records13 and wrapper14 failed
+artifacts remain intact; no claimed-job retry. Unclaimed12 build,15 imagepreflight,
+16 package scripts are drafts only. No live worker or pending user input.
+
+DSH10 FIRST0: fresh168patch replay4.92s, actual776coordinator2.67s/541owner.84s,
+canonical ALL87 host files1299.38s0. New144011 texture cases/15797488936 assertions,
+combined41147board(old31280+new9867), retainedGGV95790/GGJ87558/GGT28458 cases.
+All ten8277RING source-native texture traces exact, all20GGV/GGJ legacy traces
+and fiveGGT traces byte-exact173. Clean5326file source174-codex SHA
+4e9999c3275627baec8114153f822021f46b48530978ee7b7a44f2415be00e85, only8kernel
+paths changed vs173; oldGGT/GGJ/GGV/compute/clear module bytes unchanged.
+ROOT review_source174.py FIRST0 proof
+cb23a1ab4554c7fcc9e98745db69f9d70ab6ea410e9a08b878480575dc1e7dc1.
+
+DSH11 strict all87/native foundation/source/qualifier import preflight FIRST0.
+ROOT review_preflight174.py FIRST0 proof
+a6510c499b2cb74659f3a62d670b76657f38f41de177c04a12a47fb8c828f420:
+ALL188 original artifact q.require predicates retained,192 total; all five old
+compute/clear/triangle/sequence/varying need-predicates/flags retained with exact
+sharedmode11/source literals only. New18texture source flags, never hardware.
+Standalone26valid/29248refused parser and five940-record C MODEL formats accepted
+proof02f1de87... as below; v1 order-bound and C-v2 header lookup failures retained.
+Static runtime preservation proof003671d3780fac476ad2e6d1208651414b6936bc9ff9e8d3571fbf59dd57a7b8:
+232old production predicates,116packer assertions,123image predicates,213common
+fixture AST nodes retained. DSH18 AST/help/import syntax preflight FIRST0 only,
+no image/fullruntime qualification. Corrected downstream source-head/common
+fixture names to174 before that first claim; old unexecuted author outputs kept.
+
+NEXT commit completed public0174patch/fixtures/tests+thishandoff now. Freeze
+ignored KERNEL174_SOURCE_HEAD to that exact newcommit, then DSH12 local full
+8job build +strict192predicate artifact qualifier, ROOT review_build174.py.
+Do NOT alter tracked files/HEAD duringbuild (only originalmkadt7line diff allowed).
+Current genuine recipe is STILL173gauguin.mqtgMg/4b98a4e7; no newfullbuild yet,
+all2125 old-header inputs used by prior174singleTUs unchanged. After newbuild,
+use ONLY its new174recipe for later nativeTUs/shared generatedheader contexts.
+Authorized sourcepublish draftpublish_kernel174.py uses NEXT base
+PUBLIC267fd63d/private dc125660/tree5f1e09b8, sole public parent/nonforce SAME TREE.
+No174remote push/CI run yet. Then build snapshot/public identity, image preflight/
+package, full runtime/metadata/negative-union gates, ONEtempboot and automatic
+reset/readback. No174physical texture, general API/Metal/UI/performance/highrefresh/
+daily-use proof; full goal unfinished. mkadt a74a0418... intact, no destructive step.
+
+### 2026-11-08 —174 strict texture log parser ACCEPTED; canonical87 still RUNNING
+
+Goal active/unlimited, progress. Phone remains automatic TWRP173; no174 kernel,
+image, boot or device I/O. User away: all resets automatic, no attribution/UI
+questions. DSH10 integration outer97493/PID68510/child68511 remains LIVE; continue
+same handle. Canonical clean-source board suite has passed (old31280 + new9867),
+remaining core/tests still run. All other174 claims through17 are TERMINAL;
+11/12/15/16 scripts exist but have NEVER been claimed/executed.
+
+Parser v1 FAILED correctly after119 refusal controls: buffer list had31 entries
+but the global order slice still ended at27*(job+1); adjacent tail swaps escaped.
+All failed v1 source/log/report preserved. Fresh texture_records174v2.py changes
+ONLY that bound to31; fixture/test references use v2. DSH14 standalone step0:
+26valid/29248refused, all941 selected records,93 native-buffer field sets,768
+prior/current pixels, all missing/duplicate/adjacent order controls. Extra3072
+invalid endpoint channels,11520 wrong-palette pixels and7680 prior palette drifts.
+Wrapper14 overall FAILED1 because its NEXT C-format compile had a header lookup
+collision: adding gpu-texture include before gpu-compute shadowed native_words.h.
+No driver change. All failed v2 artifacts retained; standalone was NOT rerun.
+Fresh C-compatv3 corrected ONLY include order (compute before texture), DSH17
+FIRST0: strict sanitizer compile + five actual C-format MODEL scenarios,940
+actual provider records each + one explicitly synthetic coordinator terminal.
+ROOT review_parser174.py FIRST0 accepted proof
+02f1de8716356adfd3b3689a59f58212e9b0683467d6b613e5eb3adce4cd6cbc.
+No physical texture, general API/Metal/UI qualification from parser/model runs.
+
+Drafted, unexecuted nexttools: bind_host174.py/qualify_native0174.py/preflight174.py/
+build174.py, review_preflight174.py, image/runtime/common/metadata helpers,
+image_preflight174.py, publish_kernel174.py. Runtime uses texture_records174v2,
+texture_fixture174v2, standalone-result-v2, C-record-compat-result-v3. Preserve
+ALL v13/v14 failed input bytes. Source173 native recipe still gauguin.mqtgMg;
+NO shared generated native headers rebuilt yet. Full174 source is clean5326/
+4e9999c3275627baec8114153f822021f46b48530978ee7b7a44f2415be00e85,168patches.
+
+NEXT await SAME integration10 terminal; ROOT review_source174.py then DSH11
+strict binder/qualifier preflight and ROOT review_preflight174.py. Commit completed
+public patch/fixtures/tests+NOTES (preserve mkadt), freeze KERNEL174_SOURCE_HEAD
+and kernel174-source-snapshot.json; then DSH12 local full8job build/qualifier,
+ROOT independent build review, source publication via authorized nonforce REST
+(parent267fd63d/private dc125660/tree5f1e09b8), image/runtime gates, ONEtempboot.
+No GitHub Actions run this stage, no174 public push yet, no destructive action.
+
+### 2026-11-08 —174 provider ACCEPTED,168patch clean replay0, canonical87 RUNNING
+
+Goal ACTIVE/unlimited PROGRESS. Phone automaticTWRP173; no174kernel/image/
+boot/deviceI/O. User AWAY/allresets automatic; only trulyneeded manualrecovery
+asks. All174DSH1..9 TERMINAL (v1/v2 native failures retained); v8 closed inner0
+FIRST, fullactualboard714s. LIVE v10 integration outer97493, dispatchPID68510/
+child68511, continue SAME handle/claim. Fresh168patch replay0,776coordfocus0,
+541ownerfocus0; canonical all87 still RUNNING, never claim its pass early.
+
+ROOT review_provider174.py FIRST0, proof
+6b368badf6019ca948cc60b55c7dd1fd0637f34db3f2b1d314bf196291733746:
+ALL31280old +9867new=41147actualboardcases, strictASan+UBSan; threecurrent173
+nativeproviderTUs/2125headers,776coordinator/541owner. Five8277RING-only native
+sampler/descriptor/shader/textureinput+root traces exactsource; oldGGJ/GGV traces
+BYTEEXACT173. 1206selectedstoreedges (alltextureinput words included), count
+independently derived. OriginalGGT/GGJ/GGV modules andproviderbodies unchanged;
+GGVidle requirement, exactpriorcache andoldtime/NC/PTE/WDT/quarantine policies.
+MODEL/source evidence only, no174physicaltexture, API/Metal/UI result.
+
+Promoted exact tested8filedelta to0174-gauguin-native-texture-sequence.patch
+SHAe23e507330fb9f2bc7099197aae0d5542ff1576dad28a24b03f2020db5f255bb,
+series168; tested core/board/coord/owner fixtures+newpublictest_gpu_texture.py,
+publicvector files copiedbyteexact. Source174-codex EXPECTED/cleanreplay now
+5326files/4e9999c3275627baec8114153f822021f46b48530978ee7b7a44f2415be00e85,
+only8changedkernelpaths vs173. Promotionreportproduction-patch-result-v1.json;
+oldpublicbytes before174-public snapshot. Newsource/publiccode NOTcommittedyet:
+waitfull87 and ROOTsource review, then commit completedcode+NOTES. Lastprivate
+HEAD2e499b6, nextremote base267fd63d/private dc125660/tree5f1e09b8 unchanged.
+Frozen173sourceHEAD28137449, currentgenuineXNUrecipe still173gauguin.mqtgMg,
+no olderTUhelpers/sharedheader writes. mkadt7line original a74a0418... intact.
+
+Authored unexecuted nexttools review_source174.py,texture_native174.py,
+texture_source_contract174.py and copied retainedoldsourcecontracts/native
+helpers. Continue full87; meanwhile author strict allold+new native foundation
+binding/fullkernelqualifier/preflight/build. Then ROOTclean source review,
+commit/freezeKERNEL174_SOURCE_HEAD, DSHpreflight+localfullbuild8jobs+strictartifact
+qualifier, source-onlyflags/hardwarefalse, image/parser/runtimegate, ONEtempboot
+andautomaticreset/readback. No new destructiveuserdata step or UI question.
+
 ### 2026-11-08 —174 provider candidate/admissions/current173 TUs; board MODEL RUNNING
 
 Goal ACTIVE/unlimited, PROGRESS. Phone last automaticTWRP173; NO174kernel,

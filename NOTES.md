@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —181 physical memory admission FAILED;184 fresh backup complete
+
+The approved181 delta was applied and read back successfully; consent3988 is
+consumed. Actual temporary boot completed and auto-returned to TWRP after
+741.877098s. DSHv9/v10 readback0. The strict GLES probe observed active6MiB/
+nonfatal and inactive6MiB/fatal, then exited1 BEFORE context creation. Rawstdout
+2141B and stderr69B are preserved. DSHv11 canonical qualifier FAILED as required;
+no GLES/context/Metal/UI acceptance. See W181/gles-failure-review.json. No rollback
+of preboot HFS metadata is permitted after this real boot.
+
+Actual launchd (SHA12370e5e...) disassembly establishes per-key precedence:
+Daemon.Override[label] > Override.Global > job > Default[label] > Default.Global.
+The actual device policy Override.Global supplies ActiveSoftMemoryLimit6 and
+InactiveHardMemoryLimit6. Positive soft6 wins the conflict against job hard128;
+the inactive global6 wins directly. Prior job-only128MiB change was insufficient.
+Proposed184 fix is a probe-label-specific entry with ActiveSoftMemoryLimit=-1,
+ActiveHardMemoryLimit128, InactiveHardMemoryLimit128 in existing D22/D221 policy
+plists. Verify original ARM64 merge/conflict machine code before staging; no
+acceptance based only on a plist or a hand-written interpretation.
+
+W184=research/tmp/dsh-gles-0184-root. DSHv1 TERMINAL0/inputs unchanged. New full
+16GiB post181-boot backup0444 SHA
+bc37c193800ee1f902666f19a329425d614df8f7a5409edc3d079e7ddf493286,
+header before/after stable c40b9c20..., no device writes or reboot. Outer50436
+closed. Current phone TWRP, userdata unmounted. No184stage/plan/approval/write yet.
+Next: original-launchd machine-code host model; local COW policy-only stage,
+strict HFS/delta/fsck/writer-model/read-only old-range review; then NEW concrete
+write permission. Old181 approval cannot authorize this different delta.
+
+Full daily-use GPU/Metal/safeRAM/UFS/peripherals/high-refresh goal ACTIVE and
+incomplete. Codex authors/reviews critical logic; DSH executes builds/tests/boot.
+All resets automatic while user away. No repeated reset-attribution questions.
+Original dirty tools/mkadt.py SHAa74a0418... is preserved. No kernel/Mesa rebuild.
+
 ### 2026-11-08 —18137/37 APPLIED/readback0; real late-GLES trial LIVE
 
 New human3988consent call42991219... consumed by successful EXACT371block write.

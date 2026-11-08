@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —NEW3988 explicit consent RECEIVED; approved181writer ready
+
+User replied to asyncquestion call_42991219d26f42a183e0db31547211b0 item0:
+"允许写入，并允许写入或读回失败时回滚" for the EXACT1.45MiB/371block
+probe+128MiB active/inactive hardlimit job/cache/HFS delta. Prior consent blocker
+is RESOLVED; don't ask again. W181/approval.json records actual humanreply,
+approved=true/allow_rollback=true bound planSHA
+3988717a76d34ab02cfaa7314e6ac7c8453bda4de4494bb1f43113734d6039df, readonly0444.
+All independent-local-review input pins freshly rechecked identical; base/final
+16GiB0444 intact, originalmkadt dirtydiffa74a... preserved. New W181/checks-v7
+profile prepared for proven write_root_delta181.py (SHA62287664...), EXACT37runs/
+1,519,616B, alloldranges rechecked beforeanywrite, perrun sync/readback, headerlast,
+partial/write/readback/report failure rollback of touchedblocks. No write yet
+at this entry. Next dispatch SAMEv7 viaDSH once, inspect terminalreceipt0; then
+freshcapture_bundle181.py actual5files/header and same180600s image,780s observer.
+Currentkernel/image/Mesa unchanged; no newbuild. Allprevious failures retained.
+Never rawrollback preboot HFSmetadata AFTER ensuing iOSboot. Goal fullobjective
+unchanged; UI get_goal still saysblocked on resume (goal status is user/system
+controlled), but missing userconsent is now supplied and authorized work resumes.
+
 ### 2026-11-08 —Third same-consent audit; goal BLOCKED awaiting3988authorization
 
 Previous continuation classified PROGRESS: fresh readonlyRAM reconciliation and

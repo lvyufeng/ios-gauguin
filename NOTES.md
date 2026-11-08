@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —181 concrete371block fix READY; new explicit consent PENDING
+
+CURRENT phone idle TWRP, no181write/boot. User's5802approval was consumed by the
+successful85run Mesa install and first failed GLES180 trial. A NEW asyncquestion
+now asks permission for1.45MiB/371block probe-memory fix and write/readback-failure
+rollback; no reply yet. DO NOT infer approval from old16.64MiB consent/time passed.
+AGENTS requires confirming each destructive step. No181approval.json exists.
+
+W181=research/tmp/dsh-gles-0181-root. DSHv1 TERMINAL0, fresh AFTER-BOOT full
+16GiB backup0444 SHA06873d765bc843f8cedf7d24e4b35b56a587f575613aaa05f6b49449229a0fdb,
+stablebefore/afterheader, no writes/reboot. v4 local COWstage/delta/audit/fsck/
+boundwriter-model ALL0;102writer model cases0, readonly LOCALfsck0/detach0,
+finalclone0444 SHA165ba2c97a317bf3085dce0172e23b564e2ded58dd9fdbeed392ceb417d355a0.
+Exact planSHA3988717a76d34ab02cfaa7314e6ac7c8453bda4de4494bb1f43113734d6039df;
+371blocks=1,519,616B=1.44921875MiB/37runs. ONLY existing GLES probe, systemjob,
+launchcache +scopedHFSmetadata; no newfile/dir. Probe73328B2e3b5719..., job919B
+15561948..., cache795801B1a64dafa... .Job sole semantic addition JetsamProperties
+ActiveHardMemoryLimit128/InactiveHardMemoryLimit128. API7756.../Mesa b4a0.../
+kernelimage6825.../oldlogs preserved, other530jobs unchanged. Native orphan
+cleanup exact privatefolder/temp+CNID24files+30dirs; twoeventlogs rotated/UUID
+restored. Existing fullbackup and all failures retained.
+
+v4 overall1 ONLYbecause first NEW181 parser model matched old API child's
+"identity" marker instead of GLES phase. Original gles_contract181.py/model log
+preserved; no actual181trial yet. IMMUTABLE NEWgles_contract181_v2.py restricts
+phase search to the GLES section after exact ordered-child receipt; it wraps
+UNCHANGED180frozencontract, adds six quota/footprint receipts and noGLESprocess
+crash. SHAa6a9c99e034d406519b75b6fe967db072b9d81cbb1f1ad013b4950c915b2dbdb.
+DSHv5 corrected11parser cases0 PLUS actualREADONLY all37oldranges0, inputs
+unchanged, header matches freshbackup. Root review_delta181.py independent0:
+independent-local-review.json READY exact3988plan, all targetdata/rootowners/
+modes/cache/retainedfiles/old-newruns/nativecleanup/provenwriter reviewed.
+No newphysicalGLES/Metal/UI/FPS claim.
+
+Prepared following local helpers (NOT realboot/write): read_files181.py byte-
+identical proven180v2reader; capture_bundle181.py exactnew5file/plan+appliedreceipt
+gates, installed/postcaptureprofiles; boot_gles181.py ONLY4expectedhash changes
+vs proven180wrapper. DSHv6 same14actualboot-admission fakeIO cases0/no phoneIO,
+inputs unchanged. qualify_gles181.py AST-authored for future real capture:
+all5files/modes/hashes +onlyexactfullsaved priorstdout/stderr prefix, unchanged
+600s180data/native +newactualmemorycontract, finalindependentreviewstillrequired.
+No boot-profile yet: must create AFTER approved writer0+fresh installedcapture0,
+pin actual currentheader, all5files/priorlogs/contract181v2/source/image/proof
+receipts. One unchanged180600s temporary fastboot boot, observe780/timeout860,
+then readonly capture and frozen qualification/review. No rebuild needed.
+
+If NEW explicit3988consent arrives: create0444approval bound exactplanSHA and
+allow_rollback; DSH execute write_root_delta181.py --plan W181/delta-v1/delta-plan.json
+--approval W181/approval.json --out W181/apply-v1 under fresh pinnedstage, inspect
+actual writer result0/reboot_permitted. Then DSH capture_bundle181.py and review
+newcurrentfiles/header, make pinnedbootprofile, runONEtemporaryboot. NEVER raw
+rollback preboot HFSmetadata AFTER thatboot; automaticwrite/readbackrollback is
+only beforeboot. User away: resets automatic, noUI/attribution questions.
+
+MAIN notes commits99f8ba5/f8d3843; GLESsourceec5530a/public921da0be.../tree4ccfc8ad...
+is nextpublicationbase, mainpublic6d5a7bb... unchanged. Latestpub details below.
+AllDSHexec handles66737/24335/78237/88947 terminal; no live subprocess remains.
+Full original daily-use GPU/Metal/fullsafeRAM/UFS/peripherals90/120Hz goal ACTIVE.
+
 ### 2026-11-08 —Finite probe quota software ready/published; new backup pending
 
 W181=research/tmp/dsh-gles-0181-root. Readonly WROOTv11 diagnostic capture0:

@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 full local kernel ACCEPTED and source PUBLISHED; image gates next
+
+Goal ACTIVE/unlimited, progress. Phone remains automatic TWRP173; no174 image/
+boot/device I/O. User AWAY/all resets automatic --manual-reset no, no attribution/
+UI questions. All174 prior executedDSH jobs through18 TERMINAL; failures1/2/13/14
+retained. Live15 image-preflight just dispatched; continue its SAME handle/claim.
+16 package unclaimed. No full runtime/metadata/physical174 result yet.
+
+Completed public driver/fixtures/tests committed PRIVATE source
+7e48ca393fb719d4951f9c1a3893adba6161f9e5, frozen KERNEL174_SOURCE_HEAD (immutable).
+Authorized REST nonforce source publication CLOSED0: sameTREE
+6f8a5c2f1e1aa184641c48a80c71109cd0aac19e,
+PUBLICf3914a1167379a86c8f7a732780a360a81c261f3 = PRIVATE7e48ca393fb719d4951f9c1a3893adba6161f9e5,
+sole public parent267fd63d39415aac9de1b13d16529ce4018d794c. THIS tuple is NEXT
+remote base, never reuse267/dc125/5f1e09b8 as nextbase. API public commit not
+mirrored into local history. public-kernel174-handoff/source-snapshot receipts
+ignored. gh run list confirms no new CI run (latest existing42021243212 unrelated
+b7d836a1); this is ONE local8job build, not GitHub Actions. No extra build retry.
+
+DSH12 FIRST0 full native macOS8job kernel build and strict artifact qualifier0,
+run gauguin.FxICIV. CURRENT genuine native XNU recipe NOW174:
+.deps-cache/p0-20261105/build/runs/gauguin.FxICIV/build-manifest.json
+SHA1d05972654801dba686e27e401711c9df9eb2036403725c88fcb7dcd56f70586.
+Source174-codex5326/4e9999c3275627baec8114153f822021f46b48530978ee7b7a44f2415be00e85,
+168patches,2127current header/config inputs. NEVER use older173/172/171native
+TU helpers against shared generated headers from this point. All oldTUs terminal.
+Kernel17232376B SHA34d50e5af17bef9c8dd1addcc03d3be11e79c7b441a101fdf1300b5f7034d9c3;
+archive SHA0679a83fc99a409d09f6ba1d0ef685b65e2441558b71b5ce5137d43a907b2c9d.
+ROOT review_build174.py FIRST0 proof
+2cdf19aff77021e26ba2bea5bb5a747222f13de88dd198d198d59b067f1ac0b3:
+all prior source flags retained, all24 artifact hardware flags FALSE; texture/
+sampler/descriptor/input +old native payloads in actual installed binary and
+single archive members verified. Fullgoal/GPUAPI/Metal/UI/highrefresh unproven.
+Kernel174-source-snapshot.json binds frozen source/public identity and current
+recipe; later NOTES-only commits must not alter KERNEL174_SOURCE_HEAD identity.
+
+NEXT observe15 image-preflight; DSH16 pack+independent image review, then full
+synthetic clock/FW/common/full941-record negative-union runtime and160metadata
+controls, ROOT runtime acceptance. Scripts read_hardware/boot/physicalreview174
+still need authoring after actual image hash/size known, with no user reset/UI
+question and ONE temporary fastboot boot only. Routine13B recovery latch already
+authorized; no userdata/GPT/flash/destructive action. Preserve Android/backups.
+Original mkadt7line SHAa74a0418... intact. Current tracked edit below is this
+NOTES-only milestone; commit it, keeping sourceHEAD7e48ca3 frozen separately.
+
 ### 2026-11-08 —174 clean source/all87/strict preflight ACCEPTED; full kernel next
 
 Goal ACTIVE/unlimited, progress. Phone automaticTWRP173; NO174kernel/image/

@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 physical evidence PUBLISHED;174 next, no live jobs
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP173,
+no174 kernel/image/boot/device I/O. User away/ALL resets automatic, no attribution/
+UI question; prompt only for genuinely needed manual recovery. AllDSH1731..23
+and Gitpublication TERMINAL, no live compile/test/boot/read job/pendinginput.
+Physicalhandoff privatecommitdc125660a8db2695fc31a386f7799dcd9257de11
+published via nonforce REST SAME TREE, solepublicparent940220ae1b1866bc6aef17eadccadb5148a5895d.
+Verified PUBLIC267fd63d39415aac9de1b13d16529ce4018d794c
+=PRIVATEdc125660a8db2695fc31a386f7799dcd9257de11
+TREE5f1e09b8e07954c07761ff8c812d30f79e91f806. THIS tuple is NEXT publication
+base; APIcommits not mirrored locally. Do not reuse940/281 or9a4f/2ff as next
+publication parent/base. KERNEL173_SOURCE_HEAD remains28137449ca9cb7b54e6e95ffb22e42c59516d224,
+separate sourceidentity. This receipt is one local NOTES-only commit after the
+published physicalhandoff; remote already contains completed physicalresults.
+
+173rootphysicalproof55d9e90f851d615c486598cd5200598adbd1ebaeac8b0fb5e700357a138c2b7b,
+all768prior/currentpixels/81nativebuffers/freshEOP6-22-38, smoothRG/GR256distinct
+each, flat1, automaticTWRP130s. Fullkernel/image/runtime/proofpins +174 exact
+nextaction immediately below. Still no iOSGPU/Metal/generalAPI/UIacceleration/
+highrefresh/throughput/humanperformance qualification; fullgoal unfinished.
+Current genuine native recipe173 gauguin.mqtgMg/4b98a4e7..., never oldTUhelpers.
+Original mkadt7line diff a74a0418... and all partitioncontent/backups preserved.
+
 ### 2026-11-08 —173 PHYSICAL smooth/flat varying ACCEPTED; texture sampling next
 
 Goal ACTIVE/unlimited; continuation PROGRESS, not full GPUAPI/Metal/UI/highrefresh/

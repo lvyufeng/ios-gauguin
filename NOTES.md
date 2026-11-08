@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Third same-consent audit; goal BLOCKED awaiting3988authorization
+
+Previous continuation classified PROGRESS: fresh readonlyRAM reconciliation and
+actualQMP+2GiB observation, with both fullQEMUboot failures preserved. This
+continuation revalidated the SAME new371block consent blocker for the third
+consecutivegoalturn (originalMesa-install turn asked; RAM continuation pending;
+this revalidation pending). No explicit user reply to that newquestion exists.
+Automatic "continue goal" is NOT matching approval for the new destructive
+3988plan. All safe preparation/actual-needed validation is already complete;
+next critical evidence needs realGLES runtime after that exact authorized write.
+No live work is being waited on. Do not churn unchangedtests/QEMU models or
+change the pinnedGPUcandidate to manufacture progress while consent is pending.
+
+CURRENT authoritative readonlyrecheck: gauguin recovery, userdata unmounted,
+noholders;4KiB rootheader still matches181currentpreflight. ExactplanSHA
+3988717a76d34ab02cfaa7314e6ac7c8453bda4de4494bb1f43113734d6039df still371blocks/
+1,519,616B. approval.json/apply-v1/result/boot-profile/trial-v1 allABSENT.
+Both181v6 and182v6 are terminal; recordeddispatcher PIDs are absent now.
+Mainstatus only originaldirtytools/mkadt.py; latestpreviousnotescommitbcdeb2c.
+No write/boot/test dispatch in this continuation. Goal blocked audit satisfied;
+mark fullunchanged objective BLOCKED after thishandoffcommit, pending NEWexact
+plan authorization including write/readback-failure rollback. No paused or
+complete status. Existing pendingquestion retained; do NOT repeatedly ask it.
+When user approves/resumes: audit fresh consent and recovery/current oldranges,
+then execute proven181writer/readback/unchanged180600s trial as detailed below.
+Never rawrollback HFSmetadata AFTER boot. Full daily-use objective unachieved.
+
 ### 2026-11-08 —182 readonly RAM inventory/partialVM evidence;181consent PENDING
 
 Previous goal turn classified PROGRESS (actual Mesa trial/failure diagnosis,

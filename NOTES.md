@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —GLES SOURCE PUBLISHED; full goal BLOCKED awaiting175 approval
+
+Full daily-use/GPU/Metal/RAM/UFS/peripheral/90–120Hz goal remains INCOMPLETE and
+unchanged. get_goal initially ACTIVE; update_goal(status=blocked) returned
+BLOCKED after3consecutive goal turns with the same missing mandatory fresh
+root-write approval. First turn prepared/reviewed175delta and asked; next
+completed independent GLES software; this turn completed remote publication.
+All independent work is terminal; next real GPU API stage requires installing
+the175 user probe. No affirmative response/approval receipt/root-apply/175trial.
+Do not invent approval or keep retrying/creating work around this boundary.
+AGENTS explicitly requires confirming each destructive step. User's broad
+automatic goal continuation is not the pending concrete write confirmation.
+On actual affirmative user answer, resume full goal with the exact reviewed
+175 execution recipe below. A user resume starts a fresh blocked audit. No
+pause/complete status was set, no goal requirement was removed or redefined.
+
+Published independent branch codex/gauguin-gles-userland-20261108 by reviewed
+REST NEW-ref creation (existing refs untouched), SAME TREE verified twice:
+PUBLIC713ea8afde4e865991a0d4999a9e81c02b3c21da
+=PRIVATE0d4c9389d564d7b855ba3b10a8de50704e11cdb1
+/TREEd3d653a593aca6365c49466dc941464728097642,
+sole public parent35d706fd0564b080989b492eba1e024896ee0cea.
+This tuple is NEXT PUBLICATION BASE FOR THE ISOLATED GLES BRANCH ONLY; API
+objects not mirrored locally. Current local worktree's later docs receipt is
+not its native/source identity. No merge into main. Main/CI publication base
+STILL PUBLIC35d706fd0564b080989b492eba1e024896ee0cea
+=PRIVATEde03753daa040de3bd07c65519a449b96b5e83bb
+/TREE6e075e7ebe7edfe15fca649d5361bca98dcbf703. Do NOT confuse these branches.
+Existing CI ref rechecked unchanged. No CI dispatch; existing xnu workflow
+push trigger is main only. EXACT7text files published, no artifact/Apple blob/
+firmware/dump/device identifier. Receipt W/source-publication.json and ROOT
+publish_gles.py, W=research/tmp/dsh-gles-0176. All workers terminal/missing.
+
+175 execution-plan input pins, sole originalmkadt7line a74a0418... and source
+gate (only NOTES + mkadt since74b77c0) rechecked unchanged. Phone untouched this
+turn; last verified recovery. Original1,802,240B/440block delta-planfd80e691...
+and image403ff4ed... stay frozen. No root-write-user-approval.json/root-apply-v2/
+hardware-trial-result.json exists. No alternate boot while waiting: an ordinary
+iOS boot can change HFS metadata and invalidate the pending exact block delta.
+On approval: DSH runs write_root_delta175v2.py -> only on verified success one
+boot175.py -> capture_probe175.py -> qualify_hardware175.py. Full old-range
+preconditions rechecked before writing, failed partial ranges rolled back and
+verified. User away/ALLresets automatic; only ask for truly stuck recovery.
+GLES remains SOFTWARE ONLY, no physical shaders/Metal/UI/FPS acceptance. Its
+remaining persistent-runtime/GMEM-base/multi-queue/isolation prerequisites and
+all test/build provenance follow below and in the isolated worktree README.
+
 ### 2026-11-08 —GLES userland software milestone committed in ISOLATED worktree
 
 Goal turn PROGRESS, full daily-use/GPU/Metal/RAM/UFS/peripheral/90–120Hz goal

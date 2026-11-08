@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —1854017blocks APPLIED/readback0; real new-Mesa trial LIVE
+
+User explicitly approved call_f942d41aaa904fa8b9aaacea8085bc23 item0:
+15.69MiB/4017blocks +write/readback-failure rollback. Consent CONSUMED by W185v10
+successful76/76runs,16,453,632B,76attempts,header0last,no rollback; reboot_permitted.
+ExactplanSHAb23a44f5cf9ccdfb2642ad32ac66daeeb93c4490db5681ef4916cefae85dfe31.
+New signedMesa16026608B SHA3a44752493fb204d62817934dcee10c48ed3be857908402f93e06cc77128a2ea.
+ONLY library+scopedHFSmetadata changed; probe2e3b/API7756/job1556/cache1a64/two
+128MiB policies/all531jobs/fulloldlogs preserved. Before185post184boot16GiB0444
+backupSHA305b3ef293b111d8704fe6013dcf59582bce4ec3653a760babf51b344efc3d69;
+final local16GiB0444 SHA07a1a9085a78fab31708f0a365e7ab4431a48a8280c52826916c40931ca2c83b.
+Localfsck0/102writercases0/76currentoldranges0/independent-local-review0.
+ScopedlocalHFScleanup24files/33dirs; fseventUUID CNID598475->599247 only, exact
+bytes/BSD/parent/type restored. NoGPT/format/otherpartition mutation.
+
+W185v11 current7staticfiles/oldlogs/header READONLY0; newMesa exact3a4475...,
+other6staticfiles unchanged. Stableprebootheader a46457e60bc44a70edde5c641e1ba048cf985f804abd865b049f087037f56b58.
+Fullpriorstdout3754B/stderr2072B retained underinstalled-current-v1/*-prior.log.
+ALLpast180/181/184failures stay in those exactprefixes; striponlyWHOLEsavedprefix
+fromfuture185rawlogs.17boot-admissionfakeIOcases0/preboot-review0. Production
+bootwrapper EXACT184flow exceptplan+libraryhash. Qualifier185 exacttargetset is
+ONE library (not184's two policies); still checks all7actualstaticfiles. Frozen
+GLES181v2a6a9.../180f8a63... contract unchanged and required before independent
+review_physical_gles185.py. All newstderr must be source-backed reviewed on PASS.
+
+CURRENT W185v12 outer36753,checks-v12/events-v12,trial-v1. ONE temporaryunchanged
+180kernel/image682511e7.../Build7f61cbbf...,600sservice/780sobserver/860sbound.
+ProfileSHA4e270c807d423abd8cf63a78ead604847d1d1cf3e68ee55e3f06a9414704196a.
+Wait SAMEhandle toterminal; no repeatboot, rootwrites or manual-resetquestions.
+Neverrawrollback prebootHFSmetadata AFTERthisrealboot. Afterterminal: DSH
+read_files185.py post-trial-capture-profile.json into freshpost-trial-capture-v1;
+then pinnedqualify_gles185.py unchangedcontract. PASSisnotfinal until independent
+pixels/nativeEOP/queue/128MiB/600s-health/ALLstderr review. Failurepreserveexactraw
+andstrictrejection, diagnoseactualphase; no evidence/contractwaiver. UI/Metal/
+highrefresh/fullRAM/dailyuse stillunqualified. Full originalgoal ACTIVE.
+
+185SOFTWAREdone: actualfullMesa flush+libdrm+originalnative-submit+runtime helpers
+REDold-22/no fakejob/GREENret0/readonlyflags1,writable3.8scenarios/29checks0,
+ASAN/UBSAN, retainedqueuetests0. Twoinitialfixturecompileerrors preserved;
+no productionfailure waived. Crossbuild/sign/strictverify0 in60.18s/all10989pins
+unchanged, probe EXACTold73328B2e3b...,10977Mesafilescompared only2changed, exports
+unchanged. SourcePUBLIC071645ebb7799a9724d72bfd9c5e572da4dcab78
+=PRIVATE688b7e35e43f207fecdd7262670a2a16a9680c36
+/TREE510b977ba9ead864ad799ac5ec9a42a8fc48f3b5;
+sole publicparent0d6df19... .THIS is next GLESpublicationbase,7textfiles only,
+nonforce/tree-parent-ref verified,W185/source-publication.json. Mainpublic6d5a...
+unchanged/noCI/no kernelbuild. Originaldirtymkadt a74a... preserved. Allother185
+DSHhandles84231/15879/22019/62296/16507/78339/31149/52466/58706/13347/57862/76255
+terminal. Rootcritical-review65275 also closed. Only36753 LIVE.
+
 ### 2026-11-08 —184 real memory/context/link PASS; GLES pixels FAIL;185 backup LIVE
 
 184v9/v10 terminal0/inputs unchanged. ONE boot14:31:49.456285..14:44:16.141522UTC,

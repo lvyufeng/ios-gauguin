@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Native178 build/qualifier0; fresh root0; ACK image package LIVE
+
+Frozen KERNEL178_SOURCE_HEAD cb28e30d747b9c29688180897cd08a3b4e20c380.
+DSH178v3 ONE local8job full native build0 +strict native source/SDK/install/
+archive/service+IODelay symbol qualification0, inputs unchanged. CURRENT
+recipe gauguin.5XaXo7 (shared generated headers/Makefiles replaced; not177
+MZBj9d), kernel SHA4ac4790bce4fdee674a5d941ddcc49340f1d26bca63a368ab0bba8d964cb509a.
+Source c6af8239.../172patches/5329files. ROOT root-build-review.json PASSED;
+private WDT header ABI unchanged, only ack C +documentation differ from177,
+other177driver host/native checks bound through historical fixture snapshots.
+
+DSHv4 READONLY CURRENT recovery/unmounted installed files/cache +stable current
+HFSheader0; sameCLI775622b6.../Systemjobe308770e.../cacheb4f9bcff.../root modes.
+No userdata write/boot yet this retry. New boot_service178.py BYTE IDENTICAL to
+tested177wrapper; reuse9case host admission proof rather than rerun unchanged
+plumbing. Current178profile will pin fresh header; old177header is consumed.
+DSHv5 package LIVE with SAME602B service1/600s command and6NULpadding, same
+loader/5assets, NEW178kernel only. Next inspect SAMEv5 -> one temporaryboot,
+780s observation/860s outer bound -> fresh capture -> strict600s verifier.
+Exact historical stdout prefix now1929B SHA
+4fcb6a28db9b990fa27565f459b500124fd706471168957c36ddaf35bb7ea12a
+(all175/176/177raw bytes). Do not remove any new event/failure or replace this
+with only the last successful run. Full raw capture retained separately.
+
+0178 checks confirm a bounded number of samples and CPU-time limit when the
+platform read/delay callbacks return; they do not prove cancellation of a hung
+MMIO/IODelay or arbitrary secure-world stall. Hardware WDT remains enabled and
+there is only one pulse in this path, so no independent petter conceals a hung
+GPU owner. Actual delayed reset confirmation/persistent service still awaits
+physical acceptance. No late GPU workload/GLSL/Metal/UI/highrefresh claim.
+Full original goal ACTIVE/incomplete; no new destructive root consent needed.
+
 ### 2026-11-08 —178 clean172 replay and independent ACK review PASSED
 
 DSH178v2 TERMINAL0/inputs unchanged. Source178-codex172patches/5329files SHA

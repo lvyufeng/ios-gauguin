@@ -2,6 +2,109 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 clean167/full86 and strict preflight ACCEPTED; source freeze next
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP172,
+no173 fullkernel/image/boot/device I/O. User away: ALL resets automatic,
+never ask attribution/UI; prompt only for genuinely needed manual recovery.
+AllDSH173 v1..12 now TERMINAL (v2/v6/v10 failed artifacts retained); no live job.
+Native build recipe still172 gauguin.d14eqT/87cc5799...; NEVER reuse older TU
+helpers against shared generated headers. Public9a4fd500/private2ff5d367/
+tree81a65a91 remains NEXT publication parent/base; frozen172source24587b1.
+
+DSH v11 integration CLOSED inner0 FIRST on fresh scriptv2. Pristine original
+export +167patch replay0/4.806s; fresh source173-codex EXACT5323files SHA
+cee256ba3ef7576f950d285312475b31f716cd8c5ac5a8b0ab73edd128dd3d3a,
+8filedelta vs accepted172, source/baseline/input snapshots unchanged. Focused
+738coordinator0/2.788s and540actualowner0/.840s. Canonical ALL86 publichost
+files0/778.271s, including all old cases +95790varying/7423873215assertions,
+31280combinedactualboardcases (28368old+2912new). Ten new4917RING-write/native
+and MMIO9/12/309/606/9 traces0; tenGGJ and fiveGGT traces byte-exact172.
+Source review first script expected a per-mode line in canonical output, but
+public wrapper deliberately prints only finalsummary; root review_source173v2
+binds successful wrapper assertions AND original focused full log701+37=738.
+No code/test or predicate relaxation. Root report FIRST0 SHA
+74a8ab0c16ba81e62184fc5294092caa4e00b7ab26d68abe26b75f34b924a58b.
+
+DSH v12 strict preflight CLOSED inner0 FIRST: all current86/167 source/native
+foundations and every older native foundation re-bound; all complete qualifier
+imports/source contracts and oldGGJ +13newGGV symbols accepted. New15source
+flags; ALL22 artifact hardware flags remain FALSE. Root AST review FIRST0:
+all184old q.require conditions retained,188newtotal; all original compute/
+clear/GGT/GGJ need predicates and source flags unchanged except exact shared
+mode10 selectors. Root preflight proof SHA
+a037b60ae9f6895839dccff8507586536ce949fc0c457e64196e68857569eb35,
+DSH report91118b02368abc80bf9f6d7f32a8dc1096800ebd3b18621ac20b174568d289ff.
+
+NEXT commit completed productionpatch/publicfixtures/tests/this handoff,
+freeze DISTINCT KERNEL173_SOURCE_HEAD from that actual sourcecommit, ONE
+standard local8job fullkernel +strict artifact qualification, same-tree remote
+source publication. Image still607B command/mode10/unique173trial/fiveassets/
+608Bfield oneNUL; all runtime/metadata/identity gates before ONE tempboot.
+No173 physical varying/interpolation, textures/generalGPUAPI, UI/Metal,
+performance or highrefresh proof. Original mkadt7line diff a74a0418... intact.
+
+### 2026-11-08 —173 full provider/native ACCEPTED; clean167/full86 running
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Phone lastautomaticTWRP172,
+no173fullkernel/image/boot/device I/O. User away: ALL resetsautomatic, no
+attribution/UI confirmation, prompt only if manual recovery genuinely needed.
+Source reference commitdee9a7a/core-docs e7cd983; productioncode currently WIP,
+not yet committed or published. Public9a4fd500/private2ff5d367/tree81a65a91
+remains nextpublication parent/base. Kernel172 frozen source24587b1 unchanged.
+
+DSH v7 admissions CLOSED inner0 FIRST on freshscriptv2: all701old+37new=738
+coordinator cases and540actual PAS owner cases/all126copyguards/modes1..10/
+PROT_NONE. v6wrapperfailure was wrong expected oldprint total; allfailed
+artifacts retained, new37group actually executes once despite duplicatePASS
+print. DSH v8 board CLOSED inner0 FIRST: ASan+UBSancompile0; fiveGGV native
+traces0 +fivelegacyGGJ traces0 +allold/newboard0 (211.63s total dispatcher).
+All28368prior cases retained +2912new=31280actualboardcases. All4917 native
+RING writes/trace and exact9/12/309/606/9 MMIO write sequences bind actual
+sourceprofiles; legacyGGJ traces byte-exact accepted172. Secure CPU page stays
+PROT_NONE. New post-GPU legal UNORM choices +exact previous observed cache,
+allGGJ-inert/liveauthority/PTE/NC/phase/WDT guards, no CPU DATA stores.
+
+v9 CLOSED inner0 FIRST: actual board/coordinator/PAS three CURRENT172 genuine
+ARM64 TUs, all2123header/config inputs/referencefiles unchanged; kernel source
+recipe still172 gauguin.d14eqT/87cc5799... only. Objects board586496B/
+1d55ba538e5e7c589fe0845bb5504fb44073e7764d6146d5eb3c32d81ad0b3ea,
+coord78864B/a6695d4690757fcc8ddfea8e47dc7593ffc0503d04d53be314eff54b8fea7fe7,
+owner28016B/06898dce6e88a1cf87d3b37f3f731acf946a67985c8da2a260fa67438b51a426.
+Root review_provider173.py FIRST0 SHA
+7f1a0f5039cf3fe300c8e94bc59355935afef5a0824bc7e04851637df11fa53f.
+OriginalGGT/GGJ bodies and complete live policy preserved; source/MODEL/TU
+results only, not physical interpolation/Metal/UI proof. All1..9terminal.
+
+Production0173-gauguin-native-varying-sequence.patch now AUTHORED/promoted,
+SHA937fa4c4198b2e89da457ec3b2ec27cdd66fa241cf39d212f080dbd464e65201,
+167activepatches, exact8filedelta vs172. Publiccore/board/coordinator/owner
+fixtures copiedbyteexact from accepted candidates; before173-public snapshot
+preserves prior publicfiles. Candidateengine/source acceptedbytes unchanged.
+Expectedfresh173 source5323files SHA
+cee256ba3ef7576f950d285312475b31f716cd8c5ac5a8b0ab73edd128dd3d3a.
+Newpublictest_gpu_varying.py increases canonicalhostfiles85->86; oldGGT/GGJ
+modules preserved. Original user tools/mkadt.py7line diff intact.
+
+v10 integration FAILED before sourceexport: mechanical test-count rename also
+altered one character pair in the pinned review hash. Originalscript/dispatcher/
+log retained; no source replay or tests ran. Freshv11/scriptv2 RUNNING exec93006,
+never restart claimed job. Actualpristine original export/replay167patches0,
+source173-codex5323/cee256... exact8filedelta CONFIRMED, coordinator-focus0,
+owner-focus0, fullcanonical86 currently running. Inputsnapshot-v2/report-v2/
+logs-v2; tracefolders-v1 are new unused paths (v10 nevercreatedany). All1..10
+terminal, onlyv11 live. No native recipe change, fullkernel/image/phone yet.
+
+NEXT finish full86/twentynew+legacy native traces, root clean-source review,
+commit completed patch/tests/docs; newcomplete artifact qualifier/preflight
+must retain all old predicates/sourceflags/foundations and addGGVdeclaredbounds/
+exactprior observation +all13symbols; ALL22artifact hardware flags FALSE.
+Then freeze distinct KERNEL173_SOURCE_HEAD from actual sourcecommit and one
+standardlocal8job fullkernel build +strictqualification. Image must be607B
+cmdline mode10/unique173trial/fiveassets/608Bfield1NUL; fullruntime/metadata/
+identity/one-tempboot gates before173phone. No physicalvarying/textures/general
+submission/UI/Metal/highrefresh/performance qualification yet.
+
 ### 2026-11-08 —173 varying core/model +CURRENT172native ARM64 ACCEPTED; provider checks
 
 Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP172,

@@ -131,7 +131,7 @@ int main(int argc,char **argv)
         else assert(!sweet_pas_zap_copy(&out));
     }
     for(unsigned n=0;n<9;n++){
-        setup();switch(n){case 0:h.zap=0;break;case 1:h.zap=10;break;case 2:h.init=1;break;case 3:h.mem=1;break;
+        setup();switch(n){case 0:h.zap=0;break;case 1:h.zap=11;break;case 2:h.init=1;break;case 3:h.mem=1;break;
         case 4:h.active=0;break;case 5:h.context=1;break;case 6:h.context=2;break;case 7:h.context=3;break;case 8:h.translation_bad=1;break;}
         assert(!sweet_pas_zap_owner_action(GPZO_SEAL)&&sweet_pas_zap_owner_state()==PSZ_IDLE);
     }
@@ -143,7 +143,7 @@ int main(int argc,char **argv)
     setup();target[0]^=1;assert(!sweet_pas_zap_owner_live(GPZ_SEAL,low_pa));
     /* New authenticated predicate reads geometry only, including PROT_NONE
      * throughout AUTH acceptance and all subsequent permission checks. */
-    for(int mode=1;mode<=9;mode++){
+    for(int mode=1;mode<=10;mode++){
         before_copy_mode(mode);assert(!sweet_pas_zap_owner_authenticated(low_pa));
         assert(sweet_pas_zap_copy(&out));h.phase=GPZ_AUTH;unsigned hashes=h.hashes;
         assert(!mprotect(target,16384,PROT_NONE));assert(sweet_pas_zap_owner_action(GPZO_AUTH_ACCEPT));

@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Native177 build/qualification0; fresh installed files0; package LIVE
+
+Frozen KERNEL177_SOURCE_HEAD bcd3a064951b9102f9c6f2e1e211b03119f6b40f.
+DSH177v6 ONE full local8job native build0 +strict generic source/SDK/install/
+archive/defined-symbol qualification0, inputs unchanged. Current recipe
+gauguin.MZBj9d (NOT176tKac3D after shared headers/Makefiles replaced), BuildID
+xnu-cf1e91bbcc3749dbb2f914feaa628796; installed kernel SHA
+d68ef803384ea5fd0778eb6421f3fc9eec6c28a9bb76fe7047c2cdfb18846f35.
+All5new service/idle/WDTrefresh symbols defined;17664-bit cache fix retained.
+Private qualifier's state label still says native177-cache-physical-address-fix
+from its176template, but its source177hash/service fields/required symbols and
+ROOT independent review explicitly check177service; no report/code edited or
+checks waived. ROOT root-build-review.json PASSED native/source/host binding.
+
+DSHv7 CURRENT recovery/unmounted read-only installed files/cache/header0;
+sameCLI775622b6..., Systemjobe308770e..., cacheb4f9bcff... all exact/root:root/
+modes correct, fresh stable HFSheader recorded installed-preflight.json. No
+userdata mutation/boot yet. v8 actual boot-wrapper model9cases0 inclinvalid
+observation duration refused before any IO. New boot_service177.py retains
+prior recovery/product/latch/source/image guard flow; bounded observation780s,
+outer timeout860s for the600s service test (original180/260defaults retained).
+DSHv9 package LIVE: same176loader/assets and installed175probe/trial; only new
+kernel +service1/600s flags. Remove ONLY three explicit default-zero diagnostic
+tokens to fit608B bootargs (actual init defaults0 read in source), never truncate.
+
+Next inspect SAMEv9 result, one temporaryboot after all pins/profile review,
+observe automatic recovery (expected roughly old130s+600s), capture current
+stdout plus native. Prior raw1056B stdout must be exact saved prefix; do not
+discard any new events. New physical_api_core177.py preserves frozen175API
+logic byte-for-byte EXCEPT mode177runtime admission; qualify_service177.py
+adds600s elapsed, startup3submits/full8192+1024readbacks, sampled health/real
+counter reset receipts/final renewal count, finite stop and no panic/failure.
+Actual renewal count may be below599 because live health/IO take time; require
+300..600 with exact sampled sequence +same completed3/shadow56. This stage
+can qualify sustained IDLE service; it cannot prove late workload/GLSL/Metal/UI.
+Full original goal ACTIVE/incomplete; no destructive root write/new CI needed.
+
 ### 2026-11-08 —177 clean replay/implementation review PASSED; commit before build
 
 DSHv5 TERMINAL0, source177-codex fresh171patch replay EXACT candidate-v3 SHA

@@ -2,6 +2,70 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 native texture graph ACCEPTED; frozen source fixture next
+
+Previous goalturn PROGRESS:173physicalsmooth/flataccepted andpublished. Goal
+ACTIVE/unlimited; thiscontinuation PROGRESS. Phone lastautomaticTWRP173,
+NO174kernel/image/boot/device I/O. User AWAY/allresets automatic, ask only for
+truly needed manualrecovery, never attribution/UI. All174DSH1..3 TERMINAL;
+v1/v2failedscripts/logs/reports/artifacts retained, v3 FIRST0 on fresh version.
+Current genuine native XNU recipe STILL173 gauguin.mqtgMg/4b98a4e7...,
+source173-codex5323/cee256..., never old172/171TUhelpers on sharedbuildheaders.
+NEXT remotepublication base267fd63d/private dc125660/tree5f1e09b8 unchanged;
+KERNEL173_SOURCE_HEAD28137449 separate from all174/handoff/docs identities.
+
+Authored native textureNIR/sampler/reference harness under research/tmp/dsh-0174.
+Same full-screen173vertexUV, FSoriginalMesaIR3 explicitLOD0 boundful sampler0,
+RGBA8_UNORM4x4/pitch64/4KiB immutable input plannedROfc00a000..fc00b000,
+inside EXISTING32KiBRING, no newmapping. Profiles UV,VU,andUV+1upperUclamp,
+NEAREST min/mag/no mip/clamp-to-edge.16texels use independentx/ybitplanes,
+eachRGBAcomponent0or255, includingalpha; blenddisabled. Source-only oracle
+texture_oracle174.py uses independentFraction samplecenters and integer texel
+selection, predicts16/16/4distinctcolors over256pixels, exact endpoints with
+NO empiricaltolerance. Khronos OpenGL4.6 section8.14.2/table8.20 +2.3.5 read;
+no physicalsamples yet and no fullGL/Metal/filtering/resource API claim.
+
+v1 all25compile steps+link0, firsttexturegeneration aborted: authoredcompiler
+adapter had not lowered texture/sampler derefs beforeIR3. v2 freshfiles added
+UNCHANGEDMesa nir_lower_samplers +nir_shader_gather_info; all25compiles/link0,
+real128BFSsaml s#0/t#0 emitted, but sampler-count guard stopped it at0: authored
+NIR resource usagebits missing. v3 header declares textures_used/samplers_used0
+andexplicitbinding, matching original nir_draw_helpers.c convention; no compiler
+or ISA/packet patch. Allfailedinputs unchanged, no phoneswerebooted.
+
+DSHv3 CLOSED inner0 FIRST:32actualsteps0 (25compiles,originaltracegen,link,
+UV/VU/clamp/repeat/legacygreen captures). Whole originaltexture.cc via typed
+bridge, real sampler/view factories,fdl6_view/native format check helpers,
+cachemiss/hit, program/sysmem/draw/cache emitters. Resource CPU attachment
+explicitly typed; fullGalliumresourceallocation/lifecycle/submission UNQUALIFIED.
+Unselected BO/formattransition/bindless/lifecycle/trace callbacks remain fatal.
+EveryoriginalMesa10642file/598f1abe... input unchanged. Legacygreen everybyte
+matches accepted173 (only new texture-interface.json added), repeatbyteexact.
+
+Independent review_native174.py FIRST0 SHA
+0074e6159ea5626a5daef4240f1628c4e468b83f36e2f0990dda1083898fa694.
+All32steps/outputs/strictflags/executable/objecthashes/root173physicalfoundation
+rehashed. OriginalPM4decoder applies only to commandstreams; rawsampler4words
+anddescriptor16words separately checked as nonexecutabledata (first naive
+all-ring decoder attempt rejected them, no decoder loosening). Nativegroup15
+binds texturestate18; LOAD_STATE6_FRAG addresses dataobjects19/20; exact
+FS_TEX_COUNT1, samplerNEAREST/CLAMP3axes,descriptorRGBA8/4x4/pitch64/2D/depth1,
+actualdescriptorbasefc00a000. All31ROviews disjoint/inexistingrange:
+27native ringobjects(two rawstatepayloads included),3shader128B,1texture4096B;
+31slots/30nonempty/2221command-shader-texturepayload words/2752paddedwords.
+NativeIB203/draw79; originalEOP6/22/38 and singletriangle3vertices. Zero shader
+privatememory,oneFSsampler/noSSBO/UBO/imagewrite, nofragcoordsubstitute.
+
+NEXT freeze exact31slot/3profile native references +oracle/public authoredNIR
+(normalize only173headerincludepath to existingpublicsamebytes), CPUmaterialize
+all32KiBRO images +freestandingARM64reference, rootindependentreview, commit
+completedsource-reference milestone. Then new separate mode11 texturecore/
+actualprovider/hostilemodels/current173ARM64/admissions/fresh168patch/full87host,
+strictfullkernel/image/runtime gates and ONE temporaryphysicaltrial. Preserve
+173GGV/172GGJ/171GGT modules and4s/2s/8sentry guard policies. No174 physical
+texture, generalGPUAPI/IOSurface/presentation/iOSMetalABI/UI/performance/
+highrefresh/daily-use qualification. Original mkadt7line diff a74a0418... intact.
+
 ### 2026-11-08 —173 physical evidence PUBLISHED;174 next, no live jobs
 
 Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP173,

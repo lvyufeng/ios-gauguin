@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —179 service FAILED;180 adjacent-counter regression/native/replay0
+
+179v9 automaticTWRP147s,11:11:07..11:13:35UTC. Exact kernel a61dbc72... and
+3startupGPU EOP/shadows32,44,56, but FIRST refresh FAILED reason6 seq0:
+before457699 after63 dt_ns12964525000 ack_ns2028593 samples43 EN3/
+BARK655300/BITE753595. Reset WAS visible, but delayed reads never formed an
+EQUALpair before2ms; final0renewals/quarantine/healthfailure and hardware reset.
+179v10 readonlycapture0; v11 startup-onlyGPU qualifier0/full60service correctly
+REJECTED1. No179hardware-qualification.json; no persistent179acceptance. Failed
+source/image/profiles/all raw logs preserved.178595renewal/600s positive remains
+valid historical result, not proof that its sampling method works on everyboot.
+
+Codex180 changes ONLY WDT C +private header comments,179GPU/queue/GMEM/board/
+coordinator byte-identical. Native watchdog_v2.c uses adjacent STS loads;178had
+an IODelay and CPU/context checks between samples. New loop takes candidate+
+confirmation STS BACK-TO-BACK, delays only after failed pair/stale count. ONE
+RST1 remains, at most256TOTAL STS loads (not256pairs), same2ms success deadline
+now also enforced through final readbacks, no backwards final counter. No WDT
+threshold/enable/disable/retry, independentpetter or DMA release. Bounds apply
+when platform MMIO/delay calls return; arbitrary hung callbacks not cancelled.
+
+DSH180v1 TERMINAL0/inputs unchanged: actual179compiles0 then functional RED at
+"179 running counter advances across delayed samples";180GREEN all87original+
+103lease+97service cases,600stress refreshes. New48read-latency/delay/phase cases,
+exact adjacent pair/pulse boundary, final post-ACK >2ms/reversal refused; old
+neverACK/frozenCPU/unstablelow/security/context/failure cases retained. Native
+ONE WDT ARM64TU0/CURRENT179jfRN14recipe/2128header-config inputs unchanged.
+v2 fresh ORIGINAL174patch replay0/5329files EXACT candidate-v1 SHA
+2a8fc45f63bfcb26a71c76a7996d2c135a53b6e25498ebf92b234f7476b20088.
+ROOT independent-implementation-review.json PASSED; unchanged179checks reused,
+oldseries pin bound explicitly to frozen12d921b commit. Old2publicWDTfixtures
+saved with SHA receipts in research/tmp/dsh-0179/pre180-fixture-snapshot;
+publicfixture now EXACT executed180fixture, runner defaultsource180.
+
+Commit180/tests/this handoff, freezeHEAD, ONE8job native build/strict qualifier.
+Next fresh currentroot/header and600s temporaryboot, same installed175CLI.
+Historical stdout prefix now3677B (see179capture exact size/SHA before pinning);
+retain ALL prior failures/events, not only latestPASS. No180native build/boot or
+service acceptance yet. PhoneTWRP, all resets automatic. No UI/reset questions.
+
+GLES179 ONE actual iOS build/sign0 at dsh-gles-0179/build-v1, lib16026608B
+SHAb4a0c657283ccfb905505c71e689c9421a07c903e2d7a6a2bb199f8d1819512c,
+late-probe73168B SHA28722b03720977ce51fd3bc1b5543ef18e469573511291735298016e45aa8274.
+Source worktree commit e0633fc, host40checks RED/GREEN0, no device install/run.
+Newkernel180 transport ABI is unchanged179, so no repeat Mesa build needed.
+Review iOS ABI and child/delay ordering; eventual bundle uses600s service and
+--after-gpu-api90s delay. Root install needs fresh full backup AFTER finalboot,
+concrete reviewed delta and NEW explicit consent. Old175write permissions used.
+Main publication base remains5eb6eff...=39211e2.../81cc6d9...; GLES713ea8...separate.
+Full original daily-use GPU/Metal/RAM/UFS/peripherals90/120Hz goal ACTIVE.
+
 ### 2026-11-08 —Native179 ONE build0/requalification0; temporary60s compatibility LIVE
 
 KERNEL179_SOURCE_HEAD12d921b5c67454a9d2fa6b303f9f501e1a58e74f.

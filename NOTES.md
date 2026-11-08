@@ -101,7 +101,27 @@ and combine those with these5 VERIFIED current-source results. Do not rerun the
 same950second board check just because the broader gate is being assembled.
 No full89 result yet. Source/native/model review ae819075... remains current.
 
-NEXT: commit completed175 source/tests/tools/probe now; v12 backup still live; fix only actual failures in fresh profiles. Commit complete
+Implementation COMMITTED private9c1e780171da7b3400dd3e7e6452744c52aa17a1.
+DSH phases v1..v13 terminal except v12 final backup receipt if still hashing;
+public only tools/mkadt.py dirty, original a74a0418... unchanged. GPU header/root
+source f4ba1885... frozen, all171/172/173/174 algorithms unchanged except the11
+explicit175 kernel changes. No175 source publication/image/boot yet.
+
+NEXT immediately after this handoff commit: freeze KERNEL175_SOURCE_HEAD to
+that commit, then DSHv14 runs84 remaining independent host files at4parallel;
+DSHv15 runs ONE full local8job175 kernel build and strict native provenance/
+installed-kernel/archive/banner/symbol/source qualification. The full89 result
+combines84actual fresh exits with5exact-source reviewed prior exits. Do not
+count a failed/absent exit or call this89new invocations. ALL older native-TU
+jobs terminal. Starting175 full build replaces SHARED generated headers:
+NEVER run174/173 native-TU helpers against them. Do not edit tracked files or
+commit while build/qualification is active: strict repo binding requires ONLY
+original mkadt diff and the frozen HEAD. Goal remains active/full daily-use goal.
+After both terminal, update NOTES/commit receipts, prepare local CLI/plist HFSX
+shadow/delta and final image. Apply no destructive root/partition write without
+fresh confirmation per AGENTS. Routine temporary fastboot boot still authorized.
+
+Earlier checklist (v8 no longer active): fix only actual failures in fresh profiles. Commit complete
 175 source/tests/tools/probe and this handoff. One full native175 kernel build +
 integrated89host gate (ABI/MMU milestone) next, using stable profile and existing
 build machinery. Prepare a reversible/root-backed installation of the user CLI

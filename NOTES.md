@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Finite probe quota software ready/published; new backup pending
+
+W181=research/tmp/dsh-gles-0181-root. Readonly WROOTv11 diagnostic capture0:
+actual JetsamEvent for gauguin-gles-probe says per-process-limit, abundant free
+RAM; actual D22 daemon default inactive-hard6MiB/active-soft6MiB. Resident pages
+are NOT physical footprint; don't infer exact killed ledger value from them.
+Actual root launchd binary recognizes ActiveHardMemoryLimit/InactiveHardMemoryLimit
+and explicitly says obsolete JetsamMemoryLimit is ignored. Frozen XNU GET8
+reads16B memlimit properties. W181/memory-policy-review.json records primaries.
+
+Codex adds probe-only128MiB active/inactive HARD job template and six READONLY
+effective-quota/physical-footprint checkpoints to probe. No setter/global
+policy disable/GPU algorithm change. DSH181v2 two actual-function models0:
+14memory query/error/ABI cases +14retained API-child/90s POSIX cases. iOSlinkv1
+failed missing task_info prototype; originalsource/log preserved. ONLYinclude
+changed to mach/mach.h. v3 probe-only link/sign/strictverify0, allpins unchanged,
+newprobe73328B SHA2e3b57199f515fd9dfaed1b129426d209876f5dac9eab3dd74884fcedca956e0.
+Mesa b4a0c657... and600s180image682511e7... unchanged, no rebuild. Independent
+software-review1810; no actual override application or physical GLES acceptance.
+
+GLES five-textfile same-tree publication VERIFIED nonforce/soleparent/ref:
+PUBLIC921da0be702b1be9b749e9d586d1c5e88c5d47cb
+=PRIVATEec5530a65b7fcc71aa2a26cd8c1dca5ddb4272b2
+/TREE4ccfc8ad1d4ac64a1637a48924424cdea1d3b046;
+sole public parentbd384172... .W181/source-publication.json. THIS is next GLES
+publication base. Main publication6d5a7bb... remains unchanged, no CI dispatch.
+
+CURRENT181v1 outer66737 SAME full AFTER-BOOT16GiB READONLY backup ongoing,
+last14.77GiB. Do not restart/mount root/boot. LOCAL-only181stage/planner/fsck/
+boundwriter-model scripts authored, not yet run; require backup terminal0.
+They change ONLY existing diagnostic probe/job/cache plus scoped HFSmetadata,
+preserve installed library/API/kernel/logs/other530jobs. New181contract wraps
+UNCHANGEDfrozen180contract and requires six real128MiB hard-quota/footprint
+receipts/no GLES process crash. Model notyet run. Next backup0 ->local COW
+prep/audit/fsck/model ->current oldranges READONLY ->independent exactplan review
+->NEW concrete consent. No181approval/write yet, old5802consent consumed. NEVER
+rawrollback preboot HFSmetadata after boot. Full daily-use goal ACTIVE.
+
 ### 2026-11-08 —First late GLES FAILED: Jetsam per-process limit; recovery idle
 
 WROOT=research/tmp/dsh-gles-0180-root. SAMEv7 temporary180 boot TERMINAL0,

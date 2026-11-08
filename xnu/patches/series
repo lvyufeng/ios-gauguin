@@ -171,3 +171,4 @@
 0173-gauguin-native-varying-sequence.patch
 0174-gauguin-native-texture-sequence.patch
 0175-gauguin-dynamic-userspace-gpu.patch
+0176-arm64-preserve-cache-flush-physical-address.patch

@@ -2,6 +2,74 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —GLES userland software milestone committed in ISOLATED worktree
+
+Goal turn PROGRESS, full daily-use/GPU/Metal/RAM/UFS/peripheral/90–120Hz goal
+ACTIVE/incomplete. The previously asked EXACT1.72MiB175 root write approval is
+STILL PENDING; no affirmative reply/receipt/root-apply/175boot. This turn made
+NO phone commands, root edits, new kernel build/CI, GPT/flash or firmware writes.
+Last verified phone state is recovery. User away/all resets automatic, never
+repeat reset-attribution/UI questions. Ask only for genuinely needed recovery.
+
+New independent worktree:
+research/tmp/gauguin-gles-worktree-20261108,
+branch codex/gauguin-gles-userland-20261108, implementation commit0d4c938.
+It is NOT merged/published; do not checkout/merge it into main before175trial,
+whose source-change gate deliberately permits only NOTES + originalmkadt diff.
+New tools/prepare-ios-gles.py, build-ios-gles.py, gauguin-gles-probe.c,
+gpu-mesa-abi-check.c + userland/mesa/{README.md,upstream.json}; full branch
+handoff in its NOTES. Current main frozen175 source/image/root-plan unchanged.
+No new broader89host/XNU regression needed for this isolated userland work.
+
+Primary Mesa25.0.7 archive SHA592272df3cf01e85e7db300c449df5061092574d099da275d19e97ef0510f8a6;
+4HakiOS63fc2b46 original blobs verified by GitSHA1/SHA256, read-only cache
+gpu-reuse-20261108-v2/hakios. Mesa own A619 device table + actual619/06010900/
+512KiB guard; realLinuxpipe0x10 (HakiOS directMetal header instead uses1).
+GLES port zeros ignored wire fields, uses absentfence_fd=-1, ignores ONLY the
+BO_DUMP hint, disables nativefenceFD capability, validates map/struct lengths,
+ports retained170..174USER32 event source to equivalent Mesa25 template.
+GPU-only OSMesa, no softpipe/llvmpipe/LLVM implementation linked. DirectMetal
+compiler's fixed642L and backend device values still require an explicit port.
+
+All private evidence research/tmp/dsh-gles-0176 (W), allDSH1..8 TERMINAL:
+v1 sourcefetch0;v2 prepared-v1 0;v3 config1(shared-glapi required);v4 config1
+(old OSMesa software-only guard);v5 fresh prepared-v2 0 + ONE complete local8job
+1090ninja steps configure/compile/link0, then packaging1 expecting nonexistent
+libglapi.dylib. Actual Darwin target statically links libglapi.a. Failed source/
+scripts/input snapshots/logs retained. v6 actual Mesa/HakiOS/kernel UAPI native
+compile/run0 + iOS16object0. v7 packaging the EXACT finished native build0,
+new probe compile/link0, both ad-hoc signs/strictverify0; ZERO Mesa recompiles.
+v8 real frozen root HFS hardlink/iNode +393216B main dyld cache/2710images0;
+all175CLI/newGLES dylib/probe dependencies exist in actual cache image table,
+including IOKit.framework/Versions/A/IOKit. Checks PATHS, not symbol/runtime.
+ROOT independent-software-review.json PASSED, SHA
+b030ee769baa4e75f702d03eceb9d66b5a508b03bcc53a5da89a6d9b17fcd18e:
+13 executable/data sections byte-exact through packaging, real freedreno/IR3
+symbols present, software driver implementations absent; all inputs/exits bound.
+Original Mesa24 and XNU generated headers unchanged. CURRENT native recipe175
+remains1CAtln/c959c29a.../2128headers; never olderTUhelpers. No worker live now.
+
+W/package-v1/product/libGauguinOSMesa.8.dylib16,026,608B SHA
+bdb488489af86febc55d8043bca88381bd5be194ada232ebe903116f4984386a;
+gauguin-gles-probe72,880B SHA
+a036a7bfaa96cba42bcd0ea445d6a219c215946d7aedca609298f3f4ae2dea19.
+Both arm64/iOS platform2/min16.0, not installed/run. Probe requires actual GPU
+query + hardware ES3 renderer, compiles dynamic GLSL checker, all1024RGBA
+readback, sampled IOSurface(nonzero64Boffset) + all1024BGRA readback. No physical
+GLSL/GLES/Metal/UI/FPS/highrefresh acceptance, no performance extrapolation.
+Before deviceGLES:175physical API trial, persistent WDT/power/DMA recovery,
+actual GMEM-base param6, MULTIPLE queue IDs (screen+eachcontext have own pipe;
+175 currently singlequeue), client isolation before ordinary UI access, then
+EAGL/compositor and A619 directMetal frontend. This is userland preparation,
+not a replacement for the pending physical175 trial or the complete goal.
+
+NEXT: await actual affirmative175write response, then execute the already
+reviewed write_root_delta175v2.py -> boot175.py -> capture_probe175.py -> physical
+qualifier, as described below. No approval receipt exists. Root planfd80e691...
+and image403ff4ed... stay frozen. Publication base remains PUBLIC35d706fd...
+=PRIVATEde03753.../TREE6e075e7e...; new isolated branch NOT remote published.
+Originalmkadt7line diff SHAa74a0418... remains untouched and unstaged.
+
 ### 2026-11-08 —175 image/root delta READY; fresh write approval PENDING
 
 Full daily-use/GPU/Metal/RAM/UFS/peripheral/90–120Hz goal ACTIVE/unlimited.

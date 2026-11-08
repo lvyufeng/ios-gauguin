@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —184 approved185blocks APPLIED; real late-GLES trial LIVE
+
+Human call27b1ac0f... consent consumed by successful W184v6 write/readback0:
+38/38runs,757760B/185blocks,38writeattempts,header0last,no rollback.
+Exact planSHA8e9740c210c2985ab53012228201dd45c756f741f1f38684780eebec327b2986;
+final local16GiB0444 SHA8d0b5d930ca268533e563b356aafe520b33d5440f66b39e27df80f7498c3a0e4.
+ONLY two D22/D221 policies gain probe-label Override ActiveSoft=-1/ActiveHard128/
+InactiveHard128 plus scoped HFS metadata. Global/other-label/all531jobs/cache/
+probe/Mesa/API/oldlogs unchanged. Full fresh post181backupbc37c193... retained.
+Localfsck0/original-launchd14cases0/writer102cases0/fresh38oldrange READONLY0/
+independent-local-review.json0. Original failed review kept: localfseventUUID
+alone had newCNID597665->598475, data/BSD/parent/type preserved. Corrected review
+admits only that exact metadata recreation. Native cleanup24files/33dirs.
+
+W184v7 current7files/headerREADONLY0: policyD22 SHA09abc10f.../D2213975392b...,
+both40952B/root0/0644, other5filesexact; fullpriorstdout2141B/stderr69B saved.
+Header efb4102958bab9f922954eefae82141cbe5b203b47c78fca8647142bdafdae49.
+v7 hostmodel1 due wrong MesaSHA in fakefixture ONLY; actualwrapper correctly
+refused. Originalfailedcase preserved; v8 correctedfixture17admission cases0.
+Frozen181v2GLEScontracta6a9c99e.../full180f8a63... unchanged; preboot-review0.
+
+CURRENT W184v9 outer65453,checks-v9/events-v9,trial-v1: SAME180kernel/image6825...
+ONE temporary fastbootboot0(send0.455s/boot0.134s,total0.595s), observer-running.
+ProfileSHAc4af8b35d82f50bbffa8ebca72b45d3534995ffb80f8888a222842cda3de106b;
+600sservice,780sobserver,860sbound. Wait SAMEhandle; no repeatboot/rootwrite/
+UI-resetquestions/raw-prebootHFSrollback. After terminal: read_files184.py with
+post-trial-capture-profile.json; then qualify_gles184.py (UNCHANGED181v2contract,
+exact2141/69Bpriorprefixes,sevenstaticfiles). AnyPASSneedsindependentnativeEOP/
+queue/pixel/memory/600shealth/ALLstderrreview. No GLES/Metal/UI/refreshclaim yet.
+
+Source4textfiles committed PRIVATE29eb69d7af1ded4f438d4ae475d10bf1a32558f6,
+TREE00c0733cdb8b8290df0941044e34aac159068d80. GitHub connector blob403; fallback
+existing authenticated gh file bodies (no approval block). Publicationreceipt
+W184/source-publication.json is authoritative; see next entry/update for final
+publicSHA. Mainremote6d5a7bb... unchanged, no kernel/Mesa rebuild/CI. Original
+mkadt dirtydiffa74a... preserved. Full daily-use goal ACTIVE and incomplete.
+
 ### 2026-11-08 —181 physical memory admission FAILED;184 fresh backup complete
 
 The approved181 delta was applied and read back successfully; consent3988 is

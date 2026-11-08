@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —189 primary HakiOS confirms DYLD-job filter and kernel exec injection
+
+188actualfactsunchanged: mode=admissionREACHESbackboardd exec(envc10), DYLD_INSERT
+keyABSENT, AMFI90PATH2worksUID501, no librarychecks/constructor. GLESfullPASS,
+phoneTWRP/no trialpending. No189code/image/rootwriteyet. FullgoalACTIVE.
+
+NEWpinnedprimaryHakiOSsource63fc2b4633bac3af8e57dadab9f5a8d4cb940438:
+userland/build.sh blobc60412386c265c501fd9a0a9bace32eedcfedf7b lines16-19/400-411
+writesetc/inject.conf andinit configureskern.exec_inject; userland/src/init.c
+blob6801ce2a1a64fa543ad3500aee38635dcd4420ce lines1449-1486 calls thatsysctl.
+ACTUALkernelmechanisminxnu/hakios.patch blob3bade393cc38c0ab845faaf0ea740aba0cb8bc14
+lines720+: explicitlysayslaunchdREFUSESjobDYLD_variables; appendviaexec_add_user_string
+withUIO_SYSSPACE duringexec_extract_strings AFTERincomingenvcopy/beforeNULL+align.
+Thisconvergeswith188measuredcustommodepresent/DYLDabsent. Earlierinject.c header
+commentaboutlaunchd isnotcompleteimplementationdescription; build/init/patch
+proveactualkernelinjection. W189/primary-exec-inject-reference.json storespinned
+excerpt/URL/blob. No need to blindlyrelaxAMFIforxpcproxy orpatchAppleexecutables.
+
+Read-onlyhistoricalstaticinventory W189/offline-launch-v1: actualxpcproxy96352B
+SHAa97bc59d024c3b7fcf293aa6ef2fa75b60ef7220b2546ab4382adcbe78ddbfec,
+launchd541600B12370e5ee35bf28ae479b6c4b4455f4f4693ab803e37c5eb3032537c18cac61c;
+bothLC_BUILD_VERSIONplatformiOS2 (noassumedmacOSprune). Nohardlinks. Thesearestatic
+from855cHISTORICALbackup, no currentphoneIO/mount/execute, notruntimefilterproof.
+Pinnedprimaryinject.c onlyopenslibhakios.gl inbackboardd; no source copied blindly.
+
+NEXT implementNARROWkernel-onlyinertdiagnosticinjection, proposednotwrittenthis
+entry: explicitnewbootarg sweeteagl=1/default0 ANDexistingdyldprobe1; exactsaved
+backboarddpath+actualimgp executablevnode/protectedrootfile+currentUID/ruid0or501;
+also validateexistingroot-ownednonwritableinertlib. Requireexistingmode=admission
+(unique), appendONLYfixedDYLD_INSERT_LIBRARIES=...libGauguinEAGLAdmission.dylib.
+No genericconfig/sysctl/arbitrarylibrary path; no GPU/renderer grant. No newroot
+write/consentneededfortemporarykernel; samepreviouslyapproved67f7inertlibrary.
+
+Spacecorrectnessrequired: insertionpointBEFOREenvNULL/alignment; preflightconstant
+stringbytes +8Bnewenvpointer +8BexistingNULLpointer +exactnewalignmentpad for64bit,
+validateexecargs ranges/metadata, keepallexistingvars. ExistingidenticalDYLDkey:
+no duplicate; conflicting/duplicatekey orinsufficientspace: SKIPunchangedexec,
+recordreason. Ifexec_add_user_string unexpectedlyfails, restorestringend/strspace/
+argspace (onlyunusedtailmayhavebeentouched); preserveoriginalvisibleargv/env and
+originalexecresult. Actualexec_add helper loopsENAMETOOLONG, advancesmetadataeven
+oncopyerror; testsMUSTusecompleteactualhelper andoriginalNULL/alignmenttail, not
+mockawayaccounting. Subjectvnode/credrefsbalanced; currenttargetvnodeborrowed.
+Testcompleteproductionhelpers/actualcopyhelper underASAN/UBSAN, nativeARM64C,
+thenpristine177patchreplay/fullbuild/newopt-inimage. 188observerhelpers/models49/
+38/fullGLES retained. Forbootargspaceomitonlysource-provenzero-defaultarg(e.g.
+sweetbusprobe=0), add sweeteagl=1; do nottruncate608Bfield orchangeRAM/window.
+Reviewallactualkeyconsumersbeforeomittingthezero-defaultargument. Originalmkadt a74a kept.
+
 ### 2026-11-09 —188 measured: custommodeDELIVERED, DYLD_INSERTabsent atbackboardexec
 
 188actualONEbootautoTWRP observer0,745.620436s,19:49:16.009106..20:01:41.629542UTC

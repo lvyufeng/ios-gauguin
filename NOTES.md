@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —186 GLES regression PASS; compositor admission FAILED/missing;187offline live
+
+Phone autoTWRP after741.804095s (17:15:46.116363..17:28:07.920458UTC), observer0,
+186v14terminal0/inputsunchanged. Noresetquestions/manualaction. v15READONLY12files0,
+9staticfilesretainedexact9hashes (small67f7/job33f5/cache05b8/Mesa3a4 unchanged),
+old5797/2341/443416Bprefixes exact. Backup855cbdea isPRE186BOOT/HISTORICALnow;
+NEVERrawrollbackitsmetadata. 403blockconsentcallbd4...consumed; no newrootwrite.
+
+v16 STRICToverallqualification correctlyFAILED1: ValueError missing/duplicate
+admissiondiagnostic session. Frozen181v2+180 GLES nestedresult PASSED unchanged,
+butcurrentBBoardlog5156B hasZERO GAUGUINEAGL186markers. PreserveoriginalFAIL json,
+raw/currentdata andallcode. DoNOTweakenparser orcallthisinjectionPASS. BBoard
+nativeexecONCE, objcPID57normalHIDpluginwarnings, noBBoardcrash. UID/eUID and
+budgetnotobserved: cannotdistinguishlibrarynotloaded fromsilentidentitygateyet.
+
+v17 independentreview0/inputsunchanged separatelyverifiesphysical GLES regression:
+FD619/OpenGLES3.1Mesa25.0.7,90.099093854swait, startupseed1291444574 full8192+
+1024wordreadbacks; shaderseed1770276245, all1024RGBA and1024BGRApixels eachhash
+2621291461, sixnativejobs/EOP1..6/rings32/44/56/68/80/92,595renewals/full600shealth.
+Sixactual128MiBHARDmemorycheckpoints,footprints852208/16187672/16187672/25248064/
+25461056/25510208B. ALL269newGLESstderrbytes identicalpriorprimary-reviewedMesa
+fd-comparisonwarning withunchanged3a4library; no GPUtimeout/errorwaiver. Report:
+W186/independent-failure-review.json explicitlyGLES_regressiontrue/injectionfalse,
+noUID/budget/GPUUI/Metal/refresh/dailyusequalification. WholegoalACTIVE.
+
+NEXT loaderinvestigation: actualkernel source registers policy SWEET AMFI only
+withvnode-signaturehook; rootbinarymarkedPLATFORM_BINARY. __mac_syscall returns
+ENOPOLICYforunregisteredpolicy. This makesDYLDfilteringplausible, NOTphysicalcause
+proof. LibrarycouldalsofailitsUID/nameguard. Existing sampler onlyPC/LR/SP, not
+runtimeUID/env/images, so do not repeatunchangedboot expectingnewfacts.
+PrivateW186/compositor-access-design186.json pinsactualnativeAPIs forfuturetrusted
+BBoardaccess: currenttask/currentproc, uid+ruid501, exactexecutablevnode identity,
+rootownednon-group/other-writableexpectedpathonrootmount, IOcountsbalancedbefore
+GPUgLock; stillPROPOSED/unimplemented. Retainrootadmin/singleowner; ordinaryapps
+stilldenied. Needfutureper-contextisolationbeforegeneralapps.
+
+NEW W187=research/tmp/dsh-eagl-0187-loader. DSHv1offline actualdyldsourceversion/
+policy-symbol inventoryLIVE outer23487, checks-v1/events-v1. ReadsONLYhistorical
+backup855cbdea static/usr/lib/dyld, resolvesHFShardlink, neverphone/mount/write.
+Waitsamehandle; thenmatchactualdyldversiontoAppleprimarysource andinspectactual
+policybranch before choosingloaderfix. No187kernel/library/rootdelta yet.
+All186handles46538/19567/93416/82720closed. SourceUIpubliceca39329/private0fb810d
+unchanged. NeedlaterDOCcommit/pubsourcebrancharoundfinalverifiedbehavior, not
+claimprior8filesenabledUI. MainonlyNOTES commits; originalmkadt a74a preserved.
+
 ### 2026-11-09 —186 actual temporary boot LIVE; wait same46538 handle
 
 186v12purecontract41cases0; v13independentprebootreview0. ALL24bootgates and

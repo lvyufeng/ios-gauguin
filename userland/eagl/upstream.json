@@ -1,0 +1,44 @@
+{
+  "repository": "oosexgang/hakios-xnu-kernel",
+  "commit": "63fc2b4633bac3af8e57dadab9f5a8d4cb940438",
+  "license": "MIT (userland and tools)",
+  "validated_slot_target": "iOS16.7.16/20H392, 457 names / 409 rows / 62 primary CA marked rows",
+  "files": [
+    {
+      "cache_name": "eagl.c",
+      "bytes": 176356,
+      "sha256": "b1165bc40c1ca58968d28b990505acfeb138579155aa3b0b27c7d70933ba9903",
+      "git_blob": "3c359eeb8d00b9457aacb4d7d042ad136f935a99"
+    },
+    {
+      "cache_name": "gl_osmesa.c",
+      "bytes": 3769,
+      "sha256": "7a90f17b275b9f20c088850696cf9d47644bfdddee91ba0ee62a66f8de9e0b78",
+      "git_blob": "912ad95901d1d1325d7c64a94d7569accce040b4"
+    },
+    {
+      "cache_name": "hakios.gl.h",
+      "bytes": 1641,
+      "sha256": "52aba74c5ea5ad2515c0f840d52a572420aae2dc98288db34b89a9ad3a02ddd9",
+      "git_blob": "be98271db84c1fb69d05104b002a8e110d5c0218"
+    },
+    {
+      "cache_name": "mkeagl.py",
+      "bytes": 7061,
+      "sha256": "58fcae29a16a9df7b1177aaf56f3e9421c9d79e071ce5023f88140af15cecd91",
+      "git_blob": "25d36c119a659b7015ee271cb5da46b64d9aa21b"
+    },
+    {
+      "cache_name": "eagl_slots.txt",
+      "bytes": 12419,
+      "sha256": "ab2fa428756d2a0742ca4017f812ea46918b9a2f6cb375e4582464540926feea",
+      "git_blob": "89259c5aa49d031adbf45cac23f367382ac7ea17"
+    },
+    {
+      "cache_name": "hakios-LICENSE",
+      "bytes": 2105,
+      "sha256": "15c02b5b5f49938db79fbc85ff1905ece5d3da7a2c32db5de5b9897eb4fa5f4a",
+      "git_blob": "8814a9d5691a1ad09170f6b05d89f71233ced9c4"
+    }
+  ]
+}

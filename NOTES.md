@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —186 inert EAGL admission + disabled bridge built and reviewed
+
+Isolated UI branch from private1d365d4/publiceac33438/tree613176e3. Main root
+NOTES remains authoritative for device state; this branch carries userland only.
+Full goal ACTIVE; accepted185 standalone real GLES is unchanged, UI/Metal/refresh
+not qualified. Phone last TWRP, no186 write or boot. No new kernel/Mesa build/CI.
+
+Actual20H392 method metadata collected and widths reviewed for8hooks. All457
+named GL exports/409slots (62primaryCA marked) match pinned HakiOS20F66 table;
+actualgetter contextbias32 verified. Independent backward call-dependency review
+confirms444br/13blr, all original decoder stderr empty. Root private UI183/
+offline-compositor-admission-v3. Offsets/widths are not full GL semantics/UIproof.
+
+New tools/build-ios-eagl.py pins6MITprimary files, generates table against
+acceptedMesa3a4475... unchanged. Port fixesuint32width/height with INT_MAX bound,
+retains only current-frame return-address diagnostics (no unsafe depth1..4),
+removes unused counter. All62primaryCA rows have Mesa or by-hand implementation;
+23missingentries are outside thatmarkedset. Full bridge gate ALWAYSreturns0;
+no env/bootarg can install hooks. Separate69,184B admission library has noMesa
+or renderer-changing imports; reads8methodtypes, GET8,selffootprint and service
+presence onlyinbackboardd uid/euid501. Bothproducts arm64/iOS16 signed/strict0.
+AdmissionSHA67f7be397c84e0fea45800925d256186ef61d77b20361cf190cb7dcddfbb251e;
+disabledbridge561392B SHAac9171b4c1d6adb7bb9903ccc3eb84518ff7b82d1ec427523c063645e7231db6.
+
+DSH186v2 build0/inputsunchanged; v4complete actual admission C14hostscenarios
+ASAN/UBSAN0 with real hostObjCmetadata andtypedOSseams. EveryoriginalIMP retained,
+return0 evenmode=render, missingmethods/encoding orquery failures. v6 independent
+software review0, actual__init_offsets(S_INIT_FUNC_OFFSETS0x16) exactone ctor
+matchedlocalnlist. Priorv1 strictC/GNUtypeof/unsafe-depth diagnostics andv5 old
+constructor-section assumptionFAIL retained; fixedwithout suppressing warnings
+or enablinghooks. Scope softwareonly; actualBBoarddyldinsertion/budget pending.
+
+Onlysmalladmission proposedforfutureinstall. CachedBBoardjob differsfromfile
+EXACTLY2loggingenvvars; preserveseparately, addonlyDYLD_INSERT_LIBRARIES and
+GAUGUIN_EAGL_MODE=admission tothatsingleexistingjob+cache. NoUserName, memory
+policy, executable, probes or530otherjobs changes. New16GiBpost185backup running
+rootW186v3; freshlocalCOW/delta/fsck/alloldranges/explicitconsent beforewrite.
+Kernelstillroot-onlysingleowner/sharedPT; compositor-scopedauth/order future.
+Don't removechecks/runBBoardasroot/allowarbitraryapps. FullRAM4GiBphysicalonly,
+Metal/90/120Hz anddailyuse remain unqualified.
+
 ### 2026-11-08 —185 physical standalone GLES rendering ACCEPTED
 
 Actualsamekernel180image6825...+newMesa3a447524...+sameprobe2e3b...+128MiBpolicies

@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Build inert EAGL admission diagnostics and a disabled bridge for iOS16.
+
+Only local source preparation, cross-compilation and signing. No device IO,
+root-image changes or Mesa rebuild. The bridge cannot replace any method yet.
+"""
+from pathlib import Path
+import argparse,hashlib,json,os,re,shutil,struct,subprocess
+
+ACCEPTED_MESA='3a44752493fb204d62817934dcee10c48ed3be857908402f93e06cc77128a2ea'
+def sha(p):
+    with p.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+def replace_once(s,a,b):
+    assert s.count(a)==1,('primary source context differs',a[:100])
+    return s.replace(a,b)
+def adapt_eagl(s):
+    s=replace_once(s,'#include "hakios.gl.h"','#include "hakios.gl.h"\n#include <limits.h>\nextern int gauguin_eagl_admit(void);')
+    s=replace_once(s,'    GLsizei width, GLsizei height, unsigned long format, unsigned long type, uint32_t plane, BOOL invert)',
+        '    uint32_t pixel_width, uint32_t pixel_height, unsigned long format, unsigned long type, uint32_t plane, BOOL invert)')
+    start=s.index('my_texImageIOSurface(');end=s.index('\nstatic ',start)
+    part=s[start:end]
+    part=replace_once(part,'\t(void)selector;','\tif (pixel_width > INT_MAX || pixel_height > INT_MAX) return NO;\n\tGLsizei width = (GLsizei)pixel_width, height = (GLsizei)pixel_height;\n\t(void)selector;')
+    s=s[:start]+part+s[end:]
+    s=replace_once(s,'install(void)\n{','install(void)\n{\n\tif (!gauguin_eagl_admit()) return;')
+    # A caller diagnostic must not chase arbitrary caller frame pointers.
+    # Retain only the current frame's return address, which Clang supports.
+    s=replace_once(s,'uintptr_t callers[5], slide;','uintptr_t callers[1], slide;')
+    s=replace_once(s,'char line[5 * 20 + 1] = "";','char line[20 + 1] = "";')
+    for depth in range(1,5):
+        s=replace_once(s,'\tcallers[%d] = (uintptr_t)__builtin_return_address(%d);\n' % (depth,depth),'')
+    s=replace_once(s,'size_t size = 1, extensions = 0;','size_t size = 1;')
+    s=replace_once(s,'\t\textensions++;\n','')
+    # Actual ARM64 method widths from this root's 20H392 metadata. This checks
+    # the C hook types as well as the otherwise easy-to-miss unsigned dimensions.
+    marker='/* Does the display\'s driver wait for the GPU'
+    assertions='''typedef BOOL (*gauguin_tex_method)(id, SEL, IOSurfaceRef, unsigned long, unsigned long,
+    uint32_t, uint32_t, unsigned long, unsigned long, uint32_t, BOOL);
+_Static_assert(sizeof(unsigned long) == 8 && sizeof(GLsizei) == 4 && sizeof(BOOL) == 1, "actual arm64 EAGL widths");
+_Static_assert(__builtin_types_compatible_p(__typeof__(&my_texImageIOSurface), gauguin_tex_method), "20H392 uint32 dimensions");
+
+'''
+    s=replace_once(s,marker,assertions+marker)
+    return s
+def macho(p,kind):
+    b=p.read_bytes();magic,cpu,sub,typ,n,size,flags,res=struct.unpack_from('<8I',b)
+    assert magic==0xfeedfacf and cpu==0x100000c and typ==kind and n<256 and 32+size<=len(b)
+    at=32;versions=[];loads=[];rpaths=[];identity=[]
+    for _ in range(n):
+        cmd,sz=struct.unpack_from('<II',b,at);assert sz>=8 and at+sz<=32+size
+        if cmd==0x32:versions.append(struct.unpack_from('<4I',b,at+8))
+        if cmd in (0xd,0xc,0x80000018,0x8000001f):
+            o=struct.unpack_from('<I',b,at+8)[0];assert 24<=o<sz
+            name=b[at+o:b.index(b'\0',at+o,at+sz)].decode()
+            (identity if cmd==0xd else loads).append(name)
+        if cmd==0x8000001c:
+            o=struct.unpack_from('<I',b,at+8)[0];rpaths.append(b[at+o:b.index(b'\0',at+o,at+sz)].decode())
+        at+=sz
+    assert at==32+size and len(versions)==1 and versions[0][:2]==(2,0x100000)
+    return {'bytes':len(b),'sha256':sha(p),'versions':versions,'loads':loads,'rpaths':rpaths,'install_names':identity}
+def main():
+    ap=argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--upstream-cache',type=Path,required=True);ap.add_argument('--mesa-build',type=Path,required=True)
+    ap.add_argument('--registry',type=Path,required=True);ap.add_argument('--out',type=Path,required=True);a=ap.parse_args()
+    repo=Path(__file__).resolve().parent.parent;e=repo/'userland/eagl';out=a.out.resolve();cache=a.upstream_cache.resolve()
+    manifest=e/'upstream.json';m=json.loads(manifest.read_text());assert m['commit']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
+    inputs={str(p):sha(p) for p in [Path(__file__).resolve(),manifest,e/'admission.c',e/'LICENSE.upstream',a.registry.resolve()]}
+    for row in m['files']:
+        p=cache/row['cache_name'];b=p.read_bytes();assert len(b)==row['bytes'] and sha(p)==row['sha256']
+        assert hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()==row['git_blob'];inputs[str(p)]=sha(p)
+    receipt=a.mesa_build.resolve()/'result.json';mesa=json.loads(receipt.read_text());lib=Path(mesa['products']['libGauguinOSMesa.8.dylib']['path'])
+    assert mesa['state']=='passed-iOS16-A619-GLES-library-and-probe-build' and sha(lib)==ACCEPTED_MESA
+    assert mesa['products']['libGauguinOSMesa.8.dylib']['sha256']==ACCEPTED_MESA
+    assert a.registry.name=='gl.xml' and a.registry.stat().st_size>1000000
+    inputs.update({str(receipt):sha(receipt),str(lib):sha(lib)})
+    sdk=Path(subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip())
+    compiler=subprocess.check_output(['xcrun','--sdk','iphoneos','--find','clang'],text=True).strip();inputs[str(sdk/'SDKSettings.json')]=sha(sdk/'SDKSettings.json')
+    out.mkdir(parents=True,exist_ok=False);source=out/'source';source.mkdir();product=out/'product';product.mkdir();logs=[]
+    record={'state':'building-inert-EAGL-admission-and-disabled-bridge','input_pins':inputs,'results':logs,'device_commands':0,'UI_qualified':False,'rendering_enabled':False,'sdk':str(sdk)}
+    def save():
+        record['inputs_unchanged']=all(sha(Path(p))==pin for p,pin in inputs.items());(out/'result.json').write_text(json.dumps(record,indent=2)+'\n')
+    def run(argv,name):
+        with (out/(name+'.log')).open('xb') as f:p=subprocess.run(argv,cwd=repo,stdout=f,stderr=subprocess.STDOUT)
+        logs.append({'name':name,'argv':argv,'exit':p.returncode});save();assert p.returncode==0,(name,p.returncode)
+    try:
+        for name in ('eagl.c','gl_osmesa.c','hakios.gl.h'):shutil.copyfile(cache/name,source/name)
+        (source/'eagl.c').write_text(adapt_eagl((source/'eagl.c').read_text()))
+        shutil.copyfile(e/'LICENSE.upstream',source/'LICENSE.upstream')
+        run(['/usr/bin/nm','-gU',str(lib)],'accepted-Mesa-exports')
+        exported=sorted(set(re.findall(r'\b_(gl\w+)\s*$',(out/'accepted-Mesa-exports.log').read_text(),re.M)))
+        assert len(exported)>500;exports=source/'exported-gl.txt';exports.write_text('\n'.join(exported)+'\n')
+        # Keep stdout (generated C) separate from the generator's coverage report.
+        with (source/'eagl_gen.h').open('xb') as f,(out/'generator-coverage.log').open('xb') as err:
+            q=subprocess.run(['python3',str(cache/'mkeagl.py'),str(cache/'eagl_slots.txt'),str(a.registry.resolve()),str(exports),str(source/'eagl.c')],stdout=f,stderr=err)
+        assert q.returncode==0
+        coverage=(out/'generator-coverage.log').read_text();assert '409 entries:' in coverage and 'of those QuartzCore calls:' not in coverage
+        common=[compiler,'-target','arm64-apple-ios16.0','-isysroot',str(sdk),'-std=gnu11','-O2','-Wall','-Wextra','-Werror','-dynamiclib','-framework','CoreFoundation','-framework','IOKit','-lobjc']
+        admission=product/'libGauguinEAGLAdmission.dylib';bridge=product/'libGauguinEAGL.dylib'
+        run(common+['-DGAUGUIN_EAGL_ADMISSION_ONLY=1','-install_name','/usr/local/lib/gauguin/'+admission.name,str(e/'admission.c'),'-o',str(admission)],'admission-link')
+        run(common+['-framework','IOSurface','-install_name','/usr/local/lib/gauguin/'+bridge.name,'-I'+str(source),str(source/'eagl.c'),str(source/'gl_osmesa.c'),str(e/'admission.c'),str(lib),'-Wl,-rpath,/usr/local/lib/gauguin','-o',str(bridge)],'disabled-bridge-link')
+        products={}
+        for i,p in enumerate((admission,bridge)):
+            run(['/usr/bin/codesign','--force','--sign','-',str(p)],f'sign-{i}');run(['/usr/bin/codesign','--verify','--strict',str(p)],f'verify-{i}')
+            products[p.name]={'path':str(p),**macho(p,6)}
+            run(['/usr/bin/nm','-u',str(p)],f'imports-{i}')
+        imports=(out/'imports-0.log').read_text()
+        forbidden=('IOServiceOpen','IOConnectCall','OSMesa','method_setImplementation','class_addMethod','method_exchangeImplementations')
+        assert not any(x in imports for x in forbidden)
+        assert not any('GauguinOSMesa' in x or 'OpenGLES' in x for x in products[admission.name]['loads'])
+        assert '@rpath/libGauguinOSMesa.8.dylib' in products[bridge.name]['loads']
+        record.update(state='passed-iOS16-inert-EAGL-admission-and-disabled-bridge-build',products=products,generator_coverage=coverage.strip(),scope='Cross-build and signing only. Admission has no renderer-changing imports or Mesa dependency. Both products disable method replacement. Runtime injection and compositor memory/ABI remain unqualified.')
+        save();assert record['inputs_unchanged'];print(json.dumps({k:v for k,v in record.items() if k not in ('input_pins','results')},indent=2))
+    except Exception as exc:record.update(state='failed-inert-EAGL-build',error=repr(exc));save();raise
+if __name__=='__main__':main()

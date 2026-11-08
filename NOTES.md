@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —182 readonly RAM inventory/partialVM evidence;181consent PENDING
+
+Previous goal turn classified PROGRESS (actual Mesa trial/failure diagnosis,
+compiled/published181fix, reviewed concrete delta). This continuation also makes
+new evidence progress while awaiting the SAME explicit371block permission;
+no newapproval reply/file, no181rootwrite/boot. Do NOT repeat the question or
+infer consent from automatic goal continuation. Original daily-use goal ACTIVE.
+
+W182=research/tmp/dsh-memory-0182. DSHv1 freshCURRENT TWRP FDT/iomem/meminfo
+capture0; headerbefore/after identical ANDmatches181oldrangepreflight. No mount,
+write/reboot;8KiB rootheader read only, raw DT/serial-related data ignored/private.
+v2 local FDTget actual fixed/dynamic/header-reservations andLinux SystemRAM
+reconciliation0. recoveryMemTotal7,742,414,848B. Current180payload EXACT memBase
+0x180000000/managed0xfff00000 (4GiBminus1MiB). Proposed FUTURE contiguous window
+[0x100000000,0x280000000) fits actualLinux SystemRAM, has NO fixedFDT reservation
+or dynamicfirmware alloc-range overlap, and adds2GiB to existingwindow. ALL
+dynamicpools arebelow4GiB. Important correction: memorybankC0000000+C0000000 is
+NOT wholly offline; actual removed_region isONLY[C0000000,C7B00000),123MiB.
+Currentmkadt comment sayswhole3GiBoffline incorrectly; DO NOT edit the user's
+existing7line dirtymkadt diff yet. Originala74a... hash preserved. This range
+reconciliation isNOT proof of physical DDR/pressure/DMA or fullsafeRAM.
+
+QEMU comparison using unchangedactual180kernel7e368fa...: firstdispatchv3 had
+missingprofile (absent optionalD22Appleartifact), neverran; logpreserved. v4
+failed beforeQEMU dueLLVM PATH; preserved. v5 actualbaseline4GiB rootmockfs/static
+PID1 attempt FAILED (helper2/stage1): unmodelled QualcommSPMI externalabort at
+sweet_spmi_init+0xa8 (pcfffffe0007562968,ESR96000010). Do NOT waive it or call
+fullboot/PID1 test passed. QEMU uses oldmkadt fallbackproduct andsimulatedGIC/
+timer/framebuffer9c000000, no realphoneimage. No source/kernel rebuild.
+
+v6 SEPARATE capture-only6GiB attempt: collection0/inputs unchanged, but actual
+QEMU boot ALSO2/sameSPMIpanic. Captured real QMPsymbol reads fromsamekernel:
+baseline gPhysBase180000000,max_mem=mem_actual=mem_sizefff00000,sane_sizefd904000;
+6GiB gPhysBase100000000,max_mem=mem_actual=mem_size17ff00000,sane_size17d904000.
+VM recognizedexact+2GiB BEFORE device-model fault; noPID1 or fullboot acceptance.
+All originalfailedreports andrawdebug/screens preserved. Independentmemory-
+review.json0 verifies actualcapture/DT ranges/samekernel/QMP+2GiB/originalboot
+failures/unchanged181plan. Real6GiB image, owned-buffer/pressure/DMA test and
+remaining lower-bank exclusions are UNFINISHED; all full/hardwareRAM flagsFALSE.
+Do not change current181GPU trial's memory/image or spend a kernel build on this
+until its actual delayedGLES result isknown. Reportsource onlyNOTES; raw/private
+data/artifacts remain outgit. All182DSHhandles51384/91736/40577/24068/59326/57626
+terminal; no live process. Currentphone recovery, lastrealboot still180GLESfail.
+
+NEXT CRITICALACTION remains await NEW3988plan consent, then proven181writer/
+freshbundlecapture/same180600s boot/frozen181v2contract andindependent review,
+as detailed below. Optional later QEMU work must model/gate absentSPMI before
+claiming completeVM/PID1/pressure testing. Full originalGPU/Metal/RAM/UFS/
+peripherals90/120Hzdaily-use objective remains ACTIVE, no goalcompletion/block.
+
 ### 2026-11-08 —181 concrete371block fix READY; new explicit consent PENDING
 
 CURRENT phone idle TWRP, no181write/boot. User's5802approval was consumed by the

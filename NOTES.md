@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 provider candidate/admissions/current173 TUs; board MODEL RUNNING
+
+Goal ACTIVE/unlimited, PROGRESS. Phone last automaticTWRP173; NO174kernel,
+image, boot or deviceI/O. User away, all resets automatic --manual-reset no,
+never attribution/UI questions. v7 admissions and v9 providerARM64 TERMINAL0;
+v8 board LIVE DSH outerexec75848, dispatchPID67690/child67691/test67738.
+Continue SAME handle/claim, NEVER restart. All earlier174stages1..6 terminal.
+Latest old0148 reply is automatic as already recorded; no reset question needed.
+
+Isolated candidate174v1 authored8files, proof provider-candidate-result-v1.json
+SHAe98df7c0cc743e55dfb27ad47e34d49566ec28def10b9c2f6f26f10b801c22e8.
+New exclusive mode11/GGF/ggfb, explicit GGVidle prerequisite, same coldDATA19,
+signedINIT-MEM-AUTH/GGU20, all17guardsteps/2sphase/4stotal/8sentry policies.
+Original GGT/GGJ/GGV leaf bodies unchanged. All old parents inclGGV poisoned
+BEFOREfailure diagnostics. Shared selectors/actualPAS/coordinator admit11.
+No productionpatch yet. Candidatecore3files EXACT accepted texture-engine-v1.
+
+DSHv7 admissions FIRST0, fourcompile/run steps0: all738 old +38new mode11
+coordinator=776; actualPASowner541/all126copyguards/protectedAUTHpage checks.
+SyntheticMDT/code and typedCPUseams only, no SMC/hardware qualification.
+DSHv9 providerARM64 FIRST0: actual board/coord/PAS threeTUs, CURRENT173 genuine
+recipe gauguin.mqtgMg/4b98a4e7..., all2125headerconfig/protectedrefs unchanged.
+No old172/171TUhelpers used. v8 actualboard compile0 and all15new/legacy traces0,
+full MODEL still running, no failure output. Five texture traces each8277RING
+CPUwrites; root review NOTyet accepted. New typed fixture preserves all31280old
+cases; authored store-boundary loop retains1633tailstart, thus additionally
+covers EVERY newtextureinput word,1206selectededges vsold86. Keep stronger
+coverage; root independently derives9867new/41147total EXPECTED, not observed.
+
+Fresh scripts authored but NOTexecuted: review_provider174.py, promote174.py,
+integrate174.py/dispatch10 (fresh168patch/full87), texture_native174.py,
+texture_source_contract174.py and retainedold contracts/nativehelpers. Never
+claim source replay/fullhost/kernel/image/physicaltexture from currentresults.
+NEXT observe SAME v8 terminal, run ROOT independent provider review (no compile),
+then promote exactreviewedsource/publicfixtures, DSHfresh168patch/full87host,
+ROOTsource review +commit. Fullkernel/strictqualifier/image/parser/runtime and
+ONEtemporaryphone gates remain. Publicpublication nextbase267fd63d/private
+dc125660/tree5f1e09b8 unchanged; frozen173source28137449 separate from174docs.
+User original mkadt7line diff a74a0418... intact. No userdata/destructiveaction.
+
 ### 2026-11-08 —174 texture core/model +CURRENT173 ARM64 ACCEPTED; provider next
 
 Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP173,

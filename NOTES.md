@@ -2,6 +2,180 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 PHYSICAL bounded native three-job sequence ACCEPTED
+
+Goal ACTIVE/unlimited. This continuation is PROGRESS, not full GPU API/Metal/
+UI acceleration/highrefresh/daily-use completion. Phone now automaticTWRP172.
+User AWAY; ALL resets automatic --manual-reset no by standing policy, never
+ask attribution/UI; only prompt if manual recovery genuinely needed. All DSH
+1..23 TERMINAL, no live jobs or pending user input. No new CI run this stage.
+Codex critical driver/plan/review/Git; DSH compile/tests/build/package/boot/read.
+
+DSH v22 CLOSED inner0 FIRST: uniquegauguin recovery/product +13B misc recovery
+latch/readback +uniquegauguinpro fastboot; ONE temporary boot0172, send0.452s/
+boot0.134s, automaticTWRP after130s, fresh raw ring pull +exactkernel banner0.
+v23 CLOSED inner0 FIRST: strict physical verifier0, raw binary/text identity0,
+all old same-boot source/image/INIT/MEM/AUTH/GGU/clock/context/fault/time gates
+retained. Root review_physical172.py FIRST0, accepted independent-hardware-
+review.json SHAd9d989531396485f389e7e185cb709fc92a0c1a231e69ae5fed743c90e87ef4c.
+It rehashes all30 full-report inputs (26retained +4sequence), full5320-source,
+all768actual prior/current pixel samples, all81native buffer receipts, unique
+fresh USER32 EOP6/22/38 and root20->27->34->41, no source references substituted
+for RAM. Source artifact ALL20hardware flags remain FALSE; actual phone proof
+is the separate strict report. Signed INIT/MEM/AUTH and GGU20 ran ONCE, original
+mode8 GGT unchanged. No CPU DATA stores, no new mapping or reinit betweenjobs.
+
+Actual results: job0 all256green, job1 all256red with prior allgreen, job2
+116green/140blue with prior allred. Every job before/after1024DATA words,
+767unchanged words +control/neighbor/tail, all27slots/26nonempty/1158native/
+1632padded words verified. Each job reads13/writes3, own shadow27/34/41,
+EOP6/22/38 polls1, finalguard reason0/step17/rbbm0/cp0. Three-job guarded span
+1.339674479s, remaining4s-total budget2.660325781s; this includes defensive
+copy/readback/guards, NOT throughput/frame-rate/UI performance benchmark.
+Raw text542451B SHA0c862cd69e7eabe31bdd088a425d7a2ff732f538f4fa746f0f73e69613ccf718;
+binary4198400B SHAefe5041ca5e8f23ada4b84f52f390f8532ac7a5014f30586e7002f7b9ad83ae6.
+Full report SHA6704480d35fe8431c86ea246a5a877e5250598c1faa54c6db3d86f615b354e57.
+No human UI/touch/performance observation this unattended trial. Reaching
+SpringBoard/backboardd in raw log is only process evidence, not UI acceptance.
+
+Frozen kernel source24587b16123e10341903cdc7a5d26d92b11f9767/source172-codex,
+5320files/F474...,166patches. CURRENT GENERATED RECIPE172 gauguin.d14eqT,
+manifest87cc5799... ONLY; do not run older TU helpers against shared generated
+files. Kernel17175648B/a5d5e92e..., buildID1daf40ff1dee490db70f8b921f4a811d;
+acceptedimage19873792B/5313f887..., trialgwrt-0172-a1/mode9. Preserve all171/172
+baselines and original tools/mkadt.py7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
+NEXT concrete173 action: preserve172 as known-good repeated submission;
+inspect unchanged Mesa24.3.4 A619 native NIR/IR3/program/draw interfaces and
+capture a nonuniform triangle with vertex-to-fragment varyings. Derive a
+source-backed independent per-pixel oracle and native resource extent/packet
+proof before writing any new XNU driver path. Current fullgreen/red/inset
+profiles use fixed fragment colors; no texture sampling, dynamic buffers or
+arbitrary app shaders validated yet. In parallel planning only: tie subsequent
+resource ownership/fences to IOSurface and the actual compositor entrypoint;
+no fake accelerator service/Metal success flags. Daily-use path still requires
+persistent GPU lifetime, safe general resources/submission, presentation/API,
+RAM/UFS/peripherals/highrefresh and real UI acceptance. No173 execution yet.
+
+Completed evidence/docs ready to commit and publish using PUBLIC42d5240b4805fdc7cbd7db651aea09dba30abb48
+/PRIVATE24587b16123e10341903cdc7a5d26d92b11f9767/treee5d039d50724c7fb4b6b3791c5499c2ebe07473d
+as publication parent/base. OnlyNOTES changed vs that frozen source; no new
+kernel source commit or source marker overwrite. Record new public/private
+same-tree tuple after publication; never use old100dca02/22206b9 again.
+
+### 2026-11-08 —172 complete runtime ACCEPTED; one temporary trial next
+
+Goal ACTIVE/unlimited, no172 device result yet. DSH v20 CLOSED inner0 FIRST:
+clock0/firmware0/full8shards0; full-shards285s approximately (actual report is
+runtime-result-v1.json). All7843 negative parses executed exactlyONCE across
+identical complete manifests,112actual positive parses in EACH of eight
+workers. New selected6885controls plus all958common/transition controls; no
+fixture generator/reject-body waiver. Allinputpins unchanged. v21console+
+86metadata already accepted; all1..21 terminal, no live jobs or user input.
+Root review_runtime172.py FIRST0, independent-runtime-boot-review.json SHA
+9d39e97b42c3ac4000eb559f512741b16826f38fe923f7daf3591364ec968314.
+It independently rehashes allworkers/manifests and retained common/source/
+identity/framing gates, and reviews oneboot/read protocol. New observer172
+byte-exact171; routine13B misc recovery latch+readback and temporary fastboot
+boot ONLY. New boot172/read_hardware172 and root physical review authored,
+syntax parsed, UNEXECUTED at this commit. NEXT DSH v22boot/v23read, one actual
+172trial. User AWAY/allresetsautomatic --manual-reset no; never ask attribution
+or UI, prompt only if manual recovery genuinely needed. Current source24587b1,
+public42d5240/private24587b1/treee5d039d nextpublication tuple unchanged. Native
+recipe172 gauguin.d14eqT ONLY; original mkadt diff intact. Image5313f887.../
+19873792B, uniquegwrt-0172-a1/mode9, full proof details below. No physical172
+sequence/UI/Metal/highrefresh/general submission API/throughput proof yet.
+
+### 2026-11-08 —172 parser/package ACCEPTED; full runtime tests running
+
+Goal ACTIVE/unlimited. Phone last actual automaticTWRP171; NO172 device action
+at this milestone. Standing unattended policy: ALL resets automatic, no human
+UI/attribution question; ask only for genuinely needed manual recovery.
+Frozen source24587b1/public42d5240/treee5d039d and native172 recipe/kernel remain
+exactly as below; no extra full build or CI. Current private pre-doc head9d4c0b3.
+
+DSH v16 strict standalone sequence parser CLOSED inner0 FIRST:26valid/6832
+rejected; all929 selected records,3*256 before/after actual-value pixel fields,
+3*27native buffer receipts, unique6/22/38EOP and17guardsteps/deadlines. v17
+actual-C-format compatibility CLOSED inner0 FIRST: five original provider
+MODEL scenarios emit928 actual C records each; ONE coordinator terminal is
+explicitly SYNTHETIC seam. This is format/model evidence, NOT phone execution.
+Root parser review977242411b30306b2e19a3d0b94bfb0a8d4b5093144f77ccc45f135959d304e1.
+
+DSH v18 image preflight CLOSED inner0 FIRST, all20 artifact hardware flagsFALSE;
+retains standalone/build/source gates, exact606B mode8->9/unique172trial only.
+v19 package+full independent boot/payload/ADT/native segment/fiveasset checks
+CLOSED inner0 FIRST. Image shim/out/shim-p3-gmuf-0172-native-20261108.img,
+19873792B SHA5313f887a22d145c5f7b9fa3eae5cf1c34e87b54a8b894f06e7e97772ae59eef;
+payload19546112B SHAe7f01cd8b488c8b87ab92604862cd748e84f6de8a477232f89c11ceaa9920c27.
+No boot. Image review17951168530b63a878833e9056e792d6f0696c2cd388c7109dbc5388b13d73a3.
+Root static preservation review independent-runtime-source-review-v4.json:
+all230 prior production need predicates,114packer assertions,119independent
+image predicates,213common fixture AST nodes retained; oldclock/FW/ZAP/GGU
+bodies unchanged except exact current source/trial/mode identities. Earlier
+review scripts1..3 retained (syntax/normalization defects); no production guard
+or generator removed. Unexecuted runtime172.py has old host filenames found
+statically; fresh runtime172v2.py fixes names/adds new helper pins, original kept.
+
+DSH v21 aux CLOSED inner0 FIRST: originalconsoleframing +all26clear/28triangle
+metadata refusals retained +32sequence refusals =86. v20 main runtime RUNNING,
+exec10601; poll existing live handle only. Actual clock0/firmware0 already
+completed; full eight deterministic shards still executing complete identical
+case generators and original rejection body. No full-runtime acceptance yet.
+All1..19 and21 terminal, onlyv20 live; no user input pending. New boot172.py,
+read_hardware172.py and byte-identical observer helper authored but UNEXECUTED.
+NEXT finish exact full-shard union/common identity gates +root boot/read review,
+then ONE temporary fastboot boot +automaticTWRP read/physical review. No API,
+UI acceleration, Metal, throughput or highrefresh qualification. Preserve
+original tools/mkadt.py7line diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
+### 2026-11-08 —172 local full kernel/artifacts ACCEPTED; runtime/parser/image next
+
+Continuation PROGRESS; full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh
+goal ACTIVE/unlimited. Last actual phone result is171 automaticTWRP. No172
+image/package/boot or new device I/O. User away, all resets automatic; no
+attribution/UI question, only prompt if genuinely needed manual recovery.
+
+Completed172 code/public fixtures/full85 milestone committed private
+24587b16123e10341903cdc7a5d26d92b11f9767; DISTINCT frozen marker
+research/tmp/dsh-0172/KERNEL172_SOURCE_HEAD contains that head. Native reference
+commit92c5af6 is its parent. Source publication COMPLETED via nonforce Git-data
+REST: public42d5240b4805fdc7cbd7db651aea09dba30abb48, sole public parent
+100dca02db06ad21f03bf116fd6b111eb48e9169, SAME TREE
+e5d039d50724c7fb4b6b3791c5499c2ebe07473d as private24587b1. Verified in
+public-kernel172-handoff.json,17files, no private ancestry. No CI run triggered.
+Use public42d5240/private24587b1/treee5d039d as NEXT publication parent/base;
+public API commits are not mirrored locally. Later docs commits keep kernel
+source identity24587b1; do not overwrite the frozen marker.
+
+DSH v15 build CLOSED inner0 FIRST: ONE standard local8job full kernel build0,
+complete strict artifact qualifier0. Actual run gauguin.d14eqT; source172-codex
+5320files SHA f4745164870a882ec14df1e113b61d79de68cb39a2260864469794f5c82efea3,
+166active patches. CURRENT GENERATED RECIPE NOW172, manifest SHA
+87cc579911c9c444803597e5d7b5e551576b9794dd8d2e2b6f11667c027b8b9f.
+Never use prior171/170/older TU helpers against shared generated build files.
+New probes must explicitly use current172 manifest/source + separate outputs.
+Kernel17175648B SHA a5d5e92e41d076dc799be29daa6128ee986bae2e2f8638ed43ebbb259f26847e;
+archive ee19701ad43bd2f50554794c2ca5905b72eee248d1dcd833b8b48ba9320bc26f.
+Qualification a863ef13371c9602d8fc9503b6b398a121a840bcabab3b69987a1b5453a65ee5.
+ALL20 artifact hardware flags FALSE (18old retained +2sequence), original
+source-bound predicates/flags and every native profile payload linked. Root
+review_build172.py FIRST0: independent-build-review-v1.json passed-native172-
+build-only; kernel/banner/archive/fullsource/native words checked. Runtime
+parser gate explicitly PENDING and required separately before any packaging/
+boot. Build log360MiB ignored. All DSH1..15 and source publication terminal;
+no live jobs/pending user input at this milestone. Old171 image rehashed exact.
+
+NEXT concrete action: author strict sequence_records172/fixture/cases with all
+3*256 actual before/after pixels,3*27 full native buffer receipts, unique
+EOP6/22/38, root20/27/34/41, same guard deadlines and every old common/identity
+gate. Validate standalone parser, metadata refusals and full/common sharded
+runtime gates, exact606B mode8->9/unique172trial/fiveasset image+independent
+format review, then ONE temporary fastboot boot and automaticTWRP raw read.
+No GPU sequence, UI acceleration, Metal, throughput or highrefresh result yet.
+Preserve original tools/mkadt.py7line diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
 ### 2026-11-08 —172 clean166/full85/native preflight ACCEPTED; full kernel next
 
 Continuation PROGRESS; full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh

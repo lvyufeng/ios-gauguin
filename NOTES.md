@@ -2,6 +2,18 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —185 physical acceptance documentation published
+
+NewverifiedDOCpublication PUBLICeac33438b14960481174ffecc30cf6d5a66aa907
+=PRIVATE1d365d427ea2d40e6cc01d65b272254beab4b7b2
+/TREE613176e3c9631fc0cddd1118c901d24aefcdfb31;
+sole publicparent071645ebb... .Two docs only/nonforce/tree-parent-refverified,
+W185/documentation-publication.json. THIS is next GLESpublicationbase. Actual
+physicalacceptance is in W185/independent-physical-review.json (not the generic
+publisher's historical physical_qualifiedfalse field). No rebuild/CI/deviceaction.
+Mainpublic6d5a... unchanged. GoalACTIVE; current phoneTWRP accepted185Mesa3a4,
+no liveDSH. Continue compositor EAGL ABI/access/order work, notanotherrootwrite.
+
 ### 2026-11-08 —185 REAL GPU GLES shader/texture/IOSurface ACCEPTED
 
 W185v12/v13/v14 ALLterminal0/inputsunchanged; phone autoTWRP after746.322147s

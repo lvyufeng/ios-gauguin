@@ -95,6 +95,14 @@ def main():
       OUT_PKT7(ring, CP_EVENT_WRITE, len);
       OUT_RING(ring, CP_EVENT_WRITE_0_EVENT(info.raw_event) |
                COND(esrc == EV_WRITE_ALWAYSON, CP_EVENT_WRITE_0_TIMESTAMP));''')
+    # The native gauguin transport uses queue-local completed fences. Preserve
+    # the queue namespace throughout syncobj polling/transfer and never turn a
+    # failed wait or an empty job into a fabricated completion receipt.
+    local=repo/'userland/mesa/queue-local-fences.patch'
+    pins[str(local)]=sha(local)
+    with (out/'gauguin-queue-fences.log').open('x') as f:
+        r=subprocess.run(['patch','--batch','--forward','--fuzz=0','-p1','-d',str(source),'-i',str(local)],stdout=f,stderr=subprocess.STDOUT)
+    assert r.returncode==0,'local queue/fence source patch failed'
     changed={};original={}
     with tarfile.open(a.archive) as t:
         for m in t:
@@ -105,7 +113,7 @@ def main():
     changed['src/hakios-drm/hakios.drm.c']=sha(source/'src/hakios-drm/hakios.drm.c')
     changed['src/hakios-drm/xf86drm.h']=sha(source/'src/hakios-drm/xf86drm.h')
     result={'state':'prepared-pinned-A619-Darwin-GLES-source','source':str(source),'input_pins':pins,'changed_source_pins':changed,'original_source_pins':original,
-        'device_commands':0,'kernel_source_modified':False,'physical_qualified':False,'required_kernel_followup':['persistent runtime beyond20s','actual GMEM-base parameter6','multi-client isolation before ordinary UI apps'],
+        'device_commands':0,'kernel_source_modified':False,'physical_qualified':False,'required_kernel_profile':'gauguin179 service, bounded logical queues, configured GMEM parameter6; physical GLES acceptance still required','required_kernel_followup':['multi-client isolation before ordinary UI apps'],
         'scope':'GLES library only. AIR/Metal frontend not included; firmware/power/boot sources untouched.'}
     (out/'result.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({k:v for k,v in result.items() if not k.endswith('pins')},indent=2))
 if __name__=='__main__':main()

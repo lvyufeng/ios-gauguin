@@ -2,6 +2,106 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —GLES179 signed build/ABI/order checks0; independent review PASSED
+
+DSH-GLES179v3 ONE8job actual iOS Mesa build/package0 in51.5s, all10983input pins
+unchanged, no device commands. Products: lib16026608B SHAb4a0c657283ccfb905505c71e689c9421a07c903e2d7a6a2bb199f8d1819512c;
+probe73168B SHA28722b03720977ce51fd3bc1b5543ef18e469573511291735298016e45aa8274.
+Both signed/verified, arm64 iOS platform/min16.0, intended install-name/rpath,
+actual requiredGLexports/importentry present, no LLVM/glapi runtime dependency.
+v4 native/Mesa/kernel180independent UAPI sizes/offsets/flags/selectors execution0
+and actualiOSABIcompile0. Actual extracted child/delay C function14POSIX cases0:
+child nonzero/signal/wait errors, wait/sleep EINTR, clock errors/backwards/short
+elapsed refuse; positive paths require complete90s on typed clock. Host model
+has no child launch/real sleep and does NOT prove physical90s/GLSL execution.
+
+ROOT independent-software-review.json PASSED after verifying all4stage profiles,
+prepared source/draft equality, originalRED/new40GREEN shim, signed products,
+14ordering scenarios and ABI objects againstactual180runtimeheader (byte-identical
+179wireheader). Source/probe bytes unchanged since signedbuild; no repeatbuild.
+Actual Mesa screen source confirms unsupported frequency/timestamp queries are
+non-fatal and disable those metrics; no clock/timestamp values fabricated.
+
+Main179physical60s service FAILED firstdelayed-equalcount ACK, though startup3
+GPUAPI jobs passed. NEW180 corrects to adjacent STS confirmation under same2ms/
+256TOTALread bound/onepulse; actual running-counter oldRED/newGREEN and original
+87+103+97cases/600stress passes, clean174patchreplay/ONEfullnativebuild/qualifier0.
+Kernel180SHA7e368fa223e9551d997c0d50ec3310d968287f2ec8e08af86a4a64456b527545,
+sourceHEAD698ef7e..., recipevbmAXT;600s physical trial currently LIVE in main
+research/tmp/dsh-0180/trial-v1. No180service success assumed until full logs.
+New GLES package remains NOT installed/run. Next publish reviewed source only
+fromGLES713ea8...=0d4c938.../d3d653a...base, preserve MAIN public5eb6eff... .
+Then finalboot->fresh fullrootbackup->concrete reviewed install delta->NEW explicit
+consent. Old175write authorizations are consumed. Full daily-use goal ACTIVE;
+physical GLSL/Metal/UI acceleration/refresh/peripherals remain unfinished.
+
+### 2026-11-08 —GLES179 queue-local receipts RED/GREEN0; late-workload build LIVE
+
+THIS IS THE INDEPENDENT GLES WORKTREE, not the main kernel branch. Its next
+publication base remains PUBLIC713ea8afde4e865991a0d4999a9e81c02b3c21da
+=PRIVATE0d4c9389d564d7b855ba3b10a8de50704e11cdb1
+/TREEd3d653a593aca6365c49466dc941464728097642. Main kernel publication advanced
+to5eb6eff...=39211e2.../81cc6d9... separately. Main kernel179 source12d921b...
+passed clean173patch replay/host/native3TUs and ONE full native8job build;
+corrected source-literal qualifier accepts SAME kernel9545cd19..., recipejfRN14.
+178 real service completed595renewals/600s, three startupAPI jobs and full BO/
+IOSurface readbacks.179temporary60s legacyAPI compatibility currently LIVE.
+Neither those results nor this worktree claim actual GLSL/Metal/UI/FPS/refresh.
+
+Codex authored userland/mesa/queue-local-fences.patch: pending receipts carry
+queueID through polling/transfers/waits, verified synchronous completions cached
+before queue close, failed full-storage wait cannot invent a reached point,
+empty commands rejected matching real kernel ABI; removed cross-queue global
+last_fence borrowing. DSH-GLES179v1 NEW prepared-v1 source0 from pinned Mesa25.0.7
+archive +4originalHakiOS blobs +localpatch; actual shim equals reviewed draft.
+DSHv2 actual old source compiled0 then functional RED at poll(a,1)==0 (queue0
+ambiguity); new source40asserts GREEN0 under ASAN/UBSAN, all inputs unchanged.
+Scope includes interleaved localfences, transfer, closed queues, kernelfailure,
+emptycmds and saturated pending storage; no Vulkan/async-driver qualification.
+
+New GLES probe --after-gpu-api mode sequences unchanged signed installed175CLI
+and successful child exit, waits >=90s monotonic time, then actual A619 identity
+inclconfigured GMEMbase1MiB, runtime ES3 shaders, dynamic seeded1024RGBA checker,
+texture sampling into offset64BGRA IOSurface/full1024verification. One job orders
+clients. This needs a NEW600s service image (same179kernel), NOT17960s smoke.
+No child shell or library substitution. Default manual probe mode stays usable.
+DSHv3 ONE local8job iOS crossbuild +package/sign LIVE at
+research/tmp/dsh-gles-0179/build-v1; wait SAME stage, don't restart or edit inputs.
+Original176signed package/source retained separately, not a179candidate. Next
+review new native iOS ABI/exports/load deps/signatures/probe sequencing, commit/
+publish source. Device install still needs fresh full root backup, reviewed
+concrete files/cache/HFS delta and NEW explicit user consent. Previous175root
+permissions consumed; no destructive write from this branch is authorized yet.
+Full original daily-use GPU/Metal/RAM/UFS/peripheral/highrefresh goal ACTIVE.
+
+### 2026-11-08 —GLES SOURCE PUBLISHED; full goal BLOCKED on175 write approval
+
+This ISOLATED branch source was published as an identical Git tree:
+PUBLIC713ea8afde4e865991a0d4999a9e81c02b3c21da
+=PRIVATE0d4c9389d564d7b855ba3b10a8de50704e11cdb1
+/TREEd3d653a593aca6365c49466dc941464728097642,
+sole public parent35d706fd0564b080989b492eba1e024896ee0cea.
+Remote branch codex/gauguin-gles-userland-20261108; API ref/tree/sole-parent
+rechecked. THIS is the next publication base FOR THIS BRANCH ONLY. API commit
+not mirrored into local Git. This later docs receipt is local-only; source
+identity stays0d4c938. Main/CI branch remains35d706fd/private de03753/tree6e075e7e.
+Do not update main's publication base to this independent branch by accident.
+
+Private publication receipt main research/tmp/dsh-gles-0176/source-publication.json;
+7reviewed text files only, no binaries/dumps/firmware/Apple artifacts/serials.
+No175boot/device command/CI dispatch. Full goal returned status BLOCKED after
+the same missing mandatory fresh root-write approval persisted across3goal
+turns. Independent software build, packaging and publication are now complete;
+the next physical stage requires installing the175 probe. No active worker.
+Scope remains the FULL daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh goal,
+not achieved or narrowed. No fresh affirmative answer/approval file/apply/trial.
+
+Original pending175 planfd80e691.../1,802,240B and image403ff4ed... unchanged.
+On explicit affirmative user reply, resume with its exact reviewed write and
+temporaryboot/capture/qualification recipe in main NOTES; do not infer consent
+from automatic goal continuation. Retain main's originalmkadt user diff. If
+the user resumes while still lacking consent, a fresh blocked audit starts.
+
 ### 2026-11-08 —ISOLATED GLES userland software accepted;175 write still pending
 
 This is the ISOLATED codex/gauguin-gles-userland-20261108 worktree, based on

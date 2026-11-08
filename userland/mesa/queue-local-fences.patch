@@ -1,0 +1,165 @@
+diff --git a/src/hakios-drm/hakios.drm.c b/src/hakios-drm/hakios.drm.c
+--- a/src/hakios-drm/hakios.drm.c
++++ b/src/hakios-drm/hakios.drm.c
+@@ -251,7 +251,7 @@
+ 	bool used;
+ 	uint64_t reached;                       /* the last point known reached */
+ 	unsigned pending;
+-	struct { uint64_t point; uint32_t fence; } on_the_way[PENDING];
++	struct { uint64_t point; uint32_t queueid, fence; } on_the_way[PENDING];
+ };
+ static struct syncobj syncobjs[SYNCOBJS];
+ static pthread_mutex_t syncobj_lock = PTHREAD_MUTEX_INITIALIZER;
+@@ -265,9 +265,9 @@
+ 
+ /* whether the kernel is done with submission FENCE: waited for until DEADLINE (absolute CLOCK_MONOTONIC ns; 0: not at all) */
+ static bool
+-fence_done(uint32_t fence, int64_t deadline)
+-{
+-	struct drm_msm_wait_fence wait = { .fence = fence, .queueid = 0 };
++fence_done(uint32_t queueid, uint32_t fence, int64_t deadline)
++{
++	struct drm_msm_wait_fence wait = { .fence = fence, .queueid = queueid };
+ 
+ 	wait.timeout.tv_sec = deadline / 1000000000;
+ 	wait.timeout.tv_nsec = deadline % 1000000000;
+@@ -290,7 +290,7 @@
+ 	unsigned kept = 0;
+ 
+ 	for (unsigned i = 0; i < s->pending; i++) {
+-		if (fence_done(s->on_the_way[i].fence, 0)) {
++		if (fence_done(s->on_the_way[i].queueid, s->on_the_way[i].fence, 0)) {
+ 			if (s->on_the_way[i].point > s->reached) s->reached = s->on_the_way[i].point;
+ 		} else {
+ 			s->on_the_way[kept++] = s->on_the_way[i];
+@@ -299,22 +299,28 @@
+ 	s->pending = kept;
+ }
+ 
+-static void
+-syncobj_add(struct syncobj *s, uint64_t point, uint32_t fence)
++static bool
++syncobj_add(struct syncobj *s, uint64_t point, uint32_t queueid, uint32_t fence)
+ {
+ 	if (s->pending == PENDING) {
+ 		syncobj_poll(s);
+ 	}
+ 	if (s->pending == PENDING) {
+-		/* (full: the oldest is waited for, its point taken as reached) */
+-		fence_done(s->on_the_way[0].fence, now_ns() + 10000000000LL);
++		/* A failed wait must never manufacture a reached timeline point. */
++		if (!fence_done(s->on_the_way[0].queueid, s->on_the_way[0].fence,
++		    now_ns() + 10000000000LL)) return false;
+ 		if (s->on_the_way[0].point > s->reached) s->reached = s->on_the_way[0].point;
+ 		memmove(&s->on_the_way[0], &s->on_the_way[1], (PENDING - 1) * sizeof(s->on_the_way[0]));
+ 		s->pending--;
+ 	}
+ 	s->on_the_way[s->pending].point = point;
++	s->on_the_way[s->pending].queueid = queueid;
+ 	s->on_the_way[s->pending].fence = fence;
+ 	s->pending++;
++	/* gauguin submits are synchronous. Cache the verified receipt before a
++	 * caller can close its queue; a later wait need not revive that queue. */
++	syncobj_poll(s);
++	return true;
+ }
+ 
+ int
+@@ -422,7 +428,7 @@
+ 	pthread_mutex_lock(&syncobj_lock);
+ 	for (;;) {
+ 		unsigned reached = 0, unknown = 0;
+-		uint32_t wait_fence = 0;
++		uint32_t wait_queue = 0, wait_fence = 0;
+ 		bool have_fence = false;
+ 
+ 		for (unsigned i = 0; i < count; i++) {
+@@ -438,7 +444,11 @@
+ 			for (unsigned k = 0; k < s->pending; k++) {
+ 				if (s->on_the_way[k].point >= point) {
+ 					on_the_way = true;
+-					if (!have_fence || (int32_t)(s->on_the_way[k].fence - wait_fence) < 0) wait_fence = s->on_the_way[k].fence;
++					/* Queue-local numbers cannot be ordered across queues. */
++					if (!have_fence) {
++						wait_queue = s->on_the_way[k].queueid;
++						wait_fence = s->on_the_way[k].fence;
++					}
+ 					have_fence = true;
+ 					break;
+ 				}
+@@ -467,9 +477,9 @@
+ 			break;
+ 		}
+ 		if (have_fence && unknown == 0) {
+-			/* every point is on its way: the earliest submission among them waited for, without the lock */
++			/* Every point is submitted: wait on one exact queue/fence pair without the lock. */
+ 			pthread_mutex_unlock(&syncobj_lock);
+-			fence_done(wait_fence, deadline);
++			fence_done(wait_queue, wait_fence, deadline);
+ 			pthread_mutex_lock(&syncobj_lock);
+ 		} else {
+ 			/* some point not submitted yet: until a submission or a signal, in steps of a millisecond at most */
+@@ -516,7 +526,10 @@
+ 	} else {
+ 		for (unsigned k = 0; k < s->pending; k++) {
+ 			if (s->on_the_way[k].point >= want) {
+-				syncobj_add(d, to, s->on_the_way[k].fence);
++				if (!syncobj_add(d, to, s->on_the_way[k].queueid, s->on_the_way[k].fence)) {
++					pthread_mutex_unlock(&syncobj_lock);
++					return -ETIME;
++				}
+ 				break;
+ 			}
+ 		}
+@@ -525,8 +538,6 @@
+ 	pthread_mutex_unlock(&syncobj_lock);
+ 	return 0;
+ }
+-
+-static uint32_t last_fence;     /* the fence of the last submission the kernel took */
+ 
+ static int
+ submit_with_syncobjs(struct drm_msm_gem_submit *submit, unsigned long size)
+@@ -537,6 +548,10 @@
+ 	const uint32_t nin = (submit->flags & MSM_SUBMIT_SYNCOBJ_IN) ? submit->nr_in_syncobjs : 0;
+ 	const uint32_t nout = (submit->flags & MSM_SUBMIT_SYNCOBJ_OUT) ? submit->nr_out_syncobjs : 0;
+ 	int error;
++
++	/* Match the real gauguin ABI: no empty command submission and no invented
++	 * global fence from another queue. The kernel rejects empty jobs too. */
++	if (submit->nr_cmds == 0) return -EINVAL;
+ 
+ 	/* what it waits for first (this queue's own submissions are in order on the one ring anyway) */
+ 	for (uint32_t i = 0; i < nin; i++) {
+@@ -551,24 +566,19 @@
+ 	submit->flags &= ~(uint32_t)(MSM_SUBMIT_SYNCOBJ_IN | MSM_SUBMIT_SYNCOBJ_OUT);
+ 	submit->in_syncobjs = submit->out_syncobjs = 0;
+ 	submit->nr_in_syncobjs = submit->nr_out_syncobjs = 0;
+-	if (submit->nr_cmds == 0) {
+-		/*
+-		 * Nothing for the GPU (Turnip's submissions that only signal): the kernel takes none, and what it stands for
+-		 * is done when everything submitted before it is, the last fence -- there is one ring.
+-		 */
+-		submit->fence = __atomic_load_n(&last_fence, __ATOMIC_ACQUIRE);
+-	} else {
+-		error = call((unsigned)(DRM_COMMAND_BASE + DRM_MSM_GEM_SUBMIT), submit, size);
+-		if (error != 0) return -error;
+-		__atomic_store_n(&last_fence, submit->fence, __ATOMIC_RELEASE);
+-	}
++	error = call((unsigned)(DRM_COMMAND_BASE + DRM_MSM_GEM_SUBMIT), submit, size);
++	if (error != 0) return -error;
++	if (submit->fence == 0) return -EPROTO;
+ 	pthread_mutex_lock(&syncobj_lock);
+ 	for (uint32_t i = 0; i < nout; i++) {
+ 		const struct drm_msm_gem_submit_syncobj *x = (const void *)((const uint8_t *)out + i * stride);
+ 		struct syncobj *s = syncobj_of(x->handle);
+ 		if (s == NULL) continue;
+ 		if (x->point == 0) s->reached = 0, s->pending = 0;   /* a binary one: what it holds now is this submission */
+-		syncobj_add(s, x->point != 0 ? x->point : 1, submit->fence);
++		if (!syncobj_add(s, x->point != 0 ? x->point : 1, submit->queueid, submit->fence)) {
++			pthread_mutex_unlock(&syncobj_lock);
++			return -ETIME;
++		}
+ 	}
+ 	pthread_cond_broadcast(&syncobj_submitted);
+ 	pthread_mutex_unlock(&syncobj_lock);

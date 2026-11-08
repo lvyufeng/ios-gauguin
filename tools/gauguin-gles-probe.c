@@ -14,6 +14,10 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
+#include <spawn.h>
+#include <sys/wait.h>
+extern char **environ;
 
 enum { WIDTH=32, HEIGHT=32, PIXELS=WIDTH*HEIGHT };
 struct param {uint32_t pipe,param;uint64_t value;uint32_t len,pad;};
@@ -36,7 +40,7 @@ static int query_identity(void)
         values[i]=p.value;
     }
     rc=IOServiceClose(c);
-    if(rc||values[0]!=619||values[1]!=512*1024||values[2]!=0x06010900)return fail("actual A619 identity differs");
+    if(rc||values[0]!=619||values[1]!=512*1024||values[2]!=0x06010900||values[3]!=0x100000)return fail("actual A619 identity/configured GMEM differs");
     printf("GAUGUIN GLES identity gpu=%llu chip=%llx gmem=%llu base=%llx\n",(unsigned long long)values[0],(unsigned long long)values[2],(unsigned long long)values[1],(unsigned long long)values[3]);fflush(stdout);return 0;
 }
 static GLuint shader(GLenum type,const char *source)
@@ -57,9 +61,33 @@ static uint32_t expected(uint32_t seed,unsigned x,unsigned y)
     unsigned bits=((seed>>1)&7)^(cell?7:0);
     return 0xff000000u|((bits&1)?0x000000ffu:0)|((bits&2)?0x0000ff00u:0)|((bits&4)?0x00ff0000u:0);
 }
-int main(void)
+static int api_then_late_workload(void)
+{
+    /* One launchd job owns the ordering: the unchanged signed API probe closes
+     * its client before Mesa opens one. No simultaneous privileged owners. */
+    char *args[]={"/usr/libexec/gauguin-gpu-probe","gwrt-0175-a1",NULL};
+    pid_t child=0;
+    int rc=posix_spawn(&child,args[0],NULL,NULL,args,environ);
+    if(rc)return fail("GPU API child spawn");
+    int status=0;pid_t reaped;
+    do{reaped=waitpid(child,&status,0);}while(reaped<0&&errno==EINTR);
+    if(reaped!=child||!WIFEXITED(status)||WEXITSTATUS(status)!=0)return fail("GPU API child did not pass");
+    struct timespec before,after,remaining={90,0};
+    if(clock_gettime(CLOCK_MONOTONIC_RAW,&before))return fail("late-workload start clock");
+    puts("GAUGUIN GLES preflight=GPU-API-child-PASS idle_seconds=90");fflush(stdout);
+    while(nanosleep(&remaining,&remaining))if(errno!=EINTR)return fail("late-workload delay");
+    if(clock_gettime(CLOCK_MONOTONIC_RAW,&after))return fail("late-workload end clock");
+    int64_t elapsed=((int64_t)after.tv_sec-before.tv_sec)*INT64_C(1000000000)+after.tv_nsec-before.tv_nsec;
+    if(elapsed<INT64_C(90000000000))return fail("late-workload delay too short");
+    printf("GAUGUIN GLES late-start waited_ns=%llu\n",(unsigned long long)elapsed);fflush(stdout);
+    return 0;
+}
+int main(int argc,char **argv)
 {
     if(getuid()!=0)return fail("root-only GPU prototype");
+    if(argc==2&&!strcmp(argv[1],"--after-gpu-api")) {
+        if(api_then_late_workload())return 1;
+    } else if(argc!=1)return fail("unsupported probe arguments");
     if(query_identity())return 1;
     const int attribs[]={OSMESA_FORMAT,OSMESA_BGRA,OSMESA_DEPTH_BITS,0,OSMESA_STENCIL_BITS,0,OSMESA_PROFILE,OSMESA_ES_PROFILE,OSMESA_CONTEXT_MAJOR_VERSION,3,OSMESA_CONTEXT_MINOR_VERSION,0,0};
     OSMesaContext context=OSMesaCreateContextAttribs(attribs,NULL);uint32_t memory[PIXELS];memset(memory,0x5a,sizeof(memory));

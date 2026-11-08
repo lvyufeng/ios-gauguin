@@ -2,8 +2,8 @@
 
 This builds the actual Mesa 25.0.7 freedreno/IR3 driver for arm64 iOS 16 and a
 standalone GLSL/IOSurface probe. It does not modify XNU, install files on the
-phone, replace EAGL, or integrate Metal/CoreAnimation. The frozen 175 kernel and
-its pending root delta remain separate.
+phone, replace EAGL, or integrate Metal/CoreAnimation. Kernel and root-volume
+installation remain separate, reviewed stages.
 
 `upstream.json` pins the primary Mesa archive and four original HakiOS source
 blobs at `63fc2b4633bac3af8e57dadab9f5a8d4cb940438`. Put those four files at their
@@ -38,6 +38,23 @@ Linux BO-dump hint, and disable advertising native fence descriptors. The
 shim checks returned struct/mapping sizes. Mesa uses its own A619 hardware
 table; no A642L/A660 compiler or bank/UBWC literals are substituted.
 
+`queue-local-fences.patch` keeps each pending syncobj receipt as an exact
+queue/fence pair, including transfers and waits. Verified synchronous
+completions are cached before queue close. A failed wait on full pending
+storage cannot advance the timeline. Empty command submissions are refused,
+matching the kernel ABI; a global fence from another queue is never borrowed.
+This GLES profile does not advertise syncobj capabilities or build Turnip.
+The typed-boundary regression compiles the actual old/new transport source:
+
+```sh
+python3 tests/test_mesa_queue_fences.py \
+  --old-source /absolute/path/old-prepared/mesa-25.0.7 \
+  --source /absolute/path/fresh-prepared/mesa-25.0.7 \
+  --out /absolute/path/fresh-host-results
+```
+
+The old source must compile and functionally fail; the new source must pass.
+
 The A6xx USER32 event-source selection is carried from the retained A619
 170–174 trials into Mesa25's equivalent emitter. Only RB_DONE/ALWAYSON writes
 timestamps. This is a device-specific port profile; it is not an upstream fix
@@ -54,21 +71,26 @@ It rejects CPU renderers, compiles ES3 vertex/fragment shaders, draws a seeded
 checkerboard, verifies all 1,024 RGBA pixels, samples the texture into a BGRA
 IOSurface with a nonzero 64-byte offset, and verifies all 1,024 BGRA pixels.
 Success requires both complete comparisons and successful GL completion.
+`--after-gpu-api` first spawns the separately installed signed GPU API probe,
+requires its successful exit, waits at least 90 seconds on the monotonic clock,
+then opens Mesa and performs the shader/texture/surface checks. One launchd job
+orders the clients, so they cannot race for the privileged single-client slot.
+This mode requires the 600-second service image, not a 60-second smoke image.
 Cross-compilation, signing and ABI checks do not prove that any shader has run.
 
-The 175 prototype is insufficient for this full driver. Before device use:
+Kernels 179/180 provide the source profile for this package: a health-gated watchdog
+service, up to 32 logical queues over one synchronous serialized ring, and
+GMEM queries derived from the driver's native UCHE aperture configuration
+(base `0x100000`, size 512 KiB). These are configured GPU addresses, not a new
+measurement of physical RAM. The main project retains the physical 178
+600-second idle-service acceptance and the separate 179 compatibility results
+in `NOTES.md`. Kernel source/build and host checks do not qualify this library.
 
-1. Finish its separately approved physical BO/map/submit/fence/IOSurface trial.
-2. Implement persistent watchdog/power/DMA ownership beyond the 20-second
-   diagnostic window and recovery that preserves live mappings until DMA stops.
-3. Supply the actual GMEM-base parameter 6. The probe refuses an unsupported
-   query rather than guessing an address.
-4. Support multiple independent queue IDs on the serialized hardware ring.
-   Mesa creates a screen pipe and another pipe for each context; 175 permits
-   only one queue. Numeric fences must retain the correct queue identity.
-5. Physically verify this GLSL/texture/surface probe, then add the EAGL and
-   compositor integration. Multi-client address-space/lifetime isolation is
-   required before ordinary UI processes may open the driver.
+Device installation requires a fresh root backup and an explicitly approved
+concrete file/cache/HFS delta. Physical acceptance must verify the late start,
+actual A619 renderer, native GPU completions and both full pixel comparisons.
+EAGL/compositor integration and multi-client address-space/lifetime isolation
+remain required before ordinary UI processes may open the driver.
 
 Direct HakiOS Metal remains a later frontend. Its pinned `gpu.hpp` uses pipe
 `1` and its compiler uses a fixed A642L chip ID, unlike this Mesa path. Those

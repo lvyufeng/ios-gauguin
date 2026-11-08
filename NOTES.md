@@ -2,6 +2,75 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —186 EAGL admission software published;403-block delta READY for new consent
+
+All186handles TERMINAL, no phonewrite/boot in186. Phone TWRP/userdataunmounted;
+accepted185Mesa3a4/kernel180image6825 unchanged, physicalRAMstill4GiB. Fullgoal
+ACTIVE. Don't ask automatic-reset attribution; useraway. Codexcriticalcode/review/
+Git, DSHcompile/test/deviceexecution. Originaldirtymkadt a74a... preserved.
+
+186v2 localARM64iOS16build/sign/strictverify0, v4complete productionadmission C14
+hostscenarios underASAN/UBSAN0, everyoriginalIMPunchanged/return0. v6independent
+software review0. Smalllib69184B SHA67f7be397c84e0fea45800925d256186ef61d77b20361cf190cb7dcddfbb251e;
+disabledbridge561392B SHAac9171b4c1d6adb7bb9903ccc3eb84518ff7b82d1ec427523c063645e7231db6.
+All62primaryCA-markedslotshaveMesaorby-handimplementation;23coldmissingentries
+retained/documented. AdmissionlibhasnoMesa dependency, GPUopen, methodmutation
+or dynamic-lookupimports. Bothproducts haveexactone modern__init_offsets ctor
+(S_INIT_FUNC_OFFSETS0x16) matchednlist. Fullbridgegatealways0: no mode enables
+rendering. Onlysmalllibproposedforinstall. V1 GNUtypeof/unsafe-frame diagnostics
+andv5 old__mod_init_func assumptionFAIL kept; no warningssuppressed. Actual
+injection, compositorbudget, GPUUI/Metal/highrefresh/dailyuse unqualified.
+
+Source8textfiles committed UIprivate0fb810d12920f816a5f3bcbc9c8af964fae7d53e
+andpublished newbranch codex/gauguin-ui-userland-20261109 PUBLIC
+ eca393299b1c2dc72a51cb721430d86066ce481b
+/TREE996abaedd52c446539598c3af576414d701be42a,
+solepublicparent eac33438b14960481174ffecc30cf6d5a66aa907. W186/source-publication.json.
+Exactremote tree/ref/parentchecked, noforce/noCI. THIS is next UIpublicationbase;
+GLESbranchbase stillpubliceac/private1d3/tree6131, mainpublic6d5unchanged. Never
+merge oldkernel treefromUI/GLESworktrees into main. MIT notices retained, noApple
+artifacts/dumps/serials Git. CurrentUIworktree clean0fb810d.
+
+NEWfreshAFTER185boot16GiB0444 backup W186/root-backup-v1/
+iosroot-before-eagl186-admission.hfsx SHA
+855cbdeaa823f6da98209231ee029d20bf6dc60b3cbb0cc3b34fa7fe63221078;
+header c04016f8684b5ebd6c3e6e642e9a9184ea677a2ecf4dd768fae9850449e70dd6.
+DSH186v3readonlybackup0. V7localCOWstage/delta/fsck/102writermodel0; v8all48
+actualOLD ranges READONLY0; v9independentlocalreview0. Bothfullbase/finalSHA
+recomputed, inputsunchanged. FinalreadonlylocalimageSHA
+ d3454235d3f8ee5a28d60edec02db17ab429c96cced7d2d6dac0a210d2aba73e.
+EXACTplan research/tmp/dsh-eagl-0186/delta-v1/delta-plan.json SHA
+3f03aa6d7886b30753cf71ccaa40af144be1958747b63d3b9ef587d78a34ae46:
+403blocks/1650688B=1.57421875MiB/48runs, header0lastinprovenwriter.
+Independentreview W186/independent-local-review.json saysREADY/newconsentrequired.
+Noapprovalfilecreated/consentconsumed. Prior185callf942... is ALREADYCONSUMED and
+MUSTNOT authorize186. ObtainONEnewconcreteconsent for403blocks +write/readback
+failure rollback. AGENTS.md explicitlyrequiresconfirm eachdestructivestep.
+
+ONLYtargets: new /usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib69184B67f7...
+root0755; existingBBoardjob1218B SHA33f51859e1015d7e5aa9f33a20f2b37d76eb92ace171947fdef2f751b976ccfa
+andlaunchdcache795934B SHA05b83ce43d3c602376660839547f75df7e8f07eeac5f908d68870d8efb971079
+root0644. AddONLYDYLD_INSERT_LIBRARIES=smalllib andGAUGUIN_EAGL_MODE=admission
+tooneexistingBBoardjob+cache.
+Preserveexisting2cachedloggingenvvars, mobileUserName/executable/memorypolicies,
+other530jobs/total531, Mesa3a4/probes128MiBpolicies andcompleteoldlogs. RawoldGLES
+stdout5797B/stderr2341B retained; BBoardlog/executable alsoexactbytes/BSD retained.
+NativeHFSorphan cleanup56tempCNIDs (26files30dirs) scopedbyactualAppleHFS source;
+2old/2newfseventhexlogs, UUIDCNID599247->600043 withbytes/BSD/parent/typepreserved.
+102writerfaultcases0, writerbodyidentical175v2 exceptnewbase/imagepins/key/label.
+
+NEXT afternewconsent: createexactplan-boundapprovalrecord, DSHprovenwriter186
+once/readbacktarget3+retainedfiles; prepare new186bootadmission/profile+models
+beforetemporaryunchanged180imageboot. CaptureWHOLEoldBBoardlogprefixbeforeboot,
+pluscurrentGLESstdout/stderrprefixes. New186capture/qualifier mustaddadmissionlib/
+BBoardjob/cachetargets while retainingFULLfrozen181v2/180 actualGLES/API checks.
+No edits to oldcontracts. IndependentlyverifynewBBoardUID501,8methodencodings,
+GET8 andVMfootprintdiagnostic; absence/failures arepartial/notinjectionPASS.
+Servicepresencecanbeearlyfalse; recordstartuporderratherthaninventreadyproof.
+FullGPUUIstillrequirescompositor-scopedauth/startupordering; ordinaryappsdenied.
+NeverrawrollbackthisprebootHFSmetadata AFTERanyfutureiOSboot. No186bootprofile
+orphysicaltrial preparedyet. All DSHevents/profiles/failures private andkept.
+
 ### 2026-11-09 —All457 actual EAGL dispatch offsets reviewed; inert admission build
 
 UI183v10/v13 TERMINAL0, input pins unchanged. Actual20H392 GL exports have

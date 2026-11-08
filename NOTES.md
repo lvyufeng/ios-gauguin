@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —EXPLICIT5802consent APPLIED85/85; real late-GLES trial LIVE
+
+USER explicitly approved16.64MiB/4259block Mesa/library/probe/job/cache/HFS delta
+AND write/readback failure rollback, questioncall48c658ec8dd34e11b5c287c408dfc0db.
+Bound planSHA5802c01f071636f9201ece937ef9ce544abf7b615cc5522ad52f964b44b06529;
+private approval.json0444 in research/tmp/dsh-gles-0180-root (WROOT). This consent
+is for THIS exact delta only, no additional root update. Full fresh16GiB backup
+completedread-only0, SHA565ede6d998fa7b51b5e5bb2091fa4b389e06c0554d52616ef1379892aa71e6f,
+readonly0444. Local COW stage/audit/finalclone/fsck0/writermodel102checks0,
+85currentoldranges verifiedREADONLY0. Indepreviewv1 wrongly assumed file-only
+HFS orphan cleanup; rejected attype2assertion, failure record retained. Native
+hfs_remove_orphans explicitly deletes both filesANDdirectories namedtemp+CNID
+in privatefolder. Corrected review_delta180.py verifies exact rule24files+33dirs,
+allotherchecks unchanged, independent-local-review.json READY, no waived FS test.
+
+WROOTv4 generation/AST +14actual boot-admission fakeIO scenarios0, includingwrong
+library/probe/plan/unapproved-write/receipt. No phone calls. v5 EXACT approved
+writer TERMINAL0/inputs unchanged: ALL85runs/17,444,864Bwrittenandreadbackverified,
+volumeheaderlast, no rollback. apply-v1/result.json stateapplied-approved-delta-
+readback-verified/reboot_permittedtrue. No GPT/format/otherpartition changes.
+Original helpers preserved; beforefirstactualcapture corrected copiedreader's
+private import search path in read_files180_v2.py/capture_bundle180_v2.py only,
+not filesystem or gate behavior. v6 actual CURRENT HFS file+rootheader readonly0:
+newlibrary b4a0c657...16026608B, newglesprobe28722b03...73168B, retainedGPUCLI7756...
+87360B allroot0gid0/mode0755. Systemjob751B SHA95e3356e86b33b7675c94987a106ab96509b13cda9f78ba2ef45bf6fac7b42bd;
+cache795726B SHA2a8b3eb9fb8c5234b3ea36f3869c57549921279857ca6e42bc2f08fbe32d3c47,
+bothroot0gid0/mode0644. Actual newjob invokes /usr/libexec/gauguin-gles-probe
+--after-gpu-api; oldGPUCLI child ->successful exit ->90s delay ->real GLSL/texture/
+IOSurface checks. stdout/stderr /private/var/tmp/gauguin-gles180{,.stderr}.log,
+bothABSENTbeforeboot (emptypriorprefix captured). Other530jobs/oldCLI preserved.
+
+CURRENT WROOTv7 ONE temporary accepted180image boot LIVE, outerexec21933,
+checks-v7/events-v7/trial-v1. SAME600s service image682511e7.../kernel7f61cbbf...,
+no newkernelbuild;780s observation/860s bound. Wait SAME observer, no restart.
+All resets automatic, noUI/attributionquestions. This is FIRST real GLES test;
+DO NOT infer shader/lateworkload/GMEM/multi-queue acceptance from boot0. WROOT
+boot_gles180.py adds exact bundle/plan+appliedwrite receipt gates to provenflow;
+actual14case model0. Current installed-preflight pins rootheader +5files.
+
+Frozen-before-boot gles_contract180.py pins unchanged180APIcore and preserves
+all11events/8192+1024data/first3EOP checks on startupnativeprefix; FULLnative
+then requires >=2newGPUcompletions, nofailures, trueA619/configuredGMEMquery,
+>=90s late wait,hardwareES3renderer, complete1024RGBA+1024BGRA hashes, finalPASS,
+all600s/300..600renewals/shadowcounter/finite-stop ordering. Raw data nevertrimmed
+except EXACT saved prior stdout/stderr prefixes (emptyonfirsttrial). Contract
+file is pinned in runningboot profile: DO NOT edit it. Tests/main postcapture
+adapter still need finish. Additionalstderr mustbe retained/independentlyreviewed,
+never silentlydrop or treatpositive text asUI/Metal/FPSproof. No actualGLESaccept yet.
+
+After SAMEv7 terminal: use read_files180_v2.py +post-trial-capture-profile.json
+(trial resultpointsWROOT/trial-v1; filesincludeall5binaries/job/cache +newlogs),
+freshoutpost-trial-capture-v1. Then full frozencontract+source/file/header pins,
+review realshaderdriverfailureorpositive data. DO NOT use oldreadhelper1MiB limit
+for16MB library, or oldGPU175stdout (childnowwritesnewGLESlog). Once this boot
+has occurred, NEVER roll back rawpreboot HFSmetadata blocks. Anylaterroot delta
+needs freshbackup/newexplicitconsent; preserve all backups and failures.
+Mainpubbase6d5a7bb...=bcf7eb7.../ead58285..., GLESbd384172...=ba31e7e.../d561973... .
+Native sourceidentity698ef7e/source2a8fc45f; currentnativeTUrecipevbmAXT.
+Full original daily-use GPU/Metal/fullsafeRAM/UFS/peripherals90/120Hz goal ACTIVE.
+
 ### 2026-11-08 —180 kernel source PUBLISHED; final fresh backup still streaming
 
 MAIN/CI source publication VERIFIED,12textfiles only/non-force/ref/tree/parent:

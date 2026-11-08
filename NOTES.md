@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —18137/37 APPLIED/readback0; real late-GLES trial LIVE
+
+New human3988consent call42991219... consumed by successful EXACT371block write.
+DSHW181v7 TERMINAL0/inputs unchanged: apply-v1/result.json applied-approved-
+delta-readback-verified,37runs/1,519,616B,37writeattempts/readbacks, header0last,
+no rollback, reboot_permittedtrue. NoGPT/format/otherpartition change. v8 fresh
+READONLY actual5files/header0/inputs unchanged, all exactnewprobe2e3b...73328B,
+job15561948...919B/cache1a64...795801B, libraryb4a0.../API7756... unchanged,
+allroot0/modes0755or0644. Actualjobcache memoryprops ActiveHardMemoryLimit128 +
+InactiveHardMemoryLimit128; other530jobs preserved. Actual rootheaderSHA
+2e96a27b3d98ad21deffe5cc9656025659799ed8824dd48e71cbfe1e528651bf.
+Exactpriorstdout1046B SHAa28fda67... retained andstderr0; oldfailed180raw data
+neverdiscarded, stripONLYthisfull saved prefix from future181log.
+
+CURRENT W181v9 LIVE, outerexec83890, dispatcher25609, checks-v9/events-v9 and
+trial-v1. Actualfastboottemporaryboot0: send0.457s/boot0.135s,total0.595s;
+preflight observer-running/image_boot_attemptedtrue/routine13Bmiscverified.
+Same accepted180kernel/image682511e7.../build7f61cbbf...,600s service,780s observer/
+860s bound. Wait SAMEhandle; no restart, secondboot, UI/resetattributionask.
+Frozen beforethisboot contract181v2 SHAa6a9c99e... unchanged plusfull180contract
+f8a63b8d..., all5files/currentprefix/source/image/readbackreceipts bound in
+boot-profile.json SHA35fea3c4c996b3724b8a7f5d939edf6cc04e0b72cce826e65c418a11622ac87f.
+preboot-review.json0 exactbundle+cachedjob+14modelgates/11parsercases reviewed.
+No actualGLES/context/shader/Metal/UI/refresh acceptance from successfulboot.
+
+After SAMEv9 terminal: DSHread_files181.py post-trial-capture-profile.json into
+freshpost-trial-capture-v1 (all5files+fullrawlogs). Then pinnedqualify_gles181.py
+requires all5hash/mode/rootowners, exactprior1046B/0 prefixes, unchangedold full
+API/realnativejobs/600sservice +sixactual128MiB hardlimits/physicalfootprints,
+full1024RGBA+1024BGRAshader/texture/surfacechecks andnoGLESprocesscrash. Frozen
+contract MUST NOT be edited. Qualifierpass stillpendingROOTindependentreview,
+especiallyallrawstderr, dynamicpixels/nativeEOP/owners. If failurepreserveexact
+raw andstrictrejection, diagnoseactualphase. Never rawrollback prebootHFSmetadata
+AFTERthisboot; anynewrootdelta needs newfreshbackup/concreteconsent. Userapp
+explicitlysetgoal ACTIVE afterapproval. FulloriginalGPU/Metal/fullsafeRAM/UFS/
+peripherals90/120Hzdaily-use objective ACTIVE/incomplete. No kernel/Mesa rebuild.
+
 ### 2026-11-08 —NEW3988 explicit consent RECEIVED; approved181writer ready
 
 User replied to asyncquestion call_42991219d26f42a183e0db31547211b0 item0:

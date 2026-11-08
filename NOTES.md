@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —178 clean172 replay and independent ACK review PASSED
+
+DSH178v2 TERMINAL0/inputs unchanged. Source178-codex172patches/5329files SHA
+c6af8239a294c67bdf2377617223844169b0447dc3d3756c6e786be0e7e1105a
+equals tested candidate-v1. ROOT independent-implementation-review.json binds
+actual WDT nativeTU object/current177recipe and delayed-ack RED177/GREEN178;
+verified exactly ONE RST write in refresh, read-only ack2ms/256sample/two-stable
+guards, no IOSleep/pulse replay. Other177coordinator/board/core/IOKit sources
+byte-identical; WDT private header only comment change, ABI unchanged. Existing
+177host/native proofs checked against pre178-fixture-snapshot for the two
+changed public WDT test files; all other old proof inputs still exact. No broad
+suite replay/new GPU algorithm. Commit178+regression/handoff and pin sourceHEAD,
+then ONE8job build. No178hardware acceptance;177failed service retained, current
+phone TWRP. No UI/reset-attribution questions. Full goal ACTIVE/incomplete.
+
+### 2026-11-08 —178 delayed watchdog ACK regression/TU PASSED; clean replay LIVE
+
+177v12 terminal: startup-only GPU qualifier0 (seed3659183001/full8192+1024
+hashes/3fences correct), strict600service validator correctly REJECTED1 on
+elapsed147s. No full hardware-qualification.json. All177workers terminal.
+Before178fixture changes,177passing WDT fixture/script saved with SHA receipts
+in research/tmp/dsh-0177/pre178-fixture-snapshot; source commitbcd3a06 retains
+all historical public inputs. Do not revalidate177proofs against later178fixtures.
+
+Codex178 changes ONLY WDT C +header acknowledgement documentation; no queue,
+power/bootstrap/GPU packet or wire ABI change. ONE RST1 -> read-only STS samples
+with10us busy delays -> two matching decreased counts, BOTH2ms CPU bound and
+256sample bound, exact post EN/BARK/BITE/status check -> only then publish new
+epoch. No pulse replay/disable/threshold write. Failed attempts keep old epoch,
+quarantine and retain owners. Cached failure log now includes ack_ns/samples.
+Primary native watchdog_v2.c pet_watchdog observed as documented below; local
+reference shows single RST and stable pre-counter sampling, no immediate-zero
+assumption. Actual clock-domain delay diagnosis awaits new physical success.
+
+DSH178v1 TERMINAL0/inputs unchanged. Actual177 functional RED1 at first delayed
+reset "healthy owner refreshes" assertion (compiled0, not a build error),
+actual178 GREEN0 with all original87/lease cases +46service cases/600stress
+refreshes. New cases cover0/1/3/32/128stale reads, >2ms/never-ack, frozen CPU
+clock bounded256, transient low sample lacking stability; all require ONEpulse.
+Native WDT ARM64 TU0/current177MZBj9d recipe/2128headers, references unchanged.
+Failed177software behavior preserved, not waived. DSHv2 LIVE fresh original
+export/172patch replay into source178-codex, must match candidate-v1 full hash
+recorded expected-source178.json. Next ROOT review/reuse untouched177checks via
+historical snapshots, commit178/tests, freezeHEAD, ONE native8job build/package,
+fresh actual installed files/header,600s temporaryboot. No userdata writes or
+new consent needed. No178fullbuild/boot/runtime acceptance yet. Goal ACTIVE,
+full daily-use/GPU/Metal/RAM/UFS/peripherals/highrefresh remains incomplete.
+
 ### 2026-11-08 —177 physical startup GPU PASS, SERVICE FAILED at first RST readback
 
 DSHv9 package0: same19,972,096B image SHA

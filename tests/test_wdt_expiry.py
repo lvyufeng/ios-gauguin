@@ -82,7 +82,7 @@ def invoke(command, log, env):
 
 def main(temporary):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-root", type=Path, default=Path(os.environ.get("XNU_SOURCE", str(REPO / ".deps-cache/p0-20261105/source177-codex"))),
+    parser.add_argument("--source-root", type=Path, default=Path(os.environ.get("XNU_SOURCE", str(REPO / ".deps-cache/p0-20261105/source178-codex"))),
                         help="optional complete integrated XNU tree; otherwise use authored candidate files")
     args = parser.parse_args()
     if args.source_root:

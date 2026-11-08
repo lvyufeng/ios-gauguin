@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —188 read-only loader observation code;49+38host and2nativeTUs PASS
+
+187actualbaseline retained: 746.262208s/autoTWRP, root-onlyGLES600s/595renewals/
+6jobs/allpixelsPASS; AMFI90PID57UID/ruid501protectedexec/PATH2/rc0TWICE, noEAGL186
+markers. V14strictFAIL assumption1call kept, V15independentpartialsuccess0;
+actualinjection/env/constructor/budgetunknown. PhoneTWRP, unchanged186root, no188
+phonecommands/rootwrites/image. FullgoalACTIVE, UI/Metal/highrefresh/fullRAM not
+qualified; originalmkadt a74a... preserved.
+
+W188=research/tmp/dsh-eagl-0188-loader. Actualdyld1067 forEachInitializer VAec50
+andblock_invoke_4 VA577c8 staticallyreviewed: cmpsectiontype0x16, readonly/size/
+alignment/executable-rangechecks, uint32offset callback. Official1066.10 common/
+MachOAnalyzer.cpp blobf7d1395eb27d6f442390bc7874356ca1f6fb555b andMachOFile.cpp
+blobfb0fb46c0b2f1e76a420fdd027017350a82c9c57 referenceONLY; extractsprivatelysaved,
+notGit. Initializerformatrecognizedbyactual1067; thisdoesNOTprovephysicalloading.
+
+New0182 changesONLYkern_exec.c andsweet_amfi.c over187. Sameexistingopt-in
+sweet_dyld_probe=1/default0, noextraargs/permissions. AfterSUCCESSFULexec string/
+pointer/argc copyout, boundedkernel-execargs parserrecognizesonlyfullsaved
+backboardd/xpcproxy path, reportsPID/imagecode/argc/envc/joblabelcount andcounts
+ofDYLD_INSERT_LIBRARIES/exactknownlibvalue/GAUGUIN_EAGL_MODE/admission. Neverraw
+argv/envtext, noenvmutation orreturnchange. Allpointerordering/address-overflow/
+allocationlimit/count/NULchecks precedereads. Boundsfromactualexecargs_alloc:
+NCARGS+PAGE_SIZE bytes beforeseparateheaderpage.
+
+AMFIopt-inadditionalvnode-open/file-mmap hooksalwaysreturn0, NEVERmaxprotwrite.
+Onlyexpectedinertlibfullnamecachepath forbackboardd/xpcproxy printsoperation/
+prot/flags/full64offset; borrowedvnodenotreleased, cachednamerefbalanced. vn_getpath
+APIexplicitlydoesnotenterfilesystem. fileglobtypecheckedbeforefg_get_data.
+ActualMACmmap/open signaturesreviewed; inheritedROOT-onlysingleGPUowner/AMFI90
+PATH2 anddefaultpolicybehavior unchanged. Thisisobservation, notjobattestation.
+
+V1nativecompileFAIL missingquotedneighbor kern_exec_internal.h inisolatedcandidate
+folder; retainedoriginal. V2 exactUNCHANGEDneighborstagedfromfrozen187, twoactual
+ARM64TUscompile0 via2128generatedheader/configinputs; referencehashes/mtimekept.
+V3host49compileFAIL SDK__unusedmacroredefinition; originalfixture/driverkeptin
+W188/tests, retained18738casesPASS. V4newtests-v2 guardsSDKmacro, all49actual
+completeexec/filehelpers+callbacks underASAN/UBSAN0; noimplementationchange.
+Readonlyargv/envbytes, maximumprotectionandnamereferencesvalidated. Copiedtested
+driver/fixtureto main tests; inherited18738casesunchanged. All188handles13529/
+34938/40882/11023closed. ActualexecutionCODEXLOCALFALLBACK duringDSHoutage, notDSH.
+
+NEXT commitsource; pristine176patchreplayusingNEWsource-state; all5329files should
+match187except2Cfiles, bothmatchcandidate-v2. Thenpublishnewkernelbranch, fresh
+nativefullbuild/qualify/package. Reuseunchanged186root/605-bytecommand/fiveassets;
+no destructiveconsentneededfornewtemporaryimage, butnonewuserdatawriteallowed.
+188physicalvalidationmustreportloaderobservationsseparatelyfrominjection/GLES:
+AMFIqueryinterfaceisidempotent, doNOTimposeunsupportedexact1call assumption;
+validateALLactualrecords andfullpriorGLEScontracts. No188trialpreparedyet.
+
 ### 2026-11-09 —187 physicalGLES PASS; AMFI90 worksUID501; admission STILLmissing
 
 187ONEtemporarybootfinishedautoTWRP, observer0,746.262208s at18:55:41.690211..

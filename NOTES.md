@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 local full kernel/artifacts ACCEPTED; runtime/parser/image next
+
+Continuation PROGRESS; full daily-use/GPU API/Metal/RAM/UFS/peripheral/highrefresh
+goal ACTIVE/unlimited. Last actual phone result is171 automaticTWRP. No172
+image/package/boot or new device I/O. User away, all resets automatic; no
+attribution/UI question, only prompt if genuinely needed manual recovery.
+
+Completed172 code/public fixtures/full85 milestone committed private
+24587b16123e10341903cdc7a5d26d92b11f9767; DISTINCT frozen marker
+research/tmp/dsh-0172/KERNEL172_SOURCE_HEAD contains that head. Native reference
+commit92c5af6 is its parent. Source publication COMPLETED via nonforce Git-data
+REST: public42d5240b4805fdc7cbd7db651aea09dba30abb48, sole public parent
+100dca02db06ad21f03bf116fd6b111eb48e9169, SAME TREE
+e5d039d50724c7fb4b6b3791c5499c2ebe07473d as private24587b1. Verified in
+public-kernel172-handoff.json,17files, no private ancestry. No CI run triggered.
+Use public42d5240/private24587b1/treee5d039d as NEXT publication parent/base;
+public API commits are not mirrored locally. Later docs commits keep kernel
+source identity24587b1; do not overwrite the frozen marker.
+
+DSH v15 build CLOSED inner0 FIRST: ONE standard local8job full kernel build0,
+complete strict artifact qualifier0. Actual run gauguin.d14eqT; source172-codex
+5320files SHA f4745164870a882ec14df1e113b61d79de68cb39a2260864469794f5c82efea3,
+166active patches. CURRENT GENERATED RECIPE NOW172, manifest SHA
+87cc579911c9c444803597e5d7b5e551576b9794dd8d2e2b6f11667c027b8b9f.
+Never use prior171/170/older TU helpers against shared generated build files.
+New probes must explicitly use current172 manifest/source + separate outputs.
+Kernel17175648B SHA a5d5e92e41d076dc799be29daa6128ee986bae2e2f8638ed43ebbb259f26847e;
+archive ee19701ad43bd2f50554794c2ca5905b72eee248d1dcd833b8b48ba9320bc26f.
+Qualification a863ef13371c9602d8fc9503b6b398a121a840bcabab3b69987a1b5453a65ee5.
+ALL20 artifact hardware flags FALSE (18old retained +2sequence), original
+source-bound predicates/flags and every native profile payload linked. Root
+review_build172.py FIRST0: independent-build-review-v1.json passed-native172-
+build-only; kernel/banner/archive/fullsource/native words checked. Runtime
+parser gate explicitly PENDING and required separately before any packaging/
+boot. Build log360MiB ignored. All DSH1..15 and source publication terminal;
+no live jobs/pending user input at this milestone. Old171 image rehashed exact.
+
+NEXT concrete action: author strict sequence_records172/fixture/cases with all
+3*256 actual before/after pixels,3*27 full native buffer receipts, unique
+EOP6/22/38, root20/27/34/41, same guard deadlines and every old common/identity
+gate. Validate standalone parser, metadata refusals and full/common sharded
+runtime gates, exact606B mode8->9/unique172trial/fiveasset image+independent
+format review, then ONE temporary fastboot boot and automaticTWRP raw read.
+No GPU sequence, UI acceleration, Metal, throughput or highrefresh result yet.
+Preserve original tools/mkadt.py7line diff SHA
+a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
 ### 2026-11-08 —172 clean166/full85/native preflight ACCEPTED; full kernel next
 
 Continuation PROGRESS; full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh

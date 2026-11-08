@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —Launch correction WORKS; actual user open exposes cache PA truncation
+
+DSHv34 boot TERMINAL0, same403ff4ed...175image, automaticTWRP131s. Actual
+root job now executes: native console and fresh stdout both show probe PID25/
+UID0 + exact175kernel banner. DSHv36 CURRENT HFS readonly capture0/139,558,912B:
+stdout183B, stderr0B, CLI775622b6.../root:root0755 retained. DSHv35 invocation
+failed BEFORE dispatch because parent prompt accidentally added a separate dot
+argument; no claim/device call, original profile/events retained. v36 used a new
+profile. DSHv37 frozen strict qualifier correctly FAILS1: ZERO native user
+submits, not3. No dynamic GPU API/IOSurface/Metal/UI acceptance.
+
+Actual native log ends with phystokv_range illegal PA0x7c55c000 (VM physical
+base0x180000000), shutdown context PID25 gauguin-gpu-prob. ROOT static diagnosis
+finds pmap_sync_page_attributes_phys shifts uint32_t ppnum_t BEFORE widening;
+native175 disassembly confirms 32-bit shift. During user open, WC GPU table
+allocation changes managed-page cache mode and reaches this function. This
+chain is a source-based diagnosis consistent with the panic, not a captured
+backtrace. Evidence/pins: research/tmp/dsh-0175/launchfix-hardware-diagnosis.json.
+
+Codex added0176 ptoa_64-before-shift fix + real-function high-address regression.
+DSH0176v1 LIVE fresh original export/170patch replay -> compare full175tree
+(only osfmk/arm/pmap/pmap.c may differ) -> actual175 test must fail,176 must pass
+for4KiB/16KiB pages. New source176-codex, old175 immutable. NEXT inspect same
+job, commit completed fix/tests, ONE focused native build/qualify/package then
+temporary boot with SAME installed probe. No root delta/library install needed,
+no raw metadata rollback after boot, no CI yet. Originalmkadt7line dirty diff
+a74a0418... untouched. Full goal incomplete. User away/ALLresets automatic;
+manual recovery only if genuinely stuck. Current exact launchfix approval is
+consumed; different destructive root writes still need fresh confirmation.
+
 ### 2026-11-08 —USER APPROVED launch fix; second exact write/readback PASSED
 
 Actual new user answer: "允许写入这次修复，并允许失败回滚" for question

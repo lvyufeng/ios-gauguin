@@ -158,7 +158,22 @@ native submit method and runtime range helpers. It uses typed fake object/list
 storage, IOKit calls and ring execution. Old source must reproduce `-22` for the
 captured 13-BO request shape; new source must pass eight scenarios, including
 writable BOs, unknown flags, invalid ranges, timeout propagation and consumed
-syncobj fields. These host results require a new physical pixel test.
+syncobj fields. These host results cannot establish physical GPU execution.
+
+The subsequent physical retry passed the unchanged GLES data contract and an
+independent review. After the 90-second delay, actual FD619/OpenGL ES 3.1 ran
+both GLSL programs, drew and checked all 1,024 RGBA pixels, then sampled the
+texture into the offset BGRA IOSurface and checked all 1,024 pixels. Three new
+GLES submissions and the three startup API submissions completed on the native
+ring. The 600-second health-gated service verified 595 renewals. All six memory
+checkpoints read actual 128 MiB active/inactive hard limits, with a maximum
+observed footprint of 25,624,976 bytes.
+
+The complete 269-byte stderr warning was matched against Mesa's file-description
+fallback and this transport's single cached connection with duplicated file
+descriptors. It was independently reviewed; other diagnostics are not ignored.
+This acceptance covers the standalone root probe. EAGL/compositor integration,
+ordinary client isolation, Metal and display/UI refresh remain unqualified.
 
 Kernels 179/180 provide the source profile for this package: a health-gated watchdog
 service, up to 32 logical queues over one synchronous serialized ring, and

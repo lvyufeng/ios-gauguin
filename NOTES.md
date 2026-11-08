@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —185 physical standalone GLES rendering ACCEPTED
+
+Actualsamekernel180image6825...+newMesa3a447524...+sameprobe2e3b...+128MiBpolicies
+PASSED frozen181v2/full180contract and independentreview. Rootorchestrator W185/
+independent-physical-review.json.90.008459166sdelay; FD619/OpenGLES3.1Mesa25.0.7,
+GLSLdraw all1024RGBA hash9af64bc5 andtexturesample/offsetIOSurface all1024BGRA
+hash46f1bbc5,seed1974743159. ThreeNEWrealGLESjobs plus3APIjobs/EOP1..6 complete,
+ring32/44/56/68/80/92.600shealthy595renewals/all20samples/finitequarantine-stop
+verified. All6GET8 phases128MiBHARDactive/inactive,peakfootprint25624976B.
+AutomaticTWRP after746.322147s; noresetattributionask, panic orGLEScrash.
+
+Fullraw5797/2341Bstdout/stderr retained, old3754/2072Bfailedprefixes intact;
+current2043/269B. ALL269Bstderr matchedexactMesa u_screen/os_file warning:
+Darwinno file-description comparison, inheritederrno text; currentlibdrm opens
+dupONEcached/dev/null/IOKitconnection. Source-backedall-line review required and
+completed, notgenericwarningwaiver. Allpriorfailed180/181/184data/contracts kept.
+Kernel/oldcontracts unmodified. No GPU evidence from just a renderer string.
+
+Scope accepted ONLYrootstandaloneES3shaders/texture/IOSurface +600sservice.
+UI/EAGL/Metal/highrefresh/fullRAM/dailyuse UNQUALIFIED. Next: actual20H392EAGL
+ABI and compositor-scopedaccess/order plan; driverstilloneprivilegedclient/global
+PT. Neverremoveprivilegechecks toallowordinaryapps withoutisolation. Fullgoal
+ACTIVE. PhoneTWRP,noDSHlive.185consentconsumed;305b...backup PRE185BOOTonly,
+neverrawrollbackafterboot. Anynewrootdelta needsfreshbackup/concreteconsent.
+
+Codepublicationbase PUBLIC071645ebb7799a9724d72bfd9c5e572da4dcab78
+=PRIVATE688b7e35e43f207fecdd7262670a2a16a9680c36/TREE510b977ba9ead864ad799ac5ec9a42a8fc48f3b5.
+This newDOCcommit isnotyetpublished; advancefromthatbase. MainNOTES authoritative.
+No kernel/Mesa rebuild/CI needed for this documentation update.
+
 ### 2026-11-08 —185 actual-submit RED/GREEN PASS; signed Mesa build PASS
 
 184 real trial fixed memory128MiB hard and created FD619/OpenGLES3.1 context,

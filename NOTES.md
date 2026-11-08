@@ -2,6 +2,71 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —175 full host/native kernel ACCEPTED; root probe install next
+
+Full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh goal ACTIVE/unlimited.
+Implementation commit9c1e780171da7b3400dd3e7e6452744c52aa17a1.
+FROZEN KERNEL175_SOURCE_HEAD74b77c0c62c715237cfae19c11ac99335aceb46d,
+NEVER rewrite this to a later docs/publication commit. Source175-codex5329files,
+169patches SHA f4ba18857e0ca4237c0b79cb35ea456778ae7063c2288633723edafd9c22c9f2.
+
+ROOT review_build175.py PASSED full89 coverage + ONE complete local8job native
+kernel, proof610618bd3f2a5c1b4424387b98da0dc42cbf831b0ba3c65654f0d05d515edecf.
+DSHv14 all84remaining host exits0/inputs unchanged,4parallel;5EXACT-current-source
+canonical checks reused with independent host-reuse-review.json.89coverage is
+NOT89new invocations. Long950second board41147 cases reused once, all old776
+coordinator cases plus22mode12=798, owner542, new runtime17214 assertions and
+actual IOKit client61+55 assertions retained. No cases silently removed.
+DSHv15 native build0, initial qualifier1 due accidental exact174 source wrapper;
+failed input/report/log retained. Freshv16 SAME KERNEL qualification0: unchanged
+generic native provenance function + all174 and20new symbols + exact169patch
+source binding; no rebuild. No source174 literal predicate is asserted for175.
+All current stages v1..v16 terminal; no live DSH worker/pending user input.
+
+CURRENT genuine native recipe NOW175:
+.deps-cache/p0-20261105/build/runs/gauguin.1CAtln/build-manifest.json
+SHA c959c29a056f268501533dea8bc3875007635114896bbda90068b899ea924316,
+2128source header/config inputs, buildIDxnu-d6a76ad20f3f4ea5a3a3a7bd8a7cc8ba.
+NEVER older174/173TUhelpers against these replaced shared generated headers.
+Installed kernel17275384B SHA
+32c0bd438225de50f0c742932cc8a4520714f83a65f24ecd1c71166fbab25a0a.
+Native archive SHAeece999434714402198ac79ba7f8c152b08c8ba563d5628fac96d1618349a3e1.
+Final iOS16-deployment user probe87360B SHA
+775622b6571c88412dc7071240149785877080410063aaf15f3c6d890315f525,
+v13 build/sign/strict signature0; kern.version also goes to stdout for durable
+log binding. Probe NOT installed/run on phone yet. NO175image/payload/boot yet.
+Mode12 remains bounded20s privileged one-client/synchronous prototype under
+existing diagnostic WDT lease; not persistent GPU, isolation, Metal/UI/FPS or
+highrefresh/daily-use qualification. Old modes1..11 remain exclusive.
+
+Phone remains automaticTWRP174. User away/all resets automatic; never ask
+attribution/UI. Manual assistance only for genuinely stuck phone. Read-only
+DSHv12 full existing HFSX root backup PASSED,17179869184B SHA
+9c9f8777b8a64ba30b38bf6af51b71869ee82ad569a215b369040121ab4e133a,
+root-backup-v3/iosroot-fresh175.hfsx read-only0444, exact4096B before/after headers.
+Observed HFSX4858/version5,4096B blocks/4194304total/551471free. No partition,
+root-file, GPT or boot write. Failed9DD framing/10HFS-vs-HFSX refusals retained.
+Original mkadt7line SHAa74a0418... intact. No new CI (local build used).
+
+NEXT publish completed source/full software handoff SAME TREE with sole existing
+public parent; remote base still PUBLICd8413b7ea67a924031c914fbad11553edf090da4
+=PRIVATE512e8f7e51116cae496fd0f59f3f1056bec9dec2/TREE0af84b9d200894648761f841324d8e9ba8d58895.
+Record NEW public/private/tree as NEXTbase after success; kernel source74b77c0
+stays frozen. No public175tuple yet at this write.
+Then prepare LOCAL COW HFSX staging from the fresh readonly backup: signed CLI,
+root-only one-shot launch job, and compiled /System/Library/xpc/launchd.plist
+LaunchDaemons entry (existing iOS uses compiled job dictionary; a new loose
+plist alone may not launch). Preserve every unrelated job/file. Verify on-disk
+UID/GID/mode via actual HFS format, offsets/forks/lengths, content signatures and
+block delta. Local edits are allowed; do not apply destructive root/userdata/raw
+block writes without FRESH user confirmation per AGENTS. Make the concrete
+backup/delta/image reviewable BEFORE asking. No GPT/recovery/bootloader/modem/
+persist changes. Routine13B recovery latch/temporary fastboot boot authorized.
+Physical acceptance still requires fresh175 kernel identity + actual userCLI
+query/BO/map/dynamic PM4/fences/all8192normal words/all1024surface words; keep
+software and hardware reports distinct. Then persistent GPU lifecycle and Mesa
+GLES/direct HakiOS Metal frontend with actual A619 parameters, not fixed samples.
+
 ### 2026-11-08 —175 dynamic userspace implementation; focused integration running
 
 Full goal ACTIVE/unlimited, progress only. Phone last automaticTWRP174; NO175

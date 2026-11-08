@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —174 image/runtime ACCEPTED; ONE temporary hardware trial next
+
+Goal ACTIVE/unlimited; progress. Phone last automaticTWRP173. NO174boot yet at
+this handoff write. All executed174DSH through21 now TERMINAL; v16 failed BEFORE
+packaging due stale qualifier filename in wrapper, retained unchanged. Fresh19
+packagev2 fixes ONLY current qualifier filename/report/log version; package0 and
+independent image review0 FIRST. Original image15preflight inputs and all failed
+inputs untouched. runtime174v2 consumes package-report-v2; no kernel rebuild.
+
+Image shim/out/shim-p3-gmuf-0174-native-20261108.img,19922944B SHA
+048730799c0406575e51774d6e5a263f682995ee49422f25ed4499ece3233d0b.
+Payload p3-gmuf-0174-native-20261108.bin SHA
+a4e09a2c4f66da06a1bbba48cab31d23fb38f6e3787912465739c245edc6bb9b.
+607Bcmd/608Bfield/oneNUL, only mode10->11 andtrialgwrt-0174-a1 changed from173;
+fiveassets exact. Kernel source7e48ca393fb719d4951f9c1a3893adba6161f9e5,
+17232376B/34d50e5af17bef9c8dd1addcc03d3be11e79c7b441a101fdf1300b5f7034d9c3.
+Current native recipe174 gauguin.FxICIV/1d05972654801dba686e27e401711c9df9eb2036403725c88fcb7dcd56f70586,
+source5326/4e9999c3...,2127headers; NEVER olderTUhelpers against sharedheaders.
+
+DSH20 runtimev2 FIRST0 clock/FW/full8worker execution: exact7997negative union,
+all8 identical complete manifests,112actual positives in EVERYworker, original
+reject body and all common AST/case generators retained. DSH21 FIRST0 explicit
+consoleframing +160metadata refusals (clear26/triangle28/sequence32/varying34/
+texture40). ROOT review_runtime174.py FIRST0 accepted image/source identity,
+all gates and exact oneboot/read protocol; hardware qualification STILLFALSE.
+Source-reviewed boot174.py/observe_ready_fastboot174.sh/read_hardware174.py,
+pre-phone independent review_physical174.py oracle16/16/4colors fixed now.
+NEXT DSH22 boot ONCE, keep same liveclaim; then23 read, ROOTphysical review.
+Standing unattendedpolicy: ALLresets automatic --manual-reset no, never ask
+attribution/UI; ask only genuinely needed manualrecovery. Routine13B misc latch
+already authorized. No flash/format/GPT/userdata/destructive action.
+
+User steering received from side research: SPEED and real GPU/Metal/UI path
+matter; use focused regression for small changes and full regression at important
+ABI/MMU/recovery changes or image milestones. After174, stop adding fixed-command
+samples as the main objective. NEXT implementation milestone is user-space
+allocate/map/submit/fence/readback, then IOSurface presentation end-to-end.
+Retain recovery, memory ownership/lifetime and authentic hardware result checks.
+Do not redo all87/22minute suite for parser labels or other low-impact plumbing.
+
+Read-only updated research pinned under research/tmp/gpu-reuse-20261108-v1:
+HakiOS63fc2b4633bac3af8e57dadab9f5a8d4cb940438 (Nov6),
+AdrenoMetal6d7f73437087c57ee54a41adceb1735daaea405e (Nov7),
+Adreno7406fa7bae2a5b3b523e790eb3e0348af4d98969e4d (Nov3).
+26selected primary source files/1482524B fetched and Gitblob/SHA256 verified.
+HakiOS has actual msm-numbered IOKit client, BO/map/fence/userptr/IOSurface
+interfaces, direct AIR->NIR->IR3 Metal plus iOS16 metal2vulkan adaptation. Its
+642L/sc7280 firmware/power/backend is DEVICE-SPECIFIC; keep proven A619 firmware/
+clock/SMMU bring-up, do not copy a660 inputs. Compare frontend and transport for
+reuse now; no newroute implementation or localA619 UI benchmark yet. Project's
+published UI rates are conditional on resolution/wallpaper/tuning; no120fps
+qualification or performance extrapolation to A619. Earlier route text below
+is to be reevaluated with these sources, keeping this working boot/storage/input
+baseline. No wholesale UEFI/kernel migration merely to get a frontend.
+
+Latest private docs4e2a193; frozen source7e48ca3 unchanged. NEXT remote base
+PUBLICf3914a1167379a86c8f7a732780a360a81c261f3/private7e48ca3/TREE6f8a5c2f1e1aa184641c48a80c71109cd0aac19e.
+No174physical texture/API/Metal/UI/highrefresh/daily-use proof yet. mkadt7line
+a74a0418... unchanged. Commit this completed image/runtime/steering handoff.
+
 ### 2026-11-08 —174 full local kernel ACCEPTED and source PUBLISHED; image gates next
 
 Goal ACTIVE/unlimited, progress. Phone remains automatic TWRP173; no174 image/

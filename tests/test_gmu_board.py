@@ -26,7 +26,7 @@ V=R/'tests/fixtures/gpu-compute/native_words.h'
 inputs=[S,F,G,I,E,K,L,T,TV,J,JV,VV,VF,VP,QV,QF,QP,V,LV,C/'gauguin_gmu_board.h',D/'gauguin_gmu_smmu.h',D/'gauguin_gmu_memory.c',D/'gauguin_gmu_memory.h',D/'gauguin_pas_stage.h',D/'gauguin_gmu_clock.h',D/'gauguin_wdt_lease.h']
 inputs += [D/'gauguin_gpu_sqe_asset.h',D/'gauguin_gmu_firmware.h',D/'gauguin_gmu_hfi.h',D/'gauguin_gmu_asset.h']
 inputs += [D/(n+s) for n in ['gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib'] for s in ['.c','.h']]+[D/'gauguin_gpu_smmu.h']
-inputs += [D/'gauguin_gpu_eop.c',D/'gauguin_gpu_eop.h',C/'gauguin_gpu_compute.c',C/'gauguin_gpu_compute.h',C/'gauguin_gpu_clear.c',C/'gauguin_gpu_clear.h',C/'gauguin_gpu_draw.c',C/'gauguin_gpu_draw.h',C/'gauguin_gpu_draw_native.h',C/'gauguin_gpu_sequence.c',C/'gauguin_gpu_sequence.h',C/'gauguin_gpu_sequence_native.h',C/'gauguin_gpu_varying.c',C/'gauguin_gpu_varying.h',C/'gauguin_gpu_varying_native.h',C/'gauguin_gpu_texture.c',C/'gauguin_gpu_texture.h',C/'gauguin_gpu_texture_native.h']
+inputs += [D/'gauguin_gpu_eop.c',D/'gauguin_gpu_eop.h',C/'gauguin_gpu_compute.c',C/'gauguin_gpu_compute.h',C/'gauguin_gpu_clear.c',C/'gauguin_gpu_clear.h',C/'gauguin_gpu_draw.c',C/'gauguin_gpu_draw.h',C/'gauguin_gpu_draw_native.h',C/'gauguin_gpu_sequence.c',C/'gauguin_gpu_sequence.h',C/'gauguin_gpu_sequence_native.h',C/'gauguin_gpu_varying.c',C/'gauguin_gpu_varying.h',C/'gauguin_gpu_varying_native.h',C/'gauguin_gpu_texture.c',C/'gauguin_gpu_texture.h',C/'gauguin_gpu_texture_native.h',C/'gauguin_gpu_runtime.c',C/'gauguin_gpu_runtime.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
 source=re.sub(r'^#include .*\n','',S.read_text(),flags=re.M)
 # Only the physical SMC instruction/register binding is replaced. The real
@@ -43,7 +43,7 @@ seams={
     'uint32_t value=*(volatile uint32_t *)address;':'uint32_t value=fw_read32(address);',
     '*(volatile uint32_t *)address=value;':'fw_write32(address,value);'}
 for old,new in seams.items():assert source.count(old)==1;source=source.replace(old,new)
-for asm,n in [('dmb oshld',5),('dmb oshst',3),('dsb sy',5)]:
+for asm,n in [('dmb oshld',5),('dmb oshst',3),('dsb sy',6)]:
     old='__asm__ volatile("'+asm+'" ::: "memory");';assert source.count(old)==n
     source=source.replace(old,'host_dsb();' if asm=='dsb sy' else 'host_barrier();')
 assert '__asm__' not in source
@@ -64,7 +64,7 @@ with tempfile.TemporaryDirectory(prefix='gmu-board-') as tmp:
     unit=Path(tmp)/'test.c';binary=Path(tmp)/'test';unit.write_text(fixture.replace('@SOURCE@',source))
     if os.environ.get('GMU_BOARD_UNIT_COPY'):
         with Path(os.environ['GMU_BOARD_UNIT_COPY']).open('x') as f:f.write(unit.read_text())
-    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(C),'-I'+str(D),'-I'+str(V.parent),'-I'+str(QV.parent),'-I'+str(R/'tests/fixtures'),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib']],str(D/'gauguin_gpu_eop.c'),str(C/'gauguin_gpu_compute.c'),str(C/'gauguin_gpu_clear.c'),str(C/'gauguin_gpu_draw.c'),str(C/'gauguin_gpu_sequence.c'),str(C/'gauguin_gpu_varying.c'),str(C/'gauguin_gpu_texture.c'),'-o',str(binary)],env=env,check=True)
+    subprocess.run(['clang','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(C),'-I'+str(D),'-I'+str(V.parent),'-I'+str(QV.parent),'-I'+str(R/'tests/fixtures'),str(unit),*[str(D/(n+'.c')) for n in ['gauguin_gmu_memory','gauguin_gpu_memory','gauguin_gpu_aperture','gauguin_gpu_start','gauguin_gpu_core','gauguin_gpu_cp','gauguin_gpu_zap','gauguin_gpu_unsecure','gauguin_gpu_data','gauguin_gpu_write','gauguin_gpu_ib']],str(D/'gauguin_gpu_eop.c'),str(C/'gauguin_gpu_compute.c'),str(C/'gauguin_gpu_clear.c'),str(C/'gauguin_gpu_draw.c'),str(C/'gauguin_gpu_sequence.c'),str(C/'gauguin_gpu_varying.c'),str(C/'gauguin_gpu_texture.c'),str(C/'gauguin_gpu_runtime.c'),'-o',str(binary)],env=env,check=True)
     subprocess.run([str(binary)],env=env,check=True)
     if os.environ.get('GPU_TEXTURE_BOARD_TRACE_DIR'):
         out=Path(os.environ['GPU_TEXTURE_BOARD_TRACE_DIR']);out.mkdir(exist_ok=False)

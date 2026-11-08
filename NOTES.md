@@ -2,6 +2,119 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —175 dynamic userspace implementation; focused integration running
+
+Full goal ACTIVE/unlimited, progress only. Phone last automaticTWRP174; NO175
+image/boot or root filesystem write. Read-only recovery access below. User away: all resets automatic,
+never repeat attribution/UI questions; manual help only if genuinely stuck.
+Codex wrote the critical driver; DSH executes the checks/builds. New tools use
+stable runners + immutable JSON stage profiles, not copies of the174 pipeline.
+
+Implemented production patch0175-gauguin-dynamic-userspace-gpu.patch (169active):
+SHA fb46d1b53962be63fffb8606a643ff196bc08d5900583e6214214e2a3c52d038.
+11kernel files; source175-codex FRESH original export/replay PASSED,5329files
+SHA f4ba18857e0ca4237c0b79cb35ea456778ae7063c2288633723edafd9c22c9f2.
+Frozen candidate-v3 under research/tmp/dsh-0175. Mode12 after real signed ZAP/
+unsecured20 handoff; old1..11 retain their exact diagnostic dispatch. A new
+msm-numbered HakiosGPU class/root-only single IOUserClient owns BO handles,
+64KiB-aligned below4GiB GPUVA, VM-managed WC memory and 16KiB->4KiB SMMU leaves.
+Adds a retained 1GiB VA window at40000000 via root[1] + scattered owned tables;
+ASID TLB sync before reuse/free. Initial submit is SYNCHRONOUS: dynamic native
+IB addresses/word counts, actual EOP counter + WHERE_AM_I shadow + idle/fault
+checks. Returned fences already completed. Failure retains DMA-visible memory
+and tables until reset. SweetSurface import uses pixels at descriptor offset0,
+actual surface geometry/offset (NO MiniIOSurface PAGE_SIZE skip); cache flushes
+and framebuffer/GPU lock prevent a framebuffer read during a GPU submission.
+This is a BOUNDED20s privileged prototype within the existing WDT diagnostic
+lease, NOT persistent GPU lifecycle, multiclient isolation, Metal or accelerated
+UI qualification. Normal watchdog/power/recovery lifecycle remains future work.
+
+DSH focused checks (all actual inner exits recorded):
+- v1 runtime-host0:17214 ABI/range/native-ring/fence/failure-boundary assertions,
+  ASan/UBSan, typed seams (no IB/GPU emulation). Four native C TUs0. C++ failed
+  two missing includes/declarations; immutable candidate-v1/log retained.
+- v2 three actual IOKit C++ TUs0 (driver, framebuffer, surface).
+- v3 changed GPU C++ TU0 including serialized stop; host fixture failed a
+  struct/class warning. Failed fixture/script preserved in failed-v3-public-inputs.
+- v4 actual IOUserClient host0:61 submit-failure +55 sync-failure assertions,
+  exact wire/handles/scattered memory/RO PTE/zero offset/retained surface/cache/
+  close-and-reopen/failure retention. ASan/UBSan; intentional retained references
+  are not leak qualification. No hardware claim.
+- v5 user CLI build failed missing IOSurface umbrella header; original inputs
+  preserved in failed-v5-public-inputs. v6 corrected IOSurfaceRef header: iOS
+  arm64 probe build/adhoc signature/strict codesign verification0,87312B SHA
+  16043433bc5a6d93bb08325c7111cfd4d6909ad1b7040143faee62f76ed6aa28.
+  Installed iPhoneOS SDK26.5, deployment16.0, no downloaded Apple artifact.
+  Probe does real BO/map/query/queue/dynamic PM4/fence/full8192word comparisons
+  across CPU16KiB boundary +1024 IOSurface pixels with nonzero64byte offset.
+  It is NOT installed or executed on phone yet. v6 fresh169patch replay also0.
+- v7 terminal112 BEFORE any checks: profile duplicated the runner default
+  PYTHONDONTWRITEBYTECODE; no compiler/test executed. Failed profile/logs kept.
+  Fresh v8 LIVE: removed duplicate environment key, same3 independent focused
+  coordinator/owner/board checks plus userCLI build from public tools path.
+  Continue SAME v8 process/claim. Old fixture illegal mode12
+  moved to13; added exact mode12 coordinator success/refusal/prerequisite/old-mode
+  exclusion, no blanket test removal. No full89 or full kernel build yet.
+
+CURRENT genuine native recipe STILL174 gauguin.FxICIV/manifest1d059726...;
+2127header/config inputs matched. All native-TU jobs throughv3 terminal; no
+shared generated headers changed yet. Once175 full build starts NEVER use the
+174 TU helper against its replaced shared headers. Original mkadt7line diff
+SHAa74a0418... preserved. All old failed scripts/logs/results retained; observe
+actual inner_exit, not the outer DSH process exit. Stages in checks-vN.json;
+runner tools/run-pinned-stage.py claims once and never restarts claimed jobs.
+
+Independent ROOT review_implementation175.py PASSED source/native/model binding,
+SHAae8190755ab0c67704914cc8b66ebe8bbe4f676d7da6a782d98a0d2f42e08fa4:
+all7 selected native ARM64 TUs match fresh175 source bytes; actual17214+116
+model assertions accepted. Scope explicitly excludes full link, phone execution,
+persistent lifecycle, multiclient isolation, Metal/UI/highrefresh.
+
+v8 TERMINAL: board0,owner0,iOSprobe0,coordinator1; ALLinputs unchanged at terminal.
+Board complete (about950s), all41147old board cases retained; no board retry. Owner542PASS and iOS public-path probe build0;
+coordinator preserved all776old cases, then failed three old <=11 typed fixture
+whitelists. Keep v8 inputs unchanged until terminal. Fresh PRIVATE corrected
+coordinator_host_v2.c + canonical runner override checked by DSHv11 TERMINAL0:
+ALL798 cases (776retained+22mode12) pass. That identical fixture is now promoted to public AFTER v8 terminal; failed
+v8 original fixture preserved in terminal-v8-public-inputs. No long board rerun
+for this unrelated typed-fixture fix.
+New root preflights: v9 failed raw DD length (stderr mixed into stdout); v10 with
+explicit remote stderr redirect saved EXACT4096B, then refused unexpected HX.
+Observed header is HFSX signature4858/version5 (not HFS+482b/version4),4096B blocks,
+4194304total,551471free. Those refusals/inputs retained, no writes. Freshv12 LIVE
+same13454 handle: accepts the OBSERVED HFSX format and READS ONLY a fresh16GiB
+volume backup to root-backup-v3/iosroot-fresh175.hfsx. Host364340273152B free,
+preflight-result.json already saved; final length/SHA and unchanged before/after
+header required. NO root partition/file writes or reboot. This backup is for
+preparing the small CLI/plist install locally, never write a stale root image.
+
+Current final user CLI is ios-probe-v4/gauguin-gpu-probe:87360B SHA
+775622b6571c88412dc7071240149785877080410063aaf15f3c6d890315f525,
+DSHv13 terminal0 build/sign/verify; only added kern.version to stdout for durable
+launchd log binding. Public source tools/gauguin-gpu-probe.c, public builder
+uses that path. Older v2/v3 binaries/failed v1 remain immutable.
+ROOT review_reuse175.py PASSED exact-byte equivalence for FIVE already-executed
+canonical test files (runtime,IOKit,owner,board,coordinator), sourcef4ba1885...;
+host-reuse-review.json has exact source/fixture/log/inner-exit receipts.
+Next broad89host gate will execute the remaining84 independent files in parallel
+and combine those with these5 VERIFIED current-source results. Do not rerun the
+same950second board check just because the broader gate is being assembled.
+No full89 result yet. Source/native/model review ae819075... remains current.
+
+NEXT: commit completed175 source/tests/tools/probe now; v12 backup still live; fix only actual failures in fresh profiles. Commit complete
+175 source/tests/tools/probe and this handoff. One full native175 kernel build +
+integrated89host gate (ABI/MMU milestone) next, using stable profile and existing
+build machinery. Prepare a reversible/root-backed installation of the user CLI
+and launch job before a175 temporary boot; do not overwrite a stale17GB HFS image.
+No destructive root/userdata/GPT/flash step without fresh user confirmation.
+Physical acceptance needs user CLI identity + dynamic values/fences + exact
+readback in the fresh binary console. Do not claim runtime/Metal/UI FPS from
+host tests, code compilation or old174 fixed textures.
+
+Next remote publication base remains PUBLICd8413b7ea67a924031c914fbad11553edf090da4
+=PRIVATE512e8f7e51116cae496fd0f59f3f1056bec9dec2/TREE0af84b9d200894648761f841324d8e9ba8d58895.
+No175 publication yet. Do not reuse old174 frozen source tuple as remote base.
+
 ### 2026-11-08 —174 physical handoff PUBLISHED;175 dynamic userspace batch next
 
 Full goal ACTIVE/unlimited (get_goal verified), not complete. 174 milestone is

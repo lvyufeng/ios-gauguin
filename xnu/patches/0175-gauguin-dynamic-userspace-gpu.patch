@@ -1,0 +1,1012 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -149,6 +149,7 @@
+ bsd/dev/gauguin_gpu_sequence.c			standard
+ bsd/dev/gauguin_gpu_varying.c			standard
+ bsd/dev/gauguin_gpu_texture.c			standard
++bsd/dev/gauguin_gpu_runtime.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -88,7 +88,7 @@
+     int start = 0; (void)PE_parse_boot_argn("sweetgpustart", &start, sizeof(start));
+     if ((start != 0 && start != 1) || (start == 1 && gpu != 1)) return false;
+     int zap = 0; (void)PE_parse_boot_argn("sweetgpuzap", &zap, sizeof(zap));
+-    if ((zap != 0 && zap != 1 && zap != 2 && zap != 3 && zap != 4 && zap != 5 && zap != 6 && zap != 7 && zap != 8 && zap != 9 && zap != 10 && zap != 11) || (zap != 0 && start != 1)) return false;
++    if ((zap != 0 && zap != 1 && zap != 2 && zap != 3 && zap != 4 && zap != 5 && zap != 6 && zap != 7 && zap != 8 && zap != 9 && zap != 10 && zap != 11 && zap != 12) || (zap != 0 && start != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -252,7 +252,11 @@
+                                 if(sweet_gpu_unsecure_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+                                 snprintf(line,sizeof(line),"SWEET GPU UNSECURE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)unsecure_result,(unsigned)sweet_gpu_unsecure_state());bcm_record(line);return;
+                             }
+-                            if(sweet_gpu_texture_requested()){
++                            if(sweet_gpu_runtime_requested()){
++                                if(!sweet_gpu_runtime_start()){
++                                    gauguin_wdt_lease_quarantine();bcm_record("SWEET GPU USER: runtime start failed; owners retained");return;
++                                }
++                            }else if(sweet_gpu_texture_requested()){
+                                 bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; before native A619 texture sequence; no Metal");
+                                 struct ggf_receipt texture;
+                                 enum ggf_result texture_result=sweet_gpu_texture_once(&texture);
+@@ -378,6 +382,7 @@
+         bcm_record("SWEET BCM BOOT: requests held; awaiting watchdog reset; coordinator performed no PAS/SMC/GPU operation");
+     }
+     for (unsigned i = 0; i < 30; ++i) IOSleep(1000);
++    if(sweet_gpu_runtime_requested()) { extern void GauguinGPUStop(void); GauguinGPUStop(); }
+     gauguin_wdt_lease_quarantine();
+     bcm_record("SWEET BCM BOOT: survived30 requested seconds after transfer; reset unqualified, no retry or vote release");
+ }
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -422,7 +422,8 @@
+          (ggb_data_mode==8&&sweet_gpu_draw_requested())||
+          (ggb_data_mode==9&&sweet_gpu_sequence_requested())||
+          (ggb_data_mode==10&&sweet_gpu_varying_requested())||
+-         (ggb_data_mode==11&&sweet_gpu_texture_requested())):
++         (ggb_data_mode==11&&sweet_gpu_texture_requested())||
++         (ggb_data_mode==12&&sweet_gpu_runtime_requested())):
+         (ggb_data_selected==0&&ggb_data_mode==0&&!sweet_gpu_data_requested());
+ }
+ static bool ggb_data_geometry(void)
+@@ -591,7 +592,7 @@
+     if(!ggb_guard(NULL)||!ggp_plan_build(&gmb_context.plan,&ggb_plan))return false;
+     struct ggs_ops o={NULL,ggb_guard,gmb_read32,gmb_write32,gmb_read64,gmb_write64,gmb_barrier,gmb_delay,ggb_prepare};
+     ggb_data_selected=(unsigned)sweet_gpu_data_requested();ggb_data_ready=0;
+-    ggb_data_mode=ggb_data_selected?(sweet_gpu_texture_requested()?11:sweet_gpu_varying_requested()?10:sweet_gpu_sequence_requested()?9:sweet_gpu_draw_requested()?8:sweet_gpu_clear_requested()?7:sweet_gpu_compute_requested()?6:sweet_gpu_eop_requested()?5:sweet_gpu_ib_requested()?4:3):0;
++    ggb_data_mode=ggb_data_selected?(sweet_gpu_runtime_requested()?12:sweet_gpu_texture_requested()?11:sweet_gpu_varying_requested()?10:sweet_gpu_sequence_requested()?9:sweet_gpu_draw_requested()?8:sweet_gpu_clear_requested()?7:sweet_gpu_compute_requested()?6:sweet_gpu_eop_requested()?5:sweet_gpu_ib_requested()?4:3):0;
+     if(ggb_data_selected){
+         if(!ggd_plan_build(&ggb_plan,&ggb_data_plan))return false;
+         ggb_argument=ggs_data_argument_reason(&ggb_context,&o,&ggb_data_plan,&gmb_work.smmu,&ggb_smmu);
+@@ -1254,13 +1255,13 @@
+     PZB_FAULT,PZB_ROUTES,PZB_DEVICE,PZB_NC,PZB_SCOPE,PZB_TIME};
+ static struct {unsigned reason,phase,scope;uint64_t now;uint32_t rbbm,cp,shadow,busy;} gpzb_diagnostic;
+ bool sweet_gpu_zap_requested(void)
+-{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2||flag==3||flag==4||flag==5||flag==6||flag==7||flag==8||flag==9||flag==10||flag==11;}
++{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2||flag==3||flag==4||flag==5||flag==6||flag==7||flag==8||flag==9||flag==10||flag==11||flag==12;}
+ enum gmb_state sweet_gpu_zap_state(void)
+ {return (enum gmb_state)__atomic_load_n(&gpzb_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool gpzb_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11)return false;
++    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11&&mode!=12)return false;
+     static const char *const on[]={"sweetbusvote","sweetpasprobe","sweetpasstage",
+         "sweetcxpower","sweetgmuclk","sweetgmufw","sweetgmuperf","sweetgmubw","sweetgmudcvs","sweetgpucontext","sweetgpustart"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet",
+@@ -1456,7 +1457,7 @@
+     UGD_DEVICE,UGD_NC,UGD_ENTRY_BUDGET};
+ static struct {unsigned reason,phase;uint64_t now;uint32_t rbbm,cp;} ggub_diagnostic;
+ bool sweet_gpu_unsecure_requested(void)
+-{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2||mode==3||mode==4||mode==5||mode==6||mode==7||mode==8||mode==9||mode==10||mode==11;}
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2||mode==3||mode==4||mode==5||mode==6||mode==7||mode==8||mode==9||mode==10||mode==11||mode==12;}
+ enum gmb_state sweet_gpu_unsecure_state(void)
+ {return (enum gmb_state)__atomic_load_n(&ggub_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool ggub_reject(enum ggu_phase phase,enum ggub_reason reason)
+@@ -1813,7 +1814,7 @@
+ }
+ 
+ bool sweet_gpu_data_requested(void)
+-{return sweet_gpu_write_requested()||sweet_gpu_ib_requested()||sweet_gpu_eop_requested()||sweet_gpu_compute_requested()||sweet_gpu_clear_requested()||sweet_gpu_draw_requested()||sweet_gpu_sequence_requested()||sweet_gpu_varying_requested()||sweet_gpu_texture_requested();}
++{return sweet_gpu_write_requested()||sweet_gpu_ib_requested()||sweet_gpu_eop_requested()||sweet_gpu_compute_requested()||sweet_gpu_clear_requested()||sweet_gpu_draw_requested()||sweet_gpu_sequence_requested()||sweet_gpu_varying_requested()||sweet_gpu_texture_requested()||sweet_gpu_runtime_requested();}
+ 
+ /* Separate fixed native IB continuation; no old RUNNING guard reuse. */
+ static unsigned ggib_lifecycle,ggib_phase,ggib_sealed;
+@@ -3798,4 +3799,147 @@
+     *out=ggfb_work;__atomic_store_n(&ggfb_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggfb_records(true);return GGF_OK;
+ }
+ 
++/* Opt-in dynamic runtime, reached only after the SAME BOOT's signed ZAP,
++ * native unsecured append and full original DATA19 table validation. Old
++ * diagnostic guards retain their one-shot deadlines and are never reused. */
++static struct ggr_context ggrb_context;
++static uint64_t ggrb_end,ggrb_root;
++static unsigned ggrb_started;
++bool sweet_gpu_runtime_requested(void)
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==12;}
++static uint64_t ggrb_ns(void *cookie)
++{(void)cookie;uint64_t ns;absolutetime_to_nanoseconds(mach_absolute_time(),&ns);return ns;}
++static bool ggrb_live(void *cookie)
++{
++    (void)cookie;uint32_t gx,irq[3];
++    if(!ggrb_started||!gmb_thread()||mach_absolute_time()>=ggrb_end||
++       !sweet_gpu_runtime_requested()||sweet_gmu_board_state()!=GMB_READY||
++       !sweet_pas_zap_owner_authenticated(gmb_stage.pa)||
++       !gauguin_wdt_lease_check_budget(GMB_MIN)||!ggwb_unsecured()||
++       !sweet_gmu_clock_live(true,&gx)||(gx&0x80000001u)!=0x80000000u||
++       !sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000)||!gfw_faults(false)||
++       gfw_load32(gmb_reset+0x2000))return false;
++    volatile uint64_t *root=(volatile uint64_t *)(gmb_ram+GGP_TABLE_OFFSET-GMB_PAGE);
++    return root[1]==ggrb_root&&root[3]==((gmb_stage.pa+GGP_TABLE_OFFSET+0x1000)|3u)&&
++        mach_absolute_time()<ggrb_end;
++}
++static bool ggrb_routes(void)
++{
++    const struct ggs_receipt *s=&ggb_smmu;uint32_t v;uint64_t t;
++    unsigned b=0x8000+4096*s->bank;
++    return s->bank<GSM_BANKS&&s->slot<GSM_STREAMS&&s->ias==39&&s->oas==36&&
++        gmb_read32(NULL,b,&v)&&v==s->sctlr&&gmb_read32(NULL,b+4,&v)&&v==0x70000000&&
++        gmb_read32(NULL,b+0x58,&v)&&!(v&GSM_FSR_FAULT_MASK)&&v!=UINT32_MAX&&
++        gmb_read32(NULL,b+0x10,&v)&&v==s->tcr2&&gmb_read32(NULL,b+0x30,&v)&&v==s->tcr&&
++        gmb_read32(NULL,b+0x38,&v)&&v==s->mair0&&gmb_read32(NULL,b+0x3c,&v)&&v==s->mair1&&
++        gmb_read32(NULL,0x1000+4*s->bank,&v)&&v==0x1f300&&gmb_read32(NULL,0x1800+4*s->bank,&v)&&v==1&&
++        gmb_read32(NULL,0xc00+4*s->slot,&v)&&v==s->s2cr&&
++        (!s->stream_match||(gmb_read32(NULL,0x800+4*s->slot,&v)&&v==s->smr))&&
++        gmb_read64(NULL,b+0x20,&t)&&t==s->ttbr0&&gmb_read64(NULL,b+0x28,&t)&&t==s->ttbr1&&ggq_nc_valid();
++}
++static bool ggrb_read(void *cookie,uint32_t reg,uint32_t *v)
++{(void)cookie;return ggq_board_read(NULL,reg,v);}
++static bool ggrb_write(void *cookie,uint32_t reg,uint32_t v)
++{(void)cookie;return ggq_board_write(NULL,reg,v);}
++static bool ggrb_memory(void *cookie,enum ggr_memory m,uint32_t off,uint32_t *v)
++{
++    (void)cookie;if(!v||(off&3))return false;
++    vm_offset_t va;
++    if(m==GGR_RING&&off<32768)va=gmb_ram+ggb_plan.region[GGP_RING].offset-GMB_PAGE+off;
++    else if(m==GGR_SHADOW&&!off)va=gmb_ram+ggb_plan.region[GGP_SCRATCH].offset-GMB_PAGE;
++    else if(m==GGR_COMPLETION&&!off)va=gmb_ram+ggb_data_plan.data.offset-GMB_PAGE;
++    else return false;
++    *v=gfw_load32(va);return true;
++}
++static bool ggrb_ring(void *cookie,uint32_t off,uint32_t value)
++{
++    (void)cookie;if((off&3)||off>=32768)return false;
++    gfw_store32(gmb_ram+ggb_plan.region[GGP_RING].offset-GMB_PAGE+off,value);return true;
++}
++static void ggrb_quarantine(void *cookie)
++{
++    (void)cookie;
++    /* Every legacy continuation is excluded by mode12. Invalidate the boot
++     * authorities before cached diagnostics; mappings and DMA pages remain. */
++    __atomic_store_n(&ggub_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gpzb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);sweet_pas_zap_quarantine();
++    __atomic_store_n(&ggq_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggc_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    gmb_fail(GMB_GPU,"A619 userspace runtime stopped; DMA owners retained");
++}
++bool sweet_gpu_runtime_ready(void)
++{
++    if(ggrb_context.state!=GGR_READY)return false;
++    if(ggrb_live(NULL)&&ggrb_routes())return true;
++    ggr_fail(&ggrb_context,GGR_UNAVAILABLE);return false;
++}
++bool sweet_gpu_runtime_start(void)
++{
++    if(ggrb_started||!sweet_gpu_runtime_requested()||!gpzb_flags()||!ggwb_unsecured()||
++       !ggb_context_valid()||!ggq_nc_valid()||
++       sweet_gpu_write_state()!=GMB_IDLE||sweet_gpu_ib_state()!=GMB_IDLE||sweet_gpu_eop_state()!=GMB_IDLE||
++       sweet_gpu_compute_state()!=GMB_IDLE||sweet_gpu_clear_state()!=GMB_IDLE||sweet_gpu_draw_state()!=GMB_IDLE||
++       sweet_gpu_sequence_state()!=GMB_IDLE||sweet_gpu_varying_state()!=GMB_IDLE||sweet_gpu_texture_state()!=GMB_IDLE)return false;
++    ggrb_started=1;clock_interval_to_deadline(20,NSEC_PER_SEC,&ggrb_end);
++    struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,gmb_barrier,ggq_board_delay,ggrb_quarantine};
++    enum ggr_error rc=ggr_open(&ggrb_context,&ops,ggb_plan.region[GGP_SCRATCH].iova,ggb_data_plan.data.iova);
++    if(rc!=GGR_OK||!sweet_gpu_runtime_ready()||!GauguinGPUStart()) {
++        if(ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);
++        return false;
++    }
++    gmb_record("SWEET GPU USER: runtime READY initial_shadow=20 window=20s; real dynamic msm API, no Metal");return true;
++}
++bool sweet_gpu_runtime_sync(void)
++{
++    if(!sweet_gpu_runtime_ready())return false;
++    unsigned b=0x8000+4096*ggb_smmu.bank;uint64_t end;
++    clock_interval_to_deadline(20,NSEC_PER_MSEC,&end);
++    if(!ggrb_live(NULL)||!gmb_barrier(NULL)||!gmb_write32(NULL,b+0x610,ggb_smmu.asid)||
++       !gmb_barrier(NULL)||!ggrb_live(NULL)||!gmb_write32(NULL,b+0x7f0,0))goto fail;
++    for(unsigned i=0;i<1000&&mach_absolute_time()<end;i++) {
++        uint32_t status;
++        if(!ggrb_live(NULL)||!gmb_read32(NULL,b+0x7f4,&status)||status==UINT32_MAX)goto fail;
++        if(!(status&1u))return gmb_barrier(NULL)&&sweet_gpu_runtime_ready();
++        delay(5);
++    }
++fail:ggr_fail(&ggrb_context,GGR_IO);return false;
++}
++bool sweet_gpu_runtime_install_root(uint64_t pa)
++{
++    if(!pa||(pa&4095)||pa>UINT64_C(0x0000000ffffff000)||
++       !pmap_valid_page((ppnum_t)(pa>>PAGE_SHIFT))||ggrb_root||!sweet_gpu_runtime_ready())return false;
++    volatile uint64_t *root=(volatile uint64_t *)(gmb_ram+GGP_TABLE_OFFSET-GMB_PAGE);
++    if(root[1]){ggr_fail(&ggrb_context,GGR_IO);return false;}
++    ggrb_root=pa|3;root[1]=ggrb_root;__asm__ volatile("dsb sy" ::: "memory");
++    if(root[1]!=ggrb_root){ggr_fail(&ggrb_context,GGR_IO);return false;}
++    return sweet_gpu_runtime_sync();
++}
++bool sweet_gpu_runtime_submit(const uint64_t *a,const uint32_t *w,uint32_t n,uint32_t *fence)
++{
++    if(!ggrb_root||!sweet_gpu_runtime_ready())return false;
++    enum ggr_error rc=ggr_submit(&ggrb_context,a,w,n,fence);
++    char line[192];snprintf(line,sizeof(line),"SWEET GPU USER: submit rc=%u ibs=%u submitted=%u completed=%u shadow=%u polls=%u",
++        rc,n,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr,ggrb_context.polls);gmb_record(line);
++    return rc==GGR_OK;
++}
++bool sweet_gpu_runtime_done(uint32_t f)
++{return f&&sweet_gpu_runtime_ready()&&f<=ggrb_context.completed;}
++bool sweet_gpu_runtime_parameter(uint32_t p,uint64_t *v)
++{
++    if(!v||!sweet_gpu_runtime_ready())return false;
++    switch(p) {
++    case 1:*v=619;return true;
++    case 2:*v=512*1024;return true;
++    /* Real recovery DT qcom,chipid=06010900; native A619 descriptor has
++     * core6/major1/minor9 and GMEM512KiB. No copied 642L bank/UBWC values. */
++    case 3:*v=0x06010900;return true;
++    case 7:*v=1;return true;
++    default:return false;
++    }
++}
++void sweet_gpu_runtime_stop(void)
++{if(ggrb_started&&ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -19,6 +19,7 @@
+ #include "gauguin_gpu_sequence.h"
+ #include "gauguin_gpu_varying.h"
+ #include "gauguin_gpu_texture.h"
++#include "gauguin_gpu_runtime.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+     GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE,GMB_GPU};
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -0,0 +1,134 @@
++/* Dynamic A619 native IB submission; all storage remains the board owner's.
++ * Packet encoding is the same native PFE/EVENT_WRITE/WHERE_AM_I path already
++ * exercised on this device, with addresses/counts supplied by the user client. */
++#include <string.h>
++#include "gauguin_gpu_runtime.h"
++
++size_t ggr_request_size(uint32_t s)
++{
++    switch(s) {
++    case 0x09:return sizeof(struct ggr_close);
++    case 0x40:return sizeof(struct ggr_param);
++    case 0x42:return sizeof(struct ggr_new);
++    case 0x43:return sizeof(struct ggr_info);
++    case 0x44:return sizeof(struct ggr_cpu_prep);
++    case 0x45:return sizeof(struct ggr_cpu_fini);
++    case 0x46:return sizeof(struct ggr_submit);
++    case 0x47:return sizeof(struct ggr_wait);
++    case 0x48:return sizeof(struct ggr_madvise);
++    case 0x4a:return sizeof(struct ggr_queue);
++    case 0x4b:return sizeof(uint32_t);
++    case 0x4c:return sizeof(struct ggr_queue_query);
++    case 0x7e:return sizeof(struct ggr_surface);
++    default:return 0;
++    }
++}
++bool ggr_command_range(const struct ggr_submit_cmd *c,uint64_t size)
++{
++    return c && c->type==1 && !c->pad && !c->nr_relocs && !c->relocs &&
++        c->size && !(c->size&3) && !(c->submit_offset&3) &&
++        c->size/4<=0xfffff && c->submit_offset<=size && c->size<=size-c->submit_offset;
++}
++bool ggr_user_span(uint64_t p,uint64_t n)
++{return p && n && p<UINT64_C(0x8000000000000000) && n<=UINT64_C(0x8000000000000000)-p;}
++bool ggr_timeout_valid(const struct ggr_timespec *t)
++{return t && t->seconds>=0 && t->nanoseconds>=0 && t->nanoseconds<1000000000;}
++void ggr_fail(struct ggr_context *c,enum ggr_error why)
++{
++    if(!c || c->state==GGR_FAILED)return;
++    c->state=GGR_FAILED;c->last_error=why;
++    c->ops.quarantine(c->ops.cookie);
++}
++static bool alive(struct ggr_context *c)
++{
++    return c && (c->state==GGR_READY||c->state==GGR_BUSY) &&
++        c->ops.nanoseconds(c->ops.cookie)<c->operation_end_ns && c->ops.healthy(c->ops.cookie);
++}
++static bool rd(struct ggr_context *c,uint32_t r,uint32_t *v)
++{return alive(c)&&c->ops.read_reg(c->ops.cookie,r,v)&&alive(c);}
++static bool wr(struct ggr_context *c,uint32_t r,uint32_t v)
++{return alive(c)&&c->ops.write_reg(c->ops.cookie,r,v)&&alive(c);}
++static bool mr(struct ggr_context *c,enum ggr_memory m,uint32_t off,uint32_t *v)
++{return alive(c)&&c->ops.read_memory(c->ops.cookie,m,off,v)&&alive(c);}
++static bool barrier(struct ggr_context *c)
++{return alive(c)&&c->ops.barrier(c->ops.cookie)&&alive(c);}
++static bool delay(struct ggr_context *c)
++{return alive(c)&&c->ops.delay_us(c->ops.cookie,10)&&alive(c);}
++static bool faults(struct ggr_context *c)
++{
++    uint32_t a,b;
++    return rd(c,0x201,&a)&&rd(c,0x823,&b)&&a!=UINT32_MAX &&
++        !(a&((1u<<1)|(1u<<6)|(1u<<7)|(1u<<9)|(1u<<22)|(1u<<23)|(1u<<24)|(1u<<25)|(1u<<28)))&&!(b&0xf7u);
++}
++enum ggr_error ggr_open(struct ggr_context *c,const struct ggr_ops *o,uint32_t scratch,uint32_t completion)
++{
++    if(!c||!o||c->state!=GGR_COLD||!scratch||!completion||(scratch&3)||(completion&3)||
++       !o->healthy||!o->nanoseconds||!o->read_reg||!o->write_reg||!o->read_memory||
++       !o->write_ring||!o->barrier||!o->delay_us||!o->quarantine)return GGR_ARGUMENT;
++    c->ops=*o;c->state=GGR_READY;c->wptr=20;c->scratch_iova=scratch;c->completion_iova=completion;
++    uint64_t now=o->nanoseconds(o->cookie);
++    if(now>UINT64_MAX-UINT64_C(2000000000)){ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;}
++    c->operation_end_ns=now+UINT64_C(2000000000);
++    uint32_t w,shadow,eop,busy;
++    if(!faults(c)||!rd(c,0x807,&w)||w!=20||!mr(c,GGR_SHADOW,0,&shadow)||shadow!=20||
++       !mr(c,GGR_COMPLETION,0,&eop)||eop||!rd(c,0x23b0c,&busy)||busy==UINT32_MAX||(busy&(1u<<23))) {
++        ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;
++    }
++    return GGR_OK;
++}
++enum ggr_error ggr_submit(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *fence)
++{
++    if(!c||!addresses||!words||!fence||!count||count>GGR_MAX_COMMANDS)return GGR_ARGUMENT;
++    for(uint32_t i=0;i<count;i++)if(addresses[i]<GGR_VA_START||addresses[i]>=GGR_VA_END||
++        (addresses[i]&3)||!words[i]||words[i]>0xfffff||4ull*words[i]>GGR_VA_END-addresses[i])return GGR_ARGUMENT;
++    if(c->state!=GGR_READY||c->submitted==UINT32_MAX)return GGR_UNAVAILABLE;
++    uint64_t now=c->ops.nanoseconds(c->ops.cookie);
++    if(now>UINT64_MAX-UINT64_C(2000000000)){ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;}
++    c->operation_end_ns=now+UINT64_C(2000000000);c->state=GGR_BUSY;
++    uint32_t shadow,wptr,busy,control;
++    if(!faults(c)||!rd(c,0x807,&wptr)||wptr!=c->wptr||!mr(c,GGR_SHADOW,0,&shadow)||shadow!=c->wptr||
++       !mr(c,GGR_COMPLETION,0,&control)||control!=c->completed||!rd(c,0x23b0c,&busy)||
++       busy==UINT32_MAX||(busy&(1u<<23)))goto io;
++    /* One in flight: the whole ring is idle, so wrapping cannot overwrite an
++     * unread packet. CP_RB_CNTL already selects the native 8192-DWORD ring. */
++    uint32_t packet[4*GGR_MAX_COMMANDS+8],n=0,next=c->submitted+1;
++    for(uint32_t i=0;i<count;i++) {
++        packet[n++]=0x70bf8003u;packet[n++]=(uint32_t)addresses[i];
++        packet[n++]=0;packet[n++]=words[i];
++    }
++    packet[n++]=0x70460004u;packet[n++]=4;packet[n++]=c->completion_iova;packet[n++]=0;packet[n++]=next;
++    packet[n++]=0x70620002u;packet[n++]=c->scratch_iova;packet[n++]=0;
++    for(uint32_t i=0;i<n;i++) {
++        if(!alive(c)||!c->ops.write_ring(c->ops.cookie,4*((c->wptr+i)%8192),packet[i])||!alive(c))goto io;
++    }
++    if(!barrier(c))goto io;
++    for(uint32_t i=0;i<n;i++) {
++        uint32_t v;
++        if(!mr(c,GGR_RING,4*((c->wptr+i)%8192),&v)||v!=packet[i])goto io;
++    }
++    uint32_t end=(c->wptr+n)%8192;
++    if(!wr(c,0x1f8c3,1)||!wr(c,0x807,end))goto io;
++    c->submitted=next;
++    /* Native fence-off path: protocol WPTR reissues, not command replays. */
++    uint32_t i;
++    for(i=0;i<200;i++) {
++        uint32_t status;
++        if(!barrier(c)||!rd(c,0x23b13,&status))goto io;
++        if(!(status&1u))break;
++        if(!delay(c)||!wr(c,0x807,end))goto io;
++    }
++    if(i==200)goto timeout;
++    if(!wr(c,0x1f8c3,0))goto io;
++    for(i=0;i<200000;i++) {
++        ++c->polls;
++        if(!faults(c)||!barrier(c)||!mr(c,GGR_COMPLETION,0,&control)||!mr(c,GGR_SHADOW,0,&shadow)||
++           !rd(c,0x23b0c,&busy))goto io;
++        if(busy==UINT32_MAX||shadow>=8192||control>next)goto io;
++        if(control==next&&shadow==end&&!(busy&(1u<<23))) {
++            c->wptr=end;c->completed=next;c->state=GGR_READY;*fence=next;return GGR_OK;
++        }
++        if(!delay(c))goto timeout;
++    }
++timeout:ggr_fail(c,GGR_TIMEOUT);return GGR_TIMEOUT;
++io:ggr_fail(c,GGR_IO);return GGR_IO;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -0,0 +1,116 @@
++/* A619 runtime transport. Single privileged client; no Metal claim.
++ * Wire layout follows Linux msm DRM and HakiOS's struct-method transport
++ * (HakiOS 63fc2b4633bac3af8e57dadab9f5a8d4cb940438). */
++#ifndef GAUGUIN_GPU_RUNTIME_H
++#define GAUGUIN_GPU_RUNTIME_H
++#include <stdint.h>
++#include <stdbool.h>
++#include <stddef.h>
++
++#define GGR_VA_START UINT64_C(0x40000000)
++#define GGR_VA_END   UINT64_C(0x80000000)
++#define GGR_MAX_COMMANDS 128u
++#define GGR_MAX_BUFFERS 256u
++#define GGR_MAX_BO_BYTES (64u << 20)
++#define GGR_MAX_CLIENT_BYTES (256u << 20)
++#define GGR_BO_READONLY 2u
++#define GGR_BO_WC 0x20000u
++
++struct ggr_timespec { int64_t seconds, nanoseconds; };
++struct ggr_param { uint32_t pipe, param; uint64_t value; uint32_t len, pad; };
++struct ggr_new { uint64_t size; uint32_t flags, handle; };
++struct ggr_info { uint32_t handle, info; uint64_t value; uint32_t len, pad; };
++struct ggr_cpu_prep { uint32_t handle, op; struct ggr_timespec timeout; };
++struct ggr_cpu_fini { uint32_t handle; };
++struct ggr_submit_bo { uint32_t flags, handle; uint64_t presumed; };
++struct ggr_submit_cmd {
++    uint32_t type, submit_idx, submit_offset, size, pad, nr_relocs;
++    uint64_t relocs;
++};
++struct ggr_submit {
++    uint32_t flags, fence, nr_bos, nr_cmds;
++    uint64_t bos, cmds;
++    int32_t fence_fd;
++    uint32_t queueid;
++    uint64_t in_syncobjs, out_syncobjs;
++    uint32_t nr_in_syncobjs, nr_out_syncobjs, syncobj_stride, pad;
++};
++struct ggr_wait { uint32_t fence, flags; struct ggr_timespec timeout; uint32_t queueid; };
++struct ggr_close { uint32_t handle, pad; };
++struct ggr_madvise { uint32_t handle, madv, retained; };
++struct ggr_queue { uint32_t flags, prio, id; };
++struct ggr_queue_query { uint64_t data; uint32_t id, param, len, pad; };
++struct ggr_surface {
++    uint32_t surface, handle;
++    uint64_t size;
++    uint32_t offset, rowBytes, width, height, pixelFormat, planes;
++};
++
++#if defined(__cplusplus)
++#define GGR_ASSERT static_assert
++extern "C" {
++#else
++#define GGR_ASSERT _Static_assert
++#endif
++GGR_ASSERT(sizeof(struct ggr_param)==24,"msm param ABI");
++GGR_ASSERT(sizeof(struct ggr_new)==16,"msm BO ABI");
++GGR_ASSERT(sizeof(struct ggr_info)==24,"msm BO info ABI");
++GGR_ASSERT(sizeof(struct ggr_cpu_prep)==24,"msm CPU prep ABI");
++GGR_ASSERT(sizeof(struct ggr_submit_bo)==16,"msm submit BO ABI");
++GGR_ASSERT(sizeof(struct ggr_submit_cmd)==32,"msm submit command ABI");
++GGR_ASSERT(sizeof(struct ggr_submit)==72,"msm submit ABI");
++GGR_ASSERT(offsetof(struct ggr_submit,bos)==16,"msm pointer ABI");
++GGR_ASSERT(sizeof(struct ggr_wait)==32,"msm fence ABI");
++GGR_ASSERT(sizeof(struct ggr_surface)==40,"HakiOS surface ABI");
++
++/* Shared exact-shape/range checks are also used by the actual IOUserClient. */
++size_t ggr_request_size(uint32_t selector);
++bool ggr_command_range(const struct ggr_submit_cmd *, uint64_t buffer_bytes);
++bool ggr_user_span(uint64_t address, uint64_t bytes);
++bool ggr_timeout_valid(const struct ggr_timespec *);
++
++enum ggr_memory { GGR_RING, GGR_SHADOW, GGR_COMPLETION };
++enum ggr_state { GGR_COLD, GGR_READY, GGR_BUSY, GGR_FAILED };
++enum ggr_error { GGR_OK, GGR_ARGUMENT, GGR_UNAVAILABLE, GGR_IO, GGR_TIMEOUT };
++struct ggr_ops {
++    void *cookie;
++    bool (*healthy)(void *);
++    uint64_t (*nanoseconds)(void *);
++    bool (*read_reg)(void *,uint32_t,uint32_t *);
++    bool (*write_reg)(void *,uint32_t,uint32_t);
++    bool (*read_memory)(void *,enum ggr_memory,uint32_t,uint32_t *);
++    bool (*write_ring)(void *,uint32_t,uint32_t);
++    bool (*barrier)(void *);
++    bool (*delay_us)(void *,uint32_t);
++    void (*quarantine)(void *);
++};
++struct ggr_context {
++    uint32_t state, wptr, submitted, completed, last_error, polls;
++    uint32_t scratch_iova, completion_iova;
++    uint64_t operation_end_ns;
++    struct ggr_ops ops;
++};
++/* Caller serializes all entries. No memory may be freed on a started failure.
++ * Submission is initially synchronous: success requires the GPU's EOP value,
++ * WHERE_AM_I shadow, no live fault and idle. A returned fence is real, already
++ * completed; an AO/ring reading alone is never treated as a completion. */
++enum ggr_error ggr_open(struct ggr_context *,const struct ggr_ops *,uint32_t,uint32_t);
++enum ggr_error ggr_submit(struct ggr_context *,const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
++void ggr_fail(struct ggr_context *,enum ggr_error);
++
++/* Private board owner, implemented alongside the proven A619 bootstrap. */
++bool sweet_gpu_runtime_requested(void);
++bool sweet_gpu_runtime_start(void);
++bool sweet_gpu_runtime_ready(void);
++bool sweet_gpu_runtime_install_root(uint64_t directory_pa);
++bool sweet_gpu_runtime_sync(void);
++bool sweet_gpu_runtime_submit(const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
++bool sweet_gpu_runtime_done(uint32_t);
++bool sweet_gpu_runtime_parameter(uint32_t,uint64_t *);
++void sweet_gpu_runtime_stop(void);
++bool GauguinGPUStart(void);
++#if defined(__cplusplus)
++}
++#endif
++#undef GGR_ASSERT
++#endif
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -266,7 +266,7 @@
+ static bool psz_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11)return false;
++    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11&&mode!=12)return false;
+     static const char *const on[]={"sweetpasprobe","sweetpasstage"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem"};
+     for(unsigned i=0;i<sizeof(on)/sizeof(on[0]);i++){int v=0;(void)PE_parse_boot_argn(on[i],&v,sizeof(v));if(v!=1)return false;}
+--- /dev/null
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -0,0 +1,426 @@
++/* msm-numbered IOKit transport for the existing A619 bootstrap.
++ * Interface compatibility: HakiOS 63fc2b4633bac3af8e57dadab9f5a8d4cb940438.
++ * The backend, ownership, exact wire validation and SweetSurface adapter here
++ * are local. Opt-in/root-only/one client; submissions initially synchronize
++ * before returning. This is not an IOAccelerator or a Metal implementation. */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <IOKit/IOLib.h>
++#include <IOKit/IOLocks.h>
++#include <IOKit/IOKitKeys.h>
++#include <IOKit/IOPlatformExpert.h>
++#include <IOKit/IOService.h>
++#include <IOKit/IOUserClient.h>
++#include <IOKit/IOBufferMemoryDescriptor.h>
++#include <kern/clock.h>
++#include <vm/pmap.h>
++#include <sys/systm.h>
++#include <sys/proc.h>
++#include "SweetSurface.h"
++#include "../../../bsd/dev/gauguin_gpu_runtime.h"
++extern "C" void flush_dcache64(addr64_t,unsigned,int);
++extern "C" boolean_t pmap_valid_page(ppnum_t);
++
++static IOLock *gLock;
++static IOUserClient *gOwner;
++/* Kept until reset even on failure: a table visible to a live SMMU may never
++ * be returned to the allocator merely because an operation timed out. */
++static IOBufferMemoryDescriptor *gTables;
++static volatile uint64_t *gPtes;
++static uint64_t gAllocated[256]; /* one bit per 64KiB GPU VA allocation unit */
++static bool gPublished;
++#define GPU_TABLE_BYTES (4096u+512u*4096u)
++#define GPU_TABLE_ALLOC ((GPU_TABLE_BYTES+16383u)&~16383u)
++#define GPU_VA_UNIT UINT64_C(65536)
++
++static bool physicalPage(IOMemoryDescriptor *m,uint64_t off,uint64_t *pa)
++{
++    IOByteCount length=0;
++    uint64_t p=m->getPhysicalSegment(off,&length,kIOMemoryMapperNone);
++    /* Only pages owned by the VM allocator, never MMIO, protected PAS memory
++     * or an unvalidated physical IOSurface. Current native SMMU OAS is >=36. */
++    if(!p||(p&4095)||p>UINT64_C(0x0000000ffffff000)||length<4096||
++       !pmap_valid_page((ppnum_t)(p>>PAGE_SHIFT)))return false;
++    *pa=p;return true;
++}
++static void memoryBarrier(void)
++{__asm__ volatile("dsb sy" ::: "memory");}
++
++static bool prepareTables(void)
++{
++    if(gTables)return gPtes&&sweet_gpu_runtime_ready();
++    IOBufferMemoryDescriptor *m=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
++        kIODirectionInOut|kIOMapWriteCombineCache,GPU_TABLE_ALLOC,PAGE_SIZE);
++    if(!m)return false;
++    if(m->prepare()!=kIOReturnSuccess){m->release();return false;}
++    volatile uint64_t *p=(volatile uint64_t *)m->getBytesNoCopy();
++    if(!p){m->complete();m->release();return false;}
++    bzero((void *)p,GPU_TABLE_ALLOC);
++    uint64_t directory=0;
++    bool valid=p&&physicalPage(m,0,&directory);
++    for(uint32_t i=0;i<512&&valid;i++) {
++        uint64_t leaf;
++        valid=physicalPage(m,4096ull*(i+1),&leaf);
++        if(valid)p[i]=leaf|3;
++    }
++    if(!valid){m->complete();m->release();return false;}
++    memoryBarrier();
++    /* Publish retention BEFORE handing a physical address to the SMMU. */
++    gTables=m;gPtes=p;
++    if(!sweet_gpu_runtime_install_root(directory))return false;
++    return true;
++}
++static uint64_t reserveAddress(uint64_t bytes)
++{
++    const uint32_t units=(uint32_t)((bytes+GPU_VA_UNIT-1)/GPU_VA_UNIT);
++    uint32_t first=0,run=0;
++    if(!units||units>16384)return 0;
++    for(uint32_t i=0;i<16384;i++) {
++        if(gAllocated[i/64]&(UINT64_C(1)<<(i%64))){run=0;continue;}
++        if(!run)first=i;
++        if(++run!=units)continue;
++        for(uint32_t j=first;j<first+units;j++)gAllocated[j/64]|=UINT64_C(1)<<(j%64);
++        return GGR_VA_START+first*GPU_VA_UNIT;
++    }
++    return 0;
++}
++static void releaseAddress(uint64_t address,uint64_t bytes)
++{
++    uint32_t first=(uint32_t)((address-GGR_VA_START)/GPU_VA_UNIT);
++    uint32_t units=(uint32_t)((bytes+GPU_VA_UNIT-1)/GPU_VA_UNIT);
++    for(uint32_t j=first;j<first+units;j++)gAllocated[j/64]&=~(UINT64_C(1)<<(j%64));
++}
++static volatile uint64_t *leafAt(uint64_t address)
++{return gPtes+512+(address-GGR_VA_START)/4096;}
++
++struct gpu_buffer {
++    IOMemoryDescriptor *memory;
++    SweetSurface *surface;
++    uint64_t address,size;
++    uint32_t handle,flags;
++    bool installed;
++};
++class GauguinGPUUserClient : public IOUserClient {
++    OSDeclareDefaultStructors(GauguinGPUUserClient);
++    task_t fTask;
++    gpu_buffer *fBuffers;
++    uint64_t fBytes;
++    uint32_t fNextHandle,fQueue,fNextQueue,fLastFence;
++    bool fClosed;
++    gpu_buffer *find(uint32_t);
++    IOReturn add(IOMemoryDescriptor *,SweetSurface *,uint64_t,uint32_t,uint32_t *);
++    bool drop(gpu_buffer *);
++    IOReturn submit(struct ggr_submit *);
++    IOReturn surface(struct ggr_surface *);
++public:
++    bool initWithTask(task_t,void *,UInt32,OSDictionary *) APPLE_KEXT_OVERRIDE;
++    bool start(IOService *) APPLE_KEXT_OVERRIDE;
++    IOReturn clientClose(void) APPLE_KEXT_OVERRIDE;
++    void free(void) APPLE_KEXT_OVERRIDE;
++    IOReturn clientMemoryForType(UInt32,IOOptionBits *,IOMemoryDescriptor **) APPLE_KEXT_OVERRIDE;
++    IOReturn externalMethod(uint32_t,IOExternalMethodArguments *,IOExternalMethodDispatch *,OSObject *,void *) APPLE_KEXT_OVERRIDE;
++};
++OSDefineMetaClassAndStructors(GauguinGPUUserClient,IOUserClient);
++
++/* Class name deliberately matches the reused userspace transport. */
++class HakiosGPU : public IOService {
++    OSDeclareDefaultStructors(HakiosGPU);
++public:
++    bool start(IOService *p) APPLE_KEXT_OVERRIDE {
++        if(!IOService::start(p))return false;
++        setProperty(kIOUserClientClassKey,"GauguinGPUUserClient");
++        setProperty("GPUModel","Adreno 619");
++        setProperty("GauguinPrivilegedPrototype",kOSBooleanTrue);
++        setName("HakiosGPU");registerService();return true;
++    }
++};
++OSDefineMetaClassAndStructors(HakiosGPU,IOService);
++
++extern "C" bool GauguinGPUStart(void)
++{
++    if(gPublished||!sweet_gpu_runtime_ready())return false;
++    IOLock *lock=IOLockAlloc();
++    if(!lock)return false;
++    /* Display readers can race publication; install once and never replace. */
++    __atomic_store_n(&gLock,lock,__ATOMIC_RELEASE);
++    IOService *p=IOService::getPlatform();
++    HakiosGPU *s=OSTypeAlloc(HakiosGPU);
++    if(!p||!s){OSSafeReleaseNULL(s);return false;}
++    bool initialized=s->init();
++    bool attached=initialized&&s->attach(p);
++    bool started=attached&&s->start(p);
++    if(attached&&!started)s->detach(p);
++    s->release();gPublished=started;
++    IOLog("SWEET GPU USER: service=%u root-only single-client synchronous-submit\n",started);
++    return started;
++}
++extern "C" void GauguinGPUStop(void)
++{
++    if(gLock)IOLockLock(gLock);
++    sweet_gpu_runtime_stop();
++    if(gLock)IOLockUnlock(gLock);
++}
++
++/* Token 1: CPU-only path before GPU publication; 2: the GPU lock is held.
++ * The token avoids unlocking a lock published between begin and end. Lock
++ * order is framebuffer -> GPU -> surface lookup; GPU never calls framebuffer. */
++extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *s)
++{
++    IOLock *lock=__atomic_load_n(&gLock,__ATOMIC_ACQUIRE);
++    if(!lock)return 1;
++    IOLockLock(lock);
++    if(s->gpuState){IOLockUnlock(lock);return 0;}
++    return 2;
++}
++extern "C" void GauguinGPUSurfaceEnd(uint32_t token)
++{if(token==2)IOLockUnlock(gLock);}
++
++bool GauguinGPUUserClient::initWithTask(task_t task,void *sid,UInt32 type,OSDictionary *properties)
++{
++    if(type||clientHasPrivilege(task,kIOClientPrivilegeAdministrator)!=kIOReturnSuccess||
++       !IOUserClient::initWithTask(task,sid,type,properties))return false;
++    fTask=task;fNextHandle=1;fNextQueue=1;return true;
++}
++bool GauguinGPUUserClient::start(IOService *p)
++{
++    if(!gLock||!IOUserClient::start(p))return false;
++    IOLockLock(gLock);
++    bool ok=!gOwner&&sweet_gpu_runtime_ready()&&prepareTables();
++    if(ok){fBuffers=IONewZero(gpu_buffer,GGR_MAX_BUFFERS);ok=fBuffers!=nullptr;}
++    if(ok)gOwner=this;
++    IOLockUnlock(gLock);return ok;
++}
++gpu_buffer *GauguinGPUUserClient::find(uint32_t handle)
++{
++    if(!handle||!fBuffers)return nullptr;
++    for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].handle==handle)return fBuffers+i;
++    return nullptr;
++}
++IOReturn GauguinGPUUserClient::add(IOMemoryDescriptor *m,SweetSurface *s,uint64_t size,uint32_t flags,uint32_t *handle)
++{
++    if(!size||(size&PAGE_MASK)||size>GGR_MAX_BO_BYTES||size>GGR_MAX_CLIENT_BYTES-fBytes||!fNextHandle)
++        return kIOReturnNoResources;
++    gpu_buffer *slot=nullptr;
++    for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(!fBuffers[i].memory){slot=fBuffers+i;break;}
++    if(!slot)return kIOReturnNoResources;
++    uint64_t address=reserveAddress(size);
++    if(!address)return kIOReturnNoResources;
++    if(m->prepare()!=kIOReturnSuccess){releaseAddress(address,size);return kIOReturnVMError;}
++    /* Complete validation before the first PTE store. No partial map on an
++     * invalid physical segment. Each CPU 16KiB page contributes FOUR leaves. */
++    for(uint64_t off=0;off<size;off+=4096) {
++        uint64_t pa;
++        if(!physicalPage(m,off,&pa)||*leafAt(address+off)) {
++            m->complete();releaseAddress(address,size);return kIOReturnVMError;
++        }
++    }
++    m->retain();if(s)s->retain();
++    *slot={m,s,address,size,fNextHandle++,flags,true};fBytes+=size;
++    for(uint64_t off=0;off<size;off+=4096) {
++        uint64_t pa=0;
++        if(!physicalPage(m,off,&pa)){sweet_gpu_runtime_stop();return kIOReturnVMError;}
++        /* Native NC/outer-shareable/user/AF/nG. GPU data and code buffers
++         * share Linux-msm's mapping policy; AP RO is honored when requested. */
++        *leafAt(address+off)=pa|UINT64_C(0xe43)|((flags&GGR_BO_READONLY)?0x80:0);
++    }
++    memoryBarrier();
++    if(!sweet_gpu_runtime_sync())return kIOReturnNotReady; /* retained */
++    *handle=slot->handle;return kIOReturnSuccess;
++}
++bool GauguinGPUUserClient::drop(gpu_buffer *b)
++{
++    if(!b->memory)return true;
++    if(!sweet_gpu_runtime_ready())return false;
++    for(uint64_t off=0;off<b->size;off+=4096)*leafAt(b->address+off)=0;
++    memoryBarrier();
++    if(!sweet_gpu_runtime_sync())return false;
++    releaseAddress(b->address,b->size);fBytes-=b->size;
++    b->memory->complete();b->memory->release();OSSafeReleaseNULL(b->surface);
++    bzero(b,sizeof(*b));return true;
++}
++IOReturn GauguinGPUUserClient::clientClose(void)
++{
++    if(gLock) {
++        IOLockLock(gLock);
++        if(!fClosed) {
++            fClosed=true;bool clean=true;
++            if(fBuffers)for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
++            if(gOwner==this&&clean)gOwner=nullptr;
++            if(!clean)IOLog("SWEET GPU USER: client closed after fault; DMA-visible memory/tables retained until reset\n");
++        }
++        IOLockUnlock(gLock);
++    }
++    if(!isInactive())terminate();return kIOReturnSuccess;
++}
++void GauguinGPUUserClient::free(void)
++{
++    /* Even unusual start/death paths must not release a descriptor still
++     * visible to DMA. Normal clientClose has already completed/unmapped it. */
++    if(fBuffers){IODelete(fBuffers,gpu_buffer,GGR_MAX_BUFFERS);fBuffers=nullptr;}
++    IOUserClient::free();
++}
++IOReturn GauguinGPUUserClient::clientMemoryForType(UInt32 type,IOOptionBits *options,IOMemoryDescriptor **memory)
++{
++    if(!options||!memory||!gLock)return kIOReturnBadArgument;
++    IOLockLock(gLock);IOReturn r=kIOReturnBadArgument;
++    gpu_buffer *b=!fClosed&&gOwner==this?find(type):nullptr;
++    if(b&&sweet_gpu_runtime_ready()) {
++        b->memory->retain();*memory=b->memory;*options=0;r=kIOReturnSuccess;
++    }
++    IOLockUnlock(gLock);return r;
++}
++
++IOReturn GauguinGPUUserClient::surface(struct ggr_surface *r)
++{
++    SweetSurface *s=sweet_surface_copy(r->surface);
++    if(!s)return kIOReturnNotFound;
++    /* SweetSurface::memory ALREADY names pixels. Its state page is separate.
++     * Importing a MiniIOSurface-style PAGE_SIZE subrange here corrupts rows. */
++    if(!OSDynamicCast(IOBufferMemoryDescriptor,s->memory)||!s->allocSize||
++       s->allocSize>GGR_MAX_BO_BYTES||(s->allocSize&PAGE_MASK)||s->offset>=s->allocSize||s->planeCount>1||
++       !s->width||!s->height||s->bytesPerElement!=4||s->bytesPerRow<4ull*s->width||
++       (uint64_t)s->offset+(uint64_t)(s->height-1)*s->bytesPerRow+4ull*s->width>s->allocSize) {
++        s->release();return kIOReturnUnsupported;
++    }
++    r->size=s->allocSize;r->offset=s->offset;r->rowBytes=s->bytesPerRow;
++    r->width=s->width;r->height=s->height;r->pixelFormat=s->pixelFormat;r->planes=s->planeCount;
++    IOReturn ret=kIOReturnSuccess;
++    if(r->handle==UINT32_MAX)r->handle=0;
++    else {
++        gpu_buffer *existing=nullptr;
++        for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].surface==s){existing=fBuffers+i;break;}
++        if(existing)r->handle=existing->handle;
++        else ret=add(s->memory,s,s->allocSize,0,&r->handle);
++    }
++    s->release();return ret;
++}
++
++IOReturn GauguinGPUUserClient::submit(struct ggr_submit *r)
++{
++    if((r->flags&~UINT32_C(0x80000010))||(r->flags&0x1f)!=0x10||r->fence||
++       !r->nr_bos||r->nr_bos>GGR_MAX_BUFFERS||!r->nr_cmds||r->nr_cmds>GGR_MAX_COMMANDS||
++       (r->queueid&&r->queueid!=fQueue)||r->in_syncobjs||r->out_syncobjs||r->nr_in_syncobjs||
++       r->nr_out_syncobjs||r->syncobj_stride||r->pad||r->fence_fd!=-1||
++       !ggr_user_span(r->bos,(uint64_t)r->nr_bos*sizeof(struct ggr_submit_bo))||
++       !ggr_user_span(r->cmds,(uint64_t)r->nr_cmds*sizeof(struct ggr_submit_cmd)))return kIOReturnBadArgument;
++    auto bos=IONew(struct ggr_submit_bo,r->nr_bos);
++    auto cmds=IONew(struct ggr_submit_cmd,r->nr_cmds);
++    IOReturn result=kIOReturnBadArgument;
++    if(!bos||!cmds){result=kIOReturnNoMemory;goto out;}
++    if(copyin(r->bos,bos,r->nr_bos*sizeof(*bos))||copyin(r->cmds,cmds,r->nr_cmds*sizeof(*cmds))) {
++        result=kIOReturnVMError;goto out;
++    }
++    {
++        uint64_t addresses[GGR_MAX_COMMANDS];uint32_t words[GGR_MAX_COMMANDS];
++        for(uint32_t i=0;i<r->nr_bos;i++) {
++            gpu_buffer *b=find(bos[i].handle);
++            if(!b||!bos[i].flags||(bos[i].flags&~3u)||
++               ((bos[i].flags&2)&&(b->flags&GGR_BO_READONLY))||
++               (bos[i].presumed&&bos[i].presumed!=b->address))goto out;
++            for(uint32_t j=0;j<i;j++)if(bos[j].handle==bos[i].handle)goto out;
++        }
++        for(uint32_t i=0;i<r->nr_cmds;i++) {
++            if(cmds[i].submit_idx>=r->nr_bos)goto out;
++            gpu_buffer *b=find(bos[cmds[i].submit_idx].handle);
++            if(!(bos[cmds[i].submit_idx].flags&1)||!ggr_command_range(cmds+i,b->size))goto out;
++            addresses[i]=b->address+cmds[i].submit_offset;words[i]=cmds[i].size/4;
++        }
++        /* Validate ALL requests before changing any surface state or ringing
++         * a doorbell. Descriptor arrays are kernel copies, not reread later. */
++        for(uint32_t i=0;i<r->nr_bos;i++) {
++            gpu_buffer *b=find(bos[i].handle);
++            if(b->surface) {
++                uintptr_t ptr=b->surface->kernelAddress();
++                if(!ptr)goto out;
++            }
++        }
++        for(uint32_t i=0;i<r->nr_bos;i++) {
++            gpu_buffer *b=find(bos[i].handle);
++            if(b->surface) {
++                b->surface->gpuState=1;
++                flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
++            }
++        }
++        memoryBarrier();uint32_t fence=0;
++        bool ok=sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
++        for(uint32_t i=0;i<r->nr_bos;i++) {
++            gpu_buffer *b=find(bos[i].handle);
++            if(b->surface) {
++                if(ok)flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
++                b->surface->gpuState=ok?0:2;
++            }
++        }
++        memoryBarrier();
++        if(ok){r->fence=fence;fLastFence=fence;result=kIOReturnSuccess;}
++        else result=kIOReturnTimeout;
++    }
++out:
++    if(bos)IODelete(bos,struct ggr_submit_bo,r->nr_bos);
++    if(cmds)IODelete(cmds,struct ggr_submit_cmd,r->nr_cmds);
++    return result;
++}
++
++IOReturn GauguinGPUUserClient::externalMethod(uint32_t selector,IOExternalMethodArguments *a,
++    IOExternalMethodDispatch *,OSObject *,void *)
++{
++    union { struct ggr_param param;struct ggr_new make;struct ggr_info info;
++        struct ggr_cpu_prep prep;struct ggr_cpu_fini fini;struct ggr_close close;
++        struct ggr_submit submit;struct ggr_wait wait;struct ggr_madvise madvise;
++        struct ggr_queue queue;struct ggr_queue_query query;struct ggr_surface surface;uint32_t queueId;
++    } r;
++    size_t size=ggr_request_size(selector);
++    if(!size)return kIOReturnUnsupported;
++    if(!a||!a->structureInput||!a->structureOutput||a->structureInputSize!=size||a->structureOutputSize!=size||
++       a->scalarInputCount||a->scalarOutputCount||a->structureInputDescriptor||a->structureOutputDescriptor||!gLock)
++        return kIOReturnBadArgument;
++    bzero(&r,sizeof(r));memcpy(&r,a->structureInput,size);
++    IOLockLock(gLock);IOReturn result=kIOReturnBadArgument;
++    if(fClosed||!fBuffers||gOwner!=this||!sweet_gpu_runtime_ready()){result=kIOReturnNotReady;goto out;}
++    switch(selector) {
++    case 0x40:
++        if(r.param.pipe!=0x10||r.param.len||r.param.pad)break;
++        result=sweet_gpu_runtime_parameter(r.param.param,&r.param.value)?kIOReturnSuccess:kIOReturnUnsupported;break;
++    case 0x42: {
++        if(!r.make.size||r.make.size>GGR_MAX_BO_BYTES||r.make.handle||(r.make.flags&~(GGR_BO_READONLY|GGR_BO_WC)))break;
++        uint64_t n=(r.make.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
++        auto m=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
++            kIODirectionInOut|kIOMemoryKernelUserShared|kIOMapWriteCombineCache,(vm_size_t)n,PAGE_SIZE);
++        if(!m){result=kIOReturnNoMemory;break;}
++        bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
++        result=add(m,nullptr,n,r.make.flags,&r.make.handle);m->release();break;
++    }
++    case 0x43: {
++        gpu_buffer *b=find(r.info.handle);if(!b||r.info.pad||r.info.len)break;
++        if(r.info.info==0)r.info.value=(uint64_t)b->handle<<32;
++        else if(r.info.info==1)r.info.value=b->address;
++        else if(r.info.info==5)r.info.value=b->flags|GGR_BO_WC;
++        else {result=kIOReturnUnsupported;break;}
++        result=kIOReturnSuccess;break;
++    }
++    case 0x09: {gpu_buffer *b=find(r.close.handle);if(b&&!r.close.pad)result=drop(b)?kIOReturnSuccess:kIOReturnNotReady;break;}
++    case 0x44:
++        if(find(r.prep.handle)&&!(r.prep.op&~7u)&&ggr_timeout_valid(&r.prep.timeout)) {
++            memoryBarrier();result=kIOReturnSuccess;
++        }break;
++    case 0x45:if(find(r.fini.handle)){memoryBarrier();result=kIOReturnSuccess;}break;
++    case 0x46:result=submit(&r.submit);break;
++    case 0x47:
++        if(r.wait.fence&&r.wait.fence<=fLastFence&&!r.wait.flags&&ggr_timeout_valid(&r.wait.timeout)&&
++           (!r.wait.queueid||r.wait.queueid==fQueue))result=sweet_gpu_runtime_done(r.wait.fence)?kIOReturnSuccess:kIOReturnTimeout;
++        break;
++    case 0x48:
++        if(find(r.madvise.handle)&&r.madvise.madv<=1){r.madvise.retained=1;result=kIOReturnSuccess;}break;
++    case 0x4a:
++        if(!fQueue&&!r.queue.flags&&!r.queue.prio&&!r.queue.id&&fNextQueue) {
++            fQueue=fNextQueue++;r.queue.id=fQueue;result=kIOReturnSuccess;
++        }break;
++    case 0x4b:if(fQueue&&r.queueId==fQueue){fQueue=0;result=kIOReturnSuccess;}break;
++    case 0x4c:result=kIOReturnUnsupported;break;
++    case 0x7e:result=surface(&r.surface);break;
++    default:result=kIOReturnUnsupported;break;
++    }
++out:
++    if(result==kIOReturnSuccess){memcpy(a->structureOutput,&r,size);a->structureOutputSize=(uint32_t)size;}
++    IOLockUnlock(gLock);return result;
++}
++#endif
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -902,6 +902,10 @@
+ 			OSSafeReleaseNULL(s);
+ 			continue;
+ 		}
++#if defined(GAUGUIN)
++        SweetSurfaceGPURead gpuRead(s);
++        if(!gpuRead.valid()){s->release();continue;}
++#endif
+ 		/*
+ 		 * Sample the surface being swapped - the one userland just handed
+ 		 * us - and not fSurface, which is the panel's own surface. The
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -33,6 +33,7 @@
+ 	uint16_t bytesPerElement;
+ 	uint8_t  elementWidth, elementHeight;
+ 	uint32_t cacheMode, planeCount, parentID;
++	uint32_t gpuState; /* GPU lock: 0 complete/CPU, 1 in flight, 2 failed */
+ 	struct sweet_surface_plane planes[SWEET_SURFACE_MAX_PLANES];
+ 
+ 	IOMemoryDescriptor       *memory;       /* pixels (buffer or physical) */
+@@ -40,7 +41,7 @@
+ 	IOBufferMemoryDescriptor *state;        /* shared state page, read-only for users */
+ 	IOMemoryMap              *kernelMap;    /* lazily created for kernel copies */
+ 
+-	bool init() APPLE_KEXT_OVERRIDE { return OSObject::init(); }
++	bool init() APPLE_KEXT_OVERRIDE { gpuState=0; return OSObject::init(); }
+ 	void free() APPLE_KEXT_OVERRIDE;
+ 
+ 	/* Kernel address of the pixels (mapped on first use), or 0. */
+@@ -61,5 +62,18 @@
+ /* Send right for the surface in task (IOSurfaceLookupFromMachPort). */
+ mach_port_name_t sweet_surface_port_in_task(SweetSurface *surface, task_t task);
+ 
++#if defined(GAUGUIN)
++extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *);
++extern "C" void GauguinGPUSurfaceEnd(uint32_t);
++class SweetSurfaceGPURead {
++    uint32_t token;
++public:
++    explicit SweetSurfaceGPURead(SweetSurface *s) : token(GauguinGPUSurfaceBegin(s)) {}
++    ~SweetSurfaceGPURead() { GauguinGPUSurfaceEnd(token); }
++    bool valid() const { return token!=0; }
++    SweetSurfaceGPURead(const SweetSurfaceGPURead &)=delete;
++    SweetSurfaceGPURead &operator=(const SweetSurfaceGPURead &)=delete;
++};
++#endif
+ #endif /* SWEET */
+ #endif /* _SWEET_SURFACE_H */
+--- a/iokit/conf/files.arm64
++++ b/iokit/conf/files.arm64
+@@ -14,6 +14,7 @@
+ iokit/Kernel/arm/SweetKeyStore.cpp                               optional iokitcpp
+ iokit/Kernel/arm/SweetWatchdog.cpp                               optional iokitcpp
+ iokit/Kernel/arm/SweetSurface.cpp                                optional iokitcpp
++iokit/Kernel/arm/GauguinGPU.cpp                                  optional iokitcpp
+ iokit/Kernel/arm/SweetFramebuffer.cpp                            optional iokitcpp
+ iokit/Kernel/arm/SweetTouchTimer.cpp                             optional iokitcpp
+ iokit/Kernel/arm/SweetBattery.cpp                                optional iokitcpp

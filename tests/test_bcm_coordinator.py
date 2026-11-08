@@ -42,7 +42,7 @@ def main(temporary):
              bus / 'gauguin_bus_probe.h', shared / 'gauguin_cx_rail.h', power / 'gauguin_cx_power.h', power / 'gauguin_gmu_clock.h',
              *(header_dev / name for name in ('gauguin_pas_stage.h', 'gauguin_bcm_transport.h',
                  'gauguin_wdt_lease.h', 'gauguin_bcm_plan.h'))]
-    files += [dev/n for n in ['gauguin_gpu_unsecure.h','gauguin_gpu_data.h','gauguin_gpu_write.h','gauguin_gpu_ib.h','gauguin_gpu_eop.h','gauguin_gpu_compute.h','gauguin_gpu_clear.h','gauguin_gpu_draw.h','gauguin_gpu_sequence.h','gauguin_gpu_varying.h','gauguin_gpu_texture.h']]
+    files += [dev/n for n in ['gauguin_gpu_unsecure.h','gauguin_gpu_data.h','gauguin_gpu_write.h','gauguin_gpu_ib.h','gauguin_gpu_eop.h','gauguin_gpu_compute.h','gauguin_gpu_clear.h','gauguin_gpu_draw.h','gauguin_gpu_sequence.h','gauguin_gpu_varying.h','gauguin_gpu_texture.h','gauguin_gpu_runtime.h']]
     files += [dev/name for name in ('gauguin_gmu_board.h','gauguin_gmu_asset.h',
         'gauguin_gmu_firmware.h','gauguin_gmu_hfi.h','gauguin_gmu_memory.h',
         'gauguin_gmu_smmu.h','gauguin_gpu_smmu.h','gauguin_gpu_memory.h','gauguin_gpu_aperture.h','gauguin_gpu_start.h','gauguin_gpu_core.h','gauguin_gpu_cp.h','gauguin_gpu_zap.h','gauguin_gpu_zap_asset.h','cmd_db_snapshot.h')]
@@ -101,9 +101,11 @@ def main(temporary):
         assert varying and int(varying[1])==37 and int(varying[2])==int(sequence[2])+37
         texture=re.search(r'PASS: (\d+) new mode11 coordinator cases \((\d+) total\); old cases retained',output)
         assert texture and int(texture[1])==38 and int(texture[2])==int(varying[2])+38
+        runtime=re.search(r'PASS: (\d+) new mode12 coordinator cases \((\d+) total\); old cases retained',output)
+        assert runtime and int(runtime[1])==22 and int(runtime[2])==int(texture[2])+22
         report.update(state='passed', original_cases=58, init_cases=42, mem_cases=49,
                       cx_cases=int(counts[1]), clock_cases=int(clock[1]),
-                      firmware_cases=int(firmware[2]), perf_cases=int(perf[2]), total_cases=int(texture[2]), triangle_cases=int(triangle[1]), sequence_cases=int(sequence[1]), varying_cases=int(varying[1]), texture_cases=int(texture[1]))
+                      firmware_cases=int(firmware[2]), perf_cases=int(perf[2]), total_cases=int(runtime[2]), runtime_cases=int(runtime[1]), triangle_cases=int(triangle[1]), sequence_cases=int(sequence[1]), varying_cases=int(varying[1]), texture_cases=int(texture[1]))
     except Exception as error:
         report.update(state='failed', error=str(error))
         print(f'FAIL: {error}; {log_path}', file=sys.stderr)

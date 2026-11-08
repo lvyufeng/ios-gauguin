@@ -2,6 +2,69 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —177 clean replay/implementation review PASSED; commit before build
+
+DSHv5 TERMINAL0, source177-codex fresh171patch replay EXACT candidate-v3 SHA
+24de20d668e9c4566b607487519d5b1b2e4d12e72bf4a85206bd9869965ede35/5329files.
+ROOT independent-implementation-review.json binds final7kernel files to their
+actual native ARM64 TU objects/current176tKac3D recipe and selected successful
+host outputs, all private header bytes checked. Full legacy board prefix before
+dynamic runtime unchanged. No full90suite claim; changed driver5tests include
+original798coordinator/87WDT/17214core and new29coord/38WDTservice/72core-health/
+158board-heartbeat plusIOKit64+58. Failed initial fixture and all candidates/
+profiles/results retained. All pinned stages1..5 terminal; v1 only fixture1 as
+described below, production C unchanged; v2corrected coordinator0. No phone
+command/new root write yet this turn. Commit177+tests+handoff, freeze sourceHEAD,
+ONE local8job native build/strict artifact qualification next. The physical
+service test will use600s and current installedCLI; persistent GPU operation
+beyond20s is still UNQUALIFIED. Future multiple queues/GMEM/GLSL/Metal/highrefresh
+remain required. Full original goal ACTIVE/incomplete, not a narrower milestone.
+
+### 2026-11-08 —177 health-gated GPU service SOFTWARE checks/TUs PASSED; replay LIVE
+
+Previous goal turn PROGRESS:176 real user BO/map/3EOP/fence/IOSurface acceptance
+and publication. User has explicitly set full original goal ACTIVE; get_goal
+confirms ACTIVE/unlimited. No objective reduction. Current work is persistent
+GPU ownership, not another fixed PM4 sample or a larger diagnostic timeout.
+
+Codex authored0177 (7kernel files) from immutable176 in private candidate-v1/v2/
+v3; originals preserved. New opt-in sweetgpuservice=1 only withmode12; optional
+sweetgpuservicesecs=60..3600 for finite recovery trials,0 for ongoing service.
+Legacy flag0 retains original20s runtime/30s stop. Same IOKit operation lock
+serializes heartbeat with submit/map/close, so a stalled owner cannot be hidden
+by an independent petter. Actual idle health checks real WPTR/shadow/EOP/faults;
+board rechecks existing MMU/GMU/power/ownership. Only then WDT refresh may issue
+ONE RST1 pulse, exact EN3/BARK655300/BITE753595 untouched. Each epoch needs fresh
+advancing counter, agreement with independent CPU time,3s margin, quiet NSIRQ,
+reset counter/readbacks; errors poison authority and retain all DMA owners.
+No retry/disable/rearm/threshold changes. Cached failure reasons and final
+renewal/fence/shadow receipt added; quarantine precedes final diagnostics.
+Coordinator invalid-context path does software quarantine without GPU mutex.
+
+DSH177v1 inputs unchanged: WDT0 (87original+lease cases retained,38newservice
+cases/600actual mock refreshes), actualGPUcore0 (17214old+72newhealth asserts),
+IOKit0 (64submit/58sync inclheartbeat locking/retention), all5nativeARM64TUs0
+with current176tKac3D recipe/2128headers/protected references unchanged. Only
+coordinator fixture1 wrongly expected invalid flags before thread creation;
+actual flags are checked by scheduled worker before delay/hardware. Failed
+fixture copied failed-v1-inputs; corrected assertion, production code unchanged.
+DSHv2 coordinator0 (798old+29service=827), actual board ready/heartbeat + actual
+GPUcore0 (158asserts, no pet after failed GPU/route/lease). v3 focused WDT
+diagnostics regression0 +WDTnativeTU0. v4 focused final cached status/heartbeat0
++boardnativeTU0. No repeated950s whole-board sweep. Final candidate-v3 complete
+tree24de20d668e9c4566b607487519d5b1b2e4d12e72bf4a85206bd9869965ede35,
+5329files,7kernel-file delta; patch0177 SHA recorded expected-source177.json.
+
+DSHv5 LIVE fresh original export/171patch replay -> source177-codex must equal
+the full tested candidate hash. Next ROOT source/test/native binding review,
+commit completed177/tests, pin sourceHEAD, ONE native8job build/strict qualifier/
+package, SAME installed175CLI temporaryboot with600second service trial. Need
+fresh read-only installed files+HFSheader before boot; old176preflight is stale.
+No new root write/install/permission needed for this kernel-only trial. No
+actual177boot/persistent acceptance yet; all tests above are host/native only.
+Preserve originalmkadt7line a74a0418... diff. Phone last actual state TWRP.
+Full GPU/Metal/RAM/UFS/peripherals/90-120Hzdaily-use goal remains incomplete.
+
 ### 2026-11-08 —176 physical API milestone PUBLISHED; next persistent-runtime gate
 
 Reviewed REST non-force fast-forward publication PASSED, only4textfiles

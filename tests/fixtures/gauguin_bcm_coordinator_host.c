@@ -60,6 +60,8 @@ static struct {
     unsigned varying_calls;enum ggv_result varying_result;enum gmb_state varying_state;
     unsigned texture_calls;enum ggf_result texture_result;enum gmb_state texture_state;
     unsigned runtime_calls,runtime_stops,runtime_fail;
+    int gpuservice,gpuservicesecs;
+    unsigned heartbeat_calls,heartbeat_fail,service_context_after;
     int gpuzap,missing_init;unsigned zap_calls,zap_asset_calls,zap_asset_fail;enum gpz_result zap_result;enum gmb_state zap_state;
     unsigned gpu_calls;
     unsigned perf_calls,bw_entries_calls,bw_plan_calls,bw_calls,bw_fail_step,dcvs_calls;struct gmf_bw_plan bw_plan;
@@ -94,6 +96,8 @@ static int test_printf(const char *fmt,...)
 bool PE_parse_boot_argn(const char *key,void *out,size_t bytes)
 {
     CHECK(bytes==sizeof(int),"integer argument");
+    if(!strcmp(key,"sweetgpuservice")){*(int*)out=mock.gpuservice;return true;}
+    if(!strcmp(key,"sweetgpuservicesecs")){*(int*)out=mock.gpuservicesecs;return true;}
     if(!strcmp(key,"sweetpasprobe")){*(int*)out=mock.probe;return true;}
     if(!strcmp(key,"sweetpasstage")){*(int*)out=mock.stage;return true;}
     if(!strcmp(key,"sweetpasinit")){if(mock.missing_init)return false;*(int*)out=mock.pasinit;return true;}
@@ -124,7 +128,12 @@ int ml_at_interrupt_context(void){return mock.context==2;}
 int get_preemption_level(void){return mock.context==3 ? 1:0;}
 unsigned long long mach_absolute_time(void){return mock.now;}
 void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *deadline)
-{CHECK(n==5 && scale==NSEC_PER_SEC && mock.before_sleeps==45,"five-second ready wait after delay");*deadline=mock.now+5*NSEC_PER_SEC;}
+{
+ CHECK(scale==NSEC_PER_SEC&&mock.before_sleeps==45,"native CPU deadline scale after startup delay");
+ if(mock.runtime_calls){CHECK(mock.gpuservice==1&&n==(unsigned)mock.gpuservicesecs&&n>=60&&n<=3600,"exact service test deadline");}
+ else CHECK(n==5,"five-second CPU-stage deadline");
+ *deadline=mock.now+n*NSEC_PER_SEC;
+}
 void IOSleep(unsigned ms)
 {
     if(mock.before_sleeps<45){
@@ -145,7 +154,8 @@ void IOSleep(unsigned ms)
             mock.power_calls==1 && mock.power_result==GCX_OK),"CX mode waits only after both ARC/CX complete");
         CHECK(mock.gmufw==0||(mock.fw_calls==1&&mock.fw_result==GMB_OK),"firmware mode waits only after successful typed bootstrap");
         CHECK(mock.gpustart==0||(mock.cp_calls==1&&mock.cp_result==GGQ_OK),"enabled CP must finish before reset wait");
-        CHECK(mock.after_sleeps<30,"bounded30 requested seconds");++mock.after_sleeps;mock.now+=NSEC_PER_SEC;
+        CHECK(mock.after_sleeps<(mock.gpuservice?3601u:30u),"legacy30s or explicit service model bound");++mock.after_sleeps;mock.now+=NSEC_PER_SEC;
+        if(mock.gpuservice&&mock.service_context_after==mock.after_sleeps)mock.context=1;
     }
 }
 void sweet_log_mark_sync(const char *line)
@@ -200,7 +210,7 @@ void gauguin_wdt_lease_quarantine(void)
         (mock.gpuzap==8 && mock.triangle_calls==1 && mock.triangle_result!=GGT_OK && mock.triangle_state!=GMB_QUARANTINED) ||
         (mock.gpuzap==9 && mock.sequence_calls==1 && mock.sequence_result!=GGJ_OK && mock.sequence_state!=GMB_QUARANTINED) ||
         (mock.gpuzap==10 && mock.varying_calls==1 && mock.varying_result!=GGV_OK && mock.varying_state!=GMB_QUARANTINED) ||
-        (mock.gpuzap==11 && mock.texture_calls==1 && mock.texture_result!=GGF_OK && mock.texture_state!=GMB_QUARANTINED) || (mock.gpuzap==12&&mock.runtime_calls&&mock.runtime_fail)||mock.after_sleeps==30,
+        (mock.gpuzap==11 && mock.texture_calls==1 && mock.texture_result!=GGF_OK && mock.texture_state!=GMB_QUARANTINED) || (mock.gpuzap==12&&mock.runtime_calls&&(mock.runtime_fail||mock.gpuservice))||mock.after_sleeps==30,
         "quarantine after TX/INIT/MEM/ARC/CX failure or unqualified reset timeout only");
     ++mock.quarantines;order('Q');
 }
@@ -526,12 +536,19 @@ enum ggf_result sweet_gpu_texture_once(struct ggf_receipt *out)
 enum gmb_state sweet_gpu_texture_state(void){return mock.texture_result==GGF_OK?GMB_READY:mock.texture_state;}
 
 bool sweet_gpu_runtime_requested(void){return mock.gpuzap==12;}
+bool sweet_gpu_service_requested(void){return mock.gpuzap==12&&mock.gpuservice==1;}
+bool GauguinGPUHeartbeat(void)
+{
+ CHECK(mock.gpuservice==1&&mock.runtime_calls==1&&!mock.runtime_fail&&!mock.runtime_stops&&!mock.quarantines,"heartbeat only live published service");
+ CHECK(!mock.context&&mock.after_sleeps==mock.heartbeat_calls+1,"one heartbeat per successful one-second sleep in valid context");
+ ++mock.heartbeat_calls;return mock.heartbeat_calls!=mock.heartbeat_fail;
+}
 bool sweet_gpu_runtime_start(void)
 {
  CHECK(mock.gpuzap==12&&mock.zap_calls==1&&mock.zap_result==GPZ_OK&&mock.unsecure_calls==1&&mock.unsecure_result==GGU_OK&&!mock.texture_calls&&!mock.varying_calls&&!mock.sequence_calls&&!mock.write_calls&&!mock.runtime_calls++,"runtime after same-boot signed and unsecured completion only");
  order('D');return !mock.runtime_fail;
 }
-void GauguinGPUStop(void){CHECK(mock.runtime_calls==1&&!mock.runtime_fail&&mock.after_sleeps==30&&!mock.runtime_stops++,"serialized runtime stop before final quarantine");order('S');}
+void GauguinGPUStop(void){CHECK(mock.runtime_calls==1&&!mock.runtime_fail&&(mock.gpuservice||mock.after_sleeps==30)&&!mock.context&&!mock.runtime_stops++,"serialized runtime stop before final quarantine in valid context");order('S');}
 
 @SOURCE@
 #undef printf
@@ -1450,6 +1467,40 @@ static void runtime_cases(void)
  }
  printf("PASS: %u new mode12 coordinator cases (%u total); old cases retained\n",cases-first,cases);
 }
+static void service_setup(const char *name)
+{reset_bw(name);mock.gmudcvs=mock.gpucontext=mock.gpustart=1;mock.gpuzap=12;mock.gpuservice=1;}
+static void service_cases(void)
+{
+ unsigned first=cases;
+ service_setup("service60second trial");mock.gpuservicesecs=60;run_worker();
+ CHECK(mock.after_sleeps==60&&mock.heartbeat_calls==59&&mock.runtime_stops==1&&mock.quarantines==1,"deadline stops before boundary pulse, not old30s stop");
+ CHECK(!strcmp(mock.order,"RPWTACGFKJZUDSQ")&&has("test deadline reached"),"actual service bootstrap/stop/quarantine order");
+ service_setup("600second physical test admission");mock.gpuservicesecs=600;run_worker();
+ CHECK(mock.after_sleeps==600&&mock.heartbeat_calls==599&&mock.runtime_stops==1,"ten-minute trial is supported");
+ service_setup("indefinite service0 has no automatic30second stop");mock.heartbeat_fail=45;run_worker();
+ CHECK(mock.after_sleeps==45&&mock.heartbeat_calls==45&&mock.runtime_stops==1&&has("health/owner failure"),"no old30s stop; health failure terminal");
+ for(unsigned at=1;at<=5;at++) {
+  service_setup("failed heartbeat never retried");mock.gpuservicesecs=60;mock.heartbeat_fail=at;run_worker();
+  CHECK(mock.heartbeat_calls==at&&mock.after_sleeps==at&&mock.runtime_stops==1&&mock.quarantines==1,"first failure stops service");
+ }
+ service_setup("invalid late context never locks GPU");mock.gpuservicesecs=60;mock.service_context_after=3;run_worker();
+ CHECK(mock.after_sleeps==3&&mock.heartbeat_calls==2&&!mock.runtime_stops&&mock.quarantines==1&&has("no lock/refresh"),"bad context only software-quarantines");
+ const int badsecs[]={-1,1,59,3601};
+ for(unsigned n=0;n<sizeof(badsecs)/sizeof(badsecs[0]);n++) {
+  service_setup("invalid service duration");mock.gpuservicesecs=badsecs[n];run_worker();
+  CHECK(!mock.before_sleeps&&!mock.arms&&!mock.runtime_calls&&!mock.heartbeat_calls,"invalid duration rejected by worker before delay/hardware");
+ }
+ const int badflags[]={-1,2};
+ for(unsigned n=0;n<sizeof(badflags)/sizeof(badflags[0]);n++) {
+  service_setup("invalid service flag");mock.gpuservice=badflags[n];run_worker();CHECK(!mock.arms&&!mock.heartbeat_calls,"exact opt-in only");
+ }
+ for(int mode=0;mode<12;mode++) {
+  service_setup("service cannot enter old modes");mock.gpuzap=mode;run_worker();CHECK(!mock.arms&&!mock.runtime_calls,"service requires mode12");
+ }
+ service_setup("duration without service");mock.gpuservice=0;mock.gpuservicesecs=60;run_worker();CHECK(!mock.arms,"duration requires service");
+ service_setup("service runtime start fails");mock.runtime_fail=1;mock.gpuservicesecs=60;run_worker();CHECK(!mock.heartbeat_calls&&!mock.runtime_stops&&mock.quarantines==1,"no health loop on failed runtime");
+ printf("PASS: %u new service coordinator cases (%u total); default798 retained, typed seams only\n",cases-first,cases);
+}
 int main(void)
 {
     legacy_cases();
@@ -1500,5 +1551,6 @@ int main(void)
     CHECK(cases-before_texture==38,"38 mode11 ordering/error/prerequisite/old-mode cases");
     CHECK(cases==776,"all738 retained and38 new mode11 cases");
     runtime_cases();
+    service_cases();
     return 0;
 }

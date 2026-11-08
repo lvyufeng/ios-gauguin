@@ -73,9 +73,10 @@ struct IOUserClient : IOService {
     void terminate(){inactive=true;}
 };
 using IOLock=std::mutex;
+static unsigned lock_depth,heartbeat_calls;
 static IOLock *IOLockAlloc(){return new std::mutex;}
-static void IOLockLock(IOLock *m){m->lock();}
-static void IOLockUnlock(IOLock *m){m->unlock();}
+static void IOLockLock(IOLock *m){m->lock();++lock_depth;}
+static void IOLockUnlock(IOLock *m){assert(lock_depth);--lock_depth;m->unlock();}
 static unsigned allocations,frees,cache_calls,sync_calls,submit_calls;
 static uint64_t next_pa=0x90000000;
 struct IOMemoryDescriptor : OSObject {
@@ -144,6 +145,7 @@ extern "C" bool sweet_gpu_runtime_ready(){return hardware_ready;}
 extern "C" bool sweet_gpu_runtime_install_root(uint64_t p){assert(!root_pa);root_pa=p;return hardware_ready;}
 extern "C" bool sweet_gpu_runtime_sync(){++sync_calls;if(fail_sync)hardware_ready=false;return hardware_ready;}
 extern "C" void sweet_gpu_runtime_stop(){hardware_ready=false;}
+extern "C" bool sweet_gpu_runtime_heartbeat(){assert(lock_depth==1);++heartbeat_calls;return hardware_ready;}
 extern "C" bool sweet_gpu_runtime_done(uint32_t f){return hardware_ready&&f&&f<=completed;}
 extern "C" bool sweet_gpu_runtime_parameter(uint32_t which,uint64_t *v){if(which!=1)return false;*v=619;return true;}
 extern "C" bool sweet_gpu_runtime_submit(const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *f)
@@ -178,7 +180,9 @@ static IOBufferMemoryDescriptor *mapped(GauguinGPUUserClient *c,uint32_t h)
 {IOOptionBits opts=99;IOMemoryDescriptor *m=nullptr;CHECK(c->clientMemoryForType(h,&opts,&m)==0&&m&&opts==0);return dynamic_cast<IOBufferMemoryDescriptor *>(m);}
 int main(int argc,char **argv)
 {
+    CHECK(!GauguinGPUHeartbeat()&&!heartbeat_calls);
     CHECK(!GauguinGPUStart());hardware_ready=true;CHECK(GauguinGPUStart());
+    CHECK(GauguinGPUHeartbeat()&&heartbeat_calls==1&&!lock_depth);
     auto c=new GauguinGPUUserClient;
     CHECK(!c->initWithTask((void *)2,nullptr,0,nullptr));CHECK(c->initWithTask(kernel_task,nullptr,0,nullptr)&&c->start(IOService::getPlatform()));
     auto other=new GauguinGPUUserClient;CHECK(other->initWithTask(kernel_task,nullptr,0,nullptr));CHECK(!other->start(IOService::getPlatform()));other->release();
@@ -246,6 +250,7 @@ int main(int argc,char **argv)
         CHECK(!GauguinGPUSurfaceBegin(surface));command_m->release();
     }
     CHECK(!hardware_ready&&c->clientClose()==0&&frees==freed);c->release();
+    CHECK(!GauguinGPUHeartbeat()&&heartbeat_calls==2&&!lock_depth&&frees==freed);
     c=new GauguinGPUUserClient;CHECK(c->initWithTask(kernel_task,nullptr,0,nullptr)&&!c->start(IOService::getPlatform()));c->release();
     CHECK(allocations>frees&&sync_calls>0);
     printf("PASS: %u actual IOKit transport assertions (%s); typed seams, no hardware qualification\n",checks,argc>1?argv[1]:"submit");

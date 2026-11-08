@@ -9,6 +9,7 @@ static unsigned cases;
 struct model {
     uint32_t ring[8192],wptr,shadow,eop,quarantines,writes,checks,fail_at;
     uint32_t old_wptr,decoded_ibs,decoded_fence;
+    uint32_t rbbm,cp,busy;
     uint64_t ns;
     bool no_eop,no_shadow,stopped,mutate_ring,timeout;
 };
@@ -22,7 +23,10 @@ static bool read_reg(void *p,uint32_t r,uint32_t *v)
 {
     struct model *m=p;assert(!m->stopped);
     if(r==0x807)*v=m->wptr;
-    else if(r==0x201||r==0x823||r==0x23b0c||r==0x23b13)*v=0;
+    else if(r==0x201)*v=m->rbbm;
+    else if(r==0x823)*v=m->cp;
+    else if(r==0x23b0c)*v=m->busy;
+    else if(r==0x23b13)*v=0;
     else assert(false);
     return true;
 }
@@ -126,6 +130,30 @@ int main(void)
     CHECK(submit(&c,1,&f)!=GGR_OK&&m.quarantines==1&&f==0xdeadbeef);
     init(&m,&c);m.timeout=true;f=0xdeadbeef;
     CHECK(submit(&c,1,&f)!=GGR_OK&&m.quarantines==1&&f==0xdeadbeef);
-    printf("PASS: %u runtime/ABI assertions; real core, typed seams, no IB/GPU emulation\n",cases);
+    unsigned retained=cases;
+    init(&m,&c);before=m.writes;
+    CHECK(ggr_check_idle(&c)==GGR_OK&&m.writes==before&&!m.quarantines);
+    CHECK(submit(&c,2,&f)==GGR_OK);before=m.writes;m.ns+=UINT64_C(30000000000);
+    unsigned start_checks=m.checks;
+    CHECK(ggr_check_idle(&c)==GGR_OK&&m.writes==before&&c.completed==1);
+    unsigned idle_boundaries=m.checks-start_checks;
+    for(unsigned at=1;at<=idle_boundaries;at++) {
+        init(&m,&c);m.fail_at=m.checks+at;before=m.writes;
+        CHECK(ggr_check_idle(&c)!=GGR_OK&&m.quarantines==1&&c.state==GGR_FAILED&&m.writes==before);
+        CHECK(ggr_check_idle(&c)==GGR_UNAVAILABLE&&m.writes==before&&m.quarantines==1);
+    }
+    for(unsigned fault=0;fault<8;fault++) {
+        init(&m,&c);before=m.writes;
+        switch(fault) {
+        case 0:m.rbbm=1u<<1;break;case 1:m.cp=1;break;
+        case 2:m.wptr++;break;case 3:m.shadow++;break;case 4:m.eop++;break;
+        case 5:m.busy=1u<<23;break;case 6:m.busy=UINT32_MAX;break;
+        case 7:m.ns=UINT64_MAX-100;break;
+        }
+        CHECK(ggr_check_idle(&c)!=GGR_OK&&m.quarantines==1&&m.writes==before);
+    }
+    memset(&c,0,sizeof(c));CHECK(ggr_check_idle(&c)==GGR_UNAVAILABLE);
+    CHECK(ggr_check_idle(NULL)==GGR_UNAVAILABLE);
+    printf("PASS: %u runtime/ABI assertions + %u service-health assertions; real core, typed seams, no IB/GPU emulation\n",retained,cases-retained);
     return 0;
 }

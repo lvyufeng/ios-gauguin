@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —184 probe-label policy fix; original-launchd model14 PASS
+
+The approved181 probe/job/cache write/readback passed, but actual181 trial
+FAILED strict memory admission: active6MiB nonfatal/inactive6MiB fatal before
+context creation. Canonical qualifier rejected it; no GLES/Metal/UI acceptance.
+The old failed180 and181 logs remain intact. Actual kernel180600s service still
+passed595renewals; no kernel/Mesa rebuild or binary change in this source step.
+
+Actual iOS16.7.16 launchd binary SHA12370e5ee35bf28ae479b6c4b4455f4f4693ab803e37c5eb3032537c18cac61c
+shows Override[label] > Override.Global > job > Default[label] > Default.Global.
+Global activeSoft6 beats jobHard128 during conflict resolution; global inactive
+Hard6 overrides the job directly. New fragment adds ONLY the probe label with
+ActiveSoft=-1, ActiveHard128, InactiveHard128. Never replace a target policy with
+this fragment. Preserve all global/other-label entries and the existing cache.
+D22/D221 parsed policies match; original serialized SHA/bytes differ.
+
+Codex authored and DSH executed14 host cases using original ARM64 merge
+100010198, whitelist callback100010c84, conflict/validation1000105bc..100010760.
+Original function bytes are intact; only external XPC/map/log imports and dyld
+key/type relocations are stubbed. Failed1816MiB, proposed128hard, unrelatedlabel6,
+five precedence levels and invalid inputs are checked. Physical launchd/kernel
+policy still needs GET8 verification. First model setup failed on an overly
+strict byte-equality assertion for semantically equal D22/D221 plists; original
+failure preserved; v2 compares parsed policies and passes14. No waived case.
+
+Root main NOTES has authoritative device orchestration. Fresh AFTER181boot
+16GiB backup bc37c193... completed0. DSH184v4 LOCAL COW two-policy preparation
+is in progress; no184device write/boot/consent yet. New concrete destructive
+permission is required after delta/fsck/current-old-ranges/root review. Full
+GPU/Metal/safeRAM/UFS/peripherals/high-refresh daily-use goal remains ACTIVE.
+
+### 2026-11-08 —181 source published; exact new root delta awaiting new consent
+
+VERIFIED publication PUBLIC921da0be702b1be9b749e9d586d1c5e88c5d47cb
+=PRIVATEec5530a65b7fcc71aa2a26cd8c1dca5ddb4272b2
+/TREE4ccfc8ad1d4ac64a1637a48924424cdea1d3b046;
+sole public parentbd384172... .Five textfiles only, nonforce/ref/tree/parent
+rechecked, mainpublic6d5a7bb... unchanged, noCI. W181/source-publication.json.
+THIS is next GLES publicationbase. This local note is not part of that tree.
+
+Fresh AFTER-BOOT16GiB readonlybackup06873d76... completed0. Local COWprobe/job/
+cache delta1,519,616B/371blocks/37runs, exactplanSHA
+3988717a76d34ab02cfaa7314e6ac7c8453bda4de4494bb1f43113734d6039df;
+fsck0/writermodel102cases0/current37oldranges READONLY0/rootindependentreview0.
+New181parser firstmodel1 due ambiguous startupidentity; originalpreserved.
+Newv2 contract uses GLES namespace, retainsfullfrozen180checks,11cases0. Boot
+wrapper same14fakeIO cases0. RootmainNOTES has exactpaths/hashes/nextcommands.
+Newexplicit1.45MiB permission requested, still PENDING, no181write/boot/approval
+file. Old5802consent consumed. Full daily-use objective ACTIVE; no physicalGLES,
+Metal, compositor/UI/highrefresh claim. Phone idle TWRP, no live DSH stages.
+
 ### 2026-11-08 —Probe-specific finite memory admission; physical retry pending
 
 Actual first Mesa180 trial failed BEFORE renderer/new GPU submission: SIGKILL9,

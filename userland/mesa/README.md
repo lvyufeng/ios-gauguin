@@ -84,9 +84,34 @@ GPU submission appeared. The device's daemon policy has a 6 MiB inactive hard
 limit for jobs without an override. This is a failed GLES trial; the separate
 startup API and 600-second idle GPU service passed.
 
-`org.gauguin.gpu-probe.plist` supplies finite 128 MiB active/inactive hard limits
-only for this prototype. Install it in the same existing system job location
-and update its entry in the launch cache as part of a reviewed root delta.
+`org.gauguin.gpu-probe.plist` requests finite 128 MiB active/inactive hard limits
+only for this prototype. The second physical trial proved that these job
+properties alone are insufficient: GET command8 still returned active 6 MiB
+nonfatal and inactive 6 MiB fatal. The probe exited before context creation.
+
+The actual iOS 16.7.16 launchd selects each key in this order:
+`Daemon.Override[label]`, `Override.Global`, job properties,
+`Default[label]`, `Default.Global`. The device's `Override.Global` supplies
+active soft 6 MiB and inactive hard 6 MiB. When positive soft and hard limits
+coexist, launchd keeps the smaller; equal values prefer the soft limit.
+Adding only hard 128 MiB to the label therefore still leaves active soft 6 MiB.
+
+`probe-jetsam-policy.fragment.plist` provides the intended probe-label override:
+active soft `-1`, active hard `128`, inactive hard `128`. Merge only that label
+entry into the existing `Version4.Daemon.Override` dictionaries of the target
+D22/D221 policies. The negative soft entry suppresses the inherited 6 MiB soft
+limit; launchd removes it during validation and retains the finite hard limit.
+The fragment is incomplete policy data: it must never replace a target policy
+file. Preserve every global and other-label entry, as well as the existing job
+and launch cache. Both installed target policies currently have equal parsed
+contents but different serialized bytes; preserve each file independently.
+
+Fourteen host cases execute the original binary's ARM64 merge, job whitelist,
+int32 validation and soft/hard resolution with typed XPC/map stubs. They
+reproduce the failed 6 MiB result, verify the proposed 128 MiB hard result,
+check all five precedence levels, and leave an unrelated label at 6 MiB.
+This does not test physical launchd spawning or effective kernel policy.
+
 The actual iOS16 launchd recognizes `ActiveHardMemoryLimit` and
 `InactiveHardMemoryLimit`; its binary explicitly says the older
 `JetsamMemoryLimit` key is ignored. The probe reads its own effective limits

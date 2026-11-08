@@ -1,0 +1,1437 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -148,6 +148,7 @@
+ bsd/dev/gauguin_gpu_draw.c			standard
+ bsd/dev/gauguin_gpu_sequence.c			standard
+ bsd/dev/gauguin_gpu_varying.c			standard
++bsd/dev/gauguin_gpu_texture.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -88,7 +88,7 @@
+     int start = 0; (void)PE_parse_boot_argn("sweetgpustart", &start, sizeof(start));
+     if ((start != 0 && start != 1) || (start == 1 && gpu != 1)) return false;
+     int zap = 0; (void)PE_parse_boot_argn("sweetgpuzap", &zap, sizeof(zap));
+-    if ((zap != 0 && zap != 1 && zap != 2 && zap != 3 && zap != 4 && zap != 5 && zap != 6 && zap != 7 && zap != 8 && zap != 9 && zap != 10) || (zap != 0 && start != 1)) return false;
++    if ((zap != 0 && zap != 1 && zap != 2 && zap != 3 && zap != 4 && zap != 5 && zap != 6 && zap != 7 && zap != 8 && zap != 9 && zap != 10 && zap != 11) || (zap != 0 && start != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -252,7 +252,16 @@
+                                 if(sweet_gpu_unsecure_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+                                 snprintf(line,sizeof(line),"SWEET GPU UNSECURE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)unsecure_result,(unsigned)sweet_gpu_unsecure_state());bcm_record(line);return;
+                             }
+-                            if(sweet_gpu_varying_requested()){
++                            if(sweet_gpu_texture_requested()){
++                                bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; before native A619 texture sequence; no Metal");
++                                struct ggf_receipt texture;
++                                enum ggf_result texture_result=sweet_gpu_texture_once(&texture);
++                                if(texture_result!=GGF_OK){
++                                    if(sweet_gpu_texture_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
++                                    snprintf(line,sizeof(line),"SWEET GPU TEXTURE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)texture_result,(unsigned)sweet_gpu_texture_state());bcm_record(line);return;
++                                }
++                                bcm_record("SWEET GPU TEXTURE BOOT: native A619 nearest UV/VU/upper-clamp pixels/EOP6/22/38 shadow41 verified; GPU requests held; awaiting watchdog reset; no Metal");
++                            }else if(sweet_gpu_varying_requested()){
+                                 bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; before native A619 varying sequence; no Metal");
+                                 struct ggv_receipt varying;
+                                 enum ggv_result varying_result=sweet_gpu_varying_once(&varying);
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -421,7 +421,8 @@
+          (ggb_data_mode==7&&sweet_gpu_clear_requested())||
+          (ggb_data_mode==8&&sweet_gpu_draw_requested())||
+          (ggb_data_mode==9&&sweet_gpu_sequence_requested())||
+-         (ggb_data_mode==10&&sweet_gpu_varying_requested())):
++         (ggb_data_mode==10&&sweet_gpu_varying_requested())||
++         (ggb_data_mode==11&&sweet_gpu_texture_requested())):
+         (ggb_data_selected==0&&ggb_data_mode==0&&!sweet_gpu_data_requested());
+ }
+ static bool ggb_data_geometry(void)
+@@ -590,7 +591,7 @@
+     if(!ggb_guard(NULL)||!ggp_plan_build(&gmb_context.plan,&ggb_plan))return false;
+     struct ggs_ops o={NULL,ggb_guard,gmb_read32,gmb_write32,gmb_read64,gmb_write64,gmb_barrier,gmb_delay,ggb_prepare};
+     ggb_data_selected=(unsigned)sweet_gpu_data_requested();ggb_data_ready=0;
+-    ggb_data_mode=ggb_data_selected?(sweet_gpu_varying_requested()?10:sweet_gpu_sequence_requested()?9:sweet_gpu_draw_requested()?8:sweet_gpu_clear_requested()?7:sweet_gpu_compute_requested()?6:sweet_gpu_eop_requested()?5:sweet_gpu_ib_requested()?4:3):0;
++    ggb_data_mode=ggb_data_selected?(sweet_gpu_texture_requested()?11:sweet_gpu_varying_requested()?10:sweet_gpu_sequence_requested()?9:sweet_gpu_draw_requested()?8:sweet_gpu_clear_requested()?7:sweet_gpu_compute_requested()?6:sweet_gpu_eop_requested()?5:sweet_gpu_ib_requested()?4:3):0;
+     if(ggb_data_selected){
+         if(!ggd_plan_build(&ggb_plan,&ggb_data_plan))return false;
+         ggb_argument=ggs_data_argument_reason(&ggb_context,&o,&ggb_data_plan,&gmb_work.smmu,&ggb_smmu);
+@@ -1253,13 +1254,13 @@
+     PZB_FAULT,PZB_ROUTES,PZB_DEVICE,PZB_NC,PZB_SCOPE,PZB_TIME};
+ static struct {unsigned reason,phase,scope;uint64_t now;uint32_t rbbm,cp,shadow,busy;} gpzb_diagnostic;
+ bool sweet_gpu_zap_requested(void)
+-{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2||flag==3||flag==4||flag==5||flag==6||flag==7||flag==8||flag==9||flag==10;}
++{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2||flag==3||flag==4||flag==5||flag==6||flag==7||flag==8||flag==9||flag==10||flag==11;}
+ enum gmb_state sweet_gpu_zap_state(void)
+ {return (enum gmb_state)__atomic_load_n(&gpzb_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool gpzb_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10)return false;
++    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11)return false;
+     static const char *const on[]={"sweetbusvote","sweetpasprobe","sweetpasstage",
+         "sweetcxpower","sweetgmuclk","sweetgmufw","sweetgmuperf","sweetgmubw","sweetgmudcvs","sweetgpucontext","sweetgpustart"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet",
+@@ -1455,7 +1456,7 @@
+     UGD_DEVICE,UGD_NC,UGD_ENTRY_BUDGET};
+ static struct {unsigned reason,phase;uint64_t now;uint32_t rbbm,cp;} ggub_diagnostic;
+ bool sweet_gpu_unsecure_requested(void)
+-{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2||mode==3||mode==4||mode==5||mode==6||mode==7||mode==8||mode==9||mode==10;}
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2||mode==3||mode==4||mode==5||mode==6||mode==7||mode==8||mode==9||mode==10||mode==11;}
+ enum gmb_state sweet_gpu_unsecure_state(void)
+ {return (enum gmb_state)__atomic_load_n(&ggub_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool ggub_reject(enum ggu_phase phase,enum ggub_reason reason)
+@@ -1812,7 +1813,7 @@
+ }
+ 
+ bool sweet_gpu_data_requested(void)
+-{return sweet_gpu_write_requested()||sweet_gpu_ib_requested()||sweet_gpu_eop_requested()||sweet_gpu_compute_requested()||sweet_gpu_clear_requested()||sweet_gpu_draw_requested()||sweet_gpu_sequence_requested()||sweet_gpu_varying_requested();}
++{return sweet_gpu_write_requested()||sweet_gpu_ib_requested()||sweet_gpu_eop_requested()||sweet_gpu_compute_requested()||sweet_gpu_clear_requested()||sweet_gpu_draw_requested()||sweet_gpu_sequence_requested()||sweet_gpu_varying_requested()||sweet_gpu_texture_requested();}
+ 
+ /* Separate fixed native IB continuation; no old RUNNING guard reuse. */
+ static unsigned ggib_lifecycle,ggib_phase,ggib_sealed;
+@@ -3506,4 +3507,295 @@
+     *out=ggvb_work;__atomic_store_n(&ggvb_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggvb_records(true);return GGV_OK;
+ }
+ 
++/* Separate texture session; modes3..10 remain independent. */
++static unsigned ggfb_lifecycle,ggfb_phase,ggfb_sealed;
++static uint64_t ggfb_entry,ggfb_phase_entry,ggfb_deadline,ggfb_phase_end,ggfb_last_now;
++static struct ggf_context ggfb_context;
++static struct ggf_receipt ggfb_work;
++static enum ggf_result ggfb_result;
++enum ggfb_reason {FGD_NONE,FGD_CONFIG,FGD_PHASE,FGD_CONTEXT,FGD_TIME,FGD_WDT,
++    FGD_PARENT,FGD_OWNER,FGD_CLOCK,FGD_IRQ,FGD_RESET,FGD_FAULT,FGD_ROUTES,
++    FGD_DEVICE,FGD_NC,FGD_ENTRY_BUDGET,FGD_ENGINE};
++static struct {unsigned reason,job,phase;uint64_t now;uint32_t rbbm,cp;} ggfb_diagnostic;
++static uint32_t ggfb_before_mask[GGF_JOBS][8],ggfb_after_mask[GGF_JOBS][8],ggfb_aux_mask[GGF_JOBS];
++static uint32_t ggfb_before[GGF_JOBS][GGF_OUTPUT_WORDS],ggfb_after[GGF_JOBS][GGF_OUTPUT_WORDS];
++static uint32_t ggfb_before_control[GGF_JOBS],ggfb_after_control[GGF_JOBS];
++static uint32_t ggfb_before_hi[GGF_JOBS],ggfb_after_hi[GGF_JOBS],ggfb_before_tail[GGF_JOBS],ggfb_after_tail[GGF_JOBS];
++bool sweet_gpu_texture_requested(void)
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==11;}
++enum gmb_state sweet_gpu_texture_state(void)
++{return (enum gmb_state)__atomic_load_n(&ggfb_lifecycle,__ATOMIC_ACQUIRE);}
++static bool ggfb_reject(enum ggf_phase phase,enum ggfb_reason reason)
++{
++    if(!ggfb_diagnostic.reason){ggfb_diagnostic.reason=reason;ggfb_diagnostic.phase=phase;ggfb_diagnostic.now=mach_absolute_time();}
++    return false;
++}
++static bool ggfb_time(enum ggf_phase phase)
++{
++    uint64_t now=mach_absolute_time();ggfb_diagnostic.phase=phase;ggfb_diagnostic.now=now;
++    if(now<ggfb_last_now||now>=ggfb_deadline||now>=ggfb_phase_end)return ggfb_reject(phase,FGD_TIME);
++    ggfb_last_now=now;return true;
++}
++static bool ggfb_parent(void)
++{
++    return sweet_gpu_texture_requested()&&ggb_data_mode==11&&
++        sweet_gpu_varying_state()==GMB_IDLE&&ggvb_context.state==0&&ggvb_context.phase==GGV_IDLE&&
++        sweet_gpu_sequence_state()==GMB_IDLE&&ggjb_context.state==0&&ggjb_context.phase==GGJ_IDLE&&
++        sweet_gpu_draw_state()==GMB_IDLE&&ggtb_context.state==0&&ggtb_context.phase==GGT_IDLE&&
++        sweet_gpu_clear_state()==GMB_IDLE&&gglb_context.state==0&&gglb_context.phase==GGL_IDLE&&
++        sweet_gpu_compute_state()==GMB_IDLE&&ggkb_context.state==0&&ggkb_context.phase==GGK_IDLE&&
++        sweet_gpu_eop_state()==GMB_IDLE&&ggeb_context.state==0&&ggeb_context.phase==GGE_IDLE&&
++        sweet_gpu_ib_state()==GMB_IDLE&&ggib_context.state==0&&ggib_context.phase==GGI_IDLE&&
++        sweet_gpu_write_state()==GMB_IDLE&&ggwb_context.state==0&&
++        ggwb_context.phase==GGW_IDLE&&ggwb_unsecured();
++}
++static bool ggfb_receipts_valid(void)
++{
++    const struct ggf_receipt *all=&ggfb_work;
++    if(memcmp(all,&ggfb_context.work,sizeof(*all))||all->sealed!=1||all->complete!=1||
++       all->requests_retained!=1||all->completed_jobs!=GGF_JOBS)return false;
++    for(unsigned job=0;job<GGF_JOBS;job++){
++        const struct ggf_job_receipt *r=&all->job[job];
++        if(r->complete!=1||r->commands_written!=7||r->commands_checked!=7||r->prefix_checked!=20+7*job||r->clean_checked!=7||
++           r->artifact_before_checked!=GGF_ARTIFACT_WORDS||r->artifact_written!=GGF_ARTIFACT_WORDS||
++           r->artifact_checked!=GGF_ARTIFACT_WORDS||r->artifact_after_checked!=GGF_ARTIFACT_WORDS||
++           r->data_before_checked!=1024||r->data_after_checked!=1024||r->pixels_checked!=256||
++           r->foreground_checked!=256||r->background_checked!=0||
++           r->eop_polls<1||r->eop_polls>GGF_EOP_LIMIT||r->eop_value!=ggf_expected_eop(job)||
++           r->eop_complete!=1||r->eop_checked!=1||r->eop_progress!=6||
++           r->unchanged_checked!=767||r->ring_after_checked!=27+7*job||r->max_nc_batch_words!=64||
++           r->initial_wptr!=20+7*job||r->initial_shadow!=20+7*job||r->rptr!=27+7*job||r->busy==UINT32_MAX||(r->busy&(1u<<23))||
++           (r->rbbm_status&GGQ_RBBM_ERRORS)||(r->cp_status&GGQ_CP_ERRORS)||
++           r->fence_checks<1||r->fence_checks>GGQ_FENCE_LIMIT||(r->fence_status&1u)||
++           r->counter_before_valid!=1||r->counter_after_valid!=r->fence_slow||
++           r->submit_attempted!=1||r->keepalive_set_attempted!=1||r->keepalive_clear_attempted!=1||
++           r->wait_samples!=r->idle_polls||!r->wait_samples||r->wait_control_hi||!ggf_control_allowed(job,r->wait_control)||
++           ggfb_aux_mask[job]!=63||ggfb_before_control[job]!=(job?ggf_expected_eop(job-1):0)||
++           ggfb_before_hi[job]||ggfb_before_tail[job]||ggfb_after_control[job]!=ggf_expected_eop(job)||
++           ggfb_after_hi[job]||ggfb_after_tail[job])return false;
++        for(unsigned id=0;id<GGF_BLOBS;id++){
++            struct ggf_blob blob;
++            if(!ggf_blob_get(job,id,&blob)||r->blob_before_checked[id]!=blob.words||r->blob_written[id]!=blob.words||
++               r->blob_checked[id]!=blob.words||r->blob_after_checked[id]!=blob.words)return false;
++        }
++        for(unsigned i=0;i<8;i++)if(ggfb_before_mask[job][i]!=UINT32_MAX||ggfb_after_mask[job][i]!=UINT32_MAX)return false;
++        for(unsigned i=0;i<GGF_OUTPUT_WORDS;i++){
++            uint32_t before=job?ggfb_after[job-1][i]:0;
++            if(ggfb_before[job][i]!=before||!ggf_pixel_allowed(job,i,ggfb_after[job][i]))return false;
++        }
++    }
++    return true;
++}
++static bool ggfb_guard(void *cookie,unsigned job,enum ggf_phase phase)
++{
++    (void)cookie;if(ggfb_diagnostic.reason)return false;ggfb_diagnostic.job=job;
++    if(job>=GGF_JOBS||phase<GGF_SEAL||phase>GGF_FINAL||
++       (phase==GGF_SEAL&&job)||(phase==GGF_FINAL&&job!=GGF_JOBS-1))return ggfb_reject(phase,FGD_PHASE);
++    unsigned step=5*job+(unsigned)phase;
++    if(step<ggfb_phase||step>ggfb_phase+1)return ggfb_reject(phase,FGD_PHASE);
++    if(step!=ggfb_phase){
++        ggfb_phase=step;ggfb_phase_entry=mach_absolute_time();
++        if(ggfb_phase_entry<ggfb_last_now||ggfb_phase_entry>=ggfb_deadline)return ggfb_reject(phase,FGD_TIME);
++        clock_interval_to_deadline(2,NSEC_PER_SEC,&ggfb_phase_end);
++    }
++    if(sweet_gpu_texture_state()!=GMB_RUNNING||ggfb_context.job!=job||
++       !((ggfb_context.state==1&&ggfb_context.phase==(unsigned)phase)||
++         (ggfb_context.state==2&&ggfb_context.phase==GGF_DONE&&phase==GGF_FINAL))||
++       ggfb_context.work.completed_jobs!=(phase==GGF_FINAL?GGF_JOBS:job)||
++       (phase>GGF_SEAL&&(!ggfb_sealed||ggfb_context.work.sealed!=1)))return ggfb_reject(phase,FGD_PHASE);
++    if(ggfb_context.state==2&&!ggfb_receipts_valid())return ggfb_reject(phase,FGD_ENGINE);
++    if(!gmb_thread())return ggfb_reject(phase,FGD_CONTEXT);
++    if(!ggfb_time(phase))return false;
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggfb_reject(phase,FGD_WDT);
++    if(!ggfb_time(phase))return false;
++    if(!ggfb_parent())return ggfb_reject(phase,FGD_PARENT);
++    if(!sweet_pas_zap_owner_authenticated(gmb_stage.pa))return ggfb_reject(phase,FGD_OWNER);
++    if(!ggfb_time(phase))return false;
++    if(!gmb_reset||!gmb_smmu||!gmb_ram||!ggx_core||!gfw_map[GMF_AO]||
++       gfw_map[GMF_CSR]!=gmb_reset||!ggc_maps_ready||ggc_created!=6)return ggfb_reject(phase,FGD_DEVICE);
++    uint32_t gx,irq[3],v;
++    if(!sweet_gmu_clock_live(true,&gx)||(gx&0x80000001u)!=0x80000000u)return ggfb_reject(phase,FGD_CLOCK);
++    if(!sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000))return ggfb_reject(phase,FGD_IRQ);
++    if(gfw_load32(gmb_reset+0x2000))return ggfb_reject(phase,FGD_RESET);
++    if(!gfw_faults(false))return ggfb_reject(phase,FGD_FAULT);
++    if(!ggb_context_valid()||(gfw_work.host_info&(1u<<24))||ggx_context.state!=2||ggx_context.phase!=GGX_DONE||ggx_result!=GGX_OK||
++       ggx_work.bank!=ggb_smmu.bank||ggx_work.asid!=ggb_smmu.asid||ggx_work.ttbr0!=ggb_smmu.ttbr0||
++       ggx_work.ack_valid!=1||ggx_work.ack_clear_attempted!=1||ggx_work.request_retained!=1||ggx_work.core_opened!=1||
++       memcmp(&ggc_work.start,&ggx_work,sizeof(ggx_work))||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x34,&v)||v||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x7f4,&v)||(v&1u))return ggfb_reject(phase,FGD_ROUTES);
++    if(ggc_alias[0]!=ggx_core||ggc_alias[8]!=gmb_reset||ggc_alias[9]!=gfw_map[GMF_AO]||
++       !ggc_device_valid(ggx_core,0x03d00000)||!ggc_device_valid(gmb_reset,0x03d7c000)||
++       !ggc_device_valid(gfw_map[GMF_AO],0x03d8c000))return ggfb_reject(phase,FGD_DEVICE);
++    if(!ggq_nc_valid())return ggfb_reject(phase,FGD_NC);
++    ggfb_diagnostic.rbbm=gfw_load32(ggx_core+4*0x201);ggfb_diagnostic.cp=gfw_load32(ggx_core+4*0x823);
++    if((ggfb_diagnostic.rbbm&GGQ_RBBM_ERRORS)||(ggfb_diagnostic.cp&GGQ_CP_ERRORS))return ggfb_reject(phase,FGD_FAULT);
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggfb_reject(phase,FGD_WDT);
++    return ggfb_time(phase);
++}
++static bool ggfb_seal(void *cookie,uint64_t pa)
++{
++    (void)cookie;
++    if(ggfb_sealed||ggfb_context.job||ggfb_context.phase!=GGF_SEAL||ggfb_context.work.sealed||pa!=gmb_stage.pa||
++       !sweet_gpu_texture_requested()||!gpzb_flags()||!ggfb_parent()||!sweet_pas_zap_owner_authenticated(pa))return false;
++    ggfb_sealed=1;return true;
++}
++static bool ggfb_read(void *cookie,uint32_t reg,uint32_t *out)
++{
++    (void)cookie;if(!out||!ggf_register_allowed(reg,false))return false;
++    vm_offset_t va=ggq_address(reg,false);if(!va)return false;*out=gfw_load32(va);return true;
++}
++static bool ggfb_write(void *cookie,uint32_t reg,uint32_t value)
++{
++    (void)cookie;unsigned job=ggfb_context.job;
++    if(job>=GGF_JOBS||!ggf_register_allowed(reg,true)||ggfb_context.phase!=GGF_SUBMIT||
++       (reg==0x807?value!=27+7*job:value>1))return false;
++    vm_offset_t va=ggq_address(reg,true);if(!va)return false;gfw_store32(va,value);return true;
++}
++static vm_offset_t ggfb_memory(enum ggf_memory memory,uint32_t off,bool write)
++{
++    unsigned job=ggfb_context.job;
++    if(job>=GGF_JOBS||!gmb_ram||!ggb_data_geometry()||(off&3))return 0;
++    enum ggf_phase phase=(enum ggf_phase)ggfb_context.phase;
++    bool ring=memory==GGF_RING&&off<4*(27+7*job),scratch=memory==GGF_SCRATCH&&off==0;
++    bool data=memory==GGF_DATA&&off<GGD_DATA_BYTES;
++    bool artifact=memory==GGF_RING&&ggf_artifact_allowed(off);
++    bool commands=ring&&off>=4*(20+7*job);
++    if(write){if(phase!=GGF_COMMANDS||!(commands||artifact))return 0;}
++    else if(!((phase==GGF_CAPTURE&&(ring||scratch||data||artifact))||
++              (phase==GGF_COMMANDS&&(commands||artifact))||
++              (phase==GGF_WAIT&&(scratch||(data&&(off==GGF_EOP_OFFSET||off==GGF_EOP_OFFSET+4))))||
++              (phase==GGF_VERIFY&&(ring||data||artifact))))return 0;
++    unsigned offset=data?ggb_data_plan.data.offset:ggb_plan.region[(ring||artifact)?GGP_RING:GGP_SCRATCH].offset;
++    return gmb_ram+offset-GMB_PAGE+off;
++}
++static bool ggfb_memory_read(void *cookie,enum ggf_memory memory,uint32_t off,uint32_t *out)
++{
++    (void)cookie;unsigned job=ggfb_context.job;if(job>=GGF_JOBS)return false;
++    vm_offset_t va=ggfb_memory(memory,off,false);if(!va||!out)return false;*out=gfw_load32(va);
++    if(memory==GGF_DATA&&ggfb_context.phase==GGF_CAPTURE){
++        if(off<4*GGF_OUTPUT_WORDS){ggfb_before[job][off/4]=*out;ggfb_before_mask[job][off/128]|=1u<<((off/4)%32);}
++        if(off==GGF_EOP_OFFSET){ggfb_before_control[job]=*out;ggfb_aux_mask[job]|=1;}
++        if(off==GGF_EOP_OFFSET+4){ggfb_before_hi[job]=*out;ggfb_aux_mask[job]|=2;}
++        if(off==GGD_DATA_BYTES-4){ggfb_before_tail[job]=*out;ggfb_aux_mask[job]|=4;}
++    }
++    if(memory==GGF_DATA&&ggfb_context.phase==GGF_VERIFY){
++        if(off<4*GGF_OUTPUT_WORDS){ggfb_after[job][off/4]=*out;ggfb_after_mask[job][off/128]|=1u<<((off/4)%32);}
++        if(off==GGF_EOP_OFFSET){ggfb_after_control[job]=*out;ggfb_aux_mask[job]|=8;}
++        if(off==GGF_EOP_OFFSET+4){ggfb_after_hi[job]=*out;ggfb_aux_mask[job]|=16;}
++        if(off==GGD_DATA_BYTES-4){ggfb_after_tail[job]=*out;ggfb_aux_mask[job]|=32;}
++    }
++    return true;
++}
++static bool ggfb_memory_write(void *cookie,enum ggf_memory memory,uint32_t off,uint32_t value)
++{
++    (void)cookie;vm_offset_t va=ggfb_memory(memory,off,true);if(!va)return false;
++    unsigned job=ggfb_context.job;uint32_t expected=0;bool valid=false;
++    if(off>=4*(20+7*job)&&off<4*(27+7*job)){
++        expected=ggfb_context.command.word[off/4-(20+7*job)];valid=true;
++    }else for(unsigned id=0;id<GGF_BLOBS;id++){
++        struct ggf_blob blob;if(!ggf_blob_get(job,id,&blob))return false;
++        if(blob.words&&off>=blob.offset&&off-blob.offset<4*blob.words){valid=ggf_blob_word(job,id,(off-blob.offset)/4,&expected);break;}
++    }
++    if(!valid||value!=expected)return false;gfw_store32(va,value);return true;
++}
++static void ggfb_quarantine(void *cookie)
++{
++    (void)cookie;bool needs=sweet_gmu_board_state()!=GMB_QUARANTINED;
++    __atomic_store_n(&ggfb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggfb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggvb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggvb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggjb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggjb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggtb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggtb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&gglb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gglb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggkb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggkb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggeb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggeb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggib_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggib_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggwb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggwb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggub_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggub_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&gpzb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);sweet_pas_zap_quarantine();
++    __atomic_store_n(&ggq_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggc_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    if(needs)gmb_fail(GMB_GPU,"native A619 three-job sequence execution");
++}
++static void ggfb_records(bool complete)
++{
++    const struct ggf_receipt *all=complete?&ggfb_work:&ggfb_context.work;char line[256];
++    void (*record)(const char *)=complete?gmb_record_cached:gmb_record;
++    snprintf(line,sizeof(line),"SWEET GPU TEXTURE: %s job=%u phase=%u rc=%u sealed=%u jobs=%u complete=%u retained=%u",
++        complete?"complete":"stopped",ggfb_context.job,ggfb_context.phase,ggfb_result,all->sealed,all->completed_jobs,all->complete,all->requests_retained);record(line);
++    for(unsigned job=0;job<GGF_JOBS;job++){
++        const struct ggf_job_receipt *r=&all->job[job];
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE JOB: job=%u reads=%u writes=%u commands=%u/%u prefix=%u clean=%u complete=%u",job,r->reads,r->writes,r->commands_written,r->commands_checked,r->prefix_checked,r->clean_checked,r->complete);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE INITIAL: job=%u wptr=%08x shadow=%08x busy=%08x; no reinitialization",job,r->initial_wptr,r->initial_shadow,r->initial_busy);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE FENCE: job=%u checks=%u status=%08x slow=%u counters=%u/%u before=%016llx after=%016llx",job,r->fence_checks,r->fence_status,r->fence_slow,r->counter_before_valid,r->counter_after_valid,r->counter_before,r->counter_after);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE SUBMIT: job=%u keepalive=%u/%u submit=%u",job,r->keepalive_set_attempted,r->keepalive_clear_attempted,r->submit_attempted);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE IDLE: job=%u polls=%u rptr=%08x busy=%08x rbbm=%08x cp=%08x; actual shadow and AO busy",job,r->idle_polls,r->rptr,r->busy,r->rbbm_status,r->cp_status);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE DATA: job=%u before=%u after=%u pixels=%u foreground=%u background=%u eop=%u unchanged=%u ring=%u batch=%u; full4096-byte page",job,r->data_before_checked,r->data_after_checked,r->pixels_checked,r->foreground_checked,r->background_checked,r->eop_checked,r->unchanged_checked,r->ring_after_checked,r->max_nc_batch_words);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE EOP: job=%u polls=%u value=%08x complete=%u progress=%u; actual native USER32 final event, no IRQ",job,r->eop_polls,r->eop_value,r->eop_complete,r->eop_progress);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE ARTIFACTS: job=%u before=%u written=%u checked=%u after=%u blobs=%u native_words=%u; padded source RO views",job,r->artifact_before_checked,r->artifact_written,r->artifact_checked,r->artifact_after_checked,GGF_BLOBS,GGF_NATIVE_WORDS);record(line);
++        for(unsigned id=0;id<GGF_BLOBS;id++){
++            struct ggf_blob blob;if(!ggf_blob_get(job,id,&blob))break;
++            snprintf(line,sizeof(line),"SWEET GPU TEXTURE BUFFER: job=%u index=%u offset=%08x payload=%u words=%u before=%u written=%u checked=%u after=%u",job,id,blob.offset,blob.payload_words,blob.words,r->blob_before_checked[id],r->blob_written[id],r->blob_checked[id],r->blob_after_checked[id]);record(line);
++        }
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE WAIT: job=%u samples=%u control=%08x hi=%08x; actual idle reads, separate EOP poll required",job,r->wait_samples,r->wait_control,r->wait_control_hi);record(line);
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE AUX: job=%u mask=%x before=%08x/%08x/%08x after=%08x/%08x/%08x; actual control/neighbor/tail",job,ggfb_aux_mask[job],ggfb_before_control[job],ggfb_before_hi[job],ggfb_before_tail[job],ggfb_after_control[job],ggfb_after_hi[job],ggfb_after_tail[job]);record(line);
++        for(unsigned i=0;i<8;i++){
++            snprintf(line,sizeof(line),"SWEET GPU TEXTURE MASK: job=%u index=%u before=%08x after=%08x; actual pixel reads",job,i,ggfb_before_mask[job][i],ggfb_after_mask[job][i]);record(line);
++        }
++        if(complete){
++            for(unsigned i=0;i<GGF_OUTPUT_WORDS;i++){
++                snprintf(line,sizeof(line),"SWEET GPU TEXTURE PIXEL: job=%u index=%u before=%08x after=%08x",job,i,ggfb_before[job][i],ggfb_after[job][i]);record(line);
++            }
++            for(unsigned i=0;i<GGF_COMMAND_WORDS;i++){
++                snprintf(line,sizeof(line),"SWEET GPU TEXTURE WORD: job=%u index=%u value=%08x",job,20+7*job+i,ggfb_context.command.word[i]);record(line);
++            }
++        }
++    }
++    snprintf(line,sizeof(line),"SWEET GPU TEXTURE GUARD: reason=%u job=%u phase=%u step=%u now=%016llx entry=%016llx; post-AUTH ticks",ggfb_diagnostic.reason,ggfb_diagnostic.job,ggfb_diagnostic.phase,ggfb_phase,ggfb_diagnostic.now,ggfb_entry);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TEXTURE DEADLINE: phase_entry=%016llx total_end=%016llx phase_end=%016llx",ggfb_phase_entry,ggfb_deadline,ggfb_phase_end);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU TEXTURE FAULT: rbbm=%08x cp=%08x; cached authorized post-AUTH samples",ggfb_diagnostic.rbbm,ggfb_diagnostic.cp);record(line);
++    if(!complete&&ggfb_context.diagnostic.valid){
++        const struct ggf_diagnostic *d=&ggfb_context.diagnostic;
++        snprintf(line,sizeof(line),"SWEET GPU TEXTURE SAMPLE: job=%u phase=%u memory=%u off=%05x expected=%08x actual=%08x; last cached sample",d->job,ggfb_context.phase,d->memory,d->reg,d->expected,d->actual);record(line);
++    }
++    if(complete&&gmb_thread())sweet_log_flush_now();
++}
++enum ggf_result sweet_gpu_texture_once(struct ggf_receipt *out)
++{
++    if(!out||!sweet_gpu_texture_requested())return GGF_ARGUMENT;unsigned idle=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&ggfb_lifecycle,&idle,GMB_RUNNING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GGF_ALREADY;
++    ggfb_entry=ggfb_phase_entry=ggfb_last_now=mach_absolute_time();ggfb_phase=GGF_IDLE;ggfb_sealed=0;
++    clock_interval_to_deadline(4,NSEC_PER_SEC,&ggfb_deadline);ggfb_phase_end=ggfb_deadline;
++    memset(&ggfb_diagnostic,0,sizeof(ggfb_diagnostic));ggfb_result=GGF_GUARD;
++    memset(ggfb_before_mask,0,sizeof(ggfb_before_mask));memset(ggfb_after_mask,0,sizeof(ggfb_after_mask));memset(ggfb_aux_mask,0,sizeof(ggfb_aux_mask));
++    memset(ggfb_before,0,sizeof(ggfb_before));memset(ggfb_after,0,sizeof(ggfb_after));
++    memset(ggfb_before_control,0,sizeof(ggfb_before_control));memset(ggfb_after_control,0,sizeof(ggfb_after_control));
++    memset(ggfb_before_hi,0,sizeof(ggfb_before_hi));memset(ggfb_after_hi,0,sizeof(ggfb_after_hi));
++    memset(ggfb_before_tail,0,sizeof(ggfb_before_tail));memset(ggfb_after_tail,0,sizeof(ggfb_after_tail));
++    if(!gpzb_flags()||!gmb_thread())ggfb_reject(GGF_IDLE,FGD_CONFIG);
++    else if(!gauguin_wdt_lease_check_budget(8u*GAUGUIN_WDT_CLOCK_HZ))ggfb_reject(GGF_IDLE,FGD_ENTRY_BUDGET);
++    else{
++        const struct ggf_ops ops={NULL,ggfb_guard,ggfb_seal,ggfb_read,ggfb_write,gmb_barrier,ggq_board_delay,ggfb_memory_read,ggfb_memory_write,ggfb_quarantine};
++        ggfb_result=ggf_start_once(&ggfb_context,&ops,&ggb_data_plan,&ggfb_work);
++    }
++    if(ggfb_result!=GGF_OK||!ggfb_guard(NULL,GGF_JOBS-1,GGF_FINAL)){
++        if(ggfb_result==GGF_OK)ggfb_result=GGF_GUARD;
++        if(sweet_gpu_texture_state()!=GMB_QUARANTINED)ggfb_quarantine(NULL);
++        ggfb_records(false);return ggfb_result;
++    }
++    *out=ggfb_work;__atomic_store_n(&ggfb_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggfb_records(true);return GGF_OK;
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -18,6 +18,7 @@
+ #include "gauguin_gpu_draw.h"
+ #include "gauguin_gpu_sequence.h"
+ #include "gauguin_gpu_varying.h"
++#include "gauguin_gpu_texture.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+     GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE,GMB_GPU};
+@@ -134,4 +135,7 @@
+ bool sweet_gpu_varying_requested(void);
+ enum ggv_result sweet_gpu_varying_once(struct ggv_receipt *);
+ enum gmb_state sweet_gpu_varying_state(void);
++bool sweet_gpu_texture_requested(void);
++enum ggf_result sweet_gpu_texture_once(struct ggf_receipt *);
++enum gmb_state sweet_gpu_texture_state(void);
+ #endif
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_texture.c
+@@ -0,0 +1,361 @@
++/* Fixed original native A619 graph submitted three times on one context.
++ * Each graph comes from unmodified Mesa emitters with native seqno inputs.
++ * Generated reference bytes and geometric expected pixels are not hardware
++ * observations. The fixed171 engine and its native table remain unchanged. */
++#include <string.h>
++#include "gauguin_gpu_texture.h"
++#include "gauguin_gpu_texture_native.h"
++_Static_assert(TEXTURE174_JOBS==GGF_JOBS&&TEXTURE174_BLOBS==GGF_BLOBS,"native profiles");
++_Static_assert(TEXTURE174_RING_BASE==0xfc008000u&&TEXTURE174_RING_BYTES==32768u,"native ring");
++_Static_assert(TEXTURE174_MAIN_IOVA==TEXTURE174_RING_BASE+GGF_IB_OFFSET,"native IB");
++_Static_assert(TEXTURE174_TARGET_IOVA==GGD_DATA_IOVA&&TEXTURE174_CONTROL_IOVA==GGD_DATA_IOVA+GGF_EOP_OFFSET,"native DATA");
++static bool span(const void *p,size_t n)
++{uintptr_t a=(uintptr_t)p;return a&&n&&a<=UINTPTR_MAX-n;}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{return (uintptr_t)a<(uintptr_t)b+bn&&(uintptr_t)b<(uintptr_t)a+an;}
++static const struct texture174_native_blob *native_blob(unsigned job,unsigned id)
++{return job<GGF_JOBS&&id<GGF_BLOBS?&texture174_blobs[job][id]:NULL;}
++bool ggf_blob_get(unsigned job,unsigned id,struct ggf_blob *out)
++{
++    const struct texture174_native_blob *n=native_blob(job,id);
++    if(!n||!span(out,sizeof(*out)))return false;
++    struct ggf_blob b={0};
++    if(n->words){
++        if(!n->data||n->iova<TEXTURE174_RING_BASE+4096u||n->iova%128u||
++           !n->gpu_serialized_extent||n->gpu_serialized_extent%128u||
++           n->words>n->cpu_requested_capacity/4u||n->words>n->gpu_serialized_extent/4u||
++           n->iova-TEXTURE174_RING_BASE>TEXTURE174_RING_BYTES||
++           n->gpu_serialized_extent>TEXTURE174_RING_BYTES-(n->iova-TEXTURE174_RING_BASE))return false;
++        b=(struct ggf_blob){n->iova-TEXTURE174_RING_BASE,n->gpu_serialized_extent/4u,n->words};
++    }else if(n->iova||n->gpu_serialized_extent||n->data||n->cpu_requested_capacity)return false;
++    *out=b;return true;
++}
++bool ggf_blob_word(unsigned job,unsigned id,unsigned index,uint32_t *out)
++{
++    struct ggf_blob b;
++    if(!span(out,sizeof(*out))||!ggf_blob_get(job,id,&b)||index>=b.words)return false;
++    const struct texture174_native_blob *n=native_blob(job,id);
++    *out=index<b.payload_words?n->data[index]:0;return true;
++}
++bool ggf_artifact_allowed(uint32_t off)
++{
++    if(off&3)return false;
++    for(unsigned id=0;id<GGF_BLOBS;id++){
++        struct ggf_blob b;if(!ggf_blob_get(0,id,&b))return false;
++        if(b.words&&off>=b.offset&&off-b.offset<4*b.words)return true;
++    }
++    return false;
++}
++uint32_t ggf_expected_eop(unsigned job)
++{return job<GGF_JOBS?texture174_eop[job]:0;}
++bool ggf_control_allowed(unsigned job,uint32_t value)
++{
++    if(job>=GGF_JOBS)return false;
++    uint32_t previous=job?texture174_eop[job-1]:0,seed=16*job;
++    return value==previous||(value>seed&&value<=texture174_eop[job]);
++}
++static bool pixel_value(unsigned job,unsigned index,uint32_t *out)
++{
++    if(job>=GGF_JOBS||index>=GGF_OUTPUT_WORDS)return false;
++    unsigned x=(index%16u)/4u,y=(index/16u)/4u;
++    if(job==1){unsigned t=x;x=y;y=t;}
++    if(job==2)x=3u;
++    *out=((x&1u)?0x000000ffu:0u)|((x&2u)?0x0000ff00u:0u)|
++         ((y&1u)?0x00ff0000u:0u)|((y&2u)?0xff000000u:0u);
++    return true;
++}
++bool ggf_pixel_allowed(unsigned job,unsigned index,uint32_t value)
++{
++    uint32_t expected;
++    return pixel_value(job,index,&expected)&&value==expected;
++}
++
++bool ggf_data_expected(unsigned job,unsigned index,uint32_t *out)
++{
++    if(job>=GGF_JOBS||index>=GGD_DATA_BYTES/4||!span(out,sizeof(*out)))return false;
++    uint32_t value=0;
++    if(index==GGF_EOP_OFFSET/4)value=texture174_eop[job];
++    else if(index<GGF_OUTPUT_WORDS){
++        if(!pixel_value(job,index,&value))return false;
++    }
++    *out=value;return true;
++}
++
++bool ggf_command_build(const struct ggd_plan *p,struct ggf_command *out)
++{
++    if(!span(p,sizeof(*p))||!span(out,sizeof(*out))||overlap(p,sizeof(*p),out,sizeof(*out)))return false;
++    struct ggt_command base;
++    if(!ggt_command_build(p,&base))return false;
++    for(unsigned job=0;job<GGF_JOBS;job++){
++        unsigned count=0,words=0,payload=0;
++        if(texture174_eop[job]!=16*job+6)return false;
++        for(unsigned id=0;id<GGF_BLOBS;id++){
++            struct ggf_blob b,first;
++            if(!ggf_blob_get(job,id,&b)||!ggf_blob_get(0,id,&first)||memcmp(&b,&first,sizeof(b)))return false;
++            if(!b.words)continue;
++            if(b.offset<4*GGF_END_DWORD||b.offset>TEXTURE174_RING_BYTES||4*b.words>TEXTURE174_RING_BYTES-b.offset)return false;
++            for(unsigned before=0;before<id;before++){
++                struct ggf_blob other;if(!ggf_blob_get(job,before,&other))return false;
++                if(other.words&&b.offset<other.offset+4*other.words&&other.offset<b.offset+4*b.words)return false;
++            }
++            if(id==0&&(b.offset!=GGF_IB_OFFSET||b.payload_words!=GGF_IB_WORDS))return false;
++            count++;words+=b.words;payload+=b.payload_words;
++        }
++        if(count!=GGF_ACTIVE_BLOBS||words!=GGF_ARTIFACT_WORDS||payload!=GGF_NATIVE_WORDS)return false;
++    }
++    struct ggf_command c;memcpy(c.word,base.word,sizeof(c.word));*out=c;return true;
++}
++bool ggf_register_allowed(uint32_t reg,bool write)
++{return ggt_register_allowed(reg,write);}
++struct ggf_prefix {uint32_t word[GGF_END_DWORD];};
++/* Job/phase and callbacks are frozen locally before any callback. Mutable
++ *context fields can never index a native table or a receipt after a callback. */
++struct run {struct ggf_context *c;const struct ggf_ops *ops;const struct ggf_command *command;unsigned job;enum ggf_phase phase;uint32_t pixels[GGF_OUTPUT_WORDS];};
++static struct ggf_job_receipt *work(struct run *r)
++{return &r->c->work.job[r->job];}
++static bool stable(struct run *r)
++{
++    return r->c->state==1&&r->c->job==r->job&&r->c->phase==(unsigned)r->phase&&
++        r->c->work.completed_jobs==(r->phase==GGF_FINAL?GGF_JOBS:r->job)&&
++        !memcmp(&r->c->ops,r->ops,sizeof(*r->ops))&&
++        !memcmp(&r->c->command,r->command,sizeof(*r->command));
++}
++static bool guard(struct run *r)
++{return stable(r)&&r->ops->guard(r->ops->cookie,r->job,r->phase)&&stable(r);}
++static void phase(struct run *r,enum ggf_phase p)
++{r->phase=p;r->c->phase=p;}
++static enum ggf_result sample(struct run *r,bool mem,uint32_t reg,uint32_t expected,uint32_t actual)
++{r->c->diagnostic=(struct ggf_diagnostic){1,r->job,mem,reg,expected,actual};return mem?GGF_MEMORY_ERROR:GGF_DIRTY_STATE;}
++static enum ggf_result rd(struct run *r,uint32_t reg,uint32_t *v)
++{
++    if(!guard(r))return GGF_GUARD;
++    ++work(r)->reads;if(!r->ops->read32(r->ops->cookie,reg,v))return GGF_IO;
++    if(!guard(r))return GGF_GUARD;
++    r->c->diagnostic=(struct ggf_diagnostic){1,r->job,0,reg,0,*v};return GGF_OK;
++}
++static enum ggf_result wr(struct run *r,uint32_t reg,uint32_t v)
++{
++    if(!guard(r))return GGF_GUARD;
++    if(reg==0x807)work(r)->submit_attempted=1;
++    if(reg==0x1f8c3){if(v)work(r)->keepalive_set_attempted=1;else work(r)->keepalive_clear_attempted=1;}
++    ++work(r)->writes;if(!r->ops->write32(r->ops->cookie,reg,v))return GGF_IO;
++    return guard(r)?GGF_OK:GGF_GUARD;
++}
++static enum ggf_result mr(struct run *r,enum ggf_memory mem,uint32_t off,uint32_t *v)
++{
++    if(!guard(r))return GGF_GUARD;
++    if(!r->ops->read_memory(r->ops->cookie,mem,off,v))return GGF_IO;
++    if(!guard(r))return GGF_GUARD;
++    r->c->diagnostic=(struct ggf_diagnostic){1,r->job,1,(mem==GGF_SCRATCH?0x10000u:mem==GGF_DATA?0x20000u:0u)+off,0,*v};return GGF_OK;
++}
++static enum ggf_result barrier(struct run *r)
++{
++    if(!guard(r))return GGF_GUARD;
++    if(!r->ops->barrier(r->ops->cookie))return GGF_IO;
++    return guard(r)?GGF_OK:GGF_GUARD;
++}
++static enum ggf_result delay(struct run *r)
++{
++    if(!guard(r))return GGF_GUARD;
++    if(!r->ops->delay_us(r->ops->cookie,10))return GGF_IO;
++    return guard(r)?GGF_OK:GGF_GUARD;
++}
++#define TRY(x) do{enum ggf_result result=(x);if(result)return result;}while(0)
++static enum ggf_result counter(struct run *r,uint64_t *v)
++{
++    uint32_t h,l,h1;TRY(rd(r,0x1f889,&h));TRY(rd(r,0x1f888,&l));TRY(rd(r,0x1f889,&h1));
++    if(h!=h1)TRY(rd(r,0x1f888,&l));*v=((uint64_t)h1<<32)|l;return GGF_OK;
++}
++static enum ggf_result faults(struct run *r)
++{
++    TRY(rd(r,0x201,&work(r)->rbbm_status));TRY(rd(r,0x823,&work(r)->cp_status));
++    return (work(r)->rbbm_status&GGQ_RBBM_ERRORS)||(work(r)->cp_status&GGQ_CP_ERRORS)?GGF_FAULT:GGF_OK;
++}
++/* profile -1 is the initial seed; all later before passes compare previous
++ *actual native artifacts to their source profile. Previous pixels compare
++ *exactly to the core-local observed snapshot, with exact endpoint texture components. */
++static enum ggf_result compare_nc(struct run *r,enum ggf_memory mem,
++    unsigned off,unsigned words,const uint32_t *expected,uint32_t seed,
++    unsigned blob,int profile,uint32_t *count)
++{
++    for(unsigned base=0;base<words;base+=GGF_BATCH_WORDS){
++        unsigned n=words-base;if(n>GGF_BATCH_WORDS)n=GGF_BATCH_WORDS;
++        if(!guard(r))return GGF_GUARD;
++        for(unsigned i=0;i<n;i++){
++            unsigned index=base+i,offset=off+4*index;uint32_t want=expected?expected[index]:seed,value;
++            if(profile>=0){
++                bool ok=mem==GGF_DATA?ggf_data_expected((unsigned)profile,index,&want):ggf_blob_word((unsigned)profile,blob,index,&want);
++                if(!ok)return GGF_ARGUMENT;
++            }
++            bool pixel=mem==GGF_DATA&&profile>=0&&index<GGF_OUTPUT_WORDS;
++            if(pixel&&r->phase==GGF_CAPTURE)want=r->pixels[index];
++            if(!r->ops->read_memory(r->ops->cookie,mem,offset,&value))return GGF_IO;
++            bool allowed=pixel&&r->phase==GGF_VERIFY?
++                ggf_pixel_allowed((unsigned)profile,index,value):value==want;
++            if(!allowed)return sample(r,true,(mem==GGF_DATA?0x20000u:0u)+offset,want,value);
++            if(pixel&&r->phase==GGF_VERIFY)r->pixels[index]=value;
++            ++*count;
++            if(mem==GGF_DATA&&r->phase==GGF_VERIFY){
++                if(index==GGF_EOP_OFFSET/4)++work(r)->eop_checked;
++                else if(index<GGF_OUTPUT_WORDS){
++                    ++work(r)->pixels_checked;
++                    ++work(r)->foreground_checked; /* all256 sample centers covered */
++                }else ++work(r)->unchanged_checked;
++            }
++        }
++        if(work(r)->max_nc_batch_words<n)work(r)->max_nc_batch_words=n;
++        if(!guard(r))return GGF_GUARD;
++    }
++    return GGF_OK;
++}
++static enum ggf_result copy_nc(struct run *r,unsigned off,unsigned words,
++    const uint32_t *values,unsigned blob,uint32_t *count)
++{
++    for(unsigned base=0;base<words;base+=GGF_BATCH_WORDS){
++        unsigned n=words-base;if(n>GGF_BATCH_WORDS)n=GGF_BATCH_WORDS;
++        if(!guard(r))return GGF_GUARD;
++        for(unsigned i=0;i<n;i++){
++            unsigned index=base+i;uint32_t value;
++            if(values)value=values[index];else if(!ggf_blob_word(r->job,blob,index,&value))return GGF_ARGUMENT;
++            ++*count;if(!r->ops->write_memory(r->ops->cookie,GGF_RING,off+4*index,value))return GGF_IO;
++        }
++        if(work(r)->max_nc_batch_words<n)work(r)->max_nc_batch_words=n;
++        if(!guard(r))return GGF_GUARD;
++    }
++    return GGF_OK;
++}
++static enum ggf_result capture(struct run *r,const struct ggf_prefix *prefix)
++{
++    unsigned start=GGF_START_DWORD+GGF_COMMAND_WORDS*r->job;
++    TRY(faults(r));TRY(rd(r,0x807,&work(r)->initial_wptr));
++    if(work(r)->initial_wptr!=start)return sample(r,false,0x807,start,work(r)->initial_wptr);
++    TRY(mr(r,GGF_SCRATCH,0,&work(r)->initial_shadow));
++    if(work(r)->initial_shadow!=start)return sample(r,true,0x10000u,start,work(r)->initial_shadow);
++    TRY(rd(r,0x23b0c,&work(r)->initial_busy));if(work(r)->initial_busy&(1u<<23))return GGF_FAULT;
++    TRY(compare_nc(r,GGF_RING,0,start,prefix->word,0,0,-1,&work(r)->prefix_checked));
++    TRY(compare_nc(r,GGF_RING,4*start,GGF_COMMAND_WORDS,NULL,0xaaaaaaaau,0,-1,&work(r)->clean_checked));
++    for(unsigned id=0;id<GGF_BLOBS;id++){
++        struct ggf_blob b;if(!ggf_blob_get(r->job,id,&b))return GGF_ARGUMENT;
++        TRY(compare_nc(r,GGF_RING,b.offset,b.words,NULL,0xaaaaaaaau,id,(int)r->job-1,&work(r)->blob_before_checked[id]));
++        work(r)->artifact_before_checked+=work(r)->blob_before_checked[id];
++    }
++    return compare_nc(r,GGF_DATA,0,GGD_DATA_BYTES/4,NULL,0,0,(int)r->job-1,&work(r)->data_before_checked);
++}
++static enum ggf_result commands(struct run *r)
++{
++    for(unsigned id=0;id<GGF_BLOBS;id++){
++        struct ggf_blob b;if(!ggf_blob_get(r->job,id,&b))return GGF_ARGUMENT;
++        TRY(copy_nc(r,b.offset,b.words,NULL,id,&work(r)->blob_written[id]));
++        TRY(barrier(r));
++        TRY(compare_nc(r,GGF_RING,b.offset,b.words,NULL,0,id,(int)r->job,&work(r)->blob_checked[id]));
++        work(r)->artifact_written+=work(r)->blob_written[id];work(r)->artifact_checked+=work(r)->blob_checked[id];
++    }
++    unsigned start=GGF_START_DWORD+GGF_COMMAND_WORDS*r->job;
++    TRY(copy_nc(r,4*start,GGF_COMMAND_WORDS,r->command->word,0,&work(r)->commands_written));
++    TRY(barrier(r));
++    TRY(compare_nc(r,GGF_RING,4*start,GGF_COMMAND_WORDS,r->command->word,0,0,-1,&work(r)->commands_checked));
++    return barrier(r);
++}
++static enum ggf_result submit(struct run *r)
++{
++    unsigned end=GGF_START_DWORD+GGF_COMMAND_WORDS*(r->job+1);
++    TRY(wr(r,0x1f8c3,1));TRY(wr(r,0x807,end));
++    TRY(counter(r,&work(r)->counter_before));work(r)->counter_before_valid=1;
++    unsigned i;
++    for(i=0;i<GGQ_FENCE_LIMIT;i++){
++        TRY(barrier(r));TRY(rd(r,0x23b13,&work(r)->fence_status));++work(r)->fence_checks;
++        if(!(work(r)->fence_status&1u))break;
++        TRY(delay(r));TRY(wr(r,0x807,end));
++    }
++    if(i>=100){work(r)->fence_slow=1;TRY(counter(r,&work(r)->counter_after));work(r)->counter_after_valid=1;}
++    if(i==GGQ_FENCE_LIMIT)return GGF_TIMEOUT;
++    return wr(r,0x1f8c3,0);
++}
++static enum ggf_result progress(struct run *r,uint32_t value)
++{
++    if(!ggf_control_allowed(r->job,value))return sample(r,true,0x20000u+GGF_EOP_OFFSET,texture174_eop[r->job],value);
++    unsigned previous=r->job?texture174_eop[r->job-1]:0;
++    unsigned rank=value==previous?0:value-16*r->job;
++    if(rank<work(r)->eop_progress)return sample(r,true,0x20000u+GGF_EOP_OFFSET,16*r->job+work(r)->eop_progress,value);
++    work(r)->eop_progress=rank;return GGF_OK;
++}
++static enum ggf_result wait_idle(struct run *r)
++{
++    unsigned end=GGF_START_DWORD+GGF_COMMAND_WORDS*(r->job+1);
++    for(unsigned i=0;i<GGQ_IDLE_LIMIT;i++){
++        TRY(faults(r));TRY(barrier(r));TRY(mr(r,GGF_SCRATCH,0,&work(r)->rptr));++work(r)->idle_polls;
++        TRY(mr(r,GGF_DATA,GGF_EOP_OFFSET,&work(r)->wait_control));
++        TRY(mr(r,GGF_DATA,GGF_EOP_OFFSET+4,&work(r)->wait_control_hi));++work(r)->wait_samples;
++        if(work(r)->wait_control_hi)return sample(r,true,0x20000u+GGF_EOP_OFFSET+4,0,work(r)->wait_control_hi);
++        TRY(progress(r,work(r)->wait_control));
++        if(work(r)->rptr>=GGQ_RING_WORDS)return sample(r,true,0x10000u,end,work(r)->rptr);
++        if(work(r)->rptr!=end)continue;
++        TRY(rd(r,0x23b0c,&work(r)->busy));
++        if(work(r)->busy==UINT32_MAX)return GGF_FAULT;
++        if(!(work(r)->busy&(1u<<23)))return GGF_OK;
++    }
++    return GGF_TIMEOUT;
++}
++static enum ggf_result wait_eop(struct run *r)
++{
++    for(unsigned i=0;i<GGF_EOP_LIMIT;i++){
++        TRY(barrier(r));TRY(mr(r,GGF_DATA,GGF_EOP_OFFSET,&work(r)->eop_value));++work(r)->eop_polls;
++        TRY(progress(r,work(r)->eop_value));
++        if(work(r)->eop_value==texture174_eop[r->job]){work(r)->eop_complete=1;return GGF_OK;}
++    }
++    return GGF_TIMEOUT;
++}
++static enum ggf_result verify_data(struct run *r,const struct ggf_prefix *prefix)
++{
++    TRY(barrier(r));
++    TRY(compare_nc(r,GGF_DATA,0,GGD_DATA_BYTES/4,NULL,0,0,(int)r->job,&work(r)->data_after_checked));
++    unsigned end=GGF_START_DWORD+GGF_COMMAND_WORDS*(r->job+1);
++    TRY(compare_nc(r,GGF_RING,0,end,prefix->word,0,0,-1,&work(r)->ring_after_checked));
++    for(unsigned id=0;id<GGF_BLOBS;id++){
++        struct ggf_blob b;if(!ggf_blob_get(r->job,id,&b))return GGF_ARGUMENT;
++        TRY(compare_nc(r,GGF_RING,b.offset,b.words,NULL,0,id,(int)r->job,&work(r)->blob_after_checked[id]));
++        work(r)->artifact_after_checked+=work(r)->blob_after_checked[id];
++    }
++    return faults(r);
++}
++static enum ggf_result execute(struct ggf_context *c,const struct ggf_ops *ops,
++    const struct ggf_command *cmd,const struct ggd_plan *p,const struct ggf_prefix *prefix)
++{
++    struct run r={.c=c,.ops=ops,.command=cmd,.job=0,.phase=GGF_SEAL};c->job=0;c->phase=GGF_SEAL;
++    if(!guard(&r))return GGF_GUARD;
++    if(!ops->seal(ops->cookie,p->bootstrap.owner_pa))return GGF_OWNER;
++    c->work.sealed=c->work.requests_retained=1;if(!guard(&r))return GGF_GUARD;
++    for(unsigned job=0;job<GGF_JOBS;job++){
++        r.job=job;c->job=job;
++        phase(&r,GGF_CAPTURE);TRY(capture(&r,prefix));
++        phase(&r,GGF_COMMANDS);TRY(commands(&r));
++        phase(&r,GGF_SUBMIT);TRY(submit(&r));
++        phase(&r,GGF_WAIT);TRY(wait_idle(&r));TRY(wait_eop(&r));
++        phase(&r,GGF_VERIFY);TRY(verify_data(&r,prefix));
++        work(&r)->complete=1;++c->work.completed_jobs;
++    }
++    phase(&r,GGF_FINAL);TRY(barrier(&r));if(!guard(&r))return GGF_GUARD;
++    c->work.complete=1;return GGF_OK;
++}
++#undef TRY
++enum ggf_result ggf_start_once(struct ggf_context *c,const struct ggf_ops *ops,const struct ggd_plan *p,struct ggf_receipt *out)
++{
++    const void *ptr[]={c,ops,p,out};size_t len[]={sizeof(*c),sizeof(*ops),sizeof(*p),sizeof(*out)};
++    for(unsigned i=0;i<4;i++){
++        if(!span(ptr[i],len[i]))return GGF_ARGUMENT;
++        for(unsigned j=0;j<i;j++)if(overlap(ptr[i],len[i],ptr[j],len[j]))return GGF_ARGUMENT;
++    }
++    struct ggf_command cmd;struct ggf_prefix prefix;struct ggq_command init;struct ggu_command mode;
++    if(!ggf_command_build(p,&cmd)||!ggq_command_build(&p->bootstrap,&init)||!ggu_command_build(&p->bootstrap,&mode)||!ops->guard||!ops->seal||
++       !ops->read32||!ops->write32||!ops->read_memory||!ops->write_memory||
++       !ops->barrier||!ops->delay_us||!ops->quarantine)return GGF_ARGUMENT;
++    memcpy(prefix.word,init.word,sizeof(init.word));memcpy(prefix.word+GGQ_COMMAND_WORDS,mode.word,sizeof(mode.word));
++    for(unsigned j=0;j<GGF_JOBS;j++)memcpy(prefix.word+GGF_START_DWORD+GGF_COMMAND_WORDS*j,cmd.word,sizeof(cmd.word));
++    const struct ggf_ops saved=*ops;const struct ggd_plan plan=*p;unsigned idle=0;
++    if(!__atomic_compare_exchange_n(&c->state,&idle,1,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GGF_ALREADY;
++    c->ops=saved;c->command=cmd;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));
++    enum ggf_result result=execute(c,&saved,&cmd,&plan,&prefix);
++    if(result){__atomic_store_n(&c->state,3,__ATOMIC_RELEASE);saved.quarantine(saved.cookie);}
++    else{c->phase=GGF_DONE;*out=c->work;__atomic_store_n(&c->state,2,__ATOMIC_RELEASE);}
++    return result;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_texture.h
+@@ -0,0 +1,80 @@
++#ifndef GAUGUIN_GPU_TEXTURE_H
++#define GAUGUIN_GPU_TEXTURE_H
++#include "gauguin_gpu_draw.h"
++enum ggf_phase {GGF_IDLE,GGF_SEAL,GGF_CAPTURE,GGF_COMMANDS,GGF_SUBMIT,
++    GGF_WAIT,GGF_VERIFY,GGF_FINAL,GGF_DONE};
++enum ggf_result {GGF_OK,GGF_ARGUMENT,GGF_ALREADY,GGF_GUARD,GGF_OWNER,GGF_IO,
++    GGF_DIRTY_STATE,GGF_MEMORY_ERROR,GGF_FAULT,GGF_TIMEOUT};
++enum ggf_memory {GGF_RING,GGF_SCRATCH,GGF_DATA};
++#define GGF_JOBS 3u
++#define GGF_START_DWORD 20u
++#define GGF_COMMAND_WORDS 7u
++#define GGF_END_DWORD 41u
++#define GGF_IB_OFFSET 0x4000u
++#define GGF_IB_WORDS 203u
++#define GGF_EOP_OFFSET 0xc00u
++#define GGF_EOP_LIMIT 1024u
++#define GGF_OUTPUT_WORDS 256u
++#define GGF_BATCH_WORDS 64u
++#define GGF_BLOBS 31u
++#define GGF_ACTIVE_BLOBS 30u
++#define GGF_NATIVE_WORDS 2221u
++#define GGF_ARTIFACT_WORDS 2752u
++struct ggf_blob {uint32_t offset,words,payload_words;};
++struct ggf_command {uint32_t word[GGF_COMMAND_WORDS];};
++struct ggf_ops {
++    void *cookie;
++    bool (*guard)(void *,unsigned,enum ggf_phase);
++    bool (*seal)(void *,uint64_t);
++    bool (*read32)(void *,uint32_t,uint32_t *);
++    bool (*write32)(void *,uint32_t,uint32_t);
++    bool (*barrier)(void *);
++    bool (*delay_us)(void *,unsigned);
++    bool (*read_memory)(void *,enum ggf_memory,uint32_t,uint32_t *);
++    bool (*write_memory)(void *,enum ggf_memory,uint32_t,uint32_t);
++    void (*quarantine)(void *);
++};
++struct ggf_job_receipt {
++    uint32_t reads,writes,prefix_checked,clean_checked,commands_written,commands_checked;
++    uint32_t initial_wptr,initial_shadow,initial_busy,submit_attempted;
++    uint32_t keepalive_set_attempted,keepalive_clear_attempted,fence_checks,fence_status;
++    uint32_t fence_slow,counter_before_valid,counter_after_valid,idle_polls;
++    uint32_t rptr,busy,rbbm_status,cp_status,complete;
++    uint32_t data_before_checked,data_after_checked,pixels_checked,foreground_checked,background_checked,unchanged_checked,ring_after_checked;
++    uint32_t blob_before_checked[GGF_BLOBS],blob_written[GGF_BLOBS],blob_checked[GGF_BLOBS],blob_after_checked[GGF_BLOBS];
++    uint32_t artifact_before_checked,artifact_written,artifact_checked,artifact_after_checked;
++    uint32_t max_nc_batch_words;
++    uint32_t eop_polls,eop_value,eop_complete,eop_checked,eop_progress;
++    uint32_t wait_samples,wait_control,wait_control_hi;
++    uint64_t counter_before,counter_after;
++};
++struct ggf_receipt {
++    uint32_t sealed,requests_retained,completed_jobs,complete;
++    struct ggf_job_receipt job[GGF_JOBS];
++};
++struct ggf_diagnostic {uint32_t valid,job,memory,reg,expected,actual;};
++struct ggf_context {
++    uint32_t state,job,phase;
++    struct ggf_ops ops;
++    struct ggf_command command;
++    struct ggf_receipt work;
++    struct ggf_diagnostic diagnostic;
++};
++bool ggf_blob_get(unsigned,unsigned,struct ggf_blob *);
++bool ggf_blob_word(unsigned,unsigned,unsigned,uint32_t *);
++bool ggf_artifact_allowed(uint32_t);
++bool ggf_command_build(const struct ggd_plan *,struct ggf_command *);
++bool ggf_register_allowed(uint32_t,bool);
++bool ggf_data_expected(unsigned,unsigned,uint32_t *);
++bool ggf_pixel_allowed(unsigned,unsigned,uint32_t);
++bool ggf_control_allowed(unsigned,uint32_t);
++uint32_t ggf_expected_eop(unsigned);
++/* One bounded normalized nearest RGBA8 texture sequence: UV, VU, upper-U
++ * clamp. Preserve173. Same one signed context/root20->27->34->41/EOP6/22/38.
++ * Immutable sampler/view/shader/texture data stay inside the existing RO RING.
++ * Exact endpoint pixels and exact previous OBSERVED pixels are checked; prior
++ * words are core-local and inaccessible to callbacks. CPU writes RING only.
++ * No general texture/filter/resource API, presentation, UI or Metal proof. */
++enum ggf_result ggf_start_once(struct ggf_context *,const struct ggf_ops *,
++    const struct ggd_plan *,struct ggf_receipt *);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_texture_native.h
+@@ -0,0 +1,568 @@
++/* Generated reference from original Mesa24.3.4 A619 graph/IR3 emitters.
++ * Primary commit769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de, USER32 profile1.
++ * Native context seqno inputs0/16/32; no packet or ISA postprocessing.
++ * Three authored NIR profiles: 2D nearest UV/VU and upperU clamp control.
++ * A separate legacy-green capture is byte-exact to the accepted173 source. Packets,
++ * private-memory-zero shaders, disabled empty VFD and binning groups retained.
++ * Arrays shared only for byte-identical complete serialized payloads.
++ * All pixels/masks are semantic expected values, NOT GPU observations.
++ * CPU capacities are not device extents; GPU subviews padded to128bytes.
++ * See native_provenance.json. No device dump or Apple artifact included.
++ */
++#ifndef GAUGUIN_NATIVE_TEXTURE174_WORDS_H
++#define GAUGUIN_NATIVE_TEXTURE174_WORDS_H
++#include <stdint.h>
++#define TEXTURE174_JOBS 3u
++#define TEXTURE174_BLOBS 31u
++#define TEXTURE174_RING_BASE 0xfc008000u
++#define TEXTURE174_RING_BYTES 32768u
++#define TEXTURE174_MAIN_IOVA 0xfc00c000u
++#define TEXTURE174_TARGET_IOVA 0xfc018000u
++#define TEXTURE174_CONTROL_IOVA 0xfc018c00u
++struct texture174_native_blob {
++    uint32_t iova,words,gpu_serialized_extent,cpu_requested_capacity;
++    const uint32_t *data;
++};
++
++static const uint32_t texture174_words_00[203] = {
++    0x70e30001u,0x00000000u,0x70460001u,0x00000019u,0x70460001u,0x00000018u,0x70460001u,0x00000031u,
++    0x40bb0801u,0x000fffffu,0x70268000u,0x70bf8003u,0xfc00d000u,0x00000000u,0x000000c2u,0x70268000u,
++    0x408e0701u,0x08000000u,0x70d58003u,0xfc00e000u,0x00000000u,0x001000cdu,0x70d58003u,0x00000000u,
++    0x00000000u,0x00000000u,0x70d58003u,0x00000000u,0x00000000u,0x00200000u,0x70460001u,0x00000026u,
++    0x4080f002u,0x00000000u,0x000f000fu,0x48840a02u,0x00000000u,0x000f000fu,0x48889001u,0x00000000u,
++    0x4888d401u,0x00000000u,0x48b4d101u,0x00000000u,0x48b30701u,0x00000000u,0x4880a101u,0x00c00000u,
++    0x48880001u,0x00c00000u,0x4088d301u,0x00000000u,0x70e50001u,0x00000001u,0x709d0001u,0x00000000u,
++    0x70230001u,0x00000001u,0x48930601u,0x00000000u,0x70640001u,0x00000001u,0x48887286u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48809801u,0x00000000u,0x48888101u,
++    0x00000000u,0x48882286u,0x00000030u,0x00000001u,0x00000040u,0xfc018000u,0x00000000u,0x00000000u,
++    0x48a99601u,0x00000030u,0x40890383u,0x00000000u,0x00000000u,0x00000000u,0x40810201u,0x00000030u,
++    0x48880f01u,0x00000000u,0x40a98a01u,0x00000000u,0x48800401u,0x00000000u,0x40b30002u,0x00000000u,
++    0x00000004u,0x4880a202u,0x00000000u,0x00000004u,0x40880202u,0x00000000u,0x00000004u,0x4088d501u,
++    0x00000000u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000001u,0x70460001u,0x00000019u,
++    0x48840502u,0x00000000u,0x000f000fu,0x488c2c04u,0x00000000u,0x00000000u,0x000000ffu,0x000000ffu,
++    0x408c0001u,0x10f03080u,0x48840001u,0x10f03080u,0x48acc001u,0x0000f180u,0x488c0101u,0x00000000u,
++    0x408c1704u,0x00000030u,0xfc018000u,0x00000000u,0x00000001u,0x70460001u,0x0000003fu,0x70268000u,
++    0x408e0401u,0x04100000u,0x702c0001u,0x00000003u,0x70268000u,0x408e0401u,0x00000000u,0x70460004u,
++    0x0000001du,0xfc018c00u,0x00000000u,0x00000002u,0x70460001u,0x00000019u,0x70268000u,0x408e0701u,
++    0x08000000u,0x706d8003u,0x00000002u,0x00008801u,0x00000010u,0x48810385u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x70bf8003u,0xfc00b800u,0x00000000u,0x0000004fu,0x709d0001u,
++    0x00000000u,0x70460001u,0x00000026u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000003u,
++    0x70460004u,0x0000001cu,0xfc018c00u,0x00000000u,0x00000004u,0x70460004u,0x00000016u,0xfc018c00u,
++    0x00000000u,0x00000005u,0x70bc8006u,0x00000013u,0xfc018c00u,0x00000000u,0x00000005u,0xffffffffu,
++    0x00000010u,0x70460004u,0x00000004u,0xfc018c00u,0x00000000u,0x00000006u,0x70940004u,0x00000000u,
++    0xfc018c00u,0x00000000u,0x00000006u,
++};
++
++static const uint32_t texture174_words_01[79] = {
++    0x40a00e01u,0x00000000u,0x48a00f01u,0x00000000u,0x40980301u,0xffffffffu,0x48888701u,0x00000000u,
++    0x48801086u,0x41000000u,0x41000000u,0x41000000u,0x41000000u,0x3f000000u,0x3f000000u,0x4880d002u,
++    0x00000000u,0x000f000fu,0x40800601u,0x0007fdffu,0x70438036u,0x00700018u,0xfc009100u,0x00000000u,
++    0x0160006fu,0xfc009180u,0x00000000u,0x0210005cu,0xfc009380u,0x00000000u,0x03600012u,0xfc009500u,
++    0x00000000u,0x04700009u,0xfc009580u,0x00000000u,0x05700008u,0xfc009600u,0x00000000u,0x06700001u,
++    0xfc009680u,0x00000000u,0x07720000u,0x00000000u,0x00000000u,0x0870000cu,0xfc009700u,0x00000000u,
++    0x0f600010u,0xfc009780u,0x00000000u,0x10700011u,0xfc009800u,0x00000000u,0x11700010u,0xfc009880u,
++    0x00000000u,0x1270000au,0xfc009900u,0x00000000u,0x13700003u,0xfc009980u,0x00000000u,0x14700005u,
++    0xfc009a00u,0x00000000u,0x15700006u,0xfc009a80u,0x00000000u,0x1c500002u,0xfc009b00u,0x00000000u,
++    0x1d200002u,0xfc009b80u,0x00000000u,0x70388003u,0x00000184u,0x00000001u,0x00000003u,
++};
++
++static const uint32_t texture174_words_02[16] = {
++    0x40886401u,0x00000000u,0x40888001u,0x00000000u,0x40811501u,0x00000000u,0x48887101u,0x0000001cu,
++    0x48811401u,0x00000000u,0x48888802u,0x00000000u,0x00000000u,0x48887802u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_03[16] = {
++    0x40886401u,0x00000000u,0x40888001u,0x00000000u,0x40811501u,0x00000000u,0x48887101u,0x0000003cu,
++    0x48811401u,0x00000000u,0x48888802u,0x00000000u,0x00000000u,0x48887802u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_04[1] = {
++    0x48a09080u,
++};
++
++static const uint32_t texture174_words_05[6] = {
++    0x4880a401u,0x00000000u,0x40880401u,0x00000000u,0x48b30401u,0x00000000u,
++};
++
++static const uint32_t texture174_words_06[205] = {
++    0x408e0401u,0x04100000u,0x48ae0401u,0x00000008u,0x40ae0001u,0x00000000u,0x40ae0f01u,0x0000003fu,
++    0x40b60501u,0x00000044u,0x40b60001u,0x00108000u,0x48be0001u,0x00000080u,0x40be0101u,0x00000000u,
++    0x48960001u,0x00000000u,0x40860001u,0x00000880u,0x40be0401u,0x00080000u,0x40ae0301u,0x00000430u,
++    0x48ab2001u,0x00000000u,0x48b18201u,0x00000000u,0x48bb1101u,0x00000000u,0x400e1201u,0x00000001u,
++    0x480e1901u,0x00000004u,0x408e0101u,0x00000001u,0x40a9a801u,0x00000000u,0x40ab0001u,0x00000005u,
++    0x48a00901u,0x00000001u,0x48910701u,0x00000000u,0x48881101u,0x00000010u,0x48980401u,0x0000001fu,
++    0x40810101u,0x00000000u,0x48810901u,0x00000000u,0x40811001u,0x00000002u,0x48881801u,0x00000000u,
++    0x40881901u,0x00000000u,0x40881a01u,0x00000000u,0x48881b01u,0x00000000u,0x40881c01u,0x00000000u,
++    0x48881d01u,0x00000000u,0x48881e01u,0x00000000u,0x4888f001u,0x00000000u,0x40923601u,0x00000000u,
++    0x48930001u,0x00000000u,0x48930601u,0x00000001u,0x40998001u,0x00000000u,0x489b0701u,0x00000000u,
++    0x40b18301u,0x00000000u,0x40809901u,0x00000000u,0x48809b01u,0x00000000u,0x4080a001u,0x00000002u,
++    0x4080af01u,0x00000000u,0x48921001u,0x00000000u,0x40921101u,0x00000000u,0x40960201u,0x00000000u,
++    0x409e7201u,0x00000000u,0x40b30901u,0x000000a2u,0x48b98601u,0x0000fcfcu,0x40a00701u,0x00000000u,
++    0x40a00801u,0x00000000u,0x70438003u,0x00040000u,0x00000000u,0x00000000u,0x48930501u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x40887001u,0x00000000u,0x48809401u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x48a01201u,0x00000000u,0x40a01601u,0x00000000u,
++    0x40a01a01u,0x00000000u,0x48a01e01u,0x00000000u,0x48a02201u,0x00000000u,0x40a02601u,0x00000000u,
++    0x40a02a01u,0x00000000u,0x48a02e01u,0x00000000u,0x40a03201u,0x00000000u,0x48a03601u,0x00000000u,
++    0x48a03a01u,0x00000000u,0x40a03e01u,0x00000000u,0x48a04201u,0x00000000u,0x40a04601u,0x00000000u,
++    0x40a04a01u,0x00000000u,0x48a04e01u,0x00000000u,0x40a05201u,0x00000000u,0x48a05601u,0x00000000u,
++    0x48a05a01u,0x00000000u,0x40a05e01u,0x00000000u,0x40a06201u,0x00000000u,0x48a06601u,0x00000000u,
++    0x48a06a01u,0x00000000u,0x40a06e01u,0x00000000u,0x48a07201u,0x00000000u,0x40a07601u,0x00000000u,
++    0x40a07a01u,0x00000000u,0x48a07e01u,0x00000000u,0x48a08201u,0x00000000u,0x40a08601u,0x00000000u,
++    0x40a08a01u,0x00000000u,0x48a08e01u,0x00000000u,0x48b30202u,0xfc008000u,0x00000000u,0x40b18002u,
++    0xfc008000u,0x00000000u,0x70268000u,0x408e0701u,0x08000000u,0x40980501u,0x00000000u,0x40a0f801u,
++    0x00000000u,0x70c28003u,0x01000c38u,0xfc018ca0u,0x00000000u,
++};
++
++static const uint32_t texture174_words_07[194] = {
++    0x408e0401u,0x04100000u,0x48ae0401u,0x00000008u,0x40ae0001u,0x00000000u,0x40ae0f01u,0x0000003fu,
++    0x40b60501u,0x00000044u,0x40b60001u,0x00108000u,0x48be0001u,0x00000080u,0x40be0101u,0x00000000u,
++    0x48960001u,0x00000000u,0x40860001u,0x00000880u,0x40be0401u,0x00080000u,0x40ae0301u,0x00000430u,
++    0x48ab2001u,0x00000000u,0x48b18201u,0x00000000u,0x48bb1101u,0x00000000u,0x400e1201u,0x00000001u,
++    0x480e1901u,0x00000004u,0x408e0101u,0x00000001u,0x40a9a801u,0x00000000u,0x40ab0001u,0x00000005u,
++    0x48a00901u,0x00000001u,0x48910701u,0x00000000u,0x48881101u,0x00000010u,0x48980401u,0x0000001fu,
++    0x40810101u,0x00000000u,0x48810901u,0x00000000u,0x40811001u,0x00000002u,0x48881801u,0x00000000u,
++    0x40881901u,0x00000000u,0x40881a01u,0x00000000u,0x48881b01u,0x00000000u,0x40881c01u,0x00000000u,
++    0x48881d01u,0x00000000u,0x48881e01u,0x00000000u,0x4888f001u,0x00000000u,0x40923601u,0x00000000u,
++    0x48930001u,0x00000000u,0x48930601u,0x00000001u,0x40998001u,0x00000000u,0x489b0701u,0x00000000u,
++    0x40b18301u,0x00000000u,0x40809901u,0x00000000u,0x48809b01u,0x00000000u,0x4080a001u,0x00000002u,
++    0x4080af01u,0x00000000u,0x48921001u,0x00000000u,0x40921101u,0x00000000u,0x40960201u,0x00000000u,
++    0x409e7201u,0x00000000u,0x40b30901u,0x000000a2u,0x48b98601u,0x0000fcfcu,0x40a00701u,0x00000000u,
++    0x40a00801u,0x00000000u,0x70438003u,0x00040000u,0x00000000u,0x00000000u,0x48930501u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x40887001u,0x00000000u,0x48809401u,0x00000000u,
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x48a01201u,0x00000000u,0x40a01601u,0x00000000u,
++    0x40a01a01u,0x00000000u,0x48a01e01u,0x00000000u,0x48a02201u,0x00000000u,0x40a02601u,0x00000000u,
++    0x40a02a01u,0x00000000u,0x48a02e01u,0x00000000u,0x40a03201u,0x00000000u,0x48a03601u,0x00000000u,
++    0x48a03a01u,0x00000000u,0x40a03e01u,0x00000000u,0x48a04201u,0x00000000u,0x40a04601u,0x00000000u,
++    0x40a04a01u,0x00000000u,0x48a04e01u,0x00000000u,0x40a05201u,0x00000000u,0x48a05601u,0x00000000u,
++    0x48a05a01u,0x00000000u,0x40a05e01u,0x00000000u,0x40a06201u,0x00000000u,0x48a06601u,0x00000000u,
++    0x48a06a01u,0x00000000u,0x40a06e01u,0x00000000u,0x48a07201u,0x00000000u,0x40a07601u,0x00000000u,
++    0x40a07a01u,0x00000000u,0x48a07e01u,0x00000000u,0x48a08201u,0x00000000u,0x40a08601u,0x00000000u,
++    0x40a08a01u,0x00000000u,0x48a08e01u,0x00000000u,0x48b30202u,0xfc008000u,0x00000000u,0x40b18002u,
++    0xfc008000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_08[92] = {
++    0x40a80001u,0x00100100u,0x40a82401u,0x00000001u,0x40a81b07u,0x00000000u,0xfc00f100u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48a82501u,0x00000000u,0x70328003u,0x00620000u,
++    0xfc00f100u,0x00000000u,0x70320007u,0x00604001u,0x00000000u,0x00000000u,0xbf800000u,0x40000000u,
++    0xd0d0d0d0u,0xd0d0d0d0u,0x489b0701u,0x00000000u,0x48a00001u,0x00000000u,0x40a00186u,0xfcfcfc00u,
++    0x0000fcfcu,0xfcfcfcfcu,0x000000fcu,0x0000fcfcu,0x00000000u,0x40921204u,0xffffffffu,0xffffffffu,
++    0xffffffffu,0xffffffffu,0x40a80301u,0x00000f02u,0x48a81301u,0x00000000u,0x40930101u,0x00ff0004u,
++    0x48910101u,0x00ffff00u,0x48931101u,0x00ffff00u,0x48800101u,0x00000000u,0x489b0101u,0x00000004u,
++    0x48a80201u,0x00000001u,0x48910401u,0x00ffffffu,0x48931401u,0x00ffffffu,0x48809b01u,0x00000000u,
++    0x40980601u,0x00000000u,0x40930401u,0xff00ff00u,0x40a99e01u,0x00000008u,0x40b98285u,0x00000007u,
++    0xfcfcfcfcu,0xfcfcfcfcu,0xfcfcfcfcu,0x0000fcfcu,0x48b98001u,0x00000000u,0x40800501u,0x00000000u,
++    0x48880902u,0x00000000u,0x00000000u,0x40881001u,0x00000000u,0x40810101u,0x00000000u,0x48810901u,
++    0x00000000u,0x40a98c01u,0xfcfcfc00u,0x48a98e80u,
++};
++
++static const uint32_t texture174_words_09[111] = {
++    0x40a80001u,0x00100100u,0x40a82401u,0x00000001u,0x40a81b07u,0x00000000u,0xfc00f000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48a82501u,0x00000000u,0x70328003u,0x00620000u,
++    0xfc00f000u,0x00000000u,0x70320007u,0x00604001u,0x00000000u,0x00000000u,0xbf800000u,0x40000000u,
++    0xd0d0d0d0u,0xd0d0d0d0u,0x40a98001u,0x81500180u,0x40ab0501u,0x00000001u,0x48a98207u,0x00000000u,
++    0xfc00f200u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48a9a901u,0x00000000u,
++    0x70348003u,0x00720000u,0xfc00f200u,0x00000000u,0x489b0701u,0x00000000u,0x48a00001u,0x00000000u,
++    0x40a00186u,0xfcfcfc00u,0x0000fcfcu,0xfcfcfcfcu,0x000000fcu,0x0000fcfcu,0x00000000u,0x40921204u,
++    0xfffffffcu,0xffffffffu,0xffffffffu,0xffffffffu,0x40a80301u,0x0f040302u,0x48a81301u,0x00000200u,
++    0x40930101u,0x00ff0206u,0x48910101u,0x00ffff00u,0x48931101u,0x00ffff00u,0x48800101u,0x00000000u,
++    0x489b0101u,0x00000006u,0x48a80201u,0x00000002u,0x48910401u,0x00ffffffu,0x48931401u,0x00ffffffu,
++    0x48809b01u,0x00000000u,0x40980601u,0x00000000u,0x40930401u,0xff01ff02u,0x40a99e01u,0x00000000u,
++    0x40b98285u,0x00000007u,0xfcfcfcfcu,0xfcfcfc00u,0xfcfcfcfcu,0x0000fcfcu,0x48b98001u,0x00000003u,
++    0x40800501u,0x00000001u,0x48880902u,0x00000401u,0x00000000u,0x40881001u,0x00000000u,0x40810101u,
++    0x00000000u,0x48810901u,0x00000000u,0x40a98c01u,0xfcfcfc00u,0x48a98e01u,0x00000005u,
++};
++
++static const uint32_t texture174_words_10[24] = {
++    0x40bb0801u,0x000000ffu,0x48b80001u,0x00000101u,0x40b80101u,0x00000000u,0x40b80201u,0x00000000u,
++    0x48b80301u,0x00000000u,0x40bb1001u,0x00000100u,0x48a82301u,0x00000100u,0x48a83b01u,0x00000000u,
++    0x40a86301u,0x00000000u,0x48a89401u,0x00000000u,0x48ab0401u,0x00020300u,0x48ab2001u,0x00000000u,
++};
++
++static const uint32_t texture174_words_11[18] = {
++    0x40920008u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x48920808u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_12[9] = {
++    0x40880b02u,0x00000000u,0x00000001u,0x48a98d01u,0x00000001u,0x48a98b01u,0x0000000fu,0x40880d01u,
++    0x0000000fu,
++};
++
++static const uint32_t texture174_words_13[8] = {
++    0x48810001u,0x00000000u,0x40889801u,0x00000000u,0x40887001u,0x00000001u,0x48809401u,0x00000001u,
++};
++
++static const uint32_t texture174_words_14[12] = {
++    0x70328005u,0x00608000u,0x00000000u,0x00000000u,0xbad00000u,0x00000000u,0x70348005u,0x00708000u,
++    0x00000000u,0x00000000u,0xbad00000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_15[16] = {
++    0x70348003u,0x00520000u,0xfc009000u,0x00000000u,0x40a9e002u,0xfc009000u,0x00000000u,0x70348003u,
++    0x00524000u,0xfc009080u,0x00000000u,0x48a9e402u,0xfc009080u,0x00000000u,0x40a9a701u,0x00000001u,
++};
++
++static const uint32_t texture174_words_16[4] = {
++    0x00000920u,0x00000050u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_17[16] = {
++    0x0c006880u,0x00020004u,0x20002000u,0x00000001u,0xfc00a000u,0x00020000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_18[17] = {
++    0x40800001u,0x00000080u,0x40809001u,0x00000010u,0x48809102u,0x00100010u,0x00000010u,0x40809583u,
++    0x00000000u,0x00000000u,0x00000000u,0x409b0001u,0x00000002u,0x48910801u,0x00000003u,0x48998101u,
++    0x00000003u,
++};
++
++static const uint32_t texture174_words_19[10] = {
++    0x48882101u,0x00010001u,0x40882001u,0x000007e0u,0x40880e01u,0x00000000u,0x40a98901u,0x00000100u,
++    0x48886501u,0xffff0000u,
++};
++
++static const uint32_t texture174_words_20[3] = {
++    0x4880b002u,0x00000000u,0x000f000fu,
++};
++
++static const uint32_t texture174_words_21[5] = {
++    0x48886004u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_22[2] = {
++    0x4080a001u,0x00000002u,
++};
++
++static const uint32_t texture174_words_23[32] = {
++    0x20010000u,0x46d00001u,0x20020000u,0x43900000u,0x00000000u,0x204cc006u,0x3f800000u,0x204cc007u,
++    0x20020001u,0x43900001u,0x00000000u,0x200c4003u,0x00000000u,0x00000100u,0x00000001u,0x200c4002u,
++    0x10049005u,0x63818005u,0x10041005u,0x63810004u,0x00000000u,0x03000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_24[32] = {
++    0x20010000u,0x46d00001u,0x20020000u,0x43900000u,0x00000000u,0x204cc004u,0x3f800000u,0x204cc005u,
++    0x20020001u,0x43900001u,0x00000000u,0x200c4000u,0x00000000u,0x00000100u,0x00000001u,0x200c4001u,
++    0x10049005u,0x63800003u,0x10041005u,0x63808002u,0x00000000u,0x03000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_25[32] = {
++    0x00002000u,0x47308902u,0x00000000u,0x204cc004u,0x00000000u,0x00000500u,0x00000805u,0xa1401f05u,
++    0x00000000u,0x13000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_26[1024] = {
++    0x00000000u,0x000000ffu,0x0000ff00u,0x0000ffffu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00ff0000u,0x00ff00ffu,0x00ffff00u,0x00ffffffu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0xff000000u,0xff0000ffu,0xff00ff00u,0xff00ffffu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0xffff0000u,0xffff00ffu,0xffffff00u,0xffffffffu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_27[203] = {
++    0x70e30001u,0x00000000u,0x70460001u,0x00000019u,0x70460001u,0x00000018u,0x70460001u,0x00000031u,
++    0x40bb0801u,0x000fffffu,0x70268000u,0x70bf8003u,0xfc00d000u,0x00000000u,0x000000c2u,0x70268000u,
++    0x408e0701u,0x08000000u,0x70d58003u,0xfc00e000u,0x00000000u,0x001000cdu,0x70d58003u,0x00000000u,
++    0x00000000u,0x00000000u,0x70d58003u,0x00000000u,0x00000000u,0x00200000u,0x70460001u,0x00000026u,
++    0x4080f002u,0x00000000u,0x000f000fu,0x48840a02u,0x00000000u,0x000f000fu,0x48889001u,0x00000000u,
++    0x4888d401u,0x00000000u,0x48b4d101u,0x00000000u,0x48b30701u,0x00000000u,0x4880a101u,0x00c00000u,
++    0x48880001u,0x00c00000u,0x4088d301u,0x00000000u,0x70e50001u,0x00000001u,0x709d0001u,0x00000000u,
++    0x70230001u,0x00000001u,0x48930601u,0x00000000u,0x70640001u,0x00000001u,0x48887286u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48809801u,0x00000000u,0x48888101u,
++    0x00000000u,0x48882286u,0x00000030u,0x00000001u,0x00000040u,0xfc018000u,0x00000000u,0x00000000u,
++    0x48a99601u,0x00000030u,0x40890383u,0x00000000u,0x00000000u,0x00000000u,0x40810201u,0x00000030u,
++    0x48880f01u,0x00000000u,0x40a98a01u,0x00000000u,0x48800401u,0x00000000u,0x40b30002u,0x00000000u,
++    0x00000004u,0x4880a202u,0x00000000u,0x00000004u,0x40880202u,0x00000000u,0x00000004u,0x4088d501u,
++    0x00000000u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000011u,0x70460001u,0x00000019u,
++    0x48840502u,0x00000000u,0x000f000fu,0x488c2c04u,0x00000000u,0x00000000u,0x000000ffu,0x000000ffu,
++    0x408c0001u,0x10f03080u,0x48840001u,0x10f03080u,0x48acc001u,0x0000f180u,0x488c0101u,0x00000000u,
++    0x408c1704u,0x00000030u,0xfc018000u,0x00000000u,0x00000001u,0x70460001u,0x0000003fu,0x70268000u,
++    0x408e0401u,0x04100000u,0x702c0001u,0x00000003u,0x70268000u,0x408e0401u,0x00000000u,0x70460004u,
++    0x0000001du,0xfc018c00u,0x00000000u,0x00000012u,0x70460001u,0x00000019u,0x70268000u,0x408e0701u,
++    0x08000000u,0x706d8003u,0x00000002u,0x00008801u,0x00000010u,0x48810385u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x70bf8003u,0xfc00b800u,0x00000000u,0x0000004fu,0x709d0001u,
++    0x00000000u,0x70460001u,0x00000026u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000013u,
++    0x70460004u,0x0000001cu,0xfc018c00u,0x00000000u,0x00000014u,0x70460004u,0x00000016u,0xfc018c00u,
++    0x00000000u,0x00000015u,0x70bc8006u,0x00000013u,0xfc018c00u,0x00000000u,0x00000015u,0xffffffffu,
++    0x00000010u,0x70460004u,0x00000004u,0xfc018c00u,0x00000000u,0x00000016u,0x70940004u,0x00000000u,
++    0xfc018c00u,0x00000000u,0x00000016u,
++};
++
++static const uint32_t texture174_words_28[32] = {
++    0x00002000u,0x47300003u,0x00002001u,0x47308002u,0x00000000u,0x204cc004u,0x00000000u,0x00000500u,
++    0x00000805u,0xa1401f05u,0x00000000u,0x13000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const uint32_t texture174_words_29[203] = {
++    0x70e30001u,0x00000000u,0x70460001u,0x00000019u,0x70460001u,0x00000018u,0x70460001u,0x00000031u,
++    0x40bb0801u,0x000fffffu,0x70268000u,0x70bf8003u,0xfc00d000u,0x00000000u,0x000000c2u,0x70268000u,
++    0x408e0701u,0x08000000u,0x70d58003u,0xfc00e000u,0x00000000u,0x001000cdu,0x70d58003u,0x00000000u,
++    0x00000000u,0x00000000u,0x70d58003u,0x00000000u,0x00000000u,0x00200000u,0x70460001u,0x00000026u,
++    0x4080f002u,0x00000000u,0x000f000fu,0x48840a02u,0x00000000u,0x000f000fu,0x48889001u,0x00000000u,
++    0x4888d401u,0x00000000u,0x48b4d101u,0x00000000u,0x48b30701u,0x00000000u,0x4880a101u,0x00c00000u,
++    0x48880001u,0x00c00000u,0x4088d301u,0x00000000u,0x70e50001u,0x00000001u,0x709d0001u,0x00000000u,
++    0x70230001u,0x00000001u,0x48930601u,0x00000000u,0x70640001u,0x00000001u,0x48887286u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x48809801u,0x00000000u,0x48888101u,
++    0x00000000u,0x48882286u,0x00000030u,0x00000001u,0x00000040u,0xfc018000u,0x00000000u,0x00000000u,
++    0x48a99601u,0x00000030u,0x40890383u,0x00000000u,0x00000000u,0x00000000u,0x40810201u,0x00000030u,
++    0x48880f01u,0x00000000u,0x40a98a01u,0x00000000u,0x48800401u,0x00000000u,0x40b30002u,0x00000000u,
++    0x00000004u,0x4880a202u,0x00000000u,0x00000004u,0x40880202u,0x00000000u,0x00000004u,0x4088d501u,
++    0x00000000u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000021u,0x70460001u,0x00000019u,
++    0x48840502u,0x00000000u,0x000f000fu,0x488c2c04u,0x00000000u,0x00000000u,0x000000ffu,0x000000ffu,
++    0x408c0001u,0x10f03080u,0x48840001u,0x10f03080u,0x48acc001u,0x0000f180u,0x488c0101u,0x00000000u,
++    0x408c1704u,0x00000030u,0xfc018000u,0x00000000u,0x00000001u,0x70460001u,0x0000003fu,0x70268000u,
++    0x408e0401u,0x04100000u,0x702c0001u,0x00000003u,0x70268000u,0x408e0401u,0x00000000u,0x70460004u,
++    0x0000001du,0xfc018c00u,0x00000000u,0x00000022u,0x70460001u,0x00000019u,0x70268000u,0x408e0701u,
++    0x08000000u,0x706d8003u,0x00000002u,0x00008801u,0x00000010u,0x48810385u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x70bf8003u,0xfc00b800u,0x00000000u,0x0000004fu,0x709d0001u,
++    0x00000000u,0x70460001u,0x00000026u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,0x00000023u,
++    0x70460004u,0x0000001cu,0xfc018c00u,0x00000000u,0x00000024u,0x70460004u,0x00000016u,0xfc018c00u,
++    0x00000000u,0x00000025u,0x70bc8006u,0x00000013u,0xfc018c00u,0x00000000u,0x00000025u,0xffffffffu,
++    0x00000010u,0x70460004u,0x00000004u,0xfc018c00u,0x00000000u,0x00000026u,0x70940004u,0x00000000u,
++    0xfc018c00u,0x00000000u,0x00000026u,
++};
++
++static const uint32_t texture174_words_30[32] = {
++    0x00002000u,0x47308902u,0x00000000u,0x204cc004u,0x00000000u,0x00000000u,0x28020002u,0x40180802u,
++    0x00000000u,0x00000200u,0x00000805u,0xa1401f05u,0x00000000u,0x13000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++    0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,
++};
++
++static const struct texture174_native_blob texture174_blobs[3][31] = {
++  {
++    {0xfc00c000u,203u,896u,4096u,texture174_words_00},
++    {0xfc00b800u,79u,384u,2048u,texture174_words_01},
++    {0xfc009880u,16u,128u,64u,texture174_words_02},
++    {0xfc009c00u,16u,128u,64u,texture174_words_02},
++    {0xfc009c80u,16u,128u,64u,texture174_words_03},
++    {0xfc009d00u,16u,128u,64u,texture174_words_03},
++    {0xfc009680u,1u,128u,4u,texture174_words_04},
++    {0xfc009a80u,6u,128u,24u,texture174_words_05},
++    {0xfc00e000u,205u,896u,4096u,texture174_words_06},
++    {0xfc00d000u,194u,896u,4096u,texture174_words_07},
++    {0xfc009380u,92u,384u,4096u,texture174_words_08},
++    {0xfc009180u,111u,512u,4096u,texture174_words_09},
++    {0xfc009100u,24u,128u,400u,texture174_words_10},
++    {0xfc009500u,18u,128u,72u,texture174_words_11},
++    {0xfc009580u,9u,128u,36u,texture174_words_12},
++    {0xfc009600u,8u,128u,32u,texture174_words_13},
++    {0u,0u,0u,0u,0},
++    {0xfc009700u,12u,128u,48u,texture174_words_14},
++    {0xfc009780u,16u,128u,128u,texture174_words_15},
++    {0xfc009000u,4u,128u,16u,texture174_words_16},
++    {0xfc009080u,16u,128u,64u,texture174_words_17},
++    {0xfc009800u,17u,128u,104u,texture174_words_18},
++    {0xfc009900u,10u,128u,152u,texture174_words_19},
++    {0xfc009980u,3u,128u,12u,texture174_words_20},
++    {0xfc009a00u,5u,128u,20u,texture174_words_21},
++    {0xfc009b00u,2u,128u,8u,texture174_words_22},
++    {0xfc009b80u,2u,128u,8u,texture174_words_22},
++    {0xfc00f000u,32u,128u,128u,texture174_words_23},
++    {0xfc00f100u,32u,128u,128u,texture174_words_24},
++    {0xfc00f200u,32u,128u,128u,texture174_words_25},
++    {0xfc00a000u,1024u,4096u,4096u,texture174_words_26},
++  },
++  {
++    {0xfc00c000u,203u,896u,4096u,texture174_words_27},
++    {0xfc00b800u,79u,384u,2048u,texture174_words_01},
++    {0xfc009880u,16u,128u,64u,texture174_words_02},
++    {0xfc009c00u,16u,128u,64u,texture174_words_02},
++    {0xfc009c80u,16u,128u,64u,texture174_words_03},
++    {0xfc009d00u,16u,128u,64u,texture174_words_03},
++    {0xfc009680u,1u,128u,4u,texture174_words_04},
++    {0xfc009a80u,6u,128u,24u,texture174_words_05},
++    {0xfc00e000u,205u,896u,4096u,texture174_words_06},
++    {0xfc00d000u,194u,896u,4096u,texture174_words_07},
++    {0xfc009380u,92u,384u,4096u,texture174_words_08},
++    {0xfc009180u,111u,512u,4096u,texture174_words_09},
++    {0xfc009100u,24u,128u,400u,texture174_words_10},
++    {0xfc009500u,18u,128u,72u,texture174_words_11},
++    {0xfc009580u,9u,128u,36u,texture174_words_12},
++    {0xfc009600u,8u,128u,32u,texture174_words_13},
++    {0u,0u,0u,0u,0},
++    {0xfc009700u,12u,128u,48u,texture174_words_14},
++    {0xfc009780u,16u,128u,128u,texture174_words_15},
++    {0xfc009000u,4u,128u,16u,texture174_words_16},
++    {0xfc009080u,16u,128u,64u,texture174_words_17},
++    {0xfc009800u,17u,128u,104u,texture174_words_18},
++    {0xfc009900u,10u,128u,152u,texture174_words_19},
++    {0xfc009980u,3u,128u,12u,texture174_words_20},
++    {0xfc009a00u,5u,128u,20u,texture174_words_21},
++    {0xfc009b00u,2u,128u,8u,texture174_words_22},
++    {0xfc009b80u,2u,128u,8u,texture174_words_22},
++    {0xfc00f000u,32u,128u,128u,texture174_words_23},
++    {0xfc00f100u,32u,128u,128u,texture174_words_24},
++    {0xfc00f200u,32u,128u,128u,texture174_words_28},
++    {0xfc00a000u,1024u,4096u,4096u,texture174_words_26},
++  },
++  {
++    {0xfc00c000u,203u,896u,4096u,texture174_words_29},
++    {0xfc00b800u,79u,384u,2048u,texture174_words_01},
++    {0xfc009880u,16u,128u,64u,texture174_words_02},
++    {0xfc009c00u,16u,128u,64u,texture174_words_02},
++    {0xfc009c80u,16u,128u,64u,texture174_words_03},
++    {0xfc009d00u,16u,128u,64u,texture174_words_03},
++    {0xfc009680u,1u,128u,4u,texture174_words_04},
++    {0xfc009a80u,6u,128u,24u,texture174_words_05},
++    {0xfc00e000u,205u,896u,4096u,texture174_words_06},
++    {0xfc00d000u,194u,896u,4096u,texture174_words_07},
++    {0xfc009380u,92u,384u,4096u,texture174_words_08},
++    {0xfc009180u,111u,512u,4096u,texture174_words_09},
++    {0xfc009100u,24u,128u,400u,texture174_words_10},
++    {0xfc009500u,18u,128u,72u,texture174_words_11},
++    {0xfc009580u,9u,128u,36u,texture174_words_12},
++    {0xfc009600u,8u,128u,32u,texture174_words_13},
++    {0u,0u,0u,0u,0},
++    {0xfc009700u,12u,128u,48u,texture174_words_14},
++    {0xfc009780u,16u,128u,128u,texture174_words_15},
++    {0xfc009000u,4u,128u,16u,texture174_words_16},
++    {0xfc009080u,16u,128u,64u,texture174_words_17},
++    {0xfc009800u,17u,128u,104u,texture174_words_18},
++    {0xfc009900u,10u,128u,152u,texture174_words_19},
++    {0xfc009980u,3u,128u,12u,texture174_words_20},
++    {0xfc009a00u,5u,128u,20u,texture174_words_21},
++    {0xfc009b00u,2u,128u,8u,texture174_words_22},
++    {0xfc009b80u,2u,128u,8u,texture174_words_22},
++    {0xfc00f000u,32u,128u,128u,texture174_words_23},
++    {0xfc00f100u,32u,128u,128u,texture174_words_24},
++    {0xfc00f200u,32u,128u,128u,texture174_words_30},
++    {0xfc00a000u,1024u,4096u,4096u,texture174_words_26},
++  },
++};
++
++static const uint32_t texture174_eop[3] = {
++    0x00000006u,0x00000016u,0x00000026u,
++};
++#endif
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -266,7 +266,7 @@
+ static bool psz_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10)return false;
++    if(mode!=1&&mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11)return false;
+     static const char *const on[]={"sweetpasprobe","sweetpasstage"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem"};
+     for(unsigned i=0;i<sizeof(on)/sizeof(on[0]);i++){int v=0;(void)PE_parse_boot_argn(on[i],&v,sizeof(v));if(v!=1)return false;}

@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 image ACCEPTED; full runtime live,120 metadata pass
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP172;
+NO173 boot/device I/O. User away/allresets automatic, no attribution/UI asks.
+Frozen source28137449ca9cb7b54e6e95ffb22e42c59516d224 distinct from docs375f6b3;
+remote NEXT base PUBLIC940220ae/private28137449/tree219609a6 unchanged.
+CURRENT native recipe173 gauguin.mqtgMg/4b98a4e70a2b747eefd67679e69fd326f13f36d511fa8c9825b382b514be3dc2;
+NEVER old172/171 TU helpers against shared generated headers.
+
+DSH v17 imagepreflight CLOSED inner0 FIRST: all22artifacthardwareflagsFALSE,
+allold/native+newbounds/helper gates, exact607Bmode10/unique173trial proposed.
+Retained old common helper source audit FIRST0:231old productionneed predicates,
+115oldpackerassertions,121oldindependentimage predicates preserved; all213old
+common fixture ASTnodes/positiveassertions/rejectbody and all clock/FW/ZAP/GGU
+AST preserved with exactsource/mode/commandidentity changes and one extra mode9
+conflictcontrol. Original failed author_runtime173.py stopped on mistyped
+previous171-key BEFORE imagehelper was written; v2 authored remainingfiles,
+then four exact marker/hostfilenames fixed BEFORE any test/input freeze.
+
+v18 package FAILED BEFORE pack because two wrapperinputpaths still named old
+integrationv1/qualifier172. No image/log/report created. Originalscript/claim/
+executorlog retained. Freshv21 package173v2 CLOSED inner0 FIRST: wrapperchanges
+only correct inputpaths/descriptive scope; all prior preflight pins unchanged,
+package0 +independentcompleteimagereview0. Exactcurrent173kernel/fiveassets,
+source/command/allolderimagecontrols0. IMAGE shim/out/shim-p3-gmuf-0173-native-20261108.img
+19890176B SHA400534b21c262a9b95cdde00608c4f8bde6f8d674209a94fd154d8eb887a6524,
+payload19562496B/c43a7abfcf0aa36df9760b18f09cf1ba62dee5268f965ed6d761a785801603e9,
+607Bmode10 command/608Bfield1NUL. Preflight/package terminal print labels still
+say172/mode9 cosmetically; machine identity/command/imageproof is173/mode10.
+
+DSH v20 aux CLOSED inner0 FIRST: consoleframing0 +actualimagebinding/metadata0,
+all86oldmetadata controls +34GGVmissing/false source and missing/true hardware
+flags =120refused,1accepted. DSH v19 runtime LIVE exec82746; clock0/FW0,
+all8 fullnegativepartitionworkers running, no restart on observationtimeout.
+Pendingresult runtime-result-v1.json, fullledger runtime-full-shards-result-v1.
+All other173stages terminal including failedv18; no pending userinput.
+
+Private boot173/read_hardware173/review_runtime173 and byte-exact172 observer
+helper AUTHORED, ASTvalid, NOT executed. Next finish all8fullmanifest/exactonce
+negativeunion/rootruntime+bootreview, then ONE temporaryfastbootboot173,
+automaticTWRP/freshbinary+textpull/strictvaryingphysicalreview. Allactualpixels
+must meet PREDECLARED bounds and exact previousOBSERVED history; no empirical
+relaxation. No173 physicalvarying/Metal/UI/generalGPUAPI/performance/highrefresh
+qualification. Original mkadt7line diff a74a0418... and Android/UFS unchanged.
+
 ### 2026-11-08 —173 full native kernel/parser ACCEPTED; image/runtime gates next
 
 Goal ACTIVE/unlimited; continuation PROGRESS. Phone remains automaticTWRP172;

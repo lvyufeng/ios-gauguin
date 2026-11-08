@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —173 full runtime/one-boot protocol ACCEPTED; ready for ONE tempboot
+
+Goal ACTIVE/unlimited; continuation PROGRESS. Phone lastautomaticTWRP172;
+no173 deviceI/O yet. User away/allresets automatic --manual-reset no, never
+ask attribution/UI; prompt only if manual recovery genuinely needed. All173
+DSH stages through21 TERMINAL (v19runtime nowclosed0); no live job/pendinginput.
+Frozen source28137449ca9cb7b54e6e95ffb22e42c59516d224, NEXT remote publication
+base940220ae/private28137449/tree219609a6; laterdocs identities distinct.
+Current genuine173recipe gauguin.mqtgMg/4b98a4e7..., never olderTUhelpers.
+
+DSH v19 runtime CLOSED inner0 FIRST: clock0/.086s,FW0/1.653s,full8shards0/
+391.879s. All8workers generated IDENTICAL complete7848negativecase manifests;
+exactly-once actualnegative execution union7848/7848, no skipped/retriedcases;
+everyworker executed120actualpositiveparses. Allold213commonfixtureASTnodes/
+rejectionbody retained with exactcurrent source/trial/mode identities; new34
+selectedGV positives include8legalquantization images. v20aux alreadypassed
+consoleframing +1accepted/120refused metadata. No more runtime reruns needed.
+First rootruntime review referenced nonexistent old verify_full172_host.py,
+failed before writing report. Fresh review_runtime173v2 corrects onlythatpath;
+rootcomplete7848ledger/inputs/120metadata/sourceproof +exactobserverbody/
+one-tempboot +readerexistingbounds/exactprior policy review FIRST0 SHA
+6f2881bc1507628de561b1c505e1c07f3e74b4469074d65f7bcbc616ce191daf.
+
+Image173 remains19890176B/400534b21c262a9b95cdde00608c4f8bde6f8d674209a94fd154d8eb887a6524,
+607Bmode10/fiveassets/currentqualifiedkernel. Boot173.py/read_hardware173.py
+AUTHORED and rootreview-bound; observer body byteexact accepted172, exactly
+one fastbootboot,13Bmisc recoverylatch/readback only, noflash/format/GPTchange.
+NEXT dispatchv22boot ONCE, waitsamehandle toautomaticTWRP/rawpull, dispatchv23
+strictphysicalread then independent Fraction/raw/native/source review.
+No173 physicalvarying yet; no UI/Metal/generalAPI/throughput/highrefreshclaim.
+Original mkadt7line diff a74a0418... and all existing partition content intact.
+
 ### 2026-11-08 —173 image ACCEPTED; full runtime live,120 metadata pass
 
 Goal ACTIVE/unlimited; continuation PROGRESS. Last phone automaticTWRP172;

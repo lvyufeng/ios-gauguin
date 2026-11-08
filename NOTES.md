@@ -43,9 +43,10 @@ EXACTplan research/tmp/dsh-eagl-0186/delta-v1/delta-plan.json SHA
 3f03aa6d7886b30753cf71ccaa40af144be1958747b63d3b9ef587d78a34ae46:
 403blocks/1650688B=1.57421875MiB/48runs, header0lastinprovenwriter.
 Independentreview W186/independent-local-review.json saysREADY/newconsentrequired.
-Noapprovalfilecreated/consentconsumed. Prior185callf942... is ALREADYCONSUMED and
-MUSTNOT authorize186. ObtainONEnewconcreteconsent for403blocks +write/readback
-failure rollback. AGENTS.md explicitlyrequiresconfirm eachdestructivestep.
+Noapprovalfilecreated/consentconsumed. A NEW async question for403blocks/1.57MiB
+and write/readback-failure rollback has been SENT and is PENDING user reply.
+Prior185callf942... is ALREADYCONSUMED and MUSTNOT authorize186. Wait for the
+new exact403-block consent; no timeout/elapsed-time approval inference. AGENTS.md explicitlyrequiresconfirm eachdestructivestep.
 
 ONLYtargets: new /usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib69184B67f7...
 root0755; existingBBoardjob1218B SHA33f51859e1015d7e5aa9f33a20f2b37d76eb92ace171947fdef2f751b976ccfa

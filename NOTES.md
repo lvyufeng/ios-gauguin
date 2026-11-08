@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —178 PHYSICAL600s idle service PASS; next Mesa queue/GMEM gate
+
+KERNEL178_SOURCE_HEAD cb28e30d747b9c29688180897cd08a3b4e20c380 remains frozen.
+DSH178v5 package0: 19,972,096B image SHA
+2860e8bcc7ec939ba9b8836ffbe719f1cab70b3c7d969851333e50210aacde7a,
+payload7a5e188f39a924298623b23b4340719075242ba3cfe295a04d82435ccebc0e24.
+v6 ONE temporaryboot0/inputs unchanged;10:39:08..10:51:35UTC, automaticTWRP746s
+(observer746.794232s), no manual reset/root write/new CI. Actual native banner
+31e01e27749c4a7b9f32e1ad93f0080b exact, all root/launchd/SpringBoard/backboardd
+markers. Three real startup submissions rc0/EOP1,2,3/shadows32,44,56. Healthy
+service completed595renewals over600s, sampled1/30..570 all decreased real WDT
+counter (first460847->3; subsequent about33000->0..14). Finite deadline first
+poisons owners, records completed3/shadow56, then stops refresh; hardware reset
+returns to recovery. NO WDT/service failure/panic. Delayed stable ACK fix now
+has physical positive evidence versus177's immediate-readback failure.
+
+v7 CURRENT readonly HFS capture0, CLI775622b6... still exact/root0755; raw2803B
+preserves all1929B historical stdout then874B current11events. New seed3636990113,
+8192normal hash3612219514,1024surface hash3449927144, final3fence/PASS,stderr0.
+v8 unchanged frozen API checks plus strict600s service qualifier0; ROOT
+review_physical178.py independently recomputed both hashes and verified all
+native EOP/sampled renewals/final stop/image/source pins, output
+research/tmp/dsh-0178/independent-physical-review.json PASSED. This acceptance
+is startup API +600s IDLE health/route/power/WDT ownership, not a late GPU job,
+GLSL/Metal/ordinary-app UI/FPS/refresh qualification. Full original goal ACTIVE.
+
+NEXT0179 private candidate-v2: bounded32logical queues over one serialized
+synchronous hardware ring, queue-local sequential completed fences, no ID reuse,
+legacy queue0 only default/unambiguous singlequeue; GMEM params2/6 derive from
+actual native UCHE config table (base1MiB/size512KiB), require live READY owner.
+These are configured GPU addresses, NOT new physical RAM or MMIO measurements.
+DSH179v1 old178 functional RED at second queue create (compiled0); newv1 failed
+-Werror misleading-indentation before test, retained immutable candidate-v1.
+Only allocation braces corrected in candidate-v2; DSHv2 GREEN0, actual transport
+legacy submit/sync assertions plus207interleaved-queue checks (cross-queue holes,
+closed IDs, ambiguous0, capacity, output unchanged on failure). Host-only, no179
+native build/boot yet. Public178fixtures/source NOT modified. Need focused GMEM
++actual board parameter tests, native3TUs with CURRENT1785XaXo7 recipe, clean
+173patch replay/review. Also update isolated GLES shim: carry actual queueID in
+pending syncobjs/waits/transfers; global last_fence cannot survive queue-local
+fences unchanged. Existing signed Mesa package has old shim, not yet compatible.
+
+Phone now TWRP. Before any next boot capture fresh current installed files/HFS
+header (178preflight consumed). Before eventual GLES install: fresh full root
+backup, concrete reviewed delta and NEW explicit destructive-write consent;
+previous175install/path-fix permissions were consumed. No stale HFS rollback
+after boot. Preserve original mkadt7line diff a74a0418... untouched.
+Publish completed177/178source +this handoff from current MAIN PUBLIC4e3a503...
+=PRIVATEf0671f4.../TREE1b354f7... only; isolated GLES public713ea8... stays separate.
+No need to repeat old whole-board suites or dispatch CI for this locally built
+artifact. Late workload/GLES, client isolation, compositor/Metal, fullsafeRAM/
+UFS/peripherals/highrefresh remain unfinished under full daily-use goal.
+
 ### 2026-11-08 —Native178 build/qualifier0; fresh root0; ACK image package LIVE
 
 Frozen KERNEL178_SOURCE_HEAD cb28e30d747b9c29688180897cd08a3b4e20c380.

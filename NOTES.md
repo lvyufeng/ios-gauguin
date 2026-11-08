@@ -51,8 +51,10 @@ and no root-apply-launchfix exists. Original fd80e691... permission was consumed
 by its successful install; do not reuse it to authorize another block set.
 AGENTS requires each destructive step confirmed. Before asking, all local
 files/delta/fsck/writer/boot/capture/strict qualification work was concrete and
-reviewed. DSHv32 LIVE READONLY verification of all38actual current old ranges;
-observe same claim, no retry on timeout. After actual new user YES: create
+reviewed. DSHv32 TERMINAL0/inputs unchanged: READONLY actual gauguin/recovery/
+unmounted/no holders/capacity and all38old ranges/1,482,752B matched proposed
+plan. All currentDSH jobs30/31/32 terminal0 and exact input pins rechecked.
+No live worker now, no extra apply/boot. After actual new user YES: create
 receipt approved/allow_rollback bound EXACTc60548b9..., run reviewed apply argv
 -> only after verified success boot argv ONCE -> capture -> strict qualification.
 Do not change backup/image/plan or autoapprove. On root-write failure restore

@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —First late GLES FAILED: Jetsam per-process limit; recovery idle
+
+WROOT=research/tmp/dsh-gles-0180-root. SAMEv7 temporary180 boot TERMINAL0,
+12:22:56..12:35:22UTC, automaticTWRP746.283468s, no manual reset. DSHv9 fresh
+readonly actual seven-file capture0/inputs unchanged; all five installed files
+retain approved exact hashes/root0/modes. stdout1046B SHAa28fda67...; stderr0.
+Unchanged signed API child passed all8192normal+1024surface data/3real native
+EOPjobs. Actual90.078980157s delay and GPU619/chip06010900/GMEM512KiB/base1MiB
+query succeeded. NO renderer/context success, shader draw or new GPU job.
+Native exact crash: gauguin-gles-pro[25] SIGKILL9, reason namespace1/code7.
+Actual frozen XNU reason.h/kern_memorystatus.h defines OS_REASON_JETSAM /
+JETSAM_REASON_MEMORY_PERPROCESSLIMIT. Exact quota and footprint NOT yet measured.
+Do not blame a GPU shader fault or claim a driver/context pass from this result.
+
+Preboot frozen GLEScontract remains f8a63b8d... UNCHANGED. DSHv10 actual physical
+qualifier TERMINAL1/inputs unchanged, correctly REJECTED "no two post-startup
+GPU jobs". All raw files, failed stage, preboot pins preserved; no GLES hardware
+qualification generated. Root gles-failure-review.json independently verifies
+the old startupAPI contract and FULL600s idle service595renewals/20samples/
+3jobs/shadow56/quarantine+finite-stop; no native WDT/owner failure/panic. GLES,
+Metal, compositor, UI/highrefresh acceptance remain FALSE.
+
+CURRENT phone recovery/unmounted. DSHv11 (outer38193/events-v11/checks-v11)
+reading only dedicated GLES/Jetsam reports and jetsam config, fresh output
+memory-diagnostics-v1. Wait same handle, no reboot or write. Need exact process
+quota/footprint and Mesa initialization allocation evidence, then prepare the
+smallest fix. Existing job has no JetsamProperties override. Do not guess quota
+or disable global memory protection. Approved5802delta consumed successfully;
+any newroot change requires fresh current backup/review/newexplicitconsent.
+NEVER raw-rollback preboot565e HFSmetadata after this iOS boot. Mainpub/GLESpub
+bases6d5a7bb/bd384172 unchanged. Full original daily-use objective ACTIVE.
+
 ### 2026-11-08 —EXPLICIT5802consent APPLIED85/85; real late-GLES trial LIVE
 
 USER explicitly approved16.64MiB/4259block Mesa/library/probe/job/cache/HFS delta

@@ -2,6 +2,58 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —180 PHYSICAL600s PASS; fresh GLES root backup LIVE (no install)
+
+180v6 temporaryboot0/inputs unchanged;11:30:32..11:42:58UTC, automaticTWRP746s
+(observer746.573787s), no manual reset. Actual kernel7f61cbbf.../image682511e7...
+exact;3real startup submissions/EOP1,2,3/shadows32,44,56. FULL600s idle service
+completed595renewals;20sampled seq1/30..570 allcounter decrease, first449657->0.
+Final owners quarantined/completed3/shadow56, finite deadline stopsrefresh then
+hardware reset. No WDT/service/owner failure or nativepanic. This is physical
+positive evidence for adjacent-pair fix versus179's43delayed-sample timeout.
+
+v7 readonly CURRENT capture0, installedCLI775622b6... root0gid0/mode0755 exact;
+raw4549B SHA87397e78... retains all3675B historical175..179prefix then874B current
+11events, stderr0. New seed3920258985,8192normal hash2567742586,1024surface hash
+1823889144, final3fences/PASS. v8 frozen fullAPI+strict600s service qualifier0,
+ROOT review_physical180.py independently recomputed hashes/boundnativeEOP/all
+sampled renewals/finalstop/image/source proof0. Result independent-physical-
+review.json PASSED. Scope startupSINGLEqueueAPI+600s IDLEGPU/power/routes/WDT;
+GMEM6/multi-queue path is host/native only until actual Mesa, no late GLSL/Metal/
+ordinaryUI/FPS/highrefresh claim. All179failure artifacts and178positive retained.
+
+GLES source publication VERIFIED, independent branch
+PUBLICbd3841720e0c41530bbc0d4cbddcf6955ad97d2b
+=PRIVATEba31e7ed9bfba1db5a6fda1a0a693e2f92a5cd9e
+/TREEd561973d8cea750aeb872c32c5eca5d7dde8bf55,
+sole public parent713ea8... .9textfiles only/non-force/tree-parent-ref rechecked;
+receipt dsh-gles-0179/source-publication.json. THIS is next GLES publicationbase.
+Mainbase remains5eb6eff...=39211e2.../81cc6d9...pending179+180source publication.
+No CI dispatched; actual native and Mesa builds LOCAL. No GLES device install.
+
+CURRENT DSH root stage at research/tmp/dsh-gles-0180-root/checks-v1 LIVE,
+outerexec35330, full READONLY current16GiB HFSX backup after180acceptance, no
+partition writes/mount/boot. At11:48:58UTC exported5.04GiB, still streaming; wait
+SAMEstage/handle, never restart. Phone TWRP/unmounted/noholders. Do NOT boot or
+change root during backup/plan/approval. Need exact16GiB/fullSHA/stableheader/
+readonly0444 receipt before staging. Previous175backups preserved.
+
+Prepared LOCAL-only scripts in dsh-gles-0180-root (not executed/staged yet):
+stage_gles180.py requires physical180PASS/freshbackup, COWmount installs new
+signed16MBMesa +lateprobe, retargets existingSystemjob to --after-gpu-api and
+newGLES180stdout/stderr, updates cache preserving530otherjobs/oldGPUCLI. Planner
+prepare_delta180.py audits namespace/permissions/forks/allchangedallocatedblocks,
+restores eventUUID, builds minimal finalclone +old/new runs with rootowners.
+check_fs180.py read-only LOCAL fsck; prepare_writer180.py binds proven writer's
+base/image pins/key and runs same approval/partialwrite/readback/rollback model.
+Syntax parsed; these scripts still need actualfreshCOW/delta/fsck/model execution
+and independent review. No approvalfile created, no write authorised for GLES.
+New explicit consent MUST bind concrete finalplan after allpreparation; old175
+install/path-fix authorizations consumed. No raw preboot HFSmetadata rollback
+after boot. Next prepare safe newbundle readback/boot/qualifier against same
+accepted180600s image; rootwrite+trial not yet permitted by oldconsent.
+Full original daily-use GPU/Metal/fullsafeRAM/UFS/peripherals90/120Hz goal ACTIVE.
+
 ### 2026-11-08 —Native180 build/qualifier0;600s adjacent-ACK physical trial LIVE
 
 KERNEL180_SOURCE_HEAD698ef7ec395dbcd428897e7dc9255d5f0532a163. DSH180v3 ONE

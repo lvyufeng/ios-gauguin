@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —175 launch path cause PROVEN; postboot backup0, LOCAL fix running
+
+DSHv28 both READONLY jobs TERMINAL0/inputs unchanged. Actual phone cache still
+531jobs with original probe job intact, cache971e4561.../loose e308770e...;
+no stdout/stderr, binary775622b6... still root:root0755. Actual launchd binary
+12370e5e... embedded plist at411743 has Bootstrap.Paths for /System/Library/
+LaunchDaemons, AppleInternal and Nano/Developer folders, EXCLUDES /Library/
+LaunchDaemons. Original job was placed outside those actual iOS startup paths.
+ROOT probe-launch-diagnosis.json records evidence; this was our directory
+selection error. GPU driver submission is still untested, not failed/passed.
+
+Fresh full post175 root snapshot root-post175-v1/iosroot-after175.hfsx,
+17,179,869,184B/readonly0444 SHA
+b1c802dbf9585fa448f1e9f3250a23080b5fccd864005516a016053e4ff43c4d,
+header before/after identical84310c1b...; unmounted/no holders/exact gauguin
+partition verified,655+seconds read only. Original9c9f8777... backup preserved.
+NO second device root write, no new kernel/image, no newCI or retry boot.
+
+DSHv29 LIVE local-only stage_launchfix175.py -> delta_launchfix175.py ->
+check_launchfix_fs175.py -> prepare_launchfix_writer175.py, immutable checks-v29.
+Move SAME existing loose plist from Library to System/Library/LaunchDaemons,
+change ONLY its compiled-cache path key; preserve job body/probe bytes/all530
+other jobs. Enforce actual embedded bootstrap path membership, on-disk owners,
+normal HFS temp-orphan rule/metadata/event UUID preservation and allocated-data
+delta bounds; save all old/new runs. Writer must equal tested v2 except fresh
+base-volume SHA literal; same102fake-IO checks. Await SAME live handle, preserve
+failed artifacts, no rerun on timeout. New helper scripts boot_reviewed_profile/
+read_probe_profile use immutable JSON paths for future trial rather than
+overwriting original175 files. Original175 image403ff4ed... and kernel unchanged.
+
+NEXT after29: ROOT independent byte/catalog/job review + final actual fsck /
+writer report + exact boot/capture profiles BEFORE any new destructive-write
+question. Initial user consent bound fd80e691.../440blocks only; a DIFFERENT
+root delta requires fresh confirmation under AGENTS. Do not apply/approve it
+on user's behalf. Old175result/probe capture remain as failure evidence. Full
+goal resumed by actual user answer, incomplete; no physical dynamic API/GLSL/
+Metal/UI/FPS acceptance. User away, ALLresets automatic, no attribution asks.
+
 ### 2026-11-08 —175 native service physically READY; user probe NOT launched yet
 
 Actual user-approved1.72MiB install v25 PASSED as below. DSHv26 temporary

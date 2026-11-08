@@ -2,6 +2,58 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —188 measured: custommodeDELIVERED, DYLD_INSERTabsent atbackboardexec
+
+188actualONEbootautoTWRP observer0,745.620436s,19:49:16.009106..20:01:41.629542UTC
+Nov8. V12terminal0/inputsunchanged; outer51816closed. V13sequential12-filecapture,
+fullfrozenGLES+loaderobservation, source-backedstderrreview andindependentphysical
+review ALL0/inputsunchanged, outer89537closed. PhoneNOWTWRP/unmounted, noactual
+trialpending. No188rootwrite, same9static186files(Mesa3a4/smalllib67f7/job33f5/
+cache05b8/policies/probes). All3WHOLEprefixes9884/2879/453728B retained. 855cPRE186
+backupHISTORICAL, NEVERrawrollbackafterboot;186403-blockconsentCONSUMED.
+
+CriticalobservationsW188/independent-physical-review.json:
+AMFIregisteredrc0ONCE; PID57UID501ruid501/protectedexec1/PATH2/rc0TWICE.
+346validatedexecobservations. TargetproxyPID57image2:argc2/envc1/joblabel1,
+insert0/expected0/mode0/admission0 (normalminimalbootstrapenv; notaloneafailure).
+FINALbackboarddPID57image1:argc1/envc10/job0,insert0/expected0 BUTmode1/admission1.
+ThusourcustomGAUGUIN_EAGL_MODE=admission ISdelivered, DYLD_INSERT_LIBRARIES key
+isABSENTbeforethetargetexec. Taskconfiguration isnotwhollyignored. Zeroactual
+inertlibopen/mmapCHECKrecords, zeroEAGL186markers/newBBoard5156B, nocrash.
+Missinginjectionnotexplainedbyunsupportedinitializerformat: actual1067supports
+0x16 andinstalled67f7readonly4Binitoffsetpointsatrealctorcallingadmit, eligibility
+reviewonly. ActualcompositorUIDviaAMFIproven; constructor/budgetstillunknown.
+NEXT locateSPECIFICDYLD-filterstageinactualxpcproxy/launchd/libxpc; doNOTguess
+jobcacheentirelyignored orassume xpcproxyminimalenv itselfprovesfilter. No repeat
+unchangedimage. DoNOTinfermappingfailure/successjustfromMACprecheckabsence.
+
+188GLESindependentlyPASS: FD619/ES3.1Mesa25.0.7, startupseed2124383053 full8192+
+1024wordreads; shaderseed2069411535, all1024RGBA/all1024BGRApixels eachhash789203909;
+6nativejobs/EOP1..6/rings32/44/56/68/80/92,595renewals/full600shealth. Six128MiBHARD
+GET8 phases footprints852208/16171288/16171288/25215296/25461056/25510208B. Entire
+269Bstderr identicalprimary-reviewed185warning withsameacceptedMesa. State
+reviewed188-full-GLES-PASS-loader-observations-and-injection-status isobservation
+acceptance, NOTinjection/GPUUI/Metal/highrefresh/dailyuse. Explicitinjectionfalse.
+FullgoalACTIVE, actualRAM4GiB. SourcePRIVATE51dc5e8/PUBLICc241867/tree d622e67,
+image17509dcf/buildID28625b4 allimage/native/stdoutidentityverified.
+
+DSHresponseinvestigationduring188wait: originalenabled/highthinking; official
+DeepSeekdocssupportdisable. LocaladapterneedsreasoningEffort=offwithdisabled.
+Privatefastv1(low) localreject; v2partialconfigreplacementlostrelayroute and
+MISSING_CREDENTIAL BEFOREAPI(notoriginalaccountauthfailure); v3FULLoriginalrelay
+configwithONLYthinkingdisabled/effortoff, startupvalid butstill3initialevents/
+zero tools after>153s. No causeproven, no globalconfigchange. Ownedidleheadless
+24060/24784terminatedafterancestrycheckpreservingactualobserver24151/userTUI;
+outer10254/80606closed. W188/dsh-execution-review.json. All188actualworkwasCODEX
+LOCALFALLBACK, notDSH. FutureDSHpreferredwhenresponsive; don'trepeatthesemodels/
+bootsmerelytochangeexecutor. Originalmainmkadt a74a preserved.
+
+NEXT189: read-onlyactualstaticxpcproxy/launchd inventory/disassembly, matchAMFI/
+envfiltercontrolpoints. Alreadyloadedcustommode narrowsproblemtoDYLDhandling.
+Mayneedadditionalminimaltrustedxpcproxyqueryinterface AFTERactualABI/flagproof;
+no189code/image/rootdelta yet. Do not enablefullbridge/GPUappaccessorrequest
+newrootwriteuntilconcreteauditedchange ready. All188handlesclosed.
+
 ### 2026-11-09 —188 actual temporary boot LIVE; wait same51816 handle
 
 188v12claimedLOCALdispatcher24151 at1794167351.034024, actualfastbootSending/

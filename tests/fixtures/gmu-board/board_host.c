@@ -18,6 +18,7 @@
 #define VM_PROT_READ 1
 #define VM_PROT_WRITE 2
 #define NSEC_PER_SEC UINT64_C(1000000000)
+#define NSEC_PER_MSEC UINT64_C(1000000)
 typedef uintptr_t vm_offset_t;typedef size_t vm_size_t;typedef unsigned ppnum_t,vm_prot_t;typedef int boolean_t;
 static _Alignas(16384) uint8_t ram[1048576],reset_page[16384],smmu[65536];
 static _Alignas(16384) uint8_t fw_page[5][49152],fw_asset[32768];
@@ -306,6 +307,8 @@ int ml_get_interrupts_enabled(void){return h.context!=1;}
 int ml_at_interrupt_context(void){return h.context==2;}
 int get_preemption_level(void){return h.context==3;}
 uint64_t mach_absolute_time(void){return h.now;}
+void absolutetime_to_nanoseconds(uint64_t t,uint64_t *ns){*ns=t;}
+bool GauguinGPUStart(void){return false;}
 void clock_interval_to_deadline(unsigned n,uint64_t scale,uint64_t *out)
 {
     bool seconds=n==8||(h.gpu_mode&&n==5)||(start_mode&&n==4)||(cp_active&&n==2)||
@@ -1607,7 +1610,7 @@ static void gpu_unsecure_cases(void)
  unsecure_setup();u.bad_shadow=8192;unsecure_failed();
  unsecure_setup();u.budget_fail=1;unsecure_failed();CHECK(ggub_diagnostic.reason==UGD_ENTRY_BUDGET&&!u.stores);
  unsecure_setup();u.phase=GGU_WAIT;u.kind=8;unsecure_failed();
- for(int mode=0;mode<=12;mode++)if(mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11){
+ for(int mode=0;mode<=13;mode++)if(mode!=2&&mode!=3&&mode!=4&&mode!=5&&mode!=6&&mode!=7&&mode!=8&&mode!=9&&mode!=10&&mode!=11&&mode!=12){
   unsecure_setup();z.flag=mode;struct ggu_receipt out,saved;memset(&out,0xa5,sizeof(out));saved=out;unsigned budgets=h.budgets;
   CHECK(sweet_gpu_unsecure_once(&out)==GGU_ARGUMENT&&!memcmp(&out,&saved,sizeof(out))&&sweet_gpu_unsecure_state()==GMB_IDLE&&h.budgets==budgets&&!u.stores);
  }

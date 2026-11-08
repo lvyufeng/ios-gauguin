@@ -2,6 +2,273 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —175 full host/native kernel ACCEPTED; root probe install next
+
+Full daily-use/GPU/Metal/RAM/UFS/peripheral/highrefresh goal ACTIVE/unlimited.
+Implementation commit9c1e780171da7b3400dd3e7e6452744c52aa17a1.
+FROZEN KERNEL175_SOURCE_HEAD74b77c0c62c715237cfae19c11ac99335aceb46d,
+NEVER rewrite this to a later docs/publication commit. Source175-codex5329files,
+169patches SHA f4ba18857e0ca4237c0b79cb35ea456778ae7063c2288633723edafd9c22c9f2.
+
+ROOT review_build175.py PASSED full89 coverage + ONE complete local8job native
+kernel, proof610618bd3f2a5c1b4424387b98da0dc42cbf831b0ba3c65654f0d05d515edecf.
+DSHv14 all84remaining host exits0/inputs unchanged,4parallel;5EXACT-current-source
+canonical checks reused with independent host-reuse-review.json.89coverage is
+NOT89new invocations. Long950second board41147 cases reused once, all old776
+coordinator cases plus22mode12=798, owner542, new runtime17214 assertions and
+actual IOKit client61+55 assertions retained. No cases silently removed.
+DSHv15 native build0, initial qualifier1 due accidental exact174 source wrapper;
+failed input/report/log retained. Freshv16 SAME KERNEL qualification0: unchanged
+generic native provenance function + all174 and20new symbols + exact169patch
+source binding; no rebuild. No source174 literal predicate is asserted for175.
+All current stages v1..v16 terminal; no live DSH worker/pending user input.
+
+CURRENT genuine native recipe NOW175:
+.deps-cache/p0-20261105/build/runs/gauguin.1CAtln/build-manifest.json
+SHA c959c29a056f268501533dea8bc3875007635114896bbda90068b899ea924316,
+2128source header/config inputs, buildIDxnu-d6a76ad20f3f4ea5a3a3a7bd8a7cc8ba.
+NEVER older174/173TUhelpers against these replaced shared generated headers.
+Installed kernel17275384B SHA
+32c0bd438225de50f0c742932cc8a4520714f83a65f24ecd1c71166fbab25a0a.
+Native archive SHAeece999434714402198ac79ba7f8c152b08c8ba563d5628fac96d1618349a3e1.
+Final iOS16-deployment user probe87360B SHA
+775622b6571c88412dc7071240149785877080410063aaf15f3c6d890315f525,
+v13 build/sign/strict signature0; kern.version also goes to stdout for durable
+log binding. Probe NOT installed/run on phone yet. NO175image/payload/boot yet.
+Mode12 remains bounded20s privileged one-client/synchronous prototype under
+existing diagnostic WDT lease; not persistent GPU, isolation, Metal/UI/FPS or
+highrefresh/daily-use qualification. Old modes1..11 remain exclusive.
+
+Phone remains automaticTWRP174. User away/all resets automatic; never ask
+attribution/UI. Manual assistance only for genuinely stuck phone. Read-only
+DSHv12 full existing HFSX root backup PASSED,17179869184B SHA
+9c9f8777b8a64ba30b38bf6af51b71869ee82ad569a215b369040121ab4e133a,
+root-backup-v3/iosroot-fresh175.hfsx read-only0444, exact4096B before/after headers.
+Observed HFSX4858/version5,4096B blocks/4194304total/551471free. No partition,
+root-file, GPT or boot write. Failed9DD framing/10HFS-vs-HFSX refusals retained.
+Original mkadt7line SHAa74a0418... intact. No new CI (local build used).
+
+NEXT publish completed source/full software handoff SAME TREE with sole existing
+public parent; remote base still PUBLICd8413b7ea67a924031c914fbad11553edf090da4
+=PRIVATE512e8f7e51116cae496fd0f59f3f1056bec9dec2/TREE0af84b9d200894648761f841324d8e9ba8d58895.
+Record NEW public/private/tree as NEXTbase after success; kernel source74b77c0
+stays frozen. No public175tuple yet at this write.
+Then prepare LOCAL COW HFSX staging from the fresh readonly backup: signed CLI,
+root-only one-shot launch job, and compiled /System/Library/xpc/launchd.plist
+LaunchDaemons entry (existing iOS uses compiled job dictionary; a new loose
+plist alone may not launch). Preserve every unrelated job/file. Verify on-disk
+UID/GID/mode via actual HFS format, offsets/forks/lengths, content signatures and
+block delta. Local edits are allowed; do not apply destructive root/userdata/raw
+block writes without FRESH user confirmation per AGENTS. Make the concrete
+backup/delta/image reviewable BEFORE asking. No GPT/recovery/bootloader/modem/
+persist changes. Routine13B recovery latch/temporary fastboot boot authorized.
+Physical acceptance still requires fresh175 kernel identity + actual userCLI
+query/BO/map/dynamic PM4/fences/all8192normal words/all1024surface words; keep
+software and hardware reports distinct. Then persistent GPU lifecycle and Mesa
+GLES/direct HakiOS Metal frontend with actual A619 parameters, not fixed samples.
+
+### 2026-11-08 —175 dynamic userspace implementation; focused integration running
+
+Full goal ACTIVE/unlimited, progress only. Phone last automaticTWRP174; NO175
+image/boot or root filesystem write. Read-only recovery access below. User away: all resets automatic,
+never repeat attribution/UI questions; manual help only if genuinely stuck.
+Codex wrote the critical driver; DSH executes the checks/builds. New tools use
+stable runners + immutable JSON stage profiles, not copies of the174 pipeline.
+
+Implemented production patch0175-gauguin-dynamic-userspace-gpu.patch (169active):
+SHA fb46d1b53962be63fffb8606a643ff196bc08d5900583e6214214e2a3c52d038.
+11kernel files; source175-codex FRESH original export/replay PASSED,5329files
+SHA f4ba18857e0ca4237c0b79cb35ea456778ae7063c2288633723edafd9c22c9f2.
+Frozen candidate-v3 under research/tmp/dsh-0175. Mode12 after real signed ZAP/
+unsecured20 handoff; old1..11 retain their exact diagnostic dispatch. A new
+msm-numbered HakiosGPU class/root-only single IOUserClient owns BO handles,
+64KiB-aligned below4GiB GPUVA, VM-managed WC memory and 16KiB->4KiB SMMU leaves.
+Adds a retained 1GiB VA window at40000000 via root[1] + scattered owned tables;
+ASID TLB sync before reuse/free. Initial submit is SYNCHRONOUS: dynamic native
+IB addresses/word counts, actual EOP counter + WHERE_AM_I shadow + idle/fault
+checks. Returned fences already completed. Failure retains DMA-visible memory
+and tables until reset. SweetSurface import uses pixels at descriptor offset0,
+actual surface geometry/offset (NO MiniIOSurface PAGE_SIZE skip); cache flushes
+and framebuffer/GPU lock prevent a framebuffer read during a GPU submission.
+This is a BOUNDED20s privileged prototype within the existing WDT diagnostic
+lease, NOT persistent GPU lifecycle, multiclient isolation, Metal or accelerated
+UI qualification. Normal watchdog/power/recovery lifecycle remains future work.
+
+DSH focused checks (all actual inner exits recorded):
+- v1 runtime-host0:17214 ABI/range/native-ring/fence/failure-boundary assertions,
+  ASan/UBSan, typed seams (no IB/GPU emulation). Four native C TUs0. C++ failed
+  two missing includes/declarations; immutable candidate-v1/log retained.
+- v2 three actual IOKit C++ TUs0 (driver, framebuffer, surface).
+- v3 changed GPU C++ TU0 including serialized stop; host fixture failed a
+  struct/class warning. Failed fixture/script preserved in failed-v3-public-inputs.
+- v4 actual IOUserClient host0:61 submit-failure +55 sync-failure assertions,
+  exact wire/handles/scattered memory/RO PTE/zero offset/retained surface/cache/
+  close-and-reopen/failure retention. ASan/UBSan; intentional retained references
+  are not leak qualification. No hardware claim.
+- v5 user CLI build failed missing IOSurface umbrella header; original inputs
+  preserved in failed-v5-public-inputs. v6 corrected IOSurfaceRef header: iOS
+  arm64 probe build/adhoc signature/strict codesign verification0,87312B SHA
+  16043433bc5a6d93bb08325c7111cfd4d6909ad1b7040143faee62f76ed6aa28.
+  Installed iPhoneOS SDK26.5, deployment16.0, no downloaded Apple artifact.
+  Probe does real BO/map/query/queue/dynamic PM4/fence/full8192word comparisons
+  across CPU16KiB boundary +1024 IOSurface pixels with nonzero64byte offset.
+  It is NOT installed or executed on phone yet. v6 fresh169patch replay also0.
+- v7 terminal112 BEFORE any checks: profile duplicated the runner default
+  PYTHONDONTWRITEBYTECODE; no compiler/test executed. Failed profile/logs kept.
+  Fresh v8 LIVE: removed duplicate environment key, same3 independent focused
+  coordinator/owner/board checks plus userCLI build from public tools path.
+  Continue SAME v8 process/claim. Old fixture illegal mode12
+  moved to13; added exact mode12 coordinator success/refusal/prerequisite/old-mode
+  exclusion, no blanket test removal. No full89 or full kernel build yet.
+
+CURRENT genuine native recipe STILL174 gauguin.FxICIV/manifest1d059726...;
+2127header/config inputs matched. All native-TU jobs throughv3 terminal; no
+shared generated headers changed yet. Once175 full build starts NEVER use the
+174 TU helper against its replaced shared headers. Original mkadt7line diff
+SHAa74a0418... preserved. All old failed scripts/logs/results retained; observe
+actual inner_exit, not the outer DSH process exit. Stages in checks-vN.json;
+runner tools/run-pinned-stage.py claims once and never restarts claimed jobs.
+
+Independent ROOT review_implementation175.py PASSED source/native/model binding,
+SHAae8190755ab0c67704914cc8b66ebe8bbe4f676d7da6a782d98a0d2f42e08fa4:
+all7 selected native ARM64 TUs match fresh175 source bytes; actual17214+116
+model assertions accepted. Scope explicitly excludes full link, phone execution,
+persistent lifecycle, multiclient isolation, Metal/UI/highrefresh.
+
+v8 TERMINAL: board0,owner0,iOSprobe0,coordinator1; ALLinputs unchanged at terminal.
+Board complete (about950s), all41147old board cases retained; no board retry. Owner542PASS and iOS public-path probe build0;
+coordinator preserved all776old cases, then failed three old <=11 typed fixture
+whitelists. Keep v8 inputs unchanged until terminal. Fresh PRIVATE corrected
+coordinator_host_v2.c + canonical runner override checked by DSHv11 TERMINAL0:
+ALL798 cases (776retained+22mode12) pass. That identical fixture is now promoted to public AFTER v8 terminal; failed
+v8 original fixture preserved in terminal-v8-public-inputs. No long board rerun
+for this unrelated typed-fixture fix.
+New root preflights: v9 failed raw DD length (stderr mixed into stdout); v10 with
+explicit remote stderr redirect saved EXACT4096B, then refused unexpected HX.
+Observed header is HFSX signature4858/version5 (not HFS+482b/version4),4096B blocks,
+4194304total,551471free. Those refusals/inputs retained, no writes. Freshv12 LIVE
+same13454 handle: accepts the OBSERVED HFSX format and READS ONLY a fresh16GiB
+volume backup to root-backup-v3/iosroot-fresh175.hfsx. Host364340273152B free,
+preflight-result.json already saved; final length/SHA and unchanged before/after
+header required. NO root partition/file writes or reboot. This backup is for
+preparing the small CLI/plist install locally, never write a stale root image.
+
+Current final user CLI is ios-probe-v4/gauguin-gpu-probe:87360B SHA
+775622b6571c88412dc7071240149785877080410063aaf15f3c6d890315f525,
+DSHv13 terminal0 build/sign/verify; only added kern.version to stdout for durable
+launchd log binding. Public source tools/gauguin-gpu-probe.c, public builder
+uses that path. Older v2/v3 binaries/failed v1 remain immutable.
+ROOT review_reuse175.py PASSED exact-byte equivalence for FIVE already-executed
+canonical test files (runtime,IOKit,owner,board,coordinator), sourcef4ba1885...;
+host-reuse-review.json has exact source/fixture/log/inner-exit receipts.
+Next broad89host gate will execute the remaining84 independent files in parallel
+and combine those with these5 VERIFIED current-source results. Do not rerun the
+same950second board check just because the broader gate is being assembled.
+No full89 result yet. Source/native/model review ae819075... remains current.
+
+Implementation COMMITTED private9c1e780171da7b3400dd3e7e6452744c52aa17a1.
+DSH phases v1..v13 terminal except v12 final backup receipt if still hashing;
+public only tools/mkadt.py dirty, original a74a0418... unchanged. GPU header/root
+source f4ba1885... frozen, all171/172/173/174 algorithms unchanged except the11
+explicit175 kernel changes. No175 source publication/image/boot yet.
+
+NEXT immediately after this handoff commit: freeze KERNEL175_SOURCE_HEAD to
+that commit, then DSHv14 runs84 remaining independent host files at4parallel;
+DSHv15 runs ONE full local8job175 kernel build and strict native provenance/
+installed-kernel/archive/banner/symbol/source qualification. The full89 result
+combines84actual fresh exits with5exact-source reviewed prior exits. Do not
+count a failed/absent exit or call this89new invocations. ALL older native-TU
+jobs terminal. Starting175 full build replaces SHARED generated headers:
+NEVER run174/173 native-TU helpers against them. Do not edit tracked files or
+commit while build/qualification is active: strict repo binding requires ONLY
+original mkadt diff and the frozen HEAD. Goal remains active/full daily-use goal.
+After both terminal, update NOTES/commit receipts, prepare local CLI/plist HFSX
+shadow/delta and final image. Apply no destructive root/partition write without
+fresh confirmation per AGENTS. Routine temporary fastboot boot still authorized.
+
+Earlier checklist (v8 no longer active): fix only actual failures in fresh profiles. Commit complete
+175 source/tests/tools/probe and this handoff. One full native175 kernel build +
+integrated89host gate (ABI/MMU milestone) next, using stable profile and existing
+build machinery. Prepare a reversible/root-backed installation of the user CLI
+and launch job before a175 temporary boot; do not overwrite a stale17GB HFS image.
+No destructive root/userdata/GPT/flash step without fresh user confirmation.
+Physical acceptance needs user CLI identity + dynamic values/fences + exact
+readback in the fresh binary console. Do not claim runtime/Metal/UI FPS from
+host tests, code compilation or old174 fixed textures.
+
+Next remote publication base remains PUBLICd8413b7ea67a924031c914fbad11553edf090da4
+=PRIVATE512e8f7e51116cae496fd0f59f3f1056bec9dec2/TREE0af84b9d200894648761f841324d8e9ba8d58895.
+No175 publication yet. Do not reuse old174 frozen source tuple as remote base.
+
+### 2026-11-08 —174 physical handoff PUBLISHED;175 dynamic userspace batch next
+
+Full goal ACTIVE/unlimited (get_goal verified), not complete. 174 milestone is
+closed: all DSH jobs/publication terminal, no live worker/pending input. Phone
+last automatically TWRP174 after131s. User away; all resets automatic, no repeated
+attribution/UI questions. Routine temporaryboot/13B latch authorized; destructive
+userdata/GPT/flash steps still require fresh confirmation. mkadt7line a74a0418...
+unchanged; no new destructive action or CI build.
+
+Published physical NOTES-only handoff via nonforce REST, SAME TREE verified:
+PUBLIC d8413b7ea67a924031c914fbad11553edf090da4
+= PRIVATE 512e8f7e51116cae496fd0f59f3f1056bec9dec2
+TREE 0af84b9d200894648761f841324d8e9ba8d58895
+sole public parent f3914a1167379a86c8f7a732780a360a81c261f3.
+THIS tuple is NEXT publication base. API public commits not mirrored locally.
+Do not reuse f391/7e48/6f8a as nextbase; that older tuple is the frozen174 SOURCE
+identity only. KERNEL174_SOURCE_HEAD remains7e48ca393fb719d4951f9c1a3893adba6161f9e5.
+Physical proof6636f45aa61c43a1af5bddb67b619d70fbebd43a17de106cd81e0e526255b73f,
+40technical inputs,768 exact endpoint/prior pixels,93native buffers,16/16/4colors,
+EOP6/22/38/root20-27-34-41; no generalAPI/Metal/UI/highrefresh performance proof.
+Current genuine XNU recipe174 gauguin.FxICIV/1d05972654801dba686e27e401711c9df9eb2036403725c88fcb7dcd56f70586,
+source174-codex5326/4e9999c3...,2127headers,168patches. NEVER oldernativeTUhelpers.
+
+User's side-research steering is integrated: speed through reuse + layered tests;
+next milestone MUST user-space dynamic BO/map/submit/fence/pixel readback then
+IOSurface presentation, rather than more fixed PM4 samples. Use HakiOS msm-style
+IOKit transport as the closest common user API for MesaGLES and its iOS16 Metal
+path. Evaluate directHakiOSMetal first for Metal; UniXNU/m2v/Turnip remains the
+alternative, especially through HakiOS's already-adapted iOS16 patch stack.
+Keep working A619 firmware/clock/SMMU/PIL bootstrap; no whole-kernel/UEFI migration.
+This is an implementation priority, not a claim that a frontend already runs.
+
+NEXT concrete175 work (no175 code/build/boot authored yet):
+1. Inspect current IOBuffer/SMMU bootstrap and Linux-msm struct-method sizes;
+   connect an IOKit GPU client to real A619 query/BO ownership/map/submit/fence
+   backend. Preserve below4GiB GPUVA,16KiBCPU->4KiBGPU split, physical-bank bounds,
+   cache coherence, live mapping lifetime and stop-DMA-before-free on timeout.
+   Keep prototype permissions narrow until multi-client isolation is implemented.
+2. Adapt HakiOS Surface request0x7e to existing SweetSurface, NOT a cast. Critical
+   source difference found: MiniIOSurface embeds shared state before pixels and
+   its GPU service skips PAGE_SIZE; SweetSurface::memory is pixels already and
+   ::state is separate. Do NOT copy that PAGE_SIZE offset. sweet_surface_copy(id)
+   returns an OSObject retain (release when done). Bridge retained descriptor,
+   actual offset/geometry/cache metadata, and completion before framebuffer read.
+   SweetSurface currently has no MiniIOSurface::drawn GPU-fence field.
+3. Build one iOS user CLI using the same real msm struct-method/map API as the
+   reused frontend: query A619, allocate/map, dynamic commands/texture data,
+   submit/fence/CPU readback and one IOSurface result. Keep this end-to-end and
+   use stable tools + immutable run profile/manifest; avoid trial-name script
+   duplication. Exact ABI validation, handle ownership, range/overflow and fence
+   failure tests are relevant; no repeated full87 for labels/plumbing. Full checks
+   at the integrated ABI/MMU/recovery image milestone, not every small edit.
+4. Then MesaGLES compositor (available in HakiOS's path) / directMetal client;
+   parameterize hardcoded a6xx::kChipId/compiler and actual hardware params for
+   A619, never merely rename the device. Verify ondevice shader compilation,
+   IOSurface imports/presentation and backboardd before FPS/90/120Hz claims.
+
+Read-only source cache gpu-reuse-20261108-v1 now has26primary files +5extras,
+selected Gitblob/SHA256 receipts, pinned HakiOS63fc2b46,AdrenoMetal6d7f7343,
+Adreno7406fa7bae2. HakiOS device manifest additionally pins redwood repository
+https://github.com/oosexgang/hakios-sm7325 at af52dfba33f91340bde68dbbe238ae583f9fd472;
+metadata tree only fetched (NOprebuilt/firmware/Apple artifacts downloaded).
+Review selected build/device layers before treating stale comments as a complete
+capability matrix: generic GPU header says polling/sharedVA/no full hang recovery,
+while Metal header/docs refer to gpu_recover; do not silently assume consistency.
+Known m2v recipe pins AdrenoMetal243d63cf and metal2vulkan624bab39, not newmain.
+Published UI rates belong to642L, with resolution/wallpaper/tuning conditions;
+no extrapolation to A619 or native120fps acceptance. Full goal still unfinished.
+
 ### 2026-11-08 —174 PHYSICAL nearest texture ACCEPTED; dynamic client/presentation next
 
 Goal ACTIVE/unlimited, progress; full GPU/Metal/UI/highrefresh/daily-use goal

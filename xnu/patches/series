@@ -170,3 +170,4 @@
 0172-gauguin-native-three-job-sequence.patch
 0173-gauguin-native-varying-sequence.patch
 0174-gauguin-native-texture-sequence.patch
+0175-gauguin-dynamic-userspace-gpu.patch

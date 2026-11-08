@@ -2,6 +2,18 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —184 source publication VERIFIED; real trial remains LIVE
+
+PUBLIC0d6df19f534e88ea7b4db23ed196608eb48ab703
+=PRIVATE29eb69d7af1ded4f438d4ae475d10bf1a32558f6
+/TREE00c0733cdb8b8290df0941044e34aac159068d80;
+sole publicparent921da0be... .Four textfiles only/nonforce/tree-parent-ref checked.
+GitHubconnector blob403 -> existing authenticated gh filebody fallback success.
+Mainpublic6d5a7bb... unchanged, noCI/deviceactions. THIS is next GLESpublication
+base; W184/source-publication.json authoritative. Separate future source notes
+must not reset this base to181. Real184v9 SAME outer65453/temporary180image
+trial ongoing; no secondboot. Continue postcapture/frozencontract as below.
+
 ### 2026-11-08 —184 approved185blocks APPLIED; real late-GLES trial LIVE
 
 Human call27b1ac0f... consent consumed by successful W184v6 write/readback0:

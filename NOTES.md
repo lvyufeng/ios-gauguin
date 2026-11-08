@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —172 complete runtime ACCEPTED; one temporary trial next
+
+Goal ACTIVE/unlimited, no172 device result yet. DSH v20 CLOSED inner0 FIRST:
+clock0/firmware0/full8shards0; full-shards285s approximately (actual report is
+runtime-result-v1.json). All7843 negative parses executed exactlyONCE across
+identical complete manifests,112actual positive parses in EACH of eight
+workers. New selected6885controls plus all958common/transition controls; no
+fixture generator/reject-body waiver. Allinputpins unchanged. v21console+
+86metadata already accepted; all1..21 terminal, no live jobs or user input.
+Root review_runtime172.py FIRST0, independent-runtime-boot-review.json SHA
+9d39e97b42c3ac4000eb559f512741b16826f38fe923f7daf3591364ec968314.
+It independently rehashes allworkers/manifests and retained common/source/
+identity/framing gates, and reviews oneboot/read protocol. New observer172
+byte-exact171; routine13B misc recovery latch+readback and temporary fastboot
+boot ONLY. New boot172/read_hardware172 and root physical review authored,
+syntax parsed, UNEXECUTED at this commit. NEXT DSH v22boot/v23read, one actual
+172trial. User AWAY/allresetsautomatic --manual-reset no; never ask attribution
+or UI, prompt only if manual recovery genuinely needed. Current source24587b1,
+public42d5240/private24587b1/treee5d039d nextpublication tuple unchanged. Native
+recipe172 gauguin.d14eqT ONLY; original mkadt diff intact. Image5313f887.../
+19873792B, uniquegwrt-0172-a1/mode9, full proof details below. No physical172
+sequence/UI/Metal/highrefresh/general submission API/throughput proof yet.
+
 ### 2026-11-08 —172 parser/package ACCEPTED; full runtime tests running
 
 Goal ACTIVE/unlimited. Phone last actual automaticTWRP171; NO172 device action

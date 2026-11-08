@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 —186403blocks APPROVED/APPLIED;9files+3prefixes read back; no boot yet
+
+New explicit call_bd4ce7cc0a994c3dbce5756b1c665111 item0 approved exact403block
+3f03aa6d plan pluswrite/readback failure rollback. W186/approval.json createdand
+CONSUMED by186v10 successful48/48runs,1650688B,48writeattempts/readbacks,header0last,
+no rollback. Rebootpermitted. Do NOTreuseconsent for anotherdelta/repeatwrite.
+ActualTWRP/currentroot headernow f60788b48bc38775e62cb03f0b8538f82d7990a06a431143b4becc1789528010.
+Full855cbdeabackup remainsPRE186BOOT; neverrawrollbackmetadata afterfutureiOSboot.
+
+186v11 BOTHjobsTERMINAL0/inputsunchanged: READONLYall9actualstaticfiles match,
+newsmalladmission67f7.../BBoardjob33f5.../cache05b8..., acceptedMesa3a4 unchanged;
+all3WHOLEoldlogprefixes savedinW186/installed-current-v1. stdout5797B SHA
+142b20198a2bc112ea8c55f84aa815adcca2a7f156806ad8ce09cd66eb4ff1cb;
+stderr2341B SHA310dc2516305f5899d7fb2d8d5dcc522e379eaea7ffabb260c5d0cbb7bba8546;
+BBoard443416B SHAa3f573adcfd16c25da0ac2783b38458199138d35a6671831af7d4d8805b67dd7.
+BBoardlogactualBSD501:501/0666 preserved. Newbootwrapperboot_eagl186.py models
+ALL17retainedcases+7additionaladmission/BBoard/cache/job/receiptgates=24cases0,
+noactualdeviceIO. Read_files186.py boundedBBoardlog32MiB; captureprofiles12files.
+
+CURRENT actualphone TWRP/unmounted, NO186bootyet. DSHv12 pureadmissioncontract
+MODEL live outer18532/checks-v12/events-v12. Parser validatesactual8methodtypes,
+UID/eUID501,GET8/VMqueries, zeroGPUopens/hooks; records earlyservicepresence and
+kern.osversion(whichmaystillbeempty) withoutcallingregistrationGPUready or
+requiringunobservedrenderbudget. Allfullfrozen181v2/180 GLES/API checks untouched.
+NEWqualify_trial186.py willpreserveWHOLE3prefixes, evaluatefullfrozenGLES separately,
+thenadmission; noold/currentlogfailurediscarding orUI/GPUrenderclaimfromadmission.
+Beforeactualboot: finishv12negativefixtures, preparepinnedbootprofile andindependent
+prebootreview; useONEunchanged180image6825/600sservice/780sobserver860sbound.
+No furtherpermission requiredforalreadyapproved186write/routine temporaryboot.
+AllpreviousDSH12430/44424closed. UIpublishedbaselineeca39329/private0fb810d/tree996a
+unchanged. FullgoalACTIVE, realRAM4GiB, UI/Metal/highrefresh/dailyuse unqualified.
+
 ### 2026-11-09 —186 EAGL admission software published;403-block delta READY for new consent
 
 All186handles TERMINAL, no phonewrite/boot in186. Phone TWRP/userdataunmounted;

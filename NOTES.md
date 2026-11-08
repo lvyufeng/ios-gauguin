@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-08 —176 physical API milestone PUBLISHED; next persistent-runtime gate
+
+Reviewed REST non-force fast-forward publication PASSED, only4textfiles
+(NOTES, actual pmap regression,0176patch,series), no binaries/Apple blobs/dumps/
+device identifiers. MAIN/CI remote codex/gauguin-p0-ci-20261105 is now
+PUBLIC4e3a503e76068b0195e7c1d4111700ad71862697
+=PRIVATEf0671f448470fb3a53c2afc7fa4ad4b79e8c5cbc
+/TREE1b354f711e401e996d66d593d6a8b9acb63ac2b8,
+sole public parent35d706fd0564b080989b492eba1e024896ee0cea. Remote ref/tree/parent
+rechecked, receipt research/tmp/dsh-0176/source-publication.json. THIS tuple is
+the NEXT MAIN publication base; public objects not mirrored locally. Kernel
+source identity remains4d6b2a8..., not this later docs commit or receipt HEAD.
+Independent GLES branch713ea8af...=0d4c9389.../d3d653a5... remains separate.
+No CI dispatched: local native8job build0, same-artifact strict qualifierv5=0;
+all9DSH profiles terminal (v2 inner1 was ONLY initial qualifier import failure,
+native build0; original failed helper/log retained). Physical bootv7=0,
+readonly capturev8=0, frozen physical contractv9=0, ROOT acceptance0 as below.
+
+Phone last verified TWRP/unmounted by actual post176capture; no live boot now.
+Do NOT reuse installed-preflight.json header422feb21... for another boot: iOS
+changed HFS metadata. Before any next temporary boot, reread current files/cache
+and stable current header. Raw stdout now1056B includes historical175183B+
+successful176873B; next-run extraction must pin that WHOLE saved previous raw
+prefix and retain all new events/banners. Never silently skip a current failure.
+No rollback of preboot raw metadata after an iOS boot. Full backups retained;
+any GLES/library root install needs a fresh post176full snapshot and separately
+reviewed exact-delta permission. No new destructive userdata operation approved.
+
+Concrete next gate, starting from source176-codex and native tKac3D: audit the
+existing20s ggrb_end/operation2s/watchdog lease + coordinator30s stop path before
+designing persistent ownership. A larger timeout alone does not provide safe
+watchdog/power/DMA recovery. Add owned queue IDs and per-queue fence validation
+for Mesa's separate screen/context pipes, obtain actual A619 GMEM-base evidence
+before parameter6 support, preserve root-only isolation until command/client
+authority is implemented. Use focused new driver regressions/native TUs, reuse
+unchanged89test-source evidence, one native build per actual kernel change,
+DSH execution and real probes. Then GLES shader+IOSurface, followed by actual
+compositor/EAGL/Metal integration; RAM/UFS/peripheral/highrefresh gates remain.
+Full original daily-use goal INCOMPLETE; no complete/paused status set. Old
+BLOCKED goal metadata predates the actual user approvals; API has no ACTIVE
+setter, so do not infer that explicitly resumed work is forbidden. Only original
+mkadt7line a74a0418... is dirty. User away/ALLresets automatic; prompt only for
+genuinely stuck manual recovery or each concrete new destructive root delta.
+
 ### 2026-11-08 —PHYSICAL176 userspace dynamic GPU API / IOSurface PASSED
 
 DSH0176v6 package0: image shim/out/shim-p3-gmuf-0176-native-20261108.img,

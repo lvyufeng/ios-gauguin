@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0211 LIVE; approved210 bridge installed; waiting for human visuals/automatic capture
+
+DO NOT reboot or duplicate this trial. DSH6529 boot-dispatch-stage-v1 is
+running; actual fastboot send/Booting both OKAY. trial-v1/preflight.json
+observer-running, recovery latch verified. New qualified211 kernel + exact
+approved210 CA bridge aafa07f8. Image48e4f122e3268474d191ccd5d64515e27dc6d6c31d3ac77ea89c6d8fda4cd9e2,
+20,004,864B, in0211/ram-layout-6g-v1/layout-6g.img. Same1800s GPU service,
+2040s observer/2120 timeout, mode2, Homeoff/30Hz,6GiB bootstrap model.
+DSH12540 package-stage-v1 ALL0/pins unchanged, actual recovery RAM/DTB
+reconciled again and root header bound to exact210 approved installation.
+All15 installed files were reread; new bridge matches and all14 other
+files including COMPLETE R4 log prefixes unchanged. No fresh root writes.
+
+DSH84849 owns post-wait-stage-v1. It syntax-checks post211.py, waits for
+THIS exact boot/dispatch/observer terminal, then captures all15 files once
+and qualifies full R4 prefixes, native service/BO/frame/API/RO evidence and
+new CA observer install/uniform observations. No reboot/retry. All four
+boot-dispatch/boot/profile/post-wait input pin sets rechecked unchanged.
+Current trial/observer/post still NONTERMINAL. No native/visual PASS claim.
+
+New async human question PENDING: after lockscreen, unlock, inspect icons,
+open Settings and return. Options normal / red-or-missing / spinner-reset /
+not-yet-lockscreen. Keep running for automatic return; do NOT ask whether
+reset was manual under standing unattended policy. The30min window is to
+allow real interaction. Await actual callback logs and user feedback before
+claiming red gradient/icons or BO crash solved. Main source/driver commit
+9d6ec57 remains tested211 baseline; perf209 still separate and unbooted.
+No Metal/90-120Hz/full-RAM-pressure/peripheral/daily-use qualification.
+
 ### 2026-11-09 UTC — 0210 approved delta APPLIED;211 native qualified; preparing temporary trial
 
 User explicitly approved339-block210 delta + touched-block rollback in

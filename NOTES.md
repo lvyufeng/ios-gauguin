@@ -2,6 +2,77 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0223 concrete9.50MiB proposal PASS; individual write question PENDING
+
+Previous goal turn PROGRESS: source probe +new upstream evidence review committed.
+This turn PROGRESS: paired temporary image, actual localCOW/minimaldelta,fsck,
+writer model, current phone old-range read-only check and independent full
+review all completed. Full goal ACTIVE/unlimited; NO userdata application,
+temporary boot or new hardware rendering result. Phone confirmed idle TWRP
+through RecoveryIO. No approval file exists. Exact individual write question
+issued for plan41cb87fe (2431blocks/9.50MiB), failure rollback only touchedruns;
+answer PENDING. Never infer consent from elapsed time or reuse210approval.
+
+W223 remains INSIDE isolated research/tmp/gauguin-metal223-worktree-20261110:
+research/tmp/dsh-metal-0223-device-probe. DSH26037 proposal-stage-v1 terminal1/
+inputs unchanged: package PASSED, then stage failed beforeCOW due to expecting
+missing-import count0 instead of actual emptyarrays[]. Original scripts/results
+unchanged. Fresh DSH91571 proposal-stage-v2 terminal0/unchanged, corrects ONLY
+schema guards and corresponding helper imports, reuses exactpackage without
+rerun, then all staging/delta/fsck/model/readonlypreflight/review succeed.
+Both outerDSH handles terminal/reaped. No live workers or claimed trial.
+
+paired-image223.json: qualified219 kernelbb7a369e... unchanged, physicalNVT1,
+NO swp token, command601B/608field; entire payload outside commandfield identical
+to219. Allfirmware/shim/DTB/bootgeometry/6GiB/mode2/600s controls preserved.
+shim/out/shim-p3-metal-0223-sysmem-probe-600-20261110.img,20021248B,SHA
+346c74953fbc006a8f09d31104cdc23605f5474b618de53bcaa34afb0dd6378e.
+Main KERNEL remains211; do not substitute it for qualified219.
+
+stage-v1 uses NEW223 read-only16GiB backup eb2a3096... asbase. Adds signed
+/usr/libexec/gauguin-metal-probe115728B and
+/usr/local/lib/gauguin/libGauguinMetalCore.dylib8369632B. Changes ONLY
+ProgramArguments of org.gauguin.gpu-probe launchdaemon and matchingcachejob to
+[/usr/libexec/gauguin-metal-probe,--metal223]. Other530jobs+13retainedfiles,
+full68405/10411/1320888B logs, Mesa/UI210/admission/worker/GLES/API intact.
+Rootlabel/RunAtLoad/LaunchOnlyOnce/128MiBhardpolicy retained. Actual BOTH
+D22/D221 policies keyed by LABELorg.gauguin.gpu-probe, not executable basename:
+ActiveSoftMemoryLimit=-1,active/inactivehard128. Independent final proof requires
+effective GET8 ondevice. Metadataincludes2boundedfseventlogreplacements and49
+unlinked private temp-entry cleanup; eventUUID/permissions/SystemVersion kept.
+
+delta-v1/delta-plan.json SHA
+41cb87fe654943f7dc96d30a088acdae2560ffe346b38579de64b3dcc3443c90,
+2431blocks,9957376B,77runs. Final16GiB HFSX SHA
+bf20ed3bf7a42f69aded451cafe8d9ebb5773d15e980097cfabf18eb6d0f9e2b.
+fsck-v1 result local readonly exit0/detach0/hashunchanged; actuallog iOSRootOK.
+write_root_delta223.py body identical175 exceptbase/imagepins/key/errorlabel;
+SHA f805ab8b48e3ede60d265ecb6cd881dfae59b574b42a33469e20a198cb6dd160.
+writer-model223-result.json102assertions PASS inclpartialwrite/readback/report/
+rollback failures. current-preflight.json ALL77oldranges9957376B matchREAL
+idle/unmounted/noholders userdata; header91622923... before/after stable.
+independent-local-review.json PASS: exact4targets/NEW2files/owners/modes/jobs/
+retainedfiles/namespace/ranges and FULL16GiB compare observedchangedsectors
+EXACTLY2431listedblocks. Reviewinputpins rechecked unchanged before question.
+
+Docsource4af550d records concreteproposal, integratedMAIN50e83e1.
+Private guarded apply223.py requires exactplan/counts/proposalterminal/review
+pins and freshapproval.json; approval.json DOES NOT exist, wrapper NOT run. Writer
+rechecks alloldranges beforeanywrite; touchedruns-onlyrollback onfailure.
+
+NEXT: wait for actual answer to pending9.50MiB approval. Useful independent work
+can prepare223 readcapture/boot/post helpers, but no write/boot until consent.
+After approval create plan-bound approvalreceipt, pin applystage and execute
+viaDSH once, demand exact readbackreceipt; then capture17installedfiles (extend
+old reader's explicit limit for8369632BMetalcore; old reader defaults1MiB),
+boot ONCE temporary223 with sourceproof checked against qualified219WORKTREE,
+not211MAIN/R223 kernel. Restore physicaltouch, no automaticswipe. Native
+SWEET GPU AUTH compositor-open root_fence>=8 supplies clean-root-release
+evidence; Metal stdout teardown-requested alone does not. Require8realpixel
+PASS/nativefences andcompositorhandoff, captureall17files+completepriorprefixes.
+Keep strictbanner check/original219failure; no silentforensiccleanup. Full
+MTLDevice/20H392CA/present/highrefresh/RAM/peripherals/daily still unqualified.
+
 ### 2026-11-10 CST —0223 native probe ready; renewed upstream recheck finished; NO install
 
 Full phone goal ACTIVE/unlimited. Latest user asks to revisit HakiOS/UniXNU

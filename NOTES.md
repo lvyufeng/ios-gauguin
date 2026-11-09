@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0189 native image and single temporary-boot profile ready
+
+Kernel source is `c18890577ae985d86837c9a6ddd569eca4562cbc`. Pristine replay of
+177 patches produced 5,329 files and SHA256
+`2e653bc3c919369cf2f957b53c091a423ee48f5219ebf37c1bb50dfbf320e385`.
+Only `bsd/kern/kern_exec.c` differs from frozen 0188. The default host test
+entry on this replay passed all 34 new cases. The published source commit
+`a231a82be64ed6a86be3c9ed7c60f2d5985af182` on
+`codex/gauguin-eagl-insertion-20261109` has the exact tree
+`ad336261630f1fbd39eae4e0d0dcbf2ede746777` and sole parent `c241867`.
+Publication contains five reviewed text files. No Actions run.
+
+The local native run `gauguin.zAV8Uo` returned build and qualification 0.
+The pinned build stage finished in 251.622s with all inputs unchanged.
+Kernel SHA256 `68adfde30ba5ba78cb2e514f9118339e48f067d3b3177a6995fbb175415d8083`,
+build ID `xnu-ab17d02f8d954c1d9ebaee6e18461271`. DSH handle 63930 emitted only
+three startup events with no claim for more than 120s. The local fallback
+claimed the same profile once. Owned headless PID 32464 stopped after command
+and children checks, and both outer build handles closed.
+
+`shim/out/shim-p3-gmuf-0189-native-20261109.img` is 19,988,480 bytes, SHA256
+`5801acd4fc83d1d099c66eb2521dc5886175e0d61d21f554553a23b6beea9810`.
+Payload SHA256 `a2e271b4c9e2e8f1760097b57a18bdd752ccf10d358ecfc647a4331cb01763e9`.
+The 601-byte command and seven NULs fit the 608-byte field. The only effective
+change from 0188 is `sweeteagl=1`; omitted `sweetbusprobe=0` defaults to zero.
+4 GiB window, five firmware assets, shim, DTB and the 600s GPU interval match.
+Current TWRP read-only capture verified all nine 0186 static files and all
+three full 0188 log prefixes (11,927 / 3,148 / 458,884 bytes). No root write.
+
+`research/tmp/dsh-eagl-0189-loader/boot-stage-v1.json` is ready for exactly one
+temporary boot, with the proven byte-identical wrapper, 780s observation and
+860s timeout. The new framing model passed 14 cases, including actual 0188 as
+a negative control. After automatic recovery, pin the terminal trial and run
+`prepare_post189.py` and the resulting post stage. Check exact PID-correlated
+append, final exec, 0186 constructor and independently verified GLES health.
+At this entry no 0189 device boot or compositor runtime claim exists. The user
+is away; only request manual action if the device actually gets stuck.
+
 ### 2026-11-09 — 0189 opt-in exec insertion passes host and native TU checks
 
 Patch `0183-gauguin-opt-in-eagl-exec-insertion.patch` changes only `kern_exec.c`.

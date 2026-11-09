@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0207 full local read-only image kernel qualified
+
+DSH58208 native-stage-v1 ALL0,pins unchanged. Clean194-patch source5330
+files48ad762c91fe53e0b17352383ee66320f7346c576892a9b6d173674c00064412;
+only SweetSurface.cpp/.h and GPU RO-import rejection differ from206.
+Sourcee2f44290d642c1aa983dc7d3aa5485ed2d62befb. LOCAL8-job build207-readonly-wrap,
+run gauguin.Xk8Hht,build0/qualification0; original195 reference hashes and
+mtimes unchanged. Bannerxnu-222b7d6a596240f7a9cf0005cf22044e,
+kerneled59aa982372b92066a832257f3f218cf4f4e9aff8fc20ec9e32ce4248045c0e.
+
+Next ONE temporary207,6GiB/mode2/600s/Homeoff/30Hz, same195 libraries;
+fresh CURRENT206-R2 headerecf88ce5/full15 files/COMPLETE R2-prefix/memory
+preflight. Verify old three failed geometries, bounded WRAP RO records,
+full GPU service and actual UI. New RO success log is source-path evidence,
+NOT a physical VM-permission probe; CPU write locks/GPU imports remain denied.
+No207 physical result yet. No userdata delta/flash/rollback requested.
+
+Additional source observations for FUTURE performance work: current eagl.c
+has check_errors=1 and drains glGetError after every wrapper until600 error-
+free frames; actual R2 has only29 sampled frames, so still in that window.
+Its performance impact depends on Mesa dispatch and is NOT established.
+call_began_us for optional glslow is GLOBAL, not TLS; do not trust it for
+concurrent contexts without fixing/investigating. glprof suspends a thread,
+walks its stack AFTER resume and dumps only after4000 active samples; do
+not casually enable it for this correctness test.207 command stays unchanged.
+Default GL error consumption/TLS diagnostics may justify a separately tested
+userland change later, requiring fresh backup/concrete delta approval per
+AGENTS. Neither is changed or installed now. Root owns NOTES/code; DSH
+executes. Full goal remains active.
+
 ### 2026-11-09 — 0207 RO image rights checks and two native TUs PASS
 
 Codex patch0200 changes SweetSurface.cpp/.h and one GPU-import denial only.

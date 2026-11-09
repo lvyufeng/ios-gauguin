@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0208 terminal PASS; user-requested same-image 0208-R2 LIVE
+
+First208 DSH58405 boot/DSH68048 post: all inner dispatchers/observer/
+post-wait ALL0,pins unchanged. Automatic746.080616s,
+600s service598 renewals,25/25 completions,shadow592.16 recorded/9 sampled
+out,6 MICRO rechecks/0 expiry.8 CA frame receipts,10 wraps/0 errors,NO
+compositor crash;4 BO NotReady after planned stop separately retained.
+All15 files/12 static/complete207 prefixes preserved; logs54,100/8,528/
+1,091,689B,first208 terminal header7abb6c51e54c1f566e0289419ba3aa187cd48fca8ee4f8727bb27d27a3050ba9.
+
+Whole-request counters valid1/pending0:1213 calls/4 parameter-query failures;
+597 heartbeat calls1,795,837,083ns dominate the ten-minute idle aggregate,
+NOT evidence heartbeat dominates visible UI.25 submit requests306,707,500ns
+(12.268ms avg),native core215,932,135ns(8.637ms avg);90,775,365ns lies outside
+native core.101 BO allocations187,432,083ns;182 info requests44,431,770ns;
+109 mappings26,212,552ns. All-client scope includes probes/worker/CA, not a
+pure desktop workload. First8 sampled frame wall23.819–282.262ms; no same
+workload speedup claim. User call_afe1fbe8368f4acc9b658fd100edbc0d answered
+'再刷一次', so no human208 performance qualification.
+
+Prepared research/tmp/dsh-gpu-0208-manual-r2: explicit exact208 image/kernel
+reuse, NO independent build/repack. Fresh first208 header/full15 COMPLETE
+first208 log prefixes and memory preflight. DSH59434 owns ONE R2 observer;
+same image2078f797/kernele6d70dbf,600s/6GiB/mode2/Homeoff/30Hz. Transfer
+19,536KiB/Booting OKAY,total0.590s. DSH35040 owns single exact-R2 post wait,
+same strict request-profile parser. Actual R2 unlock/swipe/Settings/Home
+requested immediately after verified boot; reply pending. Current device
+running R2; do not duplicate stages or ask reset attribution. No userdata
+delta/flash/rollback. Full goal active; responsiveness still unqualified.
+
 ### 2026-11-09 — 0207/0208 source-only publication PASS; actual208 still running
 
 DSH79586 publication-stage-v1 ALL0,pins unchanged. New public branch

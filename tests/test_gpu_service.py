@@ -10,7 +10,7 @@ import tempfile
 R = Path(__file__).resolve().parent.parent
 D = Path(os.environ.get('XNU_SOURCE', str(R / '.deps-cache/p0-20261105/source177-codex'))) / 'bsd/dev'
 fixture = R / 'tests/fixtures/gpu-user/service_host.c'
-board = D / 'gauguin_gmu_board.c'
+board = Path(os.environ.get('GPU_SERVICE_BOARD_SOURCE', str(D / 'gauguin_gmu_board.c')))
 files = [Path(__file__), fixture, board, D / 'gauguin_gpu_runtime.c',
          D / 'gauguin_gpu_runtime.h', D / 'gauguin_wdt_lease.h']
 pins = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
@@ -28,6 +28,8 @@ def function(name):
     raise AssertionError('unterminated actual function ' + name)
 
 unit = fixture.read_text()
+checkpoint = 'gpzb_boot_refresh.sequence' in board.read_text()
+unit = '#define GPU_HAS_BOOT_CHECKPOINT ' + str(int(checkpoint)) + '\n' + unit
 for marker, name in [('READY', 'sweet_gpu_runtime_ready'),
                      ('REQUESTED', 'sweet_gpu_service_requested'),
                      ('HEARTBEAT', 'sweet_gpu_runtime_heartbeat')]:

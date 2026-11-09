@@ -2,6 +2,214 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0194 pre-ZAP checkpoint candidate passes native and host checks
+
+Patch 0188 adds a single opt-in mode12/service1 watchdog checkpoint after
+the pre-ZAP live SEAL guard verifies the completed CP command, idle,
+faults, power, routes and retained owners. It reuses the unchanged lease
+refresh/readback API. Only this serialized boundary can renew before client
+publication. The existing global refresh sequence includes boot pulse 1;
+the first runtime heartbeat is 2 and remains explicitly logged.
+
+V2 uses the refresh API's existing 3s entry budget for this boundary's
+health checks, then verifies the original full requested 10s after the
+verified pulse and before SEAL/SCM proceeds. Every secure-call budget and
+other scope's entry check is retained. A pulse/sequence/post-budget failure
+quarantines through the existing path, with retained DMA owners and no retry.
+V1 checked 10s before renewal too; v2 removes that unnecessary pre-renewal
+timing dependency while preserving the caller's final budget.
+
+W194=`research/tmp/dsh-memory-0194-checkpoint`, candidate-v2. DSH checks-v1
+and checks-v2 both returned 0 with unchanged inputs. Native board TU 0,
+33 production checkpoint/placement assertions and 224 actual heartbeat
+assertions pass. Legacy193 heartbeat still passes 158 assertions, and
+the signed-ZAP engine's fixed 10s guard request tests pass. The new test
+also reconstructs the unchanged original live guard around the explicit
+checkpoint additions. The first local test fixture macro had escaped-line
+damage; the fixture was corrected before these DSH passes.
+
+Next commit, replay 182 patches and compare only
+`bsd/dev/gauguin_gmu_board.c` and `bsd/dev/gauguin_wdt_lease.h` against
+193. Build/package same-kernel 4/6 GiB images and temporarily test the
+6 GiB checkpoint. Acceptance must explicitly account for boot pulse 1
+plus the later service sequence, preserve all previous root/compositor
+pixel and health checks, and retain raw failures. No194 build/boot yet.
+Device stays in TWRP after193; current full prefixes
+20,470 / 4,224 / 497,208 B. No additional root write needed.
+
+### 2026-11-09 — 0193 6 GiB failure isolated to the pre-AUTH watchdog budget
+
+Committed `9e963031724d7b895d3a084db8add27bb14e7b9f` adds patch 0187.
+181-patch replay changes only `bsd/dev/gauguin_wdt_test.c` across 5,330
+files relative to 0192, source SHA256
+`8c366656e04cd82c83213d55ff2ea56e71949bdd14a954deb0959903840ad320`.
+Reversing the cached sample/log substitutions reproduces the original
+file exactly. Native selected TU passes. DSH native outer 49435,
+dispatcher 97582, full run `gauguin.YQRw2d` and qualification both 0.
+Kernel `f3e0ab0a75c8882bc98ddfe8374ea54358538c2cfd7e39ff876365c60b01e82e`,
+ID `xnu-6d3e510b719945cb8b66ed5401e28f0c`. No CI.
+
+Paired 4 GiB control `ed69ac88` and 6 GiB image
+`research/tmp/dsh-memory-0193-wdt/ram-layout-6g-v1/layout-6g.img`,
+SHA256 `4829456413d5997ed2126b10dfbf2ce658e9f9803c51436c64b44ba70f433268`.
+Same command, shim, firmware contents and kernel. Fresh recovery range audit
+matches prior inventory with no fixed/dynamic overlap. DSH boot outer
+81833 / dispatcher 34509 audits all 14 installed files and full 0192 prefixes
+then boots once. Automatic TWRP return in 131.885478s,
+03:56:27.674354–03:58:39.559832 UTC. Observer 0. Post DSH outer 8470
+returns 1 on the intended full-service contract with input pins unchanged;
+raw capture succeeds. `physical-review193.json` preserves 6 GiB recognition,
+all static hashes and all old prefixes, plus the complete 8-method
+constructor. Current whole logs 20,470 / 4,224 / 497,208 B. No root write.
+
+`watchdog-refusal193.json` independently classifies the actual cached
+sample. EN=3, bark=655300, bite=753595, count=426996, previous=426995,
+minimum=327650, status=0x000d07e8. Register values and counter/CPU
+monotonicity pass. Remaining hardware budget is 326599 ticks =
+9.9679230887s, below the required 10s by 1051 ticks = 32.076911ms.
+The independently computed CPU window is also false. GMU and first CP
+ME_INIT/WHERE_AM_I completed, ZAP INIT and MEM_SETUP returned success,
+and AUTH was never called (0/0/0). No native GPU submission.
+
+Immediate refusal is established; the reason for elapsed-time differences
+between memory layouts remains open. Next inspect a fresh, health-verified
+lease renewal at the CP-to-ZAP boundary while preserving the full 10s
+secure-call budget and fail-closed behavior. Existing refresh API requires
+verified idle/EOP/fault/routes/power plus serialized ownership and has a
+monotonic service sequence; preserve that contract if reused. Batching
+nonessential log flushes is another measurable timing candidate.
+0192 remains the accepted 4 GiB compositor-GLES baseline.
+
+The UI bridge integration is being designed in the separate UI worktree,
+still clean at 4a48421. Pinned HakiOS inject.c says an unaccelerated
+EAGLServer retries renderer/context creation each frame. Our root has only
+the gauguin admission injection, with no HakiOS renderer-failure latch.
+A late bridge should be tested against this real cache. To install safely
+while backboardd runs, use a dedicated EAGL subclass for new Mesa-backed
+instances and publish only the initializer hook after all subclass methods
+are ready, preserving existing native objects. Retain the bridge image for
+the hook lifetime and gate it on the same-boot successful GPU pilot. No
+bridge source change/build/install or frame acceleration at this entry.
+No 0194 artifacts yet. Current device idle TWRP.
+
+### 2026-11-09 — 0192 real backboardd GLES and IOSurface pilot passed
+
+DSH post outer 91973 / dispatcher 96477 returned 0, pins unchanged.
+`research/tmp/dsh-gpu-0192-auth/physical-review192.json` verifies the 14-file
+read-only capture, all 11 static files and all three full pre-boot log
+prefixes. Current full logs are 20,286 / 4,224 / 490,714 B. The same native
+4 GiB counters, 8-method admission/loader and root GLES workload passed.
+
+Raw native log records protected launchd proxy PID 57, six root completions,
+then three scoped compositor opens at root_fence 6. Subsequent native
+completions are 7, 8 and 9, ring shadow 104, 116, 128. Actual UID 501
+backboardd reports FD619 / OpenGL ES 3.1 Mesa 25.0.7, shader seed 924577274,
+all 1,024 normal RGBA and 1,024 sampled IOSurface BGRA pixels passed with
+hash 2621291461. Its recorded footprint grows 95,617,824 to 119,735,072 B.
+The worker returns rc 0 and dlclose succeeds. Root seed 2002328747,
+RGBA/BGRA hash 2421093317. All nine native jobs complete, and the 600s
+service records 595 renewals and final shadow 128 without health failure.
+The actual observation ends automatically at 746.334682s in TWRP.
+
+This physically verifies real GPU operations inside the protected
+compositor. Frame hooks are still disabled and final GPU owner release
+was not observed. Real desktop composition, Metal, refresh and daily use
+remain open. Next integrate the EAGL bridge's actual compositor path with
+startup ordering and context lifetime handled. Also continue the separate
+6 GiB WDT diagnostic. The local candidate failure sample passes its native
+TU; no 0193 full build/boot yet. Device remains idle TWRP after capture.
+
+### 2026-11-09 — 0192 approved delta installed and temporary boot completed
+
+The user explicitly approved the reviewed 239-block delta and rollback in
+`call_d402125907054b4fb785d66aac0de612`. DSH apply outer 26819,
+dispatcher 93154, returned 0 with all input pins unchanged. The writer
+installed 41 runs / 978,944 B and read back every run. The volume-header run
+was last. `apply-v1/result.json` permits the temporary boot. No rollback
+was needed. The pre-boot audit read all 14 files, including backboardd and
+the new worker, plus the full 18,242 / 3,955 / 483,429 B log prefixes.
+
+DSH boot outer 21866, dispatcher 93539, completed with exit 0 and unchanged
+inputs. Image `1aa4faa9` was sent once, fastboot returned OKAY in 0.594s.
+The device returned automatically to TWRP after 746.334682s,
+03:14:27.591329–03:26:53.926011 UTC. The observer's kernel banner matches.
+Post capture/qualification is now running under DSH outer **91973** and
+`research/tmp/dsh-gpu-0192-auth/post-stage-v1.json`. Poll this handle and
+its terminal receipt, then review the raw current backboardd log and native
+submission/authority records. No compositor pixel success claim yet.
+
+Both exact source trees were published through gh without CI. Kernel
+public `465aab6bd50a2a9a2556306da836532d1847277d`, tree
+`4551ef87c3327b0a4dc85fdb8a79179f929a735e`, branch
+`codex/gauguin-compositor-gpu-pilot-20261109`, sole public parent 97cd3b3.
+Userland public `93a7892eed518fb5e0fd2b571796a125a31520e0`, tree
+`5584df97bb8f2e17f641eca288376dfd6fc3fbef`, branch
+`codex/gauguin-compositor-userland-pilot-20261109`, sole parent eca39329.
+All prior refs retained. The 0192 backup is historical after this boot.
+Never use its old blocks as a post-boot raw rollback.
+
+### 2026-11-09 — 0192 image and exact two-library delta ready
+
+Source `bfd2692b165229f9bd74530cb9450d9b4b1247d7`, 180-patch replay
+`16bebe45152703240b52fd591b0388ea79b210b8e43be3bb6c9887bedf98be12`.
+DSH full native run `gauguin.3fzAUb`, ID
+`xnu-eb97aae9b3ff40dfa35bdb87113b6aa7`, kernel SHA256
+`e8518ccad3d4b521bd013ea8b934dcc2d699bb12e1a771c4266a4d9ab6820f2f`.
+First DSH request passed an extra argument and claimed nothing. Retry 7428
+claimed dispatcher 56041 and built successfully. Its first qualification
+rejected the concurrent backup handoff change in NOTES. The build manifest
+captured the original single mkadt diff. The unchanged qualifier returned
+0 against a detached bfd2692 snapshot with that same diff, preserving main
+NOTES and all artifact/build pins. `kernel-qualification-v2.json` is the
+accepted receipt. No CI run.
+
+The 19,988,480 B 4 GiB image
+`shim/out/shim-p3-gmuf-0192-native-20261109.img`, SHA256
+`1aa4faa901755e47097bcffa7679a26782fb5781377c9ba349e0d4152f3437de`,
+has the accepted shim, DTB, five asset contents and 600s service. Only the
+`sweeteagl=1` to `sweeteagl=2` byte changes within the boot command.
+UI source in the separate worktree `4a48421412541ee8bf15af2f4cacec5ebcc9238b`.
+DSH 92944, dispatcher 89687, built/sign-verified both pilot libraries and
+the byte-identical default admission/disabled bridge. New admission
+`5815a34ab6bd268d635708ae7d2de2c9e6d2f0db519d0a8ff37ecf8367d58a11`
+(70,256 B) and worker
+`4b211a4073f39edcaccabff0c9362de68080e480df5423f47c827390820e55db`
+(73,104 B) are staged only in the local image.
+
+`research/tmp/dsh-gpu-0192-auth/independent-local-review.json` records
+the exact 239 × 4,096 B delta (978,944 B in 41 runs), plan SHA256
+`a16adbe5f4133222a1910190d42cb211613e03ad41bc1e00596042f63f9aa59b`.
+Final detached HFSX SHA256
+`4e88f55fde07da5564b986b3ad048c0a0b487eaf1a8886874037032e0e1cff9d`.
+All 531 jobs, existing Mesa and full 0191 logs are byte-identical.
+Read-only fsck, all 41 real old ranges and 102 fake-writer/rollback checks
+passed. Device is idle TWRP. New exact consent requested; no 0192 device
+write, boot or physical GPU pilot evidence yet. After new consent, run
+the pinned writer, verify all applied runs and the full files/prefixes,
+then do one temporary boot and collect actual scoped GPU observations.
+
+### 2026-11-09 — 0192 read-only HFSX root backup completed, terminal exit 0
+
+The pinned command
+`python3 tools/run-pinned-stage.py research/tmp/dsh-gpu-0192-auth/backup-stage-v1.json`
+finished with local terminal exit **0**. Inner job
+`one-fresh-read-only-16GiB-HFSX-root-backup` exit **0**, all six input pins
+unchanged. Dispatcher PID 54433 claimed at epoch 1794192594.3118138 and
+finished at 1794193247.590504 (about 653 s).
+
+Preflight: exactly one unmounted `gauguin` recovery device with no holders,
+userdata partition 114,919,714,816 B, HFSX v5 root 17,179,869,184 B
+(4,194,304 × 4,096 B, 517,218 free blocks). Header SHA256
+`7d8456f5f584cf78c8fa0f7e7c9c743b321bb1b6bf311566ae328f043f190334`
+was identical before and after. Backup:
+`research/tmp/dsh-gpu-0192-auth/root-backup-v1/iosroot-before-compositor-pilot.hfsx`,
+17,179,869,184 B, SHA256
+`0399cde4aaf9b11989378dfdbc62d1bfa751209b6ce7a04e84a81722b25ebd2a`,
+mode 0444. `partition_writes=0`, `reboot_commands=0`; no install, boot,
+root mutation or code edit. Receipts are in `backup-stage-v1/` and
+`root-backup-v1/`. The 0192 mode-2 kernel source was already committed and
+the image had not booted.
+
 ### 2026-11-09 — 0192 kernel pilot scope passes native and host checks
 
 Mode 2 candidate v3 records the stable unique ID only for a protected real

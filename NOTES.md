@@ -2,6 +2,78 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0223 acceptance/capture/startup tools qualified offline; consent still pending
+
+Previous goal turn PROGRESS: concrete 2431-block proposal and old-range proof.
+This turn PROGRESS: committed actual pixel/native-handoff validator; qualified
+17-file HFS capture and missing-consent startup guards. Full phone goal ACTIVE,
+unlimited. No phone IO, approval file, userdata application or temporary boot
+this turn. The SAME pending individual9.50MiB question remains unanswered;
+the exact delta/image are unchanged. Never treat goal auto-continuation as that
+specific write consent. All DSH workers listed below TERMINAL/reaped.
+
+Source2a3476d on codex/gauguin-metal-probe-20261110: tools/metal_probe_log.py,
+tests/check-metal-probe-log.py, tests/fixtures/metal_probe_log_hashes.cpp and
+expanded docs/gauguin-metal-device-probe-20261110.md. Integrated MAIN0d10eda.
+Main kernel still211; image uses219.
+Original main tools/mkadt.py diff remains protected. No CI or remote push.
+
+W223 same isolated worktree research/tmp/dsh-metal-0223-device-probe.
+DSH38189 log-tools-stage-v1 exit1/pins unchanged: actual ASAN/UBSAN C++ compile,
+32 CPU phase/seed hashes and58 Python receipt checks ALL succeeded; collector
+then wrongly required >=60 checks. Original failure/logs/source retained.
+Fresh acceptance-tools-stage-v1 DSH45370 exit1/pins unchanged: independent
+review_log_tools223v2 job exit0 retains those actual successes without rerun,
+log-tools-v2/result.json PASS58/32. Other HFS fixture job failed its all-root-
+owned assumption: real retained logs include mobile501. Reader source stayed
+unchanged. Fresh DSH51645 capture-tools-stage-v2 exit0/pins unchanged compares
+exact captured uid/gid, uses fresh output directories. capture-model-v2/result
+PASS246 checks, base15present+2absent/new final17present; exact core8369632B.
+Reads actual LOCAL immutable base/final HFS through real parser/injected RO IO.
+Wrong namespace/output/identity/mounted/held/shortread/headerchange refused;
+removing explicit core limit reproduces old default1MiB refusal. NO phone data
+was captured in these model outputs; never pass local-model as real preflight.
+
+Public log validator verifies38 accounted probe records, exact build/core/seed,
+128MiB effective hard policy, ordered8 jobs, all28928 output-word hashes,
+8 queue/fence receipts1..8, first8 native successful submissions and authorized
+compositor opens AFTER root_fence=8 release. Rejects old6-fence/stale/partial/
+duplicate/badpixel/memory/unowned or premature handoff logs. Synthetic tests do
+not prove GPU execution. Post controller also requires existing strict banner
+and qualify_service_log(600); component errors retain overall FAIL.
+
+New private read_files223.py fixes exact17 paths, known filesize limits and
+before/after header stability; captures original uid/gid/modes. Successful local
+model derived expected-installed223.json +installed-capture-profile-v1.json
+(before-boot, exact final header) +post-capture-profile-v1.json(after-boot).
+These are preparation metadata, no authorization. Headers/data come from local
+final bf20ed3b..., not a real installed root. Two new files are NOT installed.
+
+Private trial223.py/boot_pilot223.py/post223.py now prepared. Pilot binds frozen
+kernel source/proof to qualified219 WORKTREE, checks original mkadt diff in MAIN,
+requires exact fresh consent +77-run readback receipt +17 actual installedfiles
+BEFORE misc latch/boot. Post captures all17 files and complete prior log prefixes
+before independent identity/service/offscreen checks; strict failures remain
+failures even if pixel component passes. It cannot claim MTLDevice/desktop/
+physicaltouch/highrefresh/daily. DSH86014 startup-guards-stage-v1 exit0/pins
+unchanged:19 checks, four ACTUAL prepare/run/post/pilot entrypoints all refuse
+missing approval before IO, using forbidden RecoveryIO sentinel. No trial/output
+claim created. POSITIVE live boot/capture path remains unexecuted/unqualified.
+Guard-only fake installed receipt under startup-guards-v1 MUST NOT be used as
+real installed receipt. All original failed stages remain intact.
+
+NEXT: actual answer to original pending9.50MiB plan41cb87fe question is needed
+for device work. On explicit consent, create exact plan-bound approval receipt
+with touched-run rollback, pin a NEW apply-stage-v1 profile, run apply223.py via
+DSH ONCE. Require77runs/9957376B readback and zero rollback failures. Then via
+DSH trial223.py --prepare (requires REAL apply-stage-v1/result.json exit0),
+dispatch its generated trial-stage-v1 profile ONCE. It verifies17 files before
+temporary boot; observe780s/timeout860, preserve automatic reset attribution.
+Inspect original post/physical-review223.json; retain any failures, no rerun of
+claimed stages or silent banner repair. Current proposal/root binaries stay
+pinned. Full GPU/Metal UI, all safe RAM, reliable storage, peripherals and
+90/120Hz daily-use acceptance remain open. Bootstrap6GiB/software30Hz.
+
 ### 2026-11-10 CST —0223 concrete9.50MiB proposal PASS; individual write question PENDING
 
 Previous goal turn PROGRESS: source probe +new upstream evidence review committed.

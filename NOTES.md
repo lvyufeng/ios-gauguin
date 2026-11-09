@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — offline 6 GiB layout verified; 0190 observer still live
+
+The live phone is still running the original 0190 4 GiB trial on handle
+**40402**. No additional boot or device write. The same handle was verified
+live at 5m48s. Wait for its terminal result and perform the planned post stage.
+
+Parallel offline work used the pinned 0182 recovery DRAM inventory. The
+6 GiB layout adds 2,147,483,648 bytes at `0x100000000` below the current
+managed base, with managed size `0x17ff00000` and the same upper boundary.
+`research/tmp/dsh-eagl-0190-loader/ram-layout-6g-v1/layout-6g.img` SHA256
+`661773dc2af0ec7b8b508a1eb1435386bdd7d95d8bb59f97ba9745c26c347ae2` uses the
+exact 0190 kernel, command, shim/DTB, segment bytes, and all five firmware
+assets. The differences are the two managed-range properties and the five
+derived asset addresses, verified by reparse. `pas-host/result.json` passes
+the production PAS parser for both exact payloads with a synthetic handoff,
+and rejects a destination/FDT overlap. ASAN/UBSAN with protected payload tail.
+This is offline qualification only. No real 6 GiB boot, pressure/DMA result
+or acceptance of the remaining lower memory. Keep it a separate experiment
+from compositor bring-up. Original `tools/mkadt.py` diff unchanged.
+
 ### 2026-11-09 — 0190 temporary boot live, observer handle 40402
 
 Exactly one boot of `bd2dc73e`, local outer handle **40402**, dispatcher PID

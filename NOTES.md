@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0217 TERMINAL/uncovered icon path; automate bounded UI interaction next
+
+Concreteprogresscompletedthisgoalturn:source837fecfcaller-memorycreatefix,
+225newhostchecks+306existingROchecks/nativeTU,clean197patch5330files,
+fullLOCALnative/retainedqualification0,6GiBpackage0,ONEtemporaryboot/fullcapture,
+plusofflineMetalABIchecks. No completionclaim;fullphonegoalACTIVE/unlimited.
+
+DSH33081 nowTERMINAL:217observer0,746.979842s,automaticTWRP;trial/dispatchstage
+EXIT1,pinsunchanged. ORIGINALisolatedphysical-review217.json errorsONLY
+client_create andicon_input:11create/backingrecordsALLaddress-key=0/client=0;
+NO180x180creates/imports. No humanvisualreplyreceived. Newclient-storagepath
+NOTexercised,soiconsremainUNQUALIFIED;thisiscoveragefailure,notproofhypothesis
+false. DoNOTrewriteasPASSorbootthesameclaimedprofileagain. Onevisualquestion
+remainsunanswered;no duplicatequestion/manual-resetattributionneeded.
+Finite600sservicehealthy32/32submits,598verifiedrenewals,shadow648. ONEBBcrash,
+5BOallocationfailures,1cleanupfailure AFTERexplicitplannedstop;noneinservice
+window. All15files/12static/COMPLETE214logprefixespreserved. CURRENTrootheader
+ad1174be582c00925f0c6681d93cd6a23569b1d8dae8a049c792ccde3aa8a152;
+logs66361/10142/1296025B. PhoneTWRP,no liveworker/no userdataapplication.
+NEXTcapture/trialMUSTbindCURRENT217header/fullprefixes,not214/211/R4.
+
+217W remainsinside research/tmp/gauguin-surface217-worktree-20261110/
+research/tmp/dsh-surface-0217-client-create. Source837fecf,notes e104eda before
+terminalupdate,kernel17b7cb974c80c5f75f819fc50b23ad6f284f5ca8a4aa7379258e92971749b8dd,
+image d9a741dbf62221a684202ac2c7fd11a35be75c923fcfc52e970e2d19338c09cf.
+Main211kernelcode+originalmkadtdiffunchanged;installed210aafa07f8unchanged;
+UI216a460e3bstilluninstalled/no newwriteapprovalrequest;perf213uncompiled.
+
+Offline218ABIauditTERMINAL:DSH64178v1failedC++fixture(hiddenggr_submitstructtag),
+preserved. DSH32400freshv2ALL0,pinsunchanged:13wirelayouts/61offsets/11real
+ggrrequestsizesandnativeiOS16ARM64object04b1bffc9bf1c0923a8200fef313875cb7b8ee688292cdadb71af78c65191a38.
+Correctreviewinresearch/tmp/dsh-metal-0218-abi/review-corrected-service-metadata-v3.json:
+providerclassANDnamealreadyHakiosGPU;NOrename. Originalv2service_name_to literal
+wasmistakenlyinferredfromfilename,preserved/correctedwithoutrebuild. Mainaudit
+doccommitted6b6beda. Pipe1vs0x10(queryANDsubmit),chip06030500vs06010900 stillneed
+adaptation;noMetalruntime/AIR/frontend/hardwareclaimfromthesechecks.
+
+NEXTsafeconcreteaction:finiteopt-in automatedunlockgesture diagnostic soanother
+unattendedtrialcanactuallyexercisedesktopicons. Inspectexistingbsd/dev/
+sweet_touch.c sweet_tap_arm/fire (thread_call,onlycentertap) andiokit/Kernel/arm/
+hid/SweetHID.cpp sweet_hid_touch (legacyinjection) /sweethidtest(Homeonly).
+PhysicalAPIiokit/IOKit/SweetHIDTouchFrame.h saysNo synthetic input:KEEPitphysical.
+Useexistingsyntheticentry,defaultOFF,finitepoints/deadlines/release. QuietNVT
+pollONLYinthisspecialtemporarytestimage(sweetnvt=0)toavoidphysicalemptyframes
+cancellingthegesture;normalphysicalbaselineunchanged. Headercommand601B/608B
+leaves7NULs;shortswp=1adds6BwithoutpayloadABIchange. DoNOTdropauthority/guard
+flagsblindly. Relevanthost+nativeTUthenintegratedbuild;usequalified217basewith
+0205included,notmain211withoutfix. No newautomaticbootuntilnewprofile/current
+headerbound. ContinuecompleteMetalfrontendafterimageinputs/lifetimecorrect.
+
 ### 2026-11-10 CST —0217 temporary client-memory-create trial LIVE; do not reboot
 
 DSH33081 owns isolated217 dispatch-stage-v1/trial-stage-v1. Actualfastboot

@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0197 temporary boot live; reviewed source published
+
+DSH boot outer31817, parent dispatcher11031 and nested dispatcher11034 are
+observing the SAME claimed trial. Current15-file/full-prefix preflight
+passed; recovery latch verified; one temporary fastboot transfer19,520KiB
+and Booting both OKAY, total0.599s. trial-v1/preflight.json is
+observer-running, not a result. As of07:45:42UTC it was169s since that
+record with no terminal observer result. Poll the existing stage/handle;
+do not restart it. The197 unlock/open-settings/swipe visual check is pending.
+No physical UI/stability qualification can be inferred from a live test.
+
+DSH publication outer46086 /publication-stage-v1 returned0 with unchanged
+pins. NEW ref codex/gauguin-iosurface-wrap-20261109 on lvyufeng/ios-gauguin
+contains public commit88a968146b11350c7cd01949ddad8acedceac2fd,
+exact tree58bb4b0cec102eeeb92993b4bb6706e98e324e2f and sole public parent
+300733ffe7dcfee3403c956ca7c5f75074e6976a. The six reviewed text files are
+patches0190/0191, series, wrapper host test/fixture and NOTES as7238988.
+No private Git ancestry/Apple files/device dumps uploaded; existing refs
+rechecked unchanged, no force push or explicit CI dispatch. This records
+software checks and a pending physical trial, not a UI/Metal success.
+
 ### 2026-11-09 — 0197 clean build and bounded desktop image ready
 
 Committed selector6 fix/tests:3a22614. DSH native54424/dispatcher73647

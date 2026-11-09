@@ -2,6 +2,20 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0191 6 GiB temporary trial live, observer handle 74934
+
+`fastboot boot` sent image `30b195e6` once and returned OKAY in 0.594s.
+Profile was claimed by dispatcher PID 48768 at epoch 1794191240.384852.
+Current root header and routine recovery latch verified. Local outer handle
+**74934** is observing the 6 GiB layout with the same installed 0186 root and
+600s GPU service. No new userdata write.
+
+Wait on that handle. On terminal exit 0, run `prepare_post191.py` and the
+resulting pinned post stage in `research/tmp/dsh-memory-0191`. Require the
+actual RAM counter plus the frozen GLES and 0190 admission evidence. If the
+observer or strict check fails, preserve all available raw data before deciding
+the next step. No extra boot and no user reset/UI question while unattended.
+
 ### 2026-11-09 — 0191 6 GiB trial image ready
 
 Clean 179-patch replay changed only `bsd/kern/bsd_init.c` across 5,330 files.

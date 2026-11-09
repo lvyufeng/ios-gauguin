@@ -1,0 +1,360 @@
+--- a/include/hakios-metal/a6xx.hpp
++++ b/include/hakios-metal/a6xx.hpp
+@@ -1,5 +1,6 @@
+ // The Adreno A6xx registers, packet words and descriptor fields a compute dispatch and one draw write, for the Adreno
+-// 7c+ Gen 3 (the A635 family, chip id 0x06030500: Mesa's "a6xx gen4", the same generation as the A660).
++// selected build target: upstream A635/gen4 or gauguin A619/gen1. Chip facts
++// are selected in device_profile.hpp; the A6xx register encodings below are shared.
+ //
+ // Every number here is Mesa 25.0.7's (MIT), from the register XML in src/freedreno/registers/adreno/ (a6xx.xml,
+ // adreno_pm4.xml, adreno_common.xml) through the headers Mesa's build generates from it: a6xx.xml.h,
+@@ -20,6 +21,7 @@
+ #pragma once
+ 
+ #include <cstdint>
++#include "hakios-metal/device_profile.hpp"
+ 
+ namespace hakios::metal::a6xx {
+ 
+@@ -27,18 +29,18 @@
+ // From Mesa's src/freedreno/common/freedreno_devices.py: the entry for chip_id ...06030500 ("Adreno 7c+ Gen 3", every
+ // speedbin of the A635) is a6xx_base + a6xx_gen4 with num_ccu = 2.
+ 
+-inline constexpr uint32_t kChipId = 0x06030500;             // not-in-headers: freedreno_devices.py GPUId(chip_id=0x..06030500)
+-inline constexpr bool kHasLpac = true;                       // not-in-headers: freedreno_devices.py a6xx_gen4.has_lpac
+-inline constexpr bool kSupportsDoubleThreadsize = true;      // not-in-headers: freedreno_devices.py a6xx_base.supports_double_threadsize
++inline constexpr uint32_t kChipId = device::kTarget.chipId; // Mesa target profile
++inline constexpr bool kHasLpac = device::kTarget.hasLpac; // Mesa target profile
++inline constexpr bool kSupportsDoubleThreadsize = device::kTarget.supportsDoubleThreadsize; // Mesa target profile
+ // CP_LOAD_STATE6_0_NUM_UNIT for a shader (ST6_SHADER) is capped at this many instruction groups: Mesa's comment says
+ // the blob allows 128 but 128 hangs this generation, so 127 it is (a longer shader is fetched past the preload).
+-inline constexpr uint32_t kInstrCacheSize = 127;             // not-in-headers: freedreno_devices.py a6xx_gen4.instr_cache_size
+-inline constexpr uint32_t kFibersPerSp = 128 * 2 * 16;       // not-in-headers: freedreno_devices.py, the A635 entry (fibers_per_sp)
+-inline constexpr uint32_t kNumSpCores = 2;                   // not-in-headers: freedreno_devices.py num_sp_cores = num_ccu for the A635
+-inline constexpr uint32_t kCsSharedMemSize = 32 * 1024;      // not-in-headers: freedreno_devices.py, the A635 entry (cs_shared_mem_size)
+-inline constexpr uint32_t kThreadsizeBase = 64;              // not-in-headers: freedreno_devices.py A6xxGPUInfo default threadsize_base
+-inline constexpr uint32_t kMaxWaves = 16;                    // not-in-headers: freedreno_devices.py A6xxGPUInfo default max_waves
+-inline constexpr uint32_t kWaveGranularity = 2;              // not-in-headers: freedreno_devices.py, the A635 entry (wave_granularity)
++inline constexpr uint32_t kInstrCacheSize = device::kTarget.instrCacheSize; // Mesa target profile
++inline constexpr uint32_t kFibersPerSp = device::kTarget.fibersPerSp; // Mesa target profile
++inline constexpr uint32_t kNumSpCores = device::kTarget.numSp; // Mesa target profile
++inline constexpr uint32_t kCsSharedMemSize = device::kTarget.csSharedBytes; // Mesa target profile
++inline constexpr uint32_t kThreadsizeBase = device::kTarget.threadsizeBase; // Mesa target profile
++inline constexpr uint32_t kMaxWaves = device::kTarget.maxWaves; // Mesa target profile
++inline constexpr uint32_t kWaveGranularity = device::kTarget.waveGranularity; // Mesa target profile
+ // ir3's "no register": regid(63, 0) = 63 << 2 | 0. The *CONSTID / *REGID fields take it for a value the shader does
+ // not read (the work group size and offset constants, the linear local id), and it is what Mesa writes there.
+ inline constexpr uint32_t kRegidNone = 0xfc;                 // not-in-headers: ir3/instr-a3xx.h INVALID_REG = regid(63, 0)
+@@ -1390,31 +1392,31 @@
+ 
+ // Mesa's per-chip "magic" values, as its generated freedreno_devices.h has them for this chip (__info14, the entry every
+ // A635 chip id maps to). Mesa does not know what most of them mean either; they are what the blob writes.
+-inline constexpr uint32_t kMagicPcPowerCntl = 1;                  // not-in-headers: freedreno_devices.h __info14 .magic.PC_POWER_CNTL
+-inline constexpr uint32_t kMagicTpl1DbgEcoCntl = 0x05008000;      // not-in-headers: freedreno_devices.h __info14 .magic.TPL1_DBG_ECO_CNTL (83918848)
+-inline constexpr uint32_t kMagicGrasDbgEcoCntl = 0;               // not-in-headers: freedreno_devices.h __info14 .magic.GRAS_DBG_ECO_CNTL
+-inline constexpr uint32_t kMagicSpChickenBits = 0x00001400;       // not-in-headers: freedreno_devices.h __info14 .magic.SP_CHICKEN_BITS (5120)
+-inline constexpr uint32_t kMagicUcheClientPf = 0x00000084;        // not-in-headers: freedreno_devices.h __info14 .magic.UCHE_CLIENT_PF (132)
+-inline constexpr uint32_t kMagicPcModeCntl = 0x1f;                // not-in-headers: freedreno_devices.h __info14 .magic.PC_MODE_CNTL (31)
+-inline constexpr uint32_t kMagicSpDbgEcoCntl = 0x00000006;        // not-in-headers: freedreno_devices.h __info14 .magic.SP_DBG_ECO_CNTL
+-inline constexpr uint32_t kMagicRbDbgEcoCntl = 0x04100000;        // not-in-headers: freedreno_devices.h __info14 .magic.RB_DBG_ECO_CNTL (68157440)
+-inline constexpr uint32_t kMagicHlsqDbgEcoCntl = 0;               // not-in-headers: freedreno_devices.h __info14 .magic.HLSQ_DBG_ECO_CNTL
+-inline constexpr uint32_t kMagicRbUnknown8E01 = 0;                // not-in-headers: freedreno_devices.h __info14 .magic.RB_UNKNOWN_8E01
+-inline constexpr uint32_t kMagicVpcDbgEcoCntl = 0x02000000;       // not-in-headers: freedreno_devices.h __info14 .magic.VPC_DBG_ECO_CNTL (33554432)
+-inline constexpr uint32_t kMagicUcheUnknown0E12 = 1;              // not-in-headers: freedreno_devices.h __info14 .magic.UCHE_UNKNOWN_0E12
++inline constexpr uint32_t kMagicPcPowerCntl = device::kTarget.magic.pcPower; // Mesa target profile
++inline constexpr uint32_t kMagicTpl1DbgEcoCntl = device::kTarget.magic.tpl1Dbg; // Mesa target profile
++inline constexpr uint32_t kMagicGrasDbgEcoCntl = device::kTarget.magic.grasDbg; // Mesa target profile
++inline constexpr uint32_t kMagicSpChickenBits = device::kTarget.magic.spChicken; // Mesa target profile
++inline constexpr uint32_t kMagicUcheClientPf = device::kTarget.magic.ucheClient; // Mesa target profile
++inline constexpr uint32_t kMagicPcModeCntl = device::kTarget.magic.pcMode; // Mesa target profile
++inline constexpr uint32_t kMagicSpDbgEcoCntl = device::kTarget.magic.spDbg; // Mesa target profile
++inline constexpr uint32_t kMagicRbDbgEcoCntl = device::kTarget.magic.rbDbg; // Mesa target profile
++inline constexpr uint32_t kMagicHlsqDbgEcoCntl = device::kTarget.magic.hlsqDbg; // Mesa target profile
++inline constexpr uint32_t kMagicRbUnknown8E01 = device::kTarget.magic.rbUnknown8e01; // Mesa target profile
++inline constexpr uint32_t kMagicVpcDbgEcoCntl = device::kTarget.magic.vpcDbg; // Mesa target profile
++inline constexpr uint32_t kMagicUcheUnknown0E12 = device::kTarget.magic.ucheUnknown0e12; // Mesa target profile
+ // and the chip facts fd6_emit_static_regs and fd6_emit_ccu_cntl branch on
+-inline constexpr bool kHasGmemFastClear = true;                   // not-in-headers: freedreno_devices.h __info14 .has_gmem_fast_clear
+-inline constexpr bool kConcurrentResolve = false;                 // not-in-headers: freedreno_devices.h __info14 has no .concurrent_resolve (false)
+-inline constexpr bool kHasEarlyPreamble = false;                  // not-in-headers: freedreno_devices.h __info14 has no .has_early_preamble (a6xx_gen4 leaves it off)
+-inline constexpr uint32_t kNumCcu = 2;                            // not-in-headers: freedreno_devices.h __info14 .num_ccu
+-inline constexpr uint32_t kSysmemPerCcuDepthCacheSize = 0x10000;  // not-in-headers: freedreno_devices.h __info14 .sysmem_per_ccu_depth_cache_size (65536)
+-inline constexpr uint32_t kSysmemPerCcuColorCacheSize = 0x10000;  // not-in-headers: freedreno_devices.h __info14 .sysmem_per_ccu_color_cache_size (65536)
++inline constexpr bool kHasGmemFastClear = device::kTarget.hasGmemFastClear; // Mesa target profile
++inline constexpr bool kConcurrentResolve = device::kTarget.concurrentResolve; // Mesa target profile
++inline constexpr bool kHasEarlyPreamble = device::kTarget.hasEarlyPreamble; // Mesa target profile
++inline constexpr uint32_t kNumCcu = device::kTarget.numCcu; // Mesa target profile
++inline constexpr uint32_t kSysmemPerCcuDepthCacheSize = device::kTarget.depthCacheBytes; // Mesa target profile
++inline constexpr uint32_t kSysmemPerCcuColorCacheSize = device::kTarget.colorCacheBytes; // Mesa target profile
+ // tiled rendering: the on-chip memory and the tile grid (a6xx_gen4 / adreno_7c3 in freedreno_devices.py)
+-inline constexpr uint32_t kGmemBytes = 512 * 1024;                // not-in-headers: freedreno_devices.py adreno_7c3 gmem_size (Linux a6xx_gpu adreno_7c3 SZ_512K)
+-inline constexpr uint32_t kGmemCcuColorCacheFraction = 4;          // not-in-headers: freedreno_devices.py a6xx_gen4 gmem_ccu_color_cache_fraction QUARTER
+-inline constexpr uint32_t kTileAlignW = 32, kTileAlignH = 16;      // not-in-headers: freedreno_devices.py a6xx_gen4 tile_align_w/h
+-inline constexpr uint32_t kGmemAlignW = 16, kGmemAlignH = 4;       // not-in-headers: freedreno_devices.py a6xx_gen4 gmem_align_w/h (the event blit's granule)
+-inline constexpr uint32_t kTileMaxW = 1024, kTileMaxH = 1008;      // not-in-headers: freedreno_devices.py a6xx_gen4 tile_max_w/h
++inline constexpr uint32_t kGmemBytes = device::kTarget.gmemBytes; // Mesa target profile
++inline constexpr uint32_t kGmemCcuColorCacheFraction = device::kTarget.gmemColorCacheDivisor; // Mesa target profile
++inline constexpr uint32_t kTileAlignW = device::kTarget.tileAlignW, kTileAlignH = device::kTarget.tileAlignH;
++inline constexpr uint32_t kGmemAlignW = device::kTarget.gmemAlignW, kGmemAlignH = device::kTarget.gmemAlignH;
++inline constexpr uint32_t kTileMaxW = device::kTarget.tileMaxW, kTileMaxH = device::kTarget.tileMaxH;
+ // the border color table both TP base registers point at: Gallium's is FD6_MAX_BORDER_COLORS (256) entries of
+ // sizeof(struct fd6_bcolor_entry) (128 bytes: 32 fp32/fp16/int words); zeros are a valid table (black, transparent)
+ inline constexpr uint32_t kBorderColorBytes = 256 * 128;          // not-in-headers: fd6_texture.h FD6_MAX_BORDER_COLORS * FD6_BORDER_COLOR_SIZE
+@@ -4091,12 +4093,13 @@
+     return (kHasGmemFastClear ? 0u : A6XX_RB_CCU_CNTL_GMEM_FAST_CLEAR_DISABLE) | A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI(kGmemCcuColorOffset >> 21) |
+            A6XX_RB_CCU_CNTL_COLOR_CACHE_SIZE(CCU_CACHE_SIZE_QUARTER) | A6XX_RB_CCU_CNTL_COLOR_OFFSET(kGmemCcuColorOffset & 0x1fffff);
+ }
+-static_assert(rbCcuCntlGmem() == 0x3c400000, "the GMEM CCU layout turnip computes for this chip");
++static_assert(rbCcuCntlGmem() == (device::kTarget.numCcu == 1 ? 0x3e400000u : 0x3c400000u),
++              "Mesa CCU layout for the selected A619 or A635 profile");
+ 
+ // hardware binning (fd6_gmem.cc emit_binning_pass, update_vsc_pipe, fd6_emit_tile_prep): the binning pass runs every draw's
+ // vertex stage once over the whole window and the VSC writes, for each pipe of bins, which draws and primitives reach
+ // each bin; a tile then draws only those (CP_SET_BIN_DATA5, CP_SET_VISIBILITY_OVERRIDE 0, the draws USE_VISIBILITY)
+-inline constexpr uint32_t kNumVscPipes = 32;                      // not-in-headers: freedreno_devices.py A635 num_vsc_pipes
++inline constexpr uint32_t kNumVscPipes = device::kTarget.numVscPipes; // Mesa target profile
+ inline constexpr uint32_t REG_A6XX_VSC_BIN_SIZE = 0x0c02;                                    // a6xx.xml.h:4147  WIDTH >> 5 at 0, HEIGHT >> 4 at 8
+ inline constexpr uint32_t REG_A6XX_VSC_DRAW_STRM_SIZE_ADDRESS = 0x0c03;                      // a6xx.xml.h:4164  64-bit: each pipe's draw-stream size written back
+ inline constexpr uint32_t REG_A6XX_VSC_BIN_COUNT = 0x0c06;                                   // a6xx.xml.h:4167  NX at 1, NY at 11
+--- a/include/hakios-metal/compute.hpp
++++ b/include/hakios-metal/compute.hpp
+@@ -27,6 +27,7 @@
+ 
+ #include "hakios-metal/kernel.hpp"
+ #include "hakios-metal/pm4.hpp"
++#include "hakios-metal/device_profile.hpp"
+ 
+ namespace hakios::metal {
+ 
+@@ -106,7 +107,7 @@
+ struct Options {
+     bool prelude = true;        // SP_MODE_CONTROL, SP_PERFCTR_ENABLE, SP_FLOAT_CNTL, as computerator opens with
+     bool invalidateCmd = true;  // HLSQ_INVALIDATE_CMD before the program
+-    bool hlsqCopies = true;     // the gen4 (has_lpac) copies: HLSQ_CS_CTRL_REG1, SP_CS_CNTL_0/1
++    bool hlsqCopies = device::kTarget.hasLpac;     // the gen4 (has_lpac) copies: HLSQ_CS_CTRL_REG1, SP_CS_CNTL_0/1
+     bool pvtmemZero = true;     // the private-memory registers written as zero (Gallium does; computerator leaves them)
+     bool invalidate = true;     // CP_EVENT_WRITE CACHE_INVALIDATE before the dispatch (Gallium's barrier)
+     bool marker = true;         // CP_SET_MARKER RM6_COMPUTE
+--- a/include/hakios-metal/fake_gpu.hpp
++++ b/include/hakios-metal/fake_gpu.hpp
+@@ -187,11 +187,11 @@
+     void resume();
+ 
+     // what the kernel says about this GPU, for the fake to say the same and for a test to check it does
+-    static constexpr uint64_t kChipId = 0x06030500;      // dt qcom,chipid: an A635-family part, "Adreno 7c+ Gen 3" to Mesa
+-    static constexpr uint64_t kSpeedBin = 0x75;          // the phone's fuse value above the chip id, as the probe read it
++    static constexpr uint64_t kChipId = device::kTarget.chipId;      // dt qcom,chipid: an A635-family part, "Adreno 7c+ Gen 3" to Mesa
++    static constexpr uint64_t kSpeedBin = device::kTarget.requireExplicitChip ? 0 : 0x75;          // the phone's fuse value above the chip id, as the probe read it
+                                                          // (0x7506030500 on 28 October); Mesa's named row for this part
+-    static constexpr uint64_t kGmemBytes = 512 * 1024;
+-    static constexpr uint64_t kMaxFrequencyHz = 550000000;
++    static constexpr uint64_t kGmemBytes = device::kTarget.gmemBytes;
++    static constexpr uint64_t kMaxFrequencyHz = device::kTarget.requireExplicitChip ? 0 : 550000000;
+ 
+ private:
+     struct UboDescriptor {
+--- a/include/hakios-metal/gpu.hpp
++++ b/include/hakios-metal/gpu.hpp
+@@ -14,6 +14,7 @@
+ #include <memory>
+ #include <string>
+ #include <vector>
++#include "hakios-metal/device_profile.hpp"
+ 
+ namespace hakios::metal {
+ 
+@@ -75,7 +76,7 @@
+ // speed bin in the word above it. FAULTS counts the GPU's resets after hangs (boot-arg gpu_recover=1): a submission
+ // that completes after the count rose was given up by a reset, not run (command.cpp uses it that way).
+ enum : uint32_t {
+-    kPipe3D = 1,
++    kPipe3D = device::kTarget.pipe,
+     kParamGpuId = 1,
+     kParamGmemSize = 2,
+     kParamChipId = 3,
+--- a/src/c_api.cpp
++++ b/src/c_api.cpp
+@@ -214,7 +214,7 @@
+ 
+ // Tiles, GMEM offsets and the shader compiler are built for one chip (a6xx.hpp). A kernel that does not say (0) is taken at its
+ // word that it is that one: only a chip it names as another is refused, so that the window server stays on OpenGL ES there.
+-bool hakios_metal_chip_known(uint32_t chip) { return chip == 0 || chip == a6xx::kChipId; }
++bool hakios_metal_chip_known(uint32_t chip) { return device::acceptsChip(chip); }
+ static bool chipKnown(uint32_t chip) { return hakios_metal_chip_known(chip); }
+ 
+ static hakios_metal_device* deviceOn(std::unique_ptr<Transport> t) {
+@@ -240,6 +240,14 @@
+         failed(text);
+         delete d;
+         return nullptr;
++    }
++    if (device::kTarget.requireExplicitChip) {
++        uint64_t gmem = 0;
++        if (d->gpu->param(kParamGmemSize, &gmem) != 0 || gmem != device::kTarget.gmemBytes) {
++            failed("the GPU did not confirm the selected profile's GMEM size");
++            delete d;
++            return nullptr;
++        }
+     }
+     return d;
+ #endif
+--- a/src/command.cpp
++++ b/src/command.cpp
+@@ -1,5 +1,6 @@
+ #include "hakios-metal/command.hpp"
+ #include "hakios-metal/texture.hpp"
++#include "hakios-metal/device_profile.hpp"
+ 
+ #include <algorithm>
+ #include <atomic>
+@@ -557,8 +558,8 @@
+ 
+ namespace {
+ // the A635's SP cores and fibers an SP (freedreno_devices.py, the 7c+ Gen 3 entry: num_ccu 2, fibers_per_sp 128 * 2 * 16)
+-constexpr uint32_t kSpCores = 2;
+-constexpr uint32_t kFibersPerSp = 128 * 2 * 16;
++constexpr uint32_t kSpCores = device::kTarget.numSp;
++constexpr uint32_t kFibersPerSp = device::kTarget.fibersPerSp;
+ }  // namespace
+ 
+ std::shared_ptr<Buffer> CommandQueue::privateMemory(uint32_t bytes, bool perWave, PrivateMemory* out, std::string* why) {
+--- a/src/compiler.cpp
++++ b/src/compiler.cpp
+@@ -1070,7 +1070,7 @@
+ std::unique_ptr<CompiledKernel> compileAir(const void* bitcode, size_t size, std::string* why, const FunctionConstants& constants) {
+     std::lock_guard<std::mutex> g(gCompilerLock);
+     if (theCompiler() == nullptr) {
+-        refuse(why, "ir3 has no compiler for chip 0x06030500");
++        refuse(why, "ir3 has no compiler for the selected GPU profile");
+         return nullptr;
+     }
+     Translation t;
+@@ -1164,7 +1164,7 @@
+             h[1] = (h[1] ^ b) * 0x1000193ull + (h[1] >> 29);
+         }
+     };
+-    const uint32_t layout[3] = {uint32_t(sizeof(Stage)), uint32_t(sizeof(Kernel)), iboBase};
++    const uint32_t layout[4] = {uint32_t(sizeof(Stage)), uint32_t(sizeof(Kernel)), iboBase, a6xx::kChipId};
+     mix(kCacheBuild, strlen(kCacheBuild));
+     mix(layout, sizeof(layout));
+     mix(bitcode, size);
+@@ -1279,7 +1279,7 @@
+                                            const KnownBuffer* known) {
+     std::lock_guard<std::mutex> g(gCompilerLock);
+     if (theCompiler() == nullptr) {
+-        refuse(why, "ir3 has no compiler for chip 0x06030500");
++        refuse(why, "ir3 has no compiler for the selected GPU profile");
+         return nullptr;
+     }
+     const std::string name = stageCacheName(bitcode, size, constants, iboBase, known);
+--- a/src/compute.cpp
++++ b/src/compute.cpp
+@@ -432,13 +432,13 @@
+     // the HLSQ the real size where computerator writes 1, and the one that is right when they disagree is not measured
+     uint32_t ctrl1 = spCsCtrlReg1(shared, k.constlen);
+     reg(stream, REG_A6XX_SP_CS_CTRL_REG1, ctrl1);
+-    if (o.hlsqCopies) {
++    if (o.hlsqCopies && kHasLpac) {
+         reg(stream, REG_A6XX_HLSQ_CS_CTRL_REG1, ctrl1);
+     }
+     {
+         uint32_t v[2] = {csCntl0(k.workGroupIdRegid, k.localIdRegid), csCntl1(threadsize)};
+         stream.registers(REG_A6XX_HLSQ_CS_CNTL_0, v, 2);   // HLSQ_CS_CNTL_0, HLSQ_CS_CNTL_1
+-        if (o.hlsqCopies) {
++        if (o.hlsqCopies && kHasLpac) {
+             stream.registers(REG_A6XX_SP_CS_CNTL_0, v, 2); // SP_CS_CNTL_0, SP_CS_CNTL_1 (has_lpac)
+         }
+     }
+--- a/src/fake_gpu.cpp
++++ b/src/fake_gpu.cpp
+@@ -667,11 +667,11 @@
+         fault("SP_CS_CTRL_REG0 and HLSQ_CS_CNTL_1 disagree about the thread size");
+         return false;
+     }
+-    if (reg(REG_A6XX_HLSQ_CS_CNTL_0) != reg(REG_A6XX_SP_CS_CNTL_0) || reg(REG_A6XX_HLSQ_CS_CNTL_1) != reg(REG_A6XX_SP_CS_CNTL_1)) {
++    if (a6xx::kHasLpac && (reg(REG_A6XX_HLSQ_CS_CNTL_0) != reg(REG_A6XX_SP_CS_CNTL_0) || reg(REG_A6XX_HLSQ_CS_CNTL_1) != reg(REG_A6XX_SP_CS_CNTL_1))) {
+         fault("the HLSQ's and the SP's copies of the id registers (CS_CNTL_0, CS_CNTL_1) differ");
+         return false;
+     }
+-    if (reg(REG_A6XX_SP_CS_CTRL_REG1) != reg(REG_A6XX_HLSQ_CS_CTRL_REG1)) {
++    if (a6xx::kHasLpac && reg(REG_A6XX_SP_CS_CTRL_REG1) != reg(REG_A6XX_HLSQ_CS_CTRL_REG1)) {
+         fault("SP_CS_CTRL_REG1 and HLSQ_CS_CTRL_REG1 differ about shared memory and the constant split");
+         return false;
+     }
+@@ -2436,7 +2436,7 @@
+         auto* p = static_cast<MsmParam*>(data);
+         // the kernel's table (bsd/dev/hakios.adreno.c, hakios_gpu_parameter), number for number
+         switch (p->param) {
+-        case kParamGpuId: p->value = 0; return 0;                   // "none, the chip ID says it"
++        case kParamGpuId: p->value = device::kTarget.gpuId; return 0;                   // "none, the chip ID says it"
+         case kParamGmemSize: p->value = kGmemBytes; return 0;
+         case kParamChipId: p->value = kChipId | kSpeedBin << 32; return 0;
+         case kParamMaxFreq: p->value = kMaxFrequencyHz; return 0;
+@@ -2446,10 +2446,10 @@
+         case kParamPpPgtable: p->value = 0; return 0;
+         case kParamFaults: p->value = stats_.recoveries; return 0;
+         case kParamSuspends: p->value = 0; return 0;
+-        case kParamHighestBankBit: p->value = 14; return 0;
++        case kParamHighestBankBit: p->value = device::kTarget.highestBankBit; return 0;
+         case kParamRaytracing: p->value = 0; return 0;
+-        case kParamUbwcSwizzle: p->value = 6; return 0;
+-        case kParamMacrotileMode: p->value = 1; return 0;
++        case kParamUbwcSwizzle: p->value = device::kTarget.ubwcSwizzle; return 0;
++        case kParamMacrotileMode: p->value = device::kTarget.macrotileMode; return 0;
+         default: return EINVAL;                                      // (kIOReturnBadArgument there: VA_START, VA_SIZE among them)
+         }
+     }
+--- a/src/iokit_transport.cpp
++++ b/src/iokit_transport.cpp
+@@ -23,7 +23,7 @@
+         size_t returned = size;
+         kern_return_t r = IOConnectCallStructMethod(c_, request, data, size, data, &returned);
+         switch (r) {
+-        case KERN_SUCCESS: return 0;
++        case KERN_SUCCESS: return returned == size ? 0 : EPROTO;
+         case kIOReturnNoMemory: return ENOMEM;
+         case kIOReturnBadArgument: return EINVAL;
+         case kIOReturnTimeout: return ETIMEDOUT;
+@@ -38,11 +38,15 @@
+         }
+     }
+ 
+-    void* map(uint32_t handle, uint64_t) override {
++    void* map(uint32_t handle, uint64_t requested) override {
+         mach_vm_address_t address = 0;
+         mach_vm_size_t size = 0;
+         // as the driver made the memory: write-combined, the way Linux hands it to freedreno
+         if (IOConnectMapMemory64(c_, handle, mach_task_self(), &address, &size, kIOMapAnywhere) != KERN_SUCCESS) {
++            return nullptr;
++        }
++        if (address == 0 || size < requested) {
++            if (address != 0) IOConnectUnmapMemory64(c_, handle, mach_task_self(), address);
+             return nullptr;
+         }
+         return reinterpret_cast<void*>(uintptr_t(address));
+--- a/src/render.cpp
++++ b/src/render.cpp
+@@ -2072,6 +2072,11 @@
+         event(stream, ZPASS_DONE);
+     }
+     if (indirect) {
++        if (device::kTarget.indirectDrawWfm) {
++            // Mesa gen1 firmware quirk: WFI alone does not order this opcode.
++            stream.waitForIdle();
++            stream.packet(CP_WAIT_FOR_ME, nullptr, 0);
++        }
+         // tu_CmdDrawIndirect / tu_CmdDrawIndexedIndirect (tu_cmd_buffer.cc:6385-6423): one draw, the CP reading its
+         // words, setting VFD_INDEX_OFFSET and VFD_INSTANCE_START_OFFSET, and writing the VS's params at DST_OFF
+         const uint64_t args = draw.indirect->gpuAddress() + draw.indirectOffset;
+--- a/src/texture.cpp
++++ b/src/texture.cpp
+@@ -1242,6 +1242,9 @@
+     if (d.minFilter > 2 || d.magFilter > 2) {
+         return refuse(why, "sampler filters min " + n(d.minFilter) + " mag " + n(d.magFilter) + ": Nearest (0), Linear (1) or bicubic (2)");
+     }
++    if ((d.minFilter == 2 || d.magFilter == 2) && !device::kTarget.hasCubicFilter) {
++        return refuse(why, "bicubic filtering is not supported by this GPU profile");
++    }
+     // bicubic is the TP's own cubic filter, which this chip has (freedreno_devices.py a6xx_gen4 has_tex_filter_cubic;
+     // turnip's VK_FILTER_CUBIC_EXT, tu6_tex_filter)
+     auto filter = [](uint32_t m) { return m == 2 ? A6XX_TEX_CUBIC : m == 1 ? A6XX_TEX_LINEAR : A6XX_TEX_NEAREST; };

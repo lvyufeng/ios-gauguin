@@ -1,0 +1,1141 @@
+{
+  "upstream_repository": "https://github.com/oosexgang/hakios-xnu-kernel",
+  "revision": "63fc2b4633bac3af8e57dadab9f5a8d4cb940438",
+  "files": [
+    {
+      "path": "hakios-metal/.gitignore",
+      "sha": "89f9ac04aac6c8ee66e158853e7d0439b3ec782d",
+      "size": 5
+    },
+    {
+      "path": "hakios-metal/LICENSE",
+      "sha": "9e9f4daf0de506116c123b7ac84e936fa91d2f9c",
+      "size": 1080
+    },
+    {
+      "path": "hakios-metal/Makefile",
+      "sha": "f8a1f359b949af3b09dc8b9c5c9b84202a97803a",
+      "size": 7036
+    },
+    {
+      "path": "hakios-metal/NOTICE",
+      "sha": "f81417eae3b954d93905dc5827147df54cb9a368",
+      "size": 2298
+    },
+    {
+      "path": "hakios-metal/README.md",
+      "sha": "6d85e675831f3275c7dacaf177f2c63dbca3d14b",
+      "size": 35433
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/a6xx.hpp",
+      "sha": "b01af4cfacd4add4eecfac1955b933271829334e",
+      "size": 374050
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/command.hpp",
+      "sha": "6abbfcfe3a1eb660e63e83642528b931bdf7a1ce",
+      "size": 29327
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/compiler.hpp",
+      "sha": "5b29affea75fa14f56650e4aff179bf2b2d3301d",
+      "size": 10597
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/compute.hpp",
+      "sha": "147a5d50dd5f45589e50bfbdb03ef3b7054cf72f",
+      "size": 12436
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/fake_gpu.hpp",
+      "sha": "fbc45d4362e23a826662a17577d611e66107a333",
+      "size": 21838
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/gpu.hpp",
+      "sha": "cc957c13f963e3dfafcfc260de6db6cb5aff85cd",
+      "size": 9417
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/hakios_metal.h",
+      "sha": "7170611056a0b0e96136a71affcc3d45b8fb7d73",
+      "size": 46540
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/kernel.hpp",
+      "sha": "86e63869af0e10750c8b9fc1c854acb52188eeb2",
+      "size": 11938
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/metallib.hpp",
+      "sha": "929a6970f1835ed479c6d1360191dc20e5f693ea",
+      "size": 2595
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/pm4.hpp",
+      "sha": "5b257768f3eb5142930cb0c8823cdc4c2bd361e8",
+      "size": 4112
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/render.hpp",
+      "sha": "a7046e6a125487e2152fc0ce10c1d3403f0840d9",
+      "size": 46614
+    },
+    {
+      "path": "hakios-metal/include/hakios-metal/texture.hpp",
+      "sha": "995aba6c4060404d898de014e013b316abb3f517",
+      "size": 26883
+    },
+    {
+      "path": "hakios-metal/plugin/HakiosMetal.m",
+      "sha": "5619778fc319a8f605d72d5afbe6867731b13847",
+      "size": 58715
+    },
+    {
+      "path": "hakios-metal/plugin/hakios_metallib.c",
+      "sha": "34b9c9a77808f70be1b8d819895a01241f0e9c5e",
+      "size": 6654
+    },
+    {
+      "path": "hakios-metal/plugin/hakios_metallib.h",
+      "sha": "80d4c14aa261f5992790e5efd643f7732de00564",
+      "size": 3546
+    },
+    {
+      "path": "hakios-metal/plugin/tests/metal-plugin-test.sh",
+      "sha": "7df0aaae5e2cf1510da804f23d1b3f4d98aec0a1",
+      "size": 2190
+    },
+    {
+      "path": "hakios-metal/plugin/tests/metal_plugin_test.m",
+      "sha": "d86ecbff7b9933dab78a59b01380b055568e4e7d",
+      "size": 10438
+    },
+    {
+      "path": "hakios-metal/src/c_api.cpp",
+      "sha": "1536a602aebb1d29c485a147a4c0e720fda214cb",
+      "size": 77172
+    },
+    {
+      "path": "hakios-metal/src/command.cpp",
+      "sha": "e48eb6df0ccaebd4a54616e93c86a8b4d95b8b3c",
+      "size": 26989
+    },
+    {
+      "path": "hakios-metal/src/compiler.cpp",
+      "sha": "6357502057a4f066724814c4c57b31a84cd9f3c4",
+      "size": 93913
+    },
+    {
+      "path": "hakios-metal/src/compute.cpp",
+      "sha": "181e55850a00d69b1f882c66a03b4a133b2f4719",
+      "size": 38871
+    },
+    {
+      "path": "hakios-metal/src/fake_gpu.cpp",
+      "sha": "4fb84ff60fc0900264e43878ceafad41fdba3263",
+      "size": 148902
+    },
+    {
+      "path": "hakios-metal/src/gpu.cpp",
+      "sha": "c1650147bbbb55e8e6e8201401138f3a0f9f69b1",
+      "size": 5738
+    },
+    {
+      "path": "hakios-metal/src/iokit_transport.cpp",
+      "sha": "48ef40e02500a4945ed34218cd9f93ef74a43e76",
+      "size": 3145
+    },
+    {
+      "path": "hakios-metal/src/link.cpp",
+      "sha": "e5fc9a2a7753f054e5e7b6687345ca1455bab4b0",
+      "size": 10203
+    },
+    {
+      "path": "hakios-metal/src/metallib.cpp",
+      "sha": "a63587cce10671c07f9f632c868ff89e20783ea2",
+      "size": 5765
+    },
+    {
+      "path": "hakios-metal/src/pm4.cpp",
+      "sha": "ce3d65d7ea975ceb482143781259792021dbea2e",
+      "size": 2441
+    },
+    {
+      "path": "hakios-metal/src/render.cpp",
+      "sha": "d4fbfc1ea418a31999ef8e14ec56525d463836cc",
+      "size": 218188
+    },
+    {
+      "path": "hakios-metal/src/texture.cpp",
+      "sha": "b1e2cf62289b2fa0a15ec4c43605aae303d48156",
+      "size": 88363
+    },
+    {
+      "path": "hakios-metal/tests/a6xx_test.cpp",
+      "sha": "d46ceaaf9ea739d56f3cc04bf6f1ce9528f7f7b1",
+      "size": 54091
+    },
+    {
+      "path": "hakios-metal/tests/c_api_test.cpp",
+      "sha": "3865b455f8d515f7e1a59aeb5e6bbf7e808ac63d",
+      "size": 50659
+    },
+    {
+      "path": "hakios-metal/tests/command_test.cpp",
+      "sha": "6cdc574f8d1d65524be52510122af81a8f5e6e9c",
+      "size": 12632
+    },
+    {
+      "path": "hakios-metal/tests/compiler_test.cpp",
+      "sha": "bd536cccb7b794465e6806315d170d708a4eedf2",
+      "size": 75084
+    },
+    {
+      "path": "hakios-metal/tests/compute_test.cpp",
+      "sha": "c7f9c6f9c8f33805f4fdf4493209b26361212202",
+      "size": 60506
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/argbuf_res_air.hpp",
+      "sha": "8eb5a0f5f8fc00de902f4db3e87c7cb96a580772",
+      "size": 10663
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/argbuf_res_bc.hpp",
+      "sha": "9ae8ab932aa919fb19ed010f6b9b51562a21da86",
+      "size": 21412
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/ballot_id_bc.hpp",
+      "sha": "c85e8464755364311aee64d932aa3b84f8f81582",
+      "size": 16806
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/bytes_id_bc.hpp",
+      "sha": "2142280a4c6dc212d9002cb3d61d11410755853b",
+      "size": 16900
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/chain160_air.hpp",
+      "sha": "dba72caea61b3547e38a1efc5f034a79fb2279fb",
+      "size": 133710
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/chain220_air.hpp",
+      "sha": "fdb78385533eb2372ad3faf1a0293c5de6802258",
+      "size": 183692
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/chain_fs_air.hpp",
+      "sha": "7a3dfb3fc89066088704f9833f7ef40bc2c801ae",
+      "size": 577093
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/clz_id_bc.hpp",
+      "sha": "708cae36ce9ffcde477c3bf5bb4c9486be905c0c",
+      "size": 16288
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/depth_fs_bc.hpp",
+      "sha": "d035ea72e4661019bbadf0f6595aa4581f5d1722",
+      "size": 16000
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/dual_fs_bc.hpp",
+      "sha": "9fe2d248d99850e34b72b4380f5b6dd79885c22c",
+      "size": 15894
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/end_only.hpp",
+      "sha": "891d98ca6b28046b98451b3e396a8a80f6de77a5",
+      "size": 3495
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/fill_id.hpp",
+      "sha": "4d8f91e661df31ef8b6f06f21c7432d5ba32af9b",
+      "size": 7335
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/fill_id_air.hpp",
+      "sha": "1fcfc32cdad42f19df072a8773fbbf8ac7b51ba0",
+      "size": 7659
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/fill_id_bc.hpp",
+      "sha": "30870f60ac46ee9a086a3e835568ce8b56d2957b",
+      "size": 16394
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/long_chain_air.hpp",
+      "sha": "ca622d96f2af89e3dbc2bcb0b7b8e7c0011d5664",
+      "size": 599761
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/null_fs_air.hpp",
+      "sha": "27ae5344489e7b2f7b0cc6792c88391939961c8f",
+      "size": 6312
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/null_fs_bc.hpp",
+      "sha": "64c2a4c29c178e028d91b2c7e29ad6d2b7241616",
+      "size": 14394
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/pack_id_bc.hpp",
+      "sha": "8aac644056ba55f10c3eeccc35339142d7ee0c9a",
+      "size": 17294
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/ptr_phi_air.hpp",
+      "sha": "a25318db4a2a6e9ec22cbdaf52236183d3708c81",
+      "size": 8463
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/pvt_fill_air.hpp",
+      "sha": "2718846b811f158361a8fe2b0bcfe19929a9cb60",
+      "size": 7579
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_col16_bc.hpp",
+      "sha": "f9ad6f16bf75e306fc2c55323f45078cefeba382",
+      "size": 24706
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_copy_air.hpp",
+      "sha": "d8e94ca5245ca916176be790276122b874278f02",
+      "size": 9094
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_copy_bc.hpp",
+      "sha": "1cdd1c98d15c7f2233af4ed3f45720581ad00319",
+      "size": 17000
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_fill_3d_air.hpp",
+      "sha": "1cd7d06fdca143ec7d52882572643912f50e8cbb",
+      "size": 7289
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_fill_air.hpp",
+      "sha": "a56f6a32ae058d0d12f64c39103f7e48b4f33017",
+      "size": 10192
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_fill_arr_air.hpp",
+      "sha": "9781f57d966b8a90c910be961c3f2f074e1306cc",
+      "size": 7360
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_fill_bc.hpp",
+      "sha": "8a98f4efd5ff54b6507b9fd689ac0010a87c9f49",
+      "size": 17800
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_fill_h_air.hpp",
+      "sha": "fb73f23d86d36d5e6804066478ca850f83f84b31",
+      "size": 8058
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_fill_h_bc.hpp",
+      "sha": "ee2286a4698b1d0784809cb8235bcb6a0047cdf2",
+      "size": 16912
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_sample_gid_air.hpp",
+      "sha": "564cdafcdfe9614b7b89a7fbe5cedaf295ada190",
+      "size": 11183
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_sample_gid_bc.hpp",
+      "sha": "39b91b15c45163bf621b4c79166fcb3293dbf2c6",
+      "size": 18436
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_sample_wide_air.hpp",
+      "sha": "cd901155a6717bf8f11651f33a44aeff640434d8",
+      "size": 10881
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tex_size_h_air.hpp",
+      "sha": "75b2af08352b757169d307417d26d332696e290c",
+      "size": 8977
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tg_arg_air.hpp",
+      "sha": "c32c7a4d4164c937f47d9aa1c0bc6f17818bd54a",
+      "size": 8569
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_arr_vs_air.hpp",
+      "sha": "04591b627b89f11546c4ffa834433735b2d9c860",
+      "size": 8187
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_attr_vs_air.hpp",
+      "sha": "a98911162ec1b5f77e49033d5a21e8f434fa870e",
+      "size": 8591
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_attr_vs_bc.hpp",
+      "sha": "94a315e1215329d75cf81eb47ad7b30ccb2a1343",
+      "size": 16218
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_base_vs_air.hpp",
+      "sha": "d4a6a4ef14767b89a1daa8e1915cd680b9a2cdb7",
+      "size": 11266
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_cflat_fs_air.hpp",
+      "sha": "ba8cf2af0233d2e4baf09589667a53d9af3f9956",
+      "size": 7589
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_cflat_fs_bc.hpp",
+      "sha": "e53725cd355a99e1ba9fa44b97afca960a009a6e",
+      "size": 15924
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_color_fs_air.hpp",
+      "sha": "4dd10396888aee0b26ceba9cf7532f16bb01c294",
+      "size": 7937
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_color_fs_bc.hpp",
+      "sha": "aa32e8fbf610f51393378f2b2c58d98a6b442416",
+      "size": 15524
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_color_vs_air.hpp",
+      "sha": "8e929cd27b31143ba42bdf4a4816771a3af8adc1",
+      "size": 12395
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_color_vs_bc.hpp",
+      "sha": "3f095e41646ad4c98fc91af69b70fae42470a849",
+      "size": 17124
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_ctex_fs_air.hpp",
+      "sha": "29f8e0b94d37b930ecafd995bc81c6c7cbb2dfad",
+      "size": 8896
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_ctex_fs_bc.hpp",
+      "sha": "fc860e64b718038059e7d60cd020a1be7025322d",
+      "size": 18018
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_cuba_fs_air.hpp",
+      "sha": "1f1586c0394641e6c57a493a2cc1c579e9df2bac",
+      "size": 9408
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_cube_fs_air.hpp",
+      "sha": "d077f5e08c6fa6d49f147f59afcf059e1c3f292c",
+      "size": 9082
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_dbuf_fs_air.hpp",
+      "sha": "ff1893de443d32731dafb4e21a610dd2bfed44ba",
+      "size": 6895
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_dbuf_fs_bc.hpp",
+      "sha": "d888bee040869dc4561ced16954ac83db84c2f93",
+      "size": 15818
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_dpos_vs_air.hpp",
+      "sha": "c9f596b24e5736f62566f340ee59ebb36f6e8b0f",
+      "size": 7786
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_dpos_vs_bc.hpp",
+      "sha": "9094fa4b9beba6ab59f857bdf3a2bb8207251ea6",
+      "size": 16418
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_dwrite_fs_bc.hpp",
+      "sha": "0611f962df35cd01b09e9a832152d87b39f65365",
+      "size": 16030
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_fb_fs_air.hpp",
+      "sha": "2a4ccbfcccfa871d419d2b337930749328485eb6",
+      "size": 7947
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_fc_fs_air.hpp",
+      "sha": "d19dd19ed6b7d9c2dd11fbda86f578f8f11f97f8",
+      "size": 8660
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_fc_fs_bc.hpp",
+      "sha": "489b47e8c7b9332c94b929b99b58581f0e0321ca",
+      "size": 18406
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_flat_fs_air.hpp",
+      "sha": "89e387dc60c9bc9f8d078bbd65a2c7102d3a4966",
+      "size": 7700
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_flat_fs_bc.hpp",
+      "sha": "ad157205b78dce78e3f77289a90a01813a893050",
+      "size": 15018
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_flat_vs_air.hpp",
+      "sha": "bc2291b90a7091a12161410854fcf315af4494b6",
+      "size": 10206
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_flat_vs_bc.hpp",
+      "sha": "e31b705f3de0577961dc5d07f4498fd7c141c948",
+      "size": 16118
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_fw_fs_air.hpp",
+      "sha": "c8d2cba1a74da65c6308ac120c4a06ef9650617c",
+      "size": 8706
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_half_fs_air.hpp",
+      "sha": "04319223827a7b4d0fed839b13a9e3c39f353286",
+      "size": 8885
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_hc_fs_air.hpp",
+      "sha": "39df5d51af42d3b134108a6dc2bee19abed556e0",
+      "size": 8929
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_hcolor_fs_air.hpp",
+      "sha": "a6125b9cc101026340aba1f482ac62b95315fcd2",
+      "size": 6878
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_hcolor_vs_air.hpp",
+      "sha": "43b0c2b9743fd4445f588af7723b6df0220e3d4d",
+      "size": 10487
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_mrt1_fs_air.hpp",
+      "sha": "89c80a27b750546ac502305d706d83e63523143a",
+      "size": 6814
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_mrt1_fs_bc.hpp",
+      "sha": "0893f69b285fdd8af0e14659a33b69c1c50f70ff",
+      "size": 15018
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_mrt_fs_air.hpp",
+      "sha": "9e2aaba10e5c860859028974f64033d155a730ab",
+      "size": 7588
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_mrt_fs_bc.hpp",
+      "sha": "8e90d0153e9168847d3782045d9562f6795131a3",
+      "size": 15312
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_ms_fs_air.hpp",
+      "sha": "8a4f679b47eb785d5dd7d08ee5e53eae822ebab6",
+      "size": 8489
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_null_fs_air.hpp",
+      "sha": "eba138a1c8d2d9404df1235818dc3f58726594f1",
+      "size": 9521
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_null_fs_bc.hpp",
+      "sha": "5a3f56d2df6eb154257375725c480aed11dfc056",
+      "size": 18818
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_nullfb_fs_air.hpp",
+      "sha": "2ec0892f4b5b380a0038bdd418690cbd9327504e",
+      "size": 12095
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_oldcb_vs_air.hpp",
+      "sha": "a370769a81162f83695b9c5c15c23cf645af989f",
+      "size": 7474
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_olddb_vs_air.hpp",
+      "sha": "dc1a29f235a24ad295354313cec5858e4b62dd6a",
+      "size": 7321
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_pntc_fs_air.hpp",
+      "sha": "08001b580f7857b2e1d707e706e5dd2cca4c1bf8",
+      "size": 7142
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_pos_vs_air.hpp",
+      "sha": "489fc7ee26df71e754287fb85327f02c867a6dcc",
+      "size": 7788
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_pos_vs_bc.hpp",
+      "sha": "5a343fd9e842de75005ee1a33b07248a1469ad16",
+      "size": 16012
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_pt_vs_air.hpp",
+      "sha": "d33e3ae518f1d0514a4e31179b04a968c2aa92dd",
+      "size": 8113
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_pvt_fs_air.hpp",
+      "sha": "453070bae5c80c30253032f65de5ac92b12040d4",
+      "size": 9850
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_shadow_fs_air.hpp",
+      "sha": "03b0b04cde683e7afd7d6aa63b00f923832be056",
+      "size": 9326
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_shadow_fs_bc.hpp",
+      "sha": "755707d0f09c00b419f3dfb2531e549d6ff7a713",
+      "size": 18230
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex1d_fs_air.hpp",
+      "sha": "03a5643369bdd7e1fae6ae3febcf7d49caa49b53",
+      "size": 8282
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex1da_fs_air.hpp",
+      "sha": "9098daa7f1609a484fd7ce109f94489bdc00e425",
+      "size": 9139
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex2da_fs_air.hpp",
+      "sha": "c61d0a10eb9481e9a09c0fb0e498312e4c516486",
+      "size": 8158
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex31_fs_air.hpp",
+      "sha": "ee4c746845762e2d59558bf29e9567490c3d7424",
+      "size": 8524
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex39_fs_air.hpp",
+      "sha": "9b71a5d03a210038368b15b6b8e7d2e4015ce1ac",
+      "size": 10406
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex3d_fs_air.hpp",
+      "sha": "7d254b9045d703f597d50d8f1b82824e9d3ec2c9",
+      "size": 8228
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex_fs_air.hpp",
+      "sha": "cd69b0027a477bb522be84dac943431768617f08",
+      "size": 9062
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_tex_fs_bc.hpp",
+      "sha": "e801d470b21764e4e9c32150253a1a1b9f1bb180",
+      "size": 17212
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_upos_vs_air.hpp",
+      "sha": "ec45fee95f9fdfb076dbd84b7c494522459e6430",
+      "size": 8009
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_upos_vs_bc.hpp",
+      "sha": "8bef8fbd92ddac9ca4d4b92aac324f4595af1e24",
+      "size": 16418
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/tri_vtex_vs_air.hpp",
+      "sha": "ee80da8879a996c08e8bd38a99c14effed853a7d",
+      "size": 10487
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/undef_phi_id_bc.hpp",
+      "sha": "6ba865c6c65b86d7303c317b760729d3138caee1",
+      "size": 16724
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/uniform_id_bc.hpp",
+      "sha": "5aaf050f4c87120251e7887aac9b10029ee65e75",
+      "size": 17312
+    },
+    {
+      "path": "hakios-metal/tests/fixtures/width_id_bc.hpp",
+      "sha": "a22ca911a6f3882fd7f5156749fbc16c0d9469b9",
+      "size": 16400
+    },
+    {
+      "path": "hakios-metal/tests/kernel_test.cpp",
+      "sha": "2d597dc0eeed5b9ddb91a4d956e7333198ed7e1c",
+      "size": 24697
+    },
+    {
+      "path": "hakios-metal/tests/link_test.cpp",
+      "sha": "20e1fc11fcd794cebd284f0eb271547c3279a12a",
+      "size": 13296
+    },
+    {
+      "path": "hakios-metal/tests/main.cpp",
+      "sha": "bd037ecce6015ebc7b3d0061dfbf9dcf676fa42f",
+      "size": 513
+    },
+    {
+      "path": "hakios-metal/tests/metallib_test.cpp",
+      "sha": "58946a8060ce5164da7d7c428862a45bf20127bb",
+      "size": 5695
+    },
+    {
+      "path": "hakios-metal/tests/pm4_test.cpp",
+      "sha": "a6f6280cf35adc69f93979e8104cc85bdec8659d",
+      "size": 3716
+    },
+    {
+      "path": "hakios-metal/tests/render_test.cpp",
+      "sha": "1bfcf52da0bb7e546baf368ab9979de0ec21b0ae",
+      "size": 291305
+    },
+    {
+      "path": "hakios-metal/tests/test.hpp",
+      "sha": "85c086a1886d16e2fd32b2fd26876251a885626a",
+      "size": 2486
+    },
+    {
+      "path": "hakios-metal/tests/texture_test.cpp",
+      "sha": "8731b23426b927ba101a524c9b54db121d03d293",
+      "size": 63110
+    },
+    {
+      "path": "hakios-metal/tools/bc-header.py",
+      "sha": "22f5799bbee514cec38d4b290294cc5631586eda",
+      "size": 1099
+    },
+    {
+      "path": "hakios-metal/tools/check-a6xx.py",
+      "sha": "8f7b1abc4d8cac702040870e4e375ec3b48a93d0",
+      "size": 12327
+    },
+    {
+      "path": "hakios-metal/tools/compiler-smoke.cc",
+      "sha": "8f8ce335c6ca7a0610659b32838a76a7b95aff98",
+      "size": 8017
+    },
+    {
+      "path": "hakios-metal/tools/compiler.mk",
+      "sha": "b06659797ae52108d1862bcac944a54893d6d3fa",
+      "size": 6160
+    },
+    {
+      "path": "hakios-metal/tools/ir3-kernel.cc",
+      "sha": "621b1598806aa8202e1fbfd39d0e3eb1c77db786",
+      "size": 19408
+    },
+    {
+      "path": "hakios-metal/tools/kernels.mk",
+      "sha": "57eccdae11af60968bc1124b4c5e9affa0bb4add",
+      "size": 6993
+    },
+    {
+      "path": "hakios-metal/tools/kernels/argbuf_res.ll",
+      "sha": "4ccd637a2b89230ad34d423b0f99046ce32f435c",
+      "size": 5230
+    },
+    {
+      "path": "hakios-metal/tools/kernels/ballot_id.ll",
+      "sha": "05db37eda2ed0bae766d7b1adf845e4b326db18d",
+      "size": 2172
+    },
+    {
+      "path": "hakios-metal/tools/kernels/bytes_id.ll",
+      "sha": "6263e39f1183f9a20dc4cb0ddd0e906a9932d915",
+      "size": 2320
+    },
+    {
+      "path": "hakios-metal/tools/kernels/chain160.ll",
+      "sha": "baeae39bfa5aa5ce6c8c5839ef3c9a00997b50e5",
+      "size": 26161
+    },
+    {
+      "path": "hakios-metal/tools/kernels/chain220.ll",
+      "sha": "996bff64ef8f64023d4a9a156168a8f6e105c0d3",
+      "size": 35669
+    },
+    {
+      "path": "hakios-metal/tools/kernels/chain_fs.ll",
+      "sha": "06c8eecca93d4cf2a29fe129b1257c730bab28e6",
+      "size": 112035
+    },
+    {
+      "path": "hakios-metal/tools/kernels/clz_id.ll",
+      "sha": "8de6a4f8f6e16619ea92845892e0b3471ae88366",
+      "size": 1632
+    },
+    {
+      "path": "hakios-metal/tools/kernels/depth_fs.ll",
+      "sha": "c71ce9142d31e83df5b2f387863cef361fa67bb9",
+      "size": 1693
+    },
+    {
+      "path": "hakios-metal/tools/kernels/dual_fs.ll",
+      "sha": "b87ef8c85226383ba122c4dc5a1297d83017edba",
+      "size": 1847
+    },
+    {
+      "path": "hakios-metal/tools/kernels/end_only.asm",
+      "sha": "aa4e8ae7ed81b3f3f573340dc2c02671eba7ef41",
+      "size": 365
+    },
+    {
+      "path": "hakios-metal/tools/kernels/fill_id.asm",
+      "sha": "d3ebfa0d6e26cf49ca5f30a40b0fd599e7ec7376",
+      "size": 3245
+    },
+    {
+      "path": "hakios-metal/tools/kernels/fill_id.ll",
+      "sha": "9c46bb560c2b1a7713d4d5bf3b82e1538a4f98c1",
+      "size": 3049
+    },
+    {
+      "path": "hakios-metal/tools/kernels/gen-long-chain.py",
+      "sha": "12039963cab2c13943bd25d5b2ab7811517fd734",
+      "size": 6538
+    },
+    {
+      "path": "hakios-metal/tools/kernels/hole_vs.ll",
+      "sha": "46f0943b87e42fc6041570190e620bbb59f12406",
+      "size": 2367
+    },
+    {
+      "path": "hakios-metal/tools/kernels/long_chain.ll",
+      "sha": "9628d13d5a3e90027070974f43e695f006f8f6c8",
+      "size": 111775
+    },
+    {
+      "path": "hakios-metal/tools/kernels/many_ubo_id.ll",
+      "sha": "72a48ccfedb0e918624ba453834c8dda0465fb7b",
+      "size": 5595
+    },
+    {
+      "path": "hakios-metal/tools/kernels/null_fs.ll",
+      "sha": "d45f552387b3ec1c49a275de9b7098d24127ce14",
+      "size": 1154
+    },
+    {
+      "path": "hakios-metal/tools/kernels/pack_id.ll",
+      "sha": "476f06cf9435674e3120bf0f28fa4540bcfed465",
+      "size": 2357
+    },
+    {
+      "path": "hakios-metal/tools/kernels/ptr_phi.ll",
+      "sha": "0f221d9e223ae7e5163758761fa8b4abd29d9bd6",
+      "size": 3526
+    },
+    {
+      "path": "hakios-metal/tools/kernels/pvt_fill.ll",
+      "sha": "211b7bb3d8a3ae24d51bfe2808beb54bb66cca1d",
+      "size": 2377
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_col16.ll",
+      "sha": "836ea511e41e87abd4c1aabac8b97566992c98c2",
+      "size": 8686
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_copy.ll",
+      "sha": "3757cda85ad8dd3c0ae260f4c3f241fb71f0de33",
+      "size": 4497
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_fill.ll",
+      "sha": "a0bf9bab763418a90f1259291a98f798f9197c32",
+      "size": 3666
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_fill_3d.ll",
+      "sha": "46cfb90338eb025c1c3d57cf4f66960d9c9e18ca",
+      "size": 2219
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_fill_arr.ll",
+      "sha": "f4cbeed1dd530ce1f8c3269ab175a665339f57f8",
+      "size": 2278
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_fill_h.ll",
+      "sha": "b76ac7516e3a9cc0b2820d0ded790f4b017a72e3",
+      "size": 2701
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_sample_gid.ll",
+      "sha": "85a37e5cf07c44e38f650f332456f72e0c11c1c6",
+      "size": 4113
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_sample_wide.ll",
+      "sha": "95fb5610b2e31988fd5be67fb47f4aef6e46c4d4",
+      "size": 3559
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tex_size_h.ll",
+      "sha": "ddb3077ddede0ade4c97fa3bb9d2475172abec4c",
+      "size": 3293
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tg_arg.ll",
+      "sha": "299465c57c206aa021302c46a8b2218d69c91b97",
+      "size": 3533
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_arr_vs.ll",
+      "sha": "e93c7093ba5c66847bed452bfe5cf6a05e005f58",
+      "size": 2109
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_attr_vs.ll",
+      "sha": "7919499ea2351670cc969507ea37f84a22e6dcf9",
+      "size": 2945
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_base_vs.ll",
+      "sha": "a471ef74b50e450b37dee2227ab95521e28ba4c4",
+      "size": 3801
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_cflat_fs.ll",
+      "sha": "b5510780d5ca389c2a3fc339ccd405d45e8d3499",
+      "size": 2046
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_color_fs.ll",
+      "sha": "6306ed76829af17e2688607e03e4014addeb2139",
+      "size": 2408
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_color_vs.ll",
+      "sha": "57253bab4a9bbcf5788d0b767acd288f00f1b3d3",
+      "size": 5118
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_ctex_fs.ll",
+      "sha": "22a67c0f98317a85b7fd5fd92bfa4181bd72d5cf",
+      "size": 3201
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_cuba_fs.ll",
+      "sha": "66dc8011981cc53b33a97ddd06dc492c62e45760",
+      "size": 2749
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_cube_fs.ll",
+      "sha": "b50a1c238ce0045d27ef82366945503d3f37ec75",
+      "size": 2493
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_dbuf_fs.ll",
+      "sha": "76313160edc71a56c8b64c3796003423ee9457c0",
+      "size": 1534
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_dpos_vs.ll",
+      "sha": "592a350bd9be7c427d58686b9b4d6f40979423fd",
+      "size": 2357
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_dwrite_fs.ll",
+      "sha": "a4a772feb53ff6ac8f744678eaf0497fb4e23c57",
+      "size": 1546
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_fb_fs.ll",
+      "sha": "96c83686b95a968ae73f0ae4f73dfb18fc86c817",
+      "size": 1817
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_fc_fs.ll",
+      "sha": "194ae73129e3c8bf79b17eb2144d75ee69c70e8d",
+      "size": 3296
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_flat_fs.ll",
+      "sha": "03cd581b56b8f8a81903200a19da2f3e585d4734",
+      "size": 2306
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_flat_vs.ll",
+      "sha": "a069022324a4b44a07c689ba4d917579c3dfcdc3",
+      "size": 3945
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_fw_fs.ll",
+      "sha": "a18d8edc445ce5e80b5faf0e97965e26bbdfff59",
+      "size": 2320
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_half_fs.ll",
+      "sha": "2b4f75060bd5ecc10870b115c3974043827e783c",
+      "size": 2614
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_hc_fs.ll",
+      "sha": "644cb0ee8fe4c724f1b52fb23424f93ab5efb580",
+      "size": 2375
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_hcolor_fs.ll",
+      "sha": "d0117acc36233f431f4349fc7b610746f653f204",
+      "size": 1302
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_hcolor_vs.ll",
+      "sha": "df161c8a101770b71c1981b12009328431d1d4c2",
+      "size": 3202
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_mrt1_fs.ll",
+      "sha": "3594e3795d2b48ddcf82073b582dd9e62b46a6ac",
+      "size": 1429
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_mrt_fs.ll",
+      "sha": "8673608e343ed4da3f2e078d09c690772f0222eb",
+      "size": 2001
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_ms_fs.ll",
+      "sha": "68f91b249f111ada3a884395ed630786b7e3baa3",
+      "size": 2434
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_null_fs.ll",
+      "sha": "271125e865fbb6c56662d2798a86a1554163cd34",
+      "size": 3662
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_nullfb_fs.ll",
+      "sha": "59f87a4fa9596661c5236a8aec110f5b1c5897a8",
+      "size": 3065
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_oldcb_vs.ll",
+      "sha": "bb4019db8e19cf9f7f8ef91b36ffaa6eb7a3f6a4",
+      "size": 1922
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_olddb_vs.ll",
+      "sha": "d6f1fb2d59428acd4274e186077dd6d8b061895f",
+      "size": 1918
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_pntc_fs.ll",
+      "sha": "49036fcdc1ca658209437d351546163fc8254fe6",
+      "size": 1580
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_pos_vs.ll",
+      "sha": "7b95daa1899edca54d127deddb21cfe8deea739c",
+      "size": 2187
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_pt_vs.ll",
+      "sha": "dec1746a1fd9c24b8e16292701dca7454ee7a8b3",
+      "size": 2288
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_pvt_fs.ll",
+      "sha": "853da64bc20d77ab8ebffa64ca569766ec1d6da2",
+      "size": 2648
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_shadow_fs.ll",
+      "sha": "36b33bb283c36a7211387927fba9f864332ce8ab",
+      "size": 3182
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_tex1d_fs.ll",
+      "sha": "4f0860f05291289b609bcf529e372ee2be87e869",
+      "size": 2602
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_tex1da_fs.ll",
+      "sha": "c75eb966abbb549b839d771cdd585d3a79c32234",
+      "size": 2500
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_tex2da_fs.ll",
+      "sha": "23998fd238e7ae9538795b2b598015eed885727a",
+      "size": 2454
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_tex31_fs.ll",
+      "sha": "e20f050743102353dd1ffdc3a19e919fe0051ac2",
+      "size": 2573
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_tex39_fs.ll",
+      "sha": "31ae60f6b126d3e76c6dfc63ce0dee826477f133",
+      "size": 3329
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_tex3d_fs.ll",
+      "sha": "f48b33e705bb1a685bfc6c3c85a589dc4bc501f1",
+      "size": 2535
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_tex_fs.ll",
+      "sha": "a7111357a90e2d41d01989bbf6af87870228831e",
+      "size": 3333
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_upos_vs.ll",
+      "sha": "7c95583510c3541e1f3a8915cc2b3576b63862f7",
+      "size": 2510
+    },
+    {
+      "path": "hakios-metal/tools/kernels/tri_vtex_vs.ll",
+      "sha": "16edb6bad335dc4564d499196af30a8b064286e0",
+      "size": 3772
+    },
+    {
+      "path": "hakios-metal/tools/kernels/undef_phi_id.ll",
+      "sha": "256cd920c044eb10efdf7c1a00889dc055846597",
+      "size": 2380
+    },
+    {
+      "path": "hakios-metal/tools/kernels/uniform_id.ll",
+      "sha": "cbcfb36a9dd95ad0b7787ac272831216a23751a4",
+      "size": 2079
+    },
+    {
+      "path": "hakios-metal/tools/kernels/width_id.ll",
+      "sha": "42ec8c6daea97f904a9385732b6ad4961e973c75",
+      "size": 2075
+    },
+    {
+      "path": "hakios-metal/tools/mesa/ir3-dump.patch",
+      "sha": "5eac655798b77d379484cce00b7291ecbaf382ee",
+      "size": 59061
+    },
+    {
+      "path": "hakios-metal/tools/probe.cpp",
+      "sha": "89cc7627ca8a458fbb9ccc3b90e30911cdbbf4ba",
+      "size": 426796
+    },
+    {
+      "path": "hakios-metal/tools/sweep.cpp",
+      "sha": "f43d6543dc27a926beae41364fecc464f4042bad",
+      "size": 9443
+    }
+  ]
+}

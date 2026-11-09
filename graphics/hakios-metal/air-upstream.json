@@ -1,0 +1,138 @@
+{
+  "repository": "https://github.com/oosexgang/hakios-xnu-kernel",
+  "revision": "63fc2b4633bac3af8e57dadab9f5a8d4cb940438",
+  "mesa_version": "25.0.7",
+  "mesa_archive_sha256": "592272df3cf01e85e7db300c449df5061092574d099da275d19e97ef0510f8a6",
+  "files": [
+    {
+      "path": "tools/mesa/air/air2nir.c",
+      "sha": "f719cf487fa99d4f2587dc3d463de179f337d352",
+      "size": 30714
+    },
+    {
+      "path": "tools/mesa/air/air_bitcode.c",
+      "sha": "da092c93fd0c20ae96e6a5ebe1d8eff454090974",
+      "size": 11737
+    },
+    {
+      "path": "tools/mesa/air/air_bitcode.h",
+      "sha": "2707c134566c8930675111fe50e9559a5b251418",
+      "size": 3135
+    },
+    {
+      "path": "tools/mesa/air/air_intrinsics.c",
+      "sha": "11e26ce2f2242a7b5dcc287b0738954bbd11b559",
+      "size": 139188
+    },
+    {
+      "path": "tools/mesa/air/air_layout.c",
+      "sha": "60e194ca76ce14c7ea9401f04f584c578bbcef2f",
+      "size": 4567
+    },
+    {
+      "path": "tools/mesa/air/air_metallib.c",
+      "sha": "f94492e4c65d6651dafe06319777bec5828255c9",
+      "size": 3698
+    },
+    {
+      "path": "tools/mesa/air/air_module.c",
+      "sha": "534c80ab5f12398d595b3542eae16fa4384f7502",
+      "size": 65195
+    },
+    {
+      "path": "tools/mesa/air/air_module.h",
+      "sha": "7ea7c95a8e369810687477b8a9c8024d3a48ff38",
+      "size": 11875
+    },
+    {
+      "path": "tools/mesa/air/air_print.c",
+      "sha": "bc70239472253d7ca0856a08008e4d6f2afde637",
+      "size": 27804
+    },
+    {
+      "path": "tools/mesa/air/air_private.h",
+      "sha": "1ebb930319086bd026be8e68b7002f5ae22b50b3",
+      "size": 14350
+    },
+    {
+      "path": "tools/mesa/air/air_run.c",
+      "sha": "46af530053454b139b4cc6e4ff53e5fc951ddb37",
+      "size": 126311
+    },
+    {
+      "path": "tools/mesa/air/air_stitch.c",
+      "sha": "e723ed7a64103b3dcbe41082f498f19f78ca1300",
+      "size": 7255
+    },
+    {
+      "path": "tools/mesa/air/air_to_nir.c",
+      "sha": "17389e3c628b757b8ac265274c513985519078d1",
+      "size": 311620
+    },
+    {
+      "path": "tools/mesa/air/meson.build",
+      "sha": "e1f1f24e14869e64edd2bb6601dc7240a0e5e2e6",
+      "size": 1411
+    },
+    {
+      "path": "tools/mesa/air/nir_air.h",
+      "sha": "7a12018c260fc1f866b09ca928fb3a7d0e13f980",
+      "size": 29221
+    },
+    {
+      "path": "tools/mk-mesa.sh",
+      "sha": "045e37b077e539b0c36c65d140116bfe52da8f7b",
+      "size": 7344
+    },
+    {
+      "path": "tools/mesa/air-frontend.patch",
+      "sha": "eedf8b436c6f7f1dbcb96e576078ec840e9b435e",
+      "size": 574
+    },
+    {
+      "path": "tools/mesa/air-ir3.patch",
+      "sha": "2a496df223fe67708e9ad0083b6dd5bc9e47a1f0",
+      "size": 8865
+    },
+    {
+      "path": "tools/mesa/freedreno-darwin.patch",
+      "sha": "4d29a6f8b1faa56eafb1758a29a01c831c9a7ed1",
+      "size": 11994
+    },
+    {
+      "path": "tools/mesa/hakios-drm/hakios.drm.c",
+      "sha": "b729fba20ead0b5c389fe2408a3e24eadf48c28a",
+      "size": 20267
+    },
+    {
+      "path": "tools/mesa/hakios-drm/xf86drm.h",
+      "sha": "5449a1cc426a86d184611166f37927ff6b0fb8d9",
+      "size": 5783
+    },
+    {
+      "path": "tools/mesa/ir3-round-default.patch",
+      "sha": "58faacd5e367bf034b13713fa7b70de7c422d221",
+      "size": 6646
+    },
+    {
+      "path": "tools/mesa/ir3-shift-split.patch",
+      "sha": "9b49588302920294ec4ac39f717f25d1eab44b75",
+      "size": 4118
+    },
+    {
+      "path": "tools/mesa/ir3-ssbo-subdword.patch",
+      "sha": "c8fce591cfa0d17aa6b3f013a63c034e26710fd2",
+      "size": 6505
+    },
+    {
+      "path": "tools/mesa/osmesa-es-profile.patch",
+      "sha": "be8f5631807329e4749c648c71226087ee8f8c54",
+      "size": 1279
+    },
+    {
+      "path": "tools/mesa/turnip-darwin.patch",
+      "sha": "b79c641bc36b90a0278c806bfee794c85ff88d22",
+      "size": 17720
+    }
+  ]
+}

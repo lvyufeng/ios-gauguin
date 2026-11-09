@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0219 qualified local kernel; ONE temporary swipe trial LIVE
+
+DSH32258 owns isolated219 dispatch-stage-v1/trial-stage-v1; do not restart.
+Actual fastboot Sending OKAY0.458s / Booting OKAY0.135s / total0.595s;
+trial-v1/preflight.json observer-running, image_boot_attempted=true,
+misc_verified=true. At init+180s ONE finite synthetic swipe; physical NVT
+sampling OFF only in this diagnostic.600s service/780s observer/860s timeout,
+automatic TWRP and post219 exact15-file capture/review still pending. No human
+interaction needed. Emission is NOT visual UI acceptance or physical-touch proof.
+
+219 source22878556466e433d881668cf493866b3f00ef9f5, notes290e66a;
+DSH65290 native-stage-v1 TERMINAL ALL0/pins unchanged:198patches/5330files,
+full source fd75fc6d3960240dd02a4c038f5ec935b4e2b5b18b97f8d401345d6f2afce242,
+run gauguin.2MkqBr, only bsd/dev/sweet_touch.c differs from actual217.
+Kernel bb7a369e0aabd868aaa1de4f0fad4636334b91156b7e75943e07d0c167e20350,
+banner xnu-836dfa8c06694ec2a14fd42fe64103bf. DSH13618 package-stage-v1
+TERMINAL ALL0/pins unchanged; image20021248B,
+f39044b377c66ff5836a8c6831cf47b59f9a201d408058a835900c087fe9e53e.
+Only command changes NVT1->0 and swp=1,607B/608B/oneNUL;6GiB/mode2/600s,
+all authority/guard/firmware/shim/DTB/geometry preserved. Current217header
+ad1174be582c00925f0c6681d93cd6a23569b1d8dae8a049c792ccde3aa8a152 and
+complete log prefixes bound before boot. Installed210aafa07f8 unchanged;
+UI216a460e3b still uninstalled; no userdata write/approval/CI.
+
+Renewed primary-source report0956180 and Metal ABI audit6b6beda already
+committed. Next independent offline task: obtain the complete pinned HakiOS
+Metal core and matching actual A619 Mesa capability data; prepare meaningful
+host/native frontend baseline, then adapt full A619 state. Host/ABI passes do
+not establish Metal rendering. Keep this LIVE phone trial and its inputs fixed;
+await original physical-review219.json, preserve failures, update handoff with
+actual post219 header/log sizes before any new trial. Full goal ACTIVE.
+
 ### 2026-11-10 CST —0219 finite swipe implemented; full LOCAL build LIVE
 
 PreviousgoalturnPROGRESS:217caller-storagefix/fullnative/onephysicaltrial and218

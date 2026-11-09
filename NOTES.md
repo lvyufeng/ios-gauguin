@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — user explicitly requested another199 manual trial; R2 LIVE
+
+First199 trial is terminal:08:26:32.864647–08:31:15.917098UTC,
+283.052451s, automatic; all boot dispatchers0/unchanged pins. DSH66650
+post-wait/capture inner1 with unchanged inputs reflects a REAL GPU submit
+failure, while all15 files/12 static hashes/full198 prefixes were saved.
+Full logs31,621/5,569/891,329B; post199 header
+60aa681a38c46c83618bfae60f653f10429a30b36e099ee646462a064a91bd3b.
+19 nonnull state results,2 wrapped images (A008640x358 and RGhA256x1),
+0 backboardd crashes. First desktop submit has17 IBs, GGR_IO3,
+submitted10/completed9/polls10. One CA frame log is after this failed job,
+NOT a successfully rendered GPU frame; visual199 result still unknown.
+
+Cached STOP: live_reason13,valid3,GX=f8222800,IRQs all0; op5 barrier ok1,
+GFSR0,FSR400/400. Reason13 is the COMBINED SMMU+GMU gfw_faults() check,
+not proof of an address-translation fault. GSM_FSR_FAULT_MASK=c00001fe
+does NOT include400. Printed zero reset/root pointers are UNOBSERVED:
+valid3 covers only GX/IRQ. Next capture last existing gfw_faults read and
+cached host_info/ao_status to identify its actual failing predicate. Keep
+all stop guards; no speculative GPU/MMU fix has been applied.
+
+199 source published via DSH93731: public715a57b5db5aa2969da9935e6f055df4a96caf9c,
+new ref codex/gauguin-runtime-stop-cache-20261109, exact tree
+1fc596344e2b0dd66152e7ece61310ba3c03bd30, parent88a968146b11350c7cd01949ddad8acedceac2fd.
+Five reviewed text files only, existing refs unchanged, no explicit CI.
+
+User call_0e3374b3acfe4cada53922e123c410dd answered '再写入一次'.
+Started a NEW explicitly requested199-R2 trial in
+research/tmp/dsh-gpu-0199-rerun, not a retry of any completed claim.
+DSH53683 parent55056/nested55059 current15-file/full-prefix preflight
+passed against post199 header60aa681a; SAME image9d7025fa (native199,
+Home off,300s), one temporary fastboot transfer/Booting OKAY,total0.593s.
+It is observer-running. User immediately notified and asked a NEW R2
+visual question. Do not attribute delayed199 responses to R2. Root owns
+NOTES; the single R2 post-wait-stage-v1 will capture after its true terminal.
+No new build, userdata delta, flash or rollback. Goal remains active.
+
 ### 2026-11-09 — 0199 manual trial LIVE after user returned to the phone
 
 User answered197 visual question call_c6741641f30b45c9975f56ae87dd445d:

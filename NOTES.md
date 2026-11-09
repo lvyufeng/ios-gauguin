@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0214 pixel census LIVE in isolated worktree; do not reboot
+
+Actual phone now runs ONE temporary214 V2 diagnostic from
+research/tmp/gauguin-pixel214-worktree-20261110/research/tmp/dsh-surface-0214-pixels.
+DSH96310 boot/DSH33474 post-wait, actual fastboot/Booting OKAY0.597s,
+image93d13d2dd1649f691e5b4513cf6bc775f3a7db8cd2ae1ac94b5bccdba8b7cf7d,
+20,021,248B,6GiB/mode2/Homeoff30Hz,600s GPU/780s observer/860 timeout.
+All15 installed files/COMPLETE211 logs verified and exact211 headerc79b2b73
+before boot. SAME installed210 bridge aafa07f8; no userdata write/install.
+User sampling request pending: unlock, visit Desktop/widgets/App Gallery,
+keep running for automatic TWRP return. This is NOT a rendering correction.
+Do not ask whether automatic reset was manual; never duplicate live boot.
+
+214 source1ee7270/197patch5331files/dd244704 full LOCAL build0,gauguin.ucywe7.
+Original native-stage-v1 qualification FAILED only missing local0120 helper;
+preserved. DSH73930 NEW qualification-stage-v2 copied real root-sensitive
+helper closure and ALL original checks PASSED on SAME kernel, no rebuild:
+abe165e1c792062525b7bf7d3b982a4f32549f79db3eca9db4b3200601004284,
+xnu-10432cf40eb74660b88338cb309dcb55. Authoritative report is isolated
+kernel-qualification-v2.json; original kernel-result still says qual-failed,
+do NOT rewrite it. DSH86191 package ALL0/current RAM facts verified.
+Original214 boot-stage-v1 failed BEFORE latch/reboot/image: control path
+stillR4. V2 explicitly binds current211, all output/profile claims NEW.
+No214 V1 physical boot occurred. Physical report expected isolated
+physical-review214v2.json after exact V2 observer. Input pin sets rechecked
+unchanged, live isolated NOTES updated/committed. Main211 source baseline and
+its completed evidence remain preserved; main code still0203, not0204.
+Next read bounded source samples before deciding alpha-order conversion;
+icons/widgets remain failed, performance213 is still deferred/uncompiled.
+
 ### 2026-11-09 UTC — 0211 TERMINAL: native1800s service healthy; graphics FAIL;214 sampler full build underway
 
 DSH6529 boot observer0,1945.245626s. DSH84849 post ALL1,pins unchanged;

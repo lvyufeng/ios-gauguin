@@ -1,0 +1,279 @@
+/* Build the production exec extraction and insertion with typed OS seams. */
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#define CHECK(x) do { if (!(x)) { fprintf(stderr, "%d: %s\n", __LINE__, #x); exit(1); } } while (0)
+#define NCARGS 262144
+#define PAGE_SIZE 16384
+#define ARM64_BOARD_CONFIG_SWEET 1
+#define IMGPF_INTERPRET 1
+#define IMGPF_IS_64BIT_ADDR 2
+#define IMGPF_WAS_64BIT_ADDR 4
+#define UIO_SYSSPACE 0
+#define UIO_SEG_IS_USER_SPACE(seg) ((seg) != UIO_SYSSPACE)
+#define CAST_DOWN(type, value) ((type)(uintptr_t)(value))
+#define IS_WHITESPACE(ch) ((ch) == ' ' || (ch) == '\t')
+#define TRUE true
+typedef bool boolean_t;
+
+struct proc { int pid; };
+typedef struct proc *proc_t;
+static struct proc process = {57}, other_process = {58};
+struct credential { uid_t uid, ruid; };
+typedef struct credential *kauth_cred_t;
+#define IS_VALID_CRED(cred) ((cred) != NULL)
+struct context { proc_t proc; kauth_cred_t cred; };
+typedef struct context *vfs_context_t;
+static struct credential credentials = {501, 501};
+static struct context exec_context = {&process, &credentials}, kernel_context;
+static proc_t current_proc(void) { return &process; }
+static int proc_pid(proc_t p) { return p->pid; }
+static proc_t vfs_context_proc(vfs_context_t ctx) { return ctx->proc; }
+static kauth_cred_t vfs_context_ucred(vfs_context_t ctx) { return ctx->cred; }
+static vfs_context_t vfs_context_kernel(void) { return &kernel_context; }
+static uid_t kauth_cred_getuid(kauth_cred_t cred) { return cred->uid; }
+static uid_t kauth_cred_getruid(kauth_cred_t cred) { return cred->ruid; }
+
+#define VREG 1
+#define NULLVP NULL
+#define MNT_ROOTFS 1
+#define VNODE_LOOKUP_NOFOLLOW 1
+#define VNODE_LOOKUP_NOCROSSMOUNT 2
+#define KAUTH_VNODE_WRITE_DATA 1
+struct mount { unsigned flags; };
+typedef struct mount *mount_t;
+static struct mount root_mount = {MNT_ROOTFS}, other_mount;
+struct vnode { mount_t mount; int type, refs, auth; uid_t uid; mode_t mode; };
+typedef struct vnode *vnode_t;
+static struct vnode target = {&root_mount, VREG, 1, EACCES, 0, 0755};
+static struct vnode library = {&root_mount, VREG, 0, EPERM, 0, 0644};
+struct vnode_attr { uid_t va_uid; mode_t va_mode; bool supported; };
+#define VATTR_INIT(a) (*(a) = (struct vnode_attr){0})
+#define VATTR_WANTED(a, field) ((void)(a)->field)
+#define VATTR_IS_SUPPORTED(a, field) ((void)(a)->field, (a)->supported)
+static bool missing_target, missing_library, attributes_unsupported, attributes_error;
+static unsigned lookups, writes, authorizations;
+static int vnode_vtype(vnode_t node) { return node->type; }
+static mount_t vnode_mount(vnode_t node) { return node->mount; }
+static unsigned vfs_flags(mount_t mount) { return mount->flags; }
+
+static int vnode_lookup(const char *path, int flags, vnode_t *out, vfs_context_t ctx)
+{
+    CHECK(ctx == &kernel_context);
+    CHECK(flags == (VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT));
+    lookups++;
+    if (strcmp(path, "/usr/libexec/backboardd") == 0) {
+        if (missing_target) return ENOENT;
+        *out = &target;
+    } else {
+        CHECK(strcmp(path, "/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib") == 0);
+        if (missing_library) return ENOENT;
+        *out = &library;
+    }
+    (*out)->refs++;
+    return 0;
+}
+
+static int vnode_getattr(vnode_t node, struct vnode_attr *a, vfs_context_t ctx)
+{
+    CHECK(node->refs > 0 && ctx == &kernel_context);
+    if (attributes_error) return EIO;
+    *a = (struct vnode_attr){node->uid, node->mode, !attributes_unsupported};
+    return 0;
+}
+
+static int vnode_authorize(vnode_t node, vnode_t parent, int action, vfs_context_t ctx)
+{
+    CHECK(node->refs > 0 && parent == NULL && ctx == &exec_context);
+    CHECK(action == KAUTH_VNODE_WRITE_DATA && ctx->cred->uid == 501);
+    authorizations++;
+    return node->auth;
+}
+
+static void vnode_put(vnode_t node) { CHECK(node->refs > 0); node->refs--; }
+
+struct image_params {
+    char *ip_strings, *ip_strendp, *ip_startargv, *ip_endargv, *ip_endenvv;
+    int ip_strspace, ip_argspace, ip_argc, ip_envc, ip_flags, ip_seg;
+    char *ip_interp_buffer;
+    int ip_interp_sugid_fd;
+    user_addr_t ip_user_argv, ip_user_envv, ip_user_fname;
+    vnode_t ip_vp, ip_scriptvp;
+    vfs_context_t ip_vfs_context;
+};
+
+static int copyinptr(user_addr_t address, user_addr_t *out, int pointer_size)
+{
+    CHECK(pointer_size == sizeof(*out));
+    memcpy(out, (void *)address, sizeof(*out));
+    return 0;
+}
+
+static int copyinstr(user_addr_t address, char *out, size_t size, size_t *copied)
+{
+    const char *in = (const char *)address;
+    size_t n = strlen(in) + 1;
+    *copied = n < size ? n : size;
+    memcpy(out, in, *copied);
+    return n <= size ? 0 : ENAMETOOLONG;
+}
+
+static bool copy_failure;
+static int copystr(const char *in, char *out, size_t size, size_t *copied)
+{
+    CHECK(strncmp(in, "DYLD_INSERT_LIBRARIES=", 22) == 0);
+    writes++;
+    if (copy_failure) {
+        CHECK(size >= 4);
+        memcpy(out, in, 4);
+        *copied = 4;
+        return EFAULT;
+    }
+    return copyinstr((user_addr_t)in, out, size, copied);
+}
+
+static unsigned sweet_exec_loader_probe = 1, sweet_eagl_inject_requested;
+#include "production-add.h"
+#include "production-env.h"
+#include "production-inject.h"
+#include "production-extract.h"
+
+static struct image_params run_extract(char *buf, user_addr_t *args, user_addr_t *env,
+    const char *path, int flags, vnode_t actual, vnode_t script, vfs_context_t context)
+{
+    size_t length = strlen(path) + 1;
+    memcpy(buf, path, length);
+    struct image_params image = {
+        .ip_strings = buf, .ip_strendp = buf + length, .ip_strspace = NCARGS + PAGE_SIZE - (int)length,
+        .ip_argspace = NCARGS, .ip_flags = flags, .ip_seg = 1, .ip_user_argv = (user_addr_t)args,
+        .ip_user_envv = (user_addr_t)env, .ip_vp = actual, .ip_scriptvp = script, .ip_vfs_context = context,
+    };
+    CHECK(exec_extract_strings(&image) == 0);
+    CHECK(image.ip_endenvv == image.ip_strendp && image.ip_strspace % 8 == 0);
+    return image;
+}
+
+int main(int argc, char **argv)
+{
+    CHECK(argc == 2);
+    const char *scenario = argv[1];
+#define CASE(name) (strcmp(scenario, name) == 0)
+    static const char mode[] = "GAUGUIN_EAGL_MODE=admission";
+    const char *path = "executable_path=/usr/libexec/backboardd";
+    static char argument[NCARGS];
+    strcpy(argument, "backboardd");
+    user_addr_t args[] = {(user_addr_t)argument, 0};
+    user_addr_t env[] = {(user_addr_t)"LOG=keep", (user_addr_t)mode, 0, 0, 0};
+    char *before = calloc(1, NCARGS + PAGE_SIZE), *after = calloc(1, NCARGS + PAGE_SIZE);
+    CHECK(before && after);
+    bool append = false, event = true;
+    unsigned expected = SEI_SUBJECT, reason = 0, expected_lookups = 0;
+    unsigned requested = 1;
+    int flags = IMGPF_IS_64BIT_ADDR | IMGPF_WAS_64BIT_ADDR;
+    vnode_t actual = &target, script = NULL;
+    vfs_context_t context = &exec_context;
+
+    if (CASE("mobile") || CASE("root") || CASE("exact-fit") || CASE("one-short") || CASE("partial-copy")) {
+        append = !CASE("one-short") && !CASE("partial-copy");
+        expected = append ? SEI_APPENDED : CASE("one-short") ? SEI_SPACE : SEI_COPY;
+        expected_lookups = 2;
+        if (CASE("root")) credentials.uid = credentials.ruid = 0;
+        if (CASE("partial-copy")) copy_failure = true;
+        if (CASE("exact-fit") || CASE("one-short")) {
+            /* One argv, three env entries after insertion and two terminators.
+             * One extra byte in the input crosses the aligned NCARGS limit. */
+            size_t env_bytes = sizeof("LOG=keep") + sizeof(mode);
+            size_t fixed = env_bytes + 6 * 8 + sizeof(sweet_eagl_insert);
+            size_t length = NCARGS - fixed;
+            CHECK((length + env_bytes + sizeof(sweet_eagl_insert)) % 8 == 0);
+            if (CASE("one-short")) length++;
+            memset(argument, 'a', length - 1);
+            argument[length - 1] = 0;
+        }
+    } else if (CASE("disabled") || CASE("bad-flag") || CASE("trace-off") ||
+        CASE("other-path") || CASE("null-context")) {
+        event = false;
+        if (CASE("disabled")) requested = 0;
+        if (CASE("bad-flag")) requested = 2;
+        if (CASE("trace-off")) sweet_exec_loader_probe = 0;
+        if (CASE("other-path")) path = "executable_path=/usr/libexec/other";
+        if (CASE("null-context")) context = NULL;
+    } else if (CASE("mode-absent") || CASE("mode-duplicate") || CASE("mode-other")) {
+        expected = SEI_MODE;
+        if (CASE("mode-absent")) env[1] = 0;
+        if (CASE("mode-duplicate")) env[2] = (user_addr_t)mode;
+        if (CASE("mode-other")) env[1] = (user_addr_t)"GAUGUIN_EAGL_MODE=render";
+    } else if (CASE("already") || CASE("conflicting") || CASE("duplicate")) {
+        expected = CASE("already") ? SEI_ALREADY : SEI_CONFLICT;
+        expected_lookups = CASE("already") ? 2 : 0;
+        env[2] = CASE("conflicting") ? (user_addr_t)"DYLD_INSERT_LIBRARIES=/other" : (user_addr_t)sweet_eagl_insert;
+        if (CASE("duplicate")) env[3] = (user_addr_t)sweet_eagl_insert;
+    } else if (CASE("other-proc") || CASE("script") || CASE("addr32") || CASE("missing-vnode")) {
+        reason = 1;
+        if (CASE("other-proc")) exec_context.proc = &other_process;
+        if (CASE("script")) script = &library;
+        if (CASE("addr32")) flags &= ~IMGPF_IS_64BIT_ADDR;
+        if (CASE("missing-vnode")) actual = NULL;
+    } else if (CASE("no-cred") || CASE("setuid") || CASE("other-uid")) {
+        reason = CASE("no-cred") ? 2 : 3;
+        if (CASE("no-cred")) exec_context.cred = NULL;
+        if (CASE("setuid")) credentials.ruid = 0;
+        if (CASE("other-uid")) credentials.uid = credentials.ruid = 502;
+    } else if (CASE("no-target") || CASE("wrong-target") || CASE("target-mount") ||
+        CASE("no-attributes") || CASE("getattr-error") || CASE("target-acl")) {
+        expected_lookups = 1;
+        reason = CASE("no-target") ? 4 : 5;
+        if (CASE("no-target")) missing_target = true;
+        if (CASE("wrong-target")) actual = &library;
+        if (CASE("target-mount")) target.mount = &other_mount;
+        if (CASE("no-attributes")) attributes_unsupported = true;
+        if (CASE("getattr-error")) attributes_error = true;
+        if (CASE("target-acl")) target.auth = 0;
+    } else {
+        CHECK(CASE("no-library") || CASE("library-mode") || CASE("library-owner") ||
+            CASE("library-type") || CASE("library-acl-error"));
+        expected_lookups = 2;
+        reason = CASE("no-library") ? 6 : 7;
+        if (CASE("no-library")) missing_library = true;
+        if (CASE("library-mode")) library.mode |= S_IWGRP;
+        if (CASE("library-owner")) library.uid = 501;
+        if (CASE("library-type")) library.type = 2;
+        if (CASE("library-acl-error")) library.auth = EIO;
+    }
+
+    struct image_params old = run_extract(before, args, env, path, flags, actual, script, context);
+    sweet_eagl_inject_requested = requested;
+    struct image_params new = run_extract(after, args, env, path, flags, actual, script, context);
+    CHECK(target.refs == 1 && library.refs == 0 && lookups == expected_lookups);
+    CHECK(writes == (unsigned)(append || copy_failure));
+    if (CASE("mobile")) CHECK(authorizations == 2);
+    if (CASE("root")) CHECK(authorizations == 0);
+    CHECK(new.ip_argc == old.ip_argc && new.ip_envc == old.ip_envc + append);
+    CHECK(new.ip_endargv - after == old.ip_endargv - before);
+    if (append) {
+        const char *end = old.ip_endargv;
+        for (int i = 0; i < old.ip_envc; i++) end += strlen(end) + 1;
+        CHECK(memcmp(before, after, (size_t)(end - before)) == 0);
+        CHECK(strcmp(after + (end - before), sweet_eagl_insert) == 0);
+        size_t delta = (size_t)((new.ip_strendp - after) - (old.ip_strendp - before));
+        CHECK(old.ip_argspace - new.ip_argspace == (int)delta + 8);
+        CHECK(old.ip_strspace - new.ip_strspace == (int)delta);
+        if (CASE("exact-fit")) CHECK(new.ip_argspace == 0);
+        sweet_dyld_exec_trace(&new, &process);
+    } else {
+        CHECK(old.ip_strspace == new.ip_strspace && old.ip_argspace == new.ip_argspace);
+        CHECK(old.ip_endenvv - before == new.ip_endenvv - after);
+        CHECK(memcmp(before, after, (size_t)(old.ip_endenvv - before)) == 0);
+    }
+    if (CASE("one-short")) CHECK(old.ip_argspace > 0);
+    printf("MODEL PASS outcome=%u reason=%u event=%u\n", expected, reason, event);
+    free(before);
+    free(after);
+    return 0;
+}

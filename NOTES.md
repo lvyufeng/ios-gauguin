@@ -2,6 +2,226 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0189 opt-in exec insertion passes host and native TU checks
+
+Patch `0183-gauguin-opt-in-eagl-exec-insertion.patch` changes only `kern_exec.c`.
+It adds the existing inert admission library to the exact backboardd exec with
+`sweeteagl=1`, the existing loader probe, and one `GAUGUIN_EAGL_MODE=admission`.
+The exec context must match the current process and have matching real/effective
+UID 0 or 501. The looked-up executable must match the borrowed exec vnode.
+The executable and library must be root-owned regular files on the root mount,
+without group/other write mode. For UID 501 their write authorization in the
+same exec context must return EACCES or EPERM. A pre-existing or conflicting
+insertion is left alone. The patch reserves the new env pointer, original NULL,
+and final alignment before copying. Partial copy restores the live string and
+argument accounting. No library path input, GPU service policy, or userland edit.
+
+`research/tmp/dsh-eagl-0189-loader` holds the candidate and receipts. Host v1
+failed because the macOS SDK already declares `user_addr_t`; using its types in
+v2 gave 34 ASAN/UBSAN passes with the actual `exec_extract_strings` and
+`exec_add_user_string`, including exact NCARGS fit, one extra input byte, and
+partial-copy EFAULT. The 49 retained 0188 diagnostic cases also passed. Native
+TU v2 used 2,128 pinned 0188 config/header inputs and returned 0. Object SHA256
+`09b1a06c7ac7bb61be78cc29d824b48ab56b4f2496caab61233c96cefa3e4367`.
+DSH handle 24080 produced three startup events and no tool calls in 221s.
+The local fallback claimed that profile once. Owned headless PID 31430 was
+stopped after its command and parent were checked. No Actions run for the TU.
+
+Next replay all 177 patches from pristine, compare all 5,329 files to frozen
+0188, then locally build and qualify a fresh image. The final 0188 source has
+nine `sweetbusprobe` reads across BCM, PAS, bus probe, watchdog, CX and GMU.
+Each uses a zero-initialized value and tests its value; omission has the same
+effect as `sweetbusprobe=0`. Remove that one token to fit `sweeteagl=1` in the
+608-byte field. Preserve the 4 GiB geometry, five firmware assets and 600s GLES
+health interval. The phone was last seen in TWRP after 0188. No 0189 image,
+device commands, userdata write, or compositor runtime result at this point.
+The full goal remains active. Original `tools/mkadt.py` diff is preserved.
+
+### 2026-11-09 —189 primary HakiOS confirms DYLD-job filter and kernel exec injection
+
+188actualfactsunchanged: mode=admissionREACHESbackboardd exec(envc10), DYLD_INSERT
+keyABSENT, AMFI90PATH2worksUID501, no librarychecks/constructor. GLESfullPASS,
+phoneTWRP/no trialpending. No189code/image/rootwriteyet. FullgoalACTIVE.
+
+NEWpinnedprimaryHakiOSsource63fc2b4633bac3af8e57dadab9f5a8d4cb940438:
+userland/build.sh blobc60412386c265c501fd9a0a9bace32eedcfedf7b lines16-19/400-411
+writesetc/inject.conf andinit configureskern.exec_inject; userland/src/init.c
+blob6801ce2a1a64fa543ad3500aee38635dcd4420ce lines1449-1486 calls thatsysctl.
+ACTUALkernelmechanisminxnu/hakios.patch blob3bade393cc38c0ab845faaf0ea740aba0cb8bc14
+lines720+: explicitlysayslaunchdREFUSESjobDYLD_variables; appendviaexec_add_user_string
+withUIO_SYSSPACE duringexec_extract_strings AFTERincomingenvcopy/beforeNULL+align.
+Thisconvergeswith188measuredcustommodepresent/DYLDabsent. Earlierinject.c header
+commentaboutlaunchd isnotcompleteimplementationdescription; build/init/patch
+proveactualkernelinjection. W189/primary-exec-inject-reference.json storespinned
+excerpt/URL/blob. No need to blindlyrelaxAMFIforxpcproxy orpatchAppleexecutables.
+
+Read-onlyhistoricalstaticinventory W189/offline-launch-v1: actualxpcproxy96352B
+SHAa97bc59d024c3b7fcf293aa6ef2fa75b60ef7220b2546ab4382adcbe78ddbfec,
+launchd541600B12370e5ee35bf28ae479b6c4b4455f4f4693ab803e37c5eb3032537c18cac61c;
+bothLC_BUILD_VERSIONplatformiOS2 (noassumedmacOSprune). Nohardlinks. Thesearestatic
+from855cHISTORICALbackup, no currentphoneIO/mount/execute, notruntimefilterproof.
+Pinnedprimaryinject.c onlyopenslibhakios.gl inbackboardd; no source copied blindly.
+
+NEXT implementNARROWkernel-onlyinertdiagnosticinjection, proposednotwrittenthis
+entry: explicitnewbootarg sweeteagl=1/default0 ANDexistingdyldprobe1; exactsaved
+backboarddpath+actualimgp executablevnode/protectedrootfile+currentUID/ruid0or501;
+also validateexistingroot-ownednonwritableinertlib. Requireexistingmode=admission
+(unique), appendONLYfixedDYLD_INSERT_LIBRARIES=...libGauguinEAGLAdmission.dylib.
+No genericconfig/sysctl/arbitrarylibrary path; no GPU/renderer grant. No newroot
+write/consentneededfortemporarykernel; samepreviouslyapproved67f7inertlibrary.
+
+Spacecorrectnessrequired: insertionpointBEFOREenvNULL/alignment; preflightconstant
+stringbytes +8Bnewenvpointer +8BexistingNULLpointer +exactnewalignmentpad for64bit,
+validateexecargs ranges/metadata, keepallexistingvars. ExistingidenticalDYLDkey:
+no duplicate; conflicting/duplicatekey orinsufficientspace: SKIPunchangedexec,
+recordreason. Ifexec_add_user_string unexpectedlyfails, restorestringend/strspace/
+argspace (onlyunusedtailmayhavebeentouched); preserveoriginalvisibleargv/env and
+originalexecresult. Actualexec_add helper loopsENAMETOOLONG, advancesmetadataeven
+oncopyerror; testsMUSTusecompleteactualhelper andoriginalNULL/alignmenttail, not
+mockawayaccounting. Subjectvnode/credrefsbalanced; currenttargetvnodeborrowed.
+Testcompleteproductionhelpers/actualcopyhelper underASAN/UBSAN, nativeARM64C,
+thenpristine177patchreplay/fullbuild/newopt-inimage. 188observerhelpers/models49/
+38/fullGLES retained. Forbootargspaceomitonlysource-provenzero-defaultarg(e.g.
+sweetbusprobe=0), add sweeteagl=1; do nottruncate608Bfield orchangeRAM/window.
+Reviewallactualkeyconsumersbeforeomittingthezero-defaultargument. Originalmkadt a74a kept.
+
+### 2026-11-09 —188 measured: custommodeDELIVERED, DYLD_INSERTabsent atbackboardexec
+
+188actualONEbootautoTWRP observer0,745.620436s,19:49:16.009106..20:01:41.629542UTC
+Nov8. V12terminal0/inputsunchanged; outer51816closed. V13sequential12-filecapture,
+fullfrozenGLES+loaderobservation, source-backedstderrreview andindependentphysical
+review ALL0/inputsunchanged, outer89537closed. PhoneNOWTWRP/unmounted, noactual
+trialpending. No188rootwrite, same9static186files(Mesa3a4/smalllib67f7/job33f5/
+cache05b8/policies/probes). All3WHOLEprefixes9884/2879/453728B retained. 855cPRE186
+backupHISTORICAL, NEVERrawrollbackafterboot;186403-blockconsentCONSUMED.
+
+CriticalobservationsW188/independent-physical-review.json:
+AMFIregisteredrc0ONCE; PID57UID501ruid501/protectedexec1/PATH2/rc0TWICE.
+346validatedexecobservations. TargetproxyPID57image2:argc2/envc1/joblabel1,
+insert0/expected0/mode0/admission0 (normalminimalbootstrapenv; notaloneafailure).
+FINALbackboarddPID57image1:argc1/envc10/job0,insert0/expected0 BUTmode1/admission1.
+ThusourcustomGAUGUIN_EAGL_MODE=admission ISdelivered, DYLD_INSERT_LIBRARIES key
+isABSENTbeforethetargetexec. Taskconfiguration isnotwhollyignored. Zeroactual
+inertlibopen/mmapCHECKrecords, zeroEAGL186markers/newBBoard5156B, nocrash.
+Missinginjectionnotexplainedbyunsupportedinitializerformat: actual1067supports
+0x16 andinstalled67f7readonly4Binitoffsetpointsatrealctorcallingadmit, eligibility
+reviewonly. ActualcompositorUIDviaAMFIproven; constructor/budgetstillunknown.
+NEXT locateSPECIFICDYLD-filterstageinactualxpcproxy/launchd/libxpc; doNOTguess
+jobcacheentirelyignored orassume xpcproxyminimalenv itselfprovesfilter. No repeat
+unchangedimage. DoNOTinfermappingfailure/successjustfromMACprecheckabsence.
+
+188GLESindependentlyPASS: FD619/ES3.1Mesa25.0.7, startupseed2124383053 full8192+
+1024wordreads; shaderseed2069411535, all1024RGBA/all1024BGRApixels eachhash789203909;
+6nativejobs/EOP1..6/rings32/44/56/68/80/92,595renewals/full600shealth. Six128MiBHARD
+GET8 phases footprints852208/16171288/16171288/25215296/25461056/25510208B. Entire
+269Bstderr identicalprimary-reviewed185warning withsameacceptedMesa. State
+reviewed188-full-GLES-PASS-loader-observations-and-injection-status isobservation
+acceptance, NOTinjection/GPUUI/Metal/highrefresh/dailyuse. Explicitinjectionfalse.
+FullgoalACTIVE, actualRAM4GiB. SourcePRIVATE51dc5e8/PUBLICc241867/tree d622e67,
+image17509dcf/buildID28625b4 allimage/native/stdoutidentityverified.
+
+DSHresponseinvestigationduring188wait: originalenabled/highthinking; official
+DeepSeekdocssupportdisable. LocaladapterneedsreasoningEffort=offwithdisabled.
+Privatefastv1(low) localreject; v2partialconfigreplacementlostrelayroute and
+MISSING_CREDENTIAL BEFOREAPI(notoriginalaccountauthfailure); v3FULLoriginalrelay
+configwithONLYthinkingdisabled/effortoff, startupvalid butstill3initialevents/
+zero tools after>153s. No causeproven, no globalconfigchange. Ownedidleheadless
+24060/24784terminatedafterancestrycheckpreservingactualobserver24151/userTUI;
+outer10254/80606closed. W188/dsh-execution-review.json. All188actualworkwasCODEX
+LOCALFALLBACK, notDSH. FutureDSHpreferredwhenresponsive; don'trepeatthesemodels/
+bootsmerelytochangeexecutor. Originalmainmkadt a74a preserved.
+
+NEXT189: read-onlyactualstaticxpcproxy/launchd inventory/disassembly, matchAMFI/
+envfiltercontrolpoints. Alreadyloadedcustommode narrowsproblemtoDYLDhandling.
+Mayneedadditionalminimaltrustedxpcproxyqueryinterface AFTERactualABI/flagproof;
+no189code/image/rootdelta yet. Do not enablefullbridge/GPUappaccessorrequest
+newrootwriteuntilconcreteauditedchange ready. All188handlesclosed.
+
+### 2026-11-09 —188 actual temporary boot LIVE; wait same51816 handle
+
+188v12claimedLOCALdispatcher24151 at1794167351.034024, actualfastbootSending/
+BootingOKAY0.594s. Preflightobserver-running/miscverified. CURRENTphone188running;
+noUSBexpecteduntilautomaticTWRP. WaitsameLOCALouter51816 terminal (780sobserver/
+860sbound/600sservice), noanotherboot onabsenceofUSB orobservationtimeoutalone.
+Useraway; noUI/resetattributionquestions. Exactimage17509dcf/source51dc5e8/buildID
+28625b4, same186installedroot/Mesa3a4/inert67f7/job33f5/cache05b8. No188rootwrites.
+
+DSH188requestouter10254 hadonly3initialevents/zero tools orclaim after>111s;
+userinformed, sameatomicprofileexecutedCODEXLOCALFALLBACK. Origin W188/
+execution-origin-v12.json. DelayedDSHcannotclaimtwice; onlycloseitsownedidle
+headlessclientseparatelywithouttouchingactualobserver/userTUI. No188physical
+loader/env/admissionfacts untildatareadback. GoalACTIVE/allGPUUI/Metal/highrefresh/
+fullRAM/dailyuseunqualified. 186PREBOOT855cbackupHISTORICAL/consentconsumed.
+
+NEXT after188v12terminal0: python3 research/tmp/dsh-eagl-0188-loader/prepare_post188.py
+then python3 tools/run-pinned-stage.py research/tmp/dsh-eagl-0188-loader/checks-v13.json.
+Guardedrun_post188.py reads12files thencompletefrozenGLES/API +loader_contract188
+(allrecords,nofixedcallcount), exact269Bstderrreview, independentpixel/EOP/health/
+exec/filecorrelation andconditionalFULL186admission. All3WHOLEprefixes9884/2879/
+453728B MUSTremainexact. Accesschecksareattempts, nevermapping-successproof.
+collected188...state isNOTinjectionPASS; explicitqualifiedflagonlywith12actual
+admissionlines/8methodtypes/GET8VM. No furtheruserdatawritesauthorized. Original
+mkadt a74a... preserved. Prior188handles83742/27595/76473/89300 closed.
+
+### 2026-11-09 —188 native/image/preboot PASS; DSH boot request pending
+
+188sourcePRIVATE51dc5e84609db42e2b10dbb3667740c4ca87cf9c/TREE
+d622e67a8fb0f0b91f032e0307b122ed61a8e5ea. PublishedNEWkernelbranch
+codex/gauguin-loader-evidence-20261109 PUBLICc24186763efabd7c37731d0d0e2eb01b8b3f4bb9,
+exactTREE/soleparent187public3d94eb6/refverified. FiveUTF8textfilesonly; old187/main/
+UIpublicrefsunchanged. InitialpubscriptlocalBASETREEreplacementcollisionfailed
+BEFOREanyAPI; retainedv1, correctedv2published. NoCI dispatch, ghfallback/no force.
+
+V5pristine176patches0, all5329filescomparefrozen187: ONLYkern_exec.c/sweet_amfi.c
+changed, bothcandidate-v2exact. S=.deps-cache/p0-20261105/source188-codex SHA
+61345456fcc5576525198a9c97be5350adcd4253988696ff45f5c8eab568b16b;
+separatesource-state W188/source-state; frozen187unchanged. V6actualCIdefaultentry
+49cases0. W188/independent-software-review188.json pinsnew49+retained38/native2TUs/
+2128headers. V7fullLOCALnative inFRESHbuild188-loader/makeinstall0/qualification0
+in136.765s, run gauguin.zAeM74. Original187manifest/source-state hash+mtime kept.
+KernelSHA7d6169a630900c6c2a456501a93eb08984356a21da94b56fd5b9fd8359bb8303,
+buildIDxnu-28625b4c97ae4aaeb1068b33408a6cf2. Alloldprovenance/symbol/cache64checks
+PLUSnewopen/mmapcallbacksdefined; DATAconfdefinitioncheckretained. Nohardware188yet.
+
+V8readonlycurrent9files+3WHOLEprefixes0 after187: stdout9884B SHA4e38419b...,
+stderr2879B79d1b8c5..., BBoard453728B227b04a8...; fullpinsreceipt W188/
+installed-preflight.json. CURRENTunmountedrootheader90dead311407823c703dff379854103de3b3954a49ce43d9a9113ceed9a1a794.
+Same186smalllib67f7/job33f5/cache05b8/Mesa1853a4/128MiBprobe policies. No188rootwrite.
+V9package0 image shim/out/shim-p3-gmuf-0188-native-20261109.img19988480B SHA
+17509dcf010049a9c3f68121f813f90e60f96ee8d47fdf11bc0a79ae1ba52996;
+payload4f0fefbe432c577e20f9afb1f88474b2877b7c04beec82e0e5e3df87799adfcf.
+Exact605-byte187command/3NULs, same4GiBmemorywindow/shim/DTB/fivefirmwarebytes.
+MACfilehooksarePRECHECKS/attempts, NOTsuccessfulmappingproof. NoGPUauthoritychange.
+
+V10pureloaderframingMODEL35cases0: acceptallvalididempotentAMFIqueries(noexact1
+assumption), rejecteverymalformed/bad-role/flag/overflow/uncorrelatedrecord. Keep
+ALLexec/fileobservations. IfnoEAGLmarker: reportinjectionfalse/observationsonly;
+ifmarkerspresent: invokeFULLunchanged186admissioncontract, thenindependent8actual
+methodtypes/GET8VMcomparison. Nevermmap-check=>mapping-success. Fullfrozen181v2/
+180GLES/API unchanged. V11preboot0: original186bootflowBYTEIDENTICAL/24bootcases,
+41admissioncases retained, model35, static9/prefixes/image/source/assetpinschecked.
+Actual1067initializer0x16support+currentinstalledconstructorbodyreviewedoffline;
+thisiseligibilityonly, notphysicalinit. W188/initializer-eligibility-review.json.
+
+CURRENTatentry: phoneTWRP/unmounted, no188bootyet. DSH188v12LIVE outer10254,
+events-v12/checks-v12: firsttoolpending (inspectclaimBEFOREanyfallback). Atomic
+runnerprofileSHA61524839bfe396a606f93a94782f2629e29cb5f4526bfbf92ba3d9ca1f57a0d0;
+bootprofileSHAbe41dc86f69d2f2cbeb29f57032b307e589d195f9bac2125b6db60c078c0423c.
+ONEtempimage/600sservice/780sobserver860sbound, routine13Bmisc only. All188actual
+worksofarCODEXLOCALFALLBACK duringDSHupstreamoutage; retriedDSHforactualboot.
+NoUI/resetquestions(useraway); askonlygenuinelystuckmanualaction.
+
+NEXT onactual188v12terminal0: python3 W188/prepare_post188.py thenrun-pinned-stage
+W188/checks-v13.json. Guardedsequentialrun_post188.py does12-filereadonlycapture,
+qualify_trial188.py (fullfrozenGLES+allloaderrecords),review_stderr188.py (only
+exact269B185primary-reviewedwarning),review_physical188.py. Keepall3WHOLEprefixes.
+State collected188-physical-loader-observations-GLES-PASS-pending-independent-
+review doesNOTmeaninjectionPASS; explicitcompositor_injection_qualified only
+fromactualfulladmission. No188hardware/env/admissionfacts yet. GoalACTIVE, realRAM
+4GiB/GPUUI/Metal/highrefresh/dailyuse unqualified. No newuserdatawriteauthorized;
+186consentCONSUMED/855cPREBOOTbackupHISTORICAL, neverrawrollbackafterboot.
+Originalmkadt a74a preserved. Allprior188handles83742/27595/76473closed.
+
 ### 2026-11-09 —188 read-only loader observation code;49+38host and2nativeTUs PASS
 
 187actualbaseline retained: 746.262208s/autoTWRP, root-onlyGLES600s/595renewals/

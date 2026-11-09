@@ -198,3 +198,5 @@
 0200-gauguin-readonly-wrapped-images.patch
 0201-gauguin-whole-request-clock-profile.patch
 0203-gauguin-client-bo-capacity.patch
+0205-gauguin-iosurface-client-create.patch
+0206-gauguin-once-unlock-swipe.patch

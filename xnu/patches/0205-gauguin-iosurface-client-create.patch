@@ -1,0 +1,162 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -367,6 +367,128 @@
+ 	return kIOReturnSuccess;
+ }
+ 
++/* Caller-owned storage must use its exact extent, rather than the rounded
++ * allocation used by ordinary creates. Validate numbers before the ordinary
++ * layout's narrower fields can truncate them. */
++static bool
++sweet_surface_client_numbers(OSDictionary *props, bool plane)
++{
++	struct limit { const char *key; uint64_t maximum; };
++	static const struct limit imageLimits[] = {
++		{ "IOSurfaceWidth", SWEET_SURFACE_MAX_DIM },
++		{ "IOSurfaceHeight", SWEET_SURFACE_MAX_DIM },
++		{ "IOSurfaceBytesPerElement", 64 },
++		{ "IOSurfaceElementWidth", 255 }, { "IOSurfaceElementHeight", 255 },
++		{ "IOSurfaceBytesPerRow", SWEET_SURFACE_MAX_ALLOC },
++		{ "IOSurfaceOffset", SWEET_SURFACE_MAX_ALLOC },
++		{ "IOSurfaceAllocSize", SWEET_SURFACE_MAX_ALLOC },
++		{ "IOSurfacePixelFormat", UINT32_MAX }, { "IOSurfaceCacheMode", UINT32_MAX }
++	};
++	static const struct limit planeLimits[] = {
++		{ "IOSurfacePlaneWidth", SWEET_SURFACE_MAX_DIM },
++		{ "IOSurfacePlaneHeight", SWEET_SURFACE_MAX_DIM },
++		{ "IOSurfacePlaneBytesPerElement", 64 },
++		{ "IOSurfacePlaneElementWidth", 255 }, { "IOSurfacePlaneElementHeight", 255 },
++		{ "IOSurfacePlaneBytesPerRow", SWEET_SURFACE_MAX_ALLOC },
++		{ "IOSurfacePlaneOffset", SWEET_SURFACE_MAX_ALLOC },
++		{ "IOSurfacePlaneSize", SWEET_SURFACE_MAX_ALLOC }
++	};
++	const struct limit *limits = plane ? planeLimits : imageLimits;
++	size_t count = plane ? sizeof(planeLimits) / sizeof(planeLimits[0]) :
++	    sizeof(imageLimits) / sizeof(imageLimits[0]);
++	for (size_t i = 0; i < count; i++) {
++		OSObject *object = props->getObject(limits[i].key);
++		OSNumber *number = OSDynamicCast(OSNumber, object);
++		if (object != NULL && (number == NULL || number->unsigned64BitValue() > limits[i].maximum)) {
++			return false;
++		}
++	}
++	return true;
++}
++
++static bool
++sweet_surface_client_extent(uint32_t width, uint32_t height, uint32_t bpe,
++    uint32_t ew, uint32_t eh, uint32_t row, uint64_t *minimum, uint64_t *full)
++{
++	if (width == 0 || height == 0 || bpe == 0 || ew == 0 || eh == 0) return false;
++	uint64_t lastRow = (uint64_t)sweet_div_up(width, ew) * bpe;
++	uint64_t rows = sweet_div_up(height, eh);
++	if (row < lastRow) return false;
++	*minimum = (rows - 1) * row + lastRow;
++	*full = rows * row;
++	return *full <= SWEET_SURFACE_MAX_ALLOC;
++}
++
++static IOReturn
++sweet_surface_client_layout(SweetSurface *s, OSDictionary *props)
++{
++	if (!sweet_surface_client_numbers(props, false)) return kIOReturnBadArgument;
++	OSObject *planeObject = props->getObject("IOSurfacePlaneInfo");
++	OSArray *planes = OSDynamicCast(OSArray, planeObject);
++	if (planeObject != NULL && planes == NULL) return kIOReturnBadArgument;
++	if (planes != NULL) {
++		if (planes->getCount() > SWEET_SURFACE_MAX_PLANES) return kIOReturnBadArgument;
++		for (unsigned i = 0; i < planes->getCount(); i++) {
++			OSDictionary *pd = OSDynamicCast(OSDictionary, planes->getObject(i));
++			if (pd == NULL || !sweet_surface_client_numbers(pd, true)) return kIOReturnBadArgument;
++		}
++	}
++	IOReturn ret = sweet_surface_layout(s, props);
++	if (ret != kIOReturnSuccess) return ret;
++	if (s->width == 0 || s->height == 0) return kIOReturnBadArgument;
++	uint64_t minimum = 0, full = 0;
++	if (s->planeCount == 0) {
++		if (!sweet_surface_client_extent(s->width, s->height, s->bytesPerElement,
++		    s->elementWidth, s->elementHeight, s->bytesPerRow, &minimum, &full)) return kIOReturnBadArgument;
++		minimum += s->offset;
++		full += s->offset;
++	} else {
++		for (unsigned i = 0; i < s->planeCount; i++) {
++			struct sweet_surface_plane *p = &s->planes[i];
++			uint64_t planeMinimum, planeFull;
++			if (!sweet_surface_client_extent(p->width, p->height, p->bytesPerElement,
++			    p->elementWidth, p->elementHeight, p->bytesPerRow, &planeMinimum, &planeFull) ||
++			    p->size < planeMinimum) return kIOReturnBadArgument;
++			uint64_t end = (uint64_t)p->offset + p->size;
++			if (end > minimum) minimum = end;
++			if (end > full) full = end;
++		}
++	}
++	OSNumber *allocation = OSDynamicCast(OSNumber, props->getObject("IOSurfaceAllocSize"));
++	uint64_t size = allocation != NULL ? allocation->unsigned64BitValue() : full;
++	if (size == 0 || size < minimum || size > SWEET_SURFACE_MAX_ALLOC) return kIOReturnBadArgument;
++	s->allocSize = (uint32_t)size;
++	return kIOReturnSuccess;
++}
++
++static IOReturn
++sweet_surface_bind_client(SweetSurface *s, task_t task, uint64_t address)
++{
++	if (address == 0 || address > UINT64_MAX - s->allocSize) return kIOReturnBadArgument;
++	uint32_t charge = (uint32_t)round_page((address & PAGE_MASK) + s->allocSize);
++	uint64_t previous = (uint64_t)OSAddAtomic64(charge, (volatile SInt64 *)&sweet_surface_wired);
++	if (previous > SWEET_SURFACE_WIRED_MAX - charge) {
++		OSAddAtomic64(-(SInt64)charge, (volatile SInt64 *)&sweet_surface_wired);
++		return kIOReturnNoMemory;
++	}
++	s->wiredSize = charge;
++	s->mapCache = kIOMapDefaultCache;
++	s->memory = IOMemoryDescriptor::withAddressRange(address, s->allocSize,
++	    kIODirectionInOut | kIOMemoryThreadSafe, task);
++	IOReturn ret = s->memory != NULL ? s->memory->prepare() : kIOReturnNoMemory;
++	if (ret == KERN_PROTECTION_FAILURE) {
++		/* Match wrapImage: only a protection failure permits a fresh device-read
++		 * descriptor. An immutable image must never acquire a writable alias. */
++		OSSafeReleaseNULL(s->memory);
++		s->memory = IOMemoryDescriptor::withAddressRange(address, s->allocSize,
++		    kIODirectionOut | kIOMemoryThreadSafe, task);
++		ret = s->memory != NULL ? s->memory->prepare() : kIOReturnNoMemory;
++		if (ret == kIOReturnSuccess) s->readOnly = true;
++	}
++	if (ret == kIOReturnSuccess) s->memoryPrepared = true;
++	return ret;
++}
++
+ /* Per-client mapping of one surface. */
+ class SweetSurfaceRef : public OSObject {
+ 	OSDeclareDefaultStructors(SweetSurfaceRef);
+@@ -744,8 +866,19 @@
+ 		return kIOReturnNoMemory;
+ 	}
+ 	s->parentID = args->scalarInputCount > 0 ? (uint32_t)args->scalarInput[0] : 0;
+-	ret = sweet_surface_layout(s, props);
+-	if (ret == kIOReturnSuccess) {
++	OSObject *addressObject = props->getObject("IOSurfaceAddress");
++	OSNumber *address = OSDynamicCast(OSNumber, addressObject);
++	bool clientMemory = addressObject != NULL;
++	if (props->getObject("IOSurfaceAddressRanges") != NULL) {
++		ret = kIOReturnUnsupported;
++	} else if (clientMemory) {
++		ret = address != NULL ? sweet_surface_client_layout(s, props) : kIOReturnBadArgument;
++		if (ret == kIOReturnSuccess) ret = sweet_surface_bind_client(s, fTask, address->unsigned64BitValue());
++		if (ret == kIOReturnSuccess && !sweet_surface_publish(s)) ret = kIOReturnNoResources;
++	} else {
++		ret = sweet_surface_layout(s, props);
++	}
++	if (ret == kIOReturnSuccess && !clientMemory) {
+ 		IOBufferMemoryDescriptor *mem = NULL;
+ 		if ((uint64_t)OSAddAtomic64(s->allocSize, (volatile SInt64 *)&sweet_surface_wired) +
+ 		    s->allocSize <= SWEET_SURFACE_WIRED_MAX) {
+@@ -772,6 +905,8 @@
+ 		IOLog("SWEET SURF: %s create id %u %ux%u fmt 0x%x bpe %u bpr %u planes %u size %u keys %u -> 0x%x\n",
+ 		    name, s->id, s->width, s->height, s->pixelFormat, s->bytesPerElement,
+ 		    s->bytesPerRow, s->planeCount, s->allocSize, props->getCount(), ret);
++		IOLog("SWEET SURF CREATE BACKING: id=%u address-key=%u client=%u readonly=%u result=%x\n",
++		    s->id, clientMemory ? 1u : 0u, s->memoryPrepared ? 1u : 0u, s->readOnly ? 1u : 0u, ret);
+ 	}
+ 	props->release();
+ 	if (ret != kIOReturnSuccess) {

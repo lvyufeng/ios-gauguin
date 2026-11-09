@@ -20,8 +20,8 @@ typedef void (*thread_continue_t)(void *, int);
 typedef void *thread_t;
 static struct { bool started, thread_started; int irq_hint; } st;
 static bool mode_present, enable_present, fail_create;
-static int selected_mode, selected_enable, physical_mode;
-static unsigned creates, hardware_ops, inline_probes, taps, deallocations, nvt_inits, physical_inits;
+static int selected_mode, selected_enable, physical_mode, swipe_mode;
+static unsigned creates, hardware_ops, inline_probes, taps, deallocations, nvt_inits, physical_inits, swipes;
 
 static bool PE_parse_boot_argn(const char *name, void *value, int size)
 {
@@ -38,6 +38,10 @@ static bool PE_parse_boot_argn(const char *name, void *value, int size)
         *(int *)value = physical_mode;
         return physical_mode != 0;
     }
+    if (strcmp(name, "swp") == 0) {
+        *(int *)value = swipe_mode;
+        return swipe_mode != 0;
+    }
     assert(strcmp(name, "sweettouchirq") == 0);
     return false;
 }
@@ -51,6 +55,7 @@ static void touch_bringup_thread(void *arg, int result)
 static void sweet_fb_mark(uint32_t colour) { (void)colour; hardware_ops++; }
 static void sweet_log_mark(const char *text) { (void)text; }
 void sweet_tap_arm(void) { taps++; }
+void sweet_swipe_arm(void) { swipes++; }
 /* The independent probe's real opt-in/lifecycle is covered by test_nvt_probe.py. */
 void sweet_nvt_probe_init(void) { nvt_inits++; }
 void sweet_nvt_start(void) { physical_inits++; }
@@ -76,8 +81,8 @@ static void reset(void)
 {
     memset(&st, 0, sizeof(st));
     mode_present = enable_present = fail_create = false;
-    selected_mode = selected_enable = physical_mode = 0;
-    creates = hardware_ops = inline_probes = taps = deallocations = nvt_inits = physical_inits = 0;
+    selected_mode = selected_enable = physical_mode = swipe_mode = 0;
+    creates = hardware_ops = inline_probes = taps = deallocations = nvt_inits = physical_inits = swipes = 0;
 }
 static void expect_idle(void)
 {
@@ -95,16 +100,24 @@ int main(void)
     expect_idle();
     assert(taps == 0 && !st.thread_started && physical_inits == 0);
     for (int mode = 0; mode <= 3; mode++) {
-        reset(); physical_mode = 1; mode_present = true; selected_mode = mode;
+        reset(); physical_mode = 1; swipe_mode = 1; mode_present = true; selected_mode = mode;
         sweet_touch_init(); sweet_touch_init();
         assert(physical_inits == 1 && nvt_inits == 0);
-        assert(taps == 0 && !st.thread_started);
+        assert(taps == 0 && swipes == 0 && !st.thread_started);
         expect_idle(); /* Even conflicting legacy arguments never fall through. */
     }
     reset();
     sweet_touch_start_at_init(); /* framebuffer/direct entry also stays idle */
     expect_idle();
     assert(!st.thread_started);
+    for (int option = -1; option <= 2; option++) {
+        reset(); swipe_mode = option;
+        sweet_touch_init(); sweet_touch_init();
+        assert(swipes == (option == 1 ? 1u : 0u));
+        assert(nvt_inits == (option == 1 ? 0u : 1u));
+        assert(physical_inits == 0 && taps == 0);
+        expect_idle();
+    }
 #else
     assert(nvt_inits == 0);
     assert(creates == 1 && deallocations == 1 && inline_probes == 0);

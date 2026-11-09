@@ -33,7 +33,7 @@ static IOReturn sweet_surface_seed_out(SweetSurface *,void *,bool bump){
 }
 struct gpu_buffer {IOMemoryDescriptor *memory=nullptr;SweetSurface *surface=nullptr;uint32_t handle=0;};
 struct GauguinGPUUserClient {
-    gpu_buffer fBuffers[GGR_MAX_BUFFERS];
+    gpu_buffer fBuffers[GGR_MAX_CLIENT_BUFFERS];
     IOReturn surface(struct ggr_surface *);
     IOReturn add(IOMemoryDescriptor *m,SweetSurface *s,uint64_t n,uint32_t flags,uint32_t *handle){
         assert(m==s->memory&&n==s->allocSize&&!flags);++gpuAdds;*handle=77;return 0;
@@ -111,7 +111,7 @@ CASES = r'''
 
 
 def main():
-    runtime_header = ROOT / '.deps-cache/p0-20261105/source206-codex/bsd/dev/gauguin_gpu_runtime.h'
+    runtime_header = TREE / 'bsd/dev/gauguin_gpu_runtime.h'
     paths = [Path(__file__), SURFACE, HEADER, GPU, FIXTURE, runtime_header]
     pins = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
     source, gpu = SURFACE.read_text(), GPU.read_text()
@@ -128,7 +128,7 @@ def main():
     methods = '\n'.join(extract(source, n) for n in signatures)
     methods += extract(gpu, 'IOReturn GauguinGPUUserClient::surface(')
     text = FIXTURE.read_text()
-    text = change(text, '#include <algorithm>', '#include <algorithm>\n#include <initializer_list>\n#include "gauguin_gpu_runtime.h"')
+    text = change(text, '#include <algorithm>', '#include <algorithm>\n#include <initializer_list>\n#include "gauguin_gpu_runtime.h"\n#ifndef GGR_MAX_CLIENT_BUFFERS\n#define GGR_MAX_CLIENT_BUFFERS GGR_MAX_BUFFERS\n#endif')
     text = change(text, 'using task_t = uintptr_t;', 'using task_t = uintptr_t;\nusing IOMemoryMap = struct Mapping;')
     text = change(text, '''constexpr IOReturn kIOReturnSuccess = 0, kIOReturnBadArgument = 1,
     kIOReturnNoMemory = 2, kIOReturnVMError = 3, kIOReturnNoResources = 4;''', '''constexpr IOReturn kIOReturnSuccess=0,KERN_PROTECTION_FAILURE=2,

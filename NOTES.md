@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206-R2 requested repeat LIVE; fresh feedback pending
+
+DSH20344 owns ONE new R2 observer in dsh-gpu-0206-manual-r2 after CURRENT
+first206 headerc05729cf,full15 files/COMPLETE206-prefix and memory preflight.
+EXACT SAME imagebe58f40cc7efd85743b8197927e93bb28322d2f991210cb95c48325ab816772b,
+6GiB/mode2/600s/Homeoff/30Hz;19,520KiB transfer+Booting both OKAY,total0.597s.
+reuse-result.json explicitly records independent_native_build=false; copied
+qualified206 receipts remain byte-identical and point to original206 build.
+No new image/kernel build, userdata delta/flash/rollback. New trial/capture/
+atomic claims are distinct from first206. Actual R2 physical result pending.
+
+User notified IMMEDIATELY after boot and asked actual0206-R2 unlock/swipe/
+Settings/return-Home comparison after~two minutes, leaving the ten-minute
+window available. Reply pending; do NOT assign first206 missed-test or205
+lag responses to R2. Single R2 post-wait-stage-v1(1080s ceiling) now watches
+this EXACT observer/BOTH dispatchers, saves all15 files/complete206 prefixes
+and verifies600s service/fences/timing/MICRO rechecks. Timing comparison to
+healthy204 remains scoped; UI health/performance need actual R2 evidence.
+Root owns NOTES; poll existing R2 claims, no duplicate/retry on timeout.
+Full goal active; no manual restart request while observer runs.
+
 ### 2026-11-09 — 0206 first trial terminal; user requests identical manual R2
 
 First206 automatic12:14:44.377626–12:27:10.745809UTC,746.368183s.

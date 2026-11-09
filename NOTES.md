@@ -2,6 +2,141 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0191 native RAM counters and fresh range audit
+
+The fresh read-only TWRP inventory is in `research/tmp/dsh-memory-0191`.
+All 0190 root file and full log prefix pins matched. Current FDT banks,
+fixed/dynamic reservations, FDT reservation header and Linux System RAM ranges
+match 0182. Current recovery MemTotal is 7,742,423,040 bytes. The 6 GiB proposal
+still adds exactly 2,147,483,648 bytes with no fixed or dynamic firmware overlap.
+Capture/audit returned 0 and read the root header twice without changing it.
+
+Patch `0185-gauguin-native-ram-size-receipt.patch` adds one Gauguin BSD-init log
+at an already captured boot marker. It reports the boot physical base and
+actual `mem_size`, `mem_actual`, `max_mem`, `max_mem_actual`, and `sane_size`.
+The XNU VM assigns its physical base from the same boot field. The native
+recipe defines `XNU_TARGET_OS_OSX`, so its `hw.memsize` points to
+`max_mem_actual`. Report both max fields explicitly. First native TU failed
+because `gPhysBase` is private to Mach. V2 reuses BSD's existing boot-args API
+and returned 0 with unchanged native inputs. DSH 49928 had only three startup
+events and no claim after 2m04s. Stopped its owned PID 9832 and used local
+one-claim profiles; both cross attempts and outer handles are closed.
+
+Next replay 179 patches and verify only `bsd_init.c` changed relative to 0190.
+Build one 0191 kernel, package an offline 4 GiB control and a separate 6 GiB
+trial with the same kernel, root, bootargs, assets and loader. Require actual
+RAM counters plus full GLES/constructor regression before accepting 6 GiB
+recognition. CPU page pressure, extra-range DMA and other safe lower regions
+are later acceptance steps. No new userdata write or 0191 boot at this entry.
+
+### 2026-11-09 — 0190 physically verifies the compositor admission path
+
+One 0190 boot completed and returned automatically to TWRP in 746.756016s
+(01:24:55.842962–01:37:22.598978 UTC). Boot and read-only post stages both
+returned 0 with unchanged pins. Outer handles 40402 and 59473 closed. Current
+phone is in recovery after the complete 12-file capture. All nine installed
+static files and three full prior log prefixes matched. New complete log
+sizes are 16,014 / 3,686 / 470,503 bytes. No new userdata write.
+
+`research/tmp/dsh-eagl-0190-loader/independent-physical-review.json` reports
+PID 57 xpcproxy job trace, then append outcome 1, reason 0, error 0, added 1,
+with UID and real UID 501. Final backboardd exec matches the same PID and
+envc 11, with insert/expected/mode/admission all 1. AMFI PATH2 succeeded twice.
+There were three open and five mmap checks. The actual 12-line constructor
+session independently proves loading and all eight EAGL encodings on 20H392.
+It reports `hooks=0 gpu_opens=0 rendering=disabled` and the GPU service was
+absent at construction. Native console registers the service later.
+
+The constructor's own GET8 was denied as predicted (`rc=-1 errno=1`, output
+fields still zero). The same PID's native GET8 snapshot gave active and
+inactive limits both -1, attributes both 1. This uses the native limit getter;
+the -1 values represent no finite reported per-process limit. Task VM
+footprint at the constructor was 1,016,128 bytes. No rendering headroom or
+system-wide memory-pressure result is inferred from startup alone.
+
+Independent standalone FD619 GLES regression passed with Mesa 25.0.7 ES 3.1,
+8,192 + 1,024 startup word readbacks (seed 3217518503), all 1,024 + 1,024
+RGBA/BGRA pixels (seed 2099079785, hashes 3133426629 / 1911354309), six
+native submissions with final shadow 92, 595 renewals and 600s health.
+All six 128 MiB hard-limit phases and the exact reviewed 269-byte stderr
+warning passed. Accepted 4 GiB image `bd2dc73e`, source `c548db3`, native ID
+`ffac2e7a488b44fbb197dac573a980c9`, published source `ad4c5f7`.
+
+Next compositor work must bind GPU access to the launchd-spawned job and
+owning task, keep ordinary clients outside this prototype and respect the
+one-owner lifetime. A bounded in-process hardware probe after service
+publication and root probe release can establish actual access. A new
+userland install needs a fresh audited root delta and exact consent. Separately
+the 6 GiB layout exists offline; add/use direct native memory counters before
+qualifying it physically. The full daily-use goal remains active.
+
+### 2026-11-09 — offline 6 GiB layout verified; 0190 observer still live
+
+The live phone is still running the original 0190 4 GiB trial on handle
+**40402**. No additional boot or device write. The same handle was verified
+live at 5m48s. Wait for its terminal result and perform the planned post stage.
+
+Parallel offline work used the pinned 0182 recovery DRAM inventory. The
+6 GiB layout adds 2,147,483,648 bytes at `0x100000000` below the current
+managed base, with managed size `0x17ff00000` and the same upper boundary.
+`research/tmp/dsh-eagl-0190-loader/ram-layout-6g-v1/layout-6g.img` SHA256
+`661773dc2af0ec7b8b508a1eb1435386bdd7d95d8bb59f97ba9745c26c347ae2` uses the
+exact 0190 kernel, command, shim/DTB, segment bytes, and all five firmware
+assets. The differences are the two managed-range properties and the five
+derived asset addresses, verified by reparse. `pas-host/result.json` passes
+the production PAS parser for both exact payloads with a synthetic handoff,
+and rejects a destination/FDT overlap. ASAN/UBSAN with protected payload tail.
+This is offline qualification only. No real 6 GiB boot, pressure/DMA result
+or acceptance of the remaining lower memory. Keep it a separate experiment
+from compositor bring-up. Original `tools/mkadt.py` diff unchanged.
+
+### 2026-11-09 — 0190 temporary boot live, observer handle 40402
+
+Exactly one boot of `bd2dc73e`, local outer handle **40402**, dispatcher PID
+7823, profile claimed at epoch 1794187490.813359. Current root header and
+routine 13-byte recovery latch verified. `fastboot boot` returned OKAY in
+0.598s. Same installed 0186 root and 600s GPU interval. No new userdata write.
+
+Wait on the same observer (780s observation, 860s wrapper bound). On terminal
+exit 0, run `research/tmp/dsh-eagl-0190-loader/prepare_post190.py`, then the
+resulting pinned `post-stage-v1.json`. Preserve raw logs if a strict check
+fails; independently check full GLES and constructor/GET8 scope. No repeated
+boot or user UI/reset question while the unattended observer is running.
+
+### 2026-11-09 — 0190 native image and guarded trial ready
+
+Source `c548db31ff64f6cd1072d90e4b06be99cbc24cfb`, tree
+`bbb147e0a76db0746db90dc0c3d92eb6898768b7`, public commit
+`ad4c5f7a1bdd246b32a42d657b98ffb912b5a79b` on
+`codex/gauguin-eagl-exec-shadow-20261109`, sole parent `a231a82`. Five reviewed
+text files only, no Actions run. Pristine 178-patch replay matched 5,330 files,
+with three changed C files and one added internal header relative to 0189.
+Source SHA256 `78994fcfc4f241f490b66c9d19a6d8f702ec50e93c9b42b953c28fa4153948d5`.
+The replayed source passed the default 52-case host entry.
+
+Native `gauguin.CF04uc` build and qualification both 0, immutable stage
+257.225s. Native ID `xnu-ffac2e7a488b44fbb197dac573a980c9`, kernel SHA256
+`9cd89f6155e72b19b437c7c1fbb5a952a2b713cfb87c90282b9efa7a92a0ee39`.
+Local fallback reused the known DSH pre-shell stalls recorded in 0189/0190.
+Outer native 17838 and publication 68369 are closed.
+
+`shim/out/shim-p3-gmuf-0190-native-20261109.img` is 19,988,480 bytes, SHA256
+`bd2dc73e11c0c33110ca8046919c608ebaab23631ed420352f53024822de1525`.
+Payload SHA256 `9bfc3e5d31c2d02751b1cb902f951291c627927e179de2596bfd472ebc5f2e2b`.
+The full 601-byte command with seven NULs is unchanged from 0189, as are the
+4 GiB window, five firmware assets, shim/DTB and 600s GPU service. Fresh
+read-only TWRP capture verified all nine static files and full prior logs
+(13,970 / 3,417 / 464,040 bytes), with zero writes. Actual D22 and D221 plist
+rows have `ActiveSoftMemoryLimit=-1`, `InactiveSoftMemoryLimit=-1` and
+`InactiveHardMemoryLimit=-1`; the runtime values still need measurement.
+
+Boot profile `research/tmp/dsh-eagl-0190-loader/boot-stage-v1.json` is ready
+for one temporary boot. Same reviewed boot wrapper and 780s / 860s bounds.
+Post correlation model passed 16 exec and 12 admission cases. Exact userspace
+GET8 denial must be preserved and paired with the same-PID native limit
+snapshot and actual VM footprint for budget acceptance. No 0190 physical
+result at this entry. Full goal active, no additional userdata write consent.
+
 ### 2026-11-09 — 0190 exec shadow and read-only GET8 diagnostic code ready
 
 Patch `0184-gauguin-exec-shadow-and-readonly-memlimit.patch` addresses the

@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0219 finite swipe implemented; full LOCAL build LIVE
+
+PreviousgoalturnPROGRESS:217caller-storagefix/fullnative/onephysicaltrial and218
+ABIaudit completed;217coveragegapnowdrivesboundedautomatedinteraction,notblind
+repeatboots. GoalACTIVE/fullGPU/Metal/RAM/storage/peripheral/highrefresh/daily.
+
+ISOLATEDresearch/tmp/gauguin-swipe219-worktree-20261110,
+branchcodex/gauguin-once-swipe-20261110;source22878556466e433d881668cf493866b3f00ef9f5,
+from217fc835a4(0205included). New0206changesONLYbsd/dev/sweet_touch.c.
+Exactphysical=0/swp=1diagnostic;physical1retainspriority;defaultOFF. At+180s,
+one33-positionbottom-upstroke10mssteps+one release viaEXISTINGsynthetic
+sweet_hid_touch;callbacksoutside[180,182)sabort/releaseheldcontact,norepeat,
+allocationfailureproducesnoinput. NoMMIO/sleeps/physicalframeAPIchanges.
+SpecialtestimageNVTpollOFF;normalphysicaldriveruntouched. Current601Bcommand
+willonlychangeNVT1->0 andappend6Bswp=1 =>607B/608B/oneNUL,payloadABIunchanged.
+
+PrivateW inside219root:research/tmp/dsh-ui-0219-once-swipe. DSH75882
+host-native-v1EXIT1retained:gesturefixturemacro__unusedredefinitionONLY;
+originalfixturecopykept,physical/defaultentrytestsBOTHboards0,ARM64SweetTouch
+TU0/2129headers/old217refsunchanged. DSH97788freshgesturehost-v2ALL0,pinsunchanged,
+2910ASAN/UBSANproductioncallbackchecks;kernelcandidateUNCHANGEDbetweenv1/v2.
+
+DSH65290 native-stage-v1 NOW LIVE;doNOTmutate219HEAD/NOTES/sourceuntilterminal.
+Clean198patch5330files replayPASS,ONLYsweet_touch.cdiffvsactual217;fullsource
+fd75fc6d3960240dd02a4c038f5ec935b4e2b5b18b97f8d401345d6f2afce242,
+actual-replayhostchecksPASS,freshsource219-codex/build219-once-swipeLOCAL8job
+buildrunning. Realp0directoryprecreatedbeforeROreferenceclosure;no sharedmutable
+oldbuild/source roots. Retainedgenericqualificationnext,neverrestartthisclaim.
+DSH68537freshmemory-stage-v1ALL0,pinsunchanged,current217headerad1174be.../DTB/RAM
+reconciled. Package/trial/post219privatehelpersprepared;current217controlpaths
+reviewed,poststale214paths corrected BEFOREclaim. NO219packageorbootyet.
+
+PhoneTWRPafter217,headerad1174be582c00925f0c6681d93cd6a23569b1d8dae8a049c792ccde3aa8a152,
+full21715files/logprefixesneededfornexttrial. Installed210aafa07f8unchanged,
+UI216a460e3bstilluninstalled;nonewrootwrite/approvalrequest/CI. NEXTqualify
+SAMEbuild,package/reparseexact607Bcmd,temporary219+automaticcapture. Require
+oneemittedstrokeANDsubsequenticoncreate/importcoverage;emissionisNOTUIacceptance,
+physicaltouch/Pixels/Metal/FPS/dailyallstillunqualified. No humanreplyreceived.
+
 ### 2026-11-10 CST —0217 TERMINAL/uncovered icon path; automate bounded UI interaction next
 
 Concreteprogresscompletedthisgoalturn:source837fecfcaller-memorycreatefix,

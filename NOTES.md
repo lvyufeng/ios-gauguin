@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0190 native image and guarded trial ready
+
+Source `c548db31ff64f6cd1072d90e4b06be99cbc24cfb`, tree
+`bbb147e0a76db0746db90dc0c3d92eb6898768b7`, public commit
+`ad4c5f7a1bdd246b32a42d657b98ffb912b5a79b` on
+`codex/gauguin-eagl-exec-shadow-20261109`, sole parent `a231a82`. Five reviewed
+text files only, no Actions run. Pristine 178-patch replay matched 5,330 files,
+with three changed C files and one added internal header relative to 0189.
+Source SHA256 `78994fcfc4f241f490b66c9d19a6d8f702ec50e93c9b42b953c28fa4153948d5`.
+The replayed source passed the default 52-case host entry.
+
+Native `gauguin.CF04uc` build and qualification both 0, immutable stage
+257.225s. Native ID `xnu-ffac2e7a488b44fbb197dac573a980c9`, kernel SHA256
+`9cd89f6155e72b19b437c7c1fbb5a952a2b713cfb87c90282b9efa7a92a0ee39`.
+Local fallback reused the known DSH pre-shell stalls recorded in 0189/0190.
+Outer native 17838 and publication 68369 are closed.
+
+`shim/out/shim-p3-gmuf-0190-native-20261109.img` is 19,988,480 bytes, SHA256
+`bd2dc73e11c0c33110ca8046919c608ebaab23631ed420352f53024822de1525`.
+Payload SHA256 `9bfc3e5d31c2d02751b1cb902f951291c627927e179de2596bfd472ebc5f2e2b`.
+The full 601-byte command with seven NULs is unchanged from 0189, as are the
+4 GiB window, five firmware assets, shim/DTB and 600s GPU service. Fresh
+read-only TWRP capture verified all nine static files and full prior logs
+(13,970 / 3,417 / 464,040 bytes), with zero writes. Actual D22 and D221 plist
+rows have `ActiveSoftMemoryLimit=-1`, `InactiveSoftMemoryLimit=-1` and
+`InactiveHardMemoryLimit=-1`; the runtime values still need measurement.
+
+Boot profile `research/tmp/dsh-eagl-0190-loader/boot-stage-v1.json` is ready
+for one temporary boot. Same reviewed boot wrapper and 780s / 860s bounds.
+Post correlation model passed 16 exec and 12 admission cases. Exact userspace
+GET8 denial must be preserved and paired with the same-PID native limit
+snapshot and actual VM footprint for budget acceptance. No 0190 physical
+result at this entry. Full goal active, no additional userdata write consent.
+
 ### 2026-11-09 — 0190 exec shadow and read-only GET8 diagnostic code ready
 
 Patch `0184-gauguin-exec-shadow-and-readonly-memlimit.patch` addresses the

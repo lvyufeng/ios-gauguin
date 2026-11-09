@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206 source published; manual observer still running
+
+DSH12046 publication-stage-v1 ALL0,pins unchanged: public
+542965defbf195d63c7985c15614c65cd59abdc2,
+ref codex/gauguin-shared-micro-budget-20261109,
+tree9c312b85f885a6f7d944ed886d8ea4ad88c54991,
+parent4cd6127150401746ee82bbdd1ab398b5eafc051c. Seven reviewed text files,
+exact private1093bed tree; existing refs unchanged,no explicit CI. This
+publishes clock0198/shared-budget0199 plus tests; physical206 is pending.
+First DSH27763 invocation accidentally included a trailing period as argv;
+runner rejected BEFORE claiming or GitHub access. Corrected DSH12046 then
+executed the still-unclaimed stage once. Preserve both outer transcripts;
+no claimed-stage retry occurred. Put future DSH commands on their own line
+without punctuation to avoid this ambiguity.
+
+Live boot DSH28161 and post-watch DSH18816 remain the SAME206 trial.
+Post-wait claim verified present,not an unclaimed command. Available user
+was asked actual206 unlock/swipe/Settings/return-Home question after~two
+minutes; reply pending, previous205 response is NOT206 feedback. No206
+terminal yet at this milestone. Keep observing/capturing exact claims;
+do not infer healthy acceleration from absent USB/recovery or visible UI.
+Root owns NOTES; source/kernel inputs frozen; full goal active.
+
 ### 2026-11-09 — 0206 manual ten-minute shared-MICRO-budget trial LIVE
 
 DSH28161 owns ONE claimed206 observer after current205 header501dc0e9,

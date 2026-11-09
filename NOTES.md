@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0207 terminal PASS; RO fallback not exercised; private208 checks PASS
+
+207 automatic14:09:51.363395–14:22:18.065684UTC,746.702289s. DSH25643 boot
+ALL0; DSH13036 post ALL0,pins unchanged. All15 files/12 static/COMPLETE R2
+prefixes preserved; logs52,056/8,259/1,071,714B. CURRENT header
+c2698d3704078d5eeb627ae5f81ae0ed35a72d73c294c7eaa7b054486639b4fe;
+phone last TWRP.600s service qualifies:598 renewals,101/101 completions,
+shadow1972,16 startup records/85 sampled-out successes.14 CA frame receipts,
+19 wraps/0 errors,NO WRAP RO record: fallback NOT exercised this workload.
+44/44 MICRO recoveries/50 polls,8 rechecks/0 expiry,final reason0/valid3f.
+1 compositor crash/2 BO NotReady events occur AFTER planned stop, separately
+retained. No full-session/daily/Metal/high-refresh/performance qualification.
+User's actual207 image-normal/still-lag report remains accurate and unresolved.
+
+Validated101 submits803,552,552ns/4264 checks799,590,625ns,pending0;
+16,309 total guards3,088,741,197ns,max496,354ns. Avg7.956ms/job,189.389us/guard.
+14 sampled frames wall median87.479ms,min21.762ms,max560.653ms;wait median
+18.793ms,max attach106.592ms. Different UI workload prevents speedup claim.
+No userdata delta/rollback/manual reset.207 source publication still pending.
+
+PRIVATE208 research/tmp/dsh-gpu-0208-api-perf/candidate-v1 now adds per-selector
+WHOLE GPU IOKit locked-request elapsed/lock-acquisition elapsed counters to
+GauguinGPU.cpp, private runtime-header prototypes and two cached quarantine
+callbacks in board C. Includes memory mapping/clientClose/heartbeat. Scope
+is ALL admitted callers(probes/worker/compositor), not just visible UI; does
+not include IOSurface/framebuffer clients or userland CPU work. Freeze FIRST
+after existing authority poisoning; in-flight call reported separately and
+excluded from completed prefix. Dump via existing logger after quarantine;
+no steady success logging/new GPU MMIO/changed return values or predicates.
+Elapsed lock wait includes scheduling; it is not CPU-active/GPU-only time.
+
+DSH45257 private native-check-stage-v1 ALL2 jobs0,pins unchanged. Actual helper
+92 assertions test selector/token/time/error/freeze/partial/overflow/once-only
+dump behavior; exact old submit/add/drop/surface/full live/SMMU bodies match.
+Removing clock instrumentation restores exact locked wrapper token bodies.
+Both native board C/GPU C++ TUs0, reference2129 headers/config and objects
+unchanged. Candidate includes unchanged coupled SweetSurface/gmu-board/
+diagnostic headers. No208 tracked patch/test, full build,image or device
+trial yet. Need promote self-contained test(path-only adaptation), preserve
+checks, commit and full195-patch local build before next diagnostic trial.
+Root owns critical source/NOTES; DSH executes. Full goal active.
+
 ### 2026-11-09 — 0207 RO image trial LIVE; normal picture but user still laggy
 
 DSH25643 owns ONE claimed207 observer after CURRENT206-R2 headerecf88ce5,

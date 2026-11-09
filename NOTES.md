@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0197 clean build and bounded desktop image ready
+
+Committed selector6 fix/tests:3a22614. DSH native54424/dispatcher73647
+clean185-patch replay, full local native build and qualification all0;
+input pins unchanged. Source5330 files,
+d031ddd681ce6e4c89546375db4d3bfaf4be28a6e25bf7d13b4dc47dee610dd2,
+only SweetSurface.cpp/.h differ from196 and match tested candidate-v2
+(trailing whitespace normalized by replay review). Build root
+.deps-cache/p0-20261105/build197-wrap, run gauguin.l7GdFi,
+banner xnu-c9b491dcb8374d1f91301bdc43fdf468,
+kernel e0da45b411717b0e0ebc17d6bd585652c64d26de3c08bd948c82ef9f72ef7380.
+Old native195 reference inputs/objects retained unchanged. No CI build used.
+
+DSH package20256/dispatcher10673 package-stage-v1 BOTH jobs0, pins stable:
+current read-only DTB/Linux memory reconciliation still has no firmware
+overlap with the accepted6GiB model; post197 capture module imports without
+constructing RecoveryIO. Temporary6GiB image2516def43af1c88114cbf2a00b4217c88396439a22afdee5e47871cff16ee4ed,
+ram-layout-6g-v1/layout-6g.img. ACTUAL intended command is sweeteagl=2 and
+sweetgpuservicesecs=300,601 bytes. This supersedes the initially prepared
+180s packaging script BEFORE any package claim. Mode2 enables the existing
+approved195 desktop bridge, with the fixed kernel only. All installed
+libraries/jobs/cache/log prefixes remain unchanged; no userdata delta.
+
+Next run trial197.py --prepare, then its pinned boot-stage-v1 exactly once.
+It captures/rechecks all15 current files and header640b9dc2 against the
+post196 evidence BEFORE one fastboot boot. Observer480s/process560s; finite
+300s GPU service then expected watchdog recovery. Routine automatic reset
+needs no manual-attribution question. Ask for an unlock/UI check while live
+if user is available, retaining the automatic-return window. No physical197
+boot or UI qualification exists at this handoff point. After actual terminal
+return use dispatch_post197.py to preserve all15 files and collect bounded
+state/wrap/native-frame receipts before acceptance, including real failures.
+
 ### 2026-11-09 — 0197 implements the observed missing wrapped-image selector
 
 The exact195 failure chain now reaches QuartzCore0x1883c460c, which calls

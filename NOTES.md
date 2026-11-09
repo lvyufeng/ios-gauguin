@@ -2,6 +2,18 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206-R2 warm repeats also lag; capture still pending
+
+Actual R2 follow-up call_43209de63d224f1f943acaad1af124fd response is
+'每次都同样卡顿' after three Settings/Home/swipe repetitions. Saved private
+user-warm-repeat206r2.json. This does not support a cold-only preparation
+explanation. Native GPU health/frame/API evidence remains pending; do not
+equate this observation with proven continued acceleration or a specific
+kernel bottleneck. Same DSH20344 boot/DSH28986 post-watch claims continue;
+no additional boot, source changes, userdata delta or manual action requested.
+Preserve both human reports and correlate with this exact R2 capture.
+Root owns NOTES; full goal active.
+
 ### 2026-11-09 — actual0206-R2 user still reports lag; exact capture pending
 
 User reply call_6bba25cb5b9e4c52be18abb88e6fdbd0 for this R2 is

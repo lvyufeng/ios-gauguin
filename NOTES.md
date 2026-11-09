@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0195 temporary desktop trial is live
+
+DSH boot outer98071 /dispatcher22504 claimed boot-stage-v1 at
+1794203621.575062. Actual15-file capture/preflight passed, all exact hashes,
+owners and complete194 log prefixes retained; current installed root
+header3aaba846. One fastboot boot sent19,520KiB, transfer/boot OKAY, total
+0.597s. `trial-v1/preflight.json` stateobserver-running with verified misc
+recovery latch. As of05:56UTC ps22504 was live2m19s, no terminal/result
+and no detected automatic recovery return. Poll SAME handle/dispatcher and
+cycle; do not rerun boot on a polling timeout. Expected finite600s GPU
+service;780/860s observer/process window. No manual reset is requested.
+
+DSH76767 /dispatcher22887 post-smoke-stage-v1 returned0, inputs unchanged:
+actual post195 module imports correct195 GLES/worker/desktop parsers and
+current194 full log sizes; approved write receipts verify. RecoveryIO was
+replaced by a trap in that independent process, no phone IO. Capture and
+acceptance code is ready. After the actual boot observer terminal, run
+post195.py --prepare to freeze the real evidence stage, then execute that
+profile via DSH. Preserve all15 full files and raw session spans before
+any acceptance. Do not mark UI/render success from this running state.
+
 ### 2026-11-09 — 0195 user-approved321-block installation complete
 
 USB recovered after user reconnected again. DSH2820 /dispatcher21380

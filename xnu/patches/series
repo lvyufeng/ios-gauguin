@@ -178,3 +178,4 @@
 0180-gauguin-watchdog-adjacent-counter-confirmation.patch
 0181-gauguin-compositor-dyld-probe.patch
 0182-gauguin-loader-env-file-observation.patch
+0183-gauguin-opt-in-eagl-exec-insertion.patch

@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0189 opt-in exec insertion passes host and native TU checks
+
+Patch `0183-gauguin-opt-in-eagl-exec-insertion.patch` changes only `kern_exec.c`.
+It adds the existing inert admission library to the exact backboardd exec with
+`sweeteagl=1`, the existing loader probe, and one `GAUGUIN_EAGL_MODE=admission`.
+The exec context must match the current process and have matching real/effective
+UID 0 or 501. The looked-up executable must match the borrowed exec vnode.
+The executable and library must be root-owned regular files on the root mount,
+without group/other write mode. For UID 501 their write authorization in the
+same exec context must return EACCES or EPERM. A pre-existing or conflicting
+insertion is left alone. The patch reserves the new env pointer, original NULL,
+and final alignment before copying. Partial copy restores the live string and
+argument accounting. No library path input, GPU service policy, or userland edit.
+
+`research/tmp/dsh-eagl-0189-loader` holds the candidate and receipts. Host v1
+failed because the macOS SDK already declares `user_addr_t`; using its types in
+v2 gave 34 ASAN/UBSAN passes with the actual `exec_extract_strings` and
+`exec_add_user_string`, including exact NCARGS fit, one extra input byte, and
+partial-copy EFAULT. The 49 retained 0188 diagnostic cases also passed. Native
+TU v2 used 2,128 pinned 0188 config/header inputs and returned 0. Object SHA256
+`09b1a06c7ac7bb61be78cc29d824b48ab56b4f2496caab61233c96cefa3e4367`.
+DSH handle 24080 produced three startup events and no tool calls in 221s.
+The local fallback claimed that profile once. Owned headless PID 31430 was
+stopped after its command and parent were checked. No Actions run for the TU.
+
+Next replay all 177 patches from pristine, compare all 5,329 files to frozen
+0188, then locally build and qualify a fresh image. The final 0188 source has
+nine `sweetbusprobe` reads across BCM, PAS, bus probe, watchdog, CX and GMU.
+Each uses a zero-initialized value and tests its value; omission has the same
+effect as `sweetbusprobe=0`. Remove that one token to fit `sweeteagl=1` in the
+608-byte field. Preserve the 4 GiB geometry, five firmware assets and 600s GLES
+health interval. The phone was last seen in TWRP after 0188. No 0189 image,
+device commands, userdata write, or compositor runtime result at this point.
+The full goal remains active. Original `tools/mkadt.py` diff is preserved.
+
 ### 2026-11-09 —189 primary HakiOS confirms DYLD-job filter and kernel exec injection
 
 188actualfactsunchanged: mode=admissionREACHESbackboardd exec(envc10), DYLD_INSERT

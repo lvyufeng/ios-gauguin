@@ -2,6 +2,107 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0194 6 GiB accepted; 0195 desktop staging uses a fresh backup
+
+194 completed automatically in746.480863s, 04:20:23.333581–
+04:32:49.814444 UTC. Boot and post DSH46849 returned0, all pins unchanged.
+`physical-review194.json` passes all14 captured files,11 static hashes
+and full prior logs. New whole logs22,514 /4,493 /504,493B.
+Native base0x100000000, boot/VM/max/max-actual6,441,402,368B,
+sane6,401,359,872B. Pre-ZAP checkpoint seq1 resets418515→0.
+AUTH completes. Startup seed1825572925, normal8192/surface1024words pass.
+Root GLSL seed1871667596, RGBA/BGRA hashes1911354309/3133426629.
+Actual UID501 backboardd PID57 passes8 methods, hardware ES3.1 FD619,
+seed820461193 and all1024RGBA+1024BGRA pixels, hashes3133426629/1911354309.
+Native fences1–9 complete, final shadow128, global renewals596 =
+boot1 +595 runtime. This is the new6GiB GPU/admission baseline. Extra-range
+allocation pressure/DMA and all safe RAM remain unqualified.
+
+UI commit `944fdb920ad948c90cf1d3a991576c61b01a7a3f`, tree6101c2d7,
+compiled/reviewed195v2. Launcher70,336B a1b98155; desktop bridge562,496B
+`147668da3c48808ea7c17d4024cccd9f0f7530db0478e046a9bc78d8ca51dfa9`.
+Native signing, exact409-slot generated table,14 default and22 render
+gate cases plus real ObjC direct/inherited lifetime tests pass.
+`software-review195.json` binds constructors, source, artifacts and tests.
+Published public `d33d9fa29f57aca3c6ba83296e73e9260e15d9a7`, tree
+`6101c2d7fbb8bc86966be2a1be2922e501f16714`, parent93a7892,
+branch `codex/gauguin-desktop-eagl-bridge-20261109`,10 text files, noCI.
+The local publication receipt's legacy `rendering_enabled=false` field was
+replaced with explicit build-enabled/device-uninstalled fields; source and
+remote tree were correct. No195 install or frame proof.
+
+DSH backup46521 /dispatcher77345 returned0, input pins unchanged.
+`research/tmp/dsh-ui-0195-bridge/root-backup-v1/iosroot-before-desktop-bridge.hfsx`
+is17,179,869,184B, SHA256
+`22e9123ab7030660955720955898fa1a383eccfc2938744c4219613a037be7d0`,
+header before/after identical, mode0444. Device stays idle TWRP. Preserve
+this fresh snapshot by avoiding another boot before the195 delta process.
+New root delta is not yet staged or approved.
+
+Review found the real runtime submission wrapper synchronously writes a4KiB
+UFS mark and flushes the ring on EVERY successful draw via gmb_record.
+Patch0189 keeps all first16 submissions and every failure synchronous, then
+samples successful service-mode submissions every120. Legacy20s mode keeps
+all records. The actual hardware submission/fence path is unchanged.
+Candidate `kernel-candidate-v1`, native board TU0 and10,091 actual-wrapper
+assertions pass under DSH99252 /dispatcher79538. Next commit/replay/build a
+paired195 kernel, then stage only the new launcher and desktop bridge on
+the fresh local COW volume. Retain worker, Mesa, jobs, policies, cache,
+backboardd and full logs. Review/fsck/all-old-ranges/exact new consent before
+writing. UI acceptance must account for first16/every120 native snapshots
+without inventing missing traces, plus actual CA full-screen frames and
+the full service health window. No195 kernel full build or boot yet.
+
+### 2026-11-09 — 0194 native checkpoint kernel built; 6 GiB trial live
+
+Source commit `ff6a9bebde72d354b051d91ed73541cad7c9e7e0`.
+182-patch clean replay changes only the board implementation and lease
+header relative to193, SHA256
+`a1868ff61521315e18d1e42cc442086cc2a3dc5fdaff7324f38fd539648a3658`.
+DSH native outer 79582, dispatcher 37732, native
+`gauguin.xaRvks`, ID `xnu-4f408078b6b74778b6a5039e381f4412`.
+Build and qualification both0, all pins unchanged. Kernel SHA256
+`3a897725b55ab860c450f8471ec0ee8626c9faa4224dcaba6725acba6f637e76`.
+4 GiB control `dcfa5bcd`; 6 GiB image
+`research/tmp/dsh-memory-0194-checkpoint/ram-layout-6g-v1/layout-6g.img`,
+SHA256 `961f94dff71da24027aa7e2d06195c142eb40ad54e6158d5c64ffb3ef0351be3`.
+Same kernel/command/assets. Fresh recovery audit shows no fixed/dynamic
+overlap. Its legacy `current_XNU_*` fields describe the 4 GiB comparison
+image, while actual prior193 native counters identify the 6 GiB window.
+
+DSH boot outer **68924**, dispatcher74250 claimed at1794198008.293427,
+audited all14 files and full193 log prefixes, then sent the image once.
+Fastboot returned OKAY in0.589s. As of04:28:31 UTC the dispatcher was live
+8m23s with no terminal or recovery return. Poll the same handle and
+`boot-stage-v1/result.json`; do not restart. `post194.py --prepare` is
+ready after terminal and must capture raw data before acceptance.
+`gles_contract194.py` requires exactly one completed-CP/pre-ZAP checkpoint
+at sequence1, then starts service samples at2 and preserves all native,
+pixel, memory and600s health checks. No physical194 success claim yet.
+No root write since the approved192 installation.
+
+Source published via gh as public
+`cdd402f8dfcfb34dd5a6c70a4c6a9bf9aa58841e`, exact tree
+`3c6de13d39afbb94b7aaefc93b2bd46953cb857d`, sole parent465aab6,
+branch `codex/gauguin-pre-zap-checkpoint-20261109`. Eight text files,
+no CI dispatch, existing refs retained.
+
+The UI worktree has uncommitted195 bridge work. Actual late installer
+uses a same-sized EAGL subclass for new Mesa contexts, publishes only
+the base initializer hook after subclass registration, and retains the
+bridge image. A recursive registry lock serializes context registration,
+lookup and deallocation. Native iOS16 build/sign0, default products retain
+exact186 hashes. New launcher70,336B SHA
+`a1b98155d1e01b17d50a6bd733dbf560ce21a74572758d8ae97c52a4174d3562`;
+bridge562,496B SHA
+`a0f5a847195ea256f5fa7cb200fae798638295fc650a0741b62c7de5d0dbf7dc`.
+`research/tmp/dsh-ui-0195-bridge` contains receipts. Real ObjC runtime
+host tests pass for direct/inherited initialization, existing native
+objects, unknown subclasses, fallback, concurrent creation and cleanup
+(40,042 /39,916 assertions in these runs). DSH admission outer3326 is now
+running default14 and render22 cases. Review/commit only after terminal.
+No195 installation, frame proof or new consent request yet.
+
 ### 2026-11-09 — 0194 pre-ZAP checkpoint candidate passes native and host checks
 
 Patch 0188 adds a single opt-in mode12/service1 watchdog checkpoint after

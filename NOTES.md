@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0196 automatic diagnostic boot and full capture complete
+
+User's latest USB replug is confirmed by actual ADB recovery enumeration;
+phone is in TWRP. Full goal remains active. No manual action is needed now.
+All196 stages below are terminal; do not restart any claimed stage.
+
+Fresh pre196 read-only16GiB backup completed via DSH35244/dispatcher28050:
+root-backup-v1/iosroot-before-iosurface-bulk-fix.hfsx, mode0444,
+SHA0f3601082c7e7c74edaad625eaaf4ffaf232f2729d34d42b5478dfff493b3fdc.
+It is now historical after the196 boot, not current write authorization.
+Native TU0; clean184-patch replay completed. Preserve the first failed
+trailing-whitespace verifier and the failed v2 profile factory; corrected
+replay-review-stage-v3 DSH44271 is0. Source5330 files,
+afef7224cfcdb86f1b6a99689e1393767e864f8316ba2d99cbbafdc4389f49b7.
+Only SweetSurface.cpp differs from195; patch0190 is diagnostics only.
+
+DSH7675/dispatcher29616 full native build and qualification0, pins unchanged.
+Run gauguin.U7Tsy9, banner xnu-cedf8813b0134ecb8c892592c91b1b45,
+kernel568f7dbc7f9b34e7cd5714a50a8e137cecbf99a02a33c745df002e85fe492d74.
+Package90901 and trial-prepare67866 both0. Temporary6GiB image
+19ad2a88f2f406f9f079955753a7c68ae7d3b7e1fc2681d1de690e8f64cfd6a3.
+ACTUAL command is sweeteagl=1 with60s service, not the earlier planned20s:
+the coordinator only accepts60..3600. Installed195 libraries stay intact;
+mode1 disables the late desktop bridge. No new userdata delta was written.
+
+DSH70852/dispatcher66913 boot0, pins unchanged. Actual automatic cycle
+06:59:50.951988–07:03:18.417491UTC,207.465503s, TWRP detected at206s.
+Postdispatcher37468 and capture both0: physical-review196.json records
+all15 files,12 static hashes and complete195 log prefixes retained.
+Full logs25,490/4,762/841,650B; new root header640b9dc2bf85c2deb77b317623e2916d5487a1323e57796fbffe47a07f0af947.
+All14 result records have nonzero state pointers and timestamps=state+0x800;
+backboardd crashes0, bridge installs0. Native service finished60 renewals,
+3 submitted/completed, shadow56. This control does NOT qualify accelerated
+UI or explain the GPU-path null pointer. Initial return-layout failure is
+not established. All GPU UI/Metal/high-refresh/daily-use flags remain false.
+
+Actual bulk getter dereferences a size POINTER, permits up to112B, then
+copies client.state+0x30. QuartzCore caller0x1883552a0 passes its incoming
+IOSurfaceRef through dimension/format queries and the failing aspect-ratio
+helper. Next trace that object's origin/lifetime against the EAGL bridge;
+do not patch already-TLS current or mask a guessed null-state cause.
+Private evidence: research/tmp/dsh-surface-0196-bulk and
+research/tmp/dsh-ui-0195-bridge/qc-crash-{call,parent}-v1. No new root write
+is authorized; consumed195321-block consent must not be reused.
+
 ### 2026-11-09 — 0196 bounded IOSurface diagnostics pass native C++ compile
 
 Actual20H392 constructor0x1a3980bc8 copies create/lookup result to client

@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0214 user completed sampling; visual state changes across transitions
+
+User call_ff58f7... answered '已解锁并浏览这些页面'. Saved isolated214
+user-actions214v2.json. Follow-up sequence EXACTLY: clock red again; App Gallery
+corruption; last home widgets WHITE/icons absent; relock then clock WHITE.
+Saved immutable isolated user-visual-followup214v2.json. Exact device times
+unknown. Do NOT classify last white clock as all-frame correctness.214 is a
+CPU source census only; these observations show rendering is not stable
+across transitions. Same trial continues for automatic capture.
+Verified live now boot_pilot214v2 PID58666 and watch_post214v2 PID58933,
+cycle age322.7s at poll. No new user question or manual reboot required.
+Next inspect effect-state lifetime as well as source pixels: current observer
+clears ALL cached uniforms when selected-function snapshot is unknown/NULL,
+even when CA context/vptr/table association remains valid. Ordinary program
+draws also call that lookup before their program check. A native uniform may
+stay cached without a new function_uniform callback; test this concrete
+cache-retention case before making any parameter-state correction.
+New UI216 isolated worktree created from78b0365; no216 code/build yet.
+
 ### 2026-11-09 UTC — 0214 pixel census LIVE in isolated worktree; do not reboot
 
 Actual phone now runs ONE temporary214 V2 diagnostic from

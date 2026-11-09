@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0193 6 GiB failure isolated to the pre-AUTH watchdog budget
+
+Committed `9e963031724d7b895d3a084db8add27bb14e7b9f` adds patch 0187.
+181-patch replay changes only `bsd/dev/gauguin_wdt_test.c` across 5,330
+files relative to 0192, source SHA256
+`8c366656e04cd82c83213d55ff2ea56e71949bdd14a954deb0959903840ad320`.
+Reversing the cached sample/log substitutions reproduces the original
+file exactly. Native selected TU passes. DSH native outer 49435,
+dispatcher 97582, full run `gauguin.YQRw2d` and qualification both 0.
+Kernel `f3e0ab0a75c8882bc98ddfe8374ea54358538c2cfd7e39ff876365c60b01e82e`,
+ID `xnu-6d3e510b719945cb8b66ed5401e28f0c`. No CI.
+
+Paired 4 GiB control `ed69ac88` and 6 GiB image
+`research/tmp/dsh-memory-0193-wdt/ram-layout-6g-v1/layout-6g.img`,
+SHA256 `4829456413d5997ed2126b10dfbf2ce658e9f9803c51436c64b44ba70f433268`.
+Same command, shim, firmware contents and kernel. Fresh recovery range audit
+matches prior inventory with no fixed/dynamic overlap. DSH boot outer
+81833 / dispatcher 34509 audits all 14 installed files and full 0192 prefixes
+then boots once. Automatic TWRP return in 131.885478s,
+03:56:27.674354–03:58:39.559832 UTC. Observer 0. Post DSH outer 8470
+returns 1 on the intended full-service contract with input pins unchanged;
+raw capture succeeds. `physical-review193.json` preserves 6 GiB recognition,
+all static hashes and all old prefixes, plus the complete 8-method
+constructor. Current whole logs 20,470 / 4,224 / 497,208 B. No root write.
+
+`watchdog-refusal193.json` independently classifies the actual cached
+sample. EN=3, bark=655300, bite=753595, count=426996, previous=426995,
+minimum=327650, status=0x000d07e8. Register values and counter/CPU
+monotonicity pass. Remaining hardware budget is 326599 ticks =
+9.9679230887s, below the required 10s by 1051 ticks = 32.076911ms.
+The independently computed CPU window is also false. GMU and first CP
+ME_INIT/WHERE_AM_I completed, ZAP INIT and MEM_SETUP returned success,
+and AUTH was never called (0/0/0). No native GPU submission.
+
+Immediate refusal is established; the reason for elapsed-time differences
+between memory layouts remains open. Next inspect a fresh, health-verified
+lease renewal at the CP-to-ZAP boundary while preserving the full 10s
+secure-call budget and fail-closed behavior. Existing refresh API requires
+verified idle/EOP/fault/routes/power plus serialized ownership and has a
+monotonic service sequence; preserve that contract if reused. Batching
+nonessential log flushes is another measurable timing candidate.
+0192 remains the accepted 4 GiB compositor-GLES baseline.
+
+The UI bridge integration is being designed in the separate UI worktree,
+still clean at 4a48421. Pinned HakiOS inject.c says an unaccelerated
+EAGLServer retries renderer/context creation each frame. Our root has only
+the gauguin admission injection, with no HakiOS renderer-failure latch.
+A late bridge should be tested against this real cache. To install safely
+while backboardd runs, use a dedicated EAGL subclass for new Mesa-backed
+instances and publish only the initializer hook after all subclass methods
+are ready, preserving existing native objects. Retain the bridge image for
+the hook lifetime and gate it on the same-boot successful GPU pilot. No
+bridge source change/build/install or frame acceleration at this entry.
+No 0194 artifacts yet. Current device idle TWRP.
+
 ### 2026-11-09 — 0192 real backboardd GLES and IOSurface pilot passed
 
 DSH post outer 91973 / dispatcher 96477 returned 0, pins unchanged.

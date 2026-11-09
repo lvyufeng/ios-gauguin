@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — third USB-absence audit; awaiting external reconnection
+
+At05:33:07UTC, authoritative recheck: ADB0 devices, fastboot0 devices,
+macOS USB inventory0 phone surfaces (inventory command succeeded).
+All native/offline/review/test/publication stage receipts are terminal0
+with unchanged pins; their recorded dispatcher PIDs are no longer live.
+This is not a verified wait on an active process. No195 approval, apply,
+trial or live-preflight claim exists. The USB reconnect question remains
+unanswered. Original mkadt modification is still the only working diff.
+
+Previous goal turn made concrete progress (9b35e86 parser/tests, public
+300733f, prepared15-file/boot/capture/evidence gates and their DSH tests).
+The same USB absence has now recurred for3 consecutive goal turns. Offline
+preparation for the next physical experiment is finished. No meaningful
+write/boot/performance/extra-range-DMA/peripheral qualification can proceed
+without a connected phone; further synthetic checks do not prove those
+requirements. Blocked audit is satisfied; set goal status blocked after
+saving this handoff. This is not a completion or a user-requested pause,
+and the full objective must remain unchanged.
+
+Resume on real reconnection/user steering: preserve the321-block plan,
+backup22e9123a and accepted194 baseline. Recheck recovery/header, then run
+the already pinned READ-ONLY live-preflight-stage-v1 once via DSH. Fresh
+exact321-block consent remains required after that concrete review and
+before any userdata write. Do not infer approval from the old239-block
+reply, retry claimed stages, boot before preflight or fabricate new runtime
+evidence. No195 device changes were made during the disconnected turns.
+
 ### 2026-11-09 — 0195 trial/capture/evidence gates ready; USB still absent
 
 Current tooling commit `9b35e86c05bf8bb7c1312d5574e652e1e891f7cd`

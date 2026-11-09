@@ -2,6 +2,21 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0189 temporary boot live, observer handle 68096
+
+The reviewed image `5801acd4` was sent once and `fastboot boot` returned OKAY
+in 0.605s. Stage `boot-stage-v1` was claimed by dispatcher PID 68817 at epoch
+1794185803.45052. The preflight verified the current root header and recovery
+latch. Observer is running on local outer handle **68096**. The approved 0186
+root is in use. This trial has no new userdata write.
+
+Wait on the same handle. The established GPU service interval is 600s, with
+780s observation and an 860s wrapper bound. USB absence during iOS is expected.
+After a terminal exit, use `prepare_post189.py` and `post-stage-v1.json` only if
+the wrapper returned 0. Do not retry a claimed boot. If capture is partial,
+preserve raw evidence and record which checks failed. No user UI/reset prompt
+while the unattended trial is progressing. Recheck only if recovery is stuck.
+
 ### 2026-11-09 — 0189 native image and single temporary-boot profile ready
 
 Kernel source is `c18890577ae985d86837c9a6ddd569eca4562cbc`. Pristine replay of

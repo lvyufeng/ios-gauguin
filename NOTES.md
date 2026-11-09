@@ -2,6 +2,82 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0221 A619 Metal core + REAL AIR compiler software-qualified and integrated
+
+Previous goal turn PROGRESS: full upstream227-file baseline/261 tests and219
+caller-backed icon-path evidence changed next implementation. This turn also
+PROGRESS: actual A619 core code, real compiler archives/shaders and native dylib.
+Full GPU/Metal/RAM/storage/peripheral/90-120Hz/daily goal remains ACTIVE/unlimited.
+All DSH workers in this turn TERMINAL/reaped; no live build/boot/approval request.
+No phone commands, new userdata application, Actions or remote push this turn.
+Phone remains at post219 TWRP. Existing UI210/Mesa and UI216-uninstalled unchanged.
+
+Source isolated branch codex/gauguin-metal-a619-20261110, worktree
+research/tmp/gauguin-metal221-worktree-20261110. Source2e1e98bab616e3d5db75518d4c4f915817b78801,
+cherry-picked into MAIN4168cc08dba455f1134a9e3773e2457f7c368959. Main now has the
+new graphics/hakios-metal manifests/12-file patch/profile, preparation/build
+scripts, two production fixtures and docs/gauguin-metal-a619-20261110.md.
+Main KERNEL code remains211; qualified caller-memory/touch219 tree and artifacts
+remain isolated, untouched. Original main tools/mkadt.py diff preserved.
+
+0222 W INSIDE isolated221 root:research/tmp/dsh-metal-0222-air-compiler.
+Pinned HakiOS63fc2b46 AIR26 files + Mesa25.0.7 archive592272df..., fresh source
+build-v2/mesa-25.0.7, two SEPARATE build-host/build-ios.13 archives each built.
+Original compiler-v1 OSMesa config failure retained;v2 archives actually built
+but Ninja-indent fixture failed;v3 lacked explicit macOS SDK;fresh v4 ALL0,
+input pins unchanged. REAL AIR->NIR->IR3 compilation of own fill_id,
+tri_color_vs,tri_color_fs; actual FD619/06010900/oneSP, NO GPU execution.
+DSH96018/54983/54106/30291 terminal. Canonical prepare DSH62713 ALL0: tracked
+prepare-hakios-air tool reproduces10992 actual-built source files exactly,
+canonical mapSHA450d30f53291d6c8b5593306fc18a35e4f53d002900b6ae23d2ce02860f7b063.
+
+0221 W INSIDE same isolated root:research/tmp/dsh-metal-0221-a619-profile.
+Prepared-v4 has228 exact core/profile files, source receipt/input pins retained.
+Target619:query AND submit pipe0x10;SP/CCU1,fibers2048,preload64,tile32x32,
+correct static regs/CCU layout; LPAC writes impossible even if option forced;
+private-memory duplicate site fixed; indirect-draw WFI/WFM, cubic refusal,
+explicit chip/GMEM query gate, shader-cache chip identity, struct-return size
+and map-extent checks. Fake profile updated but still no hardware proof.
+Actual Mesa comparison caught UBWC swizzle7 mistake; CORRECT inherited value6
+now committed (highestBankBit14,macrotile0). Do not revert to guessed7.
+
+Qualification-v1:261 A635 tests PASS, A619 failed old2CCU literal assertion;
+fixtures lacked IOKit const / C++ struct tag. Snapshot failures preserved.
+v2 prepared correct source but stale receipt guard stopped before builds.
+v3 passed12 identical production IOKit checks (baseline functionalRED short
+reply), actually linked native but helper read stale result path, and real
+Mesa comparison caught swizzle error. v4 corrected profile, native PASS, then
+compute fixture correctly refused missing constant buffer1. v5 fixes ONLY
+fixture binding; fresh DSH90877 qualification-stage-v5 ALL0/inputs unchanged:
+663 ASAN/UBSAN production core/Mesa/compiler/encoder checks. Retains unchanged
+12 transport checks,261 default tests plus fresh default-profile header TU.
+DSH26279/72564/84974/56887 terminal; old failed results never rewritten.
+
+Native-v4/libGauguinMetalCore.dylib8369632B, SHA
+8a8265838bfd3e4a9d627ef40f06e391a74fa3543d0f58b8dca3eec2f04ee1e1.
+12 actual ARM64 iOS objects +13 iOS AIR/NIR/IR3 archives; linked/signed/verified,
+entrypoints checked; minOS16.0, available SDK26.5. Real compiler linked now,
+unlike0220 MESA=0. Native source pins unchanged; v5 reverified exact library.
+Metal DEVICE PLUGIN/CA NOT linked, NO real GPU/texture/pixels/MetalUI qualification.
+Host core is sanitizer-instrumented; Mesa archives are ordinary release builds.
+
+NEXT: implement/build root Metal-core device probe with OWN shader inputs:
+clear+compute+triangle+texture+blend, exact readback/fences and teardown before
+full20H392 device-plugin/CA/presentation. Existing kernel accepts ONE owner;
+root admin probe must hold/finish/release before compositor. ACTUAL
+kPilotRootFences=6 (not32). Existing root job executes
+/usr/libexec/gauguin-gles-probe --after-gpu-api, root/RunAtLoad/LaunchOnlyOnce,
+active+inactive128MiB hard limits and matching dedicated device policy. If
+replacing/changing executable, preserve/correct that memory policy and cache.
+Do not race a new client or relax ownership/BO/finite600s authority checks.
+Prepare any required NEW userland delta fully against CURRENT219 metadata:
+header916229236e05638fe5bcb5535a8be44d017e3798bf93465153b9bf4c76bad206,
+full logs68405/10411/1320888B. Fresh full backup/fsck/old-block/readback and
+concrete individual destructive-write approval still required; nothing staged
+or approved yet. Keep original219 banner-interleave failure and forensic
+provenance; never silently weaken identity guards or rerun claimed trial.
+Full RAM/daily/highrefresh remain open; current bootstrap6GiB/software30Hz.
+
 ### 2026-11-10 CST —0219 TERMINAL; caller-backed icons exercised; full HakiOS core baseline passes
 
 All workers terminal:219 DSH32258,220 DSH76134/69853,219 offline10643/10520.

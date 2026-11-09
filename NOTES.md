@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0207 private read-only image candidate IN PROGRESS
+
+Private research/tmp/dsh-gpu-0207-readonly-wrap/candidate-v1 now contains
+Codex changes to SweetSurface.cpp/.h and GauguinGPU.cpp ONLY, based on206.
+No patch/series entry, host test, native check, build, image or boot yet.
+Git still has ONLY original mkadt diff; do not treat this candidate as tested.
+Need finish tests and inspect before committing. Device remains TWRP.
+
+Candidate adds private readOnly=false initialization; ONLY raw
+KERN_PROTECTION_FAILURE(2) from InOut prepare releases the failed descriptor
+and constructs a FRESH Out descriptor. Successful fallback marks pixels RO.
+Both lazy kernel and task pixel mappings use kIOMapReadOnly; common new
+mapPixelsInTask() is used by addRef(). State mappings remain as before.
+Write trapLock/trapUnlock reject with kIOReturnNotWritable before seed work;
+read locks work. GPU import explicitly rejects readOnly and retains its
+existing IOBuffer-only restriction. Quota/wire accounting and release order
+unchanged. New bounded WRAP RO log complements existing wrap record format.
+Source IOGeneralMemoryDescriptor::wireVirtual/mapping paths were inspected:
+Out uses UPL_COPYOUT_FROM/read DMA, and writable maps of Out are explicitly
+warned against. Physical RO cause remains an inference until the trial.
+
+Next new tests/test_surface_readonly_wrap.py should execute ACTUAL production
+wrapper/free/kernelAddress/mapPixelsInTask/lock traps and GPU surface gate
+with fallible typed seams. Preserve original207 wrapper assertions; test
+protection-only fallback, fresh descriptor/release, every failure/quota
+unwind, RO kernel+task maps, write-lock denial/no seed mutation, unchanged
+RW/panel paths and RO GPU-import rejection. Do not simply switch direction
+without verifying access rights. Native-check BOTH SweetSurface.cpp and
+GauguinGPU.cpp with candidate header; then create patch0200, commit and
+clean194-patch full local build before a temporary real-image trial.
+Do not loosen generic task GPU imports in this correctness change. Whole
+API profiler remains unimplemented; decide later from actual frame evidence.
+Root owns critical code/NOTES; DSH runs checks/build/boot. Full goal active.
+
 ### 2026-11-09 — 0206-R2 real UI GPU service PASSES; three image wraps fail
 
 R2 automatic12:31:25.541033–12:43:51.834578UTC,746.293545s. DSH20344 boot

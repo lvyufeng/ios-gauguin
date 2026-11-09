@@ -2,6 +2,64 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST — renewed HakiOS/UniXNU review;214 TERMINAL;216 software PASS, not installed
+
+LATEST USER STEERING: re-check actual HakiOS/UniXNU success cases. Completed
+primary-source review, pinned refs + code/evidence/gaps/ordered execution in
+docs/gauguin-upstream-graphics-review-20261110.md.27 selected files/2,081,279B,
+all exact Git blobs verified, private upstream-review-20261110/source-receipts.json
+SHA738d5ad43740732a524af15e767a6898795587c4f24615adfc194330629ca109.
+HakiOS current main is SAME63fc2b46 already used, not a new upstream correction.
+UniXNU main95ad7812,AdrenoMetal da7aedd8,sheng a68ee4ee;A740 catalog6fa7bae2.
+HakiOS authors report real Metal compositor100-104fps page swipes at1125x2436,
+lower750x1624 synthetic scroll118-120; conditions/wallpaper/panel evidence limits
+recorded. Neither arbitrary Metal app support nor steady120/daily-phone follows.
+UniXNU sheng reports actual cold icon rendering and GPU work, ALSO service
+crashes/Jetsam/long frames; current preemption/frame-pacing qualification pending.
+
+DECISION: keep proven gauguin A619 bootstrap/storage/touch; HakiOS completeiOS16
+surface+graphics integration main reference; directMetal first candidate, its
+already-iOS16-adapted UniXNU/m2v/Turnip stack alternate. No whole UEFI/XNU rewrite.
+Concrete new priority: upstream MiniIOSurface::surfaceCreate honors
+IOSurfaceAddress, ours always allocates/zeroes.214 actualbackboardd creates
+180x180fmt0IDs16/17/18/20/21/22, and EAGL imports SAMEIDs. This proves create
+path, NOT presence of address key yet. NEXT inspect bounded property presence
+and complete validated caller-memory create semantics using existing wrap
+lifetime. Do NOT infer alpha order or repair by guessed channel swaps.
+Then real A619 Metal clear/triangle/texture/blend/fence/readback->completeCA
+pipeline; measure touch-to-present and only then physicalhighrefresh.
+
+214V2 completed:DSH96310observer0,746.52635s;DSH33474post1,pins unchanged.
+ORIGINAL isolated physical-review214v2.json FAIL remains only pixel_census:
+zero eligible successful bounded wrap-time samples. Actual icons are CREATE,
+not qualifying WRAP; no pixel-order proof. Finite600sGPU service142/142,
+598verifiedrenewals,shadow3044,0BBcrashes;3BOstage0NotReady AFTERplannedstop.
+19wrapsuccess,60surface-results,observerinstalled1,12uniformobservationsincl20/45.
+Full211logprefixes/15files preserved;currentrootheader4866c61db78f8fd3feddc0f44597cdda06a07630350ba73586985d3365f67471,
+logs64317/9873/1274423B. Phone automaticallyTWRP, no live trial/worker/question.
+User redclock->AppGallerycorruption->whitewidgets/missingicons->whiteclock on
+relock remains graphicsFAIL, not recovered correctness.
+
+UI216 worktree research/tmp/gauguin-ui216-worktree-20261110 from78b0365:
+cache invalidation is a concrete reproduced defect. Valid ownedCAcontext with
+unknown/NULL/unreadable selected function now retains cached known uniforms;
+draw snapshot stays empty; invalidowner stillclears. OrdinaryGLprogramdraws
+skip function lookup. Bounded8unknown logs; originalnativeforwarding unchanged.
+DSH72497 build-stage-v1 ALL6jobs0,pins unchanged: installed210baseline functional
+RED exactcacheloss;candidate6492Mach/lifetimeassertions,calls1614;actualObjC
+39717/39797,admission14/22,defaultdisabledexactproducts. Signedbridge563248B
+SHA74f2bf861a7184682dfadb9bed0af728e3244970213996c7b8819ba99fbe5321;
+admissionunchangeda1b98155. NO216backup/delta/rootwrite/boot;devicecause notproved.
+Completed216 source committeda460e3b8ed9952d361eaa649cacec0ab9e41bff1 on
+codex/gauguin-ca-cache-lifetime-20261110;defer deployment until surface review.
+
+This review performed NOdevice commands/newboot/rootwrite/CI. Installed210aafa07f8
+unchanged;main2110203 baseline,214diagnosticisolated,perf213stilluncompiled.
+Originalmkadt diff a74a0418 intact. Goal remainsACTIVE/unlimited/fullscope;
+Metal/highrefresh/fullRAMpressure/dailyuse stillunqualified. Codex criticalcode,
+DSHbuild/test/boot division retained. Every new destructiveuserdata step still
+requires exact fresh approval under AGENTS.md; no approval currently pending.
+
 ### 2026-11-09 UTC — 0214 user completed sampling; visual state changes across transitions
 
 User call_ff58f7... answered '已解锁并浏览这些页面'. Saved isolated214

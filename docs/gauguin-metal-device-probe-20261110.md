@@ -128,6 +128,56 @@ The guarded apply wrapper requires the fresh plan-bound approval and verifies
 review input pins; the writer rechecks every old range before its first write.
 Its failure path restores only the runs touched by that application.
 
+## Capture and acceptance tools prepared while approval is pending
+
+`tools/metal_probe_log.py` validates all eight ordered probe jobs, effective
+memory checkpoints, exact output counts/hashes, queue/fence receipts and build/
+core/seed identity. It independently computes expected hashes for all 28,928
+output words. The kernel must also show the first eight successful completions
+and an authorized compositor open after the clean eight-fence root release.
+A PASS line reporting teardown requested is insufficient for this validator.
+Strict image/banner identity and the full finite-service validator remain
+separate required checks in the post-trial controller.
+
+DSH executed the C++ expectation fixture under ASAN/UBSAN and compared **32**
+phase/seed hashes with Python. All **58** receipt/hash/handoff checks passed,
+including rejection of stale builds, missing/duplicate/truncated records,
+bad memory policy, changed pixels/counts, incomplete native fences, an old
+six-fence release, unauthorized/early compositor opens and pre-stop client
+faults. These tests use synthetic logs and CPU images. The first collector
+erroneously expected at least 60 assertions, after the actual suite had passed
+58; a separate read-only v2 review retains the successful compile/tests and
+corrects the count interpretation without rerunning or rewriting that failure.
+
+The private `read_files223.py` uses the actual HFS parser and a fixed seventeen-
+file namespace, with an explicit 8,369,632-byte limit for the new core. It rejects
+wrong recovery identity, mounted/held partitions, unsafe output names/paths,
+short reads, oversize forks and a changing root header. The local model reads
+both full-hash-verified immutable root images: the base has the original fifteen
+files and two absent new files; the final has all seventeen, including the exact
+signed core. **246** read/bounds/metadata/refusal assertions passed. Removing
+the new core's explicit limit reproduces the old 1 MiB default refusal.
+Root and mobile-owned retained files preserve their exact captured UID/GID;
+the first fixture's incorrect all-root assumption failed and remains recorded.
+Only that fixture expectation changes in its successful fresh v2.
+
+Future before/after-boot capture profiles and the exact seventeen-file expected
+manifest have been derived from the checked local final image. Private
+`trial223.py`, `boot_pilot223.py` and `post223.py` are prepared. The pilot verifies
+kernel inputs against the qualified **0219 worktree**, while preserving the
+user's original main-worktree mkadt diff. The post controller captures every
+file and complete prior log prefix before independent image, service and pixel
+checks; failed identity is retained as failed, even if another component passes.
+All four actual prepare/run/post/pilot entry points refused missing consent in
+**19** guard/syntax checks with RecoveryIO replaced by a forbidden sentinel.
+No device IO, trial claim, approval file, write or boot occurred in those tests.
+
+These results qualify the CPU validation/capture tooling and its missing-consent
+guards. They do not exercise the positive live boot/capture path. Private
+evidence: `log-tools-v2/result.json`, `capture-model-v2/result.json` and
+`startup-guards-v1/result.json`; all DSH workers are terminal. The exact root
+delta, paired image and pending individual write question remain unchanged.
+
 After one approved temporary trial, require the exact build prefix, eight
 native completed fences, eight readback passes and clean kernel handoff.
 Only then proceed to a real Metal device plug-in, image-specific 20H392 CA

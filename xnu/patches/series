@@ -191,3 +191,4 @@
 0193-gauguin-gfw-existing-read-cache.patch
 0194-gauguin-runtime-bounded-micro-settle.patch
 0195-gauguin-cached-bo-allocation-failures.patch
+0196-gauguin-runtime-guard-clock-profile.patch

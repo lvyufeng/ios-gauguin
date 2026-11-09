@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0203 guard/submit elapsed-time profiling passes software checks
+
+Codex patch0196 changes only gauguin_gmu_board.c. The ORIGINAL live
+predicate/IO body is named ggrb_live_check; its wrapper adds two CPU-clock
+reads and cached elapsed counters, returning the unchanged boolean.
+Existing ggr_submit call gets elapsed/delta counters too. No new MMIO,
+omitted predicates, changed packets/fences/quotas/owners or per-success
+logging. At quarantine print total guard elapsed time and the guard
+portion INSIDE submit calls. The remainder includes BOTH CPU and GPU;
+it is not a GPU-only measurement. pending=1 means the current failed
+submit has not yet been folded into totals: never treat it as complete.
+
+DSH37470 native-check-stage-v1 ALL4 jobs0, pins unchanged:139 actual
+202/new predicate/IO comparisons and sticky-failure checks; actual timer
+wrapper true/false/same/backward-clock cases;307,278 retained combined-
+guard/micro recovery assertions;17,214 runtime/ABI+72 service assertions;
+real ARM64 board TU0, reference2129 header/config/generated objects
+unchanged. Existing202 recorded submissions1..15 each have polls==fence;
+first-poll completion is an observation, not an execution-time benchmark.
+
+Next clean190-patch replay/full LOCAL native203 build, then same6GiB/
+mode2/300s/Home90 with current202 headerb2c99aa6 and full15-file/prefix
+preflight. Post-review must use the now-tested explicit service-window
+parser: keep/report post-STOP crashes separately and reject any in-window
+failure. No quota increase, new userdata delta or rollback. Root owns
+NOTES; current phone last TWRP. Full goal remains active.
+
 ### 2026-11-09 — CORRECTION:201/202 crashes are AFTER intentional service stop
 
 Supersedes the earlier 'independent BO/runtime compositor failure'
@@ -16,7 +43,7 @@ Earlier physical-review201/202 JSON receipts are preserved unchanged;
 their whole-session compositor error is too broad for active-window
 classification. No memory/count/VA-limit fix is supported by these runs.
 
-202 terminal09? Actual10:13:38.421804–10:21:02.511107UTC,444.089303s,
+202 terminal:10:13:38.421804–10:21:02.511107UTC,444.089303s,
 automatic; DSH88959 boot all0, DSH77537 capture inner1 (post-stop crash),
 all pins unchanged. All15 files/12 static hashes/complete201 prefixes
 preserved. Full logs39,793/6,645/964,591B. Current root header

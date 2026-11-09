@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0199 manual trial LIVE after user returned to the phone
+
+User answered197 visual question call_c6741641f30b45c9975f56ae87dd445d:
+'重新写入一下，我刚才不在设备旁'. Record197 visual as UNKNOWN/unattended,
+not a failed manual test. Sidecar ui-report197-unattended.json retained.
+User requested another temporary trial; no new userdata delta was requested
+or written. Before any199 packaging claim, Codex disabled synthetic Home
+and restored the original -noprogress flag for this MANUAL test. This
+supersedes the earlier planned automatic-Home199 command.
+
+Source commit d48e600d807c037e6b18f6d27f9fd9f700113195. DSH40245/dispatcher15987
+clean186-patch replay/full local build/qualification all0, pins unchanged.
+Source5330 files9cbaadb91c335ce9cd1bce1af0d8c735a8e016cc387252de451ce8048558cc67;
+only gauguin_gmu_board.c differs from197. Run gauguin.diqlH1 under
+.deps-cache/p0-20261105/build199-failure,
+banner xnu-d000ef5cf2be44bd94dafff8ccf1e10b,
+kernel a4de6737c93fab6a41697af7140d6a7c3b2a5509eb4a3867052cc2c49cfaff2f.
+
+DSH77475 parent52863/nested52954 boot dispatcher is observing ONE claimed
+trial. Packaging, current DTB/memory review, full15-file/prefix preflight
+and recovery latch passed; fastboot temporary boot succeeded. Image
+9d7025fa028557e24757e3e2c25aa3532480504697647303a7753a2f0a7eadf9,
+mode2/300s,601-byte command, sweethidtest=0 (arg absent/default off).
+Current installed195 libraries retained; preboot header a6831e27.
+A NEW199 visual question asks touch unlock/settings/home/swiping and then
+keep running until automatic TWRP. Do not attribute a delayed197 answer to199.
+
+DSH66650 is the single bounded post-wait-stage-v1 watcher. It must wait for
+the SAME199 observer and BOTH dispatcher terminal receipts, freeze them,
+then preserve all15 full files and collect cached STOP records. Poll these
+existing claims/handles; no duplicate boot/capture on timeout. No physical
+199 result exists at this live handoff. Root owns NOTES; DSH must not edit it.
+
 ### 2026-11-09 — 0199 cached runtime-failure attribution passes software checks
 
 Codex patch0192 changes only gauguin_gmu_board.c. The live guard preserves

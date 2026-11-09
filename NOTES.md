@@ -2,6 +2,42 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0195 user-approved321-block installation complete
+
+USB recovered after user reconnected again. DSH2820 /dispatcher21380
+live-preflight-stage-v1 returned0, pins unchanged: exact recovery gauguin,
+stable468ac8ec root header and all39 old ranges/321 blocks matched.
+Fresh DTB0b73e7af matches194. DSH64866 /dispatcher21624 reconciled current
+Linux ranges and all fixed/dynamic DT reservations0: proposed6GiB window
+[0x100000000,0x280000000) remains inside Linux System RAM with no firmware
+overlap. This remains inventory evidence, not pressure/DMA qualification.
+
+User approved NEW exact321-block195 question
+`call_2fdb47daaf574d8b8bcd9246d511aed2` with touched-block rollback on failure.
+`approval.json` binds plan5cbbf27a; no reuse of old239-block authorization.
+DSH apply outer62131 /dispatcher22080 returned0, all pins unchanged:
+39runs/1,314,816B installed, every readback verified, primary header last,
+39write attempts, no rollback. Receipt `apply-v1/result.json` is
+applied-approved-delta-readback-verified, reboot permitted. Fresh16GiB
+backup22e9123a and all original backups retained. Installed library targets
+are admissiona1b98155 +desktop147668da, preserved worker4b211a40 and
+Mesa3a447524, all jobs/cache/policies/backboardd and old logs.
+
+Prepared `boot-stage-v1.json`: DSH will run trial195.py WITHOUT --prepare,
+verify actual15 installed files/full194 prefixes/current new header, then
+one temporary6GiB boot of6133778e. Expected source0d8faae, kernelbe3a8175,
+banner xnu-544bed9d5d7d4a48aa1c469030868da6. All relevant scripts, receipts,
+observer and image are pinned. No boot attempted at this handoff point.
+After dispatch, observe its actual handle/claim/result; no automatic retry
+on timeout. 780/860s window, finite600s GPU service. Auto resets require no
+user attribution question. Use post195.py --prepare then pinned DSH capture
+AFTER actual terminal return. Preserve raw logs even if CA/pixel/health
+acceptance fails; never restore pre-boot blocks after iOS has run.
+
+USB blocker has resolved; previous blocked audit no longer applies. Goal
+objective remains full GPU/Metal, all safe RAM/storage, peripherals and high
+refresh/daily usability. No195 UI/render/stability result yet.
+
 ### 2026-11-09 — reported reconnection; host USB still absent after server refresh
 
 User answered the pending reconnect question: back in TWRP and directly

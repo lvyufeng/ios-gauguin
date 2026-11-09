@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0191 native RAM counters and fresh range audit
+
+The fresh read-only TWRP inventory is in `research/tmp/dsh-memory-0191`.
+All 0190 root file and full log prefix pins matched. Current FDT banks,
+fixed/dynamic reservations, FDT reservation header and Linux System RAM ranges
+match 0182. Current recovery MemTotal is 7,742,423,040 bytes. The 6 GiB proposal
+still adds exactly 2,147,483,648 bytes with no fixed or dynamic firmware overlap.
+Capture/audit returned 0 and read the root header twice without changing it.
+
+Patch `0185-gauguin-native-ram-size-receipt.patch` adds one Gauguin BSD-init log
+at an already captured boot marker. It reports the boot physical base and
+actual `mem_size`, `mem_actual`, `max_mem`, `max_mem_actual`, and `sane_size`.
+The XNU VM assigns its physical base from the same boot field. The native
+recipe defines `XNU_TARGET_OS_OSX`, so its `hw.memsize` points to
+`max_mem_actual`. Report both max fields explicitly. First native TU failed
+because `gPhysBase` is private to Mach. V2 reuses BSD's existing boot-args API
+and returned 0 with unchanged native inputs. DSH 49928 had only three startup
+events and no claim after 2m04s. Stopped its owned PID 9832 and used local
+one-claim profiles; both cross attempts and outer handles are closed.
+
+Next replay 179 patches and verify only `bsd_init.c` changed relative to 0190.
+Build one 0191 kernel, package an offline 4 GiB control and a separate 6 GiB
+trial with the same kernel, root, bootargs, assets and loader. Require actual
+RAM counters plus full GLES/constructor regression before accepting 6 GiB
+recognition. CPU page pressure, extra-range DMA and other safe lower regions
+are later acceptance steps. No new userdata write or 0191 boot at this entry.
+
 ### 2026-11-09 — 0190 physically verifies the compositor admission path
 
 One 0190 boot completed and returned automatically to TWRP in 746.756016s

@@ -1,0 +1,17 @@
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -809,6 +809,13 @@
+ 	sysctl_mib_init();
+ 
+ 	bsd_init_kprintf("calling bsd_autoconf\n");
++#if defined(GAUGUIN)
++	const boot_args *boot = (const boot_args *)PE_state.bootArgs;
++	printf("SWEET RAM: base=%016llx vm_bytes=%llu boot_bytes=%llu max_bytes=%llu max_actual_bytes=%llu sane_bytes=%llu\n",
++	    (unsigned long long)boot->physBase, (unsigned long long)mem_size,
++	    (unsigned long long)mem_actual, (unsigned long long)max_mem,
++	    (unsigned long long)max_mem_actual, (unsigned long long)sane_size);
++#endif
+ 	printf("SWEET boot: bsd_autoconf\n");
+ 	bsd_autoconf();
+ 	printf("SWEET boot: bsd_autoconf done\n");

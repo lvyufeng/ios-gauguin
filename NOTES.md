@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0195 offline321-block delta passes; waiting for USB
+
+DSH5684 `offline-stage-v2` returned0, all pins unchanged. Fresh local
+stage-v2 retains all13 existing files, including exact log extents, BSD
+attributes and complete194 log bytes. Delta-v2 changes321 ×4096 =
+1,314,816B (1.25390625MiB),39runs. Only launcher replacement, new desktop
+bridge and audited HFS bookkeeping; all531 jobs/cache/policies/Mesa/
+worker/backboardd preserved. fsck-v2 exit0/read-only detach0. Proven writer
+body matches175v2 apart from base/image pins and key/error labels; all102
+actual fake-IO approval/precondition/header-last/partial-write/readback/
+report-failure/rollback assertions pass.
+
+Independent DSH27397 /dispatcher18077 returned0, pins unchanged.
+`offline-local-review-v2.json` rechecks whole16GiB digests, raw namespace,
+permissions, retained files, all old/new run bytes and same-source pins.
+Plan `research/tmp/dsh-ui-0195-bridge/delta-v2/delta-plan.json`, SHA256
+`5cbbf27a93d03be14ce7da069893f6ed144a2ced4691766946bae08c95f35bcf`.
+Final local image SHA256
+`1167dfbf084cc0bd9f2b75e22f81d74e3d519952500581b471169632c6c4acf8`.
+57 audited stale HFS private orphan entries cleaned (24files/33dirs).
+Current old ranges verified=0; live preflight remains explicitly pending.
+No195 approval file, userdata write or boot exists.
+
+On USB reconnection, execute via DSH the already pinned READ-ONLY
+`research/tmp/dsh-ui-0195-bridge/live-preflight-stage-v1.json` with
+`tools/run-pinned-stage.py`. It captures fresh recovery memory to
+capture-reconnected-v1, requires the exact offline-reference DTB and the
+unchanged fresh-backup root header, checks all39 old runs/321 blocks,
+then independent-local-review-v2. Do not run it again if already claimed;
+inspect claim/result and the actual dispatcher. A failed preflight never
+authorizes a write or a restore of old backup blocks.
+
+Only after this passes, request NEW exact321-block195 consent and touched-
+block rollback approval under AGENTS.md. Explain that the new EAGL bridge
+enables actual desktop rendering after the same-boot GPU worker succeeds.
+The prior239-block consent belongs to completed192 and is not transferable.
+After new approval, prepare one pinned apply with fresh readback,15-file
+installed manifest and updated195 temporary-boot/acceptance scripts. Those
+scripts must handle first16/every120 submission samples, two raw admission
+sessions, original pilot fences7–9 plus later UI jobs, and real CA frames.
+Do not reuse192's hardcoded239-block/14-file/9-submission contracts.
+User USB reconnection request is pending; user away and automatic resets
+never need confirmation. Goal stays active; daily-use/Metal/high-refresh
+and physical195 UI remain unqualified.
+
 ### 2026-11-09 — 0195 native kernel/pair ready; USB absent, no new root write
 
 Native195 completed: DSH outer38633 /dispatcher80733 returned0, all input

@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0191 recognizes 6 GiB; GPU startup stops before ZAP AUTH
+
+The exact 6 GiB image `30b195e6` returned automatically to TWRP after
+131.889615s (02:27:25.535484–02:29:37.425099 UTC). Observer 0 and image banner
+match. Capture of all 12 files passed; strict post qualification stopped at
+the 600s minimum as intended, overall exit 1. Outer handles 74934/96322 closed.
+`research/tmp/dsh-memory-0191/independent-partial-review.json` independently
+verifies nine static files, all three entire prefixes and the current RAM and
+compositor logs. New complete logs 16,198 / 3,686 / 476,966 bytes. No root write.
+
+Actual XNU reports physical base `0x100000000`, VM/boot/max/max-actual
+6,441,402,368 bytes, sane 6,401,359,872 bytes. The system mounted iOSRoot and
+reached SpringBoard/backboardd. Protected PID 57's full inert constructor
+matches eight encodings, GET8 snapshot -1/-1 and footprint 1,147,200 bytes.
+Firmware B02 moved to `0x1025fc000` and native CPU copy completed 1,984/1,984.
+This physically verifies memory recognition and boot to userspace, with
+pressure, extra-range DMA and full stable safe RAM acceptance still open.
+
+GMU firmware/DCVS and CP ME_INIT/WHERE_AM_I completed. Signed ZAP INIT and
+MEM_SETUP succeeded. Immediately before AUTH, WDT lease check quarantined;
+`SWEET GPU ZAP GUARD reason=4 scope=1 phase=5`, AUTH count `0/0/0`. The secure
+AUTH was never dispatched. HakiosGPU service absent and no 600s completion;
+standalone GLES failed qualification. The WDT message merges several checks,
+so the exact failing predicate and its relationship to the memory layout
+are unknown. No native panic entry captured.
+
+Next use the existing 0191 4 GiB control (same kernel, boot args, firmware,
+root) with fresh post-6 GiB prefixes. Compare the same ZAP and WDT boundary.
+If needed record the existing sampled WDT values on failure before changing
+any watchdog decision. 0190 4 GiB remains the accepted compositor/GLES
+baseline. 0192 compositor GPU authority is still local candidate work only.
+
 ### 2026-11-09 — 0191 6 GiB temporary trial live, observer handle 74934
 
 `fastboot boot` sent image `30b195e6` once and returned OKAY in 0.594s.

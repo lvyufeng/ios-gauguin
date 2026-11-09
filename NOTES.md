@@ -2,6 +2,58 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0211 TERMINAL: native1800s service healthy; graphics FAIL;214 sampler full build underway
+
+DSH6529 boot observer0,1945.245626s. DSH84849 post ALL1,pins unchanged;
+ORIGINAL physical-review211.json error remains ONLY wrap_state:'successful
+wrapped-image result lacks recorded state pointer'. Do NOT rewrite as PASS.
+Actual result log count EXACT64,zero null states/zero timestamp mismatches;
+25 successful wraps/0 failures. Likely bounded result receipt saturation,
+not proved for missing IDs; audit independently, do not erase unknown states.
+All15 files/12 static/COMPLETE R4 prefixes preserved. Current header
+c79b2b734b1e863c9d5b5b1a378be0bf3b9bc5e2f73c3b295358872ee7027cf2,
+logs62273/9604/1242511B; phone automatically returned TWRP. No manual query.
+
+Service parser independently confirms1800s,1793 renewals,430/430 native
+submissions,shadow976,23 MICRO rechecks/0 expiry. ONE backboardd crash and
+ONE stage0 NotReady BO failure occur AFTER explicit planned stop, NOT within
+service window. End retainedBO222/86,900,736B,next663; no stage4 quota failure.
+Actual CA observer installed ONCE;13 uniform function observations incl20/45;
+no-program draw IDs53(hom),20(c4p),45(vcm),28(ds8), all4 custom programs made.
+After30frames summary0 GL errors,40shaders/37programs,7 memory-shared surfaces/
+44 CPU copies. Startup30frame mean146097us,26550us preparing surfaces;
+NOT steady FPS or pure GPU time. Native430 submit3,790,829,375ns,20,084 guards
+3,768,087,968ns (~99.4%),56,816 total guards10,758,276,041ns. API valid1,
+pending0; locked-submit mean9.828ms. Do NOT infer graphics/UI correctness.
+Latest HUMAN verdict still missing icons/blank widgets/slightly improved but
+not responsive. Original generic normal answer was superseded by details.
+
+SOURCE clue: my_attachImage sets alpha_first for pixel-format0, but
+my_texImageIOSurface marks wrapped without alpha_first; observed180x180 icon
+imports use format0/GL_RGBA/UNSIGNED_BYTE and CPU upload. This is a pixel-order
+hypothesis ONLY, not actual sampled content or proof. Task-backed maps already
+preserve default cache type, so do NOT assume they are NC aliases blindly.
+
+ISOLATED214 directory research/tmp/gauguin-pixel214-worktree-20261110,
+branchcodex/gauguin-surface-pixels-20261110,sourcecommit1ee7270. Patch0204 adds
+only bounded wrap-time original-input channel census: mode2+exact owning
+registered compositor,format0/4B >=64x64,<=32 images,3x256 copyin bytes/image,
+no pixel/cache/ABI/GPU changes. Candidate full APFS source clone; private
+research/tmp/dsh-surface-0214-pixels. DSH95179 v1 actual nativeTU passed;
+host conservation failed one added blank separator only. DSH96875 host-v2
+376375 ASAN/UBSAN cases PASS; kernel code unchanged. DSH76711 native-stage-v1
+CURRENTLY building in isolated real source214/build214-pixel-census roots,
+clean197patch/5331file source dd24470450b6f33999350b0f4ae2ddcbf298ccbee049f0d55576f3bfcd975929,
+identical to tested candidate. Keep214 HEAD/NOTES/code frozen until terminal.
+No214 package/boot yet. Main211 pinned inputs/old source refs unchanged.
+NEXT: qualify214; prepare full read-only reference asset/helper closure in
+isolated root (root-sensitive175/192 Python helpers must be REAL copies),
+package6GiB/mode2/600s temporary pixel diagnostic using unchanged installed210
+CA library and CURRENT21115-file/header prefixes. No userdata install or new
+write approval needed for a temporary kernel-only boot. Actual native214 pixel
+samples + latest211shader/texture logs will determine a correction, not guesses.
+Perf213 remains deferred/uncompiled WIP. Metal/high-refresh/daily scope intact.
+
 ### 2026-11-09 UTC — 0211 graphics still FAIL: white clock, missing icons/blank widgets; unresponsive
 
 User refined initial generic 'normal' answer with exact call_a8a59baf...:

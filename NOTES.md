@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0198 exercised wrapped images; first real desktop submit failed
+
+Same197 kernel,198 image8f56ca21add91a0b98f6d42500962b87ef28b682a12137d924a39cda7c3e2b31,
+605-byte command only removes -noprogress/adds sweethidtest=90. No rebuild
+or userdata delta. DSH39961 parent14026/nested14041 boot0, pins unchanged,
+19,520KiB transfer/Booting both OKAY, total0.598s. Actual observation
+07:59:25.007034–08:04:08.067944UTC,283.060910s, automatic recovery. Do NOT
+ask routine reset attribution. Idle197 result and pending197 visual reply
+cannot be reused as a physical198 UI result.
+
+DSH54649 post wait/capture completed with inner1 and unchanged pins: real
+GPU qualification failure, not failed raw capture. All15 complete files,
+12 static hashes and entire197 log prefixes retained. Full logs
+29,577/5,300/868,912B. Root header now
+a6831e272b53ce3166007b97c2c18db0d00ae10398d30a3e1b971f8b729bb862.
+physical-review198.json errors.GPU='native submit failure recorded'.
+Home0x40 down/up delivered to1 client twice. Wrapped image12 RGhA256x1,
+bpe8,row2048,size2048 returns nonzero state11b194000; image13 A008128x54,
+bpe1,row128,size6912 preserves unaligned data112a34040 and nonzero state
+11c760000. Both return0; backboardd crashes0, original FAR0x30 absent.
+This demonstrates the real selector6/state path beyond the old CPU crash.
+
+First desktop job after9 accepted root/worker jobs has6 IBs; native
+'submit rc=3 ibs=6 submitted=10 completed=9 shadow=128 polls=9'. GGR_IO=3,
+NOT GGR_TIMEOUT=4. Mesa reports -60 generically after the adapter failure;
+do not infer a hardware timeout from that string. Runtime quarantines,
+final service136 renewals then health/owner failure, DMA owners retained
+until reset. One CA frame log (198 calls/5 draws/10 triangles) appears AFTER
+the failed submission/wait. It is NOT proof of a successfully rendered GPU
+frame. Accelerated UI/Metal/high-refresh/daily-use remain unqualified.
+
+Next inspect the failure before the first completion poll: submitted
+increments before GMU fence-off handshake; polls remains9. Existing logs
+do not distinguish failed live guard/register callback from hardware fault.
+Add cached failure attribution without extra MMIO or relaxed guards, then
+native/host checks, fresh build and same automatic-Home temporary trial.
+Root owns NOTES; DSH executes stages without editing the shared handoff.
+
 ### 2026-11-09 — 0197 full capture complete; wrapper was NOT exercised
 
 DSH post31916/dispatcher13450 and nested capture all0, pins unchanged.

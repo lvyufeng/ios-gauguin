@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0211 human visual interaction PASSED; native terminal still pending
+
+User answered call_d85b305778bd4ec495f0d79e0d04e1ca:
+“图像正常，能进入桌面并返回”. Saved exact report in0211/
+user-visual-report211.json. This is the first human report after approved210
+CA callback + qualified211 private-BO table fix: this tested interaction has
+normal image and successful Desktop/Settings return. Do NOT infer smoothness,
+whole1800s stability, confirmed native CA callbacks or leak-free resources.
+Those still require the pending native capture and separate feedback.
+New async follow-up asks animation/tap responsiveness vs earlier versions;
+PENDING. Keep this same trial running, do not reboot or ask manual attribution.
+
+Continuation audit: previous turn made concrete progress (approved root write,
+local native build, temporary boot). Live process revalidation now confirmed
+watch_post211.py PID15758 and boot_pilot211.py PID15469; boot/observer/post
+all NONTERMINAL. DSH6529 +84849 still own these stages. Main mkadt diff
+retains original a74a0418. Continue read-only/native evidence collection and
+independent offline work while real1800s trial runs.
+
 ### 2026-11-09 UTC — 0211 LIVE; approved210 bridge installed; waiting for human visuals/automatic capture
 
 DO NOT reboot or duplicate this trial. DSH6529 boot-dispatch-stage-v1 is

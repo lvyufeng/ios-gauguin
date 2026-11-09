@@ -2,6 +2,22 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0202 full local native build qualified; next automatic BO trial
+
+DSH72793 native-stage-v1 ALL0, pins unchanged. Clean189-patch source5330
+filesaa5ca01956597fd8fa24acd1926ffc24b0c53220f3729e119acb26ee1b47acf6;
+only GauguinGPU.cpp differs from201. Source commit
+9e4cd77c312cc1016884eba83887ef01b3a379ec. LOCAL8-job build202-bo,
+native build0/qualification0, old195 reference hashes+mtimes unchanged.
+Banner xnu-91684590c3f44181999afad921e0d3da,
+kernel2ef820b282cd967ce0f3a0b312df0580dd42952d5281834b952ee9bba4289c57.
+
+Next package/current201 headerda939d5f/memory/full15-file and COMPLETE201
+prefix preflight, ONE temporary6GiB/mode2/300s/automatic Home90 trial;
+then full raw capture and actual BO failure/frame/fence review. No202
+physical result yet, no user action requested, no new userdata delta.
+Root owns NOTES; do not confuse201's completed28 jobs with202 results.
+
 ### 2026-11-09 — 0202 cached BO rejection diagnostics pass native IOKit TU
 
 Codex patch0195 changes only GauguinGPU.cpp. Preserve every existing

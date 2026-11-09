@@ -28,6 +28,7 @@ def test(source, output):
     for name, file, marker in (
         ('diagnostic-caller', 'sweet_amfi.c', 'SWEET_EAGL_DIAGNOSTIC_CALLER'),
         ('memory', 'kern_memorystatus.c', 'SWEET_EAGL_DENIED_GET8'),
+        ('pilot', 'kern_exec.c', 'SWEET_EAGL_GPU_PILOT'),
     ):
         body = originals[file].decode()
         start = body.index('\n', body.index(f'/* {marker}_BEGIN */')) + 1
@@ -48,6 +49,8 @@ def test(source, output):
         'shadow shadow-no-exec shadow-not-marked shadow-wrong-pid shadow-wrong-id shadow-wrong-version '
         'memory-self memory-disabled memory-other-proc memory-other-uid memory-root memory-entitled '
         'memory-other-pid memory-wrong-size memory-wrong-command memory-flags memory-no-buffer'
+        ' pilot-good pilot-mode-off pilot-argv0-only pilot-wrong-parent pilot-reparented pilot-exec-not-spawn'
+        ' pilot-other-vnode pilot-writable-proxy pilot-thread-mismatch pilot-pid-reused pilot-wrong-uid pilot-foreign-task'
     ).split()
     binary = output / 'eagl-inject-model'
     compiler = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--find', 'clang'], text=True).strip()
@@ -61,6 +64,15 @@ def test(source, output):
         (output / f'{case}.stderr').write_text(result.stderr)
         assert result.returncode == 0 and not result.stderr, (case, result.returncode, result.stderr)
         lines = result.stdout.splitlines()
+        if case.startswith('pilot-'):
+            recorded = case in ('pilot-good', 'pilot-pid-reused', 'pilot-wrong-uid', 'pilot-foreign-task')
+            trace = 'SWEET DYLD EXEC: pid=57 image=2 argc=2 envc=0 job=1 insert=0 expected=0 mode=0 admission=0'
+            want = [trace]
+            if recorded:
+                want.append('SWEET GPU AUTH: recorded launchd compositor proxy pid=57')
+            want.append(f'PILOT PASS recorded={int(recorded)} allowed={int(case == "pilot-good")}')
+            assert lines == want, (case, lines)
+            continue
         if case.startswith('memory-'):
             expected = []
             if case == 'memory-self':

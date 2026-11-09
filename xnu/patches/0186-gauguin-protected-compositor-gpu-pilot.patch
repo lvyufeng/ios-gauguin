@@ -1,0 +1,291 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -5402,6 +5402,8 @@
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ static TUNABLE(uint32_t, sweet_exec_loader_probe, "sweet_dyld_probe", 0);
++static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);
++static void sweet_eagl_gpu_record_proxy(struct image_params *imgp, proc_t p);
+ /* SWEET_DYLD_EXEC_PROBE_BEGIN: complete body used by the host boundary test. */
+ struct sweet_dyld_env_record {
+ 	unsigned image, job, insert, expected, mode, admission;
+@@ -5453,13 +5455,13 @@
+ 	return start;
+ }
+ 
+-static void
++static bool
+ sweet_dyld_exec_trace(struct image_params *imgp, proc_t p)
+ {
+ 	struct sweet_dyld_env_record record = {0};
+ 	if (!sweet_exec_loader_probe || imgp == NULL || p == NULL ||
+ 	    imgp->ip_strings == NULL) {
+-		return;
++		return false;
+ 	}
+ 	/* These are kernel execargs pointers, not user addresses. Reject malformed
+ 	 * ranges before subtraction or reading. execargs_alloc provides exactly
+@@ -5471,12 +5473,12 @@
+ 	uintptr_t tail = (uintptr_t)imgp->ip_strendp;
+ 	if (base > UINTPTR_MAX - (NCARGS + PAGE_SIZE) || argv <= base ||
+ 	    env < argv || end < env || tail < end || tail > base + NCARGS + PAGE_SIZE) {
+-		return;
++		return false;
+ 	}
+ 	const char *path = imgp->ip_strings;
+ 	const char *nul = memchr(path, 0, argv - base);
+ 	if (nul == NULL) {
+-		return;
++		return false;
+ 	}
+ 	size_t path_length = (size_t)(nul - path);
+ 	if (sweet_dyld_env_equal(path, path_length,
+@@ -5486,19 +5488,22 @@
+ 	    "executable_path=/usr/libexec/xpcproxy")) {
+ 		record.image = 2;
+ 	} else {
+-		return;
++		return false;
+ 	}
+ 	if (!sweet_dyld_env_scan(imgp->ip_startargv, imgp->ip_endargv,
+ 	    imgp->ip_argc, false, &record) ||
+ 	    !sweet_dyld_env_scan(imgp->ip_endargv, imgp->ip_endenvv,
+ 	    imgp->ip_envc, true, &record)) {
+-		return;
+-	}
+-	/* Only counts and fixed image codes; never print arbitrary argv/env text.
+-	 * This observation cannot grant loader permissions or change exec status. */
++		return false;
++	}
++	/* Report only counts and fixed image codes. The return value identifies
++	 * the copied proxy job arguments for the caller's provenance check. */
+ 	printf("SWEET DYLD EXEC: pid=%d image=%u argc=%d envc=%d job=%u insert=%u expected=%u mode=%u admission=%u\n",
+ 	    proc_pid(p), record.image, imgp->ip_argc, imgp->ip_envc, record.job,
+ 	    record.insert, record.expected, record.mode, record.admission);
++	/* The second copied argument is the job selector used by xpcproxy. */
++	return record.image == 2 && imgp->ip_argc == 2 && record.job == 1 &&
++	       strcmp(imgp->ip_startargv + strlen(imgp->ip_startargv) + 1, "com.apple.backboardd") == 0;
+ }
+ /* SWEET_DYLD_EXEC_PROBE_END */
+ #endif
+@@ -5675,7 +5680,9 @@
+ 		goto bad;
+ 	}
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+-	sweet_dyld_exec_trace(imgp, p);
++	if (sweet_dyld_exec_trace(imgp, p) && sweet_eagl_gpu_pilot_enabled()) {
++		sweet_eagl_gpu_record_proxy(imgp, p);
++	}
+ #endif
+ 
+ bad:
+@@ -5684,12 +5691,12 @@
+ 
+ 
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+-static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);
+ /* SWEET_EAGL_INJECT_BEGIN: complete body used by typed host boundary tests. */
+ bool
+ sweet_eagl_diagnostics_enabled(void)
+ {
+-	return sweet_eagl_inject_requested == 1 && sweet_exec_loader_probe != 0;
++	return sweet_exec_loader_probe != 0 &&
++	       (sweet_eagl_inject_requested == 1 || sweet_eagl_inject_requested == 2);
+ }
+ 
+ enum sweet_eagl_inject_outcome {
+@@ -5882,6 +5889,58 @@
+ 	    imgp->ip_envc, effective, real);
+ }
+ /* SWEET_EAGL_INJECT_END */
++
++/* SWEET_EAGL_GPU_PILOT_BEGIN */
++static uint64_t sweet_eagl_launch_uniqueid;
++
++bool
++sweet_eagl_gpu_pilot_enabled(void)
++{
++	return sweet_eagl_inject_requested == 2 && sweet_exec_loader_probe != 0;
++}
++
++static void
++sweet_eagl_gpu_record_proxy(struct image_params *imgp, proc_t p)
++{
++	proc_t launchd = current_proc();
++	if (launchd == NULL || !proc_isinitproc(launchd) || p == NULL || p == launchd ||
++	    !(imgp->ip_flags & IMGPF_SPAWN) || (imgp->ip_flags & IMGPF_EXEC) ||
++	    imgp->ip_new_thread == THREAD_NULL ||
++	    p != (proc_t)get_bsdthreadtask_info(imgp->ip_new_thread) ||
++	    proc_original_ppid(p) != proc_pid(launchd)) {
++		return;
++	}
++	vfs_context_t context = imgp->ip_vfs_context;
++	kauth_cred_t cred = vfs_context_ucred(context);
++	if (!IS_VALID_CRED(cred)) {
++		return;
++	}
++	vnode_t proxy = NULLVP;
++	if (vnode_lookup("/usr/libexec/xpcproxy",
++	    VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT, &proxy,
++	    vfs_context_kernel()) != 0) {
++		return;
++	}
++	bool protected_proxy = proxy == imgp->ip_vp &&
++	    sweet_eagl_protected_node(proxy, context, kauth_cred_getuid(cred));
++	vnode_put(proxy);
++	uint64_t uniqueid = proc_uniqueid(p);
++	if (protected_proxy && uniqueid != 0) {
++		__atomic_store_n(&sweet_eagl_launch_uniqueid, uniqueid, __ATOMIC_RELEASE);
++		printf("SWEET GPU AUTH: recorded launchd compositor proxy pid=%d\n", proc_pid(p));
++	}
++}
++
++bool
++sweet_eagl_gpu_pilot_caller(proc_t p)
++{
++	if (!sweet_eagl_gpu_pilot_enabled() || p == NULL || p != current_proc()) {
++		return false;
++	}
++	uint64_t uniqueid = __atomic_load_n(&sweet_eagl_launch_uniqueid, __ATOMIC_ACQUIRE);
++	return uniqueid != 0 && proc_uniqueid(p) == uniqueid && sweet_eagl_diagnostic_caller(p);
++}
++/* SWEET_EAGL_GPU_PILOT_END */
+ #endif
+ 
+ /*
+diff --git a/bsd/kern/sweet_eagl_diagnostics.h b/bsd/kern/sweet_eagl_diagnostics.h
+--- a/bsd/kern/sweet_eagl_diagnostics.h
++++ b/bsd/kern/sweet_eagl_diagnostics.h
+@@ -3,7 +3,11 @@
+ 
+ #include <sys/kernel_types.h>
+ 
++__BEGIN_DECLS
+ bool sweet_eagl_diagnostics_enabled(void);
+ bool sweet_eagl_diagnostic_caller(proc_t p);
++bool sweet_eagl_gpu_pilot_enabled(void);
++bool sweet_eagl_gpu_pilot_caller(proc_t p);
++__END_DECLS
+ 
+ #endif
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -1,7 +1,7 @@
+ /* msm-numbered IOKit transport for the existing A619 bootstrap.
+  * Interface compatibility: HakiOS 63fc2b4633bac3af8e57dadab9f5a8d4cb940438.
+  * The backend, ownership, exact wire validation and SweetSurface adapter here
+- * are local. Opt-in/root-only/one client; submissions initially synchronize
++ * are local. Opt-in and one client; submissions initially synchronize
+  * before returning. This is not an IOAccelerator or a Metal implementation. */
+ #include <pexpert/arm64/board_config.h>
+ #if defined(GAUGUIN)
+@@ -13,16 +13,22 @@
+ #include <IOKit/IOUserClient.h>
+ #include <IOKit/IOBufferMemoryDescriptor.h>
+ #include <kern/clock.h>
++#include <kern/task.h>
+ #include <vm/pmap.h>
+ #include <sys/systm.h>
+ #include <sys/proc.h>
+ #include "SweetSurface.h"
++#include "../../../bsd/kern/sweet_eagl_diagnostics.h"
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+ extern "C" boolean_t pmap_valid_page(ppnum_t);
+ 
+ static IOLock *gLock;
+ static IOUserClient *gOwner;
++/* Pilot access starts only after the existing root test has released its
++ * client following the six native fences. Protected by gLock. */
++static constexpr uint32_t kPilotRootFences = 6;
++static uint32_t gReleasedRootFence;
+ /* Kept until reset even on failure: a table visible to a live SMMU may never
+  * be returned to the allocator merely because an operation timed out. */
+ static IOBufferMemoryDescriptor *gTables;
+@@ -110,7 +116,7 @@
+     uint64_t fBytes;
+     uint32_t fNextHandle,fNextQueue,fNativeFence;
+     gpu_queue fDefaultQueue,fQueues[GGR_MAX_QUEUES];
+-    bool fClosed;
++    bool fClosed, fCompositor;
+     gpu_buffer *find(uint32_t);
+     gpu_queue *queue(uint32_t);
+     IOReturn add(IOMemoryDescriptor *,SweetSurface *,uint64_t,uint32_t,uint32_t *);
+@@ -156,7 +162,10 @@
+     bool started=attached&&s->start(p);
+     if(attached&&!started)s->detach(p);
+     s->release();gPublished=started;
+-    IOLog("SWEET GPU USER: service=%u root-only single-client synchronous-submit\n",started);
++    if(sweet_eagl_gpu_pilot_enabled())
++        IOLog("SWEET GPU USER: service=%u compositor-pilot single-client synchronous-submit\n",started);
++    else
++        IOLog("SWEET GPU USER: service=%u root-only single-client synchronous-submit\n",started);
+     return started;
+ }
+ extern "C" void GauguinGPUStop(void)
+@@ -191,17 +200,25 @@
+ 
+ bool GauguinGPUUserClient::initWithTask(task_t task,void *sid,UInt32 type,OSDictionary *properties)
+ {
+-    if(type||clientHasPrivilege(task,kIOClientPrivilegeAdministrator)!=kIOReturnSuccess||
+-       !IOUserClient::initWithTask(task,sid,type,properties))return false;
+-    fTask=task;fNextHandle=1;fNextQueue=1;return true;
++    if(type)return false;
++    bool admin=clientHasPrivilege(task,kIOClientPrivilegeAdministrator)==kIOReturnSuccess;
++    if(!admin&&(task!=current_task()||!sweet_eagl_gpu_pilot_caller(current_proc())))return false;
++    if(!IOUserClient::initWithTask(task,sid,type,properties))return false;
++    fTask=task;fCompositor=!admin;
++    if(fCompositor)task_reference(fTask);
++    fNextHandle=1;fNextQueue=1;return true;
+ }
+ bool GauguinGPUUserClient::start(IOService *p)
+ {
+     if(!gLock||!IOUserClient::start(p))return false;
+     IOLockLock(gLock);
+-    bool ok=!gOwner&&sweet_gpu_runtime_ready()&&prepareTables();
++    bool ok=!gOwner&&(!fCompositor||gReleasedRootFence>=kPilotRootFences)&&sweet_gpu_runtime_ready()&&prepareTables();
+     if(ok){fBuffers=IONewZero(gpu_buffer,GGR_MAX_BUFFERS);ok=fBuffers!=nullptr;}
+-    if(ok)gOwner=this;
++    if(ok) {
++        gOwner=this;
++        if(fCompositor)IOLog("SWEET GPU AUTH: compositor opened pid=%d root_fence=%u\n",
++            proc_pid(current_proc()),gReleasedRootFence);
++    }
+     IOLockUnlock(gLock);return ok;
+ }
+ gpu_buffer *GauguinGPUUserClient::find(uint32_t handle)
+@@ -270,7 +287,10 @@
+         if(!fClosed) {
+             fClosed=true;bool clean=true;
+             if(fBuffers)for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
+-            if(gOwner==this&&clean)gOwner=nullptr;
++            if(gOwner==this&&clean) {
++                if(!fCompositor&&fNativeFence>gReleasedRootFence)gReleasedRootFence=fNativeFence;
++                gOwner=nullptr;
++            }
+             if(!clean)IOLog("SWEET GPU USER: client closed after fault; DMA-visible memory/tables retained until reset\n");
+         }
+         IOLockUnlock(gLock);
+@@ -282,10 +302,12 @@
+     /* Even unusual start/death paths must not release a descriptor still
+      * visible to DMA. Normal clientClose has already completed/unmapped it. */
+     if(fBuffers){IODelete(fBuffers,gpu_buffer,GGR_MAX_BUFFERS);fBuffers=nullptr;}
++    if(fCompositor)task_deallocate(fTask);
+     IOUserClient::free();
+ }
+ IOReturn GauguinGPUUserClient::clientMemoryForType(UInt32 type,IOOptionBits *options,IOMemoryDescriptor **memory)
+ {
++    if(fCompositor&&current_task()!=fTask)return kIOReturnNotPrivileged;
+     if(!options||!memory||!gLock)return kIOReturnBadArgument;
+     IOLockLock(gLock);IOReturn r=kIOReturnBadArgument;
+     gpu_buffer *b=!fClosed&&gOwner==this?find(type):nullptr;
+@@ -390,6 +412,7 @@
+ IOReturn GauguinGPUUserClient::externalMethod(uint32_t selector,IOExternalMethodArguments *a,
+     IOExternalMethodDispatch *,OSObject *,void *)
+ {
++    if(fCompositor&&current_task()!=fTask)return kIOReturnNotPrivileged;
+     union { struct ggr_param param;struct ggr_new make;struct ggr_info info;
+         struct ggr_cpu_prep prep;struct ggr_cpu_fini fini;struct ggr_close close;
+         struct ggr_submit submit;struct ggr_wait wait;struct ggr_madvise madvise;

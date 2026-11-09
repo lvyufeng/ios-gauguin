@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0192 kernel pilot scope passes native and host checks
+
+Mode 2 candidate v3 records the stable unique ID only for a protected real
+xpcproxy vnode started by init with copied `argv[1]=com.apple.backboardd`.
+It also checks spawn context, image thread and original parent. The non-admin
+GPU open needs the same current task and unique ID plus the existing protected
+UID 501 backboardd check. It retains that task for the client lifetime and
+rejects method/map calls from a different task. The existing single GPU owner
+and root path are retained; the compositor pilot waits for the root client to
+release cleanly after at least six native fences. Mode 1 keeps read-only
+admission and root-only GPU access.
+
+Native v3 both TUs returned 0. 64 exec/GET8/proxy cases, 49 retained loader
+cases, IOKit 77/71/207 retained and 64 new task/fence/lifetime assertions
+passed. Legacy IOKit source also passes the updated fixture. The two v3 local
+iOS16 arm64 libraries pass strict signing and load-command review. Admission
+launcher SHA256 `3e563b10946a10f5ca83ba4a8af5e4cf333d53385f410837476f55d4aae467c6`
+(70,272 B), worker `be27ac482aeb8992333f5c8fcf15f4398a5b8933bbd5a703509b39fdfdc9dad1`
+(73,104 B). Launcher checks the worker file's owner, mode and effective write
+denial, waits off the compositor startup thread, then loads the worker. The
+worker uses the accepted Mesa and original shader/IOSurface patterns with
+cleanup. Both remain uninstalled and have no renderer hooks.
+
+DSH 81951 is still doing the read-only root backup. Verified dispatcher 54433
+live and 5,538,588,160 bytes written locally at this entry. Next replay 180
+patches, build the paired 4 GiB mode-2 image, complete the backup and stage the
+two-library COW difference. Preserve all root job/policy/cache bytes and full
+logs. Ask only after exact HFS blocks and rollback are reviewable. No new
+userdata write, actual compositor GPU submission or full-goal completion.
+
 ### 2026-11-09 — 0191 4 GiB control passed; DSH root backup live
 
 Same native 0191 kernel in the 4 GiB control `949caab5` automatically returned

@@ -2,6 +2,42 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0191 4 GiB control passed; DSH root backup live
+
+Same native 0191 kernel in the 4 GiB control `949caab5` automatically returned
+to recovery in 746.145791s (02:34:45.607000–02:47:11.752791 UTC). Boot and all
+four post stages returned 0, pins unchanged, outer handles 89025/95329 closed.
+Observed base `0x180000000`, VM/boot/max/max-actual 4,293,918,720, sane
+4,253,876,224 bytes. The ZAP AUTH gate passed. Independent GLES passed six
+fences, final shadow 92, 595 renewals/600s and all prior word/pixel checks.
+Startup seed 1971039709, shader seed 2137319863, RGBA/BGRA hashes 2599832517 /
+1190247365. The real admission constructor also passed (8 methods, GET8
+snapshot -1/-1, footprint 1,147,200 B). New whole logs 18,242 / 3,955 / 483,429
+bytes. No userdata write. `research/tmp/dsh-memory-0191-control` is the latest
+accepted 4 GiB physical baseline; 6 GiB recognition and its early failure
+remain a separate result. One A/B pair does not identify the failed WDT
+predicate. Local `dsh-memory-0193-wdt` sample-only diagnostic TU passed.
+
+W192=`research/tmp/dsh-gpu-0192-auth`. DSH backup request 96480 replied with a
+handoff instruction conflict and no tool call. Retry explicitly allowed reading
+NOTES first. DSH **81951** then executed the pinned read-only backup profile;
+dispatcher 54433 claimed it, recovery preflight passed, and the partial image
+was observed growing to 1,388,910,080 bytes. Keep the phone in TWRP and poll the
+same handle and `backup-stage-v1/result.json`. No parallel device command that
+changes state. No complete fresh backup or new root write yet.
+
+The 0192 auth candidate v2 passed two native TUs, 64 actual exec/GET8 cases,
+49 retained loader cases and the IOKit suite (77/71/207 retained assertions,
+60 new pilot assertions). V3 adds explicit owning task reference lifetime;
+rerun the native and host checks before committing. Userland `userland-v2`
+signed iOS16 arm64 admission launcher `a8ea5207` (70,224 B) and compositor
+GLES worker `be27ac48` (73,104 B) are local. The first worker compile had a
+status/output variable name collision; v2 fixed it. The launcher is bounded
+and gated on mode 2, while the late-loaded worker reuses the existing Mesa
+shader/IOSurface workload with cleanup. No installed pilot, GPU compositor
+run or renderer hooks. Build and verify the paired kernel and exact HFS delta
+before requesting explicit approval for the new userdata write.
+
 ### 2026-11-09 — 0191 same-kernel 4 GiB control live, handle 89025
 
 After preserving the complete 6 GiB capture, read back the current root and

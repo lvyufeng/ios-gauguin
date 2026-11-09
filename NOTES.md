@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0191 6 GiB trial image ready
+
+Clean 179-patch replay changed only `bsd/kern/bsd_init.c` across 5,330 files.
+Source `e85fadb5de6f87b5431777287445b46a91ec72b2`, SHA256
+`ee50dcd223fc6d0243d4c206ca2672878374bb16bff359f7830d577a55b44361`.
+Public `97cd3b385dfd77c117055e6878d40c563e7d9fea`, tree `3ff4b423`, parent
+`ad4c5f7`, on `codex/gauguin-native-ram-receipt-20261109`. Three reviewed text
+files. No CI run. Native `gauguin.NTEd1X` build and qualification both 0 in
+206.691s, all pins unchanged. Kernel SHA256
+`127096b7c32538bef0a73d1d037f1966b3de669ad8358a6b384d080553091048`, ID
+`xnu-7ad4692b540b4ff8b54d826c4b5ff7ff`. Local fallback after the 0191 DSH
+stall. Outer build 91940, pack 7726 and publication 48064 closed.
+
+`research/tmp/dsh-memory-0191/ram-layout-6g-v1/layout-6g.img` is 19,988,480 B,
+SHA256 `30b195e665b6bcb3885c104ccd4d34892a245992ca54d19978b3aa451a77f491`.
+Payload SHA256 `3c4ca338379aa715d4577d79b082d9fbe5d1e29ca3d8172c35678e446201c340`.
+Offline control SHA256 `949caab5600b9b019a6b3b55f7fee44b01f34f7d80ec4227a3e3daf5311549d5`
+uses the identical 0191 kernel. Image comparison isolates the managed range
+and five asset relocations, keeping the 601-byte command and 600s service.
+Production PAS metadata checks passed both exact payloads with synthetic
+handoff and reject an FDT/copy overlap. RAM log framing passed eight cases.
+Current recovery inventory and all nine installed static files plus full 0190
+logs verified. No new root write. 0190 remains the accepted 4 GiB baseline.
+
+`boot-stage-v1.json` in the same workdir is ready for one 6 GiB temporary boot.
+Expect base `0x100000000`, VM/boot/max/max-actual `0x17ff00000`, and positive
+lower sane count, plus full GLES and admission regressions. If any condition
+fails retain raw evidence and do not qualify the larger layout. No physical
+6 GiB claim at this entry. The full goal remains active.
+
 ### 2026-11-09 — 0191 native RAM counters and fresh range audit
 
 The fresh read-only TWRP inventory is in `research/tmp/dsh-memory-0191`.

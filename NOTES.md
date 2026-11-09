@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0217 client-memory create implemented; full LOCAL native build LIVE
+
+Previous goal turn classifiedPROGRESS: primary-source review committed0956180,
+newmatchedcreate-path evidence changednextaction;UI216completedsourcea460e3b.
+Now concrete217implementation in ISOLATEDresearch/tmp/
+gauguin-surface217-worktree-20261110,branchcodex/gauguin-create-address-20261110,
+sourcecommit837fecf5c7c22bba74c862825a9a3fc7e16c91d3. Main211codebaselineunchanged.
+Patch0205addsIOSurfaceAddressclientbacking withfullwidth/type/extentchecks,
+exactpinlength/lastrow/offset/planes,ownedtask/quota,ROfallbackonlyprotection,
+mapcache/lifetimeunchanged;ordinarycreateunchanged;AddressRangesunsupported.
+Boundedbackinglogsrecordkeypresence,notaddresses/pixels;actualkeyunobserved.
+
+PrivateW insideisolatedroot:research/tmp/dsh-surface-0217-client-create.
+DSH7058host-native-v1EXIT1 retained: ARM64SweetSurfaceTU0/2129headers/oldrefs
+unchanged;hostfixturesFAILEDcompileunusedconstant+stale206header/privateBOslot.
+DSH57416freshhost-v2ALL0,pinsunchanged,NOkernelcandidatechange: SAMEfixtureold211
+functionalRED exactignoredcallerimage;candidate225productioncreate/alias/extent/
+planes/cleanupchecks;ROwrap/map/trap/GPUgate306checksusingmatchingheader/capacity.
+
+DSH91990native-stage-v1 NOW LIVE;doNOTmutate217HEAD/NOTES/sourceuntilterminal.
+Realroot-sensitiveclosure2465Pythoncopies/10550readonlyreferences completed.
+Clean197patch/5330file replayPASS,ONLYSweetSurface.cppdiffvsactual211;
+allcandidatefilesexact,hostrerunoncleanreplayPASS. FullsourceSHA
+e683fcddb43c04413c85fee09a2d3ba044a56647a32ca4ecb3461cae54a05f8c.
+Freshsource217-codex/build217-client-create roots,8-jobLOCALnativeactualbuild
+running;session91990mustbere-polled,notrestarted. Nativeclosure/qualifierretains
+allgeneric/symbol/cacheflush/RO/MICRO/APIchecks. NOpackage/217bootyet.
+Source217testdocsdescribeonlysoftware/TUproof;icons/hardware/Metalunqualified.
+
+PhoneTWRPafter214;installed210aafa07f8unchanged,UI216uninstalled,nonewrootwrite
+orapprovalrequest/CI. NEXTqualifythisSAMEbuild,prepareonekernel-onlytemporary
+trialboundtoactual214header/logprefixes(4866c61d...),notolder211/R4,thenobserve
+createkey/backingandvisuals. KeepfullGPU/Metal/RAM/storage/peripheral/highrefresh/
+dailygoalACTIVE;noautomatic-resetattributionquestions.
+
 ### 2026-11-10 CST — renewed HakiOS/UniXNU review;214 TERMINAL;216 software PASS, not installed
 
 LATEST USER STEERING: re-check actual HakiOS/UniXNU success cases. Completed

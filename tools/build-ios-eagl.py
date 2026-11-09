@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the EAGL diagnostics, disabled bridge, or compositor probe for iOS16.
 
-Only local source preparation, cross-compilation and signing. No device IO,
-root-image changes or Mesa rebuild. The bridge cannot replace any method yet.
+Only local source preparation, cross-compilation and signing. The default
+bridge stays disabled. The compositor bridge is an explicit build option.
 """
 from pathlib import Path
 import argparse,hashlib,json,os,re,shutil,struct,subprocess
@@ -41,6 +41,44 @@ _Static_assert(__builtin_types_compatible_p(__typeof__(&my_texImageIOSurface), g
 '''
     s=replace_once(s,marker,assertions+marker)
     return s
+
+def adapt_render_eagl(source):
+    source = replace_once(source, 'static struct eagl *contexts[8];',
+                          'static struct eagl *contexts[8];\n'
+                          'static pthread_mutex_t gauguin_context_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;')
+    start = source.index('static struct eagl *\ncontext_of(id object)\n')
+    end = source.index('\n/* ----', start)
+    source = source[:start] + '''static struct eagl *
+context_of(id object)
+{
+    struct eagl *found = NULL;
+    pthread_mutex_lock(&gauguin_context_lock);
+    for (unsigned i = 0; i < sizeof(contexts) / sizeof(contexts[0]); i++) {
+        if (contexts[i] != NULL && contexts[i]->object == object) {
+            found = contexts[i];
+            break;
+        }
+    }
+    pthread_mutex_unlock(&gauguin_context_lock);
+    return found;
+}
+''' + source[end:]
+    source = replace_once(
+        source, '\t\tfree(e);\n\t\treturn nil;\n\t}\n\tcurrent = e;',
+        '\t\tif (e->gl) hakios_gl_destroy(e->gl);\n'
+        '\t\tfree(e);\n\t\treturn nil;\n\t}\n\tcurrent = e;')
+    source = replace_once(source, "/* Does the display's driver wait for the GPU",
+                          '#include "bridge.inc"\n\n'
+                          "/* Does the display's driver wait for the GPU")
+    source = replace_once(source,
+                          '\tstatic const struct {\n\t\tconst char *name;\n\t\tIMP ours;\n\t} methods[] = {',
+                          '\tstatic const struct gauguin_eagl_method methods[] = {')
+    begin = source.index('\tfor (unsigned i = 0; i < sizeof(methods) / sizeof(methods[0]); i++) {')
+    end = source.index('\n\tsay("hakios-gl: %u of %zu methods', begin)
+    source = source[:begin] + (
+        '\treplaced = gauguin_eagl_install_subclass(class, methods, sizeof(methods) / sizeof(methods[0]));\n'
+    ) + source[end:]
+    return source
 def macho(p,kind):
     b=p.read_bytes();magic,cpu,sub,typ,n,size,flags,res=struct.unpack_from('<8I',b)
     assert magic==0xfeedfacf and cpu==0x100000c and typ==kind and n<256 and 32+size<=len(b)
@@ -126,7 +164,9 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--upstream-cache',type=Path);ap.add_argument('--mesa-build',type=Path,required=True)
     ap.add_argument('--registry',type=Path);ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--compositor-pilot', action='store_true');a=ap.parse_args()
+    choices=ap.add_mutually_exclusive_group()
+    choices.add_argument('--compositor-pilot', action='store_true')
+    choices.add_argument('--compositor-bridge', action='store_true');a=ap.parse_args()
     repo=Path(__file__).resolve().parent.parent
     if a.compositor_pilot:
         if a.upstream_cache or a.registry:
@@ -137,6 +177,8 @@ def main():
     e=repo/'userland/eagl';out=a.out.resolve();cache=a.upstream_cache.resolve()
     manifest=e/'upstream.json';m=json.loads(manifest.read_text());assert m['commit']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
     inputs={str(p):sha(p) for p in [Path(__file__).resolve(),manifest,e/'admission.c',e/'LICENSE.upstream',a.registry.resolve()]}
+    if a.compositor_bridge:
+        inputs.update({str(p):sha(p) for p in (e/'bridge.inc',e/'pilot.c')})
     for row in m['files']:
         p=cache/row['cache_name'];b=p.read_bytes();assert len(b)==row['bytes'] and sha(p)==row['sha256']
         assert hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()==row['git_blob'];inputs[str(p)]=sha(p)
@@ -156,7 +198,11 @@ def main():
         logs.append({'name':name,'argv':argv,'exit':p.returncode});save();assert p.returncode==0,(name,p.returncode)
     try:
         for name in ('eagl.c','gl_osmesa.c','hakios.gl.h'):shutil.copyfile(cache/name,source/name)
-        (source/'eagl.c').write_text(adapt_eagl((source/'eagl.c').read_text()))
+        adapted=adapt_eagl((source/'eagl.c').read_text())
+        if a.compositor_bridge:
+            adapted=adapt_render_eagl(adapted)
+            shutil.copyfile(e/'bridge.inc',source/'bridge.inc')
+        (source/'eagl.c').write_text(adapted)
         shutil.copyfile(e/'LICENSE.upstream',source/'LICENSE.upstream')
         run(['/usr/bin/nm','-gU',str(lib)],'accepted-Mesa-exports')
         exported=sorted(set(re.findall(r'\b_(gl\w+)\s*$',(out/'accepted-Mesa-exports.log').read_text(),re.M)))
@@ -168,19 +214,35 @@ def main():
         coverage=(out/'generator-coverage.log').read_text();assert '409 entries:' in coverage and 'of those QuartzCore calls:' not in coverage
         common=[compiler,'-target','arm64-apple-ios16.0','-isysroot',str(sdk),'-std=gnu11','-O2','-Wall','-Wextra','-Werror','-dynamiclib','-framework','CoreFoundation','-framework','IOKit','-lobjc']
         admission=product/'libGauguinEAGLAdmission.dylib';bridge=product/'libGauguinEAGL.dylib'
-        run(common+['-DGAUGUIN_EAGL_ADMISSION_ONLY=1','-install_name','/usr/local/lib/gauguin/'+admission.name,str(e/'admission.c'),'-o',str(admission)],'admission-link')
-        run(common+['-framework','IOSurface','-install_name','/usr/local/lib/gauguin/'+bridge.name,'-I'+str(source),str(source/'eagl.c'),str(source/'gl_osmesa.c'),str(e/'admission.c'),str(lib),'-Wl,-rpath,/usr/local/lib/gauguin','-o',str(bridge)],'disabled-bridge-link')
+        admission_flags=['-DGAUGUIN_EAGL_ADMISSION_ONLY=1']
+        admission_sources=[str(e/'admission.c')]
+        bridge_flags=[]
+        if a.compositor_bridge:
+            admission_flags+=['-DGAUGUIN_EAGL_PILOT=1','-DGAUGUIN_EAGL_BRIDGE_LOADER=1']
+            admission_sources.append(str(e/'pilot.c'))
+            bridge_flags=['-DGAUGUIN_EAGL_RENDER_PILOT=1']
+        run(common+admission_flags+['-install_name','/usr/local/lib/gauguin/'+admission.name]+admission_sources+['-o',str(admission)],'admission-link')
+        bridge_log='render-bridge-link' if a.compositor_bridge else 'disabled-bridge-link'
+        run(common+bridge_flags+['-framework','IOSurface','-install_name','/usr/local/lib/gauguin/'+bridge.name,'-I'+str(source),str(source/'eagl.c'),str(source/'gl_osmesa.c'),str(e/'admission.c'),str(lib),'-Wl,-rpath,/usr/local/lib/gauguin','-o',str(bridge)],bridge_log)
         products={}
         for i,p in enumerate((admission,bridge)):
             run(['/usr/bin/codesign','--force','--sign','-',str(p)],f'sign-{i}');run(['/usr/bin/codesign','--verify','--strict',str(p)],f'verify-{i}')
             products[p.name]={'path':str(p),**macho(p,6)}
             run(['/usr/bin/nm','-u',str(p)],f'imports-{i}')
         imports=(out/'imports-0.log').read_text()
-        forbidden=('IOServiceOpen','IOConnectCall','OSMesa','method_setImplementation','class_addMethod','method_exchangeImplementations')
+        forbidden=('IOConnectCall','OSMesa','method_setImplementation','class_addMethod','method_exchangeImplementations')
+        if not a.compositor_bridge:
+            forbidden+=('IOServiceOpen',)
         assert not any(x in imports for x in forbidden)
         assert not any('GauguinOSMesa' in x or 'OpenGLES' in x for x in products[admission.name]['loads'])
         assert '@rpath/libGauguinOSMesa.8.dylib' in products[bridge.name]['loads']
         record.update(state='passed-iOS16-inert-EAGL-admission-and-disabled-bridge-build',products=products,generator_coverage=coverage.strip(),scope='Cross-build and signing only. Admission has no renderer-changing imports or Mesa dependency. Both products disable method replacement. Runtime injection and compositor memory/ABI remain unqualified.')
+        if a.compositor_bridge:
+            run(['/usr/bin/nm','-gU',str(bridge)],'bridge-exports')
+            assert '_gauguin_eagl_bridge_installed' in (out/'bridge-exports.log').read_text()
+            assert 'method_setImplementation' in (out/'imports-1.log').read_text()
+            record.update(state='passed-iOS16-scoped-EAGL-subclass-bridge-build',rendering_enabled=True,
+                          scope='Signed build of an opt-in new-context EAGL subclass and late loader. Physical frame composition remains unqualified.')
         save();assert record['inputs_unchanged'];print(json.dumps({k:v for k,v in record.items() if k not in ('input_pins','results')},indent=2))
     except Exception as exc:record.update(state='failed-inert-EAGL-build',error=repr(exc));save();raise
 if __name__=='__main__':main()

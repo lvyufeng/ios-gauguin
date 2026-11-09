@@ -21,10 +21,8 @@ struct memlimit {
 };
 _Static_assert(sizeof(struct memlimit) == 16, "XNU GET8 wire layout");
 
-/* This same function gates the compiled bridge. It deliberately never admits
- * method replacement: compositor access and startup ordering are later stages.
- * There is no environment value or boot argument which enables rendering here.
- */
+/* Default builds retain the diagnostic-only gate. The scoped render pilot
+ * additionally requires verified metadata, memory, service and boot mode. */
 int
 gauguin_eagl_admit(void)
 {
@@ -69,9 +67,32 @@ gauguin_eagl_admit(void)
     io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("HakiosGPU"));
     fprintf(stderr, "GAUGUIN EAGL186 finish methods=%u/8 gpu_service_present=%d hooks=0 gpu_opens=0 rendering=disabled\n",
         matched, service != IO_OBJECT_NULL);
+#if defined(GAUGUIN_EAGL_RENDER_PILOT)
+    int admitted = matched == 8 && vm_valid && service != IO_OBJECT_NULL &&
+                   mode && strcmp(mode, "admission") == 0;
+    char args[1024] = {0};
+    size_t arg_bytes = sizeof(args) - 1;
+    unsigned modes = 0;
+    if (sysctlbyname("kern.bootargs", args, &arg_bytes, NULL, 0) != 0 || arg_bytes >= sizeof(args)) {
+        admitted = 0;
+    } else {
+        char *state;
+        for (char *arg = strtok_r(args, " \t", &state); arg; arg = strtok_r(NULL, " \t", &state)) {
+            if (strncmp(arg, "sweeteagl=", sizeof("sweeteagl=") - 1) == 0) {
+                ++modes;
+                if (strcmp(arg, "sweeteagl=2") != 0) admitted = 0;
+            }
+        }
+    }
+    admitted = admitted && modes == 1;
+#endif
     if (service) IOObjectRelease(service);
     fflush(stderr);
+#if defined(GAUGUIN_EAGL_RENDER_PILOT)
+    return admitted;
+#else
     return 0;
+#endif
 }
 
 #if defined(GAUGUIN_EAGL_ADMISSION_ONLY)

@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0195 v2 handles direct subclass creation and native fallback
+
+DSH v2 outer21127, dispatcher76793, returned0 with unchanged inputs for
+the signed iOS16 bridge and actual ObjC runtime tests. Direct creation of
+the custom subclass now also restores the base class before native
+fallback if Mesa construction fails. Tested base/custom allocations,
+native existing objects, inherited initializers, unknown subclasses,
+concurrent creation, deallocation and duplicate installation.
+The v2 host runs report39,874 /39,976 assertions.
+
+Launcher remains70,336B
+`a1b98155d1e01b17d50a6bd733dbf560ce21a74572758d8ae97c52a4174d3562`.
+Accepted software bridge is562,496B
+`147668da3c48808ea7c17d4024cccd9f0f7530db0478e046a9bc78d8ca51dfa9`.
+Default14/render22 admission cases remain passed. No195 root write or
+desktop frame proof. Main194 6 GiB root/compositor GLES now passed the
+complete600s trial. A fresh195 read-only backup is running under DSH46521.
+Use main NOTES and current private receipts for actual device state.
+
+### 2026-11-09 — 0195 late desktop EAGL bridge compiled and tested
+
+Main NOTES is authoritative for the live194 6 GiB checkpoint trial.
+The192 physical pilot passed real backboardd GLSL and IOSurface readbacks.
+This branch now builds an explicit `--compositor-bridge` target. The new
+launcher first requires that GPU probe to return0 in the same boot, then
+loads/retains the bridge. The bridge verifies the exact8 method encodings
+and single mode2 argument, registers a same-sized EAGL subclass, then
+publishes only the base initializer. Existing native objects and unknown
+subclasses keep their dispatch. The custom registry uses a recursive lock;
+failed Mesa context creation cleans its partial state before native fallback.
+
+DSH build outer26346 returned0 for live bridge and default build/sign jobs.
+New loader70,336B
+`a1b98155d1e01b17d50a6bd733dbf560ce21a74572758d8ae97c52a4174d3562`,
+desktop bridge562,496B
+`a0f5a847195ea256f5fa7cb200fae798638295fc650a0741b62c7de5d0dbf7dc`.
+Default admission and disabled bridge remain exact186 hashes67f7be39/ac9171b4.
+DSH host outer75987 passes real ObjC runtime direct/inherited initializer
+tests, existing native objects, fallback, unknown subclasses, concurrent
+creation and cleanup (40,042 /39,916 assertions in these runs).
+DSH admission outer3326 returned0 for default14 and render22 cases under
+ASAN/UBSAN, including absent/duplicate/conflicting boot modes and failed
+metadata/service/VM queries. GET8 denial retains the established self-query
+behavior and does not itself change the device's policy.
+
+Private receipts `research/tmp/dsh-ui-0195-bridge` in the main workspace.
+No195 install or frame evidence. After194 capture, obtain a fresh root
+backup, stage only the new loader plus desktop bridge, keep the existing
+probe/worker/jobs/policies/cache/logs, and review the exact HFS difference
+before requesting consent. Then temporary boot the paired, verified kernel
+and verify actual CoreAnimation frame/IOSurface/native submission logs.
+Metal, high refresh, peripherals, memory pressure and daily use remain open.
+
 ### 2026-11-09 — 0192 userland pilot builds alongside unchanged default EAGL
 
 The opt-in `tools/build-ios-eagl.py --compositor-pilot` builds a late

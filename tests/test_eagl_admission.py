@@ -6,7 +6,8 @@ from pathlib import Path
 import argparse,hashlib,json,os,subprocess
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--out',type=Path,required=True);a=ap.parse_args()
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--out',type=Path,required=True)
+    ap.add_argument('--render-pilot',action='store_true');a=ap.parse_args()
     repo=Path(__file__).resolve().parent.parent;source=repo/'userland/eagl/admission.c';fixture=repo/'tests/fixtures/eagl_admission.c'
     out=a.out.resolve();out.mkdir(parents=True,exist_ok=False)
     sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
@@ -16,6 +17,10 @@ def main():
     common=[compiler,'-isysroot',sdk,'-std=gnu11','-g','-O1','-Wall','-Wextra','-Werror','-fsanitize=address,undefined','-fno-omit-frame-pointer']
     boundary=['getprogname','getuid','geteuid','getenv','getpid','sysctlbyname','task_info','IOServiceMatching','IOServiceGetMatchingService','IOObjectRelease']
     cases=['normal','mode-render','mode-absent','wrong-program','wrong-uid','wrong-euid','class-absent','method-absent','encoding-mismatch','get8-failure','vm-failure','vm-short','service-absent','version-failure']
+    if a.render_pilot:
+        common+=['-DGAUGUIN_EAGL_RENDER_PILOT=1']
+        cases+=['bootargs-legacy','bootargs-duplicate','bootargs-conflict','bootargs-absent',
+                'bootargs-spaced','bootargs-suffix','bootargs-failure','bootargs-large']
     steps=[];record={'state':'testing-actual-EAGL-admission-function','input_pins':pins,'steps':steps,'device_commands':0,'UI_qualified':False}
     def save():record['inputs_unchanged']=all(sha(Path(p))==pin for p,pin in pins.items());(out/'result.json').write_text(json.dumps(record,indent=2)+'\n')
     def run(argv,name):
@@ -28,7 +33,8 @@ def main():
         run(common+[str(fixture),str(obj),'-framework','Foundation','-framework','CoreFoundation','-framework','IOKit','-lobjc','-o',str(binary)],'link-typed-boundaries')
         for case in cases:
             stdout,stderr=run([str(binary),case],case)
-            assert stdout==f'FIXTURE PASS case={case} all_original_IMPs_unchanged=1 admitted=0\n'
+            admitted=int(a.render_pilot and case in ('normal','get8-failure','version-failure','bootargs-spaced'))
+            assert stdout==f'FIXTURE PASS case={case} all_original_IMPs_unchanged=1 admitted={admitted}\n'
             assert 'AddressSanitizer' not in stderr and 'runtime error:' not in stderr
             if case in ['wrong-program','wrong-uid','wrong-euid']:assert not stderr;continue
             expected=0 if case=='class-absent' else 7 if case in ['method-absent','encoding-mismatch'] else 8
@@ -39,6 +45,9 @@ def main():
             if case in ['vm-failure','vm-short']:assert 'vm_valid=0 footprint_bytes=0' in stderr
             if case=='mode-render':assert 'mode=render' in stderr
         record.update(state='passed-actual-admission-14-scenarios',cases=len(cases),all_original_IMPs_unchanged=True,admitted_in_every_case=False,sanitizers='ASAN+UBSAN',scope='Complete production diagnostic C with real host ObjC metadata and typed OS seams; no device dyld insertion, actual backboardd budget, GPU or UI acceptance')
+        if a.render_pilot:
+            record.update(state='passed-actual-render-pilot-admission-22-scenarios',
+                          enabled_cases=['normal','get8-failure','version-failure','bootargs-spaced'])
         save();assert record['inputs_unchanged'];print(json.dumps({k:v for k,v in record.items() if k not in ('steps','input_pins')},indent=2))
     except Exception as exc:record.update(state='failed-admission-test',error=repr(exc));save();raise
 if __name__=='__main__':main()

@@ -50,14 +50,39 @@ open and close before loading the probe from the root-owned library path.
 The kernel holds that open until the root client releases the GPU cleanly
 after six native fences. The probe reads back a 32×32 shader result and a
 sampled IOSurface using the accepted Mesa. The built libraries leave renderer
-methods unchanged. Actual backboardd GPU submissions and pixel readbacks
-need a device trial to qualify.
+methods unchanged. The 0192 device trial passed this probe inside UID 501
+backboardd, with native fences 7–9 after six root fences, both complete pixel
+checks and the ten-minute GPU health service.
+
+The experimental desktop bridge builds with the same pinned bridge inputs:
+
+```sh
+python3 tools/build-ios-eagl.py --compositor-bridge \
+  --upstream-cache /absolute/path/pinned-hakios-files \
+  --mesa-build /absolute/path/accepted-Mesa185-build \
+  --registry /absolute/path/mesa-25.0.7/src/mapi/glapi/registry/gl.xml \
+  --out /absolute/path/fresh-desktop-bridge-build
+```
+
+This launcher runs the successful GPU probe first, then retains the desktop
+bridge image for the compositor lifetime. The bridge verifies all eight
+method encodings and the explicit mode-2 gate. It registers a same-sized
+EAGL subclass with the Mesa methods, then publishes the base initializer
+hook. New Mesa contexts adopt that subclass. Existing native instances and
+other subclasses keep their native method dispatch. A recursive lock
+protects the context registry. The first desktop trial still needs actual
+CoreAnimation draws, full-resolution IOSurface output and stability checks.
+
+```sh
+python3 tests/test_eagl_bridge.py
+python3 tests/test_eagl_admission.py --render-pilot --out /absolute/path/fresh-render-gate-check
+```
 
 The complete diagnostic C function also runs under typed OS boundaries and
 real host Objective-C metadata in fourteen scenarios, including rejected
 process identity, missing or changed method metadata, failed memory queries,
 and a requested `render` mode. Every original IMP remains unchanged and every
-call returns zero. Run it with a fresh output directory:
+call returns zero in the default build. Run it with a fresh output directory:
 
 ```sh
 python3 tests/test_eagl_admission.py --out /absolute/path/fresh-host-check

@@ -63,6 +63,24 @@ wait_for_gpu(void)
 }
 
 static void *
+open_root_library(const char *path, int flags)
+{
+    struct stat info;
+    if (lstat(path, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != 0 ||
+        (info.st_mode & (S_IWGRP | S_IWOTH)) != 0 || access(path, W_OK) == 0 ||
+        (errno != EACCES && errno != EPERM && errno != EROFS)) {
+        fprintf(stderr, "GAUGUIN GPU PILOT library path rejected %s\n", path);
+        return NULL;
+    }
+    void *library = dlopen(path, flags);
+    if (library == NULL) {
+        const char *error = dlerror();
+        fprintf(stderr, "GAUGUIN GPU PILOT dlopen failed %.160s\n", error ? error : "unknown");
+    }
+    return library;
+}
+
+static void *
 run_pilot(void *unused)
 {
     (void)unused;
@@ -72,17 +90,8 @@ run_pilot(void *unused)
         fprintf(stderr, "GAUGUIN GPU PILOT failed waiting for clean GPU handoff\n");
         return NULL;
     }
-    struct stat info;
-    if (lstat(worker, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != 0 ||
-        (info.st_mode & (S_IWGRP | S_IWOTH)) != 0 || access(worker, W_OK) == 0 ||
-        (errno != EACCES && errno != EPERM && errno != EROFS)) {
-        fprintf(stderr, "GAUGUIN GPU PILOT worker path rejected\n");
-        return NULL;
-    }
-    void *library = dlopen(worker, RTLD_NOW | RTLD_LOCAL | RTLD_FIRST);
+    void *library = open_root_library(worker, RTLD_NOW | RTLD_LOCAL | RTLD_FIRST);
     if (library == NULL) {
-        const char *error = dlerror();
-        fprintf(stderr, "GAUGUIN GPU PILOT dlopen failed: %.160s\n", error ? error : "unknown");
         return NULL;
     }
     int (*run)(void) = (int (*)(void))dlsym(library, "gauguin_compositor_gles_run");
@@ -92,6 +101,20 @@ run_pilot(void *unused)
     }
     fprintf(stderr, "GAUGUIN GPU PILOT finish pid=%d rc=%d\n", getpid(), result);
     fflush(stderr);
+#if defined(GAUGUIN_EAGL_BRIDGE_LOADER)
+    if (result == 0) {
+        /* Objective-C class methods retain these code addresses for the entire
+         * compositor lifetime, including already-created contexts. */
+        static void *bridge_image;
+        bridge_image = open_root_library("/usr/local/lib/gauguin/libGauguinEAGL.dylib",
+                                         RTLD_NOW | RTLD_LOCAL | RTLD_FIRST | RTLD_NODELETE);
+        int (*installed)(void) = bridge_image
+            ? (int (*)(void))dlsym(bridge_image, "gauguin_eagl_bridge_installed") : NULL;
+        fprintf(stderr, "GAUGUIN EAGL BRIDGE finish installed=%d pid=%d\n",
+                installed ? installed() : 0, getpid());
+        fflush(stderr);
+    }
+#endif
     return NULL;
 }
 

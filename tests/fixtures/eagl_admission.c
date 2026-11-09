@@ -15,6 +15,7 @@
 extern int gauguin_eagl_admit(void);
 static const char *scenario;
 static unsigned get8_calls,vm_calls,version_calls,matching_calls,service_calls,releases;
+static unsigned bootargs_calls;
 static int is(const char *s) { return strcmp(scenario,s)==0; }
 const char *test_getprogname(void) { return is("wrong-program") ? "SpringBoard" : "backboardd"; }
 uid_t test_getuid(void) { return is("wrong-uid") ? 0 : 501; }
@@ -27,6 +28,21 @@ char *test_getenv(const char *name)
 }
 int test_sysctlbyname(const char *name,void *old,size_t *size,void *newp,size_t newsize)
 {
+    if (!strcmp(name, "kern.bootargs")) {
+        ++bootargs_calls;
+        CHECK(!newp && !newsize);
+        if (is("bootargs-failure")) { errno=ENOMEM;return -1; }
+        if (is("bootargs-large")) { *size=1024;return 0; }
+        const char *args = "other=1 sweeteagl=2 next=1";
+        if (is("bootargs-legacy")) args="sweeteagl=1";
+        if (is("bootargs-duplicate")) args="sweeteagl=2 sweeteagl=2";
+        if (is("bootargs-conflict")) args="sweeteagl=1 sweeteagl=2";
+        if (is("bootargs-absent")) args="next=1";
+        if (is("bootargs-spaced")) args=" \tother=1\tsweeteagl=2\t ";
+        if (is("bootargs-suffix")) args="sweeteagl=2x";
+        size_t length=strlen(args)+1;CHECK(length<=*size);
+        memcpy(old,args,length);*size=length;return 0;
+    }
     version_calls++;CHECK(strcmp(name,"kern.osversion")==0 && !newp && !newsize);
     if(is("version-failure")) { errno=ENOENT;return -1; }
     CHECK(*size>=8);memcpy(old,"20H392",7);*size=7;return 0;
@@ -78,16 +94,27 @@ int main(int argc,char **argv)
         }
         objc_registerClassPair(cls);
     }
-    CHECK(gauguin_eagl_admit()==0);
+    int admitted=gauguin_eagl_admit();
+#if defined(GAUGUIN_EAGL_RENDER_PILOT)
+    int expected=is("normal")||is("get8-failure")||is("version-failure")||is("bootargs-spaced");
+    CHECK(admitted==expected);
+#else
+    CHECK(admitted==0);
+#endif
     unsigned rejected=is("wrong-program")||is("wrong-uid")||is("wrong-euid");
     CHECK(get8_calls==!rejected && vm_calls==!rejected && version_calls==!rejected);
     CHECK(matching_calls==!rejected && service_calls==!rejected);
     CHECK(releases==(!rejected && !is("service-absent")));
+#if defined(GAUGUIN_EAGL_RENDER_PILOT)
+    CHECK(bootargs_calls==!rejected);
+#else
+    CHECK(bootargs_calls==0);
+#endif
     if(cls)for(unsigned i=0;i<8;i++) {
         if(is("method-absent") && i==5)continue;
         CHECK(method_getImplementation(class_getInstanceMethod(cls,sel_registerName(names[i])))==(IMP)untouched);
     }
-    printf("FIXTURE PASS case=%s all_original_IMPs_unchanged=1 admitted=0\n",scenario);
+    printf("FIXTURE PASS case=%s all_original_IMPs_unchanged=1 admitted=%d\n",scenario,admitted);
     if(cls)objc_disposeClassPair(cls);
     return 0;
 }

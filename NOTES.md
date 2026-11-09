@@ -2,6 +2,28 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206 manual ten-minute shared-MICRO-budget trial LIVE
+
+DSH28161 owns ONE claimed206 observer after current205 header501dc0e9,
+memory/full15 files/COMPLETE205-prefix preflight. Temporary image
+be58f40cc7efd85743b8197927e93bb28322d2f991210cb95c48325ab816772b,
+6GiB/mode2/600s/Homeoff,601-byte command,30Hz unchanged;19,520KiB transfer
+and Booting both OKAY,total0.599s. Same195 libraries; no userdata delta/
+flash/rollback. Observer running; no206 physical result yet. Available user
+notified to wait~two minutes for90s compositor handoff, then unlock/swipe/
+Settings/return Home and leave running. Need ask for actual206 feedback
+around120s; previous205 lag reply MUST NOT be assigned to206.
+
+The single DSH post-wait-stage-v1 (1080s ceiling) watches this exact observer
+and BOTH actual dispatchers, preserves all15 files/COMPLETE205 prefixes,
+checks explicit600s service/fences/timing, records MICRO rechecks/expiry and
+compares timing to HEALTHY204. Failed205 is only the current-root/prefix
+baseline, not a qualified timing comparator. Keep post-stop and all other
+failures. Correlate human experience with eventual native GPU health;
+visible UI alone cannot prove continued acceleration. Root owns NOTES;
+poll existing claims/handles, never re-run a claimed stage on timeout.
+Full goal remains active. No manual restart request while observer runs.
+
 ### 2026-11-09 — 0206 full local shared-MICRO-budget kernel qualified
 
 DSH47910 native-stage-v1 ALL0,pins unchanged. Clean193-patch source5330

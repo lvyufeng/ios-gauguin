@@ -2,6 +2,60 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0195 black-after-unlock captured; IOSurface bulk read crashes
+
+User `call_6fb8077b2798400abcf2e6cdca3bca69`: touch unlock succeeded, then
+completely black. To retain failure evidence requested early manual TWRP;
+user explicitly confirmed manual return in
+`call_a93bed6ae5614d4a9dbc9f8e82da30c5`. Raw observer result still contains
+legacy boilerplate manual_reset=no. DO NOT EDIT that raw result or infer
+an automatic reset: manual-recovery-confirmation195.json supersedes it.
+User separately set the full goal active again.
+
+Boot outer98071 /dispatcher22504 terminal0, pins unchanged. Actual trial
+05:53:56.733782–06:02:06.228099UTC,489.494317s (cycle detects TWRP at488s).
+All startup process markers present; no completed600s health window.
+DSH16851 prepared failure-aware post, DSH66865 /dispatcher24200 capture
+completed ALL15 full files,12 static hashes/permissions and whole194 log
+prefixes unchanged. Acceptance exit1 is EXPECTED/real, inputs unchanged:
+UI black, early end, repeated admission sessions and crashed compositor.
+`physical-review195.json` records actual manual reset and UI error.
+Full log sizes24,557 /4,762 /835,187B. Raw framing saved
+46 complete constructor sessions; retain all raw spans and full files.
+No195 CA/render/Metal/high-refresh/daily-use qualification. No rollback
+of pre-boot blocks was performed; device is currently in TWRP.
+
+Native first16 submissions succeed, last logged heartbeat seq360 reports
+75 submitted/completed, shadow920; no GPU submit failure seen. Protected
+backboardd repeatedly restarts with new PIDs (first57, then273,279...).
+Every crash: SIG11, FAR0x30, PC0x21611de70, LR0x1e7f9fffc, shared-cache
+slide0x4461c000. Mesa FD619 ES3.1 actual CA contexts ARE created and the
+bridge installs. BB attaches real BGRA1125x2436,4608B/row surfaces, then
+prints the first shaders; no completed frame receipt. Physical panel
+1080x2400 is NOT the compositor's actual target size. Future acceptance
+must derive the real1125x2436 target instead of hardcoding panel size.
+
+DSH19366 /dispatcher24911 actual-cache map stage0, pins unchanged. Exact
+20H392 cache primary76874e83,44shards from the read-only195 backup22e9123a.
+Unslid PC0x1d1b01e70 lies in libsystem_platform __platform_memmove+176;
+LR0x1a3983ffc is IOSurfaceClientGetBulkAttachments+68. Verified instructions:
+ldr x8,[x0,#112]; add x8,x8,#48; mov x0,x1; mov x1,x8; bl memmove.
+The null shared-state pointer at client+0x70 explains copy source0x30.
+Caller backtrace is QuartzCore. This is symbol/disassembly evidence;
+root cause of the missing pointer still needs validation, not a GPU timeout.
+
+Next inspect actual IOSurface client creation/lookup/lock result layout
+against `iokit/Kernel/arm/SweetSurface.cpp`. It maps state per surface and
+fills lock-result+8, documented as copied to client+0x68; must determine
+why actual client+0x70 is zero. Default unimplemented external selectors
+return success/zero output and may be involved; this is a HYPOTHESIS.
+The upstream EAGL `current` variable is ALREADY __thread: do not patch a
+nonexistent global-current bug. Keep all195 artifacts/pins immutable;
+fix the proven IOSurface protocol gap after disassembly, then native TU/
+meaningful host tests/build/temp-boot via DSH. No new root write is
+approved by the consumed321-block consent. A kernel-only fix can use the
+current reviewed195 libraries without another userdata delta.
+
 ### 2026-11-09 — 0195 temporary desktop trial is live
 
 DSH boot outer98071 /dispatcher22504 claimed boot-stage-v1 at

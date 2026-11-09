@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206-R2 real UI GPU service PASSES; three image wraps fail
+
+R2 automatic12:31:25.541033–12:43:51.834578UTC,746.293545s. DSH20344 boot
+ALL0; DSH28986 post ALL1 ONLY because3 actual wrapped images failed; all
+pins unchanged. All15 full files/12 static hashes/COMPLETE first206 prefixes
+preserved; logs50,012/7,990/1,046,074B. CURRENT header
+ecf88ce54564c691a29a3594b4ca26b874d5d16c70dca4edb1819209faf94135.
+Phone last TWRP. No userdata delta/rollback/manual reset. Preserve failed
+overall physical-review206.json; do NOT rewrite it as an all-pass receipt.
+
+Explicit600s GPU service qualified:598 renewals,169/169 completions,shadow3492,
+17 recorded successes(first16+120),152 sampled-out successes; exact later IB
+sequence NOT proven from sampled logs.29 actual CA frame receipts,15 successful
+wraps,NO backboardd crash. Shared MICRO path REALLY exercised:77 exact waits/
+77 recoveries/88 polls,13 rechecks/0 expiry,last82us,final reason0/valid3f.
+This demonstrates the repeated-transient fix on real desktop work.3 BO
+NotReady events are after planned stop, separately retained. Human reports
+still lag/no black AND every warm repetition equally laggy; performance fails.
+
+Validated timing169 submits1,429,212,916ns/7,488 checks1,421,220,364ns,pending0;
+21,141 total guards4,029,976,197ns,max592,812ns. Average8.457ms/job and
+190.624us/full guard; different workloads forbid a whole-UI speedup claim.
+29 sampled frames wall16.575–387.482ms,median97.295ms; sync-wait median18.532ms,
+max texture/IOSurface preparation140.264ms,max handing-on97.653ms. Frame24
+falls back to copying one~11MiB picture out in135.278ms. These are wall
+measurements, NOT GPU-only durations or CPU-active utilization. Actual CA
+GLES GPU rendering is proven; 'no GPU hooks on the real UI' is not supported.
+
+Failed wraps are raw prepare error2:LA88 96x96/18,432B;BGRA1572x1044/6,564,672B;
+BGRA486x1044/2,029,536B. Source withAddressRange uses InOut and prepare();
+native IOGeneralMemoryDescriptor::wireVirtual uses read+write access for
+InOut, read-only UPL_COPYOUT_FROM for Out. Its mapping path explicitly
+requires kIOMapReadOnly for Out descriptors. Therefore investigate/fix the
+protection-only fallback with a FRESH Out descriptor, read-only kernel AND
+task pixel mappings, denied write lock/unlock and explicit GPU-import denial.
+No arbitrary RW->RO switch or writable alias. Other errors must still reject.
+Writable/panel paths, quota/partial-page accounting and complete-before-release
+remain. This is candidate207 priority; NOT implemented yet. Also note current
+GPU import accepts IOBuffer only, so generic task-backed images cannot share
+GPU memory; future writable-task zero-copy work needs explicit origin/lifetime/
+cache/permission proof. Do not combine that with the RO correctness fix.
+Whole-API profiling remains an option after image correctness, not yet coded.
+Root owns critical code/NOTES; DSH executes. Full goal active.
+
 ### 2026-11-09 — 0206-R2 warm repeats also lag; capture still pending
 
 Actual R2 follow-up call_43209de63d224f1f943acaad1af124fd response is

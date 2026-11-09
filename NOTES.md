@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0208-R2 terminal PASS; PRIVATE209 timing review and v2 checks pending
+
+R2 automatic15:09:28.448959–15:21:55.225505UTC,746.776546s. DSH59434 boot/
+DSH35040 post ALL0,pins unchanged.600s/598 renewals,25/25 completions,
+shadow592;16 records/9 sampled-out successes.8 CA frames/10 wraps/0 errors,
+NO compositor crash,2 MICRO rechecks/0 expiry;4 post-stop BO failures remain
+separate. All15 files/12 static/full first208 prefixes preserved. Logs56,143/
+8,797/1,111,660B; CURRENT headerbb353da246137a973c10a1771be8c52c1bace4ee2c3ad63c878e454d9f95ee48.
+Phone last TWRP. Actual R2 human question still pending; matching counters
+do NOT prove the user did/did not touch it. No interaction/performance claim.
+
+R2 valid API1213 calls/4 parameter failures/pending0;25 submit requests
+300,624,062ns(avg12.025ms),native core214,657,760ns(avg8.586ms),extra
+85,966,302ns.1,140 in-submit guards213,395,885ns,99.412% core elapsed;
+10,974 total guards2,075,658,385ns.597 heartbeat requests1,786,827,708ns
+are an idle aggregate, NOT the visible UI bottleneck. No same desktop
+workload/speedup qualification; Metal/daily/high-refresh remain open.
+
+PRIVATE209 research/tmp/dsh-gpu-0209-read-continuation/candidate-v1 changes
+only runtime C/header and board C. Optional continuation ONLY before a
+register/owned-RAM READ, full guard AFTER every successful access and full
+before/after gates for ALL writes/barriers/delays/ring spans remain. NULL
+hook retains legacy trace. Context flag consumed once/reset per operation;
+no API/BO/PTE/cache code change. V1 DSH23234 host ALL0:551,748 runtime
+assertions+83 board cases, original17,214/72 and55,336 ring cases retained.
+DSH83383 native3 TUs/full139-guard/shared307,411-MICRO matrix ALL0.
+
+ROOT REVIEW found v1 stamp callback could rebase a preempted old full guard
+to now. V1 software PASS is preserved but NOT promotable and never booted.
+Separate candidate-v2 captures begin/end in the original timed guard wrapper,
+leaves its full predicate body byte-identical, then requires consumption
+<=5us from END and <=250us from START. Late stamp cannot renew either bound.
+These are observed CPU-clock intervals, not a guarantee against preemption/
+stalled IO after the final sample. Cached read-side sampling frequency DOES
+change; do not claim unchanged hardware trace or cached write authority.
+
+DSH1146 owns host-check-stage-v2, including actual full wrapper/preemption/
+late-stamp cases plus retained runtime/ring/full guard/MICRO tests. No209
+tracked patch/test/series, full build,image or boot. Next inspect V2 result;
+if passes, native-check ONLY changed board TU and reuse prior identical
+runtime/GPU evidence after exact identity/pin verification. Then promote,
+commit and fresh196-patch full local209 build before any temp trial. Current
+208 source/public ref unchanged. No userdata delta/flash/rollback requested.
+Codex owns critical code/NOTES; DSH executes. Full goal active, lag unresolved.
+
 ### 2026-11-09 — 0208 terminal PASS; user-requested same-image 0208-R2 LIVE
 
 First208 DSH58405 boot/DSH68048 post: all inner dispatchers/observer/

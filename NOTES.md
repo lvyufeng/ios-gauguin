@@ -2,6 +2,19 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0199-R2 user confirms touch unlock, desktop and Settings
+
+User call_6a49ea0c186943dbb33599688a29e180 explicitly reports
+'能进入桌面并打开设置' for the CURRENT199-R2 question. Saved immutable
+ui-report199r2.json in dsh-gpu-0199-rerun. Touch unlock/desktop/Settings
+are user-confirmed this round; GPU acceleration is NOT established by
+that visual result. A follow-up asks tap/animation responsiveness versus
+the prior laggy version; performance reply pending. Keep running until
+the preset automatic recovery; no manual restart has been requested.
+At this update the existing R2 observer is still running (~204s since
+observer-running record), and DSH post watcher55557 is waiting on the
+same claims. Do not boot another image during this live user test.
+
 ### 2026-11-09 — user explicitly requested another199 manual trial; R2 LIVE
 
 First199 trial is terminal:08:26:32.864647–08:31:15.917098UTC,

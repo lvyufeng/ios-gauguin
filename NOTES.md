@@ -2,6 +2,19 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0190 temporary boot live, observer handle 40402
+
+Exactly one boot of `bd2dc73e`, local outer handle **40402**, dispatcher PID
+7823, profile claimed at epoch 1794187490.813359. Current root header and
+routine 13-byte recovery latch verified. `fastboot boot` returned OKAY in
+0.598s. Same installed 0186 root and 600s GPU interval. No new userdata write.
+
+Wait on the same observer (780s observation, 860s wrapper bound). On terminal
+exit 0, run `research/tmp/dsh-eagl-0190-loader/prepare_post190.py`, then the
+resulting pinned `post-stage-v1.json`. Preserve raw logs if a strict check
+fails; independently check full GLES and constructor/GET8 scope. No repeated
+boot or user UI/reset question while the unattended observer is running.
+
 ### 2026-11-09 — 0190 native image and guarded trial ready
 
 Source `c548db31ff64f6cd1072d90e4b06be99cbc24cfb`, tree

@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — sampled-service acceptance preserves accepted194 raw evidence
+
+Added `tools/gpu_service_log.py` and `tests/test_gpu_service_log.py`.
+DSH44934 /dispatcher18612 parser job0:5 tests cover12 sampling boundaries
+and26 corrupt/missing record cases, CRLF, impossible heartbeat order and
+same-fence pointer mismatch. Explicit first16 ring increments remain exact;
+omitted IBs are only bounded, never reconstructed or claimed as proved.
+Final counters, sampled IDs, boot checkpoint, renewal sequence, idle/fence/
+ring consistency and finite quarantine must agree. Pixel/desktop/Metal
+flags remain false in this parser.
+
+First historical regression reached an invalid test assumption (595 global
+renewals is legal in the300–600 window). Test fixture corrected to299 as
+a rejected value and595 explicitly accepted; parser unchanged.
+DSH86346 /dispatcher18703 corrected historical regression0, pins unchanged.
+`research/tmp/dsh-ui-0195-bridge/historical-service-review195.json` compares
+ALL old194 GLES fields except prose scope, including original kernel/API,
+full1024RGBA+1024BGRA hashes, memory checkpoints and595 runtime renewals.
+No195 physical qualification or device command. `gles_contract195.py`
+preserves these actual startup/pixel/memory checks with the sampled native
+parser. Kernel195/build/source pair and approved192 root are unchanged.
+
+Current ADB/fastboot still empty. USB request remains pending. Offline
+preparing trial195/boot_pilot195 expected15-file manifest and raw two-session
+admission/CA frame acceptance; no approval or device execution. The current
+321-block plan remains unchanged and still needs live old-range preflight
+and its own user consent before any destructive write.
+
 ### 2026-11-09 — 0195 offline321-block delta passes; waiting for USB
 
 DSH5684 `offline-stage-v2` returned0, all pins unchanged. Fresh local

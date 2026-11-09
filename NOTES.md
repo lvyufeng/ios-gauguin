@@ -2,6 +2,23 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0205 automatic bounded-clock timing trial LIVE
+
+DSH20951 is observing ONE claimed205 trial after current204 headerc56ed0a5,
+full15 files/COMPLETE204 log-prefix and memory preflight. Temporary image
+615a2e786a789fe297be78fdec4d9bfd61df6d796f6892bb857496b1b21ee1c7,
+6GiB/mode2/300s/Home90,605-byte command;19,520KiB transfer and Booting
+both OKAY,total0.598s. Same195 libraries; no userdata delta/flash/rollback.
+No205 physical result yet; observer-running. User notified no manual work.
+
+DSH71091 owns the single post-wait-stage-v1 watching this EXACT observer
+and both actual dispatcher terminals. It preserves all15 full files/204
+prefixes, qualifies explicit300s chronology and elapsed/fence consistency,
+then records frame latencies and scoped204 comparison. Post-stop client
+faults remain recorded. Do not claim whole-UI FPS, GPU-only duration or
+CPU-active utilization from timing ratios. Root owns NOTES; poll existing
+claims/handles, never duplicate a claimed stage on timeout. Full goal active.
+
 ### 2026-11-09 — 0205 full local clock-snapshot kernel qualified
 
 DSH98874 native-stage-v1 ALL0,pins unchanged. Clean192-patch source5330

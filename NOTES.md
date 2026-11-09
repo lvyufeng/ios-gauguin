@@ -2,6 +2,68 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0192 image and exact two-library delta ready
+
+Source `bfd2692b165229f9bd74530cb9450d9b4b1247d7`, 180-patch replay
+`16bebe45152703240b52fd591b0388ea79b210b8e43be3bb6c9887bedf98be12`.
+DSH full native run `gauguin.3fzAUb`, ID
+`xnu-eb97aae9b3ff40dfa35bdb87113b6aa7`, kernel SHA256
+`e8518ccad3d4b521bd013ea8b934dcc2d699bb12e1a771c4266a4d9ab6820f2f`.
+First DSH request passed an extra argument and claimed nothing. Retry 7428
+claimed dispatcher 56041 and built successfully. Its first qualification
+rejected the concurrent backup handoff change in NOTES. The build manifest
+captured the original single mkadt diff. The unchanged qualifier returned
+0 against a detached bfd2692 snapshot with that same diff, preserving main
+NOTES and all artifact/build pins. `kernel-qualification-v2.json` is the
+accepted receipt. No CI run.
+
+The 19,988,480 B 4 GiB image
+`shim/out/shim-p3-gmuf-0192-native-20261109.img`, SHA256
+`1aa4faa901755e47097bcffa7679a26782fb5781377c9ba349e0d4152f3437de`,
+has the accepted shim, DTB, five asset contents and 600s service. Only the
+`sweeteagl=1` to `sweeteagl=2` byte changes within the boot command.
+UI source in the separate worktree `4a48421412541ee8bf15af2f4cacec5ebcc9238b`.
+DSH 92944, dispatcher 89687, built/sign-verified both pilot libraries and
+the byte-identical default admission/disabled bridge. New admission
+`5815a34ab6bd268d635708ae7d2de2c9e6d2f0db519d0a8ff37ecf8367d58a11`
+(70,256 B) and worker
+`4b211a4073f39edcaccabff0c9362de68080e480df5423f47c827390820e55db`
+(73,104 B) are staged only in the local image.
+
+`research/tmp/dsh-gpu-0192-auth/independent-local-review.json` records
+the exact 239 × 4,096 B delta (978,944 B in 41 runs), plan SHA256
+`a16adbe5f4133222a1910190d42cb211613e03ad41bc1e00596042f63f9aa59b`.
+Final detached HFSX SHA256
+`4e88f55fde07da5564b986b3ad048c0a0b487eaf1a8886874037032e0e1cff9d`.
+All 531 jobs, existing Mesa and full 0191 logs are byte-identical.
+Read-only fsck, all 41 real old ranges and 102 fake-writer/rollback checks
+passed. Device is idle TWRP. New exact consent requested; no 0192 device
+write, boot or physical GPU pilot evidence yet. After new consent, run
+the pinned writer, verify all applied runs and the full files/prefixes,
+then do one temporary boot and collect actual scoped GPU observations.
+
+### 2026-11-09 — 0192 read-only HFSX root backup completed, terminal exit 0
+
+The pinned command
+`python3 tools/run-pinned-stage.py research/tmp/dsh-gpu-0192-auth/backup-stage-v1.json`
+finished with local terminal exit **0**. Inner job
+`one-fresh-read-only-16GiB-HFSX-root-backup` exit **0**, all six input pins
+unchanged. Dispatcher PID 54433 claimed at epoch 1794192594.3118138 and
+finished at 1794193247.590504 (about 653 s).
+
+Preflight: exactly one unmounted `gauguin` recovery device with no holders,
+userdata partition 114,919,714,816 B, HFSX v5 root 17,179,869,184 B
+(4,194,304 × 4,096 B, 517,218 free blocks). Header SHA256
+`7d8456f5f584cf78c8fa0f7e7c9c743b321bb1b6bf311566ae328f043f190334`
+was identical before and after. Backup:
+`research/tmp/dsh-gpu-0192-auth/root-backup-v1/iosroot-before-compositor-pilot.hfsx`,
+17,179,869,184 B, SHA256
+`0399cde4aaf9b11989378dfdbc62d1bfa751209b6ce7a04e84a81722b25ebd2a`,
+mode 0444. `partition_writes=0`, `reboot_commands=0`; no install, boot,
+root mutation or code edit. Receipts are in `backup-stage-v1/` and
+`root-backup-v1/`. The 0192 mode-2 kernel source was already committed and
+the image had not booted.
+
 ### 2026-11-09 — 0192 kernel pilot scope passes native and host checks
 
 Mode 2 candidate v3 records the stable unique ID only for a protected real

@@ -2,6 +2,380 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0208 whole GPU request clock trial LIVE
+
+DSH58405 owns ONE claimed208 observer after current207 headerc2698d,
+full15-file/complete207-prefix and fresh memory preflight. Native source
+5b5b46f/source6070e67e,195 patches5330 files; bannerxnu-dd856451dba34bd6b594f7b4e7058959,
+kernele6d70dbf1568aa1a97204e43a9c0fbdf21761885823728b9703e82ceb6dd031c.
+Temporary image2078f797bba4a8128225bd92203c9c3fa00c93efd98c51e2a9c5f3486d8e6a7b,
+19,536KiB transfer/Booting both OKAY,total0.598s around14:55UTC.
+Same195 userland/6GiB/mode2/600s/Homeoff/30Hz,601B command. No root
+delta/flash/rollback. Actual208 UI exercise requested immediately after
+verified boot; reply pending. No performance improvement claimed.
+
+DSH68048 owns single post-wait-stage-v1 for this exact observer,1080s
+ceiling. It waits for BOTH dispatchers/observer terminal before full15
+capture,600s GPU qualification and strict complete-prefix request counters.
+Cached timing covers all admitted GPU clients plus heartbeat; it excludes
+userland/other IOKit clients and does NOT measure CPU-active/GPU-only time.
+Preserve failures and sampled-log limits. Do not duplicate claimed stages,
+ask if auto reset was manual or modify frozen source. Lag remains unresolved;
+full goal active. Codex owns critical source/NOTES; DSH executes.
+
+### 2026-11-09 — 0208 full local whole-request profiler kernel qualified
+
+DSH36158 native-stage-v1 ALL0,pins unchanged. Clean195-patch source5330
+files6070e67eea0f4250e4c729f332f225914fe55e4beec7b8256636d091eebc3f42;
+only board C/private runtime header/GPU C++ differ from207. Source5b5b46f.
+LOCAL8-job build208-api-perf/run gauguin.voXNUS: build0/qualification0;
+all generic native checks/RO image marker and defined ProfileFreeze/Dump
+symbols retained, original195 reference inputs/mtimes unchanged. Exact
+kernel identity is in private kernel-qualification.json. No208 boot yet.
+
+Private strict receipt parser v1 passes; its human-readable selector names
+were then corrected to match actual native switch in separate v2 files,
+preserving v1. V2 five test methods/negative matrix PASS, both stages ALL0
+with pins unchanged; native code is unchanged. Next ONE temporary208 with
+fresh CURRENT207 headerc2698d/full15 files/complete207 prefixes/memory
+preflight, same195 libraries/6GiB/mode2/600s/Homeoff/30Hz. Capture entire
+GPU request/lock-delay counters and native submit prefix; no claim that
+kernel elapsed covers userland or all UI. No userdata delta/flash/rollback.
+Codex owns code/NOTES; DSH executes. Full goal active; lag unresolved.
+
+### 2026-11-09 — 0208 whole GPU request elapsed profiler checked and promoted
+
+Patch0201 adds ONLY elapsed CPU-clock diagnostics to three kernel files.
+Original full hardware predicates, add/drop/surface/submit and locked wrapper
+bodies are retained; no steady success logging, new GPU MMIO or changed
+results. Lock-acquisition delay includes scheduling; locked-request elapsed
+includes cache/PTE/allocation/I/O and GPU waits. Scope combines all admitted
+clients plus heartbeat, excludes other IOSurface/framebuffer clients and
+userland. Freeze after existing authority poisoning; retain incomplete call
+separately, dump bounded cached records through existing quarantine logger.
+
+DSH45257 private host92 assertions and both native TUs0; reference2129 inputs
+and objects unchanged. Promoted tests/test_gpu_api_perf.py differs ONLY in
+path configuration; DSH host-promotion-stage-v1 ALL0, same92 assertions,
+pins unchanged. checks-summary.json closes both without repeating native
+compiles. Patch0201/test/series now ready to commit. Next fresh195-patch
+LOCAL8-job full208 build and defined Freeze/Dump symbol qualification.
+No208 full image/device result yet. Phone last TWRP/current207 headerc2698d;
+same195 userland, no userdata change/rollback. Lag remains unresolved.
+
+### 2026-11-09 — 0207 terminal PASS; RO fallback not exercised; private208 checks PASS
+
+207 automatic14:09:51.363395–14:22:18.065684UTC,746.702289s. DSH25643 boot
+ALL0; DSH13036 post ALL0,pins unchanged. All15 files/12 static/COMPLETE R2
+prefixes preserved; logs52,056/8,259/1,071,714B. CURRENT header
+c2698d3704078d5eeb627ae5f81ae0ed35a72d73c294c7eaa7b054486639b4fe;
+phone last TWRP.600s service qualifies:598 renewals,101/101 completions,
+shadow1972,16 startup records/85 sampled-out successes.14 CA frame receipts,
+19 wraps/0 errors,NO WRAP RO record: fallback NOT exercised this workload.
+44/44 MICRO recoveries/50 polls,8 rechecks/0 expiry,final reason0/valid3f.
+1 compositor crash/2 BO NotReady events occur AFTER planned stop, separately
+retained. No full-session/daily/Metal/high-refresh/performance qualification.
+User's actual207 image-normal/still-lag report remains accurate and unresolved.
+
+Validated101 submits803,552,552ns/4264 checks799,590,625ns,pending0;
+16,309 total guards3,088,741,197ns,max496,354ns. Avg7.956ms/job,189.389us/guard.
+14 sampled frames wall median87.479ms,min21.762ms,max560.653ms;wait median
+18.793ms,max attach106.592ms. Different UI workload prevents speedup claim.
+No userdata delta/rollback/manual reset.207 source publication still pending.
+
+PRIVATE208 research/tmp/dsh-gpu-0208-api-perf/candidate-v1 now adds per-selector
+WHOLE GPU IOKit locked-request elapsed/lock-acquisition elapsed counters to
+GauguinGPU.cpp, private runtime-header prototypes and two cached quarantine
+callbacks in board C. Includes memory mapping/clientClose/heartbeat. Scope
+is ALL admitted callers(probes/worker/compositor), not just visible UI; does
+not include IOSurface/framebuffer clients or userland CPU work. Freeze FIRST
+after existing authority poisoning; in-flight call reported separately and
+excluded from completed prefix. Dump via existing logger after quarantine;
+no steady success logging/new GPU MMIO/changed return values or predicates.
+Elapsed lock wait includes scheduling; it is not CPU-active/GPU-only time.
+
+DSH45257 private native-check-stage-v1 ALL2 jobs0,pins unchanged. Actual helper
+92 assertions test selector/token/time/error/freeze/partial/overflow/once-only
+dump behavior; exact old submit/add/drop/surface/full live/SMMU bodies match.
+Removing clock instrumentation restores exact locked wrapper token bodies.
+Both native board C/GPU C++ TUs0, reference2129 headers/config and objects
+unchanged. Candidate includes unchanged coupled SweetSurface/gmu-board/
+diagnostic headers. No208 tracked patch/test, full build,image or device
+trial yet. Need promote self-contained test(path-only adaptation), preserve
+checks, commit and full195-patch local build before next diagnostic trial.
+Root owns critical source/NOTES; DSH executes. Full goal active.
+
+### 2026-11-09 — 0207 RO image trial LIVE; normal picture but user still laggy
+
+DSH25643 owns ONE claimed207 observer after CURRENT206-R2 headerecf88ce5,
+full15 files/COMPLETE R2-prefix and memory preflight. Temporary image
+2665706e35b50483243edeb53b42973d35f6d7e354e955311c9782e280d2b3bc,
+6GiB/mode2/600s/Homeoff/30Hz,601-byte command;19,520KiB transfer+Booting
+both OKAY,total0.592s. Same195 libraries; no userdata delta/flash/rollback.
+No207 physical terminal yet. User asked actual207 unlock/swipe/Settings/Home
+around two minutes and replied '图像正常，仍明显卡顿'
+(call_36e22fa376ad447bbeb5acdd68ac2f25). Saved private report; no responsiveness
+qualification. Root told user to leave running for automatic log capture.
+
+Single207 post-wait-stage-v1(1080s ceiling) now watches this EXACT observer
+and both actual dispatchers, preserves all15 files/COMPLETE R2 prefixes,
+checks600s GPU/fences/MICRO and bounded WRAP RO records. A success log is
+source-path evidence, not a physical permissions probe. Preserve all failures;
+correlate reported UI with captured native health. Do not duplicate a claimed
+stage or ask if reset was manual. Source/kernel frozen. Root owns NOTES;
+DSH executes. Full goal active; lag remains unresolved.
+
+### 2026-11-09 — 0207 full local read-only image kernel qualified
+
+DSH58208 native-stage-v1 ALL0,pins unchanged. Clean194-patch source5330
+files48ad762c91fe53e0b17352383ee66320f7346c576892a9b6d173674c00064412;
+only SweetSurface.cpp/.h and GPU RO-import rejection differ from206.
+Sourcee2f44290d642c1aa983dc7d3aa5485ed2d62befb. LOCAL8-job build207-readonly-wrap,
+run gauguin.Xk8Hht,build0/qualification0; original195 reference hashes and
+mtimes unchanged. Bannerxnu-222b7d6a596240f7a9cf0005cf22044e,
+kerneled59aa982372b92066a832257f3f218cf4f4e9aff8fc20ec9e32ce4248045c0e.
+
+Next ONE temporary207,6GiB/mode2/600s/Homeoff/30Hz, same195 libraries;
+fresh CURRENT206-R2 headerecf88ce5/full15 files/COMPLETE R2-prefix/memory
+preflight. Verify old three failed geometries, bounded WRAP RO records,
+full GPU service and actual UI. New RO success log is source-path evidence,
+NOT a physical VM-permission probe; CPU write locks/GPU imports remain denied.
+No207 physical result yet. No userdata delta/flash/rollback requested.
+
+Additional source observations for FUTURE performance work: current eagl.c
+has check_errors=1 and drains glGetError after every wrapper until600 error-
+free frames; actual R2 has only29 sampled frames, so still in that window.
+Its performance impact depends on Mesa dispatch and is NOT established.
+call_began_us for optional glslow is GLOBAL, not TLS; do not trust it for
+concurrent contexts without fixing/investigating. glprof suspends a thread,
+walks its stack AFTER resume and dumps only after4000 active samples; do
+not casually enable it for this correctness test.207 command stays unchanged.
+Default GL error consumption/TLS diagnostics may justify a separately tested
+userland change later, requiring fresh backup/concrete delta approval per
+AGENTS. Neither is changed or installed now. Root owns NOTES/code; DSH
+executes. Full goal remains active.
+
+### 2026-11-09 — 0207 RO image rights checks and two native TUs PASS
+
+Codex patch0200 changes SweetSurface.cpp/.h and one GPU-import denial only.
+Protection-only error2 fallback uses a FRESH Out descriptor, RO kernel/task
+pixel mappings, denied write lock/unlock BEFORE seed work, and explicit RO
+GPU-import denial. Other errors, ordinary/panel mappings, wire/quota/alias
+geometry and ownership cleanup remain. This fixes image correctness; no
+performance success or generic task-memory GPU import is claimed.
+
+DSH75841 v1 host306 assertions PASS, actual SweetSurface native TU PASS;
+GPU native TU failed BEFORE compilation on missing relative private headers.
+Preserve v1. V2/DSH61958 adds ONLY byte-identical sweet_eagl_diagnostics.h
+and gauguin_gpu_runtime.h beside the SAME driver/header code. It verifies
+the passed host/Surface evidence and compiles ONLY GPU TU; stage ALL0,
+reference2129 header/config inputs and objects unchanged. checks-summary.json
+records306 host assertions/2 native TUs. No unnecessary host/Surface repeat.
+Actual wrapper/free/maps/lock traps/GPU gate are executed with fallible seams:
+fresh-descriptor release, all error/quota unwinds, RO aliases across tasks,
+no write-lock seed mutation, RW behavior and RO GPU denial. Source/test
+constant codes checked against native IOReturn.h. No207 full build/image/boot.
+
+Next commit completed patch/test and clean194-patch LOCAL8-job native207
+build. Then fresh R2 headerecf88ce5/full15-file/COMPLETE R2-prefix/memory
+preflight, same195 libraries/6GiB/mode2/600s/Homeoff/30Hz temporary trial.
+Check original3 image geometries for protection-only RO fallback, safe
+read/write-lock behavior, full GPU service and actual UI; retain failures.
+Source hardware GPU/SMMU/backend remains byte-identical to real169-job206.
+No new userdata delta/flash/rollback or manual action requested. Root owns
+NOTES/code; DSH executes. Full goal remains active.
+
+### 2026-11-09 — 0207 private read-only image candidate IN PROGRESS
+
+Private research/tmp/dsh-gpu-0207-readonly-wrap/candidate-v1 now contains
+Codex changes to SweetSurface.cpp/.h and GauguinGPU.cpp ONLY, based on206.
+No patch/series entry, host test, native check, build, image or boot yet.
+Git still has ONLY original mkadt diff; do not treat this candidate as tested.
+Need finish tests and inspect before committing. Device remains TWRP.
+
+Candidate adds private readOnly=false initialization; ONLY raw
+KERN_PROTECTION_FAILURE(2) from InOut prepare releases the failed descriptor
+and constructs a FRESH Out descriptor. Successful fallback marks pixels RO.
+Both lazy kernel and task pixel mappings use kIOMapReadOnly; common new
+mapPixelsInTask() is used by addRef(). State mappings remain as before.
+Write trapLock/trapUnlock reject with kIOReturnNotWritable before seed work;
+read locks work. GPU import explicitly rejects readOnly and retains its
+existing IOBuffer-only restriction. Quota/wire accounting and release order
+unchanged. New bounded WRAP RO log complements existing wrap record format.
+Source IOGeneralMemoryDescriptor::wireVirtual/mapping paths were inspected:
+Out uses UPL_COPYOUT_FROM/read DMA, and writable maps of Out are explicitly
+warned against. Physical RO cause remains an inference until the trial.
+
+Next new tests/test_surface_readonly_wrap.py should execute ACTUAL production
+wrapper/free/kernelAddress/mapPixelsInTask/lock traps and GPU surface gate
+with fallible typed seams. Preserve original207 wrapper assertions; test
+protection-only fallback, fresh descriptor/release, every failure/quota
+unwind, RO kernel+task maps, write-lock denial/no seed mutation, unchanged
+RW/panel paths and RO GPU-import rejection. Do not simply switch direction
+without verifying access rights. Native-check BOTH SweetSurface.cpp and
+GauguinGPU.cpp with candidate header; then create patch0200, commit and
+clean194-patch full local build before a temporary real-image trial.
+Do not loosen generic task GPU imports in this correctness change. Whole
+API profiler remains unimplemented; decide later from actual frame evidence.
+Root owns critical code/NOTES; DSH runs checks/build/boot. Full goal active.
+
+### 2026-11-09 — 0206-R2 real UI GPU service PASSES; three image wraps fail
+
+R2 automatic12:31:25.541033–12:43:51.834578UTC,746.293545s. DSH20344 boot
+ALL0; DSH28986 post ALL1 ONLY because3 actual wrapped images failed; all
+pins unchanged. All15 full files/12 static hashes/COMPLETE first206 prefixes
+preserved; logs50,012/7,990/1,046,074B. CURRENT header
+ecf88ce54564c691a29a3594b4ca26b874d5d16c70dca4edb1819209faf94135.
+Phone last TWRP. No userdata delta/rollback/manual reset. Preserve failed
+overall physical-review206.json; do NOT rewrite it as an all-pass receipt.
+
+Explicit600s GPU service qualified:598 renewals,169/169 completions,shadow3492,
+17 recorded successes(first16+120),152 sampled-out successes; exact later IB
+sequence NOT proven from sampled logs.29 actual CA frame receipts,15 successful
+wraps,NO backboardd crash. Shared MICRO path REALLY exercised:77 exact waits/
+77 recoveries/88 polls,13 rechecks/0 expiry,last82us,final reason0/valid3f.
+This demonstrates the repeated-transient fix on real desktop work.3 BO
+NotReady events are after planned stop, separately retained. Human reports
+still lag/no black AND every warm repetition equally laggy; performance fails.
+
+Validated timing169 submits1,429,212,916ns/7,488 checks1,421,220,364ns,pending0;
+21,141 total guards4,029,976,197ns,max592,812ns. Average8.457ms/job and
+190.624us/full guard; different workloads forbid a whole-UI speedup claim.
+29 sampled frames wall16.575–387.482ms,median97.295ms; sync-wait median18.532ms,
+max texture/IOSurface preparation140.264ms,max handing-on97.653ms. Frame24
+falls back to copying one~11MiB picture out in135.278ms. These are wall
+measurements, NOT GPU-only durations or CPU-active utilization. Actual CA
+GLES GPU rendering is proven; 'no GPU hooks on the real UI' is not supported.
+
+Failed wraps are raw prepare error2:LA88 96x96/18,432B;BGRA1572x1044/6,564,672B;
+BGRA486x1044/2,029,536B. Source withAddressRange uses InOut and prepare();
+native IOGeneralMemoryDescriptor::wireVirtual uses read+write access for
+InOut, read-only UPL_COPYOUT_FROM for Out. Its mapping path explicitly
+requires kIOMapReadOnly for Out descriptors. Therefore investigate/fix the
+protection-only fallback with a FRESH Out descriptor, read-only kernel AND
+task pixel mappings, denied write lock/unlock and explicit GPU-import denial.
+No arbitrary RW->RO switch or writable alias. Other errors must still reject.
+Writable/panel paths, quota/partial-page accounting and complete-before-release
+remain. This is candidate207 priority; NOT implemented yet. Also note current
+GPU import accepts IOBuffer only, so generic task-backed images cannot share
+GPU memory; future writable-task zero-copy work needs explicit origin/lifetime/
+cache/permission proof. Do not combine that with the RO correctness fix.
+Whole-API profiling remains an option after image correctness, not yet coded.
+Root owns critical code/NOTES; DSH executes. Full goal active.
+
+### 2026-11-09 — 0206-R2 warm repeats also lag; capture still pending
+
+Actual R2 follow-up call_43209de63d224f1f943acaad1af124fd response is
+'每次都同样卡顿' after three Settings/Home/swipe repetitions. Saved private
+user-warm-repeat206r2.json. This does not support a cold-only preparation
+explanation. Native GPU health/frame/API evidence remains pending; do not
+equate this observation with proven continued acceleration or a specific
+kernel bottleneck. Same DSH20344 boot/DSH28986 post-watch claims continue;
+no additional boot, source changes, userdata delta or manual action requested.
+Preserve both human reports and correlate with this exact R2 capture.
+Root owns NOTES; full goal active.
+
+### 2026-11-09 — actual0206-R2 user still reports lag; exact capture pending
+
+User reply call_6bba25cb5b9e4c52be18abb88e6fdbd0 for this R2 is
+'仍明显卡顿，但没有黑屏'. Saved private user-performance-report206r2.json;
+individual unlock/Settings operations not separately confirmed. Need correlate
+with native GPU health before assessing healthy accelerated rendering. R2
+DSH20344 observer and DSH28986 post-watch remain running on their SAME
+claims; no terminal at~427s since boot-stage claim. User additionally asked
+to repeat Settings/Home/swipes three times and compare second/third to
+first, to separate cold preparation from sustained overhead; reply pending.
+Do not assign either answer to any later image. Leave this trial running
+until automatic recovery/capture; no manual restart request.
+
+Next inspect real R2 service/fences/MICRO budget and frame wait/attach data.
+If GPU remains healthy but lag persists, native ggr_submit elapsed does NOT
+cover the entire IOKit request: runtime_ready/routes, BO allocation/mapping/
+TLB sync, queries, lock waiting and gmb_record's startup/sample UFS flush
+are outside that timer. Consider CPU-clock aggregate per-selector whole-
+request/lock-held/queue-wait profiling, including clientMemoryForType and
+heartbeat. Freeze counters at FIRST quarantine, report any in-flight call
+separately; print cached data only after authorities are poisoned. No new
+MMIO, changed hardware predicates, quotas, request outputs or continuous
+success logging. A private207 candidate has NOT been implemented yet.
+If actual GPU frame work is fast enough, a separate same-kernel30->60Hz
+copy-cadence comparison may be useful; it does NOT implement90/120Hz panel
+modes. Choose from captured evidence, not the basic9-job first206 timings.
+Root owns critical source/NOTES; DSH executes. Full goal stays active.
+
+### 2026-11-09 — 0206-R2 requested repeat LIVE; fresh feedback pending
+
+DSH20344 owns ONE new R2 observer in dsh-gpu-0206-manual-r2 after CURRENT
+first206 headerc05729cf,full15 files/COMPLETE206-prefix and memory preflight.
+EXACT SAME imagebe58f40cc7efd85743b8197927e93bb28322d2f991210cb95c48325ab816772b,
+6GiB/mode2/600s/Homeoff/30Hz;19,520KiB transfer+Booting both OKAY,total0.597s.
+reuse-result.json explicitly records independent_native_build=false; copied
+qualified206 receipts remain byte-identical and point to original206 build.
+No new image/kernel build, userdata delta/flash/rollback. New trial/capture/
+atomic claims are distinct from first206. Actual R2 physical result pending.
+
+User notified IMMEDIATELY after boot and asked actual0206-R2 unlock/swipe/
+Settings/return-Home comparison after~two minutes, leaving the ten-minute
+window available. Reply pending; do NOT assign first206 missed-test or205
+lag responses to R2. Single R2 post-wait-stage-v1(1080s ceiling) now watches
+this EXACT observer/BOTH dispatchers, saves all15 files/complete206 prefixes
+and verifies600s service/fences/timing/MICRO rechecks. Timing comparison to
+healthy204 remains scoped; UI health/performance need actual R2 evidence.
+Root owns NOTES; poll existing R2 claims, no duplicate/retry on timeout.
+Full goal active; no manual restart request while observer runs.
+
+### 2026-11-09 — 0206 first trial terminal; user requests identical manual R2
+
+First206 automatic12:14:44.377626–12:27:10.745809UTC,746.368183s.
+DSH28161 boot ALL0; DSH18816 post ALL0,pins unchanged. All15 full files/
+12 static hashes/COMPLETE205 prefixes preserved; logs47,968/7,721/1,015,410B.
+Current headerc05729cfa7dd64453aa435c605c9c7785301ec75bb85c8097a50d809bcfa7c44.
+Explicit600s service qualified:598 renewals,9/9 completions,shadow128,
+NO MICRO waits/rechecks/expiry,NO wraps or CA frame receipts,NO post-stop
+BO/compositor failures. This validates basic/root/worker service, NOT the
+desktop rendering/repeated-MICRO path. User reply to actual206 question:
+'刚才没来得及 再刷一次' (call_363cea294281440cb51bec126a5b27a1).
+No206 human performance result exists. User authorizes another temporary boot.
+
+Cached timing9 submits/67,202,031ns,360 checks/66,923,125ns,pending0;
+9669 total guards/1,828,898,958ns,max340,156ns. Average7.467ms/job and
+189.151us/guard are valid for this BASIC workload;9 jobs vs204's15 and
+0 CA frames prevent claiming a desktop speedup. Remainder278,906ns is
+not GPU-only time. All UI/daily/Metal/high-refresh qualifications remain false.
+
+DSH boot dispatcher now starting ONE new0206-R2 claim in
+research/tmp/dsh-gpu-0206-manual-r2. EXACT SAME imagebe58f40c/kernel e6aafd69,
+6GiB/mode2/600s/Homeoff/30Hz. No independent R2 native build or repackaging:
+byte-identical copied receipts are explicitly labeled reuse; verifier checks
+original206 artifacts/proof. Fresh CURRENT206 header/full15-file/COMPLETE206
+prefix and memory preflight, new atomic claims/observer/capture outputs.
+No userdata delta/flash/rollback. Need notify user when R2 REALLY boots and
+request actual206-R2 unlock/swipe/Settings feedback after90s compositor handoff.
+Do not reuse first206 or205 feedback. Root owns NOTES; full goal active.
+
+### 2026-11-09 — 0206 source published; manual observer still running
+
+DSH12046 publication-stage-v1 ALL0,pins unchanged: public
+542965defbf195d63c7985c15614c65cd59abdc2,
+ref codex/gauguin-shared-micro-budget-20261109,
+tree9c312b85f885a6f7d944ed886d8ea4ad88c54991,
+parent4cd6127150401746ee82bbdd1ab398b5eafc051c. Seven reviewed text files,
+exact private1093bed tree; existing refs unchanged,no explicit CI. This
+publishes clock0198/shared-budget0199 plus tests; physical206 is pending.
+First DSH27763 invocation accidentally included a trailing period as argv;
+runner rejected BEFORE claiming or GitHub access. Corrected DSH12046 then
+executed the still-unclaimed stage once. Preserve both outer transcripts;
+no claimed-stage retry occurred. Put future DSH commands on their own line
+without punctuation to avoid this ambiguity.
+
+Live boot DSH28161 and post-watch DSH18816 remain the SAME206 trial.
+Post-wait claim verified present,not an unclaimed command. Available user
+was asked actual206 unlock/swipe/Settings/return-Home question after~two
+minutes; reply pending, previous205 response is NOT206 feedback. No206
+terminal yet at this milestone. Keep observing/capturing exact claims;
+do not infer healthy acceleration from absent USB/recovery or visible UI.
+Root owns NOTES; source/kernel inputs frozen; full goal active.
+
 ### 2026-11-09 — 0206 manual ten-minute shared-MICRO-budget trial LIVE
 
 DSH28161 owns ONE claimed206 observer after current205 header501dc0e9,

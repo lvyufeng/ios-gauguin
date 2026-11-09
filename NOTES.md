@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — reported reconnection; host USB still absent after server refresh
+
+User answered the pending reconnect question: back in TWRP and directly
+reconnected USB. Revalidated actual state rather than assuming recovery:
+ADB0/fastboot0. Both system_profiler and raw ioreg IOUSB show NO phone or
+external USB device, only3 AppleT8142USBXHCI controllers. ADB is the expected
+Homebrew1.0.41/37.0.1 DarwinARM64 client, not an alternate executable.
+Live-preflight-stage-v1 pins all match and it remains UNCLAIMED.
+
+DSH outer96083 /dispatcher20785 `host-refresh-stage-v1` returned0,
+pins unchanged. It only restarted HOST ADB server (kill/start0), then
+rechecked ADB0/fastboot0 and unchanged raw USB controller-only inventory.
+No phone shell, reboot, root write or kernel boot. Read-only watcher97253
+finished after60.85s at05:43:54UTC: still ADB0/fastboot0 for the whole
+window. It is terminal, not an active wait. Host unified USB log query
+exit0:12 records,0 enumeration/connection/permission/failure keyword hits;
+this does not establish why the physical link is absent.
+
+CUA inventory was readable, but selecting existing System Settings failed
+screen capture with-10005. No UI input or permission change occurred;
+CUA completion summary was sent. IOConsoleUsers only exposes on-console
+true, no lock-status key; do NOT infer that the Mac is locked or that an
+accessory permission dialog exists. Raw private USB logs remain outsidegit.
+
+A NEW async question asks user to keep TWRP, verify this is the Codex Mac,
+try a different USB port or known data cable, and handle any accessory
+allow prompt on the Mac. This new question is pending; the original
+reconnect question has been answered. Keep195 live preflight unclaimed
+until one actual recovery transport appears. Then execute the same pinned
+READ-ONLY profile via DSH, preserving old239-vs-new321 consent separation.
+No195 approval/apply/trial exists; original mkadt diff and all artifacts
+remain intact. No further phone-side action is possible from current host.
+
+Treat this user reply as a fresh resumed blocked audit (turn1). The goal
+API still returned blocked; it has no agent resume operation. Do not create
+or narrow the goal, and do not mark blocked again before3 consecutive
+resumed impasse turns. No fresh runtime qualification is claimed.
+
 ### 2026-11-09 — third USB-absence audit; awaiting external reconnection
 
 At05:33:07UTC, authoritative recheck: ADB0 devices, fastboot0 devices,

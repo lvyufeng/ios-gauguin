@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0197 full capture complete; wrapper was NOT exercised
+
+DSH post31916/dispatcher13450 and nested capture all0, pins unchanged.
+All15 full files/12 static hashes and complete196 log prefixes retained;
+log sizes27,533/5,031/850,243B. New root header
+f76217b3abbee32f2eee6bd6c7030054385fd75d5b125309ae80160ebdeb5a85.
+physical-review197.json:17 state results,0 null states,0 backboardd crashes,
+bridge installed1, final service298 renewals/9 submitted=completed/shadow128.
+But wrapped-image calls0 and compositor frame receipts0: no observed unlock
+path, and the visual197 question has no reply. DO NOT claim the interface
+fix or accelerated UI is physically qualified from this idle observation.
+This supersedes the prior terminal handoff's pending post-capture action.
+
+Next198 is a same-kernel BOOT-ARG comparison using existing sweethidtest=90
+to try automatic Home events and trigger desktop rendering without a user
+standing by. SweetHIDButtons already emits Menu down and up100ms apart,
+every90s, at most60 transitions. Both OSObject typed/fallback allocation
+use Z_WAITOK_ZERO, so the initial counter is zero. No HID source or rebuild
+is needed. Remove only -noprogress to fit the new arg:601-byte197 command
+becomes605-byte198 command in608-byte field (3 NULs). Preserve every other
+arg and payload byte outside that field. This is artificial input, not a
+new physical-touch qualification or promised unlock; inspect actual native
+outcomes. Phone is in TWRP. All DSH197 outer CLIs are terminal now; root
+owns the active handoff. Keep195 manual vs197 automatic attribution and
+do not reuse the consumed321-block root-write consent.
+
+### 2026-11-09 — 0197 temporary boot TERMINAL; automatic return confirmed
+
+The claimed trial above is finished, not still live. Parent dispatcher11031 and
+nested dispatcher11034 both returned inner exit0 with `inputs_unchanged: true`;
+no retry or timeout. `trial-v1/result.json` is state `observation-finished`,
+observer exit0, cycle 07:42:53.712808–07:50:17.858691UTC (444.146s), automatic
+return to TWRP after443s, `manual_reset: no` under the standing policy. Only
+root-adjacent write was the verified `misc` recovery latch; installed userdata
+was not patched and there was no flash, format or rollback.
+
+One temporary boot of layout-6g.img
+(2516def43af1c88114cbf2a00b4217c88396439a22afdee5e47871cff16ee4ed) transferred
+19,520KiB OKAY0.460s and Booting OKAY0.134s. Cycle log: all seven progress
+markers yes, banner matches, 5 swaps, 74 GPU lookups, 5,334 lines; GPU submits
+through9, shadow128, service 298 renewals then quarantine. `SWEET SURF` create
+id11 returned nonzero state and backboardd remained present through t=190; no
+backboardd sel6 FAR0x30 crash appears in this bounded log. Retained
+observations only: `CRASH driverkitd` far0x13ff10000 and `CRASH PosterBoard`
+far0x1e373ba70 also appear. No UI/Metal/high-refresh qualification is implied.
+
+Next: `dispatch_post197.py` to preserve all15 files and collect bounded
+state/wrap/native-frame receipts before acceptance. No post197 capture exists
+yet.
+
 ### 2026-11-09 — 0197 temporary boot live; reviewed source published
 
 DSH boot outer31817, parent dispatcher11031 and nested dispatcher11034 are

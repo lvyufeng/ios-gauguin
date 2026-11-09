@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206 first trial terminal; user requests identical manual R2
+
+First206 automatic12:14:44.377626–12:27:10.745809UTC,746.368183s.
+DSH28161 boot ALL0; DSH18816 post ALL0,pins unchanged. All15 full files/
+12 static hashes/COMPLETE205 prefixes preserved; logs47,968/7,721/1,015,410B.
+Current headerc05729cfa7dd64453aa435c605c9c7785301ec75bb85c8097a50d809bcfa7c44.
+Explicit600s service qualified:598 renewals,9/9 completions,shadow128,
+NO MICRO waits/rechecks/expiry,NO wraps or CA frame receipts,NO post-stop
+BO/compositor failures. This validates basic/root/worker service, NOT the
+desktop rendering/repeated-MICRO path. User reply to actual206 question:
+'刚才没来得及 再刷一次' (call_363cea294281440cb51bec126a5b27a1).
+No206 human performance result exists. User authorizes another temporary boot.
+
+Cached timing9 submits/67,202,031ns,360 checks/66,923,125ns,pending0;
+9669 total guards/1,828,898,958ns,max340,156ns. Average7.467ms/job and
+189.151us/guard are valid for this BASIC workload;9 jobs vs204's15 and
+0 CA frames prevent claiming a desktop speedup. Remainder278,906ns is
+not GPU-only time. All UI/daily/Metal/high-refresh qualifications remain false.
+
+DSH boot dispatcher now starting ONE new0206-R2 claim in
+research/tmp/dsh-gpu-0206-manual-r2. EXACT SAME imagebe58f40c/kernel e6aafd69,
+6GiB/mode2/600s/Homeoff/30Hz. No independent R2 native build or repackaging:
+byte-identical copied receipts are explicitly labeled reuse; verifier checks
+original206 artifacts/proof. Fresh CURRENT206 header/full15-file/COMPLETE206
+prefix and memory preflight, new atomic claims/observer/capture outputs.
+No userdata delta/flash/rollback. Need notify user when R2 REALLY boots and
+request actual206-R2 unlock/swipe/Settings feedback after90s compositor handoff.
+Do not reuse first206 or205 feedback. Root owns NOTES; full goal active.
+
 ### 2026-11-09 — 0206 source published; manual observer still running
 
 DSH12046 publication-stage-v1 ALL0,pins unchanged: public

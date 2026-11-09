@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0208 whole GPU request clock trial LIVE
+
+DSH58405 owns ONE claimed208 observer after current207 headerc2698d,
+full15-file/complete207-prefix and fresh memory preflight. Native source
+5b5b46f/source6070e67e,195 patches5330 files; bannerxnu-dd856451dba34bd6b594f7b4e7058959,
+kernele6d70dbf1568aa1a97204e43a9c0fbdf21761885823728b9703e82ceb6dd031c.
+Temporary image2078f797bba4a8128225bd92203c9c3fa00c93efd98c51e2a9c5f3486d8e6a7b,
+19,536KiB transfer/Booting both OKAY,total0.598s around14:55UTC.
+Same195 userland/6GiB/mode2/600s/Homeoff/30Hz,601B command. No root
+delta/flash/rollback. Actual208 UI exercise requested immediately after
+verified boot; reply pending. No performance improvement claimed.
+
+DSH68048 owns single post-wait-stage-v1 for this exact observer,1080s
+ceiling. It waits for BOTH dispatchers/observer terminal before full15
+capture,600s GPU qualification and strict complete-prefix request counters.
+Cached timing covers all admitted GPU clients plus heartbeat; it excludes
+userland/other IOKit clients and does NOT measure CPU-active/GPU-only time.
+Preserve failures and sampled-log limits. Do not duplicate claimed stages,
+ask if auto reset was manual or modify frozen source. Lag remains unresolved;
+full goal active. Codex owns critical source/NOTES; DSH executes.
+
 ### 2026-11-09 — 0208 full local whole-request profiler kernel qualified
 
 DSH36158 native-stage-v1 ALL0,pins unchanged. Clean195-patch source5330

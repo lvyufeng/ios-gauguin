@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0194 native checkpoint kernel built; 6 GiB trial live
+
+Source commit `ff6a9bebde72d354b051d91ed73541cad7c9e7e0`.
+182-patch clean replay changes only the board implementation and lease
+header relative to193, SHA256
+`a1868ff61521315e18d1e42cc442086cc2a3dc5fdaff7324f38fd539648a3658`.
+DSH native outer 79582, dispatcher 37732, native
+`gauguin.xaRvks`, ID `xnu-4f408078b6b74778b6a5039e381f4412`.
+Build and qualification both0, all pins unchanged. Kernel SHA256
+`3a897725b55ab860c450f8471ec0ee8626c9faa4224dcaba6725acba6f637e76`.
+4 GiB control `dcfa5bcd`; 6 GiB image
+`research/tmp/dsh-memory-0194-checkpoint/ram-layout-6g-v1/layout-6g.img`,
+SHA256 `961f94dff71da24027aa7e2d06195c142eb40ad54e6158d5c64ffb3ef0351be3`.
+Same kernel/command/assets. Fresh recovery audit shows no fixed/dynamic
+overlap. Its legacy `current_XNU_*` fields describe the 4 GiB comparison
+image, while actual prior193 native counters identify the 6 GiB window.
+
+DSH boot outer **68924**, dispatcher74250 claimed at1794198008.293427,
+audited all14 files and full193 log prefixes, then sent the image once.
+Fastboot returned OKAY in0.589s. As of04:28:31 UTC the dispatcher was live
+8m23s with no terminal or recovery return. Poll the same handle and
+`boot-stage-v1/result.json`; do not restart. `post194.py --prepare` is
+ready after terminal and must capture raw data before acceptance.
+`gles_contract194.py` requires exactly one completed-CP/pre-ZAP checkpoint
+at sequence1, then starts service samples at2 and preserves all native,
+pixel, memory and600s health checks. No physical194 success claim yet.
+No root write since the approved192 installation.
+
+Source published via gh as public
+`cdd402f8dfcfb34dd5a6c70a4c6a9bf9aa58841e`, exact tree
+`3c6de13d39afbb94b7aaefc93b2bd46953cb857d`, sole parent465aab6,
+branch `codex/gauguin-pre-zap-checkpoint-20261109`. Eight text files,
+no CI dispatch, existing refs retained.
+
+The UI worktree has uncommitted195 bridge work. Actual late installer
+uses a same-sized EAGL subclass for new Mesa contexts, publishes only
+the base initializer hook after subclass registration, and retains the
+bridge image. A recursive registry lock serializes context registration,
+lookup and deallocation. Native iOS16 build/sign0, default products retain
+exact186 hashes. New launcher70,336B SHA
+`a1b98155d1e01b17d50a6bd733dbf560ce21a74572758d8ae97c52a4174d3562`;
+bridge562,496B SHA
+`a0f5a847195ea256f5fa7cb200fae798638295fc650a0741b62c7de5d0dbf7dc`.
+`research/tmp/dsh-ui-0195-bridge` contains receipts. Real ObjC runtime
+host tests pass for direct/inherited initialization, existing native
+objects, unknown subclasses, fallback, concurrent creation and cleanup
+(40,042 /39,916 assertions in these runs). DSH admission outer3326 is now
+running default14 and render22 cases. Review/commit only after terminal.
+No195 installation, frame proof or new consent request yet.
+
 ### 2026-11-09 — 0194 pre-ZAP checkpoint candidate passes native and host checks
 
 Patch 0188 adds a single opt-in mode12/service1 watchdog checkpoint after

@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0201 clean full native build qualified; next automatic trial
+
+DSH56858/dispatcher99068 native-stage-v1 terminal0, pins unchanged;
+188-patch replay5330 files8c77b5a646d8200542bd32c953a40d39ead11e28f29133e053ce2faf1b88bed4,
+only gauguin_gmu_board.c differs from200. LOCAL8-job build201-settle,
+run gauguin.lzEjmN, native build0/qualification0, independent APFS clones,
+old195 manifest/source-state hashes+mtimes unchanged. Sourceeaeea825c341d291c6d4b7b89061d04f607a2f3c;
+banner xnu-cf1cdd0529174e9da3b14a6dd36fc9ac,
+kernel9d2b6e32703ab4557c2da513ffc037b40dbd1c46ad5894f6424af6c7f4619676.
+
+DSH38312 read-only primary audit is terminal; private report at
+dsh-gpu-0201-micro-audit/report.md. Confirmed masked GMU receipt2370,
+unknownbit8, only HALT2/IDLE3 defined, no local post-setup driver write
+explains the change. This supports keeping the EXACT guard, as201 does.
+
+Next package/verify current200 full15 files and memory/header, ONE
+temporary201 automatic-Home trial, then all raw files before reviewing
+STOP MICRO counters and actual desktop completion fences. No user visual
+report requested for this automatic diagnostic. No new userdata delta.
+Root owns NOTES; physical qualification remains pending, full goal active.
+
 ### 2026-11-09 — 0201 bounded exact-value wait passes software checks
 
 Codex patch0194 does NOT mask unknownbit8. Only an in-flight GGR_BUSY

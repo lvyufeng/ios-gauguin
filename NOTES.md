@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0190 physically verifies the compositor admission path
+
+One 0190 boot completed and returned automatically to TWRP in 746.756016s
+(01:24:55.842962–01:37:22.598978 UTC). Boot and read-only post stages both
+returned 0 with unchanged pins. Outer handles 40402 and 59473 closed. Current
+phone is in recovery after the complete 12-file capture. All nine installed
+static files and three full prior log prefixes matched. New complete log
+sizes are 16,014 / 3,686 / 470,503 bytes. No new userdata write.
+
+`research/tmp/dsh-eagl-0190-loader/independent-physical-review.json` reports
+PID 57 xpcproxy job trace, then append outcome 1, reason 0, error 0, added 1,
+with UID and real UID 501. Final backboardd exec matches the same PID and
+envc 11, with insert/expected/mode/admission all 1. AMFI PATH2 succeeded twice.
+There were three open and five mmap checks. The actual 12-line constructor
+session independently proves loading and all eight EAGL encodings on 20H392.
+It reports `hooks=0 gpu_opens=0 rendering=disabled` and the GPU service was
+absent at construction. Native console registers the service later.
+
+The constructor's own GET8 was denied as predicted (`rc=-1 errno=1`, output
+fields still zero). The same PID's native GET8 snapshot gave active and
+inactive limits both -1, attributes both 1. This uses the native limit getter;
+the -1 values represent no finite reported per-process limit. Task VM
+footprint at the constructor was 1,016,128 bytes. No rendering headroom or
+system-wide memory-pressure result is inferred from startup alone.
+
+Independent standalone FD619 GLES regression passed with Mesa 25.0.7 ES 3.1,
+8,192 + 1,024 startup word readbacks (seed 3217518503), all 1,024 + 1,024
+RGBA/BGRA pixels (seed 2099079785, hashes 3133426629 / 1911354309), six
+native submissions with final shadow 92, 595 renewals and 600s health.
+All six 128 MiB hard-limit phases and the exact reviewed 269-byte stderr
+warning passed. Accepted 4 GiB image `bd2dc73e`, source `c548db3`, native ID
+`ffac2e7a488b44fbb197dac573a980c9`, published source `ad4c5f7`.
+
+Next compositor work must bind GPU access to the launchd-spawned job and
+owning task, keep ordinary clients outside this prototype and respect the
+one-owner lifetime. A bounded in-process hardware probe after service
+publication and root probe release can establish actual access. A new
+userland install needs a fresh audited root delta and exact consent. Separately
+the 6 GiB layout exists offline; add/use direct native memory counters before
+qualifying it physically. The full daily-use goal remains active.
+
 ### 2026-11-09 — offline 6 GiB layout verified; 0190 observer still live
 
 The live phone is still running the original 0190 4 GiB trial on handle

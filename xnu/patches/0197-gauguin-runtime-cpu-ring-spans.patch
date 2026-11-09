@@ -1,0 +1,100 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3884,7 +3884,8 @@
+     uint64_t root1,root3;
+ };
+ static struct ggrb_live_sample ggrb_live_sample;
+-/* op: 1 register read,2 register write,3 memory read,4 ring write,5 barrier,6 delay */
++/* op: 1 reg read,2 reg write,3 memory read,4 ring write,5 barrier,6 delay,
++ * 7 CPU ring-span write,8 CPU ring-span verify. */
+ static uint32_t ggrb_last_op,ggrb_last_space,ggrb_last_offset,ggrb_last_value,ggrb_last_ok;
+ static bool ggrb_reject(struct ggrb_live_sample *sample,uint32_t reason)
+ {
+@@ -4024,6 +4025,27 @@
+     (void)cookie;if((off&3)||off>=32768)return ggrb_note(4,0,off,value,false);
+     gfw_store32(gmb_ram+ggb_plan.region[GGP_RING].offset-GMB_PAGE+off,value);return ggrb_note(4,0,off,value,true);
+ }
++static bool ggrb_ring_span(void *cookie,uint32_t off,const uint32_t *words,uint32_t count,bool verify)
++{
++    (void)cookie;uint32_t op=verify?8:7,last=0;
++    if(!words||!count||count>GGR_RING_PACKET_WORDS||(off&3)||off>=32768||!gmb_ram)
++        return ggrb_note(op,0,off,0,false);
++    /* ggr_submit already proves hardware idle/shadow/EOP before preparing
++     * this ring. These are CPU-owned NC RAM accesses ONLY: no register,
++     * doorbell or page-table update. Full hardware guards surround EACH
++     * span in the engine, including one after the complete readback. */
++    for(uint32_t i=0;i<count;i++){
++        uint32_t at=(off+4*i)%32768;
++        if(ggrb_context.state!=GGR_BUSY||sweet_gmu_board_state()!=GMB_READY||
++           ggrb_ns(NULL)>=ggrb_context.operation_end_ns||
++           (ggrb_end!=UINT64_MAX&&mach_absolute_time()>=ggrb_end))
++            return ggrb_note(op,0,at,last,false);
++        vm_offset_t va=gmb_ram+ggb_plan.region[GGP_RING].offset-GMB_PAGE+at;
++        if(verify){last=gfw_load32(va);if(last!=words[i])return ggrb_note(op,0,at,last,false);}
++        else {last=words[i];gfw_store32(va,last);}
++    }
++    return ggrb_note(op,0,(off+4*(count-1))%32768,last,true);
++}
+ static bool ggrb_barrier(void *cookie)
+ {return ggrb_note(5,0,0,0,gmb_barrier(cookie));}
+ static bool ggrb_delay(void *cookie,unsigned us)
+@@ -4076,7 +4098,7 @@
+     ggrb_started=1;ggrb_service=sweet_gpu_service_requested();
+     if(ggrb_service)ggrb_end=UINT64_MAX;
+     else clock_interval_to_deadline(20,NSEC_PER_SEC,&ggrb_end);
+-    struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,ggrb_barrier,ggrb_delay,ggrb_quarantine};
++    struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,ggrb_barrier,ggrb_delay,ggrb_quarantine,ggrb_ring_span};
+     enum ggr_error rc=ggr_open(&ggrb_context,&ops,ggb_plan.region[GGP_SCRATCH].iova,ggb_data_plan.data.iova);
+     if(rc!=GGR_OK||!sweet_gpu_runtime_ready()||!GauguinGPUStart()) {
+         if(ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);
+diff --git a/bsd/dev/gauguin_gpu_runtime.c b/bsd/dev/gauguin_gpu_runtime.c
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -106,18 +106,22 @@
+        busy==UINT32_MAX||(busy&(1u<<23)))goto io;
+     /* One in flight: the whole ring is idle, so wrapping cannot overwrite an
+      * unread packet. CP_RB_CNTL already selects the native 8192-DWORD ring. */
+-    uint32_t packet[4*GGR_MAX_COMMANDS+8],n=0,next=c->submitted+1;
++    uint32_t packet[GGR_RING_PACKET_WORDS],n=0,next=c->submitted+1;
+     for(uint32_t i=0;i<count;i++) {
+         packet[n++]=0x70bf8003u;packet[n++]=(uint32_t)addresses[i];
+         packet[n++]=0;packet[n++]=words[i];
+     }
+     packet[n++]=0x70460004u;packet[n++]=4;packet[n++]=c->completion_iova;packet[n++]=0;packet[n++]=next;
+     packet[n++]=0x70620002u;packet[n++]=c->scratch_iova;packet[n++]=0;
+-    for(uint32_t i=0;i<n;i++) {
++    if(c->ops.ring_span) {
++        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,false)||!alive(c))goto io;
++    } else for(uint32_t i=0;i<n;i++) {
+         if(!alive(c)||!c->ops.write_ring(c->ops.cookie,4*((c->wptr+i)%8192),packet[i])||!alive(c))goto io;
+     }
+     if(!barrier(c))goto io;
+-    for(uint32_t i=0;i<n;i++) {
++    if(c->ops.ring_span) {
++        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,true)||!alive(c))goto io;
++    } else for(uint32_t i=0;i<n;i++) {
+         uint32_t v;
+         if(!mr(c,GGR_RING,4*((c->wptr+i)%8192),&v)||v!=packet[i])goto io;
+     }
+diff --git a/bsd/dev/gauguin_gpu_runtime.h b/bsd/dev/gauguin_gpu_runtime.h
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -10,6 +10,7 @@
+ #define GGR_VA_START UINT64_C(0x40000000)
+ #define GGR_VA_END   UINT64_C(0x80000000)
+ #define GGR_MAX_COMMANDS 128u
++#define GGR_RING_PACKET_WORDS (4u * GGR_MAX_COMMANDS + 8u)
+ #define GGR_MAX_BUFFERS 256u
+ #define GGR_MAX_QUEUES 32u
+ #define GGR_MAX_BO_BYTES (64u << 20)
+@@ -84,6 +85,9 @@
+     bool (*barrier)(void *);
+     bool (*delay_us)(void *,uint32_t);
+     void (*quarantine)(void *);
++    /* Optional CPU-owned root-ring write/verify span. Caller checks the full
++     * live guard at both boundaries; hardware remains idle until verified. */
++    bool (*ring_span)(void *,uint32_t,const uint32_t *,uint32_t,bool);
+ };
+ struct ggr_context {
+     uint32_t state, wptr, submitted, completed, last_error, polls;

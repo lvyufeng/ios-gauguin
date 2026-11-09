@@ -192,3 +192,4 @@
 0194-gauguin-runtime-bounded-micro-settle.patch
 0195-gauguin-cached-bo-allocation-failures.patch
 0196-gauguin-runtime-guard-clock-profile.patch
+0197-gauguin-runtime-cpu-ring-spans.patch

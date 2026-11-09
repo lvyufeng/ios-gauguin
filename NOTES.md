@@ -2,6 +2,155 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0204 terminal:CPU ring spans reduce measured submit time by60%
+
+Supersedes the LIVE handoff below. DSH59407 boot and DSH32005 post stages
+ALL0,pins unchanged. Automatic trial11:17:17.386440–11:24:41.453698UTC,
+444.067258s. All15 full files/12 static hashes/COMPLETE203 log prefixes
+preserved; full logs43,881/7,183/998,228B. Current root header
+c56ed0a5d26091ac23043e832e642e4d6ba37aed73a5e2c514262b50c46e185b.
+Phone last TWRP. Explicit300s GPU service passes:298 renewals,15/15 native
+completions,shadow244,3 CA frame receipts,5 wraps/0 failures. One exact
+MICRO wait recovered in1 poll/67us, final live_reason0/valid3f. Post-stop
+2 BO NotReady events/1 compositor crash remain recorded separately.
+Whole-session compositor, visual speed, daily use, Metal and high refresh
+are NOT qualified. Same195 installed libraries; no userdata delta/rollback.
+
+Validated timing:5,955 full checks,total2,545,848,645ns,max648,177ns.
+15 submits253,417,812ns;600 inside checks252,939,895ns,pending0. Average
+submit42.270ms(203) ->16.895ms(204),ratio0.399685; checks/job100 ->40.
+Packet workloads differ(203 shadow260 vs204 shadow244), so this is an
+observed average reduction, NOT a proven whole-UI speedup. GPU may overlap
+guards; the477,917ns remainder is NOT GPU-only duration or CPU utilization.
+Recorded frames1..3 waits51,080/47,828/54,248us: latency still substantial.
+No human204 performance report; latest user observation is199-R2 still
+visibly lagging. An optional availability question is pending; if present,
+offer a fresh same204-kernel manual600s/Homeoff trial with new preflight/
+claims, not a fictitious205 native build. No such trial is prepared yet.
+
+Next inspect exact clock/owner/watchdog/route/guard implementations before
+choosing further optimization. Current~422us/full-check cost is measured,
+but its component breakdown is not; do NOT assume SMMU reads dominate or
+weaken predicates without ownership/failure tests. Source publication of
+0197 remains pending(parent public18336adc,private baseline0a03580).
+Root owns NOTES; full goal remains active.
+
+### 2026-11-09 — 0204 automatic CPU ring-span timing trial LIVE
+
+DSH59407 is observing ONE claimed204 trial after current203 header2592713f,
+memory/full15 files/COMPLETE203-prefix preflight. Temporary image
+8cc4398248a09c46fd50d0a133785684c0c10821b769aa9cdbcbcd7ec719acc7,
+6GiB/mode2/300s/Home90,605-byte command;19,520KiB transfer and Booting
+both OKAY,total0.591s. Same195 libraries, no userdata delta/flash/rollback.
+No204 physical result yet; observer-running. User notified no manual work.
+
+The single post-wait-stage-v1 watches this EXACT observer and both real
+dispatchers, saves all15 full files/203 prefixes, checks explicit300s
+chronology/fences and cached timing consistency, and records frame latency
+samples plus an accurately scoped203 comparison. Keep post-stop failures;
+do not infer full UI FPS or GPU-only time from counter ratios. Root owns
+NOTES. Poll existing claims/handles; never duplicate a stage on timeout.
+No human performance report beyond R2's '仍然明显卡顿'. Full goal active.
+
+### 2026-11-09 — 0204 full local ring-span build qualified; next timing comparison
+
+DSH45448 native-stage-v1 ALL0,pins unchanged. Clean191-patch source5330
+files8676661e208b04bc880dc43ebd597872fbba113b5aa53d3dd5761b323c9dd117;
+ONLY board C/runtime C/private runtime header differ from203. Source
+6ca814fafa11eeb6020428764e4694f175834e55. LOCAL8-job build204-ring-span,
+native build0/qualification0; native ring-span callback is a required
+DEFINED text/section symbol, all prior generic checks retained. Original
+195 reference hashes+mtimes unchanged. Banner
+xnu-a84285903fe54af6a20ee0dc23483a7e,
+kernel0ec35b9430ebd97ba2e81e3aad21ac0ad0f3bf03dd7958d0df2a2cd160408def.
+
+Next ONE temporary204 automatic Home trial after current203 header2592713f,
+memory/full15 files/COMPLETE203-prefix preflight. Same195 libraries,
+6GiB/mode2/300s. Check explicit service window, completed fences/packets,
+submit/guard timings and recorded frame latencies against203. Average
+submit ratios are observations; different UI workloads or overlapping
+GPU work prevent claiming whole-UI FPS/GPU-only time from those alone.
+No204 physical result yet, no user action or userdata delta requested.
+Root owns NOTES; full goal active.
+
+### 2026-11-09 — 0204 CPU ring-span candidate passes functional/native checks
+
+Codex patch0197 changes board C/runtime C/private runtime header only.
+Optional internal ring_span callback writes/verifies the CPU-owned root
+packet in one bounded span. ggr_submit ALREADY proves shadow/EOP/GPU idle
+before preparation; full original guards remain at EACH span boundary,
+after complete readback, around the actual register/doorbell writes and
+through GPU completion/fault checks. Within the CPU-only span check every
+word's cached authority/state and CPU operation/service deadline. No GPU
+register/PTE/doorbell access occurs in the span. Failed preparation cannot
+commit hardware work; quarantine and retained DMA owners remain intact.
+The original per-word fallback remains byte/trace-compatible when the
+callback is null. Full predicate BODY is unchanged, but the NUMBER of
+guard MMIO reads in CPU preparation intentionally decreases: never claim
+the entire hardware read trace is unchanged. Public user wire ABI unchanged.
+
+DSH22138 native-check-stage-v2 ALL4 jobs0,pins unchanged:17,214 retained
+runtime/ABI+72 service assertions;55,336 additional exact ROOT packet/
+register-trace/ring-wrap/partial-write/readback/deadline/guard-boundary
+assertions; ACTUAL board callback bounds/wrap/deadline/authority tests;
+139 unchanged live-predicate comparisons+actual timer wrapper cases;
+307,278 retained combined/micro checks; TWO native ARM64 TUs0 with
+reference headers/generated files/objects unchanged. Fixture initializer
+uses designated fields to keep the optional callback null compatibly.
+
+V1/DSH58187 host jobs passed; native compile selected the OLD runtime
+header through the reference umbrella header and failed the new macro.
+Preserve v1. Candidate-v2 adds ONLY a byte-identical gauguin_gmu_board.h
+beside the SAME three changed files, fixing isolated include context.
+No driver-code change was needed for v2. No204 physical result yet.
+
+Next clean191-patch replay/full LOCAL build, require native ring-span
+function symbol, then same installed195 libraries/6GiB/mode2/300s/Home90
+and current203 header2592713f/full15-file/complete203-prefix preflight.
+Compare completed fences, packet/ring evidence and submit/guard timing
+with203. GPU may overlap checks; elapsed subtraction is not GPU-only time.
+No new userdata delta, quota change or rollback. Root owns NOTES; full
+goal active. No human visual/performance result beyond R2's lag report.
+
+### 2026-11-09 — 0203 captured:99.90% of submit elapsed lies inside full guards
+
+203 terminal10:40:34.605224–10:47:58.655884UTC,444.050660s, automatic.
+Boot DSH12341 all0; post DSH1883 post-wait-stage-v1 ALL0, pins unchanged.
+All15 full files/12 static hashes/COMPLETE202 prefixes preserved; full
+logs41,837/6,914/981,416B, current root header
+2592713f741b0c28f3f522c5ea63c40316bdf80b244dac9a4f03735f7a647200.
+Phone last TWRP. Explicit300s service-window qualified:298 renewals,
+15/15 recorded completions,3 CA frame receipts,5 wraps/0 failures.
+One exact MICRO wait recovered in1 poll/65us (2370 also passes original
+mask~8). Post-stop2 BO NotReady events/1 compositor crash remain recorded;
+no in-window GPU failure. Whole-session/visual/performance/daily/Metal/
+high-refresh remain unqualified; no new userdata delta or manual request.
+
+Validated cached timing:6,952 full guard checks,total2,960,691,510ns,
+max617,135ns.15 submits total634,043,593ns;1,500 checks INSIDE those calls
+sum633,411,875ns (99.9003668%). Difference631,718ns includes CPU/GPU;
+GPU work can OVERLAP a guard, so NEVER call that difference GPU duration
+or claim CPU-active utilization from wall time. pending0 and counts/fences/
+all sum bounds pass. Performance bottleneck evidence supports reducing
+repeated checks during CPU-owned ring preparation, not removing actual
+hardware-submit/fault/completion checks or raising resource quotas.
+
+Next optional internal ring-span write/verify callback: prepare/verify
+trusted CPU ring packets with a full guard at EACH batch boundary; GPU is
+already hardware-idle and no doorbell is written until verification and
+the original pre/post hardware checks pass. Retain CPU deadline checks,
+failure quarantine/DMA retention and a fallback with the original per-word
+trace. Need actual-core tests for exact packets, ring wrap, no doorbell on
+partial write/verify or boundary/deadline failure, then native/full build
+and direct203 timing/fence comparison. No batching is implemented yet.
+
+Source publication DSH1579 stage-v1 all0,pins unchanged: public
+18336adc78f032f5eca6ec8eb9d2f64a03eac136,
+ref codex/gauguin-submit-latency-profile-20261109,
+treed4e384cd6a2047c416eabedb794003a20f687eca,
+parentd980f8997b0b319076ba197a04fa5480223e4d6d. Seven reviewed text files,
+existing refs unchanged, no explicit CI. Root owns NOTES, full goal active.
+
 ### 2026-11-09 — 0203 automatic latency profile trial LIVE
 
 DSH12341 is observing ONE claimed203 trial after current202 headerb2c99aa6,

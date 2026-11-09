@@ -69,7 +69,9 @@ static void quarantine(void *p)
 static void init(struct model *m,struct ggr_context *c)
 {
     memset(m,0,sizeof(*m));memset(c,0,sizeof(*c));m->wptr=m->shadow=m->old_wptr=20;
-    struct ggr_ops o={m,healthy,time_ns,read_reg,write_reg,read_memory,write_ring,barrier,delay_us,quarantine};
+    struct ggr_ops o={.cookie=m,.healthy=healthy,.nanoseconds=time_ns,
+        .read_reg=read_reg,.write_reg=write_reg,.read_memory=read_memory,
+        .write_ring=write_ring,.barrier=barrier,.delay_us=delay_us,.quarantine=quarantine};
     CHECK(ggr_open(c,&o,0xfc010000u,0xfc018000u)==GGR_OK);
 }
 static enum ggr_error submit(struct ggr_context *c,uint32_t count,uint32_t *fence)

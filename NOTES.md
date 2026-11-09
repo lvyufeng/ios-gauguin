@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — actual0208-R3 LIVE; PRIVATE209v2 software/native closure PASS
+
+User call_638a082742fb4c789ab9e2df19df5b14 replied to R2 '错过了 再刷入一次'.
+Saved user-performance-report208r2.json: no actual R2 performance report.
+FIRST R3 preparation research/tmp/dsh-gpu-0208-manual-r3 failed verifier
+BEFORE any memory capture/device command/observer: metadata said R3 but
+copied verifier still asserted R2. Failed claimed stage preserved; obsolete
+post wait dispatcher/child terminated and explicit unbooted cancellation
+receipt saved. Do NOT retry that directory/stage. Root acknowledged mistake.
+
+Corrected FRESH research/tmp/dsh-gpu-0208-manual-r3-v2 retains actual trial
+ID0208-R3 and same original208 image/kernel. All Python verifier/trial/post
+labels checked; q/software/4GiB/layout receipts copied byte-identically from
+original208, explicitly NOT an independent build/repack. Fresh CURRENT R2
+headerbb353da2/full15 COMPLETE R2 prefixes and memory preflight passed.
+DSH6658 owns ONE actual R3 observer:19,536KiB transfer/Booting OKAY,
+total0.593s around15:33UTC. Same2078f797 image/e6d70dbf kernel/195 libraries,
+600s/6GiB/mode2/Homeoff/30Hz. DSH30104 owns single exact-R3 post wait1080s.
+Actual R3 unlock/swipe/Settings/Home feedback requested immediately after
+verified boot; pending. Phone currently running R3, no need manual reset.
+No userdata delta/flash/rollback. Do not duplicate observers or ask attribution.
+
+PRIVATE209v2 DSH1146 host-check-stage-v2 ALL4 jobs0,pins unchanged:
+551,748 runtime assertions +122 actual board/full-clock-wrapper cases,
+original17,214/72,55,336 ring-span,139 full-guard and307,411 MICRO retained.
+DSH27196 native-check-stage-v2 ALL0 closes three native TUs: ONLY board C
+changed from v1, exact candidate identity permits retaining prior runtime/
+GPU TUs; new native board compile0, reference2129 headers/config/objects
+unchanged. checks-summary.json statepassed209-v2-bounded-read-continuation-and-three-native-TUs.
+V1 never promoted/booted; its late-stamp rebase weakness is fixed in v2.
+V2 uses measured <=5us END gap AND <=250us START age at consumption. It
+does not prevent preemption/stalled IO after final clock sample. Read-side
+sampling frequency changes; all writes/barriers/delays retain full gates,
+and all successful accesses retain full after-gates. API/BO/PTE/cache code
+byte-identical. No209 tracked patch/main test/full build/image/boot yet.
+
+NEXT after R3 raw capture: promote path-only standalone test and patch0202
+(runtime C/header/board C only), adapt existing API profiler test to strip
+ONLY exact new cached read-counter quarantine block, run promotion checks,
+commit and fresh196-patch LOCAL8-job native209. Qualified208 stays reference.
+Consider bounded300s diagnostic against the two nearly identical25-job/8-CA
+startup workloads; no human responsiveness claim without actual report.
+Keep complete R3 prefixes/current terminal header for next preflight.
+Codex owns critical source/NOTES, DSH executes; full goal ACTIVE, lag unresolved.
+
 ### 2026-11-09 — 0208-R2 terminal PASS; PRIVATE209 timing review and v2 checks pending
 
 R2 automatic15:09:28.448959–15:21:55.225505UTC,746.776546s. DSH59434 boot/

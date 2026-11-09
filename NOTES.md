@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0200 last-existing-GFW-read cache passes all software checks
+
+Codex patch0193 changes only gauguin_gmu_board.c: cache kind/space/offset/
+value/status for existing gfw_faults reads (SMMU32/64, CSR host_info, AO
+status). Quarantine prints this plus ALREADY cached host_info/ao_status.
+No new hardware reads, writes, retries, relaxed predicates or DMA releases.
+The actual old/new guard bodies, including all own-halt/translation-probe
+exceptions, are executed against the same recorded IO seams.
+
+DSH62810/dispatcher57252 native-check-stage-v1 ALL4 jobs0, unchanged pins:
+307,116 combined-guard differential assertions (every read failure/bit
+corruption/probe/invalid route), retained139 live-guard trace assertions,
+17,214 actual runtime/ABI plus72 service-health assertions, native ARM64
+board TU0 with reference inputs/objects untouched. This remains diagnosis,
+not a repaired GPU submission. Private root: dsh-gpu-0200-gfw.
+Next clean187-patch replay/full native build, then same installed195
+libraries/6GiB/300s with automatic Home to reproduce without user labor.
+Read back raw files before any acceptance. Current root is post199-R2,
+headerb3f40856. No new userdata write or rollback is authorized.
+
 ### 2026-11-09 — 0199-R2 UI works but remains laggy; same combined guard stops GPU
 
 User performance reply call_e32df2e2b9d64135918a90982d19282c:

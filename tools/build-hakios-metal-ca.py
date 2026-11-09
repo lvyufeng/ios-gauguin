@@ -9,6 +9,32 @@ import argparse,hashlib,importlib.util,json,plistlib,struct,subprocess
 
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 
+OPTIONAL_M2V={
+    '_native_bridge_metal_open','_native_bridge_metal_first_problem',
+    '_native_bridge_metal_status','_native_bridge_metal_formats',
+    '_native_bridge_metal_variant_hook',
+}
+
+def verify_optional_imports(path):
+    data=path.read_bytes();header=struct.unpack_from('<8I',data);at=32;symtab=None
+    for _ in range(header[4]):
+        cmd,n=struct.unpack_from('<II',data,at);assert n>=8 and at+n<=len(data)
+        if cmd==2:symtab=struct.unpack_from('<4I',data,at+8)
+        at+=n
+    assert symtab;off,count,strings,size=symtab;assert off+count*16<=len(data)and strings+size<=len(data)
+    dynamic=[]
+    for i in range(count):
+        st,typ,section,desc,value=struct.unpack_from('<IBBHQ',data,off+16*i)
+        if typ&0xe or not typ&1:continue
+        assert st<size;end=data.index(b'\0',strings+st,strings+size);name=data[strings+st:end].decode()
+        ordinal=desc>>8
+        if name in OPTIONAL_M2V:
+            assert desc&0x40 and ordinal==0xfe,('optional hook must remain weak/dynamic',name,desc)
+            dynamic.append(name)
+        else:assert ordinal not in (0xfe,0xff),('unexpected unbound import',name,desc)
+    assert set(dynamic)==OPTIONAL_M2V and len(dynamic)==len(OPTIONAL_M2V)
+    return sorted(dynamic)
+
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     for n in ['prepared','core-receipt','out']:ap.add_argument('--'+n,type=Path,required=True)
@@ -27,16 +53,20 @@ def main():
     (bundle/'Info.plist').write_bytes(plistlib.dumps(info,fmt=plistlib.FMT_XML,sort_keys=False))
     def run(argv,name):
         with (out/name).open('x')as f:subprocess.run(argv,stdout=f,stderr=subprocess.STDOUT,check=True)
-    argv=['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0','-isysroot',str(sdk),'-std=gnu11','-O1','-fblocks','-fno-objc-arc','-Wall','-Wextra','-bundle','-framework','Foundation','-framework','IOKit','-framework','IOSurface','-framework','Metal','-lobjc','-lc++','-I'+str(headers),str(unit),str(lib),'-Wl,-rpath,/usr/local/lib/gauguin','-o',str(binary)]
+    # Only the five explicitly weak optional m2v hooks may remain dynamically
+    # looked up. All required framework/core imports must resolve at link time.
+    optional=['-Wl,-U,'+name for name in sorted(OPTIONAL_M2V)]
+    argv=['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0','-isysroot',str(sdk),'-std=gnu11','-O1','-fblocks','-fno-objc-arc','-Wall','-Wextra','-bundle','-framework','Foundation','-framework','IOKit','-framework','IOSurface','-framework','Metal','-lobjc','-lc++','-I'+str(headers),str(unit),str(lib),'-Wl,-rpath,/usr/local/lib/gauguin',*optional,'-o',str(binary)]
     run(argv,'compile-link.log')
     spec=importlib.util.spec_from_file_location('core_build',repo/'tools/build-hakios-metal.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     version=m.ios_version(binary);header=struct.unpack_from('<8I',binary.read_bytes());assert header[3]==8
+    optional_imports=verify_optional_imports(binary)
     run(['codesign','--force','--sign','-',str(bundle)],'sign.log');run(['codesign','--verify','--strict',str(bundle)],'verify.log')
     run(['otool','-L',str(binary)],'loads.log');run(['nm','-gU',str(binary)],'exports.log');run(['nm','-m','-u',str(binary)],'imports.log')
     assert '@rpath/libGauguinMetalCore.dylib'in(out/'loads.log').read_text()
     assert '_OBJC_CLASS_$_HakiosMetalDevice'in(out/'exports.log').read_text()
     assert all(sha(Path(n))==pin for n,pin in pins.items())
-    r=dict(state='native-iOS16-complete-CA-frontend-baseline-not-deployable',bundle=str(bundle),binary=str(binary),bytes=binary.stat().st_size,sha256=sha(binary),platform_version=version,principal_class=info['NSPrincipalClass'],core_sha256=core['sha256'],source=str(unit),compiler_argv=argv,input_pins=pins,inputs_unchanged=True,device_commands=0,installed=False,device_discovery_qualified=False,runtime_ABI_qualified=False,hardware_qualified=False,remaining=['gauguin capability/resource/path adaptation','actual20H392 import and private ABI checks','single-owner GLES/Metal admission and discovery timing','actual CA shader-library variants and presentation'])
+    r=dict(state='native-iOS16-complete-CA-frontend-baseline-not-deployable',bundle=str(bundle),binary=str(binary),bytes=binary.stat().st_size,sha256=sha(binary),platform_version=version,principal_class=info['NSPrincipalClass'],core_sha256=core['sha256'],source=str(unit),compiler_argv=argv,optional_weak_dynamic_imports=optional_imports,input_pins=pins,inputs_unchanged=True,device_commands=0,installed=False,device_discovery_qualified=False,runtime_ABI_qualified=False,hardware_qualified=False,remaining=['gauguin capability/resource/path adaptation','actual20H392 import and private ABI checks','single-owner GLES/Metal admission and discovery timing','actual CA shader-library variants and presentation'])
     with (out/'result.json').open('x')as f:f.write(json.dumps(r,indent=2)+'\n')
     print(json.dumps({k:v for k,v in r.items()if k not in ['input_pins','compiler_argv']},indent=2))
 

@@ -1,0 +1,13 @@
+{
+  "upstream_repository": "https://github.com/oosexgang/hakios-xnu-kernel",
+  "revision": "63fc2b4633bac3af8e57dadab9f5a8d4cb940438",
+  "files": [
+    {
+      "path": "userland/src/HakiosMetalCA.m",
+      "sha": "c6a7ff1a24440365592c98bcd3c208ff7ea58d06",
+      "size": 412396
+    }
+  ],
+  "scope": "Complete upstream CA frontend baseline; no Apple shader libraries or binaries",
+  "license": "MIT as stated in the source; preserve original attribution"
+}

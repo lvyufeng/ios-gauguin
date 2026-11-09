@@ -2,6 +2,23 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0204 automatic CPU ring-span timing trial LIVE
+
+DSH59407 is observing ONE claimed204 trial after current203 header2592713f,
+memory/full15 files/COMPLETE203-prefix preflight. Temporary image
+8cc4398248a09c46fd50d0a133785684c0c10821b769aa9cdbcbcd7ec719acc7,
+6GiB/mode2/300s/Home90,605-byte command;19,520KiB transfer and Booting
+both OKAY,total0.591s. Same195 libraries, no userdata delta/flash/rollback.
+No204 physical result yet; observer-running. User notified no manual work.
+
+The single post-wait-stage-v1 watches this EXACT observer and both real
+dispatchers, saves all15 full files/203 prefixes, checks explicit300s
+chronology/fences and cached timing consistency, and records frame latency
+samples plus an accurately scoped203 comparison. Keep post-stop failures;
+do not infer full UI FPS or GPU-only time from counter ratios. Root owns
+NOTES. Poll existing claims/handles; never duplicate a stage on timeout.
+No human performance report beyond R2's '仍然明显卡顿'. Full goal active.
+
 ### 2026-11-09 — 0204 full local ring-span build qualified; next timing comparison
 
 DSH45448 native-stage-v1 ALL0,pins unchanged. Clean191-patch source5330

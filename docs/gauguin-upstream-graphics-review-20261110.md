@@ -19,6 +19,12 @@ than continuing indefinitely with approximated CoreAnimation GLES effects.
 Metal availability alone will not establish correct icons, responsive input,
 physical high refresh or daily usability.
 
+Follow-up: the complete pinned Metal core now has a local
+[261-test host and ARM64 archive baseline](gauguin-metal-core-baseline-20261110.md).
+That report records the original build failures, unchanged-source retry, concrete
+gen4/gen1 differences and missing AIR/compiler integration. It is software
+preparation, not a hardware Metal result.
+
 ## Pinned primary sources
 
 | Source | Reviewed revision | Meaning |
@@ -153,3 +159,32 @@ Codex owns critical driver/design changes. DSH executes local builds, meaningful
 tests, packaging and authorized temporary boots. Use focused checks for small
 changes and integrated checks when ABI/MMU/lifetime/presentation changes justify
 them. No new CI run, userdata write or device trial was performed in this review.
+
+## Follow-up device evidence: 0219
+
+The separately implemented caller-memory create path is now exercised on the
+device. A finite diagnostic emits one synthetic unlock swipe; afterward six
+180x180 surfaces (IDs 16/17/19/21/22/23) use `IOSurfaceAddress` with retained
+read-only backing. All six reach the matching EAGL `texImageIOSurface` method.
+The EAGL logs explicitly say they use a copy fallback, so this is not proof of
+direct shared GPU import, correct source pixels or visually correct icons.
+There are nine caller-backed creates in twenty backing records overall.
+
+The original 0219 observer failed its strict banner check and remains failed:
+a second printed kernel banner contains an interleaved Sandbox log line.
+Separate offline v3 verifies the raw ring decodes exactly to the captured log,
+the complete first banner matches the image, and removing that one exact
+interleaved line from the second occurrence reconstructs the same full banner.
+It changes only a derived file. Finite 600-second service records are consistent:
+47 completed submissions, 598 verified renewals; one backboardd crash and two BO
+allocation failures occur after the explicit planned stop. The phone returned
+automatically to TWRP after about 746 seconds. No visual feedback was obtained.
+
+Private `forensic-stage-v3/result.json` has exit 0 and unchanged inputs, while
+the original trial remains exit 3. An intervening forensic v2 failed because
+it wrongly assumed all address keys were absent from the first records; that
+failure also remains intact. `review-EAGL-copy-meaning-v4.json` clarifies the
+method-entry versus direct-import distinction without rewriting v3.
+All fifteen files were captured, twelve static files and complete prior log
+prefixes preserved; no userdata application was performed. This provides
+caller-memory-path coverage, not a completed icon fix or Metal qualification.

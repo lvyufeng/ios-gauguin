@@ -2,6 +2,63 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0219 TERMINAL; caller-backed icons exercised; full HakiOS core baseline passes
+
+All workers terminal:219 DSH32258,220 DSH76134/69853,219 offline10643/10520.
+Phone automatically returned to TWRP. No new userdata application, root-write
+approval request, remote push or Actions run. Full phone goal ACTIVE/unlimited.
+Main code still211, original tools/mkadt.py diff preserved; isolated219 contains
+0205+0206. UI216a460e3b remains uninstalled. Do not rerun any claimed profile.
+
+219 ORIGINAL trial-stage-v1/dispatch EXIT3, inputs unchanged; observer746.423803s,
+recovery745s. Strict kernel_banner rejects two distinct captured strings: the
+first complete banner matches219, the second SAME printed banner has one
+interleaved Sandbox log line inside its year. physical-review219.json remains
+FAILED, not rewritten. All15 files nevertheless captured,12 static files and
+COMPLETE217 log prefixes preserved. CURRENT post219 header:
+916229236e05638fe5bcb5535a8be44d017e3798bf93465153b9bf4c76bad206.
+Full logs68405/10411/1320888B (gles stdout/stderr/backboardd). New trial/read
+controls MUST bind this219 header/full prefixes, never older217/214/R4.
+
+Separate OFFLINE forensic-v2 failed a wrong all-address-keys-absent assertion
+based on early records; preserved. Corrected fresh forensic-stage-v3 ALL0,
+inputs unchanged: exact raw ring->captured log identity, valid first image
+banner, precise one-line reconstruction of second banner in DERIVED file only.
+Raw native SHA793e104571ac7c94ded5b08a7278c3b71710330dc238b7c347b81b63c14ba990;
+raw ring9cbcacf2a699be076149e9b9c22be515767cc01db430c9ff419d6101b3ddd3d1.
+600s GPU service47/47 completed,598 verified renewals,shadow932; oneBBcrash,
+2BOallocation and1cleanup failure AFTER planned stop,none inside service.
+ONE synthetic swipe arm/begin/complete,zero abort/no-HID.20 create backing
+records:9 caller-address creates,6 readonly180x180 icons IDs16/17/19/21/22/23,
+all AFTER swipe and all matching EAGL method entries. This exercises0205!
+Do not infer missing icons solved: source pixels/visual UI unobserved.
+review-EAGL-copy-meaning-v4.json clarifies raw v3 EAGL_imported means method
+entry ONLY; EACH six logs explicit copy fallback, NOT direct shared GPU import.
+Physical NVT off only219 diagnostic; no physical-touch qualification this round.
+
+Renewed HakiOS/UniXNU reference review remains main decision. New COMPLETE
+pinned HakiOS hakios-metal/ cache227 files/5716039B, exact Git blob/size checks,
+revision63fc2b4633bac3af8e57dadab9f5a8d4cb940438. Private W:
+research/tmp/dsh-metal-0220-core-baseline. ReceiptSHA
+9e4c3d158061efafff76c7e3e7000f2d0c84f8656f6ece17e244938046342897.
+220v1 both jobs2 preserved: macOS-only unused helper Werror; included compiler.mk
+selects absent wrapper. Fresh byte-identical v2 explicit Xcode command + visible
+host unused warning ALL0/233pins unchanged:261 ASAN/UBSAN host fake-GPU tests,
+12 native ARM64 objects,1024144B archive
+ aa8fd4be795fd5fb3a3fc3b309415e6907dadaa11672fb0d88efdcc8621be6d4.
+Deployment target iOS16 but SDK26.5; MESA=0/NO AIR compiler, plugin/CA NOT linked,
+NO A619 adaptation or hardware Metal proof. Doc
+ docs/gauguin-metal-core-baseline-20261110.md records exact limitations.
+
+NEXT: implement explicit complete A619/gen1 profile and query+submit pipe0x10,
+matching AIR->NIR->IR3 build in an ISOLATED Mesa tree. Existing HakiOS core is
+gen4:SP/CCU2vs1,LPACtruevsfalse,preload127vs64,fibers4096vs2048,tileH16vs32,
+register-file64vs96 and static register/quirk differences; not a chip-ID-only
+patch. Keep firmware/SMMU/authority/ownership. Real clear/triangle/texture/blend,
+fence/readback before full20H392 Metal discovery/plugin/CA/presentation. Existing
+surface address-path coverage is now available; source-pixel/texture-copy and
+visual checks still outstanding. Finite single-owner/600s is NOT daily use.
+
 ### 2026-11-10 CST —0219 qualified local kernel; ONE temporary swipe trial LIVE
 
 DSH32258 owns isolated219 dispatch-stage-v1/trial-stage-v1; do not restart.

@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0210 exact root delta READY; new approval pending;211 BO capacity host PASS
+
+DSH93918 prepare-stage-v1 ALL0/pins unchanged. Exact210 one-library delta
+339 blocks/1,388,544B/43 runs, SHA
+87f26cd5cbd6fc02b28017d4fa535354786e4740cfad791c2cf9b29df6d63223.
+Local COW stage, full16GiB backup hash, detached readonly fsck, proven writer
+102 model assertions and ALL actual old blocks passed. New bridge only;
+14 retained files/logs,531 jobs, root owner/perms/event UUID/SystemVersion
+preserved. independent-local-review.json READY awaiting separate consent.
+Question sent via async: allow339-block CA observer install + touched-block
+rollback. NO approval file, phone write or new boot yet. Existing208 kernel
+1de0fc3d is the exact paired control. Does NOT fix BO exhaustion itself.
+
+Codex211 candidate separates private live1024 BO table from unchanged256
+per-submit cap;256MiB/client,64MiB/BO,1GiB VA and all PTE/sync/DMA ownership
+rules remain exact. Main patch0203 reserves0202 for isolated perf209 (not
+integrated). Main IOKit host fixture now supplies typed CPU clock/log seams
+for208 elapsed wrappers. DSH51567 v1 FAILED at compile due old fixture seams;
+preserved, not accepted as functional RED. DSH33661 v2 ALL0: baseline208
+rejects actual257th16KiB allocation, candidate9295 slot saturation/reuse/
+byte-quota/submit-bound assertions plus77submit/71sync/207queue/64pilot.
+Three1024-slot cycles release/reuse all descriptors, then byte quota is
+independently exercised. This proves kernel-side bounded recovery/cleanup;
+it does NOT establish Mesa cache working set, absence of userland leaks,
+or graceful downstream OOM. Those remain explicit follow-up work.
+Next: clean196-patch replay + full LOCAL211 build under DSH; await210 write
+consent independently. No physical211 or209 boot, CI unchanged. Keep main
+HEAD/NOTES stable while native211 build is running.
+
 ### 2026-11-09 UTC — 0210 CA observer software PASS; fresh backup complete
 
 UI worktree commit78b0365 adds the actual20H392 single-slot uniform observer,

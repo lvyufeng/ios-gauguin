@@ -197,3 +197,4 @@
 0199-gauguin-micro-shared-recheck-budget.patch
 0200-gauguin-readonly-wrapped-images.patch
 0201-gauguin-whole-request-clock-profile.patch
+0203-gauguin-client-bo-capacity.patch

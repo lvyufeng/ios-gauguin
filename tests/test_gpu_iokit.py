@@ -22,6 +22,8 @@ with tempfile.TemporaryDirectory(prefix='gpu-iokit-') as tmp:
     subprocess.run([str(tmp/'test'),'submit'],env=env,check=True)
     subprocess.run([str(tmp/'test'),'sync'],env=env,check=True)
     subprocess.run([str(tmp/'test'),'queues'],env=env,check=True)
+    if os.environ.get('GPU_USER_REQUIRE_SLOTS') or 'GGR_MAX_CLIENT_BUFFERS' in (D/'gauguin_gpu_runtime.h').read_text():
+        subprocess.run([str(tmp/'test'),'slots'],env=env,check=True)
     if pilot:
         subprocess.run([str(tmp/'test'),'pilot'],env=env,check=True)
 assert pins=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files},'inputs changed'

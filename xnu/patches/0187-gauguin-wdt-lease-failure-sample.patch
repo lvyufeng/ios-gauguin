@@ -1,0 +1,34 @@
+--- a/bsd/dev/gauguin_wdt_test.c
++++ b/bsd/dev/gauguin_wdt_test.c
+@@ -407,11 +407,14 @@
+     uint32_t bite = wdt_read(WDT_BITE), status = wdt_read(WDT_STS);
+     uint32_t count = (status >> 1) & 0xfffffu;
+     uint64_t now = mach_absolute_time();
++    uint32_t previous_count = wdt_lease_last_count;
++    uint64_t previous_time = wdt_lease_last_at;
++    uint64_t armed_at = wdt_lease_record.armed_at_ticks;
+     bool valid = en == 3u && bark == WDT_BARK_TICKS && bite == WDT_BITE_TICKS &&
+-        count >= wdt_lease_last_count && count < WDT_BITE_TICKS &&
+-        now >= wdt_lease_last_at &&
++        count >= previous_count && count < WDT_BITE_TICKS &&
++        now >= previous_time &&
+         WDT_BITE_TICKS - count >= minimum_remaining_ticks &&
+-        wdt_cpu_window(wdt_lease_record.armed_at_ticks, now, minimum_remaining_ticks);
++        wdt_cpu_window(armed_at, now, minimum_remaining_ticks);
+     if (valid) {
+         wdt_lease_last_count = count;
+         wdt_lease_last_at = now;
+@@ -422,6 +425,13 @@
+     __atomic_store_n(&wdt_budget_busy, 0u, __ATOMIC_RELEASE);
+     if (!valid) {
+         wdt_record("SWEET WDT LEASE: budget/readback/counter/window failed; quarantined, no PET or cleanup");
++        char line[256];
++        snprintf(line, sizeof(line),
++            "SWEET WDT LEASE SAMPLE: en=%08x bark=%u bite=%u status=%08x count=%u previous=%u min=%u now=%llu previous_at=%llu armed_at=%llu cpu_window=%u",
++            en, bark, bite, status, count, previous_count, minimum_remaining_ticks,
++            (unsigned long long)now, (unsigned long long)previous_time,
++            (unsigned long long)armed_at, (unsigned)wdt_cpu_window(armed_at, now, minimum_remaining_ticks));
++        wdt_record(line);
+     }
+     return valid && still_ready;
+ }

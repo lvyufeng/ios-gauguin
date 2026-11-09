@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0192 real backboardd GLES and IOSurface pilot passed
+
+DSH post outer 91973 / dispatcher 96477 returned 0, pins unchanged.
+`research/tmp/dsh-gpu-0192-auth/physical-review192.json` verifies the 14-file
+read-only capture, all 11 static files and all three full pre-boot log
+prefixes. Current full logs are 20,286 / 4,224 / 490,714 B. The same native
+4 GiB counters, 8-method admission/loader and root GLES workload passed.
+
+Raw native log records protected launchd proxy PID 57, six root completions,
+then three scoped compositor opens at root_fence 6. Subsequent native
+completions are 7, 8 and 9, ring shadow 104, 116, 128. Actual UID 501
+backboardd reports FD619 / OpenGL ES 3.1 Mesa 25.0.7, shader seed 924577274,
+all 1,024 normal RGBA and 1,024 sampled IOSurface BGRA pixels passed with
+hash 2621291461. Its recorded footprint grows 95,617,824 to 119,735,072 B.
+The worker returns rc 0 and dlclose succeeds. Root seed 2002328747,
+RGBA/BGRA hash 2421093317. All nine native jobs complete, and the 600s
+service records 595 renewals and final shadow 128 without health failure.
+The actual observation ends automatically at 746.334682s in TWRP.
+
+This physically verifies real GPU operations inside the protected
+compositor. Frame hooks are still disabled and final GPU owner release
+was not observed. Real desktop composition, Metal, refresh and daily use
+remain open. Next integrate the EAGL bridge's actual compositor path with
+startup ordering and context lifetime handled. Also continue the separate
+6 GiB WDT diagnostic. The local candidate failure sample passes its native
+TU; no 0193 full build/boot yet. Device remains idle TWRP after capture.
+
+### 2026-11-09 — 0192 approved delta installed and temporary boot completed
+
+The user explicitly approved the reviewed 239-block delta and rollback in
+`call_d402125907054b4fb785d66aac0de612`. DSH apply outer 26819,
+dispatcher 93154, returned 0 with all input pins unchanged. The writer
+installed 41 runs / 978,944 B and read back every run. The volume-header run
+was last. `apply-v1/result.json` permits the temporary boot. No rollback
+was needed. The pre-boot audit read all 14 files, including backboardd and
+the new worker, plus the full 18,242 / 3,955 / 483,429 B log prefixes.
+
+DSH boot outer 21866, dispatcher 93539, completed with exit 0 and unchanged
+inputs. Image `1aa4faa9` was sent once, fastboot returned OKAY in 0.594s.
+The device returned automatically to TWRP after 746.334682s,
+03:14:27.591329–03:26:53.926011 UTC. The observer's kernel banner matches.
+Post capture/qualification is now running under DSH outer **91973** and
+`research/tmp/dsh-gpu-0192-auth/post-stage-v1.json`. Poll this handle and
+its terminal receipt, then review the raw current backboardd log and native
+submission/authority records. No compositor pixel success claim yet.
+
+Both exact source trees were published through gh without CI. Kernel
+public `465aab6bd50a2a9a2556306da836532d1847277d`, tree
+`4551ef87c3327b0a4dc85fdb8a79179f929a735e`, branch
+`codex/gauguin-compositor-gpu-pilot-20261109`, sole public parent 97cd3b3.
+Userland public `93a7892eed518fb5e0fd2b571796a125a31520e0`, tree
+`5584df97bb8f2e17f641eca288376dfd6fc3fbef`, branch
+`codex/gauguin-compositor-userland-pilot-20261109`, sole parent eca39329.
+All prior refs retained. The 0192 backup is historical after this boot.
+Never use its old blocks as a post-boot raw rollback.
+
 ### 2026-11-09 — 0192 image and exact two-library delta ready
 
 Source `bfd2692b165229f9bd74530cb9450d9b4b1247d7`, 180-patch replay

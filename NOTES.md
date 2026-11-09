@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — R3 unlock spinner/crash AFTER planned GPU stop; same-kernel30min R4 LIVE
+
+Actual R3 automatic15:33:16.948766–15:45:43.901101UTC,746.952335s.
+DSH6658 boot/DSH30104 post ALL0,pins unchanged.600s service598 renewals,
+33/33 native completions,shadow844;16 records/17 sampled-out successes,
+10 CA frames,0 wrap errors. User call_603288adeb734b13be53c54fa4563a8f:
+'解锁后 有个菊花的进度条，但是进不去 然后重启了'. Saved actual report.
+
+Native R3 observer lines6187+ authority stopped; cached live_reason0/valid3f,
+GFSR0/FSR400,31 exact waits recovered/33 polls,6 rechecks/0 expiry.
+Line6212 final33/33; lines6214–6218 BO stage0 NotReady; line6219 backboardd
+crash FAR18. Parser locates explicit planned deadline and separates1 crash,
+5 BO failures and1 cleanup failure AFTER it. No in-window native submission
+failure/panic. The crash DEFINITELY follows deliberate GPU withdrawal;
+human spinner onset cannot be timed exactly from the reply alone. Do NOT
+claim normal unlock or whole-session/daily success. Do NOT treat this as
+proof of a new in-window driver regression or paper over context-loss bug.
+
+R3 preserves all15/12 static/COMPLETE R2 prefixes. Logs58,187/9,066/1,140,420B.
+CURRENT pre-R4 header64103edfc4966a430fbc45a70573ede2cdeb200ea21164bc93e33f51be1978bf.
+33 core submissions298,520,052ns/1572 guards296,513,802ns,pending0;
+12,196 total guards2,316,053,750ns. API measurementvalid1/pending0.
+
+To separate unlock from test expiry, ONE same-kernel208-R4 now LIVE in
+research/tmp/dsh-gpu-0208-manual-long-r4. Native coordinator source verified
+explicit service60..3600s. ONLY effective bootarg600->1800;602B/6NUL,
+same e6d70dbf kernel,6GiB/mode2/Homeoff/30Hz/195 libraries. NEW package
+image1de0fc3dad8b4d9558b4f9ed801d4b20ab986e6520b1e673e26a512e6f785b0d;
+explicit kernel-reuse.json, NOT an independent native build. Fresh CURRENT
+R3 header/full15 COMPLETE prefixes/memory preflight all verified. DSH78364
+owns single observer:19,536KiB/Booting OKAY,total0.598s around15:49UTC.
+DSH60136 owns exact-R4 post wait2280s; observer2040s/timeout2120s. Private
+boot wrapper maximum raised1200->2400 ONLY to allow this bounded manual
+window; script verifies actual1800s service and complete prefixes on return.
+User immediately asked R4 unlock/Desktop/Settings result; pending. No root
+delta/flash/rollback/manual reboot requested. Phone currently running R4.
+Do not duplicate stages or ask reset attribution. Thirty-minute stability
+is NOT qualified before logs return; unexpected early reset must be audited.
+
+PRIVATE209v2 additional integrated test: v1 fixture failed BEFORE execution
+on unused f variable; preserved. Separate test_integrated209v2.py removes
+ONLY unused variable; DSH35465 integrated-check-stage-v2 ALL0,pins unchanged.
+596,874 assertions execute actual core+full-clock-wrapper+board callback
+together with typed IO seams:190us guard reuse,260us/late-stamp full fallback,
+identical packets/fences, and full before/after write/barrier/delay gates.
+This is composition evidence, NOT GPU emulation or real hardware speedup.
+Existing v2 host/native closure remains passed. Still NO209 tracked patch,
+full build/image/boot. Private promote209.py and prepare_build209.py factories
+are prepared but UNEXECUTED. Keep R4 frozen inputs intact until capture;
+defer209 rollout until same-kernel long-window unlock result is understood.
+Next use actual R4 human feedback and native health to resolve spinner;
+then promote209 including integrated test/pins and exact API diagnostic test
+adaptation, commit,196-patch local full build and bounded hardware comparison.
+Full goal ACTIVE: responsiveness/Metal/full RAM pressure/peripherals/high
+refresh/daily use still unfinished. Codex writes critical code; DSH executes.
+
 ### 2026-11-09 — actual0208-R3 LIVE; PRIVATE209v2 software/native closure PASS
 
 User call_638a082742fb4c789ab9e2df19df5b14 replied to R2 '错过了 再刷入一次'.

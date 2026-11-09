@@ -185,3 +185,4 @@
 0187-gauguin-wdt-lease-failure-sample.patch
 0188-gauguin-pre-zap-watchdog-checkpoint.patch
 0189-gauguin-runtime-submit-diagnostics.patch
+0190-gauguin-iosurface-state-diagnostics.patch

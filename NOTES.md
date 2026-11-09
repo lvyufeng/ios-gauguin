@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0196 bounded IOSurface diagnostics pass native C++ compile
+
+Actual20H392 constructor0x1a3980bc8 copies create/lookup result to client
++0x68, matching SweetSurface's first3 pointers. IOSurfaceClientLock only
+updates cached seed+0xb0, not state+0x70. Hidden apparent+0x70 stores are
+bulk-attachment STRUCT flags, not client pointers; do not treat them as
+state-pointer overwrites. Root cause of observed null state is not proved.
+First offline analyzer failed from Python symbol-starts shadowing mapping-
+starts; v2 fixes that and preserves old failed outputs. DSH surface-abi-v2
+and surface-hidden-v1 both0. EAGL current is already TLS; no TLS fix applied.
+
+Codex candidate196 adds ONLY bounded GAUGUIN-only IOLog observations of
+returned data/state/timestamp pointers (first64) and ignored selector
+argument/output cardinality (first2 per selector<48). Existing mapping,
+output bytes, cached-client sentinel and return paths remain unchanged.
+Patch0190. DSH58786 /dispatcher28061 native SweetSurface C++ TU0, reference
+headers/objects unchanged. Next clean184-patch replay, full native build,
+then a SHORT mode1/legacy20s service diagnostic to observe state addresses
+without repeating the crashing desktop hook path. This is diagnostic only,
+not a repaired or qualified UI. No new userdata mutation is authorized.
+
+Phone USB disappeared again after195 capture. First backup196 DSH81166
+ended WITHOUT claiming because no transport. After user replugged, Codex
+verified one recovery and dispatched SAME still-unclaimed backup profile
+via DSH35244; dispatcher28050 claimed. Fresh16GiB read-only backup is in
+progress (`root-backup-v1`); old backups retained. Do not restart claim.
+Current196 root snapshot is protective, not a write approval. All195 raw
+failure evidence and manual attribution sidecars remain authoritative.
+
 ### 2026-11-09 — 0195 black-after-unlock captured; IOSurface bulk read crashes
 
 User `call_6fb8077b2798400abcf2e6cdca3bca69`: touch unlock succeeded, then

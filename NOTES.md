@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0200 captured: MICRO guard mismatch and compositor crash
+
+0200 is TERMINAL/captured, superseding the live handoff below. Actual
+09:09:30.338127–09:13:28.209280UTC,237.871153s, automatic recovery.
+DSH9788 boot parent94566/nested94657 all0; DSH84696 post watcher94994
+inner1 is a REAL qualification failure, pins unchanged. All15 files,
+12 static hashes and COMPLETE R2 log prefixes preserved. Full logs
+35,707/6,107/927,447B; new root header
+4ea2039b50b4980a6bb1559a70aa12fc02b9fc6ba5248c0f69689fe3510bf2e1.
+Current phone last in TWRP. No userdata delta/rollback was performed.
+
+First desktop job fails rc3 with6 IBs, submitted10/completed9/polls10.
+Reason13/valid3/GXf8222800/IRQs0 repeat. Last existing combined-guard read:
+kind1(SMMU32),off6000,ok1,printed valuefffffe3c00002270. Low32 is2270;
+boot GPU-context report micro_before/after2378. Difference108 includes
+already-ignored IDLEbit3 and UNKNOWNbit8. The expected guard receipt is
+gmb_work.smmu, not the separately printed ggb_smmu: audit exact provenance
+before changing the check. Do NOT mask unknownbit8 on this evidence.
+
+The unexpected upper32 printed for a32-bit read is unresolved. Native
+disassembly proves ldr w8, then str x8 into the cached64-bit value and
+correct8-byte caller vararg slots. Formatter source appears conventional.
+Private native-print-review-v1 contains immutable disassembly. Do not
+interpret that high half as a32-bit hardware register value.
+
+Two wrapped images: RGhA256x1 succeeds; L00896x96/bpe2,row192,size18432
+fails prepare with raw error2. One NEW backboardd SIG11/FAR18 follows GPU
+failure, PC1148e4d48/LR1148e2054, slide266a8000;0 CA frame receipts. This
+is NOT the old null IOSurface-state FAR30 crash. Need map actual loaded
+Mesa/bridge images before assigning cause. 0200 has no user visual report.
+Keep user-confirmed199-R2 touch/desktop/Settings PASS and lag FAIL separate.
+
+Codex audits critical guard/cache/crash; read-only DSH38312 audit in
+dsh-gpu-0201-micro-audit checks primary hardware definitions/provenance.
+Root owns NOTES. No new physical trial until the next source is reviewed.
+GPU/Metal/high-refresh/daily-use remain unqualified; full goal active.
+
 ### 2026-11-09 — 0200 automatic diagnostic LIVE; full native build qualified
 
 Source commit b35b75dc96b88c82cacf6470a10e5795ecc1dbae. DSH69179/

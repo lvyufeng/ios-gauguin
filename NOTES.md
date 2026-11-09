@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0203 captured:99.90% of submit elapsed lies inside full guards
+
+203 terminal10:40:34.605224–10:47:58.655884UTC,444.050660s, automatic.
+Boot DSH12341 all0; post DSH1883 post-wait-stage-v1 ALL0, pins unchanged.
+All15 full files/12 static hashes/COMPLETE202 prefixes preserved; full
+logs41,837/6,914/981,416B, current root header
+2592713f741b0c28f3f522c5ea63c40316bdf80b244dac9a4f03735f7a647200.
+Phone last TWRP. Explicit300s service-window qualified:298 renewals,
+15/15 recorded completions,3 CA frame receipts,5 wraps/0 failures.
+One exact MICRO wait recovered in1 poll/65us (2370 also passes original
+mask~8). Post-stop2 BO NotReady events/1 compositor crash remain recorded;
+no in-window GPU failure. Whole-session/visual/performance/daily/Metal/
+high-refresh remain unqualified; no new userdata delta or manual request.
+
+Validated cached timing:6,952 full guard checks,total2,960,691,510ns,
+max617,135ns.15 submits total634,043,593ns;1,500 checks INSIDE those calls
+sum633,411,875ns (99.9003668%). Difference631,718ns includes CPU/GPU;
+GPU work can OVERLAP a guard, so NEVER call that difference GPU duration
+or claim CPU-active utilization from wall time. pending0 and counts/fences/
+all sum bounds pass. Performance bottleneck evidence supports reducing
+repeated checks during CPU-owned ring preparation, not removing actual
+hardware-submit/fault/completion checks or raising resource quotas.
+
+Next optional internal ring-span write/verify callback: prepare/verify
+trusted CPU ring packets with a full guard at EACH batch boundary; GPU is
+already hardware-idle and no doorbell is written until verification and
+the original pre/post hardware checks pass. Retain CPU deadline checks,
+failure quarantine/DMA retention and a fallback with the original per-word
+trace. Need actual-core tests for exact packets, ring wrap, no doorbell on
+partial write/verify or boundary/deadline failure, then native/full build
+and direct203 timing/fence comparison. No batching is implemented yet.
+
+Source publication DSH1579 stage-v1 all0,pins unchanged: public
+18336adc78f032f5eca6ec8eb9d2f64a03eac136,
+ref codex/gauguin-submit-latency-profile-20261109,
+treed4e384cd6a2047c416eabedb794003a20f687eca,
+parentd980f8997b0b319076ba197a04fa5480223e4d6d. Seven reviewed text files,
+existing refs unchanged, no explicit CI. Root owns NOTES, full goal active.
+
 ### 2026-11-09 — 0203 automatic latency profile trial LIVE
 
 DSH12341 is observing ONE claimed203 trial after current202 headerb2c99aa6,

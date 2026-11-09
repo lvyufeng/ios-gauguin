@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0201 completes GPU jobs and five CA frames; BO crash remains
+
+201 trial is TERMINAL/captured:09:51:19.146676–09:58:43.413038UTC,
+444.266362s, automatic. Boot DSH4504/dispatcher36244 all0, post DSH11834/
+watcher36556 inner1 is a REAL compositor qualification failure; all pins
+unchanged. All15 files/12 static hashes/COMPLETE200 prefixes preserved.
+Full logs37,751/6,376/947,565B; current root header
+da939d5ffdd7b3e8ad16a9f7085b86a3336317007a64043317c541496a871afe.
+Phone last TWRP. No new userdata delta/rollback or manual request.
+
+The bounded wait recovered4/4 occurrences with ONE poll each. Last sample
+initial2270/current2378/expected2378/maskfffffff7,68us elapsed. Original
+full guard passes: final reason0/valid3f,GFSR0/FSR400400, no native submit
+failures. Final submitted28/completed28/shadow548; full300s service,
+298 renewals. This is19 additional completed jobs beyond the9-job warm
+baseline. Five CA frame receipts (172 draws), six successful wrapped
+images,0 wrap failures/old FAR30 crashes. These are actual incremental
+GPU progress, NOT a responsive/stable/Metal/high-refresh qualification.
+
+One backboardd SIG11/FAR18 still occurs. PC10f788d48 maps to the same
+Mesa fd_bo_mark_for_dump+0 with slide candidate10f06c000, but this time
+LR10f772db0 maps fd6_build_bindless_state<chip6>+1f4. Entire private BT
+fits fd6_emit_3d_state,fd6_draw_vbos,fd_draw_vbo,tc_batch_execute,
+util_queue_thread_func,impl_thrd_routine. Actual source fd6_image.cc:198-206
+calls fd_bo_new then dereferences set->bo without checking for null.
+Unlike200, no prior GPU guard failure explains allocation failure here.
+Need capture the ACTUAL BO allocation rejection (quota/count/flags/IO/
+memory/VA), not assume which limit was reached or merely mask the null.
+
+Frame timings remain poor:1,085,624/377,570/266,619/119,424/99,692us;
+waiting100,865/77,295/74,820/90,091/89,167us. No201 user visual/performance
+report. User-confirmed R2 lag remains valid. After BO reliability, profile
+the very frequent full MMIO guards versus real GPU execution; no guard
+batching or weaker checks have been implemented.
+
+Source published by DSH95352 publication-stage-v2 all0, unchanged pins:
+publicd980f8997b0b319076ba197a04fa5480223e4d6d,
+ref codex/gauguin-bounded-micro-settle-20261109,
+treeca11b7d2f3f0868383a0f1d9cf648ec2dc6e97de,
+sole parent715a57b5db5aa2969da9935e6f055df4a96caf9c. Seven text files,
+existing refs unchanged, no explicit CI. v1 failed before ANY GitHub call
+because the factory substituted BASETREE incorrectly; preserved distinct
+v1 failure and v2 corrected receipt. Receipt state label says 'five' but
+its seven files and exact-tree verification are authoritative. Root owns
+NOTES. Next bounded BO allocation diagnostics, then same native201 guard
+baseline. Full goal remains active.
+
 ### 2026-11-09 — 0201 automatic exact-value settling trial LIVE
 
 DSH4504 boot dispatcher36244 is observing ONE claimed201 trial.

@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0190 exec shadow and read-only GET8 diagnostic code ready
+
+Patch `0184-gauguin-exec-shadow-and-readonly-memlimit.patch` addresses the
+0189 exec-subject rejection. The process from the VFS context must match the
+actual image thread. A differing `current_proc()` is accepted only for an
+`IMGPF_EXEC` shadow with matching PID, unique ID and PID version. Other execs
+retain the existing checks. The two new reason codes separate unsupported
+images and caller/shadow association failures. Path, root vnode, UID and
+library protection predicates are retained.
+
+If the unentitled protected UID 501 compositor attempts the exact 16-byte
+self GET8, the existing EPERM branch now logs the values from the same native
+memlimit getter. It preserves the original error and never touches the user
+buffer. The diagnostic needs both existing opt-ins and the exact protected
+backboardd vnode. There is no GPU authorization or jetsam policy change.
+
+Host v2 passed 52 production exec and GET8 cases with ASAN/UBSAN, including a
+real extraction path with modeled valid/rejected shadows and the unchanged
+GET8 authorization return. Host v1 had a duplicate Darwin SDK macro, fixed
+in the fixture. Retained 49 loader and 38 AMFI cases passed. All three actual
+ARM64 TUs returned 0 using 2,128 pinned 0189 header/config inputs. DSH handle
+23097 emitted three startup events and no tool or claim for at least 118s;
+the fallback claimed the profile once, closed both handles and stopped only
+owned headless PID 70415. See `research/tmp/dsh-eagl-0190-loader/cross-v1`.
+
+Next replay 178 patches from pristine and compare with frozen 0189, then build
+and test an 0190 temporary image using the exact 0189 command and installed
+root. The physical review must distinguish successful env append/exec from
+constructor loading and actual budget. With a denied self GET8, require the
+same-PID kernel limit record plus real constructor metadata and VM footprint;
+keep the denied userspace result intact. No 0190 image, device command or
+new userdata write at this entry. Phone last seen in TWRP after 0189.
+
 ### 2026-11-09 — 0189 completes GLES regression; exec target check skipped append
 
 The one 0189 temporary boot returned automatically to TWRP in 746.419634s

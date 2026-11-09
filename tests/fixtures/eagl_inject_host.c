@@ -15,6 +15,7 @@
 #define IMGPF_INTERPRET 1
 #define IMGPF_IS_64BIT_ADDR 2
 #define IMGPF_WAS_64BIT_ADDR 4
+#define IMGPF_EXEC 0x100
 #define UIO_SYSSPACE 0
 #define UIO_SEG_IS_USER_SPACE(seg) ((seg) != UIO_SYSSPACE)
 #define CAST_DOWN(type, value) ((type)(uintptr_t)(value))
@@ -22,9 +23,17 @@
 #define TRUE true
 typedef bool boolean_t;
 
-struct proc { int pid; };
+struct proc { int pid; uint64_t uniqueid; int pidversion; bool shadow; };
 typedef struct proc *proc_t;
-static struct proc process = {57}, other_process = {58};
+static struct proc process = {57, 1234, 19, false};
+static struct proc other_process = {58, 3456, 20, false};
+static struct proc shadow_process = {57, 1234, 19, true};
+struct thread { proc_t proc; };
+typedef struct thread *thread_t;
+#define THREAD_NULL NULL
+static struct thread exec_thread = {&process};
+static thread_t image_thread = &exec_thread;
+static proc_t get_bsdthreadtask_info(thread_t thread) { return thread->proc; }
 struct credential { uid_t uid, ruid; };
 typedef struct credential *kauth_cred_t;
 #define IS_VALID_CRED(cred) ((cred) != NULL)
@@ -34,6 +43,9 @@ static struct credential credentials = {501, 501};
 static struct context exec_context = {&process, &credentials}, kernel_context;
 static proc_t current_proc(void) { return &process; }
 static int proc_pid(proc_t p) { return p->pid; }
+static uint64_t proc_uniqueid(proc_t p) { return p->uniqueid; }
+static int proc_pidversion(proc_t p) { return p->pidversion; }
+static bool proc_is_shadow(proc_t p) { return p->shadow; }
 static proc_t vfs_context_proc(vfs_context_t ctx) { return ctx->proc; }
 static kauth_cred_t vfs_context_ucred(vfs_context_t ctx) { return ctx->cred; }
 static vfs_context_t vfs_context_kernel(void) { return &kernel_context; }
@@ -106,6 +118,7 @@ struct image_params {
     user_addr_t ip_user_argv, ip_user_envv, ip_user_fname;
     vnode_t ip_vp, ip_scriptvp;
     vfs_context_t ip_vfs_context;
+    thread_t ip_new_thread;
 };
 
 static int copyinptr(user_addr_t address, user_addr_t *out, int pointer_size)
@@ -144,6 +157,94 @@ static unsigned sweet_exec_loader_probe = 1, sweet_eagl_inject_requested;
 #include "production-inject.h"
 #include "production-extract.h"
 
+#define MEMORYSTATUS_ENTITLEMENT "com.apple.private.memorystatus"
+#define MEMORYSTATUS_CMD_GET_MEMLIMIT_PROPERTIES 8
+struct memorystatus_control_args {
+    unsigned command;
+    int pid;
+    unsigned flags;
+    user_addr_t buffer;
+    size_t buffersize;
+};
+typedef struct {
+    int32_t memlimit_active;
+    uint32_t memlimit_active_attr;
+    int32_t memlimit_inactive;
+    uint32_t memlimit_inactive_attr;
+} memorystatus_memlimit_properties_t;
+static unsigned subject_queries, memory_snapshots;
+static bool has_entitlement;
+
+static bool sweet_dyld_probe_subject(proc_t p, uid_t *effective, uid_t *real)
+{
+    subject_queries++;
+    *effective = credentials.uid;
+    *real = credentials.ruid;
+    return p == &process && *effective == *real;
+}
+
+static void memorystatus_get_memlimit_properties_internal(proc_t p, memorystatus_memlimit_properties_t *limits)
+{
+    CHECK(p == &process);
+    memory_snapshots++;
+    *limits = (memorystatus_memlimit_properties_t){64, 1, -1, 0};
+}
+
+static kauth_cred_t kauth_cred_get(void) { return &credentials; }
+static bool kauth_cred_issuser(kauth_cred_t cred) { return cred->uid == 0; }
+static bool IOCurrentTaskHasEntitlement(const char *entitlement)
+{
+    CHECK(strcmp(entitlement, MEMORYSTATUS_ENTITLEMENT) == 0);
+    return has_entitlement;
+}
+
+#include "production-diagnostic-caller.h"
+#include "production-memory.h"
+
+static int memory_auth(proc_t p, struct memorystatus_control_args *args, bool skip_auth_check)
+{
+    int error = 0;
+#include "production-auth.h"
+out:
+    return error;
+}
+
+static void memory_case(const char *scenario)
+{
+    bool exact = strcmp(scenario, "memory-self") == 0;
+    bool log_checked = exact;
+    bool authorized = false;
+    uint32_t sentinel = 0xa1a2a3a4;
+    struct memorystatus_control_args args = {8, 57, 0, (user_addr_t)&sentinel, 16};
+    proc_t p = &process;
+    sweet_eagl_inject_requested = 1;
+    if (strcmp(scenario, "memory-disabled") == 0) sweet_eagl_inject_requested = 0;
+    else if (strcmp(scenario, "memory-other-proc") == 0) {
+        p = &other_process;
+        args.pid = 58;
+        log_checked = true;
+    } else if (strcmp(scenario, "memory-other-uid") == 0) {
+        credentials.uid = credentials.ruid = 502;
+        log_checked = true;
+    } else if (strcmp(scenario, "memory-root") == 0) {
+        credentials.uid = credentials.ruid = 0;
+        authorized = true;
+    } else if (strcmp(scenario, "memory-entitled") == 0) {
+        has_entitlement = true;
+        authorized = true;
+    } else if (strcmp(scenario, "memory-other-pid") == 0) args.pid = 58;
+    else if (strcmp(scenario, "memory-wrong-size") == 0) args.buffersize = 32;
+    else if (strcmp(scenario, "memory-wrong-command") == 0) args.command = 7;
+    else if (strcmp(scenario, "memory-flags") == 0) args.flags = 1;
+    else if (strcmp(scenario, "memory-no-buffer") == 0) args.buffer = USER_ADDR_NULL;
+    else CHECK(exact);
+    int error = memory_auth(p, &args, false);
+    CHECK(error == (authorized ? 0 : EPERM));
+    CHECK(subject_queries == (unsigned)log_checked && memory_snapshots == (unsigned)exact);
+    CHECK(sentinel == 0xa1a2a3a4);
+    printf("MEMORY PASS error=%d snapshots=%u\n", error, memory_snapshots);
+}
+
 static struct image_params run_extract(char *buf, user_addr_t *args, user_addr_t *env,
     const char *path, int flags, vnode_t actual, vnode_t script, vfs_context_t context)
 {
@@ -152,7 +253,8 @@ static struct image_params run_extract(char *buf, user_addr_t *args, user_addr_t
     struct image_params image = {
         .ip_strings = buf, .ip_strendp = buf + length, .ip_strspace = NCARGS + PAGE_SIZE - (int)length,
         .ip_argspace = NCARGS, .ip_flags = flags, .ip_seg = 1, .ip_user_argv = (user_addr_t)args,
-        .ip_user_envv = (user_addr_t)env, .ip_vp = actual, .ip_scriptvp = script, .ip_vfs_context = context,
+        .ip_user_envv = (user_addr_t)env, .ip_vp = actual, .ip_scriptvp = script,
+        .ip_vfs_context = context, .ip_new_thread = image_thread,
     };
     CHECK(exec_extract_strings(&image) == 0);
     CHECK(image.ip_endenvv == image.ip_strendp && image.ip_strspace % 8 == 0);
@@ -163,6 +265,10 @@ int main(int argc, char **argv)
 {
     CHECK(argc == 2);
     const char *scenario = argv[1];
+    if (strncmp(scenario, "memory-", 7) == 0) {
+        memory_case(scenario);
+        return 0;
+    }
 #define CASE(name) (strcmp(scenario, name) == 0)
     static const char mode[] = "GAUGUIN_EAGL_MODE=admission";
     const char *path = "executable_path=/usr/libexec/backboardd";
@@ -214,12 +320,29 @@ int main(int argc, char **argv)
         expected_lookups = CASE("already") ? 2 : 0;
         env[2] = CASE("conflicting") ? (user_addr_t)"DYLD_INSERT_LIBRARIES=/other" : (user_addr_t)sweet_eagl_insert;
         if (CASE("duplicate")) env[3] = (user_addr_t)sweet_eagl_insert;
-    } else if (CASE("other-proc") || CASE("script") || CASE("addr32") || CASE("missing-vnode")) {
-        reason = 1;
+    } else if (CASE("other-proc") || CASE("null-thread") || CASE("script") || CASE("addr32") || CASE("missing-vnode")) {
+        reason = CASE("other-proc") || CASE("null-thread") ? 1 : 8;
         if (CASE("other-proc")) exec_context.proc = &other_process;
+        if (CASE("null-thread")) image_thread = NULL;
         if (CASE("script")) script = &library;
         if (CASE("addr32")) flags &= ~IMGPF_IS_64BIT_ADDR;
         if (CASE("missing-vnode")) actual = NULL;
+    } else if (strncmp(scenario, "shadow", 6) == 0) {
+        exec_context.proc = exec_thread.proc = &shadow_process;
+        flags |= IMGPF_EXEC;
+        append = CASE("shadow");
+        if (append) {
+            expected = SEI_APPENDED;
+            expected_lookups = 2;
+        } else {
+            reason = 9;
+            if (CASE("shadow-no-exec")) flags &= ~IMGPF_EXEC;
+            else if (CASE("shadow-not-marked")) shadow_process.shadow = false;
+            else if (CASE("shadow-wrong-pid")) shadow_process.pid = 58;
+            else if (CASE("shadow-wrong-id")) shadow_process.uniqueid++;
+            else if (CASE("shadow-wrong-version")) shadow_process.pidversion++;
+            else CHECK(false);
+        }
     } else if (CASE("no-cred") || CASE("setuid") || CASE("other-uid")) {
         reason = CASE("no-cred") ? 2 : 3;
         if (CASE("no-cred")) exec_context.cred = NULL;

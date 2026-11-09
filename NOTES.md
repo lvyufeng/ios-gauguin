@@ -2,6 +2,398 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0197 clean build and bounded desktop image ready
+
+Committed selector6 fix/tests:3a22614. DSH native54424/dispatcher73647
+clean185-patch replay, full local native build and qualification all0;
+input pins unchanged. Source5330 files,
+d031ddd681ce6e4c89546375db4d3bfaf4be28a6e25bf7d13b4dc47dee610dd2,
+only SweetSurface.cpp/.h differ from196 and match tested candidate-v2
+(trailing whitespace normalized by replay review). Build root
+.deps-cache/p0-20261105/build197-wrap, run gauguin.l7GdFi,
+banner xnu-c9b491dcb8374d1f91301bdc43fdf468,
+kernel e0da45b411717b0e0ebc17d6bd585652c64d26de3c08bd948c82ef9f72ef7380.
+Old native195 reference inputs/objects retained unchanged. No CI build used.
+
+DSH package20256/dispatcher10673 package-stage-v1 BOTH jobs0, pins stable:
+current read-only DTB/Linux memory reconciliation still has no firmware
+overlap with the accepted6GiB model; post197 capture module imports without
+constructing RecoveryIO. Temporary6GiB image2516def43af1c88114cbf2a00b4217c88396439a22afdee5e47871cff16ee4ed,
+ram-layout-6g-v1/layout-6g.img. ACTUAL intended command is sweeteagl=2 and
+sweetgpuservicesecs=300,601 bytes. This supersedes the initially prepared
+180s packaging script BEFORE any package claim. Mode2 enables the existing
+approved195 desktop bridge, with the fixed kernel only. All installed
+libraries/jobs/cache/log prefixes remain unchanged; no userdata delta.
+
+Next run trial197.py --prepare, then its pinned boot-stage-v1 exactly once.
+It captures/rechecks all15 current files and header640b9dc2 against the
+post196 evidence BEFORE one fastboot boot. Observer480s/process560s; finite
+300s GPU service then expected watchdog recovery. Routine automatic reset
+needs no manual-attribution question. Ask for an unlock/UI check while live
+if user is available, retaining the automatic-return window. No physical197
+boot or UI qualification exists at this handoff point. After actual terminal
+return use dispatch_post197.py to preserve all15 files and collect bounded
+state/wrap/native-frame receipts before acceptance, including real failures.
+
+### 2026-11-09 — 0197 implements the observed missing wrapped-image selector
+
+The exact195 failure chain now reaches QuartzCore0x1883c460c, which calls
+IOSurfaceWrapClientImage at0x1883c4878, then constructs the CA surface and
+unconditionally queries bulk attachments. Actual20H392 client wrapper
+0x1a3986580 sends selector6 with32B input: address:u64 followed by width,
+height, pixelFormat, bytesPerElement, bytesPerRow, allocationSize:u32.
+It constructs the client after ANY success. The195 native log records
+backboardd sel6 immediately before FAR0x30. SweetSurface default currently
+returns success with0xa68 zero bytes, so client.state is NULL. This is a
+concrete missing protocol implementation, unlike the earlier mapping/TLS
+hypotheses. Private disassemblies: dsh-ui-0195-bridge/iosurface-wrap-v1 and
+qc-wrapped-tail-v1. No extra unchanged mode2 diagnostic boot was needed.
+
+Codex patch0191 implements selector6: validate exact input/output shapes,
+geometry/byte extent/address overflow; describe and prepare the calling
+task's real pixels; publish through the existing state/result/mapping path.
+No replacement blank pixel allocation. Per-surface wiring quota includes
+partial pages, and free releases maps BEFORE completing/releasing the
+prepared descriptor. Ordinary buffer accounting stays paired. Kernel
+mapping now preserves mapCache (normal cache for task images, WC for panel)
+instead of forcing a conflicting WC alias for application memory.
+Read-only/unmappable user buffers fail prepare with an actual error rather
+than a fabricated success; broader read-only wrapping is not qualified.
+
+DSH native-check-stage-v1: native ARM64 TU0, host1 because this Mac's ASAN
+rejects detect_leaks=1 before tests execute; raw failure retained. V1 kernel
+candidate restored to its tested bytes. V2 corrects that environment option
+and adds cache-preserving kernelAddress behavior. DSH13893/dispatcher73132
+native-check-stage-v2 returns0 for BOTH native TU and207 production-method
+host assertions under ASAN/UBSAN, pins unchanged. Test covers byte geometry,
+existing pixel alias, partial-page quota, malformed descriptors/overflow,
+OOM/prepare/publish/return failures, release order, cache mode and normal
+buffer/physical cleanup. This is software evidence, not a physical UI pass.
+
+Next: clean185-patch replay in source197-codex, full fresh native build,
+then one bounded temporary mode2 boot with installed195 libraries unchanged.
+DSH executes builds/tests/boot. Actual userdata remains as post196; no new
+userdata write or rollback is approved. Phone is currently detected in TWRP.
+Keep original mkadt diff a74a0418 intact. Goal remains fully active.
+
+### 2026-11-09 — 0196 automatic diagnostic boot and full capture complete
+
+User's latest USB replug is confirmed by actual ADB recovery enumeration;
+phone is in TWRP. Full goal remains active. No manual action is needed now.
+All196 stages below are terminal; do not restart any claimed stage.
+
+Fresh pre196 read-only16GiB backup completed via DSH35244/dispatcher28050:
+root-backup-v1/iosroot-before-iosurface-bulk-fix.hfsx, mode0444,
+SHA0f3601082c7e7c74edaad625eaaf4ffaf232f2729d34d42b5478dfff493b3fdc.
+It is now historical after the196 boot, not current write authorization.
+Native TU0; clean184-patch replay completed. Preserve the first failed
+trailing-whitespace verifier and the failed v2 profile factory; corrected
+replay-review-stage-v3 DSH44271 is0. Source5330 files,
+afef7224cfcdb86f1b6a99689e1393767e864f8316ba2d99cbbafdc4389f49b7.
+Only SweetSurface.cpp differs from195; patch0190 is diagnostics only.
+
+DSH7675/dispatcher29616 full native build and qualification0, pins unchanged.
+Run gauguin.U7Tsy9, banner xnu-cedf8813b0134ecb8c892592c91b1b45,
+kernel568f7dbc7f9b34e7cd5714a50a8e137cecbf99a02a33c745df002e85fe492d74.
+Package90901 and trial-prepare67866 both0. Temporary6GiB image
+19ad2a88f2f406f9f079955753a7c68ae7d3b7e1fc2681d1de690e8f64cfd6a3.
+ACTUAL command is sweeteagl=1 with60s service, not the earlier planned20s:
+the coordinator only accepts60..3600. Installed195 libraries stay intact;
+mode1 disables the late desktop bridge. No new userdata delta was written.
+
+DSH70852/dispatcher66913 boot0, pins unchanged. Actual automatic cycle
+06:59:50.951988–07:03:18.417491UTC,207.465503s, TWRP detected at206s.
+Postdispatcher37468 and capture both0: physical-review196.json records
+all15 files,12 static hashes and complete195 log prefixes retained.
+Full logs25,490/4,762/841,650B; new root header640b9dc2bf85c2deb77b317623e2916d5487a1323e57796fbffe47a07f0af947.
+All14 result records have nonzero state pointers and timestamps=state+0x800;
+backboardd crashes0, bridge installs0. Native service finished60 renewals,
+3 submitted/completed, shadow56. This control does NOT qualify accelerated
+UI or explain the GPU-path null pointer. Initial return-layout failure is
+not established. All GPU UI/Metal/high-refresh/daily-use flags remain false.
+
+Actual bulk getter dereferences a size POINTER, permits up to112B, then
+copies client.state+0x30. QuartzCore caller0x1883552a0 passes its incoming
+IOSurfaceRef through dimension/format queries and the failing aspect-ratio
+helper. Next trace that object's origin/lifetime against the EAGL bridge;
+do not patch already-TLS current or mask a guessed null-state cause.
+Private evidence: research/tmp/dsh-surface-0196-bulk and
+research/tmp/dsh-ui-0195-bridge/qc-crash-{call,parent}-v1. No new root write
+is authorized; consumed195321-block consent must not be reused.
+
+### 2026-11-09 — 0196 bounded IOSurface diagnostics pass native C++ compile
+
+Actual20H392 constructor0x1a3980bc8 copies create/lookup result to client
++0x68, matching SweetSurface's first3 pointers. IOSurfaceClientLock only
+updates cached seed+0xb0, not state+0x70. Hidden apparent+0x70 stores are
+bulk-attachment STRUCT flags, not client pointers; do not treat them as
+state-pointer overwrites. Root cause of observed null state is not proved.
+First offline analyzer failed from Python symbol-starts shadowing mapping-
+starts; v2 fixes that and preserves old failed outputs. DSH surface-abi-v2
+and surface-hidden-v1 both0. EAGL current is already TLS; no TLS fix applied.
+
+Codex candidate196 adds ONLY bounded GAUGUIN-only IOLog observations of
+returned data/state/timestamp pointers (first64) and ignored selector
+argument/output cardinality (first2 per selector<48). Existing mapping,
+output bytes, cached-client sentinel and return paths remain unchanged.
+Patch0190. DSH58786 /dispatcher28061 native SweetSurface C++ TU0, reference
+headers/objects unchanged. Next clean184-patch replay, full native build,
+then a SHORT mode1/legacy20s service diagnostic to observe state addresses
+without repeating the crashing desktop hook path. This is diagnostic only,
+not a repaired or qualified UI. No new userdata mutation is authorized.
+
+Phone USB disappeared again after195 capture. First backup196 DSH81166
+ended WITHOUT claiming because no transport. After user replugged, Codex
+verified one recovery and dispatched SAME still-unclaimed backup profile
+via DSH35244; dispatcher28050 claimed. Fresh16GiB read-only backup is in
+progress (`root-backup-v1`); old backups retained. Do not restart claim.
+Current196 root snapshot is protective, not a write approval. All195 raw
+failure evidence and manual attribution sidecars remain authoritative.
+
+### 2026-11-09 — 0195 black-after-unlock captured; IOSurface bulk read crashes
+
+User `call_6fb8077b2798400abcf2e6cdca3bca69`: touch unlock succeeded, then
+completely black. To retain failure evidence requested early manual TWRP;
+user explicitly confirmed manual return in
+`call_a93bed6ae5614d4a9dbc9f8e82da30c5`. Raw observer result still contains
+legacy boilerplate manual_reset=no. DO NOT EDIT that raw result or infer
+an automatic reset: manual-recovery-confirmation195.json supersedes it.
+User separately set the full goal active again.
+
+Boot outer98071 /dispatcher22504 terminal0, pins unchanged. Actual trial
+05:53:56.733782–06:02:06.228099UTC,489.494317s (cycle detects TWRP at488s).
+All startup process markers present; no completed600s health window.
+DSH16851 prepared failure-aware post, DSH66865 /dispatcher24200 capture
+completed ALL15 full files,12 static hashes/permissions and whole194 log
+prefixes unchanged. Acceptance exit1 is EXPECTED/real, inputs unchanged:
+UI black, early end, repeated admission sessions and crashed compositor.
+`physical-review195.json` records actual manual reset and UI error.
+Full log sizes24,557 /4,762 /835,187B. Raw framing saved
+46 complete constructor sessions; retain all raw spans and full files.
+No195 CA/render/Metal/high-refresh/daily-use qualification. No rollback
+of pre-boot blocks was performed; device is currently in TWRP.
+
+Native first16 submissions succeed, last logged heartbeat seq360 reports
+75 submitted/completed, shadow920; no GPU submit failure seen. Protected
+backboardd repeatedly restarts with new PIDs (first57, then273,279...).
+Every crash: SIG11, FAR0x30, PC0x21611de70, LR0x1e7f9fffc, shared-cache
+slide0x4461c000. Mesa FD619 ES3.1 actual CA contexts ARE created and the
+bridge installs. BB attaches real BGRA1125x2436,4608B/row surfaces, then
+prints the first shaders; no completed frame receipt. Physical panel
+1080x2400 is NOT the compositor's actual target size. Future acceptance
+must derive the real1125x2436 target instead of hardcoding panel size.
+
+DSH19366 /dispatcher24911 actual-cache map stage0, pins unchanged. Exact
+20H392 cache primary76874e83,44shards from the read-only195 backup22e9123a.
+Unslid PC0x1d1b01e70 lies in libsystem_platform __platform_memmove+176;
+LR0x1a3983ffc is IOSurfaceClientGetBulkAttachments+68. Verified instructions:
+ldr x8,[x0,#112]; add x8,x8,#48; mov x0,x1; mov x1,x8; bl memmove.
+The null shared-state pointer at client+0x70 explains copy source0x30.
+Caller backtrace is QuartzCore. This is symbol/disassembly evidence;
+root cause of the missing pointer still needs validation, not a GPU timeout.
+
+Next inspect actual IOSurface client creation/lookup/lock result layout
+against `iokit/Kernel/arm/SweetSurface.cpp`. It maps state per surface and
+fills lock-result+8, documented as copied to client+0x68; must determine
+why actual client+0x70 is zero. Default unimplemented external selectors
+return success/zero output and may be involved; this is a HYPOTHESIS.
+The upstream EAGL `current` variable is ALREADY __thread: do not patch a
+nonexistent global-current bug. Keep all195 artifacts/pins immutable;
+fix the proven IOSurface protocol gap after disassembly, then native TU/
+meaningful host tests/build/temp-boot via DSH. No new root write is
+approved by the consumed321-block consent. A kernel-only fix can use the
+current reviewed195 libraries without another userdata delta.
+
+### 2026-11-09 — 0195 temporary desktop trial is live
+
+DSH boot outer98071 /dispatcher22504 claimed boot-stage-v1 at
+1794203621.575062. Actual15-file capture/preflight passed, all exact hashes,
+owners and complete194 log prefixes retained; current installed root
+header3aaba846. One fastboot boot sent19,520KiB, transfer/boot OKAY, total
+0.597s. `trial-v1/preflight.json` stateobserver-running with verified misc
+recovery latch. As of05:56UTC ps22504 was live2m19s, no terminal/result
+and no detected automatic recovery return. Poll SAME handle/dispatcher and
+cycle; do not rerun boot on a polling timeout. Expected finite600s GPU
+service;780/860s observer/process window. No manual reset is requested.
+
+DSH76767 /dispatcher22887 post-smoke-stage-v1 returned0, inputs unchanged:
+actual post195 module imports correct195 GLES/worker/desktop parsers and
+current194 full log sizes; approved write receipts verify. RecoveryIO was
+replaced by a trap in that independent process, no phone IO. Capture and
+acceptance code is ready. After the actual boot observer terminal, run
+post195.py --prepare to freeze the real evidence stage, then execute that
+profile via DSH. Preserve all15 full files and raw session spans before
+any acceptance. Do not mark UI/render success from this running state.
+
+### 2026-11-09 — 0195 user-approved321-block installation complete
+
+USB recovered after user reconnected again. DSH2820 /dispatcher21380
+live-preflight-stage-v1 returned0, pins unchanged: exact recovery gauguin,
+stable468ac8ec root header and all39 old ranges/321 blocks matched.
+Fresh DTB0b73e7af matches194. DSH64866 /dispatcher21624 reconciled current
+Linux ranges and all fixed/dynamic DT reservations0: proposed6GiB window
+[0x100000000,0x280000000) remains inside Linux System RAM with no firmware
+overlap. This remains inventory evidence, not pressure/DMA qualification.
+
+User approved NEW exact321-block195 question
+`call_2fdb47daaf574d8b8bcd9246d511aed2` with touched-block rollback on failure.
+`approval.json` binds plan5cbbf27a; no reuse of old239-block authorization.
+DSH apply outer62131 /dispatcher22080 returned0, all pins unchanged:
+39runs/1,314,816B installed, every readback verified, primary header last,
+39write attempts, no rollback. Receipt `apply-v1/result.json` is
+applied-approved-delta-readback-verified, reboot permitted. Fresh16GiB
+backup22e9123a and all original backups retained. Installed library targets
+are admissiona1b98155 +desktop147668da, preserved worker4b211a40 and
+Mesa3a447524, all jobs/cache/policies/backboardd and old logs.
+
+Prepared `boot-stage-v1.json`: DSH will run trial195.py WITHOUT --prepare,
+verify actual15 installed files/full194 prefixes/current new header, then
+one temporary6GiB boot of6133778e. Expected source0d8faae, kernelbe3a8175,
+banner xnu-544bed9d5d7d4a48aa1c469030868da6. All relevant scripts, receipts,
+observer and image are pinned. No boot attempted at this handoff point.
+After dispatch, observe its actual handle/claim/result; no automatic retry
+on timeout. 780/860s window, finite600s GPU service. Auto resets require no
+user attribution question. Use post195.py --prepare then pinned DSH capture
+AFTER actual terminal return. Preserve raw logs even if CA/pixel/health
+acceptance fails; never restore pre-boot blocks after iOS has run.
+
+USB blocker has resolved; previous blocked audit no longer applies. Goal
+objective remains full GPU/Metal, all safe RAM/storage, peripherals and high
+refresh/daily usability. No195 UI/render/stability result yet.
+
+### 2026-11-09 — reported reconnection; host USB still absent after server refresh
+
+User answered the pending reconnect question: back in TWRP and directly
+reconnected USB. Revalidated actual state rather than assuming recovery:
+ADB0/fastboot0. Both system_profiler and raw ioreg IOUSB show NO phone or
+external USB device, only3 AppleT8142USBXHCI controllers. ADB is the expected
+Homebrew1.0.41/37.0.1 DarwinARM64 client, not an alternate executable.
+Live-preflight-stage-v1 pins all match and it remains UNCLAIMED.
+
+DSH outer96083 /dispatcher20785 `host-refresh-stage-v1` returned0,
+pins unchanged. It only restarted HOST ADB server (kill/start0), then
+rechecked ADB0/fastboot0 and unchanged raw USB controller-only inventory.
+No phone shell, reboot, root write or kernel boot. Read-only watcher97253
+finished after60.85s at05:43:54UTC: still ADB0/fastboot0 for the whole
+window. It is terminal, not an active wait. Host unified USB log query
+exit0:12 records,0 enumeration/connection/permission/failure keyword hits;
+this does not establish why the physical link is absent.
+
+CUA inventory was readable, but selecting existing System Settings failed
+screen capture with-10005. No UI input or permission change occurred;
+CUA completion summary was sent. IOConsoleUsers only exposes on-console
+true, no lock-status key; do NOT infer that the Mac is locked or that an
+accessory permission dialog exists. Raw private USB logs remain outsidegit.
+
+A NEW async question asks user to keep TWRP, verify this is the Codex Mac,
+try a different USB port or known data cable, and handle any accessory
+allow prompt on the Mac. This new question is pending; the original
+reconnect question has been answered. Keep195 live preflight unclaimed
+until one actual recovery transport appears. Then execute the same pinned
+READ-ONLY profile via DSH, preserving old239-vs-new321 consent separation.
+No195 approval/apply/trial exists; original mkadt diff and all artifacts
+remain intact. No further phone-side action is possible from current host.
+
+Treat this user reply as a fresh resumed blocked audit (turn1). The goal
+API still returned blocked; it has no agent resume operation. Do not create
+or narrow the goal, and do not mark blocked again before3 consecutive
+resumed impasse turns. No fresh runtime qualification is claimed.
+
+### 2026-11-09 — third USB-absence audit; awaiting external reconnection
+
+At05:33:07UTC, authoritative recheck: ADB0 devices, fastboot0 devices,
+macOS USB inventory0 phone surfaces (inventory command succeeded).
+All native/offline/review/test/publication stage receipts are terminal0
+with unchanged pins; their recorded dispatcher PIDs are no longer live.
+This is not a verified wait on an active process. No195 approval, apply,
+trial or live-preflight claim exists. The USB reconnect question remains
+unanswered. Original mkadt modification is still the only working diff.
+
+Previous goal turn made concrete progress (9b35e86 parser/tests, public
+300733f, prepared15-file/boot/capture/evidence gates and their DSH tests).
+The same USB absence has now recurred for3 consecutive goal turns. Offline
+preparation for the next physical experiment is finished. No meaningful
+write/boot/performance/extra-range-DMA/peripheral qualification can proceed
+without a connected phone; further synthetic checks do not prove those
+requirements. Blocked audit is satisfied; set goal status blocked after
+saving this handoff. This is not a completion or a user-requested pause,
+and the full objective must remain unchanged.
+
+Resume on real reconnection/user steering: preserve the321-block plan,
+backup22e9123a and accepted194 baseline. Recheck recovery/header, then run
+the already pinned READ-ONLY live-preflight-stage-v1 once via DSH. Fresh
+exact321-block consent remains required after that concrete review and
+before any userdata write. Do not infer approval from the old239-block
+reply, retry claimed stages, boot before preflight or fabricate new runtime
+evidence. No195 device changes were made during the disconnected turns.
+
+### 2026-11-09 — 0195 trial/capture/evidence gates ready; USB still absent
+
+Current tooling commit `9b35e86c05bf8bb7c1312d5574e652e1e891f7cd`
+adds only the sampled-service parser/tests and handoff. Published by DSH9594
+/dispatcher19648 as public `300733ffe7dcfee3403c956ca7c5f75074e6976a`,
+branch `codex/gauguin-sampled-service-acceptance-20261109`, exact tree
+`39bae236de2359a6ddc56bc7107c49ae9c9effba`, sole parent1053831.
+Three text files, existing refs retained, noCI or device action. The actual
+195 kernel remains built from0d8faae/be3a8175, unchanged.
+
+DSH56559 `trial-prepare-stage-v1` returned0, inputs unchanged.
+`trial195.py --prepare` ALREADY produced expected-installed195.json and
+both capture profiles:15 files (14 prior plus desktop bridge), exact321-
+block plan5cbbf27a. Do not repeat prepare; outputs use exclusive creation.
+`trial195.py` run verifies new approval/apply/dispatcher receipts BEFORE
+RecoveryIO, then reads all15 current files and complete194 log prefixes,
+requires the installed header3aaba846, then calls boot_pilot195.py once.
+The helper retains the proven boot/latch/observer body, updated only for
+39runs/1,314,816B/15files, scope and exact kernel input verification.
+New nonkernel tooling commits are permitted; kernel patches/deps and all
+reviewed kernel input pins remain frozen. Temporary6GiB image6133778e,
+780s observation/860s process timeout, no automatic second attempt.
+No approval/apply/boot-stage/trial exists yet.
+
+DSH58505 `desktop-evidence-stage-v1` returned0, pins unchanged;4 tests.
+Historical raw194 worker proof remains exactly identical. A synthetic10th
+job stays OUTSIDE proven worker fences7–9. Admission framing preserves
+raw byte offsets/spans and rejects truncated, interleaved, duplicate or
+wrong-identity sessions. Synthetic CA cases require bridge install after
+worker0, hardware FD619 context, full1080x2400 IOSurface and real draw/output
+receipts plus >9 native jobs. Missing/error cases fail. These fixtures
+prove parser behavior ONLY, never actual195 GPU/UI execution.
+
+DSH45947 /dispatcher19517 `execution-review-stage-v1` returned0,
+pins unchanged. `execution-review195.json` checks all15 expected files
+against final raw HFS, both mappings, exact boot-helper reconstruction,
+AST ordering and actual missing-approval refusal with a fake IO trap.
+No phone command occurred. `post195.py` is prepared, syntax reviewed:
+after actual trial, --prepare freezes the post stage; capture ALL15 raw
+files and full old prefixes before acceptance; save both constructor
+sessions as unmodified byte spans. Keep startup/API/pixels/memory/RAM/finite
+service/worker checks; CA hardware activity is a separate result.
+GPU submission records are first16/every120, not total job count.
+Frame logs have no presentation/context ID, so even a CA activity pass
+leaves accelerated_UI, visual correctness, interaction latency, Metal,
+high-refresh and daily-use flags FALSE until stronger physical evidence.
+If late constructor version-query errors differ from historical190 strict
+framing, retain raw evidence and review against actual source gate; never
+rewrite a raw record to make an old parser pass.
+
+Next remains ONLY: user reconnects TWRP, then DSH executes the pinned
+READ-ONLY live-preflight-stage-v1.json. It checks fresh memory/header and
+all39 old ranges, then full independent-local-review-v2. After success,
+request NEW exact321-block consent + touched-block failure rollback under
+AGENTS.md. The192239-block approval is consumed. After195 consent create
+one pinned apply stage using write_root_delta195.py, verify every readback,
+then a pinned stage running trial195.py (WITHOUT --prepare). Post195 raw
+capture must run after actual terminal observer/recovery. Never restore
+old snapshot blocks after a subsequent iOS boot.
+
+ADB/fastboot both empty at05:31UTC; pending USB reconnect question has no
+answer. No active boot or device process. This is the second consecutive
+goal turn with the same USB absence; both turns made concrete offline
+progress. No195 device write or physical qualification. Preserve original
+mkadt diffa74a0418, fresh16GiB backup22e9123a, approved192 installed root,
+failed localv1 receipts, all accepted194 raw evidence and the full goal.
+
 ### 2026-11-09 — sampled-service acceptance preserves accepted194 raw evidence
 
 Added `tools/gpu_service_log.py` and `tests/test_gpu_service_log.py`.

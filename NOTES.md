@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0204 CPU ring-span candidate passes functional/native checks
+
+Codex patch0197 changes board C/runtime C/private runtime header only.
+Optional internal ring_span callback writes/verifies the CPU-owned root
+packet in one bounded span. ggr_submit ALREADY proves shadow/EOP/GPU idle
+before preparation; full original guards remain at EACH span boundary,
+after complete readback, around the actual register/doorbell writes and
+through GPU completion/fault checks. Within the CPU-only span check every
+word's cached authority/state and CPU operation/service deadline. No GPU
+register/PTE/doorbell access occurs in the span. Failed preparation cannot
+commit hardware work; quarantine and retained DMA owners remain intact.
+The original per-word fallback remains byte/trace-compatible when the
+callback is null. Full predicate BODY is unchanged, but the NUMBER of
+guard MMIO reads in CPU preparation intentionally decreases: never claim
+the entire hardware read trace is unchanged. Public user wire ABI unchanged.
+
+DSH22138 native-check-stage-v2 ALL4 jobs0,pins unchanged:17,214 retained
+runtime/ABI+72 service assertions;55,336 additional exact ROOT packet/
+register-trace/ring-wrap/partial-write/readback/deadline/guard-boundary
+assertions; ACTUAL board callback bounds/wrap/deadline/authority tests;
+139 unchanged live-predicate comparisons+actual timer wrapper cases;
+307,278 retained combined/micro checks; TWO native ARM64 TUs0 with
+reference headers/generated files/objects unchanged. Fixture initializer
+uses designated fields to keep the optional callback null compatibly.
+
+V1/DSH58187 host jobs passed; native compile selected the OLD runtime
+header through the reference umbrella header and failed the new macro.
+Preserve v1. Candidate-v2 adds ONLY a byte-identical gauguin_gmu_board.h
+beside the SAME three changed files, fixing isolated include context.
+No driver-code change was needed for v2. No204 physical result yet.
+
+Next clean191-patch replay/full LOCAL build, require native ring-span
+function symbol, then same installed195 libraries/6GiB/mode2/300s/Home90
+and current203 header2592713f/full15-file/complete203-prefix preflight.
+Compare completed fences, packet/ring evidence and submit/guard timing
+with203. GPU may overlap checks; elapsed subtraction is not GPU-only time.
+No new userdata delta, quota change or rollback. Root owns NOTES; full
+goal active. No human visual/performance result beyond R2's lag report.
+
 ### 2026-11-09 — 0203 captured:99.90% of submit elapsed lies inside full guards
 
 203 terminal10:40:34.605224–10:47:58.655884UTC,444.050660s, automatic.

@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0205 FAILED early SMMU guard; user reports lag/no black screen
+
+Supersedes LIVE handoff below. Automatic11:52:23.551038–11:56:26.242796UTC,
+242.691758s. DSH20951 boot ALL0; DSH71091 post stages ALL1 from real early
+GPU/service failure, all pins unchanged. All15 full files/12 static hashes/
+COMPLETE204 prefixes preserved; logs45,924/7,452/1,006,819B. Current header
+501dc0e96ffe7ab6d070f052057fff84dccb9ae54d4b915b905138adc8367017;
+phone last TWRP. No userdata delta/rollback or manual reset request.
+
+Actual owner stops after97 renewals,submitted14/completed13,shadow280;
+no planned300s STOP. rc3 on6-IB job14,live_reason13/valid3,GX/IRQ healthy,
+GFSR0/FSR400,existing GFW read MICRO6000=2270. MICRO sample says3 attempts,
+3 recoveries,3 polls,last current2370/expected2378/mask~8/66us. The latest
+2270 differs from that recovered cached word. Strong source-based inference:
+the same full gfw_faults recheck saw a SECOND exact transient after its one
+allowed settle and rejected through settled=true. Not a clock/deadline
+rejection(reason9 passed). Must reproduce this trace in actual-helper tests
+before changing the wait policy; never mask undocumented bit8.
+
+Cached PERF3742 checks/715,353,645ns,max357,500ns;13 completed-prefix submits
+102,063,958ns/548 checks/101,564,479ns,pending1 means job14 not folded.
+These partial observations are NOT a qualified full-window comparison.
+3 wraps/0 errors,0 CA frame receipts,then8 stage0 BO NotReady records and
+one compositor null-BO crash AFTER the real GPU failure.118 buffers and
+52,707,328B are below quotas; no quota increase is supported. Service and
+performance evidence both correctly reject. Preserve original failure JSON.
+
+User answered call_23a81f4e89db49c19d1a45d166df3e6e '仍明显卡顿，但没有黑屏'
+after being offered the running205 unlock/swipe/Settings trial. Saved private
+user-performance-report205.json; individual unlock/Settings operations not
+separately confirmed. Availability is now YES. Early97-renewal failure likely
+predates this response, so it may describe the post-failure fallback UI and
+cannot establish healthy205 GPU performance. User told the failed verdict
+and promised a fresh ten-minute trial after fixing the repeat-transient case.
+
+Next206: permit repeated EXACT2270->original2370/2378 settling and FULL
+SMMU rechecks under ONE shared original20ms/2000-poll budget per guard;
+never renew that budget, omit fault/control/TTBR predicates or allow probe/
+setup/idle/other-bit waits. Add actual helper/full-guard tests for repeated
+recovery, shared-budget exhaustion, deadline/authority/fault mutations; then
+native/full build and600s manual Homeoff at existing30Hz first. Do not mix
+an unqualified failure fix with a60Hz display change. Root owns NOTES/code;
+DSH executes checks/build/boot. Full goal remains active.
+
 ### 2026-11-09 — 0205 automatic bounded-clock timing trial LIVE
 
 DSH20951 is observing ONE claimed205 trial after current204 headerc56ed0a5,

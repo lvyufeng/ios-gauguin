@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — CORRECTION:201/202 crashes are AFTER intentional service stop
+
+Supersedes the earlier 'independent BO/runtime compositor failure'
+interpretation.202 actual native event order is planned STOP line5475,
+then BO NotReady lines5516/5517, then backboardd crash5518.201 likewise:
+planned STOP5591 precedes crash5621. Both last live guards have reason0,
+valid3f, completed==submitted, and298 renewals for the full300s service.
+The finite diagnostic deliberately withdraws GPU access, then waits for
+watchdog recovery; Mesa does not handle that loss gracefully. These are
+REAL post-stop crashes, NOT faults during the active300s GPU window.
+Earlier physical-review201/202 JSON receipts are preserved unchanged;
+their whole-session compositor error is too broad for active-window
+classification. No memory/count/VA-limit fix is supported by these runs.
+
+202 terminal09? Actual10:13:38.421804–10:21:02.511107UTC,444.089303s,
+automatic; DSH88959 boot all0, DSH77537 capture inner1 (post-stop crash),
+all pins unchanged. All15 files/12 static hashes/complete201 prefixes
+preserved. Full logs39,793/6,645/964,591B. Current root header
+b2c99aa633566ac63ee05ceddb07587a156886534aa589beee109aa965d50247.
+Phone last TWRP. Native15/15 completions,3 recorded CA frames,4/4 exact
+MICRO recoveries (last57us),0 wrap or native submit errors. Failed BOs
+were16KiB requests, stage0/NotReady AFTER STOP,50 buffers/61,358,080B,
+15,416 free VA units/largest15,223. None of the configured budgets was
+exhausted. No userdata delta/rollback or manual reset request.
+
+DSH54619 service-audit-stage-v1 ALL2 jobs0, pins unchanged. Updated
+tools/gpu_service_log.py explicitly validates300/600s window boundaries,
+preserves whole-boot panic/health rejection and all in-window fence/ring/
+renewal checks, and separately counts post-stop client/BO/crash events.
+Seven parser tests pass. Immutable service-window-audit-v1.json in
+dsh-gpu-0203-perf validates201(28 jobs) and202(15 jobs), rejects actual
+199-R2 incomplete/faulted service. Pixels/desktop/Metal/performance/daily
+remain unqualified. Do NOT overwrite old raw receipts to change a verdict.
+
+Next profile CPU time spent in the frequent full live guard versus native
+submit duration to explain~100ms frame waits. Keep all MMIO predicates,
+fences, quotas and ownership. No quota increase, guard batching or weaker
+checks yet. Source/public state remains d980f899 for201 and local202
+source9e4cd77. Root owns NOTES; full goal active.
+
 ### 2026-11-09 — 0202 automatic BO failure attribution trial LIVE
 
 DSH88959 is observing ONE claimed202 trial after qualified packaging,

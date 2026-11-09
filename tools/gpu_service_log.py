@@ -63,21 +63,40 @@ def _ring_reachable(previous_count, previous_shadow, count, shadow):
     return residue + wraps * RING_WORDS <= high
 
 
-def qualify_service_log(text):
+def qualify_service_log(text, expected_seconds=600):
+    full_text = text
+    need(type(expected_seconds) is int and 60 <= expected_seconds <= 3600,
+         'invalid expected service duration')
+    online_record = _one(records(
+        text, 'SWEET GPU SERVICE: owner online ',
+        r'SWEET GPU SERVICE: owner online test_seconds=(\d+); watchdog remains '
+        r'enabled, failures retain DMA owners'), 'online service record')
+    stop_record = _one(records(
+        text, 'SWEET GPU SERVICE: test deadline ', re.escape(STOP)), 'planned stop record')
+    need(online_record[2] == (expected_seconds,) and online_record[1] < stop_record[0],
+         'service duration/boundary order differs')
+    online_line = text[online_record[0]:online_record[1]].rstrip('\r\n')
+    post_stop = text[stop_record[1]:]
+    # Panics and service health failures remain fatal anywhere in the boot.
+    # An intentional finite stop withdraws the GPU before hardware reset;
+    # distinguish subsequent client failures from faults inside the test.
     for bad in ('SWEET PANIC ENTRY', 'phystokv_range: illegal',
                 'SWEET WDT SERVICE: failed', 'SWEET GPU SERVICE: health/owner failure',
-                'SWEET GPU SERVICE: invalid coordinator context', 'client closed after fault'):
+                'SWEET GPU SERVICE: invalid coordinator context'):
         need(bad not in text, bad)
+    text = text[:stop_record[1]]
+    for bad in ('client closed after fault', 'CRASH backboardd['):
+        need(bad not in text, 'failure before planned stop: ' + bad)
     checkpoint = _one(records(
-        text, 'SWEET GPU WDT: pre-ZAP checkpoint ',
+        full_text, 'SWEET GPU WDT: pre-ZAP checkpoint ',
         r'SWEET GPU WDT: pre-ZAP checkpoint seq=(\d+) before=(\d+) after=(\d+); '
         r'CP idle/EOP/fault/routes/power verified'), 'boot checkpoint')
     boot, before, after = checkpoint[2]
     need(boot == 1 and _healthy(before, after), 'invalid boot checkpoint')
     init = 'SWEET GPU ZAP: before phase=2 '
-    need(text.count(CP_DONE) == text.count(init) == text.count(ONLINE) == text.count(STOP) == 1,
+    need(full_text.count(CP_DONE) == full_text.count(init) == text.count(online_line) == text.count(STOP) == 1,
          'missing/duplicate boot or service boundary')
-    need(text.index(CP_DONE) < checkpoint[0] < text.index(init) < text.index(ONLINE),
+    need(text.index(CP_DONE) < checkpoint[0] < text.index(init) < online_record[0],
          'checkpoint or service boundary order differs')
 
     submissions = records(
@@ -93,7 +112,8 @@ def qualify_service_log(text):
         r'SWEET GPU SERVICE: final renewals=(\d+) submitted=(\d+) completed=(\d+) '
         r'shadow=(\d+); quarantined, no further refresh'), 'final service record')
     count, total, completed, final_shadow = final[2]
-    need(300 <= count <= 600 and 9 <= total == completed, 'finite service did not complete')
+    need(expected_seconds // 2 <= count <= expected_seconds and 9 <= total == completed,
+         'finite service did not complete')
     need([row[2][0] for row in renewals] == [2, *range(30, count + 1, 30)],
          'missing/duplicate/reordered heartbeat sample')
     need(len(submissions) == min(FIRST_RECORDS, total) + total // RECORD_INTERVAL,
@@ -123,7 +143,7 @@ def qualify_service_log(text):
     snapshots.append((final[0], final[1], total, final_shadow))
     snapshots.sort()
     previous_count, previous_shadow = 0, 20
-    online = text.index(ONLINE)
+    online = online_record[0]
     for position, end, submitted, shadow in snapshots:
         need(online < position <= final[0], 'GPU sample outside online service')
         need(_ring_reachable(previous_count, previous_shadow, submitted, shadow),
@@ -138,6 +158,13 @@ def qualify_service_log(text):
          final[1] <= text.index(STOP), 'finite stop order differs')
     return {
         'state': 'consistent-finite-sampled-GPU-service-records',
+        'expected_service_seconds': expected_seconds,
+        'planned_stop_offset': stop_record[0],
+        'post_stop_compositor_crashes': len(re.findall(r'^CRASH backboardd\[', post_stop, re.M)),
+        'post_stop_BO_failures': len(re.findall(r'^SWEET GPU BO FAIL:', post_stop, re.M)),
+        'post_stop_client_cleanup_failures': post_stop.count('client closed after fault'),
+        'post_stop_submit_failures': len(re.findall(r'^SWEET GPU USER: submit rc=(?!0\b)', post_stop, re.M)),
+        'post_stop_failures_are_service_window_failures': False,
         'boot_checkpoint_sequence': boot,
         'boot_checkpoint_before': checkpoint[2][1],
         'boot_checkpoint_after': checkpoint[2][2],

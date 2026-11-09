@@ -2,6 +2,169 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0199 manual trial LIVE after user returned to the phone
+
+User answered197 visual question call_c6741641f30b45c9975f56ae87dd445d:
+'重新写入一下，我刚才不在设备旁'. Record197 visual as UNKNOWN/unattended,
+not a failed manual test. Sidecar ui-report197-unattended.json retained.
+User requested another temporary trial; no new userdata delta was requested
+or written. Before any199 packaging claim, Codex disabled synthetic Home
+and restored the original -noprogress flag for this MANUAL test. This
+supersedes the earlier planned automatic-Home199 command.
+
+Source commit d48e600d807c037e6b18f6d27f9fd9f700113195. DSH40245/dispatcher15987
+clean186-patch replay/full local build/qualification all0, pins unchanged.
+Source5330 files9cbaadb91c335ce9cd1bce1af0d8c735a8e016cc387252de451ce8048558cc67;
+only gauguin_gmu_board.c differs from197. Run gauguin.diqlH1 under
+.deps-cache/p0-20261105/build199-failure,
+banner xnu-d000ef5cf2be44bd94dafff8ccf1e10b,
+kernel a4de6737c93fab6a41697af7140d6a7c3b2a5509eb4a3867052cc2c49cfaff2f.
+
+DSH77475 parent52863/nested52954 boot dispatcher is observing ONE claimed
+trial. Packaging, current DTB/memory review, full15-file/prefix preflight
+and recovery latch passed; fastboot temporary boot succeeded. Image
+9d7025fa028557e24757e3e2c25aa3532480504697647303a7753a2f0a7eadf9,
+mode2/300s,601-byte command, sweethidtest=0 (arg absent/default off).
+Current installed195 libraries retained; preboot header a6831e27.
+A NEW199 visual question asks touch unlock/settings/home/swiping and then
+keep running until automatic TWRP. Do not attribute a delayed197 answer to199.
+
+DSH66650 is the single bounded post-wait-stage-v1 watcher. It must wait for
+the SAME199 observer and BOTH dispatcher terminal receipts, freeze them,
+then preserve all15 full files and collect cached STOP records. Poll these
+existing claims/handles; no duplicate boot/capture on timeout. No physical
+199 result exists at this live handoff. Root owns NOTES; DSH must not edit it.
+
+### 2026-11-09 — 0199 cached runtime-failure attribution passes software checks
+
+Codex patch0192 changes only gauguin_gmu_board.c. The live guard preserves
+the197 predicate order/short-circuit trace and all rejection conditions;
+it saves first-failure reason1..17 and validity-tagged GX/IRQ/reset/root
+values from EXISTING reads. Callback wrappers cache last operation/offset/
+value/status. Quarantine prints these and existing cached SMMU GFSR/FSRs.
+No extra diagnostic MMIO, new retry, looser guard, altered GPU command or
+DMA release. Exact reason mapping is in the candidate/replayed code.
+
+DSH35314/dispatcher15590 native-check-stage-v1 ALL3 jobs0, unchanged pins:
+139 differential assertions compare actual197/199 live-guard function
+traces and sticky first-failure records; existing actual GGR engine17,214
+runtime/ABI plus72 service-health assertions; real ARM64 board TU0 with
+reference objects/headers untouched. This diagnostic change is not a fix
+for the six-IB failure. Private artifacts: research/tmp/dsh-gpu-0199-failure.
+Next clean186-patch replay, full native build, same6GiB/300s/automatic-Home
+temporary trial with current195 libraries, then raw-first capture of the
+new cached STOP records. No new userdata write/rollback is authorized.
+Phone last in TWRP after198, current header a6831e27. Full goal active.
+
+### 2026-11-09 — 0198 exercised wrapped images; first real desktop submit failed
+
+Same197 kernel,198 image8f56ca21add91a0b98f6d42500962b87ef28b682a12137d924a39cda7c3e2b31,
+605-byte command only removes -noprogress/adds sweethidtest=90. No rebuild
+or userdata delta. DSH39961 parent14026/nested14041 boot0, pins unchanged,
+19,520KiB transfer/Booting both OKAY, total0.598s. Actual observation
+07:59:25.007034–08:04:08.067944UTC,283.060910s, automatic recovery. Do NOT
+ask routine reset attribution. Idle197 result and pending197 visual reply
+cannot be reused as a physical198 UI result.
+
+DSH54649 post wait/capture completed with inner1 and unchanged pins: real
+GPU qualification failure, not failed raw capture. All15 complete files,
+12 static hashes and entire197 log prefixes retained. Full logs
+29,577/5,300/868,912B. Root header now
+a6831e272b53ce3166007b97c2c18db0d00ae10398d30a3e1b971f8b729bb862.
+physical-review198.json errors.GPU='native submit failure recorded'.
+Home0x40 down/up delivered to1 client twice. Wrapped image12 RGhA256x1,
+bpe8,row2048,size2048 returns nonzero state11b194000; image13 A008128x54,
+bpe1,row128,size6912 preserves unaligned data112a34040 and nonzero state
+11c760000. Both return0; backboardd crashes0, original FAR0x30 absent.
+This demonstrates the real selector6/state path beyond the old CPU crash.
+
+First desktop job after9 accepted root/worker jobs has6 IBs; native
+'submit rc=3 ibs=6 submitted=10 completed=9 shadow=128 polls=9'. GGR_IO=3,
+NOT GGR_TIMEOUT=4. Mesa reports -60 generically after the adapter failure;
+do not infer a hardware timeout from that string. Runtime quarantines,
+final service136 renewals then health/owner failure, DMA owners retained
+until reset. One CA frame log (198 calls/5 draws/10 triangles) appears AFTER
+the failed submission/wait. It is NOT proof of a successfully rendered GPU
+frame. Accelerated UI/Metal/high-refresh/daily-use remain unqualified.
+
+Next inspect the failure before the first completion poll: submitted
+increments before GMU fence-off handshake; polls remains9. Existing logs
+do not distinguish failed live guard/register callback from hardware fault.
+Add cached failure attribution without extra MMIO or relaxed guards, then
+native/host checks, fresh build and same automatic-Home temporary trial.
+Root owns NOTES; DSH executes stages without editing the shared handoff.
+
+### 2026-11-09 — 0197 full capture complete; wrapper was NOT exercised
+
+DSH post31916/dispatcher13450 and nested capture all0, pins unchanged.
+All15 full files/12 static hashes and complete196 log prefixes retained;
+log sizes27,533/5,031/850,243B. New root header
+f76217b3abbee32f2eee6bd6c7030054385fd75d5b125309ae80160ebdeb5a85.
+physical-review197.json:17 state results,0 null states,0 backboardd crashes,
+bridge installed1, final service298 renewals/9 submitted=completed/shadow128.
+But wrapped-image calls0 and compositor frame receipts0: no observed unlock
+path, and the visual197 question has no reply. DO NOT claim the interface
+fix or accelerated UI is physically qualified from this idle observation.
+This supersedes the prior terminal handoff's pending post-capture action.
+
+Next198 is a same-kernel BOOT-ARG comparison using existing sweethidtest=90
+to try automatic Home events and trigger desktop rendering without a user
+standing by. SweetHIDButtons already emits Menu down and up100ms apart,
+every90s, at most60 transitions. Both OSObject typed/fallback allocation
+use Z_WAITOK_ZERO, so the initial counter is zero. No HID source or rebuild
+is needed. Remove only -noprogress to fit the new arg:601-byte197 command
+becomes605-byte198 command in608-byte field (3 NULs). Preserve every other
+arg and payload byte outside that field. This is artificial input, not a
+new physical-touch qualification or promised unlock; inspect actual native
+outcomes. Phone is in TWRP. All DSH197 outer CLIs are terminal now; root
+owns the active handoff. Keep195 manual vs197 automatic attribution and
+do not reuse the consumed321-block root-write consent.
+
+### 2026-11-09 — 0197 temporary boot TERMINAL; automatic return confirmed
+
+The claimed trial above is finished, not still live. Parent dispatcher11031 and
+nested dispatcher11034 both returned inner exit0 with `inputs_unchanged: true`;
+no retry or timeout. `trial-v1/result.json` is state `observation-finished`,
+observer exit0, cycle 07:42:53.712808–07:50:17.858691UTC (444.146s), automatic
+return to TWRP after443s, `manual_reset: no` under the standing policy. Only
+root-adjacent write was the verified `misc` recovery latch; installed userdata
+was not patched and there was no flash, format or rollback.
+
+One temporary boot of layout-6g.img
+(2516def43af1c88114cbf2a00b4217c88396439a22afdee5e47871cff16ee4ed) transferred
+19,520KiB OKAY0.460s and Booting OKAY0.134s. Cycle log: all seven progress
+markers yes, banner matches, 5 swaps, 74 GPU lookups, 5,334 lines; GPU submits
+through9, shadow128, service 298 renewals then quarantine. `SWEET SURF` create
+id11 returned nonzero state and backboardd remained present through t=190; no
+backboardd sel6 FAR0x30 crash appears in this bounded log. Retained
+observations only: `CRASH driverkitd` far0x13ff10000 and `CRASH PosterBoard`
+far0x1e373ba70 also appear. No UI/Metal/high-refresh qualification is implied.
+
+Next: `dispatch_post197.py` to preserve all15 files and collect bounded
+state/wrap/native-frame receipts before acceptance. No post197 capture exists
+yet.
+
+### 2026-11-09 — 0197 temporary boot live; reviewed source published
+
+DSH boot outer31817, parent dispatcher11031 and nested dispatcher11034 are
+observing the SAME claimed trial. Current15-file/full-prefix preflight
+passed; recovery latch verified; one temporary fastboot transfer19,520KiB
+and Booting both OKAY, total0.599s. trial-v1/preflight.json is
+observer-running, not a result. As of07:45:42UTC it was169s since that
+record with no terminal observer result. Poll the existing stage/handle;
+do not restart it. The197 unlock/open-settings/swipe visual check is pending.
+No physical UI/stability qualification can be inferred from a live test.
+
+DSH publication outer46086 /publication-stage-v1 returned0 with unchanged
+pins. NEW ref codex/gauguin-iosurface-wrap-20261109 on lvyufeng/ios-gauguin
+contains public commit88a968146b11350c7cd01949ddad8acedceac2fd,
+exact tree58bb4b0cec102eeeb92993b4bb6706e98e324e2f and sole public parent
+300733ffe7dcfee3403c956ca7c5f75074e6976a. The six reviewed text files are
+patches0190/0191, series, wrapper host test/fixture and NOTES as7238988.
+No private Git ancestry/Apple files/device dumps uploaded; existing refs
+rechecked unchanged, no force push or explicit CI dispatch. This records
+software checks and a pending physical trial, not a UI/Metal success.
+
 ### 2026-11-09 — 0197 clean build and bounded desktop image ready
 
 Committed selector6 fix/tests:3a22614. DSH native54424/dispatcher73647

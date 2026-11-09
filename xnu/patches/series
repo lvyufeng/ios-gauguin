@@ -187,3 +187,4 @@
 0189-gauguin-runtime-submit-diagnostics.patch
 0190-gauguin-iosurface-state-diagnostics.patch
 0191-gauguin-iosurface-wrap-image.patch
+0192-gauguin-runtime-cached-failure-diagnostics.patch

@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0199 cached runtime-failure attribution passes software checks
+
+Codex patch0192 changes only gauguin_gmu_board.c. The live guard preserves
+the197 predicate order/short-circuit trace and all rejection conditions;
+it saves first-failure reason1..17 and validity-tagged GX/IRQ/reset/root
+values from EXISTING reads. Callback wrappers cache last operation/offset/
+value/status. Quarantine prints these and existing cached SMMU GFSR/FSRs.
+No extra diagnostic MMIO, new retry, looser guard, altered GPU command or
+DMA release. Exact reason mapping is in the candidate/replayed code.
+
+DSH35314/dispatcher15590 native-check-stage-v1 ALL3 jobs0, unchanged pins:
+139 differential assertions compare actual197/199 live-guard function
+traces and sticky first-failure records; existing actual GGR engine17,214
+runtime/ABI plus72 service-health assertions; real ARM64 board TU0 with
+reference objects/headers untouched. This diagnostic change is not a fix
+for the six-IB failure. Private artifacts: research/tmp/dsh-gpu-0199-failure.
+Next clean186-patch replay, full native build, same6GiB/300s/automatic-Home
+temporary trial with current195 libraries, then raw-first capture of the
+new cached STOP records. No new userdata write/rollback is authorized.
+Phone last in TWRP after198, current header a6831e27. Full goal active.
+
 ### 2026-11-09 — 0198 exercised wrapped images; first real desktop submit failed
 
 Same197 kernel,198 image8f56ca21add91a0b98f6d42500962b87ef28b682a12137d924a39cda7c3e2b31,

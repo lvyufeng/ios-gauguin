@@ -2,6 +2,139 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0190 exec shadow and read-only GET8 diagnostic code ready
+
+Patch `0184-gauguin-exec-shadow-and-readonly-memlimit.patch` addresses the
+0189 exec-subject rejection. The process from the VFS context must match the
+actual image thread. A differing `current_proc()` is accepted only for an
+`IMGPF_EXEC` shadow with matching PID, unique ID and PID version. Other execs
+retain the existing checks. The two new reason codes separate unsupported
+images and caller/shadow association failures. Path, root vnode, UID and
+library protection predicates are retained.
+
+If the unentitled protected UID 501 compositor attempts the exact 16-byte
+self GET8, the existing EPERM branch now logs the values from the same native
+memlimit getter. It preserves the original error and never touches the user
+buffer. The diagnostic needs both existing opt-ins and the exact protected
+backboardd vnode. There is no GPU authorization or jetsam policy change.
+
+Host v2 passed 52 production exec and GET8 cases with ASAN/UBSAN, including a
+real extraction path with modeled valid/rejected shadows and the unchanged
+GET8 authorization return. Host v1 had a duplicate Darwin SDK macro, fixed
+in the fixture. Retained 49 loader and 38 AMFI cases passed. All three actual
+ARM64 TUs returned 0 using 2,128 pinned 0189 header/config inputs. DSH handle
+23097 emitted three startup events and no tool or claim for at least 118s;
+the fallback claimed the profile once, closed both handles and stopped only
+owned headless PID 70415. See `research/tmp/dsh-eagl-0190-loader/cross-v1`.
+
+Next replay 178 patches from pristine and compare with frozen 0189, then build
+and test an 0190 temporary image using the exact 0189 command and installed
+root. The physical review must distinguish successful env append/exec from
+constructor loading and actual budget. With a denied self GET8, require the
+same-PID kernel limit record plus real constructor metadata and VM footprint;
+keep the denied userspace result intact. No 0190 image, device command or
+new userdata write at this entry. Phone last seen in TWRP after 0189.
+
+### 2026-11-09 — 0189 completes GLES regression; exec target check skipped append
+
+The one 0189 temporary boot returned automatically to TWRP in 746.419634s
+(00:56:48.553862–01:09:14.973496 UTC). Boot stage and read-only post stage
+finished 0 with unchanged inputs. Outer handles 68096 and 36779 closed. The
+post stage captured 12 files, checked all nine static files, and verified all
+three entire earlier log prefixes. No new userdata write. Full current logs
+for the next preflight are 13,970 / 3,417 / 464,040 bytes in
+`research/tmp/dsh-eagl-0189-loader/post-trial-capture-v1`.
+
+`independent-physical-review.json` confirms FD619 ES 3.1 Mesa 25.0.7, startup
+seed 3208706807 and all 8,192 normal / 1,024 surface words. Shader seed
+2142617177, 1,024 RGBA and 1,024 sampled BGRA pixels, hashes 3133426629 and
+1911354309. Six submits and fences, final shadow 92, 595 renewals across the
+600s service. Six 128 MiB hard-limit phases and the same 269-byte Mesa warning.
+
+Actual PID 57 had the xpcproxy job trace, then `SWEET EAGL INJECT` outcome 6,
+reason 1, error 0, added 0. Final backboardd exec has envc 10, mode/admission 1,
+insert/expected 0. Two protected UID 501 AMFI PATH queries succeeded. No inert
+library open/mmap checks or constructor lines. Backboardd added 5,156 log bytes
+and did not crash. The physical rejection is observed; reason 1 grouped several
+checks. Source analysis identifies a broken assumption in that group: normal
+`__mac_execve` creates a new shadow proc and assigns its thread and credential
+to the exec VFS context before activation. `proc_exec_switch_task` only runs
+after activation. `forkproc` gives this shadow the caller's PID, unique ID and
+PID version and sets `P_REF_SHADOW`. A bare pointer equality with the old
+`current_proc()` rejects that supported exec path.
+
+The historical backboardd executable pinned by 0186 is 1,184,848 bytes, SHA256
+`7aa6f8bf5ea2c3634fb8c8916a4e9c3c84508de78eccf57ca65c1ae4f676267c`.
+Its XML signature slot has 80 entitlements, with no `com.apple.private.memorystatus`;
+the DER slot also lacks that key. Receipt `offline-backboard-v1/result-v2.json`.
+The first codesign text parse failed; the exact embedded signature slots were
+then parsed directly. The actual kernel requires root or that entitlement for
+GET8 even for self. This predicts a GET8 denial once the constructor runs;
+there is no runtime constructor/GET8 result yet.
+
+Next accept the normal exec shadow only when its authoritative image thread,
+IMGPF_EXEC flag, shadow state, PID and stable identity all match. Split subject
+failure reasons to disambiguate future boots. Preserve the existing vnode/cred
+checks and exact inert library. Include a scoped kernel log of the same internal
+memlimit values if the protected compositor's exact self-GET8 is denied, with
+the syscall still returning its original error. This can verify the constructor
+and startup budget in one trial. 0190 is not built or booted at this entry.
+The full goal remains active. GPU compositor rendering, Metal, high refresh,
+full safe memory and daily use still need physical verification.
+
+### 2026-11-09 — 0189 temporary boot live, observer handle 68096
+
+The reviewed image `5801acd4` was sent once and `fastboot boot` returned OKAY
+in 0.605s. Stage `boot-stage-v1` was claimed by dispatcher PID 68817 at epoch
+1794185803.45052. The preflight verified the current root header and recovery
+latch. Observer is running on local outer handle **68096**. The approved 0186
+root is in use. This trial has no new userdata write.
+
+Wait on the same handle. The established GPU service interval is 600s, with
+780s observation and an 860s wrapper bound. USB absence during iOS is expected.
+After a terminal exit, use `prepare_post189.py` and `post-stage-v1.json` only if
+the wrapper returned 0. Do not retry a claimed boot. If capture is partial,
+preserve raw evidence and record which checks failed. No user UI/reset prompt
+while the unattended trial is progressing. Recheck only if recovery is stuck.
+
+### 2026-11-09 — 0189 native image and single temporary-boot profile ready
+
+Kernel source is `c18890577ae985d86837c9a6ddd569eca4562cbc`. Pristine replay of
+177 patches produced 5,329 files and SHA256
+`2e653bc3c919369cf2f957b53c091a423ee48f5219ebf37c1bb50dfbf320e385`.
+Only `bsd/kern/kern_exec.c` differs from frozen 0188. The default host test
+entry on this replay passed all 34 new cases. The published source commit
+`a231a82be64ed6a86be3c9ed7c60f2d5985af182` on
+`codex/gauguin-eagl-insertion-20261109` has the exact tree
+`ad336261630f1fbd39eae4e0d0dcbf2ede746777` and sole parent `c241867`.
+Publication contains five reviewed text files. No Actions run.
+
+The local native run `gauguin.zAV8Uo` returned build and qualification 0.
+The pinned build stage finished in 251.622s with all inputs unchanged.
+Kernel SHA256 `68adfde30ba5ba78cb2e514f9118339e48f067d3b3177a6995fbb175415d8083`,
+build ID `xnu-ab17d02f8d954c1d9ebaee6e18461271`. DSH handle 63930 emitted only
+three startup events with no claim for more than 120s. The local fallback
+claimed the same profile once. Owned headless PID 32464 stopped after command
+and children checks, and both outer build handles closed.
+
+`shim/out/shim-p3-gmuf-0189-native-20261109.img` is 19,988,480 bytes, SHA256
+`5801acd4fc83d1d099c66eb2521dc5886175e0d61d21f554553a23b6beea9810`.
+Payload SHA256 `a2e271b4c9e2e8f1760097b57a18bdd752ccf10d358ecfc647a4331cb01763e9`.
+The 601-byte command and seven NULs fit the 608-byte field. The only effective
+change from 0188 is `sweeteagl=1`; omitted `sweetbusprobe=0` defaults to zero.
+4 GiB window, five firmware assets, shim, DTB and the 600s GPU interval match.
+Current TWRP read-only capture verified all nine 0186 static files and all
+three full 0188 log prefixes (11,927 / 3,148 / 458,884 bytes). No root write.
+
+`research/tmp/dsh-eagl-0189-loader/boot-stage-v1.json` is ready for exactly one
+temporary boot, with the proven byte-identical wrapper, 780s observation and
+860s timeout. The new framing model passed 14 cases, including actual 0188 as
+a negative control. After automatic recovery, pin the terminal trial and run
+`prepare_post189.py` and the resulting post stage. Check exact PID-correlated
+append, final exec, 0186 constructor and independently verified GLES health.
+At this entry no 0189 device boot or compositor runtime claim exists. The user
+is away; only request manual action if the device actually gets stuck.
+
 ### 2026-11-09 — 0189 opt-in exec insertion passes host and native TU checks
 
 Patch `0183-gauguin-opt-in-eagl-exec-insertion.patch` changes only `kern_exec.c`.

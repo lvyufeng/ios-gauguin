@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the real exec argument copy and alignment with the inert opt-in."""
 import argparse
+import errno
 import os
 from pathlib import Path
 import re
@@ -10,9 +11,9 @@ import tempfile
 
 def test(source, output):
     fixture = Path(__file__).with_name('fixtures') / 'eagl_inject_host.c'
-    source_path = source / 'bsd/kern/kern_exec.c'
-    original = source_path.read_bytes()
-    text = original.decode()
+    kern = source / 'bsd/kern'
+    originals = {name: (kern / name).read_bytes() for name in ('kern_exec.c', 'sweet_amfi.c', 'kern_memorystatus.c')}
+    text = originals['kern_exec.c'].decode()
     assert 'static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);' in text
     assert text.count('sweet_eagl_exec_inject(imgp);\n#endif\n\n\t/* Save space for envv[] NULL terminator */') == 1
     output.mkdir(parents=True)
@@ -24,12 +25,29 @@ def test(source, output):
         start = text.index(f'static int\n{symbol}(')
         end = text.index('\n}\n', start) + 3
         (output / f'production-{name}.h').write_text(text[start:end])
+    for name, file, marker in (
+        ('diagnostic-caller', 'sweet_amfi.c', 'SWEET_EAGL_DIAGNOSTIC_CALLER'),
+        ('memory', 'kern_memorystatus.c', 'SWEET_EAGL_DENIED_GET8'),
+    ):
+        body = originals[file].decode()
+        start = body.index('\n', body.index(f'/* {marker}_BEGIN */')) + 1
+        end = body.index(f'/* {marker}_END */', start)
+        (output / f'production-{name}.h').write_text(body[start:end])
+    memory = originals['kern_memorystatus.c'].decode()
+    start = memory.index('\tif (!kauth_cred_issuser', memory.index('\nmemorystatus_control('))
+    end = memory.index('\n\t}\n', start) + 4
+    auth = memory[start:end]
+    assert '\t\tsweet_eagl_log_denied_get8(p, args);\n#endif\n\t\terror = EPERM;\n\t\tgoto out;' in auth
+    (output / 'production-auth.h').write_text(auth)
 
     cases = (
         'mobile root exact-fit one-short partial-copy disabled bad-flag trace-off other-path null-context '
         'mode-absent mode-duplicate mode-other already conflicting duplicate other-proc script addr32 '
         'missing-vnode no-cred setuid other-uid no-target wrong-target target-mount no-attributes '
-        'getattr-error target-acl no-library library-mode library-owner library-type library-acl-error'
+        'getattr-error target-acl no-library library-mode library-owner library-type library-acl-error null-thread '
+        'shadow shadow-no-exec shadow-not-marked shadow-wrong-pid shadow-wrong-id shadow-wrong-version '
+        'memory-self memory-disabled memory-other-proc memory-other-uid memory-root memory-entitled '
+        'memory-other-pid memory-wrong-size memory-wrong-command memory-flags memory-no-buffer'
     ).split()
     binary = output / 'eagl-inject-model'
     compiler = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--find', 'clang'], text=True).strip()
@@ -43,22 +61,30 @@ def test(source, output):
         (output / f'{case}.stderr').write_text(result.stderr)
         assert result.returncode == 0 and not result.stderr, (case, result.returncode, result.stderr)
         lines = result.stdout.splitlines()
+        if case.startswith('memory-'):
+            expected = []
+            if case == 'memory-self':
+                expected.append('SWEET EAGL MEMLIMIT: pid=57 active_mb=64 active_attr=1 inactive_mb=-1 inactive_attr=0')
+            error = 0 if case in ('memory-root', 'memory-entitled') else errno.EPERM
+            expected.append(f'MEMORY PASS error={error} snapshots={int(case == "memory-self")}')
+            assert lines == expected, (case, lines)
+            continue
         model = re.fullmatch(r'MODEL PASS outcome=(\d+) reason=(\d+) event=([01])', lines[-1])
         assert model is not None, (case, lines)
         outcome, reason, event = map(int, model.groups())
         appended = int(outcome == 1)
         assert len(lines) == 1 + event + appended, (case, lines)
         if event:
-            error = 14 if case == 'partial-copy' else 0
-            pid = 58 if case == 'other-proc' else 57
+            error = errno.EFAULT if case == 'partial-copy' else 0
+            pid = 58 if case in ('other-proc', 'shadow-wrong-pid') else 57
             expected = (fr'SWEET EAGL INJECT: pid={pid} outcome={outcome} reason={reason} error={error} '
                         fr'added={appended} envc=\d+ uid=\d+ ruid=\d+')
             assert re.fullmatch(expected, lines[0]), (case, lines)
         if appended:
             assert lines[1] == ('SWEET DYLD EXEC: pid=57 image=1 argc=1 envc=3 job=0 '
                                 'insert=1 expected=1 mode=1 admission=1'), (case, lines)
-    assert source_path.read_bytes() == original
-    print(f'PASS {len(cases)} production exec extraction and insertion cases (ASAN + UBSAN)')
+    assert all((kern / name).read_bytes() == original for name, original in originals.items())
+    print(f'PASS {len(cases)} production exec and GET8 diagnostic cases (ASAN + UBSAN)')
 
 
 if __name__ == '__main__':

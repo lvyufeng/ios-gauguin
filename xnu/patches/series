@@ -179,3 +179,4 @@
 0181-gauguin-compositor-dyld-probe.patch
 0182-gauguin-loader-env-file-observation.patch
 0183-gauguin-opt-in-eagl-exec-insertion.patch
+0184-gauguin-exec-shadow-and-readonly-memlimit.patch

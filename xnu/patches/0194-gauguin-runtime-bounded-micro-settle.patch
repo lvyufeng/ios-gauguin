@@ -1,0 +1,91 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -268,14 +268,31 @@
+     gfw_read_sample=(struct gfw_read_sample){3,space,off,1,value};
+     return value;
+ }
++struct gfw_micro_sample {
++    uint32_t attempts,recovered,polls,initial,current,expected,mask,elapsed_us;
++};
++static struct gfw_micro_sample gfw_micro_sample;
++static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current);
+ static bool gfw_faults(bool gpu_probe)
+ {
+     const struct gsm_receipt *s=&gmb_work.smmu;uint32_t v;uint64_t ttbr;
+     bool own_halt=gpu_probe&&ggb_context.state==1&&ggb_context.halt_attempted&&ggb_context.phase<GGS_FINAL;
+     uint32_t micro_mask=~(8u|(own_halt?4u:0u));
++    bool settled=false;
++again:
+     if(!gfw_observe32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
+        !gfw_observe32(NULL,0,&v)||v!=s->cr0_after||
+-       !gfw_observe32(NULL,0x6000,&v)||(v&micro_mask)!=(s->micro_after&micro_mask)||((v&4)&&!own_halt))return false;
++       !gfw_observe32(NULL,0x6000,&v))return false;
++    if((v&micro_mask)!=(s->micro_after&micro_mask)||((v&4)&&!own_halt)){
++        /* Bit8 is undocumented here: never ignore it or claim it is a status
++         * bit. During an in-flight runtime job ONLY, allow the observed2270
++         * word to settle back to the EXACT original predicate. Then repeat
++         * every fault/control read, including GFSR/CR0, once from the start. */
++        if(!settled&&ggrb_micro_settle(gpu_probe,s->micro_after,micro_mask,v)){
++            settled=true;goto again;
++        }
++        return false;
++    }
+     for(unsigned n=0;n<2;n++){
+         if(s->bank[n]>=GSM_BANKS||s->slot[n]>=GSM_STREAMS)return false;
+         uint32_t cb=0x8000+0x1000*s->bank[n];
+@@ -3888,6 +3905,44 @@
+ {int flag=0;(void)PE_parse_boot_argn("sweetgpuservice",&flag,sizeof(flag));return flag==1&&sweet_gpu_runtime_requested();}
+ static uint64_t ggrb_ns(void *cookie)
+ {(void)cookie;uint64_t ns;absolutetime_to_nanoseconds(mach_absolute_time(),&ns);return ns;}
++static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current)
++{
++    /* An experiment in bounded waiting, NOT a relaxed SMMU invariant. Never
++     * wait during firmware/probe/setup/idle checks, for a HALT request, for
++     * all-ones/unreadable MMIO, or for any other control-word difference. */
++    if(gpu_probe||!ggrb_started||ggrb_context.state!=GGR_BUSY||
++       !gmb_thread()||sweet_gmu_board_state()!=GMB_READY||
++       mask!=~8u||(expected&mask)!=0x2370u||(current&mask)!=0x2270u)return false;
++    uint64_t start=ggrb_ns(NULL),end;
++    if(start>UINT64_MAX-UINT64_C(20000000))return false;
++    end=start+UINT64_C(20000000);
++    if(end>ggrb_context.operation_end_ns)end=ggrb_context.operation_end_ns;
++    ++gfw_micro_sample.attempts;
++    gfw_micro_sample.initial=current;gfw_micro_sample.current=current;
++    gfw_micro_sample.expected=expected;gfw_micro_sample.mask=mask;
++    gfw_micro_sample.elapsed_us=0;
++    bool recovered=false;
++    for(unsigned i=0;i<2000;i++){
++        if(ggrb_ns(NULL)>=end||mach_absolute_time()>=ggrb_end||
++           !gauguin_wdt_lease_check_budget(GMB_MIN)||
++           sweet_gmu_board_state()!=GMB_READY)break;
++        IODelay(10);
++        if(ggrb_ns(NULL)>=end||mach_absolute_time()>=ggrb_end||
++           !gauguin_wdt_lease_check_budget(GMB_MIN)||
++           sweet_gmu_board_state()!=GMB_READY)break;
++        ++gfw_micro_sample.polls;
++        if(!gfw_observe32(NULL,0x6000,&current))break;
++        gfw_micro_sample.current=current;
++        if(ggrb_ns(NULL)>=end||mach_absolute_time()>=ggrb_end)break;
++        if((current&mask)==(expected&mask)){
++            recovered=true;++gfw_micro_sample.recovered;break;
++        }
++        if((current&mask)!=0x2270u)break;
++    }
++    uint64_t elapsed=(ggrb_ns(NULL)-start)/1000;
++    gfw_micro_sample.elapsed_us=elapsed>UINT32_MAX?UINT32_MAX:(uint32_t)elapsed;
++    return recovered;
++}
+ static bool ggrb_live(void *cookie)
+ {
+     (void)cookie;struct ggrb_live_sample sample={0};
+@@ -3975,6 +4030,9 @@
+         ggrb_last_op,ggrb_last_space,ggrb_last_offset,ggrb_last_value,ggrb_last_ok,gfw_work.gfsr,gfw_work.fsr[0],gfw_work.fsr[1]);gmb_record(line);
+     snprintf(line,sizeof(line),"SWEET GPU STOP GFW: kind=%u space=%u off=%x value=%016llx ok=%u host=%08x ao=%08x; existing reads only",
+         gfw_read_sample.kind,gfw_read_sample.space,gfw_read_sample.offset,gfw_read_sample.value,gfw_read_sample.ok,gfw_work.host_info,gfw_work.ao_status);gmb_record(line);
++    const struct gfw_micro_sample *m=&gfw_micro_sample;
++    snprintf(line,sizeof(line),"SWEET GPU STOP MICRO: attempts=%u recovered=%u polls=%u initial=%08x current=%08x expected=%08x mask=%08x elapsed_us=%u; exact guard retained",
++        m->attempts,m->recovered,m->polls,m->initial,m->current,m->expected,m->mask,m->elapsed_us);gmb_record(line);
+ }
+ bool sweet_gpu_runtime_ready(void)
+ {

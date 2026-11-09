@@ -189,3 +189,4 @@
 0191-gauguin-iosurface-wrap-image.patch
 0192-gauguin-runtime-cached-failure-diagnostics.patch
 0193-gauguin-gfw-existing-read-cache.patch
+0194-gauguin-runtime-bounded-micro-settle.patch

@@ -2,6 +2,42 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0201 bounded exact-value wait passes software checks
+
+Codex patch0194 does NOT mask unknownbit8. Only an in-flight GGR_BUSY
+runtime job, original expected2370/current2270 (ignoring existing IDLE3),
+may poll for at most20ms/2000 iterations,10us apart, additionally bounded
+by the original operation/service deadlines, watchdog budget and owner
+state. It accepts only restoration of the ORIGINAL full masked predicate,
+then rechecks GFSR/CR0/all banks/TTBR/GMU from the start. Other changes,
+HALT/all-ones/IO failure/setup/idle/probe paths still reject. A second
+mismatch in the repeated guard cannot renew the wait. No hardware writes,
+changed GPU packets, new fault-bit exceptions or DMA releases. Bit8's
+meaning remains UNKNOWN; this is a bounded settling experiment.
+
+DSH33336 native-check-stage-v2 ALL4 jobs0, unchanged pins:307,278 real
+combined-guard assertions include the unchanged307,116 negative-path IO
+comparisons plus recovery/timeout/deadline/wrong-bit/probe/HALT/read-error/
+post-recovery-fault and no-second-wait cases; retained139 live-guard,
+17,214 runtime/ABI+72 service assertions, actual ARM64 board TU0 with
+reference inputs/objects unchanged. Earlier DSH22417 v1 could not load a
+profile after a factory path error; it failed BEFORE any stage claim or
+checks. Preserve its logs. New v2 profile/claim is distinct and terminal0.
+
+Offline200 crash mapping: installed Mesa has a page-aligned slide candidate
+1141c8000 matching PC71cd48=fd_bo_mark_for_dump+0 (ldr w8,[x0,#18]),
+LR=ir3_shader_variant+258 and ALL private backtrace frames: initial-variant
+creation, async compilation, util_queue_thread_func, impl_thrd_routine.
+This fits FAR18/null BO after runtime quarantine; no live image-list proof
+of slide, so retain that inference. It is a second userland error path,
+not the old IOSurface bulk-attachment crash. No root library update yet.
+
+Next clean188-patch replay/full LOCAL native build via DSH, followed by
+same installed195 libraries/6GiB/300s/automatic Home, full raw capture and
+strict submission/fence review. 0200 root header4ea2039b is the new
+preflight anchor; previous full logs must remain exact prefixes. No new
+userdata delta/rollback is authorized. Full goal remains active.
+
 ### 2026-11-09 — 0200 captured: MICRO guard mismatch and compositor crash
 
 0200 is TERMINAL/captured, superseding the live handoff below. Actual

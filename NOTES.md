@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0203 full local native clock-profile build qualified
+
+DSH59265 native-stage-v1 ALL0, pins unchanged. Clean190-patch source5330
+files63060f9aa3e6e7fbd86471af8ea8a34da666e1428f8ea69bf67205682f257d78;
+only gauguin_gmu_board.c differs from202. Source35423200715035e4cf1fe3c7bdd670c4e1e47d5e.
+LOCAL8-job build203-perf, native build0/qualification0, independent
+dependency clones and original195 reference hashes+mtimes unchanged.
+Banner xnu-bfadb80dd5344a588209b231557d647a,
+kernel6fdba114646ff787e10dd45e5a088a18a43a54b726f8acb2d031e65eda3cf5cc.
+
+Next ONE temporary203 automatic Home trial after current202 headerb2c99aa6,
+memory/full15 files/complete202 prefixes preflight. Same195 libraries,
+6GiB/mode2/300s. Post203 explicitly uses tested300s service-window parser;
+all whole-session failures remain recorded. Timing must have pending0,
+submit count matching real completed fences, guard time<=submit wall time,
+and both sums bounded by observer elapsed time. No GPU-only time claim.
+No203 physical result yet; no new userdata delta or user action requested.
+Root owns NOTES; full goal active.
+
 ### 2026-11-09 — 0203 guard/submit elapsed-time profiling passes software checks
 
 Codex patch0196 changes only gauguin_gmu_board.c. The ORIGINAL live

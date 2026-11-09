@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0208 whole GPU request elapsed profiler checked and promoted
+
+Patch0201 adds ONLY elapsed CPU-clock diagnostics to three kernel files.
+Original full hardware predicates, add/drop/surface/submit and locked wrapper
+bodies are retained; no steady success logging, new GPU MMIO or changed
+results. Lock-acquisition delay includes scheduling; locked-request elapsed
+includes cache/PTE/allocation/I/O and GPU waits. Scope combines all admitted
+clients plus heartbeat, excludes other IOSurface/framebuffer clients and
+userland. Freeze after existing authority poisoning; retain incomplete call
+separately, dump bounded cached records through existing quarantine logger.
+
+DSH45257 private host92 assertions and both native TUs0; reference2129 inputs
+and objects unchanged. Promoted tests/test_gpu_api_perf.py differs ONLY in
+path configuration; DSH host-promotion-stage-v1 ALL0, same92 assertions,
+pins unchanged. checks-summary.json closes both without repeating native
+compiles. Patch0201/test/series now ready to commit. Next fresh195-patch
+LOCAL8-job full208 build and defined Freeze/Dump symbol qualification.
+No208 full image/device result yet. Phone last TWRP/current207 headerc2698d;
+same195 userland, no userdata change/rollback. Lag remains unresolved.
+
 ### 2026-11-09 — 0207 terminal PASS; RO fallback not exercised; private208 checks PASS
 
 207 automatic14:09:51.363395–14:22:18.065684UTC,746.702289s. DSH25643 boot

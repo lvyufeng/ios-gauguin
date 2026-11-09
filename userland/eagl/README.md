@@ -93,3 +93,22 @@ return-address diagnostics and unused extension counter. It preserves
 `-Wall -Wextra -Werror`. Both Mach-O products have one constructor, verified
 through this toolchain's `S_INIT_FUNC_OFFSETS` entry and local symbol table.
 The default build retains these same diagnostics and disabled bridge.
+
+The compositor build also requires the 20H392 QuartzCore `function_uniform`
+observer before it publishes its EAGL subclass. The observer validates the
+QuartzCore UUID, unslid image base, the single GLESContext virtual slot and
+64 bytes of the actual method entry. It changes a private COW data page,
+restores its original protection, and rolls the slot back if protection
+restoration fails. All calls, including native contexts and rejected uniform
+arguments, forward unchanged to the original method exactly once.
+
+Effect uniforms belong to each registered EAGL context, rather than the
+upstream global CA pointer and arrays. Bounded self-task reads validate the
+live CA vptr and its dispatch-table association before collecting uniforms or
+selecting a draw function. Invalid updates clear the affected uniform count;
+unreadable or mismatched contexts yield an unknown function. Draw snapshots
+and observer updates use the registry lock. EAGL's usual requirement that a
+context be used by one thread at a time still applies. Native contexts never
+receive the custom state. The host observer tests use the production code,
+actual Mach VM/COW pages and ASAN/UBSAN; device visual correctness remains a
+separate requirement.

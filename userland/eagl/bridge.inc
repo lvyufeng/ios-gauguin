@@ -52,6 +52,7 @@ gauguin_eagl_install_subclass(Class parent, const struct gauguin_eagl_method *me
         say("GAUGUIN EAGL BRIDGE rejected existing class or initializer\n");
         return 0;
     }
+    if (!gauguin_ca_install()) return 0;
     Class subclass = objc_allocateClassPair(parent, name, 0);
     if (subclass == Nil) {
         say("GAUGUIN EAGL BRIDGE subclass allocation failed\n");

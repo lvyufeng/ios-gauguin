@@ -43,6 +43,24 @@ _Static_assert(__builtin_types_compatible_p(__typeof__(&my_texImageIOSurface), g
     return s
 
 def adapt_render_eagl(source):
+    source = replace_once(source, 'struct eagl {',
+                          '#include "ca_effects.h"\n\nstruct eagl {')
+    source = replace_once(source, '\tid object;                      /* the EAGLContext */',
+                          '\tstruct gauguin_ca_effects ca, ca_draw;\n'
+                          '\tid object;                      /* the EAGLContext */')
+    start = source.index('/* Four of a function\'s numbers at a time,')
+    end = source.index('/* boot-arg glplain=0:', start)
+    source = source[:start] + '#include "ca_observer.inc"\n\n' + source[end:]
+    source = source.replace('function_values[', 'e->ca_draw.values[')
+    source = source.replace('function_given[', 'e->ca_draw.given[')
+    source = replace_once(source,
+        'e->colour == e->bound[0] && ca_context != NULL &&\n'
+        '\t       *(*(uint8_t **)((char *)ca_context + 0x10) + 0x10) == FUNCTION_VARIABLE_DOWNSAMPLE;',
+        'e->colour == e->bound[0] && gauguin_ca_function(e) == FUNCTION_VARIABLE_DOWNSAMPLE;')
+    needle = 'ca_context != NULL ? *(*(uint8_t **)((char *)ca_context + 0x10) + 0x10) : 90'
+    assert source.count(needle) == 2
+    source = source.replace(needle, 'gauguin_ca_function(e)')
+    assert 'ca_context' not in source
     source = replace_once(source, 'static struct eagl *contexts[8];',
                           'static struct eagl *contexts[8];\n'
                           'static pthread_mutex_t gauguin_context_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;')
@@ -178,7 +196,7 @@ def main():
     manifest=e/'upstream.json';m=json.loads(manifest.read_text());assert m['commit']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
     inputs={str(p):sha(p) for p in [Path(__file__).resolve(),manifest,e/'admission.c',e/'LICENSE.upstream',a.registry.resolve()]}
     if a.compositor_bridge:
-        inputs.update({str(p):sha(p) for p in (e/'bridge.inc',e/'pilot.c')})
+        inputs.update({str(p):sha(p) for p in (e/'bridge.inc',e/'pilot.c',e/'ca_effects.h',e/'ca_observer.inc')})
     for row in m['files']:
         p=cache/row['cache_name'];b=p.read_bytes();assert len(b)==row['bytes'] and sha(p)==row['sha256']
         assert hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()==row['git_blob'];inputs[str(p)]=sha(p)
@@ -201,7 +219,8 @@ def main():
         adapted=adapt_eagl((source/'eagl.c').read_text())
         if a.compositor_bridge:
             adapted=adapt_render_eagl(adapted)
-            shutil.copyfile(e/'bridge.inc',source/'bridge.inc')
+            for local in ('bridge.inc', 'ca_effects.h', 'ca_observer.inc'):
+                shutil.copyfile(e/local, source/local)
         (source/'eagl.c').write_text(adapted)
         shutil.copyfile(e/'LICENSE.upstream',source/'LICENSE.upstream')
         run(['/usr/bin/nm','-gU',str(lib)],'accepted-Mesa-exports')

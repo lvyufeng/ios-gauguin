@@ -85,6 +85,9 @@ static void my_dealloc(id self, SEL selector)
     native_dealloc(self, selector);
 }
 
+static bool ca_allowed;
+static int gauguin_ca_install(void) { return ca_allowed; }
+
 @BRIDGE@
 
 static id make_context(Class cls)
@@ -172,6 +175,10 @@ int main(int argc, char **argv)
     CHECK(!gauguin_eagl_bridge_installed());
     CHECK(gauguin_eagl_install_subclass(test_parent, methods, 7) == 0);
     CHECK(api(existing) == 777 && !gauguin_eagl_bridge_installed());
+    CHECK(gauguin_eagl_install_subclass(test_parent, methods, 8) == 0);
+    CHECK(api(existing) == 777 && !gauguin_eagl_bridge_installed());
+    CHECK(objc_lookUpClass("GauguinA619EAGLContext") == Nil);
+    ca_allowed = true;
     pthread_t threads[4];
     for (unsigned i = 0; i < 4; ++i) CHECK(pthread_create(&threads[i], NULL, create_concurrently, NULL) == 0);
     CHECK(gauguin_eagl_install_subclass(test_parent, methods, 8) == 8);

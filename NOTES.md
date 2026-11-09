@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0210 scoped CA effect observer built; NOT installed
+
+Main NOTES remains authoritative for the device. R4 showed missing icons,
+red-to-black lockscreen and an actual pre-deadline backboardd crash after
+256 BO slots were exhausted. Perf209 rollout is deferred. The active195
+bridge omitted inject.c's function_uniform observer, leaving its effect
+state disconnected. This branch now wires the actual20H392 uniform method,
+not the different upstream20F66 addresses, and refuses subclass publication
+if UUID/base/slot/instruction validation or COW protection fails.
+
+Uniform state is per owned EAGL; callbacks associate context+0x7f8 with our
+registered dispatch table. Safe bounded reads revalidate CA vptr/table at
+draw time. Native calls always forward once with their original arguments;
+invalid index/components/count/pointers cannot overwrite another context.
+Observer updates and draw snapshots are locked; native EAGL single-thread
+context use remains required. No full inject.c port or native context swap.
+
+Main private dsh-ui-0210-ca-functions/build-stage-v2 DSH41843 ALL6 jobs0,
+inputs unchanged:6479 actual-Mach/forward/COW rollback/context assertions;
+real ObjC39703/39937 assertions; default14/render22 admission scenarios;
+signed iOS bridge563200B aafa07f85e6e2ae86d525ebcd1f5661a0fee561009521b28584b15da1e83eab9.
+Launcher remains exact195 a1b98155; disabled default libraries remain exact
+18667f7be39/ac9171b4. V1 retained: host tests passed but iOS unsupported
+mach_vm APIs and missing admission --out failed; v2 uses supported 64-bit
+vm APIs and proper admission arguments. No device writes or new boot.
+
+Main fresh21016GiB backup completed DSH18063 ALL0, header6984d543 unchanged,
+backup915515581d8d1a926ab7dc60479c07fe0eb4c66070f634031147f6de8d2ca8cb.
+Next: prepare/check exact local HFS delta and all real old blocks before
+separate AGENTS-required write approval. CA effects/visual output are still
+UNQUALIFIED on device; buffer-slot exhaustion is a separate unresolved fix.
+
 ### 2026-11-09 — 0195 v2 handles direct subclass creation and native fallback
 
 DSH v2 outer21127, dispatcher76793, returned0 with unchanged inputs for

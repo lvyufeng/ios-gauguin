@@ -1,0 +1,18 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3978,8 +3978,13 @@
+ {
+     if(!ggrb_root||!sweet_gpu_runtime_ready())return false;
+     enum ggr_error rc=ggr_submit(&ggrb_context,a,w,n,fence);
+-    char line[192];snprintf(line,sizeof(line),"SWEET GPU USER: submit rc=%u ibs=%u submitted=%u completed=%u shadow=%u polls=%u",
+-        rc,n,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr,ggrb_context.polls);gmb_record(line);
++    /* Keep all startup/failure evidence. Continuous rendering uses the
++     * existing hardware-checked counters and periodic success snapshots,
++     * avoiding a synchronous UFS mark/ring write for every draw submission. */
++    if(rc!=GGR_OK||!ggrb_service||ggrb_context.completed<=16||ggrb_context.completed%120==0) {
++        char line[192];snprintf(line,sizeof(line),"SWEET GPU USER: submit rc=%u ibs=%u submitted=%u completed=%u shadow=%u polls=%u",
++            rc,n,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr,ggrb_context.polls);gmb_record(line);
++    }
+     return rc==GGR_OK;
+ }
+ bool sweet_gpu_runtime_done(uint32_t f)

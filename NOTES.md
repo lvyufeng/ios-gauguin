@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206 shared MICRO retry budget reproduces205 and passes checks
+
+Codex patch0199 changes ONLY board C from205. Each full gfw_faults call
+owns one stack-local20ms/2000-delay budget, capped by the original operation
+and service deadlines. Repeated EXACT2270 mismatches may settle back to
+the original masked2370/2378 predicate and restart ALL GFSR/CR0/bank/control/
+stream/TTBR/GMU checks, without renewing time or delay allowance. Budget is
+checked before each restart and after the final full pass; late passes
+reject. All other-bit/HALT/all-ones/unreadable/probe/setup/idle/authority/
+fault/route rejection remains. DMA retention and quarantine stay intact.
+Clock snapshot, GPU packet/register/fence protocol and195 libraries unchanged.
+Healthy first-pass MMIO is unchanged from205; repeated transients may cause
+EXTRA full rechecks, so never claim the whole temporal predicate/IO trace
+is unchanged. New cached-only STOP MICRO BUDGET reports rechecks/expiry.
+
+DSH89135 native-check-stage-v1 ALL5 jobs0,pins unchanged. Actual205 helper
+and full guard REPRODUCE the recovered2370/cache2270/one-settle rejection;
+new helper passes that same input and repeats complete checks.307,411
+combined assertions include indefinite alternation exhausting ONE20ms/
+2000-delay budget, operation/service deadlines, authority loss, every final
+full-pass read failure, GFSR/CR0/TTBR corruption and late-pass rejection.
+Retained139 top-level guard+timer cases,17,214 runtime/ABI+72 service+
+55,336 ring-span cases,66,681 clock/legacy-trace cases, ONE real ARM64 board
+TU0; reference inputs/objects unchanged. No206 full build or physical result.
+
+Next clean193-patch replay/full LOCAL native206 build, then a NEW600s
+manual Homeoff trial at existing30Hz after205 header501dc0e9/full15 files/
+COMPLETE205 prefixes and memory preflight. User is available. Notify when
+the new image actually starts and request unlock/swipe/Settings observations
+early, before any hidden early-failure possibility. Keep automatic recovery
+and exact-trial post-capture; no new userdata delta or mixed60Hz change.
+Root owns NOTES/code; DSH executes. Full goal remains active.
+
 ### 2026-11-09 — 0205 FAILED early SMMU guard; user reports lag/no black screen
 
 Supersedes LIVE handoff below. Automatic11:52:23.551038–11:56:26.242796UTC,

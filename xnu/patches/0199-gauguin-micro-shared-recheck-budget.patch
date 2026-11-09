@@ -1,0 +1,116 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -270,16 +270,22 @@
+ }
+ struct gfw_micro_sample {
+     uint32_t attempts,recovered,polls,initial,current,expected,mask,elapsed_us;
++    uint32_t rechecks,expired;
+ };
+ static struct gfw_micro_sample gfw_micro_sample;
+-static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current);
++/* One budget for every transient/recheck in this single full guard. Never
++ * restart the deadline or delay count when a recovered word changes again. */
++struct gfw_micro_wait { uint64_t start_ns,end_ns;uint32_t delays;bool started; };
++static uint64_t ggrb_ns(void *cookie);
++static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current,struct gfw_micro_wait *wait);
+ static bool gfw_faults(bool gpu_probe)
+ {
+     const struct gsm_receipt *s=&gmb_work.smmu;uint32_t v;uint64_t ttbr;
+     bool own_halt=gpu_probe&&ggb_context.state==1&&ggb_context.halt_attempted&&ggb_context.phase<GGS_FINAL;
+     uint32_t micro_mask=~(8u|(own_halt?4u:0u));
+-    bool settled=false;
++    struct gfw_micro_wait wait={0};
+ again:
++    if(wait.started&&ggrb_ns(NULL)>=wait.end_ns){++gfw_micro_sample.expired;return false;}
+     if(!gfw_observe32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
+        !gfw_observe32(NULL,0,&v)||v!=s->cr0_after||
+        !gfw_observe32(NULL,0x6000,&v))return false;
+@@ -288,9 +294,7 @@
+          * bit. During an in-flight runtime job ONLY, allow the observed2270
+          * word to settle back to the EXACT original predicate. Then repeat
+          * every fault/control read, including GFSR/CR0, once from the start. */
+-        if(!settled&&ggrb_micro_settle(gpu_probe,s->micro_after,micro_mask,v)){
+-            settled=true;goto again;
+-        }
++        if(ggrb_micro_settle(gpu_probe,s->micro_after,micro_mask,v,&wait))goto again;
+         return false;
+     }
+     for(unsigned n=0;n<2;n++){
+@@ -319,6 +323,7 @@
+         /* Native AO watchdog/fence/AHB errors; delivery remains masked. */
+         if(gfw_work.ao_status==UINT32_MAX||(gfw_work.ao_status&0x29))return false;
+     }
++    if(wait.started&&ggrb_ns(NULL)>=wait.end_ns){++gfw_micro_sample.expired;return false;}
+     return true;
+ }
+ static bool gfw_guard(void *cookie,enum gmf_phase phase)
+@@ -3912,41 +3917,48 @@
+     uint32_t pending;
+ };
+ static struct ggrb_perf_sample ggrb_perf;
+-static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current)
++static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current,struct gfw_micro_wait *wait)
+ {
+     /* An experiment in bounded waiting, NOT a relaxed SMMU invariant. Never
+      * wait during firmware/probe/setup/idle checks, for a HALT request, for
+      * all-ones/unreadable MMIO, or for any other control-word difference. */
+-    if(gpu_probe||!ggrb_started||ggrb_context.state!=GGR_BUSY||
++    if(!wait||gpu_probe||!ggrb_started||ggrb_context.state!=GGR_BUSY||
+        !gmb_thread()||sweet_gmu_board_state()!=GMB_READY||
+        mask!=~8u||(expected&mask)!=0x2370u||(current&mask)!=0x2270u)return false;
+-    uint64_t start=ggrb_ns(NULL),end;
+-    if(start>UINT64_MAX-UINT64_C(20000000))return false;
+-    end=start+UINT64_C(20000000);
+-    if(end>ggrb_context.operation_end_ns)end=ggrb_context.operation_end_ns;
++    if(!wait->started){
++        uint64_t start=ggrb_ns(NULL);
++        if(start>UINT64_MAX-UINT64_C(20000000))return false;
++        wait->start_ns=start;wait->end_ns=start+UINT64_C(20000000);
++        if(wait->end_ns>ggrb_context.operation_end_ns)wait->end_ns=ggrb_context.operation_end_ns;
++        wait->started=true;
++    } else ++gfw_micro_sample.rechecks;
+     ++gfw_micro_sample.attempts;
+     gfw_micro_sample.initial=current;gfw_micro_sample.current=current;
+     gfw_micro_sample.expected=expected;gfw_micro_sample.mask=mask;
+     gfw_micro_sample.elapsed_us=0;
+     bool recovered=false;
+-    for(unsigned i=0;i<2000;i++){
+-        if(ggrb_ns(NULL)>=end||mach_absolute_time()>=ggrb_end||
++    while(wait->delays<2000){
++        if(ggrb_ns(NULL)>=wait->end_ns||mach_absolute_time()>=ggrb_end||
+            !gauguin_wdt_lease_check_budget(GMB_MIN)||
+            sweet_gmu_board_state()!=GMB_READY)break;
+         IODelay(10);
+-        if(ggrb_ns(NULL)>=end||mach_absolute_time()>=ggrb_end||
++        ++wait->delays;
++        if(ggrb_ns(NULL)>=wait->end_ns||mach_absolute_time()>=ggrb_end||
+            !gauguin_wdt_lease_check_budget(GMB_MIN)||
+            sweet_gmu_board_state()!=GMB_READY)break;
+         ++gfw_micro_sample.polls;
+         if(!gfw_observe32(NULL,0x6000,&current))break;
+         gfw_micro_sample.current=current;
+-        if(ggrb_ns(NULL)>=end||mach_absolute_time()>=ggrb_end)break;
++        if(ggrb_ns(NULL)>=wait->end_ns||mach_absolute_time()>=ggrb_end)break;
+         if((current&mask)==(expected&mask)){
+             recovered=true;++gfw_micro_sample.recovered;break;
+         }
+         if((current&mask)!=0x2270u)break;
+     }
+-    uint64_t elapsed=(ggrb_ns(NULL)-start)/1000;
++    uint64_t now=ggrb_ns(NULL);
++    if(!recovered&&(wait->delays>=2000||now>=wait->end_ns||mach_absolute_time()>=ggrb_end))
++        ++gfw_micro_sample.expired;
++    uint64_t elapsed=now>=wait->start_ns?(now-wait->start_ns)/1000:0;
+     gfw_micro_sample.elapsed_us=elapsed>UINT32_MAX?UINT32_MAX:(uint32_t)elapsed;
+     return recovered;
+ }
+@@ -4073,6 +4085,8 @@
+     const struct gfw_micro_sample *m=&gfw_micro_sample;
+     snprintf(line,sizeof(line),"SWEET GPU STOP MICRO: attempts=%u recovered=%u polls=%u initial=%08x current=%08x expected=%08x mask=%08x elapsed_us=%u; exact guard retained",
+         m->attempts,m->recovered,m->polls,m->initial,m->current,m->expected,m->mask,m->elapsed_us);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU STOP MICRO BUDGET: rechecks=%u expired=%u; one20ms/2000-delay budget per guard",
++        m->rechecks,m->expired);gmb_record(line);
+     uint64_t check_ns,max_ns,submit_ns,submit_check_ns;
+     absolutetime_to_nanoseconds(ggrb_perf.check_ticks,&check_ns);
+     absolutetime_to_nanoseconds(ggrb_perf.max_check_ticks,&max_ns);

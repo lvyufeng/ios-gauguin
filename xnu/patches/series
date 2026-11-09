@@ -194,3 +194,4 @@
 0196-gauguin-runtime-guard-clock-profile.patch
 0197-gauguin-runtime-cpu-ring-spans.patch
 0198-gauguin-runtime-clock-read-snapshot.patch
+0199-gauguin-micro-shared-recheck-budget.patch

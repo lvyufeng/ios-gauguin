@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0223 approved77-run write PASS; fixed-path physical trial LIVE
+
+User supplied explicit answer to original9.50MiB question: "允许写入，并允许
+失败时回滚本次触及的块" (call_5f16df11ccb04cfdb8ee6edcfe4885f4 item0).
+Prior missing-consent blocker removed; work resumed on this explicit authority.
+Full objective unchanged/incomplete. Goal API last still said blocked (no agent
+resume-status API); do not interpret old blocked notes as missing current consent.
+Private approval.json SHA d60e57779c2f5bc33e6a9e50466ec14239057a1387b5f1f63520f39c5aae52ef,
+bound exact41cb87fe...2431blocks/9957376B/77runs/touched-run rollback.
+
+DSH65767 apply-stage-v1 TERMINAL exit0/inputs unchanged, outer reaped. REAL
+apply-v1/result.json applied-approved-delta-readback-verified,77writes/77attempts,
+all77 starts verified, header run0 LAST,9957376B, no rollback. Same plan/new
+core+probe/rootjob/cache installed. Frozen local finalbf20ed3b... remains proof;
+no GPT/flash/format or other partition application. New REAL17-file capture
+installed-current-v1 +installed-preflight-v1.json MATCH every expected content/
+size/uid/gid/mode. Preboot/current-installed header NOW
+4cec870197b740667c257c56ff6bf87331de82ce79e6d2ca4690d13a373f2aa8,
+NOT old pre-install91622923. Full old log prefixes68405/10411/1320888B remain.
+
+DSH60796 dispatch-stage-v1/trial-stage-v1 TERMINAL exit1/inputs unchanged,
+outer reaped. Original pilot incorrectly resolved ONE relative kernel-proof
+hash path under223 root after using219 for the git check. It failed on missing
+replay219.py BEFORE creating trial-v1/out, any recoveryIO/misc/boot. Original
+post job then lacked trial-v1/result; both failures retained. Installed17-file
+capture is valid; no userdata rewrite or boot occurred in this first attempt.
+
+Fresh boot_pilot223v2.py changes ONLY proof hash root R->KERNEL_ROOT(219).
+New boot-profile-v2/trial-stage-v2/dispatch-stage-v2, post223v2.py uses trial-v2.
+check_pilot223v2.py runs ALL actual positive host gates against real approved
+installed receipt/image/frozen219 proof, stopping via forbiddenRecoveryIO before
+phoneIO. pilot-v2-host-preflight/result.json PASSED that intentional stop.
+
+DSH34821 owns LIVE dispatch-stage-v2/trial-stage-v2. DO NOT restart.
+trial-v2/preflight.json observer-running/image_boot_attempted=true/misc_verified.
+Actual fastboot: Sending OKAY0.456s, Booting OKAY0.134s, total0.596s.
+Qualified219-based image346c7495... physicalNVT1/no swp/6GiB/mode2/600s; same
+installed14 static files+3log prefixes (17total). Observe780s/timeout860,
+automaticTWRP then post223v2 capturesall17/fullprefixes and independently
+qualifies strict banner,finite600s,native8 fences/28928pixels/root8handoff.
+No current GPU rendering result yet. Do not ask automatic-vs-manual reboot;
+standing unattended policy. Manual recovery only if genuinely stuck.
+
+NEXT: poll EXACT DSH34821 and actual trial-v2/result.json, trial-stage-v2/result,
+physical-review223.json; preserve any failed components. No rerun claimed stage,
+no userdata reapplication, no silent interleaved-banner repair. Capture failure
+still requires actual17 files before native conclusions. Current input/source
+pins must remain frozen during trial; main NOTES is not pinned. Full MTDevice/
+20H392CA/present/all safeRAM/storage/peripherals/highrefresh/daily remain open.
+Bootstrap6GiB/software30Hz. Original main mkadt diff retained. No CI/push.
+
 ### 2026-11-10 CST —0223 blocked audit: exact write consent absent for third consecutive turn
 
 Previous goal turn PROGRESS: actual receipt validator committed, local17-file

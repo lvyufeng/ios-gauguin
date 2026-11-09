@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0210 CA observer software PASS; fresh backup complete
+
+UI worktree commit78b0365 adds the actual20H392 single-slot uniform observer,
+per-owned-context effect/draw state, safe vptr/table association, COW rollback
+and exact native forwarding. Main private0210 build-stage-v2 DSH41843 ALL6
+jobs0/pins unchanged:6479 production Mach-VM observer assertions,
+39703/39937 actual ObjC assertions,14 default +22 render admission cases,
+iOS cross-build/signing. New bridge563200B
+ aafa07f85e6e2ae86d525ebcd1f5661a0fee561009521b28584b15da1e83eab9.
+Launcher remains195a1b98155; default disabled artifacts exact18667f7be39/
+ac9171b4. V1 failure preserved (host tests0, iOS unsupported mach_vm APIs
+and missing admission --out); v2 uses supported arm64 vm APIs and proper
+arguments. README/NOTES were intentionally updated after terminal build;
+actual build source pins remain unchanged. No install or visual acceptance.
+
+DSH18063 backup-stage-v1 now terminal ALL0/pins unchanged:16GiB readonly
+backup915515581d8d1a926ab7dc60479c07fe0eb4c66070f634031147f6de8d2ca8cb,
+header6984d543 unchanged before/after. File0444 in0210/root-backup-v1.
+Phone remains TWRP. Next: prepare exact one-library delta, local fsck,
+writer-model and all real old blocks, then individual new write approval.
+Known256 BO-slot exhaustion is still a separate unresolved issue; do not
+claim the CA observer fixes the crash or all icons without physical evidence.
+
 ### 2026-11-09 UTC — R4 FAILS real UI;256 BO-slot exhaustion + missing CA effects callback
 
 PRIORITY changed by actual R4 feedback: Desktop reachable but icons absent,

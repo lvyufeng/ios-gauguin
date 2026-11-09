@@ -2,6 +2,243 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0201 automatic exact-value settling trial LIVE
+
+DSH4504 boot dispatcher36244 is observing ONE claimed201 trial.
+Qualified native201 package/current memory/header4ea2039b/full15 files
+and complete200 prefixes all passed. Image
+ce73876be61eea0b65ae2b6a914e0636a23eeb3126eaeee50c2d6e3bc2174741,
+6GiB/mode2/300s/automatic Home90,605-byte command. Temporary fastboot
+19,520KiB transfer and Booting both OKAY,total0.599s, observer-running.
+No new userdata delta, flash or rollback. Same195 Mesa/bridge retained.
+
+DSH11834 is the single post-wait-stage-v1: wait for this EXACT observer
+and both actual dispatcher terminals, then preserve all15 full files and
+200 prefixes before reviewing STOP MICRO/submit/compositor evidence.
+No201 physical result yet. User notified no manual work is needed. Do NOT
+reuse R2 UI/lag reports as201 visual observations. Root owns NOTES;
+poll existing claims/handles, never duplicate a stage on timeout.
+
+### 2026-11-09 — 0201 clean full native build qualified; next automatic trial
+
+DSH56858/dispatcher99068 native-stage-v1 terminal0, pins unchanged;
+188-patch replay5330 files8c77b5a646d8200542bd32c953a40d39ead11e28f29133e053ce2faf1b88bed4,
+only gauguin_gmu_board.c differs from200. LOCAL8-job build201-settle,
+run gauguin.lzEjmN, native build0/qualification0, independent APFS clones,
+old195 manifest/source-state hashes+mtimes unchanged. Sourceeaeea825c341d291c6d4b7b89061d04f607a2f3c;
+banner xnu-cf1cdd0529174e9da3b14a6dd36fc9ac,
+kernel9d2b6e32703ab4557c2da513ffc037b40dbd1c46ad5894f6424af6c7f4619676.
+
+DSH38312 read-only primary audit is terminal; private report at
+dsh-gpu-0201-micro-audit/report.md. Confirmed masked GMU receipt2370,
+unknownbit8, only HALT2/IDLE3 defined, no local post-setup driver write
+explains the change. This supports keeping the EXACT guard, as201 does.
+
+Next package/verify current200 full15 files and memory/header, ONE
+temporary201 automatic-Home trial, then all raw files before reviewing
+STOP MICRO counters and actual desktop completion fences. No user visual
+report requested for this automatic diagnostic. No new userdata delta.
+Root owns NOTES; physical qualification remains pending, full goal active.
+
+### 2026-11-09 — 0201 bounded exact-value wait passes software checks
+
+Codex patch0194 does NOT mask unknownbit8. Only an in-flight GGR_BUSY
+runtime job, original expected2370/current2270 (ignoring existing IDLE3),
+may poll for at most20ms/2000 iterations,10us apart, additionally bounded
+by the original operation/service deadlines, watchdog budget and owner
+state. It accepts only restoration of the ORIGINAL full masked predicate,
+then rechecks GFSR/CR0/all banks/TTBR/GMU from the start. Other changes,
+HALT/all-ones/IO failure/setup/idle/probe paths still reject. A second
+mismatch in the repeated guard cannot renew the wait. No hardware writes,
+changed GPU packets, new fault-bit exceptions or DMA releases. Bit8's
+meaning remains UNKNOWN; this is a bounded settling experiment.
+
+DSH33336 native-check-stage-v2 ALL4 jobs0, unchanged pins:307,278 real
+combined-guard assertions include the unchanged307,116 negative-path IO
+comparisons plus recovery/timeout/deadline/wrong-bit/probe/HALT/read-error/
+post-recovery-fault and no-second-wait cases; retained139 live-guard,
+17,214 runtime/ABI+72 service assertions, actual ARM64 board TU0 with
+reference inputs/objects unchanged. Earlier DSH22417 v1 could not load a
+profile after a factory path error; it failed BEFORE any stage claim or
+checks. Preserve its logs. New v2 profile/claim is distinct and terminal0.
+
+Offline200 crash mapping: installed Mesa has a page-aligned slide candidate
+1141c8000 matching PC71cd48=fd_bo_mark_for_dump+0 (ldr w8,[x0,#18]),
+LR=ir3_shader_variant+258 and ALL private backtrace frames: initial-variant
+creation, async compilation, util_queue_thread_func, impl_thrd_routine.
+This fits FAR18/null BO after runtime quarantine; no live image-list proof
+of slide, so retain that inference. It is a second userland error path,
+not the old IOSurface bulk-attachment crash. No root library update yet.
+
+Next clean188-patch replay/full LOCAL native build via DSH, followed by
+same installed195 libraries/6GiB/300s/automatic Home, full raw capture and
+strict submission/fence review. 0200 root header4ea2039b is the new
+preflight anchor; previous full logs must remain exact prefixes. No new
+userdata delta/rollback is authorized. Full goal remains active.
+
+### 2026-11-09 — 0200 captured: MICRO guard mismatch and compositor crash
+
+0200 is TERMINAL/captured, superseding the live handoff below. Actual
+09:09:30.338127–09:13:28.209280UTC,237.871153s, automatic recovery.
+DSH9788 boot parent94566/nested94657 all0; DSH84696 post watcher94994
+inner1 is a REAL qualification failure, pins unchanged. All15 files,
+12 static hashes and COMPLETE R2 log prefixes preserved. Full logs
+35,707/6,107/927,447B; new root header
+4ea2039b50b4980a6bb1559a70aa12fc02b9fc6ba5248c0f69689fe3510bf2e1.
+Current phone last in TWRP. No userdata delta/rollback was performed.
+
+First desktop job fails rc3 with6 IBs, submitted10/completed9/polls10.
+Reason13/valid3/GXf8222800/IRQs0 repeat. Last existing combined-guard read:
+kind1(SMMU32),off6000,ok1,printed valuefffffe3c00002270. Low32 is2270;
+boot GPU-context report micro_before/after2378. Difference108 includes
+already-ignored IDLEbit3 and UNKNOWNbit8. The expected guard receipt is
+gmb_work.smmu, not the separately printed ggb_smmu: audit exact provenance
+before changing the check. Do NOT mask unknownbit8 on this evidence.
+
+The unexpected upper32 printed for a32-bit read is unresolved. Native
+disassembly proves ldr w8, then str x8 into the cached64-bit value and
+correct8-byte caller vararg slots. Formatter source appears conventional.
+Private native-print-review-v1 contains immutable disassembly. Do not
+interpret that high half as a32-bit hardware register value.
+
+Two wrapped images: RGhA256x1 succeeds; L00896x96/bpe2,row192,size18432
+fails prepare with raw error2. One NEW backboardd SIG11/FAR18 follows GPU
+failure, PC1148e4d48/LR1148e2054, slide266a8000;0 CA frame receipts. This
+is NOT the old null IOSurface-state FAR30 crash. Need map actual loaded
+Mesa/bridge images before assigning cause. 0200 has no user visual report.
+Keep user-confirmed199-R2 touch/desktop/Settings PASS and lag FAIL separate.
+
+Codex audits critical guard/cache/crash; read-only DSH38312 audit in
+dsh-gpu-0201-micro-audit checks primary hardware definitions/provenance.
+Root owns NOTES. No new physical trial until the next source is reviewed.
+GPU/Metal/high-refresh/daily-use remain unqualified; full goal active.
+
+### 2026-11-09 — 0200 automatic diagnostic LIVE; full native build qualified
+
+Source commit b35b75dc96b88c82cacf6470a10e5795ecc1dbae. DSH69179/
+dispatcher57735 clean187-patch replay/full local native build/qualification
+all0, pins unchanged. Source5330 files
+8118b50c6e4f0b6eb8097c84b4227ee366a6eb514cbc109549ada7234a1f49dd;
+only gauguin_gmu_board.c differs from199. Build200-gfw run gauguin.PewvI5,
+banner xnu-2584e0b01bc54c86b7c343b9b31063ec,
+kernel4a1debf061516c2abd452fc8dc83e4246a767ea575f0d9d5f70f4213d66c8cd1.
+
+DSH9788 boot parent94566/nested94657 is observing ONE claimed200 trial.
+Package/current DTB+Linux memory review/full15-file and complete R2-prefix
+preflight passed against headerb3f40856. Temporary6GiB image
+5361fef750387db5ff127524ee64e59560ad7b95db6ac1f375c83d8c16183969,
+mode2/300s,605-byte command, automatic Home90 enabled; same195 libraries.
+19,520KiB transfer and Booting both OKAY,total0.590s. No userdata delta.
+User was told this is automatic and needs no manual input; DO NOT reuse
+the positive R2 visual report or lag feedback as200 observations.
+
+DSH84696 is the one post-wait-stage-v1: wait for the SAME actual200
+observer and both dispatcher terminals, then freeze receipts and preserve
+all15 full files before extracting new 'SWEET GPU STOP GFW' lines. No200
+physical result at this live handoff. Poll current handles/claims; never
+repeat on timeout. Root owns NOTES; all guards remain unchanged.
+
+### 2026-11-09 — 0200 last-existing-GFW-read cache passes all software checks
+
+Codex patch0193 changes only gauguin_gmu_board.c: cache kind/space/offset/
+value/status for existing gfw_faults reads (SMMU32/64, CSR host_info, AO
+status). Quarantine prints this plus ALREADY cached host_info/ao_status.
+No new hardware reads, writes, retries, relaxed predicates or DMA releases.
+The actual old/new guard bodies, including all own-halt/translation-probe
+exceptions, are executed against the same recorded IO seams.
+
+DSH62810/dispatcher57252 native-check-stage-v1 ALL4 jobs0, unchanged pins:
+307,116 combined-guard differential assertions (every read failure/bit
+corruption/probe/invalid route), retained139 live-guard trace assertions,
+17,214 actual runtime/ABI plus72 service-health assertions, native ARM64
+board TU0 with reference inputs/objects untouched. This remains diagnosis,
+not a repaired GPU submission. Private root: dsh-gpu-0200-gfw.
+Next clean187-patch replay/full native build, then same installed195
+libraries/6GiB/300s with automatic Home to reproduce without user labor.
+Read back raw files before any acceptance. Current root is post199-R2,
+headerb3f40856. No new userdata write or rollback is authorized.
+
+### 2026-11-09 — 0199-R2 UI works but remains laggy; same combined guard stops GPU
+
+User performance reply call_e32df2e2b9d64135918a90982d19282c:
+'仍然明显卡顿'. Keep separate from the positive unlock/desktop/Settings
+report. Saved performance-report199r2.json; responsiveness/high-refresh/
+daily-use remain unqualified. R2 observer is now terminal0 and all full
+files captured; no manual restart was requested. Current phone in TWRP.
+
+R2 capture errors.GPU is a real submit failure, all15 files/12 static hashes
+and complete199 prefixes saved. Logs33,664/5,838/912,086B; new root header
+b3f408564a443219b42abae04983db0aceba1fddd044dc41549c40e7ae4ff2ee.
+Cached failure repeats live_reason13/valid3/GXf8222800/IRQs0/GFSR0/FSR400/400.
+Last actual callback is register WRITE807=valueb8,ok1. With12 IBs the live
+post-write guard fails BEFORE submitted increments: ledger submitted9,
+completed9,polls9. Do not infer no hardware submission from ledger9; WPTR
+write occurred. No GPU UI qualification from the CA frame log after failure.
+
+Primary Linux references checked: torvalds/linux a6xx_gpu.c fenced_write
+reissues fenced writes with barriers; a6xx_gmu.c handles AO watchdog/bus/
+fence bits separately. a6xx_gmu.xml defines AO status23b05 (WDOGbit0,
+FENCE_ERRbit3,AHB_BUS_ERRORbit5), fence status23b13, KEEPALIVE1f8c3.
+These are reference facts, NOT a demonstrated cause on this phone yet.
+https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu.c
+https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gmu.c
+https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/registers/adreno/a6xx_gmu.xml
+
+Next200 will cache the LAST EXISTING gfw_faults read plus existing host_info/
+ao_status, preserving exact predicate/IO order and all stop conditions.
+Need distinguish SMMU control mismatch from GMU AO error before fixing.
+No new userdata write; root owns NOTES, DSH executes immutable stages.
+
+### 2026-11-09 — 0199-R2 user confirms touch unlock, desktop and Settings
+
+User call_6a49ea0c186943dbb33599688a29e180 explicitly reports
+'能进入桌面并打开设置' for the CURRENT199-R2 question. Saved immutable
+ui-report199r2.json in dsh-gpu-0199-rerun. Touch unlock/desktop/Settings
+are user-confirmed this round; GPU acceleration is NOT established by
+that visual result. A follow-up asks tap/animation responsiveness versus
+the prior laggy version; performance reply pending. Keep running until
+the preset automatic recovery; no manual restart has been requested.
+At this update the existing R2 observer is still running (~204s since
+observer-running record), and DSH post watcher55557 is waiting on the
+same claims. Do not boot another image during this live user test.
+
+### 2026-11-09 — user explicitly requested another199 manual trial; R2 LIVE
+
+First199 trial is terminal:08:26:32.864647–08:31:15.917098UTC,
+283.052451s, automatic; all boot dispatchers0/unchanged pins. DSH66650
+post-wait/capture inner1 with unchanged inputs reflects a REAL GPU submit
+failure, while all15 files/12 static hashes/full198 prefixes were saved.
+Full logs31,621/5,569/891,329B; post199 header
+60aa681a38c46c83618bfae60f653f10429a30b36e099ee646462a064a91bd3b.
+19 nonnull state results,2 wrapped images (A008640x358 and RGhA256x1),
+0 backboardd crashes. First desktop submit has17 IBs, GGR_IO3,
+submitted10/completed9/polls10. One CA frame log is after this failed job,
+NOT a successfully rendered GPU frame; visual199 result still unknown.
+
+Cached STOP: live_reason13,valid3,GX=f8222800,IRQs all0; op5 barrier ok1,
+GFSR0,FSR400/400. Reason13 is the COMBINED SMMU+GMU gfw_faults() check,
+not proof of an address-translation fault. GSM_FSR_FAULT_MASK=c00001fe
+does NOT include400. Printed zero reset/root pointers are UNOBSERVED:
+valid3 covers only GX/IRQ. Next capture last existing gfw_faults read and
+cached host_info/ao_status to identify its actual failing predicate. Keep
+all stop guards; no speculative GPU/MMU fix has been applied.
+
+199 source published via DSH93731: public715a57b5db5aa2969da9935e6f055df4a96caf9c,
+new ref codex/gauguin-runtime-stop-cache-20261109, exact tree
+1fc596344e2b0dd66152e7ece61310ba3c03bd30, parent88a968146b11350c7cd01949ddad8acedceac2fd.
+Five reviewed text files only, existing refs unchanged, no explicit CI.
+
+User call_0e3374b3acfe4cada53922e123c410dd answered '再写入一次'.
+Started a NEW explicitly requested199-R2 trial in
+research/tmp/dsh-gpu-0199-rerun, not a retry of any completed claim.
+DSH53683 parent55056/nested55059 current15-file/full-prefix preflight
+passed against post199 header60aa681a; SAME image9d7025fa (native199,
+Home off,300s), one temporary fastboot transfer/Booting OKAY,total0.593s.
+It is observer-running. User immediately notified and asked a NEW R2
+visual question. Do not attribute delayed199 responses to R2. Root owns
+NOTES; the single R2 post-wait-stage-v1 will capture after its true terminal.
+No new build, userdata delta, flash or rollback. Goal remains active.
+
 ### 2026-11-09 — 0199 manual trial LIVE after user returned to the phone
 
 User answered197 visual question call_c6741641f30b45c9975f56ae87dd445d:

@@ -1,0 +1,92 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -244,37 +244,61 @@
+      * Device write before the engine's immediate post-write guard samples. */
+     __asm__ volatile("dsb sy" ::: "memory");
+ }
++/* Retain the last existing guard read. Do not read hardware on a failure. */
++struct gfw_read_sample {
++    uint32_t kind,space,offset,ok;
++    uint64_t value;
++};
++static struct gfw_read_sample gfw_read_sample;
++static bool gfw_observe32(void *cookie,uint32_t off,uint32_t *out)
++{
++    bool ok=gmb_read32(cookie,off,out);
++    gfw_read_sample=(struct gfw_read_sample){1,0,off,ok,ok&&out?*out:0};
++    return ok;
++}
++static bool gfw_observe64(void *cookie,uint32_t off,uint64_t *out)
++{
++    bool ok=gmb_read64(cookie,off,out);
++    gfw_read_sample=(struct gfw_read_sample){2,0,off,ok,ok&&out?*out:0};
++    return ok;
++}
++static uint32_t gfw_observe_load(uint32_t space,uint32_t off,vm_offset_t address)
++{
++    uint32_t value=gfw_load32(address);
++    gfw_read_sample=(struct gfw_read_sample){3,space,off,1,value};
++    return value;
++}
+ static bool gfw_faults(bool gpu_probe)
+ {
+     const struct gsm_receipt *s=&gmb_work.smmu;uint32_t v;uint64_t ttbr;
+     bool own_halt=gpu_probe&&ggb_context.state==1&&ggb_context.halt_attempted&&ggb_context.phase<GGS_FINAL;
+     uint32_t micro_mask=~(8u|(own_halt?4u:0u));
+-    if(!gmb_read32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
+-       !gmb_read32(NULL,0,&v)||v!=s->cr0_after||
+-       !gmb_read32(NULL,0x6000,&v)||(v&micro_mask)!=(s->micro_after&micro_mask)||((v&4)&&!own_halt))return false;
++    if(!gfw_observe32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
++       !gfw_observe32(NULL,0,&v)||v!=s->cr0_after||
++       !gfw_observe32(NULL,0x6000,&v)||(v&micro_mask)!=(s->micro_after&micro_mask)||((v&4)&&!own_halt))return false;
+     for(unsigned n=0;n<2;n++){
+         if(s->bank[n]>=GSM_BANKS||s->slot[n]>=GSM_STREAMS)return false;
+         uint32_t cb=0x8000+0x1000*s->bank[n];
+         uint32_t own_tf=gpu_probe&&ggb_context.state==1&&ggb_context.probe_active&&
+             ggb_context.probe_hole&&ggb_context.probe_bank==s->bank[n]?2u:0u;
+-        if(!gmb_read32(NULL,cb+0x58,&gfw_work.fsr[n])||(gfw_work.fsr[n]&GSM_FSR_FAULT_MASK&~own_tf)||
+-           !gmb_read32(NULL,cb,&v)||v!=s->sctlr[n]||
+-           !gmb_read32(NULL,cb+4,&v)||v!=s->actlr[n]||
+-           !gmb_read32(NULL,cb+0x10,&v)||v!=s->tcr2||
+-           !gmb_read32(NULL,cb+0x30,&v)||v!=s->tcr||
+-           !gmb_read32(NULL,cb+0x38,&v)||v!=s->mair0||
+-           !gmb_read32(NULL,cb+0x3c,&v)||v!=s->mair1||
+-           !gmb_read32(NULL,0x1000+4*s->bank[n],&v)||v!=0x1f300||
+-           !gmb_read32(NULL,0x1800+4*s->bank[n],&v)||v!=1||
+-           !gmb_read32(NULL,0xc00+4*s->slot[n],&v)||v!=s->s2cr_after[n]||
+-           (s->stream_match&&(!gmb_read32(NULL,0x800+4*s->slot[n],&v)||v!=s->smr_after[n]))||
+-           !gmb_read64(NULL,cb+0x20,&ttbr)||ttbr!=s->ttbr0[n]||
+-           !gmb_read64(NULL,cb+0x28,&ttbr)||ttbr!=s->ttbr1[n])return false;
+-    }
+-    gfw_work.host_info=gfw_load32(gmb_reset+0x2648);
++        if(!gfw_observe32(NULL,cb+0x58,&gfw_work.fsr[n])||(gfw_work.fsr[n]&GSM_FSR_FAULT_MASK&~own_tf)||
++           !gfw_observe32(NULL,cb,&v)||v!=s->sctlr[n]||
++           !gfw_observe32(NULL,cb+4,&v)||v!=s->actlr[n]||
++           !gfw_observe32(NULL,cb+0x10,&v)||v!=s->tcr2||
++           !gfw_observe32(NULL,cb+0x30,&v)||v!=s->tcr||
++           !gfw_observe32(NULL,cb+0x38,&v)||v!=s->mair0||
++           !gfw_observe32(NULL,cb+0x3c,&v)||v!=s->mair1||
++           !gfw_observe32(NULL,0x1000+4*s->bank[n],&v)||v!=0x1f300||
++           !gfw_observe32(NULL,0x1800+4*s->bank[n],&v)||v!=1||
++           !gfw_observe32(NULL,0xc00+4*s->slot[n],&v)||v!=s->s2cr_after[n]||
++           (s->stream_match&&(!gfw_observe32(NULL,0x800+4*s->slot[n],&v)||v!=s->smr_after[n]))||
++           !gfw_observe64(NULL,cb+0x20,&ttbr)||ttbr!=s->ttbr0[n]||
++           !gfw_observe64(NULL,cb+0x28,&ttbr)||ttbr!=s->ttbr1[n])return false;
++    }
++    gfw_work.host_info=gfw_observe_load(1,0x2648,gmb_reset+0x2648);
+     if(gfw_work.host_info==UINT32_MAX||(gfw_work.host_info&0x8000))return false;
+     if(gfw_map[GMF_AO]){
+-        gfw_work.ao_status=gfw_load32(gfw_map[GMF_AO]+0x2c14);
++        gfw_work.ao_status=gfw_observe_load(2,0x2c14,gfw_map[GMF_AO]+0x2c14);
+         /* Native AO watchdog/fence/AHB errors; delivery remains masked. */
+         if(gfw_work.ao_status==UINT32_MAX||(gfw_work.ao_status&0x29))return false;
+     }
+@@ -3949,6 +3973,8 @@
+         s->reason,s->valid,s->gx,s->irq[0],s->irq[1],s->irq[2],s->reset,s->root1,s->root3);gmb_record(line);
+     snprintf(line,sizeof(line),"SWEET GPU STOP CACHE: op=%u space=%u off=%x value=%08x ok=%u gfsr=%08x fsr=%08x/%08x; cached only",
+         ggrb_last_op,ggrb_last_space,ggrb_last_offset,ggrb_last_value,ggrb_last_ok,gfw_work.gfsr,gfw_work.fsr[0],gfw_work.fsr[1]);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU STOP GFW: kind=%u space=%u off=%x value=%016llx ok=%u host=%08x ao=%08x; existing reads only",
++        gfw_read_sample.kind,gfw_read_sample.space,gfw_read_sample.offset,gfw_read_sample.value,gfw_read_sample.ok,gfw_work.host_info,gfw_work.ao_status);gmb_record(line);
+ }
+ bool sweet_gpu_runtime_ready(void)
+ {

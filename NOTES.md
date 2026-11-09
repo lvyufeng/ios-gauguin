@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0195 native kernel/pair ready; USB absent, no new root write
+
+Native195 completed: DSH outer38633 /dispatcher80733 returned0, all input
+pins unchanged; run `gauguin.0n488O`, build ID
+`xnu-544bed9d5d7d4a48aa1c469030868da6`, kernel SHA256
+`be3a817523da49ead55d6d16f1917a05449bc2d0fb95f58d772a442a9f39466b`.
+Source commit `0d8faae835773ac8ec38030ed1f7597b8a3fa301`, clean183-patch
+replay SHA `f3e9c9de18f783430ba488ceda5570d075d1b8366ea379cc8badb56b392f879a`.
+Qualification preserves the hardware submit/fence path; first16/every120
+success records and all failures verified by10,091 wrapper assertions.
+4GiB control SHA `723f0016a4e4f561849b05d1dd162b59e6f1eb8dce2d089c77dd579825d836c6`;
+6GiB paired image `research/tmp/dsh-ui-0195-bridge/ram-layout-6g-v1/layout-6g.img`,
+SHA `6133778e0ae7f00ea53dbded67df9020ba64a551e29e75907e9436047bb1bcca`.
+`paired-image195.json` binds the new kernel to the signed195v2 launcher and
+real desktop bridge. It is an OFFLINE proof, not a physical UI pass.
+
+Published kernel195 via DSH38417 to NEW branch
+`codex/gauguin-runtime-submit-records-20261109`, public commit
+`10538314a4853c05a0db04966f6dc01a696709ab`, exact tree
+`123285b28983416d2b801ca1114f998c510508cd`, parentcdd402f.
+Five reviewed text files, existing refs retained, noCI dispatched.
+
+Preparation DSH69403 packaged the4GiB image, then stopped before any
+write because recovery was absent. ADB, fastboot and macOS USB inventory
+all found no phone at05:06UTC. An asynchronous request asks the user to
+return to TWRP and reconnect directly; do not infer current phone state.
+The195 offline layout transparently reuses verified194 memory inventory;
+no fresh195 memory capture or live root preflight is claimed.
+
+Offline DSH56761 successfully built/reparsed the6GiB pair. Its delta audit
+refused macOS automatic defragmentation of the old504,493B backboardd log.
+Raw diagnosis proves its full SHA and BSD attributes unchanged but extents
+consolidated. Preserve that failed `delta-v1` and original receipts.
+DSH5684 runs a NEW `offline-stage-v2`: stage-v2 never reads retained logs
+through the mounted filesystem and requires exact retained raw HFS forks.
+Then delta-v2, fsck-v2 and the proven writer's102 fake-IO rollback checks.
+Observe that specific handle/profile, do not rerun an existing claim.
+
+Next: finish independent OFFLINE delta review, then live recovery old-range
+preflight when USB returns. Only after all checks, request fresh concrete
+consent for the195 desktop-bridge delta. The239-block192 approval has
+already been consumed and does not authorize195. No195 userdata write,
+boot, real desktop frame, Metal or high-refresh qualification yet.
+
 ### 2026-11-09 — 0194 6 GiB accepted; 0195 desktop staging uses a fresh backup
 
 194 completed automatically in746.480863s, 04:20:23.333581–

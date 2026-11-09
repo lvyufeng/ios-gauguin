@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — actual0206-R2 user still reports lag; exact capture pending
+
+User reply call_6bba25cb5b9e4c52be18abb88e6fdbd0 for this R2 is
+'仍明显卡顿，但没有黑屏'. Saved private user-performance-report206r2.json;
+individual unlock/Settings operations not separately confirmed. Need correlate
+with native GPU health before assessing healthy accelerated rendering. R2
+DSH20344 observer and DSH28986 post-watch remain running on their SAME
+claims; no terminal at~427s since boot-stage claim. User additionally asked
+to repeat Settings/Home/swipes three times and compare second/third to
+first, to separate cold preparation from sustained overhead; reply pending.
+Do not assign either answer to any later image. Leave this trial running
+until automatic recovery/capture; no manual restart request.
+
+Next inspect real R2 service/fences/MICRO budget and frame wait/attach data.
+If GPU remains healthy but lag persists, native ggr_submit elapsed does NOT
+cover the entire IOKit request: runtime_ready/routes, BO allocation/mapping/
+TLB sync, queries, lock waiting and gmb_record's startup/sample UFS flush
+are outside that timer. Consider CPU-clock aggregate per-selector whole-
+request/lock-held/queue-wait profiling, including clientMemoryForType and
+heartbeat. Freeze counters at FIRST quarantine, report any in-flight call
+separately; print cached data only after authorities are poisoned. No new
+MMIO, changed hardware predicates, quotas, request outputs or continuous
+success logging. A private207 candidate has NOT been implemented yet.
+If actual GPU frame work is fast enough, a separate same-kernel30->60Hz
+copy-cadence comparison may be useful; it does NOT implement90/120Hz panel
+modes. Choose from captured evidence, not the basic9-job first206 timings.
+Root owns critical source/NOTES; DSH executes. Full goal stays active.
+
 ### 2026-11-09 — 0206-R2 requested repeat LIVE; fresh feedback pending
 
 DSH20344 owns ONE new R2 observer in dsh-gpu-0206-manual-r2 after CURRENT

@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0197 implements the observed missing wrapped-image selector
+
+The exact195 failure chain now reaches QuartzCore0x1883c460c, which calls
+IOSurfaceWrapClientImage at0x1883c4878, then constructs the CA surface and
+unconditionally queries bulk attachments. Actual20H392 client wrapper
+0x1a3986580 sends selector6 with32B input: address:u64 followed by width,
+height, pixelFormat, bytesPerElement, bytesPerRow, allocationSize:u32.
+It constructs the client after ANY success. The195 native log records
+backboardd sel6 immediately before FAR0x30. SweetSurface default currently
+returns success with0xa68 zero bytes, so client.state is NULL. This is a
+concrete missing protocol implementation, unlike the earlier mapping/TLS
+hypotheses. Private disassemblies: dsh-ui-0195-bridge/iosurface-wrap-v1 and
+qc-wrapped-tail-v1. No extra unchanged mode2 diagnostic boot was needed.
+
+Codex patch0191 implements selector6: validate exact input/output shapes,
+geometry/byte extent/address overflow; describe and prepare the calling
+task's real pixels; publish through the existing state/result/mapping path.
+No replacement blank pixel allocation. Per-surface wiring quota includes
+partial pages, and free releases maps BEFORE completing/releasing the
+prepared descriptor. Ordinary buffer accounting stays paired. Kernel
+mapping now preserves mapCache (normal cache for task images, WC for panel)
+instead of forcing a conflicting WC alias for application memory.
+Read-only/unmappable user buffers fail prepare with an actual error rather
+than a fabricated success; broader read-only wrapping is not qualified.
+
+DSH native-check-stage-v1: native ARM64 TU0, host1 because this Mac's ASAN
+rejects detect_leaks=1 before tests execute; raw failure retained. V1 kernel
+candidate restored to its tested bytes. V2 corrects that environment option
+and adds cache-preserving kernelAddress behavior. DSH13893/dispatcher73132
+native-check-stage-v2 returns0 for BOTH native TU and207 production-method
+host assertions under ASAN/UBSAN, pins unchanged. Test covers byte geometry,
+existing pixel alias, partial-page quota, malformed descriptors/overflow,
+OOM/prepare/publish/return failures, release order, cache mode and normal
+buffer/physical cleanup. This is software evidence, not a physical UI pass.
+
+Next: clean185-patch replay in source197-codex, full fresh native build,
+then one bounded temporary mode2 boot with installed195 libraries unchanged.
+DSH executes builds/tests/boot. Actual userdata remains as post196; no new
+userdata write or rollback is approved. Phone is currently detected in TWRP.
+Keep original mkadt diff a74a0418 intact. Goal remains fully active.
+
 ### 2026-11-09 — 0196 automatic diagnostic boot and full capture complete
 
 User's latest USB replug is confirmed by actual ADB recovery enumeration;

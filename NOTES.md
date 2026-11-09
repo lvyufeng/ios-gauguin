@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0205 full local clock-snapshot kernel qualified
+
+DSH98874 native-stage-v1 ALL0,pins unchanged. Clean192-patch source5330
+files61c87c68cee80ef18b94056c0200cf3ee4ccf96fc1e9bb10ebb5e3b6ee04ee19;
+ONLY board C/CX-power C/private clock header differ from204. Source
+dc8e24063e8fece6930732863a31e8a5e04133ea. LOCAL8-job build205-clock-snapshot,
+run gauguin.6cedkd,native build0/qualification0; defined native snapshot
+symbol required alongside retained ring-span and generic checks. Original
+195 reference inputs and mtimes unchanged. Banner
+xnu-7aba407c18dc403191e56d404ff62f99,
+kernel7d1e8ecdc5e73f978a08e0aa09ecff525ed0e48d79865f92583c6c327b80b72c.
+Existing PERF wire label 'unchanged guard body' is retained for compatibility;
+it does NOT imply unchanged runtime WDT sampling:0198 changes28 queries to2
+inside the clock read while retaining every clock value predicate.
+
+Next one automatic205 temporary6GiB/mode2/300s/Home90 comparison after
+current204 headerc56ed0a5,full15-file/COMPLETE204-prefix and memory preflight.
+Same195 libraries, no userdata delta/flash/rollback. Post-capture compares
+completed jobs, full service, guarded elapsed times and recorded CA frame
+waits against204; differing workloads prevent whole-UI speedup claims.
+No205 physical result yet; no user action needed. Root owns NOTES, full
+goal active. No human performance report beyond199-R2 remains available.
+
 ### 2026-11-09 — 0205 bounded runtime clock snapshot passes host/native checks
 
 Codex patch0198 changes board C/CX-power C/private clock header only.

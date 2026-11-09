@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0199-R2 UI works but remains laggy; same combined guard stops GPU
+
+User performance reply call_e32df2e2b9d64135918a90982d19282c:
+'仍然明显卡顿'. Keep separate from the positive unlock/desktop/Settings
+report. Saved performance-report199r2.json; responsiveness/high-refresh/
+daily-use remain unqualified. R2 observer is now terminal0 and all full
+files captured; no manual restart was requested. Current phone in TWRP.
+
+R2 capture errors.GPU is a real submit failure, all15 files/12 static hashes
+and complete199 prefixes saved. Logs33,664/5,838/912,086B; new root header
+b3f408564a443219b42abae04983db0aceba1fddd044dc41549c40e7ae4ff2ee.
+Cached failure repeats live_reason13/valid3/GXf8222800/IRQs0/GFSR0/FSR400/400.
+Last actual callback is register WRITE807=valueb8,ok1. With12 IBs the live
+post-write guard fails BEFORE submitted increments: ledger submitted9,
+completed9,polls9. Do not infer no hardware submission from ledger9; WPTR
+write occurred. No GPU UI qualification from the CA frame log after failure.
+
+Primary Linux references checked: torvalds/linux a6xx_gpu.c fenced_write
+reissues fenced writes with barriers; a6xx_gmu.c handles AO watchdog/bus/
+fence bits separately. a6xx_gmu.xml defines AO status23b05 (WDOGbit0,
+FENCE_ERRbit3,AHB_BUS_ERRORbit5), fence status23b13, KEEPALIVE1f8c3.
+These are reference facts, NOT a demonstrated cause on this phone yet.
+https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gpu.c
+https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/adreno/a6xx_gmu.c
+https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/msm/registers/adreno/a6xx_gmu.xml
+
+Next200 will cache the LAST EXISTING gfw_faults read plus existing host_info/
+ao_status, preserving exact predicate/IO order and all stop conditions.
+Need distinguish SMMU control mismatch from GMU AO error before fixing.
+No new userdata write; root owns NOTES, DSH executes immutable stages.
+
 ### 2026-11-09 — 0199-R2 user confirms touch unlock, desktop and Settings
 
 User call_6a49ea0c186943dbb33599688a29e180 explicitly reports

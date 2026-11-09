@@ -181,3 +181,4 @@
 0183-gauguin-opt-in-eagl-exec-insertion.patch
 0184-gauguin-exec-shadow-and-readonly-memlimit.patch
 0185-gauguin-native-ram-size-receipt.patch
+0186-gauguin-protected-compositor-gpu-pilot.patch

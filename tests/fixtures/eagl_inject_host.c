@@ -16,6 +16,7 @@
 #define IMGPF_IS_64BIT_ADDR 2
 #define IMGPF_WAS_64BIT_ADDR 4
 #define IMGPF_EXEC 0x100
+#define IMGPF_SPAWN 0x10
 #define UIO_SYSSPACE 0
 #define UIO_SEG_IS_USER_SPACE(seg) ((seg) != UIO_SYSSPACE)
 #define CAST_DOWN(type, value) ((type)(uintptr_t)(value))
@@ -23,11 +24,12 @@
 #define TRUE true
 typedef bool boolean_t;
 
-struct proc { int pid; uint64_t uniqueid; int pidversion; bool shadow; };
+struct proc { int pid; uint64_t uniqueid; int pidversion; bool shadow; int original_parent; };
 typedef struct proc *proc_t;
-static struct proc process = {57, 1234, 19, false};
-static struct proc other_process = {58, 3456, 20, false};
-static struct proc shadow_process = {57, 1234, 19, true};
+static struct proc process = {57, 1234, 19, false, 1};
+static struct proc other_process = {58, 3456, 20, false, 1};
+static struct proc shadow_process = {57, 1234, 19, true, 1};
+static struct proc launchd = {1, 1, 1, false, 0};
 struct thread { proc_t proc; };
 typedef struct thread *thread_t;
 #define THREAD_NULL NULL
@@ -41,11 +43,14 @@ struct context { proc_t proc; kauth_cred_t cred; };
 typedef struct context *vfs_context_t;
 static struct credential credentials = {501, 501};
 static struct context exec_context = {&process, &credentials}, kernel_context;
-static proc_t current_proc(void) { return &process; }
+static proc_t running_proc = &process;
+static proc_t current_proc(void) { return running_proc; }
 static int proc_pid(proc_t p) { return p->pid; }
 static uint64_t proc_uniqueid(proc_t p) { return p->uniqueid; }
 static int proc_pidversion(proc_t p) { return p->pidversion; }
 static bool proc_is_shadow(proc_t p) { return p->shadow; }
+static bool proc_isinitproc(proc_t p) { return p == &launchd; }
+static int proc_original_ppid(proc_t p) { return p->original_parent; }
 static proc_t vfs_context_proc(vfs_context_t ctx) { return ctx->proc; }
 static kauth_cred_t vfs_context_ucred(vfs_context_t ctx) { return ctx->cred; }
 static vfs_context_t vfs_context_kernel(void) { return &kernel_context; }
@@ -65,6 +70,7 @@ struct vnode { mount_t mount; int type, refs, auth; uid_t uid; mode_t mode; };
 typedef struct vnode *vnode_t;
 static struct vnode target = {&root_mount, VREG, 1, EACCES, 0, 0755};
 static struct vnode library = {&root_mount, VREG, 0, EPERM, 0, 0644};
+static struct vnode proxy = {&root_mount, VREG, 1, EACCES, 0, 0755};
 struct vnode_attr { uid_t va_uid; mode_t va_mode; bool supported; };
 #define VATTR_INIT(a) (*(a) = (struct vnode_attr){0})
 #define VATTR_WANTED(a, field) ((void)(a)->field)
@@ -83,6 +89,8 @@ static int vnode_lookup(const char *path, int flags, vnode_t *out, vfs_context_t
     if (strcmp(path, "/usr/libexec/backboardd") == 0) {
         if (missing_target) return ENOENT;
         *out = &target;
+    } else if (strcmp(path, "/usr/libexec/xpcproxy") == 0) {
+        *out = &proxy;
     } else {
         CHECK(strcmp(path, "/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib") == 0);
         if (missing_library) return ENOENT;
@@ -200,6 +208,7 @@ static bool IOCurrentTaskHasEntitlement(const char *entitlement)
 
 #include "production-diagnostic-caller.h"
 #include "production-memory.h"
+#include "production-pilot.h"
 
 static int memory_auth(proc_t p, struct memorystatus_control_args *args, bool skip_auth_check)
 {
@@ -245,6 +254,49 @@ static void memory_case(const char *scenario)
     printf("MEMORY PASS error=%d snapshots=%u\n", error, memory_snapshots);
 }
 
+static void pilot_case(const char *scenario)
+{
+#define PILOT(name) (strcmp(scenario, name) == 0)
+    static char args[] = "xpcproxy\0com.apple.backboardd";
+    static char other_args[] = "com.apple.backboardd\0other";
+    const char *path = "executable_path=/usr/libexec/xpcproxy";
+    char *buffer = calloc(1, NCARGS + PAGE_SIZE);
+    CHECK(buffer);
+    running_proc = &launchd;
+    sweet_eagl_inject_requested = PILOT("pilot-mode-off") ? 1 : 2;
+    const char *arguments = PILOT("pilot-argv0-only") ? other_args : args;
+    size_t length = PILOT("pilot-argv0-only") ? sizeof(other_args) : sizeof(args);
+    size_t path_bytes = strlen(path) + 1;
+    memcpy(buffer, path, path_bytes);
+    memcpy(buffer + path_bytes, arguments, length);
+    char *end = buffer + path_bytes + length;
+    struct image_params image = {
+        .ip_strings = buffer, .ip_startargv = buffer + path_bytes, .ip_endargv = end,
+        .ip_endenvv = end, .ip_strendp = end, .ip_argc = 2, .ip_new_thread = &exec_thread,
+        .ip_vp = &proxy, .ip_vfs_context = &exec_context, .ip_flags = IMGPF_SPAWN,
+    };
+    if (PILOT("pilot-wrong-parent")) running_proc = &other_process;
+    if (PILOT("pilot-reparented")) process.original_parent = 2;
+    if (PILOT("pilot-exec-not-spawn")) image.ip_flags = IMGPF_EXEC;
+    if (PILOT("pilot-other-vnode")) image.ip_vp = &target;
+    if (PILOT("pilot-writable-proxy")) proxy.mode |= S_IWOTH;
+    if (PILOT("pilot-thread-mismatch")) exec_thread.proc = &other_process;
+    if (sweet_dyld_exec_trace(&image, &process) && sweet_eagl_gpu_pilot_enabled()) {
+        sweet_eagl_gpu_record_proxy(&image, &process);
+    }
+    CHECK(proxy.refs == 1 && target.refs == 1);
+    bool recorded = PILOT("pilot-good") || PILOT("pilot-pid-reused") || PILOT("pilot-wrong-uid") || PILOT("pilot-foreign-task");
+    CHECK(sweet_eagl_launch_uniqueid == (recorded ? 1234u : 0u));
+    running_proc = PILOT("pilot-foreign-task") ? &other_process : &process;
+    if (PILOT("pilot-pid-reused")) process.uniqueid++;
+    if (PILOT("pilot-wrong-uid")) credentials.uid = credentials.ruid = 502;
+    CHECK(sweet_eagl_gpu_pilot_caller(&process) == PILOT("pilot-good"));
+    CHECK(!sweet_eagl_gpu_pilot_caller(NULL));
+    printf("PILOT PASS recorded=%d allowed=%d\n", recorded, PILOT("pilot-good"));
+    free(buffer);
+#undef PILOT
+}
+
 static struct image_params run_extract(char *buf, user_addr_t *args, user_addr_t *env,
     const char *path, int flags, vnode_t actual, vnode_t script, vfs_context_t context)
 {
@@ -265,6 +317,10 @@ int main(int argc, char **argv)
 {
     CHECK(argc == 2);
     const char *scenario = argv[1];
+    if (strncmp(scenario, "pilot-", 6) == 0) {
+        pilot_case(scenario);
+        return 0;
+    }
     if (strncmp(scenario, "memory-", 7) == 0) {
         memory_case(scenario);
         return 0;
@@ -306,7 +362,7 @@ int main(int argc, char **argv)
         CASE("other-path") || CASE("null-context")) {
         event = false;
         if (CASE("disabled")) requested = 0;
-        if (CASE("bad-flag")) requested = 2;
+        if (CASE("bad-flag")) requested = 3;
         if (CASE("trace-off")) sweet_exec_loader_probe = 0;
         if (CASE("other-path")) path = "executable_path=/usr/libexec/other";
         if (CASE("null-context")) context = NULL;

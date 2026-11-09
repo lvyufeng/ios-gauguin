@@ -2,6 +2,168 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0192 kernel pilot scope passes native and host checks
+
+Mode 2 candidate v3 records the stable unique ID only for a protected real
+xpcproxy vnode started by init with copied `argv[1]=com.apple.backboardd`.
+It also checks spawn context, image thread and original parent. The non-admin
+GPU open needs the same current task and unique ID plus the existing protected
+UID 501 backboardd check. It retains that task for the client lifetime and
+rejects method/map calls from a different task. The existing single GPU owner
+and root path are retained; the compositor pilot waits for the root client to
+release cleanly after at least six native fences. Mode 1 keeps read-only
+admission and root-only GPU access.
+
+Native v3 both TUs returned 0. 64 exec/GET8/proxy cases, 49 retained loader
+cases, IOKit 77/71/207 retained and 64 new task/fence/lifetime assertions
+passed. Legacy IOKit source also passes the updated fixture. The two v3 local
+iOS16 arm64 libraries pass strict signing and load-command review. Admission
+launcher SHA256 `3e563b10946a10f5ca83ba4a8af5e4cf333d53385f410837476f55d4aae467c6`
+(70,272 B), worker `be27ac482aeb8992333f5c8fcf15f4398a5b8933bbd5a703509b39fdfdc9dad1`
+(73,104 B). Launcher checks the worker file's owner, mode and effective write
+denial, waits off the compositor startup thread, then loads the worker. The
+worker uses the accepted Mesa and original shader/IOSurface patterns with
+cleanup. Both remain uninstalled and have no renderer hooks.
+
+DSH 81951 is still doing the read-only root backup. Verified dispatcher 54433
+live and 5,538,588,160 bytes written locally at this entry. Next replay 180
+patches, build the paired 4 GiB mode-2 image, complete the backup and stage the
+two-library COW difference. Preserve all root job/policy/cache bytes and full
+logs. Ask only after exact HFS blocks and rollback are reviewable. No new
+userdata write, actual compositor GPU submission or full-goal completion.
+
+### 2026-11-09 — 0191 4 GiB control passed; DSH root backup live
+
+Same native 0191 kernel in the 4 GiB control `949caab5` automatically returned
+to recovery in 746.145791s (02:34:45.607000–02:47:11.752791 UTC). Boot and all
+four post stages returned 0, pins unchanged, outer handles 89025/95329 closed.
+Observed base `0x180000000`, VM/boot/max/max-actual 4,293,918,720, sane
+4,253,876,224 bytes. The ZAP AUTH gate passed. Independent GLES passed six
+fences, final shadow 92, 595 renewals/600s and all prior word/pixel checks.
+Startup seed 1971039709, shader seed 2137319863, RGBA/BGRA hashes 2599832517 /
+1190247365. The real admission constructor also passed (8 methods, GET8
+snapshot -1/-1, footprint 1,147,200 B). New whole logs 18,242 / 3,955 / 483,429
+bytes. No userdata write. `research/tmp/dsh-memory-0191-control` is the latest
+accepted 4 GiB physical baseline; 6 GiB recognition and its early failure
+remain a separate result. One A/B pair does not identify the failed WDT
+predicate. Local `dsh-memory-0193-wdt` sample-only diagnostic TU passed.
+
+W192=`research/tmp/dsh-gpu-0192-auth`. DSH backup request 96480 replied with a
+handoff instruction conflict and no tool call. Retry explicitly allowed reading
+NOTES first. DSH **81951** then executed the pinned read-only backup profile;
+dispatcher 54433 claimed it, recovery preflight passed, and the partial image
+was observed growing to 1,388,910,080 bytes. Keep the phone in TWRP and poll the
+same handle and `backup-stage-v1/result.json`. No parallel device command that
+changes state. No complete fresh backup or new root write yet.
+
+The 0192 auth candidate v2 passed two native TUs, 64 actual exec/GET8 cases,
+49 retained loader cases and the IOKit suite (77/71/207 retained assertions,
+60 new pilot assertions). V3 adds explicit owning task reference lifetime;
+rerun the native and host checks before committing. Userland `userland-v2`
+signed iOS16 arm64 admission launcher `a8ea5207` (70,224 B) and compositor
+GLES worker `be27ac48` (73,104 B) are local. The first worker compile had a
+status/output variable name collision; v2 fixed it. The launcher is bounded
+and gated on mode 2, while the late-loaded worker reuses the existing Mesa
+shader/IOSurface workload with cleanup. No installed pilot, GPU compositor
+run or renderer hooks. Build and verify the paired kernel and exact HFS delta
+before requesting explicit approval for the new userdata write.
+
+### 2026-11-09 — 0191 same-kernel 4 GiB control live, handle 89025
+
+After preserving the complete 6 GiB capture, read back the current root and
+fresh full prefixes, then temporarily booted the 0191 control `949caab5` once.
+Same native kernel `127096b7`, command, five firmware contents and installed
+root. `fastboot boot` returned OKAY in 0.592s. Dispatcher 50544 claimed at
+1794191680.509738. Local outer **89025** is the active observer. No new root
+write. Wait on this exact handle and run `prepare_post191.py` in
+`research/tmp/dsh-memory-0191-control` after terminal exit 0. Compare the native
+4 GiB counter, ZAP AUTH path and full GLES/constructor regression to 6 GiB.
+
+Separate unfinished 0192 authority candidate lives under
+`research/tmp/dsh-gpu-0192-auth`. Mode 2 adds launchd-spawned protected xpcproxy
+job provenance, same unique process ID at the protected UID 501 backboardd
+open, and owning task checks. The one-owner path retains root access and
+holds the pilot until a clean root release after the sixth native fence.
+Candidate is uncommitted and unbooted. Initial cross passed `kern_exec.c`,
+but `GauguinGPU.cpp` needed its unchanged quoted runtime header in the isolated
+candidate. The scope/lifecycle tests, native retry and userland pilot are next.
+
+### 2026-11-09 — 0191 recognizes 6 GiB; GPU startup stops before ZAP AUTH
+
+The exact 6 GiB image `30b195e6` returned automatically to TWRP after
+131.889615s (02:27:25.535484–02:29:37.425099 UTC). Observer 0 and image banner
+match. Capture of all 12 files passed; strict post qualification stopped at
+the 600s minimum as intended, overall exit 1. Outer handles 74934/96322 closed.
+`research/tmp/dsh-memory-0191/independent-partial-review.json` independently
+verifies nine static files, all three entire prefixes and the current RAM and
+compositor logs. New complete logs 16,198 / 3,686 / 476,966 bytes. No root write.
+
+Actual XNU reports physical base `0x100000000`, VM/boot/max/max-actual
+6,441,402,368 bytes, sane 6,401,359,872 bytes. The system mounted iOSRoot and
+reached SpringBoard/backboardd. Protected PID 57's full inert constructor
+matches eight encodings, GET8 snapshot -1/-1 and footprint 1,147,200 bytes.
+Firmware B02 moved to `0x1025fc000` and native CPU copy completed 1,984/1,984.
+This physically verifies memory recognition and boot to userspace, with
+pressure, extra-range DMA and full stable safe RAM acceptance still open.
+
+GMU firmware/DCVS and CP ME_INIT/WHERE_AM_I completed. Signed ZAP INIT and
+MEM_SETUP succeeded. Immediately before AUTH, WDT lease check quarantined;
+`SWEET GPU ZAP GUARD reason=4 scope=1 phase=5`, AUTH count `0/0/0`. The secure
+AUTH was never dispatched. HakiosGPU service absent and no 600s completion;
+standalone GLES failed qualification. The WDT message merges several checks,
+so the exact failing predicate and its relationship to the memory layout
+are unknown. No native panic entry captured.
+
+Next use the existing 0191 4 GiB control (same kernel, boot args, firmware,
+root) with fresh post-6 GiB prefixes. Compare the same ZAP and WDT boundary.
+If needed record the existing sampled WDT values on failure before changing
+any watchdog decision. 0190 4 GiB remains the accepted compositor/GLES
+baseline. 0192 compositor GPU authority is still local candidate work only.
+
+### 2026-11-09 — 0191 6 GiB temporary trial live, observer handle 74934
+
+`fastboot boot` sent image `30b195e6` once and returned OKAY in 0.594s.
+Profile was claimed by dispatcher PID 48768 at epoch 1794191240.384852.
+Current root header and routine recovery latch verified. Local outer handle
+**74934** is observing the 6 GiB layout with the same installed 0186 root and
+600s GPU service. No new userdata write.
+
+Wait on that handle. On terminal exit 0, run `prepare_post191.py` and the
+resulting pinned post stage in `research/tmp/dsh-memory-0191`. Require the
+actual RAM counter plus the frozen GLES and 0190 admission evidence. If the
+observer or strict check fails, preserve all available raw data before deciding
+the next step. No extra boot and no user reset/UI question while unattended.
+
+### 2026-11-09 — 0191 6 GiB trial image ready
+
+Clean 179-patch replay changed only `bsd/kern/bsd_init.c` across 5,330 files.
+Source `e85fadb5de6f87b5431777287445b46a91ec72b2`, SHA256
+`ee50dcd223fc6d0243d4c206ca2672878374bb16bff359f7830d577a55b44361`.
+Public `97cd3b385dfd77c117055e6878d40c563e7d9fea`, tree `3ff4b423`, parent
+`ad4c5f7`, on `codex/gauguin-native-ram-receipt-20261109`. Three reviewed text
+files. No CI run. Native `gauguin.NTEd1X` build and qualification both 0 in
+206.691s, all pins unchanged. Kernel SHA256
+`127096b7c32538bef0a73d1d037f1966b3de669ad8358a6b384d080553091048`, ID
+`xnu-7ad4692b540b4ff8b54d826c4b5ff7ff`. Local fallback after the 0191 DSH
+stall. Outer build 91940, pack 7726 and publication 48064 closed.
+
+`research/tmp/dsh-memory-0191/ram-layout-6g-v1/layout-6g.img` is 19,988,480 B,
+SHA256 `30b195e665b6bcb3885c104ccd4d34892a245992ca54d19978b3aa451a77f491`.
+Payload SHA256 `3c4ca338379aa715d4577d79b082d9fbe5d1e29ca3d8172c35678e446201c340`.
+Offline control SHA256 `949caab5600b9b019a6b3b55f7fee44b01f34f7d80ec4227a3e3daf5311549d5`
+uses the identical 0191 kernel. Image comparison isolates the managed range
+and five asset relocations, keeping the 601-byte command and 600s service.
+Production PAS metadata checks passed both exact payloads with synthetic
+handoff and reject an FDT/copy overlap. RAM log framing passed eight cases.
+Current recovery inventory and all nine installed static files plus full 0190
+logs verified. No new root write. 0190 remains the accepted 4 GiB baseline.
+
+`boot-stage-v1.json` in the same workdir is ready for one 6 GiB temporary boot.
+Expect base `0x100000000`, VM/boot/max/max-actual `0x17ff00000`, and positive
+lower sane count, plus full GLES and admission regressions. If any condition
+fails retain raw evidence and do not qualify the larger layout. No physical
+6 GiB claim at this entry. The full goal remains active.
+
 ### 2026-11-09 — 0191 native RAM counters and fresh range audit
 
 The fresh read-only TWRP inventory is in `research/tmp/dsh-memory-0191`.

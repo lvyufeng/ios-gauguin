@@ -35,8 +35,23 @@ using IOByteCount=uint64_t;using addr64_t=uint64_t;using vm_size_t=uint64_t;
 using uintptr_t=std::uintptr_t;using task_t=void *;using ppnum_t=uint64_t;
 using boolean_t=int;using mach_port_name_t=uint32_t;
 static task_t kernel_task=(void *)1;
+#ifdef GAUGUIN_GPU_PILOT_HOST
+static task_t mock_task = kernel_task;
+static bool pilot_mode, pilot_job;
+static unsigned mock_task_refs;
+struct mock_proc { int pid; };
+static mock_proc compositor = {57};
+static task_t current_task() { return mock_task; }
+static mock_proc *current_proc() { return &compositor; }
+[[maybe_unused]] static int proc_pid(mock_proc *p) { return p->pid; }
+static bool sweet_eagl_gpu_pilot_enabled() { return pilot_mode; }
+static bool sweet_eagl_gpu_pilot_caller(mock_proc *p) { return pilot_mode && pilot_job && p == &compositor; }
+static void task_reference(task_t task) { assert(task == (void *)2); ++mock_task_refs; }
+static void task_deallocate(task_t task) { assert(task == (void *)2 && mock_task_refs); --mock_task_refs; }
+#endif
 enum {kIOReturnSuccess=0,kIOReturnBadArgument=1,kIOReturnNoResources=2,kIOReturnNoMemory=3,
-    kIOReturnVMError=4,kIOReturnNotReady=5,kIOReturnNotFound=6,kIOReturnUnsupported=7,kIOReturnTimeout=8};
+    kIOReturnVMError=4,kIOReturnNotReady=5,kIOReturnNotFound=6,kIOReturnUnsupported=7,kIOReturnTimeout=8,
+    kIOReturnNotPrivileged=9};
 enum {kIODirectionInOut=1,kIOMapWriteCombineCache=0x1000,kIOMemoryKernelUserShared=2,kIOMemoryMapperNone=0};
 static const char *kIOUserClientClassKey="IOUserClientClass";
 static const char *kIOClientPrivilegeAdministrator="administrator";
@@ -185,9 +200,31 @@ static IOBufferMemoryDescriptor *mapped(GauguinGPUUserClient *c,uint32_t h)
 {IOOptionBits opts=99;IOMemoryDescriptor *m=nullptr;CHECK(c->clientMemoryForType(h,&opts,&m)==0&&m&&opts==0);return dynamic_cast<IOBufferMemoryDescriptor *>(m);}
 int main(int argc,char **argv)
 {
+#ifdef GAUGUIN_GPU_PILOT_HOST
+    bool pilot = argc > 1 && strcmp(argv[1], "pilot") == 0;
+    task_t mobile = (void *)2;
+    pilot_mode = pilot;
+#endif
     CHECK(!GauguinGPUHeartbeat()&&!heartbeat_calls);
     CHECK(!GauguinGPUStart());hardware_ready=true;CHECK(GauguinGPUStart());
     CHECK(GauguinGPUHeartbeat()&&heartbeat_calls==1&&!lock_depth);
+#ifdef GAUGUIN_GPU_PILOT_HOST
+    if (pilot) {
+        auto trial = new GauguinGPUUserClient;
+        mock_task = mobile;
+        CHECK(!trial->initWithTask(mobile, nullptr, 0, nullptr));
+        pilot_job = true;
+        CHECK(!trial->initWithTask((void *)3, nullptr, 0, nullptr));
+        CHECK(!trial->initWithTask(mobile, nullptr, 1, nullptr));
+        CHECK(trial->initWithTask(mobile, nullptr, 0, nullptr));
+        CHECK(mock_task_refs == 1);
+        CHECK(!trial->start(IOService::getPlatform()));
+        trial->release();
+        CHECK(mock_task_refs == 0);
+        mock_task = kernel_task;
+        pilot_job = false;
+    }
+#endif
     auto c=new GauguinGPUUserClient;
     CHECK(!c->initWithTask((void *)2,nullptr,0,nullptr));CHECK(c->initWithTask(kernel_task,nullptr,0,nullptr)&&c->start(IOService::getPlatform()));
     auto other=new GauguinGPUUserClient;CHECK(other->initWithTask(kernel_task,nullptr,0,nullptr));CHECK(!other->start(IOService::getPlatform()));other->release();
@@ -211,6 +248,47 @@ int main(int argc,char **argv)
     struct ggr_submit_bo bos[]={{3,data,data_va},{1,commands,command_va}};
     struct ggr_submit_cmd cmd={1,1,0,sizeof(cmdwords),0,0,0};
     struct ggr_submit s={};s.flags=0x10;s.nr_bos=2;s.nr_cmds=1;s.bos=(uintptr_t)bos;s.cmds=(uintptr_t)&cmd;s.fence_fd=-1;
+#ifdef GAUGUIN_GPU_PILOT_HOST
+    if (pilot) {
+        for (uint32_t n = 1; n <= 6; n++) {
+            s.fence = 0;
+            CHECK(request(c, 0x46, &s) == 0 && s.fence == n && completed == n);
+        }
+        CHECK(gReleasedRootFence == 0 && gOwner == c);
+        auto waiting = new GauguinGPUUserClient;
+        mock_task = mobile;
+        pilot_job = true;
+        CHECK(waiting->initWithTask(mobile, nullptr, 0, nullptr));
+        CHECK(!waiting->start(IOService::getPlatform()));
+        waiting->release();
+        mock_task = kernel_task;
+        data_m->release();
+        command_m->release();
+        CHECK(c->clientClose() == 0 && gReleasedRootFence == 6 && !gOwner);
+        c->release();
+        auto client = new GauguinGPUUserClient;
+        mock_task = mobile;
+        CHECK(client->initWithTask(mobile, nullptr, 0, nullptr));
+        CHECK(mock_task_refs == 1);
+        CHECK(client->start(IOService::getPlatform()) && gOwner == client);
+        struct ggr_param parameter = {0x10, 1, 0, 0, 0};
+        CHECK(request(client, 0x40, &parameter) == 0 && parameter.value == 619);
+        uint32_t handle = new_bo(client, 16384);
+        IOOptionBits options = 99;
+        IOMemoryDescriptor *mapped_buffer = nullptr;
+        mock_task = (void *)3;
+        CHECK(request(client, 0x40, &parameter) == kIOReturnNotPrivileged);
+        CHECK(client->clientMemoryForType(handle, &options, &mapped_buffer) == kIOReturnNotPrivileged);
+        CHECK(options == 99 && !mapped_buffer);
+        mock_task = mobile;
+        mapped(client, handle)->release();
+        CHECK(client->clientClose() == 0 && !gOwner && gReleasedRootFence == 6);
+        client->release();
+        CHECK(mock_task_refs == 0);
+        printf("PASS: %u owning-task and root-to-compositor pilot assertions\n", checks);
+        return 0;
+    }
+#endif
     if(argc>1&&strcmp(argv[1],"queues")==0) {
         struct ggr_queue q1={0,0,0},q2={0,0,0},bad={1,0,0};
         CHECK(request(c,0x4a,&bad)==kIOReturnBadArgument);

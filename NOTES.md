@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0223 blocked audit: exact write consent absent for third consecutive turn
+
+Previous goal turn PROGRESS: actual receipt validator committed, local17-file
+capture and four missing-consent startup entrypoints qualified. This turn is
+NO PROGRESS after authoritative revalidation: original pending9.50MiB question
+still has no user answer; approval.json, apply-v1, apply-stage-v1/result.json,
+trial-v1 and trial-stage-v1/result.json are all ABSENT. No live worker to wait
+on; prior DSH handles terminal/reaped. No new test/image/write/boot performed.
+
+Same missing individual consent occurred in the concrete-proposal turn, the
+acceptance-tools turn, and this revalidation turn. Required independent prep
+for this physical boundary is complete: full fresh backup/COW/minimaldelta,
+fsck,102 writer checks,77 REAL old ranges,independent full-volume review,
+17-file local capture,58 log checks/32 C++ hashes,19 startup guards. Next
+physical GPU readbacks/handoff require installing the exact new probe/core.
+The chosen integration plan gates the full Metal frontend on that device result.
+Blocked audit threshold satisfied; goal is to be marked BLOCKED for missing
+user input, not complete or user-paused. Full objective remains unchanged.
+
+Current MAIN implementation0d10eda/handoffbf443ff; isolated source2a3476d/
+handoffba472e2. Plan SHA41cb87fe654943f7dc96d30a088acdae2560ffe346b38579de64b3dcc3443c90
+still exact2431blocks/9957376B/77runs. proposal-stage-v2,capture-tools-stage-v2,
+startup-guards-stage-v1 remain exit0/inputs unchanged. Original main mkadt diff
+is the sole unrelated modification and remains intact. Two new root files are
+not installed. No remote push or CI this turn.
+
+RESUME INPUT: actual response to the EXISTING pending individual write question
+allowing this9.50MiB plan and touched-run rollback on write/readback failure.
+AGENTS.md explicitly requires "confirm each destructive step with the user
+before running it". Goal auto-continuations are not that approval. Do not ask
+the same question again, create approval on inference, rerun claimed stages,
+or discard prepared artifacts. On consent follow the exact apply223/trial223
+instructions in the handoff below, with fresh readback checks before boot.
+
 ### 2026-11-10 CST —0223 acceptance/capture/startup tools qualified offline; consent still pending
 
 Previous goal turn PROGRESS: concrete 2431-block proposal and old-range proof.

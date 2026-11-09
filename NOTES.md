@@ -2,6 +2,19 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0207/0208 source-only publication PASS; actual208 still running
+
+DSH79586 publication-stage-v1 ALL0,pins unchanged. New public branch
+codex/gauguin-request-clock-profile-20261109 commit
+1a37cbd28ef382f88535374308399f595d462e45,sole public parent
+542965defbf195d63c7985c15614c65cd59abdc2. Exact private2b0f7e0 tree
+eef41350b15253cb386de7fe1c13062ed06396c0 matches remote. Six reviewed text
+files only:0200/0201 patches,RO/API host tests,series,NOTES. No existing-ref
+changes/private history/artifacts/CI dispatch/device commands. Source207
+RO fallback remains unexercised on hardware; actual208 request-clock trial
+and user feedback still pending. Do not duplicate observer/capture stages.
+Full goal active; touch/Desktop work but responsiveness is not qualified.
+
 ### 2026-11-09 — 0208 whole GPU request clock trial LIVE
 
 DSH58405 owns ONE claimed208 observer after current207 headerc2698d,

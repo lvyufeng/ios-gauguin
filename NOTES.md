@@ -2,6 +2,93 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0223 REAL A619 offscreen rendering PASS;219 source integrated;224 ABI inventory PASS
+
+This user turn PROGRESS: explicit consent received, exact77-run root delta
+applied/readback verified, ONE real temporary223 boot completes ALL8 offscreen
+cases and clean native root->compositor handoff; full17 files captured. Full
+GPU/MetalUI/RAM/storage/peripherals/90-120Hz/daily objective remains INCOMPLETE.
+No new consent question pending. Original223 consent CONSUMED for plan41cb87fe;
+any NEW userdata delta needs full preparation/backup and individual consent.
+Phone automatically back in idle TWRP. ALL DSH workers below terminal/reaped.
+Goal API still reports blocked from prior waiting; its tool cannot resume to
+active. User reply removed consent blocker and this authorized turn proceeded;
+automatic across-turn goal execution may need user-side goal resume. Do not
+report the full objective complete or request223 write permission again.
+
+Applied plan41cb87fe654943f7dc96d30a088acdae2560ffe346b38579de64b3dcc3443c90:
+2431blocks/9957376B/77runs,77writes+77attempts,allreadback,header0last,no rollback.
+DSH65767 apply-stage-v1 exit0/unchanged. Installed actual17 file set verified.
+Original DSH60796 trial/dispatchv1 exit1/unchanged failed HOST proof path before
+ANY recoveryIO/boot (one R->KERNEL_ROOT reference); valid17-file preflight kept.
+New v2 pilot fixes ONLY that root; complete positive host preflight stops atIO
+sentinel successfully, then DSH34821 actual temporaryboot uses boot-profile-v2/
+trial-v2. SendingOKAY0.456s, BootingOKAY0.134s. Original failures unchanged.
+trial-stage-v2 AND dispatch-stage-v2 exit0/inputs unchanged; observer exit0,
+strict native/image banner PASS without reconstruction; elapsed746.946455s,
+automatic TWRP. Image346c7495...,qualified219kernelbb7a369e...,NVT1/no swp,
+6GiB/mode2/600s controls unchanged. No further image or device write this turn.
+
+W223 INSIDE research/tmp/gauguin-metal223-worktree-20261110:
+research/tmp/dsh-metal-0223-device-probe. physical-review223.json SHA
+f65f162fb5b7c05ef0e66caf732943992631479ef1942c05b43b88eaaf423b31,
+state qualified223-offscreen-core-only/errors{}, Metal_core_hardware_qualified.
+Exact core8a826583.../probe2e118d96... build57f7536766149f9b7aca9621,
+seed920434345. RAW stdout inspected:2RGBA8 clears+compute256+triangle+2updated
+checker textures+RGBA8 additive+RGBA16F premultiplied ALL PASS28928 words.
+Native first8 successful submits and queue1 fences1..8;3 authorized compositor
+opens root_fence=8 AFTER completions. All128MiB hard-limit GET8 checkpoints
+correct. Sysmem/linear/uncompressed/single sample/64x64 only. Not IOSurface,
+BGRA/sRGB/GMEM/UBWC/MSAA, MTLDevice or MetalCA qualification. Command timings
+are not FPS. Desktop still existing GLES path; no human visual/touch acceptance.
+
+600s service:598 verified renewals,93 completed nativesubmits,first16 sampled,
+77later successes aggregate; no exact laterIB sequence proof. OneBBcrash,2BO
+failures,1cleanup failure AFTER explicit plannedstop,not inside test window.
+This is finite diagnostic with intentional GPU withdrawal; NOT daily stability.
+All14 static files and COMPLETE previous3logprefixes retained; newfull sizes
+stdout71036/stderr10411/backboardd1350137B. CURRENT POST223 root header:
+11f3ff237da06b9767069fc6a14721d8310ce50e4f24655bcaf6d5d8005c781e.
+Future controls must bind THIS17-file state/fullprefixes, not old219/prewrite
+91622923 or preboot4cec8701. Physical review input pins independently rechecked.
+
+224 separate local-only work W research/tmp/dsh-metal-0224-ios16-frontend-abi
+inside same223 root. DSH51573 inventory-stage-v1 exit1/unchanged: wrong base
+for direct small-selector offsets caused strictUTF8 failure; preserved. Pinned
+Apple OSS objc4fb265098... header +objc-magicsel.m identify interned selector
+base. Freshv2 reads unique actual libobjc reference; DSH3395 stage exit0/pins
+unchanged. inventory-v2/result.json actual20H392 Metal/IOGPU13classes990base
+instance-method entries210ivars. Exact targetDeviceInfo pointer encoding;
+commandqueue semaphore208/commandbuffer repayment flag384 by NAME, not hardcoded
+frontend offsets. Primary source references are format references,not claimed
+exact20H392runtime source. NO runtimeABI/plugin/hardware claim from224.
+New doc docs/gauguin-metal-ios16-frontend-abi-20261110.md. No Apple data in git.
+
+225 integrates previously qualified219 code: source9a043e86bc7d601ff78218123e8eed806a86fd69
+on223 branch, cherry-picked MAIN3e1194b. Exact0205caller-backed IOSurface create,
+0206default-OFF one-swipe diagnostic/physical priority and5associatedtestfiles.
+MAIN KERNEL NOW219-equivalent (old notes211historical). DSH84171 replay-stage-v1
+exit0/unchanged: pristine replay198patches, ALL5330 file/type/mode/link entries
+IDENTICAL to actual native-built219 source, SHA
+fd75fc6d3960240dd02a4c038f5ec935b4e2b5b18b97f8d401345d6f2afce242.
+Fresh local source:.deps-cache/p0-20261105/source225-integrated219 in223 root.
+No new kernelbuild,CI or rerun of unchangedhosttests; retained prior qualification.
+Physical binary still old recorded219build identity. Original MAINmkadt diff
+a74a0418... remains untouched. Docs physical/ABI sourceMAIN187a24f copied223.
+
+NEXT: full pinned HakiOS CA frontend on this A619 core, actual20H392 discovery/
+protocol/capabilities and own pipeline-library variants/constants. Preserve
+dynamic named-ivar lookup and semaphore/encoder lifetimes. Qualify BGRA/sRGB,
+IOSurface no-copy/address/offset/read-only handling then full MetalCA/present.
+Critical integration: kernel ONE GPU owner, existing GLES worker/admission opens
+3times after root8. A competing Metal device cannot simply open alongside it;
+coordinate backend selection, device publication and early discovery timing.
+Do not relax BO/owner/authority/finite600s controls as a shortcut. Codex writes
+critical driver/frontend;DSH local builds/tests/package/authorizedboots. Prepare
+any next userdata proposal completely against actualpost223 with NEW16GiB
+backup/fsck/model/old-block proof before new specific approval. Highrefresh,
+all safeRAM,reliable storage,power/peripherals,longsessions remain open.
+
 ### 2026-11-10 CST —0223 approved77-run write PASS; fixed-path physical trial LIVE
 
 User supplied explicit answer to original9.50MiB question: "允许写入，并允许

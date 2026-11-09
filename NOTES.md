@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206 full local shared-MICRO-budget kernel qualified
+
+DSH47910 native-stage-v1 ALL0,pins unchanged. Clean193-patch source5330
+files67362cd07997c5f6f4e88b75f0c1bd57a22b85b4410eab26f30ac4e4e5b550aa;
+ONLY board C differs from205. Source8e2d335d774349c6fbe0e289f71caef265f97156.
+LOCAL8-job build206-micro-budget,run gauguin.DfeHm7,build0/qualification0;
+retained native symbols and new shared-budget marker verified. Original195
+reference hashes+mtimes unchanged. Bannerxnu-2583a0f78557405eb5caf9af02dec949,
+kernele6aafd692d42e1d91009b909907c17475783db5ca6ebee87eba4df817ffee537.
+
+Next ONE temporary206 manual600s/Homeoff trial,6GiB/mode2 and existing30Hz
+unchanged, after current205 header501dc0e9/full15 files/COMPLETE205-prefix/
+memory preflight. Same195 libraries. New post proof records actual MICRO
+rechecks/expiry and compares timing to HEALTHY204 (205 remains a failed
+run, not a valid performance baseline). Notify available user once booted,
+request unlock/swipe/Settings feedback after the90s compositor handoff.
+User feedback is independently recorded and correlated with captured GPU
+health; do not assume a still-visible UI proves the GPU remains active.
+No206 physical result yet; no userdata delta/flash/rollback. Root owns
+NOTES; full goal active.
+
 ### 2026-11-09 — 0206 shared MICRO retry budget reproduces205 and passes checks
 
 Codex patch0199 changes ONLY board C from205. Each full gfw_faults call

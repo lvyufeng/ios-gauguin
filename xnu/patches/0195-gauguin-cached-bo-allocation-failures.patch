@@ -1,0 +1,100 @@
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -115,6 +115,7 @@
+     gpu_buffer *fBuffers;
+     uint64_t fBytes;
+     uint32_t fNextHandle,fNextQueue,fNativeFence;
++    uint32_t fAllocationStage,fAllocationFailures;
+     gpu_queue fDefaultQueue,fQueues[GGR_MAX_QUEUES];
+     bool fClosed, fCompositor;
+     gpu_buffer *find(uint32_t);
+@@ -206,7 +207,7 @@
+     if(!IOUserClient::initWithTask(task,sid,type,properties))return false;
+     fTask=task;fCompositor=!admin;
+     if(fCompositor)task_reference(fTask);
+-    fNextHandle=1;fNextQueue=1;return true;
++    fNextHandle=1;fNextQueue=1;fAllocationStage=0;fAllocationFailures=0;return true;
+ }
+ bool GauguinGPUUserClient::start(IOService *p)
+ {
+@@ -240,14 +241,19 @@
+ }
+ IOReturn GauguinGPUUserClient::add(IOMemoryDescriptor *m,SweetSurface *s,uint64_t size,uint32_t flags,uint32_t *handle)
+ {
++    fAllocationStage=3; /* size/client-byte/handle limits */
+     if(!size||(size&PAGE_MASK)||size>GGR_MAX_BO_BYTES||size>GGR_MAX_CLIENT_BYTES-fBytes||!fNextHandle)
+         return kIOReturnNoResources;
++    fAllocationStage=4; /* buffer slot */
+     gpu_buffer *slot=nullptr;
+     for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(!fBuffers[i].memory){slot=fBuffers+i;break;}
+     if(!slot)return kIOReturnNoResources;
++    fAllocationStage=5; /* GPU VA reservation */
+     uint64_t address=reserveAddress(size);
+     if(!address)return kIOReturnNoResources;
++    fAllocationStage=6; /* memory descriptor wiring */
+     if(m->prepare()!=kIOReturnSuccess){releaseAddress(address,size);return kIOReturnVMError;}
++    fAllocationStage=7; /* physical span and empty PTE validation */
+     /* Complete validation before the first PTE store. No partial map on an
+      * invalid physical segment. Each CPU 16KiB page contributes FOUR leaves. */
+     for(uint64_t off=0;off<size;off+=4096) {
+@@ -258,6 +264,7 @@
+     }
+     m->retain();if(s)s->retain();
+     *slot={m,s,address,size,fNextHandle++,flags,true};fBytes+=size;
++    fAllocationStage=8; /* final physical lookup before each PTE store */
+     for(uint64_t off=0;off<size;off+=4096) {
+         uint64_t pa=0;
+         if(!physicalPage(m,off,&pa)){sweet_gpu_runtime_stop();return kIOReturnVMError;}
+@@ -266,8 +273,9 @@
+         *leafAt(address+off)=pa|UINT64_C(0xe43)|((flags&GGR_BO_READONLY)?0x80:0);
+     }
+     memoryBarrier();
++    fAllocationStage=9; /* runtime translation synchronization */
+     if(!sweet_gpu_runtime_sync())return kIOReturnNotReady; /* retained */
+-    *handle=slot->handle;return kIOReturnSuccess;
++    *handle=slot->handle;fAllocationStage=0;return kIOReturnSuccess;
+ }
+ bool GauguinGPUUserClient::drop(gpu_buffer *b)
+ {
+@@ -425,14 +433,17 @@
+         return kIOReturnBadArgument;
+     bzero(&r,sizeof(r));memcpy(&r,a->structureInput,size);
+     IOLockLock(gLock);IOReturn result=kIOReturnBadArgument;
++    fAllocationStage=0; /* runtime/client gate, before request validation */
+     if(fClosed||!fBuffers||gOwner!=this||!sweet_gpu_runtime_ready()){result=kIOReturnNotReady;goto out;}
+     switch(selector) {
+     case 0x40:
+         if(r.param.pipe!=0x10||r.param.len||r.param.pad)break;
+         result=sweet_gpu_runtime_parameter(r.param.param,&r.param.value)?kIOReturnSuccess:kIOReturnUnsupported;break;
+     case 0x42: {
++        fAllocationStage=1; /* request flags/shape */
+         if(!r.make.size||r.make.size>GGR_MAX_BO_BYTES||r.make.handle||(r.make.flags&~(GGR_BO_READONLY|GGR_BO_WC)))break;
+         uint64_t n=(r.make.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
++        fAllocationStage=2; /* backing IOBuffer allocation */
+         auto m=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
+             kIODirectionInOut|kIOMemoryKernelUserShared|kIOMapWriteCombineCache,(vm_size_t)n,PAGE_SIZE);
+         if(!m){result=kIOReturnNoMemory;break;}
+@@ -478,6 +489,22 @@
+     default:result=kIOReturnUnsupported;break;
+     }
+ out:
++    if(selector==0x42&&result!=kIOReturnSuccess&&fAllocationFailures<8){
++        ++fAllocationFailures;
++        uint32_t buffers=0,freeUnits=0,largest=0,run=0;
++        if(fBuffers)for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(fBuffers[i].memory)++buffers;
++        for(unsigned i=0;i<256;i++)for(unsigned bit=0;bit<64;bit++){
++            if(gAllocated[i]&(UINT64_C(1)<<bit))run=0;
++            else {++freeUnits;if(++run>largest)largest=run;}
++        }
++        /* Cached CPU metadata only, under the existing operation lock. No
++         * extra MMIO, recovery, quota/flag changes or success-path logging.
++         * Stage:0 gate,1 request,2 backing,3 limits,4 slots,5 VA,6 prepare,
++         * 7 spans,8 PTE,9 sync. Preserve the original result and ownership. */
++        IOLog("SWEET GPU BO FAIL: seq=%u stage=%u rc=%08x size_hi=%08x size_lo=%08x flags=%08x buffers=%u bytes=%u next=%u free_units=%u largest_units=%u compositor=%u\n",
++            fAllocationFailures,fAllocationStage,result,(uint32_t)(r.make.size>>32),(uint32_t)r.make.size,
++            r.make.flags,buffers,(uint32_t)fBytes,fNextHandle,freeUnits,largest,(unsigned)fCompositor);
++    }
+     if(result==kIOReturnSuccess){memcpy(a->structureOutput,&r,size);a->structureOutputSize=(uint32_t)size;}
+     IOLockUnlock(gLock);return result;
+ }

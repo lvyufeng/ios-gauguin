@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0202 cached BO rejection diagnostics pass native IOKit TU
+
+Codex patch0195 changes only GauguinGPU.cpp. Preserve every existing
+allocation result, limits, flags, mapping, sync, ownership and release.
+Per-client stage tags distinguish gate/request/backing/limits/slots/VA/
+prepare/spans/PTE/sync. Only the first8 failed selector42 requests log
+cached request size/flags, result, buffer count/bytes/next handle and
+free/largest VA units under the existing lock. No new MMIO or success
+logging. Do not assume count256 or byte256MiB is the cause until captured.
+
+DSH20165 native-check-stage-v2 terminal0, pins unchanged; real ARM64 IOKit
+TU0,2129 reference header/config pins and original generated files/objects
+unchanged. Candidate-v2 has the SAME diagnostic C++ asv1, plus three
+byte-identical adjacent headers. V1/DSH90347 failed compile because the
+isolated candidate omitted two relative bsd headers; its failure/output
+is retained, not counted as a driver behavior failure. No new host tests
+for reversible logging;201 actual guard/runtime checks remain the
+accepted baseline and the fresh replay must prove those sources unchanged.
+
+Next clean189-patch replay/full LOCAL native202 build, then same installed
+195 userland/6GiB/300s/automatic Home with current201 headerda939d5f and
+complete15-file/prefix preflight. Read all raw files before extracting BO
+failure and completed-fence/frame evidence. No new userdata delta/rollback.
+Root owns NOTES; full GPU/Metal/performance/high-refresh goal stays active.
+
 ### 2026-11-09 — 0201 completes GPU jobs and five CA frames; BO crash remains
 
 201 trial is TERMINAL/captured:09:51:19.146676–09:58:43.413038UTC,

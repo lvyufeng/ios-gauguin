@@ -2,6 +2,73 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0195 trial/capture/evidence gates ready; USB still absent
+
+Current tooling commit `9b35e86c05bf8bb7c1312d5574e652e1e891f7cd`
+adds only the sampled-service parser/tests and handoff. Published by DSH9594
+/dispatcher19648 as public `300733ffe7dcfee3403c956ca7c5f75074e6976a`,
+branch `codex/gauguin-sampled-service-acceptance-20261109`, exact tree
+`39bae236de2359a6ddc56bc7107c49ae9c9effba`, sole parent1053831.
+Three text files, existing refs retained, noCI or device action. The actual
+195 kernel remains built from0d8faae/be3a8175, unchanged.
+
+DSH56559 `trial-prepare-stage-v1` returned0, inputs unchanged.
+`trial195.py --prepare` ALREADY produced expected-installed195.json and
+both capture profiles:15 files (14 prior plus desktop bridge), exact321-
+block plan5cbbf27a. Do not repeat prepare; outputs use exclusive creation.
+`trial195.py` run verifies new approval/apply/dispatcher receipts BEFORE
+RecoveryIO, then reads all15 current files and complete194 log prefixes,
+requires the installed header3aaba846, then calls boot_pilot195.py once.
+The helper retains the proven boot/latch/observer body, updated only for
+39runs/1,314,816B/15files, scope and exact kernel input verification.
+New nonkernel tooling commits are permitted; kernel patches/deps and all
+reviewed kernel input pins remain frozen. Temporary6GiB image6133778e,
+780s observation/860s process timeout, no automatic second attempt.
+No approval/apply/boot-stage/trial exists yet.
+
+DSH58505 `desktop-evidence-stage-v1` returned0, pins unchanged;4 tests.
+Historical raw194 worker proof remains exactly identical. A synthetic10th
+job stays OUTSIDE proven worker fences7–9. Admission framing preserves
+raw byte offsets/spans and rejects truncated, interleaved, duplicate or
+wrong-identity sessions. Synthetic CA cases require bridge install after
+worker0, hardware FD619 context, full1080x2400 IOSurface and real draw/output
+receipts plus >9 native jobs. Missing/error cases fail. These fixtures
+prove parser behavior ONLY, never actual195 GPU/UI execution.
+
+DSH45947 /dispatcher19517 `execution-review-stage-v1` returned0,
+pins unchanged. `execution-review195.json` checks all15 expected files
+against final raw HFS, both mappings, exact boot-helper reconstruction,
+AST ordering and actual missing-approval refusal with a fake IO trap.
+No phone command occurred. `post195.py` is prepared, syntax reviewed:
+after actual trial, --prepare freezes the post stage; capture ALL15 raw
+files and full old prefixes before acceptance; save both constructor
+sessions as unmodified byte spans. Keep startup/API/pixels/memory/RAM/finite
+service/worker checks; CA hardware activity is a separate result.
+GPU submission records are first16/every120, not total job count.
+Frame logs have no presentation/context ID, so even a CA activity pass
+leaves accelerated_UI, visual correctness, interaction latency, Metal,
+high-refresh and daily-use flags FALSE until stronger physical evidence.
+If late constructor version-query errors differ from historical190 strict
+framing, retain raw evidence and review against actual source gate; never
+rewrite a raw record to make an old parser pass.
+
+Next remains ONLY: user reconnects TWRP, then DSH executes the pinned
+READ-ONLY live-preflight-stage-v1.json. It checks fresh memory/header and
+all39 old ranges, then full independent-local-review-v2. After success,
+request NEW exact321-block consent + touched-block failure rollback under
+AGENTS.md. The192239-block approval is consumed. After195 consent create
+one pinned apply stage using write_root_delta195.py, verify every readback,
+then a pinned stage running trial195.py (WITHOUT --prepare). Post195 raw
+capture must run after actual terminal observer/recovery. Never restore
+old snapshot blocks after a subsequent iOS boot.
+
+ADB/fastboot both empty at05:31UTC; pending USB reconnect question has no
+answer. No active boot or device process. This is the second consecutive
+goal turn with the same USB absence; both turns made concrete offline
+progress. No195 device write or physical qualification. Preserve original
+mkadt diffa74a0418, fresh16GiB backup22e9123a, approved192 installed root,
+failed localv1 receipts, all accepted194 raw evidence and the full goal.
+
 ### 2026-11-09 — sampled-service acceptance preserves accepted194 raw evidence
 
 Added `tools/gpu_service_log.py` and `tests/test_gpu_service_log.py`.

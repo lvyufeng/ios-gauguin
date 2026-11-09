@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — ISOLATED209 built/published; main208-R4 still LIVE/frozen
+
+Current phone remains SAME208 thirty-minute R4; DSH78364 observer/DSH60136
+post wait confirmed running. R4 actual human unlock result still pending,
+no terminal capture yet. Do not reboot/replace it or mutate its main frozen
+inputs. R4 source remains195 patches; primary working tree only original
+mkadt diff plus handoff documentation. All R4 outer/inner input pins were
+rechecked byte-identical after isolated source changes. Main R4 image is
+1de0fc3d/e6d70dbf kernel,1800s service, not the new209 kernel.
+
+To progress during R4, created ISOLATED worktree
+/Users/baai/Project/ios-gauguin/research/tmp/gauguin-perf209-worktree-20261109
+branchcodex/gauguin-read-continuation-20261109. Its private209 directory
+contains copied original host/native receipts with original paths/IDs,
+not fabricated new runs. Read-only references link original cache entries;
+source209-codex/build209-read-continuation are REAL independent roots inside
+that worktree. Original mkadt diff copied as an uncommitted identical file,
+never included in source commits; main user file untouched.
+
+Isolated source381879c9b1610d6c883c5c27988ae6b9cc30b436 commits patch0202,
+two main read/integration tests, exact cached-diag API test adaptation/series
+and NOTES. DSH64470 promotion ALL3 jobs0,pins unchanged. DSH18072 full
+native-stage-v1 ALL0,pins unchanged: clean196-patch5330-file source
+50cd63f814c839e4ec4dbaa31a343fff1426a613af5be8701562c945b97cae6e;
+LOCAL8-job gauguin.MP24cH/build0/qualification0. Bannerxnu-869ccb174d484bd5ae0df8e046cdcc49,
+kernel48d1f4ca3b69165ff3d2fc6ee9ccc5b60ac3ac80d1518b4f0385453e4af96ddc.
+Every retained generic native/defined read-continuation/Freeze/Dump/cache/
+RO/MICRO/API check passes; original195 reference hashes/mtimes unchanged.
+No209 package/boot/hardware speedup or UI result yet. Main has NOT received
+patch0202; source isolation protects ongoing R4 proof.
+
+Isolated note commit8cb859602d933a99d8291a681f7cee95115fe709 has exact tree
+512bdf66840ecebe531fffd497c40ebbb2e9b831. DSH70843 publication-stage-v1 ALL0,
+pins unchanged: new publiccodex/gauguin-bounded-read-continuation-20261109
+commitdffc34c768a8424784edcfa7bd40d17bcb61f1c9,sole public parent1a37cbd.
+Six reviewed source text files only; remote tree/parents rechecked; no private
+ancestry/artifacts/existing-ref updates/CI/device commands.
+
+NEXT: obtain R4 human feedback/raw terminal; do not classify spinner onset
+without timing. Prepare209 packaging in isolated worktree with actual native
+provenance; physical boot MUST wait for exact R4 terminal/current header/
+all15 COMPLETE prefixes and new recovery-memory preflight. Any copied helper
+using __file__.resolve() for ROOT must be a REAL COPY in isolated tree, not
+a symlink to main, or capture paths will resolve incorrectly. Reference
+assets/immutable old receipts may be linked read-only. Current208 R4 inputs
+stay frozen. Full objective ACTIVE, not responsive/daily/Metal/high-refresh
+qualified. Codex owns critical code; DSH executes tests/build/boot.
+
 ### 2026-11-09 — R3 unlock spinner/crash AFTER planned GPU stop; same-kernel30min R4 LIVE
 
 Actual R3 automatic15:33:16.948766–15:45:43.901101UTC,746.952335s.

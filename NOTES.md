@@ -2,6 +2,24 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0202 automatic BO failure attribution trial LIVE
+
+DSH88959 is observing ONE claimed202 trial after qualified packaging,
+current201 memory/headerda939d5f/full15-file and COMPLETE201-prefix
+preflight. Temporary image
+1001cb1ee63d8409fffb24dff2159b0e9eb9e56507f70f1059a1ed67d97f08a6,
+6GiB/mode2/300s/Home90,605-byte command; transfer19,520KiB and Booting
+both OKAY,total0.588s. Existing195 Mesa/bridge retained; no new userdata
+delta, flash or rollback. Observer-running; no202 physical result yet.
+
+The new post-wait-stage-v1 watches this exact observer and BOTH real
+dispatcher terminals, then saves all15 full files and complete201 prefixes
+before extracting first8 BO allocation failures, completions and CA frames.
+Poll existing handles/claims only; never repeat on timeout. No new manual
+or visual action requested; user informed this diagnostic is automatic.
+Root owns NOTES.201's28 completions/5 frames do not qualify202. Full goal
+active; do not weaken BO quotas or assume the null's cause without data.
+
 ### 2026-11-09 — 0202 full local native build qualified; next automatic BO trial
 
 DSH72793 native-stage-v1 ALL0, pins unchanged. Clean189-patch source5330

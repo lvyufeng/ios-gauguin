@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0192 userland pilot builds alongside unchanged default EAGL
+
+The opt-in `tools/build-ios-eagl.py --compositor-pilot` builds a late
+launcher and a separate worker against the accepted Mesa185 library.
+The launcher waits off the startup thread for a clean GPU handoff in
+protected UID 501 backboardd, then loads the root-owned worker. The worker
+submits the established GLSL and IOSurface tests with cleanup. No render
+hooks are installed. The default build produces the exact prior admission
+and disabled bridge hashes.
+
+DSH userland-stage-v1, outer 92944 and dispatcher 89687, returned 0 on both
+native arm64/iOS16 build/sign jobs. Exact pilot libraries:
+`libGauguinEAGLAdmission.dylib` (70,256 B)
+`5815a34ab6bd268d635708ae7d2de2c9e6d2f0db519d0a8ff37ecf8367d58a11` and
+`libGauguinCompositorProbe.dylib` (73,104 B)
+`4b211a4073f39edcaccabff0c9362de68080e480df5423f47c827390820e55db`.
+The worker exports only its probe entry and the launcher has no Mesa load
+command. No CI, phone command, or GPU compositor trial by this build.
+The main workspace handoff carries the paired kernel, HFS review and
+physical trial state.
+
 ### 2026-11-09 —186 inert EAGL admission + disabled bridge built and reviewed
 
 Isolated UI branch from private1d365d4/publiceac33438/tree613176e3. Main root

@@ -75,8 +75,15 @@ gauguin_eagl_admit(void)
 }
 
 #if defined(GAUGUIN_EAGL_ADMISSION_ONLY)
+#if defined(GAUGUIN_EAGL_PILOT)
+void gauguin_eagl_start_pilot(void);
+#endif
+
 __attribute__((constructor)) static void admission_install(void)
 {
     (void)gauguin_eagl_admit();
+#if defined(GAUGUIN_EAGL_PILOT)
+    gauguin_eagl_start_pilot();
+#endif
 }
 #endif

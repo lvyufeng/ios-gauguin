@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build inert EAGL admission diagnostics and a disabled bridge for iOS16.
+"""Build the EAGL diagnostics, disabled bridge, or compositor probe for iOS16.
 
 Only local source preparation, cross-compilation and signing. No device IO,
 root-image changes or Mesa rebuild. The bridge cannot replace any method yet.
@@ -57,11 +57,84 @@ def macho(p,kind):
         at+=sz
     assert at==32+size and len(versions)==1 and versions[0][:2]==(2,0x100000)
     return {'bytes':len(b),'sha256':sha(p),'versions':versions,'loads':loads,'rpaths':rpaths,'install_names':identity}
+
+def build_pilot(repo, mesa_build, out):
+    receipt = mesa_build.resolve() / 'result.json'
+    mesa = json.loads(receipt.read_text())
+    assert mesa['state'] == 'passed-iOS16-A619-GLES-library-and-probe-build'
+    lib = Path(mesa['products']['libGauguinOSMesa.8.dylib']['path'])
+    assert sha(lib) == ACCEPTED_MESA
+    includes = Path(mesa['source']) / 'include'
+    sources = repo / 'userland/eagl'
+    launcher_source = sources / 'pilot.c'
+    admission_source = sources / 'admission.c'
+    worker_source = sources / 'compositor_probe.c'
+    sdk = Path(subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip())
+    clang = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--find', 'clang'], text=True).strip()
+    headers = ['GL/gl.h', 'GL/glext.h', 'GL/osmesa.h', 'GLES3/gl3.h',
+               'GLES3/gl3platform.h', 'KHR/khrplatform.h']
+    paths = [Path(__file__).resolve(), receipt, lib, sdk / 'SDKSettings.json',
+             launcher_source, admission_source, worker_source, *(includes / h for h in headers)]
+    pins = {str(path): sha(path) for path in paths}
+    out = out.resolve()
+    products = out / 'products'
+    out.mkdir(parents=True, exist_ok=False)
+    products.mkdir()
+    install_dir = '/usr/local/lib/gauguin'
+    admission = products / 'libGauguinEAGLAdmission.dylib'
+    worker = products / 'libGauguinCompositorProbe.dylib'
+    common = [clang, '-target', 'arm64-apple-ios16.0', '-isysroot', str(sdk),
+              '-std=gnu11', '-O2', '-Wall', '-Wextra', '-Werror', '-dynamiclib',
+              '-framework', 'CoreFoundation', '-framework', 'IOKit']
+    commands = (
+        (admission, common + ['-lobjc', '-DGAUGUIN_EAGL_ADMISSION_ONLY=1',
+                              '-DGAUGUIN_EAGL_PILOT=1', str(admission_source), str(launcher_source)]),
+        (worker, common + ['-fvisibility=hidden', '-I' + str(includes), '-framework', 'IOSurface',
+                           str(worker_source), str(lib), '-Wl,-rpath,' + install_dir]),
+    )
+    artifacts = {}
+    for product, argv in commands:
+        install_name = install_dir + '/' + product.name
+        with (out / (product.stem + '.log')).open('xb') as log:
+            subprocess.run(argv + ['-install_name', install_name, '-o', str(product)],
+                           stdout=log, stderr=subprocess.STDOUT, check=True)
+            subprocess.run(['/usr/bin/codesign', '--force', '--sign', '-', str(product)],
+                           stdout=log, stderr=subprocess.STDOUT, check=True)
+            subprocess.run(['/usr/bin/codesign', '--verify', '--strict', str(product)],
+                           stdout=log, stderr=subprocess.STDOUT, check=True)
+        artifact = macho(product, 6)
+        assert artifact['install_names'] == [install_name]
+        artifacts[product.name] = {'path': str(product), **artifact}
+    loader = artifacts[admission.name]
+    probe = artifacts[worker.name]
+    assert not loader['rpaths'] and all('GauguinOSMesa' not in x for x in loader['loads'])
+    assert probe['rpaths'] == [install_dir] and '@rpath/libGauguinOSMesa.8.dylib' in probe['loads']
+    symbols = subprocess.check_output(['/usr/bin/nm', '-gUj', str(worker)], text=True).splitlines()
+    assert symbols == ['_gauguin_compositor_gles_run']
+    for product in (admission, worker):
+        imports = subprocess.check_output(['/usr/bin/nm', '-uj', str(product)], text=True)
+        assert not any(x in imports for x in ('method_setImplementation', 'class_addMethod',
+                                               'method_exchangeImplementations'))
+    assert all(sha(Path(path)) == pin for path, pin in pins.items())
+    result = {'state': 'signed-iOS16-arm64-compositor-probe-and-late-loader',
+              'products': artifacts, 'input_pins': pins, 'inputs_unchanged': True,
+              'device_writes': 0, 'renderer_hooks': False, 'physical_qualified': False}
+    (out / 'build-result.json').write_text(json.dumps(result, indent=2) + '\n')
+    print(result['state'])
+
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--upstream-cache',type=Path,required=True);ap.add_argument('--mesa-build',type=Path,required=True)
-    ap.add_argument('--registry',type=Path,required=True);ap.add_argument('--out',type=Path,required=True);a=ap.parse_args()
-    repo=Path(__file__).resolve().parent.parent;e=repo/'userland/eagl';out=a.out.resolve();cache=a.upstream_cache.resolve()
+    ap.add_argument('--upstream-cache',type=Path);ap.add_argument('--mesa-build',type=Path,required=True)
+    ap.add_argument('--registry',type=Path);ap.add_argument('--out',type=Path,required=True)
+    ap.add_argument('--compositor-pilot', action='store_true');a=ap.parse_args()
+    repo=Path(__file__).resolve().parent.parent
+    if a.compositor_pilot:
+        if a.upstream_cache or a.registry:
+            ap.error('--compositor-pilot uses the accepted Mesa build without bridge inputs')
+        return build_pilot(repo, a.mesa_build, a.out)
+    if not a.upstream_cache or not a.registry:
+        ap.error('--upstream-cache and --registry are required for the disabled bridge')
+    e=repo/'userland/eagl';out=a.out.resolve();cache=a.upstream_cache.resolve()
     manifest=e/'upstream.json';m=json.loads(manifest.read_text());assert m['commit']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
     inputs={str(p):sha(p) for p in [Path(__file__).resolve(),manifest,e/'admission.c',e/'LICENSE.upstream',a.registry.resolve()]}
     for row in m['files']:

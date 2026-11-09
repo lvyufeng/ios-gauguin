@@ -30,14 +30,28 @@ compiled bridge cannot install renderer hooks. An environment variable or
 boot argument cannot enable it. This product is for compilation review and
 must not be described as an enabled compositor GPU driver.
 
-Runtime injection is still unproven. The existing backboardd plist and its
-cached job differ only in the cache's two logging environment variables;
-future staging must preserve those separately. The diagnostic library may
-be added only after a new full backup, exact local HFS delta review and
-explicit consent. A later rendering stage also needs compositor-scoped
-GPU authorization and startup ordering. Ordinary applications must remain
-denied while the driver has a single privileged owner and a global GPU page
-table. Do not run backboardd as root to bypass that work.
+The 0190 and 0191 device trials verified diagnostic injection into the real
+UID 501 backboardd job. The existing backboardd plist and its cached job
+remain byte-for-byte unchanged when staging the pilot libraries.
+
+Build the separate 0192 compositor GPU probe and its admission launcher:
+
+```sh
+python3 tools/build-ios-eagl.py --compositor-pilot \
+  --mesa-build /absolute/path/accepted-Mesa185-build \
+  --out /absolute/path/fresh-compositor-pilot-build
+```
+
+On a kernel built with scoped compositor GPU authorization, the launcher
+starts its worker only in the UID 501 backboardd process with a single
+`sweeteagl=2` boot argument and the existing admission environment. The
+worker runs off the startup thread. It waits for a successful GPU client
+open and close before loading the probe from the root-owned library path.
+The kernel holds that open until the root client releases the GPU cleanly
+after six native fences. The probe reads back a 32×32 shader result and a
+sampled IOSurface using the accepted Mesa. The built libraries leave renderer
+methods unchanged. Actual backboardd GPU submissions and pixel readbacks
+need a device trial to qualify.
 
 The complete diagnostic C function also runs under typed OS boundaries and
 real host Objective-C metadata in fourteen scenarios, including rejected
@@ -53,4 +67,4 @@ The strict GNU C build removes the primary source's unsafe nonzero-depth
 return-address diagnostics and unused extension counter. It preserves
 `-Wall -Wextra -Werror`. Both Mach-O products have one constructor, verified
 through this toolchain's `S_INIT_FUNC_OFFSETS` entry and local symbol table.
-Physical injection and desktop rendering are still separate acceptance steps.
+The default build retains these same diagnostics and disabled bridge.

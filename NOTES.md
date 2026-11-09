@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0211 graphics still FAIL: white clock, missing icons/blank widgets; unresponsive
+
+User refined initial generic 'normal' answer with exact call_a8a59baf...:
+clock digits changed red->white; can swipe into App Gallery without visible
+corruption; desktop icons abnormal. Then clarified '流畅度应该是好了一点，
+但是压根不跟手'. Icon question call_e695a7... answered '图标空白或大部分
+消失'; latest message '图标消失，小组件空白'. Save immutable original report
+AND new user-visual-followup211.json/user-icon-report211.json/
+user-widgets-report211.json. Do NOT treat earlier generic normal answer as
+all-graphics PASS. App Gallery icon content was NOT specifically confirmed.
+Current conclusion: clock mask improved in this interaction, overall graphics
+and responsiveness unqualified/failed. Need actual CA/texture/shader log
+correlation after automatic return. Same211 trial continues, no manual reset.
+
+Main source211 publication DSH86095 ALL0,pins unchanged: new branch
+codex/gauguin-client-bo-capacity-20261110, public52eef1b9e7d5051ca06bc4460ca90b7c1bae4116,
+exact tree48f1c66c1effc30560112d03cae7600698c05b7e,sole208 parent1a37cbd2;
+six source text files, no old-ref update/CI/device actions.
+
+Independent01212 OOM audit at research/tmp/dsh-mesa-0212-oom-audit,
+DSH10018 map-stage-v1 ALL0. Exact accepted Mesa + original R4 PC/LR yields
+ONE aligned candidate bias1161c8000; fault local71cd48 fd_bo_mark_for_dump,
+ldr w8,[x0,#18], matching FAR18/reloc_flags offset24. Direct caller is
+fd6_build_bindless_state<A6XX>,2 MORE direct BL frames match emit3d/draw;
+next frame is indirect BLR and not independently resolved. Bias was INFERRED,
+NOT observed from dyld. Source fd6_image.cc198-208 allocates16KiB readonly
+bindless BO, then unchecked mark_for_dump/map: matches adjacent original
+stage4/256-slot failure. Actual fix for downstream OOM still NOT implemented.
+Do not add a null check that proceeds to submit invalid descriptor state.
+Public fd_device_purge flushes both caches; do NOT take table_lock around
+it blindly (bo destruction already locks table_lock).
+
+Created independent perf213 worktree at research/tmp/
+gauguin-perf213-worktree-20261110,branchcodex/gauguin-perf-with-bo-20261110
+from1a80b1b. Copied reviewed0202 + read/integration/API tests; inserted0202
+before0203 and scoped API audit normalization for independently tested
+private BO capacity. Original mkadt diff copied unchanged. Old caches linked
+read-only; source213/build213 do NOT exist, NO compile/package/boot started.
+DEFER this candidate: latest detailed graphics feedback still fails. Preserve
+main211 live/pinned inputs; prioritize missing icon/widget rendering first.
+
 ### 2026-11-09 UTC — 0211 human visual interaction PASSED; native terminal still pending
 
 User answered call_d85b305778bd4ec495f0d79e0d04e1ca:

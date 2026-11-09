@@ -84,22 +84,49 @@ Its own shader fixtures are upstream test inputs, not downloaded Apple shaders.
 The pixel oracle builds from `tests/fixtures/metal_probe_pixels.cpp` with
 `-Iuserland/metal`, ASAN and UBSAN.
 
-## Next physical boundary
+## Concrete physical proposal, awaiting individual approval
 
-Prepare a local COW root adding the probe/core and changing only the existing
-root diagnostic job and its matching launchd cache entry. Keep the label,
-128 MiB device policy, installed GLES/Mesa/bridge, compositor admission and
-logs. The Metal probe does not print an old GLES PASS or change the admission
+DSH has now prepared a local COW root, minimal delta and paired temporary image.
+The proposal adds the probe/core and changes only ProgramArguments of the
+existing root diagnostic job and its matching launchd cache entry. It preserves
+the label, 128 MiB device policy, the other 530 jobs, installed GLES/Mesa/bridge,
+compositor admission and complete existing logs. Both D22 and D221 device-policy
+overrides remain keyed by `org.gauguin.gpu-probe`, with the inherited active soft
+limit cancelled and active/inactive hard limits of 128 MiB.
+
+The Metal probe does not print an old GLES PASS or change the admission
 criterion. Eight completed root fences followed by a verified owner close must
 allow the existing compositor path to acquire the single GPU owner.
 
-Pair it with the qualified 0219 kernel, physical touch enabled and the finite
-synthetic swipe disabled. Preserve the 600-second diagnostic service and all
-firmware, memory and safety controls. Complete minimal-delta reconstruction,
-local filesystem checks, writer-model tests, real-device old-block comparison
-and independent review before requesting the required individual userdata
-write approval. No new delta, temporary image, application or approval exists
-at this milestone. The fresh backup alone is not installation authorization.
+| Proposal proof | Executed result |
+| --- | --- |
+| Minimal delta | **2,431 blocks / 9,957,376 bytes / 77 runs**, including necessary HFS metadata. Plan SHA-256 `41cb87fe654943f7dc96d30a088acdae2560ffe346b38579de64b3dcc3443c90`. |
+| Final local root | SHA-256 `bf20ed3bf7a42f69aded451cafe8d9ebb5773d15e980097cfabf18eb6d0f9e2b`; full-volume independent comparison confirms exactly those 2,431 changed sectors. |
+| Filesystem | Read-only local fsck exit 0; detach exit 0; final image hash unchanged. The log reports iOSRoot appears OK. |
+| Writer | Same proven writer body, with only backup/image pins, plan key and error label changed. All **102** approval, stale-range, partial-write, readback, reporting-failure and rollback model assertions pass; fake IO only. |
+| Current phone | Read-only RecoveryIO checks all **77** old ranges, 9,957,376 bytes, against the actual idle/unmounted userdata partition. Volume header matches before/after. Zero writes and reboots. |
+| Independent review | Exact new namespace, all target contents/owners/modes, retained files/logs, job semantics, range bytes and full-volume change set pass. |
+
+The paired image keeps the **qualified 0219 kernel** and restores physical
+Novatek touch while removing `swp=1`. The 601-byte command stays in its fixed
+608-byte field. Every payload byte outside that field is identical to 0219;
+boot geometry, shim, DTB, firmware, 6 GiB bootstrap and 600-second service remain
+the same. Image: 20,021,248 bytes, SHA-256
+`346c74953fbc006a8f09d31104cdc23605f5474b618de53bcaa34afb0dd6378e`.
+
+`proposal-stage-v1` packaged the image successfully, then failed before COW
+creation because an audit guard expected missing-import counts instead of the
+actual empty arrays. That original failure and its inputs remain intact.
+Fresh v2 fixes that schema comparison, reuses the exact packaged image without
+rerunning its step, and completes staging through independent review with
+exit 0 and unchanged inputs. DSH handles 26037 and 91571 are terminal/reaped.
+Private scripts, images, delta bytes, receipts and logs remain outside git.
+
+The individual userdata-write question for this exact plan is pending. **No
+approval file, application, temporary boot or hardware rendering result exists.**
+The guarded apply wrapper requires the fresh plan-bound approval and verifies
+review input pins; the writer rechecks every old range before its first write.
+Its failure path restores only the runs touched by that application.
 
 After one approved temporary trial, require the exact build prefix, eight
 native completed fences, eight readback passes and clean kernel handoff.

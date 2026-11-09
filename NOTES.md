@@ -2,6 +2,89 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — R4 FAILS real UI;256 BO-slot exhaustion + missing CA effects callback
+
+PRIORITY changed by actual R4 feedback: Desktop reachable but icons absent,
+clock red background/still laggy; leaving Settings showed spinner then lock
+screen/full red-to-black gradient. User corrected 'stuck': NOT a persistent
+freeze. Reports saved in dsh-gpu-0208-manual-long-r4/user-performance-report208r4.json
+and user-visual-followup208r4.json. Do NOT roll out perf209 before correctness.
+
+R4 automatic15:49:14.343016–16:21:39.213916UTC. Boot observer0; post-wait
+ALL1 (input pins unchanged). Preserve ORIGINAL FAILED physical-review208.json:
+service-window crash, performance/API unavailable, wrap-state receipt limit,
+compositor and repeated bridge-install errors. Do NOT rewrite as PASS.
+All15/12 static/COMPLETE R3 prefixes preserved; logs60,230/9,335/1,201,873B.
+CURRENT header6984d5437ba787c0b25a2ec7f54ee1404710ece511d0c2321475c5ba18f7fa1f;
+phone back TWRP.0 wrap errors,52 CA frame receipts,2 backboardd crashes.
+
+REAL IN-WINDOW failure: observer7608 BO stage4 NoResources e00002be,
+size16KiB,flags20002,buffers=256,bytes84,131,840,next311,freeVA14954units.
+7609 backboardd[57] SIG11 FAR18; restart pid497. This precedes planned1800s
+stop (9193final/9194deadline); SECOND crash9234 follows that planned stop.
+Thus first failure is NOT explained by test expiry. Kernel GGR_MAX_BUFFERS
+256 slots exhausted while256MiB byte quota/VA have room. GPU keeps running
+after compositor restart: final201/201,shadow4692,1793 renewals,live_reason0/
+valid3f,GFSR0,FSR400,15 MICRO rechecks/0 expiry. Raw timing201 submits
+1,798,635,104ns/9426 checks1,787,678,645ns,42410 total guards8,064,867,343ns,
+pending0; failed UI window precludes normal whole-service/performance PASS.
+The wrap_state error may reflect bounded64 ABI result logging; audit separately,
+never erase actual in-window crash. MEMLIMIT pid57/497=-1, not128MiB jetsam.
+
+Strong SOURCE finding for red gradient: active195 bridge build links eagl.c,
+gl_osmesa.c/admission but never installs inject.c's function_uniform observer.
+hakios_gl_function_values has NO caller in the built bridge; ONLY it sets
+ca_context/function_values/function_given. R3 and R4 BB logs have ZERO
+'CoreAnimation gives its function' / 'a draw with no program is CoreAnimation'.
+Primary eagl.c explicitly describes function45/vibrantColorMatrix: drawing
+its red-to-transparent coverage as a normal picture produces red veil over
+wallpaper. Correct handlers exist but cannot select without that callback.
+This is a missing integration and strong causal hypothesis, NOT a hardware-
+validated visual fix; icons may have additional issues. Matrix capture itself
+IS wired through my_glUniformMatrix4fv, do NOT claim it is also missing.
+
+New research/tmp/dsh-ui-0210-ca-functions OFFLINE inventory DSH6240 ALL0,
+pins unchanged. Actual20H392 QuartzCore UUID9e40b2eb260c3af1ae45a1a551a8c1b9;
+GLESContext vtable0x1d5b2f6e8, method offset0x388, slot0x1d5b2fa80 resolves
+through ACTUAL cache slide info to GLContext::function_uniform0x1884b21ac,
+mangled __ZN2CA3OGL9GLContext16function_uniformEjmmPKf (index32,component/
+count64,float pointer). Current local nlists + code/vtable agree. Old primary
+20F66 addresses are DIFFERENT and must NOT authorize this root. Primary
+inject.c observer precedes original then forwards exact arguments. Current
+method disassembly loads GL dispatch table from CA context+0x7f8, context
+argument from table[0]; our EAGL table[0]=struct eagl pointer. This gives a
+way to associate callback to our owned contexts; validate before implementing.
+CA current-function pointer at+0x10/type+0x10 also visible in actual helper
+following uniform method. No hook/ABI runtime/visual acceptance yet.
+
+DSH18063 owns fresh READ-ONLY16GiB backup-stage-v1 in new0210 directory,
+bound to exact latest6984d543 header. No phone writes/mount/reboot/repair.
+Do not duplicate claimed backup. Any NEW userdata graphics-library delta
+STILL requires fresh concrete plan/old-block verification/fsck/individual
+approval per AGENTS before install. No210 bridge code/build/delta exists yet.
+
+Perf209 remains isolated/qualified/published and UNBOOTED. Its OFFLINE
+package-stage-v1 FAILED BEFORE image output: missing isolated shim/out old
+195 control image link. Preserve; fix read-only artifact closure + new stage
+if later needed, no rebuild/retry of claimed stage. Private stats-check-v1
+PASS4 methods. No209 physical dispatch/profile was started. Its proposed
+dispatcher refuses on failed R4, so cannot accidentally boot. Defer rollout.
+
+NEXT: finish current backup; implement/test actual20H392-scoped CA callback
+in UI worktree, preserving native contexts/one original call and safe owned-
+context state/lifetimes/concurrency. Avoid blindly adding upstream GLOBAL
+ca_context/function arrays: prefer per-owned-EAGL state and safe function-ID
+lookup. Verify UUID/actual slot/code and COW page permissions/rollback before
+publishing; only protected opt-in compositor path. Separately fix actual BO
+capacity/OOM handling: Mesa bo_new currently returnsNULL on backend failure
+without cache cleanup/retry. Source at dsh-gles-0185-root/prepared-v1/mesa-25.0.7/
+src/freedreno/drm/freedreno_bo.c/cache.c. Investigate reclamation/live demand
+and NULL handling; do not merely disguise failure with a larger limit. One
+option is distinct private client slot capacity from unchanged256 submit-BO
+ABI limit, keeping256MiB/VA/DMA quotas. This is a design candidate, NOT done.
+Fix visual correctness and exit-Settings crash before claiming UI acceleration
+or resuming209 perf. Full goal ACTIVE; daily/Metal/high-refresh still absent.
+
 ### 2026-11-09 UTC — ISOLATED209 built/published; main208-R4 still LIVE/frozen
 
 Current phone remains SAME208 thirty-minute R4; DSH78364 observer/DSH60136

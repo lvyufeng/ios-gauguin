@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0210 approved delta APPLIED;211 native qualified; preparing temporary trial
+
+User explicitly approved339-block210 delta + touched-block rollback in
+call_86e80456d8374bdf84f452ed05add804. DSH44283 apply-stage-v1 ALL0/pins
+unchanged:43runs/1,388,544B read back, header run0 LAST. Exact plan87f26cd5,
+final local image1f20e2c22a365d9533fa4c9d89d2550e9510dd10762c4a2e5a0498fb4d9a9c03.
+Only bridge changed to aafa07f8; no rollback needed. Phone remains TWRP.
+Next verify all15 files/current root then temporary boot; no new GUI claim.
+
+DSH5906 native-stage-v1 ALL0/pins unchanged: actual ARM64 transport TU
+passed with original reference files unchanged; clean196patch/5330file
+source1acdd97d82c52b9f36b48f3a06ea151970a2db00f967d2666f7a3e7028a0af44.
+Committed regression reran on actual clean replay:9295 slots plus77submit/
+71sync/207queues/64pilot. Full LOCAL8-job gauguin.ZpPj4L build0/qualification0,
+source9d6ec57d51353835fb3d3c158231d42ee77c457e, banner
+xnu-58f3d778aed34152b77a615988f08610, kernel
+444b0b0c55232011949a3c4e5c160e5de53b15c4db562c7de35e395f4199fae8.
+All retained generic/defined-symbol/cache-flush/RO/MICRO/API provenance
+checks passed, original195 references unchanged. No image/211 boot yet.
+Live-object1024 remains distinct from submit256; byte/VA/DMA rules exact.
+Mesa cache demand/leaks/downstream OOM remain unqualified, not silently fixed.
+
+DSH49332 publication-stage-v1 ALL0: UI source-only NEW public branch
+codex/gauguin-ca-effect-observer-20261110, commit
+de5da2e7607bf4f0d0211b69de2eb3c59b4fe99e, exact tree
+d828e343e49f52d4eb573eba46193379230effcf, sole public195 parentd33d9fa2.
+Nine reviewed text files only, no old ref update or CI dispatch. Private UI
+source remains78b0365. No visual/Metal/high-refresh/daily-use acceptance.
+
 ### 2026-11-09 UTC — 0210 exact root delta READY; new approval pending;211 BO capacity host PASS
 
 DSH93918 prepare-stage-v1 ALL0/pins unchanged. Exact210 one-library delta

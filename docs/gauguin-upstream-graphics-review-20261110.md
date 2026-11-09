@@ -25,6 +25,56 @@ That report records the original build failures, unchanged-source retry, concret
 gen4/gen1 differences and missing AIR/compiler integration. It is software
 preparation, not a hardware Metal result.
 
+## Second online recheck: rendering correctness and responsiveness
+
+The user's renewed request was checked against GitHub again after 0223's native
+probe build. All four current main commits still equal the pinned revisions
+below. There is no new upstream commit supplying an automatic gauguin fix.
+Six documents (61,195 bytes) were fetched anew; exact Git blob checks match the
+original receipts for four and fresh pinned directory entries for two. Private
+`research/tmp/upstream-recheck-20261110-metal223/verification-v2.json`, SHA-256
+`c851f86f02988b55d2d32fda5c99ed907d3dd31a711e755ed785e587d3cd17df`,
+records DSH's successful read-only recheck. Its original v1 failed an audit
+helper's repository-root path calculation; v2 corrects only that calculation.
+The failed result remains unchanged. No phone command or write is part of this
+renewed reference audit.
+
+Three details change how we should interpret our remaining symptoms:
+
+- HakiOS explicitly documents wrong CA shader variants producing the red
+  wallpaper top, a white status-bar band and an opaque Weather widget. Its
+  corrected integration selects specialized variants by pipeline label and
+  retains the matching vertex/fragment pair. Some unavailable variants still
+  use a logged nearest substitute. This resembles parts of the user's red/white
+  and blank-widget reports, but does **not** identify the cause in gauguin's
+  different GLES bridge. Inspect actual source pixels, uniforms and pipeline
+  selection before changing byte order or claiming a Metal plug-in fixes it.
+- HakiOS also reports GLES Settings scrolling at 107–114 fps under a different
+  older configuration. Those numbers are not an apples-to-apples backend
+  comparison. They do show that Metal's presence alone is an inadequate
+  explanation or acceptance condition for responsiveness. Continuous touch,
+  main-thread commit delay, GPU completion and scanout each need measurement.
+- UniXNU has device evidence of correct cold-cache icons and actual completed
+  GPU draws in iconservicesagent, alongside a 4.644-second synchronous icon
+  service wait, crashes/Jetsam and page-wiring stalls. Investigate whether
+  artwork was generated and retained before blaming only the compositor's
+  sampling. A correct displayed frame also needs a healthy producing process.
+
+The implementation choice remains: retain gauguin's A619 firmware/SMMU/touch/
+storage baseline and port HakiOS's **complete** iOS16 direct Metal path first.
+Its already-adapted iOS16 m2v/Turnip stack is the alternate frontend. UniXNU's
+A740 kernel/firmware/UEFI stack is not a substitute for our A619 backend.
+
+The A619 core and real AIR compiler are now
+[software-qualified](gauguin-metal-a619-20261110.md). The subsequent
+[0223 offscreen probe](gauguin-metal-device-probe-20261110.md) is built/signed,
+and all 282 imports resolve against the actual 20H392 cache or exact core.
+It has not run on the phone. Next require its clear/compute/triangle/texture/
+blend pixels and native fence/owner-handoff evidence. Then integrate actual
+MTLDevice discovery, image-specific shader libraries and CA/presentation,
+including visible icons/widgets and repeated lock/unlock. Neither compile
+success nor a fast submission time qualifies the desktop.
+
 ## Pinned primary sources
 
 | Source | Reviewed revision | Meaning |

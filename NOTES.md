@@ -2,6 +2,74 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0223 native probe ready; renewed upstream recheck finished; NO install
+
+Full phone goal ACTIVE/unlimited. Latest user asks to revisit HakiOS/UniXNU
+successes; fresh GitHub connector review COMPLETE, all four main HEADs unchanged
+from pinned review below. Do not repeatedly research the same commits as new
+fixes. Decision: existing A619 boot/firmware/SMMU/touch/storage + HakiOS complete
+iOS16 direct Metal first; its iOS16-adapted m2v/Turnip alternate. Investigate
+CA variants AND icon producer lifetime; HakiOS also has fast GLES evidence, so
+Metal availability alone does not diagnose lag. Updated upstream graphics doc.
+
+0223 isolated research/tmp/gauguin-metal223-worktree-20261110, branch
+codex/gauguin-metal-probe-20261110. Source846907e committed, integrated MAIN
+9409939. New userland/metal/device_probe.cpp + probe_pixels.hpp, CPU fixture,
+docs/gauguin-metal-device-probe-20261110.md. Main KERNEL remains211; do NOT
+package main kernel as219. Original main tools/mkadt.py diff preserved.
+
+W223 INSIDE isolated root:research/tmp/dsh-metal-0223-device-probe.
+DSH28128 backup-stage-v1 exit0/unchanged: fresh READ-ONLY16GiB current post219
+root-backup-v1/iosroot-before-metal223.hfsx,17179869184B, SHA
+eb2a3096a3bff1884e10284455e1f2085aa1888c7efec5f7b9fc65dc748fca94.
+All15 current files and volume header before/after match actual219; header
+916229236e05638fe5bcb5535a8be44d017e3798bf93465153b9bf4c76bad206.
+Full logs68405/10411/1320888B, backup0444. No partition writes or reboot.
+
+Build-v1 DSH93149 failed native const Texture replace;20491 ASAN/UBSAN CPU
+oracle checks passed, retained. Snapshot original failure source. New build-v2
+DSH5047 exit0/unchanged after ONLY Texture& qualifier fix. Signed115728B
+probe build57f7536766149f9b7aca9621, SHA
+2e118d960a219890d3215bef81ab9ad3c71d2a68be62244d870900dae0e1e2d8.
+Links exact0221 core8a826583... with realAIR; minOS16,SDK26.5.
+Separate abi-stage-v1 DSH58975 exit0/unchanged; abi-v1/result.json resolves
+ALL282 imports using actual20H392 dyld cache export/reexport tries +exactcore;
+2710images/44shards,35providerimages,0missingstrong/0unresolvedweak. Original
+build receipt remains ABI-pending; later audit is separate, no rewritten pass.
+These are IMPORT/software checks, no runtime behavior or device pixel proof.
+
+Probe root-only --metal223, measured90s delay, actual128MiB hard limits. ONE
+client,requires8completed queue/fence jobs:2dynamic clears,compute256,triangle,2updated
+checker textures,RGBA8 additive,RGBA16F premultiplied blend. Exact28928 output
+words expected, no input derived from GPU results; sysmem/uncompressed/1sample.
+CPU oracle20491 independent coverage/corruption checks,triangle2016pixels.
+PASS emitted after object destruction says teardown-REQUESTED only: kernel
+owner release/handoff still mandatory, IOServiceClose result not proven there.
+Existing root6-fence admission stays intact; no GLES PASS spoof or fake GPU path.
+
+Fresh upstream W MAIN research/tmp/upstream-recheck-20261110-metal223:
+6freshdocuments61195B, allGitblobs verified; verification-v2.json SHA
+c851f86f02988b55d2d32fda5c99ed907d3dd31a711e755ed785e587d3cd17df.
+DSH64028 v1 exit1 helperrootpath error preserved; fresh43145 v2 exit0/unchanged
+corrects only that path, rechecks actual223 build/backup/ABI result/input/log
+pins. All DSH handles above TERMINAL/reaped. No live boot/build/approval request.
+
+NEXT: finish concrete223 proposal before asking destructive-write approval.
+LocalCOW from NEW223 backup: add /usr/libexec/gauguin-metal-probe and
+/usr/local/lib/gauguin/libGauguinMetalCore.dylib; replace ONLY ProgramArguments
+of existing org.gauguin.gpu-probe job and matching launchd cache job, preserving
+label/root/LaunchOnlyOnce/128MiB device policy/logpaths/allotherjobs and all
+installedMesa/UI210/admission/worker/GLES/API files/logs. Verify job count and
+preserve every other job. Pair qualified219 kernelbb7a369e... with
+physicalNVT1 and remove swp=1, same600s/6GiB/mode2/authority/assets. NO image,
+localCOW/delta/fsck/writer-model/realoldblockpreflight/review yet. Nothing
+installed or approved. Finish all preparation then individual exact userdata
+approval with AGENTS.md quote/link; never use consumed210approval. Afterward
+one authorized temporary boot,8pixelPASS/nativefences/rootrelease/BBhandoff.
+Retain original219 strict banner failure +separate forensic proof; don't weaken
+identity or rerun a claimed stage. FullMetalplugin/20H392CA/present/highrefresh/
+RAM/peripherals/daily still open; bootstrap6GiB/software30Hz. Phone last TWRP.
+
 ### 2026-11-10 CST —0221 A619 Metal core + REAL AIR compiler software-qualified and integrated
 
 Previous goal turn PROGRESS: full upstream227-file baseline/261 tests and219

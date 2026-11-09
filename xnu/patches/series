@@ -195,3 +195,4 @@
 0197-gauguin-runtime-cpu-ring-spans.patch
 0198-gauguin-runtime-clock-read-snapshot.patch
 0199-gauguin-micro-shared-recheck-budget.patch
+0200-gauguin-readonly-wrapped-images.patch

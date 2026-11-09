@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0207 RO image rights checks and two native TUs PASS
+
+Codex patch0200 changes SweetSurface.cpp/.h and one GPU-import denial only.
+Protection-only error2 fallback uses a FRESH Out descriptor, RO kernel/task
+pixel mappings, denied write lock/unlock BEFORE seed work, and explicit RO
+GPU-import denial. Other errors, ordinary/panel mappings, wire/quota/alias
+geometry and ownership cleanup remain. This fixes image correctness; no
+performance success or generic task-memory GPU import is claimed.
+
+DSH75841 v1 host306 assertions PASS, actual SweetSurface native TU PASS;
+GPU native TU failed BEFORE compilation on missing relative private headers.
+Preserve v1. V2/DSH61958 adds ONLY byte-identical sweet_eagl_diagnostics.h
+and gauguin_gpu_runtime.h beside the SAME driver/header code. It verifies
+the passed host/Surface evidence and compiles ONLY GPU TU; stage ALL0,
+reference2129 header/config inputs and objects unchanged. checks-summary.json
+records306 host assertions/2 native TUs. No unnecessary host/Surface repeat.
+Actual wrapper/free/maps/lock traps/GPU gate are executed with fallible seams:
+fresh-descriptor release, all error/quota unwinds, RO aliases across tasks,
+no write-lock seed mutation, RW behavior and RO GPU denial. Source/test
+constant codes checked against native IOReturn.h. No207 full build/image/boot.
+
+Next commit completed patch/test and clean194-patch LOCAL8-job native207
+build. Then fresh R2 headerecf88ce5/full15-file/COMPLETE R2-prefix/memory
+preflight, same195 libraries/6GiB/mode2/600s/Homeoff/30Hz temporary trial.
+Check original3 image geometries for protection-only RO fallback, safe
+read/write-lock behavior, full GPU service and actual UI; retain failures.
+Source hardware GPU/SMMU/backend remains byte-identical to real169-job206.
+No new userdata delta/flash/rollback or manual action requested. Root owns
+NOTES/code; DSH executes. Full goal remains active.
+
 ### 2026-11-09 — 0207 private read-only image candidate IN PROGRESS
 
 Private research/tmp/dsh-gpu-0207-readonly-wrap/candidate-v1 now contains

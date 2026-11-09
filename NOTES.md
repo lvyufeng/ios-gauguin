@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0194 pre-ZAP checkpoint candidate passes native and host checks
+
+Patch 0188 adds a single opt-in mode12/service1 watchdog checkpoint after
+the pre-ZAP live SEAL guard verifies the completed CP command, idle,
+faults, power, routes and retained owners. It reuses the unchanged lease
+refresh/readback API. Only this serialized boundary can renew before client
+publication. The existing global refresh sequence includes boot pulse 1;
+the first runtime heartbeat is 2 and remains explicitly logged.
+
+V2 uses the refresh API's existing 3s entry budget for this boundary's
+health checks, then verifies the original full requested 10s after the
+verified pulse and before SEAL/SCM proceeds. Every secure-call budget and
+other scope's entry check is retained. A pulse/sequence/post-budget failure
+quarantines through the existing path, with retained DMA owners and no retry.
+V1 checked 10s before renewal too; v2 removes that unnecessary pre-renewal
+timing dependency while preserving the caller's final budget.
+
+W194=`research/tmp/dsh-memory-0194-checkpoint`, candidate-v2. DSH checks-v1
+and checks-v2 both returned 0 with unchanged inputs. Native board TU 0,
+33 production checkpoint/placement assertions and 224 actual heartbeat
+assertions pass. Legacy193 heartbeat still passes 158 assertions, and
+the signed-ZAP engine's fixed 10s guard request tests pass. The new test
+also reconstructs the unchanged original live guard around the explicit
+checkpoint additions. The first local test fixture macro had escaped-line
+damage; the fixture was corrected before these DSH passes.
+
+Next commit, replay 182 patches and compare only
+`bsd/dev/gauguin_gmu_board.c` and `bsd/dev/gauguin_wdt_lease.h` against
+193. Build/package same-kernel 4/6 GiB images and temporarily test the
+6 GiB checkpoint. Acceptance must explicitly account for boot pulse 1
+plus the later service sequence, preserve all previous root/compositor
+pixel and health checks, and retain raw failures. No194 build/boot yet.
+Device stays in TWRP after193; current full prefixes
+20,470 / 4,224 / 497,208 B. No additional root write needed.
+
 ### 2026-11-09 — 0193 6 GiB failure isolated to the pre-AUTH watchdog budget
 
 Committed `9e963031724d7b895d3a084db8add27bb14e7b9f` adds patch 0187.

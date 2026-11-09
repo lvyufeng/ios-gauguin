@@ -8,6 +8,7 @@
 static struct ggr_context ggrb_context;
 static bool ggrb_service;
 static uint32_t ggrb_refreshes;
+static struct gauguin_wdt_refresh_record gpzb_boot_refresh;
 static unsigned checks;
 #define CHECK(x) do{++checks;assert(x);}while(0)
 static struct {
@@ -62,6 +63,7 @@ static void gmb_record(const char *line)
 static void setup(void)
 {
     memset(&model,0,sizeof(model));memset(&ggrb_context,0,sizeof(ggrb_context));
+    memset(&gpzb_boot_refresh,0,sizeof(gpzb_boot_refresh));
     model.service=1;model.mode=12;model.live=model.routes=model.lease=true;ggrb_service=true;
     ggrb_context.state=GGR_READY;ggrb_context.wptr=56;ggrb_context.submitted=ggrb_context.completed=3;
     ggrb_context.ops=(struct ggr_ops){.healthy=healthy,.nanoseconds=ns,.read_reg=read_reg,
@@ -76,6 +78,11 @@ int main(void)
     setup();ggrb_service=false;CHECK(!sweet_gpu_runtime_heartbeat()&&!model.lease_calls&&!model.ready_calls);
     setup();for(unsigned i=0;i<65;i++)CHECK(sweet_gpu_runtime_heartbeat());
     CHECK(model.lease_calls==65&&model.records==3&&!model.quarantines&&ggrb_refreshes==65);
+#if GPU_HAS_BOOT_CHECKPOINT
+    setup();gpzb_boot_refresh.sequence=1;model.sequence=1;
+    for(unsigned i=0;i<65;i++)CHECK(sweet_gpu_runtime_heartbeat());
+    CHECK(model.lease_calls==65&&model.records==3&&!model.quarantines&&ggrb_refreshes==66);
+#endif
     unsigned health_boundaries=model.health_calls/65;
     for(unsigned i=1;i<=health_boundaries;i++) {
         setup();model.fail_health=i;

@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0217 temporary client-memory-create trial LIVE; do not reboot
+
+DSH33081 owns isolated217 dispatch-stage-v1/trial-stage-v1. Actualfastboot
+SendingOKAY0.455s/BootingOKAY0.134s,total0.591s;trial-v1/preflight.json
+observer-running,image_boot_attempted=true,misc_verified=true. ONEtemporaryboot,
+current214header/full15filepreflightverified,no rootinstallation. Keepthissame
+livehandle;600sGPU/780sobserver/860timeout,Homeoff30Hz,6GiB,installed210aafa07f8.
+AsyncuserquestionPENDING:unlock/checkicons/widgets/redclock/AppGallery/Settings,
+thenkeep runningforautomaticTWRP. No reset-attributionquestion/manualresetneeded.
+Post217runssequentiallyafterTHISobserver,readall15filesonce,preserveCOMPLETE214
+prefixes,andmatchcreateaddress-key/backingIDswithactual180x180EAGLimports.
+No visualPASSorcallerkeypresenceclaimyet;the observermustfinishfirst.
+
+FullLOCAL217nowTERMINAL/PASS: DSH91990ALL0/pinsunchanged,
+gauguin.9KhBQi,source837fecf5c7c22bba74c862825a9a3fc7e16c91d3,
+197patch5330files/e683fcddb43c04413c85fee09a2d3ba044a56647a32ca4ecb3461cae54a05f8c,
+kernel17b7cb974c80c5f75f819fc50b23ad6f284f5ca8a4aa7379258e92971749b8dd,
+bannerxnu-963da7c2fa224d2fb76e35984ea83dcf,allretainedgeneric/symbol/cacheflush/
+RO/MICRO/APIchecks0,old195refsunchanged. DSH22833freshmemoryALL0;DSH84682package
+ALL0:imaged9a741dbf62221a684202ac2c7fd11a35be75c923fcfc52e970e2d19338c09cf,
+20,021,248B,all5firmware/shim/DTB/command/geometrypreserved,actual214control.
+IsolatedNOTEScommite104eda recordsqualification;sourceidentity837fecfunchanged.
+
+While217runs,independentOFFLINE218ABIauditDSH64178inmainresearch/tmp/
+dsh-metal-0218-abi. No devicecommands. Compile13actualmsm/HakiOSwirelayouts,
+61fieldoffsets+realggr_request_sizeandaniOS16ARM64object. Sourcesalreadyshow
+HakiOSkPipe3D=1butoursrequires0x10forqueryANDsubmit;upstreamchip06030500vsour
+observed06010900. Thisisahead-of-integrationaudit,NOTlinkedMetal/AIR/GPUproof.
+GoalACTIVE/fullscope;UI216a460e3bstilluninstalled,perf213stilluncompiled.
+
 ### 2026-11-10 CST —0217 client-memory create implemented; full LOCAL native build LIVE
 
 Previous goal turn classifiedPROGRESS: primary-source review committed0956180,

@@ -1,10 +1,71 @@
-# A619 Metal-core device probe: software readiness
+# A619 Metal-core device probe: physical 0223 result
 
-The finite 0223 root probe now compiles and is signed for arm64 iOS 16. Its
-imports resolve against the actual installed 20H392 cache and the qualified
-A619 core. It has **not been installed or run on the phone**. No MTLDevice,
-CoreAnimation integration or correct device pixels have been demonstrated by
-this milestone.
+The finite 0223 probe has now passed on the actual A619: eight jobs, eight
+completed native fences and **28,928 exact output words**. The kernel then
+records the compositor acquiring the GPU after a clean eight-fence root release.
+The desktop continues through the existing GLES bridge. MTLDevice discovery,
+Metal CoreAnimation, IOSurface import, high refresh and daily use remain open.
+
+## Executed physical result
+
+The user explicitly approved plan `41cb87fe...` and touched-run rollback.
+DSH applied all **77 runs / 9,957,376 bytes**, rechecking every old range before
+the first write and verifying every new range afterward. The header run was
+last. There were 77 write attempts and no rollback. All seventeen actual
+installed files matched their expected content, length, UID, GID and mode.
+
+The first trial stopped before any recovery IO or boot: one host preflight
+resolved a relative kernel-proof path under the 0223 worktree instead of the
+qualified 0219 worktree. Its original failure remains intact. A fresh v2 changes
+only that reference root, passes all positive host preflight gates up to an
+intentional IO sentinel, and performs the first real temporary boot. Fastboot
+reported Sending OKAY (0.456 s), Booting OKAY (0.134 s).
+
+| Actual A619 test | Checked output |
+| --- | --- |
+| Two complementary RGBA8 clears | 4,096 pixels each |
+| AIR/NIR/IR3 compute | 256 exact words, runtime seed 920,434,345 |
+| Triangle | All 4,096 pixels, including background and 2,016 covered pixels |
+| Two updated checkerboard textures | 4,096 pixels each; changed source data between draws |
+| Additive RGBA8 blend | 4,096 pixels |
+| Premultiplied RGBA16Float blend | 4,096 exact packed half-float results |
+
+All eight stdout hashes match independent CPU expectations. Queue 1 fences
+1–8 complete. The raw kernel log independently records the first eight completed
+submissions and three compositor opens with `root_fence=8`, after those
+completions. Effective active/inactive hard limits are both 128 MiB. These
+results cover 64×64, linear, uncompressed, single-sample **sysmem** rendering;
+they do not cover BGRA/sRGB, imported IOSurfaces, GMEM, UBWC, MSAA or a full
+CoreAnimation scene. The logged command-buffer durations are not a desktop FPS
+measurement.
+
+Strict image/banner identity passes without a reconstructed log. The complete
+observer/capture interval is 746.946455 seconds and the phone returns to TWRP
+automatically. The 600-second service has 598 verified renewals and 93 completed
+native submissions; the first sixteen are individually sampled, and later
+successes are aggregate evidence. A backboardd crash, two BO failures and one
+cleanup failure occur after the explicit planned service stop. This remains a
+finite diagnostic, with no long-session or recovery qualification.
+
+`trial-stage-v2` and `dispatch-stage-v2` both exit 0 with unchanged inputs.
+`physical-review223.json` has no errors and qualifies only the offscreen core.
+All fourteen static files and complete old log prefixes are preserved. New full
+stdout/stderr/backboardd sizes are **71,036 / 10,411 / 1,350,137 bytes**. The actual
+post-223 volume header SHA-256 is
+`11f3ff237da06b9767069fc6a14721d8310ce50e4f24655bcaf6d5d8005c781e`.
+Any new root proposal must bind this current state and obtain a fresh full backup
+and individual destructive-write approval. The consumed 0223 consent is not
+approval for a Metal plug-in installation.
+
+The qualified 0219 IOSurface/touch patches and their existing tests have also
+been integrated with the Metal source. DSH replays all 198 patches from pristine
+XNU and confirms **all 5,330 materialized entries match the actual qualified
+0219 source**, SHA-256
+`fd75fc6d3960240dd02a4c038f5ec935b4e2b5b18b97f8d401345d6f2afce242`.
+No new kernel was built; the physical image still carries its recorded original
+0219 build identity. Existing native/host evidence is retained without rerunning
+unchanged tests. The synthetic swipe remains off by default and physical touch
+has priority.
 
 ## Probe contract
 
@@ -84,7 +145,7 @@ Its own shader fixtures are upstream test inputs, not downloaded Apple shaders.
 The pixel oracle builds from `tests/fixtures/metal_probe_pixels.cpp` with
 `-Iuserland/metal`, ASAN and UBSAN.
 
-## Concrete physical proposal, awaiting individual approval
+## Concrete physical proposal and preparation record
 
 DSH has now prepared a local COW root, minimal delta and paired temporary image.
 The proposal adds the probe/core and changes only ProgramArguments of the
@@ -122,11 +183,11 @@ rerunning its step, and completes staging through independent review with
 exit 0 and unchanged inputs. DSH handles 26037 and 91571 are terminal/reaped.
 Private scripts, images, delta bytes, receipts and logs remain outside git.
 
-The individual userdata-write question for this exact plan is pending. **No
-approval file, application, temporary boot or hardware rendering result exists.**
-The guarded apply wrapper requires the fresh plan-bound approval and verifies
+At this preparation milestone the individual userdata-write question was still
+pending. The later explicit approval, application and physical result are
+recorded above. The guarded apply wrapper requires the plan-bound approval and
 review input pins; the writer rechecks every old range before its first write.
-Its failure path restores only the runs touched by that application.
+Its failure path restores only runs touched by that application.
 
 ## Capture and acceptance tools prepared while approval is pending
 
@@ -178,8 +239,9 @@ evidence: `log-tools-v2/result.json`, `capture-model-v2/result.json` and
 `startup-guards-v1/result.json`; all DSH workers are terminal. The exact root
 delta, paired image and pending individual write question remain unchanged.
 
-After one approved temporary trial, require the exact build prefix, eight
-native completed fences, eight readback passes and clean kernel handoff.
-Only then proceed to a real Metal device plug-in, image-specific 20H392 CA
-shader variants and presentation. Full memory, high refresh, peripherals and
-daily-use qualification remain separate work.
+The first approved trial now supplies the required build prefix, native fences,
+readback passes and clean kernel handoff. Next connect a real Metal device
+plug-in, image-specific 20H392 CA shader variants and presentation, keeping one
+GPU owner throughout the transition from the existing GLES worker. Actual OS
+class metadata is recorded in the separate frontend ABI inventory. Full memory,
+high refresh, peripherals and daily-use qualification remain separate work.

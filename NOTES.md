@@ -2,6 +2,23 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0203 automatic latency profile trial LIVE
+
+DSH12341 is observing ONE claimed203 trial after current202 headerb2c99aa6,
+memory/full15 files/complete202 prefixes preflight. Temporary image
+01045baaed236f1daa9a7bb088787d9c6f6358e735e25542d27f3ef22f610ca1,
+6GiB/mode2/300s/Home90,605-byte command;19,520KiB transfer and Booting
+both OKAY,total0.596s. Same195 libraries retained. No new userdata delta,
+flash or rollback. No203 physical result yet; observer-running.
+
+The single post-wait-stage-v1 watches this EXACT observer plus both actual
+dispatcher terminals, preserves all15 full files/202 prefixes, then checks
+explicit300s service chronology and cached timing consistency. Its parser
+tool is pinned at every capture stage. Keep/report post-stop crashes and
+reject in-window failures; no whole-session/daily/Metal/high-refresh claim.
+Root owns NOTES; poll existing claims/handles, no duplicate on timeout.
+User notified automatic test needs no manual work. Full goal stays active.
+
 ### 2026-11-09 — 0203 full local native clock-profile build qualified
 
 DSH59265 native-stage-v1 ALL0, pins unchanged. Clean190-patch source5330

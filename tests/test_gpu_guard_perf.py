@@ -29,6 +29,11 @@ def main():
             ('@BASELINE@', extract(old, 'static bool ggrb_live(').replace('ggrb_live(', 'baseline_live(', 1))):
         assert fixture.count(marker) == 1
         fixture = fixture.replace(marker, value)
+    if 'sweet_gmu_clock_live_snapshot(' in source:
+        # The separate clock-snapshot test executes actual clock/WDT sampling.
+        # This fixture compares the top-level gate and identical value result.
+        marker = 'static bool gfw_faults('
+        fixture = fixture.replace(marker, 'static bool sweet_gmu_clock_live_snapshot(uint32_t *gx) { return sweet_gmu_clock_live(true,gx); }\n' + marker, 1)
     start = source.index('struct ggrb_perf_sample {')
     perf = source[start:source.index('static bool ggrb_micro_settle(', start)]
     wrapper = r'''

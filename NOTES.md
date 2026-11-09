@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0205 bounded runtime clock snapshot passes host/native checks
+
+Codex patch0198 changes board C/CX-power C/private clock header only.
+The fourteen-register live clock read previously nested28 full WDT budget
+queries(each samples EN/BARK/BITE/STS). Mode12 runtime now uses a read-only
+snapshot with the SAME clock register order and ALL original value masks,
+full WDT queries at BOTH boundaries and a5ms CPU deadline. No clock/PTE/
+doorbell/PET store, mapping, frequency change or cached-clock authorization.
+Unpublished runtime startup is exclusive; after publication, the existing
+IOKit operation lock excludes concurrent refresh. Cold configuration is
+one-shot COMPLETE before either path. Legacy cold/probe/firmware live and
+quiet APIs retain their original per-register budget sampling and exact
+failure traces. This changes runtime WDT sampling frequency, not clock
+value predicates or GPU/SMMU/IRQ/reset/root/fence checks. Deadline/boundary/
+all-ones failure publishes no output and the caller quarantines as before.
+It cannot cancel a stalled MMIO read. Actual component timing is pending;
+the nested-query count alone is not a measured phase-time breakdown.
+
+DSH5218 native-check-stage-v2 ALL5 jobs0,pins unchanged:66,681 actual clock
+value/legacy-trace/mode/boundary/all-ones/lost-lease/deadline assertions;
+139 top-level guard comparisons+actual timer-wrapper cases;307,278 exact
+MICRO/SMMU checks;17,214 runtime/ABI+72 service+55,336 ring-span assertions;
+TWO real ARM64 TUs0, reference inputs/objects unchanged. V1/DSH63845 also
+all0; v2 clarifies comments about the unpublished startup owner, executable
+code unchanged. No205 full build, image or physical result yet.
+
+Next clean192-patch replay/full LOCAL native205 build, then one automatic
+6GiB/mode2/300s/Home90 timing comparison against204 with unchanged195
+libraries and current headerc56ed0a5/full15-file/COMPLETE204-prefix preflight.
+Verify all fences/service/elapsed counter bounds; preserve post-stop faults.
+No human205 result or new userdata delta requested. Optional availability
+question remains unanswered; continue independent automatic work. Root owns
+NOTES, full goal active.
+
+204 publication DSH5103 publication-stage-v1 ALL0,pins unchanged: public
+4cd6127150401746ee82bbdd1ab398b5eafc051c,
+ref codex/gauguin-cpu-ring-spans-20261109,
+tree60bfbc743b3a3b00597d3f10fe03d4623f81ceae,
+parent18336adc78f032f5eca6ec8eb9d2f64a03eac136. Six reviewed text files,
+exact private2f974d6 tree; existing refs unchanged, no explicit CI dispatch.
+
 ### 2026-11-09 — 0204 terminal:CPU ring spans reduce measured submit time by60%
 
 Supersedes the LIVE handoff below. DSH59407 boot and DSH32005 post stages

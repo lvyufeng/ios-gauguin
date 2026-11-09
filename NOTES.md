@@ -2,6 +2,207 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0206 manual ten-minute shared-MICRO-budget trial LIVE
+
+DSH28161 owns ONE claimed206 observer after current205 header501dc0e9,
+memory/full15 files/COMPLETE205-prefix preflight. Temporary image
+be58f40cc7efd85743b8197927e93bb28322d2f991210cb95c48325ab816772b,
+6GiB/mode2/600s/Homeoff,601-byte command,30Hz unchanged;19,520KiB transfer
+and Booting both OKAY,total0.599s. Same195 libraries; no userdata delta/
+flash/rollback. Observer running; no206 physical result yet. Available user
+notified to wait~two minutes for90s compositor handoff, then unlock/swipe/
+Settings/return Home and leave running. Need ask for actual206 feedback
+around120s; previous205 lag reply MUST NOT be assigned to206.
+
+The single DSH post-wait-stage-v1 (1080s ceiling) watches this exact observer
+and BOTH actual dispatchers, preserves all15 files/COMPLETE205 prefixes,
+checks explicit600s service/fences/timing, records MICRO rechecks/expiry and
+compares timing to HEALTHY204. Failed205 is only the current-root/prefix
+baseline, not a qualified timing comparator. Keep post-stop and all other
+failures. Correlate human experience with eventual native GPU health;
+visible UI alone cannot prove continued acceleration. Root owns NOTES;
+poll existing claims/handles, never re-run a claimed stage on timeout.
+Full goal remains active. No manual restart request while observer runs.
+
+### 2026-11-09 — 0206 full local shared-MICRO-budget kernel qualified
+
+DSH47910 native-stage-v1 ALL0,pins unchanged. Clean193-patch source5330
+files67362cd07997c5f6f4e88b75f0c1bd57a22b85b4410eab26f30ac4e4e5b550aa;
+ONLY board C differs from205. Source8e2d335d774349c6fbe0e289f71caef265f97156.
+LOCAL8-job build206-micro-budget,run gauguin.DfeHm7,build0/qualification0;
+retained native symbols and new shared-budget marker verified. Original195
+reference hashes+mtimes unchanged. Bannerxnu-2583a0f78557405eb5caf9af02dec949,
+kernele6aafd692d42e1d91009b909907c17475783db5ca6ebee87eba4df817ffee537.
+
+Next ONE temporary206 manual600s/Homeoff trial,6GiB/mode2 and existing30Hz
+unchanged, after current205 header501dc0e9/full15 files/COMPLETE205-prefix/
+memory preflight. Same195 libraries. New post proof records actual MICRO
+rechecks/expiry and compares timing to HEALTHY204 (205 remains a failed
+run, not a valid performance baseline). Notify available user once booted,
+request unlock/swipe/Settings feedback after the90s compositor handoff.
+User feedback is independently recorded and correlated with captured GPU
+health; do not assume a still-visible UI proves the GPU remains active.
+No206 physical result yet; no userdata delta/flash/rollback. Root owns
+NOTES; full goal active.
+
+### 2026-11-09 — 0206 shared MICRO retry budget reproduces205 and passes checks
+
+Codex patch0199 changes ONLY board C from205. Each full gfw_faults call
+owns one stack-local20ms/2000-delay budget, capped by the original operation
+and service deadlines. Repeated EXACT2270 mismatches may settle back to
+the original masked2370/2378 predicate and restart ALL GFSR/CR0/bank/control/
+stream/TTBR/GMU checks, without renewing time or delay allowance. Budget is
+checked before each restart and after the final full pass; late passes
+reject. All other-bit/HALT/all-ones/unreadable/probe/setup/idle/authority/
+fault/route rejection remains. DMA retention and quarantine stay intact.
+Clock snapshot, GPU packet/register/fence protocol and195 libraries unchanged.
+Healthy first-pass MMIO is unchanged from205; repeated transients may cause
+EXTRA full rechecks, so never claim the whole temporal predicate/IO trace
+is unchanged. New cached-only STOP MICRO BUDGET reports rechecks/expiry.
+
+DSH89135 native-check-stage-v1 ALL5 jobs0,pins unchanged. Actual205 helper
+and full guard REPRODUCE the recovered2370/cache2270/one-settle rejection;
+new helper passes that same input and repeats complete checks.307,411
+combined assertions include indefinite alternation exhausting ONE20ms/
+2000-delay budget, operation/service deadlines, authority loss, every final
+full-pass read failure, GFSR/CR0/TTBR corruption and late-pass rejection.
+Retained139 top-level guard+timer cases,17,214 runtime/ABI+72 service+
+55,336 ring-span cases,66,681 clock/legacy-trace cases, ONE real ARM64 board
+TU0; reference inputs/objects unchanged. No206 full build or physical result.
+
+Next clean193-patch replay/full LOCAL native206 build, then a NEW600s
+manual Homeoff trial at existing30Hz after205 header501dc0e9/full15 files/
+COMPLETE205 prefixes and memory preflight. User is available. Notify when
+the new image actually starts and request unlock/swipe/Settings observations
+early, before any hidden early-failure possibility. Keep automatic recovery
+and exact-trial post-capture; no new userdata delta or mixed60Hz change.
+Root owns NOTES/code; DSH executes. Full goal remains active.
+
+### 2026-11-09 — 0205 FAILED early SMMU guard; user reports lag/no black screen
+
+Supersedes LIVE handoff below. Automatic11:52:23.551038–11:56:26.242796UTC,
+242.691758s. DSH20951 boot ALL0; DSH71091 post stages ALL1 from real early
+GPU/service failure, all pins unchanged. All15 full files/12 static hashes/
+COMPLETE204 prefixes preserved; logs45,924/7,452/1,006,819B. Current header
+501dc0e96ffe7ab6d070f052057fff84dccb9ae54d4b915b905138adc8367017;
+phone last TWRP. No userdata delta/rollback or manual reset request.
+
+Actual owner stops after97 renewals,submitted14/completed13,shadow280;
+no planned300s STOP. rc3 on6-IB job14,live_reason13/valid3,GX/IRQ healthy,
+GFSR0/FSR400,existing GFW read MICRO6000=2270. MICRO sample says3 attempts,
+3 recoveries,3 polls,last current2370/expected2378/mask~8/66us. The latest
+2270 differs from that recovered cached word. Strong source-based inference:
+the same full gfw_faults recheck saw a SECOND exact transient after its one
+allowed settle and rejected through settled=true. Not a clock/deadline
+rejection(reason9 passed). Must reproduce this trace in actual-helper tests
+before changing the wait policy; never mask undocumented bit8.
+
+Cached PERF3742 checks/715,353,645ns,max357,500ns;13 completed-prefix submits
+102,063,958ns/548 checks/101,564,479ns,pending1 means job14 not folded.
+These partial observations are NOT a qualified full-window comparison.
+3 wraps/0 errors,0 CA frame receipts,then8 stage0 BO NotReady records and
+one compositor null-BO crash AFTER the real GPU failure.118 buffers and
+52,707,328B are below quotas; no quota increase is supported. Service and
+performance evidence both correctly reject. Preserve original failure JSON.
+
+User answered call_23a81f4e89db49c19d1a45d166df3e6e '仍明显卡顿，但没有黑屏'
+after being offered the running205 unlock/swipe/Settings trial. Saved private
+user-performance-report205.json; individual unlock/Settings operations not
+separately confirmed. Availability is now YES. Early97-renewal failure likely
+predates this response, so it may describe the post-failure fallback UI and
+cannot establish healthy205 GPU performance. User told the failed verdict
+and promised a fresh ten-minute trial after fixing the repeat-transient case.
+
+Next206: permit repeated EXACT2270->original2370/2378 settling and FULL
+SMMU rechecks under ONE shared original20ms/2000-poll budget per guard;
+never renew that budget, omit fault/control/TTBR predicates or allow probe/
+setup/idle/other-bit waits. Add actual helper/full-guard tests for repeated
+recovery, shared-budget exhaustion, deadline/authority/fault mutations; then
+native/full build and600s manual Homeoff at existing30Hz first. Do not mix
+an unqualified failure fix with a60Hz display change. Root owns NOTES/code;
+DSH executes checks/build/boot. Full goal remains active.
+
+### 2026-11-09 — 0205 automatic bounded-clock timing trial LIVE
+
+DSH20951 is observing ONE claimed205 trial after current204 headerc56ed0a5,
+full15 files/COMPLETE204 log-prefix and memory preflight. Temporary image
+615a2e786a789fe297be78fdec4d9bfd61df6d796f6892bb857496b1b21ee1c7,
+6GiB/mode2/300s/Home90,605-byte command;19,520KiB transfer and Booting
+both OKAY,total0.598s. Same195 libraries; no userdata delta/flash/rollback.
+No205 physical result yet; observer-running. User notified no manual work.
+
+DSH71091 owns the single post-wait-stage-v1 watching this EXACT observer
+and both actual dispatcher terminals. It preserves all15 full files/204
+prefixes, qualifies explicit300s chronology and elapsed/fence consistency,
+then records frame latencies and scoped204 comparison. Post-stop client
+faults remain recorded. Do not claim whole-UI FPS, GPU-only duration or
+CPU-active utilization from timing ratios. Root owns NOTES; poll existing
+claims/handles, never duplicate a claimed stage on timeout. Full goal active.
+
+### 2026-11-09 — 0205 full local clock-snapshot kernel qualified
+
+DSH98874 native-stage-v1 ALL0,pins unchanged. Clean192-patch source5330
+files61c87c68cee80ef18b94056c0200cf3ee4ccf96fc1e9bb10ebb5e3b6ee04ee19;
+ONLY board C/CX-power C/private clock header differ from204. Source
+dc8e24063e8fece6930732863a31e8a5e04133ea. LOCAL8-job build205-clock-snapshot,
+run gauguin.6cedkd,native build0/qualification0; defined native snapshot
+symbol required alongside retained ring-span and generic checks. Original
+195 reference inputs and mtimes unchanged. Banner
+xnu-7aba407c18dc403191e56d404ff62f99,
+kernel7d1e8ecdc5e73f978a08e0aa09ecff525ed0e48d79865f92583c6c327b80b72c.
+Existing PERF wire label 'unchanged guard body' is retained for compatibility;
+it does NOT imply unchanged runtime WDT sampling:0198 changes28 queries to2
+inside the clock read while retaining every clock value predicate.
+
+Next one automatic205 temporary6GiB/mode2/300s/Home90 comparison after
+current204 headerc56ed0a5,full15-file/COMPLETE204-prefix and memory preflight.
+Same195 libraries, no userdata delta/flash/rollback. Post-capture compares
+completed jobs, full service, guarded elapsed times and recorded CA frame
+waits against204; differing workloads prevent whole-UI speedup claims.
+No205 physical result yet; no user action needed. Root owns NOTES, full
+goal active. No human performance report beyond199-R2 remains available.
+
+### 2026-11-09 — 0205 bounded runtime clock snapshot passes host/native checks
+
+Codex patch0198 changes board C/CX-power C/private clock header only.
+The fourteen-register live clock read previously nested28 full WDT budget
+queries(each samples EN/BARK/BITE/STS). Mode12 runtime now uses a read-only
+snapshot with the SAME clock register order and ALL original value masks,
+full WDT queries at BOTH boundaries and a5ms CPU deadline. No clock/PTE/
+doorbell/PET store, mapping, frequency change or cached-clock authorization.
+Unpublished runtime startup is exclusive; after publication, the existing
+IOKit operation lock excludes concurrent refresh. Cold configuration is
+one-shot COMPLETE before either path. Legacy cold/probe/firmware live and
+quiet APIs retain their original per-register budget sampling and exact
+failure traces. This changes runtime WDT sampling frequency, not clock
+value predicates or GPU/SMMU/IRQ/reset/root/fence checks. Deadline/boundary/
+all-ones failure publishes no output and the caller quarantines as before.
+It cannot cancel a stalled MMIO read. Actual component timing is pending;
+the nested-query count alone is not a measured phase-time breakdown.
+
+DSH5218 native-check-stage-v2 ALL5 jobs0,pins unchanged:66,681 actual clock
+value/legacy-trace/mode/boundary/all-ones/lost-lease/deadline assertions;
+139 top-level guard comparisons+actual timer-wrapper cases;307,278 exact
+MICRO/SMMU checks;17,214 runtime/ABI+72 service+55,336 ring-span assertions;
+TWO real ARM64 TUs0, reference inputs/objects unchanged. V1/DSH63845 also
+all0; v2 clarifies comments about the unpublished startup owner, executable
+code unchanged. No205 full build, image or physical result yet.
+
+Next clean192-patch replay/full LOCAL native205 build, then one automatic
+6GiB/mode2/300s/Home90 timing comparison against204 with unchanged195
+libraries and current headerc56ed0a5/full15-file/COMPLETE204-prefix preflight.
+Verify all fences/service/elapsed counter bounds; preserve post-stop faults.
+No human205 result or new userdata delta requested. Optional availability
+question remains unanswered; continue independent automatic work. Root owns
+NOTES, full goal active.
+
+204 publication DSH5103 publication-stage-v1 ALL0,pins unchanged: public
+4cd6127150401746ee82bbdd1ab398b5eafc051c,
+ref codex/gauguin-cpu-ring-spans-20261109,
+tree60bfbc743b3a3b00597d3f10fe03d4623f81ceae,
+parent18336adc78f032f5eca6ec8eb9d2f64a03eac136. Six reviewed text files,
+exact private2f974d6 tree; existing refs unchanged, no explicit CI dispatch.
+
 ### 2026-11-09 — 0204 terminal:CPU ring spans reduce measured submit time by60%
 
 Supersedes the LIVE handoff below. DSH59407 boot and DSH32005 post stages

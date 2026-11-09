@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0208 full local whole-request profiler kernel qualified
+
+DSH36158 native-stage-v1 ALL0,pins unchanged. Clean195-patch source5330
+files6070e67eea0f4250e4c729f332f225914fe55e4beec7b8256636d091eebc3f42;
+only board C/private runtime header/GPU C++ differ from207. Source5b5b46f.
+LOCAL8-job build208-api-perf/run gauguin.voXNUS: build0/qualification0;
+all generic native checks/RO image marker and defined ProfileFreeze/Dump
+symbols retained, original195 reference inputs/mtimes unchanged. Exact
+kernel identity is in private kernel-qualification.json. No208 boot yet.
+
+Private strict receipt parser v1 passes; its human-readable selector names
+were then corrected to match actual native switch in separate v2 files,
+preserving v1. V2 five test methods/negative matrix PASS, both stages ALL0
+with pins unchanged; native code is unchanged. Next ONE temporary208 with
+fresh CURRENT207 headerc2698d/full15 files/complete207 prefixes/memory
+preflight, same195 libraries/6GiB/mode2/600s/Homeoff/30Hz. Capture entire
+GPU request/lock-delay counters and native submit prefix; no claim that
+kernel elapsed covers userland or all UI. No userdata delta/flash/rollback.
+Codex owns code/NOTES; DSH executes. Full goal active; lag unresolved.
+
 ### 2026-11-09 — 0208 whole GPU request elapsed profiler checked and promoted
 
 Patch0201 adds ONLY elapsed CPU-clock diagnostics to three kernel files.

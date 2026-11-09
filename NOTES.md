@@ -2,6 +2,455 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 UTC — 0211 human visual interaction PASSED; native terminal still pending
+
+User answered call_d85b305778bd4ec495f0d79e0d04e1ca:
+“图像正常，能进入桌面并返回”. Saved exact report in0211/
+user-visual-report211.json. This is the first human report after approved210
+CA callback + qualified211 private-BO table fix: this tested interaction has
+normal image and successful Desktop/Settings return. Do NOT infer smoothness,
+whole1800s stability, confirmed native CA callbacks or leak-free resources.
+Those still require the pending native capture and separate feedback.
+New async follow-up asks animation/tap responsiveness vs earlier versions;
+PENDING. Keep this same trial running, do not reboot or ask manual attribution.
+
+Continuation audit: previous turn made concrete progress (approved root write,
+local native build, temporary boot). Live process revalidation now confirmed
+watch_post211.py PID15758 and boot_pilot211.py PID15469; boot/observer/post
+all NONTERMINAL. DSH6529 +84849 still own these stages. Main mkadt diff
+retains original a74a0418. Continue read-only/native evidence collection and
+independent offline work while real1800s trial runs.
+
+### 2026-11-09 UTC — 0211 LIVE; approved210 bridge installed; waiting for human visuals/automatic capture
+
+DO NOT reboot or duplicate this trial. DSH6529 boot-dispatch-stage-v1 is
+running; actual fastboot send/Booting both OKAY. trial-v1/preflight.json
+observer-running, recovery latch verified. New qualified211 kernel + exact
+approved210 CA bridge aafa07f8. Image48e4f122e3268474d191ccd5d64515e27dc6d6c31d3ac77ea89c6d8fda4cd9e2,
+20,004,864B, in0211/ram-layout-6g-v1/layout-6g.img. Same1800s GPU service,
+2040s observer/2120 timeout, mode2, Homeoff/30Hz,6GiB bootstrap model.
+DSH12540 package-stage-v1 ALL0/pins unchanged, actual recovery RAM/DTB
+reconciled again and root header bound to exact210 approved installation.
+All15 installed files were reread; new bridge matches and all14 other
+files including COMPLETE R4 log prefixes unchanged. No fresh root writes.
+
+DSH84849 owns post-wait-stage-v1. It syntax-checks post211.py, waits for
+THIS exact boot/dispatch/observer terminal, then captures all15 files once
+and qualifies full R4 prefixes, native service/BO/frame/API/RO evidence and
+new CA observer install/uniform observations. No reboot/retry. All four
+boot-dispatch/boot/profile/post-wait input pin sets rechecked unchanged.
+Current trial/observer/post still NONTERMINAL. No native/visual PASS claim.
+
+New async human question PENDING: after lockscreen, unlock, inspect icons,
+open Settings and return. Options normal / red-or-missing / spinner-reset /
+not-yet-lockscreen. Keep running for automatic return; do NOT ask whether
+reset was manual under standing unattended policy. The30min window is to
+allow real interaction. Await actual callback logs and user feedback before
+claiming red gradient/icons or BO crash solved. Main source/driver commit
+9d6ec57 remains tested211 baseline; perf209 still separate and unbooted.
+No Metal/90-120Hz/full-RAM-pressure/peripheral/daily-use qualification.
+
+### 2026-11-09 UTC — 0210 approved delta APPLIED;211 native qualified; preparing temporary trial
+
+User explicitly approved339-block210 delta + touched-block rollback in
+call_86e80456d8374bdf84f452ed05add804. DSH44283 apply-stage-v1 ALL0/pins
+unchanged:43runs/1,388,544B read back, header run0 LAST. Exact plan87f26cd5,
+final local image1f20e2c22a365d9533fa4c9d89d2550e9510dd10762c4a2e5a0498fb4d9a9c03.
+Only bridge changed to aafa07f8; no rollback needed. Phone remains TWRP.
+Next verify all15 files/current root then temporary boot; no new GUI claim.
+
+DSH5906 native-stage-v1 ALL0/pins unchanged: actual ARM64 transport TU
+passed with original reference files unchanged; clean196patch/5330file
+source1acdd97d82c52b9f36b48f3a06ea151970a2db00f967d2666f7a3e7028a0af44.
+Committed regression reran on actual clean replay:9295 slots plus77submit/
+71sync/207queues/64pilot. Full LOCAL8-job gauguin.ZpPj4L build0/qualification0,
+source9d6ec57d51353835fb3d3c158231d42ee77c457e, banner
+xnu-58f3d778aed34152b77a615988f08610, kernel
+444b0b0c55232011949a3c4e5c160e5de53b15c4db562c7de35e395f4199fae8.
+All retained generic/defined-symbol/cache-flush/RO/MICRO/API provenance
+checks passed, original195 references unchanged. No image/211 boot yet.
+Live-object1024 remains distinct from submit256; byte/VA/DMA rules exact.
+Mesa cache demand/leaks/downstream OOM remain unqualified, not silently fixed.
+
+DSH49332 publication-stage-v1 ALL0: UI source-only NEW public branch
+codex/gauguin-ca-effect-observer-20261110, commit
+de5da2e7607bf4f0d0211b69de2eb3c59b4fe99e, exact tree
+d828e343e49f52d4eb573eba46193379230effcf, sole public195 parentd33d9fa2.
+Nine reviewed text files only, no old ref update or CI dispatch. Private UI
+source remains78b0365. No visual/Metal/high-refresh/daily-use acceptance.
+
+### 2026-11-09 UTC — 0210 exact root delta READY; new approval pending;211 BO capacity host PASS
+
+DSH93918 prepare-stage-v1 ALL0/pins unchanged. Exact210 one-library delta
+339 blocks/1,388,544B/43 runs, SHA
+87f26cd5cbd6fc02b28017d4fa535354786e4740cfad791c2cf9b29df6d63223.
+Local COW stage, full16GiB backup hash, detached readonly fsck, proven writer
+102 model assertions and ALL actual old blocks passed. New bridge only;
+14 retained files/logs,531 jobs, root owner/perms/event UUID/SystemVersion
+preserved. independent-local-review.json READY awaiting separate consent.
+Question sent via async: allow339-block CA observer install + touched-block
+rollback. NO approval file, phone write or new boot yet. Existing208 kernel
+1de0fc3d is the exact paired control. Does NOT fix BO exhaustion itself.
+
+Codex211 candidate separates private live1024 BO table from unchanged256
+per-submit cap;256MiB/client,64MiB/BO,1GiB VA and all PTE/sync/DMA ownership
+rules remain exact. Main patch0203 reserves0202 for isolated perf209 (not
+integrated). Main IOKit host fixture now supplies typed CPU clock/log seams
+for208 elapsed wrappers. DSH51567 v1 FAILED at compile due old fixture seams;
+preserved, not accepted as functional RED. DSH33661 v2 ALL0: baseline208
+rejects actual257th16KiB allocation, candidate9295 slot saturation/reuse/
+byte-quota/submit-bound assertions plus77submit/71sync/207queue/64pilot.
+Three1024-slot cycles release/reuse all descriptors, then byte quota is
+independently exercised. This proves kernel-side bounded recovery/cleanup;
+it does NOT establish Mesa cache working set, absence of userland leaks,
+or graceful downstream OOM. Those remain explicit follow-up work.
+Next: clean196-patch replay + full LOCAL211 build under DSH; await210 write
+consent independently. No physical211 or209 boot, CI unchanged. Keep main
+HEAD/NOTES stable while native211 build is running.
+
+### 2026-11-09 UTC — 0210 CA observer software PASS; fresh backup complete
+
+UI worktree commit78b0365 adds the actual20H392 single-slot uniform observer,
+per-owned-context effect/draw state, safe vptr/table association, COW rollback
+and exact native forwarding. Main private0210 build-stage-v2 DSH41843 ALL6
+jobs0/pins unchanged:6479 production Mach-VM observer assertions,
+39703/39937 actual ObjC assertions,14 default +22 render admission cases,
+iOS cross-build/signing. New bridge563200B
+ aafa07f85e6e2ae86d525ebcd1f5661a0fee561009521b28584b15da1e83eab9.
+Launcher remains195a1b98155; default disabled artifacts exact18667f7be39/
+ac9171b4. V1 failure preserved (host tests0, iOS unsupported mach_vm APIs
+and missing admission --out); v2 uses supported arm64 vm APIs and proper
+arguments. README/NOTES were intentionally updated after terminal build;
+actual build source pins remain unchanged. No install or visual acceptance.
+
+DSH18063 backup-stage-v1 now terminal ALL0/pins unchanged:16GiB readonly
+backup915515581d8d1a926ab7dc60479c07fe0eb4c66070f634031147f6de8d2ca8cb,
+header6984d543 unchanged before/after. File0444 in0210/root-backup-v1.
+Phone remains TWRP. Next: prepare exact one-library delta, local fsck,
+writer-model and all real old blocks, then individual new write approval.
+Known256 BO-slot exhaustion is still a separate unresolved issue; do not
+claim the CA observer fixes the crash or all icons without physical evidence.
+
+### 2026-11-09 UTC — R4 FAILS real UI;256 BO-slot exhaustion + missing CA effects callback
+
+PRIORITY changed by actual R4 feedback: Desktop reachable but icons absent,
+clock red background/still laggy; leaving Settings showed spinner then lock
+screen/full red-to-black gradient. User corrected 'stuck': NOT a persistent
+freeze. Reports saved in dsh-gpu-0208-manual-long-r4/user-performance-report208r4.json
+and user-visual-followup208r4.json. Do NOT roll out perf209 before correctness.
+
+R4 automatic15:49:14.343016–16:21:39.213916UTC. Boot observer0; post-wait
+ALL1 (input pins unchanged). Preserve ORIGINAL FAILED physical-review208.json:
+service-window crash, performance/API unavailable, wrap-state receipt limit,
+compositor and repeated bridge-install errors. Do NOT rewrite as PASS.
+All15/12 static/COMPLETE R3 prefixes preserved; logs60,230/9,335/1,201,873B.
+CURRENT header6984d5437ba787c0b25a2ec7f54ee1404710ece511d0c2321475c5ba18f7fa1f;
+phone back TWRP.0 wrap errors,52 CA frame receipts,2 backboardd crashes.
+
+REAL IN-WINDOW failure: observer7608 BO stage4 NoResources e00002be,
+size16KiB,flags20002,buffers=256,bytes84,131,840,next311,freeVA14954units.
+7609 backboardd[57] SIG11 FAR18; restart pid497. This precedes planned1800s
+stop (9193final/9194deadline); SECOND crash9234 follows that planned stop.
+Thus first failure is NOT explained by test expiry. Kernel GGR_MAX_BUFFERS
+256 slots exhausted while256MiB byte quota/VA have room. GPU keeps running
+after compositor restart: final201/201,shadow4692,1793 renewals,live_reason0/
+valid3f,GFSR0,FSR400,15 MICRO rechecks/0 expiry. Raw timing201 submits
+1,798,635,104ns/9426 checks1,787,678,645ns,42410 total guards8,064,867,343ns,
+pending0; failed UI window precludes normal whole-service/performance PASS.
+The wrap_state error may reflect bounded64 ABI result logging; audit separately,
+never erase actual in-window crash. MEMLIMIT pid57/497=-1, not128MiB jetsam.
+
+Strong SOURCE finding for red gradient: active195 bridge build links eagl.c,
+gl_osmesa.c/admission but never installs inject.c's function_uniform observer.
+hakios_gl_function_values has NO caller in the built bridge; ONLY it sets
+ca_context/function_values/function_given. R3 and R4 BB logs have ZERO
+'CoreAnimation gives its function' / 'a draw with no program is CoreAnimation'.
+Primary eagl.c explicitly describes function45/vibrantColorMatrix: drawing
+its red-to-transparent coverage as a normal picture produces red veil over
+wallpaper. Correct handlers exist but cannot select without that callback.
+This is a missing integration and strong causal hypothesis, NOT a hardware-
+validated visual fix; icons may have additional issues. Matrix capture itself
+IS wired through my_glUniformMatrix4fv, do NOT claim it is also missing.
+
+New research/tmp/dsh-ui-0210-ca-functions OFFLINE inventory DSH6240 ALL0,
+pins unchanged. Actual20H392 QuartzCore UUID9e40b2eb260c3af1ae45a1a551a8c1b9;
+GLESContext vtable0x1d5b2f6e8, method offset0x388, slot0x1d5b2fa80 resolves
+through ACTUAL cache slide info to GLContext::function_uniform0x1884b21ac,
+mangled __ZN2CA3OGL9GLContext16function_uniformEjmmPKf (index32,component/
+count64,float pointer). Current local nlists + code/vtable agree. Old primary
+20F66 addresses are DIFFERENT and must NOT authorize this root. Primary
+inject.c observer precedes original then forwards exact arguments. Current
+method disassembly loads GL dispatch table from CA context+0x7f8, context
+argument from table[0]; our EAGL table[0]=struct eagl pointer. This gives a
+way to associate callback to our owned contexts; validate before implementing.
+CA current-function pointer at+0x10/type+0x10 also visible in actual helper
+following uniform method. No hook/ABI runtime/visual acceptance yet.
+
+DSH18063 owns fresh READ-ONLY16GiB backup-stage-v1 in new0210 directory,
+bound to exact latest6984d543 header. No phone writes/mount/reboot/repair.
+Do not duplicate claimed backup. Any NEW userdata graphics-library delta
+STILL requires fresh concrete plan/old-block verification/fsck/individual
+approval per AGENTS before install. No210 bridge code/build/delta exists yet.
+
+Perf209 remains isolated/qualified/published and UNBOOTED. Its OFFLINE
+package-stage-v1 FAILED BEFORE image output: missing isolated shim/out old
+195 control image link. Preserve; fix read-only artifact closure + new stage
+if later needed, no rebuild/retry of claimed stage. Private stats-check-v1
+PASS4 methods. No209 physical dispatch/profile was started. Its proposed
+dispatcher refuses on failed R4, so cannot accidentally boot. Defer rollout.
+
+NEXT: finish current backup; implement/test actual20H392-scoped CA callback
+in UI worktree, preserving native contexts/one original call and safe owned-
+context state/lifetimes/concurrency. Avoid blindly adding upstream GLOBAL
+ca_context/function arrays: prefer per-owned-EAGL state and safe function-ID
+lookup. Verify UUID/actual slot/code and COW page permissions/rollback before
+publishing; only protected opt-in compositor path. Separately fix actual BO
+capacity/OOM handling: Mesa bo_new currently returnsNULL on backend failure
+without cache cleanup/retry. Source at dsh-gles-0185-root/prepared-v1/mesa-25.0.7/
+src/freedreno/drm/freedreno_bo.c/cache.c. Investigate reclamation/live demand
+and NULL handling; do not merely disguise failure with a larger limit. One
+option is distinct private client slot capacity from unchanged256 submit-BO
+ABI limit, keeping256MiB/VA/DMA quotas. This is a design candidate, NOT done.
+Fix visual correctness and exit-Settings crash before claiming UI acceleration
+or resuming209 perf. Full goal ACTIVE; daily/Metal/high-refresh still absent.
+
+### 2026-11-09 UTC — ISOLATED209 built/published; main208-R4 still LIVE/frozen
+
+Current phone remains SAME208 thirty-minute R4; DSH78364 observer/DSH60136
+post wait confirmed running. R4 actual human unlock result still pending,
+no terminal capture yet. Do not reboot/replace it or mutate its main frozen
+inputs. R4 source remains195 patches; primary working tree only original
+mkadt diff plus handoff documentation. All R4 outer/inner input pins were
+rechecked byte-identical after isolated source changes. Main R4 image is
+1de0fc3d/e6d70dbf kernel,1800s service, not the new209 kernel.
+
+To progress during R4, created ISOLATED worktree
+/Users/baai/Project/ios-gauguin/research/tmp/gauguin-perf209-worktree-20261109
+branchcodex/gauguin-read-continuation-20261109. Its private209 directory
+contains copied original host/native receipts with original paths/IDs,
+not fabricated new runs. Read-only references link original cache entries;
+source209-codex/build209-read-continuation are REAL independent roots inside
+that worktree. Original mkadt diff copied as an uncommitted identical file,
+never included in source commits; main user file untouched.
+
+Isolated source381879c9b1610d6c883c5c27988ae6b9cc30b436 commits patch0202,
+two main read/integration tests, exact cached-diag API test adaptation/series
+and NOTES. DSH64470 promotion ALL3 jobs0,pins unchanged. DSH18072 full
+native-stage-v1 ALL0,pins unchanged: clean196-patch5330-file source
+50cd63f814c839e4ec4dbaa31a343fff1426a613af5be8701562c945b97cae6e;
+LOCAL8-job gauguin.MP24cH/build0/qualification0. Bannerxnu-869ccb174d484bd5ae0df8e046cdcc49,
+kernel48d1f4ca3b69165ff3d2fc6ee9ccc5b60ac3ac80d1518b4f0385453e4af96ddc.
+Every retained generic native/defined read-continuation/Freeze/Dump/cache/
+RO/MICRO/API check passes; original195 reference hashes/mtimes unchanged.
+No209 package/boot/hardware speedup or UI result yet. Main has NOT received
+patch0202; source isolation protects ongoing R4 proof.
+
+Isolated note commit8cb859602d933a99d8291a681f7cee95115fe709 has exact tree
+512bdf66840ecebe531fffd497c40ebbb2e9b831. DSH70843 publication-stage-v1 ALL0,
+pins unchanged: new publiccodex/gauguin-bounded-read-continuation-20261109
+commitdffc34c768a8424784edcfa7bd40d17bcb61f1c9,sole public parent1a37cbd.
+Six reviewed source text files only; remote tree/parents rechecked; no private
+ancestry/artifacts/existing-ref updates/CI/device commands.
+
+NEXT: obtain R4 human feedback/raw terminal; do not classify spinner onset
+without timing. Prepare209 packaging in isolated worktree with actual native
+provenance; physical boot MUST wait for exact R4 terminal/current header/
+all15 COMPLETE prefixes and new recovery-memory preflight. Any copied helper
+using __file__.resolve() for ROOT must be a REAL COPY in isolated tree, not
+a symlink to main, or capture paths will resolve incorrectly. Reference
+assets/immutable old receipts may be linked read-only. Current208 R4 inputs
+stay frozen. Full objective ACTIVE, not responsive/daily/Metal/high-refresh
+qualified. Codex owns critical code; DSH executes tests/build/boot.
+
+### 2026-11-09 — R3 unlock spinner/crash AFTER planned GPU stop; same-kernel30min R4 LIVE
+
+Actual R3 automatic15:33:16.948766–15:45:43.901101UTC,746.952335s.
+DSH6658 boot/DSH30104 post ALL0,pins unchanged.600s service598 renewals,
+33/33 native completions,shadow844;16 records/17 sampled-out successes,
+10 CA frames,0 wrap errors. User call_603288adeb734b13be53c54fa4563a8f:
+'解锁后 有个菊花的进度条，但是进不去 然后重启了'. Saved actual report.
+
+Native R3 observer lines6187+ authority stopped; cached live_reason0/valid3f,
+GFSR0/FSR400,31 exact waits recovered/33 polls,6 rechecks/0 expiry.
+Line6212 final33/33; lines6214–6218 BO stage0 NotReady; line6219 backboardd
+crash FAR18. Parser locates explicit planned deadline and separates1 crash,
+5 BO failures and1 cleanup failure AFTER it. No in-window native submission
+failure/panic. The crash DEFINITELY follows deliberate GPU withdrawal;
+human spinner onset cannot be timed exactly from the reply alone. Do NOT
+claim normal unlock or whole-session/daily success. Do NOT treat this as
+proof of a new in-window driver regression or paper over context-loss bug.
+
+R3 preserves all15/12 static/COMPLETE R2 prefixes. Logs58,187/9,066/1,140,420B.
+CURRENT pre-R4 header64103edfc4966a430fbc45a70573ede2cdeb200ea21164bc93e33f51be1978bf.
+33 core submissions298,520,052ns/1572 guards296,513,802ns,pending0;
+12,196 total guards2,316,053,750ns. API measurementvalid1/pending0.
+
+To separate unlock from test expiry, ONE same-kernel208-R4 now LIVE in
+research/tmp/dsh-gpu-0208-manual-long-r4. Native coordinator source verified
+explicit service60..3600s. ONLY effective bootarg600->1800;602B/6NUL,
+same e6d70dbf kernel,6GiB/mode2/Homeoff/30Hz/195 libraries. NEW package
+image1de0fc3dad8b4d9558b4f9ed801d4b20ab986e6520b1e673e26a512e6f785b0d;
+explicit kernel-reuse.json, NOT an independent native build. Fresh CURRENT
+R3 header/full15 COMPLETE prefixes/memory preflight all verified. DSH78364
+owns single observer:19,536KiB/Booting OKAY,total0.598s around15:49UTC.
+DSH60136 owns exact-R4 post wait2280s; observer2040s/timeout2120s. Private
+boot wrapper maximum raised1200->2400 ONLY to allow this bounded manual
+window; script verifies actual1800s service and complete prefixes on return.
+User immediately asked R4 unlock/Desktop/Settings result; pending. No root
+delta/flash/rollback/manual reboot requested. Phone currently running R4.
+Do not duplicate stages or ask reset attribution. Thirty-minute stability
+is NOT qualified before logs return; unexpected early reset must be audited.
+
+PRIVATE209v2 additional integrated test: v1 fixture failed BEFORE execution
+on unused f variable; preserved. Separate test_integrated209v2.py removes
+ONLY unused variable; DSH35465 integrated-check-stage-v2 ALL0,pins unchanged.
+596,874 assertions execute actual core+full-clock-wrapper+board callback
+together with typed IO seams:190us guard reuse,260us/late-stamp full fallback,
+identical packets/fences, and full before/after write/barrier/delay gates.
+This is composition evidence, NOT GPU emulation or real hardware speedup.
+Existing v2 host/native closure remains passed. Still NO209 tracked patch,
+full build/image/boot. Private promote209.py and prepare_build209.py factories
+are prepared but UNEXECUTED. Keep R4 frozen inputs intact until capture;
+defer209 rollout until same-kernel long-window unlock result is understood.
+Next use actual R4 human feedback and native health to resolve spinner;
+then promote209 including integrated test/pins and exact API diagnostic test
+adaptation, commit,196-patch local full build and bounded hardware comparison.
+Full goal ACTIVE: responsiveness/Metal/full RAM pressure/peripherals/high
+refresh/daily use still unfinished. Codex writes critical code; DSH executes.
+
+### 2026-11-09 — actual0208-R3 LIVE; PRIVATE209v2 software/native closure PASS
+
+User call_638a082742fb4c789ab9e2df19df5b14 replied to R2 '错过了 再刷入一次'.
+Saved user-performance-report208r2.json: no actual R2 performance report.
+FIRST R3 preparation research/tmp/dsh-gpu-0208-manual-r3 failed verifier
+BEFORE any memory capture/device command/observer: metadata said R3 but
+copied verifier still asserted R2. Failed claimed stage preserved; obsolete
+post wait dispatcher/child terminated and explicit unbooted cancellation
+receipt saved. Do NOT retry that directory/stage. Root acknowledged mistake.
+
+Corrected FRESH research/tmp/dsh-gpu-0208-manual-r3-v2 retains actual trial
+ID0208-R3 and same original208 image/kernel. All Python verifier/trial/post
+labels checked; q/software/4GiB/layout receipts copied byte-identically from
+original208, explicitly NOT an independent build/repack. Fresh CURRENT R2
+headerbb353da2/full15 COMPLETE R2 prefixes and memory preflight passed.
+DSH6658 owns ONE actual R3 observer:19,536KiB transfer/Booting OKAY,
+total0.593s around15:33UTC. Same2078f797 image/e6d70dbf kernel/195 libraries,
+600s/6GiB/mode2/Homeoff/30Hz. DSH30104 owns single exact-R3 post wait1080s.
+Actual R3 unlock/swipe/Settings/Home feedback requested immediately after
+verified boot; pending. Phone currently running R3, no need manual reset.
+No userdata delta/flash/rollback. Do not duplicate observers or ask attribution.
+
+PRIVATE209v2 DSH1146 host-check-stage-v2 ALL4 jobs0,pins unchanged:
+551,748 runtime assertions +122 actual board/full-clock-wrapper cases,
+original17,214/72,55,336 ring-span,139 full-guard and307,411 MICRO retained.
+DSH27196 native-check-stage-v2 ALL0 closes three native TUs: ONLY board C
+changed from v1, exact candidate identity permits retaining prior runtime/
+GPU TUs; new native board compile0, reference2129 headers/config/objects
+unchanged. checks-summary.json statepassed209-v2-bounded-read-continuation-and-three-native-TUs.
+V1 never promoted/booted; its late-stamp rebase weakness is fixed in v2.
+V2 uses measured <=5us END gap AND <=250us START age at consumption. It
+does not prevent preemption/stalled IO after final clock sample. Read-side
+sampling frequency changes; all writes/barriers/delays retain full gates,
+and all successful accesses retain full after-gates. API/BO/PTE/cache code
+byte-identical. No209 tracked patch/main test/full build/image/boot yet.
+
+NEXT after R3 raw capture: promote path-only standalone test and patch0202
+(runtime C/header/board C only), adapt existing API profiler test to strip
+ONLY exact new cached read-counter quarantine block, run promotion checks,
+commit and fresh196-patch LOCAL8-job native209. Qualified208 stays reference.
+Consider bounded300s diagnostic against the two nearly identical25-job/8-CA
+startup workloads; no human responsiveness claim without actual report.
+Keep complete R3 prefixes/current terminal header for next preflight.
+Codex owns critical source/NOTES, DSH executes; full goal ACTIVE, lag unresolved.
+
+### 2026-11-09 — 0208-R2 terminal PASS; PRIVATE209 timing review and v2 checks pending
+
+R2 automatic15:09:28.448959–15:21:55.225505UTC,746.776546s. DSH59434 boot/
+DSH35040 post ALL0,pins unchanged.600s/598 renewals,25/25 completions,
+shadow592;16 records/9 sampled-out successes.8 CA frames/10 wraps/0 errors,
+NO compositor crash,2 MICRO rechecks/0 expiry;4 post-stop BO failures remain
+separate. All15 files/12 static/full first208 prefixes preserved. Logs56,143/
+8,797/1,111,660B; CURRENT headerbb353da246137a973c10a1771be8c52c1bace4ee2c3ad63c878e454d9f95ee48.
+Phone last TWRP. Actual R2 human question still pending; matching counters
+do NOT prove the user did/did not touch it. No interaction/performance claim.
+
+R2 valid API1213 calls/4 parameter failures/pending0;25 submit requests
+300,624,062ns(avg12.025ms),native core214,657,760ns(avg8.586ms),extra
+85,966,302ns.1,140 in-submit guards213,395,885ns,99.412% core elapsed;
+10,974 total guards2,075,658,385ns.597 heartbeat requests1,786,827,708ns
+are an idle aggregate, NOT the visible UI bottleneck. No same desktop
+workload/speedup qualification; Metal/daily/high-refresh remain open.
+
+PRIVATE209 research/tmp/dsh-gpu-0209-read-continuation/candidate-v1 changes
+only runtime C/header and board C. Optional continuation ONLY before a
+register/owned-RAM READ, full guard AFTER every successful access and full
+before/after gates for ALL writes/barriers/delays/ring spans remain. NULL
+hook retains legacy trace. Context flag consumed once/reset per operation;
+no API/BO/PTE/cache code change. V1 DSH23234 host ALL0:551,748 runtime
+assertions+83 board cases, original17,214/72 and55,336 ring cases retained.
+DSH83383 native3 TUs/full139-guard/shared307,411-MICRO matrix ALL0.
+
+ROOT REVIEW found v1 stamp callback could rebase a preempted old full guard
+to now. V1 software PASS is preserved but NOT promotable and never booted.
+Separate candidate-v2 captures begin/end in the original timed guard wrapper,
+leaves its full predicate body byte-identical, then requires consumption
+<=5us from END and <=250us from START. Late stamp cannot renew either bound.
+These are observed CPU-clock intervals, not a guarantee against preemption/
+stalled IO after the final sample. Cached read-side sampling frequency DOES
+change; do not claim unchanged hardware trace or cached write authority.
+
+DSH1146 owns host-check-stage-v2, including actual full wrapper/preemption/
+late-stamp cases plus retained runtime/ring/full guard/MICRO tests. No209
+tracked patch/test/series, full build,image or boot. Next inspect V2 result;
+if passes, native-check ONLY changed board TU and reuse prior identical
+runtime/GPU evidence after exact identity/pin verification. Then promote,
+commit and fresh196-patch full local209 build before any temp trial. Current
+208 source/public ref unchanged. No userdata delta/flash/rollback requested.
+Codex owns critical code/NOTES; DSH executes. Full goal active, lag unresolved.
+
+### 2026-11-09 — 0208 terminal PASS; user-requested same-image 0208-R2 LIVE
+
+First208 DSH58405 boot/DSH68048 post: all inner dispatchers/observer/
+post-wait ALL0,pins unchanged. Automatic746.080616s,
+600s service598 renewals,25/25 completions,shadow592.16 recorded/9 sampled
+out,6 MICRO rechecks/0 expiry.8 CA frame receipts,10 wraps/0 errors,NO
+compositor crash;4 BO NotReady after planned stop separately retained.
+All15 files/12 static/complete207 prefixes preserved; logs54,100/8,528/
+1,091,689B,first208 terminal header7abb6c51e54c1f566e0289419ba3aa187cd48fca8ee4f8727bb27d27a3050ba9.
+
+Whole-request counters valid1/pending0:1213 calls/4 parameter-query failures;
+597 heartbeat calls1,795,837,083ns dominate the ten-minute idle aggregate,
+NOT evidence heartbeat dominates visible UI.25 submit requests306,707,500ns
+(12.268ms avg),native core215,932,135ns(8.637ms avg);90,775,365ns lies outside
+native core.101 BO allocations187,432,083ns;182 info requests44,431,770ns;
+109 mappings26,212,552ns. All-client scope includes probes/worker/CA, not a
+pure desktop workload. First8 sampled frame wall23.819–282.262ms; no same
+workload speedup claim. User call_afe1fbe8368f4acc9b658fd100edbc0d answered
+'再刷一次', so no human208 performance qualification.
+
+Prepared research/tmp/dsh-gpu-0208-manual-r2: explicit exact208 image/kernel
+reuse, NO independent build/repack. Fresh first208 header/full15 COMPLETE
+first208 log prefixes and memory preflight. DSH59434 owns ONE R2 observer;
+same image2078f797/kernele6d70dbf,600s/6GiB/mode2/Homeoff/30Hz. Transfer
+19,536KiB/Booting OKAY,total0.590s. DSH35040 owns single exact-R2 post wait,
+same strict request-profile parser. Actual R2 unlock/swipe/Settings/Home
+requested immediately after verified boot; reply pending. Current device
+running R2; do not duplicate stages or ask reset attribution. No userdata
+delta/flash/rollback. Full goal active; responsiveness still unqualified.
+
+### 2026-11-09 — 0207/0208 source-only publication PASS; actual208 still running
+
+DSH79586 publication-stage-v1 ALL0,pins unchanged. New public branch
+codex/gauguin-request-clock-profile-20261109 commit
+1a37cbd28ef382f88535374308399f595d462e45,sole public parent
+542965defbf195d63c7985c15614c65cd59abdc2. Exact private2b0f7e0 tree
+eef41350b15253cb386de7fe1c13062ed06396c0 matches remote. Six reviewed text
+files only:0200/0201 patches,RO/API host tests,series,NOTES. No existing-ref
+changes/private history/artifacts/CI dispatch/device commands. Source207
+RO fallback remains unexercised on hardware; actual208 request-clock trial
+and user feedback still pending. Do not duplicate observer/capture stages.
+Full goal active; touch/Desktop work but responsiveness is not qualified.
+
 ### 2026-11-09 — 0208 whole GPU request clock trial LIVE
 
 DSH58405 owns ONE claimed208 observer after current207 headerc2698d,

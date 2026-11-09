@@ -15,6 +15,9 @@
 #ifndef GGR_MAX_QUEUES
 #define GGR_MAX_QUEUES 32u
 #endif
+#ifndef GGR_MAX_CLIENT_BUFFERS
+#define GGR_MAX_CLIENT_BUFFERS 1024u
+#endif
 #define GAUGUIN 1
 #define SWEET 1
 #define APPLE_KEXT_OVERRIDE override
@@ -29,7 +32,11 @@
 #define IONew(C,n) new C[n]
 #define IONewZero(C,n) new C[n]()
 #define IODelete(p,C,n) delete[] (p)
-#define IOLog(...) ((void)0)
+static void test_log(const char *format,...){(void)format;}
+#define IOLog test_log
+/* CPU-only monotonic clock seam for the production elapsed wrappers. */
+[[maybe_unused]] static uint64_t mach_absolute_time(){static uint64_t ticks;return ++ticks;}
+[[maybe_unused]] static void absolutetime_to_nanoseconds(uint64_t ticks,uint64_t *ns){*ns=ticks;}
 using UInt32=uint32_t;using IOOptionBits=uint32_t;using IOReturn=int;
 using IOByteCount=uint64_t;using addr64_t=uint64_t;using vm_size_t=uint64_t;
 using uintptr_t=std::uintptr_t;using task_t=void *;using ppnum_t=uint64_t;
@@ -193,7 +200,9 @@ template<class T>static IOReturn request(GauguinGPUUserClient *c,uint32_t select
     return result;
 }
 static uint32_t new_bo(GauguinGPUUserClient *c,uint64_t size,uint32_t flags=0)
-{struct ggr_new n={size,flags,0};CHECK(request(c,0x42,&n)==0&&n.handle);return n.handle;}
+{struct ggr_new n={size,flags,0};static unsigned attempt;attempt++;IOReturn rc=request(c,0x42,&n);
+ if(rc||!n.handle)fprintf(stderr,"BO new failed attempt=%u size=%llu rc=%d\n",attempt,(unsigned long long)size,rc);
+ CHECK(rc==0&&n.handle);return n.handle;}
 static uint64_t address(GauguinGPUUserClient *c,uint32_t h)
 {struct ggr_info i={h,1,0,0,0};CHECK(request(c,0x43,&i)==0);return i.value;}
 static IOBufferMemoryDescriptor *mapped(GauguinGPUUserClient *c,uint32_t h)
@@ -233,6 +242,42 @@ int main(int argc,char **argv)
     p.pipe=0;CHECK(request(c,0x40,&p)==kIOReturnBadArgument);
     struct ggr_new invalid={0,0,0};CHECK(request(c,0x42,&invalid)==kIOReturnBadArgument);
     invalid.size=GGR_MAX_BO_BYTES+1;CHECK(request(c,0x42,&invalid)==kIOReturnBadArgument);
+    if(argc>1&&strcmp(argv[1],"slots")==0) {
+        static_assert(GGR_MAX_BUFFERS==256u,"per-submit ABI limit stays256");
+        static_assert(GGR_MAX_CLIENT_BYTES==(256u<<20),"byte residency quota stays256MiB");
+        static_assert(GGR_MAX_CLIENT_BUFFERS==1024u,"bounded private live-object table");
+        uint32_t previous=0;unsigned persistent=allocations-frees;
+        for(unsigned cycle=0;cycle<3;cycle++) {
+            std::vector<uint32_t> handles;
+            for(unsigned i=0;i<GGR_MAX_CLIENT_BUFFERS;i++) {
+                uint32_t h=new_bo(c,16384,(i&1)?GGR_BO_READONLY:0);
+                CHECK(h>previous);previous=h;handles.push_back(h);
+            }
+            struct ggr_new full={16384,GGR_BO_READONLY,0};
+            CHECK(request(c,0x42,&full)==kIOReturnNoResources&&full.handle==0&&hardware_ready);
+            CHECK(allocations-frees==persistent+GGR_MAX_CLIENT_BUFFERS);
+            CHECK(address(c,handles.back())>=GGR_VA_START);
+            uint32_t old=handles[0];uint64_t old_va=address(c,old);
+            struct ggr_close close={old,0};CHECK(request(c,0x09,&close)==0);
+            struct ggr_info missing={old,0,0,0,0};CHECK(request(c,0x43,&missing)==kIOReturnBadArgument);
+            uint32_t replacement=new_bo(c,16384);CHECK(replacement>previous);
+            previous=replacement;handles[0]=replacement;
+            CHECK(address(c,replacement)==old_va);
+            for(uint32_t h:handles){close={h,0};CHECK(request(c,0x09,&close)==0);}
+            CHECK(allocations-frees==persistent&&hardware_ready);
+        }
+        std::vector<uint32_t> large;
+        for(unsigned i=0;i<4;i++)large.push_back(new_bo(c,GGR_MAX_BO_BYTES));
+        struct ggr_new quota={16384,0,0};CHECK(request(c,0x42,&quota)==kIOReturnNoResources&&quota.handle==0);
+        CHECK(allocations-frees==persistent+4&&hardware_ready);
+        for(uint32_t h:large){struct ggr_close close={h,0};CHECK(request(c,0x09,&close)==0);}
+        struct ggr_submit oversized={};oversized.flags=0x10;oversized.nr_bos=GGR_MAX_BUFFERS+1;
+        oversized.nr_cmds=1;oversized.fence_fd=-1;oversized.bos=1;oversized.cmds=1;
+        CHECK(request(c,0x46,&oversized)==kIOReturnBadArgument&&hardware_ready);
+        CHECK(c->clientClose()==0&&allocations-frees==persistent&&!gOwner);c->release();
+        printf("PASS: %u private BO-slot saturation/reuse/byte-quota/submit-bound assertions\n",checks);
+        return 0;
+    }
     uint32_t data=new_bo(c,20000),commands=new_bo(c,16384,GGR_BO_READONLY);
     uint64_t data_va=address(c,data),command_va=address(c,commands);
     CHECK(!(data_va&65535)&&!(command_va&65535)&&data_va!=command_va);

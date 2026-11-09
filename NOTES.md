@@ -2,6 +2,23 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0201 automatic exact-value settling trial LIVE
+
+DSH4504 boot dispatcher36244 is observing ONE claimed201 trial.
+Qualified native201 package/current memory/header4ea2039b/full15 files
+and complete200 prefixes all passed. Image
+ce73876be61eea0b65ae2b6a914e0636a23eeb3126eaeee50c2d6e3bc2174741,
+6GiB/mode2/300s/automatic Home90,605-byte command. Temporary fastboot
+19,520KiB transfer and Booting both OKAY,total0.599s, observer-running.
+No new userdata delta, flash or rollback. Same195 Mesa/bridge retained.
+
+DSH11834 is the single post-wait-stage-v1: wait for this EXACT observer
+and both actual dispatcher terminals, then preserve all15 full files and
+200 prefixes before reviewing STOP MICRO/submit/compositor evidence.
+No201 physical result yet. User notified no manual work is needed. Do NOT
+reuse R2 UI/lag reports as201 visual observations. Root owns NOTES;
+poll existing claims/handles, never duplicate a stage on timeout.
+
 ### 2026-11-09 — 0201 clean full native build qualified; next automatic trial
 
 DSH56858/dispatcher99068 native-stage-v1 terminal0, pins unchanged;

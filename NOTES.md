@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0204 terminal:CPU ring spans reduce measured submit time by60%
+
+Supersedes the LIVE handoff below. DSH59407 boot and DSH32005 post stages
+ALL0,pins unchanged. Automatic trial11:17:17.386440–11:24:41.453698UTC,
+444.067258s. All15 full files/12 static hashes/COMPLETE203 log prefixes
+preserved; full logs43,881/7,183/998,228B. Current root header
+c56ed0a5d26091ac23043e832e642e4d6ba37aed73a5e2c514262b50c46e185b.
+Phone last TWRP. Explicit300s GPU service passes:298 renewals,15/15 native
+completions,shadow244,3 CA frame receipts,5 wraps/0 failures. One exact
+MICRO wait recovered in1 poll/67us, final live_reason0/valid3f. Post-stop
+2 BO NotReady events/1 compositor crash remain recorded separately.
+Whole-session compositor, visual speed, daily use, Metal and high refresh
+are NOT qualified. Same195 installed libraries; no userdata delta/rollback.
+
+Validated timing:5,955 full checks,total2,545,848,645ns,max648,177ns.
+15 submits253,417,812ns;600 inside checks252,939,895ns,pending0. Average
+submit42.270ms(203) ->16.895ms(204),ratio0.399685; checks/job100 ->40.
+Packet workloads differ(203 shadow260 vs204 shadow244), so this is an
+observed average reduction, NOT a proven whole-UI speedup. GPU may overlap
+guards; the477,917ns remainder is NOT GPU-only duration or CPU utilization.
+Recorded frames1..3 waits51,080/47,828/54,248us: latency still substantial.
+No human204 performance report; latest user observation is199-R2 still
+visibly lagging. An optional availability question is pending; if present,
+offer a fresh same204-kernel manual600s/Homeoff trial with new preflight/
+claims, not a fictitious205 native build. No such trial is prepared yet.
+
+Next inspect exact clock/owner/watchdog/route/guard implementations before
+choosing further optimization. Current~422us/full-check cost is measured,
+but its component breakdown is not; do NOT assume SMMU reads dominate or
+weaken predicates without ownership/failure tests. Source publication of
+0197 remains pending(parent public18336adc,private baseline0a03580).
+Root owns NOTES; full goal remains active.
+
 ### 2026-11-09 — 0204 automatic CPU ring-span timing trial LIVE
 
 DSH59407 is observing ONE claimed204 trial after current203 header2592713f,

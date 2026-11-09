@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0204 full local ring-span build qualified; next timing comparison
+
+DSH45448 native-stage-v1 ALL0,pins unchanged. Clean191-patch source5330
+files8676661e208b04bc880dc43ebd597872fbba113b5aa53d3dd5761b323c9dd117;
+ONLY board C/runtime C/private runtime header differ from203. Source
+6ca814fafa11eeb6020428764e4694f175834e55. LOCAL8-job build204-ring-span,
+native build0/qualification0; native ring-span callback is a required
+DEFINED text/section symbol, all prior generic checks retained. Original
+195 reference hashes+mtimes unchanged. Banner
+xnu-a84285903fe54af6a20ee0dc23483a7e,
+kernel0ec35b9430ebd97ba2e81e3aad21ac0ad0f3bf03dd7958d0df2a2cd160408def.
+
+Next ONE temporary204 automatic Home trial after current203 header2592713f,
+memory/full15 files/COMPLETE203-prefix preflight. Same195 libraries,
+6GiB/mode2/300s. Check explicit service window, completed fences/packets,
+submit/guard timings and recorded frame latencies against203. Average
+submit ratios are observations; different UI workloads or overlapping
+GPU work prevent claiming whole-UI FPS/GPU-only time from those alone.
+No204 physical result yet, no user action or userdata delta requested.
+Root owns NOTES; full goal active.
+
 ### 2026-11-09 — 0204 CPU ring-span candidate passes functional/native checks
 
 Codex patch0197 changes board C/runtime C/private runtime header only.

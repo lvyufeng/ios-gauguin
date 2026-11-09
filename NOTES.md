@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0191 same-kernel 4 GiB control live, handle 89025
+
+After preserving the complete 6 GiB capture, read back the current root and
+fresh full prefixes, then temporarily booted the 0191 control `949caab5` once.
+Same native kernel `127096b7`, command, five firmware contents and installed
+root. `fastboot boot` returned OKAY in 0.592s. Dispatcher 50544 claimed at
+1794191680.509738. Local outer **89025** is the active observer. No new root
+write. Wait on this exact handle and run `prepare_post191.py` in
+`research/tmp/dsh-memory-0191-control` after terminal exit 0. Compare the native
+4 GiB counter, ZAP AUTH path and full GLES/constructor regression to 6 GiB.
+
+Separate unfinished 0192 authority candidate lives under
+`research/tmp/dsh-gpu-0192-auth`. Mode 2 adds launchd-spawned protected xpcproxy
+job provenance, same unique process ID at the protected UID 501 backboardd
+open, and owning task checks. The one-owner path retains root access and
+holds the pilot until a clean root release after the sixth native fence.
+Candidate is uncommitted and unbooted. Initial cross passed `kern_exec.c`,
+but `GauguinGPU.cpp` needed its unchanged quoted runtime header in the isolated
+candidate. The scope/lifecycle tests, native retry and userland pilot are next.
+
 ### 2026-11-09 — 0191 recognizes 6 GiB; GPU startup stops before ZAP AUTH
 
 The exact 6 GiB image `30b195e6` returned automatically to TWRP after

@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0226 complete pinned HakiOS CA frontend builds; actual20H392 imports PASS
+
+Goal API is ACTIVE after user-side resume; old blocked entries below are history.
+Full daily-use objective still incomplete. No new device IO or userdata write.
+226 isolated branch codex/gauguin-metal-ca-20261110, based MAIN7f95b63.
+Source400eef3 adds Git-blob-verified complete HakiosMetalCA.m preparation and
+native bundle builder; eac7c08 permits ONLY five upstream weak optional M2V
+hooks to remain dynamically looked up and verifies actual Mach-O nlist flags.
+Original v1 linker failure and original builder snapshot remain preserved.
+
+W226 research/tmp/dsh-metal-0226-ca-frontend inside226worktree.
+DSH81655 build-stage-v2 terminal0/reaped, inputs unchanged. Full412396B source
+at HakiOS63fc2b4633bac3af8e57dadab9f5a8d4cb940438 (blobc6a7ff1a...)
+links qualified8a826583... A619 core into signed421472B MH_BUNDLE iOS16.0,
+SHA5cb7d112e76cd25eef12198998fa697b4644f83a200690b7e4b94f55d855b168.
+Two unsuppressed upstream/new-SDK warnings, no required unresolved link imports.
+DSH51556 abi-stage-v1 terminal0/reaped, inputs unchanged. Reads actual20H392
+cache44shards/2710images from pinned local backup. ALL548 core+frontendimports
+checked: zero missing strong, zero unexplained weak; five disabled optionalM2V
+hooks explicitly separated. This is symbol availability, NOT runtimeABI or UI.
+
+Actual provider is SweetFramebuffer.cpp IOAcceleratorES stub, not Metal-ready.
+No MetalPluginName/Class published. One GPU owner; existing backboardd GLES
+pilot opens after root completion. Early Metal discovery before delayed root
+probe can cache nil; simply publishing a bundle can race/lose GPU ownership.
+Upstream maxBufferLength256MiB exceeds actual kernel64MiB singleBO cap; paths
+point at redwood; featureProfile1 inherits claims not yet qualified on A619.
+Do not deploy unchanged or treat baseline build as hardware success.
+
+NEXT: bounded diagnostic-only gauguin profile, actual named-method/ivar ABI gate,
+resource/path correction, then real MTL objects/pipelines, BGRA/sRGB/IOSurface
+readbacks in root-only offscreen mode with existing GLES worker disabled by
+boot-mode selection. Only after those pass coordinate compositor discovery and
+single-owner transfer. Preserve full CA shader variant/constants selection,
+semaphore repayment, encoder endEncoding-super logic; no fake weak stubs.
+No new write permission requested yet. Prepare any NEW delta fully against
+post22317-file/header11f3ff23 state, fresh16GiBbackup/fsck/model/oldranges and
+individual user approval. All prior partition protections remain in force.
+
 ### 2026-11-10 CST —0223 REAL A619 offscreen rendering PASS;219 source integrated;224 ABI inventory PASS
 
 This user turn PROGRESS: explicit consent received, exact77-run root delta

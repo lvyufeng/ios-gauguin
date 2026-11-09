@@ -2,6 +2,215 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0203 automatic latency profile trial LIVE
+
+DSH12341 is observing ONE claimed203 trial after current202 headerb2c99aa6,
+memory/full15 files/complete202 prefixes preflight. Temporary image
+01045baaed236f1daa9a7bb088787d9c6f6358e735e25542d27f3ef22f610ca1,
+6GiB/mode2/300s/Home90,605-byte command;19,520KiB transfer and Booting
+both OKAY,total0.596s. Same195 libraries retained. No new userdata delta,
+flash or rollback. No203 physical result yet; observer-running.
+
+The single post-wait-stage-v1 watches this EXACT observer plus both actual
+dispatcher terminals, preserves all15 full files/202 prefixes, then checks
+explicit300s service chronology and cached timing consistency. Its parser
+tool is pinned at every capture stage. Keep/report post-stop crashes and
+reject in-window failures; no whole-session/daily/Metal/high-refresh claim.
+Root owns NOTES; poll existing claims/handles, no duplicate on timeout.
+User notified automatic test needs no manual work. Full goal stays active.
+
+### 2026-11-09 — 0203 full local native clock-profile build qualified
+
+DSH59265 native-stage-v1 ALL0, pins unchanged. Clean190-patch source5330
+files63060f9aa3e6e7fbd86471af8ea8a34da666e1428f8ea69bf67205682f257d78;
+only gauguin_gmu_board.c differs from202. Source35423200715035e4cf1fe3c7bdd670c4e1e47d5e.
+LOCAL8-job build203-perf, native build0/qualification0, independent
+dependency clones and original195 reference hashes+mtimes unchanged.
+Banner xnu-bfadb80dd5344a588209b231557d647a,
+kernel6fdba114646ff787e10dd45e5a088a18a43a54b726f8acb2d031e65eda3cf5cc.
+
+Next ONE temporary203 automatic Home trial after current202 headerb2c99aa6,
+memory/full15 files/complete202 prefixes preflight. Same195 libraries,
+6GiB/mode2/300s. Post203 explicitly uses tested300s service-window parser;
+all whole-session failures remain recorded. Timing must have pending0,
+submit count matching real completed fences, guard time<=submit wall time,
+and both sums bounded by observer elapsed time. No GPU-only time claim.
+No203 physical result yet; no new userdata delta or user action requested.
+Root owns NOTES; full goal active.
+
+### 2026-11-09 — 0203 guard/submit elapsed-time profiling passes software checks
+
+Codex patch0196 changes only gauguin_gmu_board.c. The ORIGINAL live
+predicate/IO body is named ggrb_live_check; its wrapper adds two CPU-clock
+reads and cached elapsed counters, returning the unchanged boolean.
+Existing ggr_submit call gets elapsed/delta counters too. No new MMIO,
+omitted predicates, changed packets/fences/quotas/owners or per-success
+logging. At quarantine print total guard elapsed time and the guard
+portion INSIDE submit calls. The remainder includes BOTH CPU and GPU;
+it is not a GPU-only measurement. pending=1 means the current failed
+submit has not yet been folded into totals: never treat it as complete.
+
+DSH37470 native-check-stage-v1 ALL4 jobs0, pins unchanged:139 actual
+202/new predicate/IO comparisons and sticky-failure checks; actual timer
+wrapper true/false/same/backward-clock cases;307,278 retained combined-
+guard/micro recovery assertions;17,214 runtime/ABI+72 service assertions;
+real ARM64 board TU0, reference2129 header/config/generated objects
+unchanged. Existing202 recorded submissions1..15 each have polls==fence;
+first-poll completion is an observation, not an execution-time benchmark.
+
+Next clean190-patch replay/full LOCAL native203 build, then same6GiB/
+mode2/300s/Home90 with current202 headerb2c99aa6 and full15-file/prefix
+preflight. Post-review must use the now-tested explicit service-window
+parser: keep/report post-STOP crashes separately and reject any in-window
+failure. No quota increase, new userdata delta or rollback. Root owns
+NOTES; current phone last TWRP. Full goal remains active.
+
+### 2026-11-09 — CORRECTION:201/202 crashes are AFTER intentional service stop
+
+Supersedes the earlier 'independent BO/runtime compositor failure'
+interpretation.202 actual native event order is planned STOP line5475,
+then BO NotReady lines5516/5517, then backboardd crash5518.201 likewise:
+planned STOP5591 precedes crash5621. Both last live guards have reason0,
+valid3f, completed==submitted, and298 renewals for the full300s service.
+The finite diagnostic deliberately withdraws GPU access, then waits for
+watchdog recovery; Mesa does not handle that loss gracefully. These are
+REAL post-stop crashes, NOT faults during the active300s GPU window.
+Earlier physical-review201/202 JSON receipts are preserved unchanged;
+their whole-session compositor error is too broad for active-window
+classification. No memory/count/VA-limit fix is supported by these runs.
+
+202 terminal:10:13:38.421804–10:21:02.511107UTC,444.089303s,
+automatic; DSH88959 boot all0, DSH77537 capture inner1 (post-stop crash),
+all pins unchanged. All15 files/12 static hashes/complete201 prefixes
+preserved. Full logs39,793/6,645/964,591B. Current root header
+b2c99aa633566ac63ee05ceddb07587a156886534aa589beee109aa965d50247.
+Phone last TWRP. Native15/15 completions,3 recorded CA frames,4/4 exact
+MICRO recoveries (last57us),0 wrap or native submit errors. Failed BOs
+were16KiB requests, stage0/NotReady AFTER STOP,50 buffers/61,358,080B,
+15,416 free VA units/largest15,223. None of the configured budgets was
+exhausted. No userdata delta/rollback or manual reset request.
+
+DSH54619 service-audit-stage-v1 ALL2 jobs0, pins unchanged. Updated
+tools/gpu_service_log.py explicitly validates300/600s window boundaries,
+preserves whole-boot panic/health rejection and all in-window fence/ring/
+renewal checks, and separately counts post-stop client/BO/crash events.
+Seven parser tests pass. Immutable service-window-audit-v1.json in
+dsh-gpu-0203-perf validates201(28 jobs) and202(15 jobs), rejects actual
+199-R2 incomplete/faulted service. Pixels/desktop/Metal/performance/daily
+remain unqualified. Do NOT overwrite old raw receipts to change a verdict.
+
+Next profile CPU time spent in the frequent full live guard versus native
+submit duration to explain~100ms frame waits. Keep all MMIO predicates,
+fences, quotas and ownership. No quota increase, guard batching or weaker
+checks yet. Source/public state remains d980f899 for201 and local202
+source9e4cd77. Root owns NOTES; full goal active.
+
+### 2026-11-09 — 0202 automatic BO failure attribution trial LIVE
+
+DSH88959 is observing ONE claimed202 trial after qualified packaging,
+current201 memory/headerda939d5f/full15-file and COMPLETE201-prefix
+preflight. Temporary image
+1001cb1ee63d8409fffb24dff2159b0e9eb9e56507f70f1059a1ed67d97f08a6,
+6GiB/mode2/300s/Home90,605-byte command; transfer19,520KiB and Booting
+both OKAY,total0.588s. Existing195 Mesa/bridge retained; no new userdata
+delta, flash or rollback. Observer-running; no202 physical result yet.
+
+The new post-wait-stage-v1 watches this exact observer and BOTH real
+dispatcher terminals, then saves all15 full files and complete201 prefixes
+before extracting first8 BO allocation failures, completions and CA frames.
+Poll existing handles/claims only; never repeat on timeout. No new manual
+or visual action requested; user informed this diagnostic is automatic.
+Root owns NOTES.201's28 completions/5 frames do not qualify202. Full goal
+active; do not weaken BO quotas or assume the null's cause without data.
+
+### 2026-11-09 — 0202 full local native build qualified; next automatic BO trial
+
+DSH72793 native-stage-v1 ALL0, pins unchanged. Clean189-patch source5330
+filesaa5ca01956597fd8fa24acd1926ffc24b0c53220f3729e119acb26ee1b47acf6;
+only GauguinGPU.cpp differs from201. Source commit
+9e4cd77c312cc1016884eba83887ef01b3a379ec. LOCAL8-job build202-bo,
+native build0/qualification0, old195 reference hashes+mtimes unchanged.
+Banner xnu-91684590c3f44181999afad921e0d3da,
+kernel2ef820b282cd967ce0f3a0b312df0580dd42952d5281834b952ee9bba4289c57.
+
+Next package/current201 headerda939d5f/memory/full15-file and COMPLETE201
+prefix preflight, ONE temporary6GiB/mode2/300s/automatic Home90 trial;
+then full raw capture and actual BO failure/frame/fence review. No202
+physical result yet, no user action requested, no new userdata delta.
+Root owns NOTES; do not confuse201's completed28 jobs with202 results.
+
+### 2026-11-09 — 0202 cached BO rejection diagnostics pass native IOKit TU
+
+Codex patch0195 changes only GauguinGPU.cpp. Preserve every existing
+allocation result, limits, flags, mapping, sync, ownership and release.
+Per-client stage tags distinguish gate/request/backing/limits/slots/VA/
+prepare/spans/PTE/sync. Only the first8 failed selector42 requests log
+cached request size/flags, result, buffer count/bytes/next handle and
+free/largest VA units under the existing lock. No new MMIO or success
+logging. Do not assume count256 or byte256MiB is the cause until captured.
+
+DSH20165 native-check-stage-v2 terminal0, pins unchanged; real ARM64 IOKit
+TU0,2129 reference header/config pins and original generated files/objects
+unchanged. Candidate-v2 has the SAME diagnostic C++ asv1, plus three
+byte-identical adjacent headers. V1/DSH90347 failed compile because the
+isolated candidate omitted two relative bsd headers; its failure/output
+is retained, not counted as a driver behavior failure. No new host tests
+for reversible logging;201 actual guard/runtime checks remain the
+accepted baseline and the fresh replay must prove those sources unchanged.
+
+Next clean189-patch replay/full LOCAL native202 build, then same installed
+195 userland/6GiB/300s/automatic Home with current201 headerda939d5f and
+complete15-file/prefix preflight. Read all raw files before extracting BO
+failure and completed-fence/frame evidence. No new userdata delta/rollback.
+Root owns NOTES; full GPU/Metal/performance/high-refresh goal stays active.
+
+### 2026-11-09 — 0201 completes GPU jobs and five CA frames; BO crash remains
+
+201 trial is TERMINAL/captured:09:51:19.146676–09:58:43.413038UTC,
+444.266362s, automatic. Boot DSH4504/dispatcher36244 all0, post DSH11834/
+watcher36556 inner1 is a REAL compositor qualification failure; all pins
+unchanged. All15 files/12 static hashes/COMPLETE200 prefixes preserved.
+Full logs37,751/6,376/947,565B; current root header
+da939d5ffdd7b3e8ad16a9f7085b86a3336317007a64043317c541496a871afe.
+Phone last TWRP. No new userdata delta/rollback or manual request.
+
+The bounded wait recovered4/4 occurrences with ONE poll each. Last sample
+initial2270/current2378/expected2378/maskfffffff7,68us elapsed. Original
+full guard passes: final reason0/valid3f,GFSR0/FSR400400, no native submit
+failures. Final submitted28/completed28/shadow548; full300s service,
+298 renewals. This is19 additional completed jobs beyond the9-job warm
+baseline. Five CA frame receipts (172 draws), six successful wrapped
+images,0 wrap failures/old FAR30 crashes. These are actual incremental
+GPU progress, NOT a responsive/stable/Metal/high-refresh qualification.
+
+One backboardd SIG11/FAR18 still occurs. PC10f788d48 maps to the same
+Mesa fd_bo_mark_for_dump+0 with slide candidate10f06c000, but this time
+LR10f772db0 maps fd6_build_bindless_state<chip6>+1f4. Entire private BT
+fits fd6_emit_3d_state,fd6_draw_vbos,fd_draw_vbo,tc_batch_execute,
+util_queue_thread_func,impl_thrd_routine. Actual source fd6_image.cc:198-206
+calls fd_bo_new then dereferences set->bo without checking for null.
+Unlike200, no prior GPU guard failure explains allocation failure here.
+Need capture the ACTUAL BO allocation rejection (quota/count/flags/IO/
+memory/VA), not assume which limit was reached or merely mask the null.
+
+Frame timings remain poor:1,085,624/377,570/266,619/119,424/99,692us;
+waiting100,865/77,295/74,820/90,091/89,167us. No201 user visual/performance
+report. User-confirmed R2 lag remains valid. After BO reliability, profile
+the very frequent full MMIO guards versus real GPU execution; no guard
+batching or weaker checks have been implemented.
+
+Source published by DSH95352 publication-stage-v2 all0, unchanged pins:
+publicd980f8997b0b319076ba197a04fa5480223e4d6d,
+ref codex/gauguin-bounded-micro-settle-20261109,
+treeca11b7d2f3f0868383a0f1d9cf648ec2dc6e97de,
+sole parent715a57b5db5aa2969da9935e6f055df4a96caf9c. Seven text files,
+existing refs unchanged, no explicit CI. v1 failed before ANY GitHub call
+because the factory substituted BASETREE incorrectly; preserved distinct
+v1 failure and v2 corrected receipt. Receipt state label says 'five' but
+its seven files and exact-tree verification are authoritative. Root owns
+NOTES. Next bounded BO allocation diagnostics, then same native201 guard
+baseline. Full goal remains active.
+
 ### 2026-11-09 — 0201 automatic exact-value settling trial LIVE
 
 DSH4504 boot dispatcher36244 is observing ONE claimed201 trial.

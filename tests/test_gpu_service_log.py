@@ -8,12 +8,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
 from gpu_service_log import CP_DONE, ONLINE, STOP, qualify_service_log
 
 
-def trace(total=253):
+def trace(total=253, seconds=600):
     """Synthetic records for parser testing, never a physical acceptance result."""
     lines = [CP_DONE,
              'SWEET GPU WDT: pre-ZAP checkpoint seq=1 before=418515 after=0; '
              'CP idle/EOP/fault/routes/power verified',
-             'SWEET GPU ZAP: before phase=2 token=fixture', ONLINE,
+             'SWEET GPU ZAP: before phase=2 token=fixture',
+             ONLINE.replace('test_seconds=600;', f'test_seconds={seconds};'),
              'SWEET GPU SERVICE: renew=2 before=32766 after=0 submitted=0 '
              'completed=0 shadow=20; health/idle/routes/power verified']
     shadow = 20
@@ -23,16 +24,55 @@ def trace(total=253):
         if job <= 16 or job % 120 == 0:
             lines.append(f'SWEET GPU USER: submit rc=0 ibs={ibs} submitted={job} '
                          f'completed={job} shadow={shadow} polls=2')
-    for renewal in range(30, 597, 30):
+    count = seconds - 4
+    for renewal in range(30, count + 1, 30):
         lines.append(f'SWEET GPU SERVICE: renew={renewal} before=32766 after=0 '
                      f'submitted={total} completed={total} shadow={shadow}; '
                      'health/idle/routes/power verified')
-    lines.extend([f'SWEET GPU SERVICE: final renewals=596 submitted={total} '
+    lines.extend([f'SWEET GPU SERVICE: final renewals={count} submitted={total} '
                   f'completed={total} shadow={shadow}; quarantined, no further refresh', STOP])
     return '\n'.join(lines) + '\n'
 
 
 class ServiceEvidence(unittest.TestCase):
+    def test_explicit_300_second_window_and_post_stop_events(self):
+        original = trace(28, 300)
+        events = ('SWEET GPU BO FAIL: fixture\n'
+                  'CRASH backboardd[57] fixture\n'
+                  'SWEET GPU USER: client closed after fault; fixture\n'
+                  'SWEET GPU USER: submit rc=3 fixture\n')
+        result = qualify_service_log(original + events, expected_seconds=300)
+        self.assertEqual(result['native_submissions'], 28)
+        self.assertEqual(result['verified_renewals'], 296)
+        self.assertEqual(result['post_stop_compositor_crashes'], 1)
+        self.assertEqual(result['post_stop_BO_failures'], 1)
+        self.assertEqual(result['post_stop_client_cleanup_failures'], 1)
+        self.assertEqual(result['post_stop_submit_failures'], 1)
+        self.assertFalse(result['desktop_qualified'])
+        self.assertFalse(result['post_stop_failures_are_service_window_failures'])
+        with self.assertRaises(ValueError):
+            qualify_service_log(original)
+        for early in ('CRASH backboardd[57] fixture\n',
+                      'SWEET GPU USER: client closed after fault; fixture\n'):
+            with self.subTest(early=early), self.assertRaises(ValueError):
+                qualify_service_log(original.replace(STOP, early + STOP), 300)
+        for late in ('SWEET PANIC ENTRY\n', 'SWEET GPU SERVICE: health/owner failure\n'):
+            with self.subTest(late=late), self.assertRaises(ValueError):
+                qualify_service_log(original + late, 300)
+
+    def test_boundary_validation(self):
+        original = trace()
+        mutations = [original + STOP + '\n',
+                     original.replace(ONLINE, ONLINE + '\n' + ONLINE),
+                     original.replace(STOP, 'interleaved ' + STOP),
+                     original.replace(ONLINE, ONLINE.replace('test_seconds=600', 'test_seconds=0'))]
+        for changed in mutations:
+            with self.assertRaises(ValueError):
+                qualify_service_log(changed)
+        for seconds in (True, 0, 59, 3601):
+            with self.assertRaises(ValueError):
+                qualify_service_log(original, seconds)
+
     def test_sampling_boundaries_and_unknown_evidence(self):
         for total in (9, 15, 16, 17, 119, 120, 121, 239, 240, 241, 253, 10003):
             with self.subTest(total=total):

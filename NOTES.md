@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-09 — 0207 RO image trial LIVE; normal picture but user still laggy
+
+DSH25643 owns ONE claimed207 observer after CURRENT206-R2 headerecf88ce5,
+full15 files/COMPLETE R2-prefix and memory preflight. Temporary image
+2665706e35b50483243edeb53b42973d35f6d7e354e955311c9782e280d2b3bc,
+6GiB/mode2/600s/Homeoff/30Hz,601-byte command;19,520KiB transfer+Booting
+both OKAY,total0.592s. Same195 libraries; no userdata delta/flash/rollback.
+No207 physical terminal yet. User asked actual207 unlock/swipe/Settings/Home
+around two minutes and replied '图像正常，仍明显卡顿'
+(call_36e22fa376ad447bbeb5acdd68ac2f25). Saved private report; no responsiveness
+qualification. Root told user to leave running for automatic log capture.
+
+Single207 post-wait-stage-v1(1080s ceiling) now watches this EXACT observer
+and both actual dispatchers, preserves all15 files/COMPLETE R2 prefixes,
+checks600s GPU/fences/MICRO and bounded WRAP RO records. A success log is
+source-path evidence, not a physical permissions probe. Preserve all failures;
+correlate reported UI with captured native health. Do not duplicate a claimed
+stage or ask if reset was manual. Source/kernel frozen. Root owns NOTES;
+DSH executes. Full goal active; lag remains unresolved.
+
 ### 2026-11-09 — 0207 full local read-only image kernel qualified
 
 DSH58208 native-stage-v1 ALL0,pins unchanged. Clean194-patch source5330

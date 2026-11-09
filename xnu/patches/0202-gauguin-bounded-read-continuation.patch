@@ -1,0 +1,192 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3915,6 +3915,8 @@
+     uint64_t checks,check_ticks,max_check_ticks;
+     uint64_t submits,submit_ticks,submit_checks,submit_check_ticks;
+     uint32_t pending;
++    uint64_t last_live_begin,last_live_end;
++    bool last_live_valid;
+ };
+ static struct ggrb_perf_sample ggrb_perf;
+ static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current,struct gfw_micro_wait *wait)
+@@ -4003,7 +4005,42 @@
+     uint64_t end=mach_absolute_time(),ticks=end>=begin?end-begin:0;
+     ++ggrb_perf.checks;ggrb_perf.check_ticks+=ticks;
+     if(ticks>ggrb_perf.max_check_ticks)ggrb_perf.max_check_ticks=ticks;
++    ggrb_perf.last_live_begin=begin;ggrb_perf.last_live_end=end;
++    ggrb_perf.last_live_valid=ok&&end>=begin;
+     return ok;
++}
++/* Read-only continuation of the preceding full AFTER-guard. Its actual
++ * begin/end clock samples come from ggrb_live; stamping cannot rebase a
++ * preempted check to "now". Require <=250us from that check's START and
++ * <=5us from its END at consumption. This is an observed CPU-clock bound,
++ * not a guarantee against preemption/stalled IO after the last sample.
++ * Only reads may consume it; writes/barriers/delays retain full gates and
++ * every successful access retains the full after-guard. Missing/late stamps
++ * fall back to a full before-guard. Caller serialization remains required. */
++static uint64_t ggrb_read_head,ggrb_read_tail,ggrb_read_reuses,ggrb_read_max_gap,ggrb_read_max_age;
++static uint32_t ggrb_read_state;
++static bool ggrb_read_valid;
++static bool ggrb_read_continuation(void *cookie,bool stamp)
++{
++    (void)cookie;bool valid=ggrb_read_valid;ggrb_read_valid=false;
++    if(!ggrb_started||!gmb_thread()||sweet_gmu_board_state()!=GMB_READY||
++       (ggrb_context.state!=GGR_READY&&ggrb_context.state!=GGR_BUSY)||
++       ggrb_live_sample.reason||ggrb_ns(NULL)>=ggrb_context.operation_end_ns)return false;
++    uint64_t gap_limit,age_limit;
++    nanoseconds_to_absolutetime(UINT64_C(5000),&gap_limit);
++    nanoseconds_to_absolutetime(UINT64_C(250000),&age_limit);
++    uint64_t now=mach_absolute_time();
++    if(!gap_limit||!age_limit||now>=ggrb_end)return false;
++    uint64_t head=stamp?ggrb_perf.last_live_begin:ggrb_read_head;
++    uint64_t tail=stamp?ggrb_perf.last_live_end:ggrb_read_tail;
++    if((stamp&&!ggrb_perf.last_live_valid)||(!stamp&&!valid)||tail<head||
++       now<tail||now-tail>gap_limit||now-head>age_limit)return false;
++    if(stamp){ggrb_read_head=head;ggrb_read_tail=tail;ggrb_read_state=ggrb_context.state;ggrb_read_valid=true;return true;}
++    if(ggrb_context.state!=ggrb_read_state||ggrb_read_reuses==UINT64_MAX)return false;
++    uint64_t gap=now-tail,age=now-head;
++    if(gap>ggrb_read_max_gap)ggrb_read_max_gap=gap;
++    if(age>ggrb_read_max_age)ggrb_read_max_age=age;
++    ++ggrb_read_reuses;return true;
+ }
+ static bool ggrb_routes(void)
+ {
+@@ -4097,6 +4134,10 @@
+         ggrb_perf.checks,check_ns,max_ns);gmb_record(line);
+     snprintf(line,sizeof(line),"SWEET GPU PERF: submits=%llu submit_ns=%llu submit_checks=%llu submit_check_ns=%llu pending=%u; remainder includes CPU and GPU",
+         ggrb_perf.submits,submit_ns,ggrb_perf.submit_checks,submit_check_ns,ggrb_perf.pending);gmb_record(line);
++    uint64_t gap_ns,age_ns;absolutetime_to_nanoseconds(ggrb_read_max_gap,&gap_ns);
++    absolutetime_to_nanoseconds(ggrb_read_max_age,&age_ns);
++    snprintf(line,sizeof(line),"SWEET GPU READ CONT: reused=%llu max_gap_ns=%llu max_age_ns=%llu gap_limit_ns=5000 age_limit_ns=250000; full write gates retained, readonly continuation only",
++        ggrb_read_reuses,gap_ns,age_ns);gmb_record(line);
+     GauguinGPUProfileDump(gmb_record);
+ }
+ bool sweet_gpu_runtime_ready(void)
+@@ -4115,7 +4156,7 @@
+     ggrb_started=1;ggrb_service=sweet_gpu_service_requested();
+     if(ggrb_service)ggrb_end=UINT64_MAX;
+     else clock_interval_to_deadline(20,NSEC_PER_SEC,&ggrb_end);
+-    struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,ggrb_barrier,ggrb_delay,ggrb_quarantine,ggrb_ring_span};
++    struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,ggrb_barrier,ggrb_delay,ggrb_quarantine,ggrb_ring_span,ggrb_read_continuation};
+     enum ggr_error rc=ggr_open(&ggrb_context,&ops,ggb_plan.region[GGP_SCRATCH].iova,ggb_data_plan.data.iova);
+     if(rc!=GGR_OK||!sweet_gpu_runtime_ready()||!GauguinGPUStart()) {
+         if(ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);
+diff --git a/bsd/dev/gauguin_gpu_runtime.c b/bsd/dev/gauguin_gpu_runtime.c
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -36,24 +36,41 @@
+ void ggr_fail(struct ggr_context *c,enum ggr_error why)
+ {
+     if(!c || c->state==GGR_FAILED)return;
+-    c->state=GGR_FAILED;c->last_error=why;
++    c->state=GGR_FAILED;c->last_error=why;c->read_checked=false;
+     c->ops.quarantine(c->ops.cookie);
+ }
+ static bool alive(struct ggr_context *c)
+ {
++    if(c)c->read_checked=false;
+     return c && (c->state==GGR_READY||c->state==GGR_BUSY) &&
+         c->ops.nanoseconds(c->ops.cookie)<c->operation_end_ns && c->ops.healthy(c->ops.cookie);
+ }
++static bool after(struct ggr_context *c)
++{
++    bool ok=alive(c);
++    if(ok&&c->ops.read_continuation)
++        c->read_checked=c->ops.read_continuation(c->ops.cookie,true);
++    return ok;
++}
++static bool before_read(struct ggr_context *c)
++{
++    bool checked=c&&c->read_checked;
++    if(c)c->read_checked=false;
++    if(!c||(c->state!=GGR_READY&&c->state!=GGR_BUSY)||
++       c->ops.nanoseconds(c->ops.cookie)>=c->operation_end_ns)return false;
++    if(checked&&c->ops.read_continuation&&c->ops.read_continuation(c->ops.cookie,false))return true;
++    return c->ops.healthy(c->ops.cookie);
++}
+ static bool rd(struct ggr_context *c,uint32_t r,uint32_t *v)
+-{return alive(c)&&c->ops.read_reg(c->ops.cookie,r,v)&&alive(c);}
++{return before_read(c)&&c->ops.read_reg(c->ops.cookie,r,v)&&after(c);}
+ static bool wr(struct ggr_context *c,uint32_t r,uint32_t v)
+-{return alive(c)&&c->ops.write_reg(c->ops.cookie,r,v)&&alive(c);}
++{return alive(c)&&c->ops.write_reg(c->ops.cookie,r,v)&&after(c);}
+ static bool mr(struct ggr_context *c,enum ggr_memory m,uint32_t off,uint32_t *v)
+-{return alive(c)&&c->ops.read_memory(c->ops.cookie,m,off,v)&&alive(c);}
++{return before_read(c)&&c->ops.read_memory(c->ops.cookie,m,off,v)&&after(c);}
+ static bool barrier(struct ggr_context *c)
+-{return alive(c)&&c->ops.barrier(c->ops.cookie)&&alive(c);}
++{return alive(c)&&c->ops.barrier(c->ops.cookie)&&after(c);}
+ static bool delay(struct ggr_context *c)
+-{return alive(c)&&c->ops.delay_us(c->ops.cookie,10)&&alive(c);}
++{return alive(c)&&c->ops.delay_us(c->ops.cookie,10)&&after(c);}
+ static bool faults(struct ggr_context *c)
+ {
+     uint32_t a,b;
+@@ -65,7 +82,7 @@
+     if(!c||!o||c->state!=GGR_COLD||!scratch||!completion||(scratch&3)||(completion&3)||
+        !o->healthy||!o->nanoseconds||!o->read_reg||!o->write_reg||!o->read_memory||
+        !o->write_ring||!o->barrier||!o->delay_us||!o->quarantine)return GGR_ARGUMENT;
+-    c->ops=*o;c->state=GGR_READY;c->wptr=20;c->scratch_iova=scratch;c->completion_iova=completion;
++    c->ops=*o;c->read_checked=false;c->state=GGR_READY;c->wptr=20;c->scratch_iova=scratch;c->completion_iova=completion;
+     uint64_t now=o->nanoseconds(o->cookie);
+     if(now>UINT64_MAX-UINT64_C(2000000000)){ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;}
+     c->operation_end_ns=now+UINT64_C(2000000000);
+@@ -81,7 +98,7 @@
+     if(!c||c->state!=GGR_READY)return GGR_UNAVAILABLE;
+     uint64_t now=c->ops.nanoseconds(c->ops.cookie);
+     if(now>UINT64_MAX-UINT64_C(2000000000)){ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;}
+-    c->operation_end_ns=now+UINT64_C(2000000000);
++    c->operation_end_ns=now+UINT64_C(2000000000);c->read_checked=false;
+     uint32_t wptr,shadow,eop,busy;
+     if(!faults(c)||!rd(c,0x807,&wptr)||wptr!=c->wptr||
+        !mr(c,GGR_SHADOW,0,&shadow)||shadow!=c->wptr||
+@@ -99,7 +116,7 @@
+     if(c->state!=GGR_READY||c->submitted==UINT32_MAX)return GGR_UNAVAILABLE;
+     uint64_t now=c->ops.nanoseconds(c->ops.cookie);
+     if(now>UINT64_MAX-UINT64_C(2000000000)){ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;}
+-    c->operation_end_ns=now+UINT64_C(2000000000);c->state=GGR_BUSY;
++    c->operation_end_ns=now+UINT64_C(2000000000);c->read_checked=false;c->state=GGR_BUSY;
+     uint32_t shadow,wptr,busy,control;
+     if(!faults(c)||!rd(c,0x807,&wptr)||wptr!=c->wptr||!mr(c,GGR_SHADOW,0,&shadow)||shadow!=c->wptr||
+        !mr(c,GGR_COMPLETION,0,&control)||control!=c->completed||!rd(c,0x23b0c,&busy)||
+@@ -114,13 +131,13 @@
+     packet[n++]=0x70460004u;packet[n++]=4;packet[n++]=c->completion_iova;packet[n++]=0;packet[n++]=next;
+     packet[n++]=0x70620002u;packet[n++]=c->scratch_iova;packet[n++]=0;
+     if(c->ops.ring_span) {
+-        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,false)||!alive(c))goto io;
++        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,false)||!after(c))goto io;
+     } else for(uint32_t i=0;i<n;i++) {
+-        if(!alive(c)||!c->ops.write_ring(c->ops.cookie,4*((c->wptr+i)%8192),packet[i])||!alive(c))goto io;
++        if(!alive(c)||!c->ops.write_ring(c->ops.cookie,4*((c->wptr+i)%8192),packet[i])||!after(c))goto io;
+     }
+     if(!barrier(c))goto io;
+     if(c->ops.ring_span) {
+-        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,true)||!alive(c))goto io;
++        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,true)||!after(c))goto io;
+     } else for(uint32_t i=0;i<n;i++) {
+         uint32_t v;
+         if(!mr(c,GGR_RING,4*((c->wptr+i)%8192),&v)||v!=packet[i])goto io;
+diff --git a/bsd/dev/gauguin_gpu_runtime.h b/bsd/dev/gauguin_gpu_runtime.h
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -88,11 +88,18 @@
+     /* Optional CPU-owned root-ring write/verify span. Caller checks the full
+      * live guard at both boundaries; hardware remains idle until verified. */
+     bool (*ring_span)(void *,uint32_t,const uint32_t *,uint32_t,bool);
++    /* Optional read-only continuation. stamp=true is called ONLY after a
++     * successful full healthy check; false consumes one bounded stamp for a
++     * register/owned-RAM READ. All writes, barriers and delays retain full
++     * before/after gates. Every successful read retains a full after gate.
++     * NULL preserves the original per-access full-guard trace. */
++    bool (*read_continuation)(void *,bool stamp);
+ };
+ struct ggr_context {
+     uint32_t state, wptr, submitted, completed, last_error, polls;
+     uint32_t scratch_iova, completion_iova;
+     uint64_t operation_end_ns;
++    bool read_checked; /* private, consumed once; reset for every operation */
+     struct ggr_ops ops;
+ };
+ /* Caller serializes all entries. No memory may be freed on a started failure.

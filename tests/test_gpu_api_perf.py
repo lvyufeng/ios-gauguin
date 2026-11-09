@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib,os,re,subprocess,tempfile
 R=Path(__file__).resolve().parent.parent
-S=Path(os.environ.get('XNU_SOURCE',R/'.deps-cache/p0-20261105/source208-codex'))
+S=Path(os.environ.get('XNU_SOURCE',R/'.deps-cache/p0-20261105/source209-codex'))
 P=Path(os.environ.get('XNU_REFERENCE',R/'.deps-cache/p0-20261105/source207-codex'))
 HOST=r'''
 #include <cassert>
@@ -101,6 +101,11 @@ def main():
     changed=extract(board,'static void ggrb_quarantine(')
     assert changed.index('gmb_fail(')<changed.index('GauguinGPUProfileFreeze(')<changed.index('GauguinGPUProfileDump(')
     changed=changed.replace('    GauguinGPUProfileFreeze();\n','').replace('    GauguinGPUProfileDump(gmb_record);\n','')
+    # Permit only the exact cached CPU-counter diagnostic added by0202.
+    read_diag='    uint64_t gap_ns,age_ns;absolutetime_to_nanoseconds(ggrb_read_max_gap,&gap_ns);\n    absolutetime_to_nanoseconds(ggrb_read_max_age,&age_ns);\n    snprintf(line,sizeof(line),"SWEET GPU READ CONT: reused=%llu max_gap_ns=%llu max_age_ns=%llu gap_limit_ns=5000 age_limit_ns=250000; full write gates retained, readonly continuation only",\n        ggrb_read_reuses,gap_ns,age_ns);gmb_record(line);\n'
+    if 'SWEET GPU READ CONT:' in changed:
+        assert changed.count(read_diag)==1
+        changed=changed.replace(read_diag,'')
     assert changed==extract(oldboard,'static void ggrb_quarantine(')
     for sig in ['extern "C" bool GauguinGPUHeartbeat(', 'IOReturn GauguinGPUUserClient::clientClose(', 'IOReturn GauguinGPUUserClient::clientMemoryForType(', 'IOReturn GauguinGPUUserClient::externalMethod(']:
         body=extract(cpp,sig)

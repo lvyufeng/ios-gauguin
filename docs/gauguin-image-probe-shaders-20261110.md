@@ -17,9 +17,20 @@ candidate A619 core. This is compile/link evidence, not GPU execution or a
 completed image probe. The candidate core's 211 imports also resolve against
 the actual 20H392 cache in the retained complete backup.
 
-Before installation, finish the bounded root executable and independent pixel
-oracles. It must check GEM write permissions, shader resource usage, GPU fences,
+Before installation, finish independent pixel oracles and executable import
+checks. The probe must check GEM write permissions, shader resource usage, GPU fences,
 CPU visibility, image-to-sampled-texture ordering, buffer/texture isolation and
 cleanup while retaining the 128 MiB fatal process limits. Physical image results,
 Metal desktop publication, frame rate and daily use remain unqualified. This
 preparation does not alter the separately approved 0230 image or userdata plan.
+
+The bounded `image_probe.cpp` executable now builds and signs for iOS16 against
+the explicit graphics-image core. Its nine planned submissions each contain
+store, read/write and sample draws without an intervening CPU read. It varies
+attribute, vertex-texture and vertex-buffer sources, tests scissored preservation,
+checks actual submission WRITE flags and fences, and compares image, sampled and
+coverage pixels. Raw image/sample rows allow a separate reader to check results.
+The probe retains root-only mode1/gmt1 admission,90-second delay,128MiB hard limits
+and a210-second alarm. This is a native build only: Mac GPU oracle, independent
+raw-row reader, new executable import audit and physical execution are pending.
+No core, probe or userdata was installed by this independent build.

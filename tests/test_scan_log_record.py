@@ -66,7 +66,8 @@ int main(void)
     assert(gscan_log_profile(1, 1, 0, 0, 2601));
     assert(gscan_log_profile(1, 3, 0, 0, 2603));
     assert(!gscan_log_profile(0, 1, 0, 0, 2601));
-    assert(!gscan_log_profile(1, 4, 0, 0, 2601));
+    assert(gscan_log_profile(1, GSCAN_ROUTE_MODE, 0, 0, 2630));
+    assert(!gscan_log_profile(1, GSCAN_ROUTE_MODE + 1, 0, 0, 2601));
     assert(!gscan_log_profile(1, 1, 1, 0, 2601));
     assert(!gscan_log_profile(1, 1, 0, 1, 2601));
     assert(!gscan_log_profile(1, 1, 0, 0, 0));
@@ -81,7 +82,7 @@ int main(void)
         .frames = 60, .millihz = 60000, .nominal_hz = 60,
     };
     assert(sweet_scan_log_record(0, 1, true, &r) == EPERM);
-    assert(sweet_scan_log_record(2601, 4, true, &r) == EPERM);
+    assert(sweet_scan_log_record(2601, GSCAN_ROUTE_MODE + 1, true, &r) == EPERM);
     su.writable = true;
     assert(sweet_scan_log_record(2601, 1, true, &r) == EPERM);
     su.writable = false;
@@ -109,9 +110,28 @@ int main(void)
     assert(strstr(record, "millihz=60000 nominal=60\nEND_GAUGUIN_SCAN1 run=2603\n"));
     for (size_t i = strlen(record); i < UFS_BLOCK; ++i)
         assert(record[i] == 0);
+    r.route.status = GSCAN_ROUTE_MATCHED;
+    r.route.samples = 3;
+    r.route.pipe_mask = 1;
+    r.route.ctl_mask = 2;
+    r.route.framebuffer.address = 0xa0000000;
+    r.route.framebuffer.width = 1080;
+    r.route.framebuffer.height = 2400;
+    r.route.framebuffer.stride = 4320;
+    r.route.source[0] = 0xa0000000;
+    r.route.interface[1] = 2;
+    r.route.stages[1] = 1;
+    assert(sweet_scan_log_record(2630, GSCAN_ROUTE_MODE, true, &r) == 0);
+    assert(writes == 2 && syncs == 2 && depth == 0);
+    assert(strstr(record, "GAUGUIN_SCAN2 run=2630 mode=4 done=1"));
+    assert(strstr(record, "route=9 samples=3 frame=0/0 pipe_mask=1 ctl_mask=2 fb=a0000000 geometry=1080/2400/4320"));
+    assert(strstr(record, "source=a0000000/00000000/00000000/00000000 interface=00000000/00000002/00000000/00000000"));
+    assert(strstr(record, "stages=0/1/0/0 virtual=0/0/0/0\nEND_GAUGUIN_SCAN2 run=2630\n"));
+    for (size_t i = strlen(record); i < UFS_BLOCK; ++i)
+        assert(record[i] == 0);
     transfer_fails = true;
     assert(sweet_scan_log_record(2601, 1, false, &r) == ETIMEDOUT);
-    assert(writes == 2 && syncs == 1 && depth == 0);
+    assert(writes == 3 && syncs == 2 && depth == 0);
     puts("Actual scan receipt writer issued one fixed 4 KiB write, with rejection and timeout controls.");
 }
 """

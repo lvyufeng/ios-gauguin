@@ -1,0 +1,418 @@
+diff --git a/bsd/dev/gauguin_scan_board.c b/bsd/dev/gauguin_scan_board.c
+index 42405a37125e6f8854c59024b4fb78924771402c..35b5b46818642b2d2237c94cbb7319c9ad44ed93 100644
+--- a/bsd/dev/gauguin_scan_board.c
++++ b/bsd/dev/gauguin_scan_board.c
+@@ -21,6 +21,10 @@ static const vm_offset_t pages[GSCAN_REGION_COUNT] = {
+     [GSCAN_GCC] = 0x00114000,
+     [GSCAN_DISP_CC] = 0x0af00000,
+     [GSCAN_INTF] = 0x0ae68000,
++    [GSCAN_CTL] = 0x0ae00000,
++    [GSCAN_VIG] = 0x0ae04000,
++    [GSCAN_DMA01] = 0x0ae24000,
++    [GSCAN_DMA2] = 0x0ae28000,
+ };
+ 
+ static unsigned scan_finished;
+@@ -86,9 +90,17 @@ static void scan_worker(void *argument, wait_result_t wait)
+     (void)wait;
+     unsigned mode = (unsigned)(uintptr_t)argument;
+     struct scan_board board = {0};
++    struct gscan_framebuffer framebuffer = {0};
++    if (mode == GSCAN_ROUTE_MODE) {
++        PE_Video video = {0};
++        PE_current_console(&video);
++        if (video.v_width == 1080 && video.v_height == 2400 && video.v_rowBytes == 4320)
++            framebuffer = (struct gscan_framebuffer){ video.v_baseAddr, 1080, 2400, 4320 };
++    }
+     const struct gscan_ops ops = {
+         .context = &board, .map = map_page, .unmap = unmap_page,
+         .read = read_word, .now_ns = now_ns, .sleep_ms = sleep_ms,
++        .framebuffer = framebuffer,
+     };
+     struct gscan_result r;
+     printf("SWEET SCAN: begin mode=%u\n", mode);
+@@ -100,6 +112,12 @@ static void scan_worker(void *argument, wait_result_t wait)
+         r.attempts, r.samples, r.crossed, r.first_frame, r.last_frame, r.first_line,
+         r.last_line, r.frames, (unsigned long long)r.start_ns, (unsigned long long)r.end_ns,
+         r.millihz, r.nominal_hz);
++    if (mode == GSCAN_ROUTE_MODE) {
++        const struct gscan_route *route = &r.route;
++        printf("SWEET SCAN ROUTE: status=%u samples=%u pipe_mask=%x ctl_mask=%x address=%llx\n",
++            route->status, route->samples, route->pipe_mask, route->ctl_mask,
++            (unsigned long long)route->framebuffer.address);
++    }
+     scan_result = r;
+     __atomic_store_n(&scan_finished, 1, __ATOMIC_RELEASE);
+     thread_terminate_self();
+@@ -110,7 +128,7 @@ void sweet_scan_timing_init(void)
+     unsigned mode = 0;
+     if (!PE_parse_boot_argn("sweetscan", &mode, sizeof(mode)) || mode == 0)
+         return;
+-    if (mode > 3) {
++    if (mode > GSCAN_ROUTE_MODE) {
+         printf("SWEET SCAN: invalid selector %u\n", mode);
+         return;
+     }
+diff --git a/bsd/dev/gauguin_scan_log_guard.h b/bsd/dev/gauguin_scan_log_guard.h
+index e09e7873365b0c18cd246379dc763794e28c748f..4e66e967a35c8a7a60ec7061d0faeecc29fa8ed4 100644
+--- a/bsd/dev/gauguin_scan_log_guard.h
++++ b/bsd/dev/gauguin_scan_log_guard.h
+@@ -3,6 +3,7 @@
+ 
+ #include <stdbool.h>
+ #include <stdint.h>
++#include "gauguin_scan_timing.h"
+ 
+ /* Gauguin userdata layout confirmed in recovery. All units are 4096 bytes. */
+ #define GSCAN_LOG_FIRST UINT64_C(2887680)
+@@ -14,7 +15,7 @@ static inline bool
+ gscan_log_profile(unsigned requested, unsigned scan, unsigned ufs_write,
+                   unsigned root_write, uint32_t run_id)
+ {
+-    return requested == 1 && scan >= 1 && scan <= 3 &&
++    return requested == 1 && scan >= 1 && scan <= GSCAN_ROUTE_MODE &&
+            ufs_write == 0 && root_write == 0 && run_id != 0;
+ }
+ 
+diff --git a/bsd/dev/gauguin_scan_timing.c b/bsd/dev/gauguin_scan_timing.c
+index cb5b809bc1d80ce729f7e50b833c095ed7206f09..0a24202113722d341087b5a722e9009359735b07 100644
+--- a/bsd/dev/gauguin_scan_timing.c
++++ b/bsd/dev/gauguin_scan_timing.c
+@@ -138,17 +138,190 @@ static void capture(const struct gscan_ops *ops, struct gscan_result *r)
+     r->status = GSCAN_MEASURED;
+ }
+ 
++/* Lagoon SSPP and CTL register layouts from the captured handset FDT and
++ * the Xiaomi SDE driver. Regions identify 16 KiB pages, not block bases. */
++struct pipe_block { enum gscan_region region; uint32_t offset; };
++static const struct pipe_block pipe_blocks[GSCAN_PIPES] = {
++    { GSCAN_VIG, 0x1000 }, { GSCAN_DMA01, 0x1000 },
++    { GSCAN_DMA01, 0x3000 }, { GSCAN_DMA2, 0x1000 },
++};
++static const uint32_t ctl_offsets[GSCAN_CTLS] = { 0x2000, 0x2200, 0x2400, 0x2600 };
++static const uint32_t layer_offsets[] = { 0, 0x40, 0x70, 0xa0 };
++enum { ROUTE_TOP, ROUTE_FLUSH, ROUTE_INTF, ROUTE_LAYER0, ROUTE_CTL_WORDS = 11 };
++enum { ROUTE_SIZE, ROUTE_XY, ROUTE_ADDR, ROUTE_STRIDE, ROUTE_FORMAT, ROUTE_OP, ROUTE_PIPE_WORDS };
++
++struct route_sample {
++    uint32_t ctl[GSCAN_CTLS][ROUTE_CTL_WORDS];
++    uint32_t pipe[GSCAN_PIPES][ROUTE_PIPE_WORDS];
++};
++
++static void read_route(const struct gscan_ops *ops, struct route_sample *sample)
++{
++    static const uint32_t pipe_offsets[] = { 0, 8, 0x14, 0x24, 0x30, 0x38 };
++    for (unsigned i = 0; i < GSCAN_CTLS; ++i) {
++        uint32_t base = ctl_offsets[i];
++        sample->ctl[i][ROUTE_TOP] = ops->read(ops->context, GSCAN_CTL, base + 0x14);
++        sample->ctl[i][ROUTE_FLUSH] = ops->read(ops->context, GSCAN_CTL, base + 0x18);
++        sample->ctl[i][ROUTE_INTF] = ops->read(ops->context, GSCAN_CTL, base + 0xf4);
++        for (unsigned mixer = 0; mixer < 2; ++mixer) {
++            for (unsigned field = 0; field < 4; ++field)
++                sample->ctl[i][ROUTE_LAYER0 + mixer * 4 + field] =
++                    ops->read(ops->context, GSCAN_CTL, base + mixer * 4 + layer_offsets[field]);
++        }
++    }
++    for (unsigned i = 0; i < GSCAN_PIPES; ++i) {
++        for (unsigned field = 0; field < ROUTE_PIPE_WORDS; ++field)
++            sample->pipe[i][field] = ops->read(ops->context, pipe_blocks[i].region,
++                pipe_blocks[i].offset + pipe_offsets[field]);
++    }
++}
++
++static bool same_route(const struct route_sample *a, const struct route_sample *b)
++{
++    for (unsigned i = 0; i < GSCAN_CTLS; ++i) {
++        for (unsigned j = 0; j < ROUTE_CTL_WORDS; ++j) {
++            if (a->ctl[i][j] != b->ctl[i][j])
++                return false;
++        }
++    }
++    for (unsigned i = 0; i < GSCAN_PIPES; ++i) {
++        for (unsigned j = 0; j < ROUTE_PIPE_WORDS; ++j) {
++            if (a->pipe[i][j] != b->pipe[i][j])
++                return false;
++        }
++    }
++    return true;
++}
++
++static enum gscan_route_status classify_route(const struct route_sample *sample, struct gscan_route *r)
++{
++    unsigned source = 0, control = 0;
++    for (unsigned i = 0; i < GSCAN_PIPES; ++i) {
++        r->source[i] = sample->pipe[i][ROUTE_ADDR];
++        if (r->source[i] == r->framebuffer.address) {
++            r->pipe_mask |= 1U << i;
++            source = i;
++        }
++    }
++    for (unsigned i = 0; i < GSCAN_CTLS; ++i) {
++        const uint32_t *ctl = sample->ctl[i];
++        r->interface[i] = ctl[ROUTE_INTF];
++        if (r->interface[i] & 2) {
++            r->ctl_mask |= 1U << i;
++            control = i;
++        }
++        for (unsigned mixer = 0; mixer < 2; ++mixer) {
++            const uint32_t *layer = ctl + ROUTE_LAYER0 + mixer * 4;
++            // VIG0, DMA0, DMA1, DMA2, in catalog order. A second rect is
++            // recorded independently and disqualifies this single-source path.
++            if ((layer[0] & 7) || (layer[1] & 1)) r->stages[i] |= 1;
++            if ((layer[0] & (7U << 18)) || (layer[1] & (1U << 16))) r->stages[i] |= 2;
++            if ((layer[0] & (7U << 21)) || (layer[1] & (1U << 18))) r->stages[i] |= 4;
++            if (layer[2] & 15) r->stages[i] |= 8;
++            if (layer[3] & 15) r->virtual_stages[i] |= 1;
++            if (layer[2] & (15U << 8)) r->virtual_stages[i] |= 2;
++            if (layer[2] & (15U << 12)) r->virtual_stages[i] |= 4;
++            if (layer[2] & (15U << 16)) r->virtual_stages[i] |= 8;
++        }
++    }
++    if (!r->pipe_mask || !r->ctl_mask)
++        return GSCAN_ROUTE_NO_MATCH;
++    if (r->pipe_mask != (1U << source) || r->ctl_mask != (1U << control) ||
++        r->interface[control] != 2)
++        return GSCAN_ROUTE_AMBIGUOUS;
++    if (r->stages[control] != r->pipe_mask || r->virtual_stages[control])
++        return GSCAN_ROUTE_NOT_STAGED;
++    const uint32_t *pipe = sample->pipe[source];
++    const uint32_t *ctl = sample->ctl[control];
++    r->size = pipe[ROUTE_SIZE];
++    r->stride = pipe[ROUTE_STRIDE];
++    r->format = pipe[ROUTE_FORMAT];
++    r->op_mode = pipe[ROUTE_OP];
++    // Linear, interleaved, 4-byte, unrotated full-screen source, video CTL
++    // with no pending flush. Preserve the raw format for later qualification.
++    const uint32_t unsupported_format = (3U << 30) | (1U << 22) | (3U << 19) | (1U << 11);
++    if (r->size != ((r->framebuffer.height << 16) | r->framebuffer.width) ||
++        r->stride != r->framebuffer.stride || pipe[ROUTE_XY] ||
++        (r->format & unsupported_format) || ((r->format >> 9) & 3) != 3 ||
++        (r->op_mode & 1) || (ctl[ROUTE_TOP] & (1U << 17)) || ctl[ROUTE_FLUSH])
++        return GSCAN_ROUTE_LAYOUT;
++    return GSCAN_ROUTE_MATCHED;
++}
++
++static void capture_route(const struct gscan_ops *ops, struct gscan_result *r)
++{
++    struct gscan_route *route = &r->route;
++    route->framebuffer = ops->framebuffer;
++    const struct gscan_framebuffer *fb = &route->framebuffer;
++    if (fb->width != 1080 || fb->height != 2400 || fb->stride != 4320 ||
++        !fb->address || (fb->address & 0x3fff) ||
++        fb->address > UINT64_C(0x100000000) - UINT64_C(10368000)) {
++        route->status = GSCAN_ROUTE_BAD_FRAMEBUFFER;
++        return;
++    }
++
++    unsigned mapped = GSCAN_CTL;
++    for (; mapped < GSCAN_REGION_COUNT; ++mapped) {
++        if (!ops->map(ops->context, (enum gscan_region)mapped)) {
++            route->status = GSCAN_ROUTE_MAP_FAILED;
++            goto out;
++        }
++    }
++
++    struct route_sample previous;
++    uint64_t start = ops->now_ns(ops->context), last = start;
++    route->status = GSCAN_ROUTE_UNSTABLE;
++    for (unsigned attempt = 0; attempt < 16; ++attempt) {
++        uint64_t now = ops->now_ns(ops->context);
++        if (now < last || now - start > 150 * MS)
++            break;
++        if (!clocks_running(ops, GSCAN_GCC, gcc_offsets, r->gcc, 3) ||
++            !clocks_running(ops, GSCAN_DISP_CC, disp_offsets, r->disp, 4) ||
++            ops->read(ops->context, GSCAN_INTF, INTF_TIMING_ENABLE) != 1 ||
++            ops->read(ops->context, GSCAN_INTF, INTF_COUNTER_ENABLE) != 3) {
++            route->status = GSCAN_ROUTE_SCAN_LOST;
++            break;
++        }
++        uint32_t frame = ops->read(ops->context, GSCAN_INTF, INTF_FRAME);
++        if (!route->samples || frame != route->last_frame) {
++            struct route_sample sample;
++            read_route(ops, &sample);
++            uint32_t after = ops->read(ops->context, GSCAN_INTF, INTF_FRAME);
++            last = ops->now_ns(ops->context);
++            if (last < now || last - now > MS)
++                break;
++            if (after == frame) {
++                if (!route->samples) {
++                    previous = sample;
++                    route->first_frame = frame;
++                } else if (frame - route->first_frame > 24 || !same_route(&previous, &sample)) {
++                    break;
++                }
++                route->last_frame = frame;
++                if (++route->samples == 3) {
++                    route->status = classify_route(&sample, route);
++                    break;
++                }
++            }
++        }
++        ops->sleep_ms(ops->context, GSCAN_PERIOD_MS);
++    }
++out:
++    while (mapped > GSCAN_CTL)
++        ops->unmap(ops->context, (enum gscan_region)--mapped);
++}
++
+ void gauguin_scan_run(unsigned mode, const struct gscan_ops *ops, struct gscan_result *r)
+ {
+     *r = (struct gscan_result){0};
+     if (!mode)
+         return;
+-    if (mode > 3) {
++    if (mode > GSCAN_ROUTE_MODE) {
+         r->status = GSCAN_BAD_MODE;
+         return;
+     }
+     unsigned mapped = 0;
+-    for (unsigned stage = GSCAN_GCC; stage < mode; ++stage) {
++    for (unsigned stage = GSCAN_GCC; stage < mode && stage < GSCAN_CTL; ++stage) {
+         enum gscan_region region = (enum gscan_region)stage;
+         r->stage = region;
+         if (!ops->map(ops->context, region)) {
+@@ -172,6 +345,8 @@ void gauguin_scan_run(unsigned mode, const struct gscan_ops *ops, struct gscan_r
+             capture(ops, r);
+         }
+     }
++    if (mode == GSCAN_ROUTE_MODE && r->status == GSCAN_MEASURED)
++        capture_route(ops, r);
+     while (mapped)
+         ops->unmap(ops->context, (enum gscan_region)--mapped);
+ }
+diff --git a/bsd/dev/gauguin_scan_timing.h b/bsd/dev/gauguin_scan_timing.h
+index 64ef5a4f4d45e736a84edf9fa8bb1feb0d461141..c8006c67b53bd81b0808934d2d0d3a829dd272bb 100644
+--- a/bsd/dev/gauguin_scan_timing.h
++++ b/bsd/dev/gauguin_scan_timing.h
+@@ -4,7 +4,11 @@
+ #include <stdbool.h>
+ #include <stdint.h>
+ 
+-enum gscan_region { GSCAN_GCC, GSCAN_DISP_CC, GSCAN_INTF, GSCAN_REGION_COUNT };
++enum gscan_region {
++    GSCAN_GCC, GSCAN_DISP_CC, GSCAN_INTF, GSCAN_CTL,
++    GSCAN_VIG, GSCAN_DMA01, GSCAN_DMA2, GSCAN_REGION_COUNT,
++};
++enum { GSCAN_ROUTE_MODE = 4, GSCAN_PIPES = 4, GSCAN_CTLS = 4 };
+ enum gscan_status {
+     GSCAN_DISABLED, GSCAN_GCC_READY, GSCAN_DISP_READY, GSCAN_MEASURED,
+     GSCAN_BAD_MODE, GSCAN_MAP_FAILED, GSCAN_CLOCK_GATED,
+@@ -12,6 +16,27 @@ enum gscan_status {
+     GSCAN_UNSTABLE, GSCAN_CLOCK_INVALID,
+ };
+ 
++enum gscan_route_status {
++    GSCAN_ROUTE_NOT_RUN, GSCAN_ROUTE_BAD_FRAMEBUFFER, GSCAN_ROUTE_MAP_FAILED,
++    GSCAN_ROUTE_SCAN_LOST, GSCAN_ROUTE_UNSTABLE, GSCAN_ROUTE_NO_MATCH,
++    GSCAN_ROUTE_AMBIGUOUS, GSCAN_ROUTE_NOT_STAGED, GSCAN_ROUTE_LAYOUT,
++    GSCAN_ROUTE_MATCHED,
++};
++
++struct gscan_framebuffer {
++    uint64_t address;
++    uint32_t width, height, stride;
++};
++
++struct gscan_route {
++    enum gscan_route_status status;
++    uint32_t samples, first_frame, last_frame, pipe_mask, ctl_mask;
++    uint32_t source[GSCAN_PIPES], interface[GSCAN_CTLS];
++    uint32_t stages[GSCAN_CTLS], virtual_stages[GSCAN_CTLS];
++    uint32_t size, stride, format, op_mode;
++    struct gscan_framebuffer framebuffer;
++};
++
+ struct gscan_ops {
+     void *context;
+     bool (*map)(void *, enum gscan_region);
+@@ -19,6 +44,7 @@ struct gscan_ops {
+     uint32_t (*read)(void *, enum gscan_region, uint32_t);
+     uint64_t (*now_ns)(void *);
+     void (*sleep_ms)(void *, unsigned);
++    struct gscan_framebuffer framebuffer;
+ };
+ 
+ struct gscan_result {
+@@ -28,6 +54,7 @@ struct gscan_result {
+     uint32_t attempts, samples, crossed, first_frame, last_frame;
+     uint32_t first_line, last_line, frames, millihz, nominal_hz;
+     uint64_t start_ns, end_ns;
++    struct gscan_route route;
+ };
+ 
+ void gauguin_scan_run(unsigned mode, const struct gscan_ops *, struct gscan_result *);
+diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
+index d9649f4feed0cb478832eeec291dc792bdca9e62..2972f6129f8b6e7f54fdd6d9bdbe1acf6ecaea2b 100644
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -1762,7 +1762,7 @@ sweet_scan_log_record(uint32_t run, unsigned mode, bool done, const struct gscan
+ 	_Static_assert(SWEET_LOG_BLOCKS == GSCAN_LOG_BLOCKS, "scan log ring size");
+ 	_Static_assert(UFS_RESERVED_TAIL_BLOCKS == GSCAN_LOG_RESERVED, "scan log tail size");
+ 	uint64_t lba;
+-	if (!run || mode < 1 || mode > 3 || su.ready || su.writable || !su.dma ||
++	if (!run || mode < 1 || mode > GSCAN_ROUTE_MODE || su.ready || su.writable || !su.dma ||
+ 	    !gscan_log_record_lba(su.first_block, su.nblocks, su.fs_nblocks, &lba))
+ 		return EPERM;
+ 
+@@ -1773,20 +1773,42 @@ sweet_scan_log_record(uint32_t run, unsigned mode, bool done, const struct gscan
+ 		return EIO;
+ 	}
+ 	bzero(block, UFS_BLOCK);
++	unsigned version = mode == GSCAN_ROUTE_MODE ? 2 : 1;
+ 	int len = snprintf((char *)block, UFS_BLOCK,
+-	    "GAUGUIN_SCAN1 run=%u mode=%u done=%u status=%u stage=%u\n"
++	    "GAUGUIN_SCAN%u run=%u mode=%u done=%u status=%u stage=%u\n"
+ 	    "gcc=%08x/%08x/%08x disp=%08x/%08x/%08x/%08x timing=%08x count=%08x\n"
+ 	    "attempts=%u samples=%u crossed=%u frame=%u/%u line=%u/%u advances=%u "
+-	    "start_ns=%llu end_ns=%llu millihz=%u nominal=%u\nEND_GAUGUIN_SCAN1 run=%u\n",
+-	    run, mode, (unsigned)done, r->status, r->stage, r->gcc[0], r->gcc[1], r->gcc[2],
++	    "start_ns=%llu end_ns=%llu millihz=%u nominal=%u\n",
++	    version, run, mode, (unsigned)done, r->status, r->stage, r->gcc[0], r->gcc[1], r->gcc[2],
+ 	    r->disp[0], r->disp[1], r->disp[2], r->disp[3], r->timing_enable, r->counter_enable,
+ 	    r->attempts, r->samples, r->crossed, r->first_frame, r->last_frame, r->first_line,
+ 	    r->last_line, r->frames, (unsigned long long)r->start_ns,
+-	    (unsigned long long)r->end_ns, r->millihz, r->nominal_hz, run);
+-	if (len <= 0 || (unsigned)len >= UFS_BLOCK) {
+-		lck_mtx_unlock(&sweet_dma_owner_lock);
+-		return EINVAL;
+-	}
++	    (unsigned long long)r->end_ns, r->millihz, r->nominal_hz);
++	if (len <= 0 || (unsigned)len >= UFS_BLOCK)
++		goto format_failed;
++	if (version == 2) {
++		const struct gscan_route *route = &r->route;
++		int tail = snprintf((char *)block + len, UFS_BLOCK - len,
++		    "route=%u samples=%u frame=%u/%u pipe_mask=%x ctl_mask=%x "
++		    "fb=%llx geometry=%u/%u/%u size=%08x stride=%08x format=%08x op=%08x\n"
++		    "source=%08x/%08x/%08x/%08x interface=%08x/%08x/%08x/%08x "
++		    "stages=%x/%x/%x/%x virtual=%x/%x/%x/%x\n",
++		    route->status, route->samples, route->first_frame, route->last_frame,
++		    route->pipe_mask, route->ctl_mask, (unsigned long long)route->framebuffer.address,
++		    route->framebuffer.width, route->framebuffer.height, route->framebuffer.stride,
++		    route->size, route->stride, route->format, route->op_mode,
++		    route->source[0], route->source[1], route->source[2], route->source[3],
++		    route->interface[0], route->interface[1], route->interface[2], route->interface[3],
++		    route->stages[0], route->stages[1], route->stages[2], route->stages[3],
++		    route->virtual_stages[0], route->virtual_stages[1], route->virtual_stages[2], route->virtual_stages[3]);
++		if (tail <= 0 || (unsigned)tail >= UFS_BLOCK - len)
++			goto format_failed;
++		len += tail;
++	}
++	int footer = snprintf((char *)block + len, UFS_BLOCK - len,
++	    "END_GAUGUIN_SCAN%u run=%u\n", version, run);
++	if (footer <= 0 || (unsigned)footer >= UFS_BLOCK - len)
++		goto format_failed;
+ 	uint8_t cdb[10] = {
+ 		0x2a, 0, (uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8),
+ 		(uint8_t)lba, 0, 0, 1, 0
+@@ -1798,6 +1820,10 @@ sweet_scan_log_record(uint32_t run, unsigned mode, bool done, const struct gscan
+ 		error = sweet_log_sync_cache();
+ 	lck_mtx_unlock(&sweet_dma_owner_lock);
+ 	return error;
++
++format_failed:
++	lck_mtx_unlock(&sweet_dma_owner_lock);
++	return EINVAL;
+ }
+ 
+ void sweet_scan_log_diagnostic(void);

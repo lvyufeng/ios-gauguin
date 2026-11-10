@@ -3,13 +3,22 @@
 #include "gauguin_scan_timing.h"
 
 #define MS UINT64_C(1000000)
+#define FB UINT32_C(0xa0000000)
+
+enum route_variant {
+    ROUTE_VIG, ROUTE_DMA2, ROUTE_BAD_FB, ROUTE_UNSTAGED, ROUTE_OTHER_PIPE,
+    ROUTE_VIRTUAL, ROUTE_TWO_CTLS, ROUTE_TWO_PIPES, ROUTE_NO_PIPE,
+    ROUTE_BAD_STRIDE, ROUTE_PENDING, ROUTE_CHANGED, ROUTE_GATED, ROUTE_CROSSED,
+    ROUTE_SPLIT_INTERFACE,
+};
 
 struct fixture {
     uint64_t time, start;
     uint32_t rate, origin;
-    unsigned mapped, maps, reads[3], sleeps, crosses;
+    unsigned mapped, maps, reads[GSCAN_REGION_COUNT], sleeps, crosses, route_frames;
     int fail_map, gate_region;
     bool gate_late, counters_off, stopped, unstable, stalled_clock, bad_line;
+    enum route_variant variant;
 };
 
 static bool map(void *context, enum gscan_region region)
@@ -35,6 +44,53 @@ static uint32_t read_word(void *context, enum gscan_region region, uint32_t offs
     struct fixture *f = context;
     assert(f->mapped > (unsigned)region);
     unsigned ordinal = f->reads[region]++;
+    if (f->mapped == GSCAN_REGION_COUNT) {
+        if (region == GSCAN_GCC)
+            return f->variant == ROUTE_GATED ? 0x80000001 : 1;
+        if (region == GSCAN_DISP_CC)
+            return 1;
+        if (region == GSCAN_INTF) {
+            if (offset == 0x3800)
+                return 1;
+            if (offset == 0x38a8)
+                return 3;
+            assert(offset == 0x38ac);
+            unsigned extra = f->variant == ROUTE_CROSSED ? f->route_frames++ : 0;
+            return f->origin + (uint32_t)((f->time - f->start) * f->rate / (1000 * MS)) + extra;
+        }
+        if (region == GSCAN_CTL) {
+            unsigned ctl = (offset - 0x2000) / 0x200;
+            unsigned field = (offset - 0x2000) % 0x200;
+            assert(ctl < GSCAN_CTLS && field <= 0xf4);
+            if (field == 0xf4)
+                return ctl == 1 ? (f->variant == ROUTE_SPLIT_INTERFACE ? 3 : 2)
+                    : (ctl == 0 && f->variant == ROUTE_TWO_CTLS ? 2 : 0);
+            if (ctl != 1)
+                return 0;
+            if (field == 0x18)
+                return f->variant == ROUTE_PENDING;
+            if (field == 0x70 && f->variant == ROUTE_DMA2)
+                return 1;
+            if (field == 0xa0 && f->variant == ROUTE_VIRTUAL)
+                return 1;
+            if (field == 0 && f->variant != ROUTE_DMA2 && f->variant != ROUTE_UNSTAGED)
+                return f->variant == ROUTE_OTHER_PIPE ? (1U << 18) | 1 : 1;
+            return 0;
+        }
+        assert(region >= GSCAN_VIG && (offset & ~0x3000u) <= 0x38);
+        bool source = f->variant == ROUTE_DMA2 ? region == GSCAN_DMA2 : region == GSCAN_VIG;
+        if (f->variant == ROUTE_TWO_PIPES && region == GSCAN_DMA2)
+            source = true;
+        if (!source || f->variant == ROUTE_NO_PIPE)
+            return 0;
+        switch (offset & 0xfff) {
+        case 0: return (2400U << 16) | 1080;
+        case 0x14: return FB;
+        case 0x24: return f->variant == ROUTE_BAD_STRIDE ? 4096 : 4320;
+        case 0x30: return f->variant == ROUTE_CHANGED && f->sleeps >= 128 ? 0x601 : 0x600;
+        default: return 0;
+        }
+    }
     static const uint32_t offsets[][5] = {
         {0x300c, 0x301c, 0x3070},
         {0x104c, 0x1010, 0x100c, 0x1028},
@@ -92,10 +148,11 @@ static struct gscan_result run(struct fixture *f, unsigned mode)
     const struct gscan_ops ops = {
         .context = f, .map = map, .unmap = unmap,
         .read = read_word, .now_ns = now, .sleep_ms = sleep,
+        .framebuffer = {f->variant == ROUTE_BAD_FB ? 0 : FB, 1080, 2400, 4320},
     };
     struct gscan_result r;
     gauguin_scan_run(mode, &ops, &r);
-    assert(f->mapped == 0 && f->sleeps <= 160);
+    assert(f->mapped == 0 && f->sleeps <= 176);
     return r;
 }
 
@@ -103,7 +160,7 @@ int main(void)
 {
     struct fixture f = fresh(60);
     assert(run(&f, 0).status == GSCAN_DISABLED && f.maps == 0);
-    assert(run(&f, 4).status == GSCAN_BAD_MODE && f.maps == 0);
+    assert(run(&f, 5).status == GSCAN_BAD_MODE && f.maps == 0);
     assert(run(&f, 1).status == GSCAN_GCC_READY && f.maps == 1 && !f.reads[GSCAN_DISP_CC]);
     f = fresh(60);
     assert(run(&f, 2).status == GSCAN_DISP_READY && f.maps == 2 && !f.reads[GSCAN_INTF]);
@@ -141,5 +198,33 @@ int main(void)
     f = fresh(60);
     f.stalled_clock = true;
     assert(run(&f, 3).status == GSCAN_BAD_SAMPLE);
-    puts("Actual scan core passed 16 scenarios including wrap, boundary, drift and access guards.");
+
+    static const enum gscan_route_status expected[] = {
+        GSCAN_ROUTE_MATCHED, GSCAN_ROUTE_MATCHED, GSCAN_ROUTE_BAD_FRAMEBUFFER,
+        GSCAN_ROUTE_NOT_STAGED, GSCAN_ROUTE_NOT_STAGED, GSCAN_ROUTE_NOT_STAGED,
+        GSCAN_ROUTE_AMBIGUOUS, GSCAN_ROUTE_AMBIGUOUS, GSCAN_ROUTE_NO_MATCH,
+        GSCAN_ROUTE_LAYOUT, GSCAN_ROUTE_LAYOUT, GSCAN_ROUTE_UNSTABLE,
+        GSCAN_ROUTE_SCAN_LOST, GSCAN_ROUTE_UNSTABLE, GSCAN_ROUTE_AMBIGUOUS,
+    };
+    for (unsigned i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+        f = fresh(60);
+        f.variant = (enum route_variant)i;
+        struct gscan_result r = run(&f, GSCAN_ROUTE_MODE);
+        if (r.route.status != expected[i])
+            fprintf(stderr, "route case %u: got %u, expected %u\n", i, r.route.status, expected[i]);
+        assert(r.status == GSCAN_MEASURED && r.route.status == expected[i]);
+        if (r.route.status == GSCAN_ROUTE_MATCHED) {
+            unsigned mask = i == ROUTE_VIG ? 1 : 8;
+            assert(r.route.samples == 3 && r.route.pipe_mask == mask && r.route.ctl_mask == 2);
+            assert(r.route.stages[1] == mask && r.route.virtual_stages[1] == 0);
+        }
+    }
+    f = fresh(60);
+    f.fail_map = GSCAN_DMA01;
+    assert(run(&f, GSCAN_ROUTE_MODE).route.status == GSCAN_ROUTE_MAP_FAILED);
+    assert(!f.reads[GSCAN_CTL] && !f.reads[GSCAN_VIG] && !f.reads[GSCAN_DMA2]);
+    f = fresh(60);
+    f.counters_off = true;
+    assert(run(&f, GSCAN_ROUTE_MODE).route.status == GSCAN_ROUTE_NOT_RUN && f.maps == 3);
+    puts("Actual scan core passed 16 cadence and 17 route scenarios.");
 }

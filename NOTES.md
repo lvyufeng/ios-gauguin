@@ -2,6 +2,75 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —238 full local native PASS; ONE kernel-only unchanged237 sampler LIVE
+
+PROGRESS, wholephone goal ACTIVE/incomplete. Critical238source fd17141; frozen
+buildHEAD005e56c7b75d0cd269cbc4afe12dbdb4de0cf063 (notescommit), branch
+codex/gauguin-task-kernel-alias-20261110. R238/W238 paths below. The newkernel
+only establishes the retainedROkernelalias beforecallerVAunmap. No userdata
+reinstall/change, no newdestructiveconsent. User237writepermissionCONSUMED,
+retainedONLYasproof ofexistinginstalledroot. Probe d1f08acb.../build58a59434...,
+frontend3c62/core8a/sampler218e allUNCHANGED.
+
+DSHfull-build-stage-v1 PID70645 terminal0,171.200049s,243pins unchanged. Strict
+pristine1b191cb5replay200patches,5330files; sourceSHA
+869c0031c653cfeafd5d3cc807371eacce4640f8d1a3c27ea013374a6addb6c8.
+Independentcomparison actual236e270...5330files: ONLYGauguinGPU.cpp differs,
+exactW238candidate. Replayedhostalloldregressions+123earlyVAchecks+ROwrap/create
+PASS. Freshobjects/build238-task-surfaces/runs/gauguin.v26Oiw, APFSclonedONLY4
+old219dependencies. Referenceartifacts+mtimes preserved. Nativeallgenericchecks
+retained, headerwarnings retained(no zero-warningclaim). NoCI/push.
+Kernel17329648B SHA
+c006ef7ac6ed2b0ed757502f74faafd3f4c6da77e0f948b323be14202b098089,
+bannerDarwin Kernel Version22.6.0 Tue Nov10 20:19:29CST2026,
+xnu-46e2e858697a4351b32e4120d5c92361. Full-kernel-review238-v1.json251pins SHA
+2ff485b65f4c4979fa64d11e58830542bef11db2f8523f36853c7f469f11b02f.
+
+DSHpackage-stage-v1 PID9114 exit0: pairedimagecontrol-paired-image-v1.json,
+R238/shim/out/shim-p3-kernel-0238-installed237-task-alias-600-20261110.img
+20021248B SHAa75a6266ecbc6882ab4b67dc343cd7eb0043466772190063538d9eab20f8db2c.
+SameEXACT607bytemode1/gmt1/600s/no-swipe/NVT/30Hzcopy args, firmwarehashes/
+reservations/RAM/outershim/DTBgeometry asqualified235/236. Payloadrepackedonlyfor
+newMachO. Actualfirmwareassets/properties/segments/padding allverified.
+
+DSHready-stage-v1 PID10055 exit0/10.991039s/270pins: freshREADONLYall22actualroot
+files matchpost237, full951342/44189/1430685Bprefixes kept; currentheader
+ dbb520ebe21e7be5517270c4c03149d25dbf504bb56927de492da55772e8f4ce.
+169967616actualbytesread, devicewrites0. read_files238.py isEXACTcopyof32MiB-bound
+qualified237runtime reader. Bootpilot238 is237's28-guard-validatedbody withONLY
+5literalchanges(newkernelroot, readername, exactimagehash, error/scope strings);
+pilot-body-changes238.json normalizesbackbyte-for-byte. Actualinstalledpositive
+hostgatesPASS beforeIO, source/kernel/old33writes/readback/expected22allrequired.
+Post238usesROOT237verify_write onlytoverifyOLDinstalledroot, recordsNEWuserdata
+writes0; strictFP16/CA/task/service functions andbuild58... unchanged. Package
+receiptnamefixedbeforeclaim. Trialprofilefinalized46pins incloriginal235pure
+functions/readers andold237verify/receipt/binarymetadata (notnewapproval).
+AllcompletedPIDsabsent; outerDSH21828/85062/89641reaped0.
+
+LIVE NOW trial-stage-v1 dispatcherPID10735, launched12:32:29Z, originalprofileSHA
+05697cd080c925072bbc02ed1da967b2b82c88b9e148072c751d2c590c8270dd;
+outerDSHsession56717. ORIGINAL46pins, twojobsONEtemporarybootthenfull22capture/
+strictphysical-review238.json. DO NOTrestart/rerunclaimedstage/observer because
+elapsedtime or missingresult. PID10735confirmedLIVE12:34:58Z(2m29s).
+BootprofileSHA26665c1b59b08137c52d7439cb5b02427ad7c1888d6faf3609828562d15c0f86.
+trial-v1/preflight.json observer-running, misclatchverified. Actualfastbootboot
+SendingOKAY0.455s/BootingOKAY0.135s/total0.593s. PlannedautomaticTWRP~746s,
+around12:45Z; getactualresult/handle, do notinferterminalfromclock. No userUI or
+manual/autorebootconfirmationneeded. OnlyaskmanualTWRP/cableifgenuinestuck.
+
+NEXT pollORIGINALPID10735 +trial-stage-v1/result.json/trial-v1/result.json/cycle.log/
+physical-review238.json. Requireall5unchangedtaskcasesinclRGBA16F/RGBA32Fafter
+callerCFrelease+originalVAmunmap, native21=11FP16/poison+5task+5CA,16sampled+
+5unsampled(no exactlaterIBclaim),5intentionalWRITErejectionsonly, noothererrors,
+raw20480taskpixels/fullsourceguards,4096FP16+20480CA, explicitownerreacquire/
+resourcecleanup/finiteservice. NewfullstdoutwillEXCEED1MiB, use32MiBruntime reader.
+IfPASS, independentlyrehashactualraws/counters/prefixes andqualifyONLYthismapping
+lifetime; thenownedsharedCAoutput/displayhandoff/compositor. IfFAIL, preserveall
+originalfailedlogs; hypothesesremainunproven, do notskipreleasecases orweaken
+checks. Installed237probe alreadyvalidaction;preferkernel-onlydiagnostics/fixes.
+WholeMetalpublication/desktop/highrefresh/RAM/storage/peripherals/daily incomplete.
+MAINonlyuser mkadteditSHAa74a0418...preserved; R236/R238samecopies uncommitted.
+
 ### 2026-11-10 CST —238 eager read-only kernel alias source and host RED/GREEN PASS
 
 PROGRESS; wholephone goal ACTIVE/incomplete. R238=research/tmp/gauguin-alias238-

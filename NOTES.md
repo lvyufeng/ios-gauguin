@@ -2,6 +2,83 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0229 approved36-run write PASS; temporary SETEXEC baseline trial booted
+
+PROGRESS: completed local proposal/startup verification, received fresh exact
+consent, wrote/readback the scoped loader delta and booted ONE actual trial.
+Full goal ACTIVE/incomplete. No new consent question pending.229consent consumed.
+
+W229=research/tmp/gauguin-baseline229-worktree-20261110/research/tmp/dsh-baseline-0229-setexec.
+Source loaderb110b2e in MAIN/229; actual host lifetime fixture MAIN27549c0 /
+229226cf64 (same PID97693 before/after SETEXEC, no iOShardlimit claim). Native
+signed114304B/ad57f8c18dc365a0e5b46d0201c8c070b0db0762200bfbc0a55ee165523a987a,
+builda417ba2087c71ca41a6c94cc. Actual fresh20H392cache audit PASSED665imports,
+zero missingstrong/unexplainedweak,5disabledoptionalM2Vhooks unchanged.
+All software/build/API results terminal0/pins unchanged; no kernelbuild/CI/push.
+
+NEW complete backup PASS: root-backup-v1/iosroot-before-metal229.hfsx,
+17179869184B/0444/SHA
+c41a00376eee934ce0d67df791d561b830481207438cf64a036e934cd9248cc0.
+Every freshdevicebyte read666.1984s,400different1MiBchunks updated in distinct
+localAPFSclone, fullfinalhash matchesfreshstream; source501bfa14... unchanged
+before/after. Allpriorbackups preserved. Beforewrite22files and headerf650...
+verified; currentoldlogs87303/16158/1369612B fullyretained in baseline snapshot.
+DSH59300 launcher reaped, actualbackupPID96066 terminal0/missing, notlive now.
+
+Exact NEW229 PLAN
+20502bf9089296fc1123c3329c44427e84e1021681fc8165902cc847a3a97f01:
+206blocks/843776B/36runs(0.8046875MiB). ONLYexistingfrontend loader plus HFS
+housekeeping metadata changes; NO newfiles/dirs. All531jobs/cache/jetpolicies,
+old223probe/core/fullfrontend/shaderlibrary/GLES/Mesa/BB/3diagnosticlogs retained.
+Candidatefinalb7b37cf774eb01c96c38b71cde73031d59ddb497e9df339632ed58550feb90c7.
+DSH75770 proposal: localCOW/delta/full16GiBchangedsector audit206 PASS; readonly
+fsck0/detach0,102unchangedwriter assertions, ALL36actual OLDranges verified.
+DSH63873 capture/startup315base/final22present-file assertions +fiveactual
+missing-consent entries/22assertions PASS withzeroPhoneIO. Native/host/backup/
+ABI/proposal/startup SIXsuccessful profiles ALL81pins and independentreview's
+ALL90pins independentlyrehashed beforeconsent. ready-for-consent229.json is an
+immutable PRE-CONSENT receipt; its user_approved=false is historical, not a veto.
+
+Fresh USERconsent via request_user_input_async
+call_51de805b651f43e8a8c97581c78e5991 item0, verbatim
+"允许写入，并允许失败时回滚本次触及的块". Recordedapproval.json bound ONLY
+20502bf9... plan andtouched-run rollback. This consent nowCONSUMED; no more
+userdata changes authorized by thisentry. Prior227a56746bc mustneverbereused.
+DSH57397 launchhandle reaped0; actualapply-stage-v1 PID2974 terminal0,
+inputsunchanged. Actual36writes/36attempts/ALL36readback; header0LAST; no rollback.
+Rebootpermittedtrue. Installed22files allbytes/hash/uid/gid/mode match expected.
+Verified PREBOOT headerNOW
+09c34b2d493b926b320c2b8f106d497a2c64df67cda297194f06c2c9eb1b1164.
+Runtime willchangeheader/logs; futuredelta MUSTbind actualposttrialcapture later,
+not thisprebootheader orf650/c41oldprefix snapshots.
+
+DSH11728 launch-onlyhandle terminal0/reaped. Durable dispatchPID3774 PPID1 was
+observed LIVE at9m34s; dispatch/trial terminalresults notyetpresent then. Do NOT
+assume stilllive withoutrechecking actualPID/results; NEVERrestartclaimedstage.
+Allrealpositivehostgates check_pilot229.py passed using realapproval/write/
+installed22files, stopping intentionallybeforeRecoveryIO. Actualtrial/preflight
+observer-running/image_boot_attempted=true/misc_verified=true. Bootimageexact
+346c74953fbc006a8f09d31104cdc23605f5474b618de53bcaa34afb0dd6378e,
+SendingOKAY0.455s/BootingOKAY0.134s/total0.593s. Same219kernel/NVT1/no synthetic
+swipe/6GiB/30Hz/mode2/noGMT/600s; no new kernel or GPUcapability claims.
+Bootprofile3e727707209ec1ac540a218ec21e2e5b2895db0580617f514eb6342d6b7fc4ef;
+dispatchprofilecec32cb0e6bdf49b36181a43c240013909f663180a95b05d24bc4ec35d1d6966.
+
+NEXT poll SAME3774 plus trial-v1/result and physical-review229.json. Wait for
+normal finite autoTWRP return; do NOTaskautomatic-vs-manual confirmation. Only
+manualrecovery/cable prompt ifgenuinelystuck. post229 capturesALL22/full3oldlog
+prefixes FIRST; strictobserver0/banner/600sservice, exactSETEXEC loaderreceipt,
+retained223GET8=128active/inactivefatal atall3checkpoints,8CPU-expectedjobs/
+28928words/clean8fenceGPUrelease/GLESownerhandoff. Do notweaken this because
+priorcontrol failed. No iOShardlimit/handoff/UI result claimed for229yet.
+Afterterminal, independentlyrecheckouter/trial0+allpins beforequalifying. Root
+mode1 publicMTL93-job regression canfollow using exactexisting43c69019... image
+with freshpost22922-file expectations, no newuserdatawrite. Then exactactualCA
+semantics/MRT/fetch/image-store pixels/CARenderer scene testing beforedesktop
+Metaldiscovery/publication (seepriorentry). Current UI/redclock/icons/widgets/
+RAM/storage/peripherals/90-120Hz/daily goals remainOPEN. Originalmainmkadt diff
+a74a0418... preserved. No Apple/device artifacts in Git.
+
 ### 2026-11-10 CST —mode2 control FAILED memory contract;229 SETEXEC candidate compiled; fresh backup LIVE
 
 Previous goal turn was PROGRESS plus verified wait. This continuation is

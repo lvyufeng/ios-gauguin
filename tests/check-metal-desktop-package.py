@@ -36,6 +36,7 @@ def main():
     add('old-kernel-source',lambda x:x['kernel'].update(source_sha256='f002053dffd1b6f0a152a8bbb22e193cfb242b971c61d30e05402ca49e2a8b44'))
     add('failed-link',lambda x:x['kernel'].update(make_exit=1))
     add('missing-final-kernel',lambda x:x['kernel'].update(final_kernel_produced=False))
+    add('legacy-kernel-defaults',lambda x:x['kernel'].update(desktop_present_defaults=dict(held=False,phase=False,explicit_overrides_preserved=True)))
     add('unqualified-board-base',lambda x:x['base'].update(image_sha256='0'*64))
     add('missing-physical-base-proof',lambda x:x['base_acceptance'].update(input_RO_hardware_qualified=False))
     package=json.loads((a.package/'result.json').read_text());root=(a.package/'root').resolve()
@@ -44,6 +45,8 @@ def main():
     assert package['requires_0240_installed_and_paired_trial']and package['requires_fresh_post240_capture']
     assert package['requires_deduplicated_boot_key_replacement']and package['qualified_board_arguments_must_be_preserved']
     assert package['command_bytes']==len(module.encode_cmdline(package['command']))<module.BOOT_LINE_LENGTH
+    assert package['command_field_bytes']==608 and package['command_is_complete']
+    assert package['desktop_present_defaults']==dict(held=True,phase=True,explicit_overrides_preserved=True)
     for name,value in package['software_boot_argument_overrides'].items():
         assert package['command'].split().count(name+'='+str(value))==1
     assert package['parent_directory_metadata_must_be_preserved']and package['payload_owner_is_not_installation_owner']

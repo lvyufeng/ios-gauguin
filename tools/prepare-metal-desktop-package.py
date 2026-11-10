@@ -5,7 +5,7 @@ import argparse,hashlib,json,plistlib,shutil,struct,subprocess,sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from mkpayload import BOOT_LINE_LENGTH,encode_cmdline
 
-SOURCE='2e62225c17d0886bdd018a13fd1e958f9def5c8dabc7f888e07a79f7da6ca80f'
+SOURCE='79a03b79d0de8d9753e1952333d79a7b6ca75461e32764b41b1bc2a04620bfef'
 HASHES=dict(core='8a8265838bfd3e4a9d627ef40f06e391a74fa3543d0f58b8dca3eec2f04ee1e1',
             frontend='b7fcc72fc69a0ed429effecdf1b6b1ef071bc17a582832a32c3f95b52ea56acc',
             retained='26d09095687544b44af83232fd850c8d8c0d2149a7c17b87b7a0500b697bca3b',
@@ -24,7 +24,7 @@ def sha(p):
 def regular(p):
     p=Path(p);need(p.is_file()and not p.is_symlink(),'regular file required: '+str(p));return p
 def read_proofs(recipe):
-    need(recipe['schema']==249 and set(recipe['receipts'])=={
+    need(recipe['schema']==250 and set(recipe['receipts'])=={
         'core','frontend','retained','bootstrap','router','launch','system','kernel','base','base_acceptance'},'recipe schema/receipts')
     proofs={};pins={}
     for name,row in recipe['receipts'].items():
@@ -111,8 +111,9 @@ def validate_contract(x,repo):
     parent=system['files']['/private/var/mobile/Library/Caches']
     need(parent['present']and parent['uid']==parent['gid']==501 and parent['mode']&0o300==0o300,'writable mobile cache parent')
     need(system['fresh_post240_capture_required'],'fresh post240 system check')
-    k=x['kernel'];need(k['state']=='qualified-native249-complete-desktop-candidate-not-phone-qualified','complete kernel qualification')
-    need(k['source_sha256']==SOURCE and k['source_files']==5332 and k['active_patches']==206,'kernel source identity')
+    k=x['kernel'];need(k['state']=='qualified-native250-complete-desktop-candidate-not-phone-qualified','complete kernel qualification')
+    need(k['source_sha256']==SOURCE and k['source_files']==5332 and k['active_patches']==207,'kernel source identity')
+    need(k['desktop_present_defaults']==dict(held=True,phase=True,explicit_overrides_preserved=True),'desktop present policy')
     need(k['make_exit']==0 and k['final_kernel_produced']and k['build_inputs_verified']and k['sdk_recorded_inputs_verified'],'kernel provenance')
     kp=repo/k['kernel_path'];need(kp.resolve().is_relative_to(repo.resolve()),'repository-local kernel')
     need(sha(regular(kp))==k['kernel_sha256']and kp.stat().st_size==k['kernel_bytes'],'kernel identity')
@@ -173,6 +174,8 @@ def assemble(recipe_path,out):
         kernel=dict(path=str(kernel),bytes=kernel.stat().st_size,sha256=sha(kernel),source_sha256=SOURCE,build_head=x['kernel']['committed_head']),
         dependencies=loads,launch_templates=templates,system_prerequisites=x['system'],
         software_boot_argument_overrides=overrides,command=command,command_bytes=len(command.encode()),
+        command_field_bytes=BOOT_LINE_LENGTH,command_is_complete=True,
+        desktop_present_defaults=x['kernel']['desktop_present_defaults'],
         physical_base_image_sha256=x['base']['image_sha256'],
         requires_deduplicated_boot_key_replacement=True,qualified_board_arguments_must_be_preserved=True,
         parent_directory_metadata_must_be_preserved=True,payload_owner_is_not_installation_owner=True,physical_refresh_qualified=False,

@@ -2,6 +2,86 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0233 HakiOS rereview found actual descriptor entry; native observer ready offline
+
+PROGRESS. Full goal ACTIVE/incomplete. User requested another HakiOS success-case
+review. Current upstream main independently resolved through gh to SAME63fc2b4...
+and six GitHub-connector fetched sources/docs are byte-identical to prior blobs.
+Source MAIN7d34cf2 /233a906b23 commits the opt-in descriptor observer and updated
+review docs. No phone IO, root write, boot, kernel CI or remote push this turn.
+Main unrelated mkadt diff a74a0418... preserved.
+
+R233=research/tmp/gauguin-specialization233-worktree-20261110;
+W233=R233/research/tmp/dsh-specialization-0233-upstream.
+Read docs/gauguin-hakios-gap-review-20261110.md for the corrected comparison.
+Important: root Metal probes have NOT connected Metal to backboardd. Actual230
+mode1 log says hooks0/gpu_opens0/renderingdisabled; earlier interactive modes
+used EAGL/GLES. Qualified219 publishes no Metal plugin properties. Its GPU import
+also rejects readOnly surfaces and non-IOBufferMemoryDescriptor backing, while
+physical219 observed caller-backed read-only icon-size surfaces with copyfallback.
+These require complete compositor/shared-memory integration, not more FPS
+inference from isolated submissions. HakiOS's reported rates depend on resolution,
+wallpaper freeze, deferred encoding and run conditions; actual finger latency
+and fence waits remain in its own report. Do not promise120Hz from those numbers.
+
+NEW VERIFIED offline actual20H392 finding: decode of the actual230 crash's nine
+QuartzCore frames and Objective-C call stubs shows helper0x188482774 constructs
+a MTLFunctionDescriptor, setName, optionalsetConstantValues, then calls
+newFunctionWithDescriptor:error: at0x1884829e8. HakiOS's old stand-in hooks cover
+name/name+constant overloads, NOT this descriptor interface. This explains a
+coverage gap, NOT the internal cause of Metal returningnil. Failed function/
+original NSError still UNKNOWN; no runtime specialization fix claimed.
+inspection-v4/result SHA2a3d466e560423900c9152046cf02c76f1f092738e5a8a056e5b67685fe6556e;
+callsites-v2/result SHA48a08ca54e11315010e231cb4daf545461768afe3d94bf66333bf5009af65382.
+Actual _MTLLibrary descriptor ABI @32@0:8@16^@24, plus device/functionNames and
+MTLFunctionDescriptor name/constantValues getters independently checked.
+
+New profile gauguin-ca-trace selects unchanged0001+0002 plus new0003. Baseline/
+diagnostic/exact profiles unchanged; freshly prepared exact's ALL3 sourcefiles
+match immutable230 preparedsource. New observer validates five actual method
+encodings before touching any IMP, checks own-method ownership, scopes by device
+class inside the admitted root-only process, logs descriptor name/constants/
+presence and original NSError, delegates original args/errorpointer exactly once,
+preserves returned ownership. No substitutions/retry/faked success; no publication.
+Root boot/profile/memory128hard/single-owner/strict CA pixel checks unchanged.
+Native frontend420944B SHA
+677c8e0733a48c44846476d157ca4968cae49a3af63d12ff7e1da0362bb2de60;
+paired CA probe114368B SHA
+0406b957936e4c8312bf6483e8695e498316acc53fe73f1860f8aa7b7c47e919,
+build a81c673efa14424bd10e8ca3. Both compiled/signed/verified; probe -Werror.
+Core remains8a826583..., NOT231af... .
+
+Native-stage-v1 correctly kept exit1 after successful compilation/signing because
+new imports class_copyMethodList/method_getName broke exact-old-import equality.
+Fresh abi-stage-v1 passed BOTH actual20H392 ALL680-import resolution/0missingstrong/
+0unexplainedweak and separate artifact qualification. Do NOT rewrite old failure.
+native-review-v2.json SHA
+3f793a08e526de4dfa77529abca1f48af7498513523a2ecdc09a927f4b6b741d
+records software-only qualification; no runtime/UI/FPS claim. New imports resolve
+actual libobjc. One inherited MTLFeatureSet deprecation warning, no new warnings.
+Inspection-v1 failed irrelevant-class duplicate-selector assertion; v2 failed
+whole-cache symbol-size assumption; v3 failed local variable shadowing VM starts.
+Kept ALL failed scripts/profiles/logs; v4 correct. Callsites-v1/v2 passed.
+Codex independently rehashed ALL104 pins across eight stage profiles plus every
+job log and profile hash; all dispatcher PIDs absent/terminal. ALL DSH launch
+handles62427/20080/1894/1118/14814/99890/42190/71870 reaped0. No worker to restart.
+
+NEXT: prepare a fresh full backup/current22 capture/minimal reviewed COW delta
+for the trace frontend/paired probe, inspect loader pairing before final payload.
+Current installed state is still POST230 header
+57e6255a9be3fbcafc935784f2d00b39408a820a6be364e18baa45761c0d6c81,
+fullstdout/stderr/BB90487/17894/1404833B,19staticfiles. Existing0230 consent
+CONSUMED; no233 consent question/approval/delta/backup/write/boot yet. Finish
+backup/fsck/oldrange/writer/capture/startup/independent review before NEW concrete
+individual write question. Once authorized, preserve original evidence and use
+one finite mode1/gmt1 no-swipe temporary219image43c... boot to collect actual
+descriptor name/NSError. Do not infer rootcause from API mismatch alone or weaken
+CA pixel gates. Then implement matched specialization and caller-memory sharing,
+qualify complete CA pixels, connect real compositor, measure touch-to-panel60Hz,
+then physical90/120Hz. All other daily-phone/RAM/storage/peripheral/power goals
+remain OPEN.
+
+
 ### 2026-11-10 CST —0230 real CA trial FAILED at fragment specialization;0232 offline gates complete
 
 This entry supersedes the live/pending status below. Full goal ACTIVE/incomplete.

@@ -1,0 +1,2 @@
+# Unified-diff context markers precede source tabs; keep other whitespace checks.
+*.patch whitespace=-space-before-tab

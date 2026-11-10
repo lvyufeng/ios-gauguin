@@ -2,6 +2,17 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0263 scanout route source/native qualified
+
+Source 7a58414f485d0745957505d4c88e949befeabda2, reader d00baab.
+W263=research/tmp/dsh-scanroute-0263. DSH 68163 source/host/3 ARM64 TUs,
+69012 receipt mock, 69413 scan2/3 offline images, 68484 CI dispatch. All
+exit0 and launchers reaped. Full CI42925740306/job130211633308 observed at
+build step. Artifact stage and independent review prepared under W263.
+Mode4 requires measured INTF1 cadence and uniquely staged inherited source.
+Mode4 persistent log uses SCAN2. No hardware run or storage write. Prior
+0261 exact pending confirmation remains bound to its unchanged proposal.
+
 ### 2026-11-11 CST —0261 full pre-mount GCC trial ready; exact approval pending
 
 R261 same scan-log branch; pushed head4964df4b368a5df807ec5c3338fd354c39fcdf15.

@@ -2,6 +2,83 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0236 immutable task GPU import source/host/native-TU complete; full link next
+
+PROGRESS; fullphone goal ACTIVE/incomplete. Previous turn235 was realhardware
+progress; this turn completes a genuine next driver gap in ISOLATEDR236 only.
+R236=research/tmp/gauguin-surface236-worktree-20261110, branch
+codex/gauguin-iosurface-ro-20261110; sourcecommit5671e8f. W236=R236/research/tmp/
+dsh-surface-0236-ro-import. MAIN kernelseries stillbaseline219, unrelatedmkadt
+binarydiffa74a0418...preserved. No newphonecommands, userdatawrite, boot, CI orpush.
+Installed235/core8a andphysicalacceptance398pins remain unchanged. No approval
+pending; consent235CONSUMED and cannot authorize anotheruserdata delta.
+
+New kernelpatch0207-gauguin-readonly-surface-gpu-import.patch appended to R236
+series (199patches). OnlyGauguinGPU.cpp changes: root qualification of prepared
+immutable generic task descriptors; compositor newimports stillgated. Preserve
+logicalbyteBOaddress/length separately frompagealignedmappingAddress/mappingSize;
+handle sourcepagebias/scattered16KiBCPU/4KiBGPU/partialtails. All PTE physical
+segments validated beforestores, GPUAPRO+submitWRITE rejection, descriptor/source
+retain throughDMA; onfaultquarantinebothuntilreset. Actualmappedbytes charged256M
+quota, fullwindowsunmappedbeforecomplete/release. No CPUalias throughGPUclient
+forborrowedRO inputs; ordinaryGPU-RO uploadBO CPUmapsunchanged. Existingcore accepts
+absentCPUmap; Texture::replace/read reject cleanly rather thanwritingimmutable
+source. OriginalIOSurface CPURO mapping remains. Singlespan bpe1/2/4/8/16 supported;
+64-bytehardwarebasealignment remainsrequired. Nonrepresentablelayouts neednamed
+userspace repack (notimplemented in thispatch). Mutablegeneric taskbacking/planes
+remainunsupported; ownedRW render targets retainoldpath. Existingcache flush/
+surface-state guards bracket submissions. Docs in R236 only:
+docs/gauguin-task-iosurface-import-20261110.md.
+
+DSH host-stage-v1 PID94774 terminal0 in10.002480s,17pins unchanged. Actual219
+control passes oldtransport/queues/slots/pilot/wrap; candidate passes same plus
+1189taskROscatter/offset/partial/rights/retain/unmap assertions and43DMAfaultretention
+assertions. Existingwrap309/create225 PASS. Test fixture hasgenericTaskPixels
+(notIOBuffer subclass); 6offsets x8sizes plus invalid/wire/layout cases. Caches/
+PTEs/references are typedhostseams, NOTphysicalGPUproof.
+Native-stage-v1 PID95102 exit1 onlybecause tinycandidate tree omittedrelative
+bsd/kern/sweet_eagl_diagnostics.h; originalsource/log/profile retained. Fresh
+native-stage-v2 PID95448 exit0 in2.508820s; all2129referenceheader/config hashesand
+referencebuildfiles/mtimes unchanged. ActualARM64GauguinGPU.o350496B SHA
+db53c7f6141d91eab7f8a0f478ac576c872dd1b5868784e547b1e84c2bd6bd20.
+1272nativeheader/recipewarnings, not a zero-warningbuild. No linkedkernel yet.
+
+Negativecontrols originalclassifier-v1 PID95655 exit1 because broad 'error:'
+matched PythonCalledProcessError AFTERoldkernelproperlyfailed CXXnewfeaturecase.
+Freshclassifier-v2 PID96410 exit1 AFTERall6controlsbecause it expectedonlyCXXasserts
+andthereal lost-source-retain mutant instead triggeredASANheap-use-after-free in
+sweet_surface_copy duringordinarysubmit test. Both failedstages stayFAILED.
+Codex independent-review236-v3.json SHA
+468bb3f83264f1b6f08efe9e197d518d83c71a14d33cb9796210b33f0a8e86d9,
+62pinsverified, all5workerPIDs absent. Itreviewsactual originalv2mutants/logs:
+oldmissingfeature+lostPTE-RO+CPUalias+lostbyteoffset+partialunmap eachrealCXXassert;
+lostsource-retain realASANUAF. Allplanneddefects detected. No testinputmutations
+or repeats ofclaimedstages. OuterDSH17258/4994/88707/72583/69923 allreaped0.
+
+NEXT continue full LOCAL native build viaDSH using proven219 workflow (available,
+no need defaultGitHubActions): W219=research/tmp/gauguin-swipe219-worktree-20261110/
+research/tmp/dsh-ui-0219-once-swipe has replay219.py/build219.py/qualify219.py/
+close_refs219.py. Read those exactfiles. Stagepristine gitarchive XNUcommit
+1b191cb58250d0705d8a51287127505aa4bc0789; apply199activepatches strictly intoFRESH
+R236/.deps-cache/p0-20261105/source236-codex, freshsource-state. Snapshotcompare
+actual219sourcefd75fc6d.../5330files, ONLYGauguinGPU.cppmaydiffer andmustequalW236
+candidatebyte-for-byte. Retainallpriornativequalifier checks (copyroot-sensitive
+helpers, adjust219-specific state/changedfile fields), freshbuild-root/out, APFS
+clone ONLY4proven dependencies fromsuccessfulR219build219-once-swipe
+(sdkroot-macos,AvailabilityVersions-AvailabilityVersions-121,libplatform,libdispatch).
+Use deps/build-macos.sh gauguin --xnu S --build-root B --out O --jobs8; preserve
+allreferenceartifacthashes/mtimes, no mutablehardlinks. Enoughhostspace~25GiB last
+check. FreezeR236gitHEAD afterthishandoff; recordexactheadbeforestartingbuild.
+Full build notstarted/noPID/profile yet. Do not confuse ARM64object withlink.
+
+Then matched rootROIOSurface sampler probe + independentactualpixelreader, early
+callerreference release, sourcebytesunchanged/CPUalias+WRITErefusals, offset/tail/
+graymask formats, andretained235realCA suite. Newkernel+probe actualdynamicresults
+required beforecompositor/newimportadmission/displayintegration. Newuserdata delta
+requirescurrent22/full341864/28169/1417759Bprefix capture, newfullbackup/review and
+freshindividualconsent. Keep235physicalmilestone valid, no smoothUI/highrefresh/
+MTLDevice/generalapplication/daily-use success claimed.
+
 ### 2026-11-10 CST —0235 PHYSICAL FP16 + all five real CoreAnimation scenes PASS
 
 PROGRESS / major GPU milestone, FULL PHONE GOAL ACTIVE/INCOMPLETE. Actualsource

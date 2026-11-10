@@ -2,6 +2,94 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —mode2 control FAILED memory contract;229 SETEXEC candidate compiled; fresh backup LIVE
+
+Previous goal turn was PROGRESS plus verified wait. This continuation is
+PROGRESS: completed physical baseline control identified a real regression,
+full CA stage-pair coverage measured, scoped memory-contract fix compiled.
+Full objective ACTIVE/incomplete; no newuserdata write/consent/boot this turn.
+
+control-mode2-v2 durablePID89720 now TERMINAL/missing, stage exit1/inputsunchanged.
+Actual pilot/observer0,745.959821s, automatic TWRP return under unattended policy.
+All22files captured,19static unchanged, all3old full log prefixes retained.
+Physical review d24160dab5eb17a4c4741f8af1c6b8f988cdb4a51f90766ec9b12ba68591306b;
+ALL27stage pins+40review pins independently rehashed. Do NOT rerun old control.
+Current full logs87303/16158/1369612B; current POSTCONTROL root header NOW
+f6502abdfda760dee875eff7f1af11e63a1a79acbbe39f1df0b7e7d350dc3993.
+All next deltas MUST bind this22-file state, not post2270e411b76 or olderstates.
+
+Actual failure: newloader DID validate retained223binary and exec it. Its new
+stdout began build57f7536766149f9b7aca9621, GET8 succeeded but active/inactive
+both-1 and attributes0; old223probe correctly refused finite128MiB contract
+BEFORE90sdelay/GPUopen. Compositor worker waited then refused cleanhandoff.
+Native600s service598renewals, submitted/completed0. Existing strict service
+qualifier failed its >=9 completed-work criterion, not duration/health. No fake
+success, limit widening or owner-gate relaxation. Initial loader's pre-exec GET8
+was not recorded, so exact point of limit loss is NOT yet proven. Old pilot
+scope text was inherited227 boilerplate; actual image/source/cmd prove mode2.
+
+W228 pipeline-link census now COMPLETE: DSH86399build/PID91697 exit0; DSH29555
+launch/PID92253 census exit0, all handles reaped. Source870afad / MAIN3890b90.
+1079actual20H392CAentries map to986labelled-variant+93default-nameentries,
+469uniqueVS/FS pairs.468pairs link at all five chosen formats70/80/71/81/115;
+1pair refuses all5: std_vert1_lph+inplace_copy_lph writes image texture3, graphics
+IBO images not served in current compiler/render paths. Affects4catalog entries
+216/353/447/540. NO full descriptor/otherMRTformat/runtime/GPU/UI claim.
+Independent494profile pins and469rawstdout/stderr pairs rehashed; result retained
+independent-pipeline-link-review.json. Six genuine own-fixture/invalid-input
+controls passed. No Apple shader bytes in Git. 451-stage prior compiler results
+and original6unspecialized/tile refusals remain unchanged, not relabelled.
+
+Additional source audit for NEXT CA work: actual20H392default library already
+contains edr_scale/luma_boost/inplace_copy in both lpf/lph forms. Upstream full
+frontend still forcesedr->inplace_copy, can pick nearestunknownCAvariant, and
+omitsluma_boost by default. Root227 gauguin_* tests never take those paths; do
+NOT call these shortcuts exact CA rendering. Before actual scene tests, use
+actualsystemlibrary/functions and removeapproximate substitutes/omitted draws
+from the gauguin profile (retaining explicit refusals). Full Metal device
+publication/ownership, indexed buffers/MRT/fetch/image-store pixels stillopen.
+CARenderer rendererWithMTLTexture:options: is a potential offscreen real-CA
+scene gate before desktop discovery: official Apple docs and localSDK say iOS11+
+(receiver supports actualtarget texture and queue option). Still inspect actual
+20H392metadata and runtime; no implementation or physical claim yet.
+https://developer.apple.com/documentation/quartzcore/carenderer
+
+New229worktree research/tmp/gauguin-baseline229-worktree-20261110, branch
+codex/gauguin-baseline-spawn-20261110 basedMAIN3890b90.
+W229=research/tmp/dsh-baseline-0229-setexec.
+Sourceb110b2e in BOTH MAIN and229: onlylegacy fallback changes. Validate exact
+retained root223SHA/metadata as before, GET1selfpriority(24B return/pidmatch),
+record pre-SETEXEC GET8, posix_spawnattr_init/SETEXEC+setjetsam_ext flags0x0c
+(ACTIVE_FATAL+INACTIVE_FATAL),128/128MiB and queried effectiveband. No second
+GPUowner/process. Do NOT use USE_EFFECTIVE_PRIORITY0x01: targetXNU can
+EALREADY beforememlimitupdate on alreadyspawned process. Same strictmode2/noGMT
+route, oldbinary/core/bundle/job/library unchanged; no kernelrebuild.
+API signature/flags/get1sizeof checked against actualqualified219XNUlibsyscall/
+spawn_private.h,spawn_internal.h,kern_memorystatus.c. Candidate NOT installed.
+
+DSH10740 native-stage-v1 TERMINAL0/pinsunchanged/reaped. Werrorclean/signed
+114304B SHAad57f8c18dc365a0e5b46d0201c8c070b0db0762200bfbc0a55ee165523a987a,
+builda417ba2087c71ca41a6c94cc. Retains93-job mode1diagnostic; no newphysical
+claim. Actual20H392import audit of newprivate spawn API/environ stillneeded.
+Host self-contained SETEXEC PID/attribute fixture/model staged underW229,
+DSH54320 launch-only handle; inspect setexec-host-stage-v1/result.json before
+claiming pass/committing fixture. This cannot prove iOSmemorylimits.
+
+Fresh READ-ONLY full backup LIVE: DSH59300 launcherterminal0/reaped; actual
+backup dispatcherPID96066 observed live PPID1. Current22file/headerpreflight
+PASS f650..., hostfree41829593088B. DistinctAPFSclone fromimmutable501bfa14...
+source; every17179869184devicebytes streamed,900skilltimer. No phonewrites or
+reboots. No backup terminal result yet; never restart claimedstage on timeout.
+NEXT inspect SAME96066 and root-backup-v1/result; nativeSETEXEC hostfixture
+result; once complete runnewactualcacheimport audit, stage minimal COW delta
+(probe only if scope stays229), readonlyfsck/102writerchecks/allrealOLDranges/
+independentreview/capturestartup before NEW individual destructive consent.
+No229approval.json exists;227a56746bc consent consumed. After eventualapproved
+write, FIRST mode2baseline must proveold223GET8=128fatal+8fences+GLESownerhandoff;
+then93jobmode1 regression as needed. Do not repeat claimedoldboot/stage or skip
+failedbaseline. UI/redclock/icons/widgets/RAM/storage/peripherals/90-120Hz/daily
+stillincomplete. Mainoriginalmkadt diffa74a0418... preserved. No CI/push.
+
 ### 2026-11-10 CST —0227 real shader readbacks PASS via recovered logs; mode2 control LIVE
 
 This goal turn is PROGRESS: real public MTL shader/PSO/computation readbacks

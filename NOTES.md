@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0233 approved write PASS; same temporary trial LIVE
+
+This supersedes the pending-consent status below. User explicitly replied through
+request_user_input_async call_d7dfe7ede2e04d4cb2627657de531d34 item0:
+"允许写入，并允许失败时回滚本次触及的块". W233/approval.json records the reply and ONLY
+8f1bc547...272 blocks/1,114,112B/39 runs plus touched-run rollback. This consent
+is now CONSUMED; do not ask again or reuse it for another plan.
+
+Codex rehashed all188 ready pins and actual recovery/header before recording
+consent. DSH apply-stage-v1 PID41637 finished0, all190 pins/log independently
+rechecked, process absent. Actual39 writes/39 attempts/39 readbacks, header0LAST,
+no rollback; apply-v1/result state applied-approved-delta-readback-verified and
+reboot_permitted=true. DSH launch57020 reaped0. Local-final image f2bc3664...
+matches the write receipt. Approved3 payload files installed; core8a unchanged.
+
+The final trial233v2/post233v2 path was dispatched ONCE through dispatch-stage-v1.
+Actual outer PID42140 PPID1 and inner trial-stage PID42143 observed LIVE at25s;
+DSH launch77994 not yet reaped at this entry. Do NOT restart claimed stages.
+Actual22 file bytes/hashes/owners/modes verified by installed-preflight-v1 before
+boot; all positive host gates passed before RecoveryIO. PREBOOT root header
+b0bd766ef96c0a9bffc233eb71fa1ebcb8115e8c6415ad0ef4250d94a5b2ea8c.
+Do NOT reuse it as a post-runtime baseline. Actual fastboot SendingOKAY0.458s /
+BootingOKAY0.135s. trial-v1/preflight is observer-running, image_boot_attempted
+and misc_verified true, profile SHA bdb31733c2ba40731eb0911e141942e10782042129c843165b78f33c1aa35a46.
+Same qualified219 kernel/image43c.../mode1gmt1/no-swipe/600s, no new kernel CI.
+
+NEXT observe SAME42140/42143 and trial-v1 for finite automatic TWRP return
+(~745s). Keep full22 capture and existing full-log prefixes90487/17894/1404833B,
+then inspect physical-review233.json and actual METAL233 descriptor records.
+Original strict CA pixel/service qualification is separate and may still fail;
+a trace result is not a fixed renderer/UI/FPS claim. Actual failed function and
+NSError remain unknown until these logs return. No auto/manual-reboot question
+or human UI prompt is needed; user unattended policy stands.
+
+Independent image-probe work had only read sources when consent arrived: no
+new image executable/source/build/worker was started. Resume useful offline work
+while the ORIGINAL trial runs, without mutating its192 pinned inputs. W233 is
+the specialization233 worktree private dsh-specialization-0233-upstream path.
+Full goal ACTIVE/incomplete; main mkadt a74a0418... preserved. No push this round.
+
+
 ### 2026-11-10 CST —0233 NEW write-consent question submitted; reply pending
 
 The async question for ONLY plan8f1bc547... (272 blocks/1,114,112B/39 runs)

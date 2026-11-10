@@ -62,6 +62,14 @@ static void ca_readback(id<MTLDevice> device, id<MTLCommandQueue> queue, id<MTLT
     finish(cb, phase); /* Same supplied queue: waits for all earlier CA commits. */
     const uint32_t *got = [buffer contents];
     check(got != NULL, phase, "mapped readback");
+    /* Own synthetic scenes only, no UI capture. Preserve even a failed scene's
+     * full readback so a host reviewer can compare every channel independently. */
+    for (unsigned y = 0; y < HEIGHT; y++) {
+        char hex[WIDTH * 8 + 1];
+        for (unsigned x = 0; x < WIDTH; x++) for (unsigned c = 0; c < 4; c++)
+            snprintf(hex + x * 8 + c * 2, 3, "%02x", (got[y * WIDTH + x] >> (c * 8)) & 255);
+        receipt("CA-readback scene=%s row=%u hex=%s\n", phase, y, hex);
+    }
     uint64_t hash = 14695981039346656037ULL;
     unsigned maximum = 0;
     for (unsigned i = 0; i < WORDS; i++) {

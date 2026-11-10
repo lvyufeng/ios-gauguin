@@ -30,6 +30,12 @@ the ten explicit poison/readback jobs do not count as the CA draws. The existing
 128 MiB fatal process limits, sole GPU owner and finite deadline remain in force.
 Mode2 still follows the qualified SETEXEC handoff to the retained GLES probe.
 
+Each synthetic frame's complete BGRA readback is also logged before checking
+pixels. `tools/metal_ca_log.py` independently reconstructs all 81,920 channels,
+checks the CPU oracle and summaries, and rejects missing or duplicate rows,
+changed tolerances, stale build identities and false completion receipts. The
+readbacks contain only this probe's generated test patterns.
+
 The scene oracle has passed on a Mac Apple GPU with zero pixel error. The
 derived host fixture explicitly omits iOS admission, image pins and driver
 counters. This validates the chosen oracle; it is not an A619 or iOS result.

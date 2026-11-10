@@ -2,6 +2,85 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —240 corrected probe / complete backup / concrete delta READY; new consent needed
+
+PROGRESS; wholephone goal ACTIVE/incomplete. MAINa1d9112 promotesqualifiedreadonly
+backuphelper+tests/docs; R2401d7995e fixesownedallocationandaddshelper. NoCI/push.
+PhoneTWRP, userdatawrites0/reboots0thisturn. Prior237writeapprovalCONSUMED. Exact
+new240proposalREADYbutNOTapproved, noapproval.json/apply-v1exists. RequestONLYthis
+0.7578125MiB=194blocks794624B/33runs plan
+ 9d943e79086c990652000ccbd1088411e6d51f2a1b8d83cc5d7319facffdbb3d
+andfailure/readbackrollbackofonlytouchedblocks. Waitforactualuseranswer; automatic
+goalcontinuationisNOTconsent. pending-consent240.jsonhasapprovedFALSE, notanapproval.
+
+SourceauditREJECTEDoldprobev1e80/build66233...BEFOREinstall: actualSweetSurface
+ownedlayout rounds20493requestto32768on16KiBpages; caller-backedbindpreserves
+unroundedlength. Correctedv2 usesactualallocatedsize/wholepadding+tailguards and
+recordsrequested/actual/page. Actualkernelcreatefixture246checks distinguishes
+bothpaths. DSHreplacement-stage-v2 PID78381; terminal0,
+all4jobs0/3098pinsunchanged: newnative/signed/RPATH,32corruptreadercontrols reject,
+kernelgeometry, andactualMac5CA20480pixels sameoldrawSHAe63a... . MacnotA619proof.
+Correctedprobe139376B SHA26d09095687544b44af83232fd850c8d8c0d2149a7c17b87b7a0500b697bca3b,
+buildf9dff7b55055c43b524e0211, explicit26CB/native36jobs. Frontend3c62/core8a/
+sampler218e unchanged. Software-review240-v1andoldnative retainedasREJECTED;
+source-rejection240-v1.json recordswhy. UseONLYprobe-shared-v2/result.json.
+
+Originalrawbackup-stage-v1 PID77587 TERMINAL1/919.107s/36pinsunchanged;900sread
+limitendedwithshortfreshstream. Partialroot-backup-v1fileisNOTqualified; retained.
+NoactualUSBdisconnect: controlrequestsworked; observedstreamprogress~3GiB.
+Newreadonlyroot-backup-scan.c staticallybuilt byDSHscan-build-stage-v1 PID82450
+terminal0:83SHA2/manifest/corruption/budgethostcontrols withASAN/UBSAN; ARM64ELF
+4312B SHA cb30d65fff67e4d427c62c309d987272afb6ed0b98ff930dd2748b8ac130e460.
+No dynamiclinker; nativefixeduserdataO_RDONLY, BLKGETSIZE64 identity114919714816,
+maxprefix16GiB, pread64only; writeonlystdout. Linuxprimarysyscall/ioctlvalidated.
+ActualCPUsha2checked. scan-selftest-stage-v1PID83084terminal0:helperpushedONLYto
+verifiedRAM/tmp/ggr-root-scan-cb30d65fff67e4d4, remoteSHAchecked;8MiB/8chunk+whole
+hashesmatchindependentfreshrawreads, no partitionwrites/reboot.
+
+DSHbackup-stage-v2 PID84129 TERMINAL0/276.898s/16pinsunchanged; backupelapsed
+276.047960s. Full16GiBreadONDEVICE; every16384x1MiBchunkverifiedlocally,only447MiB/
+249groupsfetched. Entire16GiB reconstructedclonePythonSHAequalsdevicewholeSHA:
+ 2b8fab2f297533bfe08b6a3b9e8813d59a8b9f3e0c36ee6a61aad5ea8ad3d1a9
+W240/root-backup-v2/iosroot-before-metal240.hfsx0444. SeedisUNQUALIFIEDv1partial,
+usedONLYasCOWbaseline; allchunks/wholeverified, sourceunchanged. 1GiBchangebudget/
+4GiBreserve. SHAmanifest91d5b84bbb9c79d4b3bbfcd08a8803440c9823513f13712b75040174403f142e.
+Currentheader855b320b...unchanged; all22files/currentfull1777006/60607/1443611logs
+verifiedfromfreshcompletebackupin current-capture-v2. NotallbytescrossedUSB; no
+claimbackupof114GiBuserdata/otherpartitions. Oldqualifiedbackupsremainintact.
+
+Fresh-ABI-stage-v1TERMINAL0:all720importsresolvedagainstTHISfresh20H392backup.
+Onlyadditionvsold719is_getpagesize via libSystem->libsystem_c, no removals/weak
+missing. Software-review240-v2.jsonSHA
+ 8378d868e0b56d4e03e934e8f03fab43e5889d62b44546c2482a07bf6ddbbac0
+currentcorrectedsource/geometry/Mac/reader/native/freshABIallbound, hardwareFALSE.
+DSHproposal-stage-v1 PID86176 TERMINAL0/84.025s/3126pins unchanged,2jobs0:
+reviewcorrectedsoftware then EXACTphysical239imageCOWcopy (SHA7357a0ab...), stage
+ONLYexistingprobe, localHFSmetadata/54unlinkedtempcleanup/fseventlogchanges,
+restoreowners+UUID, strictfull-namespace/fork/jobs/rangedelta audit, readonlyfsck0,
+canonicalwriter102tests0, actualALL33oldrunbytescheckedreadonly0, independentFULL
+volumechangedsectors==194.21othercapturedfiles andALL531jobs/cachebytes/args/full
+logs retained. No frontend/core/sampler/jobchanges. Final16GiBimageSHA
+ 1b234fdfad67c7fbc3c092cd43d817a782a9167c730452a1993f92eea795c582.
+Canonicalwrite_root_delta240.pySHAc2da925f74436642384c99514bf0b3465f515991185a50ed9f5fbe09a424526c
+is175v2a7f125... withONLY4pins/key/errorlabelsubstitutions; rollback/headerlast
+logic unchanged. Codexproposal-acceptance240-v1.json3211pinsSHA
+ 8f19b3dda6c2eb4eb501945bf5a823ef7ff36769f2b426464fdc5089b23d6703.
+apply240.pySHA6c72461de1b8f163f0bdaffc8f5f1c621fd21fa0532f52966c35dd754f7151fc
+requiresNEWrealapprovalfirst, exact9dplan/8freadyhash, allcurrentpins thenfrozenwriter.
+DSHapply-gate-stage-v1PID88249terminal0:actualmissingapprovalrejectsBEFOREIO/output.
+Runtime-preflight-review240-v1.json recordsgate. Do NOTrerunmissingconsenttestafter
+approvalexists. Noapprovalsource_call_idinvented; createapproval.jsonONLYafter
+actualuserreply, preservingverbatimanswer/callID/plan/readyhash/rollbackTrue.
+THENnewpinnedapply-stage-v1runsONLYapply240.py, verifyall33write/readbacks/header0
+last beforeprepareONEtemporary239image/240probe36nativejobtrial. Boot/postruntime
+helpersnotyetprepared; retain32MiBlogreader+oldstrictFP16/CA/task+newsharedreader.
+Neednewsharedqualifiercorrelation36native/26explicit/10framework, only5intentional
+WRITEguards,40960bothviewpixels+alloldregressions/cleanup/ownerreacquire/600s.
+No240install/boot/hardware/desktop/highrefreshqualificationyet. Furtherrealdesktop
+Metaladmission/noCopyuploads/presentation/inputlatencyandwholephonegoalsremain.
+AllouterDSH76564/75880/19479/72276/87540/51732/79180/12077reaped0; no workersLIVE.
+OriginalMAIN/R240mkadtbinarydiffa74...preserved. Keepallfailedstages/artifacts.
+
 ### 2026-11-10 CST —239 physical input lifetime PASS;240 shared CA output software ready
 
 Completed source commits: MAIN9676df9 (qualified201-patch driver/tests),

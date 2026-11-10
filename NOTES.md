@@ -2,6 +2,75 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0235 consent-first entries complete; concrete write ready for NEW approval
+
+PROGRESS. Full phone goal ACTIVE/incomplete. Source remains MAIN28497bc /
+R235fac044d; prior notes MAIN649b220 /R235ec39cc3. No new phone write, temporary
+boot, kernel build, CI or push. Only main tools/mkadt.py user diff remains and
+its binary diff SHA a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860
+is unchanged. Consent233 is CONSUMED; there is NO235 approval. Next immediate
+step is to ask NEW individual consent for plan809b9064 below. Earlier approval
+for8f1bc547 does not authorize this new delta. Do not mark full goal complete.
+
+R235=research/tmp/gauguin-precision235-worktree-20261110;
+W235=R235/research/tmp/dsh-precision-0235-flow. All final235 entries generated
+from FINAL233 templates, frozen read_files235.py preserved. apply235.py,
+trial235.py, boot_pilot235.py and post235.py bind plan809b9064...,286blocks,
+1171456B/35runs, actual builda509db050e865321c6fa3c86 and review-stage-v3 PASS.
+All actual235 entries reject missing consent before device IO/output claims.
+Strict capture adds independent native_FP16 rawhalf verification, CAinitial_draws4,
+native>=16 and subtract11 explicitjobs, device-seed correlation and original
+LPH specialization after the actual FP16 activation marker; LPF/absent functions,
+original specialization failures and old ownership/pixel/service failures reject.
+CA stdout remains exactly344records; independent FP16 prefix is separate.
+Legacy mode2 fallback unaffected. No desktop/public-family publication.
+
+DSH entries-stage-v1 PID71130 terminal1 AFTER all actual models passed. Its
+aggregator incorrectly expected capture335; actual capture339 counts four extra
+local-HFS reads for this extent layout, both22-file base/final models use44reads.
+Preserve original script/stage/log. Actual capture339, startupguards22/5entries,
+tracecontrols12, controllercontrols15 all PASS; no device IO in these models.
+Controller fixtures combine actualMac half rows with synthetic CA/native receipts,
+explicitly NOT phone evidence. Fresh finish_entries235v2.py reviews exact339;
+entries-stage-v2 PID73683 terminal0 in13.030415s, inputpins148 unchanged. It also
+completed READ-ONLY current-device refresh: all22 files/full91041/20386/1411296B
+prefixes, all35OLD runs/1171456B and headerfd991629... unchanged. No reboot/write.
+Originalv1 and v2 dispatcher PIDs absent; DSH launch-v2 outer completed. Old outer
+25979 already reaped (later poll returned unknown process). Do not rerun claimed
+stages. Use working private run-dsh-source-v2.cjs for future DSH launch.
+
+Codex final acceptance v1 incorrectly assumed three changed file CONTENTS from
+the three-target staging manifest. Resource seal CodeResources b948b57e... is
+actually byte-identical. Failure retained in ready-review235-v1-count-failure.json;
+no ready record or phone IO had occurred. Fresh accept_ready235v2.py verified
+all three targets, exactly TWO content changes (frontend+pairedprobe), all old/new
+run hashes and346 unique pins across receipts/profiles/logs/current22files; all
+8 relevant worker PIDs absent. ready-for-consent235.json SHA
+0b2ca9a24edcb839c1a3db4f05ab0c7cc548943271806064d41ee256229c987f,
+state ready-for-new-individual235-native-FP16-CA-write-consent, user_approvedfalse.
+
+Concrete unchanged W235/delta-v1/delta-plan.json SHA
+809b9064faf3875279824db4a1dd6f580a99224207d60ba2b0a84e24c017540a:
+286blocks/1171456B (1.1171875MiB)/35runs. Updates existing Metal frontend and
+paired probe plus HFS metadata; resource seal verified identical. All531 existing
+jobs/cache parameters retained. New16GiB fulldevice backup53642ed8...0444 intact;
+localfsck0, writer102, currentOLD ranges35, capture339 and guards PASS. Current
+phone last actualTWRP/headerfd991629f93dad541c8e7dd857d980001d4e7c45b98f17e8220820ec81a8e73e.
+No need rebuild/back up/restage any of these already completed artifacts.
+
+NEXT ask concrete NEW235 write consent quoting AGENTS.md individual destructive
+step rule, allowing rollback only touched runs on write/readback failure. On actual
+approval record exact reply/scope in approval.json, recheck ready/current header,
+DSH launches sealed apply-stage-v1 ONCE, verify actual35writes/readbacks/headerLAST.
+Then DSH dispatch_trial235.py once; strict installed22 readback/positive host gates
+precede temporary fastboot boot. Same219kernel43c69019...image, mode1/gmt1,
+no synthetic swipe,600s service, automaticTWRP around746s. Wait on originalPID,
+post235 captures all22files/full logprefixes and independently verifies realFP16
+and all five CA scenes. Do not request UI or auto/manual reset confirmation.
+Only manualTWRP/cable help if genuinely stuck. No phoneFP16/CA/UI/FPS/highrefresh
+or daily-use success yet; presentation, caller-backed IOSurface, RAM/storage/
+peripherals/power/highrefresh remain open.
+
 ### 2026-11-10 CST —0235 native FP16 route implemented; fresh286-block delta reviewed, entries pending
 
 PROGRESS. Full phone goal ACTIVE/incomplete. New source MAIN28497bc /R235fac044d.

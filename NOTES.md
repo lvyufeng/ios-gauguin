@@ -2,6 +2,16 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0233 NEW write-consent question submitted; reply pending
+
+The async question for ONLY plan8f1bc547... (272 blocks/1,114,112B/39 runs)
+was accepted by request_user_input_async. The tool exposed no question ID; do
+not invent one. Await the actual user's answer. No approval file, write, boot or
+new worker exists. Follow the immediately preceding finalready handoff and its
+FINAL v2 entry paths. Previous0230 and earlier approvals do not authorize this
+new delta. Full goal remains active and incomplete.
+
+
 ### 2026-11-10 CST —0233 concrete delta ready; NEW individual consent required
 
 This supersedes the live backup/preparation entry below. Full goal remains

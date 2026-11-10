@@ -18,6 +18,11 @@ on:
         description: space-separated MACHINE_CONFIGs (sweet, gauguin); keep one
           per run so the web log fits Actions' size limit
         default: "gauguin"
+      host_checks:
+        description: Host test lane (ui-trace is the focused clean-tree regression suite)
+        type: choice
+        options: ["all", "ui-trace"]
+        default: "all"
   push:
     branches: [main]
     paths:
@@ -37,6 +42,7 @@ env:
   DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
   MACOS_VERSION: ${{ inputs.macos_version || '13.5' }}
   KERNEL_CONFIG: ${{ inputs.kernel_config || 'DEVELOPMENT' }}
+  HOST_CHECKS: ${{ inputs.host_checks || 'all' }}
 
 jobs:
   build:
@@ -50,6 +56,10 @@ jobs:
         run: |
           test "$MACOS_VERSION" = 13.5 || { echo "Only the pinned 13.5 dependency profile is supported" >&2; exit 1; }
           case "$KERNEL_CONFIG" in DEVELOPMENT|RELEASE|DEBUG) ;; *) exit 1;; esac
+          case "$HOST_CHECKS" in all|ui-trace) ;; *) exit 1;; esac
+          if [ "$HOST_CHECKS" = ui-trace ]; then
+            test "$MACHINE_CONFIGS" = gauguin || exit 1
+          fi
           for mc in $MACHINE_CONFIGS; do
             case "$mc" in sweet|gauguin) ;; *) echo "Unsupported machine: $mc" >&2; exit 1;; esac
           done
@@ -134,7 +144,12 @@ jobs:
           DXB_STEPS="install_deps setup_xcode_toolchain choose_xnu get_project_xnu apply_project_patches venv build_bootstrap_cmds build_dtrace build_availabilityversions" \
             DXB_STEP_NAME=bootstrap bash run-dxb.sh || exit 1
           ls -la fakeroot/usr/local/bin | head -20
-          XNU_SOURCE="$PWD/xnu" bash "$GITHUB_WORKSPACE/tests/run-all.sh" || exit 1
+          if [ "$HOST_CHECKS" = ui-trace ]; then
+            python3 "$GITHUB_WORKSPACE/tools/run-ui-kernel-checks.py" \
+              --source "$PWD/xnu" --out "$GITHUB_WORKSPACE/out/ui-host-checks" || exit 1
+          else
+            XNU_SOURCE="$PWD/xnu" bash "$GITHUB_WORKSPACE/tests/run-all.sh" || exit 1
+          fi
           mkdir -p out
           fail=0
           for mc in $MACHINE_CONFIGS; do
@@ -155,6 +170,7 @@ jobs:
           path: |
             /tmp/dxb-*.log
             dxb/build/runs/*/build-manifest.json
+            out/ui-host-checks/
           retention-days: 7
 
       - name: Package build tree for local compiles

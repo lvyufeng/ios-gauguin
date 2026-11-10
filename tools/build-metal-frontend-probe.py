@@ -23,7 +23,7 @@ def main():
     pins={str(p):sha(p) for p in [Path(__file__).resolve(),source,source.parent/'probe_boot.h',header,helper,receipt,binary,sdk/'SDKSettings.json']}
     shader=None;shader_args=[];ca_args=[]
     if a.ca_renderer:
-        assert frontend.get('profile') in ('gauguin-ca-exact','gauguin-ca-trace'), 'CA scenes need exact image-owned shader profile'
+        assert frontend.get('profile') in ('gauguin-ca-exact','gauguin-ca-trace','gauguin-ca-identity'), 'CA scenes need exact image-owned shader profile'
         assert not a.shader_receipt, 'CA scenes are a separate real-framework qualification'
         for p in [source.parent/'ca_renderer_tests.h',sdk/'System/Library/Frameworks/QuartzCore.framework/Headers/CARenderer.h']:
             pins[str(p)]=sha(p)

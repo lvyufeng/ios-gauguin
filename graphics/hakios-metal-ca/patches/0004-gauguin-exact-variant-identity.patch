@@ -1,0 +1,140 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -1372,40 +1372,20 @@
+ static NSMutableDictionary *hm_ca_pipelines;    /* draw label -> @[vertex label, fragment label] */
+ static NSMutableDictionary *hm_ca_frag_vert;    /* fragment label -> the vertex label every pipeline of it has */
+ 
++#include "GauguinCAVariant.h"
++static NSMutableDictionary *hm_ca_variant_names; /* full function identity, including precision */
++static NSMutableDictionary *hm_ca_variant_types; /* MTLB stage 0/1 */
++
+ static NSData *
+-hm_ca_module(const uint8_t *lib, size_t size)
+-{
+-	uint64_t funcs, bc;
+-	uint32_t entry;
+-
+-	/* the one function's bitcode: the bitcode section at +0x48 plus the function's OFFT, MDSZ long */
+-	if (size < 0x58 || memcmp(lib, "MTLB", 4) != 0) {
+-		return nil;
+-	}
+-	memcpy(&funcs, lib + 0x18, 8);
+-	memcpy(&bc, lib + 0x48, 8);
+-	if (funcs + 8 > size) {
+-		return nil;
+-	}
+-	memcpy(&entry, lib + funcs + 4, 4);
+-	for (uint64_t q = funcs + 8, end = funcs + 4 + entry, offt = ~0ull, mdsz = 0; q + 6 <= end && q + 6 <= size;) {
+-		uint16_t len;
+-
+-		if (memcmp(lib + q, "ENDT", 4) == 0) {
+-			break;
+-		}
+-		memcpy(&len, lib + q + 4, 2);
+-		if (memcmp(lib + q, "OFFT", 4) == 0 && len == 24 && q + 6 + 24 <= size) {
+-			memcpy(&offt, lib + q + 6 + 16, 8);
+-		} else if (memcmp(lib + q, "MDSZ", 4) == 0 && len == 8 && q + 6 + 8 <= size) {
+-			memcpy(&mdsz, lib + q + 6, 8);
+-		}
+-		q += 6 + len;
+-		if ((offt != ~0ull && mdsz != 0) && bc + offt + mdsz <= size) {
+-			return [NSData dataWithBytes:lib + bc + offt length:(NSUInteger)mdsz];
+-		}
+-	}
+-	return nil;
++hm_ca_exact_variant(NSString *label, NSString *name, BOOL vertex)
++{
++    if (label == nil || name == nil) return nil;
++    struct gauguin_ca_variant identity = {
++        .name = [hm_ca_variant_names[label] UTF8String],
++        .type = [hm_ca_variant_types[label] unsignedIntValue],
++    };
++    if (!gauguin_ca_variant_matches(&identity, [name UTF8String], vertex)) return nil;
++    return hm_ca_variants[label];
+ }
+ 
+ static void
+@@ -1423,6 +1403,8 @@
+ 		hm_ca_functions = [[NSData alloc] initWithContentsOfFile:@HM_CA_PIPELINELIB "/functions"
+ 								 options:NSDataReadingMappedIfSafe error:NULL];
+ 		hm_ca_variants = [[NSMutableDictionary alloc] init];
++		hm_ca_variant_names = [[NSMutableDictionary alloc] init];
++		hm_ca_variant_types = [[NSMutableDictionary alloc] init];
+ 		hm_ca_pipelines = [[NSMutableDictionary alloc] init];
+ 		hm_ca_frag_vert = [[NSMutableDictionary alloc] init];
+ 		if (desc == nil || hm_ca_functions == nil || dn < 8) {
+@@ -1454,7 +1436,7 @@
+ 		for (NSUInteger i = 0; i < [labels count]; i++) {
+ 			const uint8_t *m = at < fn ? memmem(f + at, fn - at, "MTLB", 4) : NULL;
+ 			uint64_t total;
+-			NSData *module;
++			struct gauguin_ca_variant identity;
+ 
+ 			if (m == NULL || (size_t)(m - f) + 0x18 > fn) {
+ 				break;
+@@ -1463,9 +1445,12 @@
+ 			if ((size_t)(m - f) + total > fn) {
+ 				break;
+ 			}
+-			if ((module = hm_ca_module(m, (size_t)total)) != nil) {
+-				hm_ca_variants[labels[i]] = module;
+-			}
++			if (gauguin_ca_variant_read(m, (size_t)total, &identity)) {
++                NSString *name = [NSString stringWithUTF8String:identity.name];
++                hm_ca_variants[labels[i]] = [NSData dataWithBytes:identity.module length:identity.module_size];
++                hm_ca_variant_names[labels[i]] = name;
++                hm_ca_variant_types[labels[i]] = @(identity.type);
++            }
+ 			at = (size_t)(m - f) + (size_t)total;
+ 		}
+ 		/* section 7: each pipeline's label with its functions' (draw, vert, frag), as strings in its entry */
+@@ -1518,13 +1503,13 @@
+ 	if ([function respondsToSelector:@selector(label)]) {
+ 		label = [function label];
+ 	}
+-	if (label != nil && (variant = hm_ca_variants[label]) != nil) {
++	if (label != nil && (variant = hm_ca_exact_variant(label, name, vertex)) != nil) {
+ 		chosen = label;
+ 	} else if (pipeline != nil && hm_ca_pipelines[pipeline] != nil) {
+ 		NSArray *pair = hm_ca_pipelines[pipeline];
+ 
+ 		chosen = vertex ? pair[0] : ([pair count] > 1 ? pair[1] : nil);
+-		variant = chosen != nil ? hm_ca_variants[chosen] : nil;
++		variant = hm_ca_exact_variant(chosen, name, vertex);
+ 	} else if (pipeline != nil && [pipeline hasPrefix:@"com.apple.coreanimation.draw."]) {
+ 		/* a pipeline CoreAnimation makes at run time, which the library does not name: its fragment function is the
+ 		 * spec after the first '_' (so in all 986 the library names) and its vertex one the one every pipeline of that
+@@ -1537,7 +1522,7 @@
+ 			[@"com.apple.coreanimation.frag." stringByAppendingString:[spec substringFromIndex:NSMaxRange(under)]] : nil;
+ 
+ 		chosen = frag == nil ? nil : (vertex ? hm_ca_frag_vert[frag] : frag);
+-		variant = chosen != nil ? hm_ca_variants[chosen] : nil;
++		variant = hm_ca_exact_variant(chosen, name, vertex);
+ 	}
+ 	if (variant == nil || said++ < 40) {
+ 		hm_print("CoreAnimation's %s (label %s, pipeline %s): %s%s\n", [name UTF8String], label ? [label UTF8String] : "none",
+@@ -1561,13 +1546,13 @@
+ 	}
+ 	hm_ca_load();
+ 	NSString *flabel = label ? @(label) : nil, *plabel = pipeline ? @(pipeline) : nil;
+-	if (flabel != nil && (variant = hm_ca_variants[flabel]) != nil) {
++	if (flabel != nil && (variant = hm_ca_exact_variant(flabel, @(name), vertex)) != nil) {
+ 		chosen = flabel;
+ 	} else if (plabel != nil && hm_ca_pipelines[plabel] != nil) {
+ 		NSArray *pair = hm_ca_pipelines[plabel];
+ 
+ 		chosen = vertex ? pair[0] : ([pair count] > 1 ? pair[1] : nil);
+-		variant = chosen != nil ? hm_ca_variants[chosen] : nil;
++		variant = hm_ca_exact_variant(chosen, @(name), vertex);
+ 	} else if (plabel != nil && [plabel hasPrefix:@"com.apple.coreanimation.draw."]) {
+ 		NSString *spec = [plabel substringFromIndex:[@"com.apple.coreanimation.draw." length]];
+ 		NSRange under = [spec rangeOfString:@"_"];
+@@ -1575,7 +1560,7 @@
+ 			[@"com.apple.coreanimation.frag." stringByAppendingString:[spec substringFromIndex:NSMaxRange(under)]] : nil;
+ 
+ 		chosen = frag == nil ? nil : (vertex ? hm_ca_frag_vert[frag] : frag);
+-		variant = chosen != nil ? hm_ca_variants[chosen] : nil;
++		variant = hm_ca_exact_variant(chosen, @(name), vertex);
+ 	}
+ 	if (said++ < 20) {
+ 		hm_print("metal2vulkan: CoreAnimation's %s (label %s, pipeline %s): %s%s\n", name, label ? label : "none",

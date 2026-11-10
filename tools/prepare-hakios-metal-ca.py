@@ -13,7 +13,7 @@ def main():
     ap.add_argument('--cache',type=Path,required=True)
     ap.add_argument('--out',type=Path,required=True)
     ap.add_argument('--profile',choices=['baseline','gauguin-diagnostic','gauguin-ca-exact',
-                                       'gauguin-ca-trace'],default='baseline')
+                                       'gauguin-ca-trace','gauguin-ca-identity'],default='baseline')
     a=ap.parse_args();repo=Path(__file__).resolve().parents[1]
     manifest=repo/'graphics/hakios-metal-ca/upstream.json';spec=json.loads(manifest.read_text())
     assert spec['revision']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
@@ -35,10 +35,16 @@ def main():
         'gauguin-ca-trace': ['0001-gauguin-offscreen-diagnostic.patch',
                              '0002-gauguin-exact-ca-functions.patch',
                              '0003-gauguin-descriptor-specialization-trace.patch'],
+        'gauguin-ca-identity': ['0001-gauguin-offscreen-diagnostic.patch',
+                              '0002-gauguin-exact-ca-functions.patch',
+                              '0003-gauguin-descriptor-specialization-trace.patch',
+                              '0004-gauguin-exact-variant-identity.patch'],
     }
     patches=[profile/'patches'/name for name in patch_names[a.profile]]
     overlays=sorted(p for p in (profile/'overlay').rglob('*') if p.is_file()) if patches else []
-    if patches:assert len(overlays)==2 and all(p.is_file() for p in patches)
+    if a.profile != 'gauguin-ca-identity':
+        overlays=[p for p in overlays if p.name != 'GauguinCAVariant.h']
+    if patches:assert len(overlays)==(3 if a.profile=='gauguin-ca-identity' else 2) and all(p.is_file() for p in patches)
     for p in patches+overlays:pins[str(p)]=sha(p)
     out.mkdir(parents=True,exist_ok=False);source=out/'source';source.mkdir()
     for p,rel in rows:

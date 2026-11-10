@@ -2,6 +2,74 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —254 kernel UI trace SOURCE/HOST/NATIVE PASS; not booted
+
+Previous253 goalturn PROGRESS: fresh HakiOS/UniXNU evidence and priority correction.
+This254 implements the bounded kernel portion of the missing real-input/GPU/
+presentation trace. ActiveR254=research/tmp/gauguin-trace254-worktree-20261111,
+branchcodex/gauguin-ui-latency-20261111, parent5c05a1e. Source724f5b7,
+integration99b99ad, fixture90a38b5, finalnativeverifier
+857b16ad612e5b053919bc94e877b5d7eaafd22b.
+Report docs/gauguin-ui-kernel-trace-20261111.md. W254=R254/research/tmp/dsh-ui-0254-trace.
+
+0216 DEFAULT-OFF sweettrace=N(1..16), exactdesktopmode required. Nthobserved
+physical no-contact->down starts4s/4096record immutableCPU-clockprefix; N2can
+skipunlock. Syntheticdoesnottrigger. Enabledonly256KiBkalloc; nohotheap/waits/
+console/MMIO/DMA/policychanges. Try-lockloss/deadline/capacity/clock/GPUstop
+explicit; closeslossbeforeexport, neverwraps/rearms. Existinglogworkerdrains
+16recordspertick AFTERfreeze, header/footer/version/timebase/count. No newdisk
+region. NVT transfer/decode/reportID -> HIDgate/dispatch/return; GPUAPIqueued/
+locked andsyncsubmit/fences/surfaceedges; FBswap/layer/present/readlock spans.
+OldHIDsnapshotandentryunchanged; newinternaltracedentry. Originalpermissions,
+ownership/quarantine/completion/displayretention unchanged. Parserretainsunknown
+endpoints andrejectsbad/incompleterecords; NO GPU-only/panelFPS/causaltouch-frame
+claim. CAcommit/encoding, allocationgeneration andphysicalpanel latch missing.
+Readscope mayinclude sampling/clipping, presentendnotproofalllayersrendered.
+
+DSH ALLexecution fullaccess/no fallback. Hostv1PID33730 exit1/12pins/1.427s:
+unsupportedMacASANleakoption BEFOREtests. V2PID34932 exit1/6333pins/4.471s:
+strictsource/core/boardpass; one malformed-logfixture made no change. V3
+PID35477 exit1/6334pins/16.893s: core/board+9readernegatives,HID,NVT,GPU,held
+PASS; nativecore/boardpass thenNVTfailsOLDgeneratedHIDheader. V4PID36309
+exit0/6334pins/10.096s: isolatedbyte-preservingexportoverride +completecandidate
+include binding, ALL9nativeARM64TUsPASS/2131headerconfigchecks. Nevermodify
+referenceexports/objects; transformedheaderexports refusedwithoutregeneration.
+NVT/HID.depsconfirmnewoverride. 13traceinterface refsresolveamong9nativeobjs.
+Notfullkernellink. V5launchrelativeoutrejectedbeforedispatcher, retained.
+V6PID37265 exit0/6334pins/2.627s: self-containedactualpatchsourceextraction+
+core/board/readerPASS. AllouterDSHsessionsreaped0; innerfailuresnotrelabeled.
+
+ActualcoreASAN/UBSAN validatesoff/invalid/allocfail,gesture,one-shot,deadlines/
+capacity/clock/stop/reentry/eightwriters/immutabledrain. PositiveHIDreportIDs,
+unchanged/no-dispatch,allocationfailure,reentry checked. NVTactualprotocol/SHA
+oldnegative/syntheticflowpreserved withtracemodeleddisabled. ActualGPUtrace
+collector:desktop1223checks/30layouts/12malformed/38submitpairs/30surfaceedges;
+fault66checks/9submits/1edge withDMAretained;legacy38/unarmed33checks,8submits
+ each. Hardwaremocked. Held3236checks +oldrawIDfunctionalRED42 stillPASS.
+
+Fresh207clone+strict0216 =>208patches/5335files/12changed-addedpaths SHA
+24577f7277a76e15d84d157ce45a8f1077c22db3bf19b678a6813544782b4f6f.
+Patchd42fdac80b17c102135df85e07dcccfab70075db06bacbf8b3abcc2cc12ab0a5.
+Native-result e3d230a1e0ac52bcad1696d266ad60d9eed375904955b7603c78e55ca0223688.
+Codexindependentreview254-v1 SHA
+9da2ded9547a977922afecb79bcd27be9bca4f0abfa900aab1ae524268e45eb1.
+Checksfinalpins/objects/logs/headerdeps/symbols/sourceclone; records intentional
+historicalpinschanges. Finalv4/v6allpinscurrentBEFOREhandoffdocs. 250source,
+250image18d3196f, pending2409d943e79, MAINmkadta74diffunchanged. No newfullkernel/
+image/frontendbuild/devicequery/write/boot/CI/push. Physical239/root237retained.
+
+NEXT: genuine240reply -> exact9dwriter freshpreconditions -> EXACTpaired2397357
+trial FIRST -> freshrootcapture/regeneratedlaunchcache/scopeddesktopdelta+
+individualconsent -> existing0250whole-desktopcorrectness FIRST. No repeated
+240question or inferredpermission. Offline next: fullnative254kernel +reviewed
+tracebootprofile within607B; existing250commandalready607B, blindlyappending
+sweettrace=2wouldbe620B INVALID. Preserveboard/GPU/UFS/healthsettings/exactABI
+roundtrip. Disk~3.6GiBbelowfreshfullbuild+2GiBreserve; noartifactdeletion. CI
+build/pushalreadyauthorized ifneeded. Thenrealgesturetrace/remainingCA+panel
+boundaries -> trace-ledcorrect60Hz -> physical90/120Hz/longthermals. FullRAM/
+storage/peripheral/dailyphonegoalACTIVE. 252producercomplete,kernelconsumer
+NOTIMPLEMENTED; unrelatedmemory/probesmustnotdisplacewhole-desktopacceptance.
+
 ### 2026-11-11 CST —252 original-handoff FDT producer SOURCE/HOST/NATIVE PASS
 
 Previous251 goalturn PROGRESS(currenthardwarepreflight/lower-RAM gap). Thisturn

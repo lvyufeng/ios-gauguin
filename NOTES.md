@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0230 approved39-run write PASS; real CA scene trial actually booted
+
+PROGRESS: actualUSERreply received via request_user_input_async
+call_5b0c90d89c6d4db0be6c8384f24b0308 item0, verbatim
+"允许写入，并允许失败时回滚本次触及的块". Recordedapproval.json binds ONLY
+EXACTe85b36e87b215178a846de2bac65fbfebd36dc76b0fe33ecd5f86ced0a9429fc,
+518blocks/2121728B39runs +thisattempttouched-runrollback. ThisapprovalCONSUMED;
+priorpendingquestionNOWANSWERED, doNOTaskagain. FullgoalACTIVE/incomplete.
+
+W230=research/tmp/gauguin-ca230-worktree-20261110/research/tmp/dsh-ca-0230-exact-renderer.
+Dshapply22560launchhandle reaped0, actualapplyPID17195terminal0. Exact39writes/
+39attempts/ALL39readback, header0LAST, noretry/rollback. Resultstate
+applied-approved-delta-readback-verified/reboot_permittedtrue, final-localimage
+82bc5321... . BeforelaunchCodexrehashedALLready and96independentreviewpins;
+actualwriterrecheckedALLoldrangesbeforefirstwrite. Core8a826583 NOTreplaced;
+independent231af6918b6candidate remainsOFFLINE. Currentnativeprobe03a62089.../
+exactCAfrontend564f9bb8... andonejob/cacheargv--metal230installed, policies/
+old223/GLES/Mesa/BB/ownshader untouched asapproved. Files22bytes/hash/uid/gid/
+modeverifiedactual, positivefullhostgatesstoppedbeforeIOthenPASS.
+PREBOOTheader=1b59d646166e678e2cfa65042315f75dddc03b10fab430d88261494775f405ec.
+DoNOTuseitafterruntime; posttrialcapturewillbindnewheader/full3logs.
+
+DSHdispatch31300launchhandle notyetreapedwhenrecorded; reapnext. Detachedactual
+outerdispatcher17861 PPID1 OBSERVEDLIVE45s, innertrialdispatcher17864claimed;
+originaltrial-v1/preflight observer-running/image_boot_attemptedtrue/misc_verified
+true. cycleactualSendingOKAY0.452s/BootingOKAY0.134s/total0.589s. Exactimage
+43c69019ebc6a3a9935ae04e01bca01b1c039dd4ea24d1e07bc9ce36261d0b24 /
+qualified219kernel/NVT1/no synthetic swipe/mode1gmt1/6GiB/30Hz/600s. No new
+kernelbuild/CI/rootwrite needed. DoNOTrestarttheseclaimedprofiles orrepeatwrite.
+RecheckactualPID+terminalresults, observationtimeoutnotfailure. Testfullyauto;
+userunattended, no humanUIprompt orautomatic-vs-manualquestionneeded.
+
+NEXTwaitSAME17861/trial17864 forfiniteautomaticTWRPreturn~746s andnew
+physical-review230.json. Full22capture+3oldprefixes89932/16292/1398371FIRST,
+thenstrictobserver0/nativebanner600sservice/newexactCAABI128hard/ALL5scene
+realDraws andraw81920channelCPUcomparisons/min15nativejobs/soleowner/cleanrelease.
+Anyactualfailureisevidence, doNOTrelaxqualifiersorclaimpixelsfromshaderlinks.
+No physicalCA/UI/FPS/daily resultclaimedyet. Lastheader2e1andbackup62f...are
+nowhistoricalPREWRITE snapshots, notnextdelta baselines. Allfutureuserdata
+changes needfreshpostcapture/backup/minimaldiff andNEWindividualapproval.
+
+Anew232worktreewascreatedbeforetheuserreply forindependentimage-probepreparation,
+butNO232sourceedit/worker/IOwasstarted. Currentpriorityisthisphysical230trial.
+Offline231softwareall469links/44encoder/AIRbasesnativeaf... remainsqualified
+SOFTWAREONLY (seepriorentry). Nextindependentworkcancheck231native20H392imports
+andprepareownimage-write/visibility/permissionreadbackfixtures, butmustnotmutate
+W230triallivepins orsubstitute231coreintothisapprovedplan. MAINmkadtoriginal
+a74a0418... remainsintact. AllfullgoalRAM/storage/peripherals/power/90-120Hz/
+dailyrequirementsstillOPEN. No remote push/CI thisround.
+
 ### 2026-11-10 CST —0231 opt-in graphics images software gate PASS;0230 consent still pending
 
 PROGRESS: whilewaiting230individualapproval, implemented/tested a realremaining

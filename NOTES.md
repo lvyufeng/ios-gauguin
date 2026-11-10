@@ -71,7 +71,11 @@ stage/results/source retained. NEWcontrol-mode2-v2 wraps JSON paths as Path;
 actual pre-first-RecoveryIO model exit0, then real22 preflight and positive host
 pilot gates PASS. DSH74880 launches only; actual durable dispatcherPID89720
 observed live PPID1. Current stage profile12051cdf..., no terminal result yet;
-trial/preflight last recovery-latch-verified, image_boot_attempted=false (poll next).
+trial/preflight NOW observer-running/image_boot_attempted=true/misc_verified=true.
+Actual mode2 boot SendingOKAY0.456s/BootingOKAY0.134s/total0.595s. DSH74880
+launcher handle terminal0/reaped; durablePID89720 remains LIVE PPID1 (confirmed
+again before stopping), no trial/stage terminal result yet. This is a VERIFIED
+WAIT for that specific live process, not assumed progress or test completion.
 This control uses EXACT physical223image346c7495...,219kernel/NVT1/6GiB/30Hz/
 mode2/noGMT/no synthetic swipe/600s. Rootuserdata stays installed227; its new
 loader must exec retained qualified223probe, complete8root fences then admit

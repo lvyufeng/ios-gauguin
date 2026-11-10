@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0226 user reports red lock-screen text; offscreen trial still LIVE
+
+User observation CURRENT226: "又成了锁屏红字了，不影响吧". Answered that red
+text remains a display defect; this root-only mode1 diagnostic disables desktop
+GLES worker and cannot establish UI correctness. Offscreen result still awaits
+actual pixels/native logs. No instruction to manually reboot; keep finite trial.
+DSH26487 still owns same physical trial; do not restart or alter its pinned code.
+
+Independent OFFLINE work only while waiting: DSH75657 CA-assets-stage-v1 exit0/
+reaped, actual20H392CA functions file3587004B SHA630a3569... and pipelines.desc
+1593060B SHAa6a43ffb... contain451embeddedMTLBs, fourfixed uber names. Actual
+QuartzCore/default.metallib EXISTS1014944B, unlike source reference's described
+image. DSH65982 default-library-stage-v1 exit0/reaped, SHA11c74cc42ce5137b73d44d427f75764f886656d4ddb374422d56b609ed2762d9,
+thinMTLB header[1,2]; no FATarch table. Further Codex read-only byte inspection
+finds141functions, ALL141modules startLLVMwrapperdec0170b. This is asset/format
+availability, NOT successful Metal loading or shader compilation/runtime proof.
+The earlier has_air64_slice=false field only means no FATair64 entry; it does
+NOT show that the thinlibrary lacks AIR. Keep Apple assets in privateW226 only.
+Xcrun locates a metal executable but actual --version FAILS: missing Metal
+Toolchain; no component download attempted. ActualsystemAIRassets and existing
+pinnedLLVMfixtures remain available; do not silently report compiler present.
+
+Main/isolated source implementation unchanged, no newdevicewrites/boots/CI.
+Full CAshader variants/constants, Metaldevice discovery/ownership transfer,
+renderer correctness/performance and all daily-use goals remain unqualified.
+NEXT: same26487->actual21filecapture, strictbanner/service/83pixelchecks.
+
 ### 2026-11-10 CST —0226 approved48-run write PASS; actual temporary Metal-object trial LIVE
 
 Fresh user consent received: request_user_input_async call_dde7fef6b021486eb7afa1f57d4ff3a9 item0,

@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0233 fresh read-only backup LIVE; proposal scripts prepared
+
+PROGRESS toward actual trace trial; full goal ACTIVE. Actual ADB count1/recovery,
+fastboot0. DSH launch50562 started detached backup-stage-v1 PID33776; most recent
+ps confirmed LIVE PPID1 at08:31, not terminal. Observe THIS worker/result; do not
+restart a claimed profile. W233 is the specialization233 worktree private
+dsh-specialization-0233-upstream directory described below.
+
+Preflight captured actual22 files, matching post230 sizes/hashes/owners/modes,
+and header57e6255a...; recovery gauguin/unmounted/noholders validated. A fresh
+complete16GiB stream is reading into a distinct local clone of oldbackup62f...
+with a900s timeout. Current host free space37.98GB, no USB/stream error observed.
+No partition writes, boot or new consent. Result/complete-stream hash not yet
+available; file length alone is NOT progress because it began as a clone.
+
+Prepared (UNEXECUTED) private audit233fresh.py/reuse_image233.py/stage_root233.py/
+prepare_delta233.py/check_fs233.py/prepare_writer233.py/preflight233.py/
+review_delta233.py/proposal233.py. New scope ONLY3 existing files: signed frontend
+executable, resource seal, paired probe. Existing job/cache stay byte-identical
+with --metal230; all531 jobs and19 captured retained files preserved. Fresh ABI
+must resolve680 imports against the NEWbackup. stage_root233's stale678 check
+was corrected before any launch. PriorMacCA oracle may be reused only because
+the entire scene header is unchanged, not as iOS/GPU runtime proof.
+
+Also prepared UNEXECUTED materialize233.py, entries233.py, check_trace233.py,
+dispatch_trial233.py. Materializer derives consent-first apply/trial/pilot/post/
+capture/guard entries from230FINALv2/v3 templates, binding the FUTURE exact plan
+hash and geometry. It adds a separate original-descriptor trace evidence parser;
+all strict CA pixel/service qualifiers remain. Generated post must retain
+METAL230 probe-prefix parsing (the unchanged probe source uses that prefix),
+while trace lines are METAL233. Newtrace qualification must never imply CA/UI
+qualification. Escape/newline literals were corrected before launch and nested
+helper AST checked. No generated entries/expected-installed/plan/approval exist.
+
+NEXT wait original33776 backup result, validate fullstream/hash+unchangedsource,
+then make fresh pinned proposal-stage-v1 profile and DSH durableonce run
+proposal233.py. It runs freshABI/image-reuse/COW/delta/fsck/102writer/realoldranges/
+independent full-sector review fail-fast. After terminal0, make pinned entry
+stage to run entries233.py (materialization/capture/missingconsent/trace controls);
+review all generated entry scopes/geometry before finalready/newuserconsent.
+Do not apply/boot until exact new individual approval. Original0230 consent
+consumed. No new kernel CI or remote push; main mkadt diff remains a74a0418....
+
+
 ### 2026-11-10 CST —0233 HakiOS rereview found actual descriptor entry; native observer ready offline
 
 PROGRESS. Full goal ACTIVE/incomplete. User requested another HakiOS success-case

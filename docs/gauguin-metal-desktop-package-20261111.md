@@ -1,5 +1,11 @@
 # Complete local desktop candidate and private pipeline cache, 0249
 
+**Boot-profile correction:** the [renewed source review](gauguin-hakios-success-recheck-20261111.md)
+finds that the 638-byte command exceeds the actual 607-byte loader limit.
+The packer would silently truncate it, leaving `sweetfb_hold=` incomplete
+and losing the phase/60 Hz flags. This package is not ready for boot-image
+assembly with that profile. No such image was assembled or booted.
+
 The candidate now contains a fully linked native kernel, seven userland files,
 target ownership/mode declarations and a checked desktop command line.
 A real root-versus-mobile pipeline-cache conflict was found while assembling
@@ -80,8 +86,10 @@ parent-directory metadata must be preserved.
 The 638-byte command line derives from the physically qualified 0239 profile.
 Six keys are replaced once, with all other board tokens preserved: the three
 desktop selectors, held-frame and phase-clock flags, and a 60 Hz software copy
-target. It stays below the 1,023-byte consumer limit. These values do not
-configure or qualify physical 90/120 Hz.
+target. The original validator accepted a 1,023-byte bound, but the actual
+payload/shim command field is 608 bytes including NUL. The command therefore
+does not fit and must be corrected in a successor; the existing receipt is
+preserved. These values do not configure or qualify physical 90/120 Hz.
 
 The system contract is read from the verified immutable 16 GiB 0240 backup.
 It confirms the image's existing 20H392 default.metallib and pipeline assets,
@@ -123,8 +131,9 @@ Readonly cache-parent observation SHA256:
 
 ## Remaining acceptance
 
-Next assemble and qualify a temporary boot image from this kernel and checked
-board profile. No phone boot may stale the pending 0240 delta. The genuine
+First correct the loader command-length validation and supply a complete
+profile within its ABI; then assemble and qualify a temporary boot image.
+No phone boot may stale the pending 0240 delta. The genuine
 0240 write reply is still absent; its exact paired 0239 image, SHA256
 7357a0abf1894969d1b67b2000fcf2e1e928adb2583bf02bb9850cfea6b99956,
 must run first after that installation. A desktop root proposal then needs

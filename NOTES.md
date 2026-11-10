@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST — renewed HakiOS review: actual command ABI blocker, touch distinction
+
+User again requested overlooked success-case details. GitHub main freshly
+checked at63fc2b4633bac3af8e57dadab9f5a8d4cb940438 (Nov6), unchanged.
+12freshfiles958378B match Gitblob identities. Report:
+docs/gauguin-hakios-success-recheck-20261111.md.
+Private MAIN research/tmp/hakios-recheck-20261111-v6/source-proof.json SHA
+670ace3fb93c5c9fbdf6a69e6f9ae34a9cb424159d385f22468fe762cde37c00;
+audit-v1.json SHA
+dbe2d276295c0cf31c3c941c64f4ff5f73b324caecd608b1fee3659a91fa1dc8.
+
+NEW CONFIRMED startup blocker:249638Bcommand validator used1023bound, but
+payload and shim BOTH define608B field includingNUL. Actual mkpayload slicing
+to607 ends at "sweetfb_hold=" and discards "1 sweetfb_phase=1 sweetfb_hz=60".
+Old package receipt preserved; kernel/native assets retain prior evidence.
+249 is NOT ready for bootimage assembly with that profile. Correct docs in
+MAIN+R249. No image assembled/booted; do not repeat former "checked board
+profile" claim. NEXT offline step: fail on overflow/NUL, provide complete
+<=607Bcommand preserving required board/health/GPU/UFS keys, validate exact
+payload roundtrip. Enlarging608ABI changes segment table/shim/bootargs;
+not a routine buffer change. No code fix implemented by this review.
+
+NEW explicit input comparison: upstream FocalTech missed IRQ reports caused
+88-169ms release lag; active-contact unconditional reads fixed its case.
+Actual249Novatek nrt_poll ALREADY unconditionally reads page/report/restore,
+then decode/HID, then IOSleep(8); no IRQ conditional. Do NOT attribute the
+upstream IRQ bug to this controller. Period includes work+scheduling;125Hz
+is not measured. HID timestamp assigned after processing. Need actual first
+down/move/release/SPI/HID/commit distributions under real fingers.
+
+Previously identified desktop discovery/noCopy/variants/cache/owner/shared
+output remain phone-unqualified. Syncsubmit+globalcopylock still serialize;
+proper issued/completed fences and retainedBO/peroutput readiness required,
+not simply unlock/returnearly. Animation request rate is separate from GPU/
+copy/panel clocks. Fullres100-104swipe89-91Settings vs reduced/frozen/synthetic
+118-120 not equivalent. Upstream charging/BT/cellular daily-phone gaps remain.
+
+No source/native changes, compilation/tests/devicecommands/writes/boots/CI/push.
+No pending240consent/apply/trial; preserve9dplan and exactpaired239first after
+genuine approval. No repeat question. MAIN mkadt diffa74... unchanged.
+Active goal remains full GPU/RAM/storage/peripherals/physicalhighrefresh/
+dailyphone. Next: command correction, then complete correctly rendered
+desktop and end-to-end real-input trace before further performance changes.
+
 ### 2026-11-11 CST —249 FULL NATIVE KERNEL + local desktop package PASS; cache conflict fixed
 
 PROGRESS after248. R249=research/tmp/gauguin-package249-worktree-20261111,

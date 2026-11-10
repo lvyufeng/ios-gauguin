@@ -2,6 +2,72 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0226 REAL MTL objects/formats/IOSurface PASS; phone back in TWRP
+
+PROGRESS: exact approved48-run write and ONE physical226 trial completed.
+Full goal ACTIVE/incomplete. No pending consent question.226consent consumed.
+All workers TERMINAL/reaped (26487 physical/75657assets/65982default included).
+Phone automatically back in idleTWRP, no manualreset. Do not restart old stages.
+
+W226 research/tmp/dsh-metal-0226-ca-frontend inside226worktree.
+trial-stage-v1 AND dispatch-stage-v1 exit0/pins unchanged, actualobserver0,
+strictnative/imagebanner PASS,746.168957s observation+capture. Physical review
+SHA4da563166d59269d8feea049a580bdc9d8e41f6b227f0e0bf52ff1c90aeff370,
+state qualified226-bounded-MTL-objects-only/errors{{}}. Its ALL inputpins
+independently reread/hash-checked after completion. Raw stdout/stderr inspected.
+
+Current frontend8b3d6246.../probe61575876...92768B/build91df333ca68caacdb7572a61,
+seed670082254. Actual20H392private12methods/2namedivars admitted. Metal base
+initLimits/featureProfile0, no certified public families, actual64MiBBO bound
+oversize67108865 refused beforeIO. Queue4slots acknowledged. ALL83nativejobs
+and339968exact32-bit pixels PASS:RGBA/BGRA red+linearhalf+sRGBhalf188,
+72successive clears,80uncommittedCB lifetimes,caller-backedIOSurface9
+64x64/stride256GPU->CPUred and2differentseededCPU->GPUcopies. After draining
+resources, soleGPU client reacquired/closed successfully.128MiBhardGET8 valid;
+observedfootprints885016/1950056/1982824B before/open/afterrelease (NO compiler
+work in this probe, so these are NOT shader compilation memory measurements).
+600sservice598healthyrenewals,83successfulnativejobs,first16exactring/fence
+samples+67later aggregate (NOT exactlaterIB proof); ZERO BO/submit/cleanup/
+BBcrash events even afterplannedstop.18staticfiles and ALL3oldlogprefixes
+71036/10411/1350137B retained; newfull78368/11273/1356600B,ALL21files captured.
+CURRENT POST226 header NOW
+0cd11387c5ab2adeb0e095459422283582307433d407432c769188e31ffca947,
+NOT prebootfcdac6f0 or post22311f3ff23. Future deltas/controls MUST bind this
+21file/fullprefix state. Current root stillcontains installed226job/probe/bundle.
+
+User saw red lockscreen digits DURING226. This is still a display defect;
+reported that offscreen success does not make UI correct. No desktop/touch/FPS
+acceptance. This mode1 stops desktopGLESworker; private Metal object is opened
+explicitly byroot only, NOT MTLCreateSystemDefaultDevice/system discovery.
+NO Metal shader PSO/library/compute pipeline, CA scene/present, publicfamilies,
+UBWC/GMEM/MSAA or highrefresh/daily claim.223earlier realAIRcompiledrawcore8
+cases remain qualified separately.600sfiniteGPU test is not longsession proof.
+
+Offlineasset findings preserved below: actual20H392default.metallib1014944B,
+SHA11c74cc4...,141LLVM-wrappedAIRmodules;functions451MTLBvariants. No Apple
+assets in Git. Localxcrunmetal is only a placeholder; --version says missing
+MetalToolchain. No download attempted. Need valid Metal library fixture/source
+toolchain for next PUBLIC MTL shader/PSO readback, then CAvariant/constants and
+single-owner discovery timing. Full frontendcapability profile stilldiagnostic.
+
+IMPORTANT source-derived compatibility constraint (NOT tested oldimage boot):
+installedrootjob now invokes --metal226, whose frontend onlyadmitsmode1+gmt1.
+Do NOT assume oldmode2/GLESimage can currently reproduce223handoff: rootprobe
+would fail its mode gate before8fences, and existing GLESworker waitsforhandoff.
+All old binaries/core/jobsotherthanthisargv remain retained. Before nextprobe
+installation, add a strictly scoped mode2 fallback to the retained root223probe
+(or prepare explicit job restoration), so the preserved GLESbaseline remains
+reproducible. Do not change admission to fake/ambiguous bootmodes or silently
+relax GPUowners/caps/finitecontrol. Any new userdata delta needs fresh16GiB
+backup/fsck/102writerchecks/actualoldranges/independentreview/individualconsent.
+
+Main implementationc9f973b, isolated96fffc0; docs at a03ef50/4630498 beforethis
+entry. Mainoriginalmkadt diff onlydirtyfile, unchangeda74a0418.... No CI/push.
+NEXT actual work: scoped baseline-compatible rootloader, publicMTL shader/
+pipelinefixtures and CPUpixeloracle on exactA619core, then compositorMetal
+publication/ownership/frontendfullCA semantics. No more226apply/boot needed.
+AllsafeRAM/reliable storage/power/peripherals/90-120Hz/daily remain open.
+
 ### 2026-11-10 CST —0226 user reports red lock-screen text; offscreen trial still LIVE
 
 User observation CURRENT226: "又成了锁屏红字了，不影响吧". Answered that red

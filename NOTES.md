@@ -60,9 +60,10 @@ real positive host gates check_pilot227.py run AFTER real approved readback,
 BEFORE phone reboot. post227 capturesALL22 files/full old prefixes FIRST, then
 strict image banner/service/93actualpixels/library identity/owner return.
 
-NEXT: ask NEW individual227 consent for exact a56746bc plan and touched-block
-rollback on write/readback failure, citing actual AGENTS.md destructive-step
-requirement. NO approval.json created, NO apply/boot.226consent consumed and
+NEW individual227 consent question NOW PENDING via request_user_input_async
+for exact a56746bc plan and touched-block rollback on write/readback failure,
+citing actual AGENTS.md destructive-step requirement. No answer received yet.
+NO approval.json created, NO apply/boot.226consent consumed and
 must not be reused. After actual user consent, record verbatim/context, prepare
 pinned apply-stage-v1, have DSH execute once, check exact38writes/readbacks and
 header0LAST; then prepare/dispatch ONE temporary227 trial, auto-return TWRP,

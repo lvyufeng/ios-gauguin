@@ -11,6 +11,20 @@
 #include <mutex>
 #include <vector>
 #include "gauguin_gpu_runtime.h"
+#if __has_include("gauguin_ui_trace.h")
+#include "gauguin_ui_trace.h"
+/* Existing ownership tests run with tracing disabled. The trace's own host
+ * suite runs the real core and board code, not these compatibility seams. */
+#ifdef GUT_GPU_CAPTURE
+static std::vector<gut_event> host_ui_events;
+extern "C" uint64_t sweet_ui_trace_clock(){return 1;}
+extern "C" void sweet_ui_trace_record(uint32_t k,uint64_t id,uint32_t p,uint32_t f,uint64_t a,uint64_t b,uint64_t c)
+{host_ui_events.push_back({host_ui_events.size()+1,0,id,k,p,f,0,a,b,c});}
+#else
+extern "C" uint64_t sweet_ui_trace_clock(){return 0;}
+extern "C" void sweet_ui_trace_record(uint32_t,uint64_t,uint32_t,uint32_t,uint64_t,uint64_t,uint64_t){}
+#endif
+#endif
 /* The baseline lacks this new capacity constant; still compile it to obtain a functional RED. */
 #ifndef GGR_MAX_QUEUES
 #define GGR_MAX_QUEUES 32u

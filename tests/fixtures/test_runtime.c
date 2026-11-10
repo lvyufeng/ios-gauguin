@@ -141,6 +141,17 @@ int sweet_hid_touch_frame(const struct sweet_hid_touch_snapshot *snapshot)
 }
 void sweet_hid_touch(int finger,int down,int x,int y)
 {(void)finger;(void)down;(void)x;(void)y;assert(!"legacy per-finger dispatch is forbidden");}
+#ifdef NVT_UI_TRACE_HOST
+/* The existing orchestration cases model disabled tracing, with the real
+ * runtime still forwarding the complete snapshot through the new entry. */
+uint64_t sweet_ui_trace_clock(void){return 0;}
+uint64_t sweet_ui_trace_report(uint64_t a,uint64_t b,uint32_t status,uint32_t mask)
+{(void)status;(void)mask;assert(!a&&!b);return 0;}
+void sweet_ui_trace_record(uint32_t k,uint64_t id,uint32_t p,uint32_t f,uint64_t a,uint64_t b,uint64_t c)
+{(void)k;(void)id;(void)p;(void)f;(void)a;(void)b;(void)c;assert(!"disabled trace emitted");}
+int sweet_hid_touch_frame_traced(const struct sweet_hid_touch_snapshot *snapshot,uint64_t id)
+{assert(!id);return sweet_hid_touch_frame(snapshot);}
+#endif
 
 #define NVT_RUNTIME_HOST_TEST 1
 #include NRT_SOURCE_PATH

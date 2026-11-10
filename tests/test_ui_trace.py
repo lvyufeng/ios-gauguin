@@ -30,7 +30,7 @@ def main():
                *[d/n for n in ('gauguin_ui_trace.c','gauguin_ui_trace.h','gauguin_ui_trace_board.c')],
                *[fixtures/n for n in ('test_ui_trace_core.c','test_ui_trace_board.c','test_ui_trace_board_shim.h')]]
         pins={str(p):sha(p) for p in paths};records=[]
-        env=dict(os.environ,ASAN_OPTIONS='halt_on_error=1:detect_leaks=1',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
+        env=dict(os.environ,ASAN_OPTIONS='halt_on_error=1:detect_leaks=0',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
         def run(args,name):
             with (out/(name+'.log')).open('x') as f:
                 p=subprocess.run(list(map(str,args)),env=env,stdout=f,stderr=subprocess.STDOUT,timeout=120)

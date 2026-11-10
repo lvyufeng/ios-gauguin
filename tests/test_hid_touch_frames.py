@@ -33,9 +33,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix='gauguin-hid-frame-') as directory:
         path = Path(directory)
         (path / 'test.cpp').write_text(harness)
+        trace_flags=(['-DGAUGUIN=1','-DTEST_UI_TRACE=1','-I'+str(SOURCE/'bsd/dev')]
+                     if 'sweet_ui_trace_record' in source else [])
         subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++17', '-Wall', '-Wextra',
                         '-Werror', '-Wno-extra-semi', '-pedantic', '-fsanitize=address,undefined',
-                        '-g', '-O1', '-pthread', '-I', str(SOURCE / 'iokit'), str(path / 'test.cpp'),
+                        '-g', '-O1', '-pthread', *trace_flags, '-I', str(SOURCE / 'iokit'), str(path / 'test.cpp'),
                         '-o', str(path / 'test')], check=True)
         subprocess.run([str(path / 'test')], check=True)
 

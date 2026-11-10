@@ -9,6 +9,13 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#ifdef TEST_UI_TRACE
+#include "gauguin_ui_trace.h"
+struct trace_note {uint32_t kind;uint64_t id,event_time;};
+static std::vector<trace_note> trace_notes;
+extern "C" void sweet_ui_trace_record(uint32_t k,uint64_t id,uint32_t pid,uint32_t f,uint64_t a,uint64_t b,uint64_t c)
+{assert(!pid&&!b&&!c);(void)f;trace_notes.push_back({k,id,a});}
+#endif
 
 using UInt32=uint32_t; using IOFixed=int32_t; using IOReturn=int;
 constexpr int kIOReturnSuccess=0,kIOReturnBadArgument=-1,kIOReturnNotReady=-2,kIOReturnNoMemory=-3,kIOReturnBusy=-4;
@@ -194,8 +201,28 @@ static void reentry_and_ordering()
  assert(sweet_hid_touch_frame(&empty)==0 && h.delivered.back().children.size()==2);
  assert(live_events==0);
 }
+#ifdef TEST_UI_TRACE
+static void trace_identity()
+{
+ TestTouch h;setup(h);auto s=frame(1);trace_notes.clear();
+ assert(sweet_hid_touch_frame_traced(&s,123)==0&&trace_notes.size()==2);
+ assert(trace_notes[0].kind==GUT_HID_BEGIN&&trace_notes[1].kind==GUT_HID_END);
+ assert(trace_notes[0].id==123&&trace_notes[1].id==123&&trace_notes[0].event_time==trace_notes[1].event_time);
+ trace_notes.clear();assert(sweet_hid_touch_frame_traced(&s,124)==0&&trace_notes.empty());
+ s.x[0]++;assert(sweet_hid_touch_frame(&s)==0&&trace_notes.empty());
+ auto next=frame(2);h.callback=[&]{assert(sweet_hid_touch_frame_traced(&s,999)==kIOReturnBusy);};
+ assert(sweet_hid_touch_frame_traced(&next,125)==0&&trace_notes.size()==2);
+ assert(trace_notes[0].id==125&&trace_notes[1].id==125);h.callback={};
+ trace_notes.clear();fail_allocation=1;allocations=0;
+ assert(sweet_hid_touch_frame_traced(&s,126)==kIOReturnNoMemory&&trace_notes.empty());
+ fail_allocation=0;allocations=0;
+}
+#endif
 int main()
 {
  replacement_and_legacy();stop_lifecycle();concurrent_stop();masks_geometry_and_errors();allocation_rollback();reentry_and_ordering();
+#ifdef TEST_UI_TRACE
+ trace_identity();
+#endif
  puts("PASS: actual HID frame builder, geometry, identity/edge/up, allocation rollback, reentry, producer ordering and stop lifetime");
 }

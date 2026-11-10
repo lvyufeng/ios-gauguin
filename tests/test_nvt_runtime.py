@@ -71,6 +71,8 @@ def main():
                        str(out / 'sha256_actual.c')]
             command += [str(xnu / 'osfmk/corecrypto' / item) for item in SHA_FILES]
             command += ['-o', str(out / name)]
+            if 'sweet_ui_trace_clock' in production:
+                command += ['-DNVT_UI_TRACE_HOST=1']
             # XNU omits the host-only cc_disable_dit helper. Disable that HOST
             # feature, as CC_KERNEL also does; the full digest algorithm is real.
             subprocess.run(command, check=True)
@@ -94,6 +96,8 @@ def main():
                 if item.name != 'runtime':
                     (tree / item.name).symlink_to(item, target_is_directory=item.is_dir())
             variant_dir = tree / 'runtime'; variant_dir.mkdir()
+            if 'sweet_ui_trace_clock' in production:
+                (out / 'gauguin_ui_trace.h').symlink_to(xnu / 'bsd/dev/gauguin_ui_trace.h')
             (variant_dir / 'nvt_runtime.h').symlink_to(source.parent / 'nvt_runtime.h')
             synthetic_digest = hashlib.sha256(data).digest()
             replacement = '\n        ' + ','.join(f'0x{byte:02x}' for byte in synthetic_digest)

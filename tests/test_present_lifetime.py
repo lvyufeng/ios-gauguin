@@ -34,6 +34,8 @@ def unit(tree):
   assert 'if (!fFB->swap(rec, this)) return kIOReturnNotReady;'in fb
   assert 'fFB->removeClient(this);'in method(fb,'IOReturn\nIOMobileFramebufferUserClient::clientClose(')
  text=FIXTURE.read_text()
+ if 'sweet_ui_trace_record' in fb:
+  text='#include "gauguin_ui_trace.h"\nextern "C" void sweet_ui_trace_record(uint32_t,uint64_t,uint32_t,uint32_t,uint64_t,uint64_t,uint64_t){}\n'+text
  for key,value in {'@SURFACE_METHODS@':'\n'.join(surface_methods),'@FRAME_TYPE@':frame_type,
                    '@GET32@':method(fb,'static uint32_t\nget32('),'@FRAME_METHODS@':frame_methods,
                    '@SWAP_METHOD@':method(fb,('bool'if held else'void')+'\nAppleCLCD::swap(')}.items():
@@ -50,7 +52,7 @@ def main():
   for name,tree in sources:
    cpp=directory/(name+'.cpp');cpp.write_text(unit(tree));exe=directory/name
    subprocess.run(['clang++','-std=c++17','-O1','-g','-Wall','-Wextra','-Werror','-Wno-unused-function','-Wno-unused-variable',
-                   '-pedantic','-fsanitize=address,undefined','-fno-omit-frame-pointer',str(cpp),'-pthread','-o',str(exe)],env=env,check=True)
+                   '-pedantic','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(TREE/'bsd/dev'),str(cpp),'-pthread','-o',str(exe)],env=env,check=True)
    result=subprocess.run([str(exe)],env=env,capture_output=True,text=True,timeout=30)
    if name=='baseline':
     assert result.returncode==42 and result.stderr=='FAIL pending display ID resolved a replacement surface after creator close\n',(result.returncode,result.stdout,result.stderr)

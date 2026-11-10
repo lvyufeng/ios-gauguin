@@ -387,7 +387,7 @@
          gapi_valid=false;return 0;
      }
      gapi_pending={++gapi_sequence,queued,locked,index};
-+    sweet_ui_trace_record(GUT_API_BEGIN,gapi_pending.token,(uint32_t)proc_selfpid(),selector,queued,locked,0);
++    sweet_ui_trace_record(GUT_API_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),selector,queued,locked,0);
      return gapi_pending.token;
  }
  static void gapi_end(uint64_t token,IOReturn result)
@@ -395,7 +395,7 @@
      if(token!=gapi_pending.token){gapi_valid=false;return;}
      uint64_t now=mach_absolute_time();
      if(!gapi_valid||now<gapi_pending.locked){gapi_valid=false;gapi_pending={};return;}
-+    sweet_ui_trace_record(GUT_API_END,token,(uint32_t)proc_selfpid(),(uint32_t)result,now,gapi_selectors[gapi_pending.index],0);
++    sweet_ui_trace_record(GUT_API_END,token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,now,gapi_selectors[gapi_pending.index],0);
      uint64_t queued=gapi_pending.locked-gapi_pending.queued,held=now-gapi_pending.locked;
      struct gapi_sample sample=gapi_samples[gapi_pending.index];
      if(gapi_add(&sample.calls,1)&&gapi_add(&sample.failures,result!=kIOReturnSuccess)&&
@@ -420,7 +420,7 @@
              }
          }
          memoryBarrier();uint32_t fence=0;
-+        sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_selfpid(),r->queueid,r->nr_bos,r->nr_cmds,0);
++        sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);
          bool ok=sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
          if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;}
          for(uint32_t i=0;i<r->nr_bos;i++) {
@@ -428,13 +428,13 @@
              if(b->surface) {
                  if(ok)flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
                  b->surface->gpuState=ok?0:2;
-+                sweet_ui_trace_record(GUT_SURFACE,gapi_pending.token,(uint32_t)proc_selfpid(),bos[i].flags,b->surface->id,fence,ok);
++                sweet_ui_trace_record(GUT_SURFACE,gapi_pending.token,(uint32_t)proc_pid(current_proc()),bos[i].flags,b->surface->id,fence,ok);
              }
          }
          memoryBarrier();
          if(ok){fNativeFence=fence;r->fence=++q->completed;result=kIOReturnSuccess;}
          else result=kIOReturnTimeout;
-+        sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_selfpid(),(uint32_t)result,r->queueid,r->fence,fence);
++        sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,r->queueid,r->fence,fence);
      }
  out:
      if(bos)IODelete(bos,struct ggr_submit_bo,r->nr_bos);

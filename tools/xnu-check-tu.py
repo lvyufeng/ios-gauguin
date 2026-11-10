@@ -16,6 +16,7 @@ def main():
     ap.add_argument('--candidate-root',type=Path,required=True)
     ap.add_argument('--out',type=Path,required=True)
     ap.add_argument('--file',action='append',required=True)
+    ap.add_argument('--full-candidate',action='store_true',help='bind every source-tree include to a complete candidate clone')
     args=ap.parse_args();manifest_path=args.manifest.resolve();ref=json.loads(manifest_path.read_text())
     assert ref['state']=='built' and ref['make_exit']==0 and ref['machine']=='gauguin' and ref['configuration']=='DEVELOPMENT'
     source=Path(ref['source']['path']);build=Path(ref['build_root']);candidate=args.candidate_root.resolve();out=args.out.resolve()
@@ -28,6 +29,9 @@ def main():
             assert sha(source/name)==pin,('stale header/config context',name)
             checked+=1
     candidates=[p for p in candidate.rglob('*') if p.is_file()]
+    if args.full_candidate:
+        for name,kind,pin in ref['source']['entries']:
+            assert (candidate/name).exists(),('full candidate missing reference input',name)
     pins={str(p):sha(p) for p in [manifest_path,Path(__file__).resolve(),*candidates]}
     env=dict(os.environ,SDKROOT_RESOLVED=ref['sdk']['path'],HOST_SDKROOT_RESOLVED=ref['host_sdk']['path'],
         SDKVERSION=ref['environment']['SDKVERSION'],PLATFORM='MacOSX')
@@ -72,15 +76,22 @@ def main():
             template,baseline,cwd=recipes[language];command=template.copy()
             original=str(source/baseline);assert command.count(original)==1
             command[command.index(original)]=str(path)
+            if args.full_candidate:
+                command=[word.replace(str(source)+'/',str(candidate)+'/') for word in command]
+                command=[str(candidate) if word==str(source) else word for word in command]
+                assert all(str(source) not in word for word in command),'reference source escaped candidate include binding'
             for flag in ('-MF','-o','-MJ'):
                 while flag in command:
                     index=command.index(flag);del command[index:index+2]
             object_path=out/(str(number)+'-'+path.stem+'.o')
-            command+=['-I',str(candidate/'bsd/dev'),'-I',str(source/'bsd/dev'),
-                '-MF',str(object_path.with_suffix('.d')),'-o',str(object_path)]
+            command+=['-I',str(candidate/'bsd/dev')]
+            if not args.full_candidate:command+=['-I',str(source/'bsd/dev')]
+            command+=['-MF',str(object_path.with_suffix('.d')),'-o',str(object_path)]
+            if args.full_candidate:assert all(str(source) not in word for word in command)
             proc=subprocess.run(command,cwd=cwd,env=env,text=True,capture_output=True)
             (out/(str(number)+'-'+path.stem+'.log')).write_text(proc.stdout+proc.stderr)
-            row={'file':name,'language':language,'arguments':command,'cwd':str(cwd),'exit':proc.returncode}
+            row={'file':name,'language':language,'arguments':command,'cwd':str(cwd),'exit':proc.returncode,
+                 'full_candidate_includes':args.full_candidate}
             records.append(row);save()
             assert proc.returncode==0,('compile failed',name,proc.returncode)
             header=struct.unpack('<8I',object_path.read_bytes()[:32]);assert header[:2]==(0xfeedfacf,0x100000c) and header[3]==1

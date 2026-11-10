@@ -2,6 +2,70 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0233 actual missing LPF fragment captured; phone back in TWRP
+
+PROGRESS. Full goal ACTIVE/incomplete. Original233 observer finished0 after
+746.120002s and automatic TWRP return. Both dispatch/trial stages correctly
+finished1 because CA qualification still FAILED. All22 files captured;19static
+files unchanged and all full old prefixes retained. Original42140/42143 are
+terminal/absent; DSH77994 reaped0. Do NOT rerun the applied write or same trial.
+Actual233 consent call_d7dfe7ede2e04d4cb2627657de531d34 remains CONSUMED.
+
+Physical review W233/physical-review233.json SHA
+1b02c39ca3d90d9c45626069aef79056d1445f38bb0834b79855759bf1c4017b.
+All46 review pins, job logs and all192 outer/27 inner profile pins rehashed.
+Descriptor observer PASSED: installed1, two original calls, both requested
+fixed_frag_lpf_cpf with constants1/present0. Both returned NSError domain
+MTLLibraryErrorDomain, code5, reason
+"Function fixed_frag_lpf_cpf was not found in the library".
+Original QuartzCore then SIG6 before first scene. Memory128hard/CA ABI passed,
+only poison-clear job1 completed. No CA pixels, UI/FPS or broad Metal claim.
+The error is now concrete function-name absence, before our compiler; prior
+compiler/queue/OOM explanations are unsupported. Strict qualifiers unchanged.
+
+CURRENT POST233 root header:
+fd991629f93dad541c8e7dd857d980001d4e7c45b98f17e8220820ec81a8e73e.
+Full stdout/stderr/backboardd logs now91041/20386/1411296B. Future changes must
+bind this22-file state and full prefixes with fresh backup/individual approval.
+Old PREBOOTb0bd..., prewrite57e... and backupc8... are historical baselines.
+Installed trace frontend677c8e07.../paired probe0406b957.../core8a remain installed.
+
+Verified actual default.metallib11c74cc4... has141 functions and SIX fixed uber
+names: four lph/lpf vertex functions, fixed_frag_lph_cph and fixed_frag_lph_cpf;
+NO fixed_frag_lpf_cpf. Host Mac library's air64 slice has180 functions and
+SEVEN fixed names, including the EXACT missing fixed_frag_lpf_cpf (111040B AIR).
+Extracted privately at W233/precision-library-v1/Mac-air64.metallib,1617504B,
+SHA b851044d91dfb1eaa3b553da5fba1ebf80e5bdaff7fa7c54c50d731c401f422b.
+This is a potential supplemental source as HakiOS ca-metallib.py documents,
+NOT yet ABI/constant/pixel-qualified. Do not blindly rename lph as lpf, change
+advertised families or swap all existing functions. Also inspect/fix exact
+variant selection: hm_bitcode_for currently matches labels after only a fixed_
+prefix check, without checking candidate function name/precision. Added lpf
+must not silently select a pre-specialized lph variant. Need preserve all current
+functions, validate supplemental constants/resources, then real CA pixels.
+
+Independent image-probe source complete/native build ONLY: source MAIN6666c60 /
+R23262831e8. New image_probe.cpp and build-metal-image-probe.py, explicit AF231
+core guard; old frontend8a guard untouched. Nine planned submissions/27sysmem
+draws test store->read/write->sample within one CB, three VS source routes,
+scissor preservation, WRITE flags, fences and raw readbacks. Root mode1/gmt1,
+90s delay,128MiB hard and210s alarm. W232/image-native-stage-v1 terminal0,
+actualPID45074 absent; DSH50552 reaped0. Native132512B SHA
+6399e66d8e95052a533c50bc30d4d561dde60c5619671e7751f5ad912c086d94,
+build fd44f0624e23cffc6144e9e6, zero warnings/-Werror/sign verified,3062 artifact
+pins rehashed. Coreaf6918... NOT installed. This new executable still needs its
+own actual20H392 import audit, independent raw-row reader, Mac GPU oracle and
+physical execution. Its expected73728raw/110592comparisons are NOT observed
+GPU results. All workers now terminal.
+
+NEXT primary: qualify a minimal matched supplementary LPF function/library
+and precision-safe variant selection, using actual233 evidence. Prepare a new
+concrete delta only after native/constant/resource/API/offline checks and a
+fresh post233 full backup; obtain NEW individual consent before any write.
+No new question/approval/delta exists for that next change. No new kernel CI
+or remote push. Main unrelated mkadt diff a74a0418... preserved.
+
+
 ### 2026-11-10 CST —0233 approved write PASS; same temporary trial LIVE
 
 This supersedes the pending-consent status below. User explicitly replied through

@@ -13,7 +13,8 @@ def main():
     ap.add_argument('--cache',type=Path,required=True)
     ap.add_argument('--out',type=Path,required=True)
     ap.add_argument('--profile',choices=['baseline','gauguin-diagnostic','gauguin-ca-exact',
-                                       'gauguin-ca-trace','gauguin-ca-identity','gauguin-ca-fp16'],default='baseline')
+                                       'gauguin-ca-trace','gauguin-ca-identity','gauguin-ca-fp16',
+                                       'gauguin-ca-desktop'],default='baseline')
     a=ap.parse_args();repo=Path(__file__).resolve().parents[1]
     manifest=repo/'graphics/hakios-metal-ca/upstream.json';spec=json.loads(manifest.read_text())
     assert spec['revision']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
@@ -45,13 +46,20 @@ def main():
                           '0004-gauguin-exact-variant-identity.patch',
                           '0005-gauguin-qualified-native-fp16.patch'],
     }
+    desktop=a.profile=='gauguin-ca-desktop'
+    if desktop:
+        patch_names[a.profile]=patch_names['gauguin-ca-fp16']+['0006-gauguin-desktop-profile.patch']
     patches=[profile/'patches'/name for name in patch_names[a.profile]]
     overlays=sorted(p for p in (profile/'overlay').rglob('*') if p.is_file()) if patches else []
-    if a.profile not in ('gauguin-ca-identity','gauguin-ca-fp16'):
+    if a.profile not in ('gauguin-ca-identity','gauguin-ca-fp16','gauguin-ca-desktop'):
         overlays=[p for p in overlays if p.name != 'GauguinCAVariant.h']
-    if a.profile != 'gauguin-ca-fp16':
+    if a.profile not in ('gauguin-ca-fp16','gauguin-ca-desktop'):
         overlays=[p for p in overlays if p.name != 'GauguinFP16Proof.h']
-    expected_overlays=4 if a.profile=='gauguin-ca-fp16' else (3 if a.profile=='gauguin-ca-identity' else 2)
+    if desktop:
+        replacements=sorted(p for p in (profile/'desktop-overlay').rglob('*') if p.is_file())
+        names={p.relative_to(profile/'desktop-overlay') for p in replacements}
+        overlays=[p for p in overlays if p.relative_to(profile/'overlay') not in names]+replacements
+    expected_overlays=6 if desktop else (4 if a.profile=='gauguin-ca-fp16' else (3 if a.profile=='gauguin-ca-identity' else 2))
     if patches:assert len(overlays)==expected_overlays and all(p.is_file() for p in patches)
     for p in patches+overlays:pins[str(p)]=sha(p)
     out.mkdir(parents=True,exist_ok=False);source=out/'source';source.mkdir()
@@ -61,10 +69,12 @@ def main():
         with (out/f'patch-{i}.log').open('x') as log:
             subprocess.run(['patch','--batch','--forward','--fuzz=0','-p1','-d',str(source),'-i',str(p)],stdout=log,stderr=subprocess.STDOUT,check=True)
     for p in overlays:
-        target=source/p.relative_to(profile/'overlay');target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,target)
+        root=profile/'desktop-overlay' if desktop and p.is_relative_to(profile/'desktop-overlay') else profile/'overlay'
+        target=source/p.relative_to(root);target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,target)
     outputs={str(p.relative_to(source)):sha(p)for p in source.rglob('*')if p.is_file()}
     assert all(sha(Path(p))==pin for p,pin in pins.items())
-    state='prepared-gauguin-offscreen-Metal-frontend' if patches else 'prepared-complete-pinned-HakiOS-CA-frontend-baseline'
+    state=('prepared-gauguin-desktop-Metal-frontend-candidate' if desktop else
+           'prepared-gauguin-offscreen-Metal-frontend' if patches else 'prepared-complete-pinned-HakiOS-CA-frontend-baseline')
     r=dict(state=state,profile=a.profile,source=str(source),upstream_revision=spec['revision'],source_pins=outputs,input_pins=pins,inputs_unchanged=True,device_commands=0,gauguin_adapted=bool(patches),runtime_qualified=False)
     with (out/'result.json').open('x')as f:f.write(json.dumps(r,indent=2)+'\n')
     print(r['state'])

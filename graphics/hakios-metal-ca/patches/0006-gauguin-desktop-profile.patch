@@ -1,0 +1,103 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -185,7 +185,7 @@
+ 		}
+ 		image = strrchr(info.dli_fname, '/');
+ 		image = image != NULL ? image + 1 : info.dli_fname;
+-		if (strcmp(image, "HakiosMetal") == 0 || strcmp(image, "libobjc.A.dylib") == 0 ||
++		if (strcmp(image, "HakiosMetal") == 0 || strcmp(image, "GauguinMetalDesktop") == 0 || strcmp(image, "libobjc.A.dylib") == 0 ||
+ 		    strcmp(image, "CoreFoundation") == 0 || strcmp(image, "Foundation") == 0) {
+ 			continue;
+ 		}
+@@ -1963,8 +1963,8 @@
+ 
+ - (instancetype)initWithAcceleratorPort:(io_service_t)port
+ {
+-	/* No system discovery or compositor admission in this profile. The root
+-	 * probe must also pass the unchanged kernel's finite GPU authorization. */
++	/* The separate desktop bundle admits only qualified backboardd. This
++	 * frontend never grants the kernel's pilot identity or GPU owner handoff. */
+ 	if (!gauguin_metal_profile_admit()) return nil;
+ 	/* (hakios) metal_m2v=1: the device is UniXNU's Metal on Vulkan instead (AdrenoMetal's frontend over metal2vulkan
+ 	 * over Turnip, tools/mk-m2v.sh; linked in by userland/build.sh M2V=1): its own objects, from the device down */
+@@ -2158,8 +2158,8 @@
+ 	_target.target = 0;
+ 	_target.version = 0;
+ 	_target.name = _targetName;
+-	hm_print("device: %s on IOAcceleratorES service %#x; compiler=%s; private limits profile0; "
+-		 "no certified public families; pipelines.%s unavailable\n",
++	hm_print("device: %s on IOAcceleratorES service %#x; compiler=%s; experimental desktop limits profile1; "
++		 "CA/MPS compatibility, not family conformance; pipelines.%s unavailable\n",
+ 		 [_name UTF8String], (unsigned)port,
+ 		 hakios_metal_has_compiler() ? "in this build" : "NOT in this build (make ios MESA=1): every pipeline will be refused",
+ 		 _targetName);
+@@ -2189,28 +2189,23 @@
+ 		  @"refusals": @(__atomic_load_n(&hm_gauguin_ca_refusals, __ATOMIC_RELAXED)) };
+ }
+ 
+-- (NSUInteger)featureProfile { return 0; }
+-- (BOOL)supportsFamily:(MTLGPUFamily)family { (void)family; return NO; }
+-
+-/* Actual20H392 QuartzCore uses this specific SPI (not a family certification)
+- * to choose the image-owned LPH shader ABI. Only enable it after real half
+- * buffer/arithmetic/varying/store readback in this admitted root process. */
+-- (BOOL)supportsNativeHardwareFP16
+-{
+-    return __atomic_load_n(&_gauguinNativeFP16, __ATOMIC_ACQUIRE);
+-}
+-
+-- (BOOL)gauguinEnableNativeFP16:(NSUInteger)seed hash:(uint64_t)hash pixels:(NSUInteger)pixels
+-{
+-    if (seed > UINT32_MAX || pixels != 4096 || hash != gauguin_fp16_expected_hash((uint32_t)seed) ||
+-        __atomic_load_n(&_gauguinNativeFP16, __ATOMIC_ACQUIRE)) return NO;
+-    __atomic_store_n(&_gauguinNativeFP16, YES, __ATOMIC_RELEASE);
+-    hm_print("GAUGUIN METAL235 nativeFP16 enabled seed=%u pixels=4096 hash=%016llx root-only families=0\n",
+-             (unsigned)seed, (unsigned long long)hash);
+-    return YES;
+-}
+-
+-- (BOOL)supportsFeatureSet:(MTLFeatureSet)set { (void)set; return NO; }
++/* Experimental CA/MPS compatibility selection, not Apple2 conformance.
++ * The desktop pilot must qualify requested operations; strict refusals stay on.
++ * Other processes receive nil before device initialization. */
++- (NSUInteger)featureProfile { return 1; }
++- (BOOL)supportsFamily:(MTLGPUFamily)family
++{
++    return family == MTLGPUFamilyApple1 || family == MTLGPUFamilyApple2 || family == MTLGPUFamilyCommon1;
++}
++
++/* Actual A619 native half arithmetic/varying/store and all five LPH CA scenes
++ * passed physical0239 with this exact core (8a826583...) and FP16 frontend.
++ * The root-probe per-instance enable handshake is not a desktop API. This
++ * candidate keeps that qualified shader selection; desktop pixels still need
++ * their own physical acceptance. */
++- (BOOL)supportsNativeHardwareFP16 { return YES; }
++
++- (BOOL)supportsFeatureSet:(MTLFeatureSet)set { return [super supportsFeatureSet:set]; }
+ 
+ /* Actual gauguin runtime cap: one BO <=64MiB, entire client <=256MiB.
+  * The kernel still enforces allocation accounting and the process hard limit. */
+@@ -2446,13 +2441,19 @@
+ 	return buffer;
+ }
+ 
+-/* No-copy aliasing is a separate unqualified contract; refuse rather than return a copied buffer. */
++/* Only the UUID/return-site-bound immediate decoded-image upload may use a snapshot. */
+ - (id)newBufferWithBytesNoCopy:(void *)bytes length:(NSUInteger)length options:(MTLResourceOptions)options
+ 		   deallocator:(void (^)(void *, NSUInteger))deallocator
+ {
+-	(void)bytes; (void)length; (void)options; (void)deallocator;
+-	hm_print("refused: no-copy buffer aliasing is not qualified in the diagnostic profile\n");
+-	return nil;
++	const void *caller = __builtin_extract_return_addr(__builtin_return_address(0));
++	if (!gauguin_metal_desktop_upload(caller, bytes, length, (uint64_t)options)) {
++		hm_print("refused: no-copy buffer caller/options/bounds outside the 20H392 decoded-image upload\n");
++		return nil;
++	}
++	HakiosMetalBuffer *buffer = [self newBufferWithBytes:bytes length:length options:options];
++	if (buffer != nil && deallocator != nil) [buffer hakiosSetDeallocator:deallocator bytes:bytes length:length];
++	HM_ONCE("desktop decoded-image upload snapshots initial bytes; later CPU/GPU aliasing remains unsupported\n");
++	return buffer;
+ }
+ 
+ /* the layout of a texture's bytes as -newTextureWithBytesNoCopy: here reads them (HakiosMetalTextureLayout says what) */

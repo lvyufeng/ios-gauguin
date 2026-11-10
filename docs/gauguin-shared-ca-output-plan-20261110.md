@@ -93,3 +93,29 @@ Source observations above use the materialized 0236/0238 implementations of
 `SweetFramebuffer.cpp`, `SweetSurface.cpp` and `GauguinGPU.cpp`. The framebuffer
 baseline is introduced by patches 0046 and 0056; later guards and importer
 changes are retained in the corresponding active patch series.
+
+The separate 0241 candidate adds `0210-gauguin-held-presentation-frames.patch`
+above the qualified 201-patch baseline. `sweetfb_hold=1` holds each enabled
+surface's object and ID-table user at submission, transfers the exact pointers
+into a single active frame, and retires them as soon as the existing guarded
+CPU copy returns. One latest pending frame may wait behind that active frame.
+Replacement, the submitting display client's exit and display-off cancel an
+unconsumed frame. Valid submissions while off are accepted and immediately
+retired, so ordinary power transitions do not manufacture a driver error.
+Failed lookups unwind partial holds without replacing the previous good frame.
+The hold path checks the submitting client is still attached while holding the
+framebuffer lock. It records submitted/replaced/consumed/retired/canceled/rejected
+counts with pending/active occupancy for a later physical trial.
+
+DSH dispatcher 96080 exits 0 with all 39 input pins unchanged. An extracted-code
+host fixture functionally reproduces the old raw-ID reuse error, then passes
+3,236 checks on the candidate, including 1,000 concurrent submissions, repeated
+layer IDs, cancellation, prompt retirement and the disabled pilot behavior.
+Existing transport, read-only DMA-fault retention, caller-memory creation and
+independent task-map controls also pass. These use typed host object/lock seams;
+they do not establish XNU execution, correct pixels on the phone or frame rate.
+The source candidate is not installed or booted. Full pristine-source replay
+and native build remain required before considering a temporary kernel trial.
+The cadence change is separate unfinished work; this patch keeps the current
+timer/copy-rate behavior. The pending 0240 proposal remains paired with its
+unchanged physically qualified 0239 kernel and is not modified by this branch.

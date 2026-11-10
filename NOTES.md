@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST — isolated241 held-presentation driver / DSH host PASS; native replay/build next
+
+PROGRESS. R241=research/tmp/gauguin-present241-worktree-20261110, branch
+codex/gauguin-present-lifetime-20261110, based on MAIN350fa26 qualified201-patch
+baseline. W241=R241/research/tmp/dsh-present-0241-lifetime. No device requests,
+userdata write or reboot. MAIN original mkadt edit remains untouched; R241
+does not copy that unrelated edit. The separate240 proposal/consent is intact.
+
+Codex patch0210-gauguin-held-presentation-frames.patch adds balanced
+sweet_surface_hold/drop (table user AND object ref) and opt-in sweetfb_hold=1.
+Framebuffer keeps one latest pending + one active original-pointer frame,
+releases replaced/closed/off frames, and retires active holders immediately
+after the unchanged SweetSurfaceGPURead/CPU-copy guard returns. An attached
+client is checked under fLock, partial lookup failure rolls back holds, and
+valid off-screen submissions are accepted then retired. Existing graphics
+path remains selected without the pilot argument. Timer/cadence is unchanged.
+Counters expose state accounting for physical tests. No Metal publication or
+compositor RO admission change. Initial untested source variant was corrected
+during review (off submissions must not spuriously error); retained locally
+as candidate-review-v1/source-review-v1/patch-review-v1, never compiled/booted.
+
+DSH host-stage-v1 PID96080 TERMINAL0, 8.082737s, five checks/jobs inside one
+pinned dispatcher job all0, all39pins unchanged. New tests extract actual
+table put/copy/hold/drop, frame helpers, swap/close/take/finish bodies and bind
+them to actual timer/present/close call sites. Old239 code exits42 with exact
+functional ID-reuse failure; candidate3236 host assertions PASS, including
+1000 concurrent producer submissions, independent active/pending ownership,
+same ID in multiple layers, overflow/invalid IDs, partial-failure unwind,
+client exits, off/on, replacement and immediate retirement. ASAN/UBSAN used.
+Unchanged related tests pass: GPU submit/sync/queues,1189 RO/43 DMA-fault
+retention/123 early-VA cases,225 caller create/309 wrap/151 task-map cases.
+Host object/lock seams only: no hardware, desktop, frame-rate or daily claim.
+New test/fixture and patch source will be committed before full native replay.
+
+NEXT DSH: frozen source commit, fresh pristine1b191cb5 replay ALL202patches,
+verify EXACT three changed source files vs physical239 (SweetFramebuffer.cpp,
+SweetSurface.cpp/.h), with GauguinGPU.cpp and all unrelated files identical.
+Run relevant host controls on the replayed source, then full local fresh-object
+kernel build and retained generic provenance/symbol/archive/install/cache64
+checks plus native held-frame entry definitions. No packaging/boot yet: pending
+240 must first use its exact paired239 image if the actual write reply arrives.
+NoCI/push. Keep wholephone goal ACTIVE/incomplete.
+
 ### 2026-11-10 CST —240 runtime prepared / DSH host controls PASS; still no new write consent
 
 Previous goal turn PROGRESS: renewed HakiOS review5d47572/handoff90b175d identified

@@ -1,0 +1,408 @@
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -67,6 +67,9 @@
+ mach_port_name_t sweet_surface_port_in_task(SweetSurface *surface, task_t task);
+ 
+ #if defined(GAUGUIN)
++/* Balanced display holder: keeps both the ID table entry and object alive. */
++SweetSurface *sweet_surface_hold(uint32_t id);
++void sweet_surface_drop(SweetSurface *surface);
+ extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *);
+ extern "C" void GauguinGPUSurfaceEnd(uint32_t);
+ class SweetSurfaceGPURead {
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -205,6 +205,36 @@
+ 	IOLockUnlock(sweet_surface_lock);
+ 	return s;
+ }
++
++
++#if defined(GAUGUIN)
++/* A display handoff needs both a table user and an object reference. A plain
++ * copy retains the object alone: the last client can still unpublish its ID. */
++SweetSurface *
++sweet_surface_hold(uint32_t id)
++{
++    if (id == 0 || id >= SWEET_SURFACE_MAX_ID || sweet_surface_lock == NULL) return NULL;
++    IOLockLock(sweet_surface_lock);
++    SweetSurface *s = sweet_surface_table[id];
++    if (s != NULL && sweet_surface_users[id] != 0 && sweet_surface_users[id] != UINT32_MAX) {
++        sweet_surface_users[id]++;
++        s->retain();
++    } else {
++        s = NULL;
++    }
++    IOLockUnlock(sweet_surface_lock);
++    return s;
++}
++
++void
++sweet_surface_drop(SweetSurface *s)
++{
++    if (s != NULL) {
++        sweet_surface_put(s);
++        s->release();
++    }
++}
++#endif
+ 
+ /* The table lock; the framebuffer may publish a surface before the root starts. */
+ static void
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -346,6 +346,21 @@
+ extern "C" int sweet_surface_sample(uint32_t id, uint32_t *nonblack,
+     uint32_t *distinct, uint32_t *px0);
+ 
++
++#if defined(GAUGUIN)
++/* One pending record plus one frame being consumed. The owner is compared
++ * under fLock only, never dereferenced by a queued or active frame. */
++struct sweet_fb_frame {
++    uint8_t record[SWEET_FB_SWAP_REC_SIZE];
++    SweetSurface *surfaces[SWEET_FB_LAYERS];
++    IOMobileFramebufferUserClient *owner;
++};
++static void sweet_fb_frame_release(struct sweet_fb_frame *);
++static void sweet_fb_frame_move(struct sweet_fb_frame *, struct sweet_fb_frame *);
++static bool sweet_fb_frame_prepare(struct sweet_fb_frame *, const uint8_t *, IOMobileFramebufferUserClient *);
++static SweetSurface *sweet_fb_present_surface(const uint8_t *, SweetSurface *const *, uint32_t);
++#endif
++
+ class AppleCLCD : public IOMobileFramebuffer {
+ 	OSDeclareDefaultStructors(AppleCLCD);
+ 
+@@ -369,7 +384,15 @@
+ 	uint64_t      fLastSet;      /* last argument of the 22/33 setters */
+ 	bool          fConsolePaused;
+ 	uint8_t       fPending[SWEET_FB_SWAP_REC_SIZE];     /* latest swap, not yet shown */
+-	bool          fDirty;
++    bool          fDirty;
++#if defined(GAUGUIN)
++    bool fHoldPresent, fHeldActive;
++    struct sweet_fb_frame fHeldPending;
++    uint64_t fHeldSubmitted, fHeldReplaced, fHeldConsumed, fHeldRetired, fHeldCanceled, fHeldRejected;
++    bool takeHeldFrameLocked(struct sweet_fb_frame *frame); /* fLock held */
++    void cancelHeldFrameLocked(struct sweet_fb_frame *frame, IOMobileFramebufferUserClient *owner);
++    void finishHeldFrame(struct sweet_fb_frame *frame);
++#endif
+ 	uint32_t      fFlushTicks;    /* vsync ticks between panel copies */
+ 	bool          fPowerOff;      /* RequestPowerChange(0) */
+ 	uint32_t      fFadeStep;      /* fade-out steps done while off */
+@@ -377,8 +400,8 @@
+ 	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+ 	void addClient(IOMobileFramebufferUserClient *client);
+ 	void removeClient(IOMobileFramebufferUserClient *client);
+-	void swap(const uint8_t *rec);
+-	void present(const uint8_t *rec);
++	bool swap(const uint8_t *rec, IOMobileFramebufferUserClient *owner);
++	void present(const uint8_t *rec, SweetSurface *const *held = NULL);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
+@@ -503,7 +526,16 @@
+ 	}
+ 	fOffX = (int32_t)(fLogicalW - fWidth) / 2;
+ 	fOffY = (int32_t)(fLogicalH - fHeight) / 2;
+-	fLock = IOLockAlloc();
++    fLock = IOLockAlloc();
++#if defined(GAUGUIN)
++    int held = 0;
++    PE_parse_boot_argn("sweetfb_hold", &held, sizeof(held));
++    fHoldPresent = held == 1;
++    fHeldActive = false;
++    bzero(&fHeldPending, sizeof(fHeldPending));
++    fHeldSubmitted = fHeldReplaced = fHeldConsumed = fHeldRetired = fHeldCanceled = fHeldRejected = 0;
++    if (fHoldPresent) IOLog("SWEET FB HOLD: enabled pending=1 active=1; original surfaces, prompt retirement\n");
++#endif
+ 	fClients = OSArray::withCapacity(4);
+ 	fSurface = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes, SWEET_FB_FORMAT_BGRA);
+ 	fPixels = fSurface != NULL ? fSurface->kernelAddress() : 0;
+@@ -574,14 +606,21 @@
+ 			}
+ 		}
+ 	}
+-	if (fb->fPowerOff) {
++    if (fb->fPowerOff) {
++#if defined(GAUGUIN)
++        struct sweet_fb_frame canceled = {};
++        fb->cancelHeldFrameLocked(&canceled, NULL);
++#endif
+ 		/* Fade out: halve every channel each vsync, then black, then idle. */
+ 		uint32_t step = fb->fFadeStep;
+ 		if (step <= 6) {
+ 			fb->fFadeStep = step + 1;
+ 		}
+-		IOLockUnlock(fb->fLock);
+-		if (step <= 6) {
++        IOLockUnlock(fb->fLock);
++#if defined(GAUGUIN)
++        sweet_fb_frame_release(&canceled);
++#endif
++        if (step <= 6) {
+ 			for (uint32_t y = 0; y < fb->fHeight; y++) {
+ 				volatile uint32_t *row = (volatile uint32_t *)(fb->fPixels + (uint64_t)y * fb->fRowBytes);
+ 				for (uint32_t x = 0; x < fb->fWidth; x++) {
+@@ -795,18 +834,39 @@
+ 			    qlit[2], qmag[2], qcnt[2], qlit[3], qmag[3], qcnt[3]);
+ 		}
+ 	}
+-	uint8_t *rec = NULL;
+-	if (flush) {
++#if defined(GAUGUIN)
++    if (fb->fHoldPresent && ((count % 600) == 0 || count == 2)) {
++        IOLog("SWEET FB HOLD: submitted=%llu replaced=%llu consumed=%llu retired=%llu canceled=%llu rejected=%llu pending=%u active=%u\n",
++            fb->fHeldSubmitted, fb->fHeldReplaced, fb->fHeldConsumed, fb->fHeldRetired,
++            fb->fHeldCanceled, fb->fHeldRejected, fb->fHeldPending.owner != NULL, fb->fHeldActive);
++    }
++    struct sweet_fb_frame frame = {};
++#endif
++    uint8_t *rec = NULL;
++    if (flush) {
++#if defined(GAUGUIN)
++        if (fb->fHoldPresent) {
++            if (fb->takeHeldFrameLocked(&frame)) rec = frame.record;
++        } else
++#endif
++        {
+ 		rec = (uint8_t *)IOMallocData(SWEET_FB_SWAP_REC_SIZE);
+ 		if (rec != NULL) {
+ 			memcpy(rec, fb->fPending, SWEET_FB_SWAP_REC_SIZE);
+ 			fb->fDirty = false;
+ 		}
++        }
+ 	}
+ 	IOLockUnlock(fb->fLock);
+ 	if (rec != NULL) {
+-		fb->present(rec);
+-		IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
++#if defined(GAUGUIN)
++        fb->present(rec, fb->fHoldPresent ? frame.surfaces : NULL);
++        if (fb->fHoldPresent) fb->finishHeldFrame(&frame);
++        else IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
++#else
++        fb->present(rec);
++        IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
++#endif
+ 	}
+ 	sender->setTimeoutUS(SWEET_FB_VSYNC_US);
+ }
+@@ -822,12 +882,19 @@
+ void
+ AppleCLCD::removeClient(IOMobileFramebufferUserClient *client)
+ {
+-	IOLockLock(fLock);
+-	unsigned int i = fClients->getNextIndexOfObject(client, 0);
+-	if (i != (unsigned int)-1) {
+-		fClients->removeObject(i);
+-	}
+-	IOLockUnlock(fLock);
++#if defined(GAUGUIN)
++    struct sweet_fb_frame retired = {};
++#endif
++    IOLockLock(fLock);
++#if defined(GAUGUIN)
++    cancelHeldFrameLocked(&retired, client);
++#endif
++    unsigned int i = fClients->getNextIndexOfObject(client, 0);
++    if (i != (unsigned int)-1) fClients->removeObject(i);
++    IOLockUnlock(fLock);
++#if defined(GAUGUIN)
++    sweet_fb_frame_release(&retired);
++#endif
+ }
+ 
+ static uint32_t
+@@ -837,6 +904,97 @@
+ 	memcpy(&v, p + off, 4);
+ 	return v;
+ }
++
++
++#if defined(GAUGUIN)
++static void
++sweet_fb_frame_release(struct sweet_fb_frame *frame)
++{
++    for (uint32_t layer = 0; layer < SWEET_FB_LAYERS; layer++) {
++        sweet_surface_drop(frame->surfaces[layer]);
++    }
++    bzero(frame, sizeof(*frame));
++}
++
++/* Destination is empty, source owns the entire handoff. Caller holds fLock. */
++static void
++sweet_fb_frame_move(struct sweet_fb_frame *to, struct sweet_fb_frame *from)
++{
++    *to = *from;
++    bzero(from, sizeof(*from));
++}
++
++static bool
++sweet_fb_frame_prepare(struct sweet_fb_frame *frame, const uint8_t *rec,
++    IOMobileFramebufferUserClient *owner)
++{
++    bzero(frame, sizeof(*frame));
++    uint32_t mask = get32(rec, 0x104);
++    if (owner == NULL || (mask & ~((1u << SWEET_FB_LAYERS) - 1u))) return false;
++    memcpy(frame->record, rec, SWEET_FB_SWAP_REC_SIZE);
++    for (uint32_t layer = 0; layer < SWEET_FB_LAYERS; layer++) {
++        uint32_t id = get32(rec, 0x54 + 4 * layer);
++        if (!(mask & (1u << layer)) || id == 0) continue;
++        frame->surfaces[layer] = sweet_surface_hold(id);
++        if (frame->surfaces[layer] == NULL) {
++            sweet_fb_frame_release(frame);
++            return false;
++        }
++    }
++    frame->owner = owner;
++    return true;
++}
++
++/* Return the same retained-object contract as the old lookup. Held frames
++ * never resolve an ID again; their table use lives through the whole copy. */
++static SweetSurface *
++sweet_fb_present_surface(const uint8_t *rec, SweetSurface *const *held, uint32_t layer)
++{
++    if (layer >= SWEET_FB_LAYERS) return NULL;
++    uint32_t id = get32(rec, 0x54 + 4 * layer);
++    if (!(get32(rec, 0x104) & (1u << layer)) || id == 0) return NULL;
++    if (held == NULL) return sweet_surface_copy(id);
++    SweetSurface *s = held[layer];
++    if (s == NULL || s->id != id) return NULL;
++    s->retain();
++    return s;
++}
++
++bool
++AppleCLCD::takeHeldFrameLocked(struct sweet_fb_frame *frame)
++{
++    if (!fHoldPresent || !fDirty || fHeldActive || fHeldPending.owner == NULL) return false;
++    sweet_fb_frame_move(frame, &fHeldPending);
++    fDirty = false;
++    fHeldActive = true;
++    fHeldConsumed++;
++    return true;
++}
++
++void
++AppleCLCD::cancelHeldFrameLocked(struct sweet_fb_frame *frame, IOMobileFramebufferUserClient *owner)
++{
++    if (fHoldPresent && fHeldPending.owner != NULL &&
++        (owner == NULL || fHeldPending.owner == owner)) {
++        sweet_fb_frame_move(frame, &fHeldPending);
++        fDirty = false;
++        fHeldCanceled++;
++    }
++}
++
++void
++AppleCLCD::finishHeldFrame(struct sweet_fb_frame *frame)
++{
++    bool consumed = frame->owner != NULL;
++    sweet_fb_frame_release(frame);  /* after GPURead and the copy, before another frame */
++    if (consumed) {
++        IOLockLock(fLock);
++        fHeldActive = false;
++        fHeldRetired++;
++        IOLockUnlock(fLock);
++    }
++}
++#endif
+ 
+ static uint32_t sweet_fb_swaps_logged;
+ static uint64_t sweet_fb_swap_count;
+@@ -848,21 +1006,57 @@
+  * shows the latest frame every fFlushTicks ticks (boot-arg sweetfb_hz,
+  * default 10 Hz).
+  */
++bool
++AppleCLCD::swap(const uint8_t *rec, IOMobileFramebufferUserClient *owner)
++{
++    (void)owner;
++#if defined(GAUGUIN)
++    struct sweet_fb_frame next = {}, retired = {};
++#endif
++    IOLockLock(fLock);
++#if defined(GAUGUIN)
++    if (fHoldPresent) {
++        if (fClients->getNextIndexOfObject(owner, 0) == (unsigned int)-1 ||
++            !sweet_fb_frame_prepare(&next, rec, owner)) {
++            fHeldRejected++;
++            IOLockUnlock(fLock);
++            return false;
++        }
++        if (fPowerOff) {
++            cancelHeldFrameLocked(&retired, NULL);
++            fHeldCanceled++; /* accepted valid frame while the display is off */
++            fDirty = false;
++        } else {
++            if (fHeldPending.owner != NULL) {
++                sweet_fb_frame_move(&retired, &fHeldPending);
++                fHeldReplaced++;
++            }
++            sweet_fb_frame_move(&fHeldPending, &next);
++            fDirty = true;
++        }
++        fHeldSubmitted++;
++    } else
++#endif
++    {
++        memcpy(fPending, rec, SWEET_FB_SWAP_REC_SIZE);
++        fDirty = true;
++    }
++    uint64_t count = ++sweet_fb_swap_count;
++    IOLockUnlock(fLock);
++#if defined(GAUGUIN)
++    sweet_fb_frame_release(&retired);
++    sweet_fb_frame_release(&next);
++#endif
++    if ((count % 1000) == 0) {
++        IOLog("SWEET FB: %llu swaps\n", count);
++    }
++    return true;
++}
++
+ void
+-AppleCLCD::swap(const uint8_t *rec)
+-{
+-	IOLockLock(fLock);
+-	memcpy(fPending, rec, SWEET_FB_SWAP_REC_SIZE);
+-	fDirty = true;
+-	IOLockUnlock(fLock);
+-	if ((++sweet_fb_swap_count % 1000) == 0) {
+-		IOLog("SWEET FB: %llu swaps\n", sweet_fb_swap_count);
+-	}
+-}
+-
+-void
+-AppleCLCD::present(const uint8_t *rec)
+-{
++AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held)
++{
++    (void)held;
+ 	uint32_t mask = get32(rec, 0x104);
+ 
+ 
+@@ -887,7 +1081,11 @@
+ 		if (!(mask & (1u << layer)) || id == 0) {
+ 			continue;
+ 		}
+-		SweetSurface *s = sweet_surface_copy(id);
++#if defined(GAUGUIN)
++        SweetSurface *s = sweet_fb_present_surface(rec, held, layer);
++#else
++        SweetSurface *s = sweet_surface_copy(id);
++#endif
+ 		if (sweet_fb_swaps_logged < 16) {
+ 			sweet_fb_swaps_logged++;
+ 			extern void proc_selfname(char *buf, int size);
+@@ -1142,7 +1340,7 @@
+ 			break;
+ 		}
+ 		memcpy(rec, args->structureInput, sizeof(rec));
+-		fFB->swap(rec);
++		if (!fFB->swap(rec, this)) return kIOReturnNotReady;
+ 		break;
+ 	}
+ 	case kSweetFBGetID:

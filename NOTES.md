@@ -4,6 +4,9 @@
 
 ### 2026-11-10 CST —239 physical input lifetime PASS;240 shared CA output software ready
 
+Completed source commits: MAIN9676df9 (qualified201-patch driver/tests),
+R239fe7b6a9 (physical acceptance handoff), R2404da7aac (shared-output candidate).
+
 PROGRESS; wholephone goal ACTIVE/incomplete. ORIGINAL239 trial-stage-v1 PID71658
 TERMINAL0, bothjobs0,62pins unchanged; observer0/autoTWRP746.564538s. Outer84324
 reaped0. Phone returnedTWRP andall22filescaptured. No manualconfirmationneeded.

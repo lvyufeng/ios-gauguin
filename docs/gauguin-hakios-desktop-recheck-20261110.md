@@ -1,5 +1,9 @@
 # HakiOS recheck after the 0238 task-surface trial
 
+Subsequent actual 0239 now passes the input-lifetime contract; see its
+[physical acceptance report](gauguin-readonly-task-input-20261110.md). The
+review below preserves the evidence and priorities established after 0238.
+
 Reviewed again against GitHub on 2026-11-10. Current main is still
 `63fc2b4633bac3af8e57dadab9f5a8d4cb940438`; this is a deeper integration review
 of the same revision, not a newly released fix. Nine fresh connector fetches,

@@ -4,13 +4,13 @@ The full phone goal includes real GPU rendering, correctly recognized usable
 RAM and storage, peripherals, sustained power management and 90/120 Hz operation.
 Offscreen pixel tests alone do not establish desktop acceleration or daily use.
 
-The 0238 trial independently verified four task-input GPU pixel arrays,
-including RGBA16F after releasing the original task VA, plus the original FP16
-and five CA scene arrays. It failed the subsequent IOSurface CPU-view/allocation
-guard before RGBA32F and final teardown. Kernel 0239 is a candidate independent
-read-only task-mapping fix; its host VM reuse/regression checks pass, while
-its native build and physical trial remain unperformed. All five inputs and
-ownership release remain required. The renewed [HakiOS desktop review](gauguin-hakios-desktop-recheck-20261110.md)
+Actual 0239 now qualifies all five immutable task inputs, including both
+FP16/FP32 cases after original VA release, source allocation guards, permissions
+and final owner reacquisition. Its [physical acceptance report](gauguin-readonly-task-input-20261110.md)
+records the bounded scope. The next shared-output candidate is prepared in the
+0240 worktree and has passed native compilation, the exact 20H392 import audit
+and modeled reader controls; it remains uninstalled and physically unqualified.
+The renewed [HakiOS desktop review](gauguin-hakios-desktop-recheck-20261110.md)
 adds decoded-image upload, real compositor admission and presentation to the
 next integration milestone.
 

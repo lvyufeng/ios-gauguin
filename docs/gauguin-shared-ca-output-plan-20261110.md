@@ -93,3 +93,20 @@ Source observations above use the materialized 0236/0238 implementations of
 `SweetFramebuffer.cpp`, `SweetSurface.cpp` and `GauguinGPU.cpp`. The framebuffer
 baseline is introduced by patches 0046 and 0056; later guards and importer
 changes are retained in the corresponding active patch series.
+
+An isolated held-presentation implementation is now committed as
+`18c5b175c08b5e2326d906eaed37204376112a39` on
+`codex/gauguin-present-lifetime-20261110`. Patch 0210 adds the opt-in
+`sweetfb_hold=1` path: balanced object/table holds, original-pointer handoff,
+one pending and one active frame, cancellation and prompt retirement. The
+old raw-ID lifetime fault is reproduced by an extracted-code host control;
+the candidate and related DMA/Surface regressions pass. Full pristine replay
+and fresh native compilation are complete, with the final qualification
+passing in a separate stage after two verifier adaptations. Failed receipts
+are retained. Detailed evidence is in that worktree's copy of this document
+and `NOTES.md`. MAIN retains its physically qualified source baseline.
+
+This candidate has not been packaged or booted. It keeps the current cadence
+and does not provide a deferred producer-completion fence. The pending 0240
+proposal remains unchanged and must use its exact paired 0239 kernel first;
+another boot before installation would grow logs and stale the concrete delta.

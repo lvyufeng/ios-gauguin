@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —241 held-presentation SOURCE/NATIVE READY; pending240 unchanged
+
+PROGRESS. R241=research/tmp/gauguin-present241-worktree-20261110, branch
+codex/gauguin-present-lifetime-20261110. Critical source18c5b175c08b5e2326d906eaed37204376112a39;
+docs a0b6d81. W241=R241/research/tmp/dsh-present-0241-lifetime. MAIN keeps its
+qualified201-patch source; no cherry-pick, device request, write or boot.
+
+New0210 opt-in sweetfb_hold=1 balances object AND ID-table users from submit
+through existing GPURead/CPU copy, one pending+one active frame. Replacement,
+client close and display-off cancel pending holds; consumed frames retire
+immediately. Partial lookup failure unwinds. Valid off submissions do not
+manufacture an error. Counters track state. Cadence and Metal admission stay
+unchanged; table holds alone are not a producer-write freeze/deferred fence.
+
+DSH host-stage-v1 PID96080 exit0/39pins: old actual239 raw-ID code functionally
+reproduces wrong replacement-object display (exit42); new extracted code
+3236 host assertions PASS,1000 concurrent submissions and related DMA/Surface
+regressions. Full-build-stage-v1 PID97007 terminal1/253pins but COMPILE EXIT0:
+pristine1b191cb5+202patches,5330files SHA
+ eeaae16e10996e30e0ca7ff6052878d39ddf3e7e898c6310477db022678b59b9.
+EXACT three differences vs239: SweetFramebuffer.cpp/SweetSurface.cpp/.h; GPU
+and other source unchanged. Fresh native kernel17330056B SHA
+ 87f0c2a41c877d464910a07db235595294fa9773bc354b89f5804a16c246bd67,
+build241-held-frames/runs/gauguin.n2QqwC, banner TueNov10 23:12:38CST2026
+xnu-7df3d70012994cab9e60703ad046559c. Initial qualification rejects the clean
+checkout because it requires the historical dirty mkadt edit. A separate
+adaptation verifies captured/current clean source and MAIN original a74...
+edit, retaining every other generic check. Second qualification PID34644 exit1
+because our added filter used __TEXT rather than actual __TEXT_EXEC. Final
+qualification-stage-v3 PID34992 exit0/371pins, five exact unique external new
+entries, all generic snapshots/symbol/archive/install/cache64 checks PASS.
+Failed receipts retained, kernel NOT rebuilt for qualifier fixes. Header
+warnings remain. Codex rehashed all pins/source/kernel and disassembled8
+functions. Full details are in R241 NOTES.md and its shared-output plan doc.
+native-review241-v1.json SHA
+ 7a7846750005053b54fcfb4e911b80466e42b539eec81184f48ba2f63ffa7cdc.
+
+No241 boot image/trial or hardware qualification. Outer10970/76755/75574/19039
+reaped0; no workers live. MAIN mkadt diffa74... and pending240 ready8f19b3dd /
+plan9d943e79 unchanged; actualapproval/apply/trial still ABSENT. Automatic
+continuation is not consent. Do not repeat the existing question or boot241
+now and invalidate240's current-root delta by growing logs. After actual240
+reply, its exact physical239 kernel MUST run first; then qualify241 against
+unchanged installed userdata. Independent NEXT: software cadence and actual
+desktop Metal/image-upload/completion integration. Wholephone goal ACTIVE.
+NoCI/push this milestone.
+
 ### 2026-11-10 CST —240 runtime prepared / DSH host controls PASS; still no new write consent
 
 Previous goal turn PROGRESS: renewed HakiOS review5d47572/handoff90b175d identified

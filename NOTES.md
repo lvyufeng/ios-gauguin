@@ -2,6 +2,79 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —249 FULL NATIVE KERNEL + local desktop package PASS; cache conflict fixed
+
+PROGRESS after248. R249=research/tmp/gauguin-package249-worktree-20261111,
+branch codex/gauguin-metal-desktop-package-20261111. Source4e622627c776e6d4b1b9ad11c98920d4251b001f;
+patch-format attribute abd1408c8cb9b0ce27eb4930868ce10c8519e691. Report
+docs/gauguin-metal-desktop-package-20261111.md. W249=R249/research/tmp/dsh-package-0249-desktop.
+
+NEW actual readonly-backup observation: /private/var/tmp/hakios-pipelinelib
+exists root:root0755 with7descendants. BBS UID501 cannot create missing files
+under its POSIX permissions. No actual desktop failure attribution. New0008
+DESKTOP-only moves pipeline-directory mirror under existing checked mobile
+cache /private/var/mobile/Library/Caches/gauguin-metal244/pipelinelib; shared
+constant with cache admission. Root diagnostic and six old generated profiles
+byte-identical. Actual method hostFS controls23 pass, old unwritable shared
+path gives functionalRED42; storage roots/cache class+format are typed seams.
+
+DSH full kernel PID4825 terminal0/122.123274s/723pins, freshobjects/cloneddeps/
+4GiB free reserve. Built from CLEAN parent001965c94e3da70676db411df072f22618e3dc9a,
+BEFORE userland/package edits. Separate clone of248pristine206 source, same
+5332files SHA2e62225c17d0886bdd018a13fd1e958f9def5c8dabc7f888e07a79f7da6ca80f.
+Kernel/build-source unchanged by later userland edits. Build0 + genericqual0,
+protected refs/source unchanged. Full kernel17331000B SHA
+50ca42ff49dab0fef6802a0fc149b57270da3707a8d6dc29c9bb760c1d03dac0,
+banner WedNov11 02:23:43CST2026 xnu-538af7e14895401d81b773e520ae23f5.
+Buildroot .deps-cache/p0-20261105/build249-desktop/runs/gauguin.l4qOcU,
+manifestSHA0d411ea973bef99836beceb9a84783d6bd9f74964e0e0d7beb2a6537262b0c90.
+Retained old generic archive/provenance/SDK/symbols + clock/held/newdesktop
+entries. Existing compiler diagnostics; focused248 host evidence reused.
+
+DSH PROVIDER failed twice with TRANSPORT, no stage launched. Both sessions
+terminal1, original logs retained. Codex used same LOCAL PINNED executor for
+readonly system capture + frontend/checks + package. Do NOT call those DSH runs.
+System PID43062 terminal0/8pins confirms current20H392matchedQC141func library
+11c74cc4..., functions630a3569..., desc a6a43ffb..., mobile cache parent501:5010700.
+Frontend v1 PID44694 terminal1 after prep/sixprofiles: host lookup seam name
+shadow. V2 PID45074 terminal1 AFTER23FS controls and signed native buildPASS:
+expected exact import equality too strong, removal of NSTemporaryDirectory.
+V3 PID45397 terminal0/42pins audits ONLY remaining import delta, no rebuild.
+NO new imports; only NSTemporaryDirectory removed; other bindings/dependencies
+same246, prior actual20H392 resolution retained. New frontend428400B SHA
+b7fcc72fc69a0ed429effecdf1b6b1ef071bc17a582832a32c3f95b52ea56acc.
+Same8a826583core; optional5M2Vhooks disabled. Runtime still unqualified.
+
+Package PID45780 terminal0/3250pins/1.452555s. W249/package-v1/result.json:
+7rootfiles9125479B (core, retained240probe,245bootstrap,247router,newdesktop
+binary/info/seal), 4directory metadata entries, complete rawkernel copied.
+Recipe249-v1 has10boundreceipts incl physical239 acceptance. 638B cmdline
+derived607B base; replaces6keys once, keeps all other board tokens, <=1023B.
+Copytarget60 is SOFTWARE only, no physicalmode change/qualification.
+Three531task/529unrelated-job cache files OUTSIDEroot as templates; MUST
+regenerate after240. Never rsync host ownership as target ownership; cache
+501:5010700, bundles/rootfiles0:0. 23mismatched contract controls rejected.
+This is NOT bootimage, HFSdelta, volume staging, install-ready or phone result.
+
+Codex rehashed final stages/logs, fullsource, nativefrontend inputs/binary,
+allpackage files/kernel. review249-v1 SHA
+65fa9fbc1213c83d6454f55198e9fc1d63d79365e1acba98aff09780a2c9eaa6.
+pipeline-parent-observation-v1 SHA
+141b0088d79270352e53750dcf9cb12b5991e456e4ee979a3e6f1d06e2eac567.
+All dispatchers terminal; kernel outer30121 reaped0, provider9573/57012 reaped1.
+No CI/push/devicecommands/writes/mount/boots. MAIN physical239/root237 intact;
+pending240 actualapproval/apply/trial ABSENT,9dplan unchanged, mkadt diffa74...
+unchanged. Do not ask repeated240question or boot/stale delta.
+
+NEXT: offline tempbootimage assembly/qualification from package+638B profile.
+Genuine240 reply -> install240 -> EXACT paired239 image7357... FIRST. Then
+fresh post240 capture/backup and regenerate launch templates, concrete scoped
+desktop delta/new individual consent. Actual root timing/clean ownerhandoff/
+BBSnativejobs/icons/widgets/effects/transitions/sharedoutput/reuse/latency
+remain unqualified. Syncsubmit/globalcopylock unchanged; trace full pipeline,
+qualify usable60Hz thenphysical90/120Hz/thermals. Full daily-phone/RAM/storage/
+peripherals goal remains ACTIVE.
+
 ### 2026-11-11 CST —248 compositor RO task-input SOURCE/HOST/NATIVE-TU PASS
 
 PROGRESS after247 + renewed HakiOS pipeline review. R248=

@@ -1,5 +1,9 @@
 # HakiOS pipeline recheck, 2026-11-11
 
+The [0249 package follow-up](gauguin-metal-desktop-package-20261111.md) adds
+the full native kernel, complete local asset set and a correction for the
+root-owned shared pipeline cache. Physical desktop acceptance remains open.
+
 The [0248 follow-up](gauguin-metal-compositor-input-20261111.md) now supplies
 the compositor readonly-input source/native candidate. The installed phone
 baseline and physical acceptance gaps described here remain unchanged.

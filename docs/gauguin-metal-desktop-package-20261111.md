@@ -1,5 +1,10 @@
 # Complete local desktop candidate and private pipeline cache, 0249
 
+The [0250 successor](gauguin-desktop-boot-profile-20261111.md) now supplies
+a complete 607-byte profile, a new full kernel and a checked temporary image.
+The original 0249 command/receipts below remain preserved and unsuitable for
+image assembly as-is; neither candidate is installed or phone-qualified.
+
 **Boot-profile correction:** the [renewed source review](gauguin-hakios-success-recheck-20261111.md)
 finds that the 638-byte command exceeds the actual 607-byte loader limit.
 The packer would silently truncate it, leaving `sweetfb_hold=` incomplete

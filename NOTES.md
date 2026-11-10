@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —251 CURRENT TWRP preflight PASS; lower-RAM owner gap quantified
+
+Previous goalturn PROGRESS (250fullnativekernel/image). Thisturn makes actual
+readonly hardware/range-evidence progress; no inferred consent or boot.
+ActiveR250/branch unchanged; W251=R250/research/tmp/dsh-preflight-0251-device.
+Report docs/gauguin-current-preflight-and-ram-20261111.md.
+
+DSH readonly-stage-v1 PID7281 terminal0/40pins/2.570s: current onegauguinTWRP,
+userdata114919714816B unmounted/noholders. ALL33runs/194oldblocks/794624B of
+pending240plan9d943e79 match. HeaderSHA855b320bdd636101694f060e4140f4eb0815e42387e67a3c4dae3d98d52a352c
+stable before/after and matchesbackup.42allowedqueries/35rawreads802816B incl
+repeatedheaders. NOT afresh16GiBwholevolumehash. Oldproposal/readiness/current-
+preflight receipts unchanged; freshreceipt separate. Readonlywrapper allowlist
+rejects write/sync/flush/reboot; finite query/deadline bounds.
+
+DSH memory-stage-v1 PID17322 terminal0/12pins/0.965s: fresh/proc/iomem,meminfo,
+liveFDT +8192Bheaders before/after; stable.12allowedqueries, no mutation.
+Prior191banks/fixed/dynamic/headerreservations/LinuxSystemRAM identical.
+RecoveryMemTotal7742423040B (~7.21GiB) is Linux total, NOT iOSVM proof.
+0250managed[100000000,27ff00000)6441402368B unchanged, no fixed/dynamic overlap.
+
+NEW concrete full-RAM work: below4GiB LinuxSystemRAM minusALLfixed/header
+reservations,16KiBinwardaligned =>7addresscandidates91417pages1497776128B
+(~1.395GiB):80880000-808fc000,82900000-86000000,8b718000-8b800000,
+9b000000-a0000000,a2400000-ac000000,ad000000-bbb00000,c7b00000-100000000.
+NOT usable/DDR-tested/extra-admittedcapacity.6dynamicpools(qseecom/TA/
+secure_display/mem_dump/adsp/CMA) allowedranges collectivelycoverALLthese
+pages; declaredsizes20/16/140/40/8/32MiB do not proveactualplacement/reclaim.
+StaticinputsqualifyZEROextra lowerpages, NOT proofnonecanberecovered.
+NeedactualiOSloaderhandoffowner/release map, notLinuxrecoveryallocatorstate.
+
+SourcecurrentloaderpassesONEphysBase/memSize; checkedphystokv rejectsbelow
+gPhysBase. RaisingmemSizeonlyextendsupperend; loweringbasechangesbootstrap/
+translation. AFTERexisting240pairedtrial+correctdesktop: captureversioned
+handoffowners(firmware/splash/PAS/GMU/loader/initrd/DTB/panic), implementholes/
+admission16Kmodel, thennativecounters/allocatedpageintegrity/pressure/DMA.
+Retain6GiBbaseline; doNOT simplyset8GiB or treatcandidatesaswhitelist.
+
+Codex independently verifiesstages/profiles/logs/inputs/captures/oldplan/image;
+separateper-pageenumeration reproducesALL91417pages/7ranges and unresolved
+dynamiccoverage. review251-v1 SHA
+cf6d06a175f2e05abff140c63b2898acbbb650aafc68372628abf4400ece63ef.
+Bothdispatchers terminal, DSHouter55355/32897 reaped0. Native250image18d3196f
+and its source/binaries unchanged. Mainmkadt diffa74... unchanged. No rawdump/
+serialcommitted, rootwrite/mount/unmount/sync/flush/reboot/newbuild/CI/push.
+
+NEXT stillgenuine240reply -> exact9dplan/provenwriter(fresholdrangecheckagain)
+-> EXACTpaired2397357image FIRST. No approval/apply/trial exists, no repeated
+question. Afterphysical240: freshcapture/backup+regeneratedlaunchtemplates,
+concretedesktopdelta+individualconsent ->0250trial/fullUI/inputpipeline.
+Source/clock/async/clocks/physical90/120Hz/allRAM/storage/peripherals/dailyphone
+scope staysACTIVE. This readonlypreflight neverauthorizes writing.
+
 ### 2026-11-11 CST —250 command ABI fixed; FULL NATIVE KERNEL + temporary image PASS
 
 PROGRESS after renewed HakiOS audit. ActiveR250=

@@ -15,6 +15,7 @@
 #include <mach/mach.h>
 #include <stdatomic.h>
 #include <stdio.h>
+#include <spawn.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,8 +35,14 @@ static const char *receipt_prefix = "GAUGUIN METAL226 ";
 static unsigned submissions;
 static _Atomic unsigned callbacks;
 extern int memorystatus_control(uint32_t, int32_t, uint32_t, void *, size_t);
+/* XNU libsyscall/wrappers/spawn/spawn_private.h, available since iOS9.
+ * Keep the existing128MiB hard contract when replacing the diagnostic image. */
+extern int posix_spawnattr_setjetsam_ext(posix_spawnattr_t *, short, int, int, int);
+extern char **environ;
 struct limits { int32_t active; uint32_t active_attr; int32_t inactive; uint32_t inactive_attr; };
 _Static_assert(sizeof(struct limits) == 16, "GET8 wire layout");
+struct priority_entry { int32_t pid; int32_t priority; uint64_t user_data; int32_t limit; uint32_t state; };
+_Static_assert(sizeof(struct priority_entry) == 24, "GET1 single-pid wire layout");
 
 __attribute__((noreturn)) static void fail(const char *phase, const char *why)
 {
@@ -73,11 +80,33 @@ static void legacy_gles_probe(void)
           !memcmp(digest, gauguin_legacy_probe_sha256, sizeof(digest)),
           "GLES-baseline", "retained probe identity");
     free(data); check(close(fd) == 0, "GLES-baseline", "probe fd close");
-    fprintf(stderr, "GAUGUIN METAL loader exact-mode2 delegates qualified223 root probe\n");
+    /* A plain execv reached223 with active/inactive=-1 and nonfatal attributes
+     * in the physical mode2 control. Explicit SETEXEC spawn attributes carry
+     * both128MiB fatal limits into the replacement task, without creating a
+     * second GPU owner. Preserve the current effective jetsam band. */
+    struct priority_entry priority = {0}; struct limits before = {0};
+    check(memorystatus_control(1, getpid(), 0, &priority, sizeof(priority)) == (int)sizeof(priority) &&
+          priority.pid == getpid() && priority.priority >= 0,
+          "GLES-baseline", "self priority query");
+    check(memorystatus_control(8, getpid(), 0, &before, sizeof(before)) == 0,
+          "GLES-baseline", "pre-SETEXEC limits query");
+    posix_spawnattr_t attr;
+    check(posix_spawnattr_init(&attr) == 0, "GLES-baseline", "spawn attributes");
+    check(posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETEXEC) == 0,
+          "GLES-baseline", "SETEXEC attributes");
+    /* spawn_internal.h: ACTIVE_FATAL0x04 | INACTIVE_FATAL0x08. Do not use
+     * USE_EFFECTIVE_PRIORITY: XNU can return EALREADY before updating limits
+     * for this already spawned process (memorystatus_update). */
+    check(posix_spawnattr_setjetsam_ext(&attr, 0x0c, priority.priority, 128, 128) == 0,
+          "GLES-baseline", "finite hard limits on replacement image");
+    fprintf(stderr, "GAUGUIN METAL loader exact-mode2 SETEXEC qualified223 active=128 inactive=128 hard=1 priority=%d before_active=%d before_inactive=%d\n",
+            priority.priority, before.active, before.inactive);
     fflush(NULL);
     char *const argv[] = {GAUGUIN_LEGACY_PROBE_PATH, "--metal223", NULL};
-    execv(GAUGUIN_LEGACY_PROBE_PATH, argv);
-    fail("GLES-baseline", "retained probe exec failed");
+    int rc = posix_spawn(NULL, GAUGUIN_LEGACY_PROBE_PATH, NULL, &attr, argv, environ);
+    (void)posix_spawnattr_destroy(&attr);
+    /* Successful SETEXEC replaces this image and never returns here. */
+    fail("GLES-baseline", rc ? "retained probe SETEXEC failed" : "SETEXEC unexpectedly returned");
 }
 static uint64_t now_ns(void)
 {

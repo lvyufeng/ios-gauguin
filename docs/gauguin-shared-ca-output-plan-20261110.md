@@ -142,3 +142,31 @@ changes or rebuilds the kernel; both failed receipts remain intact. The local
 The cadence change is separate unfinished work; this patch keeps the current
 timer/copy-rate behavior. The pending 0240 proposal remains paired with its
 unchanged physically qualified 0239 kernel and is not modified by this branch.
+
+The 0242 source candidate adds a separate `sweetfb_phase=1` option, requiring
+held presentation. Patch 0211 uses XNU absolute ticks and `wakeAtTime()` to
+choose the next future nominal software beat after work. A late callback
+accounts for skipped logical beats once, without replaying old notifications.
+Copy slots follow delivered logical beats rather than callback count or copy
+completion time. A slot is consumed only when a pending record is actually
+taken; failed allocation/handoff leaves it due. The driver samples time again
+after acquiring its lock. The software interval remains 16,667 microseconds;
+this change does not select a new physical panel mode or certify 90/120 Hz.
+
+The option is disabled by default. Invalid configuration, non-monotonic or
+overflowing clock values and a failed `wakeAtTime()` produce explicit records
+and select the existing relative timer. These outcomes must fail a future
+phase acceptance test. The counter called `copies` counts consumed copy slots,
+not successful panel updates; the existing guarded copy may still refuse a
+surface. Writer-completion and physical scan timing remain separate work.
+
+DSH's 0242 host stage, dispatcher 38032, passes six tests with all 40 pins
+unchanged. The executable uses the actual clock header and driver methods,
+with a virtual clock and timer. The old relative-arm statements reproduce
+45.334 ms copy intervals with modeled 12 ms work; the candidate keeps 33.334 ms
+in that case. 7,264 clock controls cover overload, idle, unconsumed slots,
+early/duplicate callbacks, rejection/fallback, counter saturation and 64-bit
+arithmetic against a bounded loop oracle. The held-frame and related DMA/VM
+regressions also pass. The raw dispatcher result retains an inherited 0241
+state label; its source pins, six named tests and clock log identify the actual
+0242 execution. Native compilation and all physical behavior remain unproven.

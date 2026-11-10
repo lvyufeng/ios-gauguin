@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —242 software cadence source/host PASS; native replay/build next
+
+PROGRESS. R242=research/tmp/gauguin-clock242-worktree-20261110, branch
+codex/gauguin-present-cadence-20261110, parentR241a0b6d81. W242=R242/research/tmp/dsh-clock-0242-phase.
+Patch0211-gauguin-absolute-software-present-clock.patch adds one pure clock
+header and updates framebuffer timing above held-presentation0210. Opt-in
+sweetfb_hold=1 sweetfb_phase=1. Default old timer is preserved. XNU absolute
+ticks/clock_interval_to_absolutetime_interval and wakeAtTime API were checked
+against actual native241 headers. Nominal interval16667us remains unchanged;
+no physical90/120Hz claim or new mode publication.
+
+Codex clock source accounts skipped logical beats once, arms the next future
+phase deadline AFTER work without consuming those beats early, and consumes
+copy slots only when a record is actually taken. Copy deadlines are based on
+the delivered logical beat, not callback-count modulo or copy completion.
+Early callbacks consume nothing; idle/overrun never replay a burst. Timestamp
+is sampled again after fLock acquisition. Header guards arithmetic overflow
+and backward clocks; explicit failures/fallback preserve bootability but must
+not qualify a future phase trial. Counters saturate. Copies count consumed
+records, NOT confirmed visible/pixel updates; no writer-fence change.
+
+DSH host-stage-v1 PID38032 TERMINAL0/9.250386s/40pins unchanged. Six tests0.
+Actual clock header and configure/tick/mark/arm method bodies execute with a
+virtual clock; baseline relative statements functionally RED exit42, modeled
+12ms copy work causes45334 tick intervals vs candidate33334 at1tick/us.
+7264 clock controls cover regular60/nominal30 slots, overrun/jitter, idle,
+early/duplicate callbacks, allocation-not-consumed, off/on,24MHz tick units,
+failure/rejection/fallback, saturation/overflow and1000 independent loop-oracle
+cases. New242 code also passes old3236 held-frame + GPU/DMA/Surface/VM tests.
+Raw host-v1/result.json inherited a passed241 state LABEL from the copied
+runner; preserved verbatim. Actual242 profile/source pins and six named raw
+logs identify the run. No physical/rendering performance claim.
+
+NEXT freeze source commit, full pristine203-patch replay5331files, exact one
+modified framebuffer plus new SweetPresentClock.h vs qualified241. Preserve
+held lifetime and GPU source byte-for-byte, then fresh native build with the
+already repaired CLEAN-checkout generic provenance and __TEXT_EXEC checks.
+No need to repeat the dirty-checkout/__TEXT qualifier mistakes from241.
+No device IO/write/reboot; original MAIN mkadt and pending240 proposal stay
+untouched. Actual pending240 answer is still required; do not repeat its
+question or boot another image and invalidate that current-root delta.
+Wholephone goal ACTIVE; noCI/push this source milestone.
+
 ### 2026-11-10 CST —241 clean pristine/native PASS; no image/boot, pending240 unchanged
 
 PROGRESS. Critical source commit18c5b175c08b5e2326d906eaed37204376112a39 on

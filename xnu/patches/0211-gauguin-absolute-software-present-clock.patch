@@ -1,0 +1,286 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -35,6 +35,9 @@
+  * the first swap on (it still reaches the persistent log; panics draw).
+  */
+ #include "SweetSurface.h"
++#if defined(GAUGUIN)
++#include "SweetPresentClock.h"
++#endif
+ 
+ extern "C" int sweet_console_muted;     /* osfmk/console/serial_console.c */
+ static int sweet_fb_corner_logged;
+@@ -387,6 +390,11 @@
+     bool          fDirty;
+ #if defined(GAUGUIN)
+     bool fHoldPresent, fHeldActive;
++    bool fPhasePresent;
++    struct SweetPresentClock fPresentClock;
++    void configurePresentClock(void);
++    bool presentClockTickLocked(uint64_t now, uint64_t *elapsed, bool *copy); /* fLock held */
++    void presentClockCopiedLocked(void); /* fLock held */
+     struct sweet_fb_frame fHeldPending;
+     uint64_t fHeldSubmitted, fHeldReplaced, fHeldConsumed, fHeldRetired, fHeldCanceled, fHeldRejected;
+     bool takeHeldFrameLocked(struct sweet_fb_frame *frame); /* fLock held */
+@@ -398,6 +406,7 @@
+ 	uint32_t      fFadeStep;      /* fade-out steps done while off */
+ 
+ 	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
++    void armVsync(IOTimerEventSource *sender);
+ 	void addClient(IOMobileFramebufferUserClient *client);
+ 	void removeClient(IOMobileFramebufferUserClient *client);
+ 	bool swap(const uint8_t *rec, IOMobileFramebufferUserClient *owner);
+@@ -555,7 +564,10 @@
+ 	uint32_t hz = 10;
+ 	PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+ 	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
+-	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
++#if defined(GAUGUIN)
++    configurePresentClock();
++#endif
++    armVsync(fVsync);
+ 
+ 	setProperty(kIOUserClientClassKey, "IOMobileFramebufferUserClient");
+ 	setProperty("external", false);
+@@ -574,19 +586,100 @@
+ 	return true;
+ }
+ 
++
++#if defined(GAUGUIN)
++void
++AppleCLCD::configurePresentClock(void)
++{
++    fPhasePresent = false;
++    int requested = 0;
++    PE_parse_boot_argn("sweetfb_phase", &requested, sizeof(requested));
++    if (requested == 0) return;
++    if (requested != 1 || !fHoldPresent) {
++        IOLog("SWEET FB CLOCK: rejected phase=%d held=%u; legacy timer selected\n", requested, fHoldPresent);
++        return;
++    }
++    uint64_t beat = 0;
++    clock_interval_to_absolutetime_interval(SWEET_FB_VSYNC_US, NSEC_PER_USEC, &beat);
++    fPhasePresent = sweet_present_clock_init(&fPresentClock, mach_absolute_time(), beat, fFlushTicks);
++    if (fPhasePresent) {
++        IOLog("SWEET FB CLOCK: enabled software_us=16667 beat_ticks=%llu copy_ticks=%llu held=1 physical_rate=unqualified\n",
++            fPresentClock.beat, fPresentClock.copySpan);
++    } else {
++        IOLog("SWEET FB CLOCK: rejected clock geometry; legacy timer selected\n");
++    }
++}
++
++bool
++AppleCLCD::presentClockTickLocked(uint64_t now, uint64_t *elapsed, bool *copy)
++{
++    *elapsed = 1; *copy = false;
++    if (!fPhasePresent) return true;
++    struct SweetPresentTick tick = {};
++    if (!sweet_present_clock_step(&fPresentClock, now, fDirty && !fPowerOff, &tick)) {
++        fPhasePresent = false;
++        IOLog("SWEET FB CLOCK: failed monotonic/overflow tick; legacy timer selected\n");
++        return true;
++    }
++    *elapsed = tick.elapsed; *copy = tick.copyDue;
++    return tick.elapsed != 0;
++}
++
++void
++AppleCLCD::presentClockCopiedLocked(void)
++{
++    if (fPhasePresent && !sweet_present_clock_copied(&fPresentClock)) {
++        fPhasePresent = false;
++        IOLog("SWEET FB CLOCK: failed copy slot; legacy timer selected\n");
++    }
++}
++#endif
++
++void
++AppleCLCD::armVsync(IOTimerEventSource *sender)
++{
++#if defined(GAUGUIN)
++    uint64_t deadline = 0;
++    IOLockLock(fLock);
++    bool phase = fPhasePresent;
++    if (phase && !sweet_present_clock_next(&fPresentClock, mach_absolute_time(), &deadline)) {
++        fPhasePresent = phase = false;
++        IOLog("SWEET FB CLOCK: failed monotonic/overflow arm; legacy timer selected\n");
++    }
++    IOLockUnlock(fLock);
++    if (phase) {
++        IOReturn rc = sender->wakeAtTime(deadline);
++        if (rc == kIOReturnSuccess) return;
++        IOLockLock(fLock); fPhasePresent = false; IOLockUnlock(fLock);
++        IOLog("SWEET FB CLOCK: failed wakeAtTime rc=%x; legacy timer selected\n", rc);
++    }
++#endif
++    sender->setTimeoutUS(SWEET_FB_VSYNC_US);
++}
++
+ void
+ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ {
+ 	AppleCLCD *fb = (AppleCLCD *)owner;
+ 	uint64_t now = mach_absolute_time();
+-	uint64_t count = ++fb->fVsyncCount;
++    IOLockLock(fb->fLock);
++    uint64_t elapsed = 1;
++#if defined(GAUGUIN)
++    bool phaseCopy = false;
++    if (fb->fPhasePresent) now = mach_absolute_time(); /* include time waiting for fLock */
++    if (!fb->presentClockTickLocked(now, &elapsed, &phaseCopy)) {
++        IOLockUnlock(fb->fLock);
++        fb->armVsync(sender);
++        return;
++    }
++#endif
++    uint64_t count = fb->fVsyncCount += elapsed;
+ 	uint64_t values[6] = {
+ 		(uint32_t)count, (uint32_t)(count >> 32),
+ 		(uint32_t)now, (uint32_t)(now >> 32),
+ 		0, 0,
+ 	};
+ 
+-	IOLockLock(fb->fLock);
+ 	for (unsigned int i = 0; i < fb->fClients->getCount(); i++) {
+ 		IOMobileFramebufferUserClient *client =
+ 		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
+@@ -628,7 +721,7 @@
+ 				}
+ 			}
+ 		}
+-		sender->setTimeoutUS(SWEET_FB_VSYNC_US);
++		fb->armVsync(sender);
+ 		return;
+ 	}
+ 	/*
+@@ -637,7 +730,12 @@
+ 	 * problem is much easier to place with these three numbers in the log.
+ 	 */
+ 	static uint64_t presents;
+-	bool flush = fb->fDirty && (count % fb->fFlushTicks) == 0;
++    bool flush;
++#if defined(GAUGUIN)
++    if (fb->fPhasePresent) flush = fb->fDirty && phaseCopy;
++    else
++#endif
++    flush = fb->fDirty && (count % fb->fFlushTicks) == 0;
+ 	if (flush) {
+ 		presents++;
+ 	}
+@@ -840,6 +938,11 @@
+             fb->fHeldSubmitted, fb->fHeldReplaced, fb->fHeldConsumed, fb->fHeldRetired,
+             fb->fHeldCanceled, fb->fHeldRejected, fb->fHeldPending.owner != NULL, fb->fHeldActive);
+     }
++    if (fb->fPhasePresent && (fb->fPresentClock.callbacks == 2 || (fb->fPresentClock.callbacks % 300) == 0)) {
++        IOLog("SWEET FB CLOCK: callbacks=%llu skipped=%llu copies=%llu next_beat=%llu next_copy=%llu; software only\n",
++            fb->fPresentClock.callbacks, fb->fPresentClock.skippedBeats, fb->fPresentClock.copies,
++            fb->fPresentClock.nextBeat, fb->fPresentClock.nextCopy);
++    }
+     struct sweet_fb_frame frame = {};
+ #endif
+     uint8_t *rec = NULL;
+@@ -857,8 +960,11 @@
+ 		}
+         }
+ 	}
+-	IOLockUnlock(fb->fLock);
+-	if (rec != NULL) {
++#if defined(GAUGUIN)
++    if (rec != NULL) fb->presentClockCopiedLocked();
++#endif
++    IOLockUnlock(fb->fLock);
++    if (rec != NULL) {
+ #if defined(GAUGUIN)
+         fb->present(rec, fb->fHoldPresent ? frame.surfaces : NULL);
+         if (fb->fHoldPresent) fb->finishHeldFrame(&frame);
+@@ -868,7 +974,7 @@
+         IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
+ #endif
+ 	}
+-	sender->setTimeoutUS(SWEET_FB_VSYNC_US);
++	fb->armVsync(sender);
+ }
+ 
+ void
+--- /dev/null
++++ b/iokit/Kernel/arm/SweetPresentClock.h
+@@ -0,0 +1,78 @@
++/* SPDX-License-Identifier: MIT
++ * Absolute software beats and copy slots, not physical panel/vblank timing.
++ * Clock values are XNU absolute ticks; no assumed counter frequency. */
++#ifndef _SWEET_PRESENT_CLOCK_H
++#define _SWEET_PRESENT_CLOCK_H
++#include <stdint.h>
++
++struct SweetPresentClock {
++    uint64_t beat, copySpan, nextBeat, nextCopy, lastObserved, firedBeat;
++    uint64_t callbacks, skippedBeats, copies;
++    bool copyOffered;
++};
++struct SweetPresentTick { uint64_t elapsed; bool copyDue; };
++
++static inline uint64_t
++sweet_present_clock_add(uint64_t a, uint64_t b)
++{
++    return b > UINT64_MAX - a ? UINT64_MAX : a + b;
++}
++
++static inline bool
++sweet_present_clock_init(SweetPresentClock *c, uint64_t now, uint64_t beat, uint32_t divisor)
++{
++    *c = {};
++    if (beat == 0 || divisor == 0 || beat > UINT64_MAX / divisor) return false;
++    uint64_t span = beat * divisor;
++    if (now > UINT64_MAX - span) return false;
++    c->beat = beat; c->copySpan = span;
++    c->nextBeat = now + beat; c->nextCopy = now + span; c->lastObserved = now;
++    return true;
++}
++
++static inline bool
++sweet_present_clock_step(SweetPresentClock *c, uint64_t now, bool dirty, SweetPresentTick *tick)
++{
++    *tick = {}; c->copyOffered = false;
++    if (c->beat == 0 || c->nextBeat == 0 || now < c->lastObserved) return false;
++    c->lastObserved = now;
++    if (now < c->nextBeat) return true; /* an early/duplicate callback consumes no beat */
++    uint64_t remainder = (now - c->nextBeat) % c->beat;
++    uint64_t delta = c->beat - remainder;
++    if (now > UINT64_MAX - delta) return false;
++    uint64_t fired = now - remainder;
++    tick->elapsed = (fired - c->nextBeat) / c->beat + 1;
++    c->nextBeat = now + delta; c->firedBeat = fired;
++    c->callbacks = sweet_present_clock_add(c->callbacks, 1);
++    c->skippedBeats = sweet_present_clock_add(c->skippedBeats, tick->elapsed - 1);
++    tick->copyDue = dirty && fired >= c->nextCopy;
++    c->copyOffered = tick->copyDue;
++    return true;
++}
++
++static inline bool
++sweet_present_clock_copied(SweetPresentClock *c)
++{
++    if (!c->copyOffered || c->firedBeat == 0 || c->copySpan == 0 ||
++        c->firedBeat > UINT64_MAX - c->copySpan) return false;
++    /* Rebase the copy slot on the delivered logical beat, not its callback's
++     * jitter or the time spent copying. After idle, consume at most one frame. */
++    c->nextCopy = c->firedBeat + c->copySpan;
++    c->copies = sweet_present_clock_add(c->copies, 1); c->copyOffered = false;
++    return true;
++}
++
++static inline bool
++sweet_present_clock_next(SweetPresentClock *c, uint64_t now, uint64_t *deadline)
++{
++    if (c->beat == 0 || c->nextBeat == 0 || now < c->lastObserved) return false;
++    c->lastObserved = now;
++    if (c->nextBeat > now) { *deadline = c->nextBeat; return true; }
++    uint64_t delta = c->beat - (now - c->nextBeat) % c->beat;
++    if (now > UINT64_MAX - delta) return false;
++    *deadline = now + delta;
++    /* Do not consume the skipped logical beats here. The next actual callback
++     * accounts for them once, without issuing a burst of old notifications. */
++    return true;
++}
++#endif

@@ -275,7 +275,13 @@ static void surfaces(id<MTLDevice> device, id<MTLCommandQueue> queue, uint32_t s
 #else
 #define GAUGUIN_HAS_SHADER_PROBE 0
 #endif
-static void run(bool pipelines)
+#ifdef GAUGUIN_CA_RENDERER_PROBE
+#define GAUGUIN_HAS_CA_PROBE 1
+#include "ca_renderer_tests.h"
+#else
+#define GAUGUIN_HAS_CA_PROBE 0
+#endif
+static void run(bool pipelines, bool ca)
 {
     uint32_t seed = (uint32_t)now_ns() ^ ((uint32_t)getpid() * 0x9e3779b9u);
     @autoreleasepool {
@@ -300,11 +306,17 @@ static void run(bool pipelines)
     check(queue != nil, "queue", "queue creation");
     receipt("device=%s seed=%u maxBO=67108864 queueSlots=4\n", [[device name] UTF8String], seed);
     memory("opened");
-    formats(device, queue); slots(device, queue, seed); surfaces(device, queue, seed);
-#if GAUGUIN_HAS_SHADER_PROBE
-    if (pipelines) shader_pipelines(device,queue,seed);
+    if (ca) {
+#if GAUGUIN_HAS_CA_PROBE
+        ca_render_scenes(device, queue);
 #endif
-    unsigned expected = pipelines ? 93 : 83;
+    } else {
+        formats(device, queue); slots(device, queue, seed); surfaces(device, queue, seed);
+#if GAUGUIN_HAS_SHADER_PROBE
+        if (pipelines) shader_pipelines(device,queue,seed);
+#endif
+    }
+    unsigned expected = ca ? 10 : (pipelines ? 93 : 83);
     check(submissions == expected && atomic_load(&callbacks) == expected, "final", "all GPU jobs and callbacks required");
     [queue release]; [device release]; [bundle release];
     }
@@ -317,7 +329,9 @@ static void run(bool pipelines)
     check(opened == KERN_SUCCESS && connection != IO_OBJECT_NULL, "owner-release", "sole GPU owner was not released");
     check(IOServiceClose(connection) == KERN_SUCCESS, "owner-release", "reacquired client close");
     receipt("ownership reacquired=1 closed=1 PASS\n");
-    if (pipelines)
+    if (ca)
+        receipt("RESULT PASS build=%s seed=%u scenes=5 pixels=20480 explicit_jobs=10 exact_CA=1 discovery=0 UI=0\n", GAUGUIN_METAL_FRONTEND_BUILD, seed);
+    else if (pipelines)
         receipt("RESULT PASS build=%s seed=%u jobs=93 pixel_checks=372736 compute_words=512 half_pixels=4096 abandoned=80 teardown-requested=1 discovery=0 shader-pipelines=1 UI=0\n",GAUGUIN_METAL_FRONTEND_BUILD,seed);
     else
         receipt("RESULT PASS build=%s seed=%u jobs=83 words=339968 abandoned=80 teardown-requested=1 discovery=0 shader-pipelines=0 UI=0\n", GAUGUIN_METAL_FRONTEND_BUILD, seed);
@@ -325,24 +339,27 @@ static void run(bool pipelines)
 int main(int argc, char **argv)
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
-    if (argc != 2 || (strcmp(argv[1], "--metal226") && strcmp(argv[1], "--metal227")) || getuid() || geteuid() ||
+    if (argc != 2 || (strcmp(argv[1], "--metal226") && strcmp(argv[1], "--metal227") && strcmp(argv[1], "--metal230")) || getuid() || geteuid() ||
         strcmp(getprogname(), GAUGUIN_METAL_PROBE_NAME)) return 2;
     bool pipelines = strcmp(argv[1], "--metal227") == 0;
+    bool ca = strcmp(argv[1], "--metal230") == 0;
     if (pipelines) receipt_prefix = "GAUGUIN METAL227 ";
+    if (ca) receipt_prefix = "GAUGUIN METAL230 ";
     char args[1024] = {0}; size_t n = sizeof(args) - 1;
     check(sysctlbyname("kern.bootargs", args, &n, NULL, 0) == 0 && n < sizeof(args), "scope", "boot profile");
     enum gauguin_probe_route route = gauguin_probe_boot_route(args);
     if (route == GAUGUIN_PROBE_GLES) legacy_gles_probe();
     check(route == GAUGUIN_PROBE_METAL, "scope", "exact mode1+gmt1 or mode2 without gmt required");
     check(!pipelines || GAUGUIN_HAS_SHADER_PROBE, "scope", "shader probe is not compiled in");
+    check(!ca || GAUGUIN_HAS_CA_PROBE, "scope", "CA renderer probe is not compiled in");
     check(setenv("GAUGUIN_METAL_MODE", "offscreen226", 1) == 0, "scope", "probe mode");
     alarm(210);
-    receipt("begin build=%s delay=90 scope=%s\n", GAUGUIN_METAL_FRONTEND_BUILD,pipelines ? "root-offscreen-shader-pipelines-not-CA" : "root-offscreen-objects-not-CA");
+    receipt("begin build=%s delay=90 scope=%s\n", GAUGUIN_METAL_FRONTEND_BUILD,ca ? "root-offscreen-real-CARenderer-not-desktop" : (pipelines ? "root-offscreen-shader-pipelines-not-CA" : "root-offscreen-objects-not-CA"));
     memory("before-delay");
     uint64_t start = now_ns(); struct timespec rest = {90, 0};
     while (nanosleep(&rest, &rest)) check(errno == EINTR, "delay", "nanosleep");
     check(now_ns() - start >= 90ULL * 1000000000, "delay", "monotonic90s");
-    @try { @autoreleasepool { run(pipelines); } }
+    @try { @autoreleasepool { run(pipelines, ca); } }
     @catch (NSException *exception) { fail("exception", [[exception description] UTF8String]); }
     check(now_ns() - start < 210ULL * 1000000000, "deadline", "finite diagnostic");
     alarm(0);

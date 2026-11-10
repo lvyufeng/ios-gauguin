@@ -12,7 +12,7 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--cache',type=Path,required=True)
     ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--profile',choices=['baseline','gauguin-diagnostic'],default='baseline')
+    ap.add_argument('--profile',choices=['baseline','gauguin-diagnostic','gauguin-ca-exact'],default='baseline')
     a=ap.parse_args();repo=Path(__file__).resolve().parents[1]
     manifest=repo/'graphics/hakios-metal-ca/upstream.json';spec=json.loads(manifest.read_text())
     assert spec['revision']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
@@ -26,9 +26,15 @@ def main():
         assert b'SPDX-License-Identifier: MIT'in data and b'@implementation HakiosMetalDevice'in data
         pins[str(p)]=sha(p);rows.append((p,rel))
     profile=repo/'graphics/hakios-metal-ca'
-    patches=sorted((profile/'patches').glob('*.patch')) if a.profile=='gauguin-diagnostic' else []
+    patch_names={
+        'baseline': [],
+        'gauguin-diagnostic': ['0001-gauguin-offscreen-diagnostic.patch'],
+        'gauguin-ca-exact': ['0001-gauguin-offscreen-diagnostic.patch',
+                             '0002-gauguin-exact-ca-functions.patch'],
+    }
+    patches=[profile/'patches'/name for name in patch_names[a.profile]]
     overlays=sorted(p for p in (profile/'overlay').rglob('*') if p.is_file()) if patches else []
-    if a.profile=='gauguin-diagnostic':assert len(patches)==1 and len(overlays)==2
+    if patches:assert len(overlays)==2 and all(p.is_file() for p in patches)
     for p in patches+overlays:pins[str(p)]=sha(p)
     out.mkdir(parents=True,exist_ok=False);source=out/'source';source.mkdir()
     for p,rel in rows:

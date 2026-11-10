@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —242 software phase clock SOURCE/NATIVE PASS; pending240 preserved
+
+PROGRESS. R242=research/tmp/gauguin-clock242-worktree-20261110, branch
+codex/gauguin-present-cadence-20261110, parent241a0b6d81. Source
+9da060b890627b20fb28c05cd0a27f45633157c3; docs eacea59. W242=R242/research/tmp/dsh-clock-0242-phase.
+MAIN remains physically qualified201 patches; no source cherry-pick.
+
+0211 adds a clock header and framebuffer cadence above held0210. Opt-in
+sweetfb_hold=1 sweetfb_phase=1 uses actual XNU absolute ticks/wakeAtTime,
+counts skipped logical beats once, and consumes copy slots only when a frame
+is taken. No accumulated copy-time delay or overdue callback burst; time is
+resampled after lock acquisition. Invalid geometry/backward/overflow/wake
+failure is explicitly logged with legacy fallback. Such fallback must not
+qualify a phase trial. Nominal16667us software interval unchanged, physical
+panel/mode unqualified. Copies counter means consumed records, not pixel FPS.
+
+DSH host-stage-v1 PID38032 exit0/40pins: six tests pass,7264 virtual-clock
+checks + lifetime3236 + old GPU/DMA/VM contracts. Modeled12ms work reproduces
+old45334 vs new33334 tick intervals at1tick/us; NOT a phone performance result.
+Raw runner inherited a241 result label; named242 profile/source/clock log and
+new native review preserve and identify the actual execution.
+Full-build-stage-v1 PID38824 TERMINAL0/140.190629s/256pins unchanged: pristine
+1b191cb5+all203patches,5331files SHA
+ 02b6c9d6c6b75ea3f2b485f0521521bdb48a3c572c573904485412684843348e.
+Only framebuffer modified + SweetPresentClock.h added vs native241; all GPU/
+Surface code unchanged. Fresh objects build242-present-clock/runs/gauguin.JIParn,
+compile0+generic qualification0 on first stage. Kernel17330304B SHA
+ 095c27fb6b85f057a6bad3bd299eddb9004a55b95d18ca4053677afd18dc0264,
+bannerTueNov10 23:41:42CST2026 xnu-bbbe8b12a322425693e54628d2e11a57.
+Clean source/input provenance, symbols, archive/install/cache64 retained;
+four new clock + five held methods uniquely defined __TEXT_EXEC,__text.
+Codex rehashed all40/256 pins, whole source/kernel; disassembled5 functions:
+64bit tick division, converted absolute clock and deadline passed in x1.
+Header warnings remain. native-review242-v1.json SHA
+ 6bcf56c4554004ddb43decac69d7fd4f4f3c684224b47933651bad3583c02972.
+
+No242 image packaging/boot. Devicecommands0/writes0/reboots0. Outer84879/62655
+reaped0; no workers live. ~6GiB disk free; check capacity before another full
+native build. MAIN mkadt original a74... and240 ready8f19b3dd/plan9d943e79
+unchanged; actualapproval/apply/trial still absent. Do not repeat the existing
+question or boot any new image and stale that current-root delta. After real
+240 answer, run its exact paired239 image first, then held/phase variants with
+unchanged userdata. Independent NEXT: actual20H392 Metal discovery/capabilities,
+decoded-image upload and producer-completion/desktop admission. No deferred
+recording without completion handoff. Full RAM/storage/peripherals/power/high
+refresh/daily goal remains ACTIVE; noCI/push this milestone.
+
 ### 2026-11-10 CST —241 held-presentation SOURCE/NATIVE READY; pending240 unchanged
 
 PROGRESS. R241=research/tmp/gauguin-present241-worktree-20261110, branch

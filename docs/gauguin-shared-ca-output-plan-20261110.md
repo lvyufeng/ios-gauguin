@@ -110,3 +110,14 @@ This candidate has not been packaged or booted. It keeps the current cadence
 and does not provide a deferred producer-completion fence. The pending 0240
 proposal remains unchanged and must use its exact paired 0239 kernel first;
 another boot before installation would grow logs and stale the concrete delta.
+
+The subsequent isolated source commit
+`9da060b890627b20fb28c05cd0a27f45633157c3`, branch
+`codex/gauguin-present-cadence-20261110`, adds opt-in absolute software cadence
+with `sweetfb_phase=1` above held presentation. Its virtual-clock regression
+and related host checks pass. A complete pristine 203-patch replay, fresh
+native build and generic qualification also pass in one DSH stage. Source
+and physical-result scope are documented in that worktree's copy of this
+plan. It has not been packaged or booted and does not establish physical
+refresh or desktop latency. MAIN's active patch series and pending 0240
+installation remain unchanged.

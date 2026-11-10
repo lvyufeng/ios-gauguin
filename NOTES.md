@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —253 renewed HakiOS/UniXNU audit; desktop acceptance priority
+
+User explicitly requests another review of HakiOS success cases. Source review
+only; no 0253 kernel consumer/driver/build/boot or device command implemented.
+Report: docs/gauguin-reference-priorities-recheck-20261111.md.
+HakiOS main still63fc2b4633bac3af8e57dadab9f5a8d4cb940438; no new graphics
+revision. Fresh UniXNU722379fdcfe0a4078ca59e38eb3c0d8f0ff4d4b7,
+shengb7ffb576b006c8e4345bc37a38748d58d315f430,
+AdrenoMetald84093bb04222e232e45fdab6578c0f5468535b2.
+12freshfiles750889B verifyGitblobidentities; privatecapture
+research/tmp/hakios-recheck-20261111-v7/source-proof.json SHA
+b2ed5e5d72e1716fa754cadd044522fb50525829d159804db391b93719d6a267.
+Independentlocal-audit.json7b019e9ba1b887cb83b7d59a76414512d3469c58a54949b248e9f3d29971b5a8
+pins6localsources; pending2409ddelta/25018dimage/mkadta74diff unchanged.
+
+Key priorities reaffirmed with current-source reads: actual239/root237 does
+NOTqualify the244-250desktop; native250image unbooted. Need actualbackboardd
+device selection/jobs/sharedoutput, populatedicons/widgets/effects, realfinger
+trace FIRST. Reference documents red/white/opaque-layer failures from fixed
+shader substitutions and refusedimageupload. Ourcandidate ALREADY removes
+nearest stand-ins, selects20H392exactfunctions and addsboundedupload; doNOT
+reintroduce heuristics or assertearlierEAGLredbug hasthesamecause. Existing
+syncsubmit+globalcopylock stillpreventsCPU/GPU/displayoverlap. 16.9mssubmit
+average isnotGPU-only/frame rate. Deferredencoding separatefromasyncGPU.
+
+Fullresreference100-104swipe/89-91Settings vsreduced750x1624/frozenwallpaper/
+synthetic118-120; realfinger75-80. Sourceauthors'results, notA619forecast or
+independentpanelmeasurement. Freshshengrecord hasmixedmetal-flowA/B andone
+unknownfailedstartup; newsource/hostpassdoesnotguaranteephysicalbenefit.
+Adoptboundedend-to-endallocation/encode/issue/retire/copy/latch/faulttrace.
+Storagewait/logcost possibletraceterms, notprovenlagcause; currentUFSalready
+conditional50usspin/200ussleep. DoNOTtransferotherboard'sIODelaycost/MMIO.
+
+NEXT order: genuine240consent -> exact9ddelta/provenwriter/freshpreconditions
+-> EXACTpaired2397357trial FIRST -> freshrootcapture/regeneratedlaunchcache/
+scopeddesktopdelta/individualconsent -> existing0250realdesktop correctness
+andrealgesturetrace -> measuredcorrect60Hz -> trace-ledoptimization -> physical
+90/120Hz/longthermaltests. KeepfullRAM/storage/peripheral/dailyphonegoalACTIVE;
+0252memorycaptureproducercomplete, kernelconsumerNOTIMPLEMENTED. Additional
+memory/probe work mustnotdisplacedesktopevidence orclaimanimationbenefit.
+No repeat240question/inferredconsent; no newwrite/boot/CI/push. Current MAIN
+unrelated tools/mkadt.py modification preserved. DSHnotneededforsource-review.
+
 ### 2026-11-11 CST —252 original-handoff FDT producer SOURCE/HOST/NATIVE PASS
 
 Previous251 goalturn PROGRESS(currenthardwarepreflight/lower-RAM gap). Thisturn

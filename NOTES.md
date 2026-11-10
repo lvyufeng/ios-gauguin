@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0230 exact CA delta FULLY READY; needs NEW individual write consent
+
+PROGRESS: complete concreteproposal, software/API/Macpixeloracle/capture/entry
+checks; no devicewrite orboot thisround. FullgoalACTIVE/incomplete. AllDSHworkers
+TERMINAL; everylaunchhandlereapedexceptfinalguards-v25138 (reapnext). NOapproval
+file/apply-v1/trial-v1 exists. User22920502bf9and227a567...consentsCONSUMED; NEVER
+reuse. NEXTasknewindividualconsent for ONLYthebelowplan, then recordactualreply.
+
+W230=research/tmp/gauguin-ca230-worktree-20261110/research/tmp/dsh-ca-0230-exact-renderer.
+ready-for-consent230.json SHA19d5b726cc6c1519c2748108f0657f911e8b03c091b08b83cb57f3786ca11bee
+state ready230-exact-CA-delta-awaiting-individual-user-consent. Snapshotfalse
+user_approved is PRE-CONSENT, retainimmutableafteractualapproval. Codexrechecked
+ALL7successful profiles(6+12+10+9+27+24+12=100pins), alljobloghashes, ALL96
+independentreviewpins +generatedcapture323/startup22/source/nativepins. AllPIDs
+absent/terminal0. MostrecentactualRecoveryIO identitygauguin/unmounted/noholders
+and header2e1ab85c... stillidentical. PhoneidleTWRP. No writes/reboots.
+
+EXACTPLANe85b36e87b215178a846de2bac65fbfebd36dc76b0fe33ecd5f86ced0a9429fc:
+518blocks/2121728B/39runs (2.0234375MiB). TargetsONLYexistingdiagnosticloader,
+exactCAfrontendexecutable/resourcesseal, oneexistingjob+cacheargument--metal230,
+necessaryHFSmetadata. NONEWfiles/dirs.530otherjobsunchanged, all531hardfields/
+policies/core8a826583/ownshader218e/GLES/Mesa/BB/full3logs preserved.17retained
+capturedfiles;3fullprefixes89932/16292/1398371B. Fsevents housekeeping/orphanHFS
+private-temp cleanup audited; UUID/SystemVersion/permissionspreserved. Final
+localreadonlyHFSX82bc53215556a7af6d6e8fa24cc067a1f4160ee979130a22c38477b81abd4d9b.
+Freshcomplete16GiBbackup62f3c96c... readonly/fullhash/freshdeviceallbytes667.882s;
+oldc41backupunchanged. SourcecommitMAIN51b826e+6fb2377 /23051b826e+9d20837.
+Finalsignedprobe-v3=03a62089...114368B/build15bd653b5a4a6653c835e2f2; exactfrontend
+564f9bb8...420240B. Freshactual20H392ABI-v3ALL678imports/0missingstrong/unexplained
+weak. MacAppleGPU5scenes20480pixels/81920channelszeroerror; NOTA619/iOS result.
+
+proposal-stage-v2/result0: COW/entire16GiBchangedsector518proof/fsck0detach0/
+102unchangedwriterassertions/ALL39realOLDranges verified/currentheader2e1.../
+independentnamespace+payload+jobs+permissionsreview PASS. proposal1keptterminal1
+(old680countvsnew678ObjCregisterthunks), beforeCOWmount/phonewrite; neverrerun.
+Capture/startup-stage-v1/result0:323localbase/final22presentcaptureassertions,
+5actualmissing-consententries22assertions/zeroIO. Pilotv1hadwronginherited
+humanreadablemode2scope ONLY; alloldfilesimmutable. FINALentrypathsare
+trial230v2.py/post230v2.py/boot_pilot230v2.py/check_pilot230v2.py; scope NOWcorrect
+mode1gmt1/root-onlyrealCA/noUIclaim. final-entry-guards-stage-v1failedimportname
+innewguardbeforeIO, preserved; correctedcheck_startup_guards230v3.py in
+final-entry-guards-stage-v2/result0 provesALL5finalactualentriesrefusemissing
+approvalbeforeIO (22assertions). Use startup-guards-v3/result.json/currentv2
+entrypaths, notwrongscopev1. apply230.py/read_files230.py unchanged/final.
+
+AfterNEWconsent: revalidatecurrentpins/phone state; recordapproval.json bound
+ONLYe85b36e8...+touched-runrollback. Use DSHdurableapply230.py thenverify39writes/
+39readback/header0LAST/exactinstalled22. ThenDSHdurabletrial230v2.py--prepare,
+run pinnedtrialwithpost230v2 afteractualreadback, no seconduserdatawrite. Reused
+exact226image43c69019.../219kernel/NVT1/6GiB/30Hz/mode1gmt1/no-swipe/600s; no
+kernelbuild/CIneeded. Observeoriginalworker~746sautomaticTWRP. Postcapture22+
+fulloldprefixesFIRST, thenstrictimage/banner/service/newrootABI/memory128hard/
+ALL5realCAdraws+independentraw81920channels/min15nativejobs/soleowner/cleanrelease;
+anyunexpecteddriverrefusal/fault/unexplainedpoststopfailure rejectsqualification.
+No UI/touch/FPS/highrefresh/dailyqualification yet. Graphicsimage3DIBO/effects/
+compositorpublication plus allRAM/storage/phoneperipherals/power/90-120Hz/daily
+remainOPEN. No unsolicitedautovmanualrebootquestions; onlymanualTWRP/cable if
+trulyblocked. Mainoriginalmkadtdiffa74a0418... unchanged. Apple/deviceartifacts
+remainprivate. No remote push ornewCI thisround.
+
 ### 2026-11-10 CST —0230 full-readback source/Mac oracle/fresh ABI/backup PASS; local proposal2 running
 
 PROGRESS. FullgoalACTIVE/incomplete. No newuserdata approval or write/boot.

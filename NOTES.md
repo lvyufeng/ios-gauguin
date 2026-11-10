@@ -2,6 +2,82 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —250 command ABI fixed; FULL NATIVE KERNEL + temporary image PASS
+
+PROGRESS after renewed HakiOS audit. ActiveR250=
+research/tmp/gauguin-boot250-worktree-20261111, branch
+codex/gauguin-desktop-boot-profile-20261111. Criticald4dba773471b0fd6d5bd05f04fde9199f39be925;
+fixture1fe2a7e/5cc15ed; packagebinding + fullbuild CLEANhead
+d0409f25c40a764b0914089a57212b3e6bb01cce.
+Report docs/gauguin-desktop-boot-profile-20261111.md.
+W250=R250/research/tmp/dsh-boot-0250-profile.
+
+mkpayload rejects >607UTF8bytes or embeddedNUL BEFORE opening kernel/ADT;
+no silent truncation, existing CLI output preserved on failure.608Bfield,
+NUL and0x2a8segment table unchanged. Patch0215 ONLY framebuffer: exact
+dyld1/sweeteagl2/gmt2 desktop predicate supplies held/phase defaults; explicit
+flags/optouts/invalid handling retained, all other modes olddefaults.
+Early TUNABLE initialization retained.607Bprofile replaces4keys only, keeps
+every other board/GPU/UFS/health token.60softwarecopy is NOT physicalhighHz.
+Schema250 requires new207source and present-default contract.
+
+Source: verified206clone + strictzero-fuzz0215;5332files, ONLYFBchanged,
+SHA79a03b79d0de8d9753e1952333d79a7b6ca75461e32764b41b1bc2a04620bfef.
+Software/nativeTU and separate fullbuild tree contents identical; compare
+entries/digest, not different clone-root metadata. Original249sourceunchanged.
+4commandgroups +17assetregressions pass. Actualold packer reproduces lost
+suffix; actual607newprofile roundtrips. Host actualpredicate/setup5400cases/
+22038assertions; old249 functionalRED42. Held3236 +phase7264assertions pass
+with respective oldsource functionalcontrols. Typed hostclock/arg seams;
+no physical performance claim. NativeFB427064B SHA
+f7f208c5e96e97463fadc2578cf419f77854bbfeaf31f15a39a2d9aa79b6f9e9,
+5334pins/2130headerconfigchecks,372undefinedsameactual249.
+
+DSH executes ALL stages, fullaccess; no providerfallback. Softwarev1 PID66217
+terminal1/730pins: sourceextensionPASS, fixture wronglyassumed16Kfileoffset.
+v2 PID66558 terminal1/733pins: command+17assetsPASS, fixture unusedclock
+helpers Werror. v3 PID66863 terminal1/737pins: policy+lifetimePASS, phase
+extractor needsheld241 reference notraw239. v4 PID67099 terminal0/741pins/
+6.726s: onlyremainingclock+nativeFB. Kernelpatchunchanged throughout.
+Laterpackagebinding d040 intentionallychanges2older-softwarepins; finalreview
+records exacthistoricalchanges, never claims alloldpinscurrent.
+
+DSH fullkernel PID67634 terminal0/1185pins/133.513s; freshobjects/cloneddeps,
+build0+retainedgenericqual0. Existingwarnings; focusedhostevidence above,
+SKIP_TESTS=1 in fullbuild. Capacity: reference1.668GB+512MiBoverhead+2GiBreserve
+against5.31GBfree (explicitlydifferent from2494GiBreserve), nooldartifacts
+deleted. Final~2.97GiBfree. Run gauguin.P5wxh4 under
+.deps-cache/p0-20261105/build250-desktop/runs.
+Fullkernel17331000B SHAdc220b5b24c38f0bd641c2a41693ba664447d18a0735e8c342df6b2fbfd8cae8.
+ManifestSHAac4e0db77dfaa611f10f8b6632b7d27fd2e6f930d9a5fb225002cf126723413a.
+Banner WedNov11 03:27:26CST2026 xnu-679496ada27f4d6d8c1ec8bcdf87de1c.
+
+DSH package/image PID4756 terminal0/3262pins/1.756s.7rootfiles9125479B same
+userlandbinaries/signatures/targetmetadata;3launch/cacheTEMPLATES outside root.
+24corruptcontracts rejected. Exactcommand607B+NUL read from realimage.
+Image shim/out/shim-p3-kernel-0250-metal-desktop-600-20261111.img,
+20021248B SHA18d3196f5827e7105c7b598c2951596f25f56449330223cbc9530ff3d4f1f72f.
+Geometry/shim/DTB equalphysical239. ManagedRAMbase0x100000000,size0x17ff00000;
+5firmwareidentities/reservations/ADTbounds/padding/kernel_end checked.
+No physicalrefresh/desktop/sharedoutput acceptance; not a ready HFSdelta.
+
+Codex rehashes finalstageprofiles/logs/pins, wholecode/nativeFB/fullkernel,
+allpackagedfiles/image/inputs, actualcommand/boardtokens/shim/DTB independently.
+review250-v1 SHAfa1945949be44fc515f91d1d1b29605adaeda30ce10c107438efb1f594636c28.
+Allstages terminal; outerDSH handles reaped0, distinctinnerfailures retained.
+No CI/push/devicecommands/boots/userdatawrites. MAINmkadt diffa74... unchanged.
+Pending2409dplan unchanged; genuineapproval/apply/trial ABSENT. No repeated
+question or bootstalingproposal.
+
+NEXT: genuine240 reply -> install240 -> EXACT paired2397357image FIRST.
+Then freshpost240capture/backup, regenerate531task/529unrelated-job templates,
+prepare/review full desktoprootdelta and individualwriteconsent. Only then
+0250realdesktoptrial. Verify bootstrap/cleanownerhandoff/BBSdiscovery/native
+jobs/icons/widgets/effects/sharedoutput/reuse/transitions, correlate real
+touch/HID/commit/encode/issue/complete/copy/panel. Syncsubmit/globalcopylock
+remain; prioritize measuredasync/cadence/cache/clocks work towardcorrect60Hz,
+thenphysical90/120Hz/thermals and fullRAM/storage/peripheral/dailyphonegoal.
+
 ### 2026-11-11 CST — renewed HakiOS review: actual command ABI blocker, touch distinction
 
 User again requested overlooked success-case details. GitHub main freshly

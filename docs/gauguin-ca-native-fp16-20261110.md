@@ -2,8 +2,8 @@
 
 The actual 20H392 QuartzCore code offers a route to its existing LPH shaders
 through `supportsNativeHardwareFP16`. This gives a concrete alternative to
-adapting a later system's incompatible shader library. Physical CA rendering
-with this route is still unqualified.
+adapting a later system's incompatible shader library. Trial 0235 now qualifies
+this route for five bounded real CoreAnimation offscreen scenes on A619.
 
 Offline inspection of the exact cached framework established these links:
 
@@ -17,9 +17,9 @@ Offline inspection of the exact cached framework established these links:
    index the exact table: LPH/CPH, LPH/CPF, absent, LPF/CPF. Both LPH functions
    are present in the current image. Trial 0233 requested the missing LPF/CPF.
 
-These links explain a specific precision-selection failure mode. The upcoming
-physical test must establish that the new route actually works through all five
-real CA scenes, with correct pixels and continuous native draw receipts.
+These links explain the precision-selection failure captured in trial 0233.
+The physical result below confirms the new route through all five real CA
+scenes, with correct pixels and correlated native submissions.
 
 ## Scoped implementation
 
@@ -59,10 +59,50 @@ qualified GLES path before reaching this new test.
 - Fourteen reader tests pass, including incorrect or premature activation,
   missing/corrupt rows, unchanged old CA checks and separate prelude draw counts.
 
-The evidence proves software preparation and the Mac oracle workload. It does
-not prove that the A619 completed this workload or that CA/UI rendering works.
-Those claims require a new approved physical trial, fresh captured artifacts,
-native fences, pixel rows and the original strict CA/service qualification.
+These software checks support the separate physical trial below. The Mac
+oracle alone does not prove A619 execution or desktop rendering.
+
+## Physical trial 0235
+
+After individual consent for the exact 286-block delta, all 35 writes were read
+back successfully; no rollback was needed. The installed 22-file set was checked
+before one temporary boot of the unchanged qualified 0219 kernel. The phone
+automatically returned to TWRP after 746 seconds; the observer completed in
+747.089870 seconds with the matching kernel banner. All 19 retained static
+files and the complete three historical log prefixes survived unchanged.
+
+The actual A619 FP16 prelude passed independent comparisons of all 4,096 pixels
+and 16,384 half channels. Only then did this device instance activate its native
+FP16 capability. The original image-owned `fixed_frag_lph_cph` and
+`fixed_vert_lph_spc` specializations succeeded in all six calls, with no missing
+functions or substituted newer library. Public GPU families remained zero.
+
+| Real CARenderer scene | Independently compared pixels | Maximum channel error |
+| --- | ---: | ---: |
+| Opaque color | 4,096 | 0 |
+| Image texture | 4,096 | 0 |
+| Alpha blending | 4,096 | 0 |
+| Mask | 4,096 | 0 |
+| Updated image | 4,096 | 0 |
+
+All 81,920 CA output channels matched. The kernel recorded all 16 completed
+submissions: one FP16 prelude, ten poison/readback jobs and five actual framework
+jobs. Four FP16 draws were accounted separately from 14 accepted CA draws.
+The finite 600-second GPU service completed 598 verified renewals. No competing
+compositor owner, GPU fault cleanup, BO failure, compositor crash or post-stop
+submission failure was accepted. Probe resource release also passed.
+
+The original results are `physical-review235.json` and the independent
+398-pin `acceptance235-v1.json` in the private directory below. This is an
+offscreen CA result, not desktop acceleration, general Metal compatibility,
+application admission, a frame-rate measurement or high-refresh support.
+
+Next, qualify actual IOSurface-backed input/output and the compositor's display
+handoff. The current kernel surface importer explicitly rejects read-only or
+non-IOBuffer-backed surfaces; borrowed task memory requires its own mapping and
+lifetime validation. The qualified root probe does not expose the device to
+backboardd or other applications, and the 600-second service is still a finite
+diagnostic window.
 
 Private artifacts are under
 `research/tmp/gauguin-precision235-worktree-20261110/research/tmp/dsh-precision-0235-flow/`.

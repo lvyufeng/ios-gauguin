@@ -26,6 +26,7 @@ old-slot SHA c8e452dc869a673c2a23511a8e80f576df8f46fe19739871a845126b31c35baf.
 Misc first4K all zero, unarmed. HFS header and all33 runs/194 pending0240
 old blocks match. Proposal b9c831c20e93ce2300ab1a627fc57a947322a4ad9a181274b855a2f3337b0e07
 binds one temp boot, one4KiB reserved userdata slot and 13B misc marker.
+Explicit 0261 confirmation requested in chat for both named writes.
 No real approval/claim/write/boot exists. Mock trial rejects missing/wrong
 consent and stale slot, allows one exact boot. Genuine approval required,
 then fresh preflight and one trial.py, postflight reads marker/neighbors

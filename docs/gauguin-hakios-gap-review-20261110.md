@@ -1,5 +1,9 @@
 # HakiOS success path: gaps remaining in gauguin
 
+For the current 0238 result and renewed desktop integration priorities, see
+[the subsequent source review](gauguin-hakios-desktop-recheck-20261110.md).
+The status below records the earlier 0230 investigation.
+
 This follow-up supersedes the current-status portions of the earlier graphics
 review. It follows actual0230's first-frame failure, not a new successful UI
 trial. The complete phone, RAM, storage, peripherals and high-refresh objective

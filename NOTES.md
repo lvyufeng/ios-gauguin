@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —renewed HakiOS audit; prioritize real Metal desktop;239 host PASS
+
+PROGRESS; wholephone goal ACTIVE/incomplete. User asked to recheck HakiOS success
+again. GitHub connector resolves SAME currentmain63fc2b4633bac3af8e57dadab9f5a8d4cb940438,
+not a newfix. Fresh9files708049B allGitblob-verified;7matchretainedoriginals,
+2newlocalcopies. research/tmp/hakios-recheck-20261110-v3/source-proof.json SHA
+ e7c7045d22787bbc835760d90a82938b3f075a6dde92b90a2f58180e70a68939.
+Two wrongguessedpaths404retained; correctMiniSurface/Framebuffer paths verified.
+MAIN docs/gauguin-hakios-desktop-recheck-20261110.md records evidence/actions.
+
+Concrete overlooked/underweighted integration: installed GauguinMetalProfile
+still admits ONLYnamedroot offscreen226; noMetalPluginName/Class publication,
+compositorROadmissionstillclosed. HakiOS actuallyconnectsbackboardd. Ourdiagnostic
+patch also UNCONDITIONALLYREFUSES newBufferWithBytesNoCopy; upstream2612 explains
+QuartzCore decodedimage->immediateblit neededit and refusalleftuninitializedimage
+textures. This isSEPARATEfrom5IOSurfaceinputs; cannot claimoldEAGLicons causedby
+thisMetalrestriction. Upstreamcopiesinitialbytes/deallocatorbutnotlatermutual
+sharing; generalnoCopycontractnotqualified, do notsilentlymisadvertiseit.
+Upstreamkeepssurfacesfromswap, GPUcompletion/presenter/boundedqueue/beat; oursrawIDs
+lookeduptimerlater,30HzCPUcopy/60Hztimernotifications. Needrealpresentationwork.
+Performanceconditionsmatter: A642Lfullrender1125x2436~100-104swipes/89-91Settings;
+lower750x1624+freeze/defer/workers~118-120Settings, realfinger~75-80. Authorrates,
+notA619forecast. Ouractual238already8/8CPUs; do notcallcorecountmissingfix.
+Original20H392FP16/LPH scene pixels resolved235; do notreverttoforeignCAshaders.
+
+Revisedpriority: finishobserved239mappingfault withUNCHANGEDinstalled237probe;
+thenboundedsharedCAoutput+presentationownership andseparatebackboarddMetalprofile
+includingdecodedimageuploads; actualdesktopicons/widgets/AppLibrary/Settings/
+lockunlockrepeatedtransitionswithnamedrefusals/native/presentreceipts; thentouch-
+commit-fence-paneltimings/defer/cache/workers/wallpaper/scale A/B, sustained60Hz,
+physical90/120Hzlater. MorestandaloneGPUfeaturesonlyforconcreteworkloadblockers.
+No newuserdata write/boot performedbythisreview.237approvalCONSUMED.
+
+R239=research/tmp/gauguin-unique239-worktree-20261110, branch
+codex/gauguin-unique-ro-task-map-20261110, W239=R239/research/tmp/dsh-unique-0239-task-map.
+Patch0209 forcesUnique ONLYforROmapPixelsInTask, sameRO/cacheflags/mutablepolicy.
+201activepatches; actualsourcecandidateSweetSurface.cpp inW239, earlier238kernel
+aliasfixretained. Newtest extractsproductionmethod+actualIOMDsame-taskfastpath;
+realhostsharedfilemmap/munmap/MAP_FIXEDreuse,5probe layouts,readonlycacheflags,
+mapfailure/mutablebaselinecleanup. Old238staticviewreadsreusedpoison; new239
+independentviewpreservesall5sources(151checks). TypedVMfallback, NOphonecausalityclaim.
+DSHhost-v2passednewmap+allGPUregressionsincl123earlyVA+309wrap; clientcreatefixture
+lackednewUniqueconstant, correctedconstantONLY. V4remainingcreatePASS/dispatcher28743
+terminal0/39pinsunchanged. V1runtimeREDwasrealbutharnessexpectedwrongasserttext;
+v1/v2failedreceiptsretained. V3profilecreationassertfailedbeforefile; outerDSH
+attemptreportedmissingprofile, NODISPATCHER/tests; neverreuseascompletedstage.
+Hostreview239-v1.json48pins SHA
+ 721f02477f6c346f130323c25237be54e2d09d267411cf87657e20609db212ca.
+AllouterDSH74560/95649/27200/45475reaped0; no239workersLIVE. No239fullbuildscripts,
+nativekernel, image ortrial YET. NEXT deriveproven238localworkflow: freshpristine
+201patchreplay, onlyGauguinGPU+SweetSurface differfrom219, ONLYSweetSurface vs238;
+materializedhosttests thenfreshfullnativebuild/qualify/package exactsame607Bargs,
+readonly22/currentfull1345762/52441/1437148prefixes/e6ce...header, ONEkernel-onlyboot.
+No newuserdata install/backup/consentneededforsameinstalledprobe. Mainseries219;
+236/238/239driverpatchesisolated. Preserveuser mkadt binarydiffSHAa74...; noCI/push.
+
 ### 2026-11-10 CST —238 terminal: fourth GPU job/pixels fixed; CPU alias guard still fails
 
 PROGRESS; wholephone goal ACTIVE/incomplete. ORIGINAL238 trial-stage-v1 PID10735

@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0230 NEWconsent question sent; awaiting user's answer
+
+PROGRESS completed asimmediatelybelow. request_user_input_async accepted aNEW
+individualquestion for e85b36e8... ONLY:518blocks/2121728B/39runs, exactCAfrontend/
+probe/job/cache+HFSmetadata, touched-runrollback. Awaitactualuserreply; toolreturned
+accepted=true withoutan exposedquestionID, so doNOTinventanID. ThereisNOapproval
+file/noapply/no230boot. Prior229/227approvals cannotauthorize230. FinalDSHhandle
+5138 nowreaped0; ALL currentworkers/handles terminal. SourceMAIN51b826e+6fb2377,
+latestreadydocsMAIN3314e74 /230b4828e9 beforethisentry. Mainmkadtdiffa74a0418...
+verifiedpreserved. GoalACTIVE/incomplete, phoneTWRP/currentheader2e1... unchanged.
+
+Afterexplicitapproval, useexactready-for-consent230.json plusapply230.py and
+FINALtrial230v2.py/post230v2.py/pilot230v2. Revalidateallcurrentpins, preserve
+immutablepreconsentready(user_approved=false ishistorical), recordverbatimreply
+withactualsourceIDifreturned. DSHdurableonceapply/readback thenonceboot/observe/
+capture/qualify; no manual-vs-auto question. Ifdeclined, doNOTwrite. Fullscope
+allGPU/Metal/realCAcorrectness/latency/RAM/storage/phoneperipherals/highrefresh/
+daily goals remainOPEN. Userconfirmation requirement is actualAGENTS.md quote
+"confirm each destructive step with the user before running it", not inferred
+skillpolicy. No pendingworker torestart.
+
 ### 2026-11-10 CST —0230 exact CA delta FULLY READY; needs NEW individual write consent
 
 PROGRESS: complete concreteproposal, software/API/Macpixeloracle/capture/entry

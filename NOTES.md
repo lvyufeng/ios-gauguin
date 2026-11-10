@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0236 full LOCAL kernel and real installed235 regression PASS
+
+PROGRESS; fullphone goal ACTIVE/incomplete. R236 source5671e8f, frozenbuildHEAD
+b409bddc88adcbea90cf25fac6612fb11a9ff165. DSH full-build-stage-v1 PID423 exit0,
+210.506653s,240pins unchanged. Fresh199patch replay from pristine1b191cb5 XNU,
+5330files/sourceSHAe2704056cf38e2b5f0acf78d817e67cdc96f9f3ae627c59a455e819e7e61888d.
+OnlyGauguinGPU.cpp differs from219. APFS-cloned4dependencies, freshobjects/run
+ gauguin.Fj7i1o; referenceartifacts+mtimes preserved. Kernel17329648B SHA
+ a9b52948cb6e858c8a85bf887c87046d28ce25351b773bc0d4f6a7928a572d02,
+bannerxnu-28ce46b2cc1a465c88039bc89ea8ccd9. NoCI/push. Nativewarnings retained.
+full-kernel-review236-v1.json independentlyverified256pins, SHA
+89b446f87e69475f4f621d8940835a8faa94418e26fe65150398adc7a43bc6d8.
+
+R236/W236 as below. Newimage5ec4b3afa6146327576f7de3ab1aab50ca6d07c58a7ea5703ec8d13034d182a8
+20021248B, same607byte mode1/gmt1/600s/no-swipe bootargs/shim/DTB/firmware/geometry.
+DSHcontrol-ready-v1 PID41453 exit0, readcurrent22files/header8c5fa368...; guard-v1
+PID42705 exit0 rejects4badscopes BEFOREdeviceIO/outputclaim. One TEMPORARYboot
+ofnew236kernel against UNCHANGEDinstalled235root; NOnewuserdatawrite orconsent.
+control-trial-stage-v1 PID43450 terminal0,356pins unchanged,bothjobs0. Actual
+fastbootbootOKAY, autoTWRP743s/observer744.483674s; exactnewkernelbanner. AllPIDs
+absent, no repeatboot/writer. NewtaskROpath NOT exercised by this control.
+
+ACTUALA619 FP16seed2335981353, all4096pixels/16384channels correct. Sameoriginal
+systemLPHroute activatedafterhalfreadback, all6originalspecializations succeeded.
+Five REALCARenderer scenes opaque/image/alpha/mask/updated-image20480pixels/
+81920channels allmaxerror0. Native16jobs/fences exact,14CAdraws+4preludedraws,
+598healthy600srenewals, soleowner/release/ABI clean. NOGPU/BO/cleanup/compositor
+failure. Existing19staticfiles unchanged, full341864/28169/1417759Bprefixes kept.
+Currentfullstdout592687/stderr35952/backboardd1424222B; postheader
+739c92d5799747b4654ef3402a38d4f62dbd029c6ab9dabf7a8a0bbdc01f2737.
+Codex acceptance236-v1.json independentlyrehashes388pins; SHA
+c59785a84e80b4c3958a6f3dff9de07b89e9ffb89f43fd71ed7afb45119ab415.
+TaskROhardware/generalMetal/desktop/highrefresh/daily flags STILLFALSE.
+
+NEXT R237=research/tmp/gauguin-surface237-worktree-20261110, branch
+codex/gauguin-task-surface-probe-20261110, createdfromb409bdd; currentlyno source
+changes. Prepare matchedreal read-onlytaskIOSurface sampler probe with exactcore8a
+ABI/projectgetters, noCPUalias/WRITErefusals/sourceguards/nonzerobase/partialtail/
+earlycallerreference release, independentrawpixelreader; retainFP16+5realCA.
+No237delta/approvalprepared. Anynewuserdatawrite needsfreshcurrent22capture,
+fullbackup/review andfreshindividualconsent. 235consentCONSUMED. PhoneinTWRP.
+MAINstillbaseline219series, onlyunrelatedtools/mkadt.py editSHAa74a0418...; R236
+hasbyteidenticalcopy requiredbygenericqualifier (notcommitted). Preserveboth.
+
 ### 2026-11-10 CST —0236 immutable task GPU import source/host/native-TU complete; full link next
 
 PROGRESS; fullphone goal ACTIVE/incomplete. Previous turn235 was realhardware

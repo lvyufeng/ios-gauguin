@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —238 eager read-only kernel alias source and host RED/GREEN PASS
+
+PROGRESS; wholephone goal ACTIVE/incomplete. R238=research/tmp/gauguin-alias238-
+worktree-20261110, branch codex/gauguin-task-kernel-alias-20261110, sourcefd17141.
+W238=R238/research/tmp/dsh-alias-0238-kernel-map. Patch0208 appends to200active
+patches. Kernel-only add(): after complete physical/PTE-empty validation, before
+any PTE/BO publication, require borrowedRO s->kernelAddress() whiletaskVAvalid.
+Failmap balancesprepare/address reservation; success retainscachedROkernelmap
+throughsurface/descriptor DMAownership/quarantine. NoCPUclientalias, quotas,
+GPUAPRO, flags, fullunmap orcompositoradmissionchanges. Actualproduction
+SweetSurface::kernelAddress body now extracted intoGPUhostfixture. Typedmap
+retainsMD/cachesreadonlyalias, but rejectsNEWmappingafteroriginaltaskVAunmap.
+
+DSHhost-stage-v1 PID68836 terminal0/7.293716s/12pins. Old236 passesalloldcases
+77transport/71sync/207queues/1189ROscatter/43fault/9295slots/64pilot, butnewlateVA
+case runtimeCXXasserts aftersubmit_result1/kernel_map0 (notcompilererror).
+Candidate238 passesalloldcases+123earlyVA/dropcaller/ROmap/all5layout/mapfailure/
+cleanupassertions underASAN/UBSAN. This reproduces a credible model of actual237
+failure; hardwarecauseNOTproven untilUNCHANGEDinstalledprobe passes onnewkernel.
+Hostreview238-v1.json linksactualoriginalcontrol/candidate logs, nofailureshidden.
+OuterDSH32482reaped0; allhostPIDsabsent. No238kernel/boot built yet.
+
+NEXT fullLOCALnative238 viaW238/build_all238.py →close_refs238/replay238/build238/
+qualify238. Derivedfromsuccessful236scripts, retainALLgenericprovenance/symbol/
+archive/install/banner/64bitcache checks. Fresh pristine1b191cb5archive +200patches
+intoREALfreshR238/.deps-cache/p0-20261105/source238-codex;5330sourcefiles,
+onlyGauguinGPU.cpp differs fromreference219fd75... andmustexactW238candidate.
+Replay rerunsactualnewlateVA/alltransport/ROwrap/create onmaterializedtree.
+Freshbuild238-task-surfaces, APFScloneonly4proven219dependencies; --jobs8, noCI.
+No separatecandidateARM64TUclaim (fullnativebuildwillcompileactualheaders).
+R238hasbyteidenticalCOPYofMAINuser tools/mkadt.py editSHAa74a0418...uncommitted,
+requiredbyunchangedgenericqualifier. PreserveMAINoriginal andthiscopy.
+FreezeR238HEAD AFTERthishandoff inW238/EXPECTED_BUILD_HEAD; do notcommitR238again
+whilefullbuildrunning. Fullbuildprofile/PID not yetcreated. MAINkernelseriesstill219,
+238changesisolated. Afterqualifiedfullkernel, packagefreshTEMPimage withsame237
+600s/mode1/gmt1/NVT/no-swipe args andsameinstalled237probe d1f08acb... . No userdata
+write ornewconsent needed/permitted;237writealreadyCONSUMED. Freshread22/allcurrent
+951342/44189/1430685Bprefixes/headerdbb520... beforematchedkernel-onlyboot. New
+single-useprofile, notrerunold237claims. Runtime32MiBlogreaderrequired asnextfull
+stdoutwill exceed1MiB. Hardware/fulltaskRO/desktop/highrefresh/daily remainFALSE.
+
 ### 2026-11-10 CST —237 returned automatically; first3 task formats pass, early VA release fails
 
 PROGRESS; full phone goal ACTIVE/incomplete. The original trial is TERMINAL,

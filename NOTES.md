@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0257 measured recovery vblank on the actual panel route
+
+Progress: DSH built a freestanding AArch64 DRM query probe and ran it from
+confirmed TWRP /tmp tmpfs. Active DSI1 CRTC 1080x2400/60, totals1182x4910,
+DRM clock136659kHz. Same route/mode before/after. 25 fresh samples/63
+sequence advances/1.045739427s => 60.244453Hz, median interval16.599080ms.
+No modeset/MMIO/reboot. All three RAM-only probe directories cleaned.
+Actual recovery vblank, not iOS or optical acceptance.
+
+tools/gauguin-drm-timing.c/.py; docs/gauguin-recovery-vblank-20261111.md.
+W257=research/tmp/dsh-display-0257. DSH PID50604 preflight exit0;
+51217 exit1 unavailable vblank; 51529 probe0/parser1 (first timestamp cached
+67.78s old); 51759 probe/parser0 after one warmup query and one sample
+interval. All DSH sessions reaped; final13 pins independently checked.
+Final binary ead344418577df6f67ca01aee7672ead9c51c16ae40c1d45cf420bcb11f6430f,
+raw log 288736b6cc109977a40fd21259b24c4e3293f3adf73f6f3e0d87b25fd233941c.
+Independent timestamp calculation verified. 0255 image and pending0240
+plan rehashed unchanged; unrelated mkadt diff retained.
+
+Recovered Lagoon DISP_CC 0x0af00000/0x20000 and vendor branch offsets AHB
+104c/MDP1010/PCLK0 100c/VSYNC1028, branch2 bit31 CLK_OFF. TWRP clk_summary
+unavailable. XNU next display work is guarded clock/domain accessibility
+and bounded inherited frame/line sampling. Keep pending 0240 consent and
+paired0239 -> fresh desktop delta/consent -> 0250 -> 0255 order. Goal active.
+
 ### 2026-11-11 CST —0256 real recovery panel modes and scan counter mapping
 
 Progress on physical refresh: DSH readonly TWRP DRM connected, twelve

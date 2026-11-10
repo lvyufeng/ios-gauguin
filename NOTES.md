@@ -2,6 +2,70 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —237 returned automatically; first3 task formats pass, early VA release fails
+
+PROGRESS; full phone goal ACTIVE/incomplete. The original trial is TERMINAL,
+not a timeout or stuck process. DSH trial-stage-v1 PID58207 exited1 with unchanged
+40pins: boot/observer job0, postcapture/qualification job1. Observer0, autoTWRP
+745s/elapsed746.572302s, correct236kernel/image5ec4b3af. All original workers gone;
+outerDSH43140 reaped0. DO NOT rerun claimed237 write/trial. User237 consent remains
+CONSUMED (33successful writes/readbacks). No new userdata write approved/needed.
+
+All22 current files captured with entire prior592687/35952/1424222B log prefixes
+preserved. Current FULL stdout951342/stderr44189/backboardd1430685B. Currentheader
+ dbb520ebe21e7be5517270c4c03149d25dbf504bb56927de492da55772e8f4ce.
+Original physical-review237.json staysFAILED, errors CA_layer_probe missing final
+memory checkpoints, task_sampler nativeFAIL, correlationmissingCAcomponent. These
+are NOT a claim that earlier CA pixels were wrong: Codex qualify_pixels() separately
+compares all5 realCA scenes20480pixels/81920channels exactly, plus nativeFP16
+4096pixels/16384channels and originalLPH6/6 specializations passed. Overall
+teardown/reacquire/result receipt is absent because probe deliberately _Exit(1).
+
+Real task R8/RG8/BGRA8 each4096 rawpixels independently exact (12288total), source
+allocation hashes/padding/tail and fullguard checks exact. NonzeroGPU biases64,
+4032,64(virtualbias16448); borrowedgenericreadonly kernelcreate records id9..11
+client=1 readonly=1. All3GPURO/noCPUalias/CPUWRITE/GPUWRITE flag guards passed.
+RGBA16F id12 import/guards alsoPASS, thencallerCFRelease +originaltaskVAmunmap
+BEFOREdraw; completionhandler status fails, no rows. RGBA32F not reached. Seed
+968001946. GPU service stayshealthy598renewals/600s, noBO/fault/cleanup/compositor
+failures; successfulnativejobs19=16baseline+3task. API0x46 calls24/failures5 =
+4deliberateWRITErefusals plusONEunexpected actualsubmit refusal. API0x44 8calls/
+4failures, import0x7e4calls/0failures. No fourthGPUjob reached the hardware.
+Codex partial-review237-v1.json rehashes77pins SHA
+94f205b78562ba7f8cdbac5e0b94c8d608ae1f6ab60894261c5bc1b5eb460ff7.
+All suite/taskRO/desktop/highrefresh/daily flags remainFALSE. Keep failed receipts.
+
+Leading HYPOTHESIS: GauguinGPU::add prepares+retains MD and Surface but never
+creates its kernel alias. Submit lazily calls s->kernelAddress() for cache
+maintenance AFTERcallerVA was unmapped; memory->map may then fail or rebind.
+Current GPU host fixture's kernelAddress() simply returns TaskPixels backing,
+so it cannot reproduce original-VA lifetime. Need model real kernelAddress body
+with map cache/read-only flags and live-task-VA seam, then demonstrate old236 RED
+and candidate GREEN. Do not present hypothesis as hardware-proven cause yet.
+
+NEXT R238=research/tmp/gauguin-alias238-worktree-20261110 created fromR2376d96403,
+branch codex/gauguin-task-kernel-alias-20261110. No changes there yet. Add bounded
+kernel-only fix to establish/retain READONLY kernel alias during borrowed import,
+while task VA still valid, BEFORE publishing PTEs/handle; fail cleanly with no
+PTE/BO on map failure. Preserve all quotas/CPUaliasrefusal/APRO/whole unmap/fault
+retention. Use actual SweetSurface::kernelAddress() in host seam, simulate VA
+unmap before FIRSTsubmit plus map failure and existing regression cases. Codex
+critical driver; DSH runs builds/tests/temporaryboot. Then full local kernel238
+via proven236 local workflow, same installed237 probe d1f08acb.../core8a/frontend3c62,
+NOuserdata reinstall/new consent necessary. New kernel-only temporarytrial needs
+fresh readonly22/header/full951342/44189/1430685prefix capture and new single-use
+boot profile/image/pixel qualification, exact source/banner proof; no old retry.
+
+Root nowTWRP. Runtime32MiB-bound reader and post237_runtime.py alreadyhostqualified;
+nextboot will grow stdout ABOVE1MiB, so MUSTuse runtime reader, not original1MiB
+reader. Keep all genuine old/fullprefixes. Reuse early-release probe UNCHANGED to
+prove fix; if it still fails, add kernel-only stage diagnostics rather than weaken
+or skip release cases. No task-RO compositor admission/Metalpublication yet.
+Framebuffer source inspection also shows30HzCPUcopy+60Hzsoftwaretimer, physical
+panel descriptor not admitted bycurrentGPU importer; these remain future shared
+output/presentation/real-vblank work. Notes distinguish this from offscreen pixels.
+Mainonlyuser mkadt editSHAa74a0418...preserved; R236samecopy retained. NoCI/push.
+
 ### 2026-11-10 CST —0237 approved delta APPLIED; ONE matched task sampler trial LIVE
 
 PROGRESS; fullphone goal ACTIVE/incomplete. Userfreshreplycall_f1e0e48126f14b0495cc5ecf3aff3d08

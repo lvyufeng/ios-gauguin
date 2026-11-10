@@ -2,6 +2,67 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —240 runtime prepared / DSH host controls PASS; still no new write consent
+
+Previous goal turn PROGRESS: renewed HakiOS review5d47572/handoff90b175d identified
+animation requests, prompt display-surface retirement, root-only cache and
+relative framebuffer timer details. This turn PROGRESS: implemented actual240
+runtime/qualification helpers and DSH-tested them; no device IO or reboot.
+
+W240 remains research/tmp/gauguin-shared240-worktree-20261110/research/tmp/dsh-shared-0240-ca-output.
+New helpers: verify240.py, trial240.py, boot_pilot240.py, check_pilot240.py,
+post240.py, evidence240.py, check_runtime240.py. verify240 first reads ONLY the
+new actual approval, then binds9d943e79 plan/8f19b3dd ready receipt/corrected
+26d09095 probe and a successful pinned single-job apply stage, all33 distinct
+readback ranges/header0last/794624B/final-image1b234fdf. Existing237 approval
+is never consulted. Kernel proof/pins still reference actualR239 source8cb296d
+and physicalimage7357a0ab; no new kernel or native build claim.
+
+DSH runtime-gates-stage-v1 PID92912 TERMINAL0/9.478989s, one job0, all38pins
+unchanged. Actual239 old raw logs do NOT qualify240. Modeled shared-output
+reader gives40960viewpixels but hardwareFALSE;27 corrupt native correlation
+controls reject. Actual four runtime entry functions (prepare, run, boot,
+post) reject missing real approval BEFORE any IO/output claim; spy calls0.
+Local-only final16GiB image read/streamSHA predicts all22 installed files and
+correct new probe; no fake installed capture. Original3211 proposal pins
+unchanged. Runtime review db6c9f8d6e1d3c24df569807441c84508bca4038eec3dc6ca05ebc6731889ea4
+records41 receipt/code/raw pins; Codex rehashed all38 stage inputs independently.
+Report committed5d4a0bb. Outer21533 reaped0. Last known phoneTWRP, not freshly
+polled this turn.
+
+Future trial keeps32MiB readers/all22 files/three full log prefixes, strict
+nativeFP16+five originalCA+five task inputs, then both original shared target
+CPUviews, padding/tail,14 sharedCA draws, no shadow/readback substitute,
+ordered markers, exact build/seed and final wholeprobe owner reacquisition.
+Expected26explicitCB+10frameworkCA=36native successes;16sampled+20unsampled,
+never claim exact laterIBs. The old CA RESULT explicit_jobs=10 remains that
+block's own count; actual binary final counter/callback gate requires26.
+Top shared-output hardwareTRUE is set ONLY after all real capture, identity,
+service and resource checks pass. Desktop/MTLDevice/highrefresh/daily remainFALSE.
+
+NEXT after the actual pending240 user answer: create realapproval.json with
+verbatim reply/source call ID/9d plan/8f readyhash/rollbackTrue; freeze a NEW
+single-job apply-stage-v1 for apply240.py. After exact actual readbacks pass,
+DSH runs trial240.py --prepare in its own new pinned preparation stage, then
+the generated trial-stage-v1 ONCE. Runtime does a fresh installed22 capture,
+positive host preflight that intentionally stops before RecoveryIO, normal
+13-byte recovery latch and temporary boot,780s observer/860s timeout, then
+post240 capture and all gates. Do not rerun missing-consent tests after approval.
+No approval.json/apply-v1/trial-v1 exists now; automatic continuation is NOT
+consent. Existing question remains pending; do not repeat it.
+
+Independent next driver work can proceed while waiting: separate worktree
+from MAIN qualified201-patch baseline, implement bounded pending/in-flight
+display surface ownership with prompt retirement and explicit cadence.
+Actual239 SweetSurface::gpuState is0complete/1inflight/2failed; its existing
+GPURead guard already waits on synchronous gLock and rejects failed surfaces.
+Do NOT mistake a retained BO for permanent in-flight state. sweet_surface_copy
+retains only the object; table membership uses a separate users count. Pending
+IDs currently have neither held object nor table use. Preserve the tested
+baseline and all DMA-fault retention rules; qualify the actual extracted
+handoff code before any new kernel trial. No241 source has been written yet.
+Original MAIN mkadt binarydiff a74a0418... preserved. NoCI/push this milestone.
+
 ### 2026-11-10 CST — renewed HakiOS review after 0239; desktop integration remains the priority
 
 User asked to look again at the successful HakiOS case. Re-fetched GitHub main

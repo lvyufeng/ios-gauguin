@@ -2,6 +2,92 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0227 real shader readbacks PASS via recovered logs; mode2 control LIVE
+
+This goal turn is PROGRESS: real public MTL shader/PSO/computation readbacks
+passed; actual CA shader compiler coverage measured; durable DSH execution
+implemented and tested. Full daily-use objective ACTIVE/incomplete.
+
+Original227 DSH92477 exited1 with "DeepSeek Messages transport failed".
+Original dispatcher PIDs82501/82504 absent, no trial/dispatcher terminal receipts;
+original claims, boot cycle, pinned sources and missing results left untouched.
+Do NOT claim that original automated observer completed. USB then absent despite
+user TWRP/replug confirmations. Final user replug restored exactly ONE recovery.
+No duplicate227 write or boot. DSH66083 salvage-stage-v1 exit0/reaped: read-only
+ALL22files and full4198400B raw console ring, native613430B. DSH32627 launched
+separate recovered-evidence review using new durable launcher; exit0/reaped.
+
+W227=research/tmp/gauguin-metal227-worktree-20261110/research/tmp/dsh-metal-0227-public-pipelines.
+salvage-physical-review227.json SHA
+33019340df31d3dfcfe2befdeae6e99fc7640df0104350d0f7e0f877a41b64fe,
+state qualified227-bounded-MTL-shaders-from-recovered-logs-observer-incomplete,
+errors empty, ALL46receipt pins independently rehashed unchanged. Exact image
+43c69019..., probe buildff9231066d35062fa333c935 and loaded library218e0c97...
+bound to actual installed artifacts, complete prior log prefixes, native banner
+and93native submissions. Native600s service598healthyrenewals PASS; first16
+exact ring/fence samples plus77aggregate later successes (not exact later IBs).
+93 GPU jobs,372736 pixel checks,512compute words,4096half pixels,7renderPSOs
+all match independent CPU expectations: clear/reuse/IOSurface and new compute,
+triangles,updatedtexture,additive/premul-half/sRGB. Soleowner reacquire+close
+PASS. Real memory footprints819400/1966400/2621760/3244352/2326848B across
+before/open/compiled/rendered/released;128MiBhard limit intact. Zero BO/submit/
+cleanup/BB crash records during and after finite stop. This proves bounded public
+MTL shaders ONLY; no system discovery, MetalCA, visual UI, FPS/highrefresh claim.
+Manual-reset attribution unknown after observer loss; no invented elapsed time.
+
+ALL19static files unchanged, all3full old log prefixes retained. New full logs
+87026/16018/1363063B. Current POST227 root header NOW
+0e411b7638183dcc3bf19692de8868545e20bfe0e1ed17c1a759fce6de120db5.
+Any next delta/control MUST use this22-file state, not prebootc9347eee or2260cd.
+User227 a56746bc consent CONSUMED. No new destructive consent question pending.
+
+Offline228 worktree research/tmp/gauguin-ca228-worktree-20261110,
+branchcodex/gauguin-ca-shader-census-20261110, W228=research/tmp/dsh-ca-0228-system-shaders.
+Source66fe62c / MAIN2bd271b: generic host census tool (no Apple bytes in git).
+DSH7954build and23445default census exit0/reaped. Actual20H392default141funcs:
+135compile,6refuse (2unspecialized uber framebuffer slots>16;4imageblock/tile
+interfaces). No function constants supplied, so not actual descriptor coverage.
+DSH8628 outer1 transportfailed AFTER variants-stage-v1 terminal0/pins unchanged;
+451actual embedded MTLB variants ALLcompile. Independently rehashed46stage pins
+and592per-function stdout/stderr pairs. ALL451spills0;444FS+7VS, FS output
+counts377single/65double/2triple,161framebuffer-fetch stages. Host ASAN peakRSS
+24.6..605.3MB is NOT an iOS footprint or runtime verdict. Pipeline selection,
+full link/descriptor semantics, multi-target/fetch draws and pixels remain open.
+independent-census-review.json retains exact outcomes and artifacts stayprivate.
+
+Source3d9abef / MAIN4734f1b: start-pinned-stage.py launches existing once-executor
+in separate POSIX session, redirects local logs, recordsPID, returns immediately;
+atomic launch/executor claims prevent rerun. Existing job approval gates retained.
+DSH42068 models-v1 failed on macOS /var symlink key normalization; originals
+snapshotdurable-v1-inputs. DSH76805 models-v2 exit0/reaped:3 REAL tests including
+termination of launcher parent process group, original child completes, duplicate
+request never restarts, changed pins/old synchronous claims refuse before work.
+Used successfully for recovered review (PID88125 completed) and current control.
+
+Baseline control: control-mode2-v1 first CLI attempt accidentally included a
+sentence-separator dot -> argparse2/no claim; preserved. Corrected launch then
+controlv1 failed pre-IO on JSON-string-vs-Path, no phone boot/misc write. Original
+stage/results/source retained. NEWcontrol-mode2-v2 wraps JSON paths as Path;
+actual pre-first-RecoveryIO model exit0, then real22 preflight and positive host
+pilot gates PASS. DSH74880 launches only; actual durable dispatcherPID89720
+observed live PPID1. Current stage profile12051cdf..., no terminal result yet;
+trial/preflight last recovery-latch-verified, image_boot_attempted=false (poll next).
+This control uses EXACT physical223image346c7495...,219kernel/NVT1/6GiB/30Hz/
+mode2/noGMT/no synthetic swipe/600s. Rootuserdata stays installed227; its new
+loader must exec retained qualified223probe, complete8root fences then admit
+GLEScompositor. No userdata changes. Routine13-byte recovery latch only.
+
+NEXT observe SAMEcontrol-mode2-v2/stage launch PID89720 and actual trial files.
+Never restart claimed profiles. After actual one boot and autoTWRP, post_control
+capturesALL22/full3prefixes and strict original observer0/banner/600s service,
+old223probe8CPU-expectedjobs and cleanGPUowner handoff. Visual UI/touch/FPS NOT
+qualified by this unattended control. If genuinely USB-stuck, ask only required
+manual recovery/cable action; never ask automatic-vs-manual confirmation.
+Then full actual CA pipeline selection/link/constants and own MRT/fetch pixel
+fixtures before Metal discovery/compositor publication. RAM/storage/peripherals/
+90-120Hz/daily and redclock/icon/widget correctness remain open. No CI/push.
+Main original mkadt diff a74a0418... remains untouched.
+
 ### 2026-11-10 CST —0227 approved38-run write PASS; ONE physical shader trial LIVE
 
 PROGRESS: fresh227 user consent received via request_user_input_async

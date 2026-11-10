@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0235 approved delta applied; ONE automatic root-only FP16/CA trial LIVE
+
+PROGRESS. Full goal ACTIVE/incomplete. User call_3901d4d26cb443929111b9ed2ec04f31
+reply: "允许写入，并允许写入或读回失败时回滚本次触及的块". Exact235 approval.json
+recorded plan809b9064...,286blocks/1171456B/35runs. Consent now CONSUMED by the
+successful write; no further new userdata write authorized. Fresh ready346pins
+unchanged. DSH apply-stage-v1 PID75832 terminal0 in8.983961s,348inputpins unchanged.
+Actual write receipt applied-approved-delta-readback-verified:35writeattempts,
+35writes/all35readbacks exact, header writtenLAST, no rollback. New actualheader
+bb1f7c805988bc0427358aecf87e3cbd97056ccfb2ba72ba6ea8f67297379cc4.
+
+R235=research/tmp/gauguin-precision235-worktree-20261110;
+W235=R235/research/tmp/dsh-precision-0235-flow. DSH dispatch-stage-v1 PID76242 and
+inner trial-stage-v1 PID76245 both confirmed LIVE2026-11-10T09:22:20Z. Original
+installed-current-v1 readback verified all22files and newheader. Actual positive
+hostpreflight passed all gates BEFORE IO. Actual temporary fastboot boot reported
+SendingOKAY0.462s/BootingOKAY0.134s/total0.599s, observer-running. Same219 kernel,
+43c69019...image,600s GPUservice/no synthetic swipe. No additional build/CI/push.
+User does not need UI/reset confirmation. Do not restart due to observation time.
+Read originalPIDs/result files; automaticTWRP expected around746s afterboot, then
+post235.py captures all22files/full historicalprefixes and strict independent
+FP16 plus actualCA scene qualification. Runtime result is still UNKNOWN; source/
+Mac pixels/A619 ISA are not phone success. If actual service/parser fails, retain
+original logs and diagnose instead of relabeling pass. AskmanualTWRP/cable only
+if actually stuck. Main mkadt binarydiffa74a0418... preserved. Fullphone/peripherals/
+presentation/FPS/highrefresh/daily requirements remain open.
+
+Independent232 image-store/readback work was inspected while235consent pending;
+no file changes, recompiles or phone writes occurred there before approval arrived.
+Its candidatecoreAF231/probe6399... remain NOT installed/phone-qualified. Follow235
+primary trial first; offline232 ABI/pixelreader/oracle can proceed without touching
+235pins or device while the original observer runs.
+
 ### 2026-11-10 CST —0235 consent-first entries complete; concrete write ready for NEW approval
 
 PROGRESS. Full phone goal ACTIVE/incomplete. Source remains MAIN28497bc /

@@ -2,6 +2,68 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0237 approved delta APPLIED; ONE matched task sampler trial LIVE
+
+PROGRESS; fullphone goal ACTIVE/incomplete. Userfreshreplycall_f1e0e48126f14b0495cc5ecf3aff3d08
+approvedEXACTplan2fa46ddf203blocks/831488B/33runs androllbackonlytouchedblocks.
+W237/approval.json recordedactualverbatimreply; this237consentisNOWCONSUMED.
+Do NOTask/reuseforanotheruserdatawrite. No extra userdatachange permitted.
+
+DSHapply-stage-v1 dispatcher57307 terminal0/8.851709s/all3848pins unchanged.
+Canonicalwrite_root_delta237.py:33actualattempts/33writes/33exactreadbacks,
+verified_starts ends0(primaryvolumeheaderLAST), no rollbackattempts, rebootpermitted.
+Codex write-acceptance237-v1.json independentlyrehashes3852pins SHA
+07dfacde30a8ece8303059ee75332b45f202f5060644fb6439beeb78c0fa3925.
+Onlyprobeexe+necessaryHFSmeta plan2fa46ddf installed; fullbackup6d1cd8...retained0444.
+
+Duringpermissionwait Codexpreparednewprivateboot_pilot237.py SHA
+34779ecd1b42e98e5615b71df4a9446093c063c37fe199db307facda2468c19e,
+trial237.py/check_pilot237.py andruntime capture/post copies. DSHboot-gates-v1
+PID55435 exit0/9.943646s/271pins:fullpositiveHOSTgates withclearlylabeledsynthetic
+install/permissionreceipts;28invalidscope/old235consent/write/readback/file/kernel/
+image/window/recovery/header casesreject BEFOREboot/devicecommands. NoactualIO.
+DSHruntime-guards-v1 PID56493 exit0/0.076103s/25pins:6typedcatalog/IOlogbound
+cases, andactualmissing237permission stopsALL3prepare/run/postentrypointsbefore
+IO/outputclaims (BEFOREcurrentconsentrecorded; donotrerunnowpermissionexists).
+Originalprivatefilespinnedinproposalacceptance areUNCHANGED. Newruntime reader
+read_files237_runtime.py raises ONLYstdout/stderrboundfromdefault1MiBto32MiB,
+matchingbackboardd'sbound; samefixed22paths. Completeprefixgrowthcouldotherwise
+exceed1MiB afternewrawrows. post237_runtime.py usesit, sameFP16/CA/task/nativegates.
+Runtime-preflight-review237-v1.json independently300pins SHA
+ba380f04cf0f31ec83ea8e5b902bf22a06239cc241e9688c1edfdc36de1961b9.
+
+DSHtrial-preparation-stage-v1 PID57772 terminal0/8.870611s/3853pins. Realnewwrite
+requiredFIRST, exactfinalCOWstreamhash8d6e72... and22localexpectedmetadata built;
+trial-stage-v1.json generated40pins. OuterDSH35630/2711/43564/58748 reaped0.
+AllcompletedPIDsabsent. NoCI/push/sourcebinarychange since6906298/7f94567.
+
+LIVE DSHtrial-stage-v1 dispatcherPID58207, launched11:40:36Z, originalprofileSHA
+9fef8d78b21ee96845065e38aab9d7ccab49f4103825b847a200d90b55130137.
+OuterDSHsession43140 (reapwhenfinished). Original40pinsprofile, twojobsONEbootthen
+full22capture/postqualification. DO NOTretry/restartclaimedstage/observer.
+Actualinstalled-current-v1 capture:all22files/hash/metadata exactnewexpected,
+full592687/35952/1424222Bprefixes preserved. installed-preflight-v1.json state
+verified-approved-Metal237-root-file-set-readonly, header
+cc8ca43eebb35fb7fd1f9b6d204c1ab2a3b9b919e94848580dc644f103ed87f4.
+RealinstalledpositivehostgatesPASS atpilot-host-preflight-v1/result.json, stops
+BEFOREIOmodel thenactualpilotruns. Routine13bytemisclatchverified, fastbootboot
+SendingOKAY0.458s/BootingOKAY0.134s/total0.594s. trial-v1/preflight.json observer-running.
+ActualPID58207confirmedliveafterboot. ExpectautoTWRP~743s(~11:53Z); useORIGINAL
+PID/result/cycle/observer untilterminal. Noauto/manualresetconfirmation orUIrequest.
+Ifstuck/USBabsentafterfiniteactualfailure, preservelogs andrequestmanualTWRPonly.
+
+NEXT observeW237/trial-stage-v1/result.json +trial-v1/result.json/cycle.log +
+physical-review237.json. Postruntimecapturesfull22logs/entireoldprefixes. Require
+native21=11FP16/poison+5tasks+5CA, exactly16recorded+5unsampled(no laterexactIB),
+5negativeWRITEsaddZEROsuccesses; raw20480taskpixels/sameSeed/sourceguards/
+noCPUalias/retains andbaseline4096half+20480CApixels; soleowner/release/finite600s
+service/noerrors. Do NOTinferhardwarePASSfromstarted/timeout/logavailability.
+TaskROsampling/generalMetal/desktop/FPS/highrefresh/daily allstillUNQUALIFIED.
+Afterterminalactuallogs, independentlyrehashoriginaltrial/pixel/serviceproofs;
+ifpass qualifyONLYactualtasksharing, thennativeCAoutput/display/compositor step.
+OriginalrootgoalallRAM/storage/peripherals/power/90-120Hz/daily stillincomplete.
+MAINonlyunrelatedmkadteditSHAa74a0418...preserved; R236samecopy kept.
+
 ### 2026-11-10 CST —0237 CONCRETE probe-only delta READY; needs NEW individual consent
 
 PROGRESS, wholephone goal ACTIVE/incomplete. Main237source7f94567 /R2376906298;

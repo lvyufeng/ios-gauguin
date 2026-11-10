@@ -104,3 +104,11 @@ end-to-end latency and sustained60Hz before qualifying physical90/120Hz.
 Every new userdata delta still requires a fresh full backup and current-state
 review, followed by its individual write consent. The last0230 approval is
 consumed. This source review performed no device IO, root write or reboot.
+
+During subsequent local delta preparation, opening a retained fragmented log
+through a writable macOS HFS mount relocated its extents despite preserving its
+bytes. Apple's [HFS open implementation](https://github.com/apple-oss-distributions/hfs/blob/main/core/hfs_vnops.c#L596)
+contains this automatic defragmentation path. The first proposal was rejected.
+The corrected staging checks retained files through the offline HFS reader and
+verifies their original data/resource forks and permissions after detach. The
+strict scope check remains; the delta does not include a relocated log.

@@ -2,6 +2,77 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0233 concrete delta ready; NEW individual consent required
+
+This supersedes the live backup/preparation entry below. Full goal remains
+ACTIVE and incomplete. All workers are terminal. No new userdata write, boot,
+CI run or remote push occurred. Source remains MAIN7d34cf2 /233a906b23.
+
+Ready artifact: W233/ready-for-consent233.json, SHA
+20dad08b884674a35dee9df8b4453ea844040029f55e88d35cbe81aa7b969b76.
+W233=research/tmp/gauguin-specialization233-worktree-20261110/research/tmp/dsh-specialization-0233-upstream.
+Exact plan W233/delta-v2/delta-plan.json, SHA
+8f1bc54720ab6ad8f49124903d6ac2ac0f42e91283c4f97a093ed2b03aaaab48:
+272 blocks,1,114,112 bytes (1.0625MiB),39 runs. ONLY3 existing payload files:
+frontend executable, bundle resource seal and paired root diagnostic probe.
+No new files/directories, job/cache changes or new shader substitutions.
+All531 jobs and19 captured retained files preserved; full3log prefixes remain
+90487/17894/1404833B. Core8a, Mesa/GLES/backboardd and hard limits retained.
+The aim is to capture the actual descriptor name/NSError, not claim a fixed CA
+renderer or faster UI. All complete-phone/RAM/storage/peripheral/power/high-refresh
+requirements remain open.
+
+Fresh full16GiB backup W233/root-backup-v1/iosroot-before-metal233.hfsx,0444:
+SHA c8b58ae39745a1c723a2e54e4d049b1c823f824b555d7196b0510c4d42a32d65.
+All17,179,869,184 bytes read from phone in668.215497s;318 clone chunks changed.
+Old62f... backup unchanged. Current device root header remains
+57e6255a9be3fbcafc935784f2d00b39408a820a6be364e18baa45761c0d6c81.
+Local FINAL image SHA
+f2bc3664066ac785888f51683ac758b6bcd11e346c51020b69a5cd15eff15944.
+Never confuse this local image with an applied device result.
+
+Backup-stage-v1 PASS. Proposal-stage-v1 FAIL before any device write because
+opening a retained fragmented log on the writable macOS HFS mount relocated
+its eight extents. Bytes were unchanged, but strict fork/scope checks rejected
+it. Apple OSS hfs_vnop_open confirms automatic small-file defragmentation.
+All original scripts/logs/COW snapshots retained. Fresh stage_root233v2 avoids
+opening retained files on the writable mount and adds offline post-detach exact
+data/resource-fork and BSD checks. It does not relax the scope check.
+Proposal-stage-v2 PASS: fresh backup actual20H392 ALL680 imports, exact reused
+image43c.../219kernel/mode1gmt1/no-swipe/600s, three-file COW/minimal sector diff,
+fsck0/detach0, unchanged writer102 assertions and ALL39 actual OLD runs verified.
+Independent full-volume comparison proves exactly272 changed sectors.
+
+Entries-stage-v1 FAIL after the capture model passed335 assertions: a generated
+bare read_files230 import was not renamed. No IO happened at that failure.
+Fresh entries-stage-v2 PASS using FINAL trial233v2.py and post233v2.py, with
+apply233.py/boot_pilot233.py/check_pilot233.py/read_files233.py and
+dispatch_trial233v2.py. Missing-consent guards cover5 actual entrypoints,
+22 assertions, zero device IO; separate descriptor evidence parser12 controls.
+Capture model base/final all22 present,335 checks; all existing pixel/service
+qualifiers remain strict. Probe log prefix is still METAL230 by unchanged source;
+new descriptor observer prefix is METAL233. Do NOT run broken trial233.py/
+post233.py or rerun materialize/claimed profiles.
+
+Codex rehashed416 input-pin instances across backup, both proposal and both
+entry profiles, every profile/job log, independent review and capture/guard
+outputs. Finalready has188 unique pins. PIDs33776/36441/37892/38212/38751 absent;
+DSH launch handles50562/22208/32827/52823/26713 all reaped0. No worker to restart.
+Original main mkadt diff a74a0418... preserved.
+
+NEXT ask NEW individual consent for ONLY8f1bc547...272 blocks/1,114,112B/39runs,
+with rollback limited to touched runs on write/readback failure. This is the
+actual AGENTS.md requirement "confirm each destructive step with the user before
+running it". Previous0230 and earlier consents are CONSUMED. At this entry no
+233 approval/apply/trial exists; ready user_approved=false is a preconsent snapshot.
+After a real reply: rehash all188 ready pins and current recovery preconditions,
+record verbatim consent/source ID, DSH durableonce apply233.py, verify39 writes/
+39 readbacks/header0LAST/all22 metadata; then dispatch_trial233v2.py once. Keep
+original finite observer and full22/three-prefix capture, report the actual
+descriptor name/domain/code/reason independently of CA pixels. No human UI or
+auto-versus-manual reboot questions. Ask for manual TWRP only if actually stuck.
+
+
 ### 2026-11-10 CST —0233 fresh read-only backup LIVE; proposal scripts prepared
 
 PROGRESS toward actual trace trial; full goal ACTIVE. Actual ADB count1/recovery,

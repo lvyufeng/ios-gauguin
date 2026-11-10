@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —246 discovery/first-open SOURCE/HOST/NATIVE-TU/BUNDLE PASS
+
+PROGRESS after245. R246=research/tmp/gauguin-discovery246-worktree-20261111,
+branch codex/gauguin-metal-discovery-20261111, parent245c283af8. Critical source
+ff6c07327b9e5d7a5132a5d30a606c89b7d30d6e. W246=R246/research/tmp/dsh-discovery-0246-integration.
+Report docs/gauguin-metal-discovery-20261111.md. MAIN physical239/root237 intact.
+
+0213 shares exact integer dyld1/sweeteagl2/gmt2 predicate. This suppresses
+kernel EAGL auto-insertion, preserves incoming env, keeps GPU provenance auth.
+Atomic single accelerator publisher installs MetalPluginName/ClassName, rolls
+back partial failure, removes keys before stop/release. Desktop-only0007 now
+waits up to35s/351opens,100ms interval; covers root30s alarm. Bad/backward/frozen
+clock, sleep failure and timeout are bounded; late/bad-clock acquired device
+is closed. No other frontend profile changes. No real registry/timing claim.
+
+Pristine205 replay5332files SHA
+ f002053dffd1b6f0a152a8bbb22e193cfb242b971c61d30e05402ca49e2a8b44.
+Exactly4files vs245: kern_exec.c,diagnostics.h,GPU.cpp,Framebuffer.cpp.
+DSH v1 PID91544 terminal1 AFTER67exec/provenance + owner cases pass: typed
+publisher fixture lacked virtual destructor. v2 PID92418 terminal0/16.609258s/
+284pins resumes remaining checks:507publisher assertions/1600threadstarts,
+2888virtual wait controls, all old GPU cases, three ARM64 native TUs and new
+bundle. Six old frontend profiles remain byte-identical. All native reference
+files and2130header/config checks preserved;5334TU input pins rehashed.
+Objects GPU355784B68f46799...,FB427016B5f983a77...,exec356688B95e9647f...;
+same C mode symbol defined once in exec, consumed by both IOKit units.
+Existing diagnostics retained. No full kernel link/image or physical result.
+Signed desktop frontend428480B SHA
+ 09b39b36601dc432fe06dbcd6c6943fb954584260b8a9b05dabb87a4f517a96b,
+same8a826583core. ABI PID93326 terminal0/10.069853s/292pins:555imports against
+actual20H392 cache, only added frontend nanosleep; no missing strong/weak,
+5M2Vhooks disabled. Codex rehashed final stages/logs/source/prepared and native
+maps/objects/bundle. review246-v1 SHA
+ 33d52ccfaa4ebf3efd7fe846e4a8b840b9d5381c042ad8e2c73b6414829ae35d.
+
+IMPORTANT refined NEXT: future backboardd task+cache removes only explicit
+DYLD_INSERT_LIBRARIES, RETAINS GAUGUIN_EAGL_MODE=admission. New kernel skips
+insertion in desktop mode; marker enables original automatic insertion in old
+modes. Removing both keys would break fallback. Build a hash-checked root
+SETEXEC router choosing old frontend/legacy path vs new mode2 bootstrap, with
+proven128MiB hard spawn attrs and needed soft-limit policy entries. Preserve
+531labels/unrelated jobs; do not race separate root jobs or lose old diagnostics.
+Then compositor ROtask import, shared output/completion/presentation, complete
+reviewed root overlay/full kernel and actual desktop acceptance.
+
+No phonecommands/writes/reboots/CI/push. Dispatchers terminal. Existing240
+approval/apply/trial absent,9d plan/8f ready unchanged, MAIN mkadt diffa74...
+unchanged. No repeated question or boot/stale delta. Real240reply -> paired239
+trial FIRST ->241/242 then later candidates. Full phone/RAM/storage/peripherals/
+realGPU/physical90/120Hz goal remains ACTIVE; runtime still unqualified.
+
 ### 2026-11-11 CST —245 armed GPU ownership SOURCE/HOST/NATIVE-TU/ROOT-BUILD PASS
 
 PROGRESS after244. R245=research/tmp/gauguin-bootstrap245-worktree-20261111,

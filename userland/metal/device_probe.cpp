@@ -21,6 +21,11 @@
 #include "fixtures/tri_cflat_fs_bc.hpp"
 #include "fixtures/tri_tex_fs_bc.hpp"
 #include "probe_pixels.hpp"
+#ifdef GAUGUIN_METAL_BOOTSTRAP
+#include <sys/sysctl.h>
+#include "GauguinMetalDesktopPolicy.h"
+#include "gauguin_metal_bootstrap.h"
+#endif
 
 #if !TARGET_OS_IPHONE
 #error This executable is an iOS-only root diagnostic
@@ -211,19 +216,44 @@ static void run(uint32_t seed) {
     before=audit->completed();finish(cb,*audit,"premultiplied-half",before);
     verify<uint64_t>(gpu,*half,"premultiplied-half",[](size_t){return px::kPremultipliedHalf;});
     audit->final();uint64_t end=nowNs();require(end>=start && end-start<120ull*1000000000,"deadline","probe exceeded120s or clock reversed");memory("completed");
+#ifdef GAUGUIN_METAL_BOOTSTRAP
+    ggr_bootstrap arm={GGR_BOOTSTRAP_VERSION,uint32_t(audit->completed()),0,0,0};
+    require(audit->call(GGR_BOOTSTRAP_SELECTOR,&arm,sizeof(arm))==0 &&
+            arm.version==GGR_BOOTSTRAP_VERSION && arm.checks==audit->completed() &&
+            arm.fence && arm.epoch && !arm.reserved,"bootstrap-arm","kernel did not arm this exact owner");
+    std::printf("GAUGUIN METAL245 armed epoch=%llu jobs=%u fence=%u ready=0\n",
+                (unsigned long long)arm.epoch,arm.checks,arm.fence);
+#endif
 }
 
 int main(int argc,char** argv) {
     std::setvbuf(stdout,nullptr,_IOLBF,0);
+#ifdef GAUGUIN_METAL_BOOTSTRAP
+    if(argc!=2 || std::strcmp(argv[1],"--bootstrap245") || std::strcmp(getprogname(),"gauguin-metal-bootstrap"))return 2;
+    char bootargs[1024]={0};size_t bootbytes=sizeof(bootargs)-1;
+    require(sysctlbyname("kern.bootargs",bootargs,&bootbytes,nullptr,0)==0 && bootbytes<sizeof(bootargs) &&
+            gauguin_desktop_boot(bootargs),"bootstrap-scope","exact mode2/gmt2/dyld1 required");
+    alarm(30);
+#else
     if (argc!=2 || std::strcmp(argv[1],"--metal223")) return 2;
+#endif
     require(getuid()==0 && geteuid()==0,"scope","root diagnostic only");
     std::printf("GAUGUIN METAL223 begin build=%s core=%s scope=offscreen-core-not-MTLDevice\n",GAUGUIN_METAL_PROBE_BUILD,GAUGUIN_METAL_CORE_SHA256);
+#ifdef GAUGUIN_METAL_BOOTSTRAP
+    memory("bootstrap-start");
+    std::printf("GAUGUIN METAL245 begin build=%s delay=0 deadline=30\n",GAUGUIN_METAL_PROBE_BUILD);
+#else
     memory("before-delay");
     uint64_t start=nowNs();timespec rest{90,0};
     while (nanosleep(&rest,&rest)!=0) require(errno==EINTR,"delay","nanosleep");
     uint64_t end=nowNs();require(end>=start && end-start>=90ull*1000000000,"delay","monotonic90s");
+#endif
     uint32_t seed=uint32_t(nowNs())^(uint32_t(getpid())*0x9e3779b9u);
     try { run(seed); } catch (const std::exception& e) { fail("exception",e.what()); }
+#ifdef GAUGUIN_METAL_BOOTSTRAP
+    alarm(0);
+    std::printf("GAUGUIN METAL245 RESULT PASS build=%s seed=%u arm=1 teardown-requested=1 stages=8 ready=kernel-close-required\n",GAUGUIN_METAL_PROBE_BUILD,seed);
+#endif
     // All buffers, queue and the sole GPU connection are closed before PASS.
     std::printf("GAUGUIN METAL223 RESULT PASS build=%s seed=%u connection-teardown-requested=1 stages=8\n",GAUGUIN_METAL_PROBE_BUILD,seed);
     return 0;

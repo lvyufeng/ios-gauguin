@@ -8,10 +8,14 @@ F=R/'tests/fixtures/gpu-user/iokit_host.cpp';D=C/'bsd/dev'
 S=C/'iokit/Kernel/arm/GauguinGPU.cpp';H=C/'iokit/Kernel/arm/SweetSurface.h'
 K=C/'iokit/Kernel/arm/SweetSurface.cpp'
 files=[Path(__file__),F,S,H,K,D/'gauguin_gpu_runtime.c',D/'gauguin_gpu_runtime.h']
+bootstrap=S.parent/'SweetMetalBootstrap.h'
+if bootstrap.exists():files.append(bootstrap)
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 def body(p):return re.sub(r'^#include .*\n','',p.read_text(),flags=re.M)
 fixture=F.read_text();assert fixture.count('@SOURCE@')==fixture.count('@SURFACE_HEADER@')==1
-fixture=fixture.replace('@SURFACE_HEADER@',body(H)).replace('@SOURCE@',body(S))
+fixture=fixture.replace('@SURFACE_HEADER@',body(H))
+extra=(body(bootstrap)+'\n[[maybe_unused]] static bool PE_parse_boot_argn(const char *,void *,int){return false;}\n')if bootstrap.exists()else''
+fixture=fixture.replace('@SOURCE@',extra+body(S))
 method=re.findall(r'uintptr_t\nSweetSurface::kernelAddress\(\)\n\{[\s\S]*?\n\}',K.read_text())
 assert len(method)==1 and fixture.count('@SURFACE_KERNEL_ADDRESS@')==1
 fixture=fixture.replace('@SURFACE_KERNEL_ADDRESS@',method[0])

@@ -2,6 +2,74 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0227 concrete shader delta ready; no new write or boot; individual consent required
+
+Full goal ACTIVE/incomplete. User red-lockscreen report remains an OPEN UI defect.
+Independent physical226 review still passes83 GPU jobs/339968 pixel words; it
+qualifies only bounded MTL objects/formats/IOSurface, not desktop rendering.
+Phone last observed idle TWRP after automatic226 return. No227 physical result.
+
+227 source now integrated MAIN: efe3c61 (scoped qualified mode2 fallback),
+1a1df76 (generated MSL/compiler fixture),6c93240 (93-job public MTL probe),
+08b191e (complete streamed backup via verified clone),5c30e71 (strict shader
+receipt/failure tests). Isolated equivalents658c1fc/2d6992e/1a9c082/5a26185/
+25dada5. All implementations committed. Main original tools/mkadt.py dirty diff
+unchanged a74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+No CI/push/kernel rebuild; same qualified219-equivalent kernel retained.
+
+W227=research/tmp/gauguin-metal227-worktree-20261110/research/tmp/dsh-metal-0227-public-pipelines.
+All DSH workers terminal/reaped, including20634 capture-startup-stage-v2 exit0.
+Fresh backup501bfa147bacf9b30c336cc3bfec5425dd52df53520cfea1dde8196598ee3b2b
+is complete17179869184B,0444; all fresh device bytes read651.4467s, source backup
+unchanged, distinct verified APFS clone. Current21 files unchanged since226;
+header0cd11387c5ab2adeb0e095459422283582307433d407432c769188e31ffca947.
+
+DSH89382 evidence-ABI-stage-v1 exit0:4 shader-evidence mutation tests; actual
+20H392cache resolves661imports, zero unexplained strong/weak missing,5disabled
+optionalM2V hooks. DSH82556 proposal-stage-v1 exit0: local COW/fsck0/detach0,
+102writer assertions,ALL38actual OLD ranges read/verified, independent entire
+16GiB changed-sector comparison proves EXACT424changed blocks. No phonewrite.
+DSH capture-startup-v1 exited1 before model work: copied check_capture227.py
+referenced nonexistent root-backup-v3. Original source/profile/log retained.
+New check_capture227v2.py/qualify_capture_startup227v2.py/profilev2 instead use
+actual root-backup-v1. DSH20634 capture-startup-stage-v2 exit0:304 assertions,
+actual immutable base21-present/final22-present HFS capture; five real entrypoints
+refuse missing approval before device IO (22 assertions), zero writes/boots.
+Codex final rehashed ALL132 pins across6 successful current stage profiles plus
+independent-review pins; all match. ready-for-consent227.json records exact state.
+
+EXACT NEW PLAN a56746bc8c173afd0d73c3b17a1e0eed2af3cde43aea049357acc9da70b4eff7:
+424blocks/1736704B/38runs (1.65625MiB). FOUR targets only: replace existing
+frontend probe113968B/SHA709757eb.../buildff9231066d35062fa333c935; add own
+pipeline_fixture.metallib16493B/SHA218e0c97825567d072886441603f7781fdbd800f53882382a4cd5ab8c8228837;
+change existing GPU root job and matching cached root job ProgramArguments only
+from --metal226 to --metal227; necessary HFS metadata. No new directories.
+Existing core8a826583/frontend8b3d6246/GLES/BB/policies/other530jobs/all3full
+logs retained. Expected22files (19static+3logs). Generated shader library passes
+unchanged A619 compiler42checks/5functions/15formatlinks under ASAN/UBSAN;
+actual public MTL shader runtime still UNQUALIFIED until physical227 readback.
+New probe93jobs/372736pixels+512compute words+4096half pixels/7PSOs, root128MiB
+hard cap,64MiBperBO,256MiBclient/sysmem/noUBWC unchanged. Loader mode2 fallback
+is source/native-qualified ONLY; still needs physical baseline control later.
+
+Paired image reused bit-identical physical226:
+43c69019ebc6a3a9935ae04e01bca01b1c039dd4ea24d1e07bc9ce36261d0b24,
+20021248B, NVT1/no synthetic swipe/6GiB/30Hz/mode1+gmt1/finite600s. No new boot.
+Prepared consent-first apply227.py,trial227.py,boot_pilot227.py,post227.py;
+real positive host gates check_pilot227.py run AFTER real approved readback,
+BEFORE phone reboot. post227 capturesALL22 files/full old prefixes FIRST, then
+strict image banner/service/93actualpixels/library identity/owner return.
+
+NEXT: ask NEW individual227 consent for exact a56746bc plan and touched-block
+rollback on write/readback failure, citing actual AGENTS.md destructive-step
+requirement. NO approval.json created, NO apply/boot.226consent consumed and
+must not be reused. After actual user consent, record verbatim/context, prepare
+pinned apply-stage-v1, have DSH execute once, check exact38writes/readbacks and
+header0LAST; then prepare/dispatch ONE temporary227 trial, auto-return TWRP,
+capture/read native evidence. Do not rerun claimed stages or weaken failed
+shader qualification. Never ask unattended automatic-vs-manual confirmations.
+All daily-use/RAM/storage/peripherals/high-refresh/desktop correctness remain open.
+
 ### 2026-11-10 CST —0227 public shader fixture/compiler PASS;93-job native probe compiled; fresh backup PASS
 
 Previous goalturn was PROGRESS:226realMTLobjects/format/IOSurface83jobs pass.

@@ -2,6 +2,85 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —252 original-handoff FDT producer SOURCE/HOST/NATIVE PASS
+
+Previous251 goalturn PROGRESS(currenthardwarepreflight/lower-RAM gap). Thisturn
+implements the loader producer needed for actual iOShandoff ownership evidence.
+ActiveR252=research/tmp/gauguin-memory252-worktree-20261111, branch
+codex/gauguin-handoff-fdt-20261111, parent410a8c0. Criticalsource
+dee42315bbfd2499d0851f799e7ff95c6c261220; fixturee53d9eeaaa858d26f41f264bcc8191a8e45efd77;
+finala4e29f00b7d5e362d96fd3a0e977415c391e57a0.
+Report docs/gauguin-handoff-fdt-producer-20261111.md.
+W252=R252/research/tmp/dsh-handoff-0252-capture.
+
+New DEFAULT-OFF mkpayload handoff_fdt_capacity (CLI --handoff-fdt-capacity),
+requiresPAS,16K..768K pagealigned, enlargedADT<=1MiB. chosen
+GauguinHandoffPending becomesGauguinHandoffFDT after actualoriginalABL-FDTcopy
+into normalhighADT, plus160Bversion1header:sourceFDT/input/shim, manageddomain,
+copiedADT/bootargs/top, actualPASsubowner, consoleFBrange, loadedend/reserved0.
+GHFDREQ1 ->GHFDOWN1, flags1 COMPLETE_COPY_ONLY, entireunusedcapacityzero.
+LEbyteprotocol, no naturallyalignedstruct assumption. Dynamicalloc-ranges
+remainunresolved declarations, NOT placements/freepages. No RAM admission/
+reclaim/map/MMIO/SMC/PASdataaccess. BootstrapretainsnewADTintopOfKernelData.
+
+Prepare BEFORE normalcopies; commitrevalidatescontext/destinationbeforewrite
+and publishesreadyname/headerlast; thennormalpas_commit, onlythenkerneljump.
+Inputpayloaduntouched; PAS tailneveraccessed. Loaderannounce nowrejectsbad
+capturerequesttoo. Requestabsence keepslegacyselection. Actualhardwarefault
+duringcopy isnottransactionalRAMrollback. Kernelconsumer NOTIMPLEMENTED.
+
+DSH ALLstages fullaccess/no fallback. V1PID22964 terminal1/381pins: retained
+PAS golden stillpasses800Bcommand(rejected since250). Fixture nowusesvalid
+607prefixwithsamegolden hash, notsilenttruncation. V2PID23529 terminal0/383pins/
+13.530s:8PASgroups/88metadata+actuallegacyloader,15capturecases,4bootcommand/
+17assetregs,initial512Kmaxnativepass. Sourcecore unchangedbyfixturefix.
+Productionv1PID24746 terminal1/387pins/1.834s: realFDT588757B exceeds requested
+256K ANDinitial512Kmax; PASprepare1, capturecorrectPAS_RANGE-6, nottruncation.
+Retainpartialartifacts/noresult. A4raisesboundandcorpusrequestto768K.
+V3PID25328 terminal0/391pins/5.925s:16capturecases (16/256/512/768K), bootcmd,
+newnative, actualproductioncorpuspass. Earlierlegacy/17assetresults reused;
+max-boundchange onlynewcapturebranch. Allhistoricalsourcechanges recorded.
+
+Actualloader/helper hostunderASAN/UBSAN, sourceinputPAresolution/EL1asm/
+linkerbounds/stop/jump typedseams. FullFDT/header/zero-capacity/source unchanged,
+planbyte/destination/repeat errors, failedpreflightbeforeloads and announce
+preservation checked; PAS tailPROT_NONE. Actualoldloader functionalRED42:
+jumpswithunpublishedpendingrecord. NOT actualphoneboot.
+
+Native fullAArch64shim233472B SHA
+9a802d924bfdce64ec7fdb8ce426dc89a2a5975ad1eeb4582b9f179b512922f4.
+No CABS64relocations/no undefined; below1MiBaddressbound. CompilerC-loader
+stackbound8048B incl17ADTrecursion+aux vs32768Breserved. NoEL1latencyclaim.
+Finalnative resultSHA61f69b3dab17b4d6ac5729de3c920689e521e10f9a02646201b90f71c25a12f6.
+
+REAL250defaultcapture0 payloadbyteIDENTICAL SHA
+189a88aafb532c3ef6eadb7be7695d64fdc18a203f5f6f2efcf75eb196ad8a57.
+Enabledlocalpayload20480000B SHA
+552043b116a285fb50894501353060e58cabb866f19754d99002f25bc4b5df0b:
+same250kernel/607cmd/managedrange/segments/5assetbytes; onlynewcaptureproperty
++2PASrequest extent/tail fields. ADT11652 ->798280B, top+786432Breserved;
+managed6441402368B UNCHANGED, no extraRAM. Actualfresh251FDT588757B,
+ONLYchoseninitrdstart/end patchedtomodeledB0/B8/source-shimlocations. Cplanner
+accepts21fixed/6UNRESOLVEDpools. NevercalltheseobservediOSallocations.
+Finalproduction resultSHAc6d1ee67853d98822543b25752078456196596d5b73e9aa4da8b5933c8ab4319.
+
+Codexindependentlychecks finalpins/logs/artifacts/realpayloadprefix/PASzero/
+two-field-onlyFDTmodelmodification. review252-v1 SHA
+41edfdd51b406e6a2da43241cfdc2e6a6e840eac63e30d1b5053b99de81e341e.
+AllDSHdispatchers terminal; outer61816/43457/95686/29189 reaped0, distinctinner
+failuresretained. No newXNUsource/fullkernel/combinedimage/kernelconsumer/
+devicecommands/boots/rootwrites/CI/push. Physicalbaseline and0250image18d...,
+pending2409dproposal and MAINmkadt diffa74... unchanged.
+
+NEXT CRITICALstill genuine240reply -> exact9dwriter freshpreconditions ->
+EXACTpaired2397357trial FIRST. No approval/apply/trial, no repeat question.
+After240freshcapture/backup+launchregeneration/scopeddesktopdelta+consent ->
+0250realdesktop. Source nextmemorywork: readonlykernelconsumer validatesready
+property/version/flags/capacity/FDTsize/livecontext, boundedcapturepath, no
+lowFDTmapping orRAMadmission. Lateractualhandoff maySTILLleave6dynamicowners
+unknown; requireowner/release evidence, holeawareVM, integrity/pressure/DMA.
+Full GPU/Metal/all-safe-RAM/storage/peripherals/90-120Hz/dailyphonegoal ACTIVE.
+
 ### 2026-11-11 CST —251 CURRENT TWRP preflight PASS; lower-RAM owner gap quantified
 
 Previous goalturn PROGRESS (250fullnativekernel/image). Thisturn makes actual

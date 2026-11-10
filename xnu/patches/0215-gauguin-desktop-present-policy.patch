@@ -1,0 +1,22 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -573,7 +573,9 @@
+ 	fOffY = (int32_t)(fLogicalH - fHeight) / 2;
+     fLock = IOLockAlloc();
+ #if defined(GAUGUIN)
+-    int held = 0;
++    /* The exact desktop profile needs held buffers; legacy profiles remain
++     * opt-in. An explicit sweetfb_hold=0 still selects the legacy path. */
++    int held = sweet_metal_desktop_enabled() ? 1 : 0;
+     PE_parse_boot_argn("sweetfb_hold", &held, sizeof(held));
+     fHoldPresent = held == 1;
+     fHeldActive = false;
+@@ -628,7 +630,7 @@
+ AppleCLCD::configurePresentClock(void)
+ {
+     fPhasePresent = false;
+-    int requested = 0;
++    int requested = sweet_metal_desktop_enabled() ? 1 : 0;
+     PE_parse_boot_argn("sweetfb_phase", &requested, sizeof(requested));
+     if (requested == 0) return;
+     if (requested != 1 || !fHoldPresent) {

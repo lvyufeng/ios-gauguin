@@ -54,6 +54,16 @@ U64_LIMIT = 1 << 64
 ASSET_MAX_SEGMENTS = (PAGE - SEG_TABLE) // 32
 
 
+def encode_cmdline(command):
+    """Return a complete UTF-8 command that fits payload and boot_args v1."""
+    encoded = command.encode('utf-8')
+    if b'\0' in encoded:
+        raise ValueError('boot command contains an embedded NUL')
+    if len(encoded) >= BOOT_LINE_LENGTH:
+        raise ValueError('boot command exceeds 607 UTF-8 bytes')
+    return encoded
+
+
 def parse_macho(buf):
     magic, cputype, cpusub, ftype, ncmds, sizeofcmds, flags, _ = struct.unpack_from('<8I', buf, 0)
     assert magic == 0xfeedfacf, 'not a 64-bit Mach-O'
@@ -399,6 +409,7 @@ def pas_pending_adt(adt_blob, pieces, kernel_end, virt_base, phys_base, mem_size
 def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None,
           pas_reservation=False, zap_mdt_path=None, gmu_firmware_path=None, sqe_firmware_path=None,
           zap_code_path=None):
+    cl = encode_cmdline(cmdline)
     buf = bytearray(open(kernel_path, 'rb').read())
     executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or gmu_firmware_path is not None or sqe_firmware_path is not None or zap_code_path is not None or pas_reservation else None
     m = parse_macho(buf)
@@ -529,7 +540,6 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
     struct.pack_into('<8sII', out, 0, b'SWEETXNU', 1, len(pieces))
     struct.pack_into('<7Q', out, 0x10, virt_base, m['entry'], adt_off, len(adt_blob), kernel_end,
                      PHYS_BASE, MEM_SIZE)
-    cl = cmdline.encode()[:BOOT_LINE_LENGTH - 1]
     out[CMDLINE:CMDLINE + len(cl)] = cl
     for i, t in enumerate(seg_table):
         struct.pack_into('<4Q', out, SEG_TABLE + 32 * i, *t)

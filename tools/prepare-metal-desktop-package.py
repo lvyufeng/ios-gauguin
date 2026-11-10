@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Assemble the fixed 0249 desktop candidate locally; never install or access a phone."""
+"""Assemble the desktop candidate locally; never install or access a phone."""
 from pathlib import Path,PurePosixPath
-import argparse,hashlib,json,plistlib,shutil,struct,subprocess
+import argparse,hashlib,json,plistlib,shutil,struct,subprocess,sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from mkpayload import BOOT_LINE_LENGTH,encode_cmdline
 
 SOURCE='2e62225c17d0886bdd018a13fd1e958f9def5c8dabc7f888e07a79f7da6ca80f'
 HASHES=dict(core='8a8265838bfd3e4a9d627ef40f06e391a74fa3543d0f58b8dca3eec2f04ee1e1',
@@ -34,12 +36,14 @@ def read_proofs(recipe):
 def boot_profile(base):
     need(base['image_sha256']=='7357a0abf1894969d1b67b2000fcf2e1e928adb2583bf02bb9850cfea6b99956','physical239 base image')
     command=base['command'];need(len(command.encode())==base['command_bytes']==607,'qualified base command')
-    words=command.split();overrides=dict(sweet_dyld_probe=1,sweeteagl=2,gmt=2,sweetfb_hold=1,sweetfb_phase=1,sweetfb_hz=60)
+    # The exact desktop selectors enable held frames and the phase clock in
+    # the paired kernel. Keep board/health tokens within the unchanged ABI.
+    words=command.split();overrides=dict(sweet_dyld_probe=1,sweeteagl=2,gmt=2,sweetfb_hz=60)
     key=lambda word:word.split('=',1)[0]
     kept=[word for word in words if key(word)not in overrides]
     result=kept+[name+'='+str(value)for name,value in overrides.items()]
     for name,value in overrides.items():need(result.count(name+'='+str(value))==1,'duplicate desktop argument')
-    result=' '.join(result);need(0<len(result.encode())<=1023,'bounded boot arguments')
+    result=' '.join(result);need(0<len(encode_cmdline(result))<BOOT_LINE_LENGTH,'bounded boot arguments')
     need([word for word in result.split()if key(word)not in overrides]==kept,'board arguments changed')
     return result,overrides
 def macho(p):

@@ -105,7 +105,9 @@ class PayloadTests(unittest.TestCase):
         rd = self.base / 'rd'; rd.write_bytes(b'root-image' * 2000)
         results = []
         for ramdisk in (None, rd):
-            for command in ('', 'a' * 800):
+            # The historical 800-byte fixture silently packed its first607.
+            # Keep those golden bytes for valid input; overflow now rejects.
+            for command in ('', 'a' * 607):
                 results.append(candidate.build(self.k, self.a, command, ramdisk))
         self.a.write_bytes(adt.serialize(tree(mmap_props=[('NovatekFirmware', 0, b'old')])))
         results.append(candidate.build(self.k, self.a, ''))

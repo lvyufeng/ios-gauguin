@@ -14,6 +14,7 @@ static unsigned checks,failedLogs,rejectedLogs;
 static void check(bool v){++checks;assert(v);}
 static uint64_t nowTicks,rate=1;
 static int requested=1;
+static bool sweet_metal_desktop_enabled(){return false;}
 using IOLock=std::mutex;
 static void IOLockLock(IOLock *p){p->lock();}
 static void IOLockUnlock(IOLock *p){p->unlock();}

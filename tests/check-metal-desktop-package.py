@@ -43,7 +43,7 @@ def main():
     assert not package['installed']and not package['volume_staged']and not package['installation_ready']
     assert package['requires_0240_installed_and_paired_trial']and package['requires_fresh_post240_capture']
     assert package['requires_deduplicated_boot_key_replacement']and package['qualified_board_arguments_must_be_preserved']
-    assert package['command_bytes']==len(package['command'].encode())<=1023
+    assert package['command_bytes']==len(module.encode_cmdline(package['command']))<module.BOOT_LINE_LENGTH
     for name,value in package['software_boot_argument_overrides'].items():
         assert package['command'].split().count(name+'='+str(value))==1
     assert package['parent_directory_metadata_must_be_preserved']and package['payload_owner_is_not_installation_owner']

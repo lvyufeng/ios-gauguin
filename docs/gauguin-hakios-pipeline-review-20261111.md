@@ -1,5 +1,9 @@
 # HakiOS pipeline recheck, 2026-11-11
 
+The [0248 follow-up](gauguin-metal-compositor-input-20261111.md) now supplies
+the compositor readonly-input source/native candidate. The installed phone
+baseline and physical acceptance gaps described here remain unchanged.
+
 The newly explicit gap is synchronous transport and global serialization.
 Connecting a Metal device to backboardd is necessary, but it will not by itself
 give gauguin the overlap between CPU work, GPU execution and presentation used

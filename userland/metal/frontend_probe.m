@@ -4,7 +4,7 @@
  */
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
-#import <IOSurface/IOSurface.h>
+#import <IOSurface/IOSurfaceRef.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
 #include <IOKit/IOKitLib.h>
@@ -202,8 +202,11 @@ static void surfaces(id<MTLDevice> device, id<MTLCommandQueue> queue, uint32_t s
 }
 static void run(void)
 {
+    uint32_t seed = (uint32_t)now_ns() ^ ((uint32_t)getpid() * 0x9e3779b9u);
+    @autoreleasepool {
     NSString *path = @"/usr/local/lib/gauguin/GauguinMetal.bundle";
     trusted_file([path stringByAppendingPathComponent:@"GauguinMetal"]);
+    trusted_file([path stringByAppendingPathComponent:@"Info.plist"]);
     NSBundle *bundle = [[NSBundle alloc] initWithPath:path]; NSError *error = nil;
     check(bundle && [bundle loadAndReturnError:&error], "bundle", [[error description] UTF8String]);
     Class cls = [bundle principalClass], base = objc_getClass("_MTLDevice");
@@ -220,14 +223,14 @@ static void run(void)
           "limits", "oversized allocation must be refused before IO");
     id<MTLCommandQueue> queue = [device newCommandQueueWithMaxCommandBufferCount:4];
     check(queue != nil, "queue", "queue creation");
-    uint32_t seed = (uint32_t)now_ns() ^ ((uint32_t)getpid() * 0x9e3779b9u);
     printf("GAUGUIN METAL226 device=%s seed=%u maxBO=67108864 queueSlots=4\n", [[device name] UTF8String], seed);
     memory("opened");
     formats(device, queue); slots(device, queue, seed); surfaces(device, queue, seed);
     check(submissions == 83 && atomic_load(&callbacks) == 83, "final", "83 completed jobs and callbacks required");
     [queue release]; [device release]; [bundle release];
-    memory("closed");
-    printf("GAUGUIN METAL226 RESULT PASS build=%s seed=%u jobs=83 words=339968 abandoned=80 discovery=0 shader-pipelines=0 UI=0\n", GAUGUIN_METAL_FRONTEND_BUILD, seed);
+    }
+    memory("after-resource-release");
+    printf("GAUGUIN METAL226 RESULT PASS build=%s seed=%u jobs=83 words=339968 abandoned=80 teardown-requested=1 discovery=0 shader-pipelines=0 UI=0\n", GAUGUIN_METAL_FRONTEND_BUILD, seed);
 }
 int main(int argc, char **argv)
 {

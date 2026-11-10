@@ -2,6 +2,79 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0229 physical SETEXEC/root8/GLES handoff PASS; phone back in TWRP
+
+PROGRESS: completed exactapproved write and physical baseline regression.
+Full goal ACTIVE/incomplete; no new consent pending.22920502bf9consent consumed.
+ALL current workers TERMINAL/reaped; actualdispatch3774/trial3777 absent, results
+terminal0. Do NOTrestart oldprofiles, repeatwrite, or relabel incompletegoal done.
+
+W229=research/tmp/gauguin-baseline229-worktree-20261110/research/tmp/dsh-baseline-0229-setexec.
+Physical review SHA
+dbc7c3942545b04d7193259243ee7576103eb45d6cd38228c29f00924dc3b85f,
+state qualified229-SETEXEC-root8-and-GLES-owner-baseline/errors empty.
+Original observer0, automaticTWRP return,745.727516s; no manualreset required.
+Codex independently rehashed ALL28outer/27inner/44physical-review inputpins;
+allmatch original source/data/images. Raw3new memory checkpoints/8fences/readback
+receipts and newloaderstderr inspected, not just PASSmarkers.
+
+ACTUAL replacement now128MiB active/inactive, bothfatal attr1, atall3checkpoints.
+Footprints beforedelay753944/compiled1016088/completed1655104B, allfinite <=128MiB.
+Loader GET1effectivepriority0 and before-SETEXEC GET8=128/128; new SETEXEC
+explicit128/128fatal request captured exactlyonce. Retained223binary unchanged
+2e118d96..., build57f7536766149f9b7aca9621/core8a826583...,8exactCPU-expected
+jobs/28928words, queue1/fences1..8 allcomplete, cleanrootrelease and3native
+compositor opens eachroot_fence8 afterregisteredproxy. Baseline handoff RESTORED.
+This supports the concrete repair; do not weaken future memory/owner contracts.
+
+600s GPU service598healthyrenewals,93native submissions =8root +85compositor.
+First16exactring/fence samples plus77aggregate later completions; do NOTclaim
+exact later IBs or compositor pixels. NO BB crash/BO/submit/cleanup failure before
+plannedstop. AFTERfinite GPUwithdrawal:1BBcrash/2BOfailures/1clientcleanupfailure
+observed (sameoldfinitebaselinepattern); causal attribution notfullyproven by
+serviceclassifier. This remains a FINITE diagnostic and is NOTdaily stability,
+GUI/touch/FPS/Metaldesktop/highrefresh qualification.
+
+ALL22files captured,19static unchanged, fullold3logprefixes87303/16158/1369612
+preserved. Newfull logs89932/16292/1398371B. CURRENT POST229 root header NOW
+2e1ab85c70173bfb16438ce310e9736c89b8b42eaedf3cbf08fd03b1dde0c256,
+NOT preboot09c34b2d or beforewritef650. Any nextdelta/control MUSTbind THIS22file
+state and complete prefixes. Installedloaderad57f8c18dc365a0e5b46d0201c8c070b0db0762200bfbc0a55ee165523a987a
+114304B/builda417ba2087c71ca41a6c94cc; all531jobs/cache/hardpolicies, oldroot223,
+core8a826583/fullfrontend8b3d6246/own16493B shader library/GLES/Mesa/BB intact.
+Exactimage346c7495.../qualified219kernel/NVT1/no synthetic swipe/6GiB/30Hz/
+mode2-noGMT/600s unchanged. Approved206blocks843776B36runs applied once and
+readback once, header0LAST; fullprewritebackupc41a0037... readonly/intact.
+
+Software source MAINb110b2e and27549c0; isolated229b110b2e/226cf64. Native/API/
+localCOW/fsck102writer/capture315/startup5entries22checks qualified beforewrite
+aspreviousentry. No kernelbuild/CI/push. Mainoriginalmkadt diffa74a0418... intact.
+
+NEXT main work: exactactual20H392 CA rendering, not another unchanged600s
+baseline loop. Mode1 shader algorithm/core/bundle/library unchanged; previous
+physical22793-job publicMTLreadbacks remain scoped to their exactoldprobe. Only
+repeat mode1 onnewloader ifnewconcern justifies it; do not equate it to CA.
+Implement gauguin frontend profile that uses actual20H392default library and
+exactshader variants/constants, eliminating upstreamedr->inplace substitutions,
+nearestvariant matching and omittedluma draws from qualification. Actualsystem
+library has all edr/luma/inplace lpf+lph names. Hoststage/link evidence inW228:
+451embeddedvariants compile;469stagepairs over1079catalogentries,468pairs link
+fiveformats;1inplace_copy_lph pair/fourcatalogentries lacksgraphicsimage3DIBO
+support. MRT/fetch/image-store pixel semantics stillneedrealGPUchecks.
+
+Use actualCARenderer/Metaltexture+queue offscreen layer scenes as the nextrealCA
+integration gate beforeglobalMetaldiscovery/compositor ownership publication;
+inspectactual20H392class/methodmetadata and add CPU pixeloracles. Rootdiagnostic
+scope/finitehardbounds/soleGPUowner retained until concrete tested transition.
+Frame/windowchanges can use appropriate shorter functionaltest durations, but
+must notclaim longerstability. Fullgoal stillincludes allsafeRAM,reliablefull
+storage,phoneperipherals/power,90-120Hz anddailyphone acceptance; currentredclock/
+icons/widgets/latency and finitepoststop failures remainopen. Nextuserdatawrite
+needs freshcompletebackup/localCOW/fsck/102writer/allrealoldblocks/independent
+review and NEW individualconsent; neverreuse229or227approval. AllApple/device
+artifacts stayprivate outsideGit. No automatic-vs-manual questions understanding
+unattended policy; askmanualTWRP onlygenuinelystuck.
+
 ### 2026-11-10 CST —0229 approved36-run write PASS; temporary SETEXEC baseline trial booted
 
 PROGRESS: completed local proposal/startup verification, received fresh exact

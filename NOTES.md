@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —248 compositor RO task-input SOURCE/HOST/NATIVE-TU PASS
+
+PROGRESS after247 + renewed HakiOS pipeline review. R248=
+research/tmp/gauguin-input248-worktree-20261111, branch
+codex/gauguin-metal-compositor-input-20261111, parent2473d2807d.
+Critical source228372eab3db0b591c1fdefb3aeeed95a414eff1.
+W248=R248/research/tmp/dsh-input-0248-compositor.
+Report docs/gauguin-metal-compositor-input-20261111.md.
+
+0214 changes ONLY GPU surface() admission: new compositor mode + root
+bootstrap.ready may reuse root-qualified readonly task backing. Protected
+caller/owning-task checks, exclusive owner, clean handoff, prepare/alias/PTE/
+limits/lifetime all unchanged. Root old modes unchanged; legacy compositor,
+generic mutable task and readonly IOBuffer still refused. No writable CPU
+alias, CPU write preparation or GPU WRITE list permission. This is a source
+candidate, not actual desktop/producer synchronization. Sync submit/global
+copy lock remain; another process's later writes are not qualified here.
+
+Pristine206 replay5332files SHA
+2e62225c17d0886bdd018a13fd1e958f9def5c8dabc7f888e07a79f7da6ca80f.
+Exactly1file vs246: iokit/Kernel/arm/GauguinGPU.cpp. Frontend/core/framebuffer/
+runtime/Surface unchanged. Actualold246 functionalcontrol reaches successful
+root bootstrap/compositor open then rejects RO DESCRIPTION with unsupported,
+exit42; import is not reached. Newactualdriver host cases1223desktop/38legacy/
+33unarmed/66DMAfault=1360 assertions,30layouts/12malformed. Credentials/IOKit/GPU
+are typed HOST seams. 318wrapper assertions,151independent-task-map with five
+actualhostVA-reuse layouts, oldrootIOKit/BO/owner/unmap/bootstrap cases pass.
+No real compositor pixels or GPU sampling claim.
+
+DSH v1 PID1895 terminal1/398pins after replay: fixture C++ ggr_submit needs
+struct tag. V2 PID2657 terminal1/403pins after compile: old driver describes
+refusal earlier than originalfunctionalcontrol placement. Only testfixture
+changed acrossfailedstages; kernelcandidate unchanged, originals retained.
+V3 PID2887 terminal0/15.531551s/407pins resumes after replay, all above+native
+GPU TU pass. Native5334pins/2130header-configchecks verified, protectedref files
+unchanged. GPUobject355896B SHA
+186e2b54fe2d867c656c2d3ff6ca260bdd44bfed37f5f071fcbe6a293b8f6a7e.
+378undefined native symbols same as246; surface method once. Retained compiler/
+header warnings; no fullkernel/link/image/phone qualification.
+Codex rehashed stages/logs, whole source/exactdiff and nativeinputs/object.
+review248-v1 SHA
+b83f90b38a87dc084bd59858519bc0ce1b05829a1013ce50d06969bfcf7063bf.
+Outer72655/92415/39665 reaped0; dispatchers all terminal.
+
+NEXT: complete reviewed desktop package/asset manifest with244-248 startup,
+sharedoutput/completion/presentation and full kernel. Genuine240 reply still
+required -> EXACT paired239 physical trial FIRST before later candidates.
+Then actual backboardd native jobs, full icons/widgets/effects/transitions/
+reuse; trace touch->commit->encode->issue->complete->copy->panel to prioritize
+async/per-output fences/reducedglobal-lock scope and usable60Hz, thenphysical
+90/120Hz/thermals. Full RAM/storage/peripherals/daily-phone goal stays ACTIVE.
+
+No devicecommands/writes/reboots/CI/push. Pending240 approval/apply/trial ABSENT,
+9d plan and MAIN unrelated mkadt diff SHAa74... unchanged. No repeated question
+or boot/stale pending delta. MAIN physically qualified239/root237 unchanged.
+
 ### 2026-11-11 CST — renewed HakiOS source/measurement review; async gap explicit
 
 User asked again which success-case details were overlooked. GitHub main

@@ -230,6 +230,14 @@ static void run(void)
     [queue release]; [device release]; [bundle release];
     }
     memory("after-resource-release");
+    io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("HakiosGPU"));
+    check(service != IO_OBJECT_NULL, "owner-release", "GPU service");
+    io_connect_t connection = IO_OBJECT_NULL;
+    kern_return_t opened = IOServiceOpen(service, mach_task_self(), 0, &connection);
+    IOObjectRelease(service);
+    check(opened == KERN_SUCCESS && connection != IO_OBJECT_NULL, "owner-release", "sole GPU owner was not released");
+    check(IOServiceClose(connection) == KERN_SUCCESS, "owner-release", "reacquired client close");
+    printf("GAUGUIN METAL226 ownership reacquired=1 closed=1 PASS\n");
     printf("GAUGUIN METAL226 RESULT PASS build=%s seed=%u jobs=83 words=339968 abandoned=80 teardown-requested=1 discovery=0 shader-pipelines=0 UI=0\n", GAUGUIN_METAL_FRONTEND_BUILD, seed);
 }
 int main(int argc, char **argv)

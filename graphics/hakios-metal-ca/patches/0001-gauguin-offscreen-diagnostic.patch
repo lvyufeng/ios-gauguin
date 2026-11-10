@@ -1,0 +1,269 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -86,6 +86,7 @@
+  */
+ 
+ #import <Foundation/Foundation.h>
++#include "GauguinMetalProfile.h"
+ #include <sys/sysctl.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+@@ -554,8 +555,7 @@
+ static void hm_fps_drew(double seconds, unsigned cpu);   /* metal_fps: our time in a draw call */
+ static void hm_fps_core(double seconds);   /* metal_fps: the core's time in a draw call */
+ static BOOL hm_fps_on(void);                          /* metal_fps: command buffers timed pass by pass */
+-#define HM_CACHE_DIR  "/private/var/db/hakios-metal-cache"     /* compiled stages, kept across boots by var_store */
+-#define HM_CACHE_SEED "/redwood/share/hakios-metal-cache"     /* the same, baked into the image (read-only) */
++/* Gauguin cache setup is root-scoped in GauguinMetalProfile.m. */
+ static BOOL hm_gmem_on(void);                         /* metal_gmem=1: tiled rendering where a pass allows it */
+ - (void)hakiosShadowYCbCr:(IOSurfaceRef)surface format:(MTLPixelFormat)format;
+ - (void)hakiosRefreshShadow;
+@@ -584,11 +584,7 @@
+ @implementation HakiosMetalFence
+ - (instancetype)initWithDevice:(id<MTLDevice>)device
+ {
+-	self = [super init];
+-	if (self != nil) {
+-		_device = [device retain];
+-	}
+-	return self;
++	return NO; /* A619 GMEM is not physically qualified. */
+ }
+ - (void)dealloc
+ {
+@@ -1104,6 +1100,7 @@
+ - (NSUInteger)size { return [_descriptor size]; }
+ - (NSUInteger)usedSize { return _used; }
+ - (NSUInteger)currentAllocatedSize { return [_descriptor size]; }
++- (NSUInteger)allocatedSize { return _used; } /* resources actually charged to this heap budget */
+ - (NSUInteger)maxAvailableSizeWithAlignment:(NSUInteger)alignment
+ {
+ 	(void)alignment;
+@@ -1354,19 +1351,7 @@
+ static BOOL
+ hm_strict(void)
+ {
+-	static int strict = -1;
+-	const char *env = getenv("HAKIOS_METAL_STRICT");
+-
+-	if (env != NULL) {
+-		return strcmp(env, "1") == 0;
+-	}
+-	if (strict < 0) {
+-		char args[1024] = {0};
+-		size_t size = sizeof(args) - 1;
+-
+-		strict = sysctlbyname("kern.bootargs", args, &size, NULL, 0) == 0 && strstr(args, "metal_strict") != NULL;
+-	}
+-	return strict != 0;
++	return YES; /* Never skip a refused operation in a qualification probe. */
+ }
+ 
+ /*
+@@ -1622,7 +1607,7 @@
+ 
+ 			if (device == nil) device = MTLCreateSystemDefaultDevice();   /* (the function's own answered nil) */
+ 			NSError *e = nil;
+-			id lib = [device newLibraryWithURL:[NSURL fileURLWithPath:@"/redwood/share/ca-share/QuartzCore-default.metallib"]
++			id lib = [device newLibraryWithURL:[NSURL fileURLWithPath:@"/usr/local/share/gauguin/metal-ca/QuartzCore-default.metallib"]
+ 						     error:&e];
+ 			hm_print("inplace_copy for edr_scale: device %s, library %s%s\n", device ? "yes" : "nil", lib ? "opened" : "not opened: ",
+ 				 lib ? "" : [[e description] UTF8String]);
+@@ -2120,23 +2105,9 @@
+ 
+ - (instancetype)initWithAcceleratorPort:(io_service_t)port
+ {
+-	/* (hakios) the window server alone is shown the device: every other client of this image's Metal (SpringBoard
+-	 * through SiriUICore, mediaserverd, ...) finds pipeline libraries made for Apple's GPUs with no default.metallib
+-	 * beside them and aborts, while without a device it takes the road it takes today. Boot-arg metal_all=1: all. */
+-	{
+-		static int all = -1;
+-		char args[1024] = "";
+-		size_t size = sizeof(args) - 1;
+-		const char *name = getprogname();
+-
+-		if (all < 0) {
+-			all = sysctlbyname("kern.bootargs", args, &size, NULL, 0) == 0 && strstr(args, "metal_all=1") != NULL;
+-		}
+-		if (!all && (name == NULL || strcmp(name, "backboardd") != 0)) {
+-			HM_ONCE("%s is not shown the device: the window server alone is (metal_all=1: every process)\n", name ? name : "?");
+-			return nil;     /* (not released: before -init, _MTLDevice's -dealloc reads what -init never set) */
+-		}
+-	}
++	/* No system discovery or compositor admission in this profile. The root
++	 * probe must also pass the unchanged kernel's finite GPU authorization. */
++	if (!gauguin_metal_profile_admit()) return nil;
+ 	/* (hakios) metal_m2v=1: the device is UniXNU's Metal on Vulkan instead (AdrenoMetal's frontend over metal2vulkan
+ 	 * over Turnip, tools/mk-m2v.sh; linked in by userland/build.sh M2V=1): its own objects, from the device down */
+ 	if (native_bridge_metal_open != NULL && hm_boot_arg_set("metal_m2v=1")) {
+@@ -2294,25 +2265,7 @@
+ 	}
+ 	hm_library_stand_ins();
+ 	ca_prof_start();
+-	/* (hakios) the window server's compiled stages kept on disk (hakios-metal: compileStage's cache), so that a
+-	 * CoreAnimation shader compiled once is not compiled again by the next window server; and no listings.
+-	 * In /var/db, not /var/tmp: var_store (var_store=1 ufs_write=1) keeps /private/var across boots but leaves tmp
+-	 * out by design, so a cache in /var/tmp started empty at every boot and the first minute of every boot paid the
+-	 * 66 to 103 compiles again. A cache in the image (HM_CACHE_SEED, read-only, put there by
+-	 * tools/metal-cache-seed.sh from an earlier boot's) is looked in after it and never written. */
+-	/* (the skeleton makes HM_CACHE_DIR 1777, init.c from var.skel; an image without that line, or a process that may not
+-	 * write there, falls back on /var/tmp as before: a cache for this boot only is better than none) */
+-	mkdir(HM_CACHE_DIR, 01777);
+-	setenv("HAKIOS_METAL_CACHE", access(HM_CACHE_DIR, W_OK | X_OK) == 0 ? HM_CACHE_DIR : (mkdir("/var/tmp/hakios-metal-cache", 0755),
+-												 "/var/tmp/hakios-metal-cache"), 0);
+-	{
+-		struct stat st;
+-
+-		if (stat(HM_CACHE_SEED, &st) == 0 && S_ISDIR(st.st_mode)) {
+-			setenv("HAKIOS_METAL_CACHE_SEED", HM_CACHE_SEED, 0);
+-		}
+-	}
+-	setenv("HAKIOS_METAL_LISTING", "0", 0);
++	gauguin_metal_profile_cache();
+ 	hm_ensure_spi([self class]);
+ 	hm_functions_encode_from_metadata();
+ 	self = [super init];
+@@ -2347,8 +2300,8 @@
+ 	_target.target = 0;
+ 	_target.version = 0;
+ 	_target.name = _targetName;
+-	hm_print("device: %s on IOAcceleratorES service %#x; the compiler is %s; feature profile 1 (Apple1, Apple2 and "
+-		 "Common1); pipelines.%s is the precompiled pipeline library Metal will look for and not find\n",
++	hm_print("device: %s on IOAcceleratorES service %#x; compiler=%s; private limits profile0; "
++		 "no certified public families; pipelines.%s unavailable\n",
+ 		 [_name UTF8String], (unsigned)port,
+ 		 hakios_metal_has_compiler() ? "in this build" : "NOT in this build (make ios MESA=1): every pipeline will be refused",
+ 		 _targetName);
+@@ -2369,19 +2322,15 @@
+ 
+ - (hakios_metal_device *)hakiosDevice { return _gpu; }
+ 
+-/* The profile is what -[_MTLDevice initLimits] switches on: measured on the phone, 0, 1 and 4 to 9 fill the limits
+- * table and 2, 3 and 10 to 12 abort inside Apple on _limits.maxColorAttachments > 0. 0 claims only Apple1 and Common1
+- * in -supportsFamily:, and that cost SpringBoard its life: MPSDevice::GetMPSDevice asks for Apple8 down to Apple2
+- * (1008 .. 1002) and, with none, MPSKernel's init reports "device is not supported" through MTLReportFailure, which
+- * aborts -- from the Siri orb SpringBoard builds at startup (logs/202838-run.log, seven crashes in a row). 1 claims
+- * Apple1, Apple2 and Common1 (measured: the line at the first queue), the least that MPS takes; the render test passes
+- * as with 0, and SpringBoard then finishes its startup and stays up (logs/203759-run.log). What Apple2 promises beyond
+- * Apple1 that is not served -- ASTC, say -- is refused where it is asked for, by name, as everything else is. */
+-- (NSUInteger)featureProfile { return 1; }
+-
+-/* Not measured: nothing has asked the kernel what one allocation may be. It only has to be non-zero for initLimits
+- * to accept it; a buffer longer than the kernel gives is refused at -newBufferWithLength:options:, with the reason. */
+-- (uint64_t)maxBufferLength { return 256ULL << 20; }
++/* Private limits-table bootstrap only. No public feature-family certification
++ * is claimed by the bounded diagnostic. No MPS or compositor client is admitted. */
++- (NSUInteger)featureProfile { return 0; }
++- (BOOL)supportsFamily:(MTLGPUFamily)family { (void)family; return NO; }
++- (BOOL)supportsFeatureSet:(MTLFeatureSet)set { (void)set; return NO; }
++
++/* Actual gauguin runtime cap: one BO <=64MiB, entire client <=256MiB.
++ * The kernel still enforces allocation accounting and the process hard limit. */
++- (uint64_t)maxBufferLength { return GAUGUIN_METAL_MAX_BUFFER_BYTES; }
+ 
+ /* profile 0's own maxVertexAmplificationCount is 1 */
+ - (BOOL)supportsVertexAmplificationCount:(NSUInteger)count { return count <= 1; }
+@@ -2486,7 +2435,7 @@
+ 	/* QuartzCore's of this image (the iPhone X's) has no default.metallib beside it; the one made of its own functions
+ 	 * file (hakios: merge_metallib.py, the four uber shaders, one variant each -- hm_bitcode_for() picks the variant a
+ 	 * pipeline needs) stands in for it, from where the image puts it */
+-	NSString *ours = @"/redwood/share/ca-share/QuartzCore-default.metallib";
++	NSString *ours = @"/usr/local/share/gauguin/metal-ca/QuartzCore-default.metallib";
+ 	NSString *beside = [frame stringByAppendingPathComponent:@"default.metallib"];
+ 	if ([path rangeOfString:@"QuartzCore.framework"].location != NSNotFound && ![fm fileExistsAtPath:beside] &&
+ 	    [fm fileExistsAtPath:ours]) {
+@@ -2592,6 +2541,10 @@
+  * read for what cannot be given, so that a request for private storage is not silently given something else */
+ - (id)newBufferWithLength:(NSUInteger)length options:(MTLResourceOptions)options
+ {
++	if (!length || length > GAUGUIN_METAL_MAX_BUFFER_BYTES) {
++		hm_print("refused: buffer length %lu outside 1..64MiB kernel cap\n", (unsigned long)length);
++		return nil;
++	}
+ 	if ((options & MTLResourceStorageModeMask) == MTLResourceStorageModePrivate) {
+ 		HM_ONCE("a buffer was asked for with private storage; every buffer here is shared memory, and that is what "
+ 			"is given (the GPU reads the same pages the processor maps)\n");
+@@ -2609,23 +2562,13 @@
+ 	return buffer;
+ }
+ 
+-/* The GPU's memory is the kernel's allocation and nothing else: an application's own pages cannot be handed to it as
+- * they are. So the bytes are copied into GPU memory as the buffer is made, and the deallocator is kept and called when
+- * the buffer goes, as Metal promises. What the copy loses is the sharing: a write by the GPU is not seen in the caller's
+- * pages, nor a later write by the caller in the GPU's. QuartzCore's one caller (CA::OGL::MetalContext::
+- * copy_image_to_texture) wraps a decoded image to blit it into a texture at once, which loses neither; refusing it had
+- * left those textures as whatever memory they were given. */
++/* No-copy aliasing is a separate unqualified contract; refuse rather than return a copied buffer. */
+ - (id)newBufferWithBytesNoCopy:(void *)bytes length:(NSUInteger)length options:(MTLResourceOptions)options
+ 		   deallocator:(void (^)(void *, NSUInteger))deallocator
+ {
+-	HakiosMetalBuffer *buffer = [self newBufferWithBytes:bytes length:length options:options];
+-
+-	HM_ONCE("a no-copy buffer was asked for; its bytes are copied into GPU memory, so neither side sees the other's later "
+-		"writes\n");
+-	if (buffer != nil && deallocator != nil) {
+-		[buffer hakiosSetDeallocator:deallocator bytes:bytes length:length];
+-	}
+-	return buffer;
++	(void)bytes; (void)length; (void)options; (void)deallocator;
++	hm_print("refused: no-copy buffer aliasing is not qualified in the diagnostic profile\n");
++	return nil;
+ }
+ 
+ /* the layout of a texture's bytes as -newTextureWithBytesNoCopy: here reads them (HakiosMetalTextureLayout says what) */
+@@ -3488,15 +3431,7 @@
+ static BOOL
+ hm_compress_ok(void)
+ {
+-	static int off = -1;
+-
+-	if (off < 0) {
+-		char args[1024] = {0};
+-		size_t size = sizeof(args) - 1;
+-
+-		off = sysctlbyname("kern.bootargs", args, &size, NULL, 0) == 0 && strstr(args, "metal_noubwc") != NULL;
+-	}
+-	return !off;
++	return NO; /* A619 UBWC has not passed physical qualification. */
+ }
+ 
+ static BOOL
+@@ -5144,7 +5079,7 @@
+ 		hakios_metal_cb_set_gmem(_cb, hm_gmem_on() || hm_gmem_draws() != 0);
+ 		hakios_metal_cb_set_gmem_min_draws(_cb, hm_gmem_draws());
+ 		hakios_metal_cb_set_gmem_binning(_cb, (hm_gmem_off() & 16) == 0);   /* metal_gmem_off's 16: every draw in every tile */
+-		hakios_metal_cb_set_null_fs_textures(_cb, (hm_gmem_off() & 32) != 0);   /* 32: no texture reads, to time the shaders alone */
++		hakios_metal_cb_set_null_fs_textures(_cb, false);   /* 32: no texture reads, to time the shaders alone */
+ 		hakios_metal_cb_set_gmem_off(_cb, hm_gmem_off());
+ 		hakios_metal_cb_set_gmem_tuned(_cb, (hm_gmem_off() & 8) == 0);   /* metal_gmem_off's 8: GMEM wherever a pass can have it */
+ 		hakios_metal_cb_set_profile_draws(_cb, hm_fps_draws());
+@@ -5643,7 +5578,7 @@
+ 	uint64_t lastTpidr;
+ 	double sampledBytes[6];   /* metal_fps=timeline: the bound fragment textures' sizes, by hakiosStorageKind */
+ 	struct { unsigned w, h, origin; double bytes; } bySize[16];
+-} hm_fps = { PTHREAD_MUTEX_INITIALIZER, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {{0, 0, 0, 0, 0, 0}}, 0, "", {{"", 0, 0}}, NO, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0}, {0}, 0, {0}, {{0, 0, 0, 0}} };
++} hm_fps = { .lock = PTHREAD_MUTEX_INITIALIZER };
+ 
+ /* boot-arg metal_gmem=1: tiled rendering (render::Options::gmem) for a pass that can have it, GMEM or sysmem chosen by
+  * what each cost such passes before (hakios_metal_cb_set_gmem_tuned). Off by default: for CoreAnimation it won nothing
+@@ -5708,19 +5643,7 @@
+ static unsigned
+ hm_gmem_draws(void)
+ {
+-	static int draws = -1;
+-
+-	if (draws < 0) {
+-		char args[1024] = {0};
+-		size_t size = sizeof(args) - 1;
+-		const char *at;
+-
+-		draws = 56;
+-		if (sysctlbyname("kern.bootargs", args, &size, NULL, 0) == 0 && (at = strstr(args, "metal_gmem_draws=")) != NULL) {
+-			draws = atoi(at + strlen("metal_gmem_draws="));
+-		}
+-	}
+-	return (unsigned)draws;
++	return 0; /* No boot argument may override the sysmem diagnostic. */
+ }
+ 
+ static BOOL

@@ -2,6 +2,72 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0234 precision identity fixed in source; later LPF library not drop-in
+
+PROGRESS. Full goal ACTIVE/incomplete. No new userdata write, temporary boot,
+kernel CI or remote push this milestone. Actual233 consent remains CONSUMED,
+its missing-function CA failure remains real, and the installed trace677c8e07.../
+probe0406b957.../core8a remain unchanged. Last physical result is automatic TWRP
+return and post233 header fd991629f93dad541c8e7dd857d980001d4e7c45b98f17e8220820ec81a8e73e.
+Next device plan must re-read current22-file state/full91041/20386/1411296B log
+prefixes and obtain fresh full backup plus NEW concrete individual write consent.
+
+Source R2347b76b93 / b1b86a3: new opt-in gauguin-ca-identity profile,
+0004 exact-name+stage gate in both native/M2V variant selection, bounded C reader
+GauguinCAVariant.h and actual451-variant fixture. Baseline/diagnostic/exact/trace
+source files remain byte-identical. Own AIR/original constants retained when
+name/precision/stage mismatches. No new library payload or family declaration.
+Public findings docs/gauguin-ca-precision-contract-20261110.md.
+R234=research/tmp/gauguin-lpf234-worktree-20261110;
+W234=R234/research/tmp/dsh-lpf-0234-library.
+
+Read-only contracts-stage-v1 PID49574 finished0, DSH4866 reaped0. Both actual
+libraries open via host public Metal reflection; all13 fixed AIR modules decode
+with llvm-dis. Actual iOS LPH fragment58constants, newer MacLPH/LPF60.57shared
+names,54shiftedindices (named binding can handle indices),2type changes uchar3->
+uchar4, old required fc_framebuffer_sample removed,3newoptionalnames. Same-name
+LPH Uniform ABI176->256B; newerLPF368B. No oldLPFfragment exists for direct ABI
+comparison. DO NOT just append MacLPF or rename oldLPH. Need actual iOS precision
+selection and matched constants/resource ABI. No supplementary library produced.
+
+branch-stage-v1 PID50142 finished0, DSH42198 reaped0. Offline exactQC UUID
+9e40b2eb260c3af1ae45a1a551a8c1b9,5390distinct calltargets inspected. Found
+supportsFamily Apple1 at0x1884886d4 and laterfamilyqueries/contextflagwrites.
+This DOES NOT yet prove full flow into fixed_frag_lpf_cpf; trace downstream
+precision-key construction before choosing a fix. Existing featureProfile0/
+all-public-familiesNO unchanged; no fake family declaration just to bypass error.
+
+Native-stage-v1 PID50841 finished1 after four old-profile equivalence controls,
+451actual variants/52323ASAN+UBSAN checks and nativefrontend compile/sign PASS:
+paired builder omitted new profile in whitelist. Archived original builder and
+its pinned old hash at W234/native-v1-inputs; original script/stage/log retained.
+Added legitimate identity-profile support to builder. native-stage-v2 PID51224
+finished1 AFTER paired probe compile/sign PASS: exact-import comparison correctly
+found one added memchr import. Both failed stages remain failed.
+Separate abi-stage-v1 PID51767 finished0: ALL681 native imports resolved against
+actual20H392 cache in verified233 c8... backup, five disabled weakM2V hooks handled
+separately, no missing strong/other weak imports. This is NOT a new current-device
+backup. DSH89427/20481/94897 all reaped0. All five dispatcherPIDs absent.
+
+Independent review W234/independent-review234.json SHA
+561560464be9a00861876079ee684a67103ce1a6a6851898c0c6ad62da68bf57,
+157 unique pins rehashed, old-v1builder validated through archived exactcopy.
+Nativefrontend421200B SHA
+59c150fcc34b85b006f304a1595ffcbf332b7bc58379d330844c3453f65a2d87,
+one inherited SDK deprecation warning. Pairedprobe114368B SHA
+ec5b37cd096cfea2019e137f9694e310ce2ee1ca699e5789a81b8713d5ef5974,
+build e8bd51a118fa8738f823896e, zero warnings. NOT INSTALLED or runtime qualified;
+missingLPF/CA pixels/UI/FPS/highrefresh/daily remain false. No need to boot an
+identity-only change that cannot yet address the known missing function.
+
+NEXT primary: inspect exact QuartzCore shader-precision decision/key flow and
+expected oldLPF Uniform/constants. Prefer same-version implementation; if using
+laterLPF, implement/check all typed-name and resource-layout adaptation before
+native/realCA qualification. New trace of original passed constants may be needed,
+but do all useful offline inspection before any new delta/approval. Independent
+image probe/coreAF231 work remains hardware-unqualified (see preceding handoff).
+Main original tools/mkadt.py diff a74a0418... preserved. No workers remain live.
+
 ### 2026-11-10 CST —0233 actual missing LPF fragment captured; phone back in TWRP
 
 PROGRESS. Full goal ACTIVE/incomplete. Original233 observer finished0 after

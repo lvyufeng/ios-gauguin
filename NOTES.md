@@ -2,6 +2,71 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0226 diagnostic profile/probe compile PASS; read-only backup LIVE
+
+Full goal ACTIVE. Codex wrote critical frontend/probe; DSH did builds/tests.
+Qualified software source integrated MAINc9f973b (9 cherry-picks); isolated226
+source96fffc0. Baseline full frontend+548-import audit described next remains
+valid for its exact older binary. New diagnostic artifacts are NOT yet physical
+or current-import qualified. No new userdata write or boot;223consent consumed.
+
+New profile keeps complete upstreamCA implementation and dynamic named ivars,
+but only admits root executable gauguin-metal-frontend-probe, env offscreen226,
+actual20H392 metadata12methods/2ivars and EXACT single sweeteagl=1 +gmt=1 boot
+tokens. No compositor/system discovery, no public certified feature families.
+Private limits profile0; actual64MiB perBO/256MiB client kernel limits preserved.
+UBWC/GMEM disabled, refused operations fail commands, no-copy aliasing refused
+rather than silently copied. Root-only0700cache; no redwoodCA shader path.
+These are diagnostic restrictions, NOT a completed CA port or Metal compliance.
+
+W226 research/tmp/dsh-metal-0226-ca-frontend inside226worktree.
+DSH51901 profile-stage-v1 exit0; DSH70839 profile-stage-v2 exit0/reaped/current.
+27 exact/duplicate/conflicting boot-token cases; metadata12/ivar2 and actual
+kernel cap comparison pass. Current prepared-v4/native-v4 bundle signed421888B,
+SHA8b3d624657ee329a4279bc86e14cba81f2fc838666f474e5e8947b3a73daef3a.
+ONE unsuppressed SDK deprecation warning for supportsFeatureSet; prior upstream
+heap/FPS initialization warnings fixed semantically. Five optional weakM2V
+imports still narrowly checked; no backend stubs or broad dynamic lookup.
+
+Current probe-v4 signed92560B? CHECK receipt exact bytes before reporting;
+SHA61575876cb0f2d0338338203100b9786ab3c3edc284e0efe77016408385be48e,
+build91df333ca68caacdb7572a61. DSH89068/probe-stage-v4 exit0/reaped; -Werror
+clean.83intended GPUjobs/339968words:RGBA/BGRA linear+sRGB red/half clears,
+72queue reuse jobs,80uncommitted buffer lifetimes,3IOSurface GPU->CPU and
+changingCPU->GPU copies; actual sole-owner reacquire/close after resource drain.
+No shader pipeline/library or discovery/presentation claim from this probe.
+Original probe-v1 compile failure(iOS umbrella header absent) retained; v2/v3
+successful historical products retained. Source fixed to IOSurfaceRef.h.
+DSH6839 evidence-stage-v1 exit0/reaped:5tests,27negative mutations, synthetic
+fixtures explicitly NOT hardware evidence. New metal_frontend_log.py requires
+83pixel hashes,128MiBhard limits,ABI marker,owner return and native83completed
+jobs with no compositor competing; strict banner/full-prefix capture separate.
+
+READONLY backup: DSH12989 STILL LIVE (after successful probe-stage-v2).
+backup-stage-v3/root-backup-v3, exact post223header11f3ff23...,17files verified,
+no phone write/reboot. At last check13.33GB/17.18GB file,900s timeout; do not
+restart or touch pinned scripts. Original backup-v1 failed old1MiB file cap;
+backup-v2 valid current-capture-v2 collectedall17 then failed ONE host path
+v1/v2 mismatch before backup. Both preserved. Fresh backup226v3 reuses that
+verified17-file capture with header+complete hashes, then full read-only dd.
+No approval question pending for226; no fabricated current backup result.
+
+Prepared not run: package226.py reuses exact219kernel/assets, modifies ONLY
+sweeteagl2->1 and appends shortgmt1 to fit fixed608B field (607+NUL), physical
+NVT1/no synthetic swipe/6GiB/30Hz/finite600s. audit226v2.py prepared to audit
+core+current frontend+probe-v4 against NEW backup's actual20H392 cache. No
+abi-stage-v2/profile yet. Need finish backup, fresh immutable profiles for
+actual ABI audit/package, local COW minimaldelta/fsck/writer102checks/actual
+oldblocks and independent review BEFORE requesting specific new consent.
+
+Bundle MUST include all3 actual signed files: GauguinMetal,Info.plist,
+_CodeSignature/CodeResources. New device files4includingprobe; newdirs2.
+Existing14static+3logs retained except rootjob/cache ProgramArguments; all other
+530jobs,hard128MiB policy,old223probe/core/GLES/Mesa/backboardd remain. Future
+capture expects21total files (18static+3logs), including complete previous
+71036/10411/1350137B prefixes. Preserve code-signature resource manifest.
+Main originalmkadt diff independently unchanged SHAa74a0418.... No CI/push.
+
 ### 2026-11-10 CST —0226 complete pinned HakiOS CA frontend builds; actual20H392 imports PASS
 
 Goal API is ACTIVE after user-side resume; old blocked entries below are history.

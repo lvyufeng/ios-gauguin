@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0230 real CA trial FAILED at fragment specialization;0232 offline gates complete
+
+This entry supersedes the live/pending status below. Full goal ACTIVE/incomplete.
+The approved e85b36e8...39-run write completed with all39 readbacks; that consent
+is CONSUMED. The single actual230 trial finished automatically after745.479738s,
+observer0, and full22-file read-only capture succeeded. Dispatch/trial stages
+correctly finished1 because physical qualification FAILED, not because the
+observer timed out. Original PIDs17195/17861/17864 are absent; both DSH launch
+handles22560/31300 were reaped. Do NOT restart any claimed profile or repeat the
+write/boot to recover logs already captured. Last observed phone state: TWRP.
+
+W230=research/tmp/gauguin-ca230-worktree-20261110/research/tmp/dsh-ca-0230-exact-renderer.
+physical-review230.json SHA
+af9116b649a00356b176736151bbba4ab670569c832109648f88ee249da9781b.
+Codex independently rehashed its46 input pins plus3 dispatch/trial job logs.
+Kernel trial-v1/observer.txt line4637: root gauguin-metal-fr[25] SIG6,
+reason "Metal failed to specialize fragment function". Before abort:128MiB hard
+memory checks passed, actual CA ABI passed, and ONLY the poison-clear GPU job
+completed (submitted/completed1). No actual CA scene pixels or final PASS.
+The service itself ran600s with598 healthy renewals; its qualifier requires>=9
+jobs, so its reported finite-service failure must not be misread as an early
+service timeout. No queue hang/OOM diagnosis established. Do NOT enlarge queues,
+substitute nearest shaders/effects, or weaken qualifiers to hide this failure.
+
+CURRENT post230 root header:
+57e6255a9be3fbcafc935784f2d00b39408a820a6be364e18baa45761c0d6c81.
+All19 static files retained; full stdout/stderr/backboardd logs now90487/17894/
+1404833 bytes. Previous full prefixes89932/16292/1398371 bytes match. Future
+changes MUST bind this captured22-file state and these full log prefixes, with
+a fresh full backup/minimal diff/review and NEW individual write approval.
+Old preboot1b59..., prewrite2e1... and backup62f... are historical baselines.
+Installed frontend564f9bb8.../probe03a62089.../core8a826583... remain unchanged.
+
+NEXT critical work: diagnose actual20H392 _MTLLibrary function specialization
+before the first CARenderer draw. Exact-profile source removed global stand-ins;
+hm_functions_encode_from_metadata only wraps argument encoders, not library
+specialization. hm_function_constants reads values only after a function exists.
+Consider a root-scoped diagnostic wrapper delegating the ORIGINAL specialization
+method unchanged while recording the requested name/constants/NSError. First
+inspect exact method ABI and crash call path; the failed function is not yet
+identified. No unqualified core substitution or runtime specialization fix exists.
+
+Independent0232 source committed MAIN35f1ec6 /2320c8a809, on top of231MAIN10f329f.
+W232=research/tmp/gauguin-image232-worktree-20261110/research/tmp/dsh-images-0232-probe.
+core-abi-stage-v1 passed all211 candidateaf6918b6... imports against actual20H392.
+Initial shader-stage-v1 FAILED: actual Metal2.4 rejects writable resources in
+non-void vertex functions. Preserve this failed evidence; no disabled-Werror
+workaround. Legal six-function shader-stage-v2 and shader-links-stage-v1 passed:
+all9 VS/FS pairs x5 formats. SOFTWARE ONLY: no image-probe executable, Mac GPU
+oracle, physical image-write/readback or desktop qualification yet. All232
+workers/handles terminal/reaped; candidate core NOT installed. Preserve immutable
+230/231/232 evidence. Main unrelated mkadt diff SHA a74a0418... unchanged.
+
+User /btw asked distance to smooth daily iOS. Answered candidly: still graphics
+correctness/compatibility work, then sustained60Hz/latency/stability, then90/120Hz;
+daily phone use also needs peripherals/power acceptance. Weeks-to-months or
+longer is an engineering estimate, not a promised date or measured completion
+percentage. No new root write, boot, CI or remote push during this status audit.
+
 ### 2026-11-10 CST —0230 approved39-run write PASS; real CA scene trial actually booted
 
 PROGRESS: actualUSERreply received via request_user_input_async

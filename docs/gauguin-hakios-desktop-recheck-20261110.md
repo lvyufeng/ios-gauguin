@@ -1,5 +1,100 @@
 # HakiOS recheck after the 0238 task-surface trial
 
+## Follow-up after actual 0239, before the 0240 installation
+
+Re-fetched GitHub main and nine files on 2026-11-10 in response to the user's
+renewed request. Main is still `63fc2b4633bac3af8e57dadab9f5a8d4cb940438`;
+all nine fresh files, 696,126 bytes, match their pinned Git blobs. The receipt is
+`research/tmp/hakios-recheck-20261110-v4/source-proof.json`. This pass also reads
+the materialized source of the actual 0239 kernel, rather than treating the
+original framebuffer instrumentation as its final implementation.
+
+The earlier admission, decoded-image upload and presentation findings remain
+open. They were identified, but they have not yet been integrated into a real
+Metal desktop. Actual 0239 qualifies root-client immutable inputs; it does not
+open the compositor's corresponding import gate. Corrected 0240 is a reviewed
+shared-output candidate awaiting its own write consent, not a phone result.
+
+Four additional integration details deserve explicit acceptance criteria:
+
+1. **Animation request rate is independent of GPU speed.** HakiOS records Metal
+   animations arriving every 41.7 ms (24 fps) while the GPU is busy only 0.3 ms.
+   Its `inject_sb.c` copies animations and sets `preferredFrameRateRange` when
+   `anim_max=1`. That integration is not present in our tracked UI code. See
+   [the actual hook](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/userland/src/inject_sb.c#L1941).
+   Log requested and delivered animation rates on the real Metal desktop;
+   choose ranges supported by gauguin's measured display mode. Do not force
+   HakiOS's 80..120 range while qualifying a 60 Hz path, or diagnose every
+   slow animation as a GPU execution problem. This is not evidence that our
+   earlier EAGL desktop has that specific 24 fps fault.
+2. **Holding display buffers too long can stall the next frame.** HakiOS keeps
+   each submitted surface alive through consumption, then drops its use as
+   soon as its pixels reach panel memory. Keeping it until the following frame
+   left CoreAnimation without a reusable surface; the source records a median
+   swap interval of 9.6 ms instead of 8.3 ms. See
+   [presenter retirement](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/xnu/files/iokit/Kernel/MiniIOMobileFramebuffer.cpp#L1394).
+   Our future queue must verify timely retirement as well as retention:
+   normal completion, replacement, timeout and client exit must each release
+   exactly the right surface-table use and object reference. A framebuffer
+   timer looking up a raw ID later does not provide that handoff.
+3. **A root shader cache is not a ready compositor cache.** Our installed
+   profile restricts its cache to a root-owned 0700 directory and clears the
+   seed environment. Its successful compilation results do not establish that
+   backboardd can use a persistent cache. Give the compositor its own usable
+   cache and compare a cold boot, warm run and warm reboot. The paired deferred
+   command recording, wallpaper and rendering-scale controls must be measured
+   separately after admission. HakiOS's
+   [runner](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/tools/metal-run.sh#L18)
+   supplies these as a group; adding its boot arguments does not implement
+   the missing hooks in our kernel or user space.
+4. **The current copy timer includes its work in the next interval.** Actual
+   0239's `SweetFramebuffer.cpp` fixes `SWEET_FB_VSYNC_US` at 16,667 and maps
+   every `sweetfb_hz >= 60` to one copy per tick. Its callback calls `present()`
+   before the final relative `setTimeoutUS(16667)`. From this source order,
+   copy and GPU-lock wait time can lengthen the next interval; this is a source
+   inference, not a measured phone frame-time distribution. Merely setting
+   `sweetfb_hz=120` neither selects a 120 Hz timer nor establishes panel timing.
+   The revised presenter needs a measured cadence that accounts for work,
+   completion and late frames; physical scan timing remains a separate check.
+
+The immediate desktop milestone therefore needs all of the following together:
+
+| Connection | Present gauguin boundary | Required desktop evidence |
+| --- | --- | --- |
+| Discovery and client admission | No Metal plugin publication; the frontend admits only the root probe and reports no GPU family | backboardd discovers the intended device, passes its actual framework capability checks and submits native GPU jobs; coordinate the existing exclusive GPU owner |
+| Images from applications and image services | Root task inputs pass; compositor task import remains denied, and no-copy buffer creation is explicitly refused | Exercise real decoded-image upload and caller-backed surfaces, their bounds, later updates and deallocator/lifetime behavior; verify icons and widgets rather than infer them from five synthetic CA scenes |
+| Shared output and presentation | 0240 has not run; latest framebuffer still uses raw pending IDs, serialized CPU access and a 30 Hz copy cap | Correct shared target pixels, GPU completion before consumption, bounded queue, prompt retirement, repeatable lock/unlock and app transitions |
+| Scheduling and latency | No equivalent complete desktop trace or animation-rate adjustment | Touch/HID, SpringBoard commit, CPU recording, submit, GPU fence, copy and panel timing on one trace; frame intervals and input latency, not only average submit duration |
+
+HakiOS's no-copy buffer workaround copies the initial decoded image and
+retains its deallocator; its own comment explicitly says later writes are not
+shared. It is useful evidence for an immediate-upload caller, not a general
+aliasing implementation. Our real-desktop candidate must distinguish those
+contracts and keep unsupported work visible. Disabling strict errors or
+silently skipping missing draws would not qualify populated icons or widgets.
+
+The performance and daily-use limits also matter. The reference runs use an
+A642L at 550 MHz and iOS 16.5 user space; gauguin has an A619 and build 20H392.
+HakiOS reports about 100–104 fps full-resolution page swipes and 89–91 fps
+Settings scrolling. Its 118–120 fps Settings result uses reduced 750x1624
+rendering, a frozen wallpaper and synthetic input; real-finger dragging is
+reported at 75–80 fps. These are the
+[author's conditions and measurements](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/docs/reference/metal-measurements.md),
+not an A619 forecast. The reference
+[device status](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/docs/devices/redwood.md)
+still lists no charging under its kernel, no Bluetooth, and cellular without
+registration. Its successful UI is not a completed daily-use phone.
+
+Execution remains: finish the bounded 0240 shared-output check, then prioritize
+one integrated backboardd Metal candidate with image upload and display
+handoff. Qualify populated UI and sustained usable 60 Hz, measure the controlled
+performance options, and only then qualify the physical 90/120 Hz mode. Do not
+insert more standalone GPU feature suites unless a named desktop failure
+requires one. This review changes no driver, installs nothing, and makes no
+device request; it does not consume or replace the pending 0240 write consent.
+
+The following sections preserve the earlier review made after 0238.
+
 Subsequent actual 0239 now passes the input-lifetime contract; see its
 [physical acceptance report](gauguin-readonly-task-input-20261110.md). The
 review below preserves the evidence and priorities established after 0238.

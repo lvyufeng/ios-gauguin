@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0259 full kernel and three offline scan images PASS
+
+R259 same worktree/branch as R258. CI runner head
+1cefd98ea95fc09cfc33385d976021f7c7f4b095 adds scan to focused host lane.
+W259=R259/research/tmp/dsh-scan-build-0259.
+Report docs/gauguin-scan-kernel-build-20261111.md.
+DSH PID54546 exit0/21.444s/10pins local six groups PASS, pushed branch,
+one dispatch. CI42916745065 job130181035584 SUCCESS 2026-11-10T22:54:26Z.
+Cloud six host groups including actual scan16 PASS, full ARM64 link PASS.
+17,882,976B kernel SHA949e10f9ba7fb2dd2e1d4134f4abcb8c11744f8c033969dd8afbf4f41c641a54,
+identity xnu-182cecd683034be3bce5215a65380edc. Archive 5338files source SHA
+b47fb04f0f40c2afa77648c9fd91b616f8c4995320758ddc1902fc58d0d86909,
+same four dxb build adaptations vs native258. 282 retained sections,
+2 scan text definitions, zero undefined. DSH PID57165 exit0/47.846s/
+16pins fetch/qualify/package all0. Both launchers and watch reaped.
+
+W259/images/gauguin-0259-scan1-gcc.img db3cd1de935f84c6c07aa9f2fb5c48ef26dd108f236e32b955b3b2e9304e7ca7
+W259/images/gauguin-0259-scan2-dispcc.img 8637533dc3148f4ed4e8edaf9ff4e33898d8fdf020cf8180568e5bcd004b7b01
+W259/images/gauguin-0259-scan3-intf.img 2c0178833183cb638ba64774d6e4795abd99d6e7843c24dbbbba1c0ab6c713a4
+All 19,955,712B, only selector digit differs. Codex independent readback
+10 native segments/5 assets, DTB/shim/header, 595B command, RAM and PAS zero tail.
+review.json SHA8c134a1ec12a853a257bbe033b7f21de5dd58d59a905960e4a78254e8cef107b.
+0255/0250/0239 and pending0240 plan rehashed; MAIN mkadt diff unchanged.
+No phone commands or boots. No iOS refresh or MMIO qualification yet.
+NEXT unchanged exact0240 consent -> paired0239 -> scoped desktop delta with
+individual consent -> 0250 -> 0255. Use staged GCC, DISP_CC then INTF1 when
+0259 physical scan is appropriate. Full goal active.
+
 ### 2026-11-11 CST —0258 XNU inherited scan probe source/host/ARM64 PASS
 
 R258 reuses research/tmp/gauguin-build255-worktree-20261111 on new branch

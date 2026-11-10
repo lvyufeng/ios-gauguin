@@ -52,11 +52,12 @@ def main():
              log.replace('seq=2 ','seq=1 '),log.replace('kind=2 ','kind=999 '),
              log.replace('count=15','count=14',1),log.replace('tick=1000100','tick=999999'),
              log[:log.index('SWEET UI254 F:')],log+log,
-             log.replace('flags=1 a=900000','flags=0 a=18446744073709551616')]
-        for candidate in bad:
+             log.replace('flags=0 a=900000','flags=0 a=18446744073709551616')]
+        for index,candidate in enumerate(bad):
+            assert candidate!=log,('mutation made no change',index)
             try:mod.parse(candidate)
             except ValueError:pass
-            else:raise AssertionError('malformed capture accepted')
+            else:raise AssertionError(('malformed capture accepted',index))
         assert all(sha(Path(p))==h for p,h in pins.items())
         summary={'state':'passed-actual-core-and-board-host','runs':records,'log_mutations_rejected':len(bad),
                  'input_pins':pins,'inputs_unchanged':True,'hardware_qualified':False,

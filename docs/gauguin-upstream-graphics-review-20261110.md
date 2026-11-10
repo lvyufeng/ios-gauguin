@@ -1,5 +1,9 @@
 # gauguin graphics: renewed HakiOS / UniXNU source review
 
+For the latest0230 failure, actual descriptor-call-path finding and remaining
+desktop integration gaps, see [the follow-up review](gauguin-hakios-gap-review-20261110.md).
+The status comparisons below describe the earlier0214-0219 investigation.
+
 Reviewed 2026-11-10 Asia/Shanghai, after trial 0214. This is a source and
 published-evidence review, not a new gauguin hardware qualification. No image
 was installed or booted for this review. The phone last returned to TWRP.

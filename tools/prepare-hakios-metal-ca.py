@@ -12,7 +12,8 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--cache',type=Path,required=True)
     ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--profile',choices=['baseline','gauguin-diagnostic','gauguin-ca-exact'],default='baseline')
+    ap.add_argument('--profile',choices=['baseline','gauguin-diagnostic','gauguin-ca-exact',
+                                       'gauguin-ca-trace'],default='baseline')
     a=ap.parse_args();repo=Path(__file__).resolve().parents[1]
     manifest=repo/'graphics/hakios-metal-ca/upstream.json';spec=json.loads(manifest.read_text())
     assert spec['revision']=='63fc2b4633bac3af8e57dadab9f5a8d4cb940438'
@@ -31,6 +32,9 @@ def main():
         'gauguin-diagnostic': ['0001-gauguin-offscreen-diagnostic.patch'],
         'gauguin-ca-exact': ['0001-gauguin-offscreen-diagnostic.patch',
                              '0002-gauguin-exact-ca-functions.patch'],
+        'gauguin-ca-trace': ['0001-gauguin-offscreen-diagnostic.patch',
+                             '0002-gauguin-exact-ca-functions.patch',
+                             '0003-gauguin-descriptor-specialization-trace.patch'],
     }
     patches=[profile/'patches'/name for name in patch_names[a.profile]]
     overlays=sorted(p for p in (profile/'overlay').rglob('*') if p.is_file()) if patches else []

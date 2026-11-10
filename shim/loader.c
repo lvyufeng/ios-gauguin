@@ -117,6 +117,11 @@ const char *loader_boot(uintptr_t dtb)
 	int reservation_status = pas_prepare(&context, &reservation);
 	if (reservation_status < 0)
 		loader_stop("payload preflight", reservation_status);
+	struct pas_handoff_plan handoff_plan;
+	int handoff_status = pas_handoff_prepare(&context, con_fb_base,
+	    (uint64_t)con_stride * con_h, &handoff_plan);
+	if (handoff_status < 0)
+		loader_stop("handoff FDT preflight", handoff_status);
 
 	uint64_t pa_of_va_base = p->phys_base - p->virt_base;	/* pa = va + this */
 	con_hex2("PHYS", "base=", p->phys_base, "size=", p->mem_size);
@@ -139,6 +144,13 @@ const char *loader_boot(uintptr_t dtb)
 	/* ADT, then boot_args, behind the kernel; everything below topOfKernelData is ours. */
 	uintptr_t adt_pa = p->kernel_end + pa_of_va_base;
 	copy64(adt_pa, rd_start + p->adt_off, p->adt_size);
+	if (handoff_status == PAS_READY) {
+		int status = pas_handoff_commit(&context, (uint8_t *)adt_pa,
+		    p->adt_size, con_fb_base, (uint64_t)con_stride * con_h, &handoff_plan);
+		if (status != PAS_READY)
+			loader_stop("handoff FDT commit", status);
+		con_hex("HANDOFF FDT", fdt_bytes);
+	}
 	if (reservation_status == PAS_READY) {
 		int status = pas_commit((uint8_t *)adt_pa, p->adt_size, &reservation);
 		if (status != PAS_READY)
@@ -228,6 +240,10 @@ loader_announce(uintptr_t dtb, const char *label, uint32_t value)
 	};
 	struct pas_plan reservation;
 	if (pas_prepare(&context, &reservation) < 0)
+		return;
+	struct pas_handoff_plan handoff_plan;
+	if (pas_handoff_prepare(&context, con_fb_base,
+	    (uint64_t)con_stride * con_h, &handoff_plan) < 0)
 		return;
 	announce_into(p->cmdline, label, value);
 }

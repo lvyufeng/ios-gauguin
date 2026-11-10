@@ -45,4 +45,25 @@ int pas_prepare(const struct pas_context *, struct pas_plan *);
  * first write; only success publishes actual owner and pmap property names.
  * No PAS mapping, access, loading or authentication is performed. */
 int pas_commit(uint8_t *copied_adt, size_t adt_bytes, const struct pas_plan *);
+
+/* Optional, versioned capture of the ORIGINAL ABL FDT and actual loader
+ * ownership. It does not interpret dynamic allocation ranges as placements,
+ * admit RAM, change pmap ranges, map memory or access an MMIO device. */
+#define HANDOFF_FDT_HEADER 160u
+#define HANDOFF_FDT_MAX_CAPACITY (512u * 1024u)
+struct pas_handoff_plan {
+    struct pas_plan owner;
+    uint32_t name_offset, value_offset, capacity;
+    uint64_t framebuffer_pa, framebuffer_bytes;
+};
+/* Output remains unchanged on disabled/error. Requires the validated PAS
+ * baseline when requested; request absence keeps legacy payloads unchanged. */
+int pas_handoff_prepare(const struct pas_context *, uint64_t framebuffer_pa,
+                        uint64_t framebuffer_bytes, struct pas_handoff_plan *);
+/* All validation precedes writes, source payload is never modified. Call on
+ * the normal copied ADT BEFORE pas_commit, then jump only after both succeed.
+ * The ready property/header publish last; unused capacity stays zero. */
+int pas_handoff_commit(const struct pas_context *, uint8_t *copied_adt, size_t,
+                       uint64_t framebuffer_pa, uint64_t framebuffer_bytes,
+                       const struct pas_handoff_plan *);
 #endif

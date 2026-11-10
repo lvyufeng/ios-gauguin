@@ -18,6 +18,7 @@ struct adt_view {
     uint32_t req_name, req_value, io_name, io_value;
     unsigned chosen, defaults, req, io, base_seen, size_seen, actual, owner, maps, nodes, props;
     struct range map[MAX_MAP];
+    uint32_t handoff_name, handoff_value, handoff_bytes, handoff_pending, handoff_ready;
 };
 /* Freestanding metadata helpers: volatile byte operations avoid implicit
  * libc memset/memcpy calls and unaligned Device-memory accesses. */
@@ -178,7 +179,15 @@ static int adt_node(const uint8_t *d, size_t bytes, size_t *at, unsigned parent,
     for (uint32_t i = 0; i < np; ++i) {
         uint32_t raw = le32(d + pos + 32), length = raw & 0x7fffffffu;
         const uint8_t *p = d + pos, *value = p + 36;
-        if (role == 2 && eq(p, 32, "LowPASRequest")) {
+        if (role == 2 && eq(p, 32, "GauguinHandoffPending")) {
+            if (raw != length || ++v->handoff_pending != 1)
+                return PAS_BAD_ADT;
+            v->handoff_name = (uint32_t)pos;
+            v->handoff_value = (uint32_t)(pos + 36);
+            v->handoff_bytes = length;
+        } else if (role == 2 && eq(p, 32, "GauguinHandoffFDT")) {
+            ++v->handoff_ready;
+        } else if (role == 2 && eq(p, 32, "LowPASRequest")) {
             if (raw != PAS_REQUEST_BYTES)
                 return PAS_BAD_ADT;
             ++v->req;
@@ -688,5 +697,128 @@ int pas_commit(uint8_t *d, size_t bytes, const struct pas_plan *p)
     put32(io + 20, PAS_SIGNATURE);
     name_set(d + v.req_name, "LowPASReservation");
     name_set(d + v.io_name, "pmap-io-ranges");
+    return PAS_READY;
+}
+
+/* Handoff wire v1: magic[8], version/flags/FDT-bytes/capacity (four LE32),
+ * then17 LE64 owner fields, ending with a reserved zero word. The complete
+ * original FDT follows at160. No inferred dynamic placement/free-page list. */
+static int handoff_request(const uint8_t *r, uint32_t bytes, uint32_t *capacity)
+{
+    if (bytes < HANDOFF_FDT_HEADER || !magic(r, "GHFDREQ1") || le32(r + 8) != 1 ||
+        le32(r + 12) || le32(r + 16))
+        return PAS_BAD_REQUEST;
+    uint32_t cap = le32(r + 20);
+    if (cap < PAGE || cap > HANDOFF_FDT_MAX_CAPACITY || (cap & (PAGE - 1)) ||
+        bytes != HANDOFF_FDT_HEADER + cap || !zero(r + 24, bytes - 24))
+        return PAS_BAD_REQUEST;
+    *capacity = cap;
+    return PAS_READY;
+}
+static int metadata_equal(const void *a, const void *b, size_t bytes)
+{
+    const uint8_t *x = a, *y = b;
+    while (bytes--)
+        if (*x++ != *y++)
+            return 0;
+    return 1;
+}
+int pas_handoff_prepare(const struct pas_context *c, uint64_t fb, uint64_t fb_bytes,
+                        struct pas_handoff_plan *out)
+{
+    if (!c || !out || !c->payload || c->payload_bytes < HEADER ||
+        c->payload_bytes > MAX_PAYLOAD || !magic(c->payload, "SWEETXNU") ||
+        le32(c->payload + 8) != 1)
+        return PAS_BAD_INPUT;
+    const uint8_t *d = c->payload;
+    uint64_t ao = le64(d + 32), az = le64(d + 40);
+    if (ao < HEADER || (ao & 7) || !az || az > MAX_DT || !fits(ao, az, c->payload_bytes))
+        return PAS_BAD_PAYLOAD;
+    struct adt_view v;
+    int status = adt_read(d + ao, (size_t)az, &v);
+    if (status)
+        return status;
+    if (v.handoff_ready || v.handoff_pending > 1)
+        return PAS_BAD_REQUEST;
+    if (!v.handoff_pending)
+        return PAS_DISABLED;
+    struct pas_handoff_plan plan;
+    clear_metadata(&plan, sizeof plan);
+    status = handoff_request(d + ao + v.handoff_value, v.handoff_bytes, &plan.capacity);
+    if (status < 0)
+        return status;
+    status = pas_prepare(c, &plan.owner);
+    if (status != PAS_READY)
+        return status < 0 ? status : PAS_BAD_REQUEST;
+    if (c->fdt_bytes > plan.capacity || !valid((struct range){fb, fb_bytes}))
+        return PAS_RANGE;
+    plan.name_offset = v.handoff_name;
+    plan.value_offset = v.handoff_value;
+    plan.framebuffer_pa = fb;
+    plan.framebuffer_bytes = fb_bytes;
+    copy_metadata(out, &plan, sizeof plan);
+    return PAS_READY;
+}
+int pas_handoff_commit(const struct pas_context *c, uint8_t *d, size_t bytes,
+                       uint64_t fb, uint64_t fb_bytes,
+                       const struct pas_handoff_plan *plan)
+{
+    if (!c || !d || !plan)
+        return PAS_BAD_INPUT;
+    struct pas_handoff_plan current;
+    int status = pas_handoff_prepare(c, fb, fb_bytes, &current);
+    if (status != PAS_READY)
+        return status < 0 ? status : PAS_BAD_REQUEST;
+    if (!metadata_equal(&current, plan, sizeof current) || bytes != plan->owner.adt_bytes)
+        return PAS_BAD_REQUEST;
+    const struct pas_plan *p = &plan->owner;
+    uint64_t vb = le64(c->payload + 16), ke = le64(c->payload + 48);
+    uint64_t ap = p->managed_pa + ke - vb, bp = up(ap + bytes, PAGE);
+    if ((uintptr_t)d != ap)
+        return PAS_RANGE;
+    struct adt_view v;
+    status = adt_read(d, bytes, &v);
+    if (status)
+        return status;
+    uint32_t cap = 0;
+    if (v.handoff_ready || v.handoff_pending != 1 || v.handoff_name != plan->name_offset ||
+        v.handoff_value != plan->value_offset || v.base != p->managed_pa ||
+        v.size != p->managed_bytes || v.req != 1 || v.io != 1 || v.actual ||
+        v.req_name != p->request_name || v.req_value != p->request_value ||
+        v.io_name != p->io_name || v.io_value != p->io_value)
+        return PAS_BAD_ADT;
+    status = handoff_request(d + v.handoff_value, v.handoff_bytes, &cap);
+    if (status < 0 || cap != plan->capacity)
+        return PAS_BAD_REQUEST;
+    uint64_t tail = 0;
+    status = request(d + v.req_value, p->payload_bytes, &tail);
+    if (status || tail != p->tail_offset)
+        return PAS_BAD_REQUEST;
+    /* Source original-FDT geometry/reservations have just been revalidated.
+     * Every destination check precedes any publication or content write. */
+    uint8_t *r = d + v.handoff_value;
+    copy_metadata(r + HANDOFF_FDT_HEADER, c->fdt, c->fdt_bytes);
+    put32(r + 12, 1); /* COMPLETE_COPY_ONLY, never a RAM-admission decision. */
+    put32(r + 16, (uint32_t)c->fdt_bytes);
+    put64(r + 24, p->fdt_pa);
+    put64(r + 32, p->payload_pa);
+    put64(r + 40, p->payload_bytes);
+    put64(r + 48, p->shim_pa);
+    put64(r + 56, p->shim_bytes);
+    put64(r + 64, p->managed_pa);
+    put64(r + 72, p->managed_bytes);
+    put64(r + 80, ap);
+    put64(r + 88, bytes);
+    put64(r + 96, bp);
+    put64(r + 104, bp + PAGE);
+    put64(r + 112, p->pa);
+    put64(r + 120, p->bytes);
+    put64(r + 128, plan->framebuffer_pa);
+    put64(r + 136, plan->framebuffer_bytes);
+    put64(r + 144, ap);
+    /* The reserved LE64 at152 remains zero from the validated request. */
+    for (unsigned i = 0; i < 8; ++i)
+        r[i] = (uint8_t)"GHFDOWN1"[i];
+    name_set(d + v.handoff_name, "GauguinHandoffFDT");
     return PAS_READY;
 }

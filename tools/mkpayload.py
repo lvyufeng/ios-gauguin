@@ -406,10 +406,28 @@ def pas_pending_adt(adt_blob, pieces, kernel_end, virt_base, phys_base, mem_size
     return root, chosen, size, top
 
 
+def handoff_request_adt(blob, capacity):
+    root, chosen, _ = pas_adt(blob)
+    if any(name in ('GauguinHandoffPending', 'GauguinHandoffFDT') for name, _, _ in chosen.props):
+        raise ValueError('ADT already has handoff FDT metadata')
+    request = bytearray(160 + capacity)
+    struct.pack_into('<8s4I', request, 0, b'GHFDREQ1', 1, 0, 0, capacity)
+    chosen.props.append(('GauguinHandoffPending', 0, bytes(request)))
+    result = adt.serialize(root)
+    if len(result) > 0x100000:
+        raise ValueError('handoff FDT enlarged ADT exceeds one MiB')
+    return result
+
+
 def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=None,
           pas_reservation=False, zap_mdt_path=None, gmu_firmware_path=None, sqe_firmware_path=None,
-          zap_code_path=None):
+          zap_code_path=None, handoff_fdt_capacity=0):
     cl = encode_cmdline(cmdline)
+    if type(handoff_fdt_capacity) is not int or handoff_fdt_capacity < 0:
+        raise ValueError('invalid handoff FDT capacity')
+    if handoff_fdt_capacity and (not pas_reservation or handoff_fdt_capacity < PAGE or
+                                handoff_fdt_capacity > 0x80000 or handoff_fdt_capacity % PAGE):
+        raise ValueError('handoff FDT requires PAS and 16 KiB..512 KiB page-aligned capacity')
     buf = bytearray(open(kernel_path, 'rb').read())
     executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or gmu_firmware_path is not None or sqe_firmware_path is not None or zap_code_path is not None or pas_reservation else None
     m = parse_macho(buf)
@@ -429,6 +447,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
     kernel_end = (kernel_end + PAGE - 1) & ~(PAGE - 1)
 
     adt_blob = open(adt_path, 'rb').read()
+    if handoff_fdt_capacity:
+        adt_blob = handoff_request_adt(adt_blob, handoff_fdt_capacity)
     if nvt_firmware_path is not None:
         asset_adt(adt_blob)
     if zap_mdt_path is not None:
@@ -568,6 +588,10 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
             sqe['top_of_kernel_data'] = hex(pas_top)
         if zap_code is not None:
             zap_code['top_of_kernel_data'] = hex(pas_top)
+    if handoff_fdt_capacity:
+        info['handoff_fdt_request'] = dict(version=1, header_bytes=160,
+            capacity=handoff_fdt_capacity, source='actual ABL FDT at runtime',
+            changes_RAM_admission=False)
     return bytes(out), info
 
 
@@ -582,9 +606,12 @@ if __name__ == '__main__':
     ap.add_argument('--gmu-firmware', help='pinned A619 legacy GMU data asset; does not execute it')
     ap.add_argument('--sqe-firmware', help='pinned A630 SQE data asset; does not execute it')
     ap.add_argument('--zap-code', help='pinned A615 ZAP b02 data asset; does not load or authenticate it')
+    ap.add_argument('--handoff-fdt-capacity', type=lambda value: int(value, 0), default=0,
+                    help='optional original ABL FDT capture capacity; requires PAS, does not admit RAM')
     a = ap.parse_args()
     blob, info = build(a.kernel, a.adt, a.cmdline, a.ramdisk, a.nvt_firmware,
-                       a.pas_reservation, a.zap_mdt, a.gmu_firmware, a.sqe_firmware, a.zap_code)
+                       a.pas_reservation, a.zap_mdt, a.gmu_firmware, a.sqe_firmware, a.zap_code,
+                       a.handoff_fdt_capacity)
     open(a.out, 'wb').write(blob)
     for k, v in info.items():
         if k != 'segs':

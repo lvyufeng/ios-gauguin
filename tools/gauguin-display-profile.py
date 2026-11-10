@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Inventory the gauguin panel and display resources from a captured DTB."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+
+MDP = "/soc/qcom,mdss_mdp"
+DSI = "/soc/qcom,dsi-display-primary"
+PANEL_SELECTOR = "msm_drm.dsi_display0="
+# MiCode gauguin-q-oss, e601e14, techpack/display/msm/sde/sde_hw_intf.c.
+# Descriptions for an eventual hardware probe. This tool never accesses MMIO.
+INTF_READ_OFFSETS = {
+    "timing_engine_enable": 0x000,
+    "frame_line_count_enable": 0x0A8,
+    "frame_count": 0x0AC,
+    "line_count": 0x0B0,
+    "status": 0x26C,
+}
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+class Tree:
+    def __init__(self, path, fdtget):
+        self.path = path
+        self.fdtget = fdtget
+        self.digest = hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def query(self, *args, properties=()):
+        result = subprocess.run(
+            [self.fdtget, *args, str(self.path), *properties],
+            capture_output=True, text=True, timeout=5,
+        )
+        require(result.returncode == 0, "unreadable DT node/property: " + " ".join(properties))
+        return result.stdout.strip()
+
+    def strings(self, node, prop):
+        return self.query("-t", "s", properties=(node, prop))
+
+    def cells(self, node, prop):
+        return [int(value, 16) for value in
+                self.query("-t", "x", properties=(node, prop)).split()]
+
+    def cell(self, node, prop):
+        cells = self.cells(node, prop)
+        require(len(cells) == 1, f"expected one DT cell for {prop}")
+        return cells[0]
+
+    def children(self, node):
+        return self.query("-l", properties=(node,)).splitlines()
+
+    def props(self, node):
+        return self.query("-p", properties=(node,)).splitlines()
+
+    def region(self, node, name):
+        names = self.strings(node, "reg-names").split()
+        cells = self.cells(node, "reg")
+        require(len(cells) == 2 * len(names) and names.count(name) == 1,
+                f"ambiguous DT region {name}")
+        index = names.index(name)
+        address, length = cells[2 * index:2 * index + 2]
+        require(length > 0 and address + length <= 1 << 32, f"invalid DT region {name}")
+        return address, length
+
+
+def display_inventory(tree):
+    # On this device /soc uses 32-bit ranges with identity translation.
+    require(tree.cell("/", "#address-cells") == 2
+            and tree.cell("/soc", "#address-cells") == 1
+            and tree.cell("/soc", "#size-cells") == 1
+            and tree.cells("/soc", "ranges") == [0, 0, 0, 0xFFFFFFFF],
+            "unexpected /soc address translation")
+    require(tree.strings(MDP, "compatible") == "qcom,sde-kms", "unexpected SDE node")
+    selectors = [arg[len(PANEL_SELECTOR):] for arg in tree.strings("/chosen", "bootargs").split()
+                 if arg.startswith(PANEL_SELECTOR)]
+    require(len(selectors) == 1, "expected one primary DSI boot selector")
+    panel_name = selectors[0].split(":", 1)[0]
+    require(re.fullmatch(r"qcom,mdss_dsi_j17_(?:36_02_0a|42_02_0b)_dsc_video", panel_name),
+            "unsupported gauguin panel selector")
+    panel = MDP + "/" + panel_name
+    require(tree.strings(panel, "qcom,mdss-dsi-panel-type") == "dsi_video_mode",
+            "expected DSI video mode")
+    require(tree.cell(DSI, "qcom,dsi-default-panel") == tree.cell(panel, "phandle"),
+            "primary DSI phandle disagrees with boot selector")
+    for prop in ("qcom,mdss-dsi-pan-enable-dynamic-fps", "qcom,dsi-dyn-clk-enable"):
+        require(prop in tree.props(panel), f"missing panel declaration {prop}")
+    rates = tree.cells(panel, "qcom,dsi-supported-dfps-list")
+    require(len(rates) == len(set(rates)) and all(0 < rate <= 240 for rate in rates),
+            "invalid dynamic refresh list")
+    method = tree.strings(panel, "qcom,mdss-dsi-pan-fps-update")
+    require(method == "dfps_immediate_porch_mode_vfp", "unexpected dynamic refresh method")
+    timing_parent = panel + "/qcom,mdss-dsi-display-timings"
+    children = tree.children(timing_parent)
+    require(len(children) == 1, "expected one base timing")
+    timing_node = timing_parent + "/" + children[0]
+    timing = {key: tree.cell(timing_node, "qcom,mdss-dsi-panel-" + key)
+              for key in ("framerate", "width", "height")}
+    for axis in ("h", "v"):
+        for field in ("pulse-width", "back-porch", "front-porch"):
+            key = f"{axis}-{field}"
+            timing[key] = tree.cell(timing_node, "qcom,mdss-dsi-" + key)
+    require(timing["framerate"] in rates and timing["width"] == 1080 and timing["height"] == 2400,
+            "base timing disagrees with gauguin panel")
+    require(tree.strings(timing_node, "qcom,compression-mode") == "dsc", "expected DSC")
+    controller = tree.cell(panel, "qcom,dsi-ctrl-num")
+    phy = tree.cell(panel, "qcom,dsi-phy-num")
+    ctrl_node, phy_node = f"/soc/qcom,mdss_dsi{controller}_ctrl", f"/soc/qcom,mdss_dsi_phy{phy}"
+    for node, index, prop in ((ctrl_node, controller, "qcom,dsi-ctrl"),
+                              (phy_node, phy, "qcom,dsi-phy")):
+        require(tree.cell(node, "cell-index") == index
+                and tree.cell(node, "phandle") == tree.cell(DSI, prop),
+                "primary DSI controller/PHY selection disagrees")
+    mdp, length = tree.region(MDP, "mdp_phys")
+    offsets = tree.cells(MDP, "qcom,sde-intf-off")
+    types = tree.strings(MDP, "qcom,sde-intf-type").split()
+    dsi_interfaces = [index for index, kind in enumerate(types) if kind == "dsi"]
+    require(len(offsets) == len(types) and controller < len(dsi_interfaces),
+            "cannot resolve DSI controller in SDE catalog")
+    index = dsi_interfaces[controller]
+    offset, span = offsets[index], tree.cell(MDP, "qcom,sde-intf-size")
+    require(offset % 4 == 0 and span >= max(INTF_READ_OFFSETS.values()) + 4
+            and offset + span <= length, "SDE interface outside MDP region")
+    return {
+        "selected_panel_node": panel_name, "declared_hz": rates, "dynamic_refresh_method": method,
+        "base_timing": timing, "dsi_controller": controller, "dsi_phy": phy,
+        "dsi_region": tree.region(ctrl_node, "dsi_ctrl"),
+        "phy_region": tree.region(phy_node, "dsi_phy"),
+        "mdp_region": [mdp, length], "sde_interface": index, "sde_interface_region": [mdp + offset, span],
+        "candidate_registers": {name: mdp + offset + reg for name, reg in INTF_READ_OFFSETS.items()},
+        "source_dtb_sha256": tree.digest,
+    }
+
+
+def boot_inventory(tree):
+    framebuffers = [node for node in tree.children("/chosen") if node.startswith("framebuffer@")]
+    require(len(framebuffers) == 1, "expected one inherited boot framebuffer")
+    node = "/chosen/" + framebuffers[0]
+    require(tree.strings(node, "compatible") == "simple-framebuffer", "unexpected framebuffer")
+    geometry = {key: tree.cell(node, key) for key in ("width", "height", "stride")}
+    return {
+        "dtb_sha256": tree.digest, "framebuffer": geometry,
+        "format": tree.strings(node, "format"),
+        "display_subsystem_status": tree.strings("/soc@0/display-subsystem@ae00000", "status"),
+    }
+
+
+def recovery_modes(path, status_path, display):
+    require(status_path.read_text().strip() == "connected", "recovery DSI connector is not connected")
+    modes = set()
+    for line in path.read_text().splitlines():
+        match = re.fullmatch(r"(\d+)x(\d+)x(\d+)x(\d+)vid", line)
+        require(match, "unexpected recovery DSI mode")
+        width, height, rate, clock = map(int, match.groups())
+        base = display["base_timing"]
+        require((width, height) == (base["width"], base["height"])
+                and rate in display["declared_hz"] and clock > 0,
+                "recovery DSI mode disagrees with panel declaration")
+        modes.add((rate, clock))
+    require(modes, "empty recovery mode list")
+    return [{"hz": rate, "reported_clock_khz": clock} for rate, clock in sorted(modes)]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("captured_dtb", type=Path)
+    parser.add_argument("--boot-dtb", type=Path)
+    parser.add_argument("--recovery-modes", type=Path)
+    parser.add_argument("--recovery-status", type=Path)
+    parser.add_argument("--fdtget", default="fdtget")
+    args = parser.parse_args()
+    if bool(args.recovery_modes) != bool(args.recovery_status):
+        parser.error("--recovery-modes and --recovery-status must be supplied together")
+    try:
+        result = display_inventory(Tree(args.captured_dtb, args.fdtget))
+        if args.boot_dtb:
+            result["boot_dtb"] = boot_inventory(Tree(args.boot_dtb, args.fdtget))
+        if args.recovery_modes:
+            result["recovery_advertised_modes"] = recovery_modes(
+                args.recovery_modes, args.recovery_status, result)
+        result["active_scan_hz"] = None
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
+        parser.exit(1, f"gauguin display profile: {error}\n")
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()

@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0256 real recovery panel modes and scan counter mapping
+
+Progress on physical refresh: DSH readonly TWRP DRM connected, twelve
+1080x2400 video modes covering 30/48/50/60/90/120 Hz with two clock entries
+each. Debugfs state/vblank absent, active scan rate unknown. Saved handset
+FDT selects J17 36-02-0A/DSI0/PHY0; same six VFP DFPS rates, base120 DSC.
+Pinned Xiaomi e601e14 source and handset DT resolve INTF1 at 0x0ae6b800,
+frame counter 0x0ae6b8ac and line counter 0x0ae6b8b0. Addresses inferred
+from driver/DT, no live MMIO. 0255 actual embedded DTB inherits simplefb
+and disables the display subsystem. Software60 target cannot set scan mode.
+
+tools/gauguin-display-profile.py and docs/gauguin-physical-display-profile-20261111.md.
+DSH private W256=research/tmp/dsh-display-0256. Capture PID48913 exit0;
+qualifications PID49435 exit1 (property prefix), PID49658 exit1 (pre-existing
+private output), PID49750 exit0 (fresh output, all12 modes, three negatives).
+All DSH sessions reaped. Profile SHA502715bf2c5ab08339cb05eee149bc1b29ddd554d6ee9e87898c76c0bb03d1fc.
+Source blob IDs, result pins, exact 0255 image and embedded DT independently
+checked. No new build, boot, device write or modeset. Main mkadt diff retained.
+
+Next display work: resolve clock/domain accessibility and prove inherited
+counter cadence under XNU with bounded read-only sampling. Physical scan
+and 90/120 Hz require hardware acceptance. Existing desktop order remains
+pending0240 -> paired0239 -> fresh desktop delta/consent -> 0250 -> 0255.
+SpringBoard pre-commit tracing remains open. Full goal active.
+
 ### 2026-11-11 CST — HakiOS recheck: first response, composition, physical scan
 
 Report docs/gauguin-hakios-acceptance-gaps-20261111.md. Fresh HakiOS main

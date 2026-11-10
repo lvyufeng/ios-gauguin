@@ -14,7 +14,7 @@ pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 def body(p):return re.sub(r'^#include .*\n','',p.read_text(),flags=re.M)
 fixture=F.read_text();assert fixture.count('@SOURCE@')==fixture.count('@SURFACE_HEADER@')==1
 fixture=fixture.replace('@SURFACE_HEADER@',body(H))
-extra=(body(bootstrap)+'\n[[maybe_unused]] static bool PE_parse_boot_argn(const char *,void *,int){return false;}\n')if bootstrap.exists()else''
+extra=(body(bootstrap)+'\n[[maybe_unused]] static bool PE_parse_boot_argn(const char *,void *,int){return false;}\n[[maybe_unused]] static bool sweet_metal_desktop_enabled(){return false;}\n')if bootstrap.exists()else''
 fixture=fixture.replace('@SOURCE@',extra+body(S))
 method=re.findall(r'uintptr_t\nSweetSurface::kernelAddress\(\)\n\{[\s\S]*?\n\}',K.read_text())
 assert len(method)==1 and fixture.count('@SURFACE_KERNEL_ADDRESS@')==1

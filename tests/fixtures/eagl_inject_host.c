@@ -160,6 +160,9 @@ static int copystr(const char *in, char *out, size_t size, size_t *copied)
 }
 
 static unsigned sweet_exec_loader_probe = 1, sweet_eagl_inject_requested;
+#ifdef GAUGUIN_METAL_DISCOVERY_HOST
+static unsigned sweet_metal_requested;
+#endif
 #include "production-add.h"
 #include "production-env.h"
 #include "production-inject.h"
@@ -317,6 +320,16 @@ int main(int argc, char **argv)
 {
     CHECK(argc == 2);
     const char *scenario = argv[1];
+#ifdef GAUGUIN_METAL_DISCOVERY_HOST
+    if(strcmp(scenario,"metal-gate")==0) {
+        unsigned n=0;
+        for(unsigned a=0;a<4;a++)for(unsigned b=0;b<4;b++)for(unsigned c=0;c<4;c++) {
+            sweet_exec_loader_probe=a;sweet_eagl_inject_requested=b;sweet_metal_requested=c;
+            CHECK(sweet_metal_desktop_enabled()==(a==1&&b==2&&c==2));n++;
+        }
+        printf("METAL GATE PASS %u exact combinations\n",n);return 0;
+    }
+#endif
     if (strncmp(scenario, "pilot-", 6) == 0) {
         pilot_case(scenario);
         return 0;
@@ -341,6 +354,13 @@ int main(int argc, char **argv)
     vnode_t actual = &target, script = NULL;
     vfs_context_t context = &exec_context;
 
+#ifdef GAUGUIN_METAL_DISCOVERY_HOST
+    if(CASE("metal-clean")||CASE("metal-existing")) {
+        requested=2;sweet_metal_requested=2;event=false;expected=SEI_MODE;
+        if(CASE("metal-clean"))env[1]=0;
+        else env[2]=(user_addr_t)sweet_eagl_insert;
+    } else
+#endif
     if (CASE("mobile") || CASE("root") || CASE("exact-fit") || CASE("one-short") || CASE("partial-copy")) {
         append = !CASE("one-short") && !CASE("partial-copy");
         expected = append ? SEI_APPENDED : CASE("one-short") ? SEI_SPACE : SEI_COPY;

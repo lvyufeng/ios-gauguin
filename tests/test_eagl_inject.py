@@ -41,6 +41,7 @@ def test(source, output):
     assert '\t\tsweet_eagl_log_denied_get8(p, args);\n#endif\n\t\terror = EPERM;\n\t\tgoto out;' in auth
     (output / 'production-auth.h').write_text(auth)
 
+    metal='sweet_metal_desktop_enabled' in text
     cases = (
         'mobile root exact-fit one-short partial-copy disabled bad-flag trace-off other-path null-context '
         'mode-absent mode-duplicate mode-other already conflicting duplicate other-proc script addr32 '
@@ -52,11 +53,12 @@ def test(source, output):
         ' pilot-good pilot-mode-off pilot-argv0-only pilot-wrong-parent pilot-reparented pilot-exec-not-spawn'
         ' pilot-other-vnode pilot-writable-proxy pilot-thread-mismatch pilot-pid-reused pilot-wrong-uid pilot-foreign-task'
     ).split()
+    if metal:cases+=['metal-gate','metal-clean','metal-existing']
     binary = output / 'eagl-inject-model'
     compiler = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--find', 'clang'], text=True).strip()
     sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
     build = [compiler, '-isysroot', sdk, '-std=gnu11', '-O1', '-g', '-Wall', '-Wextra', '-Werror',
-             '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-I', str(output), str(fixture), '-o', str(binary)]
+             '-fsanitize=address,undefined', '-fno-omit-frame-pointer', *(['-DGAUGUIN_METAL_DISCOVERY_HOST=1']if metal else[]), '-I', str(output), str(fixture), '-o', str(binary)]
     subprocess.run(build, check=True)
     for case in cases:
         result = subprocess.run([binary, case], capture_output=True, text=True)
@@ -64,6 +66,8 @@ def test(source, output):
         (output / f'{case}.stderr').write_text(result.stderr)
         assert result.returncode == 0 and not result.stderr, (case, result.returncode, result.stderr)
         lines = result.stdout.splitlines()
+        if case=='metal-gate':
+            assert lines==['METAL GATE PASS 64 exact combinations'];continue
         if case.startswith('pilot-'):
             recorded = case in ('pilot-good', 'pilot-pid-reused', 'pilot-wrong-uid', 'pilot-foreign-task')
             trace = 'SWEET DYLD EXEC: pid=57 image=2 argc=2 envc=0 job=1 insert=0 expected=0 mode=0 admission=0'

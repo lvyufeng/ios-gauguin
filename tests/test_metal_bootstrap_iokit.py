@@ -18,6 +18,7 @@ def main():
     wire='#include \"'+str(repo/'graphics/hakios-metal-ca/bootstrap/gauguin_metal_bootstrap.h')+'\"\n'
     seam='''\nstatic bool bootstrap_host_mode;\n[[maybe_unused]] static bool PE_parse_boot_argn(const char *name,void *value,int bytes){
 if(strcmp(name,"gmt")||bytes!=4)return false;*(uint32_t *)value=bootstrap_host_mode?2:0;return bootstrap_host_mode;\n}\n'''
+    seam+='\n[[maybe_unused]] static bool sweet_metal_desktop_enabled(){return bootstrap_host_mode;}\n'
     fixture=fixture.replace('@SOURCE@',wire+seam+strip(gpu))
     fixture=fixture.replace('__asm__ volatile("dsb sy" ::: "memory")','__atomic_thread_fence(__ATOMIC_SEQ_CST)')
     fixture+=(repo/'tests/fixtures/gpu-user/bootstrap_main.inc').read_text();unit=a.out/'bootstrap.cpp';unit.write_text(fixture)

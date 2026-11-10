@@ -48,7 +48,7 @@ def main():
     }
     desktop=a.profile=='gauguin-ca-desktop'
     if desktop:
-        patch_names[a.profile]=patch_names['gauguin-ca-fp16']+['0006-gauguin-desktop-profile.patch']
+        patch_names[a.profile]=patch_names['gauguin-ca-fp16']+['0006-gauguin-desktop-profile.patch','0007-gauguin-desktop-bootstrap-wait.patch']
     patches=[profile/'patches'/name for name in patch_names[a.profile]]
     overlays=sorted(p for p in (profile/'overlay').rglob('*') if p.is_file()) if patches else []
     if a.profile not in ('gauguin-ca-identity','gauguin-ca-fp16','gauguin-ca-desktop'):
@@ -59,7 +59,7 @@ def main():
         replacements=sorted(p for p in (profile/'desktop-overlay').rglob('*') if p.is_file())
         names={p.relative_to(profile/'desktop-overlay') for p in replacements}
         overlays=[p for p in overlays if p.relative_to(profile/'overlay') not in names]+replacements
-    expected_overlays=6 if desktop else (4 if a.profile=='gauguin-ca-fp16' else (3 if a.profile=='gauguin-ca-identity' else 2))
+    expected_overlays=7 if desktop else (4 if a.profile=='gauguin-ca-fp16' else (3 if a.profile=='gauguin-ca-identity' else 2))
     if patches:assert len(overlays)==expected_overlays and all(p.is_file() for p in patches)
     for p in patches+overlays:pins[str(p)]=sha(p)
     out.mkdir(parents=True,exist_ok=False);source=out/'source';source.mkdir()

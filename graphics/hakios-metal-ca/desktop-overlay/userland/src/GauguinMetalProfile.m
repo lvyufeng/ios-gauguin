@@ -10,6 +10,9 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <mach-o/loader.h>
+#include <time.h>
+#include <hakios-metal/hakios_metal.h>
+#include "GauguinMetalBootstrapWait.h"
 
 static bool desktop_cache_prepare(void);
 
@@ -117,4 +120,32 @@ bool gauguin_metal_desktop_upload(const void *return_pc, const void *bytes,
     }
     return at == end && gauguin_desktop_upload_site(info.dli_fname, uuid,
              (uintptr_t)return_pc - (uintptr_t)info.dli_fbase);
+}
+
+static bool desktop_wait_clock(void *cookie,uint64_t *out)
+{
+    (void)cookie;struct timespec t={0};
+    if(clock_gettime(CLOCK_MONOTONIC_RAW,&t)||t.tv_sec<0||t.tv_nsec<0||t.tv_nsec>=1000000000||
+       (uint64_t)t.tv_sec>(UINT64_MAX-(uint64_t)t.tv_nsec)/1000000000)return false;
+    *out=(uint64_t)t.tv_sec*1000000000+(uint64_t)t.tv_nsec;return true;
+}
+static bool desktop_wait_sleep(void *cookie,uint64_t ns)
+{
+    (void)cookie;struct timespec pause={(time_t)(ns/1000000000),(long)(ns%1000000000)};
+    for(unsigned n=0;n<100;n++) {
+        if(!nanosleep(&pause,&pause))return true;
+        if(errno!=EINTR)return false;
+    }
+    return false;
+}
+static void *desktop_wait_open(void *cookie){(void)cookie;return hakios_metal_open();}
+static void desktop_wait_close(void *cookie,void *device){(void)cookie;hakios_metal_close(device);}
+void *gauguin_metal_desktop_open(void)
+{
+    struct gauguin_metal_wait_ops ops={NULL,desktop_wait_clock,desktop_wait_sleep,desktop_wait_open,desktop_wait_close};
+    struct gauguin_metal_wait_result result;
+    void *device=gauguin_metal_wait_open(&ops,&result);
+    fprintf(stderr,"GAUGUIN METAL246 first-open reason=%u attempts=%u elapsed_ns=%llu device=%u\n",
+            (unsigned)result.reason,result.attempts,(unsigned long long)result.elapsed_ns,device!=NULL);
+    return device;
 }

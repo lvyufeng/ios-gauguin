@@ -18,20 +18,7 @@
  static BOOL hm_gmem_on(void);                         /* metal_gmem=1: tiled rendering where a pass allows it */
  - (void)hakiosShadowYCbCr:(IOSurfaceRef)surface format:(MTLPixelFormat)format;
  - (void)hakiosRefreshShadow;
-@@ -584,11 +584,7 @@
- @implementation HakiosMetalFence
- - (instancetype)initWithDevice:(id<MTLDevice>)device
- {
--	self = [super init];
--	if (self != nil) {
--		_device = [device retain];
--	}
--	return self;
-+	return NO; /* A619 GMEM is not physically qualified. */
- }
- - (void)dealloc
- {
-@@ -1104,6 +1100,7 @@
+@@ -1104,6 +1104,7 @@
  - (NSUInteger)size { return [_descriptor size]; }
  - (NSUInteger)usedSize { return _used; }
  - (NSUInteger)currentAllocatedSize { return [_descriptor size]; }
@@ -39,7 +26,7 @@
  - (NSUInteger)maxAvailableSizeWithAlignment:(NSUInteger)alignment
  {
  	(void)alignment;
-@@ -1354,19 +1351,7 @@
+@@ -1354,19 +1355,7 @@
  static BOOL
  hm_strict(void)
  {
@@ -60,7 +47,7 @@
  }
  
  /*
-@@ -1622,7 +1607,7 @@
+@@ -1622,7 +1611,7 @@
  
  			if (device == nil) device = MTLCreateSystemDefaultDevice();   /* (the function's own answered nil) */
  			NSError *e = nil;
@@ -69,7 +56,7 @@
  						     error:&e];
  			hm_print("inplace_copy for edr_scale: device %s, library %s%s\n", device ? "yes" : "nil", lib ? "opened" : "not opened: ",
  				 lib ? "" : [[e description] UTF8String]);
-@@ -2120,23 +2105,9 @@
+@@ -2120,23 +2109,9 @@
  
  - (instancetype)initWithAcceleratorPort:(io_service_t)port
  {
@@ -96,7 +83,7 @@
  	/* (hakios) metal_m2v=1: the device is UniXNU's Metal on Vulkan instead (AdrenoMetal's frontend over metal2vulkan
  	 * over Turnip, tools/mk-m2v.sh; linked in by userland/build.sh M2V=1): its own objects, from the device down */
  	if (native_bridge_metal_open != NULL && hm_boot_arg_set("metal_m2v=1")) {
-@@ -2294,25 +2265,7 @@
+@@ -2294,25 +2269,7 @@
  	}
  	hm_library_stand_ins();
  	ca_prof_start();
@@ -123,7 +110,7 @@
  	hm_ensure_spi([self class]);
  	hm_functions_encode_from_metadata();
  	self = [super init];
-@@ -2347,8 +2300,8 @@
+@@ -2347,8 +2304,8 @@
  	_target.target = 0;
  	_target.version = 0;
  	_target.name = _targetName;
@@ -134,7 +121,7 @@
  		 [_name UTF8String], (unsigned)port,
  		 hakios_metal_has_compiler() ? "in this build" : "NOT in this build (make ios MESA=1): every pipeline will be refused",
  		 _targetName);
-@@ -2369,19 +2322,15 @@
+@@ -2369,19 +2326,15 @@
  
  - (hakios_metal_device *)hakiosDevice { return _gpu; }
  
@@ -163,7 +150,7 @@
  
  /* profile 0's own maxVertexAmplificationCount is 1 */
  - (BOOL)supportsVertexAmplificationCount:(NSUInteger)count { return count <= 1; }
-@@ -2486,7 +2435,7 @@
+@@ -2486,7 +2439,7 @@
  	/* QuartzCore's of this image (the iPhone X's) has no default.metallib beside it; the one made of its own functions
  	 * file (hakios: merge_metallib.py, the four uber shaders, one variant each -- hm_bitcode_for() picks the variant a
  	 * pipeline needs) stands in for it, from where the image puts it */
@@ -172,7 +159,7 @@
  	NSString *beside = [frame stringByAppendingPathComponent:@"default.metallib"];
  	if ([path rangeOfString:@"QuartzCore.framework"].location != NSNotFound && ![fm fileExistsAtPath:beside] &&
  	    [fm fileExistsAtPath:ours]) {
-@@ -2592,6 +2541,10 @@
+@@ -2592,6 +2545,10 @@
   * read for what cannot be given, so that a request for private storage is not silently given something else */
  - (id)newBufferWithLength:(NSUInteger)length options:(MTLResourceOptions)options
  {
@@ -183,7 +170,7 @@
  	if ((options & MTLResourceStorageModeMask) == MTLResourceStorageModePrivate) {
  		HM_ONCE("a buffer was asked for with private storage; every buffer here is shared memory, and that is what "
  			"is given (the GPU reads the same pages the processor maps)\n");
-@@ -2609,23 +2562,13 @@
+@@ -2609,23 +2566,13 @@
  	return buffer;
  }
  
@@ -211,7 +198,7 @@
  }
  
  /* the layout of a texture's bytes as -newTextureWithBytesNoCopy: here reads them (HakiosMetalTextureLayout says what) */
-@@ -3488,15 +3431,7 @@
+@@ -3488,15 +3435,7 @@
  static BOOL
  hm_compress_ok(void)
  {
@@ -228,7 +215,7 @@
  }
  
  static BOOL
-@@ -5144,7 +5079,7 @@
+@@ -5144,7 +5083,7 @@
  		hakios_metal_cb_set_gmem(_cb, hm_gmem_on() || hm_gmem_draws() != 0);
  		hakios_metal_cb_set_gmem_min_draws(_cb, hm_gmem_draws());
  		hakios_metal_cb_set_gmem_binning(_cb, (hm_gmem_off() & 16) == 0);   /* metal_gmem_off's 16: every draw in every tile */
@@ -237,7 +224,7 @@
  		hakios_metal_cb_set_gmem_off(_cb, hm_gmem_off());
  		hakios_metal_cb_set_gmem_tuned(_cb, (hm_gmem_off() & 8) == 0);   /* metal_gmem_off's 8: GMEM wherever a pass can have it */
  		hakios_metal_cb_set_profile_draws(_cb, hm_fps_draws());
-@@ -5643,7 +5578,7 @@
+@@ -5643,7 +5582,7 @@
  	uint64_t lastTpidr;
  	double sampledBytes[6];   /* metal_fps=timeline: the bound fragment textures' sizes, by hakiosStorageKind */
  	struct { unsigned w, h, origin; double bytes; } bySize[16];
@@ -246,7 +233,24 @@
  
  /* boot-arg metal_gmem=1: tiled rendering (render::Options::gmem) for a pass that can have it, GMEM or sysmem chosen by
   * what each cost such passes before (hakios_metal_cb_set_gmem_tuned). Off by default: for CoreAnimation it won nothing
-@@ -5708,19 +5643,7 @@
+@@ -5653,15 +5592,7 @@
+ static BOOL
+ hm_gmem_on(void)
+ {
+-	static int on = -1;
+-
+-	if (on < 0) {
+-		char args[1024] = {0};
+-		size_t size = sizeof(args) - 1;
+-
+-		on = sysctlbyname("kern.bootargs", args, &size, NULL, 0) == 0 && strstr(args, "metal_gmem=1") != NULL;
+-	}
+-	return on != 0;
++	return NO; /* A619 GMEM is not physically qualified. */
+ }
+ 
+ /* metal_fps=draws: each draw of a sysmem pass timed alone, by program (only sysmem passes are: without metal_gmem=1) */
+@@ -5708,19 +5639,7 @@
  static unsigned
  hm_gmem_draws(void)
  {

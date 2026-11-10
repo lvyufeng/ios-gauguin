@@ -76,7 +76,7 @@ static bool desktop_cache_prepare(void)
 {
     unsetenv("HAKIOS_METAL_CACHE");
     unsetenv("HAKIOS_METAL_CACHE_SEED");
-    const char *path = "/private/var/mobile/Library/Caches/gauguin-metal244";
+    const char *path = GAUGUIN_METAL_DESKTOP_CACHE_DIRECTORY;
     struct stat info;
     int rc = mkdir(path, 0700);
     if ((rc != 0 && errno != EEXIST) || lstat(path, &info) ||

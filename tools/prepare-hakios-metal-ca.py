@@ -48,7 +48,7 @@ def main():
     }
     desktop=a.profile=='gauguin-ca-desktop'
     if desktop:
-        patch_names[a.profile]=patch_names['gauguin-ca-fp16']+['0006-gauguin-desktop-profile.patch','0007-gauguin-desktop-bootstrap-wait.patch']
+        patch_names[a.profile]=patch_names['gauguin-ca-fp16']+['0006-gauguin-desktop-profile.patch','0007-gauguin-desktop-bootstrap-wait.patch','0008-gauguin-desktop-private-pipeline-cache.patch']
     patches=[profile/'patches'/name for name in patch_names[a.profile]]
     overlays=sorted(p for p in (profile/'overlay').rglob('*') if p.is_file()) if patches else []
     if a.profile not in ('gauguin-ca-identity','gauguin-ca-fp16','gauguin-ca-desktop'):

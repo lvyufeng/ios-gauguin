@@ -1,0 +1,11 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -2293,7 +2293,7 @@
+ 	}
+ 	missing = [[message substringFromIndex:NSMaxRange(at)] lastPathComponent];
+ 	parent = [path stringByDeletingLastPathComponent];
+-	mirror = [[NSTemporaryDirectory() stringByAppendingPathComponent:@"hakios-pipelinelib"]
++	mirror = [[[NSString stringWithUTF8String:GAUGUIN_METAL_DESKTOP_CACHE_DIRECTORY] stringByAppendingPathComponent:@"pipelinelib"]
+ 		  stringByAppendingPathComponent:[NSString stringWithFormat:@"%lx", (unsigned long)[path hash]]];
+ 	NSString *frame = [mirror stringByAppendingPathComponent:[parent lastPathComponent]];
+ 	NSString *copy = [frame stringByAppendingPathComponent:[path lastPathComponent]];

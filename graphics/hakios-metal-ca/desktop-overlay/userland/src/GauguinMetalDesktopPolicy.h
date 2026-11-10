@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#define GAUGUIN_METAL_DESKTOP_CACHE_DIRECTORY "/private/var/mobile/Library/Caches/gauguin-metal244"
 
 /* Existing kernel pilot authorization additionally requires its protected
  * launchd proxy identity and the released root GPU owner. This parser cannot

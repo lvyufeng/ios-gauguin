@@ -79,7 +79,8 @@ def main():
                  upload_contract='only exact 20H392 QuartzCore immediate-upload caller; initial snapshot; no later aliasing',
                  discovery_install=dict(bundle='/System/Library/Extensions/'+name+'.bundle',
                                         MetalPluginName=name,MetalPluginClassName=info['NSPrincipalClass']),
-                 cache='/private/var/mobile/Library/Caches/gauguin-metal244')
+                 cache='/private/var/mobile/Library/Caches/gauguin-metal244',
+                 pipeline_cache='/private/var/mobile/Library/Caches/gauguin-metal244/pipelinelib')
     with (out/'result.json').open('x')as f:f.write(json.dumps(r,indent=2)+'\n')
     print(json.dumps({k:v for k,v in r.items()if k not in ['input_pins','compiler_argv']},indent=2))
 

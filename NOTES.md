@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0232 independent image reader, fresh ABI and actual Mac GPU oracle complete
+
+PROGRESS while original235 phone observer runs; no extra phone commands/writes.
+Source R232ebf35b5 /MAIN79345e0. New tools/metal_image_log.py recomputes all nine
+jobs/73728actual rawimage+samplepixels, scissor preservation/threevertex sources,
+exact identities/rows/hashes/phasevalues/fences/memory/release; no nativeGPU claim
+from a log alone. Four synthetic tests PASS incl4seeds,23malformed controls,
+wrongpixel withcorrectedhash andstderr/failure controls. Nativeprobe's36864coverage
+checks have NOrawrows, so reader explicitly excludes those internal assertions.
+
+R232=research/tmp/gauguin-image232-worktree-20261110;
+W232=R232/research/tmp/dsh-images-0232-probe. DSH probe-abi-stage-v2 PID76816 exit0,
+9.460725s/3071pins unchanged. Fresh235 fullbackup53642ed8...streamhash revalidated;
+all296actual20H392 nativeimports resolve (core211+executable85), no weak/missing
+imports. CandidatecoreAF231 andprobe6399...unchanged and NOT installed. DSH
+reader-model-stage-v1 PID77860 exit0/4tests. DSH mac-oracle-stage-v1 PID79990 exit0
+in2.226448s, zero compilerwarnings. PublicmacOSMetal ran sameownMSL store/rw/sample,
+threeencoders/oneCB perjob/no interveningCPUread:4seeds/36CBs/108draws, ALL442368
+rawimage/sample/coveragepixels independently comparedPASS.32corruptionsofACTUALraw
+logs rejected. Source/library pinned; actualraws retained W232/mac-oracle-v1.
+No phone/A619 descriptors, instructionexecution, Metaldesktop or FPS qualified.
+
+offline-review232-v2.json SHA
+81e868e12992c2b2caf8cfa4f267592999bff6ee6ba9bd6867d9da26c18712aa,
+3100unique pins independently verified; allthree workerPIDs absent. No need rerun
+these claimed stages. No new232rootdelta/approvalprepared. Next232physicaltest
+needs own fresh current-device state/backup, concrete scope/review+new individual
+userdatawriteconsent and strictnative service/ownership/submission correlation.
+Mainprimary remains235originaldispatchPID76242/inner76245, ONE approvedwrite and
+ONEtemporaryboot; observe originalfiles, expectedautomaticTWRP around746s then
+post235 captures22files/fullprefixes. Do not restart or requestUI/resetconfirmation.
+Full phone goal remains ACTIVE/incomplete; mainmkadt diff a74a0418...unchanged.
+
 ### 2026-11-10 CST —0235 approved delta applied; ONE automatic root-only FP16/CA trial LIVE
 
 PROGRESS. Full goal ACTIVE/incomplete. User call_3901d4d26cb443929111b9ed2ec04f31

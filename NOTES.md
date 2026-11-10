@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0258 XNU inherited scan probe source/host/ARM64 PASS
+
+R258 reuses research/tmp/gauguin-build255-worktree-20261111 on new branch
+codex/gauguin-scan-timing-20261111. Prior R255 branch c2a343b retained.
+Source 25dae0cafe50524e4ee998a0324007fb35dc6630.
+R258 handoff 654130fcc9665582eda622bbac74a29ff965213c. Patch 0217 SHA
+5ac855ff0c1165557837d4e381efa8ba32bc46c1e2298896037de4f86d61b2fd.
+Report docs/gauguin-inherited-scan-timing-20261111.md.
+DEFAULT OFF worker sweetscan=1 GCC, 2 adds DISP_CC, 3 adds INTF1 counters.
+Checks read-only16K translations, clock gates, pre-enabled counters.
+8ms sleep, <=160 attempts/1.25s, frame/line/frame stability and repeatable
+half-window rate. Reports raw progress/times and nominal60/90/120.
+No modeset, clock votes or write. Downstream MMIO/abort risk unqualified.
+
+W258=R258/research/tmp/dsh-scan-0258. DSH PID53382 exit1 due path-bearing
+snapshot equality before patch. PID53590 exit0/8.572s/15 unchanged pins.
+Strict clone/replay 5338files/5changed SHA
+bfed80f0425e98377d200e7ec57af6d9129d5a0d9fba2deef8fce6d06a71b4c4.
+16 actual sampler host scenarios ASAN/UBSAN; 3 native ARM64 TUs pass.
+CI archived integration contexts match. Review258-v1
+53a3ee07a011ff0238f7bace24ba95ac6e79b5c6263c450bb03ab712226d3bb4.
+All DSH sessions reaped. No full link, image, CI/push or device commands.
+Scan-only command595B replaces sweettrace=2; combined append608B rejected.
+
+NEXT full kernel/scan profile assembly and staged GCC/DISP_CC/INTF reads
+when physical trials are appropriate. Existing exact0240 consent/paired0239
+-> fresh scoped desktop delta/consent ->0250 ->0255 order remains. 0255 image,
+pending0240 plan and MAIN mkadt diff rehashed unchanged. Goal active.
+
 ### 2026-11-11 CST —0257 measured recovery vblank on the actual panel route
 
 Progress: DSH built a freestanding AArch64 DRM query probe and ran it from

@@ -2,6 +2,113 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0235 native FP16 route implemented; fresh286-block delta reviewed, entries pending
+
+PROGRESS. Full phone goal ACTIVE/incomplete. New source MAIN28497bc /R235fac044d.
+No new phone write/boot/CI/push. Last current recovery/header still post233fd9916...;
+actual35OLD delta ranges just read/verified unchanged. Consent233CONSUMED; no235
+approval/question exists. Do not install until final entry/capture/guard checks
+and NEW concrete individual consent. Main mkadt a74a0418... preserved.
+
+R235=research/tmp/gauguin-precision235-worktree-20261110;
+W235=R235/research/tmp/dsh-precision-0235-flow.
+BREAKTHROUGH: exact20H392QC query at1884889ec resolves supportsNativeHardwareFP16,
+actual parent ABI B16@0:8. Apple1 OR this SPI sets contexta3c bit20; program-key
+constructor188483908..924 maps it to halfword13 bit4; generic key copier preserves
+it. Function table1d5b48030 = LPH/CPH,LPH/CPF,NULL,LPF/CPF. So a valid nativeFP16
+answer offers the image-owned LPH path without changing public families or
+mixing a newer library's incompatible Uniform ABI. Original233 requested LPF/CPF.
+This route still needs actual phone validation; do not claim CA fixed.
+flow-stage-v1 failed due mapping/function starts variable shadow; freshv2PASS.
+selector-stage-v1 failed on legitimate NULL table entry; freshv2PASS. All originals
+retained. All flow/selector worker identities are in their original result files.
+
+Opt-in gauguin-ca-fp16 applies patches0001..0005. NativeFP16 startsNO; pairedprobe
+first executes own half-buffer loads, VS half multiply, half varying, FS FMA and
+RGBA16F stores,4scissored draws/1CB/4096pixels, all16384halfchannels checked and
+rawrows retained. Only correct seeded readback activates per-instance SPI through
+project setter (ABI B40@0:8Q16Q24Q32). Publicfamilies remainNO, ownAIR/constants/
+exactidentity unchanged, systemlibrary11c... untouched, core8a unchanged. Prelude
+runs beforeCARenderer. ExistingtenCApoison/readbackjobs plus1FP16 job =11 explicit,
+4prelude draw-counter increments separate from CA. Actual post reader MUST call
+qualify_ca_log(...,initial_draws=4) AND metal_fp16_log.qualify_fp16_log, correlate
+>=16nativejobs, subtract11 (not10) for actualCA jobs. ExistingMETAL230 stdout
+CArecords remain344; FP16 prints separate GAUGUIN FP16 prefix. Own driver enables
+stderr GAUGUIN METAL235 nativeFP16 enabled ... root-only families=0. Five actual
+CA scenes, originaltolerances/strict no omissions,128hard/90delay/210alarm and
+legacy mode2SETEXEC preserved. No new Apple shader payload.
+
+Native-stage-v1 PID61333 terminal1 AFTER bothshaderlibraries, five old-profile
+byteidentity controls, nativefrontend/probe compile/link/sign PASS. Its assertion
+half_regs>0 was WRONG for merged-register accounting; preserve the failure.
+Fresh half-inspection-stage-v1 PID62093 terminal0 captured actual A619 cachedISA:
+VS mul.f withhr operands and FS mad.f16 hr10.x (despite half_regs0). This is not
+f32 RT-only inference. Fullcache/listing artifacts retained. ActualMacGPU four
+seeds passed independentPython binary16 expressions:16384pixels/65536channels;
+7corrupt versions of actualrawlogs rejected. Reader-model-stage-v1PID62588 exit0,
+14tests incl activation/rows, oldCAguards and4prelude-draw separation.
+Frontend421504B SHA3c62a57940bf85a8b6cd3e10394b16d8d5992551ed9728fc4face8ddb41e723f,
+one inheritedSDK warning. Probe116272B SHAd825d4b0043a6966e4b1e1efd7418cd5050d335df0e9826059bbee2156861cc9,
+builda509db050e865321c6fa3c86, zero warnings. Not installed/tested on A619 GPU.
+W235/native-review-v2.json SHA
+1f9db3696bfcd0187f1412f97a19e9a2dce468c7b4c24a8d946a726860950d2f,
+135pins verified, software-only state explicit. Public docs/gauguin-ca-native-fp16-20261110.md.
+
+Fresh backup-stage-v1PID61382 terminal0, all17179869184 actualdevicebytes read in
+658.633257834008s,0444. W235/root-backup-v1/iosroot-before-metal235.hfsx SHA
+53642ed8d676450437b991909d0d483df0886183c8ca68f482751ecd55eec293.
+Headerfd991629f93dad541c8e7dd857d980001d4e7c45b98f17e8220820ec81a8e73e.
+Current22 files match allfullprefixes91041/20386/1411296B,19retainedstatic files.
+Oldc8 backup unchanged. ABI-stage-v1PID63788 terminal0:ALL689nativeimports resolve
+against this NEW fullbackup, no missingstrong/otherweakimports; five disabledM2V
+hooks separate. Added8probeimports (no frontend additions) resolved actualMetal/
+libobjc/libSystem. Outputs fresh-abi-v1/result.json.
+
+Concrete W235/delta-v1/delta-plan.json SHA
+809b9064faf3875279824db4a1dd6f580a99224207d60ba2b0a84e24c017540a:
+286blocks/1171456B/35runs, only existingfrontendexec/resourceSeal/pairedprobe.
+All531jobs/cacheargs --metal230 unchanged, no new paths. FinalLOCALimage SHA
+36cd8086b60ee875af5e83c45e2f38f52c7d4eac81bf4ceb319e070b20722315.
+Proposal-stage-v1PID65969 terminal1 AFTER localCOW/delta/fsck0/detach0/unchanged
+writer102assertions/ALL35actualOLD ranges/full-volume comparison PASS; independent
+review then failed only in its manifest on stale W235/inspection-v4 report path.
+Original fullyretained. A v2 preparation typo failed before writinganyprofile;
+mislaunched DS H request for missing review-stage-v2.json ended withoutclaim.
+Fresh review_delta235v3.py/review-stage-v3 PID66733 terminal0, full review passed.
+independent-local-review.json SHA f6c2b16f569a26da457a8c2e65e3835c0d196b5fdc765efae9d188809abdc128,
+state ready-reviewed-concrete235-native-FP16-CA-delta-awaiting-new-consent.
+All149proposal/151review3 inputpins+joblogs, reviewpins andabsentPIDs independently
+rechecked. No need repeatCOW/backup or anyclaimedstage. No235 materialize/apply/
+trial/post/ready-for-consent/approval file yet. User has NOT approved thisdelta.
+
+DSH RECOVERED: /opt/homebrew/bin/dsh disappeared externally. pnpm --silent dsh in
+/Users/baai/Project/deepseek-harness works. Source credential consumer ignored the
+legacy store ref and default model was unsupported deepseek-flash. Scoped private
+W235/run-dsh-source-v2.cjs reads EXISTING OCTOPUS legacyref ONLY into childenv
+(no key output/store edit) and applies W235/source-default-model.patch.yml to
+select alreadyconfigured/endpoint-listed deepseek-v4.1-flash. danger-full-access
+and original provider-existing-relay/local-tools-only patches retained. Never
+commit or print credentials. DSHsource repo existingunrelated goal files untouched.
+Canonical subsequent launch: node ABS_W235/run-dsh-source-v2.cjs ABS_PROFILE.json
+redirect to fresh name.jsonl/.stderr. Do not use broken global dsh or v1wrapper.
+SuccessfulouterDSH6224/8435/90561/75787/73308/86743 all reaped0; review3outer1029
+reaped0 after the final review. Others failedlaunchhandles reaped.
+
+NEXT finish materializing FINAL235 entries from actual FINAL233 sources:
+apply233.py,trial233v2.py,boot_pilot233.py,check_pilot233.py,post233v2.py,
+check_capture233.py,check_startup_guards233v2.py,dispatch_trial233v2.py; use fresh
+names and correct baremoduleimports. Bind plan809b...286blocks/1171456B/35writes,
+delta-v1,build/probe-fp16-v1,front-fp16-v1,paired-image235,ready stateabove.
+NEVER globally replace digits233 because mkadt SHA contains23332; exact filenames,
+markers,oldplanhash and numeric tuples only. read_files235.py already frozenfor
+backup; don'toverwrite. Add FP16+CA(initial4)+native>=16/subtract11 qualification
+and pin metal_fp16_log. Materialize expected22/profiles from CURRENTcapture and
+actual LOCALfinalheader. Run capture335 model, all5missing-consent entry guards,
+FP16 parser/tracecontrols; keep oldCA/service/pixel gates strict. Verify ready pins
+andcurrentheader/oldblocks then ask NEW concrete individualwrite consent quoting
+AGENTS requirement. Prepareallworkbeforequestion. No phoneboot/humanUI prompt
+needed before approval. Fullgoal RAM/storage/peripherals/power/refresh/UI open.
+
 ### 2026-11-10 CST —0234 precision identity fixed in source; later LPF library not drop-in
 
 PROGRESS. Full goal ACTIVE/incomplete. No new userdata write, temporary boot,

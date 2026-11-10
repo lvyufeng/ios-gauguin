@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —244 isolated desktop frontend SOURCE/HOST/NATIVE/IMPORT PASS
+
+PROGRESS after243 actual-system audit. R244=research/tmp/gauguin-desktop244-worktree-20261111,
+branch codex/gauguin-metal-desktop-20261111, parent242eacea59. Critical source
+0d9f05f52bc449dadf7da13c61fdfa76dcf3f5d0. W244=R244/research/tmp/dsh-desktop-0244-profile.
+Report docs/gauguin-metal-desktop-profile-20261111.md. MAIN physically qualified
+201-patch kernel/userland preserved; no source cherry-pick.
+
+Separate gauguin-ca-desktop uses mode2+dyld1, mobile backboardd only, actual
+20H392/12method+2ivar checks, independent0700mobile cache, experimental private
+limits1/Apple1+2+Common1 compatibility and physically239-qualified FP16 shader
+selection. It does NOT certify public families. Exact QC path+UUID+ASLR return
+0x200390 permits <=64MiB/options0 immediate image snapshot with original
+callback lifetime; other NoCopy callers still refused, later writes not shared.
+All18 ObjC classes renamed GauguinDesktopMetal*, avoiding root-bundle class
+collisions. Intended system plugin bundle path recorded but not installed.
+
+DSH final software-stage-v4 PID82015 exit0/5.813922s/43pins: six old profiles
+byte-identical,2586 ASAN/UBSAN policy controls, actual extracted upload+original
+buffer lifetime methods pass host transport. Old positive expectation returns42;
+no realQC/GPU claim. Fresh native arm64 iOS16 bundle428368B SHA
+ dab751c31c62154052194f113c6326873dec05e071a531c8cde15e422aa9db32.
+Core8a826583 unchanged, four warnings retained/documented. ABI-stage-v1 PID82384
+exit0/9.564280s/52pins:554imports resolved against verified240backup actual20H392,
+40exportimages, no new imports/missing strong/weak,5existingM2Vhooks disabled.
+Codex rehashed both final pin/log sets and binary;4native methods disassembled,
+original LR correctly passed to caller gate. review244-v1 SHA
+ a56bc2330b1fe8669ae0e6ce500a049ee6f1b83648ac38815d6f102c2b545def.
+
+V1 prelaunch missing cwd dispatcher pin retained; v2first compile passed but
+still had shared ObjC names; v3 missing profile after an authoring class-count
+assertion caused no launch; v4 is final namespace-qualified fresh build.
+Outer30702/59327/82688/22714/12051 all reaped0; dispatchers terminal, no jobs live.
+
+NEW next-source blocker: installed root job is frontend-probe --metal230,
+whose diagnostic boot profile is mode1. Desktop mode2 alone would deny that
+root qualifier; compositor additionally requires SIX root native fences and
+released owner. Implement a coordinated mode2 root companion/readiness before
+publishing plugin; do not let per-process discovery cache premature nil. Then
+compositor ROtask gate, shared output/completion/presentation and actual UI.
+
+No devicecommands/writes/reboots/CI/push. Pending240 genuine approval/apply/trial
+still ABSENT; existing9d plan/8f ready unchanged, do not repeat question or boot
+and stale delta. After real reply, exact paired239 trial FIRST, then241/242.
+MAIN mkadt diffa74... untouched. Full daily-phone/GPU/RAM/storage/peripherals/
+physical90/120Hz goal remains ACTIVE; desktop candidate is not runtime proof.
+
 ### 2026-11-11 CST —243 actual-system desktop integration audit; no phone changes
 
 PROGRESS. User requested another HakiOS success-case review. GitHub main is

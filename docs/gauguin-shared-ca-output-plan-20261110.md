@@ -14,6 +14,34 @@ The renewed [HakiOS desktop review](gauguin-hakios-desktop-recheck-20261110.md)
 adds decoded-image upload, real compositor admission and presentation to the
 next integration milestone.
 
+The 0240 runtime is now prepared under its existing local worktree. DSH's
+`runtime-gates-stage-v1` dispatcher 92912 exits 0 in 9.478989 seconds with all
+38 input pins unchanged. The new correlated reader rejects actual 0239's old
+logs and 27 inconsistent modeled combinations. Four actual runtime entry
+functions stop on the missing new approval before any recovery IO or output
+claim. A local-only read of the complete staged image verifies the expected
+22 files. These are host controls, not a successful 0240 installation or boot.
+
+The prepared sequence binds the exact 194-block plan and completed 33-range
+readbacks to one temporary boot of the physically qualified 0239 kernel. It
+retains the three complete old log prefixes, all old FP16/CA/task checks and
+final owner reacquisition, then adds both shared output views and aggregate
+native-job correlation. The old CA result line's `explicit_jobs=10` continues
+to describe that original block; the whole binary's final counter check
+requires 26 explicit command buffers, with ten additional framework jobs and
+36 native successes. The later 20 native successes are unsampled and must not
+be described as exact per-submit IB evidence.
+
+Runtime source and review receipts remain local in
+`research/tmp/gauguin-shared240-worktree-20261110/research/tmp/dsh-shared-0240-ca-output/`.
+The reviewed helper entry points are `verify240.py`, `trial240.py`,
+`boot_pilot240.py`, `post240.py` and `evidence240.py`.
+`runtime-review240-v1.json` has SHA-256
+`db6c9f8d6e1d3c24df569807441c84508bca4038eec3dc6ca05ebc6731889ea4`.
+The concrete proposal and corrected probe remain unchanged. A real answer to
+the pending 0240 write question is still required; no approval, apply receipt,
+installed capture or trial output has been fabricated.
+
 The next bounded test should exercise shared output directly:
 
 1. Keep the existing FP16, original-image CA and task-input tests as regressions.

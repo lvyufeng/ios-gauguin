@@ -2,6 +2,71 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0231 opt-in graphics images software gate PASS;0230 consent still pending
+
+PROGRESS: whilewaiting230individualapproval, implemented/tested a realremaining
+GPUblocker offline. FullgoalACTIVE/incomplete. NOnewdevicecommands/write/boot.
+ALLDSHworkers/launchhandles nowterminal/reaped; none torestart. NewsourceMAIN
+10f329f /isolated231c6995f1, branchcodex/gauguin-gfx-images-20261110. Mainmkadt
+originaldiffa74a0418... preserved. Current230consentQUESTION STILLPENDING;
+noactualuserreply/approvalfile/apply/trial. Neverinfergoalcontinueaswriteconsent.
+
+R231=research/tmp/gauguin-gfx231-worktree-20261110;
+W231=R231/research/tmp/dsh-gfx-0231-images.
+New0002graphics-storage-images.patch isEXPLICITOPT-INvia prepare-hakios-metal.py
+--profile a619-graphics-images. Defaulta619-baseline stillonly0001; actually
+preparedall228baseline sourcefiles byte-identicaltoqualified221source. Current
+installed8a826583core andheld230e85b36e8plan untouched; rehashedALLready230pins
+again AFTERMAINintegration, allmatch. DoNOTsubstitutethenew231core into230plan.
+
+Implementation: sharedgraphicsIBOtable48slots withcheckedSSBO/imageextent and
+bindingcollision/bounds; FSreservedbaseusesentireVSnumIbos (notonlySSBOs), even
+whenFSoriginallydeclareszeroSSBOs; actualstorageDescriptors for2D/array/3D with
+shape/element/usage/formatchecks; SPbothstageNIBO includesimages; BOwriteflags/
+lifetime forstoragetextures; imagesysmemdrawsisolated withfullcacheflush/invalidate.
+Imageatomic,GMEMreplay,disabledsync,andRT/depth/stencilaliases remainexplicit
+refusals; no publicMetalfeaturefamily orpixelclaim. Futureperformancecanbatch
+onlyaftercorrecthazardtracking/hardwareevidence. Headerbaselinecommentsupstream
+remainbaseline; docs/gauguin-graphics-images-20261110.md explainsopt-in scope.
+
+Native-v2iOS16signedcore=8370016B/SHA
+af6918b6c2703237bcafb722764f7a9d29c5086ba3ecd4a1be75e1b3a0e21177,
+cachetag a9c7fb4ac788290202ff9c52. -Werrorcompile/link/signverified. HostASAN/UBSAN
+encoder44assertions PASS (descriptors,VS/FSseparation,NIBOfields,permission/shape/
+alias/sync/extentrefusalsbeforerecording; submitted0, fakeallocatorNOTshaderexec).
+RealAIRlayouttest tri_dpos_vs +actualinplace_copy_lph FSzeroSSBO preserves
+bases1/4/31, image3slots4/7/34 andextents5/8/35. Freshleaflayout-stage-v1exit0.
+ActualoldmissingCApair155 nowlinks5formats. Fulloriginal1079CAcatalog/469unique
+pairs/986labelled+93defaultentries rerunwithnewcompiler: ALL469linkALL5formats
+70/80/71/81/115,6positive/negativecontrolsPASS,0refusals/errors. Actualold468
+passpairsallstillpass; ONLYoldrefused155changedtoPASS. Notfulldescriptor/MRT/
+GPU/desktopqualification. No nativeiOSfootprintclaimfromASANhostRSS.
+
+Independentreview231 SHA6c7daa4464ed78f32dc1833928d2fb5a67630f06b7f655f281647eb021f38e13
+recheckedALL3051nativeinputpins +10qualification/17layout/470fullcensusprofilepins,
+terminal0/loghashes andALL938rawpairlogs; comparedold469rows/pipelineindices.
+Rawnative/library/executables/resultsprivate. qualifier-stage-v1/actualallpairs/
+layoutsuccessful, currentinputsunchanged. Olderbuild-stage-v1failedcompile
+(shared_ptrneeded.get), original10inputsretainedoriginal-v1-inputs snapshot/
+mapping; correctedfreshv2nativeandencodercompiledPASS butoverallv2stage1failed
+onlybecausebroadprivate-script-v1->v2renamingchangedAppleassetpath. Keptallfailed
+records; separatequalify231.py currentinputs/nativepins/source/encoderactualCA
+pair/negativeindex check completed0 withoutrebuilding orfakingoldstageexit.
+DSHhandles77318/28261/40163/19066/76633 ALLreaped; finaldispatchPIDs14799/15100/
+actualallpairsworker absent/terminal0. DoNOTrerunclaimedstageprofiles.
+
+NEXTprimarydependentstep remainsactual0230userapproval fore85b36e8...518blocks/
+2121728B39runs, not231. Followpreviousreadyhandoff usingapply230.py andFINAL
+trial230v2.py/post230v2.py/pilot230v2; preservepreconsentreadyfalsehistorical.
+Ifapproved, DSHdurableonceapply+39readback/header0LAST thenonce600simage43c...
+observe~746s/autorecovery andcapture22/fulloldprefixes. No manual-vs-auto questions.
+0230testsold8acore exactCAfiveactualCARenderer scenes; usefulfirstphysicalgate.
+Afteractual230results, integrate231onlyas NEWdelta afterfreshbackup/fullnative
+20H392importaudit+ownGPUimagepixels/bothstages/crossdraw/CPUvisibility/cleanup
+checks andNEWconcretewriteconsent. Currentfrontendbuilder8acoreguardmustnotbe
+silentlyrelaxed. AllUI/icons/widgets/latency/effects/Metalpublication/RAM/storage/
+phoneperipherals/power/90-120Hz/daily goals remainOPEN. No remote push/CI.
+
 ### 2026-11-10 CST —0230 NEWconsent question sent; awaiting user's answer
 
 PROGRESS completed asimmediatelybelow. request_user_input_async accepted aNEW

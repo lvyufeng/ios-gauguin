@@ -2,6 +2,71 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0235 PHYSICAL FP16 + all five real CoreAnimation scenes PASS
+
+PROGRESS / major GPU milestone, FULL PHONE GOAL ACTIVE/INCOMPLETE. Actualsource
+MAIN28497bc/R235fac044d; physicaldoc MAINdf00bb7/R235ccfad5e. No kernel rebuild,
+CI or push. User's235consent call_3901d4d26cb443929111b9ed2ec04f31 is CONSUMED:
+35actualwrites/35exactreadbacks/volumeheaderLAST, no rollback. Do not reuse it for
+any newuserdata delta. One temporary boot only, same219kernel/image43c69019....
+
+R235=research/tmp/gauguin-precision235-worktree-20261110;
+W235=R235/research/tmp/dsh-precision-0235-flow. Original DSH dispatch-stage-v1
+PID76242 terminal0 in774.634095s,352pins unchanged; inner trial-stage-v1 PID76245
+terminal0, both actual trial and post capture jobs exit0/inputs unchanged.
+Observer0 matched exactkernel and automatically detectedTWRP after746s; actual
+observer elapsed747.089870s. User did not reset/testUI. All originalPIDs absent;
+DSH outer51956 alreadyreaped0; others42851/82174/57703/28348 reaped (42851later
+pollunknown because alreadyreaped). Do not rerun claimed stages/writes/trial.
+
+ACTUALPHONE FP16 prelude:seed2132075394/hash5ba8c58169f0a325; all4096pixels/
+16384halfchannels independently correct. Then nativeFP16 activated on SAMEdevice,
+publicfamilies still0. Six originaldescriptor specializations ALLpresent/succeeded,
+no failures: fixed_frag_lph_cph andfixed_vert_lph_spc each3calls. LPH selection
+occurredAFTER actualseeded FP16activation. NO LPFrequested/newerApplelibrary.
+
+REALCARenderer five64x64 scenes opaque/image/alpha/mask/updated-image ALLPASS,
+20480pixels/81920channels independently compared; EVERYmax_channel_error0.
+ActualCAaccepted14draws separate from4FP16draws. All16native submissions/fences
+recordedwith no omittedsuccesses:1prelude+10explicitpoison/readbacks+5frameworkjobs.
+ExactIBsequence correlates; sole rootowner/ABI gate/release allPASS.600s finite
+service598verifiedrenewals/597runtime. NOcompeting compositorGPUowner, GPUfault
+cleanup, BO failure, compositorcrash, poststop submit/cleanup errors accepted.
+Probepeak recordedfootprint13,189,600B inside128MiBhard limits.
+
+All22files capturedfresh;19retainedstatic files unchanged and entireoldlogprefixes
+91041/20386/1411296B preserved. Newfullstdout341864/stderr28169/backboardd1417759B.
+Currentpost235header:
+8c5fa3684abf7b7334899201b52d79bed7861122fbae0ac6bf20c1c4abe483ac.
+physical-review235.json SHA
+f59f333a7fdc5a4022626119979a213594ae0cd8b5a10293b77c86428c490b26;
+state qualified235-bounded-real-CARenderer-scenes-only,errors{}.
+Codex independently rehashed398pins across ORIGINALreceipts/profiles/logs/raws,
+all3mainstagePIDs absent. acceptance235-v1.json SHA
+af1fbdaed9ef3e84fbf174c7bc95a6605ed688d6073d9d9ad24c4eb67b1d19cc.
+These are realA619/realCApixels, NOTMac-only or synthetic-controller evidence.
+
+BOUNDARY: MTLDevice/generalMetal, desktop, touch-thistrial,FPS/highrefresh/daily
+flags remainFALSE. Rootdevice is not published; oldEAGLdesktop and30Hzcopy path
+have not been replaced.600sservice remainsfinite withplanned watchdogreset.
+No claim of smooth UI. Wholephone/peripherals/RAM/storage/power goals stillopen.
+
+NEXT concreteGPUstep: qualify realIOSurface-backedCA input/output and display
+handoff, then integrate actualcompositor. Exactcurrentfrontend has IOSurface
+texture imports; exact219 GauguinGPU::surface() rejects s->readOnly OR non-
+IOBufferMemoryDescriptor. This excludes borrowed/task-backed readonly image
+memory. Inspect SweetSurface mapping/offset/retain/cache contracts; validate
+caller-backed RO and framebuffer RW separately before permitting new import or
+publication. Do not mistake CPUshadowcopyfallback for directGPUimport. Keep
+currentrealCA pixel suite androot-only ownership guards as regression baselines.
+Anynewuserdata plan needs NEWcurrent22-file/full341864/28169/1417759Bprefix capture,
+freshfullbackup/review and individualwriteconsent. No newapproval is pending.
+
+Independent232 readysoftware remainsseparate: MAIN79345e0/R232ebf35b5 source,
+296imports/73728rawpixelreader/actualMac442368pixels+32badactualcontrols PASS;
+coreAF231/probe6399 NOTinstalled orphonequalified. Seepreceding232handoff. Main
+onlyuserdiff tools/mkadt.py binarySHAa74a0418...preserved; allcompletedchangescommitted.
+
 ### 2026-11-10 CST —0232 independent image reader, fresh ABI and actual Mac GPU oracle complete
 
 PROGRESS while original235 phone observer runs; no extra phone commands/writes.

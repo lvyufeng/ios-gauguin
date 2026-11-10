@@ -115,7 +115,30 @@ Existing transport, read-only DMA-fault retention, caller-memory creation and
 independent task-map controls also pass. These use typed host object/lock seams;
 they do not establish XNU execution, correct pixels on the phone or frame rate.
 The source candidate is not installed or booted. Full pristine-source replay
-and native build remain required before considering a temporary kernel trial.
+and the native build have subsequently completed. Source commit
+`18c5b175c08b5e2326d906eaed37204376112a39` replays all 202 patches from pristine
+XNU `1b191cb58250d0705d8a51287127505aa4bc0789`; source SHA-256 is
+`eeaae16e10996e30e0ca7ff6052878d39ddf3e7e898c6310477db022678b59b9`.
+Exactly `SweetFramebuffer.cpp`, `SweetSurface.cpp` and `SweetSurface.h` differ
+from physical 0239. The GPU driver and every unrelated source file match.
+The fresh-object kernel is 17,330,056 bytes, SHA-256
+`87f0c2a41c877d464910a07db235595294fa9773bc354b89f5804a16c246bd67`.
+Generic provenance, required symbols, archive/install identity and native
+64-bit cache-flush checks pass; all five new held-frame entries are defined in
+`__TEXT_EXEC,__text`. Eight functions are retained as native disassembly.
+Existing header warnings remain.
+
+The first overall build stage exits 1 after successful compilation because
+the inherited qualifier requires a historical dirty `mkadt.py` worktree.
+The isolated source was built clean. A separate qualifier preserves all other
+checks, requires the captured/current checkout to be clean and verifies the
+original MAIN edit separately. A second qualification attempt rejects our
+overly specific `__TEXT` section filter. The final exact `__TEXT_EXEC` symbol
+check passes in qualification dispatcher 34992, exit 0. Neither correction
+changes or rebuilds the kernel; both failed receipts remain intact. The local
+`native-review241-v1.json` receipt has SHA-256
+`7a7846750005053b54fcfb4e911b80466e42b539eec81184f48ba2f63ffa7cdc`.
+
 The cadence change is separate unfinished work; this patch keeps the current
 timer/copy-rate behavior. The pending 0240 proposal remains paired with its
 unchanged physically qualified 0239 kernel and is not modified by this branch.

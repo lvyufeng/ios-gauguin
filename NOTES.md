@@ -2,6 +2,67 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —241 clean pristine/native PASS; no image/boot, pending240 unchanged
+
+PROGRESS. Critical source commit18c5b175c08b5e2326d906eaed37204376112a39 on
+codex/gauguin-present-lifetime-20261110. R241/W241 as below. Main stays at its
+qualified201-patch baseline; no source cherry-pick there. New0210 held-frame
+path remains opt-in sweetfb_hold=1, uninstalled and physically unqualified.
+Host-stage PID96080 exit0/39pins, tests as recorded below.
+
+DSH full-build-stage-v1 PID97007 TERMINAL1/140.475076s/253pins unchanged:
+pristine1b191cb5+ALL202patches replays5330 files with source SHA
+ eeaae16e10996e30e0ca7ff6052878d39ddf3e7e898c6310477db022678b59b9.
+EXACTLY SweetFramebuffer.cpp/SweetSurface.cpp/SweetSurface.h differ from
+physical239; GauguinGPU.cpp and every other source are identical. Relevant
+host tests also pass on the actual replay. Four dependency APFS clones only;
+fresh objects in .deps-cache/p0-20261105/build241-held-frames/runs/gauguin.n2QqwC.
+Compile exit0, kernel17330056B SHA
+ 87f0c2a41c877d464910a07db235595294fa9773bc354b89f5804a16c246bd67
+bannerDarwin22.6.0 TueNov10 23:12:38CST2026 xnu-7df3d70012994cab9e60703ad046559c.
+The terminal1 is ONLY initial qualification: old generic120 requires original
+dirty mkadt edit, while the captured native241 checkout is CLEAN. Do not fake
+that dirty state or modify the build manifest. Original failed receipts stay.
+
+Codex prepared a separate qualify_native0120_clean241.py, changing only the
+worktree contract: exact expectedHEAD, empty current/captured tracked diff,
+captured dirtyFALSE, and separately verify MAIN original a74... user diff.
+All remaining generic source/input snapshots/symbol/archive/install/banner
+checks remain. Four inconsistent checkout-state controls reject. The first
+separate qualification-stage-v2 PID34644 TERMINAL1/368pins unchanged reaches
+our new symbol check and fails because we incorrectly asked for __TEXT rather
+than actual __TEXT_EXEC. Final qualify241v3.py requires exact unique defined
+__TEXT_EXEC,__text external symbols for hold/drop/take/cancel/finish. Original
+helpers, stage failures and kernel-result.json's initial failure stay intact.
+
+DSH qualification-stage-v3 PID34992 TERMINAL0/1.447585s/371pins unchanged;
+kernel-qualification-v3.json preserves generic defined symbols/archive/install
+identity/cache64 disassembly and five exact new entry definitions. Kernel and
+source were NOT rebuilt or changed to correct qualifiers. Existing header
+warnings remain; no zero-warning claim. Codex independently rehashed stage
+inputs39/253/368/371, whole5330-file source snapshot, kernel and current240
+ready receipt, and disassembled8 actual native functions including SwapEnd
+path, timer and guarded present. Native finish calls four surface drops before
+retired/active bookkeeping; present retains GPURead guard. No hardware proof.
+
+native-review241-v1.json SHA
+ 7a7846750005053b54fcfb4e911b80466e42b539eec81184f48ba2f63ffa7cdc.
+No241 image packaging or phone boot. Devicecommands0/userdatawrites0/reboots0.
+Outer10970/76755/75574/19039 reaped0; no workers live. MAIN mkadt originaldiff
+a74... and pending240 8f19b3dd ready/9d943e79 plan unchanged; approval.json,
+apply-v1 and trial-v1 still ABSENT. Automatic continuation is not permission.
+
+NEXT continue independent cadence/desktop integration source while waiting for
+the existing actual240 write reply. The exact approved240 sequence must use
+its paired physical239 kernel FIRST; booting another kernel now would grow
+the root logs and invalidate the still-pending concrete240 delta. After240
+actual sharing acceptance, qualify held presentation under a separately
+prepared temporary kernel, unchanged userdata. Cadence and producer/completion
+handoff for future deferred recording remain separate unfinished work; holding
+an object/table entry alone does not freeze producer writes or qualify a GPU
+fence. SwapEnd already stack-copies input and refuses structure descriptors.
+Keep full phone/RAM/storage/peripherals/power/high-refresh goal ACTIVE.
+
 ### 2026-11-10 CST — isolated241 held-presentation driver / DSH host PASS; native replay/build next
 
 PROGRESS. R241=research/tmp/gauguin-present241-worktree-20261110, branch

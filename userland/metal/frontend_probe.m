@@ -300,6 +300,9 @@ static void qualify_native_fp16(id<MTLDevice> device, id<MTLCommandQueue> queue,
     printf("GAUGUIN FP16 activated=1 seed=%u hash=%016llx public_families=0 root_only=1 PASS\n", seed, (unsigned long long)hash);
 }
 #endif
+#ifdef GAUGUIN_TASK_SURFACE_PROBE
+#include "task_surface_tests.h"
+#endif
 static void run(bool pipelines, bool ca)
 {
     uint32_t seed = (uint32_t)now_ns() ^ ((uint32_t)getpid() * 0x9e3779b9u);
@@ -331,6 +334,12 @@ static void run(bool pipelines, bool ca)
         qualify_native_fp16(device, queue, seed);
 #endif
         ca_render_scenes(device, queue);
+#ifdef GAUGUIN_TASK_SURFACE_PROBE
+        const char *saved_prefix=receipt_prefix;
+        receipt_prefix="GAUGUIN SURFACE237 ";
+        task_surface_scenes(device,queue,seed);
+        receipt_prefix=saved_prefix;
+#endif
 #endif
     } else {
         formats(device, queue); slots(device, queue, seed); surfaces(device, queue, seed);
@@ -341,6 +350,9 @@ static void run(bool pipelines, bool ca)
     unsigned expected = ca ? 10 : (pipelines ? 93 : 83);
 #ifdef GAUGUIN_NATIVE_FP16_PROBE
     if (ca) expected++; /* One separately recorded FP16 qualification job. */
+#endif
+#ifdef GAUGUIN_TASK_SURFACE_PROBE
+    if (ca) expected+=5;
 #endif
     check(submissions == expected && atomic_load(&callbacks) == expected, "final", "all GPU jobs and callbacks required");
     [queue release]; [device release]; [bundle release];
@@ -377,6 +389,9 @@ int main(int argc, char **argv)
     check(route == GAUGUIN_PROBE_METAL, "scope", "exact mode1+gmt1 or mode2 without gmt required");
     check(!pipelines || GAUGUIN_HAS_SHADER_PROBE, "scope", "shader probe is not compiled in");
     check(!ca || GAUGUIN_HAS_CA_PROBE, "scope", "CA renderer probe is not compiled in");
+#ifdef GAUGUIN_TASK_SURFACE_PROBE
+    check(ca,"scope","task surface suite requires the FP16 and real CA regression");
+#endif
     check(setenv("GAUGUIN_METAL_MODE", "offscreen226", 1) == 0, "scope", "probe mode");
     alarm(210);
     receipt("begin build=%s delay=90 scope=%s\n", GAUGUIN_METAL_FRONTEND_BUILD,ca ? "root-offscreen-real-CARenderer-not-desktop" : (pipelines ? "root-offscreen-shader-pipelines-not-CA" : "root-offscreen-objects-not-CA"));

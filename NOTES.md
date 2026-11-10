@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST — renewed HakiOS review after 0239; desktop integration remains the priority
+
+User asked to look again at the successful HakiOS case. Re-fetched GitHub main
+and nine source/docs files: still 63fc2b4633bac3af8e57dadab9f5a8d4cb940438;
+696,126 fresh bytes all match pinned Git blobs. Evidence is local-only under
+research/tmp/hakios-recheck-20261110-v4/source-proof.json. Compared actual
+materialized239 source, current frontend profile and patches. MAIN base24858f7;
+actual tested kernel/source/239 acceptance remain unchanged (see below).
+
+Committed review5d47572 updates
+docs/gauguin-hakios-desktop-recheck-20261110.md with the current findings.
+Earlier Metal discovery/backboardd admission, decoded-image NoCopy upload and
+presentation gaps are CONFIRMED STILL OPEN, not newly fixed by root tests.
+Actual239 task RO inputs pass only the root boundary; compositor import still
+checks !fCompositor. Frontend is root-only/profile0/all-family-NO; no discovery.
+New explicit acceptance details: SpringBoard animation requests can throttle
+Metal to24fps despite0.3ms GPU work (upstream observation, NOT our measured
+fault); there is no equivalent animation hook in tracked gauguin UI code.
+Upstream drops displayed surface uses immediately after copy, since retaining
+until the next frame starved CA reuse (9.6ms vs8.3ms median, source comment).
+Our root0700 shader cache does not qualify a backboardd persistent cache.
+Actual239 framebuffer is fixed16667us, hz>=60 means one copy/tick; relative
+timer rearming happens AFTER present(), so copy/wait work can lengthen the
+next interval (source inference, not measured phone distribution). Setting
+sweetfb_hz=120 cannot select120Hz. Include measured presenter cadence.
+Require actual decoded-image/icon/widget paths, held queue+completion+prompt
+retirement, rate requests and touch-to-panel intervals in the desktop trial.
+NoCopy copy-in workaround is not general shared backing; no skipped-draw
+qualification. HakiOS's A642L/iOS16.5 low-resolution benchmark is not an A619
+forecast; upstream still lacks charging/Bluetooth/cellular registration.
+
+Plan: bounded240 shared-output check -> integrated backboardd Metal + image
+upload + presentation -> correct populated UI and sustained usable60Hz ->
+measured performance controls -> physical90/120Hz. Wholephone goal ACTIVE.
+No builds/CI/push, device commands0/userdatawrites0/reboots0 this review.
+User mkadt binarydiff a74a0418... unchanged. 0240 remains NOT INSTALLED; its
+pending9d943e79 plan needs the actual separate user answer. This research
+request is not write consent; no approval.json or apply action created.
+
 ### 2026-11-10 CST —240 corrected probe / complete backup / concrete delta READY; new consent needed
 
 PROGRESS; wholephone goal ACTIVE/incomplete. MAINa1d9112 promotesqualifiedreadonly

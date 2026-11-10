@@ -18,7 +18,7 @@ def main():
     source=repo/'userland/metal/frontend_probe.m';header=Path(frontend['source']).parent/'GauguinMetalProfile.h'
     helper=repo/'tools/build-hakios-metal.py'
     sdk=Path(subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip())
-    pins={str(p):sha(p) for p in [Path(__file__).resolve(),source,header,helper,receipt,binary,sdk/'SDKSettings.json']}
+    pins={str(p):sha(p) for p in [Path(__file__).resolve(),source,source.parent/'probe_boot.h',header,helper,receipt,binary,sdk/'SDKSettings.json']}
     tag=hashlib.sha256(json.dumps(pins,sort_keys=True).encode()).hexdigest()[:24]
     out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);probe=out/'gauguin-metal-frontend-probe'
     def run(argv,name):

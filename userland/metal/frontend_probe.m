@@ -8,17 +8,21 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 #include <IOKit/IOKitLib.h>
+#include <CommonCrypto/CommonDigest.h>
 #include <dispatch/dispatch.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <mach/mach.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <time.h>
 #include <unistd.h>
 #include "GauguinMetalProfile.h"
+#include "probe_boot.h"
 
 #ifndef GAUGUIN_METAL_FRONTEND_BUILD
 #error A pinned frontend build identity is required
@@ -39,6 +43,34 @@ __attribute__((noreturn)) static void fail(const char *phase, const char *why)
     _Exit(1);
 }
 static void check(bool ok, const char *phase, const char *why) { if (!ok) fail(phase, why); }
+static void legacy_gles_probe(void)
+{
+    /* Only the exact retained, qualified binary may supply the eight-fence
+     * handoff expected by the existing compositor worker. No GPU is opened
+     * here, and the old executable owns its original90s delay and cleanup. */
+    int fd = open(GAUGUIN_LEGACY_PROBE_PATH, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    struct stat st;
+    check(fd >= 0 && fstat(fd, &st) == 0 && gauguin_legacy_probe_metadata_ok(&st),
+          "GLES-baseline", "retained probe metadata");
+    unsigned char *data = malloc(GAUGUIN_LEGACY_PROBE_BYTES), digest[CC_SHA256_DIGEST_LENGTH];
+    check(data != NULL, "GLES-baseline", "bounded hash allocation");
+    size_t at = 0;
+    while (at < GAUGUIN_LEGACY_PROBE_BYTES) {
+        ssize_t n = read(fd, data + at, GAUGUIN_LEGACY_PROBE_BYTES - at);
+        if (n < 0 && errno == EINTR) continue;
+        check(n > 0, "GLES-baseline", "retained probe read");
+        at += (size_t)n;
+    }
+    check(CC_SHA256(data, GAUGUIN_LEGACY_PROBE_BYTES, digest) != NULL &&
+          !memcmp(digest, gauguin_legacy_probe_sha256, sizeof(digest)),
+          "GLES-baseline", "retained probe identity");
+    free(data); check(close(fd) == 0, "GLES-baseline", "probe fd close");
+    fprintf(stderr, "GAUGUIN METAL loader exact-mode2 delegates qualified223 root probe\n");
+    fflush(NULL);
+    char *const argv[] = {GAUGUIN_LEGACY_PROBE_PATH, "--metal223", NULL};
+    execv(GAUGUIN_LEGACY_PROBE_PATH, argv);
+    fail("GLES-baseline", "retained probe exec failed");
+}
 static uint64_t now_ns(void)
 {
     struct timespec t = {0};
@@ -245,6 +277,11 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IOLBF, 0);
     if (argc != 2 || strcmp(argv[1], "--metal226") || getuid() || geteuid() ||
         strcmp(getprogname(), GAUGUIN_METAL_PROBE_NAME)) return 2;
+    char args[1024] = {0}; size_t n = sizeof(args) - 1;
+    check(sysctlbyname("kern.bootargs", args, &n, NULL, 0) == 0 && n < sizeof(args), "scope", "boot profile");
+    enum gauguin_probe_route route = gauguin_probe_boot_route(args);
+    if (route == GAUGUIN_PROBE_GLES) legacy_gles_probe();
+    check(route == GAUGUIN_PROBE_METAL, "scope", "exact mode1+gmt1 or mode2 without gmt required");
     check(setenv("GAUGUIN_METAL_MODE", "offscreen226", 1) == 0, "scope", "probe mode");
     alarm(210);
     printf("GAUGUIN METAL226 begin build=%s delay=90 scope=root-offscreen-objects-not-CA\n", GAUGUIN_METAL_FRONTEND_BUILD);

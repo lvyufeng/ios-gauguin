@@ -1,0 +1,371 @@
+diff --git a/bsd/conf/files b/bsd/conf/files
+index 98e31d9aca34ae39a5e4be6be211da1d17a64e5e..c4fb9121a240b0e0b0eaa1248bc683976540e582 100644
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -152,6 +152,8 @@ bsd/dev/gauguin_gpu_texture.c			standard
+ bsd/dev/gauguin_gpu_runtime.c			standard
+ bsd/dev/gauguin_ui_trace.c			standard
+ bsd/dev/gauguin_ui_trace_board.c			standard
++bsd/dev/gauguin_scan_timing.c			standard
++bsd/dev/gauguin_scan_board.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+diff --git a/bsd/dev/gauguin_scan_board.c b/bsd/dev/gauguin_scan_board.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..81d132ac53b9e140338028d757323c1f2cf1971f
+--- /dev/null
++++ b/bsd/dev/gauguin_scan_board.c
+@@ -0,0 +1,112 @@
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/clock.h>
++#include <kern/thread.h>
++#include <machine/machine_routines.h>
++#include <mach/vm_prot.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++#include "gauguin_scan_timing.h"
++
++#define GSCAN_PAGE 0x4000u
++
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern void ml_io_unmap(vm_offset_t, vm_size_t);
++extern void thread_terminate_self(void);
++
++static const vm_offset_t pages[GSCAN_REGION_COUNT] = {
++    [GSCAN_GCC] = 0x00114000,
++    [GSCAN_DISP_CC] = 0x0af00000,
++    [GSCAN_INTF] = 0x0ae68000,
++};
++
++struct scan_board {
++    vm_offset_t mapped[GSCAN_REGION_COUNT];
++};
++
++static bool map_page(void *context, enum gscan_region region)
++{
++    struct scan_board *board = context;
++    vm_offset_t pa = pages[region];
++    vm_offset_t va = ml_io_map_with_prot(pa, GSCAN_PAGE, VM_PROT_READ);
++    if (!va)
++        return false;
++    if (ml_vtophys(va) != pa ||
++        ml_vtophys(va + GSCAN_PAGE - 1) != pa + GSCAN_PAGE - 1) {
++        ml_io_unmap(va, GSCAN_PAGE);
++        return false;
++    }
++    board->mapped[region] = va;
++    return true;
++}
++
++static void unmap_page(void *context, enum gscan_region region)
++{
++    struct scan_board *board = context;
++    ml_io_unmap(board->mapped[region], GSCAN_PAGE);
++    board->mapped[region] = 0;
++}
++
++static uint32_t read_word(void *context, enum gscan_region region, uint32_t offset)
++{
++    struct scan_board *board = context;
++    return *(volatile const uint32_t *)(board->mapped[region] + offset);
++}
++
++static uint64_t now_ns(void *context)
++{
++    (void)context;
++    uint64_t value;
++    absolutetime_to_nanoseconds(mach_absolute_time(), &value);
++    return value;
++}
++
++static void sleep_ms(void *context, unsigned milliseconds)
++{
++    (void)context;
++    IOSleep(milliseconds);
++}
++
++static void scan_worker(void *argument, wait_result_t wait)
++{
++    (void)wait;
++    unsigned mode = (unsigned)(uintptr_t)argument;
++    struct scan_board board = {0};
++    const struct gscan_ops ops = {
++        .context = &board, .map = map_page, .unmap = unmap_page,
++        .read = read_word, .now_ns = now_ns, .sleep_ms = sleep_ms,
++    };
++    struct gscan_result r;
++    printf("SWEET SCAN: begin mode=%u\n", mode);
++    gauguin_scan_run(mode, &ops, &r);
++    printf("SWEET SCAN: result mode=%u status=%u stage=%u gcc=%08x/%08x/%08x disp=%08x/%08x/%08x/%08x timing=%08x count=%08x\n",
++        mode, r.status, r.stage, r.gcc[0], r.gcc[1], r.gcc[2], r.disp[0], r.disp[1],
++        r.disp[2], r.disp[3], r.timing_enable, r.counter_enable);
++    printf("SWEET SCAN: attempts=%u samples=%u crossed=%u frame=%u/%u line=%u/%u advances=%u start_ns=%llu end_ns=%llu millihz=%u nominal=%u\n",
++        r.attempts, r.samples, r.crossed, r.first_frame, r.last_frame, r.first_line,
++        r.last_line, r.frames, (unsigned long long)r.start_ns, (unsigned long long)r.end_ns,
++        r.millihz, r.nominal_hz);
++    thread_terminate_self();
++}
++
++void sweet_scan_timing_init(void)
++{
++    unsigned mode = 0;
++    if (!PE_parse_boot_argn("sweetscan", &mode, sizeof(mode)) || mode == 0)
++        return;
++    if (mode > 3) {
++        printf("SWEET SCAN: invalid selector %u\n", mode);
++        return;
++    }
++    thread_t thread;
++    kern_return_t result = kernel_thread_start(scan_worker, (void *)(uintptr_t)mode, &thread);
++    if (result == KERN_SUCCESS)
++        thread_deallocate(thread);
++    else
++        printf("SWEET SCAN: worker start failed %d\n", result);
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_scan_timing.c b/bsd/dev/gauguin_scan_timing.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb5b809bc1d80ce729f7e50b833c095ed7206f09
+--- /dev/null
++++ b/bsd/dev/gauguin_scan_timing.c
+@@ -0,0 +1,179 @@
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include "gauguin_scan_timing.h"
++
++#define MS UINT64_C(1000000)
++#define GSCAN_PERIOD_MS 8
++#define GSCAN_TARGET_NS (1000 * MS)
++#define GSCAN_MAX_NS (1250 * MS)
++#define GSCAN_MAX_ATTEMPTS 160
++
++/* Page offsets for the handset's GCC, DISP_CC and INTF1. See the device-tree
++ * inventory and pinned Lagoon clock/SDE definitions, not another SoC's map. */
++static const uint32_t gcc_offsets[] = { 0x300c, 0x301c, 0x3070 };
++static const uint32_t disp_offsets[] = { 0x104c, 0x1010, 0x100c, 0x1028 };
++enum {
++    INTF_TIMING_ENABLE = 0x3800,
++    INTF_COUNTER_ENABLE = 0x38a8,
++    INTF_FRAME = 0x38ac,
++    INTF_LINE = 0x38b0,
++};
++
++static bool clocks_running(const struct gscan_ops *ops, enum gscan_region region,
++                           const uint32_t *offsets, uint32_t *values, unsigned count)
++{
++    bool running = true;
++    for (unsigned i = 0; i < count; ++i) {
++        values[i] = ops->read(ops->context, region, offsets[i]);
++        // Branch2 clock-on status and software-enable must both be present.
++        if ((values[i] & UINT32_C(0x80000001)) != 1)
++            running = false;
++    }
++    return running;
++}
++
++static uint32_t nominal_rate(uint32_t millihz)
++{
++    static const uint32_t rates[] = { 60, 90, 120 };
++    for (unsigned i = 0; i < sizeof(rates) / sizeof(rates[0]); ++i) {
++        uint32_t target = rates[i] * 1000;
++        uint32_t delta = millihz > target ? millihz - target : target - millihz;
++        if (delta <= target * 3 / 100)
++            return rates[i];
++    }
++    return 0;
++}
++
++static void capture(const struct gscan_ops *ops, struct gscan_result *r)
++{
++    uint64_t start = ops->now_ns(ops->context);
++    uint64_t last_tick = start, middle_ns = 0;
++    uint32_t first_half = 0;
++    bool line_changed = false;
++    for (; r->attempts < GSCAN_MAX_ATTEMPTS;) {
++        uint64_t now = ops->now_ns(ops->context);
++        if (!start || now < last_tick) {
++            r->status = GSCAN_CLOCK_INVALID;
++            return;
++        }
++        if (now - start > GSCAN_MAX_NS)
++            break;
++        ++r->attempts;
++        if (!clocks_running(ops, GSCAN_GCC, gcc_offsets, r->gcc, 3)) {
++            r->status = GSCAN_CLOCK_GATED;
++            r->stage = GSCAN_GCC;
++            return;
++        }
++        if (!clocks_running(ops, GSCAN_DISP_CC, disp_offsets, r->disp, 4)) {
++            r->status = GSCAN_CLOCK_GATED;
++            r->stage = GSCAN_DISP_CC;
++            return;
++        }
++        r->timing_enable = ops->read(ops->context, GSCAN_INTF, INTF_TIMING_ENABLE);
++        r->counter_enable = ops->read(ops->context, GSCAN_INTF, INTF_COUNTER_ENABLE);
++        if (r->timing_enable != 1 || r->counter_enable != 3) {
++            r->status = GSCAN_COUNTERS_DISABLED;
++            return;
++        }
++        uint32_t frame = ops->read(ops->context, GSCAN_INTF, INTF_FRAME);
++        uint32_t line = ops->read(ops->context, GSCAN_INTF, INTF_LINE);
++        uint32_t after = ops->read(ops->context, GSCAN_INTF, INTF_FRAME);
++        uint64_t stamp = ops->now_ns(ops->context);
++        if (stamp < now || stamp - now > MS) {
++            r->status = GSCAN_CLOCK_INVALID;
++            return;
++        }
++        last_tick = stamp;
++        if (frame != after) {
++            ++r->crossed;
++        } else if (line >= 16384) {
++            r->status = GSCAN_BAD_SAMPLE;
++            return;
++        } else {
++            if (r->samples == 0) {
++                r->start_ns = stamp;
++                r->first_frame = frame;
++                r->first_line = line;
++            } else {
++                uint64_t elapsed = stamp - r->end_ns;
++                uint32_t advance = frame - r->last_frame;
++                if (!elapsed || elapsed > 60 * MS || advance > 1 + elapsed / (4 * MS)) {
++                    r->status = GSCAN_BAD_SAMPLE;
++                    return;
++                }
++                r->frames += advance;
++                line_changed |= line != r->last_line;
++            }
++            ++r->samples;
++            r->end_ns = stamp;
++            r->last_frame = frame;
++            r->last_line = line;
++            if (!middle_ns && stamp - r->start_ns >= GSCAN_TARGET_NS / 2) {
++                middle_ns = stamp;
++                first_half = r->frames;
++            }
++            if (stamp - r->start_ns >= GSCAN_TARGET_NS)
++                break;
++        }
++        ops->sleep_ms(ops->context, GSCAN_PERIOD_MS);
++    }
++
++    uint64_t span = r->end_ns - r->start_ns;
++    if (r->samples < 64 || span < GSCAN_TARGET_NS || !middle_ns ||
++        r->frames < 24 || !line_changed) {
++        r->status = GSCAN_INSUFFICIENT;
++        return;
++    }
++    // Integer-frame endpoint quantization allows up to two frames of
++    // disagreement between either half and the full-window average.
++    uint64_t seen = first_half * span;
++    uint64_t expected = r->frames * (middle_ns - r->start_ns);
++    uint64_t error = seen > expected ? seen - expected : expected - seen;
++    if (error > 2 * span) {
++        r->status = GSCAN_UNSTABLE;
++        return;
++    }
++    r->millihz = (uint32_t)((r->frames * UINT64_C(1000000000000) + span / 2) / span);
++    r->nominal_hz = nominal_rate(r->millihz);
++    r->status = GSCAN_MEASURED;
++}
++
++void gauguin_scan_run(unsigned mode, const struct gscan_ops *ops, struct gscan_result *r)
++{
++    *r = (struct gscan_result){0};
++    if (!mode)
++        return;
++    if (mode > 3) {
++        r->status = GSCAN_BAD_MODE;
++        return;
++    }
++    unsigned mapped = 0;
++    for (unsigned stage = GSCAN_GCC; stage < mode; ++stage) {
++        enum gscan_region region = (enum gscan_region)stage;
++        r->stage = region;
++        if (!ops->map(ops->context, region)) {
++            r->status = GSCAN_MAP_FAILED;
++            break;
++        }
++        ++mapped;
++        if (region == GSCAN_GCC) {
++            if (!clocks_running(ops, region, gcc_offsets, r->gcc, 3)) {
++                r->status = GSCAN_CLOCK_GATED;
++                break;
++            }
++            r->status = GSCAN_GCC_READY;
++        } else if (region == GSCAN_DISP_CC) {
++            if (!clocks_running(ops, region, disp_offsets, r->disp, 4)) {
++                r->status = GSCAN_CLOCK_GATED;
++                break;
++            }
++            r->status = GSCAN_DISP_READY;
++        } else {
++            capture(ops, r);
++        }
++    }
++    while (mapped)
++        ops->unmap(ops->context, (enum gscan_region)--mapped);
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_scan_timing.h b/bsd/dev/gauguin_scan_timing.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b3e2da82e6116a8f1f38cbcd899f94b723a4e94
+--- /dev/null
++++ b/bsd/dev/gauguin_scan_timing.h
+@@ -0,0 +1,36 @@
++#ifndef GAUGUIN_SCAN_TIMING_H
++#define GAUGUIN_SCAN_TIMING_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum gscan_region { GSCAN_GCC, GSCAN_DISP_CC, GSCAN_INTF, GSCAN_REGION_COUNT };
++enum gscan_status {
++    GSCAN_DISABLED, GSCAN_GCC_READY, GSCAN_DISP_READY, GSCAN_MEASURED,
++    GSCAN_BAD_MODE, GSCAN_MAP_FAILED, GSCAN_CLOCK_GATED,
++    GSCAN_COUNTERS_DISABLED, GSCAN_BAD_SAMPLE, GSCAN_INSUFFICIENT,
++    GSCAN_UNSTABLE, GSCAN_CLOCK_INVALID,
++};
++
++struct gscan_ops {
++    void *context;
++    bool (*map)(void *, enum gscan_region);
++    void (*unmap)(void *, enum gscan_region);
++    uint32_t (*read)(void *, enum gscan_region, uint32_t);
++    uint64_t (*now_ns)(void *);
++    void (*sleep_ms)(void *, unsigned);
++};
++
++struct gscan_result {
++    enum gscan_status status;
++    enum gscan_region stage;
++    uint32_t gcc[3], disp[4], timing_enable, counter_enable;
++    uint32_t attempts, samples, crossed, first_frame, last_frame;
++    uint32_t first_line, last_line, frames, millihz, nominal_hz;
++    uint64_t start_ns, end_ns;
++};
++
++void gauguin_scan_run(unsigned mode, const struct gscan_ops *, struct gscan_result *);
++void sweet_scan_timing_init(void);
++
++#endif
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+index 08487117a11c6e893de99edc95d071fda192ed5f..5db1f6d4656e237ffdf6076a58653fa442147aed 100644
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -812,6 +812,8 @@ bsd_init(void)
+ #if defined(GAUGUIN)
+ 	extern void sweet_ui_trace_init(void);
+ 	sweet_ui_trace_init();
++	extern void sweet_scan_timing_init(void);
++	sweet_scan_timing_init();
+ 	const boot_args *boot = (const boot_args *)PE_state.bootArgs;
+ 	printf("SWEET RAM: base=%016llx vm_bytes=%llu boot_bytes=%llu max_bytes=%llu max_actual_bytes=%llu sane_bytes=%llu\n",
+ 	    (unsigned long long)boot->physBase, (unsigned long long)mem_size,

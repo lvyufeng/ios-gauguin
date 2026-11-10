@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0260 independent pre-mount scan record SOURCE/HOST/ARM64 PASS
+
+R260 reuses R259 worktree on codex/gauguin-scan-log-tail-20261111.
+Source c95d2ca671f999cfcbb77dbf4fa3df106e9981f2, patch0218 SHA
+193f03f0044af869a9df183146df4f7936b3ea7124ac33006a9f1273e1c469d7.
+Report docs/gauguin-pre-mount-scan-log-20261111.md. W260=R260/research/tmp/dsh-scanlog-0260.
+Existing 0259 has writable desktop root. New default-off sweetscanlog=1
+runs before mount, requires valid sweetscan/nonzero sweetscanid/ufsrw0/rootrw0,
+uses no BSD disk and no normal logger or userland, then quick no-sync reboot.
+Dedicated one-block WRITE10+cache sync, existing DMA ownership/poison,
+versioned immutable scan result, worker wait up to80x25ms. Incomplete marked.
+No ordinary console ring write. Diagnostic overwrites one existing mark slot.
+
+DSH recovery read-only PID58347 exit0/0.568s/4pins, userdata start2887680,
+28056571x4K, verified unmounted. Exact slot LBA30943225, relative
+[114915512320,114915516416). Entire HFS16GiB and all33 pending0240 runs
+below slot. DSH PID59348 exit0/12.392s/21pins strict source/6 host groups/
+3 native TUs. 5339 files/5 changed source SHA
+7941d50f5cb60e807caf4b2998651d2f2ee53540a0d56c2ae3a1b046919d61a9.
+Independent review SHA2e8438ff12ebc8d7cffcf2256cb8bfde3ebf14c8a54ef9a9bde622f864173416.
+Both DSH launchers reaped. No full link, image, device boot or storage write.
+
+NEXT full build/explicit pre-mount profile then concrete slot backup and
+individual confirmation before overwrite. A qualified independent scan
+can avoid coupling to the HFS install. Keep 0240 plan and separate consent
+-> exact paired0239 -> desktop delta/consent -> 0250 -> 0255 order for
+filesystem and desktop work. User mkadt diff unchanged. Goal active.
+
 ### 2026-11-11 CST —0259 full kernel and three offline scan images PASS
 
 R259 same worktree/branch as R258. CI runner head

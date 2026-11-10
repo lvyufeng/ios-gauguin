@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0230 exact CA source/native/import/oracle gates PASS; fresh backup running
+
+PROGRESS: implemented next real CA gate, not another unchanged root93 loop.
+Source51b826e committed in MAIN and isolated230 branchcodex/gauguin-ca-exact-20261110.
+W230=research/tmp/gauguin-ca230-worktree-20261110/research/tmp/dsh-ca-0230-exact-renderer.
+Newgauguin-ca-exact profile applies0001+0002, removes nearest label matching,
+edr/luma function substitutions and skipped luma draws; debugskip failsCB.
+Oldgauguin-diagnostic stillselects0001 only. Root-onlyoffscreen/no discovery/
+128MiBhard/soleowner/finite210s remain. New--metal230 drives actualCARenderer
+with explicittexture+queue through5opaque/image/alpha/mask/image-update scenes,
+20480CPUexpectedpixels and realaccepted-driverdraw counter.10explicitjobs
+arepoison+readback, NOTinternalCAjobcount. No iOS/A619/desktop result claimedyet.
+
+DSHmetadata95414/native51286/oracle91875/nativev225038/backup7430launch handles
+allreaped0. Metadataactual8350/nativev18621/oracle9799/nativev210122 nowterminal0/
+absent. Actual20H392CARenderer class/metaclass inventory present;1class+6instance
+methodencodings bound inprobe. Native exactfrontend420240B/SHA
+564f9bb84d01e1db9c29aa6c2605dfb997737bcda22b2f9df384238212586852.
+Finalprobe-v2=114496B/SHA
+111fb8c311e9478288de480df7d91b04d45ffec6e94c84b7f9c5f65d8c742797,
+build1a64b5b45f4801932561ea9a. Probe-Werror/sign/strictverify PASS.
+Nativev1probe obsolete ONLYbecausebuildreceipt incorrectly inherited80abandoned
+CBs; corrected to0 forCA profile and rebuiltv2+audit2. Preserveoldreceipts; their
+originalterminal0doesnotmeancurrenttoolpinsstillmatch. frontend-v1 unaffected.
+ABI-v2all680imports resolved actual20H392,0missingstrong/unexplainedweak,
+5disabledoptionalM2Vhooks. Thisauditbinds oldpre229c41backup; rerunagainstfresh
+backup beforeproposal. MacAppleM5 oracle5scenes/20480pixels ALLZEROerror;
+hostfixture explicitlyremoves iOSABI/librarypins/privatecounters/memorychecks.
+It validatesCPUoracle only, notphysicalA619/iOS. HeaderSHAaa140bdb... unchanged.
+
+Freshbackup-stage-v1 actualdispatcherPID10102 wasobservedLIVE45s afterstart,
+profilepinsvalidated; recheckPID/resultbeforeassumingstillrunning. No device
+write/reboot. Current22files/headerpost2292e1ab85c... and full3logs89932/16292/
+1398371 verified; readonly16GiB freshstream into distinctAPFSclone fromc41
+pre229backup underway. Alloldbackupsimmutable. No userdata230consentpending;
+22920502bf9and227a567...consentsconsumed. DoNOTwrite anynewdeltauntilconcrete
+freshbackup/COW/fsck/102writer/oldranges/capture/startupguards+independentreview
+and NEWindividualapproval. No newkernelbuild/CI/push. Mainmkadtoriginaldiff
+a74a0418... preserved. PhoneTWRP remainscurrentstate untilauthorizednexttrial.
+
+NEXTfinishsamebackup, bindfreshAPIaudit, prepare local5-file scope(frontend
+binary/resource seal, loader, existingjob+cache argv--metal230; other531jobfields/
+logs/core/GLES/Mesa untouched). Reusequalified226/227mode1gmt1image43c69019...
+withsame219kerneland600s finitewindow, no needunchangedkernelrebuild. Buildexact
+physicalCAlogreview includingactualdraws/pixels/limits/cleanownerrelease and
+postcapture22+full3prefixes. Futurecompositorpublication/effects/image3DIBO/
+RAM/storage/peripherals/90-120Hz/dailygoalsstillOPEN. Respectunattendedautoreset
+policy, onlyaskmanualTWRP/cableifgenuinelystuck.
+
 ### 2026-11-10 CST —0229 physical SETEXEC/root8/GLES handoff PASS; phone back in TWRP
 
 PROGRESS: completed exactapproved write and physical baseline regression.

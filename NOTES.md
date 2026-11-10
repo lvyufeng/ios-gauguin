@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0264 full 0263 route kernel and offline image verified
+
+CI42925740306/job130211633308 SUCCESS 2026-11-10T23:57:09Z for source
+7a58414f485d0745957505d4c88e949befeabda2. All 11 cloud host groups PASS.
+DSH PID71569 exit0 44.653s/32pins, download/qualification/package pass.
+Kernel17,883,536B SHA f5588fa80ebe2ee06ed2951e91eaa38cfa59f6c08559fd4c69daa1047e916c48.
+Archive5339files SHA 57bbb04e48baa1b30f83ec21c07bd6bf02099f95aeb212c297cdb27ad49f21bc,
+four dxb adaptations vs native263; 284 retained symbols and 2 scan entry points,
+0 undefined. Watch and DSH launcher reaped.
+
+W263/image/gauguin-0263-route4-premount-263001.img 19,955,712B SHA
+d04598e9845586801f87c3716af0f7c836bdda80fef52e3d3c463636b14a1be9.
+Independent 10 native segments/5 assets, shim/DTB/header, 183B cmd mode4
+and id263001, managed 6GiB/PAS. review.json SHA
+32ac6dd41167b554db9561c1dbd087a93abf09debe2a082919fff215d771d797.
+Image is offline only and not bound to a device backup. Existing 0261 GCC
+proposal intact and awaiting its exact permission. Physical order remains
+GCC -> DISP_CC -> INTF1 -> route. Pending0240 paired desktop path separate.
+
+DSH recovery read-only PIDs70503/70634 exit0 four pins each, no pool base
+evidence from dmesg/debug paths; CMA aggregate256MiB, 14 reserved ranges.
+See docs/gauguin-current-preflight-and-ram-20261111.md. Original ABL FDT
+consumer still needed. No device write, boot or modeset. Goal active.
+
 ### 2026-11-11 CST —0263 XNU scanout route source/native pass, full build running
 
 Report docs/gauguin-xnu-scanout-route-20261111.md. R263 reuses R261

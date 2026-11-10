@@ -78,6 +78,23 @@ Linux recovery's runtime allocator is not the allocator state of a later
 bootloader handoff. A fixed-carveout-only subtraction, or subtracting the six
 pool sizes from a total, cannot produce a safe iOS allocation map.
 
+### Recovery allocation follow-up, 0264
+
+Two read-only DSH captures measured TWRP `CmaTotal` at 262,144 KiB and
+`CmaFree` at 173,796 KiB. The 14 `/proc/iomem` reserved ranges remained
+available without per-pool names. The current `dmesg` buffer returned no
+matching early allocation records, and the existing CMA and memblock
+debug paths returned exit 1. The Xiaomi source emits dynamic placement at
+debug log level. The observed aggregate CMA total supplies no base address
+for any of the six dynamic pools. The original ABL handoff consumer is
+still needed to advance the lower-memory qualification.
+[Xiaomi reserved-memory allocator](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/e601e14af391539e0fd67fe0506bcbe55bfcd997/drivers/of/of_reserved_mem.c#L94).
+
+Evidence is under `research/tmp/dsh-memory-0264-recovery-pools`. DSH
+dispatchers 70503 and 70634 completed with exit 0 and four unchanged pins
+each. The launcher sessions were reaped. No raw dmesg dump was saved and
+the capture used no device write, reboot or mount change.
+
 ## Implementation implications and order
 
 The current loader passes one physBase/memSize interval, and the selected

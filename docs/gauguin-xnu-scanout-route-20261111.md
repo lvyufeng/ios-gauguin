@@ -69,7 +69,28 @@ Patch SHA256
 | `gauguin-0261-scan2-premount-261002.img` | `cecc1804c50dccbc7acb3a421da1170890f99e29e97a95138ff9fe160bb8493c` |
 | `gauguin-0261-scan3-premount-261003.img` | `47938bd4f92e4c5a5cd7812309f18ad897f1dba667f438d799e1b70c745b6fb9` |
 
-This turn performed no phone command, boot or partition write. The next
-physical step remains the existing 0261 GCC trial after its exact
-approval. Later hardware validation must prove the active route and
+## Full kernel and offline route image, 0264
+
+GitHub Actions job `130211633308` completed successfully on the exact
+source commit at 23:57:09 UTC on 2026-11-10. All 11 focused CI checks
+passed. The downloaded 5,339-file archive matches the CI source manifest.
+It differs from the native qualification tree by four verified build
+adaptations. The linked ARM64 kernel has no undefined symbols. All 284
+checked symbols and both scan entry points occupy their expected sections.
+
+DSH dispatcher 71569 fetched, qualified and packaged the image in 44.653 s
+with 32 unchanged pins. The 17,883,536-byte kernel SHA256 is
+`f5588fa80ebe2ee06ed2951e91eaa38cfa59f6c08559fd4c69daa1047e916c48`.
+The 19,955,712-byte image is
+`image/gauguin-0263-route4-premount-263001.img` inside W263, with SHA256
+`d04598e9845586801f87c3716af0f7c836bdda80fef52e3d3c463636b14a1be9`.
+Independent readback verified every byte of ten loadable kernel segments
+and five firmware segments, the Android header, shim, DTB, managed-memory
+range, PAS tail, and complete 183-byte command. The image selects
+`sweetscan=4 sweetscanlog=1 sweetscanid=263001` with root and ordinary
+UFS writes disabled. It has not been booted and is not bound to a device
+backup. [GitHub Actions run](https://github.com/lvyufeng/ios-gauguin/actions/runs/42925740306).
+
+The next physical step remains the existing 0261 GCC trial after its
+exact approval. Later hardware validation must prove the active route and
 exclusive second-buffer ownership before testing a latch or modeset.

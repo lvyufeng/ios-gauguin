@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0227 approved38-run write PASS; ONE physical shader trial LIVE
+
+PROGRESS: fresh227 user consent received via request_user_input_async
+call_42f6160cc6a047a69590da9db9ba0fdf item0, verbatim
+"允许写入，并允许失败时回滚本次触及的块". Exact plan a56746bc8c173afd0d73c3b17a1e0eed2af3cde43aea049357acc9da70b4eff7
+consent CONSUMED; previous pending question now answered. Full goalACTIVE.
+
+W227 as below. DSH86208 apply-stage-v1 terminal0/inputsunchanged/reaped.
+Actual38writes/38attempts/ALL38readback, header0LAST, no rollback. Final local
+imageee600ca36c780bbef820ba49c8f7e05c6f1cb8625fbb7f0dbef93ede57b6b3af.
+Current installed22files each content/size/uid/gid/mode verified against planned
+set; current PREBOOT header NOWc9347eee7f8c108fdd057fb2b3cf2674639104631677613f471ff996e8e4b574
+(not post2260cd11387). Positive actual host gate check_pilot227.py passed using
+real approval/readback/installed files/kernelproof and intentionally stopped
+BEFORE recoveryIO; no synthetic approval or installed result used in this check.
+
+DSH92477 owns LIVE dispatch-stage-v1/trial-stage-v1. Actual trial-v1/preflight
+observer-running, image_boot_attempted=true,misc_verified=true. One temporary
+43c69019... image boot SendingOKAY0.462s/BootingOKAY0.135s/total0.599s.
+NVT1/6GiB/30Hz/no synthetic swipe/mode1+gmt1/600s unchanged. This is root-only
+93-job shader/format/IOSurface test; no desktop performance or rendering claim.
+No physical227 shader result yet. Phone will automatically returnTWRP; standing
+unattended policy means NEVER ask auto-vs-manual reboot confirmation.
+
+NEXT poll SAME92477 handle and actualtrial files; do not restart claimed stage,
+rewrite userdata, change live pinned sources, weaken failures, or fake logs.
+post227.py captures ALL22 and complete3old logprefixes first, then strictbanner/
+600sservice/93shader jobs/exact library/build/pixels/ownerreturn. Original stages
+and errors retained. Ask manualTWRP only genuinely stuck. Preserve diagnostics
+and backups; no additional destructive step authorized by this entry.
+
+Offline compiler/CA-asset work may continue separately while waiting, without
+modifying227 live pinned inputs. Full UI/Metal discovery/highrefresh/peripherals/
+RAM/storage/daily requirements incomplete, goal remainsACTIVE.
+
 ### 2026-11-10 CST —0227 concrete shader delta ready; no new write or boot; individual consent required
 
 Full goal ACTIVE/incomplete. User red-lockscreen report remains an OPEN UI defect.

@@ -2,6 +2,74 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0237 CONCRETE probe-only delta READY; needs NEW individual consent
+
+PROGRESS, wholephone goal ACTIVE/incomplete. Main237source7f94567 /R2376906298;
+236driverR2365671e8f, physicalkernel a9b52948... qualifiedbaselineonly. R237/W237
+paths and detailedsoftwareproofs below. No237userdatawrite orboot has occurred.
+235permissionCONSUMED. New237approval.json DOESNOTEXIST; create ONLYafter actual
+freshuserreply namingthisnewplan/rollback. Do notreuse235approval orrerunoldstages.
+
+DSHbackup-stage-v1 PID51698 terminal0/all3459pins unchanged,679.303169s. Fresh22
+currentfiles allmatchpost236, full592687/35952/1424222Bprefixes. FULL16GiBfreshUSB
+read659.610178s,17179869184bytes, distinctlocalCOWclone/400changed1MiBchunks;
+419430400localbytes written under1GiBbudget, no partitionwrites/reboot. Original
+235backup53642ed8...unchanged. NewbackupW237/root-backup-v1/iosroot-before-metal237.hfsx
+readonly0444 SHA6d1cd8a30b9f6d11af3703241c5066c94df228db731744b146b838350a29afa2;
+header739c92d5799747b4654ef3402a38d4f62dbd029c6ab9dabf7a8a0bbdc01f2737
+unchangedbefore/after. NOcleanup/sourcebackupdeletion. OuterDSH17353reaped0.
+
+DSHfresh-abi-stage-v1 PID53534 exit0/8.886667s/3360pins. Rehashfresh237FULLbackup,
+all717imports resolvedagainstitsactual20H392cache; core/frontendinventory exact
+prior235; newprobeNOweakimports,0missing/unresolvedweak. Original5disabledM2Vhooks
+unchanged. DSHproposal-stage-v1 PID53755 exit0/75.309395s/3433pins. ONEfreshlocal
+COWproposal stage→minimaldelta→readonlyfsck→canonicalwriter102cases→EVERYrealold
+runread→independentfullnamespace/allocatedsector+FULL16GiBdiffreview PASS. Allthree
+PIDsabsent, outerDSH74845/10954reaped0. No devicewrite/boot in anyofthesestages.
+
+EXACTPLAN W237/delta-v1/delta-plan.json SHA
+2fa46ddfa82046bdc5a143bb854f59b2b7c3497afb0ccf7f4535afba6025fa6b:
+203blocks*4096=831488B=0.79296875MiB,33runs, headerplannedfirst/writerwritesLAST.
+ONLYpayloadtarget /usr/libexec/gauguin-metal-frontend-probe138112B SHA
+ d1f08acbb2dbc71265023fd151fd7e224cc82b4e76fd524dcc79e32e7840a47f,
+build58a59434c686b6c5cdf17060. 21othercapturedfiles includingfull3logs unchanged;
+all531jobs/cachebytes, frontend3c62/core8a/sampler218e/Mesa/GLES/backboardd kept.
+NecessaryHFSmetadata includesnormalfseventlogsand54orphanHFSPrivateData/tempID
+records; allscopednamespace/permissions/retainedbytes/forks independentlyreviewed.
+FinalCOWimageSHA8d6e72a311c1e71ecff1c51ff67f6bf8bc9c8d884c1e139e83d3ac61b91ad1d7,
+fsck0/detach0;33oldruns831488B matchactualunmounted/noholdersdeviceheader.
+Canonicalwrite_root_delta237.py SHAf1a220381ba3f7c5e1bf5b0331e3fc84db95c376af1f4a986db5c6f59e137471,
+ONLY4pin/key/errorlabelchangesvs175v2a7f1252...;102actualfakeIOchecksPASSinclrollback.
+Codex proposal-acceptance237-v1.json independentlyrehashes3563pins SHA
+5e21267998e05a917c4c18c1a2921b52eb1a22c92b43b691ca9b1447da27070f.
+
+PAIREDtemporaryimage W237/paired-image237.json: R237/shim/out/
+shim-p3-metal-0237-task-IOSurface-600-20261110.img EXACTphysical236image
+5ec4b3afa6146327576f7de3ab1aab50ca6d07c58a7ea5703ec8d13034d182a8,
+20021248B, no repack. Same607bytemode1/gmt1/600s/no-swipe/NVT/30Hzcopy args,
+RAM/firmware/outershim. Notbooted237. Root-only diagnostic, noMetalpublication.
+
+NEXT pendingfreshconsent for0.79MiB/203blocks/33runs/plan2fa46ddf androllbackONLY
+thistouchedblocks. IndividualapprovalrequiredbyAGENTSquote 'confirm each destructive
+step with the user before running it'. Onlyafternewreply createW237/approval.json,
+prepareFRESHapply-stage-v1 usingthisexactwriter/plan/readback/reviewpins (reference
+W235/apply-stage-v1.json ARGUMENTS only; neverrunthatoldwrite). Recheckalloldblocks
+insidewriter, rollbacktouchedblocksonfailure. Then prepareinstalled22expectations
+fromfinalHFS/currentprefixes, performreadonlyinstalledcapture, adaptproven235trial
+and236bootpilot with KERNEL_ROOT=R236/full-kernel-review236-v1.json ANDnew237write
+receipts. 236pilotcontrolhardcodesnewwritefalse; do notcopythatgateunchanged.
+Fullbootnegative/preflightguards andsingle-useobserver required. AutomaticTWRP
+~744s; no userauto/manualrebootconfirmation. Askmanualonlyifgenuinestuck/USBabsent.
+
+Preparedprivateverify237.py firstgatesNEWapproval+exactplan+successfulwrite. post237.py
+preparedbutnotrun: reuseunchangedstrict235FP16/CA/LPH/service functions, plusnew
+raw task reader/sameSeed; expectednative21=11FP16/poison+5tasks+5CA. Exactly16
+sampledsubmits+5unsampled, no laterIBexactclaim;5negativeWRITEsaddNOsuccesses.
+All22static/metadata/fullprefixes kept, soleowner/fault/cleanup/release required.
+This physicalsampling remainsUNQUALIFIED, asdoMTLDevice/desktop/FPS/highrefresh/
+dailyuse. Sourcehelper/pixeloracleandreaderssoftwarequalified; no goalcompletion.
+MAINonlyunrelatedtools/mkadt.py editSHAa74a0418... preserved; R236samecopy kept.
+
 ### 2026-11-10 CST —0237 task sampler software PASS; fresh full backup LIVE
 
 PROGRESS, fullphone goal ACTIVE/incomplete. Source R2376906298 /MAIN7f94567,

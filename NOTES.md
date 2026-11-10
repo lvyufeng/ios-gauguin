@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0261 full pre-mount GCC trial ready; exact approval pending
+
+R261 same scan-log branch; pushed head4964df4b368a5df807ec5c3338fd354c39fcdf15.
+Report docs/gauguin-scan1-trial-ready-20261111.md.
+W261=R261/research/tmp/dsh-scanlog-build-0261.
+CI42920974546 job130195437896 SUCCESS at2026-11-10T23:17:20Z.
+Eleven local/cloud groups PASS, full ARM64 link and 5339-file archive pass.
+17,883,392B kernel SHA8051aca7ac0bbe29bc849daaf59108083a10272e618bb5dd407e6a81348c6b7e.
+284 retained/2 new text definitions/0 undefined. DSH dispatch PID60265
+exit0/25.665s/9pins; backup PID60624 exit0/3.248s/6pins; artifact PID62038
+exit0/43.526s/24pins. All launchers and watch reaped.
+
+W261/image/gauguin-0261-scan1-premount-261001.img 19,955,712B SHA
+316b0bd43c871ebc0a11c252181d62ada27156e66f8880533ef07681a43051ea.
+183B command mode1/id261001, ufsrw0/rootrw0/sweetlog0/sweetusb0, no rd.
+Codex independent 10 kernel segments/5 assets/header/shim/DTB/RAM/PAS.
+Review SHAad69aa57b18acfa6f2080f6543dadcac3d929724926f2edb6b907fcbe6d3c4ec.
+
+Backup-v1 dual userdata/LUN views match original LBA30943225 and neighbors;
+old-slot SHA c8e452dc869a673c2a23511a8e80f576df8f46fe19739871a845126b31c35baf.
+Misc first4K all zero, unarmed. HFS header and all33 runs/194 pending0240
+old blocks match. Proposal b9c831c20e93ce2300ab1a627fc57a947322a4ad9a181274b855a2f3337b0e07
+binds one temp boot, one4KiB reserved userdata slot and 13B misc marker.
+No real approval/claim/write/boot exists. Mock trial rejects missing/wrong
+consent and stale slot, allows one exact boot. Genuine approval required,
+then fresh preflight and one trial.py, postflight reads marker/neighbors
+and same HFS runs. No repeated trial or permission request. No 0240
+authorization inferred. Existing desktop pipeline still pending. Goal active.
+
 ### 2026-11-11 CST —0260 independent pre-mount scan record SOURCE/HOST/ARM64 PASS
 
 R260 reuses R259 worktree on codex/gauguin-scan-log-tail-20261111.

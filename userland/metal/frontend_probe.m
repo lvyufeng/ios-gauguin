@@ -15,6 +15,7 @@
 #include <mach/mach.h>
 #include <stdatomic.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -29,6 +30,7 @@
 #endif
 
 enum { WIDTH = 64, HEIGHT = 64, WORDS = WIDTH * HEIGHT, STRIDE = WIDTH * 4 };
+static const char *receipt_prefix = "GAUGUIN METAL226 ";
 static unsigned submissions;
 static _Atomic unsigned callbacks;
 extern int memorystatus_control(uint32_t, int32_t, uint32_t, void *, size_t);
@@ -37,12 +39,18 @@ _Static_assert(sizeof(struct limits) == 16, "GET8 wire layout");
 
 __attribute__((noreturn)) static void fail(const char *phase, const char *why)
 {
-    fprintf(stderr, "GAUGUIN METAL226 FAIL phase=%s why=%.400s\n", phase, why ? why : "unknown");
+    fprintf(stderr, "%sFAIL phase=%s why=%.400s\n", receipt_prefix, phase, why ? why : "unknown");
     fflush(NULL);
     /* A failed DMA fence is still the kernel client's responsibility. */
     _Exit(1);
 }
 static void check(bool ok, const char *phase, const char *why) { if (!ok) fail(phase, why); }
+static void receipt(const char *format, ...) __attribute__((format(printf,1,2)));
+static void receipt(const char *format, ...)
+{
+    va_list args; va_start(args,format);fputs(receipt_prefix,stdout);vprintf(format,args);va_end(args);
+}
+
 static void legacy_gles_probe(void)
 {
     /* Only the exact retained, qualified binary may supply the eight-fence
@@ -86,7 +94,7 @@ static void memory(const char *phase)
           count >= TASK_VM_INFO_REV1_COUNT, phase, "VM footprint");
     check(m.active == 128 && m.inactive == 128 && m.active_attr == 1 && m.inactive_attr == 1 &&
           vm.phys_footprint && vm.phys_footprint <= (128ULL << 20), phase, "128MiB hard-limit contract");
-    printf("GAUGUIN METAL226 memory phase=%s active=128 inactive=128 hard=1 footprint=%llu\n",
+    receipt("memory phase=%s active=128 inactive=128 hard=1 footprint=%llu\n",
            phase, (unsigned long long)vm.phys_footprint);
 }
 static void trusted_file(NSString *path)
@@ -133,7 +141,7 @@ static uint64_t verify_words(const uint32_t *got, const uint32_t *want, const ch
         }
         for (unsigned j = 0; j < 4; j++) hash = (hash ^ (uint8_t)(got[i] >> (8 * j))) * 1099511628211ULL;
     }
-    printf("GAUGUIN METAL226 pixels phase=%s words=4096 hash=%016llx PASS\n", phase, (unsigned long long)hash);
+    receipt("pixels phase=%s words=4096 hash=%016llx PASS\n", phase, (unsigned long long)hash);
     return hash;
 }
 static void verify_texture(id<MTLTexture> target, const uint32_t *want, const char *phase)
@@ -180,7 +188,7 @@ static void slots(id<MTLDevice> device, id<MTLCommandQueue> queue, uint32_t seed
         check(abandoned != nil && abandoned.status == MTLCommandBufferStatusNotEnqueued,
               "abandoned-slots", "uncommitted command buffer creation");
     }
-    printf("GAUGUIN METAL226 abandoned-slots count=80 PASS\n");
+    receipt("abandoned-slots count=80 PASS\n");
     id<MTLTexture> target = texture(device, MTLPixelFormatRGBA8Unorm);
     for (unsigned i = 0; i < 72; i++) @autoreleasepool {
         uint32_t bits = (seed + i) & 7, words[WORDS];
@@ -229,10 +237,16 @@ static void surfaces(id<MTLDevice> device, id<MTLCommandQueue> queue, uint32_t s
         const char *phase = p ? "surface-CPU-to-GPU-B" : "surface-CPU-to-GPU-A";
         finish(cb, phase); verify_texture(target, want, phase);
     }
-    printf("GAUGUIN METAL226 surface id=%u width=64 height=64 stride=256 format=BGRA cases=3 PASS\n", IOSurfaceGetID(surface));
+    receipt("surface id=%u width=64 height=64 stride=256 format=BGRA cases=3 PASS\n", IOSurfaceGetID(surface));
     [target release]; [imported release]; CFRelease(surface);
 }
-static void run(void)
+#if defined(GAUGUIN_METAL_SHADER_BYTES) && defined(GAUGUIN_METAL_SHADER_SHA256)
+#define GAUGUIN_HAS_SHADER_PROBE 1
+#include "pipeline_tests.h"
+#else
+#define GAUGUIN_HAS_SHADER_PROBE 0
+#endif
+static void run(bool pipelines)
 {
     uint32_t seed = (uint32_t)now_ns() ^ ((uint32_t)getpid() * 0x9e3779b9u);
     @autoreleasepool {
@@ -255,10 +269,14 @@ static void run(void)
           "limits", "oversized allocation must be refused before IO");
     id<MTLCommandQueue> queue = [device newCommandQueueWithMaxCommandBufferCount:4];
     check(queue != nil, "queue", "queue creation");
-    printf("GAUGUIN METAL226 device=%s seed=%u maxBO=67108864 queueSlots=4\n", [[device name] UTF8String], seed);
+    receipt("device=%s seed=%u maxBO=67108864 queueSlots=4\n", [[device name] UTF8String], seed);
     memory("opened");
     formats(device, queue); slots(device, queue, seed); surfaces(device, queue, seed);
-    check(submissions == 83 && atomic_load(&callbacks) == 83, "final", "83 completed jobs and callbacks required");
+#if GAUGUIN_HAS_SHADER_PROBE
+    if (pipelines) shader_pipelines(device,queue,seed);
+#endif
+    unsigned expected = pipelines ? 93 : 83;
+    check(submissions == expected && atomic_load(&callbacks) == expected, "final", "all GPU jobs and callbacks required");
     [queue release]; [device release]; [bundle release];
     }
     memory("after-resource-release");
@@ -269,27 +287,33 @@ static void run(void)
     IOObjectRelease(service);
     check(opened == KERN_SUCCESS && connection != IO_OBJECT_NULL, "owner-release", "sole GPU owner was not released");
     check(IOServiceClose(connection) == KERN_SUCCESS, "owner-release", "reacquired client close");
-    printf("GAUGUIN METAL226 ownership reacquired=1 closed=1 PASS\n");
-    printf("GAUGUIN METAL226 RESULT PASS build=%s seed=%u jobs=83 words=339968 abandoned=80 teardown-requested=1 discovery=0 shader-pipelines=0 UI=0\n", GAUGUIN_METAL_FRONTEND_BUILD, seed);
+    receipt("ownership reacquired=1 closed=1 PASS\n");
+    if (pipelines)
+        receipt("RESULT PASS build=%s seed=%u jobs=93 pixel_checks=372736 compute_words=512 half_pixels=4096 abandoned=80 teardown-requested=1 discovery=0 shader-pipelines=1 UI=0\n",GAUGUIN_METAL_FRONTEND_BUILD,seed);
+    else
+        receipt("RESULT PASS build=%s seed=%u jobs=83 words=339968 abandoned=80 teardown-requested=1 discovery=0 shader-pipelines=0 UI=0\n", GAUGUIN_METAL_FRONTEND_BUILD, seed);
 }
 int main(int argc, char **argv)
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
-    if (argc != 2 || strcmp(argv[1], "--metal226") || getuid() || geteuid() ||
+    if (argc != 2 || (strcmp(argv[1], "--metal226") && strcmp(argv[1], "--metal227")) || getuid() || geteuid() ||
         strcmp(getprogname(), GAUGUIN_METAL_PROBE_NAME)) return 2;
+    bool pipelines = strcmp(argv[1], "--metal227") == 0;
+    if (pipelines) receipt_prefix = "GAUGUIN METAL227 ";
     char args[1024] = {0}; size_t n = sizeof(args) - 1;
     check(sysctlbyname("kern.bootargs", args, &n, NULL, 0) == 0 && n < sizeof(args), "scope", "boot profile");
     enum gauguin_probe_route route = gauguin_probe_boot_route(args);
     if (route == GAUGUIN_PROBE_GLES) legacy_gles_probe();
     check(route == GAUGUIN_PROBE_METAL, "scope", "exact mode1+gmt1 or mode2 without gmt required");
+    check(!pipelines || GAUGUIN_HAS_SHADER_PROBE, "scope", "shader probe is not compiled in");
     check(setenv("GAUGUIN_METAL_MODE", "offscreen226", 1) == 0, "scope", "probe mode");
     alarm(210);
-    printf("GAUGUIN METAL226 begin build=%s delay=90 scope=root-offscreen-objects-not-CA\n", GAUGUIN_METAL_FRONTEND_BUILD);
+    receipt("begin build=%s delay=90 scope=%s\n", GAUGUIN_METAL_FRONTEND_BUILD,pipelines ? "root-offscreen-shader-pipelines-not-CA" : "root-offscreen-objects-not-CA");
     memory("before-delay");
     uint64_t start = now_ns(); struct timespec rest = {90, 0};
     while (nanosleep(&rest, &rest)) check(errno == EINTR, "delay", "nanosleep");
     check(now_ns() - start >= 90ULL * 1000000000, "delay", "monotonic90s");
-    @try { @autoreleasepool { run(); } }
+    @try { @autoreleasepool { run(pipelines); } }
     @catch (NSException *exception) { fail("exception", [[exception description] UTF8String]); }
     check(now_ns() - start < 210ULL * 1000000000, "deadline", "finite diagnostic");
     alarm(0);

@@ -8,6 +8,7 @@ def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--frontend-receipt',type=Path,required=True)
+    ap.add_argument('--shader-receipt',type=Path)
     ap.add_argument('--out',type=Path,required=True)
     a=ap.parse_args();repo=Path(__file__).resolve().parents[1]
     receipt=a.frontend_receipt.resolve();frontend=json.loads(receipt.read_text())
@@ -19,13 +20,22 @@ def main():
     helper=repo/'tools/build-hakios-metal.py'
     sdk=Path(subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip())
     pins={str(p):sha(p) for p in [Path(__file__).resolve(),source,source.parent/'probe_boot.h',header,helper,receipt,binary,sdk/'SDKSettings.json']}
+    shader=None;shader_args=[]
+    if a.shader_receipt:
+        shader_receipt=a.shader_receipt.resolve();shader=json.loads(shader_receipt.read_text())
+        assert shader['state']=='generated-project-Metal2.4-iOS16-library-not-runtime-qualified' and shader['inputs_unchanged']
+        for name,pin in shader['input_pins'].items():assert sha(Path(name))==pin,name
+        library=Path(shader['library']);assert sha(library)==shader['library_sha256'] and library.stat().st_size==shader['library_bytes']
+        for p in [shader_receipt,library,source.parent/'pipeline_tests.h']:pins[str(p)]=sha(p)
+        shader_args=['-DGAUGUIN_METAL_SHADER_BYTES='+str(shader['library_bytes']),
+                     '-DGAUGUIN_METAL_SHADER_SHA256="'+shader['library_sha256']+'"']
     tag=hashlib.sha256(json.dumps(pins,sort_keys=True).encode()).hexdigest()[:24]
     out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);probe=out/'gauguin-metal-frontend-probe'
     def run(argv,name):
         with (out/name).open('x') as f:subprocess.run(argv,stdout=f,stderr=subprocess.STDOUT,check=True)
     argv=['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0','-isysroot',str(sdk),
           '-std=gnu11','-O1','-Wall','-Wextra','-Werror','-fblocks','-fno-objc-arc',
-          '-DGAUGUIN_METAL_FRONTEND_BUILD="'+tag+'"','-I'+str(header.parent),str(source),
+          '-DGAUGUIN_METAL_FRONTEND_BUILD="'+tag+'"',*shader_args,'-I'+str(header.parent),str(source),
           '-framework','Foundation','-framework','Metal','-framework','IOKit','-framework','IOSurface',
           '-lobjc','-o',str(probe)]
     run(argv,'compile-link.log')
@@ -35,10 +45,13 @@ def main():
     run(['codesign','--verify','--strict',str(probe)],'verify.log')
     run(['otool','-L',str(probe)],'loads.log');run(['nm','-m','-u',str(probe)],'imports.log')
     assert all(sha(Path(name))==pin for name,pin in pins.items())
-    result=dict(state='native-iOS16-MTL-object-probe-not-device-qualified',probe=str(probe),
+    result=dict(state='native-iOS16-MTL-shader-probe-not-device-qualified' if shader else 'native-iOS16-MTL-object-probe-not-device-qualified',probe=str(probe),
                 bytes=probe.stat().st_size,sha256=sha(probe),build=tag,platform_version=version,
                 frontend_sha256=frontend['sha256'],core_sha256=frontend['core_sha256'],
-                expected_jobs=83,expected_words=339968,abandoned_command_buffers=80,
+                expected_jobs=93 if shader else 83,expected_base_pixel_checks=339968,
+                expected_shader_pixel_checks=32768 if shader else 0,expected_compute_words=512 if shader else 0,
+                expected_half_pixels=4096 if shader else 0,abandoned_command_buffers=80,
+                shader_library=shader,shader_pipeline_probe_enabled=bool(shader),
                 shader_pipeline_qualification=False,device_discovery=False,UI_qualification=False,
                 input_pins=pins,inputs_unchanged=True,compiler_argv=argv,device_commands=0,installed=False)
     with (out/'result.json').open('x') as f:f.write(json.dumps(result,indent=2)+'\n')

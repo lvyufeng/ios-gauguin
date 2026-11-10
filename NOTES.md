@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —238 terminal: fourth GPU job/pixels fixed; CPU alias guard still fails
+
+PROGRESS; wholephone goal ACTIVE/incomplete. ORIGINAL238 trial-stage-v1 PID10735
+TERMINAL1, observer0/automaticTWRP746.068814s, twojobs boot0/qualification1,
+46pins unchanged; outerDSH56717 reaped0. Do not rerun claimed238 stage/observer.
+Same installed237 probe d1f08acb.../build58a59434... and root, userdata writes0.
+Actual238 kernel/image c006ef7a.../a75a6266... identity exact. Phone now TWRP.
+
+Independent partial-review238-v1.json84pins SHA
+ e2e1ea6dd358ab5ab83c9eb6ee24d312e82d33ad4401de81322e0bf5623d360b
+under R238/research/tmp/dsh-alias-0238-kernel-map preserves FAILED original receipt.
+Allfour R8/RG8/BGRA8/RGBA16F raw GPU readbacks16384pixels exactly match CPUoracle;
+first3 full source allocation/padding/tail checks pass. RGBA16F GPU job NOW passes
+AFTER originalVAmunmap (native successes20 vs237's19); API46failures4 are allfour
+intentional WRITE guards, unexpected submit rejection gone. But post-draw
+IOSurfaceLock/GetBaseAddress + wholeallocation comparison fails task-source.
+Installed probe does NOT distinguish NULL vs wrong bytes; do not assert corruption.
+RGBA32F never reached. NativeFP16 4096 and5realCA20480pixels all exact; missing final
+teardown/owner-reacquire means fullsuite remainsFAIL. Healthy598renewals600s.
+Full logs1345762/52441/1437148B, prior951342/44189/1430685Bprefixes intact; current
+header e6ce285d4293c108a39a6df9a08808011b41f9e094d4b615d15f727e41f00223.
+
+Actual XNU IOMemoryDescriptor.cpp:4871-4887 doMap has same-source-task fast path:
+kIOMapAnywhere without kIOMapUnique returns original range0Addr+kIOMapStatic.
+SweetSurface::mapPixelsInTask currently lacks Unique. Leading second defect:
+IOSurface caches original task VA, then probe munmaps it before drawing. This is
+SOURCE-supported inference, not yet hardware-proven cause. Next239 kernel-only
+candidate: independent RO task CPU mapping via kIOMapUnique; keep RO/cache flags,
+mutable paths unchanged. First actual-method/fast-path host regression with real
+mmap/unmap/address reuse, old238 RED/new239 GREEN, then full local native build and
+UNCHANGED installed237 probe temporary boot. No new userdata consent/write needed.
+Do not skip source guard or early release. Main still219; isolated236/238 critical
+patches not merged yet. Preserve user mkadt editSHAa74a0418...; noCI/push.
+Metal publication/desktop/refresh/RAM/storage/peripherals/daily all incomplete.
+
 ### 2026-11-10 CST —238 full local native PASS; ONE kernel-only unchanged237 sampler LIVE
 
 PROGRESS, wholephone goal ACTIVE/incomplete. Critical238source fd17141; frozen

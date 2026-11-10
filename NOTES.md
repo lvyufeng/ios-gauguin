@@ -2,6 +2,18 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0264 completed 0263 full kernel and offline image
+
+CI42925740306/job130211633308 SUCCESS 2026-11-10T23:57:09Z, head7a58414.
+W263=research/tmp/dsh-scanroute-0263; DSH PID71569 exit0/44.653s/32pins.
+Kernel17,883,536B SHA f5588fa80ebe2ee06ed2951e91eaa38cfa59f6c08559fd4c69daa1047e916c48.
+5339 archived files and four known dxb adaptations; 11 CI groups, 0 undefined.
+W263/image/gauguin-0263-route4-premount-263001.img, SHA
+d04598e9845586801f87c3716af0f7c836bdda80fef52e3d3c463636b14a1be9.
+Independent review 10 kernel/5 firmware/183B mode4 cmd. No device command
+in the artifact path and no boot/write this turn. Exact 0261 GCC approval
+still pending. Route image is offline only, not bound to a device backup.
+
 ### 2026-11-11 CST —0263 scanout route source/native qualified
 
 Source 7a58414f485d0745957505d4c88e949befeabda2, reader d00baab.

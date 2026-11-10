@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —239 full local native PASS; ONE unchanged237 task sampler LIVE
+
+PROGRESS; wholephone goal ACTIVE/incomplete. Critical239 source8cb296db422b120d34f61f147bf5bd60c856c664.
+DSHfull-build-stage-v1 PID31097 terminal0/174.973831s/247pins unchanged; fresh
+pristine1b191cb5+201patch replay5330files SHA60fd1db57a9c38e5bfa0fbfc153356ca3c722d2b456f9379f3eff6fecc10474f.
+ONLYSweetSurface.cpp differsvs238; onlyGPU+Surface vs219. AllmaterializedGPU/
+Surface/realhostVAreusechecksPASS. FourdependencyAPFSclonesONLY; freshobjects
+build239-task-surfaces/runs/gauguin.ndWla8. Oldreferencehashes+mtimespreserved.
+Fullgenericprovenance/symbol/archive/install/64bitcachechecks retained. Header
+warningsremain; nozero-warningclaim. Native mapPixelsInTask disassemblycontains
+conditional0x04001000 Unique+RO andcacheflags, mutablebranchzeroextraoptions.
+Kernel17329648B SHAa450339883f8d21bcbb991aac34e8ce37cafa3ac2cb2b32e31b3910e1aa5ac88,
+bannerDarwin22.6.0 TueNov10 21:13:18CST2026 xnu-18286f60fdee4ad7a7da650a2d8e3fb7.
+Full-kernel-review239-v1.json257pins SHAeae2bacd12ea9b3c640cc8dd86422aeff92b2c6c39e67c7801c4c5878f456bb3.
+
+DSHpackage-stage-v1 PID70643 terminal0/29pins. Image
+R239/shim/out/shim-p3-kernel-0239-installed237-task-unique-600-20261110.img20021248B
+SHA7357a0abf1894969d1b67b2000fcf2e1e928adb2583bf02bb9850cfea6b99956.
+EXACTsame607Bmode1/gmt1/600s/no-swipe/NVT/30Hzcopyargs, firmwarereservations,
+managedRAM/outershim/DTBgeometry as235/238. DSHready-stage-v1 PID70888 terminal0/
+279pins, read170373120B, devicewrites0/reboots0. Fresh22actualfiles samecurrent238,
+full1345762/52441/1437148Bprefixes, headere6ce285d4293c108a39a6df9a08808011b41f9e094d4b615d15f727e41f00223.
+ReaderEXACT32MiB-bound238copy; pilotonly5literalchanges(root/reader/hash/error/scope),
+normalizedguardbodybyteidentical. ActualinstalledpositivehostgatesstopBEFOREIO.
+PackageexpectedkernelSHA separatelypinned. Existing237consentCONSUMED, historical
+33writesusedONLYasinstalledrootproof, NEWuserdatawrites0. ProbeD1/build58a59434,
+frontend3c62/core8a/sampler218e unchanged. No newbackup/rootinstall/consentneeded.
+
+LIVE NOW ORIGINALtrial-stage-v1 dispatcherPID71658; originalprofileSHA
+d92636f19621372b5d7cc44a0a6b0da3fea6d945bc2257351f47b872750ef716,
+62pins afteraddingallactualbefore22capturedfiles+pure235functions/metadata.
+BootprofileSHA53d0af2a47b4694c67058ccdf120e7397a23de21444f7aa895a3a60f18055c7a.
+trial-v1/preflight.json observer-running. ActualfastbootSendingOKAY0.461s,
+BootingOKAY0.134s/total0.601s. ORIGINALtwojobs: ONEtemporaryboot/observer thenfull22
+capture+strictpost239. Observe780/timeout860, expectedautoTWRP~746s. Re-pollactual
+PID/result; neverrerunclaimedstage/observerduetoelapsedtime. No humanUI/reboot
+confirmationneeded. OnlyaskmanualTWRP/cableifgenuinelystuck.
+
+NEXT requireall5taskcasesinclRGBA16F/RGBA32FaftercallerVAunmap, originalsource/
+padding/tailguards,21nativejobs=16baseline+5task,16sampled/5unsampled,only5deliberate
+WRITErefusals, all20480task+4096FP16+20480CApixels, explicitcleanup/ownerreacquire,
+healthyfinite600s. IfFAIL preserveoriginalfailedreceipt/raws anddiagnoseactual
+fault. IfPASS qualifyonlyinputlifetime/permissioncontract; nextsharedCAoutput+
+desktopadmission/noCopyimageuploads/presentationperrenewedreview. Neverclaimroot
+probe provesdesktop/highrefresh/daily. RemainingRAM/storage/peripherals/poweropen.
+R239notesmayadvanceafterterminalbuild; frozenactualbuildHEADstill8cb296d. Main
+series219, critical236/238/239changesisolated. OriginalMAIN/R239mkadtdiffa74...kept.
+OuterDSH81201/14225/68277reaped0; trialouter84324maystillneedreap. NoCI/push.
+
 ### 2026-11-10 CST —renewed HakiOS audit; prioritize real Metal desktop;239 host PASS
 
 PROGRESS; wholephone goal ACTIVE/incomplete. User asked to recheck HakiOS success

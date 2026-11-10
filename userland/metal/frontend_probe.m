@@ -281,6 +281,25 @@ static void surfaces(id<MTLDevice> device, id<MTLCommandQueue> queue, uint32_t s
 #else
 #define GAUGUIN_HAS_CA_PROBE 0
 #endif
+#ifdef GAUGUIN_NATIVE_FP16_PROBE
+#include "native_fp16_tests.h"
+static void qualify_native_fp16(id<MTLDevice> device, id<MTLCommandQueue> queue, uint32_t seed)
+{
+    Class base = objc_getClass("_MTLDevice");
+    SEL capability = sel_registerName("supportsNativeHardwareFP16");
+    Method original = base ? class_getInstanceMethod(base, capability) : NULL;
+    check(original && !strcmp(method_getTypeEncoding(original), "B16@0:8"), "FP16-ABI", "actual20H392 capability ABI");
+    check(!((BOOL (*)(id, SEL))objc_msgSend)(device, capability), "FP16-ABI", "capability must start disabled");
+    uint64_t hash = native_fp16_pixels(device, queue, seed);
+    SEL activate = sel_registerName("gauguinEnableNativeFP16:hash:pixels:");
+    Method method = class_getInstanceMethod([device class], activate);
+    check(method && !strcmp(method_getTypeEncoding(method), "B40@0:8Q16Q24Q32"), "FP16-ABI", "scoped activation ABI");
+    check(((BOOL (*)(id, SEL, NSUInteger, uint64_t, NSUInteger))objc_msgSend)(device, activate, seed, hash, WORDS) &&
+          ((BOOL (*)(id, SEL))objc_msgSend)(device, capability), "FP16-capability", "activation after GPU readback");
+    check(![device supportsFamily:MTLGPUFamilyApple1], "FP16-capability", "public family advertisement unchanged");
+    printf("GAUGUIN FP16 activated=1 seed=%u hash=%016llx public_families=0 root_only=1 PASS\n", seed, (unsigned long long)hash);
+}
+#endif
 static void run(bool pipelines, bool ca)
 {
     uint32_t seed = (uint32_t)now_ns() ^ ((uint32_t)getpid() * 0x9e3779b9u);
@@ -308,6 +327,9 @@ static void run(bool pipelines, bool ca)
     memory("opened");
     if (ca) {
 #if GAUGUIN_HAS_CA_PROBE
+#ifdef GAUGUIN_NATIVE_FP16_PROBE
+        qualify_native_fp16(device, queue, seed);
+#endif
         ca_render_scenes(device, queue);
 #endif
     } else {
@@ -317,6 +339,9 @@ static void run(bool pipelines, bool ca)
 #endif
     }
     unsigned expected = ca ? 10 : (pipelines ? 93 : 83);
+#ifdef GAUGUIN_NATIVE_FP16_PROBE
+    if (ca) expected++; /* One separately recorded FP16 qualification job. */
+#endif
     check(submissions == expected && atomic_load(&callbacks) == expected, "final", "all GPU jobs and callbacks required");
     [queue release]; [device release]; [bundle release];
     }

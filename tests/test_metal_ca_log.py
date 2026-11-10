@@ -57,6 +57,18 @@ class Readbacks(unittest.TestCase):
         with self.assertRaises(ValueError):
             qualify_ca_log(good, P + 'FAIL stage=driver', BUILD)
 
+    def test_prelude_draws_are_separate_from_actual_CA_draws(self):
+        import re
+        text = re.sub(r'before=(\d+) after=(\d+) omitted=0',
+                      lambda m: f'before={int(m[1])+4} after={int(m[2])+4} omitted=0', fixture())
+        result = qualify_ca_log(text, '', BUILD, initial_draws=4)
+        self.assertEqual(result['accepted_CA_draws'], 5)
+        self.assertEqual(result['prelude_draws'], 4)
+        with self.assertRaises(ValueError):
+            qualify_ca_log(text, '', BUILD)
+        with self.assertRaises(ValueError):
+            qualify_ca_log(fixture(), '', BUILD, initial_draws=4)
+
 
 if __name__ == '__main__':
     unittest.main()

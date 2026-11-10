@@ -75,8 +75,9 @@ def qualify_pixels(text, prefix=PREFIX):
                 every_channel_independently_compared=True)
 
 
-def qualify_ca_log(stdout, stderr, build):
+def qualify_ca_log(stdout, stderr, build, initial_draws=0):
     require(re.fullmatch('[0-9a-f]{24}', build) is not None, 'invalid build identity')
+    require(isinstance(initial_draws, int) and 0 <= initial_draws <= 4, 'invalid prelude draw count')
     require('GAUGUIN METAL230 FAIL' not in stdout + stderr, 'probe failed')
     lines = stdout.splitlines()
     begin = PREFIX + f'begin build={build} delay=90 scope=root-offscreen-real-CARenderer-not-desktop'
@@ -93,7 +94,7 @@ def qualify_ca_log(stdout, stderr, build):
     require([name for name, _ in memories] == ['before-delay', 'opened', *SCENES, 'CA-scenes-completed', 'after-resource-release'], 'missing/reordered memory checkpoints')
     result = qualify_pixels(stdout)
     draws = []
-    previous = 0
+    previous = initial_draws
     for line in lines:
         if line.startswith(PREFIX + 'CA-draws '):
             match = re.fullmatch(re.escape(PREFIX) + r'CA-draws scene=([a-z-]+) before=(\d+) after=(\d+) omitted=0 PASS', line)
@@ -111,7 +112,7 @@ def qualify_ca_log(stdout, stderr, build):
     require(len(devices) == 1 and devices[0] is not None and
             devices[0][1] == matches[0][1] and 0 <= int(matches[0][1]) < 1 << 32,
             'device/result seed or cap mismatch')
-    result.update(build=build, accepted_CA_draws=previous, explicit_poison_readback_jobs=10,
+    result.update(build=build, accepted_CA_draws=previous-initial_draws, prelude_draws=initial_draws, explicit_poison_readback_jobs=10,
                   memory_checkpoints=memories, owner_release_qualified=True,
                   desktop_qualified=False, high_refresh_qualified=False, daily_use_qualified=False)
     return result

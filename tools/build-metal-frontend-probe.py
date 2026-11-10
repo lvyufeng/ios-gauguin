@@ -9,6 +9,7 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--frontend-receipt',type=Path,required=True)
     ap.add_argument('--shader-receipt',type=Path)
+    ap.add_argument('--fp16-receipt',type=Path,help='embed own native-half prelude before exact CA scenes')
     ap.add_argument('--ca-renderer',action='store_true',help='real offscreen CA scenes; requires an exact shader frontend')
     ap.add_argument('--out',type=Path,required=True)
     a=ap.parse_args();repo=Path(__file__).resolve().parents[1]
@@ -21,13 +22,26 @@ def main():
     helper=repo/'tools/build-hakios-metal.py'
     sdk=Path(subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip())
     pins={str(p):sha(p) for p in [Path(__file__).resolve(),source,source.parent/'probe_boot.h',header,helper,receipt,binary,sdk/'SDKSettings.json']}
-    shader=None;shader_args=[];ca_args=[]
+    shader=None;shader_args=[];ca_args=[];fp16=None;fp16_args=[];fp16_library=None
     if a.ca_renderer:
-        assert frontend.get('profile') in ('gauguin-ca-exact','gauguin-ca-trace','gauguin-ca-identity'), 'CA scenes need exact image-owned shader profile'
+        assert frontend.get('profile') in ('gauguin-ca-exact','gauguin-ca-trace','gauguin-ca-identity','gauguin-ca-fp16'), 'CA scenes need exact image-owned shader profile'
+        assert (frontend.get('profile')=='gauguin-ca-fp16')==bool(a.fp16_receipt), 'FP16 profile needs its own readback prelude'
         assert not a.shader_receipt, 'CA scenes are a separate real-framework qualification'
         for p in [source.parent/'ca_renderer_tests.h',sdk/'System/Library/Frameworks/QuartzCore.framework/Headers/CARenderer.h']:
             pins[str(p)]=sha(p)
         ca_args=['-DGAUGUIN_CA_RENDERER_PROBE=1','-framework','QuartzCore','-framework','CoreGraphics']
+    if a.fp16_receipt:
+        assert a.ca_renderer and not a.shader_receipt and frontend.get('profile')=='gauguin-ca-fp16'
+        fp16_receipt=a.fp16_receipt.resolve();fp16=json.loads(fp16_receipt.read_text())
+        assert fp16['state']=='generated-own-native-FP16-Metal2.4-library-not-runtime-qualified'
+        assert fp16['platform']=='ios' and fp16['inputs_unchanged']
+        for name,pin in fp16['input_pins'].items():assert sha(Path(name))==pin,name
+        fp16_library=Path(fp16['library']);assert sha(fp16_library)==fp16['library_sha256']
+        assert fp16_library.stat().st_size==fp16['library_bytes']<1048576
+        for p in [fp16_receipt,fp16_library,source.parent/'native_fp16_tests.h',header.parent/'GauguinFP16Proof.h']:
+            pins[str(p)]=sha(p)
+        fp16_args=['-DGAUGUIN_NATIVE_FP16_PROBE=1','-I'+str(a.out.resolve()),
+                   '-DGAUGUIN_NATIVE_FP16_LIBRARY_SHA256="'+fp16['library_sha256']+'"']
     if a.shader_receipt:
         shader_receipt=a.shader_receipt.resolve();shader=json.loads(shader_receipt.read_text())
         assert shader['state']=='generated-project-Metal2.4-iOS16-library-not-runtime-qualified' and shader['inputs_unchanged']
@@ -38,11 +52,17 @@ def main():
                      '-DGAUGUIN_METAL_SHADER_SHA256="'+shader['library_sha256']+'"']
     tag=hashlib.sha256(json.dumps(pins,sort_keys=True).encode()).hexdigest()[:24]
     out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);probe=out/'gauguin-metal-frontend-probe'
+    if fp16_library:
+        payload=fp16_library.read_bytes()
+        embedded=out/'gauguin_native_fp16_library.h'
+        embedded.write_text('/* Generated from project-owned Metal source. */\nstatic const unsigned char gauguin_native_fp16_library[] = {\n'+
+                            '\n'.join(','.join(str(v)for v in payload[i:i+24])+','for i in range(0,len(payload),24))+'\n};\n')
+        pins[str(embedded)]=sha(embedded)
     def run(argv,name):
         with (out/name).open('x') as f:subprocess.run(argv,stdout=f,stderr=subprocess.STDOUT,check=True)
     argv=['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0','-isysroot',str(sdk),
           '-std=gnu11','-O1','-Wall','-Wextra','-Werror','-fblocks','-fno-objc-arc',
-          '-DGAUGUIN_METAL_FRONTEND_BUILD="'+tag+'"',*shader_args,*ca_args,'-I'+str(header.parent),str(source),
+          '-DGAUGUIN_METAL_FRONTEND_BUILD="'+tag+'"',*shader_args,*ca_args,*fp16_args,'-I'+str(header.parent),str(source),
           '-framework','Foundation','-framework','Metal','-framework','IOKit','-framework','IOSurface',
           '-lobjc','-o',str(probe)]
     run(argv,'compile-link.log')
@@ -55,11 +75,12 @@ def main():
     result=dict(state='native-iOS16-CARenderer-layer-probe-not-device-qualified' if a.ca_renderer else ('native-iOS16-MTL-shader-probe-not-device-qualified' if shader else 'native-iOS16-MTL-object-probe-not-device-qualified'),probe=str(probe),
                 bytes=probe.stat().st_size,sha256=sha(probe),build=tag,platform_version=version,
                 frontend_sha256=frontend['sha256'],core_sha256=frontend['core_sha256'],
-                expected_jobs=10 if a.ca_renderer else (93 if shader else 83),expected_jobs_scope='explicit poison/readback jobs; framework jobs counted separately' if a.ca_renderer else 'all probe jobs',expected_base_pixel_checks=0 if a.ca_renderer else 339968,
+                expected_jobs=(11 if fp16 else 10) if a.ca_renderer else (93 if shader else 83),expected_jobs_scope='explicit FP16/poison/readback jobs; framework jobs counted separately' if fp16 else ('explicit poison/readback jobs; framework jobs counted separately' if a.ca_renderer else 'all probe jobs'),expected_base_pixel_checks=0 if a.ca_renderer else 339968,
                 expected_shader_pixel_checks=32768 if shader else 0,expected_compute_words=512 if shader else 0,
                 expected_half_pixels=4096 if shader else 0,abandoned_command_buffers=0 if a.ca_renderer else 80,
                 shader_library=shader,shader_pipeline_probe_enabled=bool(shader),
                 ca_renderer_probe_enabled=a.ca_renderer,expected_ca_scenes=5 if a.ca_renderer else 0,
+                native_fp16_probe_enabled=bool(fp16),fp16_library=fp16,expected_native_fp16_pixels=4096 if fp16 else 0,
                 expected_ca_pixel_checks=20480 if a.ca_renderer else 0,
                 shader_pipeline_qualification=False,device_discovery=False,UI_qualification=False,
                 input_pins=pins,inputs_unchanged=True,compiler_argv=argv,device_commands=0,installed=False)

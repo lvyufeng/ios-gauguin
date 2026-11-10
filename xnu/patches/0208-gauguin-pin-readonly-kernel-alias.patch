@@ -1,0 +1,15 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -375,6 +375,12 @@
+             m->complete();releaseAddress(address,mappingSize);return kIOReturnVMError;
+         }
+     }
++    /* Establish the immutable kernel alias while the caller's task VA is
++     * still valid. Cache maintenance must not create a new mapping after the
++     * caller unmaps/reuses that VA; the retained surface owns this RO alias. */
++    if(borrowed&&!s->kernelAddress()) {
++        m->complete();releaseAddress(address,mappingSize);return kIOReturnVMError;
++    }
+     /* A live/faulted DMA window retains BOTH the descriptor and its surface;
+      * dropping the original task's surface reference cannot recycle pixels. */
+     m->retain();if(s)s->retain();

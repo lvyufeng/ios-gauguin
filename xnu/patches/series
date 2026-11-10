@@ -200,3 +200,6 @@
 0203-gauguin-client-bo-capacity.patch
 0205-gauguin-iosurface-client-create.patch
 0206-gauguin-once-unlock-swipe.patch
+0207-gauguin-readonly-surface-gpu-import.patch
+0208-gauguin-pin-readonly-kernel-alias.patch
+0209-gauguin-independent-readonly-task-map.patch

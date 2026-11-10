@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —239 physical input lifetime PASS;240 shared CA output software ready
+
+PROGRESS; wholephone goal ACTIVE/incomplete. ORIGINAL239 trial-stage-v1 PID71658
+TERMINAL0, bothjobs0,62pins unchanged; observer0/autoTWRP746.564538s. Outer84324
+reaped0. Phone returnedTWRP andall22filescaptured. No manualconfirmationneeded.
+Sameinstalled237probeD1/build58a59434, frontend3c62/core8a/sampler218e, userdata
+writes0. Native239kernelA450/image7357 exactidentity. All5R8/RG8/BGRA8/RGBA16F/
+RGBA32F4096pixels each EXACT=20480/81920channels. Sourcewholeallocation/padding/
+tailhashes exact; first3fullguards exact, last2callerCFrelease+originalVAmunmap
+BEFOREdraw pass. All5GPURO/noCPUalias/CPUWRITE/GPUWRITEguards pass, only5intentional
+WRITEsubmitrefusals.21nativejobs=16baseline+5task,16sampled/5unsampledsuccesses;
+noexactlaterIBsequenceclaim. OriginalFP164096+5CA20480pixels exact,14CA/4FP16draws,
+finalresourcecleanup+GPUownerreacquisitionPASS, healthy598renewals/600s, nofault/
+BO/cleanup/compositor/poststopfailures. physical-review239.jsonerrorsEMPTY and
+inputROhardwareTRUE, generalMTLDevice/desktop/highrefresh/dailyFALSE.
+Codexacceptance239-v1.json101pins SHA
+ 068006a8331ce053f236c9f6e3df0dcbdc0297d186ae254420fc0673c429af00
+independentlyrehashesactualraws,seed432785877/allsourcehashes/nativecorrelation.
+Fullcurrentlogs1777006/60607/1443611B, prior1345762/52441/1437148Bprefixes intact.
+Currentheader855b320bdd636101694f060e4140f4eb0815e42387e67a3c4dae3d98d52a352c.
+Original237/238failuresretained. Kernelalias0208 fixedearlysubmit; independent
+ROtaskalias0209 fixedpostdrawCPUview, withsameprobe acrossall3trials.
+MAINnowcopiesEXACT9qualifiedsource/testfilesfromR239: patches0207/0208/0209,
+201series, GPUhostactualkernelAddress/scatter/lifetimecases, mapwrap/createfixture
+updatesandnewrealVMreusemodel. No othercodecopied. Actualnativebuildrevision
+still8cb296d/source60fd1d...; no claimMAINHEADwascompiled. Publicqualification
+report docs/gauguin-readonly-task-input-20261110.md. Originalmkadtdiffa74...kept.
+
+NEXT R240=research/tmp/gauguin-shared240-worktree-20261110, branch
+codex/gauguin-shared-ca-output-20261110,parent3b98580. W240=R240/research/tmp/dsh-shared-0240-ca-output.
+Newopt-in --shared-ca-output reusesca_render_scenes_into withdirectownedBGRA
+IOSurface64x64/pitch320/bytes20493, sameoriginalID/coreBO/writerights+CPUalias,
+NOshadow. Same5realCA scenes; aftereachactual64Bmarkerfillonsuppliedqueue, never
+copies/readstarget; compareBOTHoriginalIOSurfaceCPU/coreBOviews, fullrawrows,
+padding/tail/fullviewequality. Sharedprefixisolatesreceipts, originalFP16/CA/task
+readerspreserved. Explicit26CB/native36jobs=old21+5poison+5CA+5marker; laterjobs
+unsampled,noexactIBclaim. Globalcleanup/ownerreacquirestillmandatory. This is
+requiredforsharedoutput/presentation, NOT proofdesktopisMetal.
+DSHnative-stage-v1 PID74370 terminal0/3090pins, zero C/CPPcompilewarnings; candidate
+139280B SHAe80e6536250d51a295c345deb8b46e30c52cbc411ab1f4111cff8689e10c2d72,
+build66233fe792f20f63acf92928, native/signed/RPATHchecked. Reader-stage-v1PID75151
+terminal0:40960MODELEDviewpixels+30corruptcontrolsreject, NOTphoneevidence.
+ABI-stage-v1PID75434 terminal0:719importsresolvedagainstexactretained20H392cache,
+core/frontendinventoryunchanged, nonewweakmissing.16GiB235backupstreamhashedbyjob,
+notdispatcher-pinned; thisisOLDcacheproof, NOTfreshrootbackup. Software-review240-
+v1.json3116pins SHA3906c6177834cbc69ca422df7d45926ac2a6e5b2bcf6942341b5be4098e4b3d4.
+Outer50849/80142/13432reaped0; NO240workersLIVE. Source/nativecandidateNOTinstalled,
+no240backup/delta/writer/proposal/approval/bootpreparedyet. Existing237consent
+CONSUMED. Nextfreshfullcurrentbackup/capture+stageprobe-onlydelta/fs/scope/rollback
+checksandconcretereview BEFOREnewwritequestion. CanreuseEXACT239kernel/image with
+same600s/mode1/gmt1args; no newkernelneededfor240. Neverreuse237writeapproval.
+AftersharedoutputPASS, realbackboarddMetalpublication/admission/noCopyimageuploads/
+presentationownershipandtouch-to-paneltrace remainpriority, then60Hzandphysical
+90/120Hz. WholeRAM/storage/peripherals/power/dailyopen. NoCI/pushthismilestone.
+
 ### 2026-11-10 CST —239 full local native PASS; ONE unchanged237 task sampler LIVE
 
 PROGRESS; wholephone goal ACTIVE/incomplete. Critical239 source8cb296db422b120d34f61f147bf5bd60c856c664.

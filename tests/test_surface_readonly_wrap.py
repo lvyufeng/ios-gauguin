@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Execute production RO wrap, maps, lock traps and GPU-import rejection."""
+"""Execute production RO wrap/maps/lock traps and the selected GPU import gate."""
 import hashlib
 import os
 from pathlib import Path
@@ -33,10 +33,11 @@ static IOReturn sweet_surface_seed_out(SweetSurface *,void *,bool bump){
 }
 struct gpu_buffer {IOMemoryDescriptor *memory=nullptr;SweetSurface *surface=nullptr;uint32_t handle=0;};
 struct GauguinGPUUserClient {
+    bool fCompositor=false;
     gpu_buffer fBuffers[GGR_MAX_CLIENT_BUFFERS];
     IOReturn surface(struct ggr_surface *);
     IOReturn add(IOMemoryDescriptor *m,SweetSurface *s,uint64_t n,uint32_t flags,uint32_t *handle){
-        assert(m==s->memory&&n==s->allocSize&&!flags);++gpuAdds;*handle=77;return 0;
+        assert(m==s->memory&&n==s->allocSize&&flags==(s->readOnly?GGR_BO_READONLY:0));++gpuAdds;*handle=77;return 0;
     }
 };
 '''
@@ -51,9 +52,9 @@ CASES = r'''
     check(sweet_surface_wired==16384&&!std::memcmp(original,pixels,sizeof(pixels)));
     check(table->kernelAddress()==0x12340000&&lastCache==kIOMapReadOnly);
     auto *taskMap=table->mapPixelsInTask(42);
-    check(taskMap&&lastTask==42&&lastCache==(kIOMapAnywhere|kIOMapReadOnly));
+    check(taskMap&&lastTask==42&&lastCache==(kIOMapAnywhere|kIOMapReadOnly|kIOMapUnique));
     taskMap->release();taskMap=table->mapPixelsInTask(84);
-    check(taskMap&&lastTask==84&&lastCache==(kIOMapAnywhere|kIOMapReadOnly));taskMap->release();
+    check(taskMap&&lastTask==84&&lastCache==(kIOMapAnywhere|kIOMapReadOnly|kIOMapUnique));taskMap->release();
     void *id=reinterpret_cast<void *>(uintptr_t(table->id));
     void *ro=reinterpret_cast<void *>(uintptr_t(kIOSurfaceLockReadOnly));
     check(client.trapLock(id,nullptr,nullptr,nullptr,nullptr,nullptr)==kIOReturnNotWritable);
@@ -104,8 +105,15 @@ CASES = r'''
         s->allocSize=16384;s->pixelFormat=0x42475241;s->readOnly=kind!=0;
         check(sweet_surface_publish(s));s->release();
         struct ggr_surface request={};request.surface=table->id;
+        bool accepted=kind==0;
+#ifdef GAUGUIN_TASK_RO_IMPORT
+        accepted=kind==0||kind==2;
+#endif
+        check(gpu.surface(&request)==(accepted?kIOReturnSuccess:kIOReturnUnsupported));
+        check(gpuAdds==(accepted?1u:0u));
+        gpu.fCompositor=true;request.handle=0;
         check(gpu.surface(&request)==(kind==0?kIOReturnSuccess:kIOReturnUnsupported));
-        check(gpuAdds==(kind==0?1u:0u));clear();
+        gpu.fCompositor=false;clear();
     }
 '''
 
@@ -136,7 +144,7 @@ def main():
     kIOReturnVMError=static_cast<int>(0xe00002c8u),kIOReturnNoResources=static_cast<int>(0xe00002beu),
     kIOReturnNotWritable=static_cast<int>(0xe00002cfu),kIOReturnNotFound=static_cast<int>(0xe00002f0u),
     kIOReturnUnsupported=static_cast<int>(0xe00002c7u);''')
-    text = change(text, 'static bool failSurface,', '''constexpr unsigned kIODirectionOut=2,kIOMapReadOnly=0x1000,kIOMapAnywhere=0x2000,kIOSurfaceLockReadOnly=1;
+    text = change(text, 'static bool failSurface,', '''constexpr unsigned kIODirectionOut=2,kIOMapReadOnly=0x1000,kIOMapAnywhere=0x2000,kIOMapUnique=0x04000000,kIOSurfaceLockReadOnly=1;
 static bool readOnlyInput,failReadOnlyDescriptor,failReadOnlyPrepare;
 static IOReturn injectedPrepareError;
 static unsigned descriptorFlags[4],descriptorCount;
@@ -170,7 +178,7 @@ static bool failSurface,''')
     text = change(text, 'task_t fTask = 42;', '''task_t fTask=42;int *fLock=nullptr;void *fRefs=nullptr;
     IOReturn trapLock(void *,void *,void *,void *,void *,void *);
     IOReturn trapUnlock(void *,void *,void *,void *,void *,void *);''')
-    text = change(text, '@METHODS@', EXTRA + methods)
+    text = change(text, '@METHODS@', ('#define GAUGUIN_TASK_RO_IMPORT 1\n' if 'importedPhysicalPage' in gpu else '') + EXTRA + methods)
     text = change(text, 'failMap = false; check(!mapLocked);', '''failMap=false;check(!mapLocked);
         readOnlyInput=failReadOnlyDescriptor=failReadOnlyPrepare=failSeed=false;
         injectedPrepareError=0;descriptorCount=seedCalls=seedBumps=gpuAdds=0;''')

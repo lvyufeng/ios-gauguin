@@ -59,7 +59,7 @@ static void task_deallocate(task_t task) { assert(task == (void *)2 && mock_task
 enum {kIOReturnSuccess=0,kIOReturnBadArgument=1,kIOReturnNoResources=2,kIOReturnNoMemory=3,
     kIOReturnVMError=4,kIOReturnNotReady=5,kIOReturnNotFound=6,kIOReturnUnsupported=7,kIOReturnTimeout=8,
     kIOReturnNotPrivileged=9};
-enum {kIODirectionInOut=1,kIOMapWriteCombineCache=0x1000,kIOMemoryKernelUserShared=2,kIOMemoryMapperNone=0};
+enum {kIODirectionInOut=1,kIOMapWriteCombineCache=0x1000,kIOMapReadOnly=0x2000,kIOMemoryKernelUserShared=2,kIOMemoryMapperNone=0};
 static const char *kIOUserClientClassKey="IOUserClientClass";
 static const char *kIOClientPrivilegeAdministrator="administrator";
 static const bool kOSBooleanTrue=true;
@@ -79,7 +79,13 @@ struct OSObject {
     void retain(){++refs;}
     void release(){assert(refs);if(!--refs)free();}
 };
-struct IOMemoryMap : OSObject {};
+static unsigned live_maps,map_calls;
+struct IOMemoryMap : OSObject {
+    OSObject *memory;uintptr_t address;IOOptionBits options;
+    IOMemoryMap(OSObject *m,uintptr_t a,IOOptionBits o):memory(m),address(a),options(o){m->retain();++live_maps;}
+    uintptr_t getVirtualAddress(){return address;}
+    void free() override {memory->release();--live_maps;OSObject::free();}
+};
 struct IOService : OSObject {
     virtual bool start(IOService *){return true;}
     static IOService *getPlatform(){static IOService p;return &p;}
@@ -103,11 +109,14 @@ static unsigned lock_depth,heartbeat_calls;
 static IOLock *IOLockAlloc(){return new std::mutex;}
 static void IOLockLock(IOLock *m){m->lock();++lock_depth;}
 static void IOLockUnlock(IOLock *m){assert(lock_depth);--lock_depth;m->unlock();}
+static IOLock *sweet_surface_lock=IOLockAlloc();
 static unsigned allocations,frees,cache_calls,sync_calls,submit_calls;
 static uint64_t next_pa=0x90000000;
 struct IOMemoryDescriptor : OSObject {
     virtual uint64_t getPhysicalSegment(uint64_t,IOByteCount *,unsigned)=0;
+    virtual uint64_t getLength() const=0;
     virtual IOReturn prepare()=0;virtual void complete()=0;
+    virtual IOMemoryMap *map(IOOptionBits){return nullptr;}
 };
 static std::map<uint64_t,uint8_t *> physical_pages;
 struct IOBufferMemoryDescriptor : IOMemoryDescriptor {
@@ -123,6 +132,7 @@ struct IOBufferMemoryDescriptor : IOMemoryDescriptor {
         if(off>=size){*length=0;return 0;}
         *length=std::min(size-off,16384-off%16384);return base+(off/16384)*32768+off%16384;
     }
+    uint64_t getLength() const override{return size;}
     IOReturn prepare() override {++prepared;return 0;}
     void complete() override {assert(prepared);--prepared;}
     void *getBytesNoCopy(){return bytes;}
@@ -131,6 +141,40 @@ struct IOBufferMemoryDescriptor : IOMemoryDescriptor {
         for(uint64_t off=0;off<size;off+=4096)physical_pages.erase(base+(off/16384)*32768+off%16384);
         ::free(bytes);++frees;OSObject::free();
     }
+};
+/* Generic task-backed descriptor: deliberately NOT an IOBuffer subclass.
+ * Its logical span can begin/end inside physically scattered CPU pages. */
+struct TaskPixels : IOMemoryDescriptor {
+    IOBufferMemoryDescriptor *backing=nullptr;
+    uint64_t bias=0,size=0;
+    unsigned prepared=1;
+    bool badPrepare=false,shortSegment=false,invalidPhysical=false;
+    bool originalVAValid=true,badKernelMap=false;
+    static TaskPixels *make(uint64_t size,uint64_t bias) {
+        auto m=new TaskPixels;m->size=size;m->bias=bias;
+        m->backing=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,0,
+            (size+bias+PAGE_MASK)&~uint64_t(PAGE_MASK),PAGE_SIZE);
+        for(uint64_t i=0;i<size;i++)m->backing->bytes[bias+i]=uint8_t(i*17+3);
+        return m;
+    }
+    uint64_t getLength() const override{return size;}
+    uint64_t getPhysicalSegment(uint64_t off,IOByteCount *length,unsigned option) override {
+        if(off>=size){*length=0;return 0;}
+        uint64_t p=backing->getPhysicalSegment(bias+off,length,option);
+        *length=std::min(*length,size-off);
+        if(shortSegment)*length=0;
+        return invalidPhysical?UINT64_C(0x800000000000):p;
+    }
+    IOReturn prepare() override {if(badPrepare)return kIOReturnVMError;++prepared;return 0;}
+    void complete() override {assert(prepared);--prepared;}
+    IOMemoryMap *map(IOOptionBits options) override {
+        ++map_calls;assert(options&kIOMapReadOnly);
+        // Preparing/wiring keeps physical pages, but a NEW virtual alias must
+        // be established before the originating task VA is unmapped/reused.
+        if(!originalVAValid||badKernelMap)return nullptr;
+        return new IOMemoryMap(this,(uintptr_t)(backing->bytes+bias),options);
+    }
+    void free() override {assert(!prepared);backing->release();OSObject::free();}
 };
 extern "C" boolean_t pmap_valid_page(ppnum_t n)
 {
@@ -145,8 +189,8 @@ static int copyin(uint64_t p,void *out,size_t n){if(!p)return 1;memcpy(out,(cons
 
 OSDefineMetaClassAndStructors(SweetSurface,OSObject);
 static std::map<uint32_t,SweetSurface *> surface_table;
-void SweetSurface::free(){OSSafeReleaseNULL(memory);OSObject::free();}
-uintptr_t SweetSurface::kernelAddress(){return (uintptr_t)dynamic_cast<IOBufferMemoryDescriptor *>(memory)->getBytesNoCopy();}
+void SweetSurface::free(){OSSafeReleaseNULL(kernelMap);if(memoryPrepared)memory->complete();OSSafeReleaseNULL(memory);OSObject::free();}
+@SURFACE_KERNEL_ADDRESS@
 SweetSurface *sweet_surface_copy(uint32_t id)
 {auto i=surface_table.find(id);if(i==surface_table.end())return nullptr;i->second->retain();return i->second;}
 
@@ -293,6 +337,127 @@ int main(int argc,char **argv)
     struct ggr_submit_bo bos[]={{3,data,data_va},{1,commands,command_va}};
     struct ggr_submit_cmd cmd={1,1,0,sizeof(cmdwords),0,0,0};
     struct ggr_submit s={};s.flags=0x10;s.nr_bos=2;s.nr_cmds=1;s.bos=(uintptr_t)bos;s.cmds=(uintptr_t)&cmd;s.fence_fd=-1;
+    if(argc>1&&strcmp(argv[1],"readonly-unmap")==0) {
+        struct Layout {uint32_t bpe,bias,pitch,size;};
+        const Layout layouts[]={{1,64,128,8205},{2,4032,192,12301},{4,16448,320,20493},
+                                {8,0,576,36877},{16,8192,1088,69645}};
+        uint32_t id=950;
+        for(auto layout:layouts) {
+            auto image=new SweetSurface;CHECK(image->init());image->id=id++;
+            auto pixels=TaskPixels::make(layout.size,layout.bias);image->memory=pixels;
+            image->readOnly=image->memoryPrepared=true;image->allocSize=layout.size;
+            image->width=image->height=64;image->bytesPerElement=layout.bpe;image->bytesPerRow=layout.pitch;
+            surface_table[image->id]=image;ggr_surface input={};input.surface=image->id;
+            unsigned maps_before=map_calls;
+            CHECK(request(c,0x7e,&input)==0&&input.handle&&pixels->prepared==2);
+            uint64_t va=address(c,input.handle),start=va&~UINT64_C(4095);
+            uint64_t window=(layout.size+(va&4095)+4095)&~UINT64_C(4095);
+            // Drop caller/table references AND its task VA before FIRST DMA.
+            pixels->originalVAValid=false;surface_table.erase(image->id);image->release();
+            ggr_submit_bo three[]={{3,data,data_va},{1,commands,command_va},{1,input.handle,va}};
+            s.nr_bos=3;s.bos=(uintptr_t)three;s.fence=0;unsigned submissions=submit_calls;
+            IOReturn result=request(c,0x46,&s);
+            printf("early-unmap bpe=%u submit_result=%d kernel_map=%u\n",layout.bpe,result,image->kernelMap?1:0);fflush(stdout);
+            CHECK(result==0&&s.fence&&submit_calls==submissions+1);
+            CHECK(image->kernelMap&&(image->kernelMap->options&kIOMapReadOnly)&&map_calls==maps_before+1);
+            CHECK(image->gpuState==0&&live_maps==1&&pixels->prepared==2);
+            CHECK(*gpu_word(va)==*(uint32_t *)(pixels->backing->bytes+layout.bias));
+            unsigned freed=frees;ggr_close close={input.handle,0};CHECK(request(c,9,&close)==0&&frees==freed+1&&live_maps==0);
+            for(uint64_t off=0;off<window;off+=4096)CHECK(!*pte(start+off));
+        }
+        auto image=new SweetSurface;CHECK(image->init());image->id=999;
+        auto pixels=TaskPixels::make(36877,0);image->memory=pixels;
+        image->readOnly=image->memoryPrepared=true;image->allocSize=36877;
+        image->width=image->height=64;image->bytesPerElement=8;image->bytesPerRow=576;
+        pixels->badKernelMap=true;surface_table[999]=image;ggr_surface input={};input.surface=999;
+        unsigned synchronized=sync_calls,submitted=submit_calls;
+        CHECK(request(c,0x7e,&input)==kIOReturnVMError&&!input.handle);
+        CHECK(pixels->prepared==1&&pixels->refs==1&&!image->kernelMap&&live_maps==0);
+        CHECK(sync_calls==synchronized&&submit_calls==submitted&&hardware_ready);
+        surface_table.erase(999);image->release();
+        data_m->release();command_m->release();CHECK(c->clientClose()==0);c->release();
+        CHECK(!gOwner&&!live_maps&&!*pte(data_va)&&!*pte(command_va));
+        printf("PASS: %u real-driver early-task-VA-release/kernel-alias/failure-cleanup assertions; host only\n",checks);
+        return 0;
+    }
+    if(argc>1&&strcmp(argv[1],"readonly")==0) {
+        uint32_t id=200;
+        for(uint64_t bias: {UINT64_C(0),UINT64_C(64),UINT64_C(4032),UINT64_C(4096),UINT64_C(16320),UINT64_C(16448)})
+        for(uint64_t bytes: {UINT64_C(4),UINT64_C(63),UINT64_C(64),UINT64_C(4095),UINT64_C(4096),UINT64_C(4097),UINT64_C(16384),UINT64_C(32771)}) {
+            auto image=new SweetSurface;CHECK(image->init());image->id=id++;
+            auto pixels=TaskPixels::make(bytes,bias);image->memory=pixels;
+            image->readOnly=image->memoryPrepared=true;image->allocSize=(uint32_t)bytes;
+            image->width=image->height=1;image->bytesPerElement=4;image->bytesPerRow=64;
+            surface_table[image->id]=image;
+            ggr_surface input={};input.surface=image->id;input.handle=UINT32_MAX;
+            CHECK(request(c,0x7e,&input)==0&&input.handle==0&&pixels->prepared==1);
+            CHECK(request(c,0x7e,&input)==0&&input.handle&&pixels->prepared==2);
+            uint32_t handle=input.handle;uint64_t va=address(c,handle),start=va&~UINT64_C(4095);
+            uint64_t mapped_size=(bytes+(va&4095)+4095)&~UINT64_C(4095);
+            CHECK((va&4095)==(bias&4095)&&input.size==bytes);
+            for(uint64_t off=0;off<mapped_size;off+=4096)CHECK((*pte(start+off)&0x83)==0x83);
+            CHECK(*gpu_word(va)==*(uint32_t *)(pixels->backing->bytes+bias));
+            uint64_t tail=(bytes-4)&~UINT64_C(3);
+            CHECK(*gpu_word(va+tail)==*(uint32_t *)(pixels->backing->bytes+bias+tail));
+            IOOptionBits options=99;IOMemoryDescriptor *alias=nullptr;
+            CHECK(c->clientMemoryForType(handle,&options,&alias)==kIOReturnBadArgument&&!alias&&options==99);
+            ggr_info info={handle,5,0,0,0};CHECK(request(c,0x43,&info)==0&&(info.value&GGR_BO_READONLY));
+            ggr_cpu_prep prep={};prep.handle=handle;prep.op=2;prep.timeout={1,0};
+            CHECK(request(c,0x44,&prep)==kIOReturnBadArgument);
+            prep.op=1;CHECK(request(c,0x44,&prep)==0);
+            ggr_submit_bo three[]={{3,data,data_va},{1,commands,command_va},{3,handle,va}};
+            s.nr_bos=3;s.bos=(uintptr_t)three;s.fence=0;unsigned submissions=submit_calls;
+            CHECK(request(c,0x46,&s)==kIOReturnBadArgument&&submit_calls==submissions);
+            three[2].flags=1;CHECK(request(c,0x46,&s)==0&&s.fence&&submit_calls==submissions+1);
+            CHECK(image->gpuState==0);
+            // Drop the caller/table reference while the GPU BO still owns pixels.
+            surface_table.erase(image->id);image->release();
+            CHECK(*gpu_word(va)==*(uint32_t *)(pixels->backing->bytes+bias)&&pixels->prepared==2);
+            unsigned freed=frees;ggr_close close={handle,0};CHECK(request(c,9,&close)==0&&frees==freed+1);
+            for(uint64_t off=0;off<mapped_size;off+=4096)CHECK(!*pte(start+off));
+        }
+        // Invalid wiring, unsupported address alignment, mutable task backing,
+        // failed preparation and invalid geometry must not acquire a GPU handle.
+        for(unsigned bad=0;bad<8;bad++) {
+            auto image=new SweetSurface;CHECK(image->init());image->id=id++;
+            auto pixels=TaskPixels::make(16384,bad==0?16:64);image->memory=pixels;
+            image->readOnly=image->memoryPrepared=true;image->allocSize=16384;
+            image->width=image->height=1;image->bytesPerElement=4;image->bytesPerRow=64;
+            if(bad==1)pixels->shortSegment=true;
+            if(bad==2)pixels->invalidPhysical=true;
+            if(bad==3)pixels->badPrepare=true;
+            if(bad==4)image->readOnly=false;
+            if(bad==5)image->bytesPerElement=3;
+            if(bad==6)image->planeCount=2;
+            if(bad==7)image->allocSize+=4;
+            surface_table[image->id]=image;ggr_surface input={};input.surface=image->id;
+            CHECK(request(c,0x7e,&input)!=0&&!input.handle&&hardware_ready&&pixels->prepared==1);
+            surface_table.erase(image->id);image->release();
+        }
+        data_m->release();command_m->release();CHECK(c->clientClose()==0);c->release();
+        CHECK(!gOwner&&!*pte(data_va)&&!*pte(command_va));
+        printf("PASS: %u real-driver task-surface scatter/offset/RO/PTE/retain/cleanup assertions; host only\n",checks);
+        return 0;
+    }
+    if(argc>1&&strcmp(argv[1],"readonly-fault")==0) {
+        auto image=new SweetSurface;CHECK(image->init());image->id=900;
+        auto pixels=TaskPixels::make(20000,4032);image->memory=pixels;
+        image->readOnly=image->memoryPrepared=true;image->allocSize=20000;
+        image->width=image->height=1;image->bytesPerElement=4;image->bytesPerRow=64;
+        surface_table[900]=image;ggr_surface input={};input.surface=900;
+        CHECK(request(c,0x7e,&input)==0&&input.handle&&pixels->prepared==2);
+        uint64_t va=address(c,input.handle);
+        ggr_submit_bo three[]={{3,data,data_va},{1,commands,command_va},{1,input.handle,va}};
+        s.nr_bos=3;s.bos=(uintptr_t)three;s.fence=0;fail_submit=true;
+        CHECK(request(c,0x46,&s)==kIOReturnTimeout&&!hardware_ready&&image->gpuState==2);
+        surface_table.erase(900);image->release();
+        CHECK(!GauguinGPUSurfaceBegin(image));
+        data_m->release();command_m->release();unsigned freed=frees;
+        CHECK(c->clientClose()==0);c->release();
+        CHECK(frees==freed&&pixels->prepared==2&&(*pte(va)&0x83)==0x83);
+        printf("PASS: %u real-driver immutable task pixels retained after DMA fault; host only\n",checks);
+        return 0;
+    }
 #ifdef GAUGUIN_GPU_PILOT_HOST
     if (pilot) {
         for (uint32_t n = 1; n <= 6; n++) {

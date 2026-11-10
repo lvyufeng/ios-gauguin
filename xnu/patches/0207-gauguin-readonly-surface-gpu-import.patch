@@ -1,0 +1,196 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -178,8 +178,9 @@
+ struct gpu_buffer {
+     IOMemoryDescriptor *memory;
+     SweetSurface *surface;
+     uint64_t address,size;
++    uint64_t mappingAddress,mappingSize; /* page-aligned SMMU window, not logical pixel bounds */
+     uint32_t handle,flags;
+     bool installed;
+ };
+ /* Queue-local sequential fences map to the one synchronous hardware ring.
+@@ -316,54 +317,88 @@
+     gpu_queue *only=nullptr;
+     for(auto &q:fQueues)if(q.id){if(only)return nullptr;only=&q;}
+     return only?only:&fDefaultQueue;
+ }
++/* A prepared task descriptor may begin within a CPU/GPU page and end before
++ * its final page boundary. Wiring owns the containing VM pages. Only READ-only
++ * imports may use such a window; the returned BO address/size still name exactly
++ * the descriptor bytes. Validate every scatter segment before publishing PTEs. */
++static bool importedPhysicalPage(IOMemoryDescriptor *m,uint64_t size,uint64_t bias,
++    uint64_t leaf,uint64_t *pa)
++{
++    uint64_t offset=leaf?leaf-bias:0;
++    if(offset>=size)return false;
++    IOByteCount length=0;
++    uint64_t physical=m->getPhysicalSegment(offset,&length,kIOMemoryMapperNone);
++    uint64_t leading=leaf?0:bias;
++    uint64_t required=size-offset<4096-leading?size-offset:4096-leading;
++    uint64_t page=physical&~UINT64_C(4095);
++    if(!physical||(physical&4095)!=leading||length<required||
++       page>UINT64_C(0x0000000ffffff000)||
++       !pmap_valid_page((ppnum_t)(page>>PAGE_SHIFT)))return false;
++    *pa=page;return true;
++}
+ IOReturn GauguinGPUUserClient::add(IOMemoryDescriptor *m,SweetSurface *s,uint64_t size,uint32_t flags,uint32_t *handle)
+ {
+-    fAllocationStage=3; /* size/client-byte/handle limits */
+-    if(!size||(size&PAGE_MASK)||size>GGR_MAX_BO_BYTES||size>GGR_MAX_CLIENT_BYTES-fBytes||!fNextHandle)
++    const bool borrowed=s&&s->readOnly;
++    fAllocationStage=3; /* logical size/client-byte/handle limits */
++    if(!m||!size||(!borrowed&&(size&PAGE_MASK))||size>GGR_MAX_BO_BYTES||
++       size>GGR_MAX_CLIENT_BYTES-fBytes||!fNextHandle||m->getLength()<size)
+         return kIOReturnNoResources;
+-    fAllocationStage=4; /* buffer slot */
++    fAllocationStage=4;
+     gpu_buffer *slot=nullptr;
+     for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(!fBuffers[i].memory){slot=fBuffers+i;break;}
+     if(!slot)return kIOReturnNoResources;
+-    fAllocationStage=5; /* GPU VA reservation */
+-    uint64_t address=reserveAddress(size);
+-    if(!address)return kIOReturnNoResources;
+-    fAllocationStage=6; /* memory descriptor wiring */
+-    if(m->prepare()!=kIOReturnSuccess){releaseAddress(address,size);return kIOReturnVMError;}
+-    fAllocationStage=7; /* physical span and empty PTE validation */
+-    /* Complete validation before the first PTE store. No partial map on an
+-     * invalid physical segment. Each CPU 16KiB page contributes FOUR leaves. */
+-    for(uint64_t off=0;off<size;off+=4096) {
++    uint64_t bias=0,mappingSize=size;
++    if(borrowed) {
++        /* The immutable source was already wired by SweetSurface. Take our
++         * own balanced prepare reference before inspecting its physical span. */
++        if(!s->memoryPrepared||!(flags&GGR_BO_READONLY)||m->prepare()!=kIOReturnSuccess)
++            return kIOReturnVMError;
++        IOByteCount length=0;
++        uint64_t first=m->getPhysicalSegment(0,&length,kIOMemoryMapperNone);
++        /* A6xx linear texture bases require 64-byte alignment. Layouts the
++         * texture hardware cannot address need a named userspace row repack. */
++        if(!first||!length||(first&63)){m->complete();return kIOReturnUnsupported;}
++        bias=first&4095;
++        mappingSize=(size+bias+4095)&~UINT64_C(4095);
++        if(mappingSize>GGR_MAX_CLIENT_BYTES-fBytes){m->complete();return kIOReturnNoResources;}
++    }
++    fAllocationStage=5;
++    uint64_t address=reserveAddress(mappingSize);
++    if(!address){if(borrowed)m->complete();return kIOReturnNoResources;}
++    fAllocationStage=6;
++    if(!borrowed&&m->prepare()!=kIOReturnSuccess){releaseAddress(address,mappingSize);return kIOReturnVMError;}
++    fAllocationStage=7;
++    for(uint64_t off=0;off<mappingSize;off+=4096) {
+         uint64_t pa;
+-        if(!physicalPage(m,off,&pa)||*leafAt(address+off)) {
+-            m->complete();releaseAddress(address,size);return kIOReturnVMError;
+-        }
+-    }
++        if(!importedPhysicalPage(m,size,bias,off,&pa)||*leafAt(address+off)) {
++            m->complete();releaseAddress(address,mappingSize);return kIOReturnVMError;
++        }
++    }
++    /* A live/faulted DMA window retains BOTH the descriptor and its surface;
++     * dropping the original task's surface reference cannot recycle pixels. */
+     m->retain();if(s)s->retain();
+-    *slot={m,s,address,size,fNextHandle++,flags,true};fBytes+=size;
+-    fAllocationStage=8; /* final physical lookup before each PTE store */
+-    for(uint64_t off=0;off<size;off+=4096) {
++    *slot={m,s,address+bias,size,address,mappingSize,fNextHandle++,flags,true};fBytes+=mappingSize;
++    fAllocationStage=8;
++    for(uint64_t off=0;off<mappingSize;off+=4096) {
+         uint64_t pa=0;
+-        if(!physicalPage(m,off,&pa)){sweet_gpu_runtime_stop();return kIOReturnVMError;}
+-        /* Native NC/outer-shareable/user/AF/nG. GPU data and code buffers
+-         * share Linux-msm's mapping policy; AP RO is honored when requested. */
++        if(!importedPhysicalPage(m,size,bias,off,&pa)){sweet_gpu_runtime_stop();return kIOReturnVMError;}
+         *leafAt(address+off)=pa|UINT64_C(0xe43)|((flags&GGR_BO_READONLY)?0x80:0);
+     }
+-    memoryBarrier();
+-    fAllocationStage=9; /* runtime translation synchronization */
+-    if(!sweet_gpu_runtime_sync())return kIOReturnNotReady; /* retained */
++    memoryBarrier();fAllocationStage=9;
++    if(!sweet_gpu_runtime_sync())return kIOReturnNotReady; /* retained until reset */
+     *handle=slot->handle;fAllocationStage=0;return kIOReturnSuccess;
+ }
++
+ bool GauguinGPUUserClient::drop(gpu_buffer *b)
+ {
+     if(!b->memory)return true;
+     if(!sweet_gpu_runtime_ready())return false;
+-    for(uint64_t off=0;off<b->size;off+=4096)*leafAt(b->address+off)=0;
++    for(uint64_t off=0;off<b->mappingSize;off+=4096)*leafAt(b->mappingAddress+off)=0;
+     memoryBarrier();
+     if(!sweet_gpu_runtime_sync())return false;
+-    releaseAddress(b->address,b->size);fBytes-=b->size;
++    releaseAddress(b->mappingAddress,b->mappingSize);fBytes-=b->mappingSize;
+     b->memory->complete();b->memory->release();OSSafeReleaseNULL(b->surface);
+     bzero(b,sizeof(*b));return true;
+ }
+ IOReturn GauguinGPUUserClient::clientClose(void)
+@@ -399,9 +434,13 @@
+     uint64_t queued=mach_absolute_time();IOLockLock(gLock);
+     uint64_t profile=gapi_begin(0x100,queued,mach_absolute_time());
+     IOReturn r=kIOReturnBadArgument;
+     gpu_buffer *b=!fClosed&&gOwner==this?find(type):nullptr;
+-    if(b&&sweet_gpu_runtime_ready()) {
++    /* Core surface textures accept an absent CPU mapping. Immutable borrowed
++     * pixels stay accessible through their original read-only IOSurface, while
++     * generic texture replace/read calls fail rather than obtaining a writable
++     * alias through IOConnectMapMemory. Ordinary GPU-RO upload BOs are unchanged. */
++    if(b&&!(b->surface&&b->surface->readOnly)&&sweet_gpu_runtime_ready()) {
+         b->memory->retain();*memory=b->memory;*options=0;r=kIOReturnSuccess;
+     }
+     gapi_end(profile,r);IOLockUnlock(gLock);return r;
+ }
+@@ -411,12 +450,19 @@
+     SweetSurface *s=sweet_surface_copy(r->surface);
+     if(!s)return kIOReturnNotFound;
+     /* SweetSurface::memory ALREADY names pixels. Its state page is separate.
+      * Importing a MiniIOSurface-style PAGE_SIZE subrange here corrupts rows. */
+-    if(s->readOnly||!OSDynamicCast(IOBufferMemoryDescriptor,s->memory)||!s->allocSize||
+-       s->allocSize>GGR_MAX_BO_BYTES||(s->allocSize&PAGE_MASK)||s->offset>=s->allocSize||s->planeCount>1||
+-       !s->width||!s->height||s->bytesPerElement!=4||s->bytesPerRow<4ull*s->width||
+-       (uint64_t)s->offset+(uint64_t)(s->height-1)*s->bytesPerRow+4ull*s->width>s->allocSize) {
++    const bool owned=OSDynamicCast(IOBufferMemoryDescriptor,s->memory)!=nullptr;
++    const bool borrowed=!owned&&s->readOnly&&s->memoryPrepared&&!fCompositor;
++    /* Root qualification only for borrowed task pixels. Compositor admission
++     * stays unchanged until these mappings and ownership pass physical tests. */
++    if((!owned&&!borrowed)||(owned&&s->readOnly)||!s->allocSize||
++       s->allocSize>GGR_MAX_BO_BYTES||(!borrowed&&(s->allocSize&PAGE_MASK))||
++       s->offset>=s->allocSize||s->planeCount>1||!s->width||!s->height||
++       !s->bytesPerElement||s->bytesPerElement>16||(s->bytesPerElement&(s->bytesPerElement-1))||
++       s->bytesPerRow<(uint64_t)s->bytesPerElement*s->width||
++       (uint64_t)s->offset+(uint64_t)(s->height-1)*s->bytesPerRow+
++           (uint64_t)s->bytesPerElement*s->width>s->allocSize) {
+         s->release();return kIOReturnUnsupported;
+     }
+     r->size=s->allocSize;r->offset=s->offset;r->rowBytes=s->bytesPerRow;
+     r->width=s->width;r->height=s->height;r->pixelFormat=s->pixelFormat;r->planes=s->planeCount;
+@@ -425,9 +471,9 @@
+     else {
+         gpu_buffer *existing=nullptr;
+         for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].surface==s){existing=fBuffers+i;break;}
+         if(existing)r->handle=existing->handle;
+-        else ret=add(s->memory,s,s->allocSize,0,&r->handle);
++        else ret=add(s->memory,s,s->allocSize,borrowed?GGR_BO_READONLY:0,&r->handle);
+     }
+     s->release();return ret;
+ }
+ 
+@@ -541,12 +587,15 @@
+         else {result=kIOReturnUnsupported;break;}
+         result=kIOReturnSuccess;break;
+     }
+     case 0x09: {gpu_buffer *b=find(r.close.handle);if(b&&!r.close.pad)result=drop(b)?kIOReturnSuccess:kIOReturnNotReady;break;}
+-    case 0x44:
+-        if(find(r.prep.handle)&&!(r.prep.op&~7u)&&ggr_timeout_valid(&r.prep.timeout)) {
++    case 0x44: {
++        gpu_buffer *b=find(r.prep.handle);
++        if(b&&!(r.prep.op&~7u)&&ggr_timeout_valid(&r.prep.timeout)&&
++           !(b->surface&&b->surface->readOnly&&(r.prep.op&2u))) {
+             memoryBarrier();result=kIOReturnSuccess;
+         }break;
++    }
+     case 0x45:if(find(r.fini.handle)){memoryBarrier();result=kIOReturnSuccess;}break;
+     case 0x46:result=submit(&r.submit);break;
+     case 0x47:
+         if(r.wait.fence&&!r.wait.flags&&ggr_timeout_valid(&r.wait.timeout)) {

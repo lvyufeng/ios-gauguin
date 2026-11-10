@@ -20,7 +20,7 @@ constexpr IOReturn kIOReturnSuccess=0, KERN_PROTECTION_FAILURE=2,
     kIOReturnBadArgument=0x101, kIOReturnNoMemory=0x102, kIOReturnVMError=0x103,
     kIOReturnNoResources=0x104, kIOReturnUnsupported=0x105;
 constexpr unsigned kIODirectionInOut=3, kIODirectionOut=2, kIOMemoryThreadSafe=0x100000,
-    kIOMemoryKernelUserShared=0x200000, kIOMapAnywhere=0x2000, kIOMapReadOnly=0x1000,
+    kIOMemoryKernelUserShared=0x200000, kIOMapAnywhere=0x2000, kIOMapUnique=0x04000000, kIOMapReadOnly=0x1000,
     kIOMapDefaultCache=0, SWEET_SURFACE_ROW_ALIGN=64, SWEET_SURFACE_MAX_PLANES=20;
 constexpr uint32_t SWEET_SURFACE_RESULT_SIZE=0xa68, SWEET_SURFACE_MAX_DIM=16384,
     SWEET_SURFACE_MAX_ALLOC=256u<<20, SWEET_SURFACE_MAX_PROPS=64u<<10;

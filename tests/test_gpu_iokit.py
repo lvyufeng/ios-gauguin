@@ -6,11 +6,15 @@ R=Path(__file__).resolve().parent.parent
 C=Path(os.environ.get('GPU_USER_TREE') or os.environ.get('XNU_SOURCE') or R/'.deps-cache/p0-20261105/source179-codex')
 F=R/'tests/fixtures/gpu-user/iokit_host.cpp';D=C/'bsd/dev'
 S=C/'iokit/Kernel/arm/GauguinGPU.cpp';H=C/'iokit/Kernel/arm/SweetSurface.h'
-files=[Path(__file__),F,S,H,D/'gauguin_gpu_runtime.c',D/'gauguin_gpu_runtime.h']
+K=C/'iokit/Kernel/arm/SweetSurface.cpp'
+files=[Path(__file__),F,S,H,K,D/'gauguin_gpu_runtime.c',D/'gauguin_gpu_runtime.h']
 pins={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 def body(p):return re.sub(r'^#include .*\n','',p.read_text(),flags=re.M)
 fixture=F.read_text();assert fixture.count('@SOURCE@')==fixture.count('@SURFACE_HEADER@')==1
 fixture=fixture.replace('@SURFACE_HEADER@',body(H)).replace('@SOURCE@',body(S))
+method=re.findall(r'uintptr_t\nSweetSurface::kernelAddress\(\)\n\{[\s\S]*?\n\}',K.read_text())
+assert len(method)==1 and fixture.count('@SURFACE_KERNEL_ADDRESS@')==1
+fixture=fixture.replace('@SURFACE_KERNEL_ADDRESS@',method[0])
 pilot='sweet_eagl_gpu_pilot_caller' in S.read_text()
 fixture=fixture.replace('__asm__ volatile("dsb sy" ::: "memory")','__atomic_thread_fence(__ATOMIC_SEQ_CST)')
 with tempfile.TemporaryDirectory(prefix='gpu-iokit-') as tmp:
@@ -22,8 +26,13 @@ with tempfile.TemporaryDirectory(prefix='gpu-iokit-') as tmp:
     subprocess.run([str(tmp/'test'),'submit'],env=env,check=True)
     subprocess.run([str(tmp/'test'),'sync'],env=env,check=True)
     subprocess.run([str(tmp/'test'),'queues'],env=env,check=True)
+    if 'importedPhysicalPage' in S.read_text():
+        subprocess.run([str(tmp/'test'),'readonly'],env=env,check=True)
+        subprocess.run([str(tmp/'test'),'readonly-fault'],env=env,check=True)
     if os.environ.get('GPU_USER_REQUIRE_SLOTS') or 'GGR_MAX_CLIENT_BUFFERS' in (D/'gauguin_gpu_runtime.h').read_text():
         subprocess.run([str(tmp/'test'),'slots'],env=env,check=True)
     if pilot:
         subprocess.run([str(tmp/'test'),'pilot'],env=env,check=True)
+    if os.environ.get('GPU_USER_REQUIRE_LATE_MAP'):
+        subprocess.run([str(tmp/'test'),'readonly-unmap'],env=env,check=True)
 assert pins=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files},'inputs changed'

@@ -46,6 +46,9 @@ struct AppleCLCD {
 };
 @CONFIGURE@
 int main(int argc,char **){
+    (void)&sweet_present_clock_step;
+    (void)&sweet_present_clock_copied;
+    (void)&sweet_present_clock_next;
     if(argc==2){
         sweet_exec_loader_probe=1;sweet_eagl_inject_requested=2;sweet_metal_requested=2;
         AppleCLCD fb;fb.held();fb.configurePresentClock();

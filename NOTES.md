@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0230 full-readback source/Mac oracle/fresh ABI/backup PASS; local proposal2 running
+
+PROGRESS. FullgoalACTIVE/incomplete. No newuserdata approval or write/boot.
+Source51b826e inMAIN/230, fullpixelreview sourceMAIN6fb2377 /2309d20837.
+W230=research/tmp/gauguin-ca230-worktree-20261110/research/tmp/dsh-ca-0230-exact-renderer.
+5realCARenderer scenes nowlogALL81920BGRAchannels (syntheticpatterns only) before
+comparison, includingfailedscene data. Newtools/metal_ca_log.py independently
+compares everychannel/tolerance/hash andmemory/draw/owner/buildreceipts. DSHnative
+stagev3 has3actualjobsALL0: -Werrornativecompile/sign, MacAppleM5realGPU5scene
+rawreadbacks+independentCPUreview ALLzeroerror, and2reviewer unittestcases covering
+missing/duplicate/stale/corrupt/falsecompletion inputs. This is NOTiOS/A619 proof.
+
+FINALprobe-v3=114368B/SHA
+03a62089854098a9d5c6b80cd1d7104124a0516921f44395a8085d2436f26111,
+build15bd653b5a4a6653c835e2f2. frontend-v1 remains420240B/564f9bb8..., exactCA
+profile. Probe-v1/v2obsolete; doNOTuse oldnative stagepins (headerchanged later).
+Native-v3source/profilepinsunchanged. Host-oracle-v2=result expectedfiveframes,
+20480pixels andindependent81920channelproof. Headercompiledinfinalv3; doNOTedit
+livepinnedsource orrerunclaimedjobs. DSHnative-v399408/freshABI32231/oldproposal97766/
+proposal221875 launchhandlesallreaped0. Actualmetadata/native/oracle/freshABIworkers
+allterminal; onlylocalproposal2 wasobservedlivePID12120elapsed30s. Recheckactual
+PID/result before assumingstilllive. Originalbackup10102 nowterminal0.
+
+NEWcompletefreshbackup root-backup-v1/iosroot-before-metal230.hfsx,
+17179869184B/0444/SHA
+62f3c96c34fe2889acc03d81972fe78d674eaea45612f6263e35e9573a9d4988.
+Everyfreshdevicebyte read667.8822s,328different1MiBchunksofnewdistinctAPFSclone;
+fullhash matchesfreshstream. Sourcec41pre229backupunchangedbefore/after, oldbackups
+retained. Current22files/header2e1ab85c... checkedunchanged, fullold3logs89932/
+16292/1398371B retained. NewfreshABIstage-v1/abi-v3 resolvesALL678imports fromthis
+fresh62fbackup,0missingstrong/unexplainedweak;5disabledM2Vhooks. Finalcompiler
+uses2fewerObjCregister retain/releasethunks thanoldv2; thisisconcreteimportset.
+
+Proposal1terminal1 atoldexpected680importcount, BEFORECOWmount/phonewrite. Its
+inputs/result/source remainimmutable; already-generatedpaired-image230 isvalid
+andretained, neverrerun. Freshproposal2 usesstage_root230v2/delta230v2/preflight
+230v2/review230v2 andexact678 count. Stage-v1localCOW nowcomplete; newtargetsare
+existingprobe/frontendexecutable/resource seal/job/cache only,17othercaptured
+filesincludingfull3logs unchanged. Onlyonejobargumentchanges227->230 in531jobs;
+128hardpolicies/core/GLES/Mesa/BB preserved. prepare_delta230v2 runningwhenlast
+observed. Reusedactualqualified226image43c69019.../219kernel/NVT1/no-swipe/
+mode1gmt1/6GiB/30Hz/600s, no newkernelbuild/CI/push.
+
+NEXTfinish SAMEproposal2. Then materialize_trial230.py generatesconsent-first
+apply/trial/pilot/capture/startupguards pinnedtofinalexactplan and createsNO
+approval. Run315localcapture checks and5actualmissing-consententryguards before
+askingnewindividualwriteapproval. post230.py alreadyimplementscapture22/fullold
+prefixes FIRST; identity/600sservice/newCPUallpixels/actualCArealDraws/soleowner/
+min15nativejobs/cleanrelease/runtimeABI, unexpecteddriverrefusals andservice
+faults rejectqualification. AllfullgoalUI/icons/widgets/latency/effects/Metal
+publication/image3DIBO/RAM/storage/peripherals/highrefresh/dailyremainOPEN. DoNOT
+reuse22920502bf9 or227approval. Mainmkadtoriginala74a0418... preserved. Phone
+remainsTWRP, no humanUIpromptneeded foroffscreenfunctionaltrial. Respectunattended
+reboot policy; manualTWRP/cable onlyifgenuinelystuck.
+
 ### 2026-11-10 CST —0230 exact CA source/native/import/oracle gates PASS; fresh backup running
 
 PROGRESS: implemented next real CA gate, not another unchanged root93 loop.

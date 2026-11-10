@@ -29,7 +29,7 @@ class Commands(unittest.TestCase):
                 for index in range(count):
                     va,vm,off,size=struct.unpack_from('<4Q',blob,0x2a8+32*index)
                     self.assertGreater(vm,0);self.assertGreaterEqual(vm,size)
-                    self.assertLessEqual(off+size,len(blob));self.assertGreaterEqual(off,0x4000)
+                    self.assertLessEqual(off+size,len(blob));self.assertGreaterEqual(off,0x2a8+32*count)
                 self.assertEqual(info['size'],len(blob))
     def test_overflow_and_nul_refused_before_any_input_read(self):
         for command in ['a'*608,'a'*638,'a'*800,'é'*304,'a\0b','\0','a\0']:

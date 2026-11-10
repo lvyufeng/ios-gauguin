@@ -36,12 +36,28 @@ def main():
     env=dict(os.environ,SDKROOT_RESOLVED=ref['sdk']['path'],HOST_SDKROOT_RESOLVED=ref['host_sdk']['path'],
         SDKVERSION=ref['environment']['SDKVERSION'],PLATFORM='MacOSX')
     for key in ('MAKEFLAGS','MFLAGS','MAKELEVEL','MAKEOVERRIDES'):env.pop(key,None)
-    obj=build/'obj-gauguin-macos';records=[];protected={};recipes={}
+    obj=build/'obj-gauguin-macos';records=[];protected={};recipes={};overrides=[]
+    if args.full_candidate:
+        # Generated EXPORT_HDRS precedes raw source headers in real recipes.
+        # Shadow only changed, byte-preserving exports, inside this fresh out.
+        # A transformed export requires a fresh header-generation step instead.
+        for name,kind,pin in ref['source']['entries']:
+            if kind=='symlink' or not name.endswith('.h') or sha(candidate/name)==pin:continue
+            exported=obj/'EXPORT_HDRS'/name
+            if not exported.is_file():continue
+            assert exported.read_bytes()==(source/name).read_bytes(),('changed header export needs regeneration',name)
+            replacement=out/'candidate-export-headers'/name
+            replacement.parent.mkdir(parents=True,exist_ok=True);replacement.write_bytes((candidate/name).read_bytes())
+            protected[str(exported)]=(sha(exported),exported.stat().st_mtime_ns)
+            overrides.append({'source':name,'exported':str(exported),'replacement':str(replacement),
+                              'sha256':sha(replacement),'include':str(out/'candidate-export-headers'/Path(name).parts[0])})
     result={'state':'starting','reference_manifest':str(manifest_path),'reference_sha256':sha(manifest_path),
-        'header_config_inputs':checked,'input_pins':pins,'results':records,'hardware_qualified':False}
+        'header_config_inputs':checked,'input_pins':pins,'results':records,'hardware_qualified':False,
+        'candidate_export_overrides':overrides}
     def save():
         result['inputs_unchanged']=all(sha(Path(p))==pin for p,pin in pins.items())
         result['reference_files_unchanged']=all((sha(Path(p)),Path(p).stat().st_mtime_ns)==state for p,state in protected.items())
+        result['candidate_export_overrides_unchanged']=all(sha(Path(row['replacement']))==row['sha256'] for row in overrides)
         (out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     try:
         for number,name in enumerate(args.file):
@@ -79,6 +95,9 @@ def main():
             if args.full_candidate:
                 command=[word.replace(str(source)+'/',str(candidate)+'/') for word in command]
                 command=[str(candidate) if word==str(source) else word for word in command]
+                prefix=[]
+                for include in sorted({row['include']for row in overrides}):prefix+=['-I',include]
+                command[1:1]=prefix
                 assert all(str(source) not in word for word in command),'reference source escaped candidate include binding'
             for flag in ('-MF','-o','-MJ'):
                 while flag in command:
@@ -97,7 +116,7 @@ def main():
             header=struct.unpack('<8I',object_path.read_bytes()[:32]);assert header[:2]==(0xfeedfacf,0x100000c) and header[3]==1
             row.update(object=str(object_path),object_sha256=sha(object_path),object_bytes=object_path.stat().st_size)
         result['state']='passed-native-ARM64-selected-TUs';save()
-        assert result['inputs_unchanged'] and result['reference_files_unchanged']
+        assert result['inputs_unchanged'] and result['reference_files_unchanged'] and result['candidate_export_overrides_unchanged']
     except Exception as e:result.update(state='failed',error=repr(e));save();raise
     print(json.dumps({k:v for k,v in result.items() if k not in ('input_pins','results')},indent=2))
 if __name__=='__main__':main()

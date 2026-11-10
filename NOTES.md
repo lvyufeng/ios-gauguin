@@ -2,6 +2,21 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST — HakiOS fork review: hardware flip and app cadence
+
+Report docs/gauguin-hakios-display-forks-20261111.md. Main still 63fc2b4.
+Mayfly PR47/device de73cdb: hardware-latched double-buffer presentation,
+separate from the Mesa render path and panel mode. Flip log has one window
+with 589/589 acknowledgements; slower windows too. Gauguin software-held
+sources and timer are present, but no demonstrated hardware flip. Use the
+Gauguin video-mode route and prove second-buffer ownership and latch before
+reusing either buffer. Renoir #40 measured a 60 Hz app cap on a 90 Hz panel;
+#42 is unmerged and host-tested. Check the 20H392 CA heartbeat, app opt-in,
+display-link cadence and distinct visible frames separately. Four Mayfly
+blob IDs verified. No CI, new build, boot or device write. Keep exact 0240
+consent -> paired 0239 -> scoped desktop consent -> 0250 -> 0255; the 0261
+pre-mount probe has its own pending exact confirmation. Goal active.
+
 ### 2026-11-11 CST —0261 full pre-mount GCC trial ready; exact approval pending
 
 R261 same scan-log branch; pushed head4964df4b368a5df807ec5c3338fd354c39fcdf15.

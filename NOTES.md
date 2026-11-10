@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0263 XNU scanout route source/native pass, full build running
+
+Report docs/gauguin-xnu-scanout-route-20261111.md. R263 reuses R261
+worktree on codex/gauguin-scanout-route-20261111. Source/pushed head
+7a58414f485d0745957505d4c88e949befeabda2; receipt reader d00baab.
+Patch0219 SHA c1a97ce3938e97f2e3646cf257e5cad8ed8649b937851335202f54ad39211793.
+Default-off sweetscan=4 after measured INTF1 checks; four extra read-only
+pages, PE live framebuffer, three stable distinct scan frames, one source
+and one video CTL for INTF1, matching mixer and simple packed layout.
+Version2 4KiB pre-mount receipt for mode4; version1 for stages1–3.
+
+W263=R263/research/tmp/dsh-scanroute-0263. DSH PID68163 exit0 11.835s/21pins,
+six host groups (16 cadence/17 route scenarios), 3 native ARM64 TUs, source
+5339files/5 changed SHA 5c29e6c442eb1bcec973b3e8573a4ad0a9047a65fbb07f90fd8f12db4dcfe01f.
+PID69012 exit0 1.440s/9pins actual mock writer receipt + eight negatives.
+PID69413 exit0 0.993s/6pins offline scan2/3 pre-mount baselines from 0261;
+only selector and run-ID digits changed. Independent pins/MMIO disassembly
+verified. PID68484 exit0 26.292s/10pins 11 local groups and CI dispatch.
+All four DSH launchers reaped. CI42925740306 job130211633308 last observed
+in progress at the build step. Artifact stage prepared, launch only after
+terminal success; independent review afterward. No device command, boot
+or write. 0261 exact approval still pending, proposal rehashed. Physical
+order GCC -> DISP_CC -> INTF1 -> route, each write independently confirmed.
+Existing paired desktop order and 0240 consent still pending. Goal active.
+
 ### 2026-11-11 CST —0262 actual recovery plane and Lagoon scanout inventory
 
 Report docs/gauguin-scanout-inventory-20261111.md. DSH PID65438 exit0

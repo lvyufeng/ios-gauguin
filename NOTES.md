@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —242 pristine/native PASS; software clock only, no device action
+
+PROGRESS. Critical source9da060b890627b20fb28c05cd0a27f45633157c3 on
+codex/gauguin-present-cadence-20261110. R242/W242 as below. Native source203
+includes held0210 + new clock0211; MAIN still keeps physically qualified201.
+
+DSH full-build-stage-v1 PID38824 TERMINAL0/140.190629s, one job0, all256pins
+unchanged. Pristine1b191cb5+ALL203patches materializes5331files SHA
+ 02b6c9d6c6b75ea3f2b485f0521521bdb48a3c572c573904485412684843348e.
+Compared native241, ONLY SweetFramebuffer.cpp modified and SweetPresentClock.h
+added. GPU/Surface and all other files byte-identical. All six host checks also
+pass on the replayed source; clock7264 + lifetime3236 and DMA/VM regressions.
+Four dependency APFS clones only; fresh objects build242-present-clock/runs/
+gauguin.JIParn. Compile and qualifier exits BOTH0 in original stage, no retries.
+Kernel17330304B SHA
+ 095c27fb6b85f057a6bad3bd299eddb9004a55b95d18ca4053677afd18dc0264,
+bannerDarwin22.6.0 TueNov10 23:41:42CST2026 xnu-bbbe8b12a322425693e54628d2e11a57.
+Generic current/captured cleanHEAD/source/input snapshots, original MAIN edit,
+defined symbols, archive/install identity, native cache64 checks all retained.
+Four exact unique clock methods + five retained held-frame entries are defined
+__TEXT_EXEC,__text. Native headers were used for actual wakeAtTime/absolute
+ticks; no guessed counter frequency. Header warnings remain.
+
+Codex independently rehashed40/256 stage pins, entire5331-file source snapshot,
+native kernel and pending240 ready receipt; disassembled5 actual clock/timer
+functions. Arm passes absolute deadline in x1, tick division is64bit, config
+calls clock_interval_to_absolutetime_interval. Native review242-v1.json SHA
+ 6bcf56c4554004ddb43decac69d7fd4f4f3c684224b47933651bad3583c02972.
+Raw host receipt's inherited241 label stays verbatim, corrected scope is in
+this new review; six names/raw clock evidence identify actual242 execution.
+Outer84879/62655 reaped0, no workers live. About6GiB disk free after build;
+the build preflight reserved reference-size artifacts+512MiB+4GiB. Preserve
+backups/artifacts; do not start another full build without checking space.
+
+No242 image packaging or boot. Devicecommands0/writes0/reboots0. Current240
+ready8f19b3dd/plan9d943e79 unchanged; no actualapproval/apply/trial exists.
+MAIN mkadt originaldiffa74... unchanged. Automatic continuation is not consent;
+do not repeat the existing question or grow root logs with another boot now.
+After actual240 reply, its paired physical239 image must run first; only then
+test held/phase variants with unchanged userdata. Clock counters/virtual-time
+example do NOT qualify physical frame rate, desktop, high refresh or daily use.
+
+NEXT independent real-desktop Metal integration: inventory actual20H392 device
+discovery/capability/image-upload calls and ownership/completion requirements,
+then prepare a dedicated compositor profile. Existing offscreen profile,
+family0/root-only scope and compositor generic-RO gate remain unchanged. Do
+not enable deferred recording without producer completion/presentation handoff.
+Full RAM/storage/peripherals/power/90-120Hz/daily goal remains ACTIVE; noCI/push.
+
 ### 2026-11-10 CST —242 software cadence source/host PASS; native replay/build next
 
 PROGRESS. R242=research/tmp/gauguin-clock242-worktree-20261110, branch

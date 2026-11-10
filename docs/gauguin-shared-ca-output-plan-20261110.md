@@ -169,4 +169,24 @@ early/duplicate callbacks, rejection/fallback, counter saturation and 64-bit
 arithmetic against a bounded loop oracle. The held-frame and related DMA/VM
 regressions also pass. The raw dispatcher result retains an inherited 0241
 state label; its source pins, six named tests and clock log identify the actual
-0242 execution. Native compilation and all physical behavior remain unproven.
+0242 execution. Native compilation has subsequently passed; physical behavior
+remains unproven.
+
+Source commit `9da060b890627b20fb28c05cd0a27f45633157c3` replays all 203 patches
+from pristine XNU into 5,331 files, source SHA-256
+`02b6c9d6c6b75ea3f2b485f0521521bdb48a3c572c573904485412684843348e`.
+Relative to 0241, exactly the framebuffer source changes and the clock header
+is added. GPU and Surface sources match 0241. DSH dispatcher 38824 completes
+the replay, related host checks, fresh-object native compilation and all
+qualification in one successful stage (140.190629 seconds, 256 pins unchanged).
+The kernel is 17,330,304 bytes, SHA-256
+`095c27fb6b85f057a6bad3bd299eddb9004a55b95d18ca4053677afd18dc0264`.
+Generic provenance/symbol/archive/install/cache64 checks pass with the actual
+clean-checkout policy. Four clock entries and all five held-frame entries are
+defined in `__TEXT_EXEC,__text`. Five actual clock/callback functions are
+retained as disassembly; the deadline uses a 64-bit argument for the absolute
+timer and the tick arithmetic includes 64-bit division. Existing warnings
+remain. The native review receipt SHA-256 is
+`6bcf56c4554004ddb43decac69d7fd4f4f3c684224b47933651bad3583c02972`.
+This candidate has no boot image or physical trial. It does not change or
+consume the pending 0240 proposal or its write consent.

@@ -2,6 +2,63 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0226 approved48-run write PASS; actual temporary Metal-object trial LIVE
+
+Fresh user consent received: request_user_input_async call_dde7fef6b021486eb7afa1f57d4ff3a9 item0,
+"允许写入，并允许失败时回滚本次触及的块". This226 consent now CONSUMED;
+no new consent question pending. Full goal ACTIVE/incomplete. No further
+userdata rewrite or additional image boot authorized by this entry.
+
+Exact planb444f9803862e3c83896e2db0f43db41643bbf94f7f806a42b55bbf2ec819f0f:
+546blocks/2236416B/48runs. Fresh16GiBbackup8ca80ef36d4e6c70bc5ab45bb71371d4cb966dcdd2edd49e7aac6bca7d8f4279
+completed653.483s; DSH12989 backup-stage-v3 exit0/reaped, pins unchanged.
+DSH74961 ABI+package exit0/reaped: actualNEW20H392cache resolvesALL636 imports
+(core+currentfrontend+probe), zero strong/weak missing except5known disabled
+optionalM2V hooks. package226image43c69019ebc6a3a9935ae04e01bca01b1c039dd4ea24d1e07bc9ce36261d0b24,
+20021248B; EXACT219kernelbb7a369e.../banner836dfa8c...,NVT1/no swipe,6GiB,
+30Hz,mode1+gmt1 (607B command/fixed608),finite600s; no new kernel build/CI.
+DSH16780 proposal-stage-v1 exit0/reaped: localCOW/minimaldelta/fsckPASS,
+unchanged102writer checks,all48actualoldranges and independent FULLvolume
+changed-sector546 proof. Newfiles4(probe+bundle3files),dirs2,job/cacheargvonly.
+Original15retainedfiles incloldMetalcore/probe/GLES/Mesa/BB and all logbytes.
+DSH47027 capture-startup-stage-v1 exit0/reaped: actualbase/final21file model282
+assertions;5actualmissing-consent entrypoints/22checks,zeroPhoneIO. No approval
+created by tests. Evidence5tests included26negative mutations (earlier27typo).
+
+DSH28756 apply-stage-v1 TERMINALexit0/reaped,inputs unchanged. Actual approved
+48writes/48attempts,all48readback,header0LAST,no rollback. apply-v1 result
+applied-approved-delta-readback-verified,localfinald7194196...,reboot_permitted.
+Newactualinstalled21files allcontent/size/uid/gid/mode MATCH. CURRENT PREBOOT
+HEADER NOW fcdac6f0b587e24672101194caa23ff53e431b130d5abe618230c8aac167466d, NOT post22311f3ff23.
+Probe-v4 exact92768B/build91df333ca68caacdb7572a61/SHA61575876..., signed;
+frontend-v4 421888B/SHA8b3d6246..., exactA619core8a826583... retained.
+No runtime MTL-object/format/IOSurface result claimed yet; probe83jobs/339968
+words/80abandonedCBs+ownerreacquire,NO shader pipelines/discovery/MetalCA/UI.
+
+DSH26487 owns LIVE dispatch-stage-v1/trial-stage-v1. DO NOT restart.
+New trial226v2.py is original verifiedconsent-first trial226.py plus positive
+host gate check_pilot226.py before realpilot; originals preserved. Actual
+installed21 capture,then ALL realpositive hostgates pass using realapproval/
+readback/image/219proof. Intentional forbiddenRecoveryIO model stops BEFORE
+phoneIO; pilot-host-preflight-v1/result PASS. Fixed KERNEL_ROOT219 kept.
+Actual trial-v1/preflight.json observer-running,image_boot_attempted=true,
+misc_verified=true. SendingOKAY0.453s/BootingOKAY0.135s/total0.590s.
+780sobserver/860timeout; runtimecore600s,rootprobe90s delay. AwaitautomaticTWRP,
+then post226.py capturesALL21/fullprior71036/10411/1350137B prefixes FIRST and
+checks strictactualbanner,service,83pixelhashes,privateABI gate and ownerreturn.
+No automatic-vs-manual reboot confirmation under standing unattended policy.
+No user visual/touch qualification expected in this offscreen root-only trial.
+
+W226 research/tmp/dsh-metal-0226-ca-frontend inside isolated226worktree.
+NEXT: poll EXACTDSH26487 plus trial-v1/cycle.log and native observer. Preserve
+any original nonzero result; postcapture all21 even on failedcomponents. Do not
+rewriteuserdata,rerun claimedprofile,synthesize missinglogs or silently repair
+banner. Only askmanualTWRP if truly stuck. Update this activehandoff at result.
+Main source4a704b8/docs beforethisentry,isolatedcd9e9d2/docs; implementation
+MAINc9f973b andisolated96fffc0. Originalmainmkadt diff stilla74a0418... untouched.
+GoalUIhandoff/CAshaders/BGRA+sRGB+IOSurface/fullsafeRAM/storage/peripherals/
+90-120Hz/dailyremain open; this diagnostic proves none until actualreadbacks.
+
 ### 2026-11-10 CST —0226 diagnostic profile/probe compile PASS; read-only backup LIVE
 
 Full goal ACTIVE. Codex wrote critical frontend/probe; DSH did builds/tests.
@@ -28,7 +85,7 @@ ONE unsuppressed SDK deprecation warning for supportsFeatureSet; prior upstream
 heap/FPS initialization warnings fixed semantically. Five optional weakM2V
 imports still narrowly checked; no backend stubs or broad dynamic lookup.
 
-Current probe-v4 signed92560B? CHECK receipt exact bytes before reporting;
+Current probe-v4 signed92768B;
 SHA61575876cb0f2d0338338203100b9786ab3c3edc284e0efe77016408385be48e,
 build91df333ca68caacdb7572a61. DSH89068/probe-stage-v4 exit0/reaped; -Werror
 clean.83intended GPUjobs/339968words:RGBA/BGRA linear+sRGB red/half clears,
@@ -37,7 +94,7 @@ changingCPU->GPU copies; actual sole-owner reacquire/close after resource drain.
 No shader pipeline/library or discovery/presentation claim from this probe.
 Original probe-v1 compile failure(iOS umbrella header absent) retained; v2/v3
 successful historical products retained. Source fixed to IOSurfaceRef.h.
-DSH6839 evidence-stage-v1 exit0/reaped:5tests,27negative mutations, synthetic
+DSH6839 evidence-stage-v1 exit0/reaped:5tests,26negative mutations, synthetic
 fixtures explicitly NOT hardware evidence. New metal_frontend_log.py requires
 83pixel hashes,128MiBhard limits,ABI marker,owner return and native83completed
 jobs with no compositor competing; strict banner/full-prefix capture separate.

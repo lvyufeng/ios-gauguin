@@ -2,6 +2,75 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0227 public shader fixture/compiler PASS;93-job native probe compiled; fresh backup PASS
+
+Previous goalturn was PROGRESS:226realMTLobjects/format/IOSurface83jobs pass.
+This continuation PROGRESS: baseline-compatible loader implemented, realMetal
+compiler installed, generatedMSL compiledthroughA619backend and native93-job
+probe signed; NEW complete read-onlybackup passes. FullgoalACTIVE/incomplete.
+No newuserdata write or boot thisturn, no227consent question yet;226consumed.
+
+Active227worktree research/tmp/gauguin-metal227-worktree-20261110, branch
+codex/gauguin-metal-pipelines-20261110 basedMAIN72b380b. Source658c1fc exact
+mode2/noGMT fallback beforedelay/GPUopen -> retained qualifiedroot223probe,
+rootUID/GID0,mode0755,nlink1,size115728,O_NOFOLLOW and exact2e118d96...SHA.
+Mode1+gmt1 usesdiagnostic; duplicate/conflictingselectors rejected. DSH22603
+baseline-v1 29route/metadata checks pass but caught transcribedhash BEFORE
+nativebuild/phoneIO; originalheader retainedfailure-baseline-v1-inputs.
+Correctedfromactual226capture; DSH2455 baseline-stage-v2 exit0/reaped:29checks,
+retainedactualbinaryidentity andnative-Werrorbuild pass. NOT physicalfallback
+qualification. Newinstalledprobe notyetupdated; currentuserdata still226.
+
+DSH36939 toolchain-stage-v1 exit0/reaped: official xcodebuild-downloadComponent
+MetalToolchain succeeded687.9MB,17F109; actualmetal--version32023.883. No license
+acceptance. Apple docs downloading-and-installing-additional-xcode-components
+verifycanonicalCLI; installedOSassetoutsideGit. SDK26.5unchanged. No more
+placeholder assumption. Source2d6992e project-ownedMSL2.4/iOS16fixtures5functions
+(compute,vertex,color,uniform,texture). DSH23608 shader-compile-stage-v1 exit0/
+reaped: new16493B .metallib218e0c97825567d072886441603f7781fdbd800f53882382a4cd5ab8c8228837
+throughUNCHANGEDqualifiedA619AIR/NIR/IR3compiler underASAN/UBSAN,42checks,
+5functions and15programformatlinks. No GPU/publicMTLruntime/pixelclaim yet.
+
+Source1a9c082 adds optional--metal227 to existingprobe; --metal226 keeps83case
+mode,mode2fallbackrestoresroot223handoff.93jobs total:previous83+2compute,
+RGBA/BGRAtriangles,2updatedtextures,RGBAadditive,RGBA16Fpremultblend,andRGBA/
+BGRAsRGB shaderoutput.372736pixelchecks,512computewords,4096halfpixels,
+80abandonedCBs,7renderPSOs/8renderjobs,ownerreacquire. Same64MiBBO/256MiBclient,
+root128MiBhard,private12method/2ivar guard,sysmem,noUBWC,no publicfamilyclaims.
+DSH30372 native-stage-v1 exit0/reaped,-Werrorclean,signed113968B/SHA
+709757eb8da2ee596618341ff3b0a6e24f657b7d105d11f340015f67e8f5dc0c,
+buildff9231066d35062fa333c935. W227=research/tmp/dsh-metal-0227-public-pipelines.
+Compiler/source receipts pin actual16.0target andexactgeneratedlibrary. Current
+newtools/metal_shader_log.py andtests/test_metal_shader_log.py written but NOT
+YET RUN/committed: nextqualify real93-job receipt requirements/failuremutations.
+
+Source5a26185 adds stream_clone_backup helper:readsEVERYfreshdevicebyte but
+changes onlydifferentlocalclonechunks; no skipping device reads.3models pass
+(short/extra/geometry/partialwrite rejection). DSH49018 backup-stage-v1 now
+TERMINALexit0(poll/reap outerhandle next),pins unchanged. readcurrent21files +
+full17179869184B streamed651.4467s to distinctAPFSclone; SHA
+501bfa147bacf9b30c336cc3bfec5425dd52df53520cfea1dde8196598ee3b2b,
+303changed1MiBchunks,independentfullfinalhashmatchesfreshstream,original8ca80...
+sourcehashunchangedbefore/after; bothreadonly444. Allpriorbackupsintact.
+Currentheader0cd11387... unchanged,full21files including logs78368/11273/
+1356600B byteidentical. No phonewrite/reboot, no destructiveconsent pending.
+
+NEXT: runnewshaderreceiptmutationtests andactual20H392importaudit ofnewprobe
+against freshbackup501b. Reuse EXACTphysical226image43c69019... (mode1+gmt1,
+NVT1/6GiB/30Hz/600s) with appropriateartifactreceipt; no kernelbuild/repack
+needed. PrepareminimalCOWdelta replacingexistingfrontendprobe,adding16493B
+metallib at /usr/local/lib/gauguin/pipeline_fixture.metallib,updatingONLYrootjob/
+cacheargv--metal227. Core/frontendbundle/GLES/policies/oldroot223 unchanged.
+22expectedfilesafterwrite. Freshfsck/102writerchecks/allactualoldranges/full
+independentreview andindividualnewconsentBEFOREwrite. Qualify93shaderjobs
+thenmode2baselinehandoffcontrol usingretained223image346c7495... as needed;
+never treatheadlessoffscreenpass asUI/discovery/highrefresh/dailyqualification.
+
+AllApple artifacts/privatevolumesstayresearch/tmp; noCI/push. Mainoriginal
+mkadt diffa74a0418... untouched. MainNOTESonlyupdated;227implementationnot
+cherry-picked MAINyet. Kernel remains qualified219-equivalent. AllsafeRAM/
+storage/power/peripherals/90-120Hz/daily andredclock/UIdefects remain open.
+
 ### 2026-11-10 CST —0226 REAL MTL objects/formats/IOSurface PASS; phone back in TWRP
 
 PROGRESS: exact approved48-run write and ONE physical226 trial completed.

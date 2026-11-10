@@ -35,7 +35,7 @@ def main():
         old=module('old_handoff_packer',reference.parent.parent/'tools/mkpayload.py')
         assert old.build(k,a,'')[0]==plain and old.build(k,a,'',pas_reservation=True)[0]==no
         assert mkpayload.build(k,a,'',pas_reservation=True,handoff_fdt_capacity=0)[0]==no
-        for cap,pas in [(True,True),(-1,True),(1,True),(16383,True),(16385,True),(0x84000,True),(16384,False)]:
+        for cap,pas in [(True,True),(-1,True),(1,True),(16383,True),(16385,True),(0xc4000,True),(16384,False)]:
             try:mkpayload.build(out/'missing-kernel',out/'missing-adt','',pas_reservation=pas,handoff_fdt_capacity=cap)
             except ValueError:pass
             else:raise AssertionError('bad capacity accepted')
@@ -49,7 +49,7 @@ def main():
                             str(ROOT/'shim/pas_reservation.c'),'-o',str(exe)],env=env,check=True)
             executables[name]=exe
         cases=[]
-        for cap in [16384,262144,524288]:
+        for cap in [16384,262144,524288,786432]:
             blob,info=mkpayload.build(k,a,'handoff-test',pas_reservation=True,handoff_fdt_capacity=cap)
             assert info['handoff_fdt_request']['capacity']==cap
             dt=fdt.make_fdt(0x90000000,len(blob),fixed=[(0x88000000,0x100000)])

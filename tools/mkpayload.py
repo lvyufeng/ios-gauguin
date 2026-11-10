@@ -426,8 +426,8 @@ def build(kernel_path, adt_path, cmdline, ramdisk_path=None, nvt_firmware_path=N
     if type(handoff_fdt_capacity) is not int or handoff_fdt_capacity < 0:
         raise ValueError('invalid handoff FDT capacity')
     if handoff_fdt_capacity and (not pas_reservation or handoff_fdt_capacity < PAGE or
-                                handoff_fdt_capacity > 0x80000 or handoff_fdt_capacity % PAGE):
-        raise ValueError('handoff FDT requires PAS and 16 KiB..512 KiB page-aligned capacity')
+                                handoff_fdt_capacity > 0xc0000 or handoff_fdt_capacity % PAGE):
+        raise ValueError('handoff FDT requires PAS and 16 KiB..768 KiB page-aligned capacity')
     buf = bytearray(open(kernel_path, 'rb').read())
     executable = validate_asset_macho(buf) if nvt_firmware_path is not None or zap_mdt_path is not None or gmu_firmware_path is not None or sqe_firmware_path is not None or zap_code_path is not None or pas_reservation else None
     m = parse_macho(buf)

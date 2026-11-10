@@ -50,7 +50,7 @@ int pas_commit(uint8_t *copied_adt, size_t adt_bytes, const struct pas_plan *);
  * ownership. It does not interpret dynamic allocation ranges as placements,
  * admit RAM, change pmap ranges, map memory or access an MMIO device. */
 #define HANDOFF_FDT_HEADER 160u
-#define HANDOFF_FDT_MAX_CAPACITY (512u * 1024u)
+#define HANDOFF_FDT_MAX_CAPACITY (768u * 1024u)
 struct pas_handoff_plan {
     struct pas_plan owner;
     uint32_t name_offset, value_offset, capacity;

@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —243 actual-system desktop integration audit; no phone changes
+
+PROGRESS. User requested another HakiOS success-case review. GitHub main is
+still63fc2b4633bac3af8e57dadab9f5a8d4cb940438. Report:
+docs/gauguin-hakios-integration-audit-20261111.md. W243=
+research/tmp/dsh-desktop-0243-contracts; no new driver/worktree this milestone.
+
+New actual20H392 static evidence from the verified240 16GiB backup: Metal
+function0x181a3c7c8 reads MetalPluginName/ClassName, constructs
+/System/Library/Extensions/<name>.bundle, then loads its class. Fresh upstream
+build.sh/plist confirm HakiOS installs the corresponding system bundle link.
+Our private diagnostic bundle/root-only admission is not desktop discovery.
+MTLAddDevice invokes protocol/limits/feature initialization; actual MPS queries
+supportsFamily incl1008/1002. Current all-NO diagnostic needs a separately
+qualified compositor profile; do not blindly advertise another GPU's families.
+Actual QC calls textureNoCopy at0x188483ffc and bufferNoCopy at0x18848438c,
+the latter followed by newLinearTextureWithDescriptor. Existing synthetic CA
+scenes and239 task imports do not cover these calls or prove old EAGL icon cause.
+
+First inventory PID77582 exit1 (VM starts variable overwritten) retained;
+corrected DSH v2 PID77811 exit0/9.996286s/12pins. Follow-up contract v3 PID78843
+exit0/10.243245s/15pins. Codex rehashed inputs/logs and inspected disassembly.
+Fresh build/plist/measurement Git blobs verified. review243-v1 SHA
+ d3b11c2bd3afaabeec1cd6dcb58dc94b40775e758ed9fe3ba4590cde5b20225a.
+Outer52312/89323/54710 reaped0; no running jobs. Static evidence only.
+
+Additional overlooked reference: physical scan/tear avoidance is separate from
+software phase clock. Author also reports107-114fps Settings on default EAGL,
+with different kernel/core conditions (not a controlled Metal comparison).
+Thus API replacement alone cannot explain or qualify latency. Preserve own
+panel timing, actual requested animation rate, cache, producer completion and
+prompt retirement as acceptance criteria. 241/242 remain source/native only.
+
+No device commands/writes/reboots/CI/push. MAIN mkadt diffa74... preserved.
+Pending240 real approval/apply/trial still absent; do not repeat its question,
+boot any image or stale its delta. NEXT remains genuine240 reply -> exact239
+paired trial ->241/242 qualification; independent compositor profile work must
+cover discovery/capabilities/cache/ownership/upload/output together. Full
+GPU/RAM/storage/peripherals/physical90/120Hz/daily-use goal remains ACTIVE.
+
 ### 2026-11-10 CST —242 software phase clock SOURCE/NATIVE PASS; pending240 preserved
 
 PROGRESS. R242=research/tmp/gauguin-clock242-worktree-20261110, branch

@@ -1,5 +1,12 @@
 # HakiOS recheck after the 0238 task-surface trial
 
+The [2026-11-11 actual-system follow-up](gauguin-hakios-integration-audit-20261111.md)
+confirms the plugin filesystem path and both NoCopy upload calls in 20H392,
+and adds scan/tear timing and the differently configured EAGL performance
+reference. Held 0241 and phase 0242 now pass source/native checks but have not
+run on the phone. The raw-ID/timer descriptions below refer to the physically
+qualified 0239 baseline, rather than those unbooted candidates.
+
 ## Follow-up after actual 0239, before the 0240 installation
 
 Re-fetched GitHub main and nine files on 2026-11-10 in response to the user's

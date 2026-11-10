@@ -211,3 +211,4 @@
 0215-gauguin-desktop-present-policy.patch
 0216-gauguin-bounded-ui-trace.patch
 0217-gauguin-inherited-scan-timing.patch
+0218-gauguin-pre-mount-scan-log.patch

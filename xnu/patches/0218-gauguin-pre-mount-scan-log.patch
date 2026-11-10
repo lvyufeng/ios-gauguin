@@ -1,0 +1,242 @@
+diff --git a/bsd/dev/gauguin_scan_board.c b/bsd/dev/gauguin_scan_board.c
+index 81d132ac53b9e140338028d757323c1f2cf1971f..42405a37125e6f8854c59024b4fb78924771402c 100644
+--- a/bsd/dev/gauguin_scan_board.c
++++ b/bsd/dev/gauguin_scan_board.c
+@@ -23,6 +23,17 @@ static const vm_offset_t pages[GSCAN_REGION_COUNT] = {
+     [GSCAN_INTF] = 0x0ae68000,
+ };
+ 
++static unsigned scan_finished;
++static struct gscan_result scan_result;
++
++bool sweet_scan_timing_snapshot(struct gscan_result *out)
++{
++    if (!__atomic_load_n(&scan_finished, __ATOMIC_ACQUIRE))
++        return false;
++    *out = scan_result;
++    return true;
++}
++
+ struct scan_board {
+     vm_offset_t mapped[GSCAN_REGION_COUNT];
+ };
+@@ -89,6 +100,8 @@ static void scan_worker(void *argument, wait_result_t wait)
+         r.attempts, r.samples, r.crossed, r.first_frame, r.last_frame, r.first_line,
+         r.last_line, r.frames, (unsigned long long)r.start_ns, (unsigned long long)r.end_ns,
+         r.millihz, r.nominal_hz);
++    scan_result = r;
++    __atomic_store_n(&scan_finished, 1, __ATOMIC_RELEASE);
+     thread_terminate_self();
+ }
+ 
+diff --git a/bsd/dev/gauguin_scan_log_guard.h b/bsd/dev/gauguin_scan_log_guard.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..e09e7873365b0c18cd246379dc763794e28c748f
+--- /dev/null
++++ b/bsd/dev/gauguin_scan_log_guard.h
+@@ -0,0 +1,38 @@
++#ifndef GAUGUIN_SCAN_LOG_GUARD_H
++#define GAUGUIN_SCAN_LOG_GUARD_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++/* Gauguin userdata layout confirmed in recovery. All units are 4096 bytes. */
++#define GSCAN_LOG_FIRST UINT64_C(2887680)
++#define GSCAN_LOG_PART_BLOCKS UINT64_C(28056571)
++#define GSCAN_LOG_RESERVED UINT64_C(1089)
++#define GSCAN_LOG_BLOCKS UINT64_C(1025)
++
++static inline bool
++gscan_log_profile(unsigned requested, unsigned scan, unsigned ufs_write,
++                  unsigned root_write, uint32_t run_id)
++{
++    return requested == 1 && scan >= 1 && scan <= 3 &&
++           ufs_write == 0 && root_write == 0 && run_id != 0;
++}
++
++static inline bool
++gscan_log_geometry(uint64_t first, uint64_t physical, uint64_t exposed)
++{
++    return first == GSCAN_LOG_FIRST && physical == GSCAN_LOG_PART_BLOCKS &&
++           exposed == GSCAN_LOG_PART_BLOCKS - GSCAN_LOG_RESERVED;
++}
++
++/* The last existing mark slot, directly before the ordinary ring header. */
++static inline bool
++gscan_log_record_lba(uint64_t first, uint64_t physical, uint64_t exposed, uint64_t *lba)
++{
++    if (!gscan_log_geometry(first, physical, exposed))
++        return false;
++    *lba = first + physical - GSCAN_LOG_BLOCKS - 1;
++    return true;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_scan_timing.h b/bsd/dev/gauguin_scan_timing.h
+index 2b3e2da82e6116a8f1f38cbcd899f94b723a4e94..64ef5a4f4d45e736a84edf9fa8bb1feb0d461141 100644
+--- a/bsd/dev/gauguin_scan_timing.h
++++ b/bsd/dev/gauguin_scan_timing.h
+@@ -32,5 +32,6 @@ struct gscan_result {
+ 
+ void gauguin_scan_run(unsigned mode, const struct gscan_ops *, struct gscan_result *);
+ void sweet_scan_timing_init(void);
++bool sweet_scan_timing_snapshot(struct gscan_result *);
+ 
+ #endif
+diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
+index 9820fe564c4341de9f5978b12d31aeb55f61a395..d9649f4feed0cb478832eeec291dc792bdca9e62 100644
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -35,6 +35,9 @@
+ #include "sweet_init_watchdog.h"
+ #if defined(GAUGUIN)
+ #include "gauguin_ui_trace.h"
++#include "gauguin_scan_timing.h"
++#include "gauguin_scan_log_guard.h"
++#include <IOKit/IOLib.h>
+ #endif
+ #include <kern/locks.h>
+ #include <kern/clock.h>
+@@ -885,7 +888,7 @@ sweet_stage_panic(uint32_t code, uint32_t arg, uint64_t thread_id,
+ }
+ 
+ static int
+-sweet_ufs_init(void)
++sweet_ufs_init(bool scan_log)
+ {
+ 	if (!ufs_dma_available()) {
+ 		return EIO;
+@@ -905,6 +908,8 @@ sweet_ufs_init(void)
+ 	PE_parse_boot_argn("ufsroot", want, sizeof(want));
+ 	uint32_t rw = 0;
+ 	PE_parse_boot_argn("ufsrw", &rw, sizeof(rw));
++	if (scan_log && (rw != 0 || strcmp(want, "userdata") != 0 || su.ready || su.dma))
++		return EPERM;
+ 	uint32_t cache = 0, wait = 0;
+ 	PE_parse_boot_argn("ufscache", &cache, sizeof(cache));
+ 	PE_parse_boot_argn("ufswait", &wait, sizeof(wait));
+@@ -953,6 +958,11 @@ sweet_ufs_init(void)
+ 		return error;
+ 	}
+ 
++	/* Diagnostic caller has no block/character device and no ordinary
++	 * log, panic, touch or userland start. It owns one reserved mark slot. */
++	if (scan_log)
++		return 0;
++
+ 	su.bmajor = bdevsw_add(-1, &sweet_ufs_bdevsw);
+ 	if (su.bmajor < 0) {
+ 		return ENXIO;
+@@ -1745,6 +1755,87 @@ sweet_log_start(void)
+ 	sweet_proc_watch_start();
+ }
+ 
++#if defined(GAUGUIN)
++static int
++sweet_scan_log_record(uint32_t run, unsigned mode, bool done, const struct gscan_result *r)
++{
++	_Static_assert(SWEET_LOG_BLOCKS == GSCAN_LOG_BLOCKS, "scan log ring size");
++	_Static_assert(UFS_RESERVED_TAIL_BLOCKS == GSCAN_LOG_RESERVED, "scan log tail size");
++	uint64_t lba;
++	if (!run || mode < 1 || mode > 3 || su.ready || su.writable || !su.dma ||
++	    !gscan_log_record_lba(su.first_block, su.nblocks, su.fs_nblocks, &lba))
++		return EPERM;
++
++	uint8_t *block = (uint8_t *)(su.dma + DMA_MARK);
++	lck_mtx_lock(&sweet_dma_owner_lock);
++	if (!ufs_dma_available()) {
++		lck_mtx_unlock(&sweet_dma_owner_lock);
++		return EIO;
++	}
++	bzero(block, UFS_BLOCK);
++	int len = snprintf((char *)block, UFS_BLOCK,
++	    "GAUGUIN_SCAN1 run=%u mode=%u done=%u status=%u stage=%u\n"
++	    "gcc=%08x/%08x/%08x disp=%08x/%08x/%08x/%08x timing=%08x count=%08x\n"
++	    "attempts=%u samples=%u crossed=%u frame=%u/%u line=%u/%u advances=%u "
++	    "start_ns=%llu end_ns=%llu millihz=%u nominal=%u\nEND_GAUGUIN_SCAN1 run=%u\n",
++	    run, mode, (unsigned)done, r->status, r->stage, r->gcc[0], r->gcc[1], r->gcc[2],
++	    r->disp[0], r->disp[1], r->disp[2], r->disp[3], r->timing_enable, r->counter_enable,
++	    r->attempts, r->samples, r->crossed, r->first_frame, r->last_frame, r->first_line,
++	    r->last_line, r->frames, (unsigned long long)r->start_ns,
++	    (unsigned long long)r->end_ns, r->millihz, r->nominal_hz, run);
++	if (len <= 0 || (unsigned)len >= UFS_BLOCK) {
++		lck_mtx_unlock(&sweet_dma_owner_lock);
++		return EINVAL;
++	}
++	uint8_t cdb[10] = {
++		0x2a, 0, (uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8),
++		(uint8_t)lba, 0, 0, 1, 0
++	};
++	clean_dcache64((addr64_t)(su.dma_pa + DMA_MARK), UFS_BLOCK, TRUE);
++	int error = ufs_scsi_slot(cdb, sizeof(cdb), UFS_BLOCK, true,
++	    su.dma_pa + DMA_MARK, UFS_SLOT_MARK);
++	if (!error)
++		error = sweet_log_sync_cache();
++	lck_mtx_unlock(&sweet_dma_owner_lock);
++	return error;
++}
++
++void sweet_scan_log_diagnostic(void);
++
++void
++sweet_scan_log_diagnostic(void)
++{
++	uint32_t requested = 0;
++	if (!PE_parse_boot_argn("sweetscanlog", &requested, sizeof(requested)) || !requested)
++		return;
++
++	uint32_t scan = 0, ufs_write = 0, root_write = 0, run = 0;
++	PE_parse_boot_argn("sweetscan", &scan, sizeof(scan));
++	PE_parse_boot_argn("ufsrw", &ufs_write, sizeof(ufs_write));
++	PE_parse_boot_argn("rootrw", &root_write, sizeof(root_write));
++	PE_parse_boot_argn("sweetscanid", &run, sizeof(run));
++	if (gscan_log_profile(requested, scan, ufs_write, root_write, run)) {
++		int result = sweet_ufs_init(true);
++		if (!result) {
++			struct gscan_result snapshot = {0};
++			bool done = false;
++			for (unsigned i = 0; i < 80 && !(done = sweet_scan_timing_snapshot(&snapshot)); ++i)
++				IOSleep(25);
++			if (!done)
++				done = sweet_scan_timing_snapshot(&snapshot);
++			result = sweet_scan_log_record(run, scan, done, &snapshot);
++		}
++		printf("SWEET SCANLOG: run=%u rc=%d before root mount\n", run, result);
++	} else {
++		printf("SWEET SCANLOG: conflicting boot profile; no disk access\n");
++	}
++
++	/* An opted-in diagnostic never falls through to mounting the root. */
++	(void)reboot_kernel(RB_AUTOBOOT | RB_QUICK | RB_NOSYNC, NULL);
++	panic("SWEET SCANLOG: platform restart returned");
++}
++#endif
++
+ /* Root device for rd=ufsroot0 (IOFindBSDRoot). */
+ int sweet_ufs_rootdev(dev_t *dev);
+ 
+@@ -1753,7 +1844,7 @@ sweet_ufs_rootdev(dev_t *dev)
+ {
+ 	printf("SWEET UFS: rootdev called (ready=%d)\n", (int)su.ready);
+ 	if (!su.ready) {
+-		int error = sweet_ufs_init();
++		int error = sweet_ufs_init(false);
+ 		printf("SWEET UFS: init returned %d\n", error);
+ 		if (error) {
+ 			return error;
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+index 5db1f6d4656e237ffdf6076a58653fa442147aed..00e946083a49492c67582530b98040c07ecebeb4 100644
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -892,6 +892,10 @@ bsd_init(void)
+ 	bsd_init_kprintf("calling inittodr\n");
+ 	inittodr(0);
+ 
++#if defined(GAUGUIN)
++	extern void sweet_scan_log_diagnostic(void);
++	sweet_scan_log_diagnostic();
++#endif
+ 	/* Mount the root file system. */
+ 	while (TRUE) {
+ 		int err;

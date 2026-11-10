@@ -130,7 +130,10 @@ class Tests(unittest.TestCase):
             for ramdisk in (None,rd):
                 for firmware in (None,fw):
                     for cl in ('','a'*800):
-                        blob,info=pack.build(self.k,self.a,cl,ramdisk,firmware)
+                        # Historical golden800 was silently truncated to607.
+                        # Supply that valid prefix; overflow rejection has
+                        # separate boot-command coverage.
+                        blob,info=pack.build(self.k,self.a,cl[:607],ramdisk,firmware)
                         golden=next(r for r in LEGACY if (r['ramdisk'],r['firmware'],r['command_bytes'])==(bool(ramdisk),bool(firmware),len(cl)))
                         self.assertEqual(hashlib.sha256(blob).hexdigest(),golden['sha256'])
                         self.assertEqual(json.loads(json.dumps(info)),golden['info'])

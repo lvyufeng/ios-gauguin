@@ -5,7 +5,7 @@
 ### 2026-11-11 CST —243 actual-system desktop integration audit; no phone changes
 
 PROGRESS. User requested another HakiOS success-case review. GitHub main is
-still63fc2b4633bac3af8e57dadab9f5a8d4cb940438. Report:
+still63fc2b4633bac3af8e57dadab9f5a8d4cb940438. Review committed ea00f38. Report:
 docs/gauguin-hakios-integration-audit-20261111.md. W243=
 research/tmp/dsh-desktop-0243-contracts; no new driver/worktree this milestone.
 

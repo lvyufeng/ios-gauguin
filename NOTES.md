@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —245 armed GPU ownership SOURCE/HOST/NATIVE-TU/ROOT-BUILD PASS
+
+PROGRESS after244. R245=research/tmp/gauguin-bootstrap245-worktree-20261111,
+branch codex/gauguin-metal-bootstrap-20261111, parent244adfc4ef. Critical source
+ad9eca4. W245=R245/research/tmp/dsh-bootstrap-0245-owner. Report:
+docs/gauguin-metal-bootstrap-owner-20261111.md. MAIN kernel/root remain239/237;
+no cherry-pick or device change.
+
+0212 mode2+gmt2 adds exact24B root arm selector0x7c and per-owner job count/epoch.
+8..64 actual successful submissions AND matching asserted count required;
+readiness staysFALSE until same root owner closes with successful cleanup and
+unchanged jobs/fence. Duplicate arm, later submission, runtime/cleanup failure
+cannot grant handoff. New root invalidates old readiness. Mode1 and old EAGL
+six-fence gate unchanged. New root binary reuses original8 pixel/GPU stages,
+no90s diagnostic delay,30s alarm, exact mode/uid/name and128MiB hard checks.
+
+Fresh pristine204 replay S245-v5,5332files SHA
+ 509f4f1da97ff081b2174af23ca4de94a3ac8f285dcebc971ad9912c8ae7e58e.
+OnlyGPU.cpp + newSweetMetalBootstrap.h vs242; common wire header byte-equal.
+DSH v5 PID87579 TERMINAL1/246pins: all relevant dispatcher/runtime controls
+PASS (211new, original functionalRED42, existing IOKitcases,17214+72runtime);
+then a historical207-only profile comparison fails. v6 PID88455 TERMINAL1/
+256pins: corrected applicable242 hardware-body/sampler95 controls and native
+GPU TU PASS, then orchestration NameError(core path) before root build.
+V7 PID88806 TERMINAL0/260pins/1.667768s runs ONLY unfinished root native build.
+ABI v1 PID89154 TERMINAL0/268pins/10.675967s resolves286core/root imports against
+fresh20H392backup/35exportimages, no unresolved strong/weak.
+
+Native GPU TU uses real242 make recipe,2130header/config inputs,5334recorded
+inputs unchanged and reference files preserved. ARM64 object356064B SHA
+ 508553955ef118865061ae79ff6a79b42e1d62854791fd46796ffe2210f0e85c.
+1272retained diagnostics documented. Not a complete kernel/link/image.
+Signed root binary115968B SHA
+ 2e41724459e53107b7e34fc932600507f6c1e5644917f7cc6c7029101bb1450c,
+builde412469fc63787adad4de7fb, same8a826583core. Compile log empty.
+Codex rehashed all current v5/v6/v7/ABI pins/logs,whole source,TU5334pins/object/
+binary. review245-v1 SHA
+ d2c39236bd5567b0cb6f87726920bfe595f4bed751daf9095960b91861512cb6.
+Original failing fixtures/boolean warning/helper errors retained; no failed
+stage relabeled as success. Detailed lineage/report explains each correction.
+
+NEXT source: mode2+gmt2 must suppress kernel EAGL insertion AND remove explicit
+old DYLD/EAGL env from backboardd task/cache in a future reviewed root proposal.
+Otherwise old worker races for GPU. Protected launchd-proxy/executable auth
+does not depend on loading that library; preserve those checks. Add bounded
+first-device open wait (cover30s root deadline) before Metal can cache nil,
+coordinate root job/hard128MiB policy and single plugin publication. Then
+compositor input/shared output/completion/presentation and actual UI acceptance.
+
+No phonecommands/writes/reboots/CI/push. All dispatchers terminal. Pending240
+actual approval/apply/trial absent;9d plan/8f ready and MAIN mkadt diffa74...
+preserved. Do not repeat question or boot/stale delta. Real reply -> paired239
+trial FIRST ->241/242. Full RAM/storage/peripherals/GPU/physical90/120Hz/daily
+phone goal stays ACTIVE, no desktop or hardware success inferred here.
+
 ### 2026-11-11 CST —244 isolated desktop frontend SOURCE/HOST/NATIVE/IMPORT PASS
 
 PROGRESS after243 actual-system audit. R244=research/tmp/gauguin-desktop244-worktree-20261111,

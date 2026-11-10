@@ -1,5 +1,9 @@
 # HakiOS desktop integration audit, 2026-11-11
 
+The [subsequent pipeline recheck](gauguin-hakios-pipeline-review-20261111.md)
+adds the synchronous-submit/global-lock difference and current candidate status.
+The integration requirements below remain physical acceptance work.
+
 The main gap is the connection from the real iOS compositor to the driver.
 Native GPU jobs and root CoreAnimation pixel tests do not establish that the
 desktop discovers, selects and uses that device. Keep the working A619 hardware

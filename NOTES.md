@@ -2,6 +2,86 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST — renewed HakiOS source/measurement review; async gap explicit
+
+User asked again which success-case details were overlooked. GitHub main
+rechecked at63fc2b4633bac3af8e57dadab9f5a8d4cb940438 (2026-11-06). Fresh19
+connector files/1,282,318B match Git-tree blob identities. Private evidence
+research/tmp/hakios-recheck-20261111-v5/source-proof.json SHA
+88955e12c10cc0bfecc1e21d08d58bf4c10d32f2f4656e2f114cf4cf4f88dc5f.
+Report docs/gauguin-hakios-pipeline-review-20261111.md.
+
+Newly explicit SOURCE finding: current transport INCLUDING246 holds global
+GPU lock through synchronous one-in-flight completion; returned queue fences
+are already complete. Display SweetSurfaceGPURead holds same lock through CPU
+copy, excluding overlap even across distinct buffers. Reference normally
+returns an issued fence, tracks BO/surface completion and waits in presenter;
+its separate metal_defer moves CPU recording. 241/242 lifetime/cadence changes
+do not implement async transport. Do not just unlock/return early: require
+issued/completed split, BO/mapping retention, per-output producer completion,
+bounded work/queue, timeout/close/fault quarantine. This is not a measured
+attribution of every stall or a promised A619 rate.
+
+Whole-request16.9ms is not GPU-only/frame time. Reference frames.py Metal
+draw/idle zero means UNKNOWN. CPU/core/DDR clocks/bandwidth remain unqualified;
+cpus=8 does not prove clocks; do not port SM7325 register writes blindly.
+Reference fullres~100-104swipe/~89-91Settings, reduced/frozen/synthetic~118-120
+Settings, realfinger75-80. Wrong-picture faster numbers excluded. Issue46's
+claimed MT6833 success excluded: maintainer identifies supplied log as QEMU,
+all-ones reads as no answering hardware. Current redwood still lacks completed
+charging/BT/cellular-registration daily-phone proof.
+
+Static local-source review pipeline-review.json SHA
+6fb39b9f6219e0cffa19b731c55b1b618de4c00a32f13a6d43a6263a594f6741.
+NEXT: genuine240 consent -> exact paired239 physical trial FIRST; complete
+one correct desktop (ROtask input/shared output/completion plus244-247 launch).
+Then end-to-end touch/commit/encode/submit/complete/copy/panel trace, use measured
+bottleneck to implement async/per-surface overlap and qualify usable60Hz.
+Controlled cache/clocks/workers/scale/wallpaper tests precede physical90/120Hz.
+No unrelated offscreen suites without a named desktop blocker.
+
+### 2026-11-11 CST —247 root launch router SOURCE/HOST/NATIVE/ABI PASS
+
+R247=research/tmp/gauguin-launch247-worktree-20261111, branch
+codex/gauguin-metal-launch-router-20261111, parent246168ee9e. Critical source
+c41838b5c4595779260b952fd3df3a4f1dda650e. W247=R247/research/tmp/dsh-launch-0247-router.
+Report docs/gauguin-metal-launch-router-20261111.md. Kernel stays205source;
+MAIN physically qualified239/root237 unchanged.
+
+Root SETEXEC router selects retained240 frontend vs245 mode2 bootstrap.
+Exact identity/profile/file metadata/SHA checks, GET1/GET8 active+inactive
+hard128MiB and explicit fatal0x0c spawnattrs. No GPU lib, intended onePID;
+SETEXEC success is host-modeled, no phone claim. Router depends on240 binary
+26d09095... (NOT installed237d1f08...), bootstrap2e417244....
+Native signed ARM64/iOS16 router69536B SHA
+a32f77cbbac5583fb681c037ab77cb2f16e304dc85006e5762bf3da1ab96c101.
+Compile/sign/verify logs empty. Native import presence is not runtime proof.
+
+Authoritative policy correction: capturedD22/D221 already key the128MiB hard
+and soft override by existing LABEL org.gauguin.gpu-probe, not executable name.
+Reuse label; NO new policy row/file writes. Only local root argv and BBS
+explicitDYLD removal plus corresponding launch-cache edits. Admission marker
+retained for oldmode auto-insertion. Cache has CFLOG_FORCE_STDERR/OS_ACTIVITY_DT_MODE
+extras absent from job; preserve each env independently. 531labels preserved,
+529unrelatedjobs and all other cache sections unchanged. Three binaryplists
+487/1133/795842B; no HFS mount/volume overlay/delta/installation.
+
+DSH v1 PID96572 terminal1/22pins AFTER29router cases and native buildPASS:
+overstrict job/cache equality. Correct transformer+test; original failure/log
+retained, those2currentinputs intentionally differ from v1 terminal pins.
+v2 PID97190 terminal0/26pins passes remaining14corrupt-controls + binaryplist
+checks using passed native build. ABI PID97710 terminal0/32pins,32imports across
+28actual20H392exportimages, no missing strong/weak. Codex rehashed final pins/
+logs/native inputs+binary/3plist products. review247-v1 SHA
+3ed4442c6866608d22906335ebad56cc8148c7505ca6de6b92c84f870646cade.
+Outer72772/49971 reaped0;72027 already reaped; all dispatchers terminal.
+
+No device commands/writes/reboots/CI/push. Actual240 approval/apply/trial still
+ABSENT;9d plan unchanged, do not repeat question or boot/stale pending delta.
+After240+pairedtrial a future full desktop package needs fresh capture/backup/
+review and individual write consent. MAIN unrelated mkadt diff SHAa74... intact.
+Full GPU/RAM/storage/peripheral/physicalhighrefresh/daily-phone goal ACTIVE.
+
 ### 2026-11-11 CST —246 discovery/first-open SOURCE/HOST/NATIVE-TU/BUNDLE PASS
 
 PROGRESS after245. R246=research/tmp/gauguin-discovery246-worktree-20261111,

@@ -2,6 +2,76 @@
 
 ## Agent handoff / active work
 
+### 2026-11-10 CST —0237 task sampler software PASS; fresh full backup LIVE
+
+PROGRESS, fullphone goal ACTIVE/incomplete. Source R2376906298 /MAIN7f94567,
+branch codex/gauguin-task-surface-probe-20261110. R237=research/tmp/
+gauguin-surface237-worktree-20261110; W237=R237/research/tmp/dsh-surface-0237-task-probe.
+MAIN still219 kernelseries; critical236kernel source remains isolatedR2365671e8f,
+fullbuilt236kernel a9b52948... alreadyphysicallyregressed (see236below). No237
+userdatawrite/approval/boot. 235consentCONSUMED; neverreuse. NoCI/push.
+
+Newopt-in task sampler retainsFP16+5realCA then5sourceformatsR8/RG8/BGRA8/
+RGBA16F/RGBA32F. Real mmap taskVM mprotectRO beforeIOSurfaceCreate(Address),
+paddedrows, nonzero4096pagebias andpartialtails. Projectgetterclass/returnABI
+checked; exactcore8a CAPIdevice/texturelayouts generatedfrompinnedsource, noApple
+ivarprojection orcore/frontendbinarychange. SameIOSurface/plane/device required,
+shadowforbidden, directROBOflags/bias/size/noCPUalias, CPUprepWRITE andvalidNOP
+submitWRITE mustEINVAL/fence0. UnexpectedacceptedNOPwaitsbeforefree; uncertain
+waitretainscommand+queueuntiltaskexit. Last2casesdropcallerCFref andoriginaltaskVA
+BEFOREdraw; frontendstillholdsCF, kernelpreparedmemorykeptthroughDMA. Allsource/
+padding/tailbytes checkedafterfence, exteriorVMguards first3cases. All20480sampler
+pixels/rawrows independentlyread;128Mhardlimits90sdelay210alarm/release retained.
+Explicitjobs16 +5CAframeworkjobs =expected21;5negativeWRITEsaddNOjobs. Logging
+onlyfirst16successes meanslaterIBexactness cannotbeclaimed. Publicfamilies0.
+
+DSHhostpermission-v1 PID48687 exit0/2.418910s/20pins:25actualGpu+typedTransport
+failure/lifetime scenarios, ASAN/UBSAN. DeliberateuncertainDMAretains disableLSAN.
+Nativev1 PID49442 exit0/compile+sign, butCodexREJECTEDartifactforabsentLC_RPATH;
+archivedbuilderbuild-metal-frontend-probe-v1.py andoriginaloutputs retained.
+Nativev2 PID50280 exit0/1.898760s/3330pins, RPATHverified, zeroC/CPPwarnings.
+Probe138112B SHAd1f08acbb2dbc71265023fd151fd7e224cc82b4e76fd524dcc79e32e7840a47f,
+build58a59434c686b6c5cdf17060. Unchangedfrontend3c62/core8a/sampler218e.
+DSHMacoracle-v1 PID50005 exit0/3.985175s:4seeds actualpublicMetal5formats81920
+rawpixelsALLexact,40corruptACTUALlogsrejected. ParserseparateactualMacrows plus
+SYNTHETICpermissionenvelopes,72badcontrolsrejected; NOTphoneproof.
+ABI-v1 PID50642 exit1: overbroadgate rejectedALREADYRESOLVEDoldweakimports;
+no nativeartifactchanged. FreshABI-v2 PID51003 exit0/9.544396s:all717importsresolve
+againstactual20H392old235backup; newprobeNOweakimports; core/frontend inventories
+EXACToldaccepted, only5existingdisabledM2Vhooks. Originalfailedv1retained.
+Codex software-review237-v1.json independentlyrehashes3405pins SHA
+b74f31906b45050b4179a97f19de4714726ce54642b945cbb452759cad782fef.
+Allfoursoftwareworkersabsent; outerDSH78858/72614/80089/95863/77693/65333 reaped0.
+
+LIVE NOW DSHbackup-stage-v1 dispatcherPID51698 (launched11:04:33Z), original
+profilebackup-stage-v1.json3459pins, outerDSHsession17353. Preserveoriginalhandle,
+DO NOTretryclaimedstage. FirstlocalBudgetTargetguards PASS. Fresh22filecapture
+matchespost236 FULL592687/35952/1424222Bprefixes/header739c92d5... . Preflight
+root-backup-v1/preflight-result.json exists; ongoingFULL16GiBUSBstream, up900s.
+UsesdistinctAPFSclone of235backup53642ed8..., writesONLYchangedlocalchunks under
+1GiBbudget/4GiBhostreserve, butreadsandhashesEVERYfreshdevicebyte, finalfullfilehash
+required. Sourcebackupreadonly/unchanged, partitionwrites0/reboots0. Initiallydf
+showed7GiBfree butactualpreflightdisk_usage27.5GBfree. NOcleanupneeded. Poll
+backup-stage-v1/result.json +root-backup-v1/result.json/samePID; donotinterruptUSB.
+
+PreparedbutNOTexecuted private237nextscripts: audit237fresh.py (freshbackupcache,
+717imports), reuse_image237.py(exact5ec4b3af...236image same607bytemode1/gmt1/600s),
+stage_root237.py(PROBEONLYtarget,21retained),prepare_delta237.py,check_fs237.py,
+prepare_writer237.py(canonicalwriter4pin/key/labelchanges+102cases),preflight237.py
+(EVERYoldrunread),review_delta237.py,proposal237.py. Need inspect beforedispatch.
+Afterbackupterminal0, run FRESHfresh-abi-stage-v1 for audit237fresh.py then FRESH
+proposal-stage-v1 for proposal237.py, pinexactinputs/helpers/receipts (NO16GiBfile
+insideprofilepins; streaminghashinsidejob). Proposalnamesclaimonce; onfailure
+preserveallprioroutputs andresumeONLYunfinishedsteps underfreshstage/names.
+Needactualfullbackup/fsck/minimaldelta/currentoldruns/independentreview BEFOREnew
+userdata consent. No237delta-plan/newapprovalyet. Newconsentmustnameexactbytes/
+blocks/runs/planhash andquoteAGENTSdestructivesteprequirement. Onlyprobeexe+HFS
+metadata expected, all531jobs/cache/front/core/Mesa/logs unchanged. Task237physical
+postreader mustsubtract5taskjobs aswellas11FP16/poison fromnative21 toleave5CA;
+retainrawsamplerreader+sameSeed/soleowner/release/finiteservice, no laterIBclaim.
+PhonecurrentlyTWRP/readonlybackup; nomorehumanconfirmationneededunlessUSBstuck.
+MainonlyunrelatedmkadteditSHAa74a0418... preserved; R236samecopy also preserved.
+
 ### 2026-11-10 CST —0236 full LOCAL kernel and real installed235 regression PASS
 
 PROGRESS; fullphone goal ACTIVE/incomplete. R236 source5671e8f, frozenbuildHEAD

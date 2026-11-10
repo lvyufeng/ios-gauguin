@@ -10,7 +10,7 @@
 #define GAUGUIN_METAL_PROBE_NAME "gauguin-metal-frontend-probe"
 
 /* A conflicting or duplicate selector is a rejection, even if one value is 1.
- * Parse complete tokens, never substrings such as xgauguinmetal=1 or =10. */
+ * Parse complete tokens, never substrings such as xgmt=1 or =10. */
 static inline bool gauguin_metal_boot_profile(const char *args)
 {
     unsigned gpu_modes = 0, frontend_modes = 0;
@@ -22,8 +22,8 @@ static inline bool gauguin_metal_boot_profile(const char *args)
         if (n >= 10 && !memcmp(p, "sweeteagl=", 10)) {
             if (++gpu_modes != 1 || n != 11 || p[10] != '1') return false;
         }
-        if (n >= 13 && !memcmp(p, "gauguinmetal=", 13)) {
-            if (++frontend_modes != 1 || n != 14 || p[13] != '1') return false;
+        if (n >= 4 && !memcmp(p, "gmt=", 4)) {
+            if (++frontend_modes != 1 || n != 5 || p[4] != '1') return false;
         }
         p += n;
     }

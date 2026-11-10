@@ -14,6 +14,7 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--cache',type=Path,required=True)
     ap.add_argument('--out',type=Path,required=True)
+    ap.add_argument('--profile',choices=['a619-baseline','a619-graphics-images'],default='a619-baseline')
     a=ap.parse_args()
     repo=Path(__file__).resolve().parents[1]
     spec=repo/'graphics/hakios-metal'
@@ -30,7 +31,9 @@ def main():
         assert len(raw)==row['size']
         assert hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()==row['sha'],str(rel)
         pins[str(p)]=sha(p);sources.append((p,Path(*rel.parts[1:])))
-    patches=sorted((spec/'patches').glob('*.patch'));assert patches
+    patch_names=['0001-a619-device-profile.patch']
+    if a.profile=='a619-graphics-images':patch_names.append('0002-graphics-storage-images.patch')
+    patches=[spec/'patches'/name for name in patch_names];assert all(p.is_file()for p in patches)
     overlays=sorted(p for p in (spec/'overlay').rglob('*') if p.is_file())
     for p in patches+overlays:pins[str(p)]=sha(p)
     out.mkdir(parents=True,exist_ok=False)
@@ -45,7 +48,7 @@ def main():
     outputs={str(p.relative_to(source)):sha(p) for p in sorted(source.rglob('*')) if p.is_file()}
     assert len(outputs)==228
     unchanged=all(sha(Path(p))==v for p,v in pins.items());assert unchanged
-    proof=dict(state='prepared-pinned-Metal-core-with-A619-profile',upstream_revision=manifest['revision'],source=str(source),input_pins=pins,source_pins=outputs,input_pins_unchanged=unchanged,device_commands=0,hardware_qualified=False)
+    proof=dict(state='prepared-pinned-Metal-core-with-A619-profile',profile=a.profile,upstream_revision=manifest['revision'],source=str(source),input_pins=pins,source_pins=outputs,input_pins_unchanged=unchanged,device_commands=0,hardware_qualified=False)
     with (out/'result.json').open('x') as f:f.write(json.dumps(proof,indent=2)+'\n')
     print(json.dumps({k:v for k,v in proof.items() if k not in ['input_pins','source_pins']},indent=2))
 

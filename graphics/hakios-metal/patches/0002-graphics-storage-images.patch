@@ -1,0 +1,281 @@
+--- a/src/c_api.cpp
++++ b/src/c_api.cpp
+@@ -1151,7 +1151,7 @@
+         fsCount = 0;
+     }
+     // the FS's device buffers past the VS's in the one IBO table the two share
+-    std::unique_ptr<CompiledStage> fs = compileStage(fsBitcode, fsSize, &why, constantsOf(fsConstants, fsCount), vs->stage.k.numSsbos);
++    std::unique_ptr<CompiledStage> fs = compileStage(fsBitcode, fsSize, &why, constantsOf(fsConstants, fsCount), vs->stage.k.numIbos);
+     if (fs == nullptr) {
+         failed(why);
+         return nullptr;
+--- a/src/compiler.cpp
++++ b/src/compiler.cpp
+@@ -911,6 +911,8 @@
+             nir_foreach_instr(instr, block) {
+                 if (instr->type != nir_instr_type_intrinsic) continue;
+                 switch (nir_instr_as_intrinsic(instr)->intrinsic) {
++                case nir_intrinsic_image_store:
++                    return true;
+                 case nir_intrinsic_store_ssbo: case nir_intrinsic_ssbo_atomic: case nir_intrinsic_ssbo_atomic_swap: case nir_intrinsic_store_global:
+                 case nir_intrinsic_global_atomic: case nir_intrinsic_global_atomic_swap: case nir_intrinsic_store_deref: {
+                     if (nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_store_deref) {
+@@ -1347,7 +1349,7 @@
+     if (!inlineSamplersOf(t, &out->inlineSamplers, why)) return nullptr;
+     // a fragment stage's device buffers past the vertex stage's in the one IBO table: every SSBO index the front end
+     // emitted plus IBO_BASE, and ir3's count of them (num_ssbos, the table's extent) as far again
+-    if (iboBase != 0 && t.nir->info.stage == MESA_SHADER_FRAGMENT && t.nir->info.num_ssbos != 0) {
++    if (iboBase != 0 && t.nir->info.stage == MESA_SHADER_FRAGMENT) {
+         nir_shader_intrinsics_pass(t.nir, shiftSsbo, nir_metadata_control_flow, &iboBase);
+         t.nir->info.num_ssbos += iboBase;
+         out->iboBase = iboBase;
+@@ -1406,24 +1408,8 @@
+         refuse(why, fs->name + " is not a fragment stage");
+         return nullptr;
+     }
+-    // --- what the first draw does not serve, refused by name before any link (render.hpp names the list) ---
+-    // (a VS's [[stage_in]] attributes link: what they are in memory is the vertex descriptor's, judged by the draw)
+-    (void)V;
+-    for (const CompiledStage* s : {vs.get(), fs.get()}) {
+-        const Kernel& k = s->stage.k;
+-        // pushed constant ranges are served (render.cpp: pushedRanges, the compute rule); a device buffer (the 3D IBO table)
+-        // and an indexed constant buffer (a UBO descriptor) are not yet
+-        // device buffers link: the draw loads the 3D IBO table and refuses there what it cannot (two stages disagreeing
+-        // about an index, nothing bound); images in a draw are refused below with the textures' rule
+-        // sampled textures are served in both stages (render.cpp: the VS_TEX and FS_TEX groups, the FS's prefetch); an
+-        // image in either is not yet -- render::encode says the same at the draw
+-        for (uint32_t i = 0; i < kMaxTextureSlots; i++) {
+-            if (k.textures[i].kind == kTexImage) {
+-                refuse(why, stageName(*s) + " stores through texture " + std::to_string(i) + " as an image: images in a draw (the 3D IBO table) are not served");
+-                return nullptr;
+-            }
+-        }
+-    }
++    // SSBO/image binding shapes and descriptor capacity are checked by the draw.
++    // Fragment SSBO/image indices reserve the vertex stage's complete IBO extent.
+     // [[color(0)]] and up to seven after it, without a gap: the draw's rule (render.cpp), said here at the pipeline's
+     // creation; the class of each output past 0 is held to its attachment's format by the draw, which knows the format
+     if (F.numColorOutputs > kMaxColorOutputs) {
+--- a/src/render.cpp
++++ b/src/render.cpp
+@@ -151,6 +151,12 @@
+ 
+ // what both stages share with a compute Kernel, refused as compute.cpp refuses it, plus what the first draw does not
+ // serve in either stage (render.hpp's list)
++constexpr uint32_t kMaxGfxIbos = (kTableFsAt - kTableVsAt) / 64;
++bool stageHasImages(const Stage& s) {
++    for (uint32_t i = 0; i < kMaxTextureSlots; i++) if (s.k.textures[i].kind == kTexImage) return true;
++    return false;
++}
++
+ bool checkStage(const Stage& s, std::string* why) {
+     const Kernel& k = s.k;
+     auto name = [&s]() { return std::string(stageName(s)); };   // (built only for a refusal: a string a draw is an allocation a draw)
+@@ -160,19 +166,16 @@
+     if (k.numSamp > 31) {
+         return refuse(why, name() + ": numSamp " + n(k.numSamp) + " does not fit SP_xS_CONFIG.NSAMP's 5 bits (31 at most)");
+     }
+-    // A `constant` buffer is a range ir3 pushes or an ldc through a UBO descriptor (uboDescriptors); a `device` one an
+-    // SSBO through the 3D pipeline's IBO table (gfxIbos), its slots the Metal buffer indices; images there are not served
+-    if (k.numIbos > k.numSsbos || k.numSsbos > kMaxVertexBuffers) {
+-        return refuse(why, name() + " has " + n(k.numIbos) + " IBO slots for " + n(k.numSsbos) + " device buffer(s): images in a draw are not served");
++    // The shared graphics descriptor table holds both shifted SSBOs and images.
++    if (k.numSsbos > k.numIbos || k.numIbos > kMaxGfxIbos) {
++        return refuse(why, name() + ": SSBO/image extent exceeds the shared graphics IBO table");
+     }
+     if (k.numUbos > kMaxVertexBuffers) {
+-        return refuse(why, name() + " indexes " + n(k.numUbos) + " constant buffers: Metal's buffer table has " + n(kMaxVertexBuffers));
++        return refuse(why, name() + ": constant buffer index exceeds the Metal buffer table");
+     }
+     for (uint32_t i = 0; i < kMaxTextureSlots; i++) {
+-        if (k.textures[i].kind == kTexImage) {
+-            // an image is an IBO of the 3D pipe, the same table a device buffer needs (above)
+-            return refuse(why, name() + " stores through texture " + n(i) + " as an image: images in a draw (the 3D IBO table) are not served");
+-        }
++        if (k.textures[i].kind == kTexImage && k.numSsbos + i >= k.numIbos)
++            return refuse(why, name() + ": image index lies outside its IBO extent");
+     }
+     if (k.numTextureSlots > kMaxTextureSlots || (k.samplerMask >> kMaxTextureSlots) != 0) {
+         return refuse(why, name() + " names texture or sampler indices past " + n(kMaxTextureSlots - 1) + ": the tables hold " + n(kMaxTextureSlots));
+@@ -784,54 +787,69 @@
+ // be the same binding in both. Each slot below the stages' SSBO counts is a buffer view over the bound buffer past its
+ // offset (compute's bufferIbo, 32-bit elements), every one of them bound; the table sits in the pass's kTableVsAt part.
+ constexpr uint32_t kGfxIboAt = kTableVsAt;
+-constexpr uint32_t kMaxGfxIbos = (kTableFsAt - kTableVsAt) / 64;
+ static_assert(kMaxGfxIbos >= kMaxVertexBuffers, "the table holds an IBO per Metal buffer index");
+ 
+ struct GfxIbos {
+     uint32_t count = 0;
+-    uint32_t words[kMaxVertexBuffers][16] = {};
++    uint32_t words[kMaxGfxIbos][16] = {};
+     std::vector<const Buffer*> used;
+ };
+ 
+-bool gfxIbos(const Stage& vs, const Bindings& vsb, const Stage& fs, const Bindings& fsb, uint32_t fsBase, GfxIbos* out, std::string* why) {
+-    const Binding* chosen[kMaxVertexBuffers] = {};
++bool gfxIbos(const Stage& vs, const Bindings& vsb, const Stage& fs, const Bindings& fsb, uint32_t fsBase,
++             const RenderPass& pass, GfxIbos* out, std::string* why) {
++    bool chosen[kMaxGfxIbos] = {};
++    auto put = [&](uint32_t at, const TexConst& d, const Buffer* buffer) {
++        if (at >= kMaxGfxIbos) return refuse(why, "graphics IBO descriptor outside the shared table");
++        if (chosen[at] && std::memcmp(out->words[at], d.dword, sizeof d.dword))
++            return refuse(why, "the vertex and fragment stages bind different resources at graphics IBO slot " + n(at));
++        if (!chosen[at]) {
++            std::memcpy(out->words[at], d.dword, sizeof d.dword);
++            if (buffer) out->used.push_back(buffer);
++            chosen[at] = true;
++        }
++        out->count = std::max(out->count, at + 1);
++        return true;
++    };
+     for (const auto& [s, b] : {std::pair<const Stage*, const Bindings*>{&vs, &vsb}, {&fs, &fsb}}) {
+-        // the FS was compiled with its [[buffer(n)]] at slot FS_BASE + n (Program::fsIboBase): the slots under it are
+-        // the VS's, and its own index is the slot less the base
+         const uint32_t base = s == &fs ? fsBase : 0;
+-        for (uint32_t tableSlot = base; tableSlot < s->k.numSsbos; tableSlot++) {
+-            const uint32_t slot = tableSlot - base;
++        if (base > s->k.numSsbos || s->k.numSsbos - base > kMaxVertexBuffers || s->k.numIbos > kMaxGfxIbos)
++            return refuse(why, "invalid graphics stage SSBO/image base or extent");
++        out->count = std::max(out->count, s->k.numIbos);
++        for (uint32_t at = base; at < s->k.numSsbos; at++) {
++            const uint32_t slot = at - base;
+             if (slot >= b->buffers.size() || b->buffers[slot].buffer == nullptr) {
+-                // ir3 counts SSBOs by the highest one the function declares, not by the ones it reaches
+-                // (shader_info.num_ssbos), so an unbound slot may be one no instruction reads, as mask_color_fragment's
+-                // 1 is. The one that cannot be told from a read is the highest, refused as before; one below it gets
+-                // turnip's null descriptor (all zeros, tu_descriptor_set.cc's nullDescriptor), which a load reads as 0
+-                // and a store leaves alone, never another binding's memory.
+-                if (tableSlot + 1 == s->k.numSsbos) {
++                if (at + 1 == s->k.numSsbos)
+                     return refuse(why, std::string(stageName(*s)) + ": no buffer bound at index " + n(slot) + " (a device buffer it addresses)");
+-                }
+-                out->count = std::max(out->count, tableSlot + 1);
+-                continue;
++                continue; // A declared but unreachable SSBO hole: Mesa's zero/null descriptor.
+             }
+             const Binding& x = b->buffers[slot];
+-            if (x.offset % 4 != 0 || x.offset >= x.buffer->length()) {
+-                return refuse(why, std::string(stageName(*s)) + ": buffer " + n(slot) + ": offset " + n(x.offset) + " is not a multiple of 4 inside it");
++            if (x.offset % 4 || x.offset >= x.buffer->length()) return refuse(why, "invalid graphics device-buffer offset");
++            const uint64_t elements = (x.buffer->length() - x.offset) / 4;
++            if (elements >= (1ull << 30)) return refuse(why, "graphics device buffer exceeds descriptor extent");
++            if (!put(at, bufferIbo(x.buffer->gpuAddress() + x.offset, uint32_t(elements)), x.buffer)) return false;
++        }
++        for (uint32_t i = 0; i < kMaxTextureSlots; i++) {
++            const KernelTexture& kt = s->k.textures[i];
++            if (kt.kind != kTexImage) continue;
++            if (i >= b->textures.size() || b->textures[i] == nullptr)
++                return refuse(why, std::string(stageName(*s)) + ": no image bound at texture " + n(i));
++            const Texture* tex = b->textures[i];
++            const auto type = tex->type();
++            if (!tex->isShaped(kt) || (type != TextureType::k2D && type != TextureType::k2DArray && type != TextureType::k3D))
++                return refuse(why, "graphics image shape/type mismatch (2D, 2D array and 3D only)");
++            const auto& info = tex->info();
++            if (info.element != kt.element || info.depth || info.stencil || info.srgb || info.twoPlane ||
++                info.blockW != 1 || info.blockH != 1 || tex->compressed() || tex->samples() != 1)
++                return refuse(why, "graphics storage image format/layout is not supported");
++            if ((kt.write && !(tex->usage() & kTextureUsageWrite)) || (kt.read && !(tex->usage() & kTextureUsageRead)))
++                return refuse(why, "graphics image lacks shader read/write usage");
++            for (uint32_t a = 0; a < kMaxColorOutputs; a++) {
++                const Texture* rt = attachmentOf(pass, a).texture;
++                if (rt && rt->buffer() == tex->buffer()) return refuse(why, "graphics image aliases a color attachment");
+             }
+-            if (chosen[tableSlot] != nullptr && (chosen[tableSlot]->buffer != x.buffer || chosen[tableSlot]->offset != x.offset)) {
+-                return refuse(why, "the vertex and fragment stages bind different device buffers at table slot " + n(tableSlot) +
+-                                       ": the 3D pipeline has one IBO table for both");
+-            }
+-            if (chosen[tableSlot] == nullptr) {
+-                chosen[tableSlot] = &x;
+-                const uint64_t elements = (x.buffer->length() - x.offset) / 4;
+-                if (elements >= (1ull << 30)) {
+-                    return refuse(why, "buffer " + n(slot) + " is longer than a descriptor counts");
+-                }
+-                TexConst d = bufferIbo(x.buffer->gpuAddress() + x.offset, uint32_t(elements));
+-                memcpy(out->words[tableSlot], d.dword, sizeof d.dword);
+-                out->used.push_back(x.buffer);
+-            }
+-            out->count = std::max(out->count, tableSlot + 1);
++            if ((pass.depth && pass.depth->buffer() == tex->buffer()) || (pass.stencil && pass.stencil->buffer() == tex->buffer()))
++                return refuse(why, "graphics image aliases a depth/stencil attachment");
++            if (!put(s->k.numSsbos + i, tex->storageDescriptor(), tex->buffer().get())) return false;
+         }
+     }
+     return true;
+@@ -1410,8 +1428,11 @@
+     if (!uboDescriptors(vs, vsBindings, vsProgram, &vsUbos, why) || !uboDescriptors(fs, fsBindings, fsProgram, &fsUbos, why)) {
+         return false;
+     }
++    if ((stageHasImages(vs) || stageHasImages(fs)) &&
++        (gmem != nullptr || !o.batchStart || !o.tailCcuFlush || !o.tailCacheFlush))
++        return refuse(why, "graphics images require sysmem and complete cache synchronization");
+     GfxIbos ibos;
+-    if (!gfxIbos(vs, vsBindings, fs, fsBindings, program.fsIboBase, &ibos, why)) {
++    if (!gfxIbos(vs, vsBindings, fs, fsBindings, program.fsIboBase, pass, &ibos, why)) {
+         return false;
+     }
+     for (int i = 0; i < 4; i++) {
+@@ -1700,7 +1721,7 @@
+         reg(stream, REG_A6XX_HLSQ_INVALIDATE_CMD,
+             A6XX_HLSQ_INVALIDATE_CMD_VS_STATE | A6XX_HLSQ_INVALIDATE_CMD_HS_STATE | A6XX_HLSQ_INVALIDATE_CMD_DS_STATE |
+                 A6XX_HLSQ_INVALIDATE_CMD_GS_STATE | A6XX_HLSQ_INVALIDATE_CMD_FS_STATE | A6XX_HLSQ_INVALIDATE_CMD_GFX_IBO);
+-        reg(stream, REG_A6XX_SP_VS_CONFIG, spXsConfig(vs.k.numSamp, vs.k.numSamp, vs.k.numSsbos));
++        reg(stream, REG_A6XX_SP_VS_CONFIG, spXsConfig(vs.k.numSamp, vs.k.numSamp, vs.k.numIbos));
+         reg(stream, REG_A6XX_HLSQ_VS_CNTL, hlsqVsCntl(vs.k.constlen));
+         reg(stream, REG_A6XX_SP_HS_CONFIG, 0);
+         reg(stream, REG_A6XX_HLSQ_HS_CNTL, 0);
+@@ -1708,7 +1729,7 @@
+         reg(stream, REG_A6XX_HLSQ_DS_CNTL, 0);
+         reg(stream, REG_A6XX_SP_GS_CONFIG, 0);
+         reg(stream, REG_A6XX_HLSQ_GS_CNTL, 0);
+-        reg(stream, REG_A6XX_SP_FS_CONFIG, spXsConfig(fs.k.numSamp, fs.k.numSamp, fs.k.numSsbos));
++        reg(stream, REG_A6XX_SP_FS_CONFIG, spXsConfig(fs.k.numSamp, fs.k.numSamp, fs.k.numIbos));
+         reg(stream, REG_A6XX_HLSQ_FS_CNTL, hlsqFsCntl(fs.k.constlen));
+         // the 3D IBO table's count (fd6's nibo(fs); here the larger of the two stages', the table being one), and the table
+         // itself: CP_LOAD_STATE6 (the plain opcode) of ST6_SHADER into SB6_IBO, as both witnesses load it (tu_pipeline.cc:
+@@ -2310,7 +2331,7 @@
+         return refuse(why, "a stage that writes its device buffers: replayed per tile it would write them per tile");
+     }
+     for (const Stage* s : {&program.vs, &program.fs}) {
+-        for (uint32_t i = 0; i < kMaxTextureSlots && i < s->k.numTextureSlots; i++) {
++        for (uint32_t i = 0; i < kMaxTextureSlots; i++) {
+             if (s->k.textures[i].kind == kTexImage) return refuse(why, "a stage that writes a texture");
+         }
+     }
+@@ -2837,7 +2858,8 @@
+     // A draw into the open pass's attachments joins it: no batch start, no pass begin and no tail of its own, which a
+     // pass per draw spent on every draw (the CCU flush and the cache flush waited for, each time). It joins when the
+     // attachments are the same textures, it asks for no Clear (a Clear begins a pass), and the options are the same.
+-    bool joins = open_ != nullptr && open_->pass.color0 == pass.color0 && open_->pass.level == pass.level && open_->pass.depth == pass.depth &&
++    const bool images = render::stageHasImages(program.vs) || render::stageHasImages(program.fs);
++    bool joins = !images && open_ != nullptr && open_->pass.color0 == pass.color0 && open_->pass.level == pass.level && open_->pass.depth == pass.depth &&
+                  open_->pass.stencil == pass.stencil && !(pass.stencil != nullptr && pass.stencilLoad == LoadAction::kClear) &&
+                  pass.load != LoadAction::kClear &&
+                  !(pass.depth != nullptr && pass.depthLoad == LoadAction::kClear) && pass.store == open_->pass.store &&
+@@ -3077,15 +3099,18 @@
+     if (d.visibilityMode != 0 && d.visibility != nullptr) {
+         use(*d.visibility, true);   // the result word is written; the command buffer keeps the buffer until it is
+     }
+-    // both stages' sampled textures: read, and alive until the GPU is done (the descriptors in the table point at them)
+-    for (const Bindings* b : {vsb, fsb}) {
+-        for (const Texture* t : b->textures) {
+-            if (t != nullptr) {
+-                use(*t->buffer(), false);
+-                keep(t->buffer());
+-            }
+-        }
+-    }
++    // Storage images must be retained AND submitted writable, as in compute.
++    for (const auto& [b, stage] : {std::pair<const Bindings*, const Stage*>{vsb, &program.vs}, {fsb, &program.fs}}) {
++        for (size_t i = 0; i < b->textures.size(); i++) {
++            const Texture* t = b->textures[i];
++            if (!t) continue;
++            const bool write = i < kMaxTextureSlots && stage->k.textures[i].kind == kTexImage && stage->k.textures[i].write;
++            use(*t->buffer(), write);
++            keep(t->buffer());
++        }
++    }
++    if (images) closePass(); // Timestamped UCHE flush before a later draw samples it.
++
+     return true;
+ }
+ 

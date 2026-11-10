@@ -48,11 +48,11 @@ struct Library {
         if (function.type != type) throw std::runtime_error("wrong stage type");
         return function;
     }
-    std::shared_ptr<CompiledStage> compile(const MetalFunction& function, std::string& why) const {
+    std::shared_ptr<CompiledStage> compile(const MetalFunction& function, std::string& why, uint32_t base = 0) const {
         const uint8_t* code = nullptr; uint64_t length = 0;
         if (!parsed.bitcode(function, &code, &length) || !code || !length)
             throw std::runtime_error("missing AIR stage");
-        return std::shared_ptr<CompiledStage>(compileStage(code, length, &why));
+        return std::shared_ptr<CompiledStage>(compileStage(code, length, &why, {}, base));
     }
 };
 
@@ -66,7 +66,7 @@ int main(int argc, char** argv) try {
     std::string why;
     const auto start = std::chrono::steady_clock::now();
     auto vs = vertex.compile(v, why);
-    auto fs = vs ? fragment.compile(f, why) : nullptr;
+    auto fs = vs ? fragment.compile(f, why, vs->stage.k.numIbos) : nullptr;
     const bool stages = bool(vs) && bool(fs);
     std::printf("{\"vertex\":%s,\"fragment\":%s,\"stages_compiled\":%s,\"stage_reason\":%s,\"formats\":[",
                 quote(v.name).c_str(), quote(f.name).c_str(), stages ? "true" : "false", quote(why).c_str());

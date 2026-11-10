@@ -23,6 +23,8 @@ def change(text, old, new):
 EXTRA = r'''
 static unsigned seedCalls,seedBumps,gpuAdds;
 static bool failSeed;
+static bool gMetalBootstrapMode;
+static struct {bool ready=false;} gMetalBootstrap;
 static SweetSurface *sweet_surface_held(int *,void *,uint32_t id){
     if(!table||table->id!=id)return nullptr;
     table->retain();return table;
@@ -94,8 +96,8 @@ CASES = r'''
     check(client.trapUnlock(id,nullptr,nullptr,nullptr,nullptr,nullptr)==0);
     check(seedCalls==2&&seedBumps==1);clear();
 
-    // Execute the real GPU gate. RO must reject even a buffer descriptor;
-    // generic task memory remains ineligible for either access direction.
+    // Execute the real GPU gate. Generic RO task inputs additionally require
+    // the desktop mode and completed bootstrap for the compositor.
     GauguinGPUUserClient gpu;
     for(unsigned kind=0;kind<3;kind++){
         auto *s=sweet_surface_alloc();
@@ -111,8 +113,15 @@ CASES = r'''
 #endif
         check(gpu.surface(&request)==(accepted?kIOReturnSuccess:kIOReturnUnsupported));
         check(gpuAdds==(accepted?1u:0u));
-        gpu.fCompositor=true;request.handle=0;
-        check(gpu.surface(&request)==(kind==0?kIOReturnSuccess:kIOReturnUnsupported));
+        gpu.fCompositor=true;
+        for(bool mode:{false,true})for(bool ready:{false,true}){
+            gMetalBootstrapMode=mode;gMetalBootstrap.ready=ready;request.handle=0;
+            bool compositorAccepted=kind==0;
+#ifdef GAUGUIN_DESKTOP_RO_IMPORT
+            compositorAccepted=compositorAccepted||(kind==2&&mode&&ready);
+#endif
+            check(gpu.surface(&request)==(compositorAccepted?kIOReturnSuccess:kIOReturnUnsupported));
+        }
         gpu.fCompositor=false;clear();
     }
 '''
@@ -178,7 +187,9 @@ static bool failSurface,''')
     text = change(text, 'task_t fTask = 42;', '''task_t fTask=42;int *fLock=nullptr;void *fRefs=nullptr;
     IOReturn trapLock(void *,void *,void *,void *,void *,void *);
     IOReturn trapUnlock(void *,void *,void *,void *,void *,void *);''')
-    text = change(text, '@METHODS@', ('#define GAUGUIN_TASK_RO_IMPORT 1\n' if 'importedPhysicalPage' in gpu else '') + EXTRA + methods)
+    markers=('#define GAUGUIN_TASK_RO_IMPORT 1\n' if 'importedPhysicalPage' in gpu else '')
+    markers+=('#define GAUGUIN_DESKTOP_RO_IMPORT 1\n' if 'compositorBorrowed' in gpu else '')
+    text = change(text, '@METHODS@', markers + EXTRA + methods)
     text = change(text, 'failMap = false; check(!mapLocked);', '''failMap=false;check(!mapLocked);
         readOnlyInput=failReadOnlyDescriptor=failReadOnlyPrepare=failSeed=false;
         injectedPrepareError=0;descriptorCount=seedCalls=seedBumps=gpuAdds=0;''')

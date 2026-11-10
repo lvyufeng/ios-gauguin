@@ -19,6 +19,15 @@ INTF_READ_OFFSETS = {
     "line_count": 0x0B0,
     "status": 0x26C,
 }
+# sde_hw_sspp.c and sde_hw_ctl.c in the same Lagoon source revision.
+SSPP_READ_OFFSETS = {
+    "source_size": 0x00,
+    "source_address_0": 0x14,
+    "source_stride_0": 0x24,
+    "source_format": 0x30,
+    "source_op_mode": 0x38,
+}
+CTL_READ_OFFSETS = {"top": 0x14, "flush": 0x18, "interface_active": 0xF4}
 
 
 def require(condition, message):
@@ -66,6 +75,14 @@ class Tree:
         index = names.index(name)
         address, length = cells[2 * index:2 * index + 2]
         require(length > 0 and address + length <= 1 << 32, f"invalid DT region {name}")
+        return address, length
+
+    def region64(self, node):
+        cells = self.cells(node, "reg")
+        require(len(cells) == 4, f"expected one 64-bit region for {node}")
+        address, length = ((cells[0] << 32) | cells[1], (cells[2] << 32) | cells[3])
+        require(address > 0 and length > 0 and address + length <= 1 << 64,
+                f"invalid region for {node}")
         return address, length
 
 
@@ -137,16 +154,80 @@ def display_inventory(tree):
     }
 
 
-def boot_inventory(tree):
+def boot_framebuffer(tree):
     framebuffers = [node for node in tree.children("/chosen") if node.startswith("framebuffer@")]
     require(len(framebuffers) == 1, "expected one inherited boot framebuffer")
     node = "/chosen/" + framebuffers[0]
     require(tree.strings(node, "compatible") == "simple-framebuffer", "unexpected framebuffer")
+    return node
+
+
+def boot_inventory(tree):
+    node = boot_framebuffer(tree)
     geometry = {key: tree.cell(node, key) for key in ("width", "height", "stride")}
     return {
         "dtb_sha256": tree.digest, "framebuffer": geometry,
         "format": tree.strings(node, "format"),
         "display_subsystem_status": tree.strings("/soc@0/display-subsystem@ae00000", "status"),
+    }
+
+
+def scanout_catalog(tree, display):
+    mdp, length = display["mdp_region"]
+    interface = display["sde_interface"]
+    require(interface < 32, "SDE interface index outside CTL mask")
+    source_offsets = tree.cells(MDP, "qcom,sde-sspp-off")
+    kinds = tree.strings(MDP, "qcom,sde-sspp-type").split()
+    require(len(kinds) == len(source_offsets) and set(kinds) <= {"vig", "dma"},
+            "unexpected Lagoon source pipe types")
+    controllers = tree.cells(MDP, "qcom,sde-ctl-off")
+    ranges = [(display["sde_interface_region"][0] - mdp, display["sde_interface_region"][1])]
+
+    def blocks(offsets, size_property, registers):
+        size = tree.cell(MDP, size_property)
+        require(1 <= len(offsets) <= 8 and size >= max(registers.values()) + 4,
+                f"invalid Lagoon block count or size for {size_property}")
+        for offset in offsets:
+            require(offset % 4 == 0 and offset + size <= length
+                    and all(offset + size <= start or start + span <= offset for start, span in ranges),
+                    f"overlapping or out-of-range Lagoon block for {size_property}")
+            ranges.append((offset, size))
+            yield {"base": mdp + offset, "size": size,
+                   "registers": {name: mdp + offset + reg for name, reg in registers.items()}}
+
+    sources = []
+    for kind, block in zip(kinds, blocks(source_offsets, "qcom,sde-sspp-src-size", SSPP_READ_OFFSETS)):
+        index = sum(pipe["type"] == kind for pipe in sources)
+        sources.append({"name": f"{kind}{index}", "type": kind, **block})
+    require(sources, "no Lagoon source pipes")
+    control_paths = [{"index": index, **block} for index, block in enumerate(
+        blocks(controllers, "qcom,sde-ctl-size", CTL_READ_OFFSETS))]
+    return {
+        "source_pipes": sources, "control_paths": control_paths,
+        "interface_active_mask": 1 << interface,
+        "active_source_pipe": None, "active_control_path": None,
+    }
+
+
+def splash_reservation(tree, boot, geometry):
+    reserve = "/reserved-memory"
+    require(tree.cell(reserve, "#address-cells") == 2 and tree.cell(reserve, "#size-cells") == 2
+            and tree.cells(reserve, "ranges") == [], "unexpected splash address translation")
+    require(boot.cell("/", "#address-cells") == 2 and boot.cell("/", "#size-cells") == 2,
+            "unexpected boot framebuffer address format")
+    base, length = tree.region64(reserve + "/cont_splash_region")
+    front, size = boot.region64(boot_framebuffer(boot))
+    require(size == geometry["stride"] * geometry["height"]
+            and geometry["stride"] >= geometry["width"] * 4
+            and base <= front < front + size <= base + length,
+            "boot framebuffer disagrees with splash reservation")
+    page_size = 16384
+    second = (front + size + page_size - 1) & -page_size
+    mapped_size = (size + page_size - 1) & -page_size
+    return {
+        "recovery_reservation": [base, length], "boot_framebuffer": [front, size],
+        "aligned_second_frame_geometry_only": [second, mapped_size]
+        if second + mapped_size <= min(base + length, 1 << 32) else None,
     }
 
 
@@ -173,13 +254,21 @@ def main():
     parser.add_argument("--recovery-modes", type=Path)
     parser.add_argument("--recovery-status", type=Path)
     parser.add_argument("--fdtget", default="fdtget")
+    parser.add_argument("--scanout-catalog", action="store_true")
     args = parser.parse_args()
     if bool(args.recovery_modes) != bool(args.recovery_status):
         parser.error("--recovery-modes and --recovery-status must be supplied together")
     try:
-        result = display_inventory(Tree(args.captured_dtb, args.fdtget))
+        tree = Tree(args.captured_dtb, args.fdtget)
+        result = display_inventory(tree)
+        if args.scanout_catalog:
+            result["scanout_catalog"] = scanout_catalog(tree, result)
         if args.boot_dtb:
-            result["boot_dtb"] = boot_inventory(Tree(args.boot_dtb, args.fdtget))
+            boot = Tree(args.boot_dtb, args.fdtget)
+            result["boot_dtb"] = boot_inventory(boot)
+            if args.scanout_catalog:
+                result["scanout_catalog"]["splash"] = splash_reservation(
+                    tree, boot, result["boot_dtb"]["framebuffer"])
         if args.recovery_modes:
             result["recovery_advertised_modes"] = recovery_modes(
                 args.recovery_modes, args.recovery_status, result)

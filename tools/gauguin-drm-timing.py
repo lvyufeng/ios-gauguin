@@ -70,12 +70,49 @@ def analyze(log):
     }
 
 
+def analyze_planes(log):
+    records = [line.split() for line in log.splitlines() if line.startswith("GDRM ")]
+    for record in records:
+        if record[1:2] == ["error"]:
+            raise ValueError("probe reported " + " ".join(record[2:]))
+    if (not 3 <= len(records) <= 34 or records[0][:2] != ["GDRM", "route"]
+            or len(records[0]) != 8 or records[-1][:2] != ["GDRM", "planes-complete"]
+            or len(records[-1]) != 3 or int(records[-1][2]) != len(records) - 2):
+        raise ValueError("incomplete or repeated DRM plane observation")
+    connector, encoder, crtc, pipe, hz, crtc_fb = map(int, records[0][2:])
+    if (not all(0 < item < 1 << 32 for item in (connector, encoder, crtc))
+            or not 0 <= pipe < 32 or not 0 < hz <= 240 or not 0 <= crtc_fb < 1 << 32):
+        raise ValueError("invalid DRM route")
+    types = {0: "overlay", 1: "primary", 2: "cursor"}
+    planes = []
+    seen = set()
+    for record in records[1:-1]:
+        if record[:2] != ["GDRM", "plane"] or len(record) != 5:
+            raise ValueError("malformed DRM plane")
+        plane, fb, kind = map(int, record[2:])
+        if (plane in seen or not 0 < plane < 1 << 32 or not 0 < fb < 1 << 32
+                or kind not in types):
+            raise ValueError("invalid DRM plane")
+        seen.add(plane)
+        planes.append({"plane_id": plane, "framebuffer_id": fb, "type": types[kind]})
+    primary = [plane for plane in planes if plane["type"] == "primary"]
+    if len(primary) != 1 or (crtc_fb and crtc_fb != primary[0]["framebuffer_id"]):
+        raise ValueError("primary plane disagrees with CRTC")
+    return {
+        "connector_id": connector, "encoder_id": encoder, "crtc_id": crtc,
+        "crtc_index": pipe, "reported_mode_hz": hz, "crtc_framebuffer_id": crtc_fb,
+        "active_planes": planes,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", type=Path)
+    parser.add_argument("--planes", action="store_true")
     args = parser.parse_args()
     try:
-        print(json.dumps(analyze(args.log.read_text()), indent=2))
+        reader = analyze_planes if args.planes else analyze
+        print(json.dumps(reader(args.log.read_text()), indent=2))
     except (ValueError, OSError) as error:
         parser.exit(1, f"gauguin DRM timing: {error}\n")
 

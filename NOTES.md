@@ -2,6 +2,24 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0262 actual recovery plane and Lagoon scanout inventory
+
+Report docs/gauguin-scanout-inventory-20261111.md. DSH PID65438 exit0
+2.370s/18pins: TWRP 1080x2400/60, DSI connector29 encoder28 CRTC103,
+one active primary plane57 with fb176 matching CRTC in both samples.
+25 timestamps, 62 vblank advances/1.029139323s =60.2445Hz. Temporary
+binary in checked tmpfs removed, launcher exited0. No iOS pipe/latch result.
+
+DSH PID66193 exit0/2.009s/19pins: exact 0255 embedded DTB and captured
+FDT, four SSPP and four CTL candidates. INTF1 mask2; CTL offsets
+2000/2200/2400/2600, not Mayfly's. Splash A0000000+2300000, actual
+frame 9E3400; 16K-aligned A09E4000+9E4000 geometry only, ownership
+and DMA unverified. Six malformed catalogs, two reservation cases, five
+malformed logs checked. W=research/tmp/dsh-display-0262. Both launchers
+reaped. No partition write, reboot, modeset, CI or XNU build. NEXT staged
+XNU clock/scan access -> stable read-only SSPP/CTL route -> flip/latch.
+0240 and 0261 require their already-requested exact approvals. Goal active.
+
 ### 2026-11-11 CST — HakiOS fork review: hardware flip and app cadence
 
 Report docs/gauguin-hakios-display-forks-20261111.md. Main still 63fc2b4.

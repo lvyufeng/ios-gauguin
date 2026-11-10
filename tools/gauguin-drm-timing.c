@@ -1,12 +1,13 @@
 /* AArch64 Linux recovery probe. Build with the device kernel's DRM UAPI.
- * Queries the connected DSI CRTC and samples existing vblank timestamps. */
+ * Queries the connected DSI CRTC, vblank timestamps or active DRM planes. */
 #include <drm/drm.h>
 
 enum {
     SYS_IOCTL = 29, SYS_OPENAT = 56, SYS_CLOSE = 57, SYS_WRITE = 64,
     SYS_NANOSLEEP = 101, SYS_CLOCK_GETTIME = 113,
     AT_FDCWD = -100, CLOCK_MONOTONIC = 1, O_CLOEXEC = 02000000,
-    CONNECTED = 1, MAX_OBJECTS = 32, SAMPLE_COUNT = 25,
+    CONNECTED = 1, MAX_OBJECTS = 32, MAX_PROPERTIES = 96, SAMPLE_COUNT = 25,
+    PRIMARY_PLANE = 1, CURSOR_PLANE = 2,
 };
 
 struct time_value {
@@ -143,6 +144,147 @@ static int same_mode(const struct drm_mode_modeinfo *a, const struct drm_mode_mo
            a->vscan == b->vscan && a->vrefresh == b->vrefresh && a->flags == b->flags;
 }
 
+static int same_text(const char *a, const char *b)
+{
+    while (*a && *a == *b) {
+        ++a;
+        ++b;
+    }
+    return *a == *b;
+}
+
+static long plane_type(long fd, unsigned id, unsigned *type)
+{
+    unsigned ids[MAX_PROPERTIES] = {0};
+    unsigned long values[MAX_PROPERTIES] = {0};
+    struct drm_mode_obj_get_properties props = {
+        .props_ptr = (unsigned long)ids, .prop_values_ptr = (unsigned long)values,
+        .count_props = MAX_PROPERTIES, .obj_id = id, .obj_type = DRM_MODE_OBJECT_PLANE,
+    };
+    long rc = query(fd, DRM_IOCTL_MODE_OBJ_GETPROPERTIES, &props);
+    if (rc < 0)
+        return rc;
+    if (props.count_props > MAX_PROPERTIES)
+        return -7;
+    int found = 0;
+    for (unsigned i = 0; i < props.count_props; ++i) {
+        struct drm_mode_get_property property = {.prop_id = ids[i]};
+        rc = query(fd, DRM_IOCTL_MODE_GETPROPERTY, &property);
+        if (rc < 0)
+            return rc;
+        if (!same_text(property.name, "type"))
+            continue;
+        if (found || !(property.flags & DRM_MODE_PROP_IMMUTABLE) || values[i] > CURSOR_PLANE)
+            return -22;
+        *type = (unsigned)values[i];
+        found = 1;
+    }
+    return found ? 0 : -61;
+}
+
+struct active_plane {
+    unsigned id;
+    unsigned fb;
+    unsigned type;
+};
+
+static long active_planes(long fd, const struct route *route,
+                          struct active_plane *active, unsigned *count)
+{
+    unsigned ids[MAX_OBJECTS] = {0};
+    struct drm_mode_get_plane_res resources = {
+        .plane_id_ptr = (unsigned long)ids, .count_planes = MAX_OBJECTS,
+    };
+    long rc = query(fd, DRM_IOCTL_MODE_GETPLANERESOURCES, &resources);
+    if (rc < 0)
+        return rc;
+    if (resources.count_planes > MAX_OBJECTS)
+        return -7;
+    for (unsigned i = 0; i < resources.count_planes; ++i) {
+        if (!ids[i] || (i && ids[i] == ids[i - 1]))
+            return -22;
+        struct drm_mode_get_plane plane = {.plane_id = ids[i]};
+        rc = query(fd, DRM_IOCTL_MODE_GETPLANE, &plane);
+        if (rc < 0)
+            return rc;
+        if (plane.crtc_id != route->crtc)
+            continue;
+        if (!plane.fb_id || !(plane.possible_crtcs & (1U << route->pipe)))
+            return -22;
+        struct active_plane *record = &active[*count];
+        record->id = ids[i];
+        record->fb = plane.fb_id;
+        rc = plane_type(fd, record->id, &record->type);
+        if (rc < 0)
+            return rc;
+        ++*count;
+    }
+    return *count ? 0 : -61;
+}
+
+static int inspect_planes(long fd)
+{
+    // Enables enumeration of primary/cursor planes on this file only.
+    struct drm_set_client_cap cap = {.capability = DRM_CLIENT_CAP_UNIVERSAL_PLANES, .value = 1};
+    long rc = query(fd, DRM_IOCTL_SET_CLIENT_CAP, &cap);
+    if (rc < 0)
+        return failure("universal-planes", rc);
+    struct route before = {0}, after = {0};
+    rc = select_dsi(fd, &before);
+    if (rc < 0)
+        return failure("route", rc);
+    struct drm_mode_crtc first = {.crtc_id = before.crtc};
+    rc = query(fd, DRM_IOCTL_MODE_GETCRTC, &first);
+    if (rc < 0 || !first.mode_valid || first.mode.hdisplay != 1080 || first.mode.vdisplay != 2400)
+        return failure("active-mode", rc < 0 ? rc : -22);
+
+    struct active_plane initial[MAX_OBJECTS], final[MAX_OBJECTS];
+    unsigned initial_count = 0, final_count = 0;
+    rc = active_planes(fd, &before, initial, &initial_count);
+    if (rc < 0)
+        return failure("initial-planes", rc);
+    const struct time_value pause = {.nanoseconds = 43000000};
+    rc = syscall4(SYS_NANOSLEEP, (long)&pause, 0, 0, 0);
+    if (rc < 0)
+        return failure("sleep", rc);
+    rc = select_dsi(fd, &after);
+    if (rc < 0 || after.connector != before.connector || after.encoder != before.encoder ||
+        after.crtc != before.crtc || after.pipe != before.pipe)
+        return failure("route-changed", rc < 0 ? rc : -11);
+    rc = active_planes(fd, &after, final, &final_count);
+    if (rc < 0 || final_count != initial_count)
+        return failure("planes-changed", rc < 0 ? rc : -11);
+    struct drm_mode_crtc last = {.crtc_id = after.crtc};
+    rc = query(fd, DRM_IOCTL_MODE_GETCRTC, &last);
+    if (rc < 0 || !last.mode_valid || !same_mode(&first.mode, &last.mode) || first.fb_id != last.fb_id)
+        return failure("mode-changed", rc < 0 ? rc : -11);
+
+    unsigned primary = 0;
+    for (unsigned i = 0; i < final_count; ++i) {
+        if (final[i].id != initial[i].id || final[i].fb != initial[i].fb || final[i].type != initial[i].type)
+            return failure("plane-state-changed", -11);
+        if (final[i].type == PRIMARY_PLANE) {
+            if (primary || (last.fb_id && last.fb_id != final[i].fb))
+                return failure("primary-plane-disagrees", -22);
+            primary = final[i].id;
+        }
+    }
+    if (!primary)
+        return failure("no-primary-plane", -61);
+
+    emit("GDRM route ");
+    number(after.connector); emit(" "); number(after.encoder); emit(" ");
+    number(after.crtc); emit(" "); number(after.pipe); emit(" ");
+    number(last.mode.vrefresh); emit(" "); number(last.fb_id); emit("\n");
+    for (unsigned i = 0; i < final_count; ++i) {
+        emit("GDRM plane ");
+        number(final[i].id); emit(" "); number(final[i].fb); emit(" ");
+        number(final[i].type); emit("\n");
+    }
+    emit("GDRM planes-complete "); number(final_count); emit("\n");
+    return 0;
+}
+
 static long wait_vblank(long fd, unsigned pipe, unsigned relative,
                         unsigned long *sequence, unsigned long *stamp)
 {
@@ -251,15 +393,18 @@ static int measure(long fd)
     return 0;
 }
 
-int probe_main(void)
+int probe_main(unsigned long argc, const char *const *argv)
 {
+    int planes = argc == 2 && same_text(argv[1], "--planes");
+    if (argc != 1 && !planes)
+        return failure("usage", -22);
     long fd = syscall4(SYS_OPENAT, AT_FDCWD, (long)"/dev/dri/card0", O_CLOEXEC, 0);
     if (fd < 0)
         return failure("open", fd);
-    int result = measure(fd);
+    int result = planes ? inspect_planes(fd) : measure(fd);
     syscall4(SYS_CLOSE, fd, 0, 0, 0);
     return result;
 }
 
 __asm__(".text\n.global _start\n_start:\n"
-        "bl probe_main\nmov x8, #93\nsvc #0\nbrk #0\n");
+        "ldr x0, [sp]\nadd x1, sp, #8\nbl probe_main\nmov x8, #93\nsvc #0\nbrk #0\n");

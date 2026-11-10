@@ -8,11 +8,13 @@ def main():
     ap.add_argument('--out',type=Path,required=True);a=ap.parse_args();repo=Path(__file__).resolve().parents[1]
     source=a.source.resolve();out=a.out.resolve();assert(source/'bsd/dev/gauguin_ui_trace.c').is_file()
     assert not out.exists();out.mkdir(parents=True)
-    files=[Path(__file__),repo/'xnu/patches/series',repo/'xnu/patches/0216-gauguin-bounded-ui-trace.patch']
+    files=[Path(__file__),repo/'xnu/patches/series',repo/'xnu/patches/0216-gauguin-bounded-ui-trace.patch',
+           repo/'xnu/patches/0217-gauguin-inherited-scan-timing.patch']
     files += [p for directory in [source/'bsd/dev',source/'iokit/Kernel/arm',repo/'tests',repo/'tools']for p in directory.rglob('*')if p.is_file()and '__pycache__'not in p.parts]
     pins={str(p):sha(p)for p in files};rows=[];start=time.monotonic()
     jobs=[('trace',[sys.executable,repo/'tests/test_ui_trace.py','--source',source,'--out',out/'trace']),
           ('command',[sys.executable,repo/'tests/test_trace_boot_profile.py','-v']),
+          ('scan',[sys.executable,repo/'tests/test_scan_timing.py','--source',source]),
           ('hid',[sys.executable,repo/'tests/test_hid_touch_frames.py']),
           ('nvt',[sys.executable,repo/'tests/test_nvt_runtime.py']),
           ('gpu',[sys.executable,repo/'tests/test_metal_compositor_input.py','--source',source,'--out',out/'gpu','--trace-capture'])]

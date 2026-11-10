@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —255 complete ARM64 kernel and offline trace image PASS
+
+R255=research/tmp/gauguin-build255-worktree-20261111,
+branch codex/gauguin-trace-build-20261111, parent 8437753.
+Profile source 427f8f9; runner fix/pushed CI head d6d9ed4f9b57fe4a9330a64cd42686da6ac3010a.
+Report docs/gauguin-trace-profile-ci-20261111.md. W255=R255/research/tmp/dsh-build-0255-trace.
+0250's 607B command becomes 596B by replacing the unused trial metadata slot
+with sweettrace=2. All 16 selectors pass the actual packer; append is invalid.
+DSH's five focused host groups passed locally and on CI. Run42905900210 was
+cancelled before steps (retired macOS14 runner). Corrected run42906506786,
+job130145768388, SUCCESS at 2026-11-10T21:50:29Z, macOS15 ARM64/Xcode16.0,
+DEVELOPMENT/ARM64/gauguin, make exit0. All DSH processes and watch reaped.
+
+Actual CI kernel 17,866,344B SHA256
+07dd709e916a986914d7f8ff4a3211ac76e05404e1f96a798bbfc2d0d7f4e1d5.
+Native identity xnu-621f0290565c4274adcb241babfae972. Postbuild archive matches
+captured 208-patch source; four build adaptations vs native254, same drivers.
+Qualification v2 passes retained/new symbols and zero undefined; v1 section
+verifier defect only, no kernel change. Offline image in R255
+shim/out/shim-p3-kernel-0255-ui-trace2-600-20261111.img, 19,939,328B SHA256
+8baab14d0fcf5e3cfb7f349a2b42f806e2f441fa88aea124d2d1c0bf7573ce88.
+Independent review255-v2 5a28a640fd06a58b2c4a552b0549f024a25b62d866605537c93f56c4f6901616
+checks 19 inputs, all 10 Mach-O segment bytes, five firmware assets, header/
+shim/DTB, 596B command + 12 NULs, 2 MiB PAS zero tail. No new RAM admitted.
+
+NEXT: genuine pending 0240 consent -> exact 9d943e79 writer/fresh preconditions
+-> exact paired239 7357a0ab first -> fresh root capture and regenerated scoped
+desktop delta/individual consent -> 0250 correct desktop first -> 0255 trace.
+No new consent inferred, no boot/device query/root write. Physical 0239/root0237,
+0250 image and MAIN mkadt diff unchanged. Kernel trace still lacks CA pre-commit
+and physical panel latch. Safe RAM/storage/peripherals/physical high refresh
+and daily-phone qualification remain active; 0252 kernel consumer not implemented.
+
 ### 2026-11-11 CST —254 kernel UI trace SOURCE/HOST/NATIVE PASS; not booted
 
 Previous253 goalturn PROGRESS: fresh HakiOS/UniXNU evidence and priority correction.

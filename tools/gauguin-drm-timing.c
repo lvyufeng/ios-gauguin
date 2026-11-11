@@ -235,6 +235,111 @@ static int same_text(const char *a, const char *b)
     return *a == *b;
 }
 
+static long mode_property(long fd, unsigned crtc, unsigned *property_id)
+{
+    unsigned ids[MAX_PROPERTIES] = {0};
+    unsigned long values[MAX_PROPERTIES] = {0};
+    struct drm_mode_obj_get_properties props = {
+        .props_ptr = (unsigned long)ids, .prop_values_ptr = (unsigned long)values,
+        .count_props = MAX_PROPERTIES, .obj_id = crtc, .obj_type = DRM_MODE_OBJECT_CRTC,
+    };
+    long rc = query(fd, DRM_IOCTL_MODE_OBJ_GETPROPERTIES, &props);
+    if (rc < 0)
+        return rc;
+    if (props.count_props > MAX_PROPERTIES)
+        return -7;
+    for (unsigned i = 0; i < props.count_props; ++i) {
+        struct drm_mode_get_property property = {.prop_id = ids[i]};
+        rc = query(fd, DRM_IOCTL_MODE_GETPROPERTY, &property);
+        if (rc < 0)
+            return rc;
+        if (!same_text(property.name, "MODE_ID"))
+            continue;
+        if (*property_id || !(property.flags & DRM_MODE_PROP_BLOB) || !values[i])
+            return -22;
+        *property_id = ids[i];
+    }
+    return *property_id ? 0 : -61;
+}
+
+static long test_mode(long fd, unsigned crtc, unsigned property,
+                      const struct drm_mode_modeinfo *mode)
+{
+    struct drm_mode_create_blob blob = {.data = (unsigned long)mode, .length = sizeof(*mode)};
+    long rc = query(fd, DRM_IOCTL_MODE_CREATEPROPBLOB, &blob);
+    if (rc < 0)
+        return rc;
+    if (!blob.blob_id)
+        return -22;
+    unsigned count = 1;
+    unsigned long value = blob.blob_id;
+    struct drm_mode_atomic request = {
+        .flags = DRM_MODE_ATOMIC_TEST_ONLY | DRM_MODE_ATOMIC_ALLOW_MODESET,
+        .count_objs = 1, .objs_ptr = (unsigned long)&crtc,
+        .count_props_ptr = (unsigned long)&count, .props_ptr = (unsigned long)&property,
+        .prop_values_ptr = (unsigned long)&value,
+    };
+    rc = query(fd, DRM_IOCTL_MODE_ATOMIC, &request);
+    struct drm_mode_destroy_blob destroy = {.blob_id = blob.blob_id};
+    long released = query(fd, DRM_IOCTL_MODE_DESTROYPROPBLOB, &destroy);
+    return released < 0 ? released : rc;
+}
+
+static int inspect_mode_tests(long fd)
+{
+    struct mode_catalog before = {0}, after = {0};
+    long rc = read_catalog(fd, &before);
+    if (rc < 0)
+        return failure("test-mode-catalog", rc);
+    struct drm_set_client_cap cap = {.capability = DRM_CLIENT_CAP_ATOMIC, .value = 1};
+    rc = query(fd, DRM_IOCTL_SET_CLIENT_CAP, &cap);
+    if (rc < 0)
+        return failure("atomic-capability", rc);
+    // SET_MASTER can acquire an unowned device, and refuses a competing owner.
+    // Closing this fd releases any ownership acquired by this process.
+    rc = query(fd, DRM_IOCTL_SET_MASTER, 0);
+    if (rc < 0)
+        return failure("atomic-test-master", rc);
+    unsigned property = 0;
+    rc = mode_property(fd, before.route.crtc, &property);
+    if (rc < 0)
+        return failure("mode-property", rc);
+
+    const unsigned rates[] = {60, 90, 120};
+    long results[3] = {0};
+    for (unsigned target = 0; target < 3; ++target) {
+        const struct drm_mode_modeinfo *selected = 0;
+        for (unsigned i = 0; i < before.count; ++i) {
+            if (before.modes[i].clock != before.active.clock || before.modes[i].vrefresh != rates[target])
+                continue;
+            if (selected)
+                return failure("ambiguous-test-mode", -22);
+            selected = &before.modes[i];
+        }
+        if (!selected)
+            return failure("missing-test-mode", -61);
+        results[target] = test_mode(fd, before.route.crtc, property, selected);
+    }
+    rc = read_catalog(fd, &after);
+    if (rc < 0 || before.route.connector != after.route.connector ||
+        before.route.encoder != after.route.encoder || before.route.crtc != after.route.crtc ||
+        before.route.pipe != after.route.pipe || before.count != after.count ||
+        !same_mode(&before.active, &after.active))
+        return failure("test-active-mode-changed", rc < 0 ? rc : -11);
+    for (unsigned i = 0; i < after.count; ++i) {
+        if (!same_mode(&before.modes[i], &after.modes[i]) || before.modes[i].type != after.modes[i].type)
+            return failure("test-catalog-changed", -11);
+    }
+    for (unsigned i = 0; i < 3; ++i) {
+        emit("GDRM test-only "); number(rates[i]); emit(" "); number(before.active.clock); emit(" ");
+        if (results[i] < 0)
+            emit("-");
+        number((unsigned long)(results[i] < 0 ? -results[i] : results[i])); emit("\n");
+    }
+    emit("GDRM tests-complete 3\n");
+    return 0;
+}
+
 static long plane_type(long fd, unsigned id, unsigned *type)
 {
     unsigned ids[MAX_PROPERTIES] = {0};
@@ -479,12 +584,21 @@ int probe_main(unsigned long argc, const char *const *argv)
 {
     int planes = argc == 2 && same_text(argv[1], "--planes");
     int modes = argc == 2 && same_text(argv[1], "--modes");
-    if (argc != 1 && !planes && !modes)
+    int tests = argc == 2 && same_text(argv[1], "--test-modes");
+    if (argc != 1 && !planes && !modes && !tests)
         return failure("usage", -22);
     long fd = syscall4(SYS_OPENAT, AT_FDCWD, (long)"/dev/dri/card0", O_CLOEXEC, 0);
     if (fd < 0)
         return failure("open", fd);
-    int result = modes ? inspect_modes(fd) : planes ? inspect_planes(fd) : measure(fd);
+    int result;
+    if (tests)
+        result = inspect_mode_tests(fd);
+    else if (modes)
+        result = inspect_modes(fd);
+    else if (planes)
+        result = inspect_planes(fd);
+    else
+        result = measure(fd);
     syscall4(SYS_CLOSE, fd, 0, 0, 0);
     return result;
 }

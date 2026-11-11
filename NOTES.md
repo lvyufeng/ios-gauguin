@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0273 DRM TEST_ONLY path built; real recovery master unavailable
+
+Report docs/gauguin-drm-test-only-20261111.md. tools/gauguin-drm-timing.c
+--test-modes builds only flags0x500 mode checks for active clock family's
+60/90/120. Mode blob lifetime, route/catalog postcheck, matching parser.
+Actual attempt stopped at SET_MASTER -EINVAL; recovery has card0 open.
+No mode check executed. Exact vendor auth.c explains occupied-master EINVAL.
+Before/after modes identical, vblank60.2446 both, tmpfs cleanup and TWRP.
+
+W273=research/tmp/dsh-drm-test-0273. DSH91394 native13,312B pass/host header
+fixture fail;91517 exit0 1.024s/16pins actual request/cleanup ASAN/UBSAN,
+7bad logs. DSH91679 physical exit1 3.235s/19pins, retained observation
+and cleanup pass but unexpected -22 master-error classifier. Review91897
+exit0 7.159s/26pins analyzes same attempt and queries card0 openers, records
+unavailable explicitly. No physical retry. All launchers reaped.
+BinarySHAc8d3b0dc7bac6ae78ffec619317f8f05623eee53a4c48f52d06bb300199afcbf,
+reviewSHA9be28e93cee85d2117e55957b97d1245283fc20b621c59c4f4367427db52a928.
+Codex independently verifies pins/logs/ELF/no undefined and0x500 disassembly.
+No reboot, real modeset, partition write or CI. 0240/0261 exact approvals
+pending. Goal active, high-refresh hardware acceptance remains open.
+
 ### 2026-11-11 CST —0272 real complete DRM timing catalog and exact vendor model
 
 Report docs/gauguin-dynamic-refresh-timings-20261111.md. Added recovery

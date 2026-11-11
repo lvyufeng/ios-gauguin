@@ -147,15 +147,45 @@ def analyze_modes(log):
             "matching_active_timing_index": matches[0] if matches else None}
 
 
+def analyze_tests(log):
+    records = [line.split() for line in log.splitlines() if line.startswith("GDRM ")]
+    for record in records:
+        if record[1:2] == ["error"]:
+            raise ValueError("probe reported " + " ".join(record[2:]))
+    if len(records) != 4 or records[-1] != ["GDRM", "tests-complete", "3"]:
+        raise ValueError("incomplete or repeated DRM mode tests")
+    results = []
+    clocks = set()
+    for expected, record in zip((60, 90, 120), records[:-1]):
+        if record[:2] != ["GDRM", "test-only"] or len(record) != 5:
+            raise ValueError("malformed DRM mode test")
+        rate, clock, status = map(int, record[2:])
+        if rate != expected or not 0 < clock <= 1_000_000 or not -4095 <= status <= 0:
+            raise ValueError("invalid DRM mode test result")
+        clocks.add(clock)
+        results.append({"reported_hz": rate, "kernel_check_status": status})
+    if len(clocks) != 1:
+        raise ValueError("mode tests changed clock families")
+    return {"reported_clock_khz": clocks.pop(), "test_only_results": results}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", type=Path)
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--planes", action="store_true")
     group.add_argument("--modes", action="store_true")
+    group.add_argument("--test-modes", action="store_true")
     args = parser.parse_args()
     try:
-        reader = analyze_modes if args.modes else analyze_planes if args.planes else analyze
+        if args.test_modes:
+            reader = analyze_tests
+        elif args.modes:
+            reader = analyze_modes
+        elif args.planes:
+            reader = analyze_planes
+        else:
+            reader = analyze
         print(json.dumps(reader(args.log.read_text()), indent=2))
     except (ValueError, OSError) as error:
         parser.exit(1, f"gauguin DRM timing: {error}\n")

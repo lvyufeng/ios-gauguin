@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-#define GAUGUIN_METAL_OPEN_BUDGET_NS UINT64_C(35000000000)
+#define GAUGUIN_METAL_OPEN_BUDGET_NS UINT64_C(180000000000)
 #define GAUGUIN_METAL_OPEN_STEP_NS UINT64_C(100000000)
-#define GAUGUIN_METAL_OPEN_ATTEMPTS 351u
+#define GAUGUIN_METAL_OPEN_ATTEMPTS 1801u
 enum gauguin_metal_wait_reason { GMW_READY=0,GMW_TIMEOUT,GMW_CLOCK,GMW_SLEEP,GMW_ATTEMPTS,GMW_ARGUMENT };
 struct gauguin_metal_wait_result { enum gauguin_metal_wait_reason reason;uint32_t attempts;uint64_t elapsed_ns; };
 struct gauguin_metal_wait_ops {

@@ -17,21 +17,21 @@ int main(void)
     CHECK(!gauguin_metal_wait_open(&ops,NULL));
     m=(struct model){.ready=1,.cost=1};CHECK(gauguin_metal_wait_open(&ops,&r)==&m.token&&r.reason==GMW_READY&&r.attempts==1&&r.elapsed_ns==1&&!m.sleeps&&!m.closes);
     m=(struct model){.ready=5,.cost=1};CHECK(gauguin_metal_wait_open(&ops,&r)==&m.token&&r.attempts==5&&r.elapsed_ns==400000005&&!m.closes);
-    m=(struct model){.ready=351};CHECK(gauguin_metal_wait_open(&ops,&r)==&m.token&&r.elapsed_ns==GAUGUIN_METAL_OPEN_BUDGET_NS&&m.sleeps==350);
-    m=(struct model){0};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_TIMEOUT&&m.opens==351&&m.sleeps==350);
+    m=(struct model){.ready=GAUGUIN_METAL_OPEN_ATTEMPTS};CHECK(gauguin_metal_wait_open(&ops,&r)==&m.token&&r.elapsed_ns==GAUGUIN_METAL_OPEN_BUDGET_NS&&m.sleeps==GAUGUIN_METAL_OPEN_ATTEMPTS-1);
+    m=(struct model){0};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_TIMEOUT&&m.opens==GAUGUIN_METAL_OPEN_ATTEMPTS&&m.sleeps==GAUGUIN_METAL_OPEN_ATTEMPTS-1);
     m=(struct model){.ready=1,.cost=GAUGUIN_METAL_OPEN_BUDGET_NS+1};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_TIMEOUT&&m.closes==1);
     m=(struct model){.failclock=1};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_CLOCK&&!m.opens);
     m=(struct model){.ready=1,.failclock=3};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_CLOCK&&m.closes==1);
     m=(struct model){.now=10,.ready=1,.cost=1,.backclock=3};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_CLOCK&&m.closes==1);
-    m=(struct model){.freeze=true};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_ATTEMPTS&&m.opens==351&&m.sleeps==350);
+    m=(struct model){.freeze=true};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_ATTEMPTS&&m.opens==GAUGUIN_METAL_OPEN_ATTEMPTS&&m.sleeps==GAUGUIN_METAL_OPEN_ATTEMPTS-1);
     m=(struct model){.failsleep=true};CHECK(!gauguin_metal_wait_open(&ops,&r)&&r.reason==GMW_SLEEP&&m.opens==1);
     m=(struct model){.now=UINT64_MAX-2,.ready=1,.cost=1};CHECK(gauguin_metal_wait_open(&ops,&r)==&m.token&&r.elapsed_ns==1);
     for(unsigned n=1;n<=1000;n++) {
-        unsigned ready=(n*193)%400+1,cost=(n*79)%1000;
+        unsigned ready=(n*193)%2000+1,cost=(n*79)%1000;
         m=(struct model){.ready=ready,.cost=cost};void *device=gauguin_metal_wait_open(&ops,&r);
         uint64_t completion=(uint64_t)(ready-1)*GAUGUIN_METAL_OPEN_STEP_NS+(uint64_t)ready*cost;
-        bool expected=ready<=351&&completion<=GAUGUIN_METAL_OPEN_BUDGET_NS;
-        CHECK((device!=NULL)==expected);CHECK(m.opens<=351&&m.sleeps<=350);
+        bool expected=ready<=GAUGUIN_METAL_OPEN_ATTEMPTS&&completion<=GAUGUIN_METAL_OPEN_BUDGET_NS;
+        CHECK((device!=NULL)==expected);CHECK(m.opens<=GAUGUIN_METAL_OPEN_ATTEMPTS&&m.sleeps<GAUGUIN_METAL_OPEN_ATTEMPTS);
         if(expected){CHECK(r.reason==GMW_READY&&r.elapsed_ns==completion&&!m.closes);}
     }
     printf("%u actual first-device wait checks passed; virtual clock, no GPU\n",checks);return 0;

@@ -24,6 +24,7 @@
 #ifdef GAUGUIN_METAL_BOOTSTRAP
 #include <sys/sysctl.h>
 #include "GauguinMetalDesktopPolicy.h"
+#include "GauguinMetalBootstrapWait.h"
 #include "gauguin_metal_bootstrap.h"
 #endif
 
@@ -143,8 +144,47 @@ static std::shared_ptr<CompiledStage> stage(const void* bc,size_t size) {
     std::string why;auto s=compileStage(bc,size,&why);require(bool(s),"AIR-stage",why);return std::shared_ptr<CompiledStage>(std::move(s));
 }
 
+#ifdef GAUGUIN_METAL_BOOTSTRAP
+/* GAUGUIN_BOOTSTRAP_WAIT_BEGIN: execute these actual bodies in host controls. */
+static bool bootstrapWaitClock(void*,uint64_t* out) {
+    timespec t{};
+    if(clock_gettime(CLOCK_MONOTONIC_RAW,&t)||t.tv_sec<0||t.tv_nsec<0||t.tv_nsec>=1000000000||
+       uint64_t(t.tv_sec)>(UINT64_MAX-uint64_t(t.tv_nsec))/1000000000)return false;
+    *out=uint64_t(t.tv_sec)*1000000000+uint64_t(t.tv_nsec);return true;
+}
+static bool bootstrapWaitSleep(void*,uint64_t ns) {
+    timespec pause{time_t(ns/1000000000),long(ns%1000000000)};
+    for(unsigned n=0;n<100;n++) {
+        if(!nanosleep(&pause,&pause))return true;
+        if(errno!=EINTR)return false;
+    }
+    return false;
+}
+static void* bootstrapWaitOpen(void* why) {
+    return openKernelGpu(static_cast<std::string*>(why)).release();
+}
+static void bootstrapWaitClose(void*,void* transport) { delete static_cast<Transport*>(transport); }
+static std::unique_ptr<Transport> bootstrapOpen(std::string* why) {
+    gauguin_metal_wait_ops ops{why,bootstrapWaitClock,bootstrapWaitSleep,bootstrapWaitOpen,bootstrapWaitClose};
+    gauguin_metal_wait_result result{};
+    auto* transport=static_cast<Transport*>(gauguin_metal_wait_open(&ops,&result));
+    std::printf("GAUGUIN METAL279 startup-open reason=%u attempts=%u elapsed_ns=%llu connected=%u\n",
+                unsigned(result.reason),result.attempts,(unsigned long long)result.elapsed_ns,transport!=nullptr);
+    return std::unique_ptr<Transport>(transport);
+}
+/* GAUGUIN_BOOTSTRAP_WAIT_END */
+#endif
+
 static void run(uint32_t seed) {
-    std::string why;auto transport=openKernelGpu(&why);require(bool(transport),"GPU-open",why);
+    std::string why;
+#ifdef GAUGUIN_METAL_BOOTSTRAP
+    auto transport=bootstrapOpen(&why);require(bool(transport),"GPU-open",why);
+    // The startup wait has its own monotonic deadline. Keep the independent
+    // thirty-second GPU-work watchdog after a real owner has been acquired.
+    alarm(30);
+#else
+    auto transport=openKernelGpu(&why);require(bool(transport),"GPU-open",why);
+#endif
     auto wrapped=std::make_unique<Audited>(std::move(transport));auto* audit=wrapped.get();
     Gpu gpu(std::move(wrapped));
     const uint32_t ids[4]={kParamGpuId,kParamChipId,kParamGmemSize,kParamGmemBase};
@@ -233,7 +273,6 @@ int main(int argc,char** argv) {
     char bootargs[1024]={0};size_t bootbytes=sizeof(bootargs)-1;
     require(sysctlbyname("kern.bootargs",bootargs,&bootbytes,nullptr,0)==0 && bootbytes<sizeof(bootargs) &&
             gauguin_desktop_boot(bootargs),"bootstrap-scope","exact mode2/gmt2/dyld1 required");
-    alarm(30);
 #else
     if (argc!=2 || std::strcmp(argv[1],"--metal223")) return 2;
 #endif
@@ -241,7 +280,7 @@ int main(int argc,char** argv) {
     std::printf("GAUGUIN METAL223 begin build=%s core=%s scope=offscreen-core-not-MTLDevice\n",GAUGUIN_METAL_PROBE_BUILD,GAUGUIN_METAL_CORE_SHA256);
 #ifdef GAUGUIN_METAL_BOOTSTRAP
     memory("bootstrap-start");
-    std::printf("GAUGUIN METAL245 begin build=%s delay=0 deadline=30\n",GAUGUIN_METAL_PROBE_BUILD);
+    std::printf("GAUGUIN METAL245 begin build=%s startup_budget=180 work_deadline=30\n",GAUGUIN_METAL_PROBE_BUILD);
 #else
     memory("before-delay");
     uint64_t start=nowNs();timespec rest{90,0};

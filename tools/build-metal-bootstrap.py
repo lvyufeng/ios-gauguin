@@ -15,6 +15,7 @@ def main():
     paths=[Path(__file__).resolve(),r/'tools/build-hakios-metal.py',r/'userland/metal/device_probe.cpp',
            r/'userland/metal/probe_pixels.hpp',r/'graphics/hakios-metal-ca/bootstrap/gauguin_metal_bootstrap.h',
            r/'graphics/hakios-metal-ca/desktop-overlay/userland/src/GauguinMetalDesktopPolicy.h',receipt,lib,sdk/'SDKSettings.json']
+    paths += [r/'graphics/hakios-metal-ca/desktop-overlay/userland/src/GauguinMetalBootstrapWait.h']
     paths += [source/('tests/fixtures/'+name+'_bc.hpp')for name in ['fill_id','tri_attr_vs','tri_color_fs','tri_cflat_fs','tri_tex_fs']]
     pins={str(p):sha(p)for p in paths};tag=hashlib.sha256(json.dumps(pins,sort_keys=True).encode()).hexdigest()[:24]
     out.mkdir(parents=True,exist_ok=False);binary=out/'gauguin-metal-bootstrap'
@@ -35,6 +36,7 @@ def main():
     result=dict(state='native-iOS16-eight-job-bootstrap-not-device-qualified',binary=str(binary),probe=str(binary),
                 bytes=binary.stat().st_size,sha256=sha(binary),build=tag,platform_version=version,
                 expected_argument='--bootstrap245',initial_delay_seconds=0,alarm_seconds=30,expected_jobs=8,
+                startup_budget_seconds=180,work_alarm_starts_after_GPU_open=True,
                 core_sha256=sha(lib),input_pins=pins,inputs_unchanged=True,
                 required_kernel_selector=0x7c,requires_clean_armed_owner_close=True,
                 device_commands=0,installed=False,hardware_qualified=False)

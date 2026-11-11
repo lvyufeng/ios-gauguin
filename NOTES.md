@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0279 startup race fix host/native PASS, not installed
+
+MAIN active handoff is /Users/baai/Project/ios-gauguin/NOTES.md. Actual0250/277
+trial W278 autoTWRP745s but UI fails, user sees only logs. Root exits on first
+no-HakiosGPU match; backboardd first-open expires35.001s/344attempts; native
+service only starts later,600s/598renewals finishes0submissions. No arm/handoff.
+W278 preserves all27files/4dirs/3full prefixes, audit19133exit0 confirms failed
+trial evidence. No further phone write or boot since277.
+
+This branch codex/gauguin-metal-startup-order-20261111 starts410a8c0, whose
+code equals kernel-source d0409f25 (only3docs differ). Changes only shared wait
+180s/1801attempts, root acquire-before30s work alarm, build dependency/provenance
+and focused tests. Kernel/core/shader patches unchanged. DSH20697 exit0,
+8.292s/30pins:2913production Cwait checks, actualC++callbacks/acquire/alarm,
+OLD42/NEW0 at60s publication, signed frontend428400B SHA0a1b55bb..., bootstrap
+116048B SHA7b922e66... build9b9f99e2627808207562eee0. No device commands.
+review279-v1.json independently checks pins/import union; front343imports same,
+newroot errno/nanosleep already in priorfront. Bundle Info/seal unchanged.
+Report docs/gauguin-metal-startup-order-20261111.md. Binaries built from pinned
+working copy before this source commit, not falsely described as a clean-head
+build. MAIN native core8a826583.../0250 image18d3196f... stay unchanged.
+
+W280 MAIN/research/tmp/dsh-post277-backup-0280 is fresh readonly full scan/
+COW snapshot of current277root, using prior277final as seed. Await its result.
+Then build a two-executable-only HFS delta, preserve all jobs/cache/dirs/logs,
+review and obtain its own root+13B misc consent before any install/boot.
+Do not reuse277approval or blindly reverse preboot HFS metadata after a boot.
+Full GPU/Metal/RAM/storage/peripheral/highHz/daily goal remains unfinished.
+
 ### 2026-11-11 CST —251 CURRENT TWRP preflight PASS; lower-RAM owner gap quantified
 
 Previous goalturn PROGRESS (250fullnativekernel/image). Thisturn makes actual

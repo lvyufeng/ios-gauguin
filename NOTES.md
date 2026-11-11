@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0294 source: submission framing and existing Metal hardware timing
+
+Actual293 completed ONE approved temporaryboot/automaticTWRP746s; normaldesktop,
+icons/widgets/Settings peruser, but “与之前一样卡”. Scopedroot8hash/ownerhandoff
+PASS, HOLD43/42/42/1/0beforestop; native56/56aggregate. Fulltrace gateFAIL at
+observerline4690(interleavedsubmission12); keeprawfailedreportsunchanged.
+See MAIN/research/tmp/dsh-swap-flags-0293/scoped-actual293.json. GPUAPImean17.26ms
+is wholeCPUrequest, not pureGPUtime; physicalFPS/highHz/dailyflags stillfalse.
+
+0294only0218localruntime_submitlogframing, originalgmb_record andguards retained.
+One<=193Bbufferedconsole_write per submissionline, exactlocalOSFMKdeclaration
+becausekern/misc_protos.hnotexportedtoBSD. Originalmarkpayload/flushretained;
+printfos_logsecondaryoutputbypassed. Early/panic/unbufferedwritersmayinterleave;
+strictparserremainsunchanged. Futureoversizedfallbackisbest-effort, nofulltext
+promise. Source-v35332files/210patchSHAf0a1a56498954526b8b3e1d1a9fdc1357676c723fac4e87b3d5831f5e5b8bdec.
+
+W294=MAIN/research/tmp/dsh-metal-metrics-0294, DSH17656software-stage-v3exit0/
+13.222s: actualoldemitterfunctionalRED,newboundedframe/markPASS; nineactual
+rebootconsumersandinstalledfrontendreaderPASS; actualnativeARM64gmuTUPASS.
+Earlierhostmacro/include failures retained, corrected without relaxedwarnings.
+Command607->603B: removeonlysweetreboot=0,appendbaremetal_fps; allothertokens
+incl-noprogressretained. Existing279frontend enables CP19.2MHzpasstimestamps;
+no userdataupdate. Profiling addswork and is notunperturbedphysicalFPSproof.
+
+Fullkernel/package/devicepreflightnext. NO294deviceauthorization, no294write/
+boot. Laterfresh13Bmisc+ONEtempbootmustbeindividuallyapproved;293consent spent.
+Preserve500GBcap(~433GB;whole8GiBbatchadmitted),alloriginal/currentbackups,
+originalMAINmkadtdiffa74a0418... . Fullgoalremainsincomplete.
+
 ### 2026-11-11 CST —0293 background-update admission repair, host/native TU PASS; no new boot
 
 Authoritativeactualhardwarehandoff: MAIN/NOTES.md,0292. Actual0291 temporary

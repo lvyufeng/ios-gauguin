@@ -1,0 +1,35 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -35,6 +35,23 @@
+ {return ml_get_interrupts_enabled()&&!ml_at_interrupt_context()&&!get_preemption_level();}
+ static void gmb_record(const char *line)
+ {printf("%s\n",line);if(gmb_thread()){sweet_log_mark_sync(line);sweet_log_flush_now();}}
++/* Exact OSFMK declaration from kern/misc_protos.h; not exported to BSD. */
++extern void console_write(char *, int);
++/* The submit formatter owns line[192]. One <=193-byte console reservation
++ * keeps the normal buffered record whole beside multi-call IOKit logging.
++ * Retain the existing persistent mark payload and flush; GPU guards stay unchanged.
++ * Early/panic/unbuffered writers remain outside this framing guarantee. */
++static void gmb_record_submission(const char *line)
++{
++    char framed[194];
++    int bytes = snprintf(framed, sizeof(framed), "\n%s\n", line);
++    if (bytes > 0 && (unsigned)bytes < sizeof(framed)) {
++        console_write(framed, bytes);
++    } else {
++        printf("\n%s\n", line); /* best effort for future oversized callers */
++    }
++    if (gmb_thread()) { sweet_log_mark_sync(line); sweet_log_flush_now(); }
++}
+ /* Success-only cached record groups keep each mark synchronous, then persist
+  * the complete console group once before the caller can start hardware work.
+  * Existing failures/standalone diagnostics retain immediate full flushes. */
+@@ -4186,7 +4203,7 @@
+      * avoiding a synchronous UFS mark/ring write for every draw submission. */
+     if(rc!=GGR_OK||!ggrb_service||ggrb_context.completed<=16||ggrb_context.completed%120==0) {
+         char line[192];snprintf(line,sizeof(line),"SWEET GPU USER: submit rc=%u ibs=%u submitted=%u completed=%u shadow=%u polls=%u",
+-            rc,n,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr,ggrb_context.polls);gmb_record(line);
++            rc,n,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr,ggrb_context.polls);gmb_record_submission(line);
+     }
+     return rc==GGR_OK;
+ }

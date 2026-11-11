@@ -2,6 +2,19 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0296 first pending-consent audit
+
+Previous goal turn was PROGRESS (complete 0296 diagnostic built, tested and
+bound read-only). This continuation has no engineering progress: all717
+ready inputs remain unchanged, stages terminal exit0, no approval296-v3,
+execution296-v3, trial-v3 or live device job exists. The existing individual
+confirmation for the 13-byte misc marker plus one temporary boot remains
+pending; do not duplicate the question or infer approval from goal continuation.
+Keep the full goal ACTIVE; this is the first no-progress consent audit after
+completed 0296 preparation. Preserve all originals, 500GB cap and the exact
+plan/image/ready pins. Follow the immediately following handoff after actual
+approval. Snapshot W296/consent-audit-first.json.
+
 ### 2026-11-11 CST —0296 guard-group timing image ready; individual trial consent pending
 
 Previous goal turn was PROGRESS: actual0294 completed once, produced four GPU

@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST — 0297 fault subgroup diagnostic built; trial not authorized
+
+Previous goal turn progressed: 0296 ran once and localized fault checks as the
+largest timed guard. This turn progresses further. R297=research/tmp/
+gauguin-fault297-worktree-20261111, W297=R297/research/tmp/dsh-fault297-trial.
+0220 separately times global SMMU reads, bounded settle calls, each context
+bank, host and AO reads without removing/reordering predicates. These are CPU
+wall intervals from all gfw_faults callers, not per-submit, GPU time or FPS;
+extra timestamps can perturb deadlines. Exact-source normalization plus the
+actual macro sanitizer test passed (6 tests); parser tests passed (2). DSH
+dispatcher 39908 compared actual 0296/0297 C under deterministic hardware
+mocks for 80 cases, 12 tests passed; this is not hardware qualification.
+
+Source commit 6d78eb7f1f83bbaaf953311ff30d8688f3d2f6b5 was pushed to
+codex/gauguin-fault-profile-20261111 by DSH dispatcher 40708. Fresh ARM64 TU
+and full local kernel build/qualification passed (DSH 35089, 41608), kernel
+SHA 128b4b25eb0215e043d703c04bb7c68218e8d234ac104b3ffe70a40ce284af05.
+DSH 85181 offline-packaged 20,021,248-byte image R297/shim/out/
+shim-p3-kernel-0297-fault-profile-600-20261111.img SHA
+2d8c1556beb11256794bf48a3bb26f4582c6ffa4147386e67ff05f48f61bf73c;
+assets, command, RAM envelope, DTB and shim match 0296. It has NOT booted.
+DSH 83823 read-only TWRP preflight matched 27 files/four dirs with post0296;
+root header 2fe5a571b5119d67522265402de4f0820c22a3bd9865ef9a23ad71b309e82a78,
+misc preimage ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+There have been no 0297 device writes or boots. Latest preflight accounting
+443517104128 B, below 500000000000 B cap.
+
+DSH is preparing W297/boot297.py, post297.py and offline negative tests; review
+and test them before creating a concrete plan or seeking fresh user approval.
+Do not create/infer a 0297 approval or launch a trial from the spent 0296
+permission. Preserve 0296, backups, original MAIN tools/mkadt.py diff and the
+500 GB cap. User is away: do not ask for reboot attribution, only request
+manual recovery if genuinely stuck. Full hardware and daily-use goal remains
+active and incomplete.
+
 ### 2026-11-11 CST — 0296 completed; fault checks are largest timed group
 
 The specifically approved 0296 trial ran once and automatically returned to

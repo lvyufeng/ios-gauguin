@@ -28,7 +28,7 @@ int router_sysctl(const char *key,void *out,size_t *n,void *newp,size_t newn)
     if(!strcmp(key,"kern.osversion")){if(CASE("version"))s="20H391";}
     else {
         assert(!strcmp(key,"kern.bootargs"));s="sweeteagl=1 gmt=1 sweet_dyld_probe=1";
-        if(CASE("desktop"))s="sweeteagl=2 gmt=2 sweet_dyld_probe=1";
+        if(CASE("desktop")||CASE("desktop-stale-target"))s="sweeteagl=2 gmt=2 sweet_dyld_probe=1";
         if(CASE("legacy"))s="sweeteagl=2 sweet_dyld_probe=1";
         if(CASE("mode-prefix"))s="xsweeteagl=2 gmt=2 sweet_dyld_probe=1";
         if(CASE("mode-duplicate"))s="sweeteagl=2 gmt=2 gmt=2 sweet_dyld_probe=1";
@@ -90,6 +90,7 @@ int main(int argc,char **argv)
     else replaced=true;
     assert(getpid()==before&&replaced==expected);
     assert(spawns==(unsigned)(expected||CASE("spawn-error")||CASE("spawn-return")));
+    if(CASE("desktop-stale-target"))assert(stats>=1&&memcalls==0&&spawns==0);
     if(expected)assert(jetsamcalls==1&&memcalls==2&&stats==2);
     printf("PASS router %s: replacement=%u spawn_calls=%u; no real spawn\n",scenario,replaced,spawns);return 0;
 }

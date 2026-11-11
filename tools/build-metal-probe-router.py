@@ -10,8 +10,9 @@ def main():
     receipts=[a.retained_receipt.resolve(),a.bootstrap_receipt.resolve()];retained,bootstrap=[json.loads(p.read_text())for p in receipts]
     targets=[Path(retained['probe']),Path(bootstrap['binary'])]
     assert retained['sha256']=='26d09095687544b44af83232fd850c8d8c0d2149a7c17b87b7a0500b697bca3b'
-    assert bootstrap['sha256']=='2e41724459e53107b7e34fc932600507f6c1e5644917f7cc6c7029101bb1450c'
+    assert bootstrap['sha256']=='7b922e66fbeb862504ea8ac01fd73681382e4718b7b1325e405fbecc25f6b6e0'
     assert bootstrap['initial_delay_seconds']==0 and bootstrap['alarm_seconds']==30 and bootstrap['expected_jobs']==8
+    assert bootstrap['startup_budget_seconds']==180 and bootstrap['work_alarm_starts_after_GPU_open'] is True
     for receipt,target in zip([retained,bootstrap],targets):
         assert receipt['inputs_unchanged']and sha(target)==receipt['sha256']and 0<target.stat().st_size<=1048576
         for n,h in receipt['input_pins'].items():assert sha(Path(n))==h,n
@@ -23,7 +24,7 @@ def main():
             headers/'GauguinMetalProfile.h',desktop/'GauguinMetalDesktopPolicy.h',sdk/'SDKSettings.json',*receipts,*targets]
     pins={str(p):sha(p)for p in inputs};tag=hashlib.sha256(json.dumps(pins,sort_keys=True).encode()).hexdigest()[:24]
     out.mkdir(parents=True,exist_ok=False);header=out/'GauguinProbeRouterTargets.h'
-    lines=['/* Generated target identities; future240 installation prerequisite. */',
+    lines=['/* Generated identities; validate both installed targets before boot. */',
            'struct gauguin_router_target {const char *path,*argument;uint64_t bytes;unsigned char sha256[32];};']
     specs=[]
     for kind,receipt,target,path,arg in [('retained',retained,targets[0],'/usr/libexec/gauguin-metal-frontend-probe','--metal230'),
@@ -42,6 +43,7 @@ def main():
     platform=m.ios_version(binary);assert all(sha(Path(n))==h for n,h in pins.items())
     result=dict(state='native-iOS16-root-probe-router-not-device-qualified',binary=str(binary),probe=str(binary),bytes=binary.stat().st_size,sha256=sha(binary),build=tag,
                 platform_version=platform,targets=specs,input_pins=pins,inputs_unchanged=True,requires_0240_installed=True,
+                bootstrap_startup_budget_seconds=180,requires_installed_target_validation=True,
                 kernel_changes=False,installed=False,device_commands=0,hardware_qualified=False)
     (out/'result.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({k:v for k,v in result.items()if k!='input_pins'},indent=2))
 if __name__=='__main__':main()

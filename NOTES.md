@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0285 router binding fixed, host/native PASS; not installed
+
+Authoritative MAIN handoff: /Users/baai/Project/ios-gauguin/NOTES.md.
+Previous goalturn PROGRESS: storage391.4GB<500GB and0282failure diagnosed from
+actualcaptured43Bstderr. Routera32f77cb still pins old115968B/2e417244bootstrap;
+new116048B/7b922e66installed279bootstrap was refused BEFORE its readinesswait.
+0281consent spent; no repeat root write/boot. Phone returned toTWRP745s.
+
+This branch codex/gauguin-metal-router-binding-20261111 starts ba679b0445.
+DSH39675 MAIN/research/tmp/dsh-router-0285/software-stage-v1 exit0/5.250s/89pins:
+29originalroutertests +actual0282real-binary OLDrefusal/NEWmodeledSETEXEC and
+4package negatives pass. Native signedrouter69536B SHA7834e091f35dfca68ad8f6f0673e57d88ddfa3664b01b137d0ca3b01890e5cd2,
+build75fd7501e15a2ec6083233d4. RuntimeC/imports/loads unchanged. New reusable
+tools/metal_router_targets.py checks ACTUAL router+bothtarget tuples, metadata
+and filebytes; must be used on finalcandidate, not only independent SHA pins.
+No device commands in software stage. Host typed credentials/spawn are models.
+Report docs/gauguin-metal-router-binding-20261111.md; sourcepublication receipt
+MAIN/research/tmp/dsh-router-0285/publish-result285.json records exact commit.
+
+MAIN W286=research/tmp/dsh-post282-backup-0286 prepares fresh readonly full16GiB
+current root snapshot. Plannedbatch36GiB includes TWO16GiBimages +all source/
+test/capture outputs; DSH39057 budget391357313024+38654705664<500000000000.
+The newrouter stays69536B, so a direct same-size HFS data-fork replacement can
+preserve all filesystem metadata; validate this from full-volume diff. No HFS
+mount/caches/jobs/content outside router should change. Newuserdata/misc writes
+need own concrete proposal+individualconsent after backup/fsck/review. Keep
+0250image18d3196f/core8a826583/all installed279executables/27files/4dirs/logs.
+No desktoppixels/FPS/highHz/daily qualification; fullgoal active/incomplete.
+
 ### 2026-11-11 CST —0279 startup race fix host/native PASS, not installed
 
 MAIN active handoff is /Users/baai/Project/ios-gauguin/NOTES.md. Actual0250/277

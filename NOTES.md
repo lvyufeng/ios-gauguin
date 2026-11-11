@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0297 single approved trial running
+
+User approved call_00a43f48dedd40a69f99002954e4cf61. Fresh read-only DSH
+preflight 46385 exited 0; all 27 files/four dirs, identity, root header and
+misc preimage matched, no writes/boots; allocated project usage 443718217728 B.
+One DSH trial dispatcher 48878 launched W297/execute_after_fresh297.py. Its
+child process group is 48886. W297/trial297-v1/preflight.json records a
+verified 13-byte marker, and cycle.log records the exact 0297 fastboot boot
+OKAY, one attempt and zero retries. Authorization is consumed. Observe that
+same process; do not start another. A DSH post-stage has been launched to wait
+on this exact dispatcher before read-only capture and process-group audit.
+Automatic TWRP is expected after about 745 s; only request manual recovery if
+the original trial genuinely gets stuck, never ask reboot attribution.
+
+Independent opt-in present-copy statistics candidate is in R298=
+research/tmp/gauguin-present-trace-worktree-20261112, patch 0221, not committed
+or booted. DSH 44529 source replay/ARM64 TU and present-validation-stage passed
+source normalization, 243 header checks, held-lifetime and software-clock host
+regressions. DSH integration harness session 67321 was still working when the
+0297 approval arrived; inspect its original handle and logs before touching its
+files. All host evidence is non-hardware. Keep full end goal active, preserve
+0296/0297 baselines, backups, original MAIN mkadt diff and the 500 GB limit.
+
+### 2026-11-12 CST — 0297 specifically approved; fresh preflight running
+
+User answered call_00a43f48dedd40a69f99002954e4cf61: “允许本轮标记写入、临时启动及标记失败回滚”.
+This is authorization for the exact 0297 plan bcf91c8c408c52ba29281fccad32dfae5a3b6d88f7d7e7ccf34d76a891a4663a,
+13-byte misc marker, one temporary boot and marker-failure-only rollback. The
+actual answer and hashes are bound in W297/approval297.json. All 1,123 ready
+pins were rechecked unchanged. DSH fresh-preflight dispatcher 46385 is live at
+W297/fresh-preflight-stage-v1; poll that same process/result. No 0297 marker
+write or boot has yet been observed. After successful fresh read-only evidence,
+create the single pinned trial-stage-v1 invoking execute_after_fresh297.py;
+then bind await_post297.py to its exact dispatcher and never retry. See the
+following sections for process-group audit, user-away and 500 GB constraints.
+
+Independent opt-in copy/guard statistics candidate is in research/tmp/
+gauguin-present-trace-worktree-20261112, patch 0221 NOT yet committed or booted.
+It keeps stats disabled by default, records after existing held-frame release,
+and uses separate guard/copy histograms excluding zero-work frames. DSH source
+stage 44529 passed patch replay and ARM64 framebuffer TU; validation stage
+passed exact 0297 source normalization, 243 ASan/UBSan header checks, existing
+3,557 held-lifetime and 7,264 software-clock host checks. DSH integration test
+session may still be live; inspect research/tmp/dsh-present-integration-output.jsonl
+and its original process before editing its files. Host tests/TU do not qualify
+hardware, FPS, physical refresh or UI smoothness. Preserve this work while
+prioritizing the specifically approved 0297 test.
+
 ### 2026-11-12 CST — scanout evidence audit complete; 0297 approval still pending
 
 Previous goal turn built the 0297 diagnostic and requested its individual

@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0297 completed; bank reads dominate timed subgroups
+
+The authorized 0297 trial booted exactly once and auto-returned to TWRP after
+745 s; exact kernel banner and 13-byte marker readback matched. Trial stage
+48878 exited 0 and process group 48886 had no surviving children. The initial
+automatic post-stage 49737 failed before capture because post297.py resolved
+main-workspace-relative observer/cycle paths against R297. Preserve that failed
+receipt. A two-path read-only correction in W297/post297_recover_v2.py was
+validated against the actual completed trial, then DSH 58021 captured and
+parsed it successfully; W297/physical-review297.json has no errors and pins
+the original evidence. No second boot or direct userdata delta write occurred.
+
+Six all-caller fault subgroup wall times: global 443.865 ms/17,876 calls,
+settle 1.221 ms/17, bank0 671.236 ms/17,859, bank1 667.878 ms/17,859,
+host 9.798 ms/17,859, AO 7.580 ms/15,443. The banks are 74.33% of the sum
+of these subgroup intervals, around 37.5 us/call each. Do not compare/subtract
+these all-caller totals from the runtime-only guard totals or claim GPU/FPS
+improvement; instrumentation perturbs timing and no interactive trace exists.
+17 settle attempts recovered, no expired budget. Final counters 27/27 native
+jobs; only the first 16 have retained per-submit ring evidence. Four BO failure
+records followed the explicitly finite 600 s service stop, not its active
+window; do not claim persistent GPU operation. Desktop pixels, physical refresh
+and daily use remain unqualified. Results doc commit
+0c8ca0fccfc469f66ae7083275b4be7cfed70e46 pushed on
+codex/gauguin-fault-results-20261112 via DSH 61649.
+
+Independent R298 opt-in present-copy statistics patch 0221 was committed and
+pushed as faed768516c106514d11681295de71639e06934a on
+codex/gauguin-present-trace-20261112. DSH 44529 ARM64 TU, source normalization,
+243 stats ASan/UBSan checks, 3,557 hold-lifetime and 7,264 software-clock host
+checks passed. DSH 53400 actual present/vsync mock integration passed 293 checks
+and refused a missing explicit candidate. Publish stage v1 failed because git
+flagged an essential blank unified-diff context line; v2 verified added patch
+lines separately and passed/pushed. No R298 hardware test or full-kernel build
+yet. DSH is preparing full-build scripts in R298/research/tmp/dsh-present-native;
+inspect its actual original process/output and review scripts before running.
+0221 is default-off, reports CPU guard-acquisition/copy intervals and actual
+copied bytes, not scanout FPS; disable-vs-enable overhead still needs real tests.
+
+Next use 0297 evidence to design safe bank-check cost reduction without
+dropping any live fault/translation invariant, and finish validated 0221 build
+and interactive measurement. New destructive steps require a fresh explicit
+user confirmation. Preserve all backups, MAIN mkadt edit and 500 GB ceiling;
+the original full GPU/Metal/RAM/storage/peripheral/90-120 Hz goal stays active.
+
 ### 2026-11-12 CST — 0297 single approved trial running
 
 User approved call_00a43f48dedd40a69f99002954e4cf61. Fresh read-only DSH

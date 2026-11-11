@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST — goal blocked awaiting exact shared-output write confirmation
+
+Three consecutive automatic goal turns verified the same missing user
+confirmation. Source through4af0d5c is pushed; runtime and push stages are
+terminal. W240 approval.json, apply-v1 and trial-v1 are absent. The pending
+question names194blocks/794624B userdata plan9d943e79... and13B misc recovery
+marker separately, with rollback. AGENTS.md requires individual destructive
+step confirmation. Goal is blocked until that answer or an applicable
+authorization change. The full daily-phone objective remains unachieved.
+
+Resume by reading the actual answer and binding its source to the approval
+record. Both scopes allow apply240 then exact paired239 trial and post240
+qualification. Root-only allows the delta application and requires the misc
+decision before boot. Revalidate device/old blocks before writing. Use the
+updated misc helper and W274 backup/pins; original runtime review is
+historical. No new device operation is needed to resume the authorization
+audit. Durable audit is W274/goal-blocked-audit.json. Original mkadt diff
+a74a0418... is still the only unrelated working-tree modification.
+
 ### 2026-11-11 CST —0274 fresh shared-output trial readiness and explicit write scopes
 
 W274=research/tmp/dsh-shared-ready-0274. DSH93762 exit0 9.746s/8pins.

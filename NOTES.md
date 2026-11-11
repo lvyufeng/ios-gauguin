@@ -2,6 +2,97 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0293 repair source/full native image/current root checks PASS; own trial consent pending
+
+Previousgoalturn PROGRESS: built/reviewed0291. Currentturn alsoPROGRESS: actual
+0291executedonce/autoTWRP746s/strictGPU14/14/root8PASS,mask0x80000007 causal
+rejection established, andnew0217repair fullybuilt. See0292physicalentrybelow.
+Actual291consentcall_a9d1314ed6994cb4a78654cc9dfafa10FULLYSPENT. No repeatask
+forthatcompletedtrial, noNEW293approvalreceived;approval293.json/trial-v1 absent.
+
+R293=research/tmp/gauguin-flags293-worktree-20261111, source246f17a54e6341a881b30647bac4e69a8d0d97e3
+onbranchcodex/gauguin-swap-flags-20261111, pushed/remoteverified byDSH63561
+publish-source-stage-v1exit0/7.470s. 0217changesONLYframeprepareadmission:
+rawallowed0x8000000f,selectedlow4; unknownbits4..30stillreject. Originalrecord,
+ownerregistration,partialholdunwind,pending/activeownership andretirementare
+retained. Backgroundfilling/disable/persistentlayer/SwapWait protocol remains
+unfinished; thissourceONLYfixesadmission. NoUI/FPS/highHz/dailyclaim.
+
+W293=research/tmp/dsh-swap-flags-0293. DSH59850softwareexit0/22.298s: old291
+actualmethodsfunctionalRED42on0x80000007, newPASS4735ownership/metadatachecks,
+32validlowmask/flagcombos/54unknownbitcases/rawrecord/owner/partialcleanup.
+Existinglife/clock/policy/patchseries andrealnativeARM64FBTUPASS. DSH62271
+parserexit0/0.100s:8tests,old291actualtracekeepsallowed0xf/15maskfailures;
+new0x8000000fcontractcannotretroactivelyreinterpretoldreason2record. Parser
+fornewtrialMUSTload R293/tools/held_frame_log.py withallowed_mask=0x8000000f,
+notlegacyMAINdefault0xf. Oldreports/rawtracesremain unchangedandqualifiedonly
+asoriginallyrecorded. Mainactual292publication810c98e10c79132a9690255d7ac258fce7c3786b.
+
+DSH64256kernel-stage-v1exit0/209.814s/allpinsunchanged: FULLLOCALnativefresh
+objects/clonedretained291deps, run .deps-cache/p0-20261105/build293-swap-metadata/
+runs/gauguin.PzQBms.209patches/5332files sourceSHA8c50110d5ca2827562bd48c7fe2cdaa107d2eeb21c9ddbb0bc86cb5332b5c5fd.
+Priorprovenance/definedsymbol/cache64bit/held/clock/desktopgatesretained.
+KernelSHA61cdf58a41744bd2312f47c212531f43490addbcb3a45fe79116bdb5bcd351cd.
+BannerDarwin22.6 WedNov11 15:26:25 CST2026 xnu-f1d8c4daacd34f148914bfb9dd3f5bb0.
+NoCIrunused;oldqualified291/250sources/imagesremainimmutable.
+
+DSH6084package-preflight-stage-v1exit0/16.007s: imageR293/shim/out/
+shim-p3-kernel-0293-background-mask-600-20261111.img,20021248B SHA
+cc112dd62f3d700ce29cb90a1420fe9c51430469087ca6f5e4411f2dca8fee22.
+607Bcommand/6GiBmanagedADT/assets/shim/DTB/geometrymatchbaseline. Freshreadonly
+27filesINCLUDINGcompleteoldlogs+4dirs matchactualpost291capture;actualrouter
+andbothtargetsPASS. Currentrootheader3a8f68a54e3112bc9161a2a9812c403726e255de42e339bccd4489805ee1cee3.
+Freshmisc4KiBbackupSHAad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+Actualhostartifactgates+14negativesPASS;realbooterentryrefusesabsentown293
+approvalbeforeoutput/IO. PositiveauthorizationmodelsareONLYinmemory.
+
+PLAN W293/plan293.json SHA87c09972ff9edd39a3fcb52c4cafaa04b73b1ae06c579e798d9ec3ef7e4102e0:
+ONE13Bmiscboot-recovery at0 +ONEexact293temporaryboot;noexplicituserdatawrite.
+Only13touchedbytesrollbackifmarkerwrite/readbackfails. NEWownapprovalrequired
+perAGENTSbeforetheseactions. Noadditionaldestructiveactioneverexecutedin293.
+W293/boot293.py hasactualhost-gatednewsource/image/allowed-updatebitscontract.
+
+DSH7362audit-stage-v1exit0/54.795s seals619inputs inready293.json SHAf1c2d6898c464433868a53c721c0ea56598dd4c79071d6ec78bc8cac4c9c344d.
+Itrechecks6actualstages/source/package/capture/referenceclosures. PrimaryGitHub
+referencecopiesarebyte-boundtoliteralupstreamblobs: HakiOS724e156e857746f3068a32e6114ee1c70656694f,
+16.7ABIreport092829d90de9c50e952ae4d959c81a8eb30190dd; URL/hashledgerprimary-
+references293.json. Auditedproject432932925440B(432.9GB)+128MiBtrial/capture
+reserveunder500000000000B. Preserveoriginalpartitionandcurrentrollbackbackups.
+
+Afteraudit, twoextraOFFLINEgates: DSH9819post-offline-stage-v1exit0/0.088s,
+version-boundpost293.py actual27-file/4-dir/zero-suffixreplayPASS andnew-policy
+syntheticdiagnosisdoesnotmakeUI/runtimegreen;missingactual293consentstops
+beforepostIO. DSH11856execution-gate-stage-v1exit0/0.233s, actualexecute293.py
+refusesabsentapprovalbeforeclaim/subprocess/deviceIO. Noexecution293-v1 exists.
+Theseextrasources/resultswereaddedAFTERready619seal;MUSTalsoexplicitlypin
+bothstageprofiles/resultsandALLtheirinput_pins inactualfuturetrialprofile.
+Do noteditanycurrentsealedinputs.
+
+NEXT actualnewreply: saveapproval293.json withactualquestionID/verbatimanswer,
+approved/allow_rollback/misc_recovery_marker_approved/temporary_293_boot_approved
+true;bindPLAN87c09972...,imagecc112dd6...,miscad7facb2...,source_message/user_answer.
+Norequesthasbeenansweredfor293. Verifyready619/currentaudit+execution/post
+extrastageclosures. CreateONEpinned W293/trial-stage-v1 profile, jobexecute293.py;
+unionready619+bothofflineprofiles/allpins+ready/audit/offlineprofile/results+
+actualapproval+execute293.py/post293.py/sweet-log.py/start/run dispatchers.
+execute293repeatsauth/artifactsbeforeoutput, startsONEboot293.py innewPGID,
+records W293/execution293-v1/child-launch.json, auditsentiregroupafterhelper
+return. Ifanychildrenlive,inspect/waitthoseoriginalPIDs;DONOTrestartboot.
+ExpectedautoTWRP~746s,observe780/timeout860, noautomaticresetattributionask.
+UIfeedbackonlyifusefulanduseravailable;noneisneededtocollectrealcounters.
+
+Afterterminaltrial/NOlivegroup,launchfreshpinnedreadonlypost-stage using
+W293/post293.py (alreadyofflinetested,explicitnewallowed_mask). Itchecksreal
+trial/approval/profile/image,thenall27files+24static/4dirs/3fulloldprefixes
+BEFOREidentity/runtime. observer_log=None stillcapturesbeforeidentityerror.
+Sourcescope:newkernelcontract;doNOTcalloldpost292/default0xf. Retainallrawlogs,
+errorsandfalsepixel/FPS/highHz/dailyflags. Iffirstframesnowaccepted,validate
+actualdesktop+surface/texturecorrectnessbeforeperformance/clocks. Knownlater
+protocolrequirementsremainbackground/disable/persistentlayers/SwapWait,then
+realinputlatency/60Hz/90-120Hz/RAM/storage/peripherals/thermal/daily. Fullgoal
+active/incomplete, notblockedatthisfirstnewconsentrequest. Publicationreceipt
+forcurrenthandoffwillbeW293/publish-result293.json.
+
 ### 2026-11-11 CST —0292 actual0291 COMPLETE: bit31 background-update mask is the rejection cause
 
 0291individualconsentFULLYUSED ONCE. DSH43607trial291-stage-v1exit0/752.541s,

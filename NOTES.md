@@ -2,6 +2,68 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0296 guard-group timing image ready; individual trial consent pending
+
+Previous goal turn was PROGRESS: actual0294 completed once, produced four GPU
+CP timing windows and13/13 strict sampled native completions; interactive FPS
+remains unverified. This turn also PROGRESS: built, qualified, packaged and
+read-only-bound 0296 group-timing diagnostic. Full GPU/Metal, safe RAM,
+reliable storage, peripherals,90/120Hz and daily-use goal remains incomplete.
+
+W296=research/tmp/dsh-guard-profile-0296. R296=research/tmp/
+gauguin-guard296-worktree-20261111. Kernel source commit6f3ed5021550442753a1ba3a5698433fa940d062;
+parser commitc98a7cdeffa83fc7281c9ca888d6c8cdaaae2a1d, both pushed branch
+codex/gauguin-guard-profile-20261111. 0219 instruments six original guards
+(owner, lease, unsecured, clock, IRQ, faults) without intentionally changing
+predicate order, once-only evaluation or failure decisions. Timing adds clock
+reads and atomic operations and may affect deadlines. Pending-end counters
+only sample the global submit-pending flag when each check ends; they are not
+per-thread submission attribution or proof of GPU overlap.
+
+DSH17611 software-stage-v1 exit0/8.775s: actual macro sanitizer test, full-source
+normalization to294 baseline, and native ARM64 board TU. Source SHA
+93fc475d859de1dcf73ecdb3343a6ea17e6bdc27894da67388674bbb0e8d8fdc.
+DSH18843 kernel-stage-v1 exit0/174.525s with fresh local objects and retained
+provenance/symbol checks. Kernel SHAa36b47dcfe5e2a0a2d9084c4027653bf96a42fff8cec9fdc0c58ecea0d95d2b7.
+DSH56731 package-stage-v1 exit0; image R296/shim/out/
+shim-p3-kernel-0296-guard-profile-600-20261111.img, 20,021,248B SHA
+5fdeb9bb584e6336ae2bab4f872971677b4e3e092b73aaf8653243e20cd025c8.
+Same 603B CPU+CP timing command and verified original 6GiB ADT/assets as294.
+No 296 device boot, userdata write or claimed performance improvement.
+
+DSH57159 preflight-stage-v1 exit0: current 27 files/four dirs match actual
+post294 capture, router targets valid, root header229641c1fbd0081b29bf52683255ec67c727a0ef422600855d3ffb583a92e1dd;
+4KiB misc preimage ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+Original v1/v2 plans retained. V3 corrects stale boot-result text and binds
+plan296-v3.json SHA f4e9acbd1f0152326b728da9fca89f9437def22e5a4e14fc733c0cf212434e02.
+DSH60563 host-gate-v3 exit0, 14 negatives and absent-consent before-IO check.
+DSH60551 post-offline-v3 exit0: actual27-file replay, synthetic guard/held
+parser checks, and old294 records cannot be promoted into new metrics.
+Parser tests DSH53652 and58160 pass; source pushed by DSH58751.
+DSH60933 audit-v3 exit0: ready296-v3.json SHA
+27dce9b550d5773ba89c10c9edfa107225bbc82b7c5dc6dac6c555c32317a1fa,
+717 inputs, storage below500GB with128MiB reserved. DSH61612 execution gate
+exit0: execute296_v3.py and post296_v3.py refuse missing real consent before
+any device IO. No approval296-v3, execution296-v3 or trial-v3 exists.
+
+NEXT: one new individual confirmation under AGENTS for 13-byte misc recovery
+marker and ONE exact296 temporary fastboot boot; rollback only those13 bytes if
+marker write or readback fails. No direct userdata difference write. Existing
+294 approval was consumed. User is away: do not ask reboot attribution; only
+request manual recovery if the trial is actually stuck. After actual approval,
+record exact user answer/source in approval296-v3.json with plan/image/misc
+hashes and both action booleans. Before boot, revalidate live recovery files
+and device identity if the preflight is stale. Build trial-stage-v1 profile
+from all ready pins, execution-gate-v3 full closure, actual approval and the
+pinned execute296_v3.py/post296_v3.py; execute ONCE through DSH. Preserve
+original child PID/process group and never rerun on observation timeout.
+Postprocessor expects trial-v3, execution296-v3, trial-stage-v1 and writes
+post296-capture-v3/physical-review296-v3.json. Parse six group records strictly;
+missing/interleaved records fail, prior294 logs do not qualify. Collect actual
+CP, guard and display evidence before proposing changes. Preserve original and
+current backups, original mkadt diff, and500GB storage cap. Main handoff
+publication receipt W296/publish-final-result296.json.
+
 ### 2026-11-11 CST —0296 guard-group timing source and native TU
 
 Previous goal turn PROGRESS: 0294 completed once, strict raw trace and CP timing

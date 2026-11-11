@@ -2,6 +2,79 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0291 kernel-only rejection diagnostic fully built; own trial consent pending
+
+Previousgoalturn PROGRESS: actual0288Metal handoff/24nativejobs andUIFAIL,
+noheldframesaccepted. The new userreply call_c8f8634ed10f4c3fb03131f14afe52b2
+remains “仍显示日志或无法进入桌面”. No new UI success or frame-rate claim.
+FullGPU/all safeRAM/storage/peripheral/90-120Hz/daily scope remains active.
+
+R291=research/tmp/gauguin-present291-worktree-20261111, branchcodex/gauguin-
+present-reject-20261111, sourcepushedb34deaeed8b84253c42f9435cd64dd5427be7c9a
+(DSH94675publishsourceexit0/7.230s/10unchangedpins). Adds0216 after207patches;
+ONLYstagedSweetFramebuffer.cppchanges. Admission/hold/drop remain identical:
+classify nullowner1,mask2,surface layer0..3 codes3..6,unregistered7; first8
+rejections log owner/member/clientcount/mask/IDs, periodicreasoncounts run
+at existingHOLDreportcadence. No addresses or new tablelookup/lifetimebypass.
+
+W291=research/tmp/dsh-present-reject-0291. DSH90605 preparesisolatedsource;
+425944313856+8GiB wholebatch admittedunder500GB. Sourcev1 DSH91985 fails
+beforepatch on comparing snapshotpath ofclone/source; v2 DSH92374 verifies
+cloneentries/hash andpatchesstrictly, PASS3557actual-method lifetimechecks,
+thenfails wrongoldclockreference. Both historicalfailedscripts/resultsremain.
+v3DSH93087exit0/14.572s/239pins reusesunchangedlifetimeevidence andcorrect241
+clockreference:7264clockchecks,5400policycases/22038assertions,4patchseries
+checks,realARM64FBTU/2130headersPASS. No drivercodechangedforhostfixes.
+
+DSH95067kernel-stage-v1exit0/188.055s/512unchangedpins:FULLLOCALnativebuild,
+freshobjects/cloneddeps,5332files/208patches sourceSHA69c8e8bc3da239da5ed59c08cc7db52fcb8a09ac23a4778234baff7494bae7ae.
+Run .deps-cache/p0-20261105/build291-display-reject/runs/gauguin.Rbflm8.
+Priorprovenance/symbol/64bitcache/held-frame/clock/desktopguard checksretained,
+plusnewdiagnosticmarkers. KernelSHA0aad55999f5ae95178f06e0da313217a876f93c987a002105be05d75279e5e40.
+BannerDarwin22.6.0 WedNov11 14:32:31 CST2026 xnu-e4d91ac73f264d31b666edd4f3d9ceac.
+NoGitHubActionsrunused. Oldqualified0250sources/image/core remain unchanged.
+
+DSH34208package-preflight-stage-v1exit0/15.171s/20unchangedpins: image
+R291/shim/out/shim-p3-kernel-0291-held-reject-600-20261111.img,20021248B,
+SHA746f3741d2b88efec3707426da1e386e7a74fe2363d7790f9c8ddf105b9171d7.
+607Bcommand/6GiBADT/assets/shim/DTB/geometry equal0250. FreshreadonlyTWRP
+27files includingcompleteoldlogs +4dirs matchpost0288; actualrouter/bothtarget
+compatibilityPASS. Currentrootheader7de815c7...unchanged, newmisc4KiBbackup
+SHAad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+Actualartifactgates +14negativesPASS. RealentryrefusesABSENTconsent before
+output orIO; positiveconsentmodelonlyinmemory. NOapproval291.json/trial-v1.
+
+Concreteplan W291/plan291.json SHAab70b41bff4a8149202d69c7058e8e5b27ebd109cb242a83bf97b33efab6317f:
+ONE13Bmiscboot-recovery atoffset0 +ONE0291tempboot; userdataexplicitwrites0.
+Only13touchedmiscbytesrollback onmarkerwrite/readbackfailure. Newownconsent
+required perAGENTS;287approvalfullyspent. Do notaskautomaticresetattribution.
+
+NEXT afteractualreply: writeapproval291.json withactualquestionid/verbatim
+answer, approved/allow_rollback/misc_recovery_marker_approved/temporary_291_
+boot_approved=true; bindPLANab70...,image746f...,miscad7...,source_message and
+user_answer. Verifycurrent ready291/auditstage andALLsealedclosurepins,then
+createONEfreshpinnedDSHtrialstage includingactualapproval+plan+ready+booter+
+RecoveryIO/localHFS/recoverymarker/observer/sweet-log-pull/banner dependencies.
+Invoke boot291.py W291/plan291.json ONCE. It repeatsfreshrootheader/misc reads,
+marks13B, transitionsbootloader andONEtemporaryboot; observes780s/timeout860,
+expectedautomaticTWRP~745s. No need userUIresponse tocollectdiagnostic; only
+askmanualreturnifstuck. Preserveoriginalclaimhandle onyield/timeout.
+
+Afterreturn recaptureall27 with read_files288.py newout/phaseafter-boot,
+noexpectedoldheader; validate24static+4dirs+3COMPLETEoldlogprefixes relative
+W291/current-root-v1 BEFOREruntimeparse. Exact0291banner mustmatch image.
+Parse boundedREJECTrecords/classifiedtotalswithoutnormalizing oldrawlogs.
+Identifyactualguard beforetouching maskinterpretation/clientregistration/
+surfacepublication. Do not disablechecks/heldmode orraiseclocks toshowUI.
+Strict0288gatesremainFAILED; newhardware/desktop/FPS/highHz/dailyfalse.
+
+FINALREVIEW DSH35328audit-stage-v1exit0/54.861s/7unchangedpins rechecksall
+source/stage/log/package/capture closure andmissingconsent; W291/ready291.json
+SHAfee956848a923f799762d6d5cb4ef83a43ccf776d5066e5de97aba4c7dd6894f
+sealed610inputs. Actualproject429417406464B (429.4GB),64MiBtrialreserve
+admitted under500000000000B; originals/currentrollback retained. Noactual291
+write/boot yet. Publish/handoffreceipt willbe W291/publish-result291.json.
+
 ### 2026-11-11 CST —0290 real Metal device/handoff observed;0288 UI FAIL at presentation
 
 Actual287consent fullyused ONCE:4rootwrites/readbacks16384B +13Bmisc +ONEsame

@@ -2,6 +2,154 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0281 two-executable startup-wait delta READY; new consent pending
+
+Actual277 installation/0250 first boot has finished; UI FAILED because root
+opened before HakiosGPU publication and exited, while BBS35s wait expired.
+Do not repeat old277 installation or claim GPU/desktop progress from0jobs.
+Sourcefix279 is committed/pushed ba679b0445b5f2cbe90eb02cc921ec70c0fa90ba,
+branch codex/gauguin-metal-startup-order-20261111. Code adds bounded180s actual
+readiness waiting to root and frontend, root30s work alarm only AFTER open.
+Kernel/core/shader patches unchanged. DSH20697 software exit0/8.292s/30pins:
+2913wait-boundary assertions, actualC++ callbacks/acquire/alarm/cleanup, old35s
+functionalRED42/newGREEN0 at60s publication, signed native binaries. Front
+428400B SHA0a1b55bb20a29661de40099e58e45ec695ffb0bf78e132a9d10985450e868550;
+bootstrap116048B SHA7b922e66fbeb862504ea8ac01fd73681382e4718b7b1325e405fbecc25f6b6e0,
+build9b9f99e2627808207562eee0. Front343imports unchanged, root adds errno/
+nanosleep already in priorfront; combined import set unchanged. Info/seal same.
+Published by DSH22440 exit0/9.320s/10pins. This is host/native, NOT phone proof.
+
+W280=research/tmp/dsh-post277-backup-0280. DSH21019 exit0/269.968s/14pins,
+full16GiB native read-only scan and all16384chunks/digest verification.301MiB
+transferred into independent COW seed, original277final untouched. Snapshot
+backup-v1/iosroot-post277.hfsx0444 SHA
+da5707648ddae41f56c5dee634b31c599e95a934d6490fc16c2a7ee9055b7c78.
+Header9568a094372f1069603f56cc0ef353c424ee5d8747f8653000041fa77dbf3a65.
+Fresh27-file capture and4directory records, helper removed from tmpfs. No
+partition writes/reboot after277. W278 independent audit19133 exit0 verifies
+failed physical trial and user observation. Phone remains connected in TWRP.
+
+W281=research/tmp/dsh-startup-delta-0281. DSH22427 proposal exit0/69.553s/45pins:
+local COW replaces ONLY desktop Metal executable and root bootstrap; no new
+files/dirs, all531tasks/cache bytes, router, core/Mesa/old probes, Info/seal,
+25other captured files inclcomplete3logs and directory ownership retained.
+Readonly local fsck passes.276blocks/1130496B/31runs.
+Plan delta-v1/delta-plan.json SHA
+3c4719e0f581c1a3a1cee5061856b11aca8973f260b3c971a529a3ec6d19e41d.
+Final local image7f0800f05e25f2ecdb1ae52e80458d50930d7432f1c40a48894791cda801a513.
+Pair SAME0250 image18d3196f5827e7105c7b598c2951596f25f56449330223cbc9530ff3d4f1f72f.
+No new kernel build/CI. Writer516916001a7c4292efd1d98feaf2772dc73c3a99589497889f77d324f220e135,
+102fakeIO rollback/failure checks pass. New writer changes only backup/state/
+output contract from277; do not infer a new algorithm/hardware qualification.
+
+Review-v1 DSH23002 exit1/25.850s and v2 DSH23280 exit1/30.891s retained: actual
+full diff/old ranges pass but final receipt hashing references stale model and
+launch filenames. No writes/boot. V3 source prechecks all static provenance
+paths, DSH23655 exit0/29.459s/16pins, all276full-image block changes and31real
+old ranges verified, all531cached tasks and25retained files preserved. Reuses
+and rereads existing misc4KiB backup allzero0444 SHAad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+ready-review281-v1.json SHA
+7c1e721dafaf4d767cdbbc26a5fb44dd655435e61ec9f6a3e0799fc65e028cf3,
+80pins. DSH23987 gate-v1 exit0/0.035s/5pins, actual apply281.py +verify_write
+refuse missing new consent before output/IO. Codex independently rehashes ALL
+current stage pins/logs (including failed records) and ready80pins. No281
+approval.json/apply-v1 exists. MAIN mkadt diffa74a0418... preserved.
+
+NEXT requires own actual user reply to the turn-end question covering TWO
+writes:1130496B root plan3c4719e0,13B misc recovery marker, same0250 temporary
+boot, touched-block rollback on WRITE/READBACK failure. Prior277 consent is
+spent. Bind actual source/answer +PLAN+ready hash+misc bool/hash+rollback and
+paired250boot bool in W281/approval.json, fresh real old-range/misc checks.
+Use pinned DSH apply-stage-v1.json one job argv[1:]==[W281/apply281.py].
+verify_write requires31success/readbacks/header0last and exact7f0800final.
+Do not blindly restore preboot HFS metadata after a runtime boot failure.
+
+Derive a NEW W282 runtime, preserve frozenW278.27files/4dirs are the same
+paths; regenerate expected hashes/prefixes from W280 snapshot +281 final.
+Pilot must use281 permission/write receipts/31runs/1130496B/new misc preimage,
+SAME0250 kernel proof/package/607B command and positive/negative gates before
+misc/boot. Bootstrap parser now expects build9b9f99e2627808207562eee0,
+METAL245 begin startup_budget=180 work_deadline=30 and METAL279 startup-open
+reason0/attempts1..1801/elapsed<=180s/connected1. Then eight actual pixel/fence
+jobs, arm+clean ready close and compositor jobs. Native service600s and auto
+return remains ~745s, no repeated reboot-attribution question. Ask UI feedback
+after startup. No desktop pixels/FPS/highHz/daily qualification yet. New
+userdata changes need individual consent, temporary boots preserve partitions.
+Report docs/gauguin-metal-startup-order-20261111.md. MAIN base23f90ce.
+
+### 2026-11-11 CST —0278 first0250/277 desktop boot FAIL: early GPU-open race
+
+Phone autoTWRP745s, observer0/exact0250banner, elapsed746.599s. DSH14552
+trial-stage-v1 exit1 because physical gates fail, not install/capture corruption.
+All27captured files valid,24static unchanged,4directory owner/modes and3full
+old log prefixes retained. User call_8afe80e7aa36410eb215da4f4b73e27d:
+“一直在打印log 没有进入桌面”. Later user reports recovery; standing
+unattended policy and observer745s attribute automatic reset, no reconfirmation.
+physical-review278.json: bootstrap FAIL GPU-open/no HakiosGPU service;
+finite-service activity gate fails0jobs. Native still ran full600s/598renewals,
+final submitted=completed=0, no backboardd crash/BO failure. Do NOT describe
+this as GPU hardware failing to initialize or a failed600s watchdog service.
+METAL246 plugin published line146, root router exec816, backboardd HakiosGPU
+misses ~1314 onward, only LATER GPU USER runtimeREADY4395/serviceonline4397.
+Root bootstrap has delay0 and one open; it exits before native service exists.
+backboardd first-open timeout reason1/344attempts/35001062136ns. No root arm,
+clean handoff or desktop submissions. UI/native path unqualified.
+
+NEXT sourcefix in isolated R279=research/tmp/gauguin-startup279-worktree-20261111,
+branch codex/gauguin-metal-startup-order-20261111, base410a8c0 (only3docs differ
+from kernel-source d0409f25; code identical). Increase bounded startup readiness
+wait for frontend AND add real root wait before its30s work alarm. Shared
+virtual-clock helper already handles clock reversal, timeout, bounded retries,
+sleep failure and late acquired-handle close. Preserve core/kernel, jobs and
+handoff policies. Add delayed-publication functional old-red/new-green controls,
+compile/sign frontend+bootstrap via DSH using existing qualified core; no full
+kernel build needed. Current277root remains installed, TWRP connected. New
+root update must use fresh capture/backup/delta and its own individual consent.
+Never blindly reverse preboot HFS blocks after a boot; no runtime rollback is
+claimed/authorized by the install-failure scope. Original backups/pins retained.
+W278/audit-stage-v1 launched to independently audit actual failed evidence.
+
+### 2026-11-11 CST —0250 with277 root is physically booted; observer active
+
+DSH14552 W278/trial-stage-v1 running. Real27installed files/four directory
+owner/modes match final image. Positive full pilot stops at mocked RecoveryIO;
+four negative models (root-only, wrong directory owner, wrong image, invalid
+observer) refuse before output/IO. Actual pilot then writes13B approved misc
+and verifies entire4KiB readback8698abf4. fastboot boot exact0250 image18d3196f
+succeeds0.598s. observer780s/timeout860, post278 automatically follows.
+No second boot or userdata write. UI/frame-rate/desktop correctness pending.
+Parser controls are separate synthetic logs only and cannot qualify hardware.
+Do not change48trial input pins while live. Next await actual boot/postresult,
+correlate fresh prefixes/identity/bootstrap clean handoff and native jobs.
+
+### 2026-11-11 CST —0277 applied/readback; one0250 trial prepared
+
+DSH12657 apply-stage-v1 exit0/11.114s/117pins. Exact528blocks/2162688B in44
+runs written/readback, header0last,44attempts, no rollback. verify_write passes.
+DSH13934 W278/prepare-stage-v1 exit0/9.873s/13pins. Actual0250 payload607B
+command checked (sweet_dyld_probe1/sweeteagl2/gmt2/NVT1/600s, no synthetic
+swipe), expected27files/fourdirs and local actual-reader model pass.
+W278 runtime trial278.py does real installed capture, positive/four-negative
+host pilot gates BEFORE misc/boot, then one0250 observer780/timeout860 and
+post278 capture/strict bootstrap/native assessment. All source/profile pins
+frozen at launch. W278/boot_pilot278.py source is new0250/277-specific, no
+reuse of old22-file contract. Current requested trial-stage-v1 to run by DSH.
+No misc marker or0250 boot yet at this note. On runtime gate failure preserve
+logs and fix only unfinished runtime; NEVER repeat approved root write.
+UI correctness/FPS remain open; old probe profile not run in newmode2.
+
+### 2026-11-11 CST —0277 two-scope consent received, execution resumed
+
+Actual reply call_43b43ec30cf14e819ab6bfec3f0c0f31 authorizes both277 root
+and13B misc writes, paired0250 temporary boot and failed-write/readback
+rollback. Bound to W277/approval.json with plan1d220805, ready6f4fb880 and
+miscad7facb2. W278=research/tmp/dsh-desktop-execute-0278. DSH12279 fresh
+preflight exit0/17.690s/117pins, full backup/final image rehash, all44real old
+ranges/header and misc match; no writes/reboot. Apply-stage-v1 prepared for
+DSH. Next verify44readbacks, capture27files/4dirs and host pilot gates before
+separately approved misc +one0250 boot. No repeat permission question needed.
+Full goal unfinished; original mkadt diff preserved.
+
 ### 2026-11-11 CST —0277 concrete desktop delta ready, new individual consent required
 
 0240 trial is COMPLETE/PASS, no repeat needed. Full daily-phone goal remains

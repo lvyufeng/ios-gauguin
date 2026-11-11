@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — submit guard baseline characterized offline
+
+0298 plan remains ready and individually unapproved: no approval298.json,
+trial298-v1 or execution298-v1 exists. Do not infer authorization from this
+goal continuation. The full user goal remains real GPU/Metal, safe RAM and
+storage, peripherals, 90/120 Hz and daily-use validation.
+
+DSH audited gfw_faults in Rresults=research/tmp/gauguin-fault-results-worktree-
+20261112; its detailed read-only report is Rresults/research/tmp/bank-audit-
+20261112.md. Codex reviewed the source: the success path samples 27 SMMU
+values, or 29 with both conditional stream-match reads, plus host/optional AO.
+Two FSRs and route/control/translation checks are live reads in order; a fault
+can arise between samples. Neither caching/merging them nor wider MMIO reads or
+barrier removal is established safe. Diagnostic removal may change scheduling
+and samples even with unchanged predicate order, so do not claim identical
+hardware outcomes from host trace equality.
+
+An isolated host model compiled the exact runtime source and compared the
+configured ring-span and legacy fallback. For one valid IB, the span model
+counted 40, 54, 82 and 56 healthy callbacks for immediate completion, one and
+three not-ready completion polls, and two busy fence-status polls; fallback
+counted 84, 98, 126 and 100. It injected failure at 832 reached health
+boundaries and checked 21 simulated deadline cases. Fake ring_span covers only
+state/deadline/RAM, not the actual board callback; actual board state/global
+deadline and GPU/SMMU concurrency remain unqualified. Counts are not FPS.
+DSH dispatcher 58280 reran the pinned baseline under ASan/UBSan, exit 0 and
+inputs unchanged. DSH dispatcher 58708 committed and pushed
+2d9c56d0f2f9b59579439d73cecf82baef9a9029 on
+codex/gauguin-fault-results-20261112. The committed characterization tool is
+tools/characterize_gpu_submit_guards.py in Rresults; it explicitly pins this
+historical source and is not a fixed guard-count rule for optimized candidates.
+See Rresults/docs/gauguin-submit-guard-observations-20261112.md for observations,
+limitations and reproduction. Original synthetic traces remain in
+Rresults/research/tmp/submit-count-20261112; no device commands occurred.
+
 ### 2026-11-12 CST — 0298 command budget and parser work in progress
 
 DSH read-only command audit is R298/research/tmp/command298-audit.txt (full

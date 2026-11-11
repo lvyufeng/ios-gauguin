@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — scanout evidence audit complete; 0297 approval still pending
+
+Previous goal turn built the 0297 diagnostic and requested its individual
+trial approval (progress). This continuation adds the independently tested
+fresh-preflight execution gate and a current-source display audit (progress).
+DSH completed the audit in research/tmp/gauguin-scanout-audit-worktree-20261111;
+after Codex corrected overclaims and checked source/logs, DSH 39721 pushed
+commit 677429fe9d5204926b004fa8c7ea4e199a8034e8 on branch
+codex/gauguin-scanout-audit-20261111. See its docs/
+gauguin-scanout-current-audit-20261111.md.
+
+Actual 0297 command selects sweetfb_hz=60; current path is a software-timed
+CPU framebuffer copy, not a verified panel refresh rate. Both local J17 panel
+DT descriptions list 60/90/120 and a 120 Hz base timing; actual panel variant,
+live rate, vblank and iOS modeset remain unverified. `presents` counts flush
+attempts, clock `copies` increments before present(), and `retired` follows a
+void present() that can skip all layers: none alone proves pixel copy or panel
+scanout. Zero reported Metal presented events do not exclude GPU rendering to
+IOSurface, and 0296 noninteractive guard averages do not rule out interactive
+latency. Offline next direction: design bounded submit/take/lock/copy/retire
+trace, copied-byte/error counters and full-population latency histograms while
+preserving original ownership and measuring disabled-trace overhead; correlate
+actual surface/command/swap IDs before choosing an optimization.
+
+The 0297 trial approval is still pending; no new device write or boot occurred.
+After affirmative consent use W297/execute_after_fresh297.py, as detailed in
+the following section. Do not duplicate the existing consent question. Preserve
+the ready plan, image, backups, MAIN tools/mkadt.py edit and 500 GB ceiling;
+the full GPU/Metal/RAM/storage/peripheral/90-120 Hz daily-use goal is active.
+
+### 2026-11-12 CST — 0297 fresh-preflight execution gate added
+
+0297 individual approval remains pending; ready plan/image and all 1,123
+sealed inputs are unchanged, no approval or trial output exists and TWRP was
+read-only observable. Independent high-refresh scanout audit is running via
+DSH in research/tmp/gauguin-scanout-audit-worktree-20261111; inspect the same
+process before resuming, do not restart it on observation delay.
+
+W297/execute_after_fresh297.py now requires the terminal successful fresh
+preflight stage, the exact stage profile and all its pinned inputs including
+the real plan/approval and fresh_preflight297.py, matching fresh header/misc,
+27 files/four dirs and zero writes/boots before it can invoke execute297.py.
+DSH wrapper-stage-v2 dispatcher 34468 passed isolated positive and six negative
+fixtures. The first wrapper-stage dispatcher 34063 failed its positive fixture
+because macOS /var resolves to /private/var; the fixture was corrected and the
+failure retained. No phone actions were performed by either stage.
+
+On actual specific 0297 approval follow the previous section, except invoke
+execute_after_fresh297.py ONCE in the pinned trial-stage-v1 (not execute297.py
+directly); pin the wrapper, W297/fresh-preflight-stage-v1.json/result.json,
+fresh-preflight-result297.json and all preceding ready/gate inputs. First
+fresh preflight must itself bind the real approval. Same post/process-group
+audits, no retries, 500 GB limit and user-away instructions apply. No approval
+should be created or assumed until an actual affirmative response arrives.
+
 ### 2026-11-11 CST — 0297 ready; specific trial approval requested
 
 R297=research/tmp/gauguin-fault297-worktree-20261111; W297=R297/research/tmp/

@@ -2,6 +2,78 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0294 complete local native diagnostic image; fresh trial consent pending
+
+Previousmilestone actual293 completedoneboot/automaticTWRP; graphicsnormal,
+performanceunchanged peruser. Full293rawtrace gateSTILLFAILED at4690;
+physical-review293 and scoped-actual293 preserved. Do not reinterpret theold
+interleavedsubmission into PASS. 293permission fullyCONSUMED.
+
+0294sourcebdfabdcc9d71b30a77fd68b37693dd3ecca4cf68 on pushed/remoteverified
+codex/gauguin-metal-metrics-20261111. R294=research/tmp/gauguin-metrics294-worktree-20261111;
+W294=research/tmp/dsh-metal-metrics-0294; L294=R294/research/tmp/dsh-metrics294-native.
+0218onlysubmissionlogframing; correctedlocalexactOSFMKconsole_write decl
+(BSDproductionprecedentkm.c), no privateheaderexportchanges. Best-effort
+oversizefallback;normal193Bboundedbufferedreservation;guards/mark/flush
+unchanged. Bypassesprintfos_logsecondaryoutput; panic/early/unbufferedwriters
+canstillinterleave, strictparserunchanged. 210patch/5332sourcefilesSHA
+f0a1a56498954526b8b3e1d1a9fdc1357676c723fac4e87b3d5831f5e5b8bdec.
+
+DSH17656software-v3exit0/13.222s actualemitters/ninereaders/nativeARM64TUPASS;
+DSH18610sourcepublish0/7.661s. DSH19740kernel-stage-v1exit0/182.690s,
+freshobjects/localfullnativebuild/.deps-cache/p0-20261105/build294-metal-metrics/
+runs/gauguin.BscUPa. Allretainedprovenance/cache64bit/symbol/held/clock/desktop
+checksPASS plusdefined_console_write. KernelSHA183af4cfef838f1420866545642221bd9d5122dbbbb82f9fe220617800070690.
+BannerDarwin22.6.0 WedNov11 17:42:39 CST2026 xnu-c4888a4e2c284a7d87b21c4c6eba1dc5.
+NoGitHubCIrunused. Earliermacro/include failures preserved, notretrofittedgreen.
+
+DSH58146package-preflight-stage-v1exit0/13.901s. ImageR294/shim/out/
+shim-p3-kernel-0294-metal-metrics-600-20261111.img 20021248B SHA
+31f23fe81d8609d8bb65846e6d9603977ce03c92865cc826fd088ba266e518fc.
+603Bcommand: onlyremove sweetreboot=0 andappendbaremetal_fps; retain-noprogress
+andallothertokens. FiveNULpadwithin608Bfield. Original6GiBADT/assets/shim/DTB
+verified. No explicituserdatawrite/update. Existing279frontend CPprofileenabled.
+Freshreadonly27files/4dirs matchcompleteactualpost293capture, router/bothtargets
+PASS. Rootheader303eb460... unchanged. Fresh4KmiscbackupSHAad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+Actualbooterartifactgates/14negatives/no-consententryrefusalPASS.
+
+DSH59002audit-stage-v1exit0/49.705s: ready294.json seals641inputs SHA
+8206d03178e9371d0e81ec052cf41f182219ef0c2544c3f5aac6c03f91c9802b.
+Outeraudit640pins; allactualsource/artifactclosures verified.
+Storage436522737664B(436.5GB)+128MiBtrial/captureadmittedunder500000000000B.
+PLAN294SHA5ef9423cec5835cf1f8723c8e6b7e786d0a61ce1bf489b1267389daecea1bd92.
+ONE13Bmiscboot-recovery at0+ONEexact294temporaryboot, no userdatawrites.
+Only13touchedbytesrollbackifmarkerwrite/readbackfails. Actualnewconsent is
+ABSENT; no294phonewrites/reboots/boots have happened. ApprovalrequiredbyAGENTS:
+“confirm each destructive step with the user before running it”. Do not reuse293.
+DSH60222execution-gate-stage-v1exit0/0.406s: actualexecute294 andpost294
+entriesrefuseabsentrealconsentbeforeoutputs/deviceIO. No pendinghardwarejob.
+
+Afteractualnewreply: saveapproval294.json bindingexactPLAN/image/miscbackuppins,
+actualsource_message/questionID/verbatimanswer,approved/allow_rollback/
+misc_recovery_marker_approved/temporary_294_boot_approved true. Newtrialprofile
+unionreadyallpins+ready/audit-result/auditstage+execution-gateprofile/result/
+itsfullclosure+actualapproval+execute294/post294/sweetlogdecoder+dispatchers.
+Runexecute294ONCE viaDSH. ItauditsactualbootPGIDandneverretries; autoTWRPexpected
+~746s,observe780/timeout860. Waitsamehandles; onlymanualTWRPifstuck, neverask
+whoreset. Thenrunversionboundpost294 onceafterterminal/groupempty andcapture
+all27files/static4dirs/oldcompleteprefixes BEFOREinterpretingtrace. Profiles
+bound to sourceR294/tools/held_frame_log.py mask0x8000000f. No oldlognormalization.
+
+Readnewbackboardd.log tail,processprefixHakiosMetal[backboardd PID]. Baremetal_fps
+activatesCP19.2MHzpassstamps; complete“passes timed by the GPU”lineobserved =>
+validstampdataevenrounded0;missing=>notobserved,neverzeroGPUcost. MainGPUbusy/
+gpu_ns/commit/wait/CPUlabelsareoverlappinghostwalltimeenvelopes,notpureGPUor
+threadCPUusage. CPpassincludesflush/waitidle. >64passCBcanmergefinalslotwith
+laterpasses;noindividualpass64attribution. NoabsoluteFPS/frameID/fencejoin;
+CLOCK/HOLD/presentedarelogicalcounts,notphysicalscanout. post294explicitlyrenames
+legacyserviceflagto scoped_native_service_and_owner_handoff_observed; noframe
+GPUcorrelation/FPSclaim. Profilingoverheadincluded. Fullgraphics/performance/
+RAM/storage/peripherals/90-120Hz/dailygoalstillincomplete. Preserveoriginal
+mkadtdiffa74a0418... andoriginal/currentbackups. Mainactual293publication
+07a7977cc4ab8342b4e8aa21b3375fe1d4253b3f; source294bdfabdcc; finalmainpublication
+receiptwillbeW294/publish-final-result294.json.
+
 ### 2026-11-11 CST —0293 COMPLETE: normal desktop, unchanged lag; 0294 diagnostic in preparation
 
 Actual293approvalcall_e52778b79d134971870495f1acccb108 is CONSUMED ONCE.

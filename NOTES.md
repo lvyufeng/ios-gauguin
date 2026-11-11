@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0265 ABL memory handoff reader source/host/native PASS
+
+Report docs/gauguin-handoff-memory-reader-20261111.md. R265 reuses R263
+worktree on codex/gauguin-handoff-memory-20261111; source/pushed head
+104482754a9bdc60ba99d975a4792f57342a9f27. Patch0220 SHA
+90ff646b35be53bbb58ea6ffedad3fa5c3d60721861050ea46f80a7cb7acf992.
+Default-off sweethandoff=1 validates live ADT/boot geometry, ready capture,
+PAS owner and I/O tuple. PE points to a const bootargs copy, original page
+from top and ADT. Reports FDT hash, banks, fixed reservations, pool sizes
+and windows without treating them as placements or admitting RAM.
+
+W265=R265/research/tmp/dsh-handoff-reader-0265. DSH PID73335 exit1 due
+32MiB model too small for actual payload. PID73616 exit0/10.831s/24pins
+with 64MiB model, actual producer/reader corpus ASAN/UBSAN, old scan/receipt
+groups and 3 native ARM64 TUs. 5342files/5changed SHA
+9004cf565771c70171524a05819213c38c5ef3227ad662d956ba3e7f08e9fd40.
+3 banks/21 fixed/6 pools/6 windows. Independent native refs and image263
+SHA verified. PID74063 exit0/26.475s/10pins, 11 local checks and exact
+CI42929203205 dispatched. Launchers reaped. NEXT full CI qualification,
+combined capture-enabled shim/image and bounded physical report readback.
+No boot, phone command or write. Existing 0261 and 0240 scopes pending.
+Goal active.
+
 ### 2026-11-11 CST —0264 full 0263 route kernel and offline image verified
 
 CI42925740306/job130211633308 SUCCESS 2026-11-10T23:57:09Z for source

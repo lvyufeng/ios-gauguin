@@ -31,6 +31,13 @@ typedef void (*thread_continue_t)(void *,wait_result_t);
 #define FAKE_GIC UINT64_C(0x200000000)
 #define MAX_LOG 100u
 #define HOST_CPU_HZ UINT64_C(24000000)
+/* The test selects this from the actual worker's emitted record. */
+#define HOST_WDT_SAMPLE_RECORD @SAMPLE_RECORD@
+#if HOST_WDT_SAMPLE_RECORD
+#define HOST_WDT_SAMPLE_EXPECTED(flag) (flag)
+#else
+#define HOST_WDT_SAMPLE_EXPECTED(flag) false
+#endif
 static const char *case_name="setup";
 static unsigned cases;
 static vm_offset_t gicd_base;
@@ -40,7 +47,7 @@ static struct {
     int requested, bus_vote, conflict[8], thread_error, context, delayed_context, prewrite_context;
     bool bus_mode, budget_mode, quarantine_on_ready_log, quarantine_on_bus_arg, quarantine_during_budget;
     unsigned bus_wait_context, publication_context, readiness_failure, budget_reads, clock_conversions;
-    uint32_t budget_count;
+    uint32_t budget_count, expected_budget_min;
     int gpu_service,gpu_mode;
     bool refresh_mode,refresh_irq_bad;
     unsigned refresh_fault,refresh_pulses;
@@ -248,10 +255,16 @@ void IOSleep(unsigned ms)
     else { CHECK(mock.writes==4 && mock.dsb==4,"post-arm waits only after full write sequence"); ++mock.post_arm_sleeps; }
     if(++mock.sleeps==45) mock.context=mock.delayed_context;
 }
+static void verify_sample_marker(const char *s);
 void sweet_log_mark_sync(const char *s)
 {
     CHECK(mock.context==0,"synchronous mark requires preemptible thread context");
-    idle_barriers(); CHECK(!strncmp(s,"SWEET WDT TEST: ",16) || !strncmp(s,"SWEET WDT LEASE: ",17) || !strncmp(s,"SWEET WDT SERVICE: ",19),"marker namespace");
+    idle_barriers();
+    static const char sample_prefix[]="SWEET WDT LEASE SAMPLE: ";
+    if(HOST_WDT_SAMPLE_RECORD && !strncmp(s,sample_prefix,sizeof(sample_prefix)-1))
+        verify_sample_marker(s);
+    else CHECK(!strncmp(s,"SWEET WDT TEST: ",16) || !strncmp(s,"SWEET WDT LEASE: ",17) ||
+        !strncmp(s,"SWEET WDT SERVICE: ",19),"marker namespace");
     CHECK(mock.lines && strlen(s)+1==strlen(mock.log[mock.lines-1]) &&
         !strncmp(s,mock.log[mock.lines-1],strlen(s)),"marker matches printed record");
     CHECK(mock.markers==mock.flushes,"previous marker flushed"); ++mock.markers;
@@ -282,6 +295,41 @@ vm_offset_t ml_io_map_with_prot(vm_offset_t pa,vm_size_t bytes,vm_prot_t prot)
 #define printf test_printf
 @WORKER@
 #undef printf
+
+static uint32_t expected_cpu_window(uint64_t armed_at,uint64_t now,uint32_t minimum)
+{
+    if(now<armed_at) return 0;
+    uint64_t ticks=now-armed_at;
+    uint64_t nanoseconds=ticks/HOST_CPU_HZ*UINT64_C(1000000000)+
+        ticks%HOST_CPU_HZ*UINT64_C(1000000000)/HOST_CPU_HZ;
+    if(nanoseconds>=UINT64_C(23000000000)) return 0;
+    uint64_t used=nanoseconds*32765/UINT64_C(1000000000);
+    return used<753595 && 753595-used>=minimum;
+}
+static void verify_sample_marker(const char *s)
+{
+    unsigned en,bark,bite,status,count,previous,minimum,cpu_window;
+    unsigned long long now,previous_at,armed_at;
+    int consumed=-1;
+    int fields=sscanf(s,"SWEET WDT LEASE SAMPLE: en=%x bark=%u bite=%u status=%x count=%u "
+        "previous=%u min=%u now=%llu previous_at=%llu armed_at=%llu cpu_window=%u%n",
+        &en,&bark,&bite,&status,&count,&previous,&minimum,&now,&previous_at,
+        &armed_at,&cpu_window,&consumed);
+    CHECK(fields==11 && consumed==(int)strlen(s),"exact sample record fields");
+    CHECK(en==mock.regs[2] && bark==mock.regs[4] && bite==mock.regs[5],
+        "sample reports exact read-back enable/thresholds");
+    CHECK(status==(mock.budget_count<<1) && count==((status>>1)&0xfffffu),
+        "sample reports exact status/counter read");
+    CHECK(previous==wdt_lease_last_count && previous_at==wdt_lease_last_at &&
+        armed_at==wdt_lease_record.armed_at_ticks,
+        "sample reports unchanged previous observation and arm epoch");
+    CHECK(now==mock.clock_ticks,"sample reports the actual host clock observation");
+    CHECK(minimum==mock.expected_budget_min,"sample reports the refused minimum");
+    CHECK(cpu_window==expected_cpu_window(armed_at,now,minimum),
+        "sample reports the exact independent CPU window");
+    CHECK(mock.budget_mode && mock.writes==4 && wdt_lease_state==WDL_QUARANTINED,
+        "sample only after actual arm and terminal refusal");
+}
 
 /* Actual SweetWatchdog start-function gate; legacy callout implementations
  * and the unrelated secure-diagnostic scheduler are platform seams here. */
@@ -501,12 +549,17 @@ static void budget_success(uint32_t minimum)
         "successful budget has no write/sleep/log/remap");
     CHECK(mock.clock_conversions==conversions+1 && wdt_lease_state==WDL_READY,"CPU window also checked");
 }
-static void budget_fails(uint32_t minimum,bool reads)
+static void budget_fails(uint32_t minimum,bool reads,bool sample)
 {
     unsigned before=mock.reads,writes=mock.writes,sleeps=mock.sleeps;
+    unsigned samples=count_line("SWEET WDT LEASE SAMPLE:");
+    mock.expected_budget_min=minimum;
     CHECK(!gauguin_wdt_lease_check_budget(minimum),"budget rejected"); idle_barriers();
     CHECK(mock.reads==before+(reads ? 4u:0u),"rejected budget expected read boundary");
     CHECK(mock.writes==writes && mock.sleeps==sleeps,"budget failure never pets/disables/sleeps");
+    CHECK(count_line("SWEET WDT LEASE SAMPLE:")==samples+(sample ? 1u:0u),
+        sample ? "refused budget emits exactly one real sample record" :
+        "refusal without a failed readback emits no sample record");
     permanently_refused();
 }
 static void lease_cases(void)
@@ -610,38 +663,38 @@ static void lease_cases(void)
     (void)ready;
     const uint32_t invalid_min[]={0,753595,753596,UINT32_MAX};
     for(unsigned i=0;i<sizeof(invalid_min)/sizeof(invalid_min[0]);++i) {
-        reset_bus("invalid budget minimum"); (void)lease_ready(); budget_fails(invalid_min[i],false);
+        reset_bus("invalid budget minimum"); (void)lease_ready(); budget_fails(invalid_min[i],false,false);
     }
     reset_bus("exact counter remaining boundary accepted"); ready=lease_ready(); budget_success(753595-ready.ready_count);
-    reset_bus("one tick beyond remaining refused"); ready=lease_ready(); budget_fails(753595-ready.ready_count+1,true);
+    reset_bus("one tick beyond remaining refused"); ready=lease_ready(); budget_fails(753595-ready.ready_count+1,true,HOST_WDT_SAMPLE_EXPECTED(true));
     for(unsigned i=0;i<3;++i) {
         reset_bus("changed EN or threshold quarantines READY"); (void)lease_ready();
         if(i==0) mock.regs[2]=0; else mock.regs[i==1 ? 4:5]^=1;
-        budget_fails(32765,true);
+        budget_fails(32765,true,HOST_WDT_SAMPLE_EXPECTED(true));
     }
-    reset_bus("counter moved backwards"); ready=lease_ready(); mock.budget_count=ready.ready_count-1; budget_fails(1,true);
-    reset_bus("counter reached bite threshold"); (void)lease_ready(); mock.budget_count=753595; budget_fails(1,true);
-    reset_bus("20-bit counter wrapped"); (void)lease_ready(); mock.budget_count=0; budget_fails(1,true);
-    reset_bus("CPU clock moved backwards"); ready=lease_ready(); mock.clock_ticks=ready.ready_at_ticks-1; budget_fails(1,true);
+    reset_bus("counter moved backwards"); ready=lease_ready(); mock.budget_count=ready.ready_count-1; budget_fails(1,true,HOST_WDT_SAMPLE_EXPECTED(true));
+    reset_bus("counter reached bite threshold"); (void)lease_ready(); mock.budget_count=753595; budget_fails(1,true,HOST_WDT_SAMPLE_EXPECTED(true));
+    reset_bus("20-bit counter wrapped"); (void)lease_ready(); mock.budget_count=0; budget_fails(1,true,HOST_WDT_SAMPLE_EXPECTED(true));
+    reset_bus("CPU clock moved backwards"); ready=lease_ready(); mock.clock_ticks=ready.ready_at_ticks-1; budget_fails(1,true,HOST_WDT_SAMPLE_EXPECTED(true));
     reset_bus("CPU window exact remaining boundary"); ready=lease_ready();
     mock.clock_ticks=ready.armed_at_ticks+22*HOST_CPU_HZ; budget_success(32765);
-    budget_fails(32766,true);
+    budget_fails(32766,true,HOST_WDT_SAMPLE_EXPECTED(true));
     reset_bus("frozen counter cannot outlive CPU 23-second window"); ready=lease_ready();
-    mock.clock_ticks=ready.armed_at_ticks+23*HOST_CPU_HZ; budget_fails(1,true);
+    mock.clock_ticks=ready.armed_at_ticks+23*HOST_CPU_HZ; budget_fails(1,true,HOST_WDT_SAMPLE_EXPECTED(true));
     reset_bus("very delayed caller cannot recover expired window"); ready=lease_ready();
-    mock.clock_ticks=ready.armed_at_ticks+30*HOST_CPU_HZ; budget_fails(1,true);
+    mock.clock_ticks=ready.armed_at_ticks+30*HOST_CPU_HZ; budget_fails(1,true,HOST_WDT_SAMPLE_EXPECTED(true));
     for(int bad=1;bad<=3;++bad) {
         reset_bus("budget invalid context"); (void)lease_ready(); mock.context=bad;
         unsigned marks=mock.markers,flushes=mock.flushes;
-        budget_fails(32765,false); CHECK(mock.markers==marks && mock.flushes==flushes,"invalid budget context never persists UFS");
+        budget_fails(32765,false,false); CHECK(mock.markers==marks && mock.flushes==flushes,"invalid budget context never persists UFS");
     }
-    reset_bus("mode no longer enabled in budget seam"); (void)lease_ready(); mock.bus_vote=0; budget_fails(1,false);
+    reset_bus("mode no longer enabled in budget seam"); (void)lease_ready(); mock.bus_vote=0; budget_fails(1,false,false);
     reset_bus("concurrent budget check rejected without spin"); (void)lease_ready(); wdt_budget_busy=1;
-    budget_fails(1,false); CHECK(wdt_budget_busy==1,"failed contender does not release another check's guard");
+    budget_fails(1,false,false); CHECK(wdt_budget_busy==1,"failed contender does not release another check's guard");
     reset_bus("quarantine between READY load and guard acquisition"); (void)lease_ready(); mock.quarantine_on_bus_arg=true;
-    budget_fails(1,false); CHECK(wdt_budget_busy==0,"acquired guard released after racing quarantine");
+    budget_fails(1,false,false); CHECK(wdt_budget_busy==0,"acquired guard released after racing quarantine");
     reset_bus("quarantine during a budget read remains terminal"); (void)lease_ready(); mock.quarantine_during_budget=true;
-    budget_fails(1,true); CHECK(wdt_budget_busy==0,"in-flight reader releases guard but never republishes READY");
+    budget_fails(1,true,false); CHECK(wdt_budget_busy==0,"in-flight reader releases guard but never republishes READY");
     reset_bus("explicit pre-arm quarantine has zero hardware effects"); effects=effects_now(); gauguin_wdt_lease_quarantine();
     effects_equal(effects,"software-only quarantine has no reads/writes/log/sleep"); permanently_refused();
     reset_bus("explicit post-arm quarantine has zero hardware effects"); (void)lease_ready(); effects=effects_now(); gauguin_wdt_lease_quarantine();

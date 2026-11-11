@@ -22,6 +22,23 @@ FIXTURE = HERE / "fixtures/gauguin_wdt_test_host.c"
 REPO = HERE.parent
 FLAGS = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
          "-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-g", "-O1"]
+SAMPLE_MARKER = "SWEET WDT LEASE SAMPLE:"
+SAMPLE_NAMESPACE = "SWEET WDT LEASE SAMPLE"
+
+
+def sample_record_expected(worker):
+    """Select the strict compile-time expectation from the actual worker record."""
+    namespace = worker.count(SAMPLE_NAMESPACE)
+    occurrences = worker.count(SAMPLE_MARKER)
+    if namespace == 0 and occurrences == 0:
+        return 0
+    lines = [line for line in worker.splitlines() if SAMPLE_NAMESPACE in line]
+    if occurrences != 1 or namespace != 1 or len(lines) != 1:
+        raise ValueError(f"ambiguous or duplicate SAMPLE marker occurrences: {namespace}/{occurrences}")
+    code = lines[0].split("//", 1)[0]
+    if not re.search(r'"[^"]*' + re.escape(SAMPLE_MARKER), code):
+        raise ValueError("ambiguous SAMPLE marker is not an emitted record literal")
+    return 1
 
 
 def function(source, return_type, name):
@@ -50,6 +67,7 @@ def replace_once(source, old, new):
 
 def prepare(worker_path, pe_path, watchdog_path):
     worker = worker_path.read_text()
+    sample_record = sample_record_expected(worker)
     worker = re.sub(r"^#include .*$\n?", "", worker, flags=re.MULTILINE)
     worker = replace_once(worker,
         "uint32_t value = *(volatile uint32_t *)(wdt_mapping + offset);",
@@ -62,7 +80,7 @@ def prepare(worker_path, pe_path, watchdog_path):
     helper = function(pe_path.read_text(), "bool", "sweet_wdt_irq_quiet")
     helper = replace_once(helper, '__asm__ volatile("dmb oshld" ::: "memory");', "fake_dmb();")
     gate = function(watchdog_path.read_text(), "void", "sweet_wdt_thread_start")
-    fixture = FIXTURE.read_text()
+    fixture = replace_once(FIXTURE.read_text(), "@SAMPLE_RECORD@", str(sample_record))
     for marker, body in [("@IRQ_HELPER@", helper), ("@WORKER@", worker), ("@LEGACY_GATE@", gate)]:
         fixture = replace_once(fixture, "\n" + marker + "\n", "\n" + body + "\n")
     if "__asm__" in fixture or "*(volatile" in fixture:

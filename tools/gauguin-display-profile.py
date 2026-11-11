@@ -324,14 +324,29 @@ def main():
     parser.add_argument("--fdtget", default="fdtget")
     parser.add_argument("--scanout-catalog", action="store_true")
     parser.add_argument("--refresh-catalog", action="store_true")
+    parser.add_argument("--drm-mode-log", type=Path,
+                        help="bind every DRM timing field to this captured DTB")
     args = parser.parse_args()
     if bool(args.recovery_modes) != bool(args.recovery_status):
         parser.error("--recovery-modes and --recovery-status must be supplied together")
     try:
         tree = Tree(args.captured_dtb, args.fdtget)
         result = display_inventory(tree)
-        if args.refresh_catalog:
+        if args.refresh_catalog or args.drm_mode_log:
             result["refresh_timing_catalog"] = refresh_catalog(tree, result)
+        if args.drm_mode_log:
+            import importlib.util
+            from gauguin_mode_contract import validate_catalog
+            spec = importlib.util.spec_from_file_location(
+                "gauguin_drm_mode_reader", Path(__file__).with_name("gauguin-drm-timing.py"))
+            reader = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(reader)
+            panel = MDP + "/" + result["selected_panel_node"]
+            parent = panel + "/qcom,mdss-dsi-display-timings"
+            timing_node = parent + "/" + tree.children(parent)[0]
+            skew = tree.cell(timing_node, "qcom,mdss-dsi-h-sync-skew")
+            result["drm_timing_contract"] = validate_catalog(
+                result, reader.analyze_modes(args.drm_mode_log.read_text()), skew)
         if args.scanout_catalog:
             result["scanout_catalog"] = scanout_catalog(tree, result)
         if args.boot_dtb:

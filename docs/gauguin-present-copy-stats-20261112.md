@@ -31,6 +31,13 @@ control before drawing performance conclusions. The counters are not a
 substitute for correlating touch, command, surface and swap identities, nor do
 they establish a physical vblank, panel latch or tear-free image.
 
+`tools.present_stats_log.parse_present_stats` validates ordered, complete
+three-line records and derives percentile buckets separately for guard and
+copy samples. It rejects inconsistent, regressed or truncated records rather
+than filling gaps. Each snapshot describes a recorded cumulative prefix: work
+after the final logged snapshot may be absent. The parser's host fixtures are
+synthetic and do not establish that any diagnostic ran on the phone.
+
 The source normalizes exactly to 0297 after removing the ten marked opt-in
 additions. Local ARM64 framebuffer TU compilation and host ASan/UBSan checks
 cover header arithmetic, zero-work samples, mocked actual `present()`/timer

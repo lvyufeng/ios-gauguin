@@ -2,6 +2,32 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0294 authorized direct reply; single boot live
+
+User replied directly “授权执行” to the concrete 0294 confirmation; repeated
+identical reply does not authorize a second boot. W294/approval294.json records
+the literal text, direct-user-message provenance, approved plan5ef9423c,
+image31f23fe8, misc preimage and 13-byte marker/one temporary boot/marker-only
+failure rollback. Prior wrapper required a question-tool call ID, so the
+separately pinned execute294_direct.py accepts this real direct reply instead;
+original sealed execute294.py remains unchanged. No fabricated call ID.
+
+DSH trial-stage-v1 dispatcher8291 child8297/process group8297, 650 pins.
+13-byte marker readback ad7facb2 -> 8698abf4 verified; fastboot boot of exact
+0294 image succeeded once (0.590s). This consent is consumed; do not repeat
+marker or boot. Expected auto TWRP roughly746s, observer timeout860s.
+DSH post-stage-v1 dispatcher8680 is tied to original8291 and waits until its
+terminal result before read-only complete capture and strict evaluation. It
+must not restart the trial. Observe both original handles; ask user to recover
+manually only if actually stuck. No user attribution question for auto reboot.
+Current log absent until recovery pull. Original 0293 full-trace failure stays
+failed; 0294 physical result and actual GPU timing remain pending.
+
+Full goal, backup preservation and500GB cap unchanged. Main source295 b226017a;
+current ready294 source/image remain sealed. Live publication receipt will be
+W294/publish-live-direct-result.json. After terminal trial inspect child group,
+post-stage result, capture consistency and raw timings before any conclusion.
+
 ### 2026-11-11 CST —0295 full display timing contract; offline progress, 0294 unchanged
 
 User resumed ACTIVE. Previous goal turn was NO PROGRESS and marked blocked

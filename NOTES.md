@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0289 blocked audit: actual0287 consent absent, no live trial
+
+Previous goalturn PROGRESS: capture-first tool/288offlinechecks committed and
+pushed81e28fa218742f7bbb7bb47eb3aa9a69b2a05df9. Currentturn revalidates the
+pending0287permission; no new hardware or software milestone is claimed.
+The same condition has now persisted across THREE consecutive goalturns:
+287proposal/6444d32requests ownconsent;288offlineprep/81e28fa stillabsent;
+this289audit againconfirms no actualreply/approval.json/apply-v1/trial-v1.
+Preparation is finished; additional speculative edits cannot replace realGPU/
+UI acceptance. Review41950,gate42525,offline46655,publish47957 allhave terminal
+exit0records andtheir actualPIDs are absent. There is NO live job to wait for
+or restart. Do not classify pendinguserinput as a verified processwait.
+
+Blocked condition: newuserdata16384B/4runs plan369bbd2b +13Bmisc marker and
+paired0250tempboot require the already-requested individual userconfirmation
+under AGENTS.md. No such reply arrived; automaticgoalcontinuation is not it.
+All ready artifacts remain available. Keep the existing question pending;
+do not issue another identical question, generateapproval or performwrites.
+After actualapproval/resume, revalidate state and follow287/288instructions
+below. FullGPU/Metal/all safeRAM/storage/peripheral/90-120Hz/daily-use scope
+is unchanged and incomplete. Preserve500GBcap and original/currentbackups.
+W289=research/tmp/dsh-blocked-audit-0289 records this handoff publication.
+
 ### 2026-11-11 CST —0288 offline runtime/capture checks PASS;0287 consent still pending
 
 Previous goalturn PROGRESS:285sourcefix/push,286freshfullbackup,287reviewed16KiB

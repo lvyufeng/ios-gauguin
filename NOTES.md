@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0270 verified 20H392 refresh policy and conditional 60 Hz fallback
+
+Report docs/gauguin-20h392-refresh-policy-20261111.md. Exact QuartzCore
+9e40b2eb260c3af1ae45a1a551a8c1b9 calls getenv/atof and caches 1/Hz.
+Double at 0x18855caa0 is 1/60 fallback; two prior fields and a later
+packed-field branch can change the return. App opt-in queries the main
+bundle Info dictionary through exact CF exports. Key absent from Settings,
+Safari and SpringBoard; no CA_HEARTBEAT_RATE/CA_FORCE_TIMER in the saved
+backboardd or SpringBoard job/cache environments. Static only. Compare
+opt-in app against control after physical mode qualification, alongside
+actual app rate, callbacks, latch and distinct displayed frames.
+
+W270=research/tmp/dsh-refresh-policy-0270. DSH 82934 exit0 3.447s/9pins,
+83200 exit0 2.648s/11pins, 83376 exit0 2.346s/14pins. Launchers reaped.
+Results SHA 026d68140cb5185236eee223fbdc0e2bf90ffeb52f804b2b07bcfb368b808ab9,
+semantics f99233dc83bf8204ec130c8715d3c74562baa038833621c9b89b960d1187fec7,
+exports c1d999a39222a58ce4a07245225ca6a4fc086f478e537f6b6b8ad09ecbc4180f.
+Independently verified pins/logs/values. No CI, new device run or write.
+0240/0261 exact approvals pending. Goal active.
+
 ### 2026-11-11 CST —0269 signed 20H392 desktop-state probe and physical 0239 log review
 
 Report docs/gauguin-desktop-state-probe-20261111.md. Actual 0239 observer

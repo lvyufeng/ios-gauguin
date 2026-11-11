@@ -2,6 +2,60 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0292 actual0291 consent consumed; one trial LIVE, offline capture/parser PASS
+
+Previousgoalturn PROGRESS:0291kernel/source/image built+reviewed, ownquestion
+pending. User NOW approves call_a9d1314ed6994cb4a78654cc9dfafa10, verbatim
+“允许标记写入、临时启动及标记写入或读回失败时回滚”. W291/approval291.json
+recordsactualsource/answer,PLANab70...,image746f...,miscad7...,13Bmarker+
+ONEtempboot,rollbackonly13Bmarkerwrite/readbackfailure. Do notrepeatquestion.
+
+W292=research/tmp/dsh-held-capture-0292. Actualtrial291-stage-v1 DSH43607
+LIVE from2026-11-11T06:49:54Z, wrapperchild43611/PGID43611. Currentbooter
+preflight proves13Bmiscwrite/readback ad7facb2->8698abf4; fastbootbootEXACT0291
+returns0 (send0.461s,boot0.134s,total0.599s). observer780/timeout860 nowrunning;
+NOresult.json yet. PollthissameactualPID/claim; no restart/secondboot. Expected
+automaticrecovery~745s, no attributionquestion oruserUIresponse needed.
+Newexecute291.py validatesrealconsent+ready610closure+hostartifactgates then
+atomicallyclaimsW292/execution291-v1 andrunsnewprocessgroup. Afterhelperreturn
+itchecksALLactualPGIDchildren beforedeclaringcomplete; activechildren->exit75,
+recordlivePIDs andDO NOTretry. OuterprofileexplicitlypinsMAIN/tools/sweet-log.py
+(theoldplan/readyomittedthisringdecoderdependency); frozenplan/imageunchanged.
+
+Read-onlyCodexreviewfinds no0216driver/admission/lifetime blocker. Clarifies
+reason7canhaveowner0/1; nullcounter0doesnotprovenonnullowner. DSH42792parserv1
+PASS6tests+actual0288counterreplay. Reviewthenfinds twoordering weaknesses:
+COUNTSphase mustfollowitsHOLDsnapshot (STOPcaninterleavebetweenIOLogcalls),
+first8details mustprecedethecounterthatcountsthem. Savev1sourcecopies before
+fixes. DSH44288v2PASS. Savev2copies,addregistered=>clients>0 andLF/CRLF-only
+recordboundaries (neveracceptverticaltab/formfeed/U+0085 asrecordseparators).
+DSH45481parser-stage-v3exit0/0.103s:7tests/strictnegativecases+actual0288replay
+PASS; malformedoldGPUlineSTILLfailsfinite_service, unchanged200before/211after
+counters remain scoped facts WITHOUTinventedrejectioncause. Oldrawdata intact.
+
+Newtracked tools/held_frame_log.py +tests/test_held_frame_log.py reportdetails,
+HOLDownershipbalance,monotoniccounterhistograms andsnapshot-boundbefore/after
+stopreasons. TheyneverqualifyGPUpixels/FPS/highHz/daily. W292/post292.py first
+requiresactualrealconsent+completedtrial+outerstage+NOliveprocessgroup, then
+recaptures27files,24static+4dirs+3COMPLETEoldprefixes BEFOREidentity/activity.
+Capturefailureandruntimefailurestored separately; emptyappendedlogs neverpass
+runtime. Actualnew291banner required, rawnativeGPUgate remainsindependent.
+DSH45907post-offline-stage-v1exit0/0.118s: actualpost0288vsnew291preboot
+27-file/4-dir/zero-log-growth replayPASS;syntheticrejectdiagnosisdoesnotmake
+UI/runtimegreen;actualLIVEtrialcontextrefusesbeforepostIO/output. Noextra
+phoneoperationsfromofflinechecks. Noadditionaluserdatawrites/newboot.
+
+NEXT when43607/43611exit: inspectactualtrialstage/executionprocessgroupresult.
+Ifanychildrenlive,inspectthosePIDs,keepobservingoriginaloperation;do notlaunch
+post/bootagain. Ifnone,createfreshpinnedpost-stage-v1 for W292/post292.py,
+includingcurrentparser+trialcaptures/fullactualstage/profile/approval+plan and
+recoveryreader/HFS/bindings/banner/oldruntimeparser dependencies. This performs
+onlyfreshreads afterknownactualtrial; poststatepending untilitreturns. Preserve
+capture evenifGPUtraceinterleavesornewreasonsmalformed. Diagnoseactualguard;
+noownership/maskbypassorclockraising. Preserve500GBcap (last429.4GB+64MiB
+trialreserveadmitted). FullGPU/RAM/storage/peripheral/90-120Hz/daily remains
+active/incomplete. No newwriteorpermissionneededtocaptureauthorizedtrial.
+
 ### 2026-11-11 CST —0291 kernel-only rejection diagnostic fully built; own trial consent pending
 
 Previousgoalturn PROGRESS: actual0288Metal handoff/24nativejobs andUIFAIL,

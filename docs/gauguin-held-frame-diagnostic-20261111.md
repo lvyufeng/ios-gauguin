@@ -62,3 +62,26 @@ This is an instrumented kernel ready for a separately authorized test. It
 has not yet been booted. It does not fix or qualify desktop rendering,
 physical FPS, high refresh rate, or daily use. The strict 0288 GPU trace
 remains failed because of its interleaved record; no old log was normalized.
+
+## Capture and interpretation
+
+The 0291 marker and one temporary boot have now been individually approved and
+started. The outer launcher checks the sealed inputs plus the actual ring-log
+decoder and records a separate process group. A helper timeout is not treated
+as completion while any process in that group remains alive.
+
+The strict held-frame parser verifies branch-consistent first-eight details,
+monotonic classifications, complete per-snapshot totals and the existing frame
+ownership accounting. It binds each reason histogram to its preceding HOLD
+snapshot, so a service-stop message interleaved between the two logging calls
+does not change that snapshot's phase. LF/CRLF are the only accepted record
+boundaries. Interleaved or incomplete diagnostic records are rejected.
+
+Seven parser tests and the unchanged actual 0288 trace replay pass. That older
+trace still reports zero accepted frames and 200/211 rejected frames before/
+after planned stop, with no known cause; it still fails the strict GPU execution
+gate on its interleaved submission record. The capture-first postprocessor has
+also passed an actual 27-file capture replay, including zero log growth, and
+refuses to collect a still-running trial as a completed result. Current 0291
+physical rejection causes remain pending until the phone returns and its new
+logs are captured.

@@ -33,9 +33,33 @@ source-present-stats passed 87 original, 103 lease and 97 service cases with
 DSH dispatcher 20453 reran both under unchanged source pins, exited 0, and
 pushed fixture/runner commit 5e7eed48bfdc9f66157ae9d6b8e2dfe0da58a022 to the
 parser branch. The first and compatibility-test failures remain in their logs.
-DSH session 48018 is preparing host-only command-equivalence tests in Rparser;
-session 96758 is preparing (not executing) an offline packager in R298. Inspect
-their original outputs, review their changes, and validate before packaging.
+DSH added six host-only command-equivalence tests in Rparser: the exact
+603-to-605-byte transformation, payload field boundaries, trial identity and
+the discovered watchdog flag consumers compiled from source with a mock parser,
+including value-1 and no-bus controls. Dispatcher 23735 reran and passed them,
+verified pinned inputs, and pushed commit 2774d36de133f396a94743e7b0a3578a43a974f1
+to the parser branch. This remains source/model evidence, not proof of prebuilt
+iOS userland or physical hardware equivalence. DSH 96758 prepared (but did
+not execute) R298/research/tmp/dsh-present-native/package298.py; original
+output dsh-package-prepare-output.jsonl. The first pinned in-memory validation
+failed before any output on an incorrect ADT-size expectation; preserve its
+validate-package298-memory-stage/result.json and log. The raw signed-ZAP MDT
+file is 6860 B but its ADT entry is 16384 B; ZAP code is 1984 B in both the
+file and ADT. Codex verified all five ADT entries from the already booted 0297
+image and updated package298.py to compare both addresses and lengths against
+that actual baseline. DSH validate-package298-memory-stage-v2, dispatcher
+30549, passed the in-memory payload and all five firmware/ADT checks with
+unchanged inputs; it stopped before OUT.mkdir and created no image. The final
+packager additionally pinned the separate successful command-test receipt.
+DSH package298-offline-stage, dispatcher 31276, exited 0 with unchanged inputs,
+producing shim/out/shim-p3-kernel-0298-present-stats-600-20261112.img, size
+20021248, SHA 64596164315fc496ff30037bb1fdf982d1322069eee788e28554f38d6f43cc7e;
+the package has a 605-byte command, matching 0297 RAM, shim, DTB and firmware
+contracts. This image has not been booted or hardware-qualified. DSH session
+66545 is preparing a reviewable future trial and read-only preflight under
+R298/research/tmp/dsh-trial298-prep; its prompt forbids all device writes,
+boots and fabricated approval. Inspect its original output and review its
+scripts before using them. No new device write or boot is authorized.
 Storage accounting after build was 447133298688 B of the 500000000000 B cap.
 
 ### 2026-11-12 CST — 0298 opt-in present-statistics kernel built offline

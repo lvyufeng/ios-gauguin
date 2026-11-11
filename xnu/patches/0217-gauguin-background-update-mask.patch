@@ -1,0 +1,23 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -1082,12 +1082,18 @@
+ {
+     bzero(frame, sizeof(*frame));
+     if (reject != NULL) *reject = 0;
+-    uint32_t mask = get32(rec, 0x104);
++    const uint32_t layerBits = (1u << SWEET_FB_LAYERS) - 1u;
++    /* SwapSetBackgroundColor sets bit31 in this update word. It is metadata,
++     * not a surface index. Keep the complete record, including its colour.
++     * Other unimplemented high bits remain rejected. */
++    const uint32_t backgroundUpdate = 0x80000000u;
++    uint32_t rawMask = get32(rec, 0x104);
++    uint32_t mask = rawMask & layerBits;
+     if (owner == NULL) {
+         if (reject != NULL) *reject = 1;
+         return false;
+     }
+-    if (mask & ~((1u << SWEET_FB_LAYERS) - 1u)) {
++    if (rawMask & ~(layerBits | backgroundUpdate)) {
+         if (reject != NULL) *reject = 2;
+         return false;
+     }

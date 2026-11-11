@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0293 background-update admission repair, host/native TU PASS; no new boot
+
+Authoritativeactualhardwarehandoff: MAIN/NOTES.md,0292. Actual0291 temporary
+trialcompletedoncewithrealnewGPU14/14androot8strictPASS; first8REJECTreason2
+show0x80000007 and15classifiedmaskrejections/0acceptedframes. Individual291
+permissionfullyspent. No desktop/FPS/highHz/daily qualification is claimed.
+
+Thisbranchcodex/gauguin-swap-flags-20261111 startsb34deaeed8b84253c42f9435cd64dd5427be7c9a.
+0217extends208->209patches,ONLYstagedSweetFramebuffer.cppchanges: rawmask
+admitsbackgroundupdatebit31+low4;unknownbits4..30stillreject,selectedmaskis
+low4,rawrecordincludingmetadataretained. Ownerregistration,hold/drop/partial
+unwind,pendingreplacement/cancel/retirement paths unchanged. No background
+fill/disable/persistentlayer/SwapWait protocol implementation is claimed.
+
+Protocolsource: immutableHakiOS63fc2b46 MiniIOMobileFramebuffer.cpp SET0x104,
+4layers,presentrawcopy/showlowlayers. FreshGitHubcontentverified. Independent
+16.7 instructionreport shenli99/ios-mh2lm@d6448669 documents backgroundfunction
+record0x10candSET/CLEARbit31;notyetboundtoourphonecacheUUID. Referencesand
+limitsindocs/gauguin-swap-mask-admission-20261111.md,privatecopiesW293.
+
+W293=MAIN/research/tmp/dsh-swap-flags-0293. DSH53638prepareexit0/63.524s:
+429457526784+8589934592wholebatchadmittedunder500GB. DSH59850software-stage-v1
+exit0/22.298s: strict0217onto immutable291source;5332files209patchesSHA
+8c50110d5ca2827562bd48c7fe2cdaa107d2eeb21c9ddbb0bc86cb5332b5c5fd.
+Actualold291 guardcompilesandfunctionalRED42onobserved0x80000007; candidate
+PASS4735lifetime/metadataassertions,32lowmask/flagcombos,54unknownbitcases,
+rawrecord/missinglayer/partialhold/owner/pendingchecks. Originalheldlifetime,
+clock,desktop-defaultpolicy,patchseriesandrealARM64FBTUalsoPASS. Old291source
+andimageunchanged. NewkernelFULLbuild/package/preflightstillNEXT.
+
+DSH62271parser-stage-v1exit0/0.100s:8testsandactual291tracePASS withlegacy
+allowed0xf;explicitnew0x8000000fcontractrejectsreinterpretingoldreason2record.
+Newtrackedparserdefaultpreserves291semantics;future293postmustchoose0x8000000f
+fromselectedkernelcontract,neverinferfromafailedrecord. Capturedoldreportstays
+unchanged. Liveold288GPUtracefailurealsonotrewritten.
+
+NEXT: commit/pushsource,fullnativefresh-objectbuildusingretained291deps,
+allpriorprovenance/symbolchecks+209sourcebound,thenpackagekernel-onlyimage
+withsame607Bcommand/assets/6GiBADT/shim/DTB. Freshreadonly27files+newmisc
+preimage frompost291root BEFOREnewconcreteplan/individualapproval. Nouserdata
+writeisneeded;new13Bmisc+ONE293tempbootneedsownpermissionafterallprep. Do not
+reuse291consent. Preserve500GBcap/originalpartitionandcurrentrollbackbackups.
+FullGPU/RAM/storage/peripheral/90-120Hz/dailygoalunchanged/incomplete.
+
 ### 2026-11-11 CST —0291 bounded held-frame rejection diagnostic, host/native TU PASS
 
 Authoritative physical handoff remains MAIN/NOTES.md,0290. Actual0288 user

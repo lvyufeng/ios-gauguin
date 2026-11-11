@@ -2,6 +2,28 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0271 signed high-refresh A/B apps and displayed-ID decoder
+
+Report docs/gauguin-refresh-probe-20261111.md. userland/refresh_probe.m,
+tools/build-refresh-probe.py and tools/gauguin-refresh-optical.py. Same
+ARM64 iOS16 binary before bundle signing; Info.plist only opt-in Boolean.
+App 60/90/120 hint, 1s warmup/5s sample, screen maximum, callback/target
+timing, raw Mach bounds and visible Gray-code IDs. Decoder distinguishes
+camera-observed changes, repeated/invalid camera samples and unseen IDs.
+
+W271=research/tmp/dsh-refresh-probe-0271. DSH84713 host pass, native
+compile error on invalid UIView accessibility property; corrected and
+adopted scene lifecycle. DSH85162 native link error on CGRect helpers;
+changed to actual bounds.size. Final 85676 exit0 19.210s/18pins,
+both native signatures and one-key plist difference verified, 72 imports
+resolved in 20H392, 4,096 marker words passed. Common text SHA
+b00b3956b95efd8df802324af7f690b020f464d311f2ccf0ab0a6b52854e8340.
+iOS26.5 simulator temporary opt-in test launched, 90 requested/60 reported,
+300 at60.0Hz, IDs60–359. Screenshot independently decoded 359. Temporary
+sim app removed. Synthetic 240fps video:60 IDs,119.919 advances/s.
+All launchers reaped. Native-v3 packages are offline. No handset action,
+CI or partition write. 0240/0261 exact approvals pending. Goal active.
+
 ### 2026-11-11 CST —0270 verified 20H392 refresh policy and conditional 60 Hz fallback
 
 Report docs/gauguin-20h392-refresh-policy-20261111.md. Exact QuartzCore

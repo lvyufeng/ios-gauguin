@@ -2,6 +2,32 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0266 pre-mount memory receipt source/host/native PASS
+
+Report docs/gauguin-premount-memory-receipt-20261111.md. R266 reuses R265
+worktree on codex/gauguin-handoff-receipt-20261111. Source/pushed
+063a51c1db6ecfc99d6d04ef086487b42641146d; patch0221 SHA
+5e889e1faa4c6613cafa3495546d58a09d4e68cb66fb66ee01f15ac71e8289b9.
+One GAUHRAM1 4KiB report with exact run ID, original FDT and body SHA,
+status-only overflow/failure. Uses same fixed userdata slot and UFS
+guards as scan, rejects scan log conflict and ordinary writable profiles.
+Readback tools/gauguin-read-memory-handoff.py.
+
+W266=R266/research/tmp/dsh-handoff-receipt-0266. DSH75645 mock sync
+counter error; fixture corrected. DSH75941 exit0/10.669s/24pins,
+5342files/5changed SHA ced9350a84e3262c8da3a8848edf6da2ca82e6c604862dc6d27b057c59262063.
+Actual producer/reader/encoder model 2544B report, six bad blocks rejected,
+shared writer mock plus 4 native ARM64 TUs. DSH76234 exit0/23.473s/10pins,
+11 local groups and CI42930522816/job130227818761 dispatched. Image stage
+with enabled 0252 shim and 768KiB capacity prepared; run after CI succeeds.
+
+0265 CI42929203205/job130223371043 completed SUCCESS at 00:20:11Z.
+DSH76552 exit0/42.736s/869pins exact Git project snapshot and full link,
+5342files archive SHA4f005cb65e2cbac41ad337d383bc36b3ef2170dc3ecf26ab0f5cb24e482eb71c.
+Kernel17,916,904B SHA69fca4adda400014b32f597c97fba53f05150d2aad5086b4746b0eaad69907cc.
+No image on 0265, no device command/boot/write. All launchers reaped.
+0261 exact pending proposal rehashed, 0240 pending. Goal active.
+
 ### 2026-11-11 CST —0265 ABL memory handoff reader source/host/native PASS
 
 Report docs/gauguin-handoff-memory-reader-20261111.md. R265 reuses R263

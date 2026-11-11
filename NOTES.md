@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0292 actual0291 COMPLETE: bit31 background-update mask is the rejection cause
+
+0291individualconsentFULLYUSED ONCE. DSH43607trial291-stage-v1exit0/752.541s,
+allpinsunchanged; executechild43611/PGID43611retiredwithNOsurvivingchildren,
+boot_retries0.13Bmiscwrite/readback,ONEexact0291tempboot; automaticTWRP746s,
+observerelapsed746.733s,observer0/exactnewbanner. No manualattributionquestion.
+W292post-stage-v1 DSH50145exit0/112.082s includesverifiedwait+128MiBfreshbatch
+budget429419700224+134217728admitted,thenreadonlycaptureall27.24static/4dirs/
+3COMPLETEoldlogprefixesPASS. Growthstdout3004,stderr135,backboardd32997bytes.
+Postrootheader3a8f68a54e3112bc9161a2a9812c403726e255de42e339bccd4489805ee1cee3.
+
+NEWSTRICTPATHPASS: actualnew0291fulltracehas14/14nativecompletions,all14sampled
+withreachableexactringincrements;598healthrenewals/600s plannedstop. Root8
+stages/28928words/cleanownerhandoffPASS,compositor6morejobs. NoBOFAIL andno
+backboarddcrash. Old0288interleavedtraceSTILLFAILED; neverrewritten. Newreport
+W292/physical-review0291.json errors={} capture_consistent=true,bootstrap_native_
+qualified=true/desktop_native_path_observed=true BUTpixels/correctness/FPS/
+highHz/dailyfalse. Driverkitd/PosterBoardcrashesalsoinrawlog; nothiddenandtheir
+relationshiptomissingdesktopnotproven. No newsubjectiveUIsuccessclaimed.
+
+ACTUALGUARD: first8strictREJECTs allreason2 owner1 registered1 clients2,
+mask0x80000007,ids2,0,0,0 orall0. FiveHOLD/hist snapshots match,latestbeforestop
+accepted=consumed0/rejected15; ALL15classifiedmask,otherguardcounts0. Later
+beforeplannedstopnoadditionalHOLDsample; reportdoesnotinventafinal211count.
+DSH54069audit-actual-stage-v1exit0/0.408s rechecksactualstage/profile/log/capture
+pins,exactconsent,13Bmarker+oneboot,new14/14androot8,first8+15hist andfalseGUI
+flags. Needfixbadmaskadmission,notraiseclocksorblameunreachedsurfaceguards.
+
+REFERENCE: freshprimaryGitHubconnectorimmutableHakiOS63fc2b46
+xnu/files/iokit/Kernel/MiniIOMobileFramebuffer.cpp:67-76SET0x104/fourlayers,
+present1258-1293keepsrawrecordand4surfaceholds;show1428+useslowlayers,
+nohighbit-rejection. IndependentiOS16.7authorrawinstructionreview:
+https://github.com/shenli99/ios-mh2lm/blob/d6448669b3b433a069c0bd9eae010c31360cb13d/docs/FRAMEBUFFER-USERLAND-ABI.md
+SwapSetBackgroundColorwritesrecord0x10c andSET/CLEARbit31;CAset_all_layers_to_
+nullcanproduce0x80000007. ThisreportcacheUUIDisnotyetboundtoourphonecache;
+weverifiedsourcecontent,notpersonallyallitsoriginalinstructions. Italso
+identifiesdisable0x108,partialupdatestate andSwapWaitresourcefencing aslater
+correctnessrequirements;allowingmetadataaloneisNOTclaimingthoseimplemented.
+
+NEXTSOURCEPREP: W293=research/tmp/dsh-swap-flags-0293, R293=research/tmp/
+gauguin-flags293-worktree-20261111,branchcodex/gauguin-swap-flags-20261111,
+baseb34deaeed8b84253c42f9435cd64dd5427be7c9a. DSH53638prepare-stage-v1exit0/
+63.524s budgetsWHOLE8GiBbatchunder500GBandcreatescleanisolatedsource. No0217
+code/buildyet. Minimalnext0217contract: permitONLYknownbackgroundupdatebit31
+pluslow4layerbits;unknownbits4..30stillreject;retainrawrecord/flag andall
+owner/lifetimechecks;hold/index/presentlow4only. Testobserved0x80000007and
+unflagged0x7equivalentholds,32lowmask/flagcombos,all27unknownbitswith/without
+bit31,partialfailureunwind,ownerclose/pending,recordbytesretained. Old291source
+andimageMUSTremainimmutable. Newdriver/fullbuild/packageandactualreadonly
+preflightmustcomplete BEFOREaskingownnewmisc/tempbootconsent.291permission
+spent;nonewbootauthorized. GPU/safeRAM/storage/peripheral/90-120Hz/dailygoal
+remainsactive/incomplete. ParserfornewsourceMUSTuseexplicitallowed-bitscontract
+ratherthangloballyreinterpretold291reason2records. Preserve500GBcap/backups.
+
+PRIVATEPOSTFIX: post292.py nowallowsobserver_log=None throughcontextsoall27
+filescanbecapturedfirst,thenidentityerrorretained. v1sourcecopysavedbeforeedit.
+DSH48888post-offline-stage-v2exit0/0.124s replayssamecapture/guard;read-onlyagent
+reviewconfirmsmissingobserverwillnoterasecapture. Mainparser/tests+handaoff
+publicationf1fdfee0091763f3aef6d13c07cd396310fc715e alreadyremoteverified.
+
 ### 2026-11-11 CST —0292 actual0291 consent consumed; one trial LIVE, offline capture/parser PASS
 
 Previousgoalturn PROGRESS:0291kernel/source/image built+reviewed, ownquestion

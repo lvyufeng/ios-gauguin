@@ -85,3 +85,34 @@ also passed an actual 27-file capture replay, including zero log growth, and
 refuses to collect a still-running trial as a completed result. Current 0291
 physical rejection causes remain pending until the phone returns and its new
 logs are captured.
+
+## Actual 0291 result
+
+The approved single temporary boot automatically returned to TWRP after 746 s.
+The wrapper found no remaining process-group children. The complete capture
+preserved 24 static files, four directory tuples and all three old log prefixes.
+The exact new kernel identity and strict full GPU trace pass: all 14 submissions
+completed, with eight root pixel-test stages and six later compositor jobs.
+There are no GPU buffer failure records or backboardd crashes in this trace.
+The separate older 0288 trace remains failed on its interleaved submission.
+
+All eight detailed rejection records show a registered owner, two clients and
+`0x80000007`; all 15 classified rejections at the last pre-stop snapshot are
+mask rejections. No held frame was accepted or consumed. The guard rejects
+bit31 before trying surface retention. This identifies an admission bug without
+establishing any desktop pixels or frame rate.
+
+The immutable [HakiOS framebuffer implementation](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/xnu/files/iokit/Kernel/MiniIOMobileFramebuffer.cpp)
+keeps the raw request and handles four surface layers without rejecting its
+high bit. An independent [iOS 16.7 instruction analysis](https://github.com/shenli99/ios-mh2lm/blob/d6448669b3b433a069c0bd9eae010c31360cb13d/docs/FRAMEBUFFER-USERLAND-ABI.md)
+identifies bit31 as a background-color update and explains how clearing layers
+can produce `0x80000007`. Its cache identity has not been bound to our exact
+phone cache, so this is corroborating protocol evidence. It also identifies
+separate background/disable, partial-layer-state and SwapWait semantics that
+must not be claimed implemented by a mask-admission fix.
+
+The next candidate will allow this one identified metadata bit alongside four
+layer bits, keep unknown bits 4–30 rejected, preserve the raw record and all
+surface ownership checks, and test the actual observed input against the old
+and new methods. It needs its own build, image review and subsequent trial
+consent; the 0291 consent has been consumed.

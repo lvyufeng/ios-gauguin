@@ -2,6 +2,119 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0277 concrete desktop delta ready, new individual consent required
+
+0240 trial is COMPLETE/PASS, no repeat needed. Full daily-phone goal remains
+unfinished. NEXT is the existing0250 desktop candidate with a fresh0277 root
+proposal. W277=research/tmp/dsh-desktop-delta-0277. Actual new user consent is
+absent; W277/approval.json and apply-v1 do not exist. Do not infer it from0240.
+
+W276=research/tmp/dsh-post240-desktop-0276. DSH4960 stage-v1 exit1/226.919s:
+independent0240 review passes; complete native16GiB scan succeeds, local copy
+stops BEFORE any fetch/write because282MiB exceeds256MiB COW budget; launch
+regeneration then fails on absent capture. Original logs/sources retained.
+Helper removed from RAM, no partition write/reboot. DSH5953 stage-v2 exit0,
+51.662s/82pins, reuses full scan with stable header and fresh changed-chunk
+hashes, budget384MiB/reserve2.5GiB. All16384chunks and whole16GiB digest
+match. backup-v2/iosroot-post240.hfsx mode0444 SHA
+2b9796b0dfbfb47d6c5158c946b7beaae4e18871f7cdec804795cd64408a7663.
+Header16e43a251c4ed5a386c86c866075b3804b79c0b9eeab07754706f9169fc61ce9.
+Original2b8fab backup unchanged. Fresh22-file capture and three regenerated
+launch/cache candidates in W276/capture-v1 and launch-v1.529other jobs unchanged.
+
+DSH6482 proposal-stage-v1 exit0/51.044s/3276pins: local COW staging, scoped
+reconstruction and readonly fsck pass. Exactly5newfiles +3changed launch/cache
+files +4newdirs (two501:501/0700 mobile private caches); no core/probe/Mesa/
+old diagnostic/log/policy replacement. Keep531jobs,529unrelated cache entries
+and all other top-level cache fields.528blocks/2162688B/44runs.
+Plan W277/delta-v1/delta-plan.json SHA
+1d220805cc5b9e77698e63b09675939579fed8d31091f4171dc6dccc4063fda6.
+Final local16GiB image bcfcfcead0993d94c48c993bed6feab18816148b33a3eacaff109b251eb80dcc.
+Pair ONLY existing0250 image18d3196f5827e7105c7b598c2951596f25f56449330223cbc9530ff3d4f1f72f,
+not0239 again. Existing0250 image/kernel source remain unchanged, no new build/CI.
+
+DSH7173 review-stage-v1 exit0/22.393s/12pins, actual writer102fakeIO failure/
+rollback checks, complete16GiB old/new diff exactly528blocks, metadata/files,
+529jobs preserved, all44real old ranges/current root header match. Misc4KiB
+fresh read allzero, SHAad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7,
+saved W277/misc-before.bin0444. New trial needs another13B boot-recovery write.
+ready-review277-v1.json SHA
+6f4fb880b28c189e2d16a99045eb0d030b3bba429ca28df54bc23be85516af27,
+111pins. DSH7678 gate-stage-v1 exit0/0.033s/5pins: both actual apply277.py
+entry and verify_write refuse missing new approval before output/IO.
+Writer SHA9842a65cdb2416cd476465bbce282d8c147f81bd441889592dccad8d3f58919f.
+Only writer contract backup/image/state/output strings differ from tested240
+algorithm. Codex rehashes all stage/current ready pins and logs independently.
+
+Ask once for BOTH exact writes:528blocks/2162688B root plan1d220805 and13B
+misc marker, paired0250 temporary boot, rollback touched root blocks on write/
+readback failure. Explain AGENTS.md per-step requirement. On actual reply bind
+source call/answer, PLAN +ready hash, misc permission/hash, rollback in new
+W277/approval.json. Refresh real old blocks/misc before writes. Use DSH for
+apply277.py through pinned apply-stage-v1.json (one job, argv[1:]==[apply277]).
+Apply wrapper rehashes ready pins, requires actual new consent, verifies plan
+and source; verify_write requires all44readbacks/header last before boot.
+
+Before boot prepare the0250-specific installed-file and pilot checks. Actual
+root now needs27files (old22 +5new),4directory owner/modes and regenerated
+launch/cache evidence. Do NOT reuse240's fixed22-file capture/pilot. Readback
+success -> separately approved misc marker using MAIN/tools/recovery_marker.py
+with exact W277 preimage -> one0250 temporary boot -> full capture. Validate
+root bootstrap clean handoff, backboardd discovery/native jobs, pixels/icons/
+widgets/effects/transitions before performance claims.600s finite service and
+standing unattended auto-reboot attribution; manual action only if stuck.
+0240 bounded output passed; desktop/highHz/daily remain unqualified. Preserve
+MAIN mkadt diffa74a0418...; no GPT/format/other partitions. MAIN base1615580.
+
+### 2026-11-11 CST —0240 physical shared-output and old regressions PASS
+
+Actual two-scope authorization executed once. DSH1854 trial-stage-v1 exit0
+777.294s/46pins. Installed22files match; misc13B readback verified; temporary
+paired2397357image boot succeeds. Automatic TWRP return746s, observer747.101s
+exit0 and exact kernel banner. Post22files retain19static +3full log prefixes.
+physical-review240.json has no errors. Five direct shared CA scenes compare
+40960view-pixels/163840channels from original IOSurface and core BO CPUviews,
+all maxerror0; no target readback blit. FP16/originalCA/5ROtaskformats pass,
+5deliberateWRITErefusals, ownerrelease/reacquisition and600s service pass.
+36nativejobs=26explicit+10framework, first16 individually recorded only;
+exact laterIBsequence unproven. Desktop/MTLDevice/highHz/daily not qualified.
+Independent W275/review275-v1.json reruns real parsers and rehashes all stages,
+passes. Report docs/gauguin-shared-ca-output-20261111.md.
+
+DSH4960 W276/stage-v1 currently runs independent review -> fresh readonly
+full16GiB device digest/COW snapshot -> regeneration of desktop launch/cache.
+No further partition write or boot. Original0240 approval does not authorize
+0250 installation. Next is fresh scoped desktop delta/review/individual consent,
+then0250 real desktop correctness before0255 latency or high-refresh work.
+Do not repeat0240 or ask reboot attribution. Preserve original mkadt diff.
+
+### 2026-11-11 CST —0240 root delta applied and fully readback verified
+
+DSH1488 apply-stage-v1 exit0 8.354s,3215pins independently rehashed,
+all logs/profile hashes match. Exact approved194blocks/794624B in33runs
+written/readback, header last at0;33writes, no failure or rollback.
+W240/apply-v1/result.json state applied-approved-delta-readback-verified.
+verify240 passes. DSH1854 trial-stage-v1 is running. Real22installed files
+match, misc13B marker written/readback and fastboot boot image7357a0ab
+succeeded (0.591s).780s observer then automatic post240 capture/qualification.
+No second boot or unrelated partition write. Physical acceptance still pending.
+W275/review275.py is prepared to independently rehash and rerun actual gates.
+W276/backup276.py and stage-template.json are unlaunched preparation for a
+fresh read-only post240 full-root snapshot and regenerated desktop launch/cache.
+No desktop installation is authorized by the0240 reply.
+
+### 2026-11-11 CST —0240 exact two-scope authorization received, execution resumed
+
+Actual reply call_04e6536b94c24018ad8ce89fdb2523e1 says
+“允许这两项写入、临时启动及失败回滚”. Bound in W240/approval.json,
+including exact plan9d943e79, ready8f19b3dd, misc preimagead7facb2.
+W275=research/tmp/dsh-shared-execute-0275. DSH1219 preflight exit0
+9.382s, full16GiB backup rehash and all194real old blocks/33runs match.
+Current misc4KiB identical to W274 backup, allzero first13. No preflight
+writes/reboot. Apply-stage-v1 is prepared for DSH, followed by exact paired239
+trial and post240. Prior authorization blocker resolved by this actual answer.
+Full daily-phone objective remains unfinished. Preserve original mkadt diff.
+
 ### 2026-11-11 CST — goal blocked awaiting exact shared-output write confirmation
 
 Three consecutive automatic goal turns verified the same missing user

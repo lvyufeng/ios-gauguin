@@ -2,6 +2,111 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0290 real Metal device/handoff observed;0288 UI FAIL at presentation
+
+Actual287consent fullyused ONCE:4rootwrites/readbacks16384B +13Bmisc +ONEsame
+0250tempboot. DSH75334 W288/trial-stage-v1 terminalexit1/779.038s/55unchanged
+pins, observer0/exact0250banner; phoneautoTWRP745s, elapsed746.862s. No manual
+reset confirmation needed. All27files captured;24static/4dirs/3full oldprefixes
+retained. Usercall_c8f8634ed10f4c3fb03131f14afe52b2 reports “仍显示日志或无法进入桌面”.
+W288/user-observation290.json binds this to actualtrial0f42cef0; exactscreen
+text notprovided. Do NOT repeat287write or blindlyrestoreprebootHFSmetadata.
+
+NEWRAWFACTS: router selectsnewbootstrap build75fd..., no routerfail. Root
+wait opens reason0/connected1 after45022808177ns/284attempts. It reports all8
+pixel stages PASS and8fences; first8native completions are cleanrecords before
+rootarmed jobs8/fence8/epoch1, rootclose ready1/clean1. Then compositorpid57
+opens rootfence8. backboardd first-open reason0/494attempts/50073165105ns/device1,
+creates Adreno619Metal device andlinks real20H392CoreAnimation pipelines.
+Finalnative counters598renewals/submitted24/completed24/shadow308. This is
+real progress past discovery/rootowner handoff, NOT proof of a visible desktop.
+
+FULL STRICTGATES STILLFAIL: native sample12 atobserverline4680 is interleaved
+inside a SpringBoardIOKit message. physical-review288.json retains bootstrap/
+finite_service ValueError('malformed/interleaved SWEET GPU USER: submit ').
+Do NOT strip/normalize that line or change the failedreceipt intoPASS. Full
+trace qualification, desktoppixels/FPS/highHz/daily flagsremainfalse. New
+Scoped-review-stage-v1 DSH85007 preserves a syntax-only failure beforechecks.
+New review_observations290v2.py fixes that syntax without editing thefailed
+source. DSH85687 scoped-review-stage-v2 exit0/0.043s/9pins checks all28928root
+outputwords againstCPUexpectedhashes, first8nativecompletions andcleanhandoff,
+plusdisplayrejectcounts. scoped-observations290-v1.json explicitly leavesfull
+trace/desktop/FPS/highHz/daily qualificationfalse. No rawlognormalization.
+
+DISPLAYBLOCKER: allheld-frame counters accepted/consumed/retired remain0;
+before plannedGPUstop, rejected=200. Afterstop rejected211. No successful
+swap/copy observed; console remains.4GPU BOFAIL records occur ONLYAFTER the
+planned600s service stop (lines6404..6407 after6368), so do not blame them for
+initialUIfailure. No backboarddcrash. PosterBoardcrashes once; relationunknown.
+DSH83565 audit-stage-v1 exit0/0.813s/69pins independently audits exactconsent,
+4writes/13Bmarker/oneboot andFAILEDcapture/runtimeevidence +userobservation.
+
+NEXTPRIORITY: inspect held-frame rejection before changing shaders/raisingGPU
+clocks. Frozen0250 patch0210 sweet_fb_frame_prepare rejects missingowner,
+out-of-range layer-mask (4layers), or failedsweet_surface_hold(id); swapalso
+rejects owner not in fClients. Currentlogonlyaggregatecounts, so WHICHguard
+fires is unproven. Build bounded rejection-reason/owner/mask/surface-ID tracing
+with those safetychecks preserved, not disableheldownership. Kernelonlychange
+needs source/nativecheck/CI/package; sameinstalled287root shouldremain. New
+13Bmisc/temporarydiagnostictrial needs ownreviewed concrete scope/consent.
+Do not claim rootcompiler, GPUexecution or clocktiming is still the blocker.
+
+Userrequests freshcomparisonwithHackiOS whiletrialruns. GitHub recheck:
+main63fc2b46 unchanged, K90main8968d47adf8331edbf84acc39a61f260ad7cd760,
+latestreleasev0.1.2 Nov10. Liveprimaryfile/URL/blobmetadata in W288/hakios-
+recheck290-sources.json. docs/gauguin-hakios-acceptance-gaps-20261111.md updated
+with actualbenchmarkconditions anddifferencebetweendesktop/persistence/thermal/
+peripherals. Redwood fullrender100-104swipes/89-91Settings;118-120Settings uses
+750x1624+syntheticgestures. K90stillunfinishedsound/camera/cellular etc. No
+daily-phoneclaim fromtheirbestpartscombined. Ourfullgoalactive/incomplete;
+current500GBbatchadmitted425.9GB+512MiB. Source/core/0250image unchanged.
+W288/publish-result290.json records this full milestone/report commit and
+remote verification. No additionalwrite/boot consent is pending for287: it was
+received and has been consumed. Prepare any newdiagnostic concretely before
+asking for its own destructive step; don't repeatoldquestions.
+
+### 2026-11-11 CST —0287 installed/readback PASS;0288 one0250 trial launching
+
+Actuale90556consent above is executed ONCE forroot only sofar. DSH72174 W288/
+preflight-stage-v1 exit0/69.462s/69pins: fresh500GBcheck425872195584+512MiB
+admitted, fullbackup+final rehashed, all4oldruns/header/miscmatch; positiveREAL
+consent CLIintercept stopsbeforewriter and9in-memory negativesPASS. No fake
+approval. DSH74431 W287/apply-stage-v1 exit0/1.649s/68pins:4writes/readbacks,
+16384B, starts3826842/3826846/3826850/3826854, root_header_unchanged=true,
+no rollback. verify_write() and currentstagepins/logs independently verified.
+Do NOT repeatrootwrite. Same287PLAN/READY/finalda1884b1 and sourcebf43185.
+
+W288/trial-stage-v1 now launches onejob through freshactual27-file capture,
+actualrouter+both-target validation andpositiveinstalledhostpilot +5negative
+controls BEFORE recoveryIO. Then authorized13Bmisc+same0250image18d3196f
+temporaryboot; observer780s/timeout860 andpost288fullcapture-first assessment.
+Source/futureprofile inputs are pinned; do not edit them while thisstage lives.
+No newuserconfirmation needed for already-approvedscope. UsualautoTWRP~745s
+requires no resetattribution question. Ask currentUIfeedback afterbootreadiness
+andleave device running untilautomaticreturn; userawaystatusdoesnotproveUI.
+Hardware/rootstartup/compositor result stillunknown; fullgoalactive/incomplete.
+
+### 2026-11-11 CST —0287 actual consent received; fresh preflight running
+
+User explicitly approves call_e90556d0db9e42eb97ccc56c5076aa8b, verbatim
+“允许两项写入、临时启动及写入或读回失败时回滚”; goal explicitly active.
+The previous pending-consent blocker is resolved. W287/approval.json records
+actualsource/answer, PLAN369bbd2b/READY319aee89, root/misc/paired0250boot flags,
+miscpreimageshaad7facb2 andtouched-block write/readbackrollback. No repeatask.
+
+W288/preflight-stage-v1 DSH72174 performs fresh500GBwholebatch512MiBcheck,
+full16GiBbackup +final rehash, current4oldruns/header/misc checks, and positive
+ACTUALconsent CLI interception beforewriter plus9negative in-memorymodels.
+It is readonly. Observe original handle/result; no restart on poll timeout.
+No root write ornew boot yet. Once BOTH jobs exit0 unchanged andresultsverify,
+launch ONEnew W287/apply-stage-v1 pinned to actualapproval/applier/writer/
+readyproof andfreshpreflight. It must return4writes/readbacks/16384B with
+root_header_unchanged; noheader0iswritten. verify_write() thenpermits W288
+trial-stage-v1 usingpreparedoffline-v2, same0250image18d3196f/core andunchanged
+607B command600s.13Bmisc is separately authorized andwrittenonlybybootpilot.
+No blind preboot-metadata rollback after a runtime failure. Scope/fullgoal and
+500GBcap unchanged; originalpartitionbackup andcurrentrollback retained.
+
 ### 2026-11-11 CST —0289 blocked audit: actual0287 consent absent, no live trial
 
 Previous goalturn PROGRESS: capture-first tool/288offlinechecks committed and

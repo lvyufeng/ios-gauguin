@@ -164,3 +164,36 @@ with 139 unchanged pins. These include the current parser's 13 rejection cases,
 actual 0282 post replay and all three entry-point consent gates. No new phone
 write, boot or GPU result is produced. The installed positive pilot tests remain
 pending the actual 287 write.
+
+## Actual 0287 installation and 0288 trial
+
+The user explicitly authorizes both writes and the paired temporary boot in
+call_e90556d0db9e42eb97ccc56c5076aa8b. Fresh preflight rehashes the complete
+backup and final candidate and verifies all four device old ranges and misc.
+The four 4 KiB router ranges read back successfully; the root header remains
+unchanged. The 13-byte misc marker also reads back, then the same 0250 image
+boots once. The phone automatically returns to TWRP after about 745 seconds.
+The user reports logs or inability to enter the desktop.
+
+The updated router now executes the bootstrap. It opens after a 45.023-second
+wait, reports all eight pixel phases passing, and the kernel records eight
+initial completed submissions followed by a clean armed owner release.
+Backboardd opens an Adreno 619 Metal device and links actual CoreAnimation
+pipelines. The final native counters report 24 submissions and 24 completions.
+These observed operations establish progress past the previous startup race
+and stale binding; they do not establish a correct displayed desktop.
+
+The complete 27-file capture passes identity, static-file, directory and old
+log-prefix checks. The strict bootstrap/native trace gates remain failed:
+submission sample 12 is interleaved with a SpringBoard IOKit message. The
+original failed receipt is preserved, with no normalization or promotion to
+a full qualification. DSH 83565 independently audits the authorization, four
+root writes, misc marker, single boot and failed evidence.
+
+The display queue accepts and consumes zero held frames, rejecting 200 before
+the planned GPU stop. Four later allocation refusals occur only after that
+stop, so they do not establish the initial UI failure. The next focused kernel
+diagnostic must identify the rejecting owner, layer-mask or retained-surface
+guard while keeping all lifetime checks. The router fix remains installed;
+the successful installation must not be blindly rolled back because the UI
+trial failed. No desktop pixel, frame-rate, high-refresh or daily-use gate passes.

@@ -102,3 +102,39 @@ check the actual target tuple as part of package validation. Preserve the
 0250 kernel, core, shaders and already-installed readiness executables. No new
 write is authorized by the spent 0281 consent, and no frame-rate, high-refresh
 or daily-use qualification follows from this failed trial.
+
+## Router correction and minimal local candidate
+
+Source [bf43185](https://github.com/lvyufeng/ios-gauguin/commit/bf43185afe998161902b0ac484be58c3d4fe6340)
+rebuilds the router for the installed readiness bootstrap. It also adds a
+reusable check of the router and both actual target tuples. Production router
+code is exercised with the real 0282 target binaries: the former binding is
+rejected before spawn, and the new binding reaches modeled SETEXEC. The original
+29 router cases and four malformed package controls pass. Runtime C and the
+native import/load listings remain unchanged. These are host tests, rather than
+evidence of a running GPU desktop.
+
+The new signed router is still 69,536 bytes, allowing its data fork to be
+replaced in a local image without mounting HFS or changing filesystem metadata.
+A fresh complete 16 GiB device snapshot verifies all 16,384 chunk digests and
+all 27 captured files. The proposed final image changes four 4 KiB blocks
+(16,384 bytes), all within the router's logical file. The catalog, allocation
+map, volume headers, four retained directories, all 531 cached tasks and 26
+other captured files remain intact. Actual candidate target compatibility and
+read-only HFS fsck pass. The proposal is not an installation.
+
+The existing rollback writer receives explicit root-header pre/post checks
+because the volume header is absent from this data-only delta. Its 117 fake-IO
+checks and partial-write failure controls at all four concrete runs pass.
+There is no real approval file or new device write. DSH 41950 independently
+reviews the full-byte scope, final target bindings and all four fresh device
+old ranges in 77.573 seconds with 65 unchanged pins. Codex subsequently rehashes
+all six current stage input/log sets and the 59 readiness pins.
+
+The concrete proposal has plan SHA256
+`369bbd2b791007d327e9b663de3fa59cd8347a855e44aa910a831b58ddac00b0`.
+The fresh backup is `deb89f0f4b0a0d30dcefe13a3479d919dcdc8cdd25cf9d9fbe92000508b2c4aa`
+and final candidate is `da1884b1dc98b4fb954bd9e408f582a771eec5f1dc72f4dffe3ce33ca91a11d6`.
+The zero misc block is backed up separately; another 13-byte recovery marker
+will be needed for the paired temporary boot. These new writes require their
+own consent. Current project accounting is 425.8 GB, below the 500 GB cap.

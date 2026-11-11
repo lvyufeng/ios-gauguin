@@ -2,6 +2,77 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0285 router fix pushed;0286 snapshot +0287 proposal PASS
+
+Previous goalturn PROGRESS: cleanup below500GB +actual0282failure root cause.
+This turn rebuilds the router for installed279bootstrap and adds actual package
+compatibility validation. R285=research/tmp/gauguin-router285-worktree-20261111,
+branch codex/gauguin-metal-router-binding-20261111, baseba679b0445. Source pushed
+bf43185afe998161902b0ac484be58c3d4fe6340 (DSH40455exit0/6.637s). RuntimeC,
+imports/loads unchanged. DSH39675 softwareexit0/5.250s/89pins:29originalcases,
+actual0282OLDtargetrefusal/NEWmodeledSETEXEC +4negativecaptures. Signedrouter
+69536B SHA7834e091f35dfca68ad8f6f0673e57d88ddfa3664b01b137d0ca3b01890e5cd2,
+build75fd7501e15a2ec6083233d4. New tools/metal_router_targets.py checks actual
+router+bothtarget size/hash/owner/mode tuples. This is host/native, not UI proof.
+
+DSH40017 W286=research/tmp/dsh-post282-backup-0286 completes fresh readonly
+full16GiB scan/snapshot,272.169s/59pins/exit0. All16384chunks verified;333chunks
+(349175808B) reconstructed viaUSB into independent COW clone of281final.
+backup-v1/iosroot-post282.hfsx0444 SHAdeb89f0f4b0a0d30dcefe13a3479d919dcdc8cdd25cf9d9fbe92000508b2c4aa.
+Headerfe53c041..., all27files/4directories match post282capture, helper removed.
+No partition write/reboot. Original seed unchanged. Whole36GiBbatch budget
+admitted391357313024+38654705664<500000000000; includes BOTH16GiBimages.
+
+W287=research/tmp/dsh-router-delta-0287. DSH41603 proposalexit0/34.331s/33pins:
+same-size router data-fork replacement directly in ONE local COW final. No
+mount/cache/job/HFSmetadata edits. Fullvolume diff4blocks/16384B/4runs, all
+changedbytes inside router's logical file; other26capturedfiles/4dirs/3complete
+logs and531cachedtasks retained. Finalda1884b1dc98b4fb954bd9e408f582a771eec5f1dc72f4dffe3ce33ca91a11d6.
+Plan369bbd2b791007d327e9b663de3fa59cd8347a855e44aa910a831b58ddac00b0.
+Finalcandidate actual target-tuple validation +readonlyfsck pass. Writer adds
+explicit header pre/post checks because header is NOT in delta, preserves old
+rollback algorithm.117fakeIO checks plus ALL4actualrun partial-write/readback
+rollback and staleheader refusal pass. No realapproval file created.
+
+DSH41950 review-stage-v1 exit0/77.573s/65pins independently verifies fullbyte
+scope, actualfinalbindings, all4current deviceoldruns and newmiscbackup, plus
+fresh500GBcapacity check. Ready-review287-v1 SHA
+319aee89b9cf2d999b674040c34fc19409eff2901ed63935420dbe08cc6f887c (59pins).
+Codex rehashes ALL six current stages' inputs/logs and59ready pins, recorded in
+W287/independent-review287.json. Currentproject425802993664B (425.8GB), next
+512MiBbatch admitted; actualfree322172350464B. Misc-before.bin allzero0444,
+SHAad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+New13Bboot-recovery marker will be required for automaticreturn. No phone write.
+
+W287/apply287.py binds exact PLAN369bbd2b +READY319aee89 +writera1d3221c,
+requires own ACTUAL sourcecall/answer +root/misc/paired0250boot/rollback consent.
+No approval.json/apply-v1 exists. DSH42525 gate-stage-v1 exit0/0.091s/6pins:
+actualpermission(),verify_write() andCLI refuse missing consent before any
+subprocess/output/IO. Ready metadata is NOT consent. W287/publish-stage-v1
+records the MAIN report/handoff commit and remote verification.
+
+NEXT requires user's own reply to the final287question for TWO writes:
+root16384B/4blocks/4runs/routeronly plan369bbd2b;13Bmisc marker (4KiBpreimage
+backed up);SAME0250tempboot +rollback touchedblocks on WRITE/READBACK failure.
+281consent spent. Do NOT generate synthetic approval. After actualreply, bind
+sourcecall/verbatim answer/PLAN/READY/misc bool+hash/allowrollback/pairedboot in
+W287/approval.json. Positive real-consent hostgate and freshold/header/misc checks
+before new pinned apply-stage-v1. verify_write requires4unique positive starts,
+root_header_unchanged and finalda1884b1; there is NO header0write/order condition.
+
+Then derive NEW W288 runtime from frozenW282, preserving all past artifacts.
+Use287 permission/write receipts and4runs/16384B, exact0250 image18d3196f/607B
+command600s, expectation27files/4dirs from287candidate +fresh286logprefixes.
+Beforeboot actual capture must pass newR285tools/metal_router_targets.py against
+285native receipt. Reuse pairedkernel; noCI needed. Postcapture must validate
+ALL27static/prefix records BEFORE bootstrap/activity components, preserving
+capture evidence even if stdout adds0B. Require bootstrapbuild9b9... startup180/
+work30 +METAL279reason0 connected1, eightrealjobs/arm/cleanclose andsubsequent
+compositorjobs; full600s renewals alone is NOT success. Ask UI only after boot;
+standinguserpolicy treats unattended745s recovery asautomatic, no re-confirm.
+No new userdata/misc write orboot until actual287consent. FullGPU/Metal/RAM/
+storage/peripheral/highHz/daily goal active and incomplete.
+
 ### 2026-11-11 CST —storage below500GB;0282 failed at stale router binding
 
 Latest capacity check:391356162048B accounted (391.4GB), below the user's

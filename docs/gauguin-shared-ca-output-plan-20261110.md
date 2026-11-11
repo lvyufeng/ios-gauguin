@@ -1,5 +1,22 @@
 # From task sampling to compositor presentation
 
+The 0274 read-only readiness check rehashed the complete 16 GiB backup,
+the exact paired 0239 boot image and the corrected probe. All 194 old root
+blocks in the 33-run proposal still match the handset. The current misc
+block was also saved. The pending confirmation names both the 794,624-byte
+root delta and the 13-byte recovery marker used for automatic return to TWRP.
+
+The boot pilot now requires a separate `misc_recovery_marker_approved` field
+and the hash of that saved misc preimage. It pins the marker helper and
+backup into the trial profile. A user approval limited to userdata stops
+before misc access. The marker writer compares the full old block, changes
+13 bytes, verifies the full resulting block, and restores the original
+13 bytes after a failed write or readback. It reports whether restoration
+was verified. The old runtime sources and receipts are archived for
+comparison. The root proposal and its original acceptance receipt still
+match their pins. DSH's updated runtime checks cover the original gates and
+the partial-approval case, with no device requests.
+
 The full phone goal includes real GPU rendering, correctly recognized usable
 RAM and storage, peripherals, sustained power management and 90/120 Hz operation.
 Offscreen pixel tests alone do not establish desktop acceleration or daily use.

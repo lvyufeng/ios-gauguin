@@ -21,6 +21,22 @@ After consent follow existing apply240 -> paired239 trial -> full post240
 qualification; do not switch straight to0250. No device writes or reboot.
 0261 stays separate. Goal active.
 
+Source29a0d3a pushed by DSH94540 and remote readback matched. Current
+question explicitly asks user to approve both root and misc scopes or root
+only. While awaiting reply, added tools/recovery_marker.py and five regression
+groups covering root-only approval, stale preimage, success, partial-write/
+readback/interrupt restoration and failed restoration reporting. Updated
+W240 boot_pilot240.py/trial240.py to require the separate misc permission
+and pin W274/misc-before.bin plus helper. Old sources in W274/runtime-before.
+Original runtime review is historical; new runtime-stage binds current code.
+Original root proposal/acceptance are unaffected and all3295pins match.
+DSH95684 exit0 8.794s/12pins, five tests and updated runtime gates:4missing-
+consent entries, root-only prepare refusal,27bad correlations,22final files.
+No actual approval file, apply claim, root/misc write or boot. Reply must
+populate misc_recovery_marker_approved and misc_backup_sha256 in the same
+approval record when both steps are authorized. Root-only permits apply240
+only. Goal active; do not infer approval from automatic goal continuations.
+
 ### 2026-11-11 CST —0273 DRM TEST_ONLY path built; real recovery master unavailable
 
 Report docs/gauguin-drm-test-only-20261111.md. tools/gauguin-drm-timing.c

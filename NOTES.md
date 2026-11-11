@@ -2,6 +2,61 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0298 command budget and parser work in progress
+
+DSH read-only command audit is R298/research/tmp/command298-audit.txt (full
+output dsh-command-budget-output.jsonl). The source-supported candidate omits
+explicit `sweetwdtpet=0` and appends `sweetfb_stats=1`, 605 bytes rather than
+603, without dropping the trial marker. This changes the boot-args string and
+is not proven against all prebuilt userland; do not package/boot based on the
+audit alone. It also ran tests/test_wdt_expiry.py against source297: compilation
+passed, 87 original cases passed, then fixture rejected the new actual
+`SWEET WDT LEASE SAMPLE:` log namespace. Preserve this failed result; the
+fixture and full suite need independent correction and rerun, and host success
+does not qualify the physical watchdog. No phone operations occurred.
+
+Rparser=research/tmp/gauguin-present-parser-worktree-20261112 contains the
+strict 0221 CPU-statistics parser. Parser guards
+against broken/inconsistent snapshots, distinguishes copied/guard samples and
+reports cumulative prefixes only; it must not infer physical FPS. DSH's 29
+synthetic parser tests passed; source-backed guard/copy invariants were added
+after initial failed tests. Publish dispatcher 16356 reran all 29, exited 0
+with unchanged inputs and pushed commit 97a08cb7480db637e9990a2d56fe11e259c1d503
+to codex/gauguin-present-parser-20261112. Neither parser nor boot-argument
+equivalence is hardware-qualified. 0297 authorization is consumed; no new
+phone write has been authorized.
+
+DSH's first WDT fixture repair passed source-present-stats (87 original,
+103 lease, 97 service cases and 600 service refresh calls), but its stricter
+sample expectations may break the original pre-0187 source180 fixture. The
+running DSH compatibility check has original session 43703 and output
+Rparser/research/tmp/dsh-wdt-compat-output.jsonl; it may edit only that fixture
+and test runner. Another DSH process, session 48018, is preparing host-only
+command equivalence tests (dsh-args-test-output.jsonl), not a boot plan. Inspect
+their results and review changes before running, publishing or packaging.
+
+### 2026-11-12 CST — 0298 opt-in present-statistics kernel built offline
+
+R298=research/tmp/gauguin-present-trace-worktree-20261112. DSH dispatcher
+64258 completed a fresh full local kernel build and qualification, exit 0 with
+all 1,136 input pins unchanged; kernel SHA
+428606e06adf6d0fe3a441307ec064d05e30b6a8a849e469e0ea86d6f2b332e3,
+source commit faed768516c106514d11681295de71639e06934a, candidate source SHA
+6ab302a69608be6dbe9a651e500891c715f990b0db553254322bdbbf0e0f0b3e. This is
+not packaged or booted, and hardware, UI/FPS and overhead remain unqualified.
+Read-only DSH command-budget audit is investigating how to fit the opt-in
+`sweetfb_stats=1` without changing baseline behavior: the existing command is
+603 bytes, adding the 16-byte token gives 619 but the maximum is 607. Do not
+silently truncate or remove an argument without evidence and tests. Its
+original process/output is R298/research/tmp/dsh-command-budget-output.jsonl.
+
+0297 actual result and the four post-service BO failures are in the next
+section. Its single authorization is consumed. Any new marker or userdata write
+requires distinct user confirmation after the actual 0298 plan is built and
+reviewed. Preserve original MAIN mkadt edit, backups and the 500 GB limit;
+full GPU/Metal/RAM/storage/peripherals/90-120 Hz daily-use objective remains
+active and incomplete.
+
 ### 2026-11-12 CST — 0297 completed; bank reads dominate timed subgroups
 
 The authorized 0297 trial booted exactly once and auto-returned to TWRP after

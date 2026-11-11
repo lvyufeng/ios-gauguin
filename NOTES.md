@@ -2,6 +2,55 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0294 completed: strict trace and GPU CP timing captured
+
+The user directly replied “授权执行” twice to the existing concrete 0294
+confirmation. Both replies refer to the same trial; no second boot was made.
+The actual reply and direct-message provenance are recorded in approval294.json;
+execute294_direct.py accepts this real provenance while original sealed
+execute294.py remains unchanged. 13-byte misc marker readback passed. DSH8291
+trial-stage-v1 exit0/751.518s, one exact image boot, auto TWRP at745s, matching
+kernel banner. execution294-v1/result.json proves child8297 exited, no live
+process-group children, zero boot retries, and no direct userdata write.
+
+DSH8680 post-stage-v1 exit0: capture consistent, 24 static files, four
+directories and three complete old-log prefixes validated; after-root header
+229641c1fbd0081b29bf52683255ec67c727a0ef422600855d3ffb583a92e1dd.
+physical-review294.json: errors={}, strict sampled GPU service records PASS,
+root eight offscreen phases/28,928 words/eight fences PASS, owner handoff
+observed, 13/13 native jobs complete (five after root), no recorded backboardd
+crash or GPU BO failure. The sampled HOLD snapshot is 5 submitted, 4 consumed,
+4 retired, 1 canceled, 0 rejected; these are not scanout or pixel proof.
+0293's malformed old full-trace remains failed and untouched.
+
+Four backboardd CP timing windows were captured. Their listed slowest passes
+range 1.12–8.65ms including GPU flush/wait-idle, and some summaries are rounded.
+Their buffers show CPU submit-to-completion averages 16.3–29.4ms. Entire
+selector46 API had 13 calls/zero failures, mean 15.063ms/max27.459ms, total
+queue wait 1.979us; scope includes all root+desktop calls. Within ggr_submit,
+590 full health checks took115.440ms of116.101ms wall time; checks may run
+concurrently with GPU, so those numbers cannot be subtracted to infer pure GPU
+or CPU cost. Investigate guard group costs and repeated checks without relaxing
+fault, lease, reset, SMMU and ownership invariants. The front-end text suggests
+metal_gmem=1 but its actual hm_gmem_on() returns NO unconditionally; GMEM is
+not physically qualified and the string is not an actionable switch.
+
+Only five compositor jobs after root and no confirmed human interaction.
+Boot uses sweetnvt=1, which returns before the swp synthetic path; no synthetic
+swipe markers are present. A 0 presentedDrawable counter is not physical0fps.
+These sparse startup samples cannot establish interactive lag, desktop pixels,
+physical FPS, high refresh, or daily usability. A comparable future interaction
+sample and further source-based bottleneck instrumentation are needed; any new
+misc/userdata write needs its own approval. Do not repeat294 under spent consent.
+
+DSH15001 audit-actual-stage-v1 failed because its expected minimum omitted a
+1.12ms listed pass; raw capture and original review unchanged. Corrected
+DSH15215 audit-actual-stage-v2 exit0; scoped-actual294.json records bounded
+facts and explicit limitations. Full GPU/Metal, safe RAM, reliable storage,
+peripherals and90/120Hz goal stays ACTIVE and incomplete. Existing baseline,
+all original/current backups, original mkadt diff and500GB cap preserved.
+MAIN publication receipt W294/publish-actual294-result.json.
+
 ### 2026-11-11 CST —0294 authorized direct reply; single boot live
 
 User replied directly “授权执行” to the concrete 0294 confirmation; repeated

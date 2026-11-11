@@ -50,3 +50,24 @@ the last profiling slot may include later passes. Missing hardware summaries
 mean unobserved, while rounded zero remains possible for valid stamps. Frontend
 CPU labels measure overlapping host wall-clock intervals, and logical presents
 or kernel queue counters do not prove physical panel FPS.
+
+## Completed 0294 observation
+
+The user authorized the trial and the phone returned automatically to TWRP after
+745 seconds. Capture and the strict sampled submission trace passed: all 13
+recorded native submissions completed, including the initial eight root probe
+fences and five later submissions. The root offscreen checks matched their
+expected pixels. This does not qualify desktop pixels or physical frame rate.
+
+Four frontend windows contained GPU CP pass timestamps. Their listed slowest
+passes range from 1.12 to 8.65 ms, including flush and idle waits. These sparse
+startup records have no confirmed interactive gesture. Across 13 calls, the
+submission API averaged 15.063 ms and peaked at 27.459 ms. Within the submission
+path, 590 health checks occupied 115.440 ms of 116.101 ms wall time; the GPU
+may have executed concurrently, so this is not a subtractable GPU/CPU breakdown.
+The 0 `presentedDrawable` count does not establish a physical frame rate.
+
+The diagnostic text suggests `metal_gmem=1`, but the installed frontend
+unconditionally disables GMEM because its A619 path has not been physically
+qualified. Future work should measure guard costs and obtain interactive samples
+before selecting an optimization. Physical 90/120 Hz and daily use remain open.

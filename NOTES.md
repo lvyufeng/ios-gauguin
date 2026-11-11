@@ -56,10 +56,28 @@ producing shim/out/shim-p3-kernel-0298-present-stats-600-20261112.img, size
 20021248, SHA 64596164315fc496ff30037bb1fdf982d1322069eee788e28554f38d6f43cc7e;
 the package has a 605-byte command, matching 0297 RAM, shim, DTB and firmware
 contracts. This image has not been booted or hardware-qualified. DSH session
-66545 is preparing a reviewable future trial and read-only preflight under
-R298/research/tmp/dsh-trial298-prep; its prompt forbids all device writes,
-boots and fabricated approval. Inspect its original output and review its
-scripts before using them. No new device write or boot is authorized.
+66545 prepared a reviewable trial under R298/research/tmp/dsh-trial298-prep;
+its prompt forbade device writes, boots and fabricated approval. Concrete plan
+SHA 6872d2d396e10bdd7209f34c0c7e9675688b440f06c0a10df3a8f18fafdb5184,
+ready SHA e9a081ad5d46390e78fbe6e3baa1ae6cdfce296ba11a32c6c1bf1eb614fe6d87,
+audit SHA a6f0ea3ab0fd23b2264906a656f5c6edc29d899a88ee049430d73f6b519359a3.
+DSH review-actual298-stage dispatcher 39164 independently checked the actual
+plan, image and 88 pinned inputs, ran 22 host refusal/rollback/parser tests and
+actual missing-consent refusals, exit 0 and unchanged inputs. Missing consent
+prevents all device/output work. The future plan is one 13-byte misc marker,
+one temporary 0298 boot, no explicit userdata delta, and rollback of those
+13 bytes only if marker write/readback fails; 600-second service, 780-second
+observer. A distinct user approval is required; no approval298.json or trial
+outputs exist yet. After a real answer bind the exact text and plan/image/misc
+hashes in the approval receipt, run fresh read-only preflight, and launch once.
+Postcapture must use the prepared post298.py and exact original trial receipts.
+Its initial capture used the stale 0297 *pre*-boot root-header hash and was
+refused as `unexpected root header`; preserve the original output. The fresh
+read-only capture then used the separately verified 0297 *post*-boot header
+630ede8a6916bdc5dc32509aae85ebaba264be4bd5fc9bfbb2bba0e343312091,
+matching that post-capture, with 27 files/four directories and zero writes or
+reboots. All 27 current file SHA-256 values match the 0297 post-capture. No
+inference from the earlier, different pre-boot HFS header is needed.
 Storage accounting after build was 447133298688 B of the 500000000000 B cap.
 
 ### 2026-11-12 CST — 0298 opt-in present-statistics kernel built offline

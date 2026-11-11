@@ -29,9 +29,9 @@ checks. The native ARM64 framebuffer translation unit also compiles.
 The parser now takes an explicit kernel contract: default `0x0f` for 0291,
 `0x8000000f` for 0217. Tests preserve the actual 0291 diagnosis and reject
 silently interpreting its old reason2 under the new policy. No old report is
-rewritten. A new whole-kernel build, package and independently authorized
-physical trial are still required. This source change proves no desktop
-pixels, physical FPS, high refresh rate or daily-use qualification.
+rewritten. These source tests alone prove no desktop pixels, physical FPS, high refresh
+rate or daily-use qualification. Full build and trial evidence are recorded
+below.
 
 ## Complete offline image and current device binding
 
@@ -51,6 +51,21 @@ those marker bytes restored if marker writing or readback fails.
 
 The booter and process-group wrapper reject absent real consent before device
 IO or launch. The version-bound postprocessor also passes a complete capture
-replay and keeps pixel/FPS/daily-use qualification false. No new 0293 write or
-boot has occurred. The project accounts for about 432.9 GB, with 128 MiB reserved
+replay and keeps pixel/FPS/daily-use qualification false. Those were preparation-only results; the authorized trial status is below. The project accounts for about 432.9 GB, with 128 MiB reserved
 for the next trial and capture, within the 500 GB cap.
+
+## Authorized 0293 trial in progress
+
+The user approved the 13-byte recovery marker and one temporary boot. Marker
+readback and fastboot boot succeeded for the exact reviewed image. The helper
+runs in its own process group and will return automatically; runtime logs have
+not yet been read back.
+
+The user now reports a visible iOS interface, responding touch, and successful
+desktop access with normal icons, widgets and Settings. In a separate response,
+the user reports that touch response and animation are as slow as before.
+These are useful basic-display and interaction observations, not measured FPS
+or proof that every desktop frame uses the GPU. Native GPU submissions,
+compositor activity, held frames and timings must still be correlated after
+the complete capture. The remaining memory, storage, peripheral, physical
+high-refresh and daily-use requirements are unchanged.

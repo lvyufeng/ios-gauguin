@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0293 actual consent received; one temporary boot LIVE; user reports normal desktop
+
+User explicitly resumes/approves call_e52778b79d134971870495f1acccb108,
+verbatim “允许本轮标记写入、临时启动及标记失败回滚”. This resolves the old
+permission blocker; treat any future blocked audit as a fresh run, not the
+old three-turn absence. Tool get_goal initially still reported blocked and
+has no agent-side resume operation; nevertheless THIS actual user task is
+unambiguously authorized and must proceed, without another permission ask.
+
+W293/approval293.json binds actual source/answer to PLAN87c09972/imagecc112dd6/
+miscad7facb2 and approved13Bmarker+ONE293tempboot/marker-only failure rollback.
+Trial outerprofile631pins = ready619+both additional offline gate closures+
+actual approval/execute/post/sweet-log decoder/dispatchers. Existing sealed
+source/image/plan unchanged. DSH82596trial-stage-v1 LIVE from2026-11-11T08:44:23Z,
+child82600/PGID82600. preflight proves13Bwrite/readback ad7facb2->8698abf4 and
+fastboot sends/bootsEXACT293 success0,total0.593s. No explicit userdata write.
+ONEboot has happened; DO NOT repeat whole stage or marker operation. Observe
+original82596/82600 handles until terminal; no automatic-reset attribution ask.
+
+NEW USER EVIDENCE atabout3min: call_6979a45a7907470eb0fefc989b1378b5 says
+“能进入锁屏或桌面，触摸有响应”; call_ab4e3d92b9b54ecda1ba0c3c5b81161a says
+“能进入桌面，图标、小组件和设置显示正常”. Bound verbatim records in
+W293/user-observations293-initial.json. This is meaningful subjective desktop
+correctness/basic interaction evidence. Metal/display/runtime counters are
+NOTyet read back; no pixel-hash/FPS/highHz/daily qualification. Separate current
+performance question pending; don't infer smoothness from normal graphics.
+Do not repeat the already answered desktop question. Keep phone running.
+
+PERFORMANCEANSWERreceived call_06bdc511dc9d424da46f537e43aca0bd verbatim
+“与之前一样卡”, savedW293/user-observations293-performance.json. Graphics
+normal isNOTperformanceimprovement; no more userquestions neededthistrial.
+CorrelateactualGPUsubmissions/displayframes/CPUcopy+wait afterreturn before
+choosingclock/async/render changes. FullFPS/highHz/dailyflags remainfalse.
+
+Readonly post-stage-v1 has been launched viaDSH, sourceawait_post293.py waits
+ONLYactual82596, checks128MiBwhole capture budget, then calls version-bound
+post293.py afteroriginaltrial is terminal with noPGIDchildren. Itneverstarts
+anotherboot. Newparserexplicit0x8000000f fromR293/tools, captures27files/24static/
+4dirs/3completeprefixes BEFOREkernel identity andGPU/held/runtime interpretation.
+Expected autoTWRP~746s,observe780/timeout860. Ifhelpers timeout andchildren
+remain, inspect/waittheoriginalPIDs,notnewboot. Only ask manualrecoveryifstuck.
+Fresh output willbe W293/post293-capture-v1 andphysical-review293.json; neither
+exists yet. Preserveoriginal/currentbackups and500GBcap(last432.9GB+128MiB
+reserved); all broaderGPU/RAM/storage/peripheral/highHz/daily requirements
+remain incomplete. Afterreturn auditactualGPUjobs,heldsubmitted/consumed,
+reasons andallfailures againstusernormal-desktop report BEFOREchoosingnext
+correctness/performance change.
+
 ### 2026-11-11 CST —0293 third-turn blocked audit passed; awaiting individual trial consent
 
 Previous goal turn: NO PROGRESS beyond readonly authorization audit. The same

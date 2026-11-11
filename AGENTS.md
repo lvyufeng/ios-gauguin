@@ -14,3 +14,11 @@
   recovery, modem, persist and the backups intact, and confirm each
   destructive step with the user before running it.
 - Keep device dumps, serial numbers and downloaded Apple artifacts out of git.
+- The user set a 500 GB project storage cap on 2026-11-11 (500,000,000,000
+  bytes). Before creating large images, clones or build batches, run
+  `python3 tools/storage-budget.py --planned-bytes TOTAL_BATCH_BYTES` and
+  proceed only if admitted. Count APFS clones conservatively. Retire obsolete
+  generated temporary images when needed, recording the cleanup manifest.
+  Preserve original phone partition backups, current rollback snapshots and
+  all inputs pinned by the active trial. Keep enough space within the cap for
+  the entire planned batch, rather than checking each clone separately.

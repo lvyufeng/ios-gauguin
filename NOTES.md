@@ -2,6 +2,111 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —storage below500GB;0282 failed at stale router binding
+
+Latest capacity check:391356162048B accounted (391.4GB), below the user's
+500000000000B cap; actual disk free324892962816B. Cleanup W283 retired497
+obsolete generated images and physically freed319118360576B. Original phone
+partition backups and active rollback/final/kernel dependencies are retained.
+AGENTS.md +tools/storage-budget.py persist the cap; reserve the ENTIRE planned
+batch before new large images/clones/builds. This user request is complete.
+
+0281 authorization was consumed ONCE: root1130496B/31runs read back,13B misc
+marker verified, same0250 image18d3196f temporary boot. Do NOT repeat writes.
+DSH34203 W282/trial-stage-v1 finishes exit1/775.855s/unchanged pins. Phone
+automatically returns toTWRP745s, observer0/exact0250banner; no manual reset.
+No compositor exchanges/GPU jobs. Native600s service records598renewals and
+final submitted=completed=0. UI/desktop/Metal/FPS/highHz/daily remain unqualified.
+The pending0282 user UI question has no answer recorded; do not invent one.
+
+Initial physical-review282.json stops on root stdout not growing, but all27
+raw files WERE captured. Preserve that failed receipt. New offline review
+W282/review_capture284.py finishes all27/24static/4directory/3fullprefix checks.
+Current root stdout adds0B, stderr adds43B EXACTLY:
+GAUGUIN ROUTER247 FAIL phase=target code=0
+Installed router a32f77cb is still bound to OLD bootstrap115968B/SHA2e417244;
+installed new bootstrap is116048B/SHA7b922e66. Actual native router receipt,
+generated header and captured binary hashes agree. Target metadata/hash refusal
+prevents root bootstrap execution; the180s root wait was never reached. This
+was an integration omission in281, not evidence that another delay is needed.
+Backboardd180s wait expires1777attempts/180001053593ns, IOServiceOpen error
+-536870201; without root arm/handoff that alone does not establish GPU failure.
+
+DSH38118 W282/audit-stage-v1 exits0/0.452s/19pins; both authorized execution
+audit and full captured-file/router-binding review pass. This audits a FAILED
+trial, not UI success. Storage policy and trial report are committed with this
+handoff; W283/publish-stage-v1 records the exact commit and remote verification.
+NEXT: rebuild router bound to279 bootstrap and validate actual installed target
+compatibility before constructing any new root delta. Keep0250/core/shaders/
+already-installed279executables unchanged. New userdata/misc writes need their
+own concrete proposal and individual consent;281consent has been used. Readonly
+analysis/builds are authorized. Full daily-phone goal stays active and incomplete.
+Preserve unrelated MAIN tools/mkadt.py diff SHAa74a0418f946c1ae75b77d3557efb6af4a1f3acd914f289c23332fea4c454860.
+
+### 2026-11-11 CST —0281 installed,0282 prepare PASS; ready for one0250 boot
+
+DSH32800 W281/apply-stage-v1 exit0/8.117s/87pins:31writes/readbacks,
+1130496B/header0last, no failure/rollback, verify_write passes. Actual input/
+log pins independently checked after cleanup. DSH33743 W282/prepare-stage-v1
+exit0/11.848s/17pins: final27files/4dirs, actual local-reader model and new
+bootstrap parser positive +13synthetic negatives pass. Same0250 image18d3196f
+and607B command; newrootbuild9b9.../startup180/work30 protocol is required.
+Next DSH trial-stage-v1 source50-ishpins does REAL installed capture, positive/
+4negative host pilot gates, then approved13B misc andONEsame0250 temporaryboot,
+780s observer/860s timeout and full postcapture. No repeated root write.
+Storage cap500GB/whole-batch512MiB check admitted391.3GB; preserved originals/
+active31run backup/final/kernel inputs verified. All originalW278 remains
+frozen historical; retired unrelated image paths recorded W283cleanup manifest.
+Do not modify trial source/pins while live. UI/driver success still unproven.
+
+### 2026-11-11 CST —0281 approved patch installed/readback;0282 runtime preparing
+
+W282=research/tmp/dsh-startup-execute-0282. Actual authorization is recorded
+W281/approval.json source call_9bd8338eb8c143b289ead548e34754db, BOTH root/misc,
+same0250tempboot +WRITE/READBACK rollback, PLAN3c4719e0/ready7c1e721d.
+Post-cleanup DSH32034 preflight exit0/75.437s checks500GB cap (+512MiB whole
+capture batch admitted), rehashes full backup/final and all31realold ranges/
+misc. Preserved old apply281 wrapper in runtime-before; fixed stale ready277
+filename to ready281. Oldgate23987 now historical, new real-consent positive/
+6negative path check DSH32557 exit0/0.099s exercises actualCLI through its
+writer call with injected stop BEFORE writer/IO, verify_write refuses missing
+write receipt. No fabricated real approval/model substituted in its file.
+
+Actual DSH apply-stage-v1 now completes31writes/readbacks/1130496B/header0last,
+no rollback; verify_write passes. Read exact PID/time from W281/apply-stage-v1.
+Prepare-stage-v1 will derive27files/4dirs from281final +W280capture, testactual
+reader locally and new279startup trace parser. Do NOT repeat root write.
+No misc or0250boot yet. Fixed old pilot's cosmetic IDs/observer limit before
+pinning; new bounded root startup requiresbuild9b9.../beginstartup180work30/
+METAL279reason0 connected1 within180s. Hardware/UI still pending.
+Project cap500GB persists in AGENTS/tool; cleanup W283 leaves391.3GB/324GBfree.
+
+### 2026-11-11 CST —storage cleanup complete, hard project cap500GB;0281 authorized
+
+User explicitly says delete old tmp images and use no more than500GB. Treat
+500GB as500000000000bytes for entire project, conservatively du-allocated
+including APFS clone duplicate accounting. tools/storage-budget.py added;
+AGENTS.md requires whole-batch preflight before new large files/builds.
+DSH31567 W283=research/tmp/dsh-storage-0283 cleanup-stage-v1 exit0/59.262s,
+4pins/logs independently rehashed.497old generated images retired (incl19
+obsolete experimental16GiB prefix snapshots, not original partition backups).
+Accounted project1996059840512 ->391252217856B (391.3GB). Actual disk free
+4874031104 ->323992391680B, increase319118360576B. This is actual319.1GB
+freed, NOT1.6TB physical: APFS clones were multiply counted bydu. Original
+~/backup/gauguin phone partition backups untouched. Active80ready pins and17
+kernel-package pins rehashed after cleanup. Full plan/deletion log in W283.
+Old working/edited/final images may be absent; historical receipt completion
+claims remain historical. Do not re-run old retired-image workflows blindly.
+
+Actual user reply call_9bd8338eb8c143b289ead548e34754db authorizes BOTH exact281
+root1130496B/276blocks/31runs plan3c4719e0 and13B misc marker, same0250 temp
+boot and write/readback-failure rollback. No new question needed. User explicitly
+resumed goalactive. Phone remainsTWRP;281write not yet executed. Resume now
+with fresh old-block/misc/backup check and updated runtime. apply281.py still
+has a stale ready-review277 filename; preserve oldsource/gate receipts and
+correct it to ready-review281 before positive real-consent host-gate checks.
+The concrete payload/plan/ready hashes are unchanged by that wrapper fix.
+
 ### 2026-11-11 CST —0281 two-executable startup-wait delta READY; new consent pending
 
 Actual277 installation/0250 first boot has finished; UI FAILED because root

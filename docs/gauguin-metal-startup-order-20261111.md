@@ -46,7 +46,7 @@ The binaries were built from the pinned working source and reviewed before
 the subsequent source commit. Private evidence is under this worktree's
 research/tmp/dsh-startup-0279-wait.
 
-This correction is not installed or phone-qualified. Installation requires a
+At the source-only stage, this correction is not installed or phone-qualified. Installation requires a
 fresh post-0277 backup and scoped delta, separate write authorization and one
 temporary 0250 boot. Acceptance must first show root readiness, eight verified
 jobs, clean owner release and subsequent compositor work. Desktop image
@@ -68,3 +68,37 @@ old device-range checks. Its 80 input pins are independently rehashed. The
 recovery misc block is zero again, so another separately approved 13-byte
 recovery marker is required for the next automatic-return trial. No new root
 write or boot is performed while preparing this proposal.
+
+## Installed trial 0282: router rejects the updated bootstrap
+
+The user subsequently authorizes both 0281 writes and the paired temporary
+0250 boot. The 31 root ranges read back successfully, the 13-byte misc marker
+is verified, and the phone automatically returns to TWRP after 745 seconds.
+The native service records 598 renewals but zero submissions during its
+600-second window. This trial does not establish a working UI or GPU desktop.
+
+The initial post-review stops because root stdout does not grow. All 27 files
+were nevertheless captured. A separate offline review confirms 24 unchanged
+static files, four directory ownership/mode records and all three complete old
+log prefixes, without replacing the failed receipt. The new root stderr is
+exactly `GAUGUIN ROUTER247 FAIL phase=target code=0`. There is no new root
+bootstrap stdout. Backboardd times out after 180,001,053,593 ns and 1,777 attempts.
+
+The installed router still embeds the former bootstrap's 115,968-byte size and
+SHA256 `2e41724459e53107b7e34fc932600507f6c1e5644917f7cc6c7029101bb1450c`.
+The updated bootstrap is 116,048 bytes with SHA256 `7b922e66fbeb862504ea8ac01fd73681382e4718b7b1325e405fbecc25f6b6e0`.
+The router receipt, generated target header and captured installed router
+agree. Its target check therefore rejects the new executable before SETEXEC;
+the new root readiness wait never runs. Updating the bootstrap without its
+hash-bound consumer was an integration omission in 0281.
+
+DSH 38118 independently audits the actual authorization, successful writes,
+single boot and failed evidence, then verifies the full capture and target
+mismatch. Both review jobs pass in 0.452 seconds with 19 unchanged stage pins.
+Private evidence remains under research/tmp/dsh-startup-execute-0282.
+
+The next correction must rebuild the router for the installed bootstrap and
+check the actual target tuple as part of package validation. Preserve the
+0250 kernel, core, shaders and already-installed readiness executables. No new
+write is authorized by the spent 0281 consent, and no frame-rate, high-refresh
+or daily-use qualification follows from this failed trial.

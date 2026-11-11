@@ -2,53 +2,56 @@
 
 ## Agent handoff / active work
 
-### 2026-11-11 CST —0293 actual consent received; one temporary boot LIVE; user reports normal desktop
+### 2026-11-11 CST —0293 COMPLETE: normal desktop, unchanged lag; 0294 diagnostic in preparation
 
-User explicitly resumes/approves call_e52778b79d134971870495f1acccb108,
-verbatim “允许本轮标记写入、临时启动及标记失败回滚”. This resolves the old
-permission blocker; treat any future blocked audit as a fresh run, not the
-old three-turn absence. Tool get_goal initially still reported blocked and
-has no agent-side resume operation; nevertheless THIS actual user task is
-unambiguously authorized and must proceed, without another permission ask.
+Actual293approvalcall_e52778b79d134971870495f1acccb108 is CONSUMED ONCE.
+DSH82596trial-stage-v1 exit0/751.857s, ONE exactcc112dd6 temporaryboot,
+13Bmiscmarker readbackverified; automaticTWRP746.173s. Wrapperverified no
+remainingPGIDchildren. Do not repeat293boot/marker under oldconsent.
+DSH85677post-stage-v1 exit1/597.620s: 27-file/24static/4dir/3complete-prefix
+capture itselfPASS, but strict GPU trace gateFAIL due submission12 embedded
+in SpringBoard IOK XML at observerline4690. Keep physical-review293.json and
+all rawlogs unchanged; do NOT normalize/extract the record into a PASS.
+Postrootheader303eb460534fbf692ff4404e5ee860c02487ff7c967326bd1f7c84cd4419fad6.
+W293=research/tmp/dsh-swap-flags-0293. audit-actual-stage-v1 DSH4312exit0
+independently reproduces scoped evidence in scoped-actual293.json:
+root8phases/28928expectedpixelwords/first8nativecompletions and ownerhandoff
+PASS. HOLD beforeplannedstop submitted43/consumed42/retired42/canceled1/
+rejected0/pending0/active0; afterstop46/45/45/1/0. These counters are NOT
+proof of pixelcopy, scanout or physicalFPS. Aggregate native56/56;2BOFAIL
+both AFTERplanned600sstop, nonebefore, no backboarddcrash. Fulltrace gate
+remainsfailed despite useful scoped facts.
 
-W293/approval293.json binds actual source/answer to PLAN87c09972/imagecc112dd6/
-miscad7facb2 and approved13Bmarker+ONE293tempboot/marker-only failure rollback.
-Trial outerprofile631pins = ready619+both additional offline gate closures+
-actual approval/execute/post/sweet-log decoder/dispatchers. Existing sealed
-source/image/plan unchanged. DSH82596trial-stage-v1 LIVE from2026-11-11T08:44:23Z,
-child82600/PGID82600. preflight proves13Bwrite/readback ad7facb2->8698abf4 and
-fastboot sends/bootsEXACT293 success0,total0.593s. No explicit userdata write.
-ONEboot has happened; DO NOT repeat whole stage or marker operation. Observe
-original82596/82600 handles until terminal; no automatic-reset attribution ask.
+Allthree useranswers are bound to this actual293: initialtouchresponse,
+normaldesktop/icons/widgets/Settings, and call_06bdc511dc9d424da46f537e43aca0bd
+verbatim “与之前一样卡”. No more feedback/reboot-attributionquestions needed
+for293. Subjective graphics fixed; performance NOTimproved. GPUAPIselector46
+56calls/0fail: totalqueue8.281us,meanwholeAPI17.2615ms,max50.7120ms; includes
+checks/wait/CPU work, cannot call it pureGPUtime. Frontend gpuNanoseconds is
+also CPU envelope. Need actual CP19.2MHz pass stamps and frame activity.
 
-NEW USER EVIDENCE atabout3min: call_6979a45a7907470eb0fefc989b1378b5 says
-“能进入锁屏或桌面，触摸有响应”; call_ab4e3d92b9b54ecda1ba0c3c5b81161a says
-“能进入桌面，图标、小组件和设置显示正常”. Bound verbatim records in
-W293/user-observations293-initial.json. This is meaningful subjective desktop
-correctness/basic interaction evidence. Metal/display/runtime counters are
-NOTyet read back; no pixel-hash/FPS/highHz/daily qualification. Separate current
-performance question pending; don't infer smoothness from normal graphics.
-Do not repeat the already answered desktop question. Keep phone running.
+0294 source in R294=research/tmp/gauguin-metrics294-worktree-20261111,
+W294=research/tmp/dsh-metal-metrics-0294; branchcodex/gauguin-metal-metrics-20261111,
+base246f17a. Uncommitted/notfullbuilt/notpackaged/no294deviceauthorization.
+0218 only local submissionlog helper: LF+record+LF in one <=193B buffered
+console reservation; original persistentmark/flush and guards preserved.
+Bypasses printf os_log secondaryoutput; early/panic/unbuffered interleaving
+is still possible, so strict parser retained. Source2945332filesSHA29401802ca3e...
+Command ONLYremove redundant sweetreboot=0, appendbaremetal_fps:607->603B,
+retain -noprogress and allotherflags; nineactualkernelreaders andinstalled
+279/285userlandpolicy source-reviewed. Existingfrontend CPpass profiling
+needs no userdataupdate. No optimization claim from this diagnosticchange.
 
-PERFORMANCEANSWERreceived call_06bdc511dc9d424da46f537e43aca0bd verbatim
-“与之前一样卡”, savedW293/user-observations293-performance.json. Graphics
-normal isNOTperformanceimprovement; no more userquestions neededthistrial.
-CorrelateactualGPUsubmissions/displayframes/CPUcopy+wait afterreturn before
-choosingclock/async/render changes. FullFPS/highHz/dailyflags remainfalse.
-
-Readonly post-stage-v1 has been launched viaDSH, sourceawait_post293.py waits
-ONLYactual82596, checks128MiBwhole capture budget, then calls version-bound
-post293.py afteroriginaltrial is terminal with noPGIDchildren. Itneverstarts
-anotherboot. Newparserexplicit0x8000000f fromR293/tools, captures27files/24static/
-4dirs/3completeprefixes BEFOREkernel identity andGPU/held/runtime interpretation.
-Expected autoTWRP~746s,observe780/timeout860. Ifhelpers timeout andchildren
-remain, inspect/waittheoriginalPIDs,notnewboot. Only ask manualrecoveryifstuck.
-Fresh output willbe W293/post293-capture-v1 andphysical-review293.json; neither
-exists yet. Preserveoriginal/currentbackups and500GBcap(last432.9GB+128MiB
-reserved); all broaderGPU/RAM/storage/peripheral/highHz/daily requirements
-remain incomplete. Afterreturn auditactualGPUjobs,heldsubmitted/consumed,
-reasons andallfailures againstusernormal-desktop report BEFOREchoosingnext
-correctness/performance change.
+DSH6775prepareexit0/51.971s admitted whole8GiBbatch under500GB and madeisolated
+worktree. DSH14340software-stage-v1 exit1 duehost __unused macroredefinition;
+framing actualoldRED/newPASS, nativeTU notyet run. Guardfix keeps-Werror;
+newsoftware-stage-v2 prepared to reuse exactstagedsource, not restart clone.
+Next: DSHhost/nativeTU, review, commitsource, freshlocalfullnativebuild and
+603Bpackage, freshreadonlyroot/misc binding. ONLYafterconcretechecks request
+NEWown13Bmisc+ONE294tempboot consent;293permission cannotcarryover. No userdata
+write planned. Preservedirtymkadt originaldiffa74a0418...,original/current
+backups,500GBcap. Last audit~433GB. FullGPU/frame/pixels/FPS/highHz/daily-use
+and broaderRAM/storage/peripheral requirements all remain incomplete.
 
 ### 2026-11-11 CST —0293 third-turn blocked audit passed; awaiting individual trial consent
 

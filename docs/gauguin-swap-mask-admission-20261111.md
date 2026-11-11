@@ -54,18 +54,25 @@ IO or launch. The version-bound postprocessor also passes a complete capture
 replay and keeps pixel/FPS/daily-use qualification false. Those were preparation-only results; the authorized trial status is below. The project accounts for about 432.9 GB, with 128 MiB reserved
 for the next trial and capture, within the 500 GB cap.
 
-## Authorized 0293 trial in progress
+## Completed 0293 trial
 
-The user approved the 13-byte recovery marker and one temporary boot. Marker
-readback and fastboot boot succeeded for the exact reviewed image. The helper
-runs in its own process group and will return automatically; runtime logs have
-not yet been read back.
+The authorized marker and single temporary boot succeeded, followed by automatic
+recovery after 746 seconds. The user reports normal desktop icons, widgets and
+Settings, with touch response and animation still as slow as before.
 
-The user now reports a visible iOS interface, responding touch, and successful
-desktop access with normal icons, widgets and Settings. In a separate response,
-the user reports that touch response and animation are as slow as before.
-These are useful basic-display and interaction observations, not measured FPS
-or proof that every desktop frame uses the GPU. Native GPU submissions,
-compositor activity, held frames and timings must still be correlated after
-the complete capture. The remaining memory, storage, peripheral, physical
-high-refresh and daily-use requirements are unchanged.
+The complete capture passed its file and log-prefix checks. The strict GPU trace
+gate failed because submission 12 was interleaved with SpringBoard IOK XML.
+That raw trace and failed report remain unchanged. An independent scoped audit
+verified all eight initial offscreen pixel phases and the root-owner handoff.
+Before planned shutdown the held queue submitted 43, consumed and retired 42,
+canceled one and rejected zero; these are queue counters, not pixel or scanout
+measurements. Native final totals were 56 submitted and 56 completed. Two buffer
+failures occurred only after the planned service stop.
+
+The submission API averaged 17.26 ms, with a 50.71 ms maximum and 8.281 microseconds
+of total lock-queue wait across 56 calls. These times include validation and
+waiting and do not isolate GPU execution. The next diagnostic will enable the
+installed frontend's hardware pass timestamps and improve submission-log framing
+while preserving strict parsing. Physical FPS, high refresh and daily usability
+remain unqualified. The user feedback establishes a display fix, without a
+performance improvement.

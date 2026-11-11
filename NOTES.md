@@ -26,14 +26,17 @@ to codex/gauguin-present-parser-20261112. Neither parser nor boot-argument
 equivalence is hardware-qualified. 0297 authorization is consumed; no new
 phone write has been authorized.
 
-DSH's first WDT fixture repair passed source-present-stats (87 original,
-103 lease, 97 service cases and 600 service refresh calls), but its stricter
-sample expectations may break the original pre-0187 source180 fixture. The
-running DSH compatibility check has original session 43703 and output
-Rparser/research/tmp/dsh-wdt-compat-output.jsonl; it may edit only that fixture
-and test runner. Another DSH process, session 48018, is preparing host-only
-command equivalence tests (dsh-args-test-output.jsonl), not a boot plan. Inspect
-their results and review changes before running, publishing or packaging.
+DSH repaired the WDT fixture to verify the newer sample record and its actual
+fields while preserving the pre-0187 no-sample contract. Both source180 and
+source-present-stats passed 87 original, 103 lease and 97 service cases with
+600 host-simulated refresh calls each; these do not qualify hardware reset.
+DSH dispatcher 20453 reran both under unchanged source pins, exited 0, and
+pushed fixture/runner commit 5e7eed48bfdc9f66157ae9d6b8e2dfe0da58a022 to the
+parser branch. The first and compatibility-test failures remain in their logs.
+DSH session 48018 is preparing host-only command-equivalence tests in Rparser;
+session 96758 is preparing (not executing) an offline packager in R298. Inspect
+their original outputs, review their changes, and validate before packaging.
+Storage accounting after build was 447133298688 B of the 500000000000 B cap.
 
 ### 2026-11-12 CST — 0298 opt-in present-statistics kernel built offline
 

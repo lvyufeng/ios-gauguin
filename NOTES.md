@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0291 bounded held-frame rejection diagnostic, host/native TU PASS
+
+Authoritative physical handoff remains MAIN/NOTES.md,0290. Actual0288 user
+reports “仍显示日志或无法进入桌面”; no UI success. The installed287root stays
+unchanged. Native GPU24/24 vs held accepted0/rejected200 before plannedstop
+motivates a kernel-only diagnostic, not a shader/clock or ownership bypass.
+
+This branch starts bf43185afe998161902b0ac484be58c3d4fe6340. New0216 changes
+ONLY SweetFramebuffer.cpp in the staged208patch source: retain identical
+admission/hold/drop decisions, classify nullowner/mask/surface-layer0..3/
+unregisteredclient, log first8 rejects with owner membership/count/mask/IDs,
+and append reason totals at existing periodic held-frame reports. No pointers,
+new surface lookups, or disabled lifetime checks. Detailed output stays <=8
+under concurrent retries. Already-held pending surfaces survive failed input.
+
+W291=MAIN/research/tmp/dsh-present-reject-0291. DSH90605 preparationexit0:
+425944313856accounted +8589934592wholebatch admitted under500GB. DSH91985v1
+fails before patching on hostscript comparing snapshot paths of clone/source;
+DSH92374v2 verifies untouched clone by entries/hash, applies0216 strictly,
+andactual lifetime testsPASS3557checks, then stops at wrong oldclockreference.
+Both failures retained. DSH93087v3exit0/14.572s: correct241clockreference,
+7264clockchecks,5400desktoppolicycases/22038assertions,4patchseries tests,
+ARM64 framebuffer TU (2130referenceheaders)PASS,inputs/references unchanged.
+Candidate5332files SHA69c8e8bc3da239da5ed59c08cc7db52fcb8a09ac23a4778234baff7494bae7ae.
+Native full kernel and packaging NEXT; no device actions or new permission
+used in0291.287approval consumed. A new misc13B+new tempboot proposal must be
+prepared/reviewed and individually approved before those device writes.
+
 ### 2026-11-11 CST —0285 router binding fixed, host/native PASS; not installed
 
 Authoritative MAIN handoff: /Users/baai/Project/ios-gauguin/NOTES.md.

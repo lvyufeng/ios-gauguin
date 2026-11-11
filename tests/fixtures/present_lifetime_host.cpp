@@ -4,6 +4,8 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <cstdarg>
+#include <string>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -19,7 +21,16 @@ static void check(bool v){++checks;assert(v);}
 using IOLock=std::mutex;
 static void IOLockLock(IOLock *p){p->lock();}
 static void IOLockUnlock(IOLock *p){p->unlock();}
-static void IOLog(const char *,...){ }
+static std::vector<std::string> rejectionLogs;
+static std::mutex logLock;
+static void IOLog(const char *format,...){
+    char text[1024];va_list args;va_start(args,format);
+    int n=std::vsnprintf(text,sizeof(text),format,args);va_end(args);
+    check(n>=0&&static_cast<size_t>(n)<sizeof(text));
+    if(std::strstr(text,"SWEET FB REJECT: ")){
+        std::lock_guard<std::mutex> guard(logLock);rejectionLogs.emplace_back(text);
+    }
+}
 struct SweetSurface {
     uint32_t id,pixel;
     std::atomic<unsigned> refs{1};
@@ -39,6 +50,7 @@ struct OSArray {
         for(unsigned i=from;i<clients.size();i++)if(clients[i]==c)return i;
         return static_cast<unsigned>(-1);
     }
+    unsigned getCount(){return static_cast<unsigned>(clients.size());}
     void removeObject(unsigned i){check(i<clients.size());clients.erase(clients.begin()+i);}
 };
 @FRAME_TYPE@
@@ -53,6 +65,7 @@ struct AppleCLCD {
     bool fHoldPresent=true,fHeldActive=false;
     sweet_fb_frame fHeldPending={};
     uint64_t fHeldSubmitted=0,fHeldReplaced=0,fHeldConsumed=0,fHeldRetired=0,fHeldCanceled=0,fHeldRejected=0;
+    uint64_t fHeldRejectReasons[8]={};
     bool swap(const uint8_t *,IOMobileFramebufferUserClient *);
     bool takeHeldFrameLocked(sweet_fb_frame *);
     void cancelHeldFrameLocked(sweet_fb_frame *,IOMobileFramebufferUserClient *);
@@ -198,6 +211,42 @@ int main(){
         check(fb.fHeldSubmitted==1000&&fb.fHeldReplaced==999);closeCreator(s);closeCreator(t);check(live==1);
         sweet_fb_frame frame={};check(take(fb,frame));view(frame,frame.surfaces[0]->pixel);fb.finishHeldFrame(&frame);
         accounting(fb);empty();
+    }
+    {
+        // Execute every new reason branch from the production methods, with
+        // partial holds, prior pending ownership and unchanged rejected input.
+        AppleCLCD fb;fb.clients.clients={&a};auto *s=publish(120,120);
+        auto rec=record(120);sweet_fb_frame scratch={};uint32_t reason=99;
+        check(!sweet_fb_frame_prepare(&scratch,rec.data(),nullptr,&reason)&&reason==1);
+        check(scratch.owner==nullptr&&users(120)==1);
+        const size_t first=rejectionLogs.size();
+        check(!fb.swap(rec.data(),&b)&&fb.fHeldRejectReasons[7]==1);
+        check(rejectionLogs.back().find("reason=7 owner=1 registered=0 clients=1 mask=0x1 ids=120,0,0,0")!=std::string::npos);
+        check(!fb.swap(record(120,0x101).data(),&a)&&fb.fHeldRejectReasons[2]==1);
+        check(rejectionLogs.back().find("reason=2 owner=1 registered=1 clients=1 mask=0x101")!=std::string::npos);
+        check(fb.swap(rec.data(),&a)&&users(120)==2);
+        for(unsigned layer=0;layer<4;layer++){
+            auto missing=record(120,(1u<<(layer+1))-1u);
+            for(unsigned i=0;i<layer;i++)word(missing,0x54+4*i,120);
+            word(missing,0x54+4*layer,121);
+            auto original=missing;
+            check(!fb.swap(missing.data(),&a)&&fb.fHeldRejectReasons[3+layer]==1);
+            check(missing==original&&users(120)==2&&s->refs==3);
+            check(rejectionLogs.back().find("reason="+std::to_string(3+layer))!=std::string::npos);
+            check(fb.fHeldPending.surfaces[0]==s&&fb.fHeldSubmitted==1);
+        }
+        // Invalid IDs and exhausted table users use the same safe hold failure.
+        check(!fb.swap(record(SWEET_SURFACE_MAX_ID).data(),&a));
+        sweet_surface_users[120]=UINT32_MAX;
+        check(!fb.swap(rec.data(),&a));sweet_surface_users[120]=2;
+        check(rejectionLogs.size()==first+8);
+        auto rejectWorker=[&](){for(unsigned i=0;i<128;i++)check(!fb.swap(record(121).data(),&a));};
+        std::thread one(rejectWorker),two(rejectWorker);one.join();two.join();
+        check(fb.fHeldRejected==264&&rejectionLogs.size()==first+8);
+        uint64_t classified=0;for(auto count:fb.fHeldRejectReasons)classified+=count;
+        check(classified==fb.fHeldRejected&&users(120)==2&&s->refs==3);
+        closeCreator(s);sweet_fb_frame frame={};check(take(fb,frame));view(frame,120);
+        fb.finishHeldFrame(&frame);accounting(fb);empty();
     }
     std::printf("PASS held presentation checks=%u original-ID lifetime, replacement, close, active/pending bounds, off/on, concurrent producers; host seams only\n",checks.load());
 #endif

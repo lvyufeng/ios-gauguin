@@ -1,0 +1,92 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -396,7 +396,7 @@
+ };
+ static void sweet_fb_frame_release(struct sweet_fb_frame *);
+ static void sweet_fb_frame_move(struct sweet_fb_frame *, struct sweet_fb_frame *);
+-static bool sweet_fb_frame_prepare(struct sweet_fb_frame *, const uint8_t *, IOMobileFramebufferUserClient *);
++static bool sweet_fb_frame_prepare(struct sweet_fb_frame *, const uint8_t *, IOMobileFramebufferUserClient *, uint32_t *);
+ static SweetSurface *sweet_fb_present_surface(const uint8_t *, SweetSurface *const *, uint32_t);
+ #endif
+ 
+@@ -433,6 +433,7 @@
+     void presentClockCopiedLocked(void); /* fLock held */
+     struct sweet_fb_frame fHeldPending;
+     uint64_t fHeldSubmitted, fHeldReplaced, fHeldConsumed, fHeldRetired, fHeldCanceled, fHeldRejected;
++    uint64_t fHeldRejectReasons[8]; /* 1 owner-null, 2 mask, 3..6 surface layer, 7 unregistered */
+     bool takeHeldFrameLocked(struct sweet_fb_frame *frame); /* fLock held */
+     void cancelHeldFrameLocked(struct sweet_fb_frame *frame, IOMobileFramebufferUserClient *owner);
+     void finishHeldFrame(struct sweet_fb_frame *frame);
+@@ -581,6 +582,7 @@
+     fHeldActive = false;
+     bzero(&fHeldPending, sizeof(fHeldPending));
+     fHeldSubmitted = fHeldReplaced = fHeldConsumed = fHeldRetired = fHeldCanceled = fHeldRejected = 0;
++    bzero(fHeldRejectReasons, sizeof(fHeldRejectReasons));
+     if (fHoldPresent) IOLog("SWEET FB HOLD: enabled pending=1 active=1; original surfaces, prompt retirement\n");
+ #endif
+ 	fClients = OSArray::withCapacity(4);
+@@ -975,6 +977,12 @@
+         IOLog("SWEET FB HOLD: submitted=%llu replaced=%llu consumed=%llu retired=%llu canceled=%llu rejected=%llu pending=%u active=%u\n",
+             fb->fHeldSubmitted, fb->fHeldReplaced, fb->fHeldConsumed, fb->fHeldRetired,
+             fb->fHeldCanceled, fb->fHeldRejected, fb->fHeldPending.owner != NULL, fb->fHeldActive);
++        if (fb->fHeldRejected != 0) {
++            IOLog("\nSWEET FB REJECT COUNTS: null=%llu mask=%llu surface0=%llu surface1=%llu surface2=%llu surface3=%llu unregistered=%llu\n",
++                fb->fHeldRejectReasons[1], fb->fHeldRejectReasons[2], fb->fHeldRejectReasons[3],
++                fb->fHeldRejectReasons[4], fb->fHeldRejectReasons[5], fb->fHeldRejectReasons[6],
++                fb->fHeldRejectReasons[7]);
++        }
+     }
+     if (fb->fPhasePresent && (fb->fPresentClock.callbacks == 2 || (fb->fPresentClock.callbacks % 300) == 0)) {
+         IOLog("SWEET FB CLOCK: callbacks=%llu skipped=%llu copies=%llu next_beat=%llu next_copy=%llu; software only\n",
+@@ -1070,11 +1078,19 @@
+ 
+ static bool
+ sweet_fb_frame_prepare(struct sweet_fb_frame *frame, const uint8_t *rec,
+-    IOMobileFramebufferUserClient *owner)
++    IOMobileFramebufferUserClient *owner, uint32_t *reject = NULL)
+ {
+     bzero(frame, sizeof(*frame));
++    if (reject != NULL) *reject = 0;
+     uint32_t mask = get32(rec, 0x104);
+-    if (owner == NULL || (mask & ~((1u << SWEET_FB_LAYERS) - 1u))) return false;
++    if (owner == NULL) {
++        if (reject != NULL) *reject = 1;
++        return false;
++    }
++    if (mask & ~((1u << SWEET_FB_LAYERS) - 1u)) {
++        if (reject != NULL) *reject = 2;
++        return false;
++    }
+     memcpy(frame->record, rec, SWEET_FB_SWAP_REC_SIZE);
+     for (uint32_t layer = 0; layer < SWEET_FB_LAYERS; layer++) {
+         uint32_t id = get32(rec, 0x54 + 4 * layer);
+@@ -1082,6 +1098,7 @@
+         frame->surfaces[layer] = sweet_surface_hold(id);
+         if (frame->surfaces[layer] == NULL) {
+             sweet_fb_frame_release(frame);
++            if (reject != NULL) *reject = 3 + layer;
+             return false;
+         }
+     }
+@@ -1160,9 +1177,19 @@
+     IOLockLock(fLock);
+ #if defined(GAUGUIN)
+     if (fHoldPresent) {
+-        if (fClients->getNextIndexOfObject(owner, 0) == (unsigned int)-1 ||
+-            !sweet_fb_frame_prepare(&next, rec, owner)) {
++        bool registered = fClients->getNextIndexOfObject(owner, 0) != (unsigned int)-1;
++        uint32_t reject = 7;
++        if (!registered || !sweet_fb_frame_prepare(&next, rec, owner, &reject)) {
+             fHeldRejected++;
++            fHeldRejectReasons[reject]++;
++            /* Bound detailed output independently of the caller's retry rate.
++             * No pointers, additional surface lookups or changed admission rules. */
++            if (fHeldRejected <= 8) {
++                IOLog("\nSWEET FB REJECT: n=%llu reason=%u owner=%u registered=%u clients=%u mask=0x%x ids=%u,%u,%u,%u\n",
++                    fHeldRejected, reject, owner != NULL, registered, fClients->getCount(),
++                    get32(rec, 0x104), get32(rec, 0x54), get32(rec, 0x58),
++                    get32(rec, 0x5c), get32(rec, 0x60));
++            }
+             IOLockUnlock(fLock);
+             return false;
+         }

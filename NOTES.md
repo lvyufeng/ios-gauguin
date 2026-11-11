@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0274 fresh shared-output trial readiness and explicit write scopes
+
+W274=research/tmp/dsh-shared-ready-0274. DSH93762 exit0 9.746s/8pins.
+Rehashed complete16GiB backup2b8fab2f..., exact239 image7357a0ab...,
+probe26d09095..., all old/new delta runs. Real recovery all194old blocks
+in33runs/794624B and header855b320b match, userdata unmounted/no holders.
+Saved current misc4KiB (allzero) read-only, SHAad7facb2..., marker13zero.
+Independent review rehashed84local/3211acceptance pins, all match.
+
+Next concrete trial requires user confirmation of two named writes:
+root plan9d943e79... replaces only frontend probe and required HFS metadata;
+boot pilot writes13B boot-recovery at misc0 for automated TWRP return.
+Ask the user for these two exact scopes together, including failed-write/
+readback rollback of touched root blocks. Original240 proposal and ready
+receipt8f19b3dd... remain bound. No approval.json or apply claim exists.
+After consent follow existing apply240 -> paired239 trial -> full post240
+qualification; do not switch straight to0250. No device writes or reboot.
+0261 stays separate. Goal active.
+
 ### 2026-11-11 CST —0273 DRM TEST_ONLY path built; real recovery master unavailable
 
 Report docs/gauguin-drm-test-only-20261111.md. tools/gauguin-drm-timing.c

@@ -2,6 +2,56 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0295 full display timing contract; offline progress, 0294 unchanged
+
+User resumed ACTIVE. Previous goal turn was NO PROGRESS and marked blocked
+at its third consent audit. This resumed turn is PROGRESS: Codex found and
+fixed a real offline acceptance gap, DSH executed tests and vendor-source
+oracle. This is not a phone trial or a physical high-refresh result.
+
+R295=research/tmp/gauguin-mode295-worktree-20261111, branch
+codex/gauguin-mode-contract-20261111. W295=research/tmp/dsh-mode-contract-0295.
+DSH1191 preparation exit0/49.691s admitted 256MiB batch under500GB. DSH3066
+align-base exit0/0.194s: clean isolated branch aligned to MAIN1f49539d
+because display analysis tools are absent from frozen294 driver branch.
+No frozen294 file was modified.
+
+Old0272 verifier compares only HFP/VFP/Htotal/Vtotal. Legal hsync_end or
+vsync_end changes preserve those fields while changing sync/back porch.
+New tools/gauguin_mode_contract.py checks fifteen normalized timing fields
+for every advertised mode and active mode, using rate/clock keys. Public
+video flags are fully checked; type is selection metadata and is retained
+independently. New --drm-mode-log in gauguin-display-profile.py binds the
+actual captured DTB to a complete DRM mode log. Existing CLI output is
+byte-identical when this flag is absent. No generic parser rule was weakened.
+
+DSH5231 software-stage-v1 exit0/3.155s, all17 inputs unchanged: six test
+groups, actual12-mode DTB/log replay,24 legal-sync old-policy counterexamples,
+30 field/active mutations, incomplete/duplicate/forged metadata checks,
+and actual vendor dsi_convert_to_drm_mode compiled ASan/UBSan for12 normal
+advertised video cases. The oracle excludes type/name/private metadata and
+does not independently re-prove the earlier DFPS arithmetic or hardware.
+Primary immutable MiCode e601e14 blobs: dsi_drm07484919f056dd347c0a7e8aef19075af12dd79d,
+drm_mode93333c05d86b9ef5e3f109b163c52c874e255518,
+dsi_paneldd26c43cb1f99e75c33812c8bf24cbcafc75562e. Original cached actualDTB
+0b73e7af...fcc08d2 and12-mode log722b5414...45f34 retained privately.
+Qualification W295/qualification295.json. New full contract physical refresh
+and modeset flags remain FALSE. No device commands, writes, reboot or build.
+
+0294 ready641 pins remain unchanged (8206d031...), PLAN5ef9423c/image31f23fe8;
+its actual individual consent remains absent, so no294 boot. Keep its existing
+question pending. New offline progress leaves goal ACTIVE and full scope
+unchanged; do not reuse the former blocked-audit count after this new work.
+Next hardware action remains specific294 consent -> ONE DSH tempboot ->
+complete current-tail GPU pass/host-envelope capture, preserving strict raw
+failures and baseline. Future display acceptance must use the full contract
+before staged XNU access/latch/modeset trials; physical90/120 and daily-use
+remain unverified. Preserve original mkadt diff/backups and500GBcap.
+Source commit b226017a6b960b2a9c55fa27d60f9006c6585d18 pushed/remote verified
+by DSH6781, exit0/3.934s. Codex independently verified all17 software input
+pins plus authoritative profile/job-log hashes and result. MAIN publication
+receipt W295/publish-main-result295.json. No CI run was needed.
+
 ### 2026-11-11 CST —0294 third resumed audit passed; mark goal BLOCKED awaiting trial consent
 
 Previous resumed turn NO PROGRESS; same294individual authorization absent

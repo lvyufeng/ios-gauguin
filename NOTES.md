@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST — 0296 completed; fault checks are largest timed group
+
+The specifically approved 0296 trial ran once and automatically returned to
+TWRP after 745 s. Trial dispatcher 23769 and read-only post dispatcher 24019
+both exited 0; their inputs remained unchanged. The exact image banner matched,
+marker readback was verified, and no explicit userdata delta was written.
+W296/physical-review296-v3.json and W296/trial-v3/observer.txt contain the
+actual capture; the six-group parser passed. Fifteen sampled submissions
+completed; seven were post-bootstrap, with no confirmed interactive test.
+Result documentation commit 49444074e75f5b6c27022cde55c0e1768fd82eee was
+pushed to codex/gauguin-guard-profile-20261111 via DSH dispatcher 31050,
+whose publish stage exited 0.
+
+10,936 calls/group: owner 37.42 ms, lease 105.94 ms, unsecured 339.87 ms,
+clock 353.39 ms, IRQ 50.27 ms, faults 1105.51 ms; full guard 2083.39 ms.
+Faults therefore represent about 53% of full-check measured wall time, mean
+101 us/call. Measurements perturb timing and can overlap GPU work; global
+pending-at-end is not per-submit attribution. Do not present these as physical
+FPS, GPU utilization, or proven UI improvement. Transient settle attempts 9,
+recovered 9, budget expired 0, but the fault group has no finer timing yet.
+Capture cannot qualify interactive desktop pixels, high refresh, or daily use.
+
+Next: profile global SMMU status, each context bank, host/AO, and any bounded
+settle separately while preserving every read, predicate, ordering and failure
+path. Compare against the actual extracted 0296 source and test all failure
+paths, repeated settle and deadlines; do not remove or cache fault checks
+without an evidence-backed safety design. Before any new misc/userdata write
+obtain the distinct AGENTS.md authorization; the 0296 authorization is spent.
+Preserve backups, original tools/mkadt.py edit, and the 500 GB cap.
+
+### 2026-11-11 CST — 0296 authorized single trial running
+
+User explicitly approved the 0296 13-byte misc marker, one temporary boot and
+marker-failure rollback in call_d56b1417c8a04e86ab2fd1d9c8310996. This supersedes
+the historical pending-consent notes below. W296/approval296-v3.json binds that
+answer to plan f4e9acbd1f0152326b728da9fca89f9437def22e5a4e14fc733c0cf212434e02.
+Fresh read-only preflight DSH dispatcher 22966 exited 0: 27 files and four dirs,
+recovery identity and misc preimage matched; project allocated 440053665792 B,
+under 500000000000 B. Initial fresh-preflight launcher failed before any device
+action because its profile had not yet been generated; retained separately.
+
+DSH trial dispatcher 23769 launched exactly once. W296/trial-v3/preflight.json
+records the 13-byte marker readback verified and one boot attempted; cycle.log
+records fastboot boot OKAY for the exact 0296 image. Trial still running at this
+handoff, not yet a measured result. DSH post dispatcher 24019 waits for that
+same trial to finish before read-only collection. Observe existing processes and
+their terminal receipts; never restart the trial or reuse this authorization.
+User is away: no reboot-attribution question; request manual recovery only if
+actually stuck. No userdata delta was written. Full GPU/Metal, safe RAM,
+storage, peripherals, high-refresh and daily-use objective remains unfinished.
+
 ### 2026-11-11 CST —0296 third pending-consent audit; goal blocked
 
 The same specific 0296 trial confirmation remains unanswered across three

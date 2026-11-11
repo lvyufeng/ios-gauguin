@@ -2,6 +2,23 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0296 third pending-consent audit; goal blocked
+
+The same specific 0296 trial confirmation remains unanswered across three
+consecutive no-progress goal turns. All717 ready inputs remain unchanged;
+previous stages are terminal exit0, and no approval, trial, or live device job
+exists. Snapshot W296/consent-audit-third.json. No device IO occurred.
+
+After publishing this handoff, set goal BLOCKED and report its returned status;
+stop automatic goal work. The full GPU/Metal, RAM, storage, peripheral,
+90/120Hz and daily-use objective remains incomplete. The existing question
+remains pending. This confirmation is required by AGENTS.md: “confirm each
+destructive step with the user before running it”. Do not duplicate the question
+or infer consent from goal continuation. Preserve the exact image/plan, backups,
+original mkadt edit and500GB cap. Upon an actual specific approval follow the
+ready296-v3 instructions below immediately; prior blocked state must not prevent
+explicitly authorized work. Future resumed blockers start a fresh audit.
+
 ### 2026-11-11 CST —0296 second pending-consent audit
 
 Previous goal turn and this continuation have NO engineering progress: the

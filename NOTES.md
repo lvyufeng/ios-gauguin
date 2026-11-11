@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0268 HakiOS K90 desktop review and Gauguin catalog audit
+
+Report docs/gauguin-hakios-annibale-review-20261111.md. HakiOS main remains
+63fc2b4. K90 d76973c and v0.1.2 give distinct device cases for missing
+application/extension registration, cold var, incorrect widget draws, and
+prior-copy fences during partial redraw. K90 widget cause is still open.
+Gauguin 0250 admits backboardd; add separate icon/widget producer and fallback
+checks, and join source artwork, completed output and scanout in one boot.
+
+W268=research/tmp/dsh-hakios-annibale-0268. DSH dispatcher 80369 exit0
+2.017s/5 pins; 80616 exit0 1.826s/6 pins; both launchers reaped. Read-only
+pre-0240 20H392 HFSX catalog and launch cache, actual /var link, 531 daemon
+records, 421 extension records, expected icon/Chrono/PluginKit jobs, 8,715
+var descendants, IconState.plist and 62 icon-cache-related files. Runtime
+availability and registration unknown. Catalog SHA a355c2148872256698a1acbff4a379df6ca64bc47fb43275f06dffee96f38f94;
+service SHA e18710515187fc459442f5fcc2d1cbb92c791f56a5696d20abdc955bab71bfce.
+Pins, log hashes and outputs independently match. No CI/build/device run.
+Exact 0240 and 0261 approvals pending. Goal active.
+
 ### 2026-11-11 CST —0267 full 0266 ABL receipt image and exact-image model PASS
 
 CI42930522816/job130227818761 SUCCESS 00:28:15Z, pushed063a51c.

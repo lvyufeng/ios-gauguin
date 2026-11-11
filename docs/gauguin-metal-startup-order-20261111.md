@@ -138,3 +138,29 @@ and final candidate is `da1884b1dc98b4fb954bd9e408f582a771eec5f1dc72f4dffe3ce33c
 The zero misc block is backed up separately; another 13-byte recovery marker
 will be needed for the paired temporary boot. These new writes require their
 own consent. Current project accounting is 425.8 GB, below the 500 GB cap.
+
+## Offline runtime preparation while 0287 consent is pending
+
+The new 0288 runtime derives 27-file candidate expectations from the reviewed
+287 final image and fresh 286 log prefixes. Its actual capture reader is tested
+against that local image, including the router and both target bindings. Trial,
+pilot and post entry points still require the actual 287 authorization and
+successful write receipts before any subprocess or recovery IO. They do not
+treat local candidate validation as an installation.
+
+`tools/trial_capture.py` fixes the incomplete reporting seen in 0282. All static
+files, directory ownership and complete old log prefixes are checked before
+runtime qualification. Replaying the real 0282 data now retains the full capture
+even though stdout adds zero bytes. The router's 43-byte failure and the GPU's
+598 renewals with zero jobs remain failures. Changed ownership and a corrupted
+old prefix with a consistent captured-file hash are rejected.
+
+The first offline stage preserves a terminal failure: a blanket script-ID
+replacement also altered the FNV prime, which the synthetic pixel parser test
+rejects. The parser is restored byte-for-byte except its function name, and
+both source versions and the failed logs are retained. DSH 46655 verifies the
+documented source changes and passes the remaining checks in 0.634 seconds
+with 139 unchanged pins. These include the current parser's 13 rejection cases,
+actual 0282 post replay and all three entry-point consent gates. No new phone
+write, boot or GPU result is produced. The installed positive pilot tests remain
+pending the actual 287 write.

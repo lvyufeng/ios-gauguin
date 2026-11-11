@@ -2,6 +2,66 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0288 offline runtime/capture checks PASS;0287 consent still pending
+
+Previous goalturn PROGRESS:285sourcefix/push,286freshfullbackup,287reviewed16KiB
+proposal. This turn makes safe offline progress while the SAME287question is
+pending. No actualuserreply for287 has arrived; W287/approval.json/apply-v1 still
+ABSENT. Do not infer consent from automaticgoalcontinuation. No phone operations
+or new boot occur. Existing287 PLAN369bbd2b/READY319aee89 and scope unchanged.
+
+W288=research/tmp/dsh-router-execute-0288 now has new prepare/reader/trial/pilot/
+post sources; W282 stays frozen. prepare288 derives candidate-only expectations
+from287final and286complete logprefixes WITHOUT requiring or inventing consent.
+The actual reader passes on the local finalHFS model:27files/4dirs +actualrouter
+and BOTH target tuples. The real trial still starts with apply287.verify_write().
+Pilot requires4positive readback starts/16384B/header_unchanged, neverheader0last.
+It repeats actual file/target compatibility before misc/boot. Positive installed
+hostpilot +5negative models remain UNRUN until actual287write succeeds.
+
+New tracked tools/trial_capture.py verifies ALL24static files/4directories/
+3complete oldlogprefixes BEFORE interpreting runtime activity. Empty appended
+stdout is valid capture evidence, not GPU success. Actual282replay validates
+all27files despite0stdoutgrowth,43Brouterstderr and5539Bbackboardd growth;
+bootstrap and service-activity gates stillFAIL,598renewals/0jobs preserved.
+Changed static owner and corrupt oldprefix (even with consistent filehash)
+are rejected. Runtime assess_activity separately reports the known router
+target failure. All desktoppixels/FPS/highHz/daily flags stayfalse.
+
+DSH45318 offline-stage-v1 terminalexit1/68.401s/97unchangedpins: candidate,
+actualreader/bindings and actual282capture/post replay PASS; syntheticparser
+test catches accidental FNVprime mutation from blanket282->288rename. No
+device action. Full failed stage/logs and originalbadsource archived under
+runtime-before-v2. Restore parser byte-for-byte except functionname; trial's
+acceptedstage selector moves tov2. These TWOsource changes have exact before/
+after hash ledger. Original97pin result is historical, not current after edits.
+Do NOT rerun v1 or already-produced candidate/modelcapture outputs.
+
+DSH46655 offline-stage-v2 exit0/0.634s/139unchangedpins: verifies oldstage/logs
+and exactly2documented source changes, reuses unaffected candidate/reader
+outputs; currentparser positive+13negative synthetic cases PASS, newactual282
+post replay PASS, actualtrial/pilot/post entrypoints ALLrefuse absentconsent
+BEFORE any subprocess/output/IO. Currentresults in offline-v2/result.json,
+post-replay282-v2.json andgate-result288.json. No positiveconsent or realboot
+is claimed.512MiB wholebatch budget admittedbefore captures; cap500GB retained.
+
+Numerical oldbackboardd error -536870201 is0xe00002c7=kIOReturnUnsupported per
+the compiled0250IOReturn.h.0212start() gates compositor on8rootfences AND
+gMetalBootstrap.ready; missingroot execution can prevent this. Exact IOService
+failure branch remains unproven; do not infer a new GPUdriver fault or adddelay.
+
+NEXT: retain pending287question, do not repeat it. After actualreply, follow
+287approval/apply instructions below, then reuse W288/offline-stage-v2 (notv1).
+Run positive actual-consent hostgate +fresh header/oldblocks/misc checks before
+apply. After4readbacks create pinned realtrial-stage-v1 and let trial288 do
+freshinstalled27capture, actualtargetvalidation, positiveinstalledhostpilot and
+5negative controls,13Bmisc thenONEsame0250boot780s/860s. post288 validates all
+capture evidence first, then strictrootstartup180/work30/eightjobs/cleanclose/
+subsequentcompositoractivity. Never blindly reverse preboot HFS on boot failure.
+MAIN publication receipt W288/publish-result288.json records source/handoff
+commit; noCI needed. FullGPU/Metal/RAM/storage/peripheral/highHz/daily goal
+active/incomplete. Unrelated MAINmkadtdiffa74a0418... remains untouched.
+
 ### 2026-11-11 CST —0285 router fix pushed;0286 snapshot +0287 proposal PASS
 
 Previous goalturn PROGRESS: cleanup below500GB +actual0282failure root cause.

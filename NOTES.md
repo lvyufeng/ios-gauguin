@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST — 0297 ready; specific trial approval requested
+
+R297=research/tmp/gauguin-fault297-worktree-20261111; W297=R297/research/tmp/
+dsh-fault297-trial. The preceding 0297 preparation built, qualified and
+packaged the diagnostic, tested fault behavior, and matched read-only TWRP.
+DSH 88548 and 89051 passed missing/mismatched-consent, parser, post-receipt,
+changed-header and orchestrator refusal tests. Post297 now requires the actual
+trial-stage receipt and audited original process group; it captures real logs
+even when timing lines are missing and allows the filesystem header to change
+through normal log writes. Guard timing covers runtime guard checks; new fault
+subgroup timing covers all gfw callers. Neither proves physical FPS.
+
+DSH 89701 created and verified W297/plan297.json SHA
+bcf91c8c408c52ba29281fccad32dfae5a3b6d88f7d7e7ccf34d76a891a4663a and
+ready297.json SHA 546cb628f8c66640da1655559fb47ee969f85dd4e42f92f1ee352387d5243488;
+1,123 pinned inputs. Image SHA 2d8c1556beb11256794bf48a3bb26f4582c6ffa4147386e67ff05f48f61bf73c.
+DSH 97344 verified actual ready-plan execution, fresh preflight and post all
+refuse missing consent before device/output. Specific 0297 authorization has
+been requested for 13-byte misc marker, ONE temporary boot and marker failure
+rollback; do not infer it or reuse 0296 approval. No 0297 device write or boot.
+
+After an actual affirmative answer, bind its exact call ID and answer to an
+exclusive W297/approval297.json containing approved/allow_rollback, plan SHA,
+image SHA, misc backup SHA, misc_recovery_marker_approved and
+temporary_297_boot_approved. First run fresh_preflight297.py in a pinned DSH
+stage including the real approval and verify its 27 files, four directories,
+header, product and misc preimage against the plan. Then prepare one pinned
+W297/trial-stage-v1 profile invoking execute297.py ONCE, pinning fresh result,
+plan, approval, ready, audit and closure. Bind await_post297.py to that exact
+dispatcher through its launch.json and run a separate pinned DSH post stage;
+inspect actual group receipts, and never retry on timeout. If auto-recovery is
+actually stuck, request manual TWRP only. Collect post result, update handoff,
+commit, and preserve source/backup/diff plus 500 GB limit. Full GPU/Metal,
+all safe RAM, storage, peripherals, 90/120 Hz and daily-use goal stays active.
+
 ### 2026-11-11 CST — 0297 fault subgroup diagnostic built; trial not authorized
 
 Previous goal turn progressed: 0296 ran once and localized fault checks as the

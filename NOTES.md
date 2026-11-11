@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0296 guard-group timing source and native TU
+
+Previous goal turn PROGRESS: 0294 completed once, strict raw trace and CP timing
+captured; see MAIN W294/scoped-actual294.json. No confirmed interaction. 590
+health checks occupied 115.440ms wall time inside 13 submissions; this may
+overlap GPU execution and is not a CPU/GPU subtraction. Full goal remains
+active, including real GPU/Metal, safe RAM, storage, peripherals and90/120Hz.
+
+R296=research/tmp/gauguin-guard296-worktree-20261111, W296=research/tmp/
+dsh-guard-profile-0296. Based on frozen294 source bdfabdcc. New patch0219
+wraps the six original owner, lease, unsecured, clock, IRQ and fault checks in
+wall-clock timing while retaining original order, once-only expressions and
+failure paths. Guard call/time counters are atomic. The additional pending-end
+counters mean a global submit was pending when the guard ended, not that the
+call belonged to that submission. Timing itself perturbs execution; no guard
+is removed, but clock/deadline behavior requires hardware validation.
+
+DSH17611 software-stage-v1 exit0/8.775s: strict patch replay changes only the
+GPU board C file, source SHA93fc475d859de1dcf73ecdb3343a6ea17e6bdc27894da67388674bbb0e8d8fdc.
+Host sanitizers execute the actual timing macro on success/failure in six
+groups, once-only evaluation and pending counters. Another test removes only
+instrumentation and checks the entire resulting source equals the 0294 source;
+this verifies original expression ordering and conditions, not hardware timing.
+Native ARM64 translation unit compiles with the actual294 manifest and 2,131
+header/config pins. No full kernel/image/device test yet. No new writes or
+boots are authorized by the spent294 consent. Preserve all backups, original
+mkadt diff and500GB cap. Source publication receipt W296/source-commit296.json.
+
+Next: full build and package with existing 0294 assets, explicitly label added
+instrumentation overhead; retain strict raw log parsing and global pending-end
+semantics. Fresh read-only device binding and independent consent are required
+before a new misc marker/temporary boot. Real interactive samples remain needed.
+
 ### 2026-11-11 CST —0294 source: submission framing and existing Metal hardware timing
 
 Actual293 completed ONE approved temporaryboot/automaticTWRP746s; normaldesktop,

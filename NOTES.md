@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0269 signed 20H392 desktop-state probe and physical 0239 log review
+
+Report docs/gauguin-desktop-state-probe-20261111.md. Actual 0239 observer
+has successful cache send and exec lines for lsd/chronod/pkd/iconservicesagent
+plus SpringBoard/backboardd/containermanagerd. First-unlock runtime model,
+provider output and artwork still unknown. Candidate source
+userland/desktop_state_probe.m has finite UID501/20H392 filesystem and
+registration modes. Record untouched screen and filesystem first, then query
+LS because that can warm its state. Join same-boot ticks with 0255 later.
+
+W269=research/tmp/dsh-desktop-state-0269. DSH 81495 exit0 2.391s/7pins
+decoded exact CoreServices UUID and three encodings from 20H392, saved
+IconState shape. Initial 81967 exit0, superseded by 82258 exit0 2.859s/18pins
+with root mount/timebase and alarm control. Final host ASan/UBSan pass,
+strict native signature and all 49 real-cache imports resolved. 88,080B
+W269/native-v2/gauguin-desktop-state SHA e6467221b67fffd5b267421dfb00da17a5cae7c4e26c68f97410e79d5ac8113f.
+All three launchers reaped. Independently verified exact artifacts and pins.
+No CI, new device run, install or partition write. 0240/0261 approvals
+pending. Probe for later desktop package after paired 0239/0240. Goal active.
+
 ### 2026-11-11 CST —0268 HakiOS K90 desktop review and Gauguin catalog audit
 
 Report docs/gauguin-hakios-annibale-review-20261111.md. HakiOS main remains

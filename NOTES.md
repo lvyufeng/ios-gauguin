@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0267 full 0266 ABL receipt image and exact-image model PASS
+
+CI42930522816/job130227818761 SUCCESS 00:28:15Z, pushed063a51c.
+W266=research/tmp/dsh-handoff-receipt-0266 in R266. DSH78489 exit0
+68.731s/33pins fetch/full qualification/package. 11 CI groups PASS,
+5342files archive SHA591905265d662690398f8299c2f1ee64d25eb1d07cced04e2e12cf3fb584dc83.
+Kernel17,917,544B SHA4124507b315e9e6b642e6d944e327c50a5f5f6d00835bf24574fc4f326d2a1d8.
+No undefined symbols. W266/image/gauguin-0266-handoff-premount-266001.img
+20,758,528B SHA67826d1ec311e7f9e8f630c9d447dca7d63950b822efcf40b385c2d52a18b24e.
+Independent 10 native/5 firmware, enabled shim, DTB, 192B cmd, 786628B
+capture ADT increase and two PAS fields. Review SHA
+61416515529ac5bdc3f29947c04508fbf6a29b092dde2008426f71e103bc5b02.
+DSH78859 exit0/1.882s exact payload producer/reader/encoder ASAN/UBSAN,
+3 banks/21 fixed/6 dynamic; 2544B report and six invalid blocks pass.
+
+DSH77513 exit0/3.309s/9pins TWRP read-only baseline matches W261 slot,
+neighbors, misc and 33 runs/194 pending HFS blocks. W266/readback.py
+baseline/report path with exact run266001. No device backup bound to image.
+DSH78376 checked six pool nodes and recovery DT consumer references.
+All launchers/CI watch reaped. No boot, modeset, partition write or RAM
+admission. 0261 and 0240 exact approvals pending; 0266 same slot, needs
+fresh backup and independent approval after earlier slot use. Goal active.
+
 ### 2026-11-11 CST —0266 pre-mount memory receipt source/host/native PASS
 
 Report docs/gauguin-premount-memory-receipt-20261111.md. R266 reuses R265

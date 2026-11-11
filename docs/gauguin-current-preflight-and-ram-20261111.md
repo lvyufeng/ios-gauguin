@@ -95,6 +95,18 @@ dispatchers 70503 and 70634 completed with exit 0 and four unchanged pins
 each. The launcher sessions were reaped. No raw dmesg dump was saved and
 the capture used no device write, reboot or mount change.
 
+The saved recovery FDT also identifies explicit Linux consumers for five
+of the six dynamic pools. QSEECom and ION heap 27 reference `qseecom_region`.
+ION heaps 19 and 10 reference `qseecom_ta_region` and
+`secure_display_region`, respectively. The memory-dump node references
+`mem_dump_region`, and the ADSP RPC memory node references `adsp_region`.
+The sixth pool, `linux,cma`, carries the default CMA marker. All six are
+declared reusable `shared-dma-pool` regions. These references identify
+the subsystems to audit when checking live ownership and release.
+DSH PID 78376 verified the six pool nodes and named references from the
+saved DTB under six pinned inputs. This captures the recovery FDT's
+declarations. Actual ABL handoff addresses remain to be measured.
+
 ## Implementation implications and order
 
 The current loader passes one physBase/memSize interval, and the selected

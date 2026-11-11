@@ -60,5 +60,38 @@ and DMA use still need physical qualification.
   `research/tmp/dsh-handoff-receipt-0266` in the active worktree.
   [0266 CI](https://github.com/lvyufeng/ios-gauguin/actions/runs/42930522816).
 
-No phone command, boot, partition write or physical memory admission
-occurred. The existing 0261 and 0240 approval scopes remain independent.
+## Full build and combined image, 0267
+
+The 0266 CI run completed on 2026-11-11 at 00:28:15 UTC. The
+17,917,544-byte ARM64 kernel has no undefined symbols, and all 11
+focused checks passed. The 5,342-file CI archive matches its manifest
+with four verified build adaptations relative to the native source.
+Kernel SHA256
+`4124507b315e9e6b642e6d944e327c50a5f5f6d00835bf24574fc4f326d2a1d8`.
+[CI run](https://github.com/lvyufeng/ios-gauguin/actions/runs/42930522816).
+
+DSH dispatcher 78489 fetched, qualified and packaged the exact CI kernel
+with the capture-enabled 0252 shim. All 33 pins stayed unchanged. The
+20,758,528-byte `image/gauguin-0266-handoff-premount-266001.img` in the
+0266 evidence directory has SHA256
+`67826d1ec311e7f9e8f630c9d447dca7d63950b822efcf40b385c2d52a18b24e`.
+Independent review verified all ten loadable kernel segments, five
+firmware segments, shim, boot DTB and the exact 192-byte command. An
+in-memory comparison against the same kernel with capture disabled
+isolated the 786,628-byte ADT addition and two PAS request fields.
+
+DSH dispatcher 78859 extracted the payload from that exact image and
+ran the actual shim producer, XNU reader and report encoder under ASan
+and UBSan. The recovery FDT corpus was adapted to the new modeled
+initrd end. The decoder accepted the 2,544-byte report, including three
+banks, 21 fixed reservations and six unresolved pools. The existing
+negative block tests passed against the exact image model as well.
+
+The read-only TWRP preflight, DSH dispatcher 77513, matched the two
+views of the reserved block, its neighbors, the existing misc marker
+state and all 194 pending HFS blocks. The recovery-side readback stage
+can validate the exact run ID while checking the same neighboring and
+HFS ranges. The image remains offline. A real 0266 test requires an
+up-to-date backup and its own exact authorization after the earlier
+reserved-block trial. This milestone performed no boot, partition write
+or physical memory admission.

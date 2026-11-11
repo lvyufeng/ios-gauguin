@@ -2,6 +2,30 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0272 real complete DRM timing catalog and exact vendor model
+
+Report docs/gauguin-dynamic-refresh-timings-20261111.md. Added recovery
+--modes queries/parser and --refresh-catalog offline DT model. Actual12
+timings match HFP/VFP/totals for both bit clocks and six rates. DSC360
+transport width. Xiaomi reductions after dynamic HFP compensation explain
+active60 VFP2478 and first-family120 VFP13. First-family90 VFP854. Active
+60.244399 modeled agrees new vblank60.2444. Higher rates are model/catalog
+evidence only. XNU access/route/latch and actual modesets still open.
+
+W272=research/tmp/dsh-display-modes-0272. DSH88112 exit0 2.532s/12pins,
+static ARM64 11,040B queries in TWRP /tmp tmpfs, all three modes pass and
+cleanup confirmed. ProbeSHA3f3477cf5b1b019b67fe8775268808a73d9dda8b7f9bebb67e2cccfd20f698c5;
+modeLogSHA722b541417410fe436ad6e86623df69436446d3ffadcd3ac794f0b84df245f34.
+DSH89561 host failed on original vendor unsigned abs warning under Werror;
+89751 exit0 1.258s/13pins allows that warning, original helper6cases ASAN/
+UBSAN,12real modes/10bad catalogs/8unsupported profiles pass. ModelSHA
+dab5d8b479eb798c50cfdb40d899b61c842d00dbbfc00079eae4ce6ce95bd204.
+Final90427 exit0 1.456s/14pins adds packet-grouping check,9bad profiles,
+same exact model. Independently verified current pins/logs/geometry and
+legacy CLI output.
+Launchers reaped. Handset remains TWRP nominal60, no reboot/modeset/partition
+write/CI. 0240/0261 exact approvals pending. Goal active.
+
 ### 2026-11-11 CST —0271 signed high-refresh A/B apps and displayed-ID decoder
 
 Report docs/gauguin-refresh-probe-20261111.md. userland/refresh_probe.m,

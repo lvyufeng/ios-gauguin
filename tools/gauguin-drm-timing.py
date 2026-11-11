@@ -105,13 +105,57 @@ def analyze_planes(log):
     }
 
 
+def analyze_modes(log):
+    records = [line.split() for line in log.splitlines() if line.startswith("GDRM ")]
+    for record in records:
+        if record[1:2] == ["error"]:
+            raise ValueError("probe reported " + " ".join(record[2:]))
+    if (not 4 <= len(records) <= 35 or records[0][:2] != ["GDRM", "mode-route"]
+            or len(records[0]) != 6 or records[-1][:2] != ["GDRM", "modes-complete"]
+            or len(records[-1]) != 3 or int(records[-1][2]) != len(records) - 3):
+        raise ValueError("incomplete or repeated DRM mode catalog")
+    connector, encoder, crtc, pipe = map(int, records[0][2:])
+    if not all(0 < value < 1 << 32 for value in (connector, encoder, crtc)) or not 0 <= pipe < 32:
+        raise ValueError("invalid mode-catalog route")
+
+    def timing(record, expected):
+        if record[:2] != ["GDRM", expected] or len(record) != 16:
+            raise ValueError("malformed DRM timing")
+        clock, width, hs, he, ht, skew, height, vs, ve, vt, scan, rate, flags, kind = map(int, record[2:])
+        if ((width, height) != (1080, 2400) or not 0 < clock <= 1_000_000
+                or not width <= hs < he <= ht < 1 << 16 or not height <= vs < ve <= vt < 1 << 16
+                or not all(0 <= value < 1 << 16 for value in (skew, scan)) or not 0 < rate <= 240
+                or not all(0 <= value < 1 << 32 for value in (flags, kind))):
+            raise ValueError("invalid DSI timing geometry")
+        return {"reported_clock_khz": clock, "reported_hz": rate, "width": width, "height": height,
+                "horizontal_total": ht, "horizontal_front_porch": hs - width,
+                "horizontal_sync": he - hs, "horizontal_back_porch": ht - he, "horizontal_skew": skew,
+                "vertical_total": vt, "vertical_front_porch": vs - height,
+                "vertical_sync": ve - vs, "vertical_back_porch": vt - ve, "vertical_scan": scan,
+                "flags": flags, "type": kind}
+
+    active = timing(records[1], "active-timing")
+    modes = [timing(record, "advertised-timing") for record in records[2:-1]]
+    keys = [(mode["reported_hz"], mode["reported_clock_khz"]) for mode in modes]
+    if len(keys) != len(set(keys)):
+        raise ValueError("duplicate or ambiguous advertised DRM timing")
+    active_payload = {key: value for key, value in active.items() if key != "type"}
+    matches = [i for i, mode in enumerate(modes)
+               if {key: value for key, value in mode.items() if key != "type"} == active_payload]
+    return {"connector_id": connector, "encoder_id": encoder, "crtc_id": crtc, "crtc_index": pipe,
+            "active_timing": active, "advertised_timings": modes,
+            "matching_active_timing_index": matches[0] if matches else None}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", type=Path)
-    parser.add_argument("--planes", action="store_true")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--planes", action="store_true")
+    group.add_argument("--modes", action="store_true")
     args = parser.parse_args()
     try:
-        reader = analyze_planes if args.planes else analyze
+        reader = analyze_modes if args.modes else analyze_planes if args.planes else analyze
         print(json.dumps(reader(args.log.read_text()), indent=2))
     except (ValueError, OSError) as error:
         parser.exit(1, f"gauguin DRM timing: {error}\n")

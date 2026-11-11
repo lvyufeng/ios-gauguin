@@ -154,6 +154,74 @@ def display_inventory(tree):
     }
 
 
+def refresh_catalog(tree, display):
+    panel = MDP + "/" + display["selected_panel_node"]
+    parent = panel + "/qcom,mdss-dsi-display-timings"
+    timing_node = parent + "/" + tree.children(parent)[0]
+    timing = display["base_timing"]
+    require(len(tree.cells(DSI, "qcom,dsi-ctrl")) == 1
+            and tree.strings(panel, "qcom,dsi-dyn-clk-type") == "constant-fps-adjust-hfp",
+            "unsupported controller count or dynamic clock adjustment")
+    properties = tree.props(panel)
+    lanes = sum(f"qcom,mdss-dsi-lane-{i}-state" in properties for i in range(4))
+    bpp = tree.cell(panel, "qcom,mdss-dsi-bpp")
+    compressed_bpp = tree.cell(timing_node, "qcom,mdss-dsc-bit-per-pixel")
+    slice_width = tree.cell(timing_node, "qcom,mdss-dsc-slice-width")
+    require(lanes == 4 and bpp == 24 and compressed_bpp == 8
+            and tree.cell(timing_node, "qcom,mdss-dsc-bit-per-component") == 8
+            and 0 < slice_width <= timing["width"] and timing["width"] % slice_width == 0,
+            "unsupported Gauguin DSC transport geometry")
+    require(tree.cell(timing_node, "qcom,mdss-dsc-slice-per-pkt") == timing["width"] // slice_width,
+            "unsupported DSC packet grouping")
+    slice_bytes = (slice_width * compressed_bpp + 7) // 8
+    transport_width = (slice_bytes * (timing["width"] // slice_width) + 2) // 3
+    bit_clocks = tree.cells(panel, "qcom,dsi-dyn-clk-list")
+    rates = display["declared_hz"]
+    require(1 <= len(bit_clocks) <= 4 and len(set(bit_clocks)) == len(bit_clocks)
+            and all(0 < clock < 2_000_000_000 for clock in bit_clocks)
+            and all(rate <= timing["framerate"] for rate in rates),
+            "unsupported clock family or refresh rate")
+    count = len(bit_clocks) * len(rates)
+    vertical_corrections = tree.cells(panel, "mi,mdss-dsi-dfps-dec-vfp-list")
+    horizontal_corrections = tree.cells(panel, "mi,mdss-dsi-dfps-dec-hfp-list")
+    require(len(vertical_corrections) == len(horizontal_corrections) == count,
+            "porch correction count disagrees with clock/rate combinations")
+    base_vertical_total = sum(timing[key] for key in
+                              ("height", "v-pulse-width", "v-back-porch", "v-front-porch"))
+    modes = []
+    for clock in bit_clocks:
+        for rate in rates:
+            vertical_total = base_vertical_total + base_vertical_total * (timing["framerate"] - rate) // rate
+            transport_total = clock * lanes // (bpp * vertical_total * rate)
+            horizontal_front = transport_total - transport_width - timing["h-pulse-width"] - timing["h-back-porch"]
+            vertical_front = vertical_total - timing["height"] - timing["v-pulse-width"] - timing["v-back-porch"]
+            # Xiaomi applies its per-mode reductions after all clock families.
+            index = len(modes)
+            horizontal_front -= horizontal_corrections[index]
+            vertical_front -= vertical_corrections[index]
+            require(horizontal_front >= 0 and vertical_front >= 0,
+                    "porch correction exceeds the modeled front porch")
+            horizontal_total = timing["width"] + timing["h-pulse-width"] + timing["h-back-porch"] + horizontal_front
+            vertical_total = timing["height"] + timing["v-pulse-width"] + timing["v-back-porch"] + vertical_front
+            transport_total = transport_width + timing["h-pulse-width"] + timing["h-back-porch"] + horizontal_front
+            require(horizontal_total < 1 << 16 and vertical_total < 1 << 16 and transport_total > 0,
+                    "modeled timing exceeds the DRM geometry range")
+            pixel_clock = clock * lanes // bpp
+            modes.append({
+                "reported_hz": rate, "reported_clock_khz": pixel_clock // 1000,
+                "lane_bit_clock_hz": clock, "horizontal_front_porch": horizontal_front,
+                "vertical_front_porch": vertical_front, "horizontal_total": horizontal_total,
+                "vertical_total": vertical_total, "transport_horizontal_total": transport_total,
+                "modeled_transport_hz": pixel_clock / (transport_total * vertical_total),
+            })
+    return {"dsc_transport_width": transport_width, "lanes": lanes,
+            "source_bits_per_pixel": bpp, "compressed_bits_per_pixel": compressed_bpp,
+            "clock_adjustment": "constant-fps-adjust-hfp",
+            "vertical_front_porch_reductions": vertical_corrections,
+            "horizontal_front_porch_reductions": horizontal_corrections,
+            "modeled_modes": modes}
+
+
 def boot_framebuffer(tree):
     framebuffers = [node for node in tree.children("/chosen") if node.startswith("framebuffer@")]
     require(len(framebuffers) == 1, "expected one inherited boot framebuffer")
@@ -255,12 +323,15 @@ def main():
     parser.add_argument("--recovery-status", type=Path)
     parser.add_argument("--fdtget", default="fdtget")
     parser.add_argument("--scanout-catalog", action="store_true")
+    parser.add_argument("--refresh-catalog", action="store_true")
     args = parser.parse_args()
     if bool(args.recovery_modes) != bool(args.recovery_status):
         parser.error("--recovery-modes and --recovery-status must be supplied together")
     try:
         tree = Tree(args.captured_dtb, args.fdtget)
         result = display_inventory(tree)
+        if args.refresh_catalog:
+            result["refresh_timing_catalog"] = refresh_catalog(tree, result)
         if args.scanout_catalog:
             result["scanout_catalog"] = scanout_catalog(tree, result)
         if args.boot_dtb:

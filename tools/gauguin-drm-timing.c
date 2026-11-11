@@ -1,5 +1,5 @@
 /* AArch64 Linux recovery probe. Build with the device kernel's DRM UAPI.
- * Queries the connected DSI CRTC, vblank timestamps or active DRM planes. */
+ * Queries the connected DSI CRTC, vblank timestamps, modes or active planes. */
 #include <drm/drm.h>
 
 enum {
@@ -142,6 +142,88 @@ static int same_mode(const struct drm_mode_modeinfo *a, const struct drm_mode_mo
            a->vdisplay == b->vdisplay && a->vsync_start == b->vsync_start &&
            a->vsync_end == b->vsync_end && a->vtotal == b->vtotal &&
            a->vscan == b->vscan && a->vrefresh == b->vrefresh && a->flags == b->flags;
+}
+
+struct mode_catalog {
+    struct route route;
+    struct drm_mode_modeinfo active;
+    struct drm_mode_modeinfo modes[MAX_OBJECTS];
+    unsigned count;
+};
+
+static long read_catalog(long fd, struct mode_catalog *catalog)
+{
+    long rc = select_dsi(fd, &catalog->route);
+    if (rc < 0)
+        return rc;
+    struct drm_mode_get_connector connector = {
+        .connector_id = catalog->route.connector, .count_modes = MAX_OBJECTS,
+        .modes_ptr = (unsigned long)catalog->modes,
+    };
+    rc = query(fd, DRM_IOCTL_MODE_GETCONNECTOR, &connector);
+    if (rc < 0)
+        return rc;
+    if (!connector.count_modes || connector.count_modes > MAX_OBJECTS)
+        return -7;
+    if (connector.connection != CONNECTED || connector.encoder_id != catalog->route.encoder)
+        return -11;
+    struct drm_mode_crtc crtc = {.crtc_id = catalog->route.crtc};
+    rc = query(fd, DRM_IOCTL_MODE_GETCRTC, &crtc);
+    if (rc < 0)
+        return rc;
+    if (!crtc.mode_valid || crtc.mode.hdisplay != 1080 || crtc.mode.vdisplay != 2400)
+        return -22;
+    catalog->count = connector.count_modes;
+    catalog->active = crtc.mode;
+    return 0;
+}
+
+static void emit_timing(const char *prefix, const struct drm_mode_modeinfo *mode)
+{
+    const unsigned fields[] = {
+        mode->clock, mode->hdisplay, mode->hsync_start, mode->hsync_end, mode->htotal,
+        mode->hskew, mode->vdisplay, mode->vsync_start, mode->vsync_end, mode->vtotal,
+        mode->vscan, mode->vrefresh, mode->flags, mode->type,
+    };
+    emit(prefix);
+    for (unsigned i = 0; i < sizeof(fields) / sizeof(fields[0]); ++i) {
+        emit(" ");
+        number(fields[i]);
+    }
+    emit("\n");
+}
+
+static int inspect_modes(long fd)
+{
+    struct mode_catalog first = {0}, second = {0};
+    long rc = read_catalog(fd, &first);
+    if (rc < 0)
+        return failure("initial-modes", rc);
+    const struct time_value pause = {.nanoseconds = 43000000};
+    rc = syscall4(SYS_NANOSLEEP, (long)&pause, 0, 0, 0);
+    if (rc < 0)
+        return failure("sleep", rc);
+    rc = read_catalog(fd, &second);
+    if (rc < 0)
+        return failure("final-modes", rc);
+    if (first.route.connector != second.route.connector || first.route.encoder != second.route.encoder ||
+        first.route.crtc != second.route.crtc || first.route.pipe != second.route.pipe ||
+        first.count != second.count || !same_mode(&first.active, &second.active) ||
+        first.active.type != second.active.type)
+        return failure("mode-catalog-changed", -11);
+    for (unsigned i = 0; i < second.count; ++i) {
+        if (!same_mode(&first.modes[i], &second.modes[i]) || first.modes[i].type != second.modes[i].type)
+            return failure("advertised-timing-changed", -11);
+    }
+
+    emit("GDRM mode-route ");
+    number(second.route.connector); emit(" "); number(second.route.encoder); emit(" ");
+    number(second.route.crtc); emit(" "); number(second.route.pipe); emit("\n");
+    emit_timing("GDRM active-timing", &second.active);
+    for (unsigned i = 0; i < second.count; ++i)
+        emit_timing("GDRM advertised-timing", &second.modes[i]);
+    emit("GDRM modes-complete "); number(second.count); emit("\n");
+    return 0;
 }
 
 static int same_text(const char *a, const char *b)
@@ -396,12 +478,13 @@ static int measure(long fd)
 int probe_main(unsigned long argc, const char *const *argv)
 {
     int planes = argc == 2 && same_text(argv[1], "--planes");
-    if (argc != 1 && !planes)
+    int modes = argc == 2 && same_text(argv[1], "--modes");
+    if (argc != 1 && !planes && !modes)
         return failure("usage", -22);
     long fd = syscall4(SYS_OPENAT, AT_FDCWD, (long)"/dev/dri/card0", O_CLOEXEC, 0);
     if (fd < 0)
         return failure("open", fd);
-    int result = planes ? inspect_planes(fd) : measure(fd);
+    int result = modes ? inspect_modes(fd) : planes ? inspect_planes(fd) : measure(fd);
     syscall4(SYS_CLOSE, fd, 0, 0, 0);
     return result;
 }

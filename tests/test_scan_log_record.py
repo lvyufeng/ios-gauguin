@@ -13,6 +13,7 @@ HARNESS = r"""
 #include <string.h>
 #include "gauguin_scan_log_guard.h"
 #include "gauguin_scan_timing.h"
+#include "gauguin_handoff_memory.h"
 
 #define UFS_BLOCK 4096u
 #define SWEET_LOG_BLOCKS 1025u
@@ -24,7 +25,7 @@ HARNESS = r"""
 typedef uint64_t addr64_t;
 
 static uint8_t dma[8192];
-static unsigned writes, syncs, cleans, depth;
+static unsigned writes, syncs, cleans, depth, synced_write;
 static bool poisoned, transfer_fails;
 static int sweet_dma_owner_lock;
 static struct {
@@ -56,7 +57,10 @@ static int ufs_scsi_slot(const uint8_t *cdb, unsigned size, uint32_t bytes,
     return transfer_fails ? ETIMEDOUT : 0;
 }
 static int sweet_log_sync_cache(void) {
-    assert(depth == 1 && writes == syncs + 1); syncs++; return 0;
+    assert(depth == 1 && !transfer_fails && writes > synced_write);
+    synced_write = writes;
+    syncs++;
+    return 0;
 }
 
 @RECORD@
@@ -132,7 +136,31 @@ int main(void)
     transfer_fails = true;
     assert(sweet_scan_log_record(2601, 1, false, &r) == ETIMEDOUT);
     assert(writes == 3 && syncs == 2 && depth == 0);
+    transfer_fails = false;
+    uint8_t handoff[GH_RECEIPT_BLOCK] = {0x47, 0x41, 0x55, 0x48};
+    assert(gh_receipt_profile(1, 1, 0, 0, 0, 266001));
+    assert(!gh_receipt_profile(2, 1, 0, 0, 0, 266001));
+    assert(!gh_receipt_profile(1, 0, 0, 0, 0, 266001));
+    assert(!gh_receipt_profile(1, 1, 1, 0, 0, 266001));
+    assert(!gh_receipt_profile(1, 1, 0, 1, 0, 266001));
+    assert(!gh_receipt_profile(1, 1, 0, 0, 1, 266001));
+    assert(!gh_receipt_profile(1, 1, 0, 0, 0, 0));
+    assert(sweet_handoff_log_record(NULL) == EPERM);
+    su.writable = true;
+    assert(sweet_handoff_log_record(handoff) == EPERM);
+    su.writable = false;
+    su.nblocks++;
+    assert(sweet_handoff_log_record(handoff) == EPERM);
+    su.nblocks--;
+    poisoned = true;
+    assert(sweet_handoff_log_record(handoff) == EIO);
+    poisoned = false;
+    assert(writes == 3 && syncs == 2);
+    assert(sweet_handoff_log_record(handoff) == 0);
+    assert(writes == 4 && syncs == 3 && depth == 0);
+    assert(memcmp(dma + DMA_MARK, handoff, GH_RECEIPT_BLOCK) == 0);
     puts("Actual scan receipt writer issued one fixed 4 KiB write, with rejection and timeout controls.");
+    puts("Actual handoff receipt used the same fixed block and rejected conflicting profiles and DMA state.");
 }
 """
 
@@ -143,12 +171,14 @@ def main():
     args = parser.parse_args()
     dev = args.source.resolve() / "bsd/dev"
     ufs = (dev / "sweet_ufs.c").read_text()
-    begin = ufs.index("static int\nsweet_scan_log_record(")
-    record = ufs[begin:ufs.index("\n}\n", begin) + 3]
+    begin = ufs.index("static bool\nsweet_diagnostic_lba(")
+    end = ufs.index("\nvoid sweet_handoff_log_diagnostic(void);", begin)
+    record = ufs[begin:end]
     init = ufs[ufs.index("sweet_ufs_init(bool scan_log)"):]
     assert init.index("if (scan_log)\n\t\treturn 0;") < init.index("bdevsw_add(")
     bsd = (dev.parent / "kern/bsd_init.c").read_text()
     assert bsd.index("\tsweet_scan_log_diagnostic();") < bsd.index("/* Mount the root file system. */")
+    assert bsd.index("\tsweet_handoff_log_diagnostic();") < bsd.index("\tsweet_scan_log_diagnostic();")
     with tempfile.TemporaryDirectory(prefix="gauguin-scan-log-") as directory:
         tmp = Path(directory)
         src, binary = tmp / "record.c", tmp / "record"

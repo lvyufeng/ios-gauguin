@@ -61,7 +61,7 @@ static enum gh_status read_inventory(struct fixture *f, size_t size)
 
 int main(int argc, char **argv)
 {
-    assert(argc == 3);
+    assert(argc == 5);
     uint8_t *input, *fdt;
     size_t input_size = load(argv[1], &input), fdt_size = load(argv[2], &fdt);
     assert(input_size == 20480000 && fdt_size == 588757);
@@ -161,6 +161,25 @@ int main(int argc, char **argv)
     }
     assert(windows == 6 && read_inventory(&f, size) == GH_OK);
     assert(!memcmp(tree, fdt, fdt_size));
+
+    uint8_t block[GH_RECEIPT_BLOCK], hash[GH_DIGEST];
+    assert(strlen(argv[3]) == 2 * GH_DIGEST);
+    for (unsigned i = 0; i < GH_DIGEST; ++i) {
+        unsigned byte;
+        assert(sscanf(argv[3] + 2 * i, "%2x", &byte) == 1 && byte < 256);
+        hash[i] = (uint8_t)byte;
+    }
+    assert(gh_pack_memory(block, 266001, GH_OK, &f.live, m, tree, hash) == 2512);
+    FILE *receipt = fopen(argv[4], "wb");
+    assert(receipt && fwrite(block, 1, sizeof(block), receipt) == sizeof(block) && fclose(receipt) == 0);
+    m->fixed_count = GH_FIXED_LIMIT;
+    assert(gh_pack_memory(block, 266001, GH_OK, &f.live, m, tree, hash) == GH_RECEIPT_HEADER);
+    assert(block[16] == GH_RECEIPT_OVERFLOW);
+    for (unsigned i = 20; i < GH_RECEIPT_BLOCK; ++i)
+        assert(!block[i]);
+    assert(gh_pack_memory(block, 266001, GH_UNAVAILABLE, NULL, NULL, NULL, NULL) == GH_RECEIPT_HEADER);
+    assert(block[16] == GH_UNAVAILABLE);
+    assert(gh_pack_memory(block, 0, GH_UNAVAILABLE, NULL, NULL, NULL, NULL) == 0);
     assert(munmap(input, (input_size + 0x3fff) & ~(size_t)0x3fff) == 0);
     assert(munmap(fdt, (fdt_size + 0x3fff) & ~(size_t)0x3fff) == 0);
     assert(munmap(mapping, 2 * bytes) == 0);

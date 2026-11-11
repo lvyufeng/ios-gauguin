@@ -1,0 +1,425 @@
+diff --git a/bsd/dev/gauguin_handoff_memory.c b/bsd/dev/gauguin_handoff_memory.c
+index 00becb9d1c715ad26618adf74ae775187e913f3a..e0657e2f5249aa45f68f133afd6f30493def80a9 100644
+--- a/bsd/dev/gauguin_handoff_memory.c
++++ b/bsd/dev/gauguin_handoff_memory.c
+@@ -360,4 +360,97 @@ enum gh_status gh_read_memory(const uint8_t *d, size_t bytes,
+         return GH_BAD_PAS;
+     return parse_fdt(d + GH_HEADER, fdt_bytes, m) ? GH_OK : GH_BAD_FDT;
+ }
++
++void gh_copy_name(const uint8_t *fdt, size_t bytes, uint32_t offset, char name[GH_NAME])
++{
++    size_t i = 0;
++    if (offset < bytes) {
++        for (; i < GH_NAME - 1 && i < bytes - offset && fdt[offset + i]; ++i) {
++            uint8_t c = fdt[offset + i];
++            name[i] = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
++                c == ',' || c == '.' || c == '_' || c == '+' || c == '@' || c == '-' ? (char)c : '_';
++        }
++    }
++    name[i] = 0;
++}
++
++static void put_le32(uint8_t *p, uint32_t value)
++{
++    for (unsigned i = 0; i < 4; ++i)
++        p[i] = (uint8_t)(value >> (i * 8));
++}
++
++static void put_le64(uint8_t *p, uint64_t value)
++{
++    put_le32(p, (uint32_t)value);
++    put_le32(p + 4, (uint32_t)(value >> 32));
++}
++
++static void put_range(uint8_t *p, struct gh_range r)
++{
++    put_le64(p, r.base);
++    put_le64(p + 8, r.size);
++}
++
++size_t gh_pack_memory(uint8_t block[GH_RECEIPT_BLOCK], uint32_t run, enum gh_status status,
++    const struct gh_live *live, const struct gh_inventory *m, const uint8_t *fdt,
++    const uint8_t fdt_hash[GH_DIGEST])
++{
++    if (!block || !run || (unsigned)status > GH_RECEIPT_OVERFLOW)
++        return 0;
++    size_t body = GH_RECEIPT_HEADER;
++    if (status == GH_OK) {
++        if (!m || !live || !fdt || !fdt_hash || m->bank_count > GH_BANK_LIMIT ||
++            m->header_reserve_count > GH_FIXED_LIMIT || m->fixed_count > GH_FIXED_LIMIT ||
++            m->pool_count > GH_POOL_LIMIT || m->alloc_count > GH_ALLOC_LIMIT)
++            return 0;
++        body += 16 * (8 + m->bank_count + m->header_reserve_count + m->alloc_count) +
++            (16 + GH_NAME) * (m->fixed_count + m->pool_count);
++        if (body > GH_RECEIPT_BLOCK - GH_DIGEST) {
++            body = GH_RECEIPT_HEADER;
++            status = GH_RECEIPT_OVERFLOW;
++        }
++    }
++    for (size_t i = 0; i < GH_RECEIPT_BLOCK; ++i)
++        block[i] = 0;
++    for (unsigned i = 0; i < 8; ++i)
++        block[i] = (uint8_t)"GAUHRAM1"[i];
++    put_le32(block + 8, (uint32_t)(body + GH_DIGEST));
++    put_le32(block + 12, run);
++    put_le32(block + 16, status);
++    if (status != GH_OK)
++        return body;
++    put_le32(block + 20, m->bank_count);
++    put_le32(block + 24, m->header_reserve_count);
++    put_le32(block + 28, m->fixed_count);
++    put_le32(block + 32, m->pool_count);
++    put_le32(block + 36, m->alloc_count);
++    for (unsigned i = 0; i < GH_DIGEST; ++i)
++        block[40 + i] = fdt_hash[i];
++
++    const struct gh_range owners[] = {
++        m->original_fdt, m->input, m->shim, m->pas, live->framebuffer,
++        {live->managed.base, live->top - live->managed.base}, live->adt, live->managed,
++    };
++    uint8_t *next = block + GH_RECEIPT_HEADER;
++    for (unsigned i = 0; i < sizeof(owners) / sizeof(owners[0]); ++i, next += 16)
++        put_range(next, owners[i]);
++    for (uint32_t i = 0; i < m->bank_count; ++i, next += 16)
++        put_range(next, m->banks[i]);
++    for (uint32_t i = 0; i < m->header_reserve_count; ++i, next += 16)
++        put_range(next, m->header_reserves[i]);
++    for (uint32_t i = 0; i < m->fixed_count; ++i, next += 16 + GH_NAME) {
++        put_range(next, m->fixed[i].range);
++        gh_copy_name(fdt, m->original_fdt.size, m->fixed[i].name, (char *)(next + 16));
++    }
++    for (uint32_t i = 0; i < m->pool_count; ++i, next += 16 + GH_NAME) {
++        put_le64(next, m->pools[i].size);
++        put_le32(next + 8, m->pools[i].first_alloc);
++        put_le32(next + 12, m->pools[i].alloc_count);
++        gh_copy_name(fdt, m->original_fdt.size, m->pools[i].name, (char *)(next + 16));
++    }
++    for (uint32_t i = 0; i < m->alloc_count; ++i, next += 16)
++        put_range(next, m->allocations[i]);
++    return (size_t)(next - block) == body ? body : 0;
++}
+ #endif
+diff --git a/bsd/dev/gauguin_handoff_memory.h b/bsd/dev/gauguin_handoff_memory.h
+index 52529a874d8ab6871e8dc8f889aa73ec6f2cf345..815967e1ef910bb2c743e3f757ba6b340ee95309 100644
+--- a/bsd/dev/gauguin_handoff_memory.h
++++ b/bsd/dev/gauguin_handoff_memory.h
+@@ -4,10 +4,16 @@
+ #include <stddef.h>
+ #include <stdint.h>
+ 
+-enum gh_status { GH_OK, GH_BAD_RECORD, GH_BAD_CONTEXT, GH_BAD_PAS, GH_BAD_FDT };
++#include <stdbool.h>
++
++enum gh_status {
++    GH_OK, GH_BAD_RECORD, GH_BAD_CONTEXT, GH_BAD_PAS, GH_BAD_FDT,
++    GH_UNAVAILABLE, GH_NO_MEMORY, GH_RECEIPT_OVERFLOW,
++};
+ enum {
+     GH_HEADER = 160, GH_MAX_FDT = 768 * 1024, GH_BANK_LIMIT = 32,
+     GH_FIXED_LIMIT = 128, GH_POOL_LIMIT = 128, GH_ALLOC_LIMIT = 256,
++    GH_RECEIPT_BLOCK = 4096, GH_RECEIPT_HEADER = 80, GH_DIGEST = 32, GH_NAME = 64,
+ };
+ 
+ struct gh_range { uint64_t base, size; };
+@@ -36,5 +42,20 @@ enum gh_status gh_read_memory(const uint8_t *capture, size_t capture_bytes,
+     const uint8_t *pas, size_t pas_bytes, const uint8_t *io, size_t io_bytes,
+     const struct gh_live *, struct gh_inventory *);
+ void sweet_handoff_memory_init(void);
++bool sweet_handoff_memory_record(uint32_t run, uint8_t block[GH_RECEIPT_BLOCK]);
++void gh_copy_name(const uint8_t *fdt, size_t bytes, uint32_t offset, char name[GH_NAME]);
++
++/* Returns the body length. The final GH_DIGEST bytes of the record are
++ * filled by the caller with SHA256 over the body. Unused bytes stay zero. */
++size_t gh_pack_memory(uint8_t block[GH_RECEIPT_BLOCK], uint32_t run, enum gh_status status,
++    const struct gh_live *, const struct gh_inventory *, const uint8_t *fdt,
++    const uint8_t fdt_hash[GH_DIGEST]);
++
++static inline bool
++gh_receipt_profile(unsigned requested, unsigned capture, unsigned scan_log,
++    unsigned ufs_write, unsigned root_write, uint32_t run)
++{
++    return requested == 1 && capture == 1 && !scan_log && !ufs_write && !root_write && run;
++}
+ 
+ #endif
+diff --git a/bsd/dev/gauguin_handoff_memory_board.c b/bsd/dev/gauguin_handoff_memory_board.c
+index 97e2d15bded963d87dc684b17da43094f128cd98..bd752426d15ea610e659cd8e324caf2167b9ee81 100644
+--- a/bsd/dev/gauguin_handoff_memory_board.c
++++ b/bsd/dev/gauguin_handoff_memory_board.c
+@@ -54,27 +54,20 @@ static void record_range(const char *kind, unsigned index, const char *name, str
+         kind, index, name, (unsigned long long)range.base, (unsigned long long)range.size);
+ }
+ 
+-static void safe_name(const uint8_t *fdt, uint32_t offset, char name[64])
++static void hash_bytes(const void *bytes, size_t size, uint8_t digest[GH_DIGEST])
+ {
+-    const uint8_t *source = fdt + offset;
+-    unsigned i = 0;
+-    for (; i < 63 && source[i]; ++i) {
+-        uint8_t c = source[i];
+-        name[i] = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+-            c == ',' || c == '.' || c == '_' || c == '+' || c == '@' || c == '-' ? (char)c : '_';
+-    }
+-    name[i] = 0;
++    SHA256_CTX ctx;
++    SHA256_Init(&ctx);
++    SHA256_Update(&ctx, bytes, size);
++    SHA256_Final(digest, &ctx);
+ }
+ 
+ static void report_inventory(const uint8_t *fdt, const struct gh_live *live,
+                              const struct gh_inventory *m)
+ {
+-    uint8_t digest[32];
+-    char hex[65], name[64];
+-    SHA256_CTX ctx;
+-    SHA256_Init(&ctx);
+-    SHA256_Update(&ctx, fdt, (size_t)m->original_fdt.size);
+-    SHA256_Final(digest, &ctx);
++    uint8_t digest[GH_DIGEST];
++    char hex[2 * GH_DIGEST + 1], name[GH_NAME];
++    hash_bytes(fdt, (size_t)m->original_fdt.size, digest);
+     for (unsigned i = 0; i < sizeof(digest); ++i) {
+         hex[2 * i] = "0123456789abcdef"[digest[i] >> 4];
+         hex[2 * i + 1] = "0123456789abcdef"[digest[i] & 15];
+@@ -94,12 +87,12 @@ static void report_inventory(const uint8_t *fdt, const struct gh_live *live,
+     for (uint32_t i = 0; i < m->header_reserve_count; ++i)
+         record_range("header-reserve", i, "-", m->header_reserves[i]);
+     for (uint32_t i = 0; i < m->fixed_count; ++i) {
+-        safe_name(fdt, m->fixed[i].name, name);
++        gh_copy_name(fdt, m->original_fdt.size, m->fixed[i].name, name);
+         record_range("fixed", i, name, m->fixed[i].range);
+     }
+     for (uint32_t i = 0; i < m->pool_count; ++i) {
+         const struct gh_pool *p = &m->pools[i];
+-        safe_name(fdt, p->name, name);
++        gh_copy_name(fdt, m->original_fdt.size, p->name, name);
+         printf("SWEET HANDOFF: pool index=%u name=%s bytes=%llx windows=%u\n",
+             i, name, (unsigned long long)p->size, p->alloc_count);
+         for (uint32_t j = 0; j < p->alloc_count; ++j)
+@@ -108,20 +101,13 @@ static void report_inventory(const uint8_t *fdt, const struct gh_live *live,
+     printf("SWEET HANDOFF: end fdt_sha256=%s\n", hex);
+ }
+ 
+-void sweet_handoff_memory_init(void)
++static enum gh_status collect_memory(struct gh_live *live, struct gh_inventory *inventory,
++                                     const uint8_t **fdt)
+ {
+-    unsigned enabled = 0;
+-    if (!PE_parse_boot_argn("sweethandoff", &enabled, sizeof(enabled)) || !enabled)
+-        return;
+-    if (enabled != 1) {
+-        printf("SWEET HANDOFF: invalid selector\n");
+-        return;
+-    }
+     DTEntry chosen, defaults;
+     const void *capture, *pas, *io, *pending;
+     unsigned capture_bytes, pas_bytes, io_bytes, pending_bytes;
+-    struct gh_live live;
+-    if (!boot_context(&live) ||
++    if (!boot_context(live) ||
+         SecureDTLookupEntry(NULL, "/chosen", &chosen) != kSuccess ||
+         SecureDTLookupEntry(NULL, "/defaults", &defaults) != kSuccess ||
+         SecureDTGetProperty(chosen, "GauguinHandoffPending", &pending, &pending_bytes) == kSuccess ||
+@@ -130,7 +116,24 @@ void sweet_handoff_memory_init(void)
+         !property_in_adt(chosen, "GauguinHandoffFDT", &capture, &capture_bytes) ||
+         !property_in_adt(chosen, "LowPASReservation", &pas, &pas_bytes) ||
+         !property_in_adt(defaults, "pmap-io-ranges", &io, &io_bytes)) {
+-        printf("SWEET HANDOFF: unavailable or unpublished\n");
++        return GH_UNAVAILABLE;
++    }
++    enum gh_status status = gh_read_memory(capture, capture_bytes, pas, pas_bytes, io, io_bytes, live, inventory);
++    if (status == GH_OK)
++        *fdt = (const uint8_t *)capture + GH_HEADER;
++    return status;
++}
++
++void sweet_handoff_memory_init(void)
++{
++    unsigned enabled = 0, receipt = 0;
++    if (!PE_parse_boot_argn("sweethandoff", &enabled, sizeof(enabled)) || !enabled)
++        return;
++    PE_parse_boot_argn("sweethandofflog", &receipt, sizeof(receipt));
++    if (receipt)
++        return;
++    if (enabled != 1) {
++        printf("SWEET HANDOFF: invalid selector\n");
+         return;
+     }
+     struct gh_inventory *inventory = kalloc_data(sizeof(*inventory), Z_WAITOK);
+@@ -138,11 +141,31 @@ void sweet_handoff_memory_init(void)
+         printf("SWEET HANDOFF: inventory allocation unavailable\n");
+         return;
+     }
+-    enum gh_status status = gh_read_memory(capture, capture_bytes, pas, pas_bytes, io, io_bytes, &live, inventory);
++    struct gh_live live;
++    const uint8_t *fdt = NULL;
++    enum gh_status status = collect_memory(&live, inventory, &fdt);
+     if (status == GH_OK)
+-        report_inventory((const uint8_t *)capture + GH_HEADER, &live, inventory);
++        report_inventory(fdt, &live, inventory);
+     else
+         printf("SWEET HANDOFF: rejected status=%u\n", status);
+     kfree_data(inventory, sizeof(*inventory));
+ }
++
++bool sweet_handoff_memory_record(uint32_t run, uint8_t block[GH_RECEIPT_BLOCK])
++{
++    struct gh_live live;
++    const uint8_t *fdt = NULL;
++    uint8_t fdt_hash[GH_DIGEST];
++    struct gh_inventory *inventory = kalloc_data(sizeof(*inventory), Z_WAITOK);
++    enum gh_status status = inventory ? collect_memory(&live, inventory, &fdt) : GH_NO_MEMORY;
++    if (status == GH_OK)
++        hash_bytes(fdt, inventory->original_fdt.size, fdt_hash);
++    size_t body = gh_pack_memory(block, run, status, &live, inventory, fdt, fdt_hash);
++    if (inventory)
++        kfree_data(inventory, sizeof(*inventory));
++    if (!body)
++        return false;
++    hash_bytes(block, body, block + body);
++    return true;
++}
+ #endif
+diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
+index 2972f6129f8b6e7f54fdd6d9bdbe1acf6ecaea2b..450660c368c33def52f1739dc3f8627d281443a3 100644
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -37,6 +37,8 @@
+ #include "gauguin_ui_trace.h"
+ #include "gauguin_scan_timing.h"
+ #include "gauguin_scan_log_guard.h"
++#include "gauguin_handoff_memory.h"
++#include <kern/kalloc.h>
+ #include <IOKit/IOLib.h>
+ #endif
+ #include <kern/locks.h>
+@@ -1756,14 +1758,36 @@ sweet_log_start(void)
+ }
+ 
+ #if defined(GAUGUIN)
++static bool
++sweet_diagnostic_lba(uint64_t *lba)
++{
++	_Static_assert(SWEET_LOG_BLOCKS == GSCAN_LOG_BLOCKS, "diagnostic log ring size");
++	_Static_assert(UFS_RESERVED_TAIL_BLOCKS == GSCAN_LOG_RESERVED, "diagnostic log tail size");
++	return !su.ready && !su.writable && su.dma &&
++	    gscan_log_record_lba(su.first_block, su.nblocks, su.fs_nblocks, lba);
++}
++
++/* Called with the DMA owner lock held and the reserved slot already checked. */
++static int
++sweet_diagnostic_write_block_locked(uint64_t lba)
++{
++	uint8_t cdb[10] = {
++		0x2a, 0, (uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8),
++		(uint8_t)lba, 0, 0, 1, 0
++	};
++	clean_dcache64((addr64_t)(su.dma_pa + DMA_MARK), UFS_BLOCK, TRUE);
++	int error = ufs_scsi_slot(cdb, sizeof(cdb), UFS_BLOCK, true,
++	    su.dma_pa + DMA_MARK, UFS_SLOT_MARK);
++	if (!error)
++		error = sweet_log_sync_cache();
++	return error;
++}
++
+ static int
+ sweet_scan_log_record(uint32_t run, unsigned mode, bool done, const struct gscan_result *r)
+ {
+-	_Static_assert(SWEET_LOG_BLOCKS == GSCAN_LOG_BLOCKS, "scan log ring size");
+-	_Static_assert(UFS_RESERVED_TAIL_BLOCKS == GSCAN_LOG_RESERVED, "scan log tail size");
+ 	uint64_t lba;
+-	if (!run || mode < 1 || mode > GSCAN_ROUTE_MODE || su.ready || su.writable || !su.dma ||
+-	    !gscan_log_record_lba(su.first_block, su.nblocks, su.fs_nblocks, &lba))
++	if (!run || mode < 1 || mode > GSCAN_ROUTE_MODE || !sweet_diagnostic_lba(&lba))
+ 		return EPERM;
+ 
+ 	uint8_t *block = (uint8_t *)(su.dma + DMA_MARK);
+@@ -1809,15 +1833,7 @@ sweet_scan_log_record(uint32_t run, unsigned mode, bool done, const struct gscan
+ 	    "END_GAUGUIN_SCAN%u run=%u\n", version, run);
+ 	if (footer <= 0 || (unsigned)footer >= UFS_BLOCK - len)
+ 		goto format_failed;
+-	uint8_t cdb[10] = {
+-		0x2a, 0, (uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8),
+-		(uint8_t)lba, 0, 0, 1, 0
+-	};
+-	clean_dcache64((addr64_t)(su.dma_pa + DMA_MARK), UFS_BLOCK, TRUE);
+-	int error = ufs_scsi_slot(cdb, sizeof(cdb), UFS_BLOCK, true,
+-	    su.dma_pa + DMA_MARK, UFS_SLOT_MARK);
+-	if (!error)
+-		error = sweet_log_sync_cache();
++	int error = sweet_diagnostic_write_block_locked(lba);
+ 	lck_mtx_unlock(&sweet_dma_owner_lock);
+ 	return error;
+ 
+@@ -1826,6 +1842,56 @@ format_failed:
+ 	return EINVAL;
+ }
+ 
++static int
++sweet_handoff_log_record(const uint8_t block[GH_RECEIPT_BLOCK])
++{
++	_Static_assert(UFS_BLOCK == GH_RECEIPT_BLOCK, "handoff receipt block size");
++	uint64_t lba;
++	if (!block || !sweet_diagnostic_lba(&lba))
++		return EPERM;
++	lck_mtx_lock(&sweet_dma_owner_lock);
++	if (!ufs_dma_available()) {
++		lck_mtx_unlock(&sweet_dma_owner_lock);
++		return EIO;
++	}
++	memcpy((void *)(su.dma + DMA_MARK), block, GH_RECEIPT_BLOCK);
++	int error = sweet_diagnostic_write_block_locked(lba);
++	lck_mtx_unlock(&sweet_dma_owner_lock);
++	return error;
++}
++
++void sweet_handoff_log_diagnostic(void);
++
++void
++sweet_handoff_log_diagnostic(void)
++{
++	uint32_t requested = 0;
++	if (!PE_parse_boot_argn("sweethandofflog", &requested, sizeof(requested)) || !requested)
++		return;
++
++	uint32_t capture = 0, scan = 0, ufs_write = 0, root_write = 0, run = 0;
++	PE_parse_boot_argn("sweethandoff", &capture, sizeof(capture));
++	PE_parse_boot_argn("sweetscanlog", &scan, sizeof(scan));
++	PE_parse_boot_argn("ufsrw", &ufs_write, sizeof(ufs_write));
++	PE_parse_boot_argn("rootrw", &root_write, sizeof(root_write));
++	PE_parse_boot_argn("sweethandoffid", &run, sizeof(run));
++	if (gh_receipt_profile(requested, capture, scan, ufs_write, root_write, run)) {
++		uint8_t *block = kalloc_data(GH_RECEIPT_BLOCK, Z_WAITOK);
++		int result = ENOMEM;
++		if (block) {
++			result = sweet_handoff_memory_record(run, block) ? sweet_ufs_init(true) : EINVAL;
++			if (!result)
++				result = sweet_handoff_log_record(block);
++			kfree_data(block, GH_RECEIPT_BLOCK);
++		}
++		printf("SWEET HANDOFF LOG: run=%u rc=%d before root mount\n", run, result);
++	} else {
++		printf("SWEET HANDOFF LOG: conflicting boot profile; no disk access\n");
++	}
++	(void)reboot_kernel(RB_AUTOBOOT | RB_QUICK | RB_NOSYNC, NULL);
++	panic("SWEET HANDOFF LOG: platform restart returned");
++}
++
+ void sweet_scan_log_diagnostic(void);
+ 
+ void
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+index 01c8a937b34a547f79c6cc5e167fba8223907cd4..fdf8a6e970548ab762e2abb96c7531968e8d5f81 100644
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -895,6 +895,8 @@ bsd_init(void)
+ 	inittodr(0);
+ 
+ #if defined(GAUGUIN)
++	extern void sweet_handoff_log_diagnostic(void);
++	sweet_handoff_log_diagnostic();
+ 	extern void sweet_scan_log_diagnostic(void);
+ 	sweet_scan_log_diagnostic();
+ #endif

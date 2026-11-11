@@ -213,3 +213,4 @@
 0217-gauguin-inherited-scan-timing.patch
 0218-gauguin-pre-mount-scan-log.patch
 0219-gauguin-inherited-scanout-route.patch
+0220-gauguin-original-handoff-memory-reader.patch

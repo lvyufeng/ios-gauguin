@@ -2,6 +2,17 @@
 
 ## Agent handoff / active work
 
+### 2026-11-11 CST —0265 original ABL FDT XNU reader qualified locally
+
+Source/pushed 104482754a9bdc60ba99d975a4792f57342a9f27. W265=
+research/tmp/dsh-handoff-reader-0265. DSH PID73335 model too small;
+73616 exit0 source/ASAN/UBSAN/3 ARM64 TUs. Actual 0252 payload/FDT model
+produces 3 banks/21 fixed/6 dynamic pools/6 windows; no placement claims.
+Native snapshot SHA9004cf565771c70171524a05819213c38c5ef3227ad662d956ba3e7f08e9fd40.
+DSH74063 dispatch exit0, full CI42929203205 in progress. Next full link
+qualification, enabled 0252 shim, combined image and bounded readback.
+No phone commands, boots or writes. Existing display/desktop scopes pending.
+
 ### 2026-11-11 CST —0264 completed 0263 full kernel and offline image
 
 CI42925740306/job130211633308 SUCCESS 2026-11-10T23:57:09Z, head7a58414.

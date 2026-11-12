@@ -130,3 +130,39 @@ mistake its false result during an expected BUSY interval for a dead GPU.
 These contracts must be solved together before using the new board API from
 Metal. The separately approved 0301 touch/HID/C4 trace remains the next
 phone diagnostic for the immediate lag.
+
+## 2026-11-12 follow-up: retain the GPU owner across faulted close
+
+The [HakiOS close path](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/drivers/gpu/hakios.gpu.cpp#L443-L500)
+keeps a buffer's memory and SMMU address when a submitted fence is pending;
+its measurements say waiting for such a close previously cost about 5 ms
+per frame. Gauguin's current `gOwner` was only a raw pointer. If `drop()`
+failed after a GPU fault, `clientClose()` intentionally kept that pointer
+and the DMA-visible descriptors but terminated the client without retaining
+the client object. That pointer cannot safely be used by a future async
+completion path.
+
+Patch `xnu/patches/0228-gauguin-retained-gpu-owner.patch` SHA-256
+`2bb51f559878c389b5cc17a240af5866854cee9e3f9db8917721843ebf93108f`
+balances one explicit owner reference: `start()` takes it immediately before
+publishing `gOwner`; a clean close clears `gOwner`, terminates the connection,
+then drops the reference. A faulted close keeps the reference and every
+existing DMA allocation until reset, matching the current quarantine rule.
+It changes no submission or display scheduling and does not yet defer a
+busy BO close. A 5,336-file comparison against source306 found only
+`iokit/Kernel/arm/GauguinGPU.cpp` changed; patch replay and `git apply
+--check` passed. Private source-state SHA-256 is
+`43baa5f75140220e8f035ecc383c953d4e9dc403ecd32d2053ef434e65b6be03`.
+Native ARM64 compilation of the actual user-client TU passed, receipt
+SHA-256 `64c25765866a8600c89384ef800dddc66da3929a6a8fea0f725a798e7a6a51f4`.
+The 250,000,000-byte clone/native batch was admitted at 498,904,973,312
+bytes accounted; the conservative clone is 86,564 KiB and private compile
+artifacts 2,940 KiB. No whole-kernel link, phone boot or measured speedup.
+
+The opt-in async user-client transition still needs a completion-owned
+pending BO set, separate issued/completed queue counters, deferred close,
+explicit wait and CPU prep handling, display read synchronization, and
+watchdog heartbeat handling while the runtime is BUSY. A completed fence
+must be the only path that clears `gpuState` or releases a mapped page; a
+fault must leave those pages retained. The unmodified 0301 diagnostic stays
+first for locating the user's current 60 Hz lag.

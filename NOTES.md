@@ -4,6 +4,10 @@
 
 ### 2026-11-12 CST — optional 0222 source/model accepted; seven files committed
 
+R=research/tmp/gauguin-optional-fault-profile-worktree-20261112. Optional 0222
+validation paths in this section are relative to R; 0298 paths remain in the
+separate present-trace worktree described below.
+
 Codex's final-review loader-priority defect was reproduced before correction:
 with an explicit OPTIONAL_PROFILE_BASE, a missing XNU_SOURCE was ignored and a
 candidate was forward-derived. The pre-fix result is preserved as

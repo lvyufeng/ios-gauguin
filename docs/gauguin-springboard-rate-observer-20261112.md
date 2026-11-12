@@ -6,7 +6,7 @@ partition write or new boot occurred here.
 
 ## What the HakiOS success case actually observes
 
-HakiOS's [SpringBoard hook](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/userland/src/inject_sb.c#L1941)
+HakiOS's [SpringBoard hook](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/userland/src/inject_sb.c#L1783-L1852)
 reads each animation's `preferredFrameRateRange` at `CALayer
 addAnimation:forKey:` and records display-link requests. Its source reports
 animations with no rate request advancing at 24 fps despite about 0.3 ms of

@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0300 touch windows aligned to C4, no phone trial
+
+The full goal (smooth 60 Hz first, then complete Gauguin GPU/high-refresh)
+remains unproven. Reanalyzed existing 0300 raw kernel SHA
+`22e786c12d9b05ef3edbe8b3d05b18450770bc3733c20dc82da5a18a5bbe21e5`
+and current-only backboardd SHA
+`e363a18f9c7671e8dff7d78e5593d84d9261e215a647917ac3d2307936341209`.
+HakiOS C4 `hm_now()` and the framebuffer deadline use the same
+`mach_absolute_time`; all 123 logged FB samples obey
+`next_beat-(callbacks+skipped)*320006=292100337` ticks at 19.2 MHz.
+In 0300 10-second windows 13800–14400 and15000–15600, respectively22
+and6 contact-mask changes coincided with only2 C4 buffers made per window;
+their reported GPU durations were11.26/12.87 and12.53/11.74ms. In windows
+24000–24600 and24600–25200, C4 made11 and4 buffers while held retirement
+was3 and2; five of those15 buffers exceeded16.667ms. No counted buffer is
+within one beat of a boundary. Two older touch-active windows lack precise
+clock endpoints across a613-skipped-beat period and were not aligned. This
+shows both sparse buffer creation and some long per-buffer work. It does not
+pair a touch with a frame, prove userland HID receipt, identify visible
+frames, or measure physical FPS.
+
+W300 `codex/gauguin-60hz-surface-read-20261112` pushed commits `a053b2a`
+and `6708559`:
+`tools/align-metal-contact300.py`, synthetic exact-origin/skip/boundary test,
+and reconciled `docs/gauguin-notify-hid-trial-results-20261112.md`. Private
+same-clock result SHA
+`bd54cbedb9176bb62b048ff66d8d5bd214ee23e64251729beee0105fc541fb74`.
+Python compile, test, raw-log hash pin/reproduction and diff check passed.
+This strengthens the priority of the prepared W301 HID→C4 causal trace;
+do not choose a frame-rate policy, GMEM switch or async-submit fix from
+these unpaired historic records. The frontend's printed `metal_gmem=1` hint
+is currently inert because the Gauguin build's `hm_gmem_on()` returns NO.
+
+W301/0301 approval.json/execution remain absent and `adb get-state` is
+`recovery`; the previous exact-scope question has no answer. W302 is a
+different unapproved trial. No phone write or boot this turn. Preserve both
+plans/images, backups, rollback snapshots and the user's uncommitted
+`tools/mkadt.py` edit (SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`).
+
 ### 2026-11-12 CST — HakiOS evidence reviewed; W302 one-shot offline ready, no phone trial
 
 The user's goal remains smooth 60 Hz touch/UI first, then full Gauguin GPU

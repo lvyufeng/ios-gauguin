@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0300 desktop lag confirmed, original restored
+
+The user clarified the 0300 boot reached the desktop after the lock screen,
+but remained "就是卡". Feedback receipt W300/user-feedback300.json SHA
+ab146879b5081cf1123afddfbfe87fb5f9da9c9ca7e9b1cbb4bd750b5e475e63.
+One boot returned to TWRP after746s; runner exited0. Result SHA
+443a312ee25e25dbcb21e00ff1b5aa19c90d7b78f0fdd5c16d59ed70c074c23e;
+independent terminal review SHAe638aa12bb803bd671c430064cc6242b1fd8d211d2fd0be83d930dd5bb5501c0.
+All72 pins,116 file records, dynamic HFS catalog restore and original desktop
+434176B readback passed. Current root-header SHA
+6e272d2e11ae716993301df334c35eeb5498b0a77adbccd965f924e28a5e77e4.
+Device is TWRP; observer/executor terminal. No boot retry/rollback. All 0300
+and earlier one-shot authorizations are consumed. See
+docs/gauguin-notify-hid-trial-results-20261112.md. Never rerun executor.
+
+Kernel log SHA22e786c12d9b05ef3edbe8b3d05b18450770bc3733c20dc82da5a18a5bbe21e5.
+128 notification summaries for two clients all show port0/registrations0/
+callbacks0/sends0. This path is unused, but local HakiOS code documents CA's
+independent clock, so missing IOMFB notifications are NOT proven as the cause.
+NVT latest accepted63920/rejected0, touch client opened1, HID trace records
+>=512 changed frames with >=482 position frames. Userland queue delivery
+latency is still unknown. GPU service51/51, software clock42000 callbacks/
+613 skipped, only33 held frames consumed/retired of36 submitted,2 canceled,
+1 replaced. Latest CPU copy prefix29 successes/32 attempts. In58 regular
+600-beat intervals, retired held frames max3,41 zero; five touch-active
+intervals with38 contact edges max3. A separate100s sample gap had60 edges/
+5 retirements. The presents=300 counter is invalid as a distinct-frame
+count: source increments it before taking a pending frame, so empty dirty
+copy slots can inflate it. Corrected the 0299 report to use held retirement.
+Metal timeline39 CBs, median GPU15.03ms, max59.25ms,15/39 over16.667ms;
+max made-to-commit2346.9ms. These do not prove physical FPS or causality.
+
+Current framebuffer source has no TimingElements, ColorElements or
+IOMFBDisplayRefresh properties; local HakiOS framebuffer publishes a60Hz
+mode/refresh dictionary. Next: implement a bounded metadata candidate based
+on exact ABI, native build/image review, then obtain NEW one-shot approval for
+device comparison. Also instrument HID queue drop/touch-to-SwapEnd before
+claiming responsiveness. No smooth60Hz or high refresh success yet.
+
 ### 2026-11-12 CST — 0300 authorized one-boot diagnostic IN PROGRESS
 
 The user separately approved the exact 0300 write/boot/restore scope via
@@ -45,9 +84,9 @@ docs/gauguin-60hz-candidate-trial-results-20261112.md.
 Observed0299: GPU service49/49 completed, full submit health checks43.0 per
 submit versus58.7 in unmatched C4 control; no demonstrated visible speedup.
 Software60Hz clock reached42300 callbacks/145 skips/104 selected frames;
-held frame104 consumed/retired. In67 regular600-beat intervals, new panel
-memory presents rose by at most4, with27 zero intervals; nine intervals with
-144 NVT contact-mask changes had at most3 new presents each. These are kernel
+held frame104 consumed/retired. In67 regular600-beat intervals, held frame
+retirement rose by at most4, with27 zero intervals; nine intervals with
+144 NVT contact-mask changes had at most3 retired frames each. These are kernel
 counter differences, not optical FPS or touch-to-pixel latency. NVT accepted
 physical packets, but current log cannot show changed HID frame count or
 userland receipt. The framebuffer source only sends async notifications with

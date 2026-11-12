@@ -1,11 +1,12 @@
 # One-shot display-notification and touch-path diagnostic
 
-**Prepared, not authorized or run.** The user reports the prior 60 Hz
-candidate is still very laggy and touch does not follow the finger. The
-completed candidate's framebuffer counter advanced by at most four new
-presents in a regular 600-beat interval, and by at most three in intervals
-with physical contact-mask changes. Those are software counters, not optical
-FPS. See [the previous trial result](gauguin-60hz-candidate-trial-results-20261112.md).
+**Historical pretrial plan; executed once and restored.** See
+[the actual result](gauguin-notify-hid-trial-results-20261112.md). The user
+reports the prior 60 Hz candidate is still very laggy and touch does not
+follow the finger. Its held-frame retirement counter advanced by at most
+four in a regular 600-beat interval, and by at most three in intervals with
+physical contact-mask changes. Those are software counters, not optical FPS.
+See [the previous trial result](gauguin-60hz-candidate-trial-results-20261112.md).
 
 ## Diagnostic image
 
@@ -90,9 +91,9 @@ The 72-pin ready receipt SHA-256 is
 independent read-only review SHA-256
 `2661a579a859950894f7d48866311f5273a5ca49b2836e4e8ce1ed40a0dde1d1`.
 The actual-range writer model passed 24 fault and rollback controls. The
-executor refuses to create an execution claim or access device IO without a
-new user reply bound to both plan hashes and the image hash. No approval or
-execution claim exists. All previous one-shot authorizations are consumed.
+executor required a new user reply bound to both plan hashes and the image
+hash. The user granted it for this one shot; it is consumed. This plan is
+historical, and the execution claim and outcome are in the result linked above.
 
 During the 600-second service, repeated Home ↔ App Library swipes and opening
 and closing Settings would give the trace a meaningful touch workload. An

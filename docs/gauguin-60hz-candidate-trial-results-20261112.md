@@ -57,16 +57,19 @@ attempt, and zero rejects. Its GPU read-guard histogram has 46 samples below
 0.5 ms, but also one above 33.333 ms. The 16–33.333 ms bin cannot resolve
 whether a guard exceeded the 16.667 ms frame budget.
 
-The sampled framebuffer `presents` counter rose by at most **four** in any of
-67 regular 600-beat (nominal ten-second) intervals. It rose by zero in 27 of
-those intervals. Nine intervals contain 144 observed NVT contact-mask changes
-(including a two-contact mask); each had at most three new presents. These are
-software counter differences, not optical FPS or a measured touch-to-pixel
-latency. They align with the user's report that motion is very slow. The NVT
+The sampled **held-frame retirement** counter rose by at most **four** in any
+of 67 regular 600-beat (nominal ten-second) intervals. It rose by zero in 27
+of those intervals. Nine intervals contain 144 observed NVT contact-mask
+changes (including a two-contact mask); each had at most three retired held
+frames. These are software counter differences, not optical FPS or a measured
+touch-to-pixel latency. The separate framebuffer `presents` counter is not a
+distinct-frame count: the 0300 diagnostic showed it can increment for a dirty
+copy slot before a held frame is actually taken. The sparse held retirement
+aligns with the user's report that motion is very slow. The NVT
 worker reported accepted physical packets and no malformed-frame rejects, but
 the current log does not count changed HID events or prove their receipt by
 backboardd. The cadence analysis is in
-`research/tmp/gpu-poll-guard-20261112/cadence299.json`.
+`research/tmp/gpu-poll-guard-20261112/held-cadence299.json`.
 
 Backboardd's 37 logged FPS windows contain 41 completed command buffers and
 zero `presentedDrawable` events. That counter does not cover the owned

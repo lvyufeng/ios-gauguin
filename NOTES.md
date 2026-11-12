@@ -2,6 +2,60 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — real-device owned-core trial fully prepared; write confirmation pending
+
+User requested 真机验证吧. Source commit b8a4b07 adds the isolated C-API
+ownership hardware probe, native/host builder, strict log parser and
+docs/gauguin-metal-owned-hardware-20261112.md. No phone partition write or boot
+has occurred. The actual recovery phone is connected, productgauguin/TWRP,
+userdata unmounted/no holders. The read-only scanner was run from recovery
+tmpfs and removed. Old0298 one-shot approvals remain consumed.
+
+W=research/tmp/metal-hardware-20261112. Final planSHA
+e80817f02bde654b43c9a6c278b832c00c4becdf9500d3c2f4905e4e07966d4d;
+W/ready.json binds173 inputs. Individual confirmation was asked through
+request_user_input_async for userdata9990144B + misc13B + one temporary boot +
+launch-data restoration8192B + failure rollback. Accepted=true from that tool
+only acknowledges displaying the question; no actual answer/approval exists
+at this milestone. Do not infer it from this handoff or the broad test request.
+
+Fresh16GiB backup a11ef472d1625485d48741a35bc9440ad44dd3f4c97894434fb726d2dc7c9608
+matches all16384 device chunk hashes and full device SHA. Initial384MiB transfer
+guard refused before fetch; original scan/clone preserved and resumed using
+the already admitted full-image reservation.792MiB/341 groups crossed USB;
+no scanner rerun. Baseline header b1ad834b78e37a90e619d7cf9e4ddbe2c1930f895b012c5833cd8c25eae38c90.
+
+Probe-build-02:74864B, SHAcb8e5c1a1b6f6e1a43f268144ede7abf0b264127e4ad747b3cc27aee457b854c,
+build1cb92917c87718fe918f9cdb. It loads exactcorec9da25aa... from the new private
+/usr/local/lib/gauguin/owned path, performs8 GPU jobs/2 callbacks/20480 readback
+comparisons, then SETEXECs the unchanged router7834e091.../old bootstrap/core.
+Host adapter passes ASan/UBSan;295 actual20H392 imports resolve with0 missing.
+Native code/signature pass. C4 desktop asynchronous mode remains off.
+
+Candidate final.hfsx SHA9c3902e393b0488fb477d0599fb97f04b10e8840c6109ca23f100b5be042fc3c:
+2439 blocks/9990144B/40 ranges, new probe/library/directory plus2 launch data
+edits and listed native HFS metadata/event bookkeeping.57 native orphan temp
+records and2 old event records retired,2 new event records; original whole
+backup preserves them. Other25 captured files/4 directories and530 other jobs
+match. Read-only fsck passed and detached.52 concrete writer/rollback controls
+and10 parser controls passed. Fresh old device ranges/misc match. Missing real
+approval fails before execution directory/device IO.
+
+W/execute_trial.py is prepared, not launched. After a genuine affirmative
+answer, create W/approval.json binding exact answer, plan/image SHA and scopes;
+check W/ready.json inputs, then execute this entry exactly once in a retained
+session. It installs, captures29 files/5 directories, sets misc, temporarily
+boots SAME0298 image64596164... once (600s service/780s observer), captures
+new-only logs, restores2 immutable launch-data blocks, rechecks files and
+qualifies actual owner closes. Never replay pre-boot HFS metadata after boot.
+New test files stay inactive. Never rerun an existing W/execution claim;
+observe original receipts/process if delayed. Preserve all failed stages.
+
+Whole33GiB batch admitted (35433480192B) at451156017152B/500GB. Only2 full16GiB
+images were created; trial captures are included in the remainder. The post
+storage scan was started once and writes W/storage-ready.json; inspect its
+original result. MAIN mkadt original edit remains untouched/uncommitted.
+
 ### 2026-11-12 CST — final GPU core ownership source and native artifact accepted
 
 Final follow-up source is e466c88 on the ownership branch, integrated into MAIN

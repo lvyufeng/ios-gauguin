@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — actual individual 0298 approval received; one launch dispatched
+
+User answered questionItemId ["request_user_input_async",
+"call_df74f585b2ae42efaa1fa83f8850e829",0] with exact text:
+允许本轮标记写入、临时启动及标记失败回滚
+This is the actual scoped 0298 approval, superseding the earlier pending state.
+Only original plan 6872d2d396e10bdd7209f34c0c7e9675688b440f06c0a10df3a8f18fafdb5184
+and original image 64596164315fc496ff30037bb1fdf982d1322069eee788e28554f38d6f43cc7e:
+13-byte misc marker, rollback only those bytes on marker write/readback failure,
+one temporary boot, no retry, 600s service/780s observer, no explicit userdata
+delta. The new 0222 kernel is NOT this approved image and must not be substituted.
+
+W298=research/tmp/gauguin-present-trace-worktree-20261112/research/tmp/
+dsh-trial298-prep. All approval/trial/fresh outputs were absent immediately
+before dispatch. Codex prepared research/tmp/resume-ios-20261112/
+authorize_launch298.py to bind exact answer/plan/image/misc hashes and launch
+the existing execute_after_fresh298.py through one pinned stage. DSH's original
+request/output are dsh-authorized298-request.txt and dsh-authorized298-output.jsonl
+in that resume directory. Observe that original session/receipt; never launch
+again on delay. Original dispatcher PID 8284 and isolated boot-helper PGID
+8784 were observed live. Fresh read-only preflight passed (27 files/4
+directories, zero device writes/boots, original root and misc hashes).
+The 13-byte marker was written and its full 4096-byte readback matched
+8698abf44b69b8040dd109feefc23706f070a26932c47f2b44a835efb2b9c801;
+no rollback needed. Exactly one temporary image boot was attempted, zero
+retries. Preflight state observer-running; terminal result and actual
+screen/GPU/statistics outcome remain unproven at this launch milestone.
+Stage profile c3c05dba7b169f86d65c331a4f5d5523e9c69180f8118bf2c11f5063181b456c
+binds 88 inputs; approval SHA 7f54ef13cd6a64f0a5b7762727da1aec17c495b6f206ab41f92123b8454cb95f.
+
+After W298/trial-stage-v1/result.json is terminal and execution298-v1 confirms
+helper_exit0/no process-group children, run only the prepared W298/post298.py
+once against original receipts/logs. Preserve all failures and original 0297
+evidence. Request manual recovery only if the original trial is truly stuck;
+do not ask reboot attribution. First review here resumed core deferred lifetime
+analysis, but no new Metal source/worktree or implementation was created before
+the approval arrived. Full phone goal, 500GB cap and original mkadt edit persist.
+
 ### 2026-11-12 CST — full optional-fault kernel built and natively qualified
 
 R=research/tmp/gauguin-optional-fault-profile-worktree-20261112;

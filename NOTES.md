@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — GPU owner survives faulted close, async still unwired
+
+Full objective remains smooth 60 Hz iOS, complete Gauguin GPU acceleration
+and high refresh, unachieved. W301/0301 approval.json/execution remain absent;
+`adb get-state` is `recovery`. No phone write/boot this turn. The separately
+prepared W301 trace is still the next diagnostic for the user-visible lag.
+
+HakiOS source confirms a returned BO remains mapped and its memory held until
+the issued fence finishes; their author reports waiting at close had cost
+about 5 ms/frame. In Gauguin, `gOwner` had only a raw pointer while a failed
+drop deliberately left it set after `clientClose()` terminated the object.
+W303 `codex/gauguin-issued-fence-20261112` pushed commit `c631d7f` after
+`b1a3ec3`. Patch0228 SHA
+`2bb51f559878c389b5cc17a240af5866854cee9e3f9db8917721843ebf93108f`
+retains the GPU user client when published as the owner, releases that
+reference after a clean close/terminate, and holds it through fault
+quarantine. The old synchronous submit and display paths are unchanged.
+Source307 differs from source306 in only GauguinGPU.cpp across 5,336 files;
+source-state SHA
+`43baa5f75140220e8f035ecc383c953d4e9dc403ecd32d2053ef434e65b6be03`.
+Patch replay and git apply check passed. Actual user-client TU passed native
+ARM64 compile, receipt SHA
+`64c25765866a8600c89384ef800dddc66da3929a6a8fea0f725a798e7a6a51f4`.
+Patch-series tests and diff check passed. A 250,000,000B clone/native batch
+was admitted at 498,904,973,312B accounted; source clone86,564KiB and
+private compile artifacts2,940KiB. No full kernel build, image, phone boot
+or measured speedup. See W303 doc.
+
+Next async implementation must be end-to-end: one pending BO/IOSurface and
+mapping escrow through completion, separate issued/completed queue numbers,
+deferred close, CPU prep/wait/display read and heartbeat handling while the
+runtime is BUSY. The source currently has no such active user-client path;
+do not advertise patch0227/0228 as a performance fix. Use the W301 trace
+before choosing the immediate 60 Hz functional change. Preserve original
+backups, pinned W301/W302 inputs and user's uncommitted `tools/mkadt.py` SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-12 CST — guarded board issued-fence API committed offline
 
 Full goal remains smooth 60 Hz iOS, complete Gauguin GPU acceleration and

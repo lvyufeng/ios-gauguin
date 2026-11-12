@@ -60,6 +60,7 @@ def plan_gate(plan, candidate):
             plan.get('file_cnid') == 635763 and plan.get('changed_ranges') == 2 and
             plan.get('changed_bytes') == 434176, 'unexpected approved ranges')
     require(plan.get('old_file_bytes') == 428400 and plan.get('new_file_bytes') == 428720 and
+            plan.get('old_file_sha256') == '0a1b55bb20a29661de40099e58e45ec695ffb0bf78e132a9d10985450e868550' and
             plan.get('new_file_sha256') == '560284ddda16936df1dd9c6003c8ef4c31096a7c41fcd72ade1051db8411d1d5' and
             plan.get('file_fork', {}).get('extents') == [[3817791, 105]] and
             plan.get('file_fork', {}).get('logical') == 428400, 'file fork differs')
@@ -170,7 +171,7 @@ def prepare_restore(plan, plan_sha, candidate, approval, io, out, HFS):
     try:
         row = h.paths[TARGET]
         fork = row['data']
-        require(row['id'] == plan['file_cnid'] and row['type'] == 2 and
+        require(row['id'] == plan['file_cnid'] and row['type'] == 2 and not row['flags']&0x20 and
                 (row['uid'],row['gid'],row['mode']) == (0,0,33261) and
                 fork['logical'] == plan['new_file_bytes'] and fork['blocks'] == 105 and
                 fork['extents'] == [[plan['data_start_block'],105]],

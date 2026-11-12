@@ -8,7 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'tools'), str(ROOT / 'research/tmp/dsh-0175')]
-from metal_ca_c4_delta import BLOCK, prepare_restore, sha
+from metal_ca_c4_delta import BLOCK, Refused, prepare_restore, sha
 from local_hfs175v3 import HFS
 from write_root_delta175v2 import RecoveryIO
 
@@ -50,6 +50,13 @@ def main():
     fixture = dict(approved=True,one_shot=True,allow_install=True,allow_restore=True,
                    allow_rollback=True,allow_misc_marker=True,allow_temporary_boot=True,
                    plan_sha256=pin,fixture_only=True)
+    try:
+        prepare_restore(plan,pin,candidate,fixture,ModelIO(real,()),
+                        args.out.resolve()/'inactive-rejected',HFS)
+    except Refused:
+        assert not (args.out.resolve()/'inactive-rejected').exists()
+    else:
+        raise AssertionError('inactive old binary was accepted for restoration')
     dynamic = prepare_restore(plan,pin,candidate,fixture,modeled,args.out.resolve(),HFS)
     out = args.out.resolve()
     assert dynamic['catalog_start_block'] == plan['catalog_start_block']

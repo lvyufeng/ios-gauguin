@@ -78,6 +78,11 @@ def main():
     try: install(plan,plan_sha,candidate,bad,BombIO(),lambda _:None)
     except Refused: check('approval-plan-hash',True)
     else: check('approval-plan-hash',False)
+    not_a_model=FakeIO(plan,header,data_old,cat_old)
+    not_a_model.model_only=False
+    try: install(plan,plan_sha,candidate,consent,not_a_model,lambda _:None)
+    except Refused: check('fixture-consent-refused-on-real-IO-shape',not_a_model.writes==0)
+    else: check('fixture-consent-refused-on-real-IO-shape',False)
     actual = FakeIO(plan,header,data_old,cat_old)
     receipt = install(plan,plan_sha,candidate,consent,actual,lambda _:None)
     check('install-success',receipt['state']=='applied-and-readback-verified' and
@@ -105,6 +110,20 @@ def main():
               receipt['state']=='write-failed-rollback-verified' and
               bytes(fake.positions[plan['data_start_block']*BLOCK])==data_old and
               bytes(fake.positions[plan['catalog_start_block']*BLOCK])==cat_old)
+    fake=FakeIO(plan,header,data_old,cat_old)
+    def broken_report(row):
+        if row['state']=='writing': raise OSError('injected receipt failure')
+    receipt=install(plan,plan_sha,candidate,consent,fake,broken_report)
+    check('install-receipt-failure-rollback',
+          receipt['state']=='write-failed-rollback-verified' and
+          bytes(fake.positions[plan['data_start_block']*BLOCK])==data_old and
+          bytes(fake.positions[plan['catalog_start_block']*BLOCK])==cat_old)
+    fake=FakeIO(plan,header,data_old,cat_old)
+    fake.identity=lambda: dict(state='device',product='gauguin',partition_bytes=PARTITION_BYTES,
+                               unmounted=True,no_holders=True)
+    try: install(plan,plan_sha,candidate,consent,fake,lambda _:None)
+    except Refused: check('wrong-recovery-state-refused',fake.writes==0)
+    else: check('wrong-recovery-state-refused',False)
 
     # Post-boot catalog bytes are intentionally different outside the eight-
     # byte logical-size field. The dynamic restore must retain that change.

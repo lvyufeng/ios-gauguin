@@ -2,6 +2,64 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — C4 owned desktop frontend candidate built and checked offline
+
+Source/report commit d21c691. New report:
+docs/gauguin-metal-ca-c4-20261112.md. This goal is still active: the frontend
+has not rendered desktop pixels on the phone, and physical high refresh/FPS is
+not qualified. No phone IO, partition writes, boots, kernel build or CI run in
+this milestone. The phone's last observed state remains TWRP after repeat2.
+
+R=research/tmp/metal-ca-c4-20261112. A 1 GiB full-batch reservation passed at
+486054096896 B/500 GB. Final accounting R/storage-final.json is
+486057095168 B/500000000000 B, admitted. No large clone/image was made.
+
+Tracked patch graphics/hakios-metal-ca/patches/0010-owned-desktop-commit-order.patch
+applies with zero fuzz to the exact eight-file prepared 0279 desktop source.
+tools/prepare-metal-ca-c4.py rechecks all eight original pins, changes only
+HakiosMetalCA.m and rechecks unchanged source. Prepared receipt
+R/reproduced/result.json SHA3c8591ef1cf01e5d0bc1f03d2a7ead6cefa171eaaff50024a7997fb51146c6b8.
+The isolated profile enables the owned core's deferred recorder before first
+CB; every held/ordinary commit enters one queue-locked frontend FIFO. Per-CB
+condition broadcasts actual core-processed scheduled/terminal and completed
+stages to multiple waiters. Handler admission follows those frontend stages;
+per-CB serial delivery preserves scheduled-before-completed invocation even
+with a concurrent requested completion queue. External queue ownership is
+held while dispatching. Existing baseline source and old desktop artifact
+remain untouched.
+
+Host-01 fixture compile failed only for a missing test-only MTLCommandBuffer
+protocol stub; retained. Corrected host-02 extracts the *actual frontend method
+bodies* and passes held/ordinary ordering, six scheduled waiters, three
+completed waiters, late handler ordering, error terminal wake and double-commit
+control under ASan+UBSan. R/host-02/result.json SHA
+56eda405a2ef4bb8eba46ae265101249177a12ad294610a121e392b3f145b1cd.
+
+The first signed native candidate used the old runtime rpath and is preserved
+as R/native-final, not selected. Final R/native-final-v2 links exact owned
+corec9da25aa... with rpath /usr/local/lib/gauguin/owned; ARM64 iOS16 compile,
+codesign and strict verify exit0. Binary428624B SHA
+98ddaed6ab92c8de470b4036447be81a6c3854ffbc07d65773c8f85eea476f87.
+Receipt SHA5d0c19f082083a847578afedcb373da3b5194085a2e1a673c9d4cbac1007874f.
+Read-only R/abi-v2/result.json checks563 core/frontend imports against the
+actual preserved20H392 cache's2710 images and exact core: zero missing strong
+or unresolved weak. ABI receipt SHA
+a8ddc2945704caef0b8c3775961a6c163f6742600eb83991185cae791f13eace.
+The added _dispatch_sync and _objc_release_x21 imports resolve. These tests do
+not prove runtime CoreAnimation behavior. MAIN tools/mkadt.py user edit/SHA
+3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9
+stays uncommitted and untouched.
+
+Next GPU work: prepare a fresh reversible phone package from current root
+preconditions (repeat2 header42ec2e54...), matched private core and this
+bundle, with exact rollback; verify actual desktop composition, input/frame
+pacing and service health. Respect the 500 GB cap before any clone; preserve
+original partition backups and both trial evidence sets. Review the concrete
+device writes under the project AGENTS.md before running them. Only after a
+correct desktop 60 Hz baseline should XNU panel timing/latch and the prepared
+optical 60/90/120 Hz A/B app be used for physical high-refresh acceptance.
+The recovery catalog advertises12 modes but does not qualify iOS modesets.
+
 ### 2026-11-12 CST — requested repeat2 passed on A619; launch entry restored
 
 The user's explicit 再刷机一次 request is fulfilled. Source b8a4b07,

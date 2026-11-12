@@ -2,6 +2,44 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — user requested same0298 repeat2; fresh isolated stage dispatched
+
+Latest actual user instruction was 再刷入一次, following their screen-observation
+reply 再输入一次. Codex stated the same prior temporary fastboot boot method and
+same0298 image would be used. This is one fresh repeat instruction, not reuse
+of the consumed first approval and not permanent flashing. New exact answer is
+bound in W2/approval298.json; no unavailable user message ID was invented.
+
+W2=research/tmp/gauguin-present-trace-worktree-20261112/research/tmp/dsh-trial298-repeat2-prep.
+All10 old helpers are byte-identical in new W2. The new actual recovery capture
+passed27 files/4 directories against first-run post bytes, current header
+fb998b9aafcf92f7a6f2d48358b6c245a634dcb775822d352cfe4677665d7858,
+misc preimage stillad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7.
+Host refusal/static tests pass;512MiB whole-batch storage admitted.85 ready
+inputs plus139 preserved-first-run pins are checked. First trial evidence is
+untouched and all new outputs are isolated in W2. Plan340890189c3c4b11506c76c95ce138d463027cc018bc00932e902eead5931448, image64596164315f...
+and605-byte command are otherwise identical in behavior to original0298:
+13-byte misc recovery marker, rollback those bytes only on marker failure,
+one temporary boot/no retry,600s GPU service/780s observer, normal iOS logs only.
+
+Original repeat2 dispatcher41097 launched through W2/trial-stage-v1.json;
+profile SHA83c0319d36314b5036e495a93cfd0106df3a72b2f99f8df2536c689246b2d466. Fresh preflight and actual
+marker/boot/terminal outcome are not observed yet. Observe only this original
+receipt/process/result; never relaunch due to delay. After clean terminal
+execution/process-group audit, run W2's prepared post298.py once in a new
+pinned read-only stage. Bind current-only tails, compare observer hash with
+first run, and preserve failures. Prompt user in time to observe this repeat's
+synthetic unlock; physical input polling remains disabled in this diagnostic.
+
+Before this repeat request, DSH staged the ownership worktree at
+research/tmp/gauguin-metal-ownership-worktree-20261112, branch
+codex/gauguin-metal-ownership-20261112, parentbe7efdf2d80a0030b11a0dc0f31c88461bc3cb3e.
+Whole1.75GiB batch admitted and228 prepared source files exactly match installed
+core provenance. Receipt research/tmp/resume-ios-20261112/metal-ownership-stage-result.json.
+No ownership implementation or job was started; leave that baseline intact
+until repeat2 is handled. Main mkadt edit and original0297/first0298 evidence
+remain preserved. Full phone objective stays active/incomplete.
+
 ### 2026-11-12 CST — 0298 completed; strict bootstrap validated; ownership source work next
 
 0298 scope is consumed and terminal. Source/report commit 3836c1e39cc99b480dc6ebc79696b92cd4d50c5d

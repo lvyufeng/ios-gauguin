@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — SpringBoard observer existing-slot delta reviewed offline
+
+The user still reports a laggy, unresponsive desktop; 60 Hz smoothness and
+full GPU acceleration are unproven. Prior 0301 exact-scope user approval is
+still absent (no `approval.json` or execution). `adb get-state` returned
+`recovery`; this turn used only read-only phone capture and virtual replay,
+with no partition write or boot. Keep the 0301 pinned trial unchanged and
+await the separate user reply before any executor opens device IO.
+
+To make the HakiOS-inspired SpringBoard animation/turn observer concrete,
+the existing `/usr/local/lib/gauguin/libGauguinEAGL.dylib` slot was read
+from current HFSX root. It is 563200 logical bytes, 138 contiguous 4096-byte
+blocks, SHA aafa07f85e6e2ae86d525ebcd1f5661a0fee561009521b28584b15da1e83eab9.
+Current C4 backboardd launch job and cache have no EAGL DYLD insertion,
+and C4 kernel source suppresses automatic EAGL injection; other-mode use
+still exists. A separate opt-in trial could temporarily replace this slot
+with the read-only observer and restore it afterward, avoiding HFSX file
+allocation. This is not authorization to do so.
+
+Worktree `research/tmp/gauguin-sb-rate-trace-worktree-20261112`, branch
+`codex/gauguin-sb-rate-trace-20261112`, pushed commit `db7da74` (after
+`39f2de5`). Separate tools build/sign the 87232B slot dylib SHA
+d7e07dae4886e8adf47a19e130b9e4546f51b621f5b4b24b85201e94311e3638,
+prepare both SpringBoard launch variants, capture three existing file data
+allocations/catalog leaves read-only, generate a six-range HFSX delta, and
+review it by overlaying candidate ranges onto read-only recovery reads.
+The real HFSX parser resolved all three proposed files and both launch
+entries pointed to the slot. Plan SHA
+574ecae90d57ce5af826975d7ad68bf54a2c0485e303d131068ac565b2e216e8;
+review SHA d1b608d31a8c357ba48efae91a1295204ffa719f1c5617a7dbc7b106d20a1856.
+Normal install writes1380352B, normal install+restore2760704B to userdata;
+no new extent, allocation bitmap, header or GPT change. Original and new
+artifact input pins all rehash. Python compile and diff check passed.
+See updated `docs/gauguin-springboard-rate-observer-20261112.md` there.
+
+This candidate still lacks a postboot dynamic-catalog restorer, bounded
+device executor, misc marker and its own exact-scope approval. SpringBoard
+dyld/AMFI acceptance and 20H392 hook ABI are unverified. The 0301 causal
+trace should come first; if it indicates a frame-request/turn gap, prepare
+and separately authorize this observer trial. Retired 2,936,278B of
+obsolete partial/re-pinned generated inputs with private cleanup manifests.
+Preserve original backups, current rollback snapshots, all 0301 pins and
+the user's `tools/mkadt.py` edit.
+
 ### 2026-11-12 CST — 0301 shared-clock timeline analyzer committed offline
 
 The immediate 60 Hz/touch lag is still unresolved. The 0301 one-shot device

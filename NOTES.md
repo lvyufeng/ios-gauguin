@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — HakiOS comparison and opt-in GPU escrow candidate
+
+The full goal remains smooth 60 Hz touch/UI first, then complete GPU
+acceleration and high refresh. None is achieved or phone-qualified. HakiOS
+primary source and its measurement report were rechecked: its issued-fence
+user client retains busy BO/surface/address ownership, and its close/wait
+path can release its global lock; its real-finger investigation found a
+separate missed touch-interrupt issue (88–169 ms finger lift before, 5–6 ms
+after). These are comparative facts, not evidence of the same Gauguin bug.
+The W301 same-boot HID→C4 causal trace is still needed to identify this
+phone's visible lag before choosing a 60 Hz fix. See W303
+`docs/gauguin-issued-fence-transition-20261112.md` for linked sources.
+
+W303 branch `codex/gauguin-issued-fence-20261112` pushed commit `35e7026`
+after `c631d7f`. Patch0229 SHA
+`9f97d5262b26816784f77799afd4931688fd505b279d307e7e8d4d4f98ca27fb`
+adds a default-off `sweetgpuasync=1` one-in-flight compositor path: BOs,
+surfaces and SMMU mappings are escrowed before doorbell and retained until
+completion; queue issued/completed fences, deferred close, CPU prep/wait,
+display reads and heartbeat obey pending state; failures quarantine. The
+default/root path stays synchronous. Source308 changed only
+`bsd/dev/gauguin_gpu_runtime.h` and `iokit/Kernel/arm/GauguinGPU.cpp`
+across 5,336 files; exact patch replay/source-state receipt SHA
+`62e7f1024de88d8da3d73f0e07b584cd8cedc28e1fca67111a06e749c25169c5`.
+Actual user-client TU native ARM64 compile passed, receipt SHA
+`5e33eb34a8457e49cf1ec6bfc70c81a1069517a04720ca9fbc941b7c7d1a46c6`.
+ASAN/UBSAN CPU models of actual submit and completion/deferred-close method
+bodies passed, receipt SHAs
+`9e04f1a1597cc66bfeca997ad2716a41138f7853bd51221ca122d3a6523f9dab`
+and `c64ff8888b39ca6dd318189aedf5079110243737b52a67d4f0454913f9f8fb1b`.
+Patch-series tests and non-patch staged diff check passed; patch context
+lines have the required unified-diff leading space and `git apply
+--whitespace=error-all --check` passed. No CI run, whole-kernel link, boot,
+device write, FPS measurement or performance improvement. Gauguin still
+holds its global GPU lock during a blocking fence wait, unlike HakiOS; the
+candidate cannot be claimed to fix responsiveness.
+
+W301/0301 approval.json/execution remain absent; `adb get-state` =
+`recovery`. Its exact plan, install, image and ready pins remain unchanged.
+No new phone write or boot. Do not infer approval from earlier completed
+trials; await the separately requested exact-scope W301 reply before a
+destructive step. Preserve W301/W302 inputs, backups, rollback snapshots and
+the user's uncommitted `tools/mkadt.py` SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-13 CST — GPU owner survives faulted close, async still unwired
 
 Full objective remains smooth 60 Hz iOS, complete Gauguin GPU acceleration

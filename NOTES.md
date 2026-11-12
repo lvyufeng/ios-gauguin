@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — read-only SpringBoard rate observer built offline
+
+The 0301 exact-scope approval question is still pending: worktree
+research/tmp/gauguin-causal-trace-worktree-20261112 has no approval.json or
+execution directory, and the phone remains TWRP with no new write/boot.
+Do not change/reuse the 0301 pinned image/plan under a future answer.
+
+Further HakiOS source review confirmed its inject_sb.c logs each CALayer
+animation's preferredFrameRateRange, CADisplayLink rate requests and main
+run-loop wake/around-CA-commit times. Its userland/build.sh delivers that
+library through a kernel exec injection path; Gauguin currently has only a
+backboardd-specific EAGL injector, suppressed in exact C4 Metal desktop mode.
+Gauguin's SpringBoard standalone and cached launch jobs both send stderr to
+/private/var/log/springboard.log, and neither has DYLD_INSERT_LIBRARIES.
+The standalone job was read from current HFSX root under TWRP without writes:
+2381B SHAe0aaf28a82db8c5c1c8df57968afffab4597c08172be8f6654fe552b59b9e0cf;
+log present120324B. Root header unchanged6e272d2e11ae716993301df334c35eeb5498b0a77adbccd965f924e28a5e77e4.
+
+New isolated worktree research/tmp/gauguin-sb-rate-trace-worktree-20261112,
+branch codex/gauguin-sb-rate-trace-20261112 pushed commit39f2de5. Read
+docs/gauguin-springboard-rate-observer-20261112.md there. It contains an
+opt-in read-only SpringBoard hook: animation/display-link requests and
+main-loop timings go into a bounded256-row ring, flushed once/second to the
+job's existing stderr log. It forwards all animation/display-link calls with
+unchanged arguments; no frame-rate policy is applied. It uses the same
+mach_absolute_time domain as 0301/C4, but HakiOS's CA observer order on iOS
+16.7 20H392 is unverified. Native ARM64 iOS16 compile/link and strict ad-hoc
+codesign passed: dylib87232B SHA
+7ba69d08b9f717ef8d04378ba1a077587ae2f39d158c7b2d8ace35208986ff76.
+Offline launch transform changes only SpringBoard's DYLD_INSERT_LIBRARIES in
+standalone job and one cached entry; 530 other cached jobs/other cache
+sections unchanged, reverse transform exact. New job2464B SHA
+939288d1042b6b14477747f32b3e12ced205300c4fea700225ce01d718a868fb
+fits existing4096B allocation; new launch cache795931B SHA
+9e8f7d573d8b2f896c4ea6d158259ca267a163359c81e549f7d8df42a52bf1c1
+fits existing798720B allocation. Independent offline review SHA
+962840b03a2ec1ed4f3de3750bdd1d8b698c3350a63999cd99e965524e63e106.
+No root file has been allocated for the new dylib, no complete root delta or
+rollback prepared, and SpringBoard dyld/AMFI acceptance is unverified. It is
+NOT ready for phone installation, and NOT within the pending0301 approval.
+After0301 queue/producer evidence, decide whether to prepare a separate
+exact-scope userland observer trial. Do not claim physical60fps or adopt
+HakiOS80–120 rates without Gauguin animation-request measurements. Storage
+budget admitted a simultaneous 0301+offline-prep allowance of1610612736B
+at496166187008B accounted under500GB. Preserve backups and mkadt user edit.
+
 ### 2026-11-12 CST — HakiOS causal review; 0301 trace ready, no phone write
 
 The user asked us to follow successful HakiOS cases instead of guessing, with

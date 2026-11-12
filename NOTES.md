@@ -50,10 +50,27 @@ not prove runtime CoreAnimation behavior. MAIN tools/mkadt.py user edit/SHA
 3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9
 stays uncommitted and untouched.
 
-Next GPU work: prepare a fresh reversible phone package from current root
-preconditions (repeat2 header42ec2e54...), matched private core and this
-bundle, with exact rollback; verify actual desktop composition, input/frame
-pacing and service health. Respect the 500 GB cap before any clone; preserve
+Current read-only device preparation now exists: R/current-capture/result.json
+SHA98968afae8a7a5af6c9378b7b9618b7935325e89806d962975e95e35a5ea1197
+rechecks29 files/5 dirs and exactly matches repeat2 restored bytes/header.
+R/prepare_device_trial.py used current unmounted HFSX records and a virtual
+two-range overlay, without device writes. It re-parsed325681 catalog records;
+only the desktop binary's logical length changes 428400->428624, extents
+remain105 blocks. R/device-candidate/install-plan.json SHA
+8696bb08af418eff041a2de475b4820d9b211d24714c7517d3a6701be61911dd
+models434176B: data block3817791 for105 blocks, plus catalog block44139
+at byte1434 for8 logical-size bytes. Info.plist and CodeResources match the
+installed bundle exactly. Current misc prefix is zero, so a new13B recovery
+marker would be needed in a temporary trial. This is NOT an executable write
+plan: rollback, dynamic post-boot catalog restoration and capture/validation
+are not built or approved. Latest storage R/storage-after-readonly-prep.json:
+486101069824 B /500000000000 B, admitted.
+
+Next GPU work: finish and test the exact bounded write/readback/rollback gate,
+fresh post-boot restoration and one-shot observer for this current-root delta,
+then obtain specific user confirmation before any new phone write or boot.
+Validate actual desktop composition, input/frame pacing and service health.
+Respect the 500 GB cap before any clone; preserve
 original partition backups and both trial evidence sets. Review the concrete
 device writes under the project AGENTS.md before running them. Only after a
 correct desktop 60 Hz baseline should XNU panel timing/latch and the prepared

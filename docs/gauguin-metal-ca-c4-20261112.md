@@ -84,3 +84,39 @@ callback timing and frame pacing. Only after that path is correct can a
 separate 90/120 Hz modeset and optical display-link test use the panel's
 advertised timing catalog. Physical refresh, input latency and smooth daily
 operation remain open.
+
+## Read-only current device delta model
+
+After the offline build, a fresh recovery capture read all 29 selected files
+and five directories. Every file hash and the root header matched repeat2's
+restored state; no partition write or reboot occurred. The installed desktop
+`Info.plist` and `CodeResources` are byte-identical to the new signed bundle.
+The installed executable is 428,400 bytes; the new signed executable is
+428,624 bytes. Both fit the same allocated 105 four-KiB file blocks.
+
+`research/tmp/metal-ca-c4-20261112/prepare_device_trial.py` read the current
+unmounted HFSX catalog and produced an **unexecuted** two-range model:
+
+| Range | Current location | Proposed change |
+| --- | --- | --- |
+| Desktop executable fork | Block 3,817,791, 105 blocks | 430,080 bytes, with the signed binary and preserved tail |
+| HFSX catalog leaf | Block 44,139, byte offset 1,434 | Change the eight-byte logical length from 428,400 to 428,624 |
+
+The total range scope is 434,176 bytes. A virtual overlay re-parsed all
+325,681 HFSX catalog records: only this file's logical size changed, its
+extents stayed fixed, its content matched the exact signed binary, and the
+volume header stayed unchanged. Plan SHA-256:
+`8696bb08af418eff041a2de475b4820d9b211d24714c7517d3a6701be61911dd`.
+The current misc marker begins with zeros; a later temporary trial would need
+its own 13-byte recovery-marker write.
+Fresh capture SHA-256 is
+`98968afae8a7a5af6c9378b7b9618b7935325e89806d962975e95e35a5ea1197`.
+After the read-only preparation, storage accounting is 486,101,069,824 bytes
+against the 500,000,000,000-byte cap.
+
+This is a read-only candidate, not an execution-ready phone trial. An exact
+write/readback/partial-failure rollback gate, a post-boot restoration that
+re-reads the **current** catalog leaf, and bounded capture/validation still
+need implementation and testing. Any such trial requires a fresh approval of
+its concrete writes under the project device rule. The previous one-boot
+approvals have been consumed.

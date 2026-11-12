@@ -2,6 +2,67 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — HakiOS causal review; 0301 trace ready, no phone write
+
+The user asked us to follow successful HakiOS cases instead of guessing, with
+smooth 60 Hz touch response still the priority. Redwood source verified at
+63fc2b4: its SpringBoard hook found animations with no frame-rate request
+running at24 fps despite ~0.3 ms GPU work, and opt-in `anim_max=1` asked
+80–120 on its120 Hz panel. Its asynchronous issued fences, retained GPU
+resources, deferred recording and copy workers are separate changes. Gauguin
+0300 reached desktop but was laggy; it did not measure SpringBoard animation
+requests or HID user-client queue admission. Do not copy Redwood rates or GPU
+registers without Gauguin evidence. The worktree source comparison is
+docs/gauguin-hakios-60hz-causal-review-20261112.md.
+
+New isolated worktree research/tmp/gauguin-causal-trace-worktree-20261112,
+branch codex/gauguin-causal-trace-20261112, pushed commit f7dc709. Its
+docs/gauguin-causal-ui-trial-20261112.md is the exact 0301 one-shot plan.
+Patch0224 ports the bounded0254 CPU-clock trace to current C4 and adds
+digitizer queue success/refusal linked by absolute event timestamp. It only
+instruments; no functional 60 Hz/GPU change. Native ARM64 compilation of ten
+affected TUs passed; actual trace core/board/parser host checks passed. Full
+local kernel make install exited0 with SKIP_TESTS=1 after focused checks;
+kernel SHA8f8ddd92b49d08e166692da2e89c2ab271609d04bd1dbe2fd2f378215ffdaa42,
+build ID xnu-6d388b8ecea741f6a453c82b2e752c69. Offline image301
+SHA6f02f0ebe258a754dc915b7b786244e59e656989d7732ffa9af6a9148983653a,
+20,021,248B. Independent byte review checked wrapper, VM layout, ADT,
+firmware physical positions/content/padding against booted0300. Command is
+601B, replaces unused sweettrial with sweettrace=2 and adds touch_lat=1;
+software display clock remains sweetfb_hz=60. Source patch SHA
+fcc58b98074cfd159e23c87252c6c8ed113e08a4283173129acbf60576c6ae15.
+
+Fresh READ-ONLY TWRP capture rechecked29 files/five directories and root
+header SHA6e272d2e11ae716993301df334c35eeb5498b0a77adbccd965f924e28a5e77e4.
+Original desktop428400B SHA0a1b55bb20a29661de40099e58e45ec695ffb0bf78e132a9d10985450e868550;
+misc4KiB preimage SHAad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7;
+16GiB backup rehashed SHAa11ef472d1625485d48741a35bc9440ad44dd3f4c97894434fb726d2dc7c9608.
+Current C4 install delta was regenerated against this exact root header:
+434176B (data block3817791 x105 plus catalog block44123, eight-byte logical
+length at offset2010). Install-plan SHA
+abab7f0f432f7ffe5f94234b5245be337bfe5d054a3887916338f2a465d81365;
+24 actual-range fault/rollback controls passed. Normal proposed writes:
+868352B userdata and13B misc; with one verified-rollback restore retry,
+bounded userdata max2170880B. One temporary fastboot boot, zero retries;
+at most one recovery fallback. A failed/incomplete restore may leave C4
+installed, requiring a new scoped repair decision. 1GiB trial storage reserve
+admitted at496184680448B current account under500GB cap.
+
+Whole trial-plan SHA5ef6e2f1bdd2240d233830f2754f7d517dc6066a938677e6b0cc8614e3d41d03;
+69-pin ready SHA7b2c97cdf384bea06b4fd29fe489daba1ff747f32e863785f6e9176032abbbc3;
+independent ready-review SHA
+af8f546d8334e10b195b097e18166a068454d9838c77e0caef680abbcdc52c2e.
+The executor refuses to open device IO without a fresh reply bound to these
+hashes; this was tested. NO 0301 device write, boot or approval exists.
+All prior one-shot approvals are consumed. Device remains in TWRP, original
+desktop restored. Next: obtain separate user approval per project AGENTS.md;
+then rehash pins, execute exactly once, collect and parse second-gesture
+4-second ring plus C4 tl:M log, restore desktop and analyze. The trace does
+not measure actual SpringBoard CA animation requests or physical panel FPS;
+if queue succeeds and frame creation is sparse, add a read-only request hook
+before a HakiOS-style rate change. Preserve backups and user's tools/mkadt.py
+edit (SHA3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9).
+
 ### 2026-11-12 CST — 0300 still laggy; original desktop restored
 
 The user confirmed the 0300 diagnostic reached the desktop after the lock

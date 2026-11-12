@@ -109,11 +109,43 @@ candidate files. Review SHA-256 is
 `d1b608d31a8c357ba48efae91a1295204ffa719f1c5617a7dbc7b106d20a1856`.
 Both old and slot-variant artifact input pins still rehash exactly.
 
-This is **not** a device-qualified trial: no postboot dynamic-catalog
-restorer, bounded executor, misc marker or exact new authorization is yet
-prepared. The current phone remains in TWRP and no write or boot occurred.
+This was still **not** a device-qualified trial when the six-range delta was
+prepared. The current phone remained in TWRP and no write or boot occurred.
 SpringBoard's dyld/AMFI acceptance and the iOS 16.7 hook ABI remain unknown.
 First use the pending 0301 trace to locate the lag; only if a SpringBoard
 request/turn gap remains plausible should this slot candidate become a
 separate reviewed phone trial. Replacing the EAGL file, even temporarily,
 would disable its old use during that trial and requires verified restoration.
+
+## 2026-11-12 follow-up: dynamic restoration model
+
+`tools/build-sb-rate-restore.py` resolves the three files again from a
+postboot HFSX catalog **through read-only IO**, verifies their CNIDs, modes,
+unchanged data extents, candidate logical sizes and file hashes, then locates
+their current catalog fields. It makes three data restoration images and up
+to three catalog images. Multiple target fields found in one relocated leaf
+are grouped into one write. Each catalog target starts from that leaf's
+postboot bytes and changes only the target logical-length fields, preserving
+unrelated changes made during the boot.
+
+`tools/sb-rate-slot-restore-io.py` is an exact-range restore core without a
+device entry point or approval creator. It requires a fresh one-shot approval
+bound to the base plan, an unmounted Gauguin recovery device, full-range
+preimages, bounded disjoint ranges, and hash-checked local restoration
+images. Fixture approvals are accepted only by an object marked as a model.
+It readbacks every write and reverses touched ranges after a failure; an
+incomplete rollback is reported explicitly.
+
+`tests/test_sb_rate_restore_model.py` applied the candidate six ranges only
+to an in-memory overlay of the real root's read-only recovery bytes. It
+injected an unrelated catalog-record change, prepared the dynamic restoration,
+faulted each of six writes in turn, verified reverse rollback, detected a
+simulated rollback failure, and restored all three files in the strict HFSX
+parser. Review SHA-256 is
+`2a00b96de1ffb15cee190c6c956a069990f4d39448530f4aff9a51deec37c8a7`.
+No actual phone block write or boot occurred.
+
+There is still no bounded trial executor, misc recovery marker, selected boot
+image, postboot log collection or separate exact-scope user authorization.
+These are required before any phone installation. Actual SpringBoard loading,
+hook ABI and visible cadence remain unverified.

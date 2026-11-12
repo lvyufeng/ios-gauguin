@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0301 safety gate refreshed, individual consent pending
+
+The full smooth 60 Hz/Gauguin GPU/high-refresh goal remains unresolved.
+W301/0301 is still the next phone diagnostic. Its exact plan SHA
+`5ef6e2f1bdd2240d233830f2754f7d517dc6066a938677e6b0cc8614e3d41d03`,
+install plan SHA `abab7f0f432f7ffe5f94234b5245be337bfe5d054a3887916338f2a465d81365`,
+and image SHA `6f02f0ebe258a754dc915b7b786244e59e656989d7732ffa9af6a9148983653a`
+remain unchanged. Freshly rehashed all inputs; phone is `adb get-state` =
+`recovery`, with no W301 approval.json/execution. Current storage budget
+admits a 1 GiB capture reserve at 498,808,119,296 bytes accounted.
+
+Reauditing `execute_trial.py` exposed a failure case: it previously marked
+boot as started before launching its observer and would leave the 13-byte
+misc recovery marker if `fastboot boot` returned its explicit prelaunch
+failure code 5. It now treats that result as preboot, restores the original
+desktop and then the original misc bytes; a failed helper launch also follows
+that path. A restore preflight exception before any write can enter the
+bounded fallback. It rechecks the live 1 GiB storage budget before claiming
+execution. These changes do not expand the already described install/boot/
+restore scope. Earlier ready/review/admission receipts were archived with
+private manifests SHA `ce97593690f223494176f38d298e2bd0ab3696710c30849f5682ad8b8a27a3d8`
+and `673c2e27bda7c925e6f6f10ff03cba20b911ec0ab483ec6db8969750d5b576b1`.
+The new 70-pin ready SHA is
+`4ce5196d6cd8eb271b98708deeffa6586808ebc5368de2928c1480df1a4d9a12`,
+independent review SHA
+`9a7fe6ff1e762f5970410e68ebbe62f194ffa871ef05482bf46adae4d0f13009`,
+executor SHA `0fc4cf326e4d51ba761a7a0b725351fd96a201f024beacc1bc29e160fe5b2dbb`.
+Python compile, 70-pin independent rehash, fake-ADB/fastboot no-approval
+gate and diff check passed. A separate fake-IO failure model ran the actual
+executor through a `fastboot boot` exit5 after marker write; it restored the
+desktop and the13 misc bytes with readback and no device command. W301 branch
+`codex/gauguin-causal-trace-20261112` pushed commits `48c6ecd` and
+`adbbd75`; see updated
+`docs/gauguin-causal-ui-trial-20261112.md`.
+
+A new exact-scope 0301 question was sent with the same plan/image/ranges
+because AGENTS.md requires each destructive trial to be confirmed separately.
+No reply yet in this handoff. Earlier consumed 0300 consent must not be used
+as approval for this execution. When an actual matching reply to a pending
+W301 exact-scope question arrives, bind its question item ID, answer and hash to approval.json
+then execute once; do not infer consent from silence. W302/0304 remains a
+different, unapproved observer experiment. No device write/boot this turn.
+Preserve original backups, rollback snapshots and the user's uncommitted
+`tools/mkadt.py` SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-12 CST — 0300 touch windows aligned to C4, no phone trial
 
 The full goal (smooth 60 Hz first, then complete Gauguin GPU/high-refresh)

@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — guarded board issued-fence API committed offline
+
+Full goal remains smooth 60 Hz iOS, complete Gauguin GPU acceleration and
+high refresh; none is achieved or phone-qualified. W301/0301 approval.json
+and execution are absent, and `adb get-state` is `recovery`; do not run it
+without an actual matching answer to its pending exact-scope question. No
+phone write or boot this turn. W301 plan/image/ready remain pinned.
+
+Independent GPU path progress in W303 branch
+`codex/gauguin-issued-fence-20261112`: pushed commit `b1a3ec3` after
+`a26c28d`. New patch0227 SHA
+`e8173025d4e37d272ca6685e5cc5d3fbdcb521a1a52bdb0853e94c204ae9dc1a`
+adds guarded board issue/poll/wait entry points over the one-in-flight
+runtime of patch0225. Poll remains available while runtime state is BUSY,
+checks live owner and SMMU routes, and quarantines on post-doorbell or
+completion-read failure. It can recognize an older completed fence while a
+newer one is in flight. Existing synchronous board submit and user-client
+selector remain unchanged, so there is no performance effect yet.
+
+Before cloning source305, a 200,000,000B batch was admitted at
+498,810,449,920B accounted; conservative source clone86,564KiB plus
+private test artifacts ~4,604KiB stayed within it. A 5,336-file comparison
+found exactly board C and runtime header changed, private source-state SHA
+`d76210659ce57c1169889d56f98b9da767bfced4eba5529086ee028ace3e54cc`.
+Patch replay and exact `git apply --check` passed. Native ARM64 board and
+unchanged user-client TUs passed, receipt SHA
+`4e8f2e61d967c56402aff83e35d1f1e2ccf81c228d441cef8df7f2b6cd8095fd`.
+Actual wrapper bodies + actual runtime under typed CPU model passed ASAN/
+UBSAN: retained17,555 runtime/ABI +72 service-health +96 board assertions,
+receipt SHA
+`a633307098f69cc084a32ecd9f8dbc9ed77056a74f28dd168a68f51270119062`.
+Patch-series tests and diff check passed. No full kernel build or device
+result. See `docs/gauguin-issued-fence-transition-20261112.md` in W303.
+
+Before selecting an async phone trial, the user client still must retain
+every referenced BO/IOSurface/SMMU mapping through completion and fault,
+separate issued/completed queue fences, and guard CPU prep, wait, display
+read and teardown. W301 same-boot touch/HID/C4 trace is still needed to
+locate the immediate 60 Hz lag. Preserve backups, rollback snapshots,
+W301/W302 pinned inputs and user's `tools/mkadt.py` edit SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-12 CST — 0301 safety gate refreshed, individual consent pending
 
 The full smooth 60 Hz/Gauguin GPU/high-refresh goal remains unresolved.

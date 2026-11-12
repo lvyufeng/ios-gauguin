@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — async candidate full kernel built; CI suite still red
+
+Full objective remains smooth 60 Hz touch/UI, complete Gauguin GPU
+acceleration and physical high refresh; none is phone-qualified. HakiOS's
+measured missed-interrupt touch fix is controller-specific: the current
+Gauguin Novatek `nrt_poll` unconditionally reads each 67-byte report before
+HID and then sleeps 8 ms, so that exact missed-IRQ condition is absent.
+Physical sample/HID/C4 timing still needs the prepared W301/0301 same-boot
+trace. No phone write or boot this turn; `adb get-state` was `recovery`,
+W301 approval.json/execution absent, and the exact-scope question remains
+unanswered. Preserve all W301/W302 pins/backups/rollback snapshots.
+
+W303 `codex/gauguin-issued-fence-20261112` pushed commits `07443e2`
+(retired Actions macOS14 runner → supported macOS15), `4586bed` (build before
+unchanged host-suite failure gate), `cf74d32` (GPU host fixture and CLI
+refresh), and `28a7e11` (result doc) after patch0229 commit `35e7026`.
+Actions run `43258091414` at `35e7026` was cancelled before execution
+because GitHub retired macOS14 Actions images on 2026-11-02. Run
+`43258392712` at `07443e2` acquired macOS15 but failed before kernel
+compile when generic `tests/run-all.sh` reported43 fixture-dependent host
+test-file failures. Run `43261798908` at `4586bed` applied exact patch0229,
+`build-gauguin rc=0`, and produced a built DEVELOPMENT ARM64 Gauguin kernel
+17,883,112B, SHA
+`5fd6803ed89ddfca6af30eb9de1c66a088f1fa62446222f69b706cd07872b3a9`.
+Artifact SHA256SUMS and Mach-O arm64 check passed; manifest
+`state=built`, `make_exit=0`, Xcode16.0/macOS15 arm64, SHA
+`06d160050c718f304ef1d413817aa5d92c07a100a6a6969346528de66e660d33`.
+Private combined run receipt SHA
+`2f0106974753c9ab565bba227e0f2afa2e61f9815d7c10fc788a159b42cd18bd`.
+The Actions run is still failure because the unchanged generic host suite
+reported43 failures after the successful link; do not call the overall CI
+green. `cf74d32` fixed the directly relevant GPU host seams: actual user
+client, board adapter and four issued/async focused host scripts passed
+locally with source308 under ASAN/UBSAN. The remote run predates that commit,
+so it does not qualify its test changes. No boot image, device test, measured
+speedup or 60 Hz/high-refresh result for patch0229. Current async mode is
+default-off and still holds the GPU global lock over blocking waits. See
+W303 `docs/gauguin-issued-fence-transition-20261112.md`.
+
+Next: obtain separately confirmed W301/0301 phone trace to locate the
+user-visible lag; do not enable patch0229 on the phone on inference alone.
+The user's uncommitted `tools/mkadt.py` remains SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-13 CST — HakiOS comparison and opt-in GPU escrow candidate
 
 The full goal remains smooth 60 Hz touch/UI first, then complete GPU

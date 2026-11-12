@@ -241,3 +241,23 @@ The first build estimate missed that duplicated driver log outside the build
 root, so its peak batch exceeded the admitted 3 GB estimate, while remaining
 below the 500 GB cap. The duplicate was removed immediately after verifying
 the build; future batch estimates must include both log destinations.
+
+## 2026-11-12 follow-up: SpringBoard log interpretation
+
+`tools/analyze-sb-rate-log.py` parses the observer's exact `SWEET SB RATE`
+animation/display-link requests, `SWEET SB TURN` main-loop timestamps,
+activation marker and dropped-row count. An optional complete UI254 kernel log
+selects the same four-second `mach_absolute_time` window **within one boot**.
+The output keeps raw requested ranges separate from wake-to-observer and
+observer-bracket intervals. It flags invalid/missing observer ordering and
+does not treat requested rate, run-loop spacing, or a 60 Hz software clock as
+panel frames. The observer's CA ordering on 20H392 remains unverified.
+
+The synthetic parser check passes window filtering, zero-maximum animation
+requests, 60 fps display-link requests, 20 ms wake gaps, a missing observer
+timestamp, dropped rows and malformed rows. Parsing the existing 120,324-byte
+SpringBoard log produced `observer_seen=false` and zero rate/turn records:
+that older boot had no SpringBoard hook, so zero records are **missing
+evidence**, not evidence that no animations ran. A future trial must collect
+only the new log tail and confirm the activation marker before interpreting
+the request counts. No new phone write or boot occurred for this analyzer.

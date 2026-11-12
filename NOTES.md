@@ -2,6 +2,28 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — W302 restore now verifies final HFSX files
+
+Full Gauguin GPU/high-refresh/smooth iOS goal and the immediate 60 Hz touch
+lag are still unresolved. The new 0301 exact-scope approval question remains
+unanswered; W301 approval.json/execution are absent and `adb get-state` is
+`recovery`. No device write or boot this turn. Do not reuse 0301 consent for
+W302 or infer consent from silence.
+
+W302 `codex/gauguin-sb-rate-trace-20261112` pushed commit `f41f843` after
+`332a185`. The approval-gated restore core now strictly reparses HFSX and
+rehashes all three original files after the data/catalog writes, before
+reporting success. If that final check fails, it reverses the touched ranges
+to the postboot candidate preimages. The read-only current-root overlay model
+passed failures at each write1–6, an incomplete rollback report, final HFSX
+check rejection with verified reverse rollback, and successful three-file
+restore while preserving an unrelated catalog field. Private review SHA
+e40663520a4abf0c91025b1709a7ff4eb01b95a9d1a933c68b211b2b009612c6.
+Python compile and diff check passed. W302 still lacks its separate complete
+one-shot boot/misc/log executor and user approval. W301/0301 remains the
+next phone diagnostic. Preserve backups, W301 pins, W302 image and user's
+`tools/mkadt.py` edit.
+
 ### 2026-11-12 CST — SpringBoard observer install core modeled, no phone write
 
 The requested smooth/high-refresh Gauguin iOS goal and immediate 60 Hz/touch

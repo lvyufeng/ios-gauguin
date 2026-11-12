@@ -134,15 +134,18 @@ bound to the base plan, an unmounted Gauguin recovery device, full-range
 preimages, bounded disjoint ranges, and hash-checked local restoration
 images. Fixture approvals are accepted only by an object marked as a model.
 It readbacks every write and reverses touched ranges after a failure; an
-incomplete rollback is reported explicitly.
+incomplete rollback is reported explicitly. The restore core now reparses
+the current HFSX catalog and rehashes all three restored files before it
+returns success; a failed final filesystem check also triggers reverse
+rollback to the postboot candidate preimages.
 
 `tests/test_sb_rate_restore_model.py` applied the candidate six ranges only
 to an in-memory overlay of the real root's read-only recovery bytes. It
 injected an unrelated catalog-record change, prepared the dynamic restoration,
 faulted each of six writes in turn, verified reverse rollback, detected a
-simulated rollback failure, and restored all three files in the strict HFSX
-parser. Review SHA-256 is
-`2a00b96de1ffb15cee190c6c956a069990f4d39448530f4aff9a51deec37c8a7`.
+simulated rollback failure, rejected a final HFSX check and rolled that back,
+and restored all three files in the strict HFSX parser. Review SHA-256 is
+`e40663520a4abf0c91025b1709a7ff4eb01b95a9d1a933c68b211b2b009612c6`.
 No actual phone block write or boot occurred.
 
 There is still no bounded trial executor, misc recovery marker, selected boot

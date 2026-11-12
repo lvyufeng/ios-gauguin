@@ -110,27 +110,27 @@ def main():
         for fail_at in range(1,7):
             failure = ModelIO(base,initial)
             failure.fail_write_numbers = {fail_at}
-            result = IO_CORE.restore(plan_dir,bundle,approval,failure,lambda _row:None)
+            result = IO_CORE.restore(plan_dir,bundle,approval,failure,HFS,Remote,lambda _row:None)
             assert result['state'] == 'restore-failed-rollback-verified'
             assert failure.writes == 2*fail_at
             for start,image in initial:
                 assert failure.read(start,len(image)) == image
         broken = ModelIO(base,initial)
         broken.fail_write_numbers = {2,3}
-        result = IO_CORE.restore(plan_dir,bundle,approval,broken,lambda _row:None)
+        result = IO_CORE.restore(plan_dir,bundle,approval,broken,HFS,Remote,lambda _row:None)
         assert result['state'] == 'restore-failed-rollback-incomplete'
         assert result['rollback_failures'] and broken.writes == 4
+        failed_check = ModelIO(base,initial)
+        def reject_hfs(**_kwargs):
+            raise ValueError('model final HFSX rejection')
+        result = IO_CORE.restore(plan_dir,bundle,approval,failed_check,reject_hfs,Remote,lambda _row:None)
+        assert result['state'] == 'restore-failed-rollback-verified' and failed_check.writes == 12
+        for start,image in initial:
+            assert failed_check.read(start,len(image)) == image
         success = ModelIO(base,initial)
-        result = IO_CORE.restore(plan_dir,bundle,approval,success,lambda _row:None)
+        result = IO_CORE.restore(plan_dir,bundle,approval,success,HFS,Remote,lambda _row:None)
         assert result['state'] == 'restore-applied-and-readback-verified'
-        hfs = HFS(stream=Remote(success),size=17179869184)
-        try:
-            for name,row in plan['rows'].items():
-                file = hfs.paths[row['path']]
-                assert file['data']['logical'] == row['old_logical']
-                assert hashlib.sha256(hfs.content(row['path'])).hexdigest() == row['old_file_sha256']
-        finally:
-            hfs.close()
+        assert result['hfsx_files_verified'] == 3
         job = plan['rows']['job']
         preserved = success.read(job['catalog_block']*4096,4096)
         assert preserved[job['catalog_offset']-84] == initial[3][1][job['catalog_offset']-84]
@@ -140,9 +140,10 @@ def main():
                    'dynamic_write_bytes':dynamic['write_bytes'],
                    'failure_on_each_write':list(range(1,7)),
                    'rollback_verified':True,'rollback_failure_reported':True,
+                   'final_HFSX_rejection_rolled_back':True,
                    'unrelated_catalog_byte_preserved':True,
                    'restored_HFSX_files':3,'device_writes':0,'device_boots':0}
-    out = BASE/'restore-model-review-v3.json'
+    out = BASE/'restore-model-review-v5.json'
     assert not out.exists()
     with out.open('x') as stream:
         json.dump(receipt,stream,indent=2);stream.write('\n')

@@ -97,8 +97,9 @@ def restore_rows(base_dir, dynamic_dir, approval, io):
     return rows, dynamic['postboot_header_sha256']
 
 
-def restore(base_dir, dynamic_dir, approval, io, report):
+def restore(base_dir, dynamic_dir, approval, io, HFS, Remote, report):
     rows, header_sha = restore_rows(base_dir,dynamic_dir,approval,io)
+    base = json.loads((base_dir/'install-plan.json').read_bytes())
     touched = []
     try:
         for block,current,target in rows:
@@ -107,10 +108,23 @@ def restore(base_dir, dynamic_dir, approval, io, report):
             io.sync()
             require(io.read(block*BLOCK,len(target)) == target, 'restore readback differs')
             report({'state':'restoring','verified_ranges':len(touched),'range_count':len(rows)})
+        remote = Remote(io)
+        hfs = HFS(stream=remote,size=VOLUME)
+        try:
+            for name,source in base['rows'].items():
+                file = hfs.paths[source['path']]
+                require(file['type']==2 and file['id']==source['cnid'] and
+                        file['data']['logical']==source['old_logical'] and
+                        file['data']['blocks']==source['data_blocks'] and
+                        file['data']['extents']==[[source['data_block'],source['data_blocks']]] and
+                        sha(hfs.content(source['path']))==source['old_file_sha256'],
+                        'restored HFSX file differs: '+name)
+        finally:
+            hfs.close()
         require(sha(io.read(0,BLOCK)) == header_sha, 'header changed during restore')
         result = {'state':'restore-applied-and-readback-verified',
                   'ranges':len(rows),'bytes':sum(len(row[1]) for row in rows),
-                  'rollback':False}
+                  'hfsx_files_verified':len(base['rows']),'rollback':False}
         report(result)
         return result
     except (Exception,KeyboardInterrupt) as error:

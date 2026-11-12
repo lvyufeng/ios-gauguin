@@ -36,12 +36,25 @@ IMPORTANT correction: the framebuffer presents=300 counter can count an
 empty dirty copy slot before taking a held frame, so it is not a distinct
 frame count. The prior0299 report/notes now use held retirement max4 per
 regular600-beat interval, not presents. Current framebuffer publishes none
-of TimingElements, ColorElements or IOMFBDisplayRefresh; local HakiOS code
-publishes a60Hz mode/refresh dictionary. This is a source-level candidate,
-not yet device-proven. Next implement/test exact mode metadata and HID queue
-drop/touch-to-SwapEnd tracing offline; any new phone write/boot needs a NEW
-concrete plan and separate user confirmation. No smooth60Hz/high refresh
-qualification. Preserve backups and user's mkadt edit.
+of TimingElements, ColorElements or IOMFBDisplayRefresh, but a renewed
+HakiOS source/measurement review changes the priority: Redwood's own source
+says CA defaults to fixed60Hz without IOMFBDisplayRefresh and does not need
+driver refresh notifications. These omissions are NOT proven causes of
+Gauguin's33 retired frames. Official Redwood main remains63fc2b4, K90 main
+is3c25d96, and K90 latest release remainsv0.1.2. See worktree/docs/
+gauguin-hakios-60hz-causal-review-20261112.md. HakiOS's successful path
+also changes SpringBoard animation ranges after observing24fps requests
+despite0.3ms GPU work, uses async issued fences and retained resources,
+deferred recording, bounded presenter, copy workers, and touch latency
+tracing. Our opt-in mode-only patch native TU compiled, but full build was
+interrupted during SDK staging; no image or boot, and its temporary worktree
+with882772KiB generated scratch was retired (private cleanup receipt SHA
+e4fe96807d5db4bcedb91382404216f2f491c6c1653d726be896306240aafb65).
+Next measure HID queue enqueue/drop and SpringBoard CA animation requests/
+commits against SwapEnd on one clock, then select a functional change. Do not
+copy Redwood/K90 hardware registers or qualify smooth60Hz/high refresh yet.
+Any new phone write/boot needs a NEW exact plan and user confirmation.
+Preserve backups and user's mkadt edit.
 
 ### 2026-11-12 CST — 0300 one-boot diagnostic active; no final result yet
 

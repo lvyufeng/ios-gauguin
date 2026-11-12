@@ -215,3 +215,4 @@
 0219-gauguin-guard-group-profiling.patch
 0220-gauguin-fault-subgroup-profiling.patch
 0221-gauguin-present-copy-stats.patch
+0222-gauguin-batched-readonly-submit-status.patch

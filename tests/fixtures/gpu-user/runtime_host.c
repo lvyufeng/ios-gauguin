@@ -11,10 +11,11 @@ struct model {
     uint32_t old_wptr,decoded_ibs,decoded_fence;
     uint32_t rbbm,cp,busy;
     uint64_t ns;
-    bool no_eop,no_shadow,stopped,mutate_ring,timeout;
+    uint32_t poison_after,defer_eop_reads,eop_reads;
+    bool no_eop,no_shadow,stopped,mutate_ring,timeout,in_poll,poison;
 };
 static bool healthy(void *p)
-{struct model *m=p;++m->checks;return !m->stopped&&m->checks!=m->fail_at;}
+{struct model *m=p;++m->checks;return !m->stopped&&!m->poison&&m->checks!=m->fail_at;}
 static uint64_t time_ns(void *p)
 {struct model *m=p;m->ns+=m->timeout?100000000:100;return m->ns;}
 static uint32_t ring_word(struct model *m,uint32_t i)
@@ -23,11 +24,17 @@ static bool read_reg(void *p,uint32_t r,uint32_t *v)
 {
     struct model *m=p;assert(!m->stopped);
     if(r==0x807)*v=m->wptr;
-    else if(r==0x201)*v=m->rbbm;
+    else if(r==0x201){*v=m->rbbm;if(m->decoded_fence)m->in_poll=true;}
     else if(r==0x823)*v=m->cp;
     else if(r==0x23b0c)*v=m->busy;
     else if(r==0x23b13)*v=0;
     else assert(false);
+    if((m->in_poll && ((r==0x201&&m->poison_after==1)||
+        (r==0x823&&m->poison_after==2)||(r==0x23b0c&&m->poison_after==5)))||
+       (!m->decoded_fence && ((r==0x201&&m->poison_after==6)||
+        (r==0x823&&m->poison_after==7)||(r==0x807&&m->poison_after==8)||
+        (r==0x23b0c&&m->poison_after==10)))||
+       (m->decoded_fence&&r==0x23b13&&m->poison_after==11))m->poison=true;
     return true;
 }
 static bool write_reg(void *p,uint32_t r,uint32_t v)
@@ -46,7 +53,7 @@ static bool write_reg(void *p,uint32_t r,uint32_t v)
     m->decoded_fence=ring_word(m,at+4);at=(at+5)%8192;
     CHECK(ring_word(m,at)==0x70620002u);CHECK(ring_word(m,at+1)==0xfc010000u);
     CHECK(ring_word(m,at+2)==0);CHECK((at+3)%8192==v);
-    if(!m->no_eop)m->eop=m->decoded_fence;
+    if(!m->no_eop&&!m->defer_eop_reads)m->eop=m->decoded_fence;
     if(!m->no_shadow)m->shadow=v;
     m->old_wptr=v;return true;
 }
@@ -54,12 +61,28 @@ static bool read_memory(void *p,enum ggr_memory k,uint32_t off,uint32_t *v)
 {
     struct model *m=p;assert(!m->stopped);
     if(k==GGR_RING){assert(off<32768&&!(off&3));*v=m->ring[off/4]^(m->mutate_ring?1:0);}
-    else if(k==GGR_SHADOW){assert(!off);*v=m->shadow;}
-    else {assert(k==GGR_COMPLETION&&!off);*v=m->eop;}
+    else if(k==GGR_SHADOW){assert(!off);*v=m->shadow;
+        if((m->in_poll&&m->poison_after==4)||(!m->decoded_fence&&m->poison_after==9))m->poison=true;}
+    else {assert(k==GGR_COMPLETION&&!off);
+        if(m->in_poll&&m->defer_eop_reads&&++m->eop_reads>=m->defer_eop_reads)
+            m->eop=m->decoded_fence;
+        *v=m->eop;
+        if((m->in_poll&&m->poison_after==3)||(!m->decoded_fence&&m->poison_after==12))m->poison=true;}
     return true;
 }
 static bool write_ring(void *p,uint32_t off,uint32_t v)
 {struct model *m=p;assert(!m->stopped&&off<32768&&!(off&3));++m->writes;m->ring[off/4]=v;return true;}
+static bool ring_span(void *p,uint32_t off,const uint32_t *words,uint32_t count,bool verify)
+{
+    struct model *m=p;
+    assert(!m->stopped&&words&&count&&count<=GGR_RING_PACKET_WORDS&&off<32768&&!(off&3));
+    for(uint32_t i=0;i<count;i++) {
+        uint32_t at=(off/4+i)%8192;
+        if(verify){if((m->ring[at]^(m->mutate_ring?1u:0u))!=words[i])return false;}
+        else {m->ring[at]=words[i];++m->writes;}
+    }
+    return true;
+}
 static bool barrier(void *p)
 {assert(!((struct model *)p)->stopped);return true;}
 static bool delay_us(void *p,uint32_t n)
@@ -74,6 +97,8 @@ static void init(struct model *m,struct ggr_context *c)
         .write_ring=write_ring,.barrier=barrier,.delay_us=delay_us,.quarantine=quarantine};
     CHECK(ggr_open(c,&o,0xfc010000u,0xfc018000u)==GGR_OK);
 }
+static void init_span(struct model *m,struct ggr_context *c)
+{init(m,c);c->ops.ring_span=ring_span;}
 static enum ggr_error submit(struct ggr_context *c,uint32_t count,uint32_t *fence)
 {
     uint64_t a[GGR_MAX_COMMANDS];uint32_t w[GGR_MAX_COMMANDS];
@@ -124,6 +149,31 @@ int main(void)
             before=m.writes;CHECK(submit(&c,2,&f)==GGR_UNAVAILABLE&&m.writes==before&&m.quarantines==1);
         }
     }
+    /* Production uses the CPU-owned ring span. Refuse every full health
+     * boundary and a persistent fault after each completion-poll status read. */
+    init_span(&m,&c);CHECK(submit(&c,2,&f)==GGR_OK);
+    unsigned span_healthy_calls=m.checks;
+    init_span(&m,&c);m.defer_eop_reads=4;
+    CHECK(submit(&c,2,&f)==GGR_OK&&c.polls>=4&&m.eop_reads==4&&f==1);
+    for(unsigned at=1;at<=span_healthy_calls;at++) {
+        init_span(&m,&c);m.fail_at=m.checks+at;f=0xdeadbeef;
+        enum ggr_error rc=submit(&c,2,&f);
+        if(m.checks>=m.fail_at)
+            CHECK(rc!=GGR_OK&&c.state==GGR_FAILED&&m.quarantines==1&&f==0xdeadbeef);
+    }
+    for(unsigned mode=0;mode<2;mode++)for(uint32_t point=1;point<=5;point++) {
+        if(mode)init_span(&m,&c);else init(&m,&c);
+        m.poison_after=point;f=0xdeadbeef;
+        CHECK(submit(&c,2,&f)!=GGR_OK&&m.poison&&c.state==GGR_FAILED&&
+              m.quarantines==1&&f==0xdeadbeef);
+    }
+    for(unsigned mode=0;mode<2;mode++)for(uint32_t point=6;point<=12;point++) {
+        if(mode)init_span(&m,&c);else init(&m,&c);
+        m.poison_after=point;f=0xdeadbeef;
+        CHECK(submit(&c,2,&f)!=GGR_OK&&m.poison&&c.state==GGR_FAILED&&
+              m.quarantines==1&&f==0xdeadbeef);
+        if(point!=11)CHECK(m.writes==0&&m.decoded_fence==0);
+    }
     init(&m,&c);m.no_eop=true;f=0xdeadbeef;
     CHECK(submit(&c,1,&f)!=GGR_OK&&m.quarantines==1&&f==0xdeadbeef);
     init(&m,&c);m.no_shadow=true;f=0xdeadbeef;
@@ -156,6 +206,7 @@ int main(void)
     }
     memset(&c,0,sizeof(c));CHECK(ggr_check_idle(&c)==GGR_UNAVAILABLE);
     CHECK(ggr_check_idle(NULL)==GGR_UNAVAILABLE);
-    printf("PASS: %u runtime/ABI assertions + %u service-health assertions; real core, typed seams, no IB/GPU emulation\n",retained,cases-retained);
+    printf("PASS: %u runtime/ABI assertions + %u service-health assertions; healthy calls for two IBs fallback=%u span=%u; real core, typed seams, no IB/GPU emulation\n",
+        retained,cases-retained,healthy_calls,span_healthy_calls);
     return 0;
 }

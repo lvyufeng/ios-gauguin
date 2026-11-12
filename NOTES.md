@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 60 Hz latency candidate, handset trial pending
+
+The user confirms that the iOS screen appears but remains laggy and requested
+60 Hz smoothness before high refresh. Branch
+codex/gauguin-60hz-surface-read-20261112 holds patch 0222, a read-only native
+submit status batching candidate, plus fault-injection host coverage. See
+docs/gauguin-60hz-submit-guard-candidate-20261112.md. The C4 handset trace
+measured 15 complete full-frame copies at 2–4 ms each, but its GPU-read guard
+intervals reached the 16–33.333 ms bin twice. Its workload has no matched
+interactive control or physical FPS capture. The recovery panel mode was
+previously measured at about 60.244 Hz; iOS still uses a 16.667 ms software
+timer and has no qualified scanout latch.
+
+The new patch leaves writes, full guard body, surface ownership and hardware
+lock unchanged. Typed host ASan/UBSan checks including the production ring-span
+path and faults after every read pass. A two-IB model submission uses 31 rather
+than 52 full guards on that path; this is a check count, not a device speedup.
+ARM64 single-file syntax check passes. The per-IOSurface lock idea was stopped
+because task-backed surfaces can alias the same pixels. No phone write, boot,
+or new image has occurred in this milestone; the phone is reachable in TWRP.
+Next: full kernel CI build, then a separate approved same-workload physical
+60 Hz/gesture comparison before claiming a lag fix. Do not reuse C4 approval.
+
 ### 2026-11-11 CST —0296 guard-group timing source and native TU
 
 Previous goal turn PROGRESS: 0294 completed once, strict raw trace and CP timing

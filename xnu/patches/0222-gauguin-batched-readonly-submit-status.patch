@@ -1,0 +1,80 @@
+diff --git a/bsd/dev/gauguin_gpu_runtime.c b/bsd/dev/gauguin_gpu_runtime.c
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -39,11 +39,13 @@
+     c->state=GGR_FAILED;c->last_error=why;
+     c->ops.quarantine(c->ops.cookie);
+ }
+-static bool alive(struct ggr_context *c)
++static bool alive_time(struct ggr_context *c)
+ {
+     return c && (c->state==GGR_READY||c->state==GGR_BUSY) &&
+-        c->ops.nanoseconds(c->ops.cookie)<c->operation_end_ns && c->ops.healthy(c->ops.cookie);
++        c->ops.nanoseconds(c->ops.cookie)<c->operation_end_ns;
+ }
++static bool alive(struct ggr_context *c)
++{return alive_time(c)&&c->ops.healthy(c->ops.cookie);}
+ static bool rd(struct ggr_context *c,uint32_t r,uint32_t *v)
+ {return alive(c)&&c->ops.read_reg(c->ops.cookie,r,v)&&alive(c);}
+ static bool wr(struct ggr_context *c,uint32_t r,uint32_t v)
+@@ -58,6 +60,22 @@
+ {
+     uint32_t a,b;
+     return rd(c,0x201,&a)&&rd(c,0x823,&b)&&a!=UINT32_MAX &&
++        !(a&((1u<<1)|(1u<<6)|(1u<<7)|(1u<<9)|(1u<<22)|(1u<<23)|(1u<<24)|(1u<<25)|(1u<<28)))&&!(b&0xf7u);
++}
++/* These status batches only read registers and CPU-owned memory. Check the
++ * full board guard before and after each batch, while retaining the operation
++ * deadline around every callback. Doorbell/ring writes keep their original
++ * full guards. Any failed read or guard quarantines the submission. */
++static bool poll_rd(struct ggr_context *c,uint32_t r,uint32_t *v)
++{return alive_time(c)&&c->ops.read_reg(c->ops.cookie,r,v)&&alive_time(c);}
++static bool poll_mr(struct ggr_context *c,enum ggr_memory m,uint32_t off,uint32_t *v)
++{return alive_time(c)&&c->ops.read_memory(c->ops.cookie,m,off,v)&&alive_time(c);}
++static bool poll_barrier(struct ggr_context *c)
++{return alive_time(c)&&c->ops.barrier(c->ops.cookie)&&alive_time(c);}
++static bool poll_faults(struct ggr_context *c)
++{
++    uint32_t a,b;
++    return poll_rd(c,0x201,&a)&&poll_rd(c,0x823,&b)&&a!=UINT32_MAX &&
+         !(a&((1u<<1)|(1u<<6)|(1u<<7)|(1u<<9)|(1u<<22)|(1u<<23)|(1u<<24)|(1u<<25)|(1u<<28)))&&!(b&0xf7u);
+ }
+ enum ggr_error ggr_open(struct ggr_context *c,const struct ggr_ops *o,uint32_t scratch,uint32_t completion)
+@@ -101,9 +119,10 @@
+     if(now>UINT64_MAX-UINT64_C(2000000000)){ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;}
+     c->operation_end_ns=now+UINT64_C(2000000000);c->state=GGR_BUSY;
+     uint32_t shadow,wptr,busy,control;
+-    if(!faults(c)||!rd(c,0x807,&wptr)||wptr!=c->wptr||!mr(c,GGR_SHADOW,0,&shadow)||shadow!=c->wptr||
+-       !mr(c,GGR_COMPLETION,0,&control)||control!=c->completed||!rd(c,0x23b0c,&busy)||
+-       busy==UINT32_MAX||(busy&(1u<<23)))goto io;
++    if(!alive(c)||!poll_faults(c)||!poll_rd(c,0x807,&wptr)||wptr!=c->wptr||
++       !poll_mr(c,GGR_SHADOW,0,&shadow)||shadow!=c->wptr||
++       !poll_mr(c,GGR_COMPLETION,0,&control)||control!=c->completed||
++       !poll_rd(c,0x23b0c,&busy)||!alive(c)||busy==UINT32_MAX||(busy&(1u<<23)))goto io;
+     /* One in flight: the whole ring is idle, so wrapping cannot overwrite an
+      * unread packet. CP_RB_CNTL already selects the native 8192-DWORD ring. */
+     uint32_t packet[GGR_RING_PACKET_WORDS],n=0,next=c->submitted+1;
+@@ -132,7 +151,7 @@
+     uint32_t i;
+     for(i=0;i<200;i++) {
+         uint32_t status;
+-        if(!barrier(c)||!rd(c,0x23b13,&status))goto io;
++        if(!alive(c)||!poll_barrier(c)||!poll_rd(c,0x23b13,&status)||!alive(c))goto io;
+         if(!(status&1u))break;
+         if(!delay(c)||!wr(c,0x807,end))goto io;
+     }
+@@ -140,10 +159,12 @@
+     if(!wr(c,0x1f8c3,0))goto io;
+     for(i=0;i<200000;i++) {
+         ++c->polls;
+-        if(!faults(c)||!barrier(c)||!mr(c,GGR_COMPLETION,0,&control)||!mr(c,GGR_SHADOW,0,&shadow)||
+-           !rd(c,0x23b0c,&busy))goto io;
++        if(!alive(c)||!poll_faults(c)||!poll_barrier(c)||
++           !poll_mr(c,GGR_COMPLETION,0,&control)||!poll_mr(c,GGR_SHADOW,0,&shadow)||
++           !poll_rd(c,0x23b0c,&busy)||!alive(c))goto io;
+         if(busy==UINT32_MAX||shadow>=8192||control>next)goto io;
+         if(control==next&&shadow==end&&!(busy&(1u<<23))) {
++            if(!alive(c))goto io;
+             c->wptr=end;c->completed=next;c->state=GGR_READY;*fence=next;return GGR_OK;
+         }
+         if(!delay(c))goto timeout;

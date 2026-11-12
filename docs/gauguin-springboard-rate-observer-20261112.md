@@ -261,3 +261,27 @@ that older boot had no SpringBoard hook, so zero records are **missing
 evidence**, not evidence that no animations ran. A future trial must collect
 only the new log tail and confirm the activation marker before interpreting
 the request counts. No new phone write or boot occurred for this analyzer.
+
+## 2026-11-12 follow-up: installation core modeled
+
+`tools/sb-rate-slot-install-io.py` now has the separate exact-range install
+core. It has no device entry point or approval creator. Before a write it
+requires one-shot approval bound to the six-range plan, an unmounted Gauguin
+recovery partition, the exact current root header, old HFSX paths/CNIDs/
+extents/file hashes, original catalog field positions, and byte-for-byte
+preimages for all three data extents and three catalog leaves. The catalog
+candidate must change only each target file's eight-byte logical length.
+Fixture approval cannot reach an IO object that is not explicitly a model.
+The core checks every write's readback, reparses the installed HFSX files,
+and reverses touched ranges on failure; incomplete rollback is reported.
+
+`tests/test_sb_rate_install_model.py` used a writable **in-memory overlay**
+over read-only current phone blocks. It verified three installed HFSX files,
+failures at each of writes 1 through 6 with full reverse rollback, a failed
+rollback report, and fixture refusal against non-model IO. Private receipt
+SHA-256 is
+`d634100c53604b0b04bcce85b3bf4f2bd17a68b0e68f86d500d98183e4adb2d6`.
+There was no actual phone write or boot. A full one-shot executor, boot/misc
+handling, postboot log capture and separate exact-scope user approval still
+remain before this observer can be tried on the device. The pinned 0301
+causal diagnostic is still first.

@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0300 still laggy; original desktop restored
+
+The user confirmed the 0300 diagnostic reached the desktop after the lock
+screen but remained "就是卡". W300 is
+research/tmp/gauguin-present-trace-worktree-20261112/research/tmp/gpu-notify-hid-20261112.
+Feedback SHAab146879b5081cf1123afddfbfe87fb5f9da9c9ca7e9b1cbb4bd750b5e475e63.
+One authorized boot returned to TWRP after746s; runner exited0. Result SHA
+443a312ee25e25dbcb21e00ff1b5aa19c90d7b78f0fdd5c16d59ed70c074c23e,
+independent terminal review SHAe638aa12bb803bd671c430064cc6242b1fd8d211d2fd0be83d930dd5bb5501c0.
+Original desktop434176B restored/readback, all72 pins and116 file records
+passed. Current root-header SHA
+6e272d2e11ae716993301df334c35eeb5498b0a77adbccd965f924e28a5e77e4.
+Device is TWRP, observer/executor terminal, no retry/rollback. The approval
+is consumed. Read worktree/docs/gauguin-notify-hid-trial-results-20261112.md.
+
+Kernel log SHA22e786c12d9b05ef3edbe8b3d05b18450770bc3733c20dc82da5a18a5bbe21e5.
+Two framebuffer clients had0 port registrations/callbacks/notification sends
+across128 sampled summaries. This confirms the driver's async notification
+path is unused; local HakiOS source says CA can use its own clock, so missing
+notifications are NOT proven as root cause. NVT accepted63920/rejected0;
+one HID touch client was open and >=512 changed frames (>=482 position)
+entered kernel dispatch. Userland queue/processing latency remains unknown.
+GPU service51/51 complete. Software clock42000 callbacks/613 skipped, but
+only33 held frames retired (36 submitted,2 canceled,1 replaced). Latest CPU
+copy prefix29/32 success. In58 regular600-beat intervals, held retirement
+max3 and41 zero; five touch-active intervals38 contact changes/max3 retirements.
+One100s sample gap had60 contact changes and5 retired frames. Metal timeline
+39 command buffers: median GPU15.03ms, max59.25ms,15/39 above16.667ms,
+max made-to-commit2346.9ms. This is not physical FPS evidence.
+
+IMPORTANT correction: the framebuffer presents=300 counter can count an
+empty dirty copy slot before taking a held frame, so it is not a distinct
+frame count. The prior0299 report/notes now use held retirement max4 per
+regular600-beat interval, not presents. Current framebuffer publishes none
+of TimingElements, ColorElements or IOMFBDisplayRefresh; local HakiOS code
+publishes a60Hz mode/refresh dictionary. This is a source-level candidate,
+not yet device-proven. Next implement/test exact mode metadata and HID queue
+drop/touch-to-SwapEnd tracing offline; any new phone write/boot needs a NEW
+concrete plan and separate user confirmation. No smooth60Hz/high refresh
+qualification. Preserve backups and user's mkadt edit.
+
 ### 2026-11-12 CST — 0300 one-boot diagnostic active; no final result yet
 
 The user separately authorized the exact 0300 plan through question item
@@ -45,9 +86,9 @@ original desktop SHA0a1b55bb20a29661de40099e58e45ec695ffb0bf78e132a9d10985450e86
 49/49 GPU submits completed and full guard checks fell to43.0 per submit
 versus58.7 in unmatched C4, but no user-visible speedup. The 60Hz software
 clock reached42300 callbacks/145 skips;104 held frames retired. In67 regular
-600-beat intervals, new panel presents rose by at most4 (27 intervals zero);
+600-beat intervals, held retirement rose by at most4 (27 intervals zero);
 nine touch-active intervals with144 NVT contact-mask changes had at most3
-new presents each. This is software counter cadence, not optical FPS or
+retired held frames each. This is software counter cadence, not optical FPS or
 touch-to-photon latency. The user's lag report is consistent. Current logs
 cannot prove changed HID frames reached userland. No framebuffer notification
 callback registration line appeared; port registration/send status were not

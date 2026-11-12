@@ -2,6 +2,36 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0301 consent re-requested; SB log analyzer offline
+
+The full smooth/high-refresh Gauguin GPU goal and immediate 60 Hz/touch lag
+remain unresolved. Rehashed W301/0301 ready.json
+7b2c97cdf384bea06b4fd29fe489daba1ff747f32e863785f6e9176032abbbc3,
+trial plan5ef6e2f1bdd2240d233830f2754f7d517dc6066a938677e6b0cc8614e3d41d03,
+and image6f02f0ebe258a754dc915b7b786244e59e656989d7732ffa9af6a9148983653a;
+all unchanged. No approval.json/execution exists, and `adb get-state` is
+`recovery`. Project AGENTS.md requires fresh confirmation before this round's
+partition writes, so sent a new asynchronous exact-scope 0301 question:
+userdata434176B install +434176B restore, misc13B recovery marker, one
+temporary image boot/log capture, tested rollback, at most one fastboot
+reboot recovery. Explicitly excludes the distinct W302 SpringBoard image.
+No user answer received as of this handoff. Do not create approval.json or
+run W301 executor until an actual matching user reply arrives.
+
+While waiting, W302 branch `codex/gauguin-sb-rate-trace-20261112` pushed
+commit `a4c876f` after `41a4b1e`: `tools/analyze-sb-rate-log.py` strictly
+parses the read-only SpringBoard observer's animation/display-link rate
+requests, main-loop wake/observer timestamps, activation and lost-row count.
+Optional complete UI254 log bounds the same-clock four-second interval in
+the **same boot**. It separates requested rates from observed CPU timing
+and never calls these physical FPS; invalid CA observer order is marked.
+Synthetic test passed zero-maximum animation/60fps link requests,20ms wake
+gap, missing observer timestamp, lost rows, windowing and malformed inputs.
+The old120324B SpringBoard log has no activation marker or rate/turn rows;
+that is missing evidence, not proof of no animations. Python compile and
+diff check passed. No phone write/boot or new measurement. Preserve original
+backups/rollback snapshots, W301 pins, W302 image and user's mkadt edit.
+
 ### 2026-11-12 CST — SpringBoard observer kernel/image built offline
 
 Full goal remains smooth high-refresh iOS with Gauguin GPU acceleration;

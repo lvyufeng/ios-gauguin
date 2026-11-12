@@ -7,7 +7,7 @@ reply before its executor can open device IO.
 
 ## Why this trace follows the HakiOS reference
 
-The published [HakiOS SpringBoard hook](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/userland/src/inject_sb.c#L1941)
+The published [HakiOS SpringBoard hook](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/userland/src/inject_sb.c#L1783-L1852)
 found animations requesting no preferred frame range and advancing at 24 fps
 with about 0.3 ms of GPU work. Its opt-in `anim_max=1` then copied those
 animations and requested 80–120 fps on its 120 Hz Redmi. Its
@@ -71,7 +71,8 @@ The current misc 4 KiB preimage is zero, SHA-256
 
 With a separate approval, the one-shot runner would:
 
-1. Rehash all 69 pinned inputs, claim the trial once, recapture the current
+1. Rehash all 70 pinned inputs and recheck the 1 GiB storage reserve before
+   claiming the trial once, recapture the current
    29 files, check the exact root header, HFSX catalog location, full data
    preimages and misc preimage before writing.
 2. Write/read back 105 existing desktop blocks starting at root block
@@ -83,30 +84,45 @@ With a separate approval, the one-shot runner would:
    the exact image **once**, without a boot retry. The observer waits up to
    780 seconds for TWRP and checks the exact kernel banner. If recovery is
    needed for rollback and unavailable, at most one bounded
-   `fastboot reboot recovery` is permitted.
+   `fastboot reboot recovery` is permitted. If `fastboot boot` is refused
+   before temporary launch, restore the original desktop and then write/read
+   back the original 13 misc bytes. A failed helper launch also follows this
+   preboot restoration path.
 4. Capture only new kernel and C4 logs, parse the selected second gesture's
    four-second ring and C4 command-buffer times, then read the **postboot**
    catalog leaf. Restore the original 430,080 desktop data bytes and only the
    current leaf's eight-byte logical length, sync/read back and repeat the
    29-file capture. If the first restore write fails and its rollback is
    verified, exactly one fresh restore retry is allowed. An incomplete
-   rollback stops the runner. If both restores fail, the installed C4
+   rollback stops the runner. If restore preflight refuses before any write,
+   the bounded fallback can re-read the live catalog and try restoration.
+   If both restores fail, the installed C4
    executable may remain and further repair requires a new scoped decision.
 
 Normal explicit writes are **868,352 bytes to userdata** and **13 bytes to
 misc**. Two failed restore writes with verified reverse-order rollbacks can
-raise the bounded total to **2,170,880 userdata bytes**. No new file, allocation, GPT, bootloader,
-recovery, modem or persist write is planned. The 1 GiB trial storage reserve
-was admitted at 496,184,680,448 accounted bytes under the 500 GB cap.
+raise the bounded total to **2,170,880 userdata bytes**; restoring a preboot
+misc marker can add one 13-byte misc write. No new file, allocation, GPT,
+bootloader, recovery, modem or persist write is planned. The fresh 1 GiB trial
+storage reserve was admitted at 498,808,119,296 accounted bytes under the
+500 GB cap.
 
 The installation plan SHA-256 is
 `abab7f0f432f7ffe5f94234b5245be337bfe5d054a3887916338f2a465d81365`;
 whole trial plan SHA-256
 `5ef6e2f1bdd2240d233830f2754f7d517dc6066a938677e6b0cc8614e3d41d03`.
-The 69-pin ready receipt SHA-256 is
-`7b2c97cdf384bea06b4fd29fe489daba1ff747f32e863785f6e9176032abbbc3`;
+The 70-pin ready receipt SHA-256 is
+`4ce5196d6cd8eb271b98708deeffa6586808ebc5368de2928c1480df1a4d9a12`;
 independent read-only review SHA-256
-`af8f546d8334e10b195b097e18166a068454d9838c77e0caef680abbcdc52c2e`.
+`9a7fe6ff1e762f5970410e68ebbe62f194ffa871ef05482bf46adae4d0f13009`.
+The revised executor SHA-256 is
+`0fc4cf326e4d51ba761a7a0b725351fd96a201f024beacc1bc29e160fe5b2dbb`.
+The previous ready/review/admission receipts were archived with private
+cleanup manifest SHA-256
+`ce97593690f223494176f38d298e2bd0ab3696710c30849f5682ad8b8a27a3d8`;
+the intermediate ready/review pair was archived with manifest SHA-256
+`673c2e27bda7c925e6f6f10ff03cba20b911ec0ab483ec6db8969750d5b576b1`.
+The image, install plan and whole trial plan hashes did not change.
 The actual-range writer model passed 24 installation and rollback controls.
 Running the executor without this round's reply was verified to stop before
 device IO and before creating an execution claim.

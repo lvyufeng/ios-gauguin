@@ -52,9 +52,9 @@ New test files stay inactive. Never rerun an existing W/execution claim;
 observe original receipts/process if delayed. Preserve all failed stages.
 
 Whole33GiB batch admitted (35433480192B) at451156017152B/500GB. Only2 full16GiB
-images were created; trial captures are included in the remainder. The post
-storage scan was started once and writes W/storage-ready.json; inspect its
-original result. MAIN mkadt original edit remains untouched/uncommitted.
+images were created; trial captures are included in the remainder. The original
+post-storage scan finished exit0:485669728256B/500000000000B, admitted,
+W/storage-ready.json. MAIN mkadt original edit remains untouched/uncommitted.
 
 ### 2026-11-12 CST — final GPU core ownership source and native artifact accepted
 

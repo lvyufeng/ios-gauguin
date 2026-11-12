@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — final GPU core ownership source and native artifact accepted
+
+Final follow-up source is e466c88 on the ownership branch, integrated into MAIN
+as 0f84288, following source9039079/MAINf47167a and storagebda9a48/MAINb42c3dd.
+The active artifact is now v3/native-03, not the preserved v2/native-02.
+Report docs/gauguin-metal-owned-recording-20261112.md describes the final source.
+No device commands, boots, partition writes, native kernel/CI builds or device
+activation occurred. No old callback-fault scenario was rerun.
+
+W=research/tmp/gauguin-metal-ownership-worktree-20261112/research/tmp/
+metal-ownership-v1/implementation-20261112.
+candidate-v3-prepared changes four core files; original228 baseline pins and
+old baseline/graphics profile outputs remain unchanged. Final recorder stop
+only signals from any recorder/completion context; external stop still waits.
+host-03 exit0:23/23 actual-core+FakeGpu positive contracts pass under ASan/UBSan.
+native-03 exit0:12 fresh ARM64 iOS16 objects linked with13 unchanged Mesa/AIR
+archives; Werror, signing and strict verify pass.137 C exports.
+Library8407792B SHAc9da25aad0aacc6966071a78157f942189b379353eafdbb96e2a3854cc107674,
+build identity8a71fe61aded108fa9ba5a22. Current source/build input pins all match.
+W/final-acceptance.json and compatibility-final.json bind the final results.
+Earlier v1/v2 evidence, sources and native outputs remain preserved.
+Final1GiB batch admission passed; post accounting is 451156922368B /
+500000000000B, admitted (W/post-storage.json). All backups and old captures remain.
+MAIN mkadt original SHA3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9.
+
+C4 frontend remains unimplemented. W/frontend-prerequisite-audit.json rechecks
+all8 exact prepared frontend inputs. Its held/ordinary commit admission is not
+one queue-locked operation; waitUntilScheduled does not wait; _sent is a token
+instead of a broadcast state; completed handler admission uses raw core status.
+Next concrete GPU task: an isolated matched frontend profile with one commit
+FIFO/admission domain, commit-reached/completed broadcast state and correct
+scheduled/complete handler order; real gated frontend tests, then matched native
+bundle/package qualification. Existing frontend builder pins old core8a826583...,
+so do not substitute this core into old plans or enable deferred desktop yet.
+User focus is GPU acceleration. Visible desktop and old offscreen GPU success
+do not establish GPU-composited desktop/FPS/input/full Metal. Both0298 repeats
+remain consumed. Existing untracked baseline lifetime-review files in T remain
+preserved and outside these commits.
+
 ### 2026-11-12 CST — GPU ownership foundation implemented, host-checked and natively built
 
 User resumed iOS adaptation and clarified GPU acceleration is the current

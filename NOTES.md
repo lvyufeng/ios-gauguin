@@ -37,7 +37,8 @@ empty dirty copy slot before taking a held frame, so it is not a distinct
 frame count. The prior0299 report/notes now use held retirement max4 per
 regular600-beat interval, not presents. Current framebuffer publishes none
 of TimingElements, ColorElements or IOMFBDisplayRefresh, but a renewed
-HakiOS source/measurement review changes the priority: Redwood's own source
+HakiOS source/measurement review changes the priority (worktree commit
+dc1761c pushed): Redwood's own source
 says CA defaults to fixed60Hz without IOMFBDisplayRefresh and does not need
 driver refresh notifications. These omissions are NOT proven causes of
 Gauguin's33 retired frames. Official Redwood main remains63fc2b4, K90 main

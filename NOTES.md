@@ -30,7 +30,8 @@ port calls/send results were not instrumented. This is a hypothesis, not a
 confirmed root cause. GPU passes were GMEM-off/sysmem; some shaders compiled
 for about1s, but this alone does not account for prolonged sparse swaps.
 
-Patch0223 is listed in xnu/patches/series, instruments framebuffer port,
+Commit b2f2607 records the 0299 result, patch and scoped 0300 plan. Patch0223
+is listed in xnu/patches/series, instruments framebuffer port,
 callback and send-result counts plus changed HID dispatch timings, and
 explicitly zero-initializes notification client state. Native ARM64 selected
 TUs and a full local kernel make install passed; SKIP_TESTS=1 because the

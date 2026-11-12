@@ -35,7 +35,25 @@
  @end
  
  /* A parallel render encoder: one pass whose draws come from several sub-encoders, filled on any thread in any order and
-@@ -4781,18 +4782,10 @@
+@@ -4773,26 +4774,28 @@
+ 	/* the initialiser IOGPUMetalCommandQueue sends to super; the descriptor must not be nil (the base asserts) */
+ 	self = [super initWithDevice:device descriptor:descriptor];
+ 	if (self == nil) {
++		return nil;
++	}
++	Dl_info loaded = {0};
++	const char *owned = "/usr/local/lib/gauguin/owned/libGauguinMetalCore.dylib";
++	if (dladdr((const void *)(uintptr_t)hakios_metal_queue_new, &loaded) == 0 ||
++		loaded.dli_fname == NULL || strcmp(loaded.dli_fname, owned) != 0) {
++		hm_print("refused: owned desktop core path is %s; expected %s\n",
++			loaded.dli_fname != NULL ? loaded.dli_fname : "(unresolved)", owned);
++		[self release];
+ 		return nil;
+ 	}
++	HM_ONCE("owned desktop core loaded from %s\n", loaded.dli_fname);
+ 	_queue = hakios_metal_queue_new([device hakiosDevice]);
+ 	if (_queue == NULL) {
+ 		hm_print("refused: a command queue: %s\n", hakios_metal_error());
  		[self release];
  		return nil;
  	}
@@ -58,7 +76,7 @@
  	_device = [device retain];
  	HM_ONCE("a command queue takes %lu command buffers at a time (maxCommandBufferCount); each one waits on the queue's "
  		"semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer "
-@@ -4886,18 +4879,14 @@
+@@ -4886,19 +4889,15 @@
   * in Apple's own ivar so that the base class's getter and this plug-in read the same thing. */
  - (void)setCompletionQueue:(dispatch_queue_t)queue
  {
@@ -67,13 +85,6 @@
 -
 -	if (held == queue) {
 -		return;
--	}
--	[queue retain];
--	[held release];
--	if (ivar != NULL) {
--		object_setIvar(self, ivar, queue);
--	} else {
--		_completionQueue = queue;
 +	@synchronized (self) {
 +		Ivar ivar = hm_completion_ivar();
 +		dispatch_queue_t held = ivar != NULL ? (dispatch_queue_t)object_getIvar(self, ivar) : _completionQueue;
@@ -83,9 +94,17 @@
 +		else _completionQueue = queue;
 +		[held release];
  	}
+-	[queue retain];
+-	[held release];
+-	if (ivar != NULL) {
+-		object_setIvar(self, ivar, queue);
+-	} else {
+-		_completionQueue = queue;
+-	}
  }
  
-@@ -4908,26 +4897,13 @@
+ - (dispatch_queue_t)hakiosCompletionQueue
+@@ -4908,26 +4907,13 @@
  	return ivar != NULL ? (dispatch_queue_t)object_getIvar(self, ivar) : _completionQueue;
  }
  
@@ -117,7 +136,7 @@
  }
  
  @end
-@@ -4958,6 +4934,8 @@
+@@ -4958,6 +4944,8 @@
  	_queue = [queue retain];
  	_cb = hakios_metal_cb_new([queue hakiosQueue]);
  	_createdAt = hm_now();
@@ -126,7 +145,7 @@
  	if (_cb != NULL) {
  		hakios_metal_cb_skip_refused(_cb, !hm_strict());
  		hakios_metal_cb_set_profile(_cb, hm_fps_on());
-@@ -5012,9 +4990,8 @@
+@@ -5012,9 +5000,8 @@
  	[_signals release];
  	[_turned release];
  	[_waits release];
@@ -138,7 +157,7 @@
  	[_error release];
  	[_queue release];
  	[super dealloc];
-@@ -5029,7 +5006,13 @@
+@@ -5029,7 +5016,13 @@
  
  /* Metal's own numbers, which hakios_metal_status copies: not enqueued 0, enqueued 1, committed 2, scheduled 3,
   * completed 4, error 5 */
@@ -153,7 +172,7 @@
  
  - (NSError *)error
  {
-@@ -6090,48 +6073,44 @@
+@@ -6090,48 +6083,44 @@
  
  - (void)commit
  {
@@ -231,7 +250,7 @@
  }
  
  /* abstract in _MTLCommandBuffer (its body is doesNotRecognizeSelector:), so inheriting it aborts. The deadline is
-@@ -6146,24 +6125,27 @@
+@@ -6146,24 +6135,27 @@
  
  - (void)waitUntilScheduled
  {
@@ -265,7 +284,7 @@
  	{
  		const double began = hm_now();
  
-@@ -6174,49 +6156,57 @@
+@@ -6174,49 +6166,57 @@
  
  /* --- handlers --- */
  
@@ -350,7 +369,7 @@
  	[self hakiosPaySlot];
  }
  
-@@ -6227,16 +6217,12 @@
+@@ -6227,16 +6227,12 @@
  	if (handler == NULL) {
  		return;
  	}
@@ -373,7 +392,7 @@
  }
  
  - (void)addCompletedHandler:(MTLCommandBufferHandler)handler
-@@ -6244,16 +6230,12 @@
+@@ -6244,16 +6240,12 @@
  	if (handler == NULL) {
  		return;
  	}

@@ -21,7 +21,8 @@ the wait alone would be unsafe. See new worktree/docs/
 gauguin-issued-fence-transition-20261112.md for exact source links/contract.
 
 New isolated worktree research/tmp/gauguin-issued-fence-worktree-20261112,
-branch codex/gauguin-issued-fence-20261112, pushed commit10e1835. Patch0225
+branch codex/gauguin-issued-fence-20261112, pushed commits10e1835 and
+3902750. Patch0225
 SHA2879f0f67ac95db46a6dc9374df440776b786bc80cd25fc9e4b0125ea2a69912
 splits the real GPU runtime into ggr_issue (one in-flight, returns issued
 fence), ggr_poll (real EOP/shadow/idle, GGR_PENDING and fault quarantine),
@@ -49,6 +50,16 @@ quarantine remain before async can be used. 0301 trace should determine if
 GPU submit is on the real lag critical path. Storage budget admitted
 1288490189B for pending trial plus this offline work at496185352192B
 accounted. Preserve backups and mkadt user edit.
+
+Additional 0300 CPU-cost recheck: across51 submits, native submit wall
+464775937ns (9.11ms each), of which full guard checks450272187ns
+(8.83ms, 96.9%). Guard fault/configuration group during submits
+243788333ns (4.78ms each). Selector46 global-lock hold640928125ns
+(12.57ms average, max40.28ms). These are aggregate CPU wall counters, not
+paired touch/frame or pure GPU hardware timing. The earlier0299 guard-check
+reduction did not cure perceived lag; do not bypass board safeguards solely
+from this aggregate. The0301 causal trace and SpringBoard request evidence
+remain the next discriminators.
 
 ### 2026-11-12 CST — read-only SpringBoard rate observer built offline
 

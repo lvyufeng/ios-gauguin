@@ -2,6 +2,26 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0300 one-boot diagnostic active; no final result yet
+
+The user separately authorized the exact 0300 plan through question item
+`["request_user_input_async","call_4d4c37f7216c49fbb7e629e22c0b467d",0]`,
+answer "允许本轮写入、临时启动及回退". W300 is
+research/tmp/gauguin-present-trace-worktree-20261112/research/tmp/gpu-notify-hid-20261112.
+Approval SHA971e0a58ca3ac7c68bcc70d67b6d0f0788f2b339e3b81031d28e0bc21e218701
+binds install plan7f53afce..., whole plan9b947051..., image
+9d4bbee3... . The one-shot scope is CONSUMED. DO NOT rerun execute_trial.py,
+observer or fastboot boot. Original runner is retained in exec session82607,
+W300/execution/claim.json. Fresh capture and434176B C4 install passed
+readback, misc13B recovery marker passed. ObserverPID/PGID12170 sent the
+image once: send0.457s, boot0.135s, total0.601s. As of this handoff,
+observer is running; no TWRP return, log analysis, or desktop restoration
+has been observed yet. It waits up to780s for recovery (600s GPU service),
+then runner captures logs, dynamically restores original desktop434176B with
+readback and repeats29-file capture. User was asked to perform swipes and
+Settings interaction. Inspect original session/receipts; never launch a
+second boot under this consent. Preserve backups and user's mkadt edit.
+
 ### 2026-11-12 CST — 0299 boot still laggy; 0300 display/touch diagnostic prepared
 
 User directly reported during the authorized0299 boot: "还是很卡顿 触摸操作不跟手".

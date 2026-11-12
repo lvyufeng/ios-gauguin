@@ -236,3 +236,8 @@ reserve was admitted at 498,798,858,240 accounted bytes. **No phone boot,
 partition write, SpringBoard load or visible frame-rate result occurred.**
 The 0301 causal trial remains the next phone experiment; its pending consent
 cannot be used for this observer image.
+
+The first build estimate missed that duplicated driver log outside the build
+root, so its peak batch exceeded the admitted 3 GB estimate, while remaining
+below the 500 GB cap. The duplicate was removed immediately after verifying
+the build; future batch estimates must include both log destinations.

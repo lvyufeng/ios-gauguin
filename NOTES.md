@@ -2,6 +2,33 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0301 shared-clock timeline analyzer committed offline
+
+The immediate 60 Hz/touch lag is still unresolved. The 0301 one-shot device
+trial still has no fresh exact-scope approval: its ready.json SHA-256 remains
+7b2c97cdf384bea06b4fd29fe489daba1ff747f32e863785f6e9176032abbbc3,
+and there is no approval.json or execution directory. `adb get-state` returned
+`recovery`. No new phone write or boot this turn; preserve the pinned 0301
+image/plan and wait for the pending user reply before its executor runs.
+
+The HakiOS source at Redwood 63fc2b4 confirms its `touch_lat=1` Metal hook
+prints `tl: M made/committed/done/gpu` in microseconds derived from
+`mach_absolute_time`; 0301 UI254 prints raw clock ticks and the same clock's
+timebase. Added read-only `tools/analyze-ui-timeline.py` in the issued-fence
+worktree, documented in `docs/gauguin-ui-timeline-analysis-20261112.md`.
+It validates the complete 0301 ring, aligns changed physical HID reports,
+actual queue-result flags, Metal buffer timestamps, SwapEnd and present-end,
+and reports next-observed gaps and frame-production intervals. It treats
+`hid-enqueue` with `flags=0` as rejected, invalid physical timestamps as
+unknown, and missing userland records/lost kernel records explicitly. It
+does not infer a causal touch-to-frame link, physical panel FPS or GPU-only
+duration. The 0300 logs lack UI254, so there is no actual phone timeline yet.
+Synthetic alignment, accepted/rejected queue, invalid timestamp, missing
+Metal/loss and malformed input checks passed; Python compile and diff check
+passed. Worktree branch `codex/gauguin-issued-fence-20261112` pushed commit
+`a26c28d` (after `3902750`); no build or image needed for this read-only
+tool. Main repo still has the user's `tools/mkadt.py` edit; preserve it.
+
 ### 2026-11-12 CST — one-in-flight issued fence runtime prepared offline
 
 The user goal remains full Gauguin GPU acceleration, high refresh and smooth

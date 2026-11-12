@@ -2,6 +2,51 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — GPU ownership foundation implemented, host-checked and natively built
+
+User resumed iOS adaptation and clarified GPU acceleration is the current
+priority. Completed core work is committed on ownership branch as 9039079
+(storage dependency bda9a48), integrated into MAIN as f47167a (storage b42c3dd).
+No device command/write/boot or CI run occurred. MAIN mkadt remains the original
+uncommitted edit, SHA 3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9.
+
+T=research/tmp/gauguin-metal-ownership-worktree-20261112;
+W=T/research/tmp/metal-ownership-v1/implementation-20261112.
+New a619-ownership profile applies 0001+0003; four of 228 core files change.
+Job/invocation/callback handle leases, self-owned recorder state and per-recorder
+identity, shared queue/GPU storage, callback-context reaping with shutdown/join
+before native queue destruction, frozen recording mode, all eight synchronous
+encoders on the recorder FIFO, and deferred-error completion FIFO are implemented.
+Full finish-after-handlers ordering is retained; nested own-callback waits are
+handled. This is source/host evidence, not active phone acceleration.
+
+Original host-01 passed20/20. Reviewed v2 adds nested completion scopes,
+synchronous exception error propagation and ordered indexed refusal; host-02
+passed23/23, exit0, ASan+UBSan with actual whole core+FakeGpu. External counters
+show all queues/BOs closed. The first test/runner bytes are pinned in
+host-01/source-snapshot. No old baseline fault scenario was rerun. Existing
+baseline 228 pins and both old prepare-profile outputs match; compatibility.json
+also checks unchanged public C declarations. Storage integration test exit0.
+Canonical whole-project admission precedes the entire2GiB build batch.
+
+Fresh native-02 build exit0:12 ARM64 objects linked with13 existing AIR/NIR/IR3
+archives, target iOS16/SDK26.5, Werror, code signing/strict verify pass.
+Library8407792B SHA7c10099329cc760650334919bf0a03a3b1eb452353104bccdf6bd63703c698cf,
+identity211c070a11896f71ef9c7eec. All native input pins unchanged.
+Full report docs/gauguin-metal-owned-recording-20261112.md. Baseline proof and
+other pre-existing untracked lifetime-review files in T are preserved/uncommitted.
+
+Next GPU prerequisite is C4 frontend held/ordinary admission and broadcast
+commit-reached/completion/scheduled wait state. Existing prepared source:
+research/tmp/gauguin-startup279-worktree-20261111/research/tmp/
+dsh-startup-0279-wait/software-v1/desktop/source/userland/src/HakiosMetalCA.m
+SHA9cdd4c1f28c6b967ea2acac60bd78da9d33bd7b20ca1680e27997fe5680e94b1.
+Its commit still has an unprotected held/ordinary decision and _sent token.
+Do not enable metal_defer or replace core in old device plans yet. Native frontend
+builder still pins old core8a826583...; a new matched profile/qualification is
+needed. Desktop acceleration/FPS/input/full Metal remain unqualified.
+0298 repeats are consumed; raw captures/backups/Apple inputs remain private.
+
 ### 2026-11-12 CST — repeat2 complete; user confirms visible desktop/icons; full-core host proof started
 
 New actual visual reply to questionItemId

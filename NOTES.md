@@ -8,6 +8,7 @@ The user authorized this distinct C4 one-boot scope through question item
 ["request_user_input_async","call_d10c2bc40437497c883a39ae9977241f",0].
 W=research/tmp/metal-ca-c4-20261112. W/approval.json SHA
 8fa388c1415929d201d150406613c18d2e80af9e4add02e1058424f51e015faa.
+Observed report commit c85c776.
 The C4 approval and both earlier one-boot approvals are now consumed. No user
 screen attestation was received. Actual report:
 docs/gauguin-metal-ca-c4-trial-20261112.md.
@@ -37,6 +38,11 @@ buffers, but presentedDrawable events=0. Observer final logical panel
 presents=21 versus97 and228 in the two prior core trials without matched input
 or optical conditions. This proves backend activity, NOT physical pixels/FPS,
 high refresh or a speedup.
+First desktop core open took50.391s, similar to earlier48.673/50.285s. The
+new frontend's fps label "-commit on the caller's thread" is now stale: its
+hm_fps_commit call runs on the frontend FIFO around core commit/drain. Do not
+interpret its10-16ms readings as caller-thread stalls. Next candidate should
+measure caller admission separately from worker/core drain.
 
 W/execution/result.json SHA
 facf6f7d134a5d44b303bcd20862ed6d4582f6294ff6bf170be2256d7ed33043.

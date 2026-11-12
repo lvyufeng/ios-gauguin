@@ -114,6 +114,14 @@ The observer's final logical panel `presents` count is **21**, versus 97 and
 input or optical captures; these counts cannot establish an improvement or
 assign a cause to the difference.
 
+The new frontend records “-commit on the caller's thread” at roughly 10–16 ms
+in these windows, but the C4 source now calls that timer from its serial
+submission worker around the core commit and drain. That label is stale: the
+number is **not** a measurement of the renderer's caller-thread stall.
+The first desktop core open took 50.391 seconds, similar to 48.673 and 50.285
+seconds in the two earlier trials. These startup readings also do not show an
+interactive speedup.
+
 Read-only independent review rechecked all 80 ready pins, actual captures,
 current-only validation, restoration bytes, fresh kernel log and empty process
 group. Terminal result SHA-256:
@@ -128,5 +136,6 @@ This run proves that the new desktop backend can load the new core and finish
 work without losing the original installation. It does not prove that GPU
 results reach the physical screen or that iOS runs smoothly. The next device
 test needs matched input, surface/scanout identifiers and physical frame
-observation at a verified 60 Hz baseline. The prepared 90/120 Hz panel modes
+observation at a verified 60 Hz baseline. It must separately time caller
+admission and the worker/core drain. The prepared 90/120 Hz panel modes
 and optical A/B probe follow that baseline; they have not run in iOS.

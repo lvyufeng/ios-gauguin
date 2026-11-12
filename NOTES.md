@@ -2,6 +2,67 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — C4 desktop one-boot trial reviewed; awaiting its own approval
+
+Source follow-up 18e2dc5 adds a runtime dladdr check for the exact private
+owned-core path and a bounded HFSX delta writer; report/source follow-up
+61ffa23. Report docs/gauguin-metal-ca-c4-trial-20261112.md is the concrete
+reviewable write/boot/restoration scope. This trial HAS NOT RUN. No approval
+receipt or execution claim exists. Phone last confirmed in TWRP, userdata
+unmounted/no holders. Earlier two GPU-core boot approvals are consumed.
+
+W=research/tmp/metal-ca-c4-20261112. Current frontend source W/reproduced-v2,
+host-03 ASan+UBSan actual-method gate exit0. Native-final-v3 signs/verifies:
+428720B SHA560284ddda16936df1dd9c6003c8ef4c31096a7c41fcd72ade1051db8411d1d5.
+It links private-corec9da25aa..., uses rpath /usr/local/lib/gauguin/owned,
+and queue init refuses any different dladdr core path. ABI-v3 checks563
+core/frontend imports against actual20H392 cache/owned core, missing0.
+Old normal desktop bundle/core remain installed; new bundle inactive.
+
+Read-only W/current-capture/result.json rechecked29 files/5 dirs, same
+header42ec2e54... as repeat2. W/device-candidate-v2/install-plan.json SHA
+886f11d68dbc05c071884431b706c23a83aaea061e3e79793cf1b2781e7a1fd6.
+Install writes data block3817791 for105 blocks (430080B), catalog block44139
+for1 block (4096B), only logicalSize field at byte1434 changes428400->428720.
+No allocation/new file/GPT/header writes. Info.plist and CodeResources match.
+Normal restoration writes the same data length and one CURRENT catalog leaf,
+changing only8 logical-size bytes while preserving other postboot metadata.
+Normal userdata total868352B; misc recovery marker13B. One reused0298
+fastboot boot, no retry; 600s GPU service/780s observer. Bounded fallback
+permits at most one fastboot reboot recovery for rollback if needed.
+
+Writer model W/delta-model-06/result.json passed24 actual-range controls,
+including partial writes, readback failure, refused consent, wrong recovery,
+receipt failure and restoration preserving an unrelated catalog byte.
+Read-only W/dynamic-restore-model-04/model-result.json re-parsed live HFSX
+through a virtual active overlay and rejected the inactive current file.
+Old log validator rejects prior-run output; synthetic-positive parser fixture
+is labeled as such. One-shot W/execute_trial.py refuses absent individual
+approval before device IO/claim (W/zero-approval-v4.log).
+
+Trial plan W/trial-plan.json SHAf04d847fda3237907eced7804e45d3a754fc51286754c0e13f68d80394b89a79.
+Ready W/ready-v4.json SHA6b293f422dfe9b387836316e6a10b3f81cabdfeef44c461f93eb3dcf9448f0d9
+pins80 inputs, including current capture, source, exact image, full16GiB
+backup and both completed trial results. W/independent-ready-review-v3.json
+SHA1103d82c2204fbe3784b300fff00c29f0d8ca99c567ccb5a4e8e6a354558b8d4
+accepts all80 and confirms no approval/claim/write. One GiB whole-batch
+storage reservation admitted at486109007872B/500GB; W/storage-trial-admission.json.
+All original backups, repeat evidence and user tools/mkadt.py edit SHA
+3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9
+remain intact; only that user edit is uncommitted.
+
+Project AGENTS.md explicitly requires confirmation before each destructive
+step. Ask for new, exact C4 userdata434176B install+434176B dynamic restoration,
+misc13B, one temporary boot and bounded failure rollback. Do not reuse prior
+approval or execute until actual affirmative reply is bound to plan/ready.
+After approval, create W/approval.json with real answer/question ID and both
+plan hashes, exact image SHA, approved booleans including recovery fallback;
+run W/execute_trial.py ONCE in a retained session, observe original receipts,
+restore original desktop entry and audit logs. No rerun on timeout. C4 backend
+log success would not prove physical desktop pixels/FPS. Full objective remains
+active: physical desktop correctness then 90/120Hz modeset/optical cadence,
+input latency and sustained smooth use are still unqualified.
+
 ### 2026-11-12 CST — C4 owned desktop frontend candidate built and checked offline
 
 Source/report commit d21c691. New report:

@@ -41,7 +41,8 @@ env:
 jobs:
   build:
     # Record the runner's actual Xcode/SDK/iig in the build manifest.
-    runs-on: macos-14
+    # GitHub Actions retired macOS 14 on 2026-11-02; keep an arm64 macOS runner.
+    runs-on: macos-15
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4

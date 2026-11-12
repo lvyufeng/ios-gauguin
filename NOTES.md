@@ -53,7 +53,9 @@ Whole trial-plan SHA5ef6e2f1bdd2240d233830f2754f7d517dc6066a938677e6b0cc8614e3d4
 independent ready-review SHA
 af8f546d8334e10b195b097e18166a068454d9838c77e0caef680abbcdc52c2e.
 The executor refuses to open device IO without a fresh reply bound to these
-hashes; this was tested. NO 0301 device write, boot or approval exists.
+hashes; this was tested. A new exact-scope approval question has been sent;
+no reply has been observed at this handoff. NO 0301 device write, boot or
+approval exists.
 All prior one-shot approvals are consumed. Device remains in TWRP, original
 desktop restored. Next: obtain separate user approval per project AGENTS.md;
 then rehash pins, execute exactly once, collect and parse second-gesture

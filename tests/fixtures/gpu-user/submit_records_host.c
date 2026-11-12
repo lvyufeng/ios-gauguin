@@ -10,8 +10,16 @@ static bool ggrb_service, ready;
 static uint64_t ggrb_root;
 static enum ggr_error next_result;
 static unsigned calls, records, checks;
+static uint64_t clock_ticks;
+static struct {
+    uint64_t checks,check_ticks,submits,submit_ticks,submit_checks,submit_check_ticks;
+    uint32_t pending;
+} ggrb_perf;
 static const uint64_t addresses[] = {0x40000000};
 static const uint32_t words[] = {8};
+
+static uint64_t mach_absolute_time(void)
+{return ++clock_ticks;}
 
 static void check(bool condition, unsigned line)
 {
@@ -43,7 +51,7 @@ enum ggr_error ggr_submit(struct ggr_context *context, const uint64_t *a,
     return next_result;
 }
 
-static void gmb_record(const char *line)
+static void gmb_record_submission(const char *line)
 {
     unsigned rc, count, submitted, completed, shadow, polls;
     CHECK(sscanf(line, "SWEET GPU USER: submit rc=%u ibs=%u submitted=%u completed=%u shadow=%u polls=%u",
@@ -64,6 +72,8 @@ static void reset(bool service)
     ready = true;
     ggrb_root = 1;
     next_result = GGR_OK;
+    clock_ticks=0;
+    memset(&ggrb_perf,0,sizeof(ggrb_perf));
     calls = records = 0;
 }
 
@@ -76,6 +86,7 @@ int main(void)
         CHECK(sweet_gpu_runtime_submit(addresses, words, 1, &fence));
         CHECK(fence == i && ggrb_context.submitted == i && ggrb_context.completed == i && calls == i);
         CHECK(records == before + (i <= 16 || i % 120 == 0));
+        CHECK(ggrb_perf.pending==0&&ggrb_perf.submits==i);
     }
     CHECK(records == 16 + 2048 / 120);
     unsigned before = records;

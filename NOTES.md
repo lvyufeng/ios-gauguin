@@ -2,6 +2,35 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — SpringBoard observer install core modeled, no phone write
+
+The requested smooth/high-refresh Gauguin iOS goal and immediate 60 Hz/touch
+lag remain unresolved. 0301 exact-scope consent question was sent last turn;
+no reply or approval.json/execution exists yet. `adb get-state` is `recovery`.
+Do not infer consent from silence or use W301 authorization for W302.
+
+W302 branch `codex/gauguin-sb-rate-trace-20261112` pushed commit `332a185`
+after `a4c876f`. New `tools/sb-rate-slot-install-io.py` is an approval-gated
+six-range HFSX install core with no device entry point. It requires exact
+plan hash, one-shot install/rollback approval, unmounted Gauguin identity,
+root header and all three original paths/CNIDs/extents/file hashes/catalog
+field positions, then checks full data/catalog preimages. Only three data
+extents and three eight-byte catalog logical-length fields may change.
+Install readbacks and strict HFSX reparse are required; any failure reverses
+touched ranges and reports incomplete rollback. Fixture approval is refused
+for a non-model IO object. A writable *in-memory* overlay over the real
+root's read-only recovery blocks passed successful three-file install and
+injected failures at writes1–6 with full rollback; a separate rollback fault
+was reported incomplete. Private receipt SHA
+d634100c53604b0b04bcce85b3bf4f2bd17a68b0e68f86d500d98183e4adb2d6.
+Python compile/diff check passed. No device write or boot. See updated
+`docs/gauguin-springboard-rate-observer-20261112.md` in W302.
+
+W302 still lacks its own one-shot boot/misc/log executor and separate
+exact-scope approval. The pinned W301/0301 causal trace remains the next
+phone trial and should decide whether the SpringBoard observer is useful.
+Preserve all backups, W301 pins, W302 image and user's `tools/mkadt.py` edit.
+
 ### 2026-11-12 CST — 0301 consent re-requested; SB log analyzer offline
 
 The full smooth/high-refresh Gauguin GPU goal and immediate 60 Hz/touch lag

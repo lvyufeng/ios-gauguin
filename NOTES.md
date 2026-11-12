@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — HakiOS evidence reviewed; W302 one-shot offline ready, no phone trial
+
+The user's goal remains smooth 60 Hz touch/UI first, then full Gauguin GPU
+acceleration and high refresh. None is proven or fixed yet. Rechecked the
+HakiOS primary source and phone measurements: its redwood touch-driver polling
+bug held finger lift 88–169 ms, reduced to 5–6 ms after the fix; its 120 Hz
+panel still averaged 109.6 frames/s over the reported bench gestures, with
+SpringBoard turns and GPU work remaining. HakiOS's SpringBoard hook measures
+animation/display-link requests and main-loop turns; these results cannot be
+copied to Gauguin without a same-boot measurement. See W302
+`docs/gauguin-springboard-rate-observer-20261112.md` and primary
+`https://github.com/oosexgang/hakios-xnu-kernel/blob/main/docs/reference/metal-measurements.md`.
+
+W302 branch `codex/gauguin-sb-rate-trace-20261112` pushed commits `e311834`
+and `85a3e8c` after `f41f843`: added `tools/prepare-sb-rate-trial.py`,
+`tools/run-sb-rate-trial.py`, no-approval device-command gate test, and
+the source/phone-measurement comparison and precise upstream hook link in the
+doc. The separate one-shot
+0304 observer plan is private at
+`research/tmp/gauguin-sb-rate-trace-worktree-20261112/research/tmp/sb-rate-20261112/`:
+ready SHA `392ccd1d204ce6b20d6a36e064a3a65ac83e12c02cccdf2e17e2022695e58b67`,
+trial-plan SHA `2e1a14b2d6880cde1526253671817b8c9ee38ab434d7e8775fc034c1d0329b03`,
+install-plan SHA `574ecae90d57ce5af826975d7ad68bf54a2c0485e303d131068ac565b2e216e8`,
+image SHA `a11b7b7424af91803295d3cb1338e6084b69c9af7ff97ab28d7c500f2b9ea804`.
+All 40 input pins rehashed. Storage budget admitted a 1 GiB reserve at
+498,804,666,368 bytes accounted. The three stale prep files were retired
+with private cleanup manifest SHA
+`7f4777ccacf8bd81cc75374e90f99747a7194f869539248232913650fb0077a2`.
+Python compile, no-approval fake-ADB/fastboot gate test, diff check passed.
+W302 scope if separately authorized: userdata 1,380,352 B install,
+1,380,352 B normal dynamic restore (6,901,760 B maximum with verified
+rollback/retry), misc 13 B marker, one temporary 0304 boot, at most one
+fastboot recovery fallback. No W302 approval.json/execution exists.
+
+W301/0301 exact-scope approval/execution are still absent; its prior question
+remains unanswered. `adb get-state` is `recovery`. No phone write/boot in this
+turn. W301 causal touch/HID/C4 trace is the next phone diagnostic; use its
+actual result to decide whether W302 SpringBoard observer is warranted. Do
+not use W301 consent for W302, or create an approval file without an actual
+matching user reply. Preserve backups, current rollback snapshots, both
+pinned images/plans and the user's `tools/mkadt.py` edit (SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`).
+
 ### 2026-11-12 CST — W302 restore now verifies final HFSX files
 
 Full Gauguin GPU/high-refresh/smooth iOS goal and the immediate 60 Hz touch

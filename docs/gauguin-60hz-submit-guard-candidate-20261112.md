@@ -13,8 +13,9 @@ accepted, with zero held-frame replacements or rejects. The latest sampled
 prefix records 16 copy attempts, 15 full 10,368,000-byte copies and one
 zero-byte attempt. All 15 copy intervals fall in the 2–4 ms bin. The time to
 obtain the GPU surface read guard spans bins from below 0.5 ms to 16–33.333 ms:
-`1,1,1,2,5,3,2,0`. Two sampled guards alone exceeded one 16.667 ms frame
-budget. The guard interval includes acquiring the global GPU lock and its
+`1,1,1,2,5,3,2,0`. Two samples fall in the 16–33.333 ms bin; that bin
+does not resolve whether either exceeded the 16.667 ms frame budget. The
+guard interval includes acquiring the global GPU lock and its
 checks; it is not a pure lock-wait measurement.
 
 The earlier same-image repeat2 sampled 31 complete copies, all 2–4 ms, with

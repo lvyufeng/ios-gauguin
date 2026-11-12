@@ -1,0 +1,147 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -472,6 +472,9 @@
+ 	mach_port_t         fPort;
+ 	io_user_reference_t fFunc[SWEET_FB_NOTIFY_TYPES];
+ 	io_user_reference_t fRefcon[SWEET_FB_NOTIFY_TYPES];
++	uint64_t            fNotifySent[SWEET_FB_NOTIFY_TYPES];
++	uint64_t            fNotifyFailed[SWEET_FB_NOTIFY_TYPES];
++	uint64_t            fPortRegistrations;
+ 
+ 	bool initWithTask(task_t owningTask, void *securityID, UInt32 type) APPLE_KEXT_OVERRIDE;
+ 	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+@@ -483,6 +486,7 @@
+ 	    void *reference) APPLE_KEXT_OVERRIDE;
+ 	void notify(uint32_t type, const uint64_t *values, uint32_t count);
+ 	bool hasNotification(uint32_t type) const;
++	void logNotificationStats(unsigned index) const; /* fFB->fLock held */
+ };
+ 
+ OSDefineMetaClassAndStructors(IOMobileFramebufferUserClient, IOUserClient);
+@@ -754,6 +758,7 @@
+ 				client->notify(t, values, 6);
+ 			}
+ 		}
++		if (count == 2 || (count % 600) == 0) client->logNotificationStats(i);
+ 	}
+     if (fb->fPowerOff) {
+ #if defined(GAUGUIN)
+@@ -1484,6 +1489,12 @@
+ 		return false;
+ 	}
+ 	fTask = owningTask;
++	fPort = MACH_PORT_NULL;
++	bzero(fFunc, sizeof(fFunc));
++	bzero(fRefcon, sizeof(fRefcon));
++	bzero(fNotifySent, sizeof(fNotifySent));
++	bzero(fNotifyFailed, sizeof(fNotifyFailed));
++	fPortRegistrations = 0;
+ 	/*
+ 	 * Who opened the display? backboardd succeeds (open AppleCLCD -> 0x0) yet
+ 	 * nothing is ever swapped except two frames from kernel_task, so the
+@@ -1534,14 +1545,20 @@
+ }
+ 
+ IOReturn
+-IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, __unused UInt32 type,
+-    __unused io_user_reference_t refCon)
++IOMobileFramebufferUserClient::registerNotificationPort(mach_port_t port, UInt32 type,
++    io_user_reference_t refCon)
+ {
+ 	mach_port_t old;
+ 	IOLockLock(fFB->fLock);
+ 	old = fPort;
+ 	fPort = port;
++	fPortRegistrations++;
+ 	IOLockUnlock(fFB->fLock);
++	char name[32];
++	proc_selfname(name, sizeof(name));
++	IOLog("SWEET FB NOTIFY: %s port registration type=%u present=%u refcon=%llu\n",
++	    name[0] ? name : "?", (unsigned)type, port != MACH_PORT_NULL,
++	    (unsigned long long)refCon);
+ 	if (old != MACH_PORT_NULL) {
+ 		releaseNotificationPort(old);
+ 	}
+@@ -1553,6 +1570,25 @@
+ {
+ 	return type < SWEET_FB_NOTIFY_TYPES && fFunc[type] != 0 &&
+ 	    fPort != MACH_PORT_NULL;
++}
++
++/* Called with the framebuffer lock held. A successful send still does not
++ * prove that userland consumed the message or that the panel scanned a frame. */
++void
++IOMobileFramebufferUserClient::logNotificationStats(unsigned index) const
++{
++	uint32_t callbacks = 0;
++	uint64_t sent = 0, failed = 0;
++	for (uint32_t t = 0; t < SWEET_FB_NOTIFY_TYPES; ++t) {
++		if (fFunc[t]) callbacks |= 1u << t;
++		sent += fNotifySent[t];
++		failed += fNotifyFailed[t];
++	}
++	IOLog("SWEET FB NOTIFY: client=%u port=%u registrations=%llu callbacks=%x sent=%llu failed=%llu type3=%llu/%llu type5=%llu/%llu\n",
++	    index, fPort != MACH_PORT_NULL, (unsigned long long)fPortRegistrations,
++	    callbacks, (unsigned long long)sent, (unsigned long long)failed,
++	    (unsigned long long)fNotifySent[3], (unsigned long long)fNotifyFailed[3],
++	    (unsigned long long)fNotifySent[5], (unsigned long long)fNotifyFailed[5]);
+ }
+ 
+ /* Called with the framebuffer lock held. */
+@@ -1566,8 +1602,10 @@
+ 	}
+ 	bzero(ref, sizeof(ref));
+ 	setAsyncReference64(ref, fPort, (mach_vm_address_t)fFunc[type], fRefcon[type], fTask);
+-	sendAsyncResult64WithOptions(ref, kIOReturnSuccess, (io_user_reference_t *)values, count,
+-	    kIOUserNotifyOptionCanDrop);
++	IOReturn result = sendAsyncResult64WithOptions(ref, kIOReturnSuccess,
++	    (io_user_reference_t *)values, count, kIOUserNotifyOptionCanDrop);
++	if (result == kIOReturnSuccess) fNotifySent[type]++;
++	else fNotifyFailed[type]++;
+ }
+ 
+ static uint64_t sweet_fb_logged;        /* selectors already logged (< 64) */
+diff --git a/iokit/Kernel/arm/hid/SweetHID.cpp b/iokit/Kernel/arm/hid/SweetHID.cpp
+--- a/iokit/Kernel/arm/hid/SweetHID.cpp
++++ b/iokit/Kernel/arm/hid/SweetHID.cpp
+@@ -397,6 +397,10 @@
+ 	IOReturn touchLocked(const TouchRequest &request);
+ 	bool fDispatching;
+ 	bool fAcceptInput;
++	uint64_t fChangedFrames;
++	uint64_t fEdgeFrames;
++	uint64_t fPositionFrames;
++	uint64_t fMaxCallbackTicks;
+ 	int fLogicalW, fLogicalH, fOffX, fOffY;
+ 	bool fDown[SWEET_TOUCH_FINGERS];
+ 	bool fEdge[SWEET_TOUCH_FINGERS];
+@@ -526,6 +530,7 @@
+ 	fOffY = (fLogicalH - 2400) / 2;
+ 	fDispatching = false;
+ 	fAcceptInput = true;
++	fChangedFrames = fEdgeFrames = fPositionFrames = fMaxCallbackTicks = 0;
+ 	/*
+ 	 * Explicit zero state. These members are never otherwise initialised, and
+ 	 * touch() treats fDown[finger] == down with no movement as a duplicate and
+@@ -679,8 +684,20 @@
+ 		fX[i] = nextX[i]; fY[i] = nextY[i];
+ 	}
+ 	fDispatching = true;
++	uint64_t callbackStart = mach_absolute_time();
+ 	dispatchEvent(collection);
++	uint64_t callbackTicks = mach_absolute_time() - callbackStart;
+ 	fDispatching = false;
++	++fChangedFrames;
++	if (cmask & (kIOHIDDigitizerEventTouch | kIOHIDDigitizerEventRange)) ++fEdgeFrames;
++	if (cmask & kIOHIDDigitizerEventPosition) ++fPositionFrames;
++	if (callbackTicks > fMaxCallbackTicks) fMaxCallbackTicks = callbackTicks;
++	if ((fChangedFrames & (fChangedFrames - 1)) == 0) {
++		IOLog("SWEET HID TRACE: changed=%llu edge=%llu position=%llu max_callback_ticks=%llu last_callback_ticks=%llu; client callback only\n",
++		    (unsigned long long)fChangedFrames, (unsigned long long)fEdgeFrames,
++		    (unsigned long long)fPositionFrames, (unsigned long long)fMaxCallbackTicks,
++		    (unsigned long long)callbackTicks);
++	}
+ 	collection->release();
+ 	return kIOReturnSuccess;
+ }

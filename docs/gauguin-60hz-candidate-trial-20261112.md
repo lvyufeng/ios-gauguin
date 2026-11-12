@@ -1,6 +1,8 @@
 # One-boot 60 Hz latency candidate trial
 
-**Prepared; no approval, phone write or boot has occurred.** The user reports
+**Historical pretrial plan; executed once and restored.** See
+[the trial result](gauguin-60hz-candidate-trial-results-20261112.md) for the
+actual one-shot outcome and the user's lag report. The user reports
 that iOS reaches the screen but remains laggy and asked to establish smooth
 60 Hz before high refresh. This trial keeps the C4 Metal frontend active for
 one bounded diagnostic boot, changes only the native submit status-check
@@ -88,9 +90,9 @@ The independent read-only review SHA-256 is
 `ca4e6ad7f1538e17a6e62dfd040e8463b82e2e8fe38c4738b518aaa1a7b528d8`.
 Its 24 in-memory writer controls include absent/wrong consent, stale data,
 catalog or header, partial writes, failed readback and dynamic restoration
-that preserves unrelated postboot catalog bytes. The executor refuses to
-create an execution claim or open device IO without a new actual user reply
-bound to both plan hashes and the image hash. There is no approval file.
+that preserves unrelated postboot catalog bytes. The executor required an
+actual user reply bound to both plan hashes and the image hash. That approval
+was granted for this one shot and is now consumed.
 
 Private artifacts, exact images, candidate ranges, ready pins and runner are
 under `research/tmp/gpu-poll-guard-20261112` inside the present-trace

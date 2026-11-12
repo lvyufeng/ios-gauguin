@@ -216,3 +216,4 @@
 0220-gauguin-fault-subgroup-profiling.patch
 0221-gauguin-present-copy-stats.patch
 0222-gauguin-batched-readonly-submit-status.patch
+0223-gauguin-display-notify-hid-trace.patch

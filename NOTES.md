@@ -2,6 +2,63 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0299 lag confirmed; 0300 diagnostic ready, consent pending
+
+The user directly observed during the authorized 0299 boot: "还是很卡顿
+触摸操作不跟手". W299=research/tmp/gpu-poll-guard-20261112. The one-shot approval
+is consumed. Executor result SHA d1cf9c1207815a97c2b9390832fc520d75a90185e87ec555eed1affa57cb5772;
+independent terminal review SHA b1b63686832dc1489c47f58669830be61a40dd2cd424218b4ced6e8d5ceee7f7.
+One fastboot boot of image299 returned to TWRP after744s; the original C4
+desktop executable was restored with two-run/434176B readback. Four captures
+checked116 file records. Current root header SHA
+2c9814834dbf66065e479f77b04f7139d5da723d6bf44a26e2ea051669fdd752.
+Original desktop SHA0a1b55bb20a29661de40099e58e45ec695ffb0bf78e132a9d10985450e868550.
+The user tools/mkadt.py edit remains untouched. See
+docs/gauguin-60hz-candidate-trial-results-20261112.md.
+
+Observed0299: GPU service49/49 completed, full submit health checks43.0 per
+submit versus58.7 in unmatched C4 control; no demonstrated visible speedup.
+Software60Hz clock reached42300 callbacks/145 skips/104 selected frames;
+held frame104 consumed/retired. In67 regular600-beat intervals, new panel
+memory presents rose by at most4, with27 zero intervals; nine intervals with
+144 NVT contact-mask changes had at most3 new presents each. These are kernel
+counter differences, not optical FPS or touch-to-pixel latency. NVT accepted
+physical packets, but current log cannot show changed HID frame count or
+userland receipt. The framebuffer source only sends async notifications with
+both port and callback, and no `notifications type` registration line appeared;
+port calls/send results were not instrumented. This is a hypothesis, not a
+confirmed root cause. GPU passes were GMEM-off/sysmem; some shaders compiled
+for about1s, but this alone does not account for prolonged sparse swaps.
+
+Patch0223 is listed in xnu/patches/series, instruments framebuffer port,
+callback and send-result counts plus changed HID dispatch timings, and
+explicitly zero-initializes notification client state. Native ARM64 selected
+TUs and a full local kernel make install passed; SKIP_TESTS=1 because the
+isolated full host suite lacks old source202 fixture cache. Kernel SHA
+e0f5a016b831b3eb545f3c2812c58d072374068d56146ed585ec93a1522207fe,
+identity xnu-b644ce2e1b9943dba3aead8c5b65989d. Image30020,021,248B SHA
+9d4bbee3cb0c0653bb157b6b989c47c9f82382a0ab16f91bc5aea8c742575d49,
+600B command enables metal_fps=timeline; image wrapper/assets and kernel VM
+segments passed independent offline review SHA1dc8b23f2e77ffe9c044f84b0ebb763c10e352ea938fa3f8a1b4ce6b57e19369.
+No0300 phone boot/write yet.
+
+W300=research/tmp/gpu-notify-hid-20261112. Fresh read-only29-file/5-dir
+capture matched the current header and original desktop. C4 same-extent
+install plan SHA7f53afce0661307ae6d084b88f69484c193f035df78c70094f607377069ada39,
+whole one-shot plan SHA9b9470515f404751030ebc5f07c5e80ff75d572ea372f8ec0f4ad5c23cb52491,
+72-pin ready SHA7553bbd0a074f06fa9409419902eb86d7e2a974eae24f8c8d35ec805f5b4b750.
+Independent ready review SHA2661a579a859950894f7d48866311f5273a5ca49b2836e4e8ce1ed40a0dde1d1;
+24 actual-range writer controls pass, absent approval refuses before IO/claim.
+Normal scope userdata434176B install+434176B restore, misc13B marker, one
+temporary boot/no retry, at most one bounded recovery fallback. Storage1GiB
+admitted at492519837696/500000000000B accounted. Review
+docs/gauguin-notify-hid-trial-20261112.md. AGENTS.md requires NEW individual
+user approval for these exact destructive actions. No approval.json or
+execution/ exists. After consent, bind the actual reply to both plan hashes
+and image hash; run W300/execute_trial.py ONCE, capture touch swipes and logs,
+then restore. Do not reuse any earlier approval or claim smooth60Hz from this
+diagnostic.
+
 ### 2026-11-12 CST — scoped 60 Hz candidate device trial ready, approval pending
 
 Read docs/gauguin-60hz-candidate-trial-20261112.md before any device action.

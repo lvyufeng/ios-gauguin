@@ -88,15 +88,45 @@ stopped producing frames. Parsed counters are saved in
 `research/tmp/gpu-notify-hid-20261112/pipeline300.json` and
 `research/tmp/gpu-notify-hid-20261112/held-cadence300.json`.
 
-## Next implementation target
+## Same-clock touch-window/C4 alignment, read-only follow-up
 
-The current framebuffer source publishes none of `TimingElements`,
-`ColorElements` or `IOMFBDisplayRefresh`; the locally reviewed HakiOS
-implementation publishes a 60 Hz timing/color mode and refresh interval for
-CoreAnimation. That is a concrete source-level difference and a candidate
-explanation for the sparse desktop frame producer, not yet a device-proven
-cause. Prepare a bounded mode/refresh metadata patch, verify its exact
-serialization and ARM64 build offline, then compare one separately approved
-device boot with the 0300 control. Also count HID queue enqueue/drop and
-touch-to-SwapEnd time before claiming touch latency has been fixed. No 60 Hz
-or high-refresh success is qualified by the current trial.
+The raw 0300 framebuffer clock has 123 `callbacks/skipped/next_beat` samples.
+Each satisfies `next_beat - (callbacks + skipped) * 320006 = 292100337`
+absolute ticks. Its measured counter rate is 19.2 MHz. HakiOS's pinned
+[C4 clock source](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/userland/src/HakiosMetalCA.m#L349-L358)
+derives `hm_now()` from `mach_absolute_time`, so the backboardd `timeline`
+timestamps and these framebuffer deadlines share one clock. The next-deadline
+boundary is uncertain by one 16.667 ms beat; no counted command buffer lies
+within one beat of the four aligned window boundaries. Two earlier touch
+intervals cannot be aligned because clock endpoints are missing across the
+613-skipped-beat period.
+
+| FB callback window | Contact-mask changes | C4 buffers made | Held frames retired | C4 reported GPU ms |
+| --- | ---: | ---: | ---: | --- |
+| 13,800–14,400 | 22 | 2 | 2 | 11.26, 12.87 |
+| 15,000–15,600 | 6 | 2 | 2 | 12.53, 11.74 |
+| 24,000–24,600 | 2 | 11 | 3 | 5.06–55.16; 2 above 16.667 |
+| 24,600–25,200 | 2 | 4 | 2 | 15.91–28.66; 3 above 16.667 |
+
+This alignment is saved in the private
+`research/tmp/gpu-notify-hid-20261112/metal-contact-alignment300.json`, SHA-256
+`bd54cbedb9176bb62b048ff66d8d5bd214ee23e64251729beee0105fc541fb74`.
+`tools/align-metal-contact300.py` pins the raw kernel and current-only
+backboardd log hashes, checks the absolute-clock invariant and refuses missing
+or ambiguous intervals. Its synthetic test covers stable and skipped beats,
+different clock origin, wrong timebase and malformed C4 rows.
+
+In the first two aligned touch-active windows, GPU execution time in the
+recorded C4 buffers cannot explain the long gaps between *buffer creation*
+events. The userland HID receipt and SpringBoard animation/turn timing are
+still missing. C4 command buffers may perform offscreen work, and held-frame
+retirement is not a physical scanout count; the 11-buffer/3-retirement window
+does not establish that eight visible frames were dropped. The separate
+[HakiOS causal review](gauguin-hakios-60hz-causal-review-20261112.md) also
+found that its framebuffer can fall back to a fixed 60 Hz CA clock without
+`IOMFBDisplayRefresh`, so the metadata-only candidate was retired. Run the
+separately approved 0301 causal trace before selecting a frame-rate policy or
+GPU submission change. The frontend's printed `metal_gmem=1` suggestion is
+also not a working switch in this Gauguin build: its `hm_gmem_on()` returns
+`NO` unconditionally until the A619 GMEM path is qualified. Neither 60 Hz
+smoothness nor high refresh is yet verified.

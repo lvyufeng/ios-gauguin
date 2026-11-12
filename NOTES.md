@@ -2,6 +2,123 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — optional 0222 source/model accepted; seven files committed
+
+Codex's final-review loader-priority defect was reproduced before correction:
+with an explicit OPTIONAL_PROFILE_BASE, a missing XNU_SOURCE was ignored and a
+candidate was forward-derived. The pre-fix result is preserved as
+research/tmp/optional-fault-profile-validation/loader-priority-before.json and
+.log. The fixture-only fix inspects XNU_SOURCE whenever no explicit candidate
+exists, so an XNU candidate supplies the candidate even beside an explicit
+base; a missing or mismatched XNU refuses, and a pinned-baseline XNU retains an
+explicit base only after pin validation. Explicit OPTIONAL_PROFILE_CANDIDATE
+still wins. Two focused SourceResolutionTests were added; production candidate,
+macro/configure/dump extraction and the matrix harness are unchanged.
+
+Final acceptance used the new immutable profile final-acceptance-stage.json,
+executed once through tools/start-pinned-stage.py. Dispatcher PID 40952 reported
+state finished, exit 0, inputs_unchanged true; job final-optional-suite exited 0.
+Profile SHA f881840e2d880d5f6c3603a79e19feae99d64c05522cb3d8550b1b6c02379ccd,
+result SHA 3e2db59d726d05a1d600cc92b7dee34d34b4b7febf78e940765d666ada181de5 in
+research/tmp/optional-fault-profile-validation/result.json. The actual run
+passed 29/29 tests with zero skips (27 prior plus 2 priority tests) in 4.438 s,
+including the real baseline/off/on 80-case matrix (240 executions), actual
+parser/macro/dump extraction and loader selection with XNU_SOURCE at the 0222
+candidate and OPTIONAL_PROFILE_BASE=derive, without a PYTHONPATH workaround.
+
+Committed exactly seven files in R on codex/gauguin-optional-fault-profile-20261112
+at parent faed768516c106514d11681295de71639e06934a: source commit
+8787ed352c8b6546fcc39e3434d6937e81045db5 (documentation, dump fixture, three
+tests, 0222 patch and series). Candidate board 25ad4528..., baseline d3ca95...
+and patch 26aec250... remain unchanged. The existing ARM64 TU/object remains
+76887fa5bff8849b3a83b8fc1b17b7c84e9cfa581c4a5a72de3ec36133ccd26e with 2132
+header/config inputs and inputs/reference files unchanged; that is one selected
+TU, not a link or full build. Preserved failures include host runs 1-5 and the
+historical original-failure logs; corrected historical candidate/profile
+fixtures remain 12/12 and 6/6.
+
+Read-only 0298 checks: plan298 6872d2d396e10bdd7209f34c0c7e9675688b440f06c0a10df3a8f18fafdb5184,
+ready298 e9a081ad5d46390e78fbe6e3baa1ae6cdfce296ba11a32c6c1bf1eb614fe6d87 with
+all 82 pins current, audit298 a6f0ea3a..., image 64596164315fc496ff30037bb1fdf982d1322069eee788e28554f38d6f43cc7e;
+all 12 preserved 0297 evidence items are unchanged. approval298.json,
+trial298-v1 and all other 0298 execution outputs remain absent. The original
+0298 plan is still individually unapproved and pending; no approval or trial
+output was created. No device/adb/fastboot writes or boots, image build, clone,
+network, push, CI run or hardware qualification occurred in this increment.
+MAIN tools/mkadt.py remains at 3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9
+as an uncommitted edit; the 500 GB cap and all pinned inputs/backups are
+preserved.
+
+The full GPU/Metal, safe RAM/storage, peripheral and 90/120 Hz daily-use goal
+remains active and incomplete. No physical FPS/speedup or real MMIO-equivalence
+claim is made; this is source/model qualified only, not packaged or
+hardware-qualified. No CI run or image was produced.
+
+### 2026-11-12 CST — resumed 0298 readiness verified; consent pending
+
+User resumed the full iOS adaptation objective with DSH doing execution and
+Codex owning design/review. DSH resume revalidation completed, exit 0:
+research/tmp/resume-ios-20261112/resume-review298.json. Original plan/ready/
+audit hashes match; all 82 ready pins and all 88 original review-stage pins
+match, the original successful log/profile hashes match, and all 12 preserved
+0297 evidence items remain unchanged. Current read-only RecoveryIO identity
+is recovery/gauguin, unmounted/no holders; root header remains 630ede8a... and
+misc preimage ad7facb2..., matching the exact 0298 plan. One additional
+read-only `adb devices` presence check is disclosed in the receipt. No device
+writes or boots occurred; no approval or 0298 execution outputs exist.
+Storage admitted 268435456 B at 447218581504 B accounted. Exact original DSH
+request/output/error logs are in the same resume directory; no tests rerun.
+
+Codex requested individual approval for the exact existing 0298 plan through
+the current chat's async question (13-byte misc marker, one temporary boot,
+marker-failure-only 13-byte rollback, no retry; 600 s service/780 s observer).
+No answer has been received. Do not infer authorization from "continue".
+
+Independent offline candidate 0222 makes only the GFW subgroup diagnostic
+timers default-off with explicit sweetgfprof=1 opt-in; every live guard body,
+MMIO read and barrier is preserved in source. Codex-authored scratch patch and
+candidate are in research/tmp/resume-ios-20261112; this is source/model tested
+but not committed, packaged or hardware-qualified. DSH exec session 72108 finished
+exit 0 after admitting the full 1342177280 B batch at 447218896896 B accounted.
+It created research/tmp/gauguin-optional-fault-profile-worktree-20261112 on
+codex/gauguin-optional-fault-profile-20261112 at faed7685. Its new 17-test suite
+passed: 80 finite fault/settle/deadline cases across original/off/on models
+(240 executions), real macro/configure/dump extraction under ASan/UBSan, plus
+source equality. Five initial fixture failures are preserved. The unchanged
+historical source296-vs-source298 behavior suite passed 12 tests. Actual
+candidate ARM64 TU compilation exited 0, checked 2132 header/config pins and
+left reference files unchanged; object SHA 76887fa5bff8849b3a83b8fc1b17b7c84e9cfa581c4a5a72de3ec36133ccd26e.
+Raw logs/validation-receipt.json are in that worktree's research/tmp/
+optional-fault-profile-validation. All preserved stable inputs matched; the
+active DSH output log was separately disclosed as growing. No kernel link,
+image, device operation, push or commit occurred.
+
+Codex found acceptance gaps: the two historical 0297 fixtures needed an explicit
+always-on historical source view when consuming 0222, and the new test needed
+XNU_SOURCE/strict reverse-derived baseline rather than silently skip for absent
+Mac-only scratch paths. DSH follow-up exec session 90209 finished exit 0. Its
+27 optional tests passed with explicit inputs, reverse-derived baseline,
+forward-derived candidate and default/no-env routes; candidate and historical
+profile/behavior fixtures each passed 6/12 tests, zero skips. The original
+historical fixture failures and corrected receipts are preserved under the new
+worktree's research/tmp/optional-fault-profile-validation/historical-compat.
+Production 0222 and all preserved inputs stayed unchanged.
+
+Codex's final review then reproduced one fixture priority bug: with an explicit
+OPTIONAL_PROFILE_BASE, a missing XNU_SOURCE was ignored and a candidate was
+derived instead. DSH final exec session 9981 is fixing only this loader case,
+adding two focused tests, correcting the native-manifest doc path and explicitly
+documenting the remaining policy load/branch overhead. Its pinned final stage
+must pass before committing the seven reviewed source/test/doc files, then
+commit ONLY MAIN/NOTES.md while preserving MAIN tools/mkadt.py. Inspect original
+research/tmp/resume-ios-20261112/dsh-final-accept-output.jsonl and handle; never
+duplicate claimed stages or modify worker files while running. No device action
+is authorized. Final source and notes commits are not yet observed.
+
+0298 still uses its original reviewed image/command. Optional timer gating
+cannot claim speedup, unchanged hardware sampling outcomes or physical FPS.
+Preserve MAIN tools/mkadt.py, all pinned trials/backups and the 500 GB cap.
+
 ### 2026-11-12 CST — submit guard baseline characterized offline
 
 0298 plan remains ready and individually unapproved: no approval298.json,

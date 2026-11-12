@@ -1,10 +1,11 @@
 # Ordered desktop Metal frontend candidate
 
-The `gauguin-ca-owned-c4` frontend now admits held and ordinary command buffers
-through one serial queue. It is an offline desktop candidate linked to the
-ownership core that passed two isolated A619 hardware trials. The installed
-desktop still uses its earlier bundle and core; desktop GPU composition and
-90/120 Hz remain unqualified.
+The `gauguin-ca-owned-c4` frontend admits held and ordinary command buffers
+through one serial queue. It is linked to the ownership core that passed two
+isolated A619 hardware trials. A subsequent
+[one-boot desktop trial](gauguin-metal-ca-c4-trial-20261112.md) confirmed that
+the new backend loaded the private core and completed GPU work, then restored
+the original bundle. Desktop pixels and 90/120 Hz remain unqualified.
 
 ## Source and behavior
 
@@ -80,16 +81,15 @@ Private source, build, host and ABI receipts are under
 | Final native bundle v3 | `5b357ac75eea5878dc8a3bccc450fe26464d20dbd161c86d3c1f5f900a37f42a` |
 | Actual OS import audit v3 | `4a67085cb9f8809ec94cec52017487e7ca7c51c04a93fe030bf96d9c3ebb533c` |
 
-No phone write, boot or CI run occurred for this frontend. The next acceptance
-step is the [prepared one-boot trial](gauguin-metal-ca-c4-trial-20261112.md)
-of the matched bundle and private core. Its logs can establish backend activity
-and callback timing; desktop pixels need a separate physical observation.
-Only after that path is correct can a
+The frontend build itself had no phone write, boot or CI run. The subsequent
+one-boot trial established backend activity, with zero presented drawable
+events. Desktop pixels need a separate physical observation. After that path
+is correct, a
 separate 90/120 Hz modeset and optical display-link test use the panel's
 advertised timing catalog. Physical refresh, input latency and smooth daily
 operation remain open.
 
-## Read-only current device delta model
+## Historical read-only device delta model
 
 After the offline build, a fresh recovery capture read all 29 selected files
 and five directories. Every file hash and the root header matched repeat2's
@@ -118,11 +118,9 @@ Fresh capture SHA-256 is
 The complete planned trial batch of one GiB is admitted at 486,109,007,872
 accounted bytes against the 500,000,000,000-byte cap.
 
-The exact writer and restoration now pass 24 in-memory fault controls, and a
-virtual activation followed by read-only current HFSX parsing yields the
-original ranges. The one-shot runner checks old log prefixes, a unique new
-frontend path marker, completed command buffers and restoration. It refuses
-an absent approval before claiming execution or opening device IO. The trial
-has **not** run. A fresh approval of its [concrete scope](gauguin-metal-ca-c4-trial-20261112.md)
-is required by the project device rule; both earlier one-boot approvals were
-consumed.
+The exact writer and restoration passed 24 in-memory fault controls, and a
+virtual activation followed by read-only HFSX parsing yielded the original
+ranges. The one-shot runner refused an absent approval before claiming
+execution or opening device IO. The later separately approved
+[hardware trial](gauguin-metal-ca-c4-trial-20261112.md) completed this scope
+once and restored the old desktop bundle. Its approval is consumed.

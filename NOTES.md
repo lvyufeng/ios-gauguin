@@ -2,7 +2,60 @@
 
 ## Agent handoff / active work
 
-### 2026-11-12 CST — approved C4 desktop one-boot trial running; observe original
+### 2026-11-12 CST — C4 desktop backend ran on A619; original bundle restored
+
+The user authorized this distinct C4 one-boot scope through question item
+["request_user_input_async","call_d10c2bc40437497c883a39ae9977241f",0].
+W=research/tmp/metal-ca-c4-20261112. W/approval.json SHA
+8fa388c1415929d201d150406613c18d2e80af9e4add02e1058424f51e015faa.
+The C4 approval and both earlier one-boot approvals are now consumed. No user
+screen attestation was received. Actual report:
+docs/gauguin-metal-ca-c4-trial-20261112.md.
+
+Original W/execute_trial.py PID49955/session36394 exited0. ObserverPID/PGID50741
+is terminal with no children. All80 ready pins passed before claim and in the
+independent terminal review. Fresh29-file capture matched the baseline.
+Install2 ranges/434176B and13B misc marker passed readback. Same0298 image
+SHA64596164315fc496ff30037bb1fdf982d1322069eee788e28554f38d6f43cc7e
+sent/booted OKAY once, total0.611s. TWRP returned after746s with matching
+kernel banner; claim-to-result818.052373s. No boot retry or rollback.
+
+Postboot HFS catalog was re-read live. The old desktop executable and its
+logicalSize were restored in2 ranges/434176B, readback verified. Four captures
+verified116 file records and five directory records each. All3 old log prefixes
+were retained; stdout/stderr/backboardd grew3007/135/55061B. Current root
+header AFTER this boot/restoration:
+8e81a422e334b7f484a17f9af7c6e85076319f41ac9a7dcca65b0301a45453fe.
+The previous42ec2e54... header is historical. Device is TWRP. Private C4
+candidate is inactive; original desktop bundle/core remain installed.
+
+Current-only backboardd attests the exact private owned-core path and new FIFO
+frontend once each, with no refused/failed lines. Retained root owner close:
+ready1/jobs8/fence8/epoch1/clean1. GPU service598 renewals,27 submitted/
+27 completed, shadow344. Seventeen fps windows contain19 completed command
+buffers, but presentedDrawable events=0. Observer final logical panel
+presents=21 versus97 and228 in the two prior core trials without matched input
+or optical conditions. This proves backend activity, NOT physical pixels/FPS,
+high refresh or a speedup.
+
+W/execution/result.json SHA
+facf6f7d134a5d44b303bcd20862ed6d4582f6294ff6bf170be2256d7ed33043.
+W/execution/independent-review.json SHA
+c3a493e0861942889199ffa6b13150aae39ce48ecc691fef1a98d0f41d73f443
+accepts all80 pins,116 files, dynamic catalog restoration, current-only logs,
+empty process group and recovery final state. Kernel log SHA
+eed579df67a69d67dca06572ba268b57b4593d7ba101a7e68e56be76906ebf3d.
+Latest storage W/storage-after-trial.json:485787680768B/500000000000B,
+admitted. Original backups/evidence and user mkadt edit SHA3c1085a7...
+remain intact. Never rerun W/execute_trial.py, observer or fastboot boot.
+
+Next full-goal work: establish a controlled 60Hz desktop baseline with
+physical screen/input observations, correlate command-buffer/IOSurface output
+to scanout, and distinguish rendering from logical presents. Only then test
+the prepared90/120Hz panel modes and optical app cadence. Any further phone
+write or temporary boot needs a new concrete plan and user confirmation.
+
+### 2026-11-12 CST — C4 desktop one-boot execution trace (historical)
 
 The actual user answer to questionItemId
 ["request_user_input_async","call_d10c2bc40437497c883a39ae9977241f",0]
@@ -30,7 +83,7 @@ evaluates exact private-core path/front-end markers and GPU work. If failure,
 inspect original receipts. Do not infer displayed desktop pixels/FPS from logs,
 and do not launch a second boot. Original backups and mkadt edit remain intact.
 
-### 2026-11-12 CST — C4 desktop one-boot trial reviewed; awaiting its own approval
+### 2026-11-12 CST — C4 desktop one-boot pretrial review (historical)
 
 Source follow-up 18e2dc5 adds a runtime dladdr check for the exact private
 owned-core path and a bounded HFSX delta writer; report/source follow-up

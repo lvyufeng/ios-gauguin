@@ -1,9 +1,9 @@
 # C4 desktop Metal one-boot device trial
 
-This trial is prepared and **has not run**. It would test the ordered desktop
-frontend with the privately installed ownership core. Its log acceptance means
-the new backend loaded and completed GPU work. Displayed pixels, physical FPS,
-90/120 Hz and smooth daily use require separate evidence.
+The approved one-boot trial **ran and passed its backend/restoration checks**.
+The ordered desktop frontend loaded the private ownership core and completed
+GPU work; the original desktop bundle was restored. Displayed pixels, physical
+FPS, 90/120 Hz and smooth daily use require separate evidence.
 
 ## Current device and payload
 
@@ -24,7 +24,7 @@ identifies the private owned core at
 core/frontend imports resolve against the preserved iOS 20H392 cache or that
 exact core; runtime behavior is still untested.
 
-## Proposed one-shot actions
+## Executed one-shot scope
 
 1. Re-read the 29-file baseline, volume header, misc preimage and both full
    write-range preimages. Require exactly one Gauguin recovery device, unmounted
@@ -75,11 +75,58 @@ Private evidence is in `research/tmp/metal-ca-c4-20261112/`:
 | Ready receipt, 80 input pins | `6b293f422dfe9b387836316e6a10b3f81cabdfeef44c461f93eb3dcf9448f0d9` |
 | Independent read-only review | `1103d82c2204fbe3784b300fff00c29f0d8ca99c567ccb5a4e8e6a354558b8d4` |
 
-The runner refuses absent individual approval before an execution claim or
-device IO. A backend result requires a new backboardd attestation of the
-private core path, the ordered frontend path, positive completed command
-buffers, a clean retained root bootstrap and completed GPU service work.
-Return to TWRP and original-bundle restoration are checked independently.
-Physical pixels and refresh cadence remain open. The two earlier boot
-approvals were consumed; this distinct write/boot scope requires a new
-explicit decision.
+The runner refused absent individual approval before an execution claim or
+device IO. The user then answered `允许本轮写入、临时启动及回退` to question item
+`["request_user_input_async","call_d10c2bc40437497c883a39ae9977241f",0]`.
+That approval binds the two plan hashes above; its receipt SHA-256 is
+`8fa388c1415929d201d150406613c18d2e80af9e4add02e1058424f51e015faa`.
+This authorization has now been consumed.
+
+## Observed result
+
+Original executor PID 49955 and observer PID/process group 50741 are terminal;
+the retained execution exited 0 with one boot attempt and no surviving
+observer children. Both userdata ranges, 434,176 bytes total, passed install
+readback. The 13-byte misc marker also passed. Fastboot sent and booted the
+same 0298 image once (both OKAY, 0.611 seconds). TWRP returned after 746
+seconds and the kernel banner matched. Claim-to-result time was 818.052373
+seconds. No boot retry or failure rollback occurred.
+
+The fresh, installed, postboot and restored captures independently verify
+116 file records and five directory records each. All three full old log
+prefixes were retained. This run added 3,007 bytes of stdout, 135 bytes of
+stderr and 55,061 bytes of backboardd log. Postboot restoration dynamically
+re-read the catalog; the same 434,176 userdata bytes were restored with
+readback. The original desktop executable hash and fork are intact, with
+postboot metadata outside its eight-byte length field preserved. Phone state
+is recovery. The current postboot/post-restoration root-header SHA-256 is
+`8e81a422e334b7f484a17f9af7c6e85076319f41ac9a7dcca65b0301a45453fe`.
+The pretrial `42ec2e54…` header above is historical.
+
+Current-only backboardd output attests the exact private owned-core path and
+the new frontend admission path once each. It has no `refused:` or `failed`
+line. The retained root bootstrap closes cleanly (ready 1, jobs 8, fence 8,
+epoch 1, clean 1). The finite GPU service records 598 renewals, 27 submitted
+and 27 completed jobs, shadow 344. Seventeen frontend timing windows contain
+19 completed command buffers. Their `presentedDrawable` total is **zero**.
+The observer's final logical panel `presents` count is **21**, versus 97 and
+228 in the two prior core trials. Those runs did not have matched physical
+input or optical captures; these counts cannot establish an improvement or
+assign a cause to the difference.
+
+Read-only independent review rechecked all 80 ready pins, actual captures,
+current-only validation, restoration bytes, fresh kernel log and empty process
+group. Terminal result SHA-256:
+`facf6f7d134a5d44b303bcd20862ed6d4582f6294ff6bf170be2256d7ed33043`;
+independent review SHA-256:
+`c3a493e0861942889199ffa6b13150aae39ce48ecc691fef1a98d0f41d73f443`.
+The new kernel log SHA-256 is
+`eed579df67a69d67dca06572ba268b57b4593d7ba101a7e68e56be76906ebf3d`.
+Latest storage accounting is 485,787,680,768 bytes of the 500 GB cap.
+
+This run proves that the new desktop backend can load the new core and finish
+work without losing the original installation. It does not prove that GPU
+results reach the physical screen or that iOS runs smoothly. The next device
+test needs matched input, surface/scanout identifiers and physical frame
+observation at a verified 60 Hz baseline. The prepared 90/120 Hz panel modes
+and optical A/B probe follow that baseline; they have not run in iOS.

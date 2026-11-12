@@ -83,3 +83,50 @@ keep memory quarantined. A multi-in-flight ring needs verified RPTR/space
 logic; this patch deliberately permits only one. The 0301 trace and a
 SpringBoard animation-request measurement should determine which part of
 this work is on Gauguin's critical path before a new exact phone trial.
+
+## 2026-11-12 follow-up: guarded board issued-fence API, offline only
+
+Patch `xnu/patches/0227-gauguin-guarded-issued-board-api.patch` SHA-256
+`e8173025d4e37d272ca6685e5cc5d3fbdcb521a1a52bdb0853e94c204ae9dc1a`
+adds board entry points for **issue, poll and wait** over the existing
+one-in-flight runtime. `sweet_gpu_runtime_issue` requires the same root,
+READY and live-route checks as synchronous submission, then checks owner and
+SMMU routes again after the doorbell. A failed post-doorbell check quarantines
+the GPU; a future caller must retain all referenced pages even when it does
+not receive an issued fence. `sweet_gpu_runtime_poll` remains reachable in
+BUSY state, checks the live owner and SMMU routes before each completion
+read, and allows an already-completed older fence while a newer one is
+pending. `sweet_gpu_runtime_wait` repeats that guarded poll until completion
+or the runtime's original two-second pending deadline. The current board
+`sweet_gpu_runtime_submit` and user-client selector still call the synchronous
+path; this patch enables **no** early return in the current desktop.
+
+An APFS clone of source305 was admitted as part of a 200,000,000-byte batch
+at 498,810,449,920 bytes accounted. A full-tree diff after editing source306
+lists exactly `bsd/dev/gauguin_gmu_board.c` and
+`bsd/dev/gauguin_gpu_runtime.h`; the patch replays those bytes exactly onto
+unaltered source305. The 5,336-file source-state receipt SHA-256 is
+`d76210659ce57c1169889d56f98b9da767bfced4eba5529086ee028ace3e54cc`.
+The actual board and unchanged GauguinGPU user-client
+translation units passed native ARM64 compilation against the 0301 generated
+headers, private receipt SHA-256
+`4e8f2e61d967c56402aff83e35d1f1e2ccf81c228d441cef8df7f2b6cd8095fd`.
+An ASAN/UBSAN host run compiled the three **actual board function bodies**
+with the actual runtime under typed CPU-only register/memory callbacks. It
+passed the retained 17,555 runtime/ABI assertions, 72 service-health
+assertions and 96 new board issue/poll/wait/route/quarantine assertions;
+private receipt SHA-256
+`a633307098f69cc084a32ecd9f8dbc9ed77056a74f28dd168a68f51270119062`.
+The first fixture compilation failed because its mock `ready` function was
+incorrectly `static`; the corrected second run passed. No GPU commands,
+whole-kernel link, phone boot, 60 Hz improvement or physical high refresh is
+claimed.
+
+The next functional integration must hold the referenced BOs, IOSurfaces
+and SMMU mappings until completion, maintain separate issued/completed queue
+numbers, and make CPU prep, wait, display reads and close obey that state.
+The source's `sweet_gpu_runtime_ready()` is READY-only; callers must not
+mistake its false result during an expected BUSY interval for a dead GPU.
+These contracts must be solved together before using the new board API from
+Metal. The separately approved 0301 touch/HID/C4 trace remains the next
+phone diagnostic for the immediate lag.

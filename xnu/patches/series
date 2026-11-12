@@ -219,3 +219,4 @@
 0223-gauguin-display-notify-hid-trace.patch
 0224-gauguin-causal-ui-trace.patch
 0225-gauguin-issued-fence-runtime.patch
+0227-gauguin-guarded-issued-board-api.patch

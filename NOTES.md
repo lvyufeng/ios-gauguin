@@ -47,6 +47,9 @@ approved W301/0301 causal trace. If its result supports SpringBoard
 request/turn delay, finish distinct W302 observer trial executor, seek
 its own exact-scope consent, then measure dyld load and physical cadence.
 Preserve backups, W301 pins and user's `tools/mkadt.py` edit.
+The batch estimate missed the duplicated 457569543B driver log outside the
+build root: peak allocation exceeded the admitted 3GB estimate but remained
+under the 500GB cap. Future estimates must include both log destinations.
 
 ### 2026-11-12 CST — HakiOS AMFI comparison blocks old SpringBoard slot trial
 

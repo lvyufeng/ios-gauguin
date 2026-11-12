@@ -282,3 +282,18 @@ missing local input fixtures/arguments and stale host seams. Commit `cf74d32`
 fixes the directly relevant GPU seams and four focused CLI defaults; that
 commit was made after the run and is not covered by its remote test log.
 This kernel has not been packaged, booted or measured on the phone.
+
+## 2026-11-13 storage cleanup for the pending phone trace
+
+The 0301 trial's live 1 GiB capture reserve failed the 500 GB project cap
+after this branch's CI artifact download. Source305, source306 and source307
+were superseded by the retained source308 and exact patches0227–0229. Each
+reverse patch check passed before retiring only those three APFS clones.
+Their 5,336 files each and conservative total of 259,692 KiB were recorded
+in a private cleanup manifest SHA-256
+`0cf9792e016035ffcffdf5adfc17ab148ff3dc4ff90241868ca5ffbd19088c70`.
+None of the 110 W301/W302 active trial pins was under those directories.
+Current source308, W301/W302 pins, original phone backups and rollback
+snapshots remain. The full 1,073,741,824-byte capture reserve then passed
+at 498,900,963,328 bytes accounted. The 0301 executor will repeat this
+check and all device-preimage checks after its separate exact-scope consent.

@@ -2,6 +2,28 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0300 authorized one-boot diagnostic IN PROGRESS
+
+The user separately approved the exact 0300 write/boot/restore scope via
+question item
+`["request_user_input_async","call_4d4c37f7216c49fbb7e629e22c0b467d",0]`,
+answer "允许本轮写入、临时启动及回退". W300=research/tmp/gpu-notify-hid-20261112.
+W300/approval.json SHA971e0a58ca3ac7c68bcc70d67b6d0f0788f2b339e3b81031d28e0bc21e218701
+binds install plan7f53afce..., whole plan9b9470515f..., image300
+9d4bbee3cb...; the scope is consumed now. DO NOT rerun W300/execute_trial.py,
+the observer or fastboot boot. Original executor is retained in exec session
+82607. It created W300/execution/claim.json and passed fresh capture and
+install2 runs/434176B with readback/no rollback. Misc13B marker readback
+passed. Observer PID/PGID12170, W300/execution/observer-process.json, sent
+image300 once (fastboot send0.457s, boot0.135s, total0.601s). No TWRP return
+or final restore/result yet. Observer waits up to780s, GPU service600s; after
+return the runner captures current-only logs, dynamically reads postboot HFSX
+catalog, restores original desktop434176B with readback, and repeats29-file
+capture. User was asked to do Home/App Library swipes and open Settings during
+service. Do not infer screen behavior before user observation or final logs.
+If execution fails, inspect original receipts and recovery state; never boot
+again under this approval. Preserve all backups and mkadt user edit.
+
 ### 2026-11-12 CST — 0299 lag confirmed; 0300 diagnostic ready, consent pending
 
 The user directly observed during the authorized 0299 boot: "还是很卡顿

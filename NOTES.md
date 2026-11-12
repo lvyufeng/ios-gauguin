@@ -2,6 +2,41 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — user-requested owned-core repeat2 booted once; observe original
+
+The actual reply to questionItemId
+["request_user_input_async","call_b2e95e56b80a40b580384d41e1324518",0]
+was 再刷机一次. Treat it as a new explicit repeat instruction, not a screen
+attestation and not reuse of the consumed first approval. Codex stated the
+same temporary image/probe and post-test restoration behavior before execution.
+
+R=research/tmp/metal-hardware-repeat2-20261112; first W=research/tmp/metal-hardware-20261112.
+New plan14ddfd2fac19bcbc6250461dce0a363eade1cd40052449015dfbeea919a53dc2,
+approvald62f0ee6d9464cf9cca060cf14c39ad01c9452926407458be787c44cabd2b599.
+Fresh29-file/5-directory capture matches prior restored static bytes and full
+old log prefixes. Header1c43ad66... remains unchanged. Existing test/core binaries
+are reused. Only2 launch-data blocks/8192B are activated and later restored;
+no full9.99MB installation, filesystem metadata writes, new image or new clone.
+The narrowed writer rejects metadata plans and passed14 actual-range controls.
+OneGiB whole-batch storage admitted at485837524992B/500GB.161 ready pins include
+101 preserved-first-trial pins, all checked. First evidence is untouched.
+
+Original R/execute_trial.py PID3532 (retained exec session85689) is active.
+R/execution/claim.json and R/authorized-execution.log are the original records.
+Activation2 ranges/8192B readback verified;13-byte misc marker also verified
+(after8698abf4...). ObserverPID/PGID3973 launched once. Actual fastboot sending
+and booting both returned OKAY, total0.598s, same0298 image64596164315f....
+This repeat's boot scope is consumed; never launch again because it is slow.
+600s service/780s observer and post-capture/data-only restoration are pending.
+
+Observe only the original process/results. The runner will capture29 files,
+retain complete old log prefixes, restore the2 launch-data blocks, then validate
+current-only GPU output and both root owner epochs. Compare new observer SHA
+against firstc8bb4e36bf95bd75d526776d9ed60a1ccec789d7e2b9da9e52de97ef210968ef.
+Do not rerun original first or repeat helpers/stages. No screen attestation,
+FPS or desktop-async qualification follows from the user's repeat instruction.
+C4 remains unfinished. MAIN mkadt original edit remains untouched.
+
 ### 2026-11-12 CST — real A619 owned-core trial passed; original launch entry restored
 
 The authorized one-shot hardware trial is complete. Result report commit6265ea6

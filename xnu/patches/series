@@ -218,3 +218,4 @@
 0222-gauguin-batched-readonly-submit-status.patch
 0223-gauguin-display-notify-hid-trace.patch
 0224-gauguin-causal-ui-trace.patch
+0226-gauguin-springboard-dyld-rate-observer.patch

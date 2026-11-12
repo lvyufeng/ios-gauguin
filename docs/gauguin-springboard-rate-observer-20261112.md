@@ -149,3 +149,45 @@ There is still no bounded trial executor, misc recovery marker, selected boot
 image, postboot log collection or separate exact-scope user authorization.
 These are required before any phone installation. Actual SpringBoard loading,
 hook ABI and visible cadence remain unverified.
+
+## 2026-11-12 source correction: current dyld policy blocks the observer
+
+HakiOS's [AMFI stand-in](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/xnu/files/bsd/kern/kern_minimac.c#L59)
+answers dyld policy request 0x5a with an allow mask of 0xff; its
+[injection source](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/userland/src/inject.c#L1)
+says launchd's `DYLD_INSERT_LIBRARIES` works because of that answer.
+Gauguin's actual 0301 `sweet_amfi.c` instead registers its opt-in `AMFI`
+policy for `sweet_dyld_probe=1` and returns mask 2 **only for an exact
+backboardd executable**. The SpringBoard process gets `ENOPOLICY`. Therefore
+the existing slot plus launch plist delta is **not a working observer trial
+with the pinned 0301 image**. Preparing its phone executor before fixing this
+policy would have been misleading.
+
+Patch `xnu/patches/0226-gauguin-springboard-dyld-rate-observer.patch` SHA-256
+`4dbca60cf2194256abb32da2d12e0adce20d5f7049ad8cef38d9495acc0af6e9`
+adds a *separate* default-off `sweet_sb_rate_probe=1` gate. It grants only
+the same dyld PATH mask 2 to a UID 501 SpringBoard process whose executable
+vnode matches `/System/Library/CoreServices/SpringBoard.app/SpringBoard` on
+the root mount, is root-owned and not group/world writable, and is not
+writable by that mobile caller. The prior backboardd gate, its boot token,
+log prefix and result are retained. This is narrower than HakiOS's global
+0xff permission. The new gate does not attest the launchd job's environment
+value; the separate root-delta preimages and rollback must still do that.
+
+The patch replays exactly onto the pinned 0301 `sweet_amfi.c`, changing only
+that file. A copied production policy plus unchanged XNU MAC dispatcher
+passed **47 ASAN/UBSAN host cases**, including the old backboardd cases and
+SpringBoard disabled, correct UID/vnode, wrong UID/vnode/mount/permissions,
+and policy failures. Actual ARM64 kernel single-file compilation passed
+against the 0301 build's generated headers. Host receipt SHA-256
+`361d76255426eaa85335373fbfe7870647913b3b9d2ba1d80ef28f19b3a2ad30`;
+native receipt SHA-256
+`beaa3d5bf7b2e04f63952c21467e0cfc52023ac85fe6a41d9f00f1a9c862d4f1`.
+No full kernel build or image exists for this patch, and no phone execution
+or SpringBoard dyld result has been observed. A future boot command can fit
+the new token by removing the redundant `metal_fps=timeline` summary token
+from 0301's 601-byte command: the proposed command is 604 bytes and retains
+`touch_lat=1`, `sweettrace=2` and `sweetfb_hz=60`. This is a length check,
+not a reviewed image or an authorization to boot it. Run the pinned 0301
+causal trace first and use its result to decide whether to build this
+separate observer image.

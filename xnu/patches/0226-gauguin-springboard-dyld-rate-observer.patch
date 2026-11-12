@@ -1,0 +1,124 @@
+--- a/bsd/kern/sweet_amfi.c
++++ b/bsd/kern/sweet_amfi.c
+@@ -61,6 +61,9 @@
+  * or permission to open the GPU, and is not a general application policy.
+  */
+ static TUNABLE(uint32_t, sweet_dyld_probe, "sweet_dyld_probe", 0);
++/* Separate opt-in for the read-only SpringBoard animation-rate observer.
++ * Keep the existing backboardd permission and its boot argument unchanged. */
++static TUNABLE(uint32_t, sweet_sb_rate_probe, "sweet_sb_rate_probe", 0);
+ 
+ /* SWEET_DYLD_PROBE_BEGIN: compiled unchanged by the typed host boundary model. */
+ struct sweet_dyld_policy_args {
+@@ -131,6 +134,64 @@
+ 	return trusted;
+ }
+ 
++static bool
++sweet_sb_rate_probe_subject(proc_t p, uid_t *effective, uid_t *real)
++{
++	kauth_cred_t cred = NULL;
++	vnode_t actual = NULLVP, expected = NULLVP;
++	struct vnode_attr attributes;
++	bool trusted = false;
++	int error;
++	*effective = *real = (uid_t)-1;
++	if (p == NULL || p != current_proc()) {
++		return false;
++	}
++	cred = kauth_cred_proc_ref(p);
++	if (cred == NULL) {
++		return false;
++	}
++	*effective = kauth_cred_getuid(cred);
++	*real = kauth_cred_getruid(cred);
++	kauth_cred_unref(&cred);
++	if (*effective != 501 || *real != 501) {
++		return false;
++	}
++	actual = proc_getexecutablevnode(p);
++	if (actual == NULLVP || vnode_lookup("/System/Library/CoreServices/SpringBoard.app/SpringBoard",
++	    VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT, &expected,
++	    vfs_context_kernel()) != 0) {
++		goto out;
++	}
++	if (actual != expected || vnode_vtype(actual) != VREG ||
++	    vnode_mount(actual) == NULL || !(vfs_flags(vnode_mount(actual)) & MNT_ROOTFS)) {
++		goto out;
++	}
++	VATTR_INIT(&attributes);
++	VATTR_WANTED(&attributes, va_uid);
++	VATTR_WANTED(&attributes, va_mode);
++	if (vnode_getattr(actual, &attributes, vfs_context_kernel()) != 0 ||
++	    !VATTR_IS_SUPPORTED(&attributes, va_uid) ||
++	    !VATTR_IS_SUPPORTED(&attributes, va_mode) || attributes.va_uid != 0 ||
++	    (attributes.va_mode & (S_IWGRP | S_IWOTH)) != 0) {
++		goto out;
++	}
++	/* The mobile caller must not be able to rewrite the executable. */
++	error = vnode_authorize(actual, NULLVP, KAUTH_VNODE_WRITE_DATA,
++	    vfs_context_current());
++	if (error != EACCES && error != EPERM) {
++		goto out;
++	}
++	trusted = true;
++out:
++	if (expected != NULLVP) {
++		vnode_put(expected);
++	}
++	if (actual != NULLVP) {
++		vnode_put(actual);
++	}
++	return trusted;
++}
++
+ static int
+ sweet_dyld_probe_syscall(proc_t p, int call, user_addr_t user_args)
+ {
+@@ -138,16 +199,23 @@
+ 	uint64_t output = 2; /* actual1067 ALLOW_PATH_VARS; bit2 is shared-cache */
+ 	uid_t effective, real;
+ 	char name[32];
++	bool backboard, springboard, trusted;
+ 	int error;
+-	if (!sweet_dyld_probe || call != 90 || p == NULL || p != current_proc()) {
++	if ((!sweet_dyld_probe && !sweet_sb_rate_probe) || call != 90 ||
++	    p == NULL || p != current_proc()) {
+ 		return ENOPOLICY;
+ 	}
+ 	proc_name(proc_pid(p), name, sizeof(name));
+-	if (strcmp(name, "backboardd") != 0) {
++	backboard = sweet_dyld_probe && strcmp(name, "backboardd") == 0;
++	springboard = sweet_sb_rate_probe && strcmp(name, "SpringBoard") == 0;
++	if (!backboard && !springboard) {
+ 		return ENOPOLICY;
+ 	}
+-	if (!sweet_dyld_probe_subject(p, &effective, &real)) {
+-		printf("SWEET DYLD PROBE: pid=%d uid=%u ruid=%u protected-exec=0 rc=%d\n",
++	trusted = backboard ? sweet_dyld_probe_subject(p, &effective, &real) :
++	    sweet_sb_rate_probe_subject(p, &effective, &real);
++	if (!trusted) {
++		printf("%s: pid=%d uid=%u ruid=%u protected-exec=0 rc=%d\n",
++		    backboard ? "SWEET DYLD PROBE" : "SWEET SB DYLD PROBE",
+ 		    proc_pid(p), effective, real, ENOPOLICY);
+ 		return ENOPOLICY;
+ 	}
+@@ -161,7 +229,8 @@
+ 	if (error == 0) {
+ 		error = copyout(&output, args.output_flags, sizeof(output));
+ 	}
+-	printf("SWEET DYLD PROBE: pid=%d uid=%u ruid=%u protected-exec=1 output-mask=2 rc=%d\n",
++	printf("%s: pid=%d uid=%u ruid=%u protected-exec=1 output-mask=2 rc=%d\n",
++	    backboard ? "SWEET DYLD PROBE" : "SWEET SB DYLD PROBE",
+ 	    proc_pid(p), effective, real, error);
+ 	return error;
+ }
+@@ -583,7 +652,7 @@
+ void
+ sweet_amfi_policy_register(void)
+ {
+-	if (sweet_dyld_probe) {
++	if (sweet_dyld_probe || sweet_sb_rate_probe) {
+ 		int probe_error = mac_policy_register(&sweet_dyld_probe_conf,
+ 		    &sweet_dyld_probe_handle, NULL);
+ 		printf("SWEET DYLD PROBE: AMFI policy registered rc=%d; outputPATHmask2 only, GPU privileges unchanged\n",

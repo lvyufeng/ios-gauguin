@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — repeat2 complete; user confirms visible desktop/icons; full-core host proof started
+
+New actual visual reply to questionItemId
+["request_user_input_async","call_c9b9de1dde0745cf8a731bcc1fcad5a6",0] was
+已看到桌面和图标. Saved in W2/user-visual-feedback.json, bound to repeat2 plan.
+This proves user-reported visible desktop/icons only. No precise observation
+time was exposed; recorded time is not time-to-desktop. Physical input/FPS,
+complete desktop/Metal API, safe total RAM/storage/peripherals/90/120Hz/daily
+use are still unqualified. The full goal is active, not complete.
+
+W2=research/tmp/gauguin-present-trace-worktree-20261112/research/tmp/dsh-trial298-repeat2-prep.
+Repeat2 dispatcher41097 and helperPGID42243 terminal0/no children; post60128
+terminal0. One temporary boot/no retry,13-byte misc marker verified/no rollback,
+no explicit userdata delta. Same0298 image64596164315f... and605B command.
+Observer745.543835s, TWRP detected745s, exact0298 banner; trial incl.preflight
+822.325657s, post14.352270s. All190 trial/208 post/51 review/139 first-run and12
+original0297 pins match. New observerSHA35a6938f7293dfc956ad56f67e5e317f6371dfb1e03f4f52ff6df7c7402a9a53
+differs from first. Both requested one-shots are consumed; do not launch again
+from goal continuation. Original outputs are terminal and never rerun.
+
+Read-only capture retained24 static files,4 directory metadata sets and3 full
+old log prefixes; current suffixes3004/135/88008B. Current root header now
+b1ad834b78e37a90e619d7cf9e4ddbe2c1930f895b012c5833cd8c25eae38c90;
+use a new current baseline/fresh checks for any later device test. Six complete
+CPU snapshots, latest32 attempts/31 copies/1 zero/0 invalid/0 refused,
+321408000B/31 layers;31 guards<0.5ms and31 copy intervals[2,4)ms. Prefixes are
+cumulative and do not establish FPS or later activity.600s service validated
+598 renewals,48 submitted/completed (16 individually recorded,32 sampled).
+One BO refusal after planned stop. Strict bootstrap8 phase/CPU hash/fence1..8/
+clean handoff passes for newseed571950435 and unchanged installed core.
+W2/repeat2-acceptance.json binds all evidence plus visual attestation.
+Full report docs/gauguin-trial298-repeat2-results-20261112.md; launch handoff
+7909cdcce246437fba3ce13826995e1a08a01d75. No CI/new native image/device install.
+
+Ownership source worktree T=research/tmp/gauguin-metal-ownership-worktree-20261112,
+branch codex/gauguin-metal-ownership-20261112, parentbe7efdf2d80a0030b11a0dc0f31c88461bc3cb3e.
+Its228-file baseline matches installed-core source exactly. No production
+ownership patch/profile exists yet. After repeat2 post completed, Codex sent
+DSH one host-only actual-full-core callback lifetime reproduction request:
+research/tmp/resume-ios-20261112/dsh-baseline-core-repro-request.txt; original
+output dsh-baseline-core-repro-output.jsonl in that same directory. Original
+DSH parent61407 was observed live at03:42:53UTC; inspect that original job and
+T/research/tmp/metal-ownership-v1/baseline-actual-core-v1/result.json, never restart
+because an observation times out. Source/controller state here is historical;
+revalidate actual process/result before relying on it. The task compiles the
+whole real core+FakeGpu under ASan/UBSan, callback-frees-error-CB baseline vs
+external-free control. No mock/native finish-order alteration or production
+fix. Require exact pending-decrement ASan stack, not merely nonzero/timeout.
+It must admit its full2GiB host batch and preserve source228 pins; no device.
+No source commit yet; Codex must review before committing completed harness/
+runner and before implementing C1-C3. Detailed non-dispatched implementation
+design is research/tmp/resume-ios-20261112/ownership-next-implementation-design.txt.
+C4 frontend admission/wait ordering still required before activation. Do not
+claim full Metal/deferred safety from host lifetime tests alone.
+
+512MiB repeat batch admission and all original captures remain pinned. Original
+MAIN mkadt bytes/diff unchanged. Raw phone evidence/serials/Apple inputs stay
+private. Source proof outcome is still pending in this milestone.
+
 ### 2026-11-12 CST — user requested same0298 repeat2; fresh isolated stage dispatched
 
 Latest actual user instruction was 再刷入一次, following their screen-observation

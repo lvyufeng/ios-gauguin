@@ -191,3 +191,48 @@ from 0301's 601-byte command: the proposed command is 604 bytes and retains
 not a reviewed image or an authorization to boot it. Run the pinned 0301
 causal trace first and use its result to decide whether to build this
 separate observer image.
+
+## 2026-11-12 follow-up: full offline kernel and image
+
+An independent APFS clone of the pinned 0301 source was audited bytewise:
+only `bsd/kern/sweet_amfi.c` differs, exactly as patch 0226 replays. The
+source-state record still checks after the build. The admitted build batch
+was **3,000,000,000 bytes** at 496,309,448,704 bytes accounted; a larger
+3,800,000,000-byte simultaneous build-plus-trial batch was refused, so the
+trial remains separate. `SKIP_TESTS=1` full local `make install` exited zero
+after the focused 47-case host and native TU tests. Build manifest SHA-256 is
+`e56269f3aa6e1f99b33a4acfa83e19365e471a3531e9a60864b4ab657b241183`.
+The 17,348,416-byte kernel SHA-256 is
+`e5a840b948858c91ddff76d8f941757e04d9cd6752b5041ac5b410c7bbe7b935`;
+banner identity is `xnu-d1a9a6247e7f4664b6dff6ac512413b1`.
+
+`tools/package-sb-rate-observer.py` produced an offline 20,037,632-byte
+image SHA-256
+`a11b7b7424af91803295d3cb1338e6084b69c9af7ff97ab28d7c500f2b9ea804`.
+Its 604-byte boot command retains `sweettrace=2`, `touch_lat=1` and
+`sweetfb_hz=60`, removes the redundant `metal_fps=timeline` summary token,
+and adds `sweet_sb_rate_probe=1`. It is a **new** image, separate from the
+pending 0301 image and authorization. Package receipt SHA-256 is
+`3e463d62ea57b452d3db2fd180519dcab191f6589151183eb720e8daf5e2ea14`.
+
+The first independent review rejected a too-strong assumption that firmware
+physical addresses would remain identical. The added kernel policy caused a
+16 KiB kernel VM layout shift and a 16,640-byte payload shift. The five
+firmware assets therefore also move **16 KiB** in high DRAM. The revised
+review checks the exact new ADT physical addresses, segment ordering,
+non-overlap, bounds, unchanged firmware contents and zero padding; the ADT
+otherwise differs only in those addresses and its PAS payload-tail offsets.
+Each kernel asset consumer reads its address from the ADT and validates the
+range/hash, but this structural check does **not** prove runtime acceptance.
+The wrapper, shim and DTB remain byte-identical. Independent review SHA-256
+is `700c47db0a1ed330cde75dff75a8107dd0c58e65c0e9fe164a089cbf94abeb9b`.
+
+The duplicated 457,569,543-byte build driver log was retired with a private
+cleanup manifest. The retained 457,562,293-byte build log was compressed to
+38,743,244 bytes, verified with `zstd -t`, with its preimage and compressed
+hashes in another cleanup manifest. Source, staged build inputs, kernel,
+manifest and image remain. After cleanup, a fresh 1 GiB trial storage
+reserve was admitted at 498,798,858,240 accounted bytes. **No phone boot,
+partition write, SpringBoard load or visible frame-rate result occurred.**
+The 0301 causal trial remains the next phone experiment; its pending consent
+cannot be used for this observer image.

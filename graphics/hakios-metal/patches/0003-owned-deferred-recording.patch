@@ -1,0 +1,847 @@
+--- a/src/c_api.cpp
++++ b/src/c_api.cpp
+@@ -3,6 +3,8 @@
+ #include <deque>
+ #include <mutex>
+ #include <thread>
++#include <exception>
++#include <stdexcept>
+ // hakios_metal.h over the C++ core.
+ #include <string>
+ 
+@@ -37,74 +39,197 @@
+ }  // namespace
+ 
+ namespace {
+-// Deferred recording (hakios_metal_queue_set_deferred): what a command buffer is told to record is done by one thread
+-// of the queue's own, in the order it was told, while the caller goes on -- CoreAnimation's render thread then spends
+-// on a draw only the copy of its arguments, and the encoding (some 40 us a draw on the phone, 2 November) runs on
+-// another core beside its next work. One thread for all of a queue's command buffers: CommandQueue's pools are not made
+-// for two recorders at once, and commits stay in order. What the caller asks back waits for that buffer's work first.
++// Every queued operation and callback owns the C handle, including its pending
++// counter. The application's one owner reference is released independently.
++class CbLease {
++public:
++    explicit CbLease(hakios_metal_cb* cb = nullptr);
++    CbLease(const CbLease& other) : CbLease(other.cb_) {}
++    CbLease(CbLease&& other) noexcept : cb_(other.cb_) { other.cb_ = nullptr; }
++    CbLease& operator=(CbLease other) noexcept { std::swap(cb_, other.cb_); return *this; }
++    ~CbLease();
++private:
++    hakios_metal_cb* cb_;
++};
++void recordingFailed(hakios_metal_cb* cb) noexcept;
++std::atomic<int>* pendingOf(hakios_metal_cb* cb);
++
+ class Deferrer {
++    struct Job {
++        CbLease owner;
++        hakios_metal_cb* cb;
++        std::atomic<int>* pending;
++        std::function<void()> f;
++    };
++    struct State {
++        std::mutex mutex;
++        std::condition_variable more, done;
++        std::deque<Job> jobs;
++        bool busy = false, quit = false, stopped = false;
++    };
+ public:
+-    Deferrer() : thread_([this] { run(); }) {}
++    Deferrer() : state_(std::make_shared<State>()) {
++        // A worker owns State independently of the public recorder's lifetime.
++        std::thread thread([state = state_] { run(state); });
++        try {
++            thread.detach();
++        } catch (...) {
++            { std::lock_guard<std::mutex> g(state_->mutex); state_->quit = true; }
++            state_->more.notify_all();
++            thread.join();
++            throw;
++        }
++    }
+     ~Deferrer() {
+-        {
+-            std::lock_guard<std::mutex> g(m_);
+-            quit_ = true;
++        auto state = state_;
++        std::unique_lock<std::mutex> g(state->mutex);
++        state->quit = true;
++        state->more.notify_all();
++        if (!isWorker()) state->done.wait(g, [&] { return state->stopped; });
++    }
++    bool isWorker() const { return worker_ == state_.get(); }
++    static bool anyWorker() { return worker_ != nullptr; }
++    void post(hakios_metal_cb* cb, std::function<void()> f) {
++        Job job{CbLease(cb), cb, pendingOf(cb), std::move(f)};
++        auto state = state_;
++        try {
++            std::lock_guard<std::mutex> g(state->mutex);
++            if (state->quit) throw std::runtime_error("recording queue is closed");
++            state->jobs.push_back(std::move(job));
++            // No increment can survive a failed insertion. The worker takes
++            // the same mutex before it can see the newly admitted job.
++            state->jobs.back().pending->fetch_add(1);
++        } catch (...) {
++            recordingFailed(cb);
++            throw; // existing C++ allocation-failure contract
+         }
+-        more_.notify_all();
++        state->more.notify_one();
++    }
++    void drain(std::atomic<int>* pending) {
++        if (isWorker()) return;
++        auto state = state_;
++        std::unique_lock<std::mutex> g(state->mutex);
++        state->done.wait(g, [&] { return pending->load() == 0; });
++    }
++    // Synchronous encoders use the very same FIFO as asynchronous encoders.
++    // Draining, then encoding on the caller would race a later post.
++    int invoke(hakios_metal_cb* cb, std::function<int()> f) {
++        CbLease keep(cb);
++        if (isWorker()) return f();
++        struct Call {
++            std::mutex mutex;
++            std::condition_variable done;
++            bool ready = false;
++            int result = -1;
++            std::string error;
++            std::exception_ptr exception;
++        };
++        auto call = std::make_shared<Call>();
++        post(cb, [call, cb, f = std::move(f)] {
++            try { call->result = f(); call->error = lastError; }
++            catch (...) { recordingFailed(cb); call->exception = std::current_exception(); }
++            { std::lock_guard<std::mutex> g(call->mutex); call->ready = true; }
++            call->done.notify_all();
++        });
++        std::unique_lock<std::mutex> g(call->mutex);
++        call->done.wait(g, [&] { return call->ready; });
++        if (call->exception) std::rethrow_exception(call->exception);
++        lastError = std::move(call->error);
++        return call->result;
++    }
++private:
++    static void run(const std::shared_ptr<State>& state) {
++        worker_ = state.get();
++        for (;;) {
++            std::unique_lock<std::mutex> g(state->mutex);
++            state->more.wait(g, [&] { return state->quit || !state->jobs.empty(); });
++            if (state->jobs.empty()) break;
++            Job job = std::move(state->jobs.front());
++            state->jobs.pop_front();
++            state->busy = true;
++            g.unlock();
++            try { job.f(); } catch (...) { recordingFailed(job.cb); }
++            g.lock();
++            job.pending->fetch_sub(1);
++            state->busy = false;
++            g.unlock();
++            state->done.notify_all();
++            // Job captures and their handle lease die outside the mutex. The
++            // last handle can destroy this recorder on this very worker.
++        }
++        { std::lock_guard<std::mutex> g(state->mutex); state->stopped = true; }
++        worker_ = nullptr;
++        state->done.notify_all();
++    }
++    static thread_local State* worker_;
++    std::shared_ptr<State> state_;
++};
++thread_local Deferrer::State* Deferrer::worker_ = nullptr;
++
++struct QueueStorage {
++    // Native queue and every BO using its transport die before the GPU.
++    std::shared_ptr<Gpu> gpu;
++    std::unique_ptr<CommandQueue> queue;
++    QueueStorage* next = nullptr;
++    ~QueueStorage() {
++        // Join while the queue object is still alive, before its destructor.
++        if (queue) queue->shutdown();
++        queue.reset();
++    }
++};
++
++// Eagerly initialized at queue creation. Callback/recorder last releases use
++// an intrusive list, so relinquishing a native queue requires no allocation.
++class QueueReaper {
++public:
++    QueueReaper() : thread_([this] { run(); }) {}
++    ~QueueReaper() {
++        { std::lock_guard<std::mutex> g(mutex_); quit_ = true; }
++        more_.notify_one();
+         thread_.join();
+     }
+-    void post(std::atomic<int>* pending, std::function<void()> f) {
+-        pending->fetch_add(1);
+-        {
+-            std::lock_guard<std::mutex> g(m_);
+-            q_.push_back(Job{pending, std::move(f)});
++    void take(QueueStorage* storage) noexcept {
++        { std::lock_guard<std::mutex> g(mutex_);
++          if (tail_) tail_->next = storage; else head_ = storage;
++          tail_ = storage; }
++        more_.notify_one();
++    }
++private:
++    void run() {
++        std::unique_lock<std::mutex> g(mutex_);
++        for (;;) {
++            more_.wait(g, [&] { return quit_ || head_; });
++            if (!head_) return;
++            auto* storage = head_;
++            head_ = storage->next;
++            if (!head_) tail_ = nullptr;
++            g.unlock();
++            delete storage;
++            g.lock();
+         }
+-        more_.notify_one();
+-    }
+-    // until the jobs posted for one command buffer are done
+-    void drain(std::atomic<int>* pending) {
+-        if (pending->load() == 0 || inWorker()) return;
+-        std::unique_lock<std::mutex> g(m_);
+-        done_.wait(g, [&] { return pending->load() == 0; });
+-    }
+-    // until every job is done (before the caller records something itself)
+-    void drainAll() {
+-        if (inWorker()) return;
+-        std::unique_lock<std::mutex> g(m_);
+-        done_.wait(g, [&] { return q_.empty() && !busy_; });
+-    }
+-    static bool inWorker() { return worker_; }
+-private:
+-    struct Job { std::atomic<int>* pending; std::function<void()> f; };
+-    void run() {
+-        worker_ = true;
+-        std::unique_lock<std::mutex> g(m_);
+-        for (;;) {
+-            more_.wait(g, [this] { return quit_ || !q_.empty(); });
+-            if (q_.empty()) return;
+-            Job j = std::move(q_.front());
+-            q_.pop_front();
+-            busy_ = true;
+-            g.unlock();
+-            j.f();
+-            g.lock();
+-            j.pending->fetch_sub(1);
+-            busy_ = false;
+-            done_.notify_all();
+-        }
+-    }
+-    std::mutex m_;
+-    std::condition_variable more_, done_;
+-    std::deque<Job> q_;
+-    bool busy_ = false, quit_ = false;
+-    static thread_local bool worker_;
+-    std::thread thread_;   // last: started once the members above exist
++    }
++    std::mutex mutex_;
++    std::condition_variable more_;
++    QueueStorage* head_ = nullptr;
++    QueueStorage* tail_ = nullptr;
++    bool quit_ = false;
++    std::thread thread_;
+ };
+-thread_local bool Deferrer::worker_ = false;
++QueueReaper& queueReaper() { static QueueReaper reaper; return reaper; }
++void releaseStorage(QueueStorage* storage) noexcept {
++    if (Deferrer::anyWorker() || CommandBuffer::inCompletion()) queueReaper().take(storage);
++    else delete storage;
++}
++struct QueueControl {
++    std::shared_ptr<QueueStorage> storage;
++    std::mutex mutex;
++    std::shared_ptr<Deferrer> deferrer;
++    bool frozen = false;
++};
+ }  // namespace
+ 
+ struct hakios_metal_device {
+-    std::unique_ptr<Gpu> gpu;
++    std::shared_ptr<Gpu> gpu;
+ };
+ struct hakios_metal_buffer {
+     std::shared_ptr<Buffer> buffer;
+@@ -117,12 +242,13 @@
+     std::shared_ptr<CompiledKernel> kernel;   // shared with every command buffer that dispatched it and has not completed
+ };
+ struct hakios_metal_queue {
+-    std::unique_ptr<CommandQueue> queue;
+-    std::shared_ptr<Deferrer> deferrer;   // hakios_metal_queue_set_deferred's; destroyed first (its thread drains)
+-    ~hakios_metal_queue() { deferrer.reset(); }
++    std::shared_ptr<QueueControl> control;
+ };
+ struct hakios_metal_cb {
++    std::shared_ptr<QueueControl> control; // last member destroyed: native CB uses its queue
+     std::shared_ptr<CommandBuffer> cb;
++    std::atomic<unsigned> references{1};
++    std::atomic<bool> ownerReleased{false};
+     // hakios_metal_cb_set_vertex_textures's tables, sticky as an encoder's state is: the texture objects held so that
+     // what a later draw names is alive, the samplers copied (their four words are all a draw takes)
+     std::vector<std::shared_ptr<Texture>> vsTextures;
+@@ -148,8 +274,15 @@
+ namespace {
+ // deferred recording: whether this call is to be posted rather than done here, and copies of what it names that outlive
+ // the caller's (the handles are a shared_ptr each: a copy keeps the object alive whatever the caller frees meanwhile)
+-bool deferring(hakios_metal_cb* cb) { return cb->deferrer != nullptr && !Deferrer::inWorker(); }
+-void syncAll(hakios_metal_cb* cb) { if (cb->deferrer != nullptr) cb->deferrer->drainAll(); }
++CbLease::CbLease(hakios_metal_cb* cb) : cb_(cb) {
++    if (cb_) cb_->references.fetch_add(1, std::memory_order_relaxed);
++}
++CbLease::~CbLease() {
++    if (cb_ && cb_->references.fetch_sub(1, std::memory_order_acq_rel) == 1) delete cb_;
++}
++void recordingFailed(hakios_metal_cb* cb) noexcept { cb->cb->recordingFailed(); }
++std::atomic<int>* pendingOf(hakios_metal_cb* cb) { return &cb->pending; }
++bool deferring(hakios_metal_cb* cb) { return cb->deferrer != nullptr && !cb->deferrer->isWorker(); }
+ void syncOne(hakios_metal_cb* cb) { if (cb->deferrer != nullptr) cb->deferrer->drain(&cb->pending); }
+ template <class H>
+ struct Handles {
+@@ -219,7 +352,7 @@
+ 
+ static hakios_metal_device* deviceOn(std::unique_ptr<Transport> t) {
+     auto* d = new hakios_metal_device;
+-    d->gpu = std::make_unique<Gpu>(std::move(t));
++    d->gpu = std::make_shared<Gpu>(std::move(t));
+     return d;
+ }
+ 
+@@ -783,46 +916,55 @@
+ }
+ 
+ hakios_metal_queue* hakios_metal_queue_new(hakios_metal_device* d) {
+-    std::string why;
+-    auto q = CommandQueue::make(*d->gpu, &why);
+-    if (q == nullptr) {
+-        failed(why);
+-        return nullptr;
+-    }
+-    auto* r = new hakios_metal_queue;
+-    r->queue = std::move(q);
+-    return r;
++    (void)queueReaper();
++    auto control = std::make_shared<QueueControl>();
++    control->storage = std::shared_ptr<QueueStorage>(new QueueStorage, releaseStorage);
++    control->storage->gpu = d->gpu;
++    std::string why;
++    control->storage->queue = CommandQueue::make(*d->gpu, &why);
++    if (!control->storage->queue) { failed(why); return nullptr; }
++    auto r = std::make_unique<hakios_metal_queue>();
++    r->control = std::move(control);
++    return r.release();
+ }
+ 
+ void hakios_metal_queue_free(hakios_metal_queue* q) { delete q; }
+ 
+ void hakios_metal_queue_set_deferred(hakios_metal_queue* q, int on) {
+-    if (on && q->deferrer == nullptr) q->deferrer = std::make_shared<Deferrer>();
+-    if (!on) q->deferrer.reset();
++    auto& control = *q->control;
++    std::lock_guard<std::mutex> g(control.mutex);
++    const bool enabled = control.deferrer != nullptr;
++    if (enabled == (on != 0)) return;
++    if (control.frozen) { failed("recording mode is fixed after the first command buffer"); return; }
++    control.deferrer = on ? std::make_shared<Deferrer>() : nullptr;
++    control.storage->queue->setDeferredErrors(on != 0);
+ }
+ 
+ hakios_metal_cb* hakios_metal_cb_new(hakios_metal_queue* q) {
+-    auto* r = new hakios_metal_cb;
+-    r->cb = q->queue->commandBuffer();
+-    r->deferrer = q->deferrer;
+-    return r;
++    auto r = std::make_unique<hakios_metal_cb>();
++    std::lock_guard<std::mutex> g(q->control->mutex);
++    r->control = q->control;
++    r->cb = q->control->storage->queue->commandBuffer();
++    r->deferrer = q->control->deferrer;
++    q->control->frozen = true;
++    return r.release();
+ }
+ 
+ void hakios_metal_cb_free(hakios_metal_cb* cb) {
+-    syncOne(cb);
+-    // one in flight is waited for first: its callback is handed this very pointer. One already completed is not, and
+-    // must not be: the last reference may go inside its own callback (an Objective-C object released there), and
+-    // waiting there for the end of what is running would wait forever.
+-    CommandBuffer::Status s = cb->cb->status();
+-    if (s == CommandBuffer::kCommitted || s == CommandBuffer::kScheduled) {
+-        cb->cb->waitUntilCompleted();
+-    }
+-    delete cb;
++    CbLease invocation(cb);
++    if (cb->ownerReleased.exchange(true)) return;
++    // A recorder/completion cannot block its own progress, or another queue's
++    // progress which may depend on this one. Jobs and handlers keep their lease.
++    if (!Deferrer::anyWorker() && !CommandBuffer::inCompletion()) {
++        syncOne(cb);
++        cb->cb->waitUntilCompleted(); // terminal status alone precedes handlers
++    }
++    if (cb->references.fetch_sub(1, std::memory_order_acq_rel) == 1) delete cb;
+ }
+ 
+ int hakios_metal_cb_copy(hakios_metal_cb* cb, hakios_metal_buffer* from, uint64_t fromOffset, hakios_metal_buffer* to,
+                          uint64_t toOffset, uint64_t length) {
+-    syncAll(cb);
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_copy(cb, from, fromOffset, to, toOffset, length); });
+     if (!cb->cb->copy(*from->buffer, fromOffset, *to->buffer, toOffset, length)) {
+         failed(cb->cb->error().empty() ? cb->cb->lastSkipped() : cb->cb->error());
+         return -1;
+@@ -834,7 +976,7 @@
+ }
+ 
+ int hakios_metal_cb_fill(hakios_metal_cb* cb, hakios_metal_buffer* b, uint64_t offset, uint64_t length, uint8_t value) {
+-    syncAll(cb);
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_fill(cb, b, offset, length, value); });
+     if (!cb->cb->fill(*b->buffer, offset, length, value)) {
+         failed(cb->cb->error().empty() ? cb->cb->lastSkipped() : cb->cb->error());
+         return -1;
+@@ -845,7 +987,7 @@
+ 
+ int hakios_metal_cb_blit(hakios_metal_cb* cb, hakios_metal_texture* from, unsigned fromLevel, unsigned sx, unsigned sy, unsigned sw, unsigned sh,
+                          hakios_metal_texture* to, unsigned toLevel, unsigned dx, unsigned dy, unsigned dw, unsigned dh, int linear) {
+-    syncAll(cb);
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_blit(cb, from, fromLevel, sx, sy, sw, sh, to, toLevel, dx, dy, dw, dh, linear); });
+     if (!cb->cb->blit(*from->texture, fromLevel, render::BlitRect{sx, sy, sw, sh}, *to->texture, toLevel, render::BlitRect{dx, dy, dw, dh}, linear != 0)) {
+         failed(cb->cb->error().empty() ? cb->cb->lastSkipped() : cb->cb->error());
+         return -1;
+@@ -856,7 +998,7 @@
+ }
+ 
+ int hakios_metal_cb_blit_rotated(hakios_metal_cb* cb, hakios_metal_texture* from, hakios_metal_texture* to, unsigned rotation) {
+-    syncAll(cb);
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_blit_rotated(cb, from, to, rotation); });
+     render::Options o;
+     o.rotate2d = uint8_t(rotation > 5 ? 6 : rotation);   // (a value past 5 still refused by encodeBlit, not wrapped into range)
+     const Texture &f = *from->texture, &t = *to->texture;
+@@ -870,12 +1012,12 @@
+ }
+ 
+ void hakios_metal_cb_skip_refused(hakios_metal_cb* cb, int on) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, on] { cb->cb->setSkipRefused(on != 0); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, on] { cb->cb->setSkipRefused(on != 0); });
+     cb->cb->setSkipRefused(on != 0);
+ }
+ 
+ void hakios_metal_cb_set_profile(hakios_metal_cb* cb, int on) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, on] { cb->cb->setProfile(on != 0); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, on] { cb->cb->setProfile(on != 0); });
+     cb->cb->setProfile(on != 0);
+ }
+ 
+@@ -902,37 +1044,37 @@
+ }
+ 
+ void hakios_metal_cb_set_gmem(hakios_metal_cb* cb, int on) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, on] { cb->cb->setGmem(on != 0); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, on] { cb->cb->setGmem(on != 0); });
+     cb->cb->setGmem(on != 0);
+ }
+ 
+ void hakios_metal_cb_set_gmem_off(hakios_metal_cb* cb, unsigned bits) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, bits] { cb->cb->setGmemOff(bits); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, bits] { cb->cb->setGmemOff(bits); });
+     cb->cb->setGmemOff(bits);
+ }
+ 
+ void hakios_metal_cb_set_gmem_tuned(hakios_metal_cb* cb, int on) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, on] { cb->cb->setGmemTuned(on != 0); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, on] { cb->cb->setGmemTuned(on != 0); });
+     cb->cb->setGmemTuned(on != 0);
+ }
+ 
+ void hakios_metal_cb_set_gmem_min_draws(hakios_metal_cb* cb, unsigned draws) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, draws] { cb->cb->setGmemMinDraws(draws); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, draws] { cb->cb->setGmemMinDraws(draws); });
+     cb->cb->setGmemMinDraws(draws);
+ }
+ 
+ void hakios_metal_cb_set_gmem_binning(hakios_metal_cb* cb, int on) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, on] { cb->cb->setGmemBinning(on != 0); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, on] { cb->cb->setGmemBinning(on != 0); });
+     cb->cb->setGmemBinning(on != 0);
+ }
+ 
+ void hakios_metal_cb_set_null_fs_textures(hakios_metal_cb* cb, int on) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, on] { cb->cb->setNullFsTextures(on != 0); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, on] { cb->cb->setNullFsTextures(on != 0); });
+     cb->cb->setNullFsTextures(on != 0);
+ }
+ 
+ void hakios_metal_cb_set_profile_draws(hakios_metal_cb* cb, int on) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, on] { cb->cb->setProfileDraws(on != 0); });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, on] { cb->cb->setProfileDraws(on != 0); });
+     cb->cb->setProfileDraws(on != 0);
+ }
+ 
+@@ -984,7 +1126,7 @@
+ int hakios_metal_cb_refuse(hakios_metal_cb* cb, const char* why) {
+     if (deferring(cb)) {
+         std::string w = why != nullptr ? why : "refused";
+-        cb->deferrer->post(&cb->pending, [cb, w] { cb->cb->refuseWork(w); });
++        cb->deferrer->post(cb, [cb, w] { cb->cb->refuseWork(w); });
+         return -1;
+     }
+     cb->cb->refuseWork(why != nullptr ? why : "refused");
+@@ -998,7 +1140,7 @@
+ }
+ 
+ int hakios_metal_cb_generate_mipmaps(hakios_metal_cb* cb, hakios_metal_texture* t) {
+-    syncAll(cb);
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_generate_mipmaps(cb, t); });
+     if (!cb->cb->generateMipmaps(*t->texture)) {
+         failed(cb->cb->error().empty() ? cb->cb->lastSkipped() : cb->cb->error());
+         return -1;
+@@ -1068,7 +1210,7 @@
+                               hakios_metal_buffer* const* buffers, const uint64_t* offsets, unsigned count,
+                               hakios_metal_texture* const* textures, unsigned textureCount,
+                               hakios_metal_sampler* const* samplers, unsigned samplerCount) {
+-    syncAll(cb);
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_dispatch2(cb, k, groups, threads, buffers, offsets, count, textures, textureCount, samplers, samplerCount); });
+     const uint32_t g[3] = {groups[0], groups[1], groups[2]}, t[3] = {threads[0], threads[1], threads[2]};
+     return dispatchWith(cb, k, buffers, offsets, count, textures, textureCount, samplers, samplerCount,
+                         [&](const Bindings& b) { return cb->cb->dispatch(k->kernel->kernel, g, t, b); });
+@@ -1078,7 +1220,7 @@
+                                       hakios_metal_buffer* const* buffers, const uint64_t* offsets, unsigned count,
+                                       hakios_metal_texture* const* textures, unsigned textureCount,
+                                       hakios_metal_sampler* const* samplers, unsigned samplerCount) {
+-    syncAll(cb);
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_dispatch_indirect(cb, k, args, argsOffset, threads, buffers, offsets, count, textures, textureCount, samplers, samplerCount); });
+     const uint32_t t[3] = {threads[0], threads[1], threads[2]};
+     const int r = dispatchWith(cb, k, buffers, offsets, count, textures, textureCount, samplers, samplerCount,
+                                [&](const Bindings& b) { return cb->cb->dispatchIndirect(k->kernel->kernel, *args->buffer, argsOffset, t, b); });
+@@ -1087,12 +1229,14 @@
+ }
+ 
+ void hakios_metal_cb_set_threadgroup_length(hakios_metal_cb* cb, unsigned length) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, length] { cb->threadgroupLength = length; });
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, length] { cb->threadgroupLength = length; });
+     cb->threadgroupLength = length;
+ }
+ 
+ int hakios_metal_cb_append(hakios_metal_cb* cb, hakios_metal_cb* other) {
+-    syncAll(cb);
++    CbLease source(other);
++    syncOne(other); // source must not be mutated concurrently while appending
++    if (deferring(cb)) return cb->deferrer->invoke(cb, [=] { return hakios_metal_cb_append(cb, other); });
+     if (!cb->cb->append(*other->cb)) {
+         failed(cb->cb->error().empty() ? cb->cb->lastSkipped() : cb->cb->error());
+         return -1;
+@@ -1103,7 +1247,7 @@
+ void hakios_metal_cb_set_indirect(hakios_metal_cb* cb, hakios_metal_buffer* args, uint64_t offset) {
+     if (deferring(cb)) {
+         std::shared_ptr<Buffer> b = args != nullptr ? args->buffer : nullptr;
+-        return cb->deferrer->post(&cb->pending, [cb, b, offset] { cb->indirect = b; cb->indirectOffset = offset; });
++        return cb->deferrer->post(cb, [cb, b, offset] { cb->indirect = b; cb->indirectOffset = offset; });
+     }
+     cb->indirect = args != nullptr ? args->buffer : nullptr;
+     cb->indirectOffset = offset;
+@@ -1480,7 +1624,7 @@
+         auto m = std::make_shared<Handles<hakios_metal_sampler>>();
+         t->take(textures, textureCount);
+         m->take(samplers, samplerCount);
+-        return cb->deferrer->post(&cb->pending, [cb, t, m, textureCount, samplerCount] {
++        return cb->deferrer->post(cb, [cb, t, m, textureCount, samplerCount] {
+             hakios_metal_cb_set_vertex_textures(cb, t->get(), textureCount, m->get(), samplerCount);
+         });
+     }
+@@ -1540,7 +1684,7 @@
+     if (deferring(cb)) {
+         auto c = std::make_shared<DrawCopy>();
+         c->take(p, pass, viewport, scissor, vsBuffers, vsOffsets, vsCount, fsBuffers, fsOffsets, fsCount, fsTextures, fsTextureCount, fsSamplers, fsSamplerCount);
+-        cb->deferrer->post(&cb->pending, [=] {
++        cb->deferrer->post(cb, [=] {
+             refusedThere(cb, hakios_metal_cb_draw2(cb, &c->program, c->pass.get(), c->vp(), c->sc(), primitive, vertexStart, vertexCount, instanceCount,
+                                                    c->vs.get(), c->vso(), vsCount, c->fs.get(), c->fso(), fsCount, c->fsTextures.get(), fsTextureCount,
+                                                    c->fsSamplers.get(), fsSamplerCount));
+@@ -1560,7 +1704,7 @@
+     if (deferring(cb)) {
+         auto c = std::make_shared<DrawCopy>();
+         c->take(p, pass, viewport, scissor, vsBuffers, vsOffsets, vsCount, fsBuffers, fsOffsets, fsCount, fsTextures, fsTextureCount, fsSamplers, fsSamplerCount);
+-        cb->deferrer->post(&cb->pending, [=] {
++        cb->deferrer->post(cb, [=] {
+             refusedThere(cb, hakios_metal_cb_draw3(cb, &c->program, c->pass.get(), c->vp(), c->sc(), primitive, vertexStart, vertexCount, instanceCount,
+                                                    baseInstance, c->vs.get(), c->vso(), vsCount, c->fs.get(), c->fso(), fsCount, c->fsTextures.get(),
+                                                    fsTextureCount, c->fsSamplers.get(), fsSamplerCount));
+@@ -1577,11 +1721,16 @@
+                                  int baseVertex, unsigned baseInstance, hakios_metal_buffer* const* vsBuffers, const uint64_t* vsOffsets, unsigned vsCount,
+                                  hakios_metal_buffer* const* fsBuffers, const uint64_t* fsOffsets, unsigned fsCount, hakios_metal_texture* const* fsTextures,
+                                  unsigned fsTextureCount, hakios_metal_sampler* const* fsSamplers, unsigned fsSamplerCount) {
++    if (deferring(cb) && indexBuffer == nullptr) {
++        failed("an indexed draw with no index buffer");
++        cb->deferrer->post(cb, [cb] { cb->cb->refuse("an indexed draw with no index buffer"); });
++        return -1;
++    }
+     if (deferring(cb) && indexBuffer != nullptr) {
+         auto c = std::make_shared<DrawCopy>();
+         c->take(p, pass, viewport, scissor, vsBuffers, vsOffsets, vsCount, fsBuffers, fsOffsets, fsCount, fsTextures, fsTextureCount, fsSamplers, fsSamplerCount);
+         c->index = *indexBuffer;
+-        cb->deferrer->post(&cb->pending, [=] {
++        cb->deferrer->post(cb, [=] {
+             refusedThere(cb, hakios_metal_cb_draw_indexed(cb, &c->program, c->pass.get(), c->vp(), c->sc(), primitive, indexCount, indexType, &c->index,
+                                                           indexOffset, instanceCount, baseVertex, baseInstance, c->vs.get(), c->vso(), vsCount,
+                                                           c->fs.get(), c->fso(), fsCount, c->fsTextures.get(), fsTextureCount, c->fsSamplers.get(),
+@@ -1604,7 +1753,7 @@
+     if (deferring(cb) && pass != nullptr) {
+         auto c = std::make_shared<PassCopy>();
+         c->take(pass);
+-        cb->deferrer->post(&cb->pending, [cb, c] { refusedThere(cb, hakios_metal_cb_clear(cb, c->get())); });
++        cb->deferrer->post(cb, [cb, c] { refusedThere(cb, hakios_metal_cb_clear(cb, c->get())); });
+         return 0;
+     }
+     if (!cb->cb->clear(passOf(pass))) {
+@@ -1618,20 +1767,23 @@
+ void hakios_metal_cb_fail(hakios_metal_cb* cb, const char* why) {
+     if (deferring(cb)) {
+         std::string w = why != nullptr ? why : "refused";
+-        return cb->deferrer->post(&cb->pending, [cb, w] { cb->cb->refuse(w); });
++        return cb->deferrer->post(cb, [cb, w] { cb->cb->refuse(w); });
+     }
+     cb->cb->refuse(why != nullptr ? why : "refused");
+ }
+ 
+ void hakios_metal_cb_commit(hakios_metal_cb* cb, void (*callback)(hakios_metal_cb*, void*), void* context) {
+-    if (deferring(cb)) return cb->deferrer->post(&cb->pending, [cb, callback, context] { hakios_metal_cb_commit(cb, callback, context); });
++    CbLease invocation(cb);
++    if (deferring(cb)) return cb->deferrer->post(cb, [cb, callback, context] { hakios_metal_cb_commit(cb, callback, context); });
+     if (callback != nullptr) {
+-        cb->cb->addCompletedHandler([cb, callback, context](CommandBuffer&) { callback(cb, context); });
++        cb->cb->addCompletedHandler([lease = CbLease(cb), cb, callback, context](CommandBuffer&) { callback(cb, context); });
+     }
+     cb->cb->commit();
+ }
+ 
+ void hakios_metal_cb_wait(hakios_metal_cb* cb) {
++    CbLease invocation(cb);
++    if (cb->cb->isCompleting()) return;
+     syncOne(cb);
+     cb->cb->waitUntilCompleted();
+ }
+--- a/src/command.cpp
++++ b/src/command.cpp
+@@ -411,7 +411,28 @@
+     }
+ }
+ 
++thread_local CommandBuffer::CompletionScope* CommandBuffer::completing_ = nullptr;
++
++bool CommandBuffer::isCompleting() const {
++    for (auto* scope = completing_; scope; scope = scope->previous) {
++        if (scope->cb == this) return true;
++    }
++    return false;
++}
++
++const std::string& CommandBuffer::error() const {
++    static const std::string recordingError("deferred command recording failed");
++    return recordingFailed_.load() ? recordingError : error_;
++}
++
+ void CommandBuffer::finish(Status s) {
++    CompletionScope completion{this, completing_};
++    struct Restore {
++        CompletionScope*& current;
++        CompletionScope* previous;
++        ~Restore() { current = previous; }
++    } restore{completing_, completing_};
++    completing_ = &completion;
+     status_ = s;
+     if (s == kCompleted && counts_.binnedPasses != 0) queue_.checkVsc();
+     if (s == kCompleted && tuning_) {
+@@ -525,7 +546,7 @@
+     return q;
+ }
+ 
+-CommandQueue::~CommandQueue() {
++void CommandQueue::shutdown() {
+     {
+         std::lock_guard<std::mutex> g(lock_);
+         quit_ = true;
+@@ -534,6 +555,10 @@
+     if (thread_.joinable()) {
+         thread_.join();
+     }
++}
++
++CommandQueue::~CommandQueue() {
++    shutdown();
+     idle_.clear();
+     gpu_.closeQueue(id_);
+ }
+@@ -601,10 +626,18 @@
+     return gpu_.newBo(std::max(bytes, kCommandBo), kBoGpuReadOnly | kBoWriteCombined, error);
+ }
+ 
++void CommandQueue::completeError(std::shared_ptr<CommandBuffer> cb) {
++    if (!deferredErrors_) { cb->finish(CommandBuffer::kError); return; }
++    std::lock_guard<std::mutex> g(lock_);
++    cb->status_ = CommandBuffer::kCommitted;
++    inFlight_.push_back(std::move(cb));
++    changed_.notify_all();
++}
++
+ void CommandQueue::submit(std::shared_ptr<CommandBuffer> cb) {
+     cb->committedAt_ = gpu_.transport().nowNs();
+-    if (!cb->error_.empty()) {
+-        cb->finish(CommandBuffer::kError);   // a blit that was refused: nothing of it reaches the GPU
++    if (cb->recordingFailed_.load() || !cb->error_.empty()) {
++        completeError(std::move(cb)); // no GPU work; same completion FIFO in deferred mode
+         return;
+     }
+     cb->closePass();   // the last pass's tail
+@@ -616,7 +649,7 @@
+     cb->commands_ = takeCommandBo(4 * w.size(), &error);
+     if (cb->commands_ == nullptr) {
+         cb->error_ = std::string("no memory for the command stream: ") + strerror(error);
+-        cb->finish(CommandBuffer::kError);
++        completeError(std::move(cb));
+         return;
+     }
+     // the stream is written in order, as write-combined memory wants it, and read back by nobody
+@@ -629,9 +662,10 @@
+         cb->error_ = std::string("the driver refused the submission: ") + strerror(e);
+         idle_.push_back(std::move(cb->commands_));
+         g.unlock();                         // (the handlers may commit more: not under the queue's lock)
+-        cb->finish(CommandBuffer::kError);
++        completeError(std::move(cb));
+         return;
+     }
++    cb->submitted_ = true;
+     cb->status_ = CommandBuffer::kScheduled;
+     inFlight_.push_back(std::move(cb));
+     changed_.notify_all();
+@@ -646,24 +680,27 @@
+         }
+         std::shared_ptr<CommandBuffer> cb = inFlight_.front();
+         g.unlock();
+-        int e = gpu_.wait(id_, cb->fence_, kPatienceNs);
+-        cb->completedAt_ = gpu_.transport().nowNs();
+-        // A fence that passed is not yet a submission that ran. When the kernel resets a hung GPU (gpu_recover=1) it
+-        // gives up everything the GPU had been given, the hung submission and those behind it in the ring, by setting
+-        // the fence word to the last submission's number -- so their waits end as if they had run (hakios_gpu_recover:
+-        // "submissions up to N are given up as done"). FAULTS counts the resets; one more since the commit says so.
+-        uint64_t faults = gpu_.faults();
+-        bool givenUp = faults > cb->faultsAtCommit_;
+-        if (e == 0 && givenUp) {
+-            cb->error_ = "given up by a reset of the GPU (it hung on this submission or on one before it): not run";
+-            e = EIO;
+-        } else if (e == ETIMEDOUT) {
+-            cb->error_ = givenUp ? "the GPU did not finish it in 5 s: it hung, and the kernel has reset it (reset " +
+-                                       std::to_string(faults) + " of this run)"
+-                                 : "the GPU did not finish it in 5 s and is not answering; without gpu_recover=1 the "
+-                                   "kernel waits for nothing again in this run";
+-        } else if (e != 0) {
+-            cb->error_ = std::string("waiting for it failed: ") + strerror(e);
++        int e = EIO;
++        if (cb->submitted_) {
++            e = gpu_.wait(id_, cb->fence_, kPatienceNs);
++            cb->completedAt_ = gpu_.transport().nowNs();
++            // A fence that passed is not yet a submission that ran. When the kernel resets a hung GPU (gpu_recover=1) it
++            // gives up everything the GPU had been given, the hung submission and those behind it in the ring, by setting
++            // the fence word to the last submission's number -- so their waits end as if they had run (hakios_gpu_recover:
++            // "submissions up to N are given up as done"). FAULTS counts the resets; one more since the commit says so.
++            uint64_t faults = gpu_.faults();
++            bool givenUp = faults > cb->faultsAtCommit_;
++            if (e == 0 && givenUp) {
++                cb->error_ = "given up by a reset of the GPU (it hung on this submission or on one before it): not run";
++                e = EIO;
++            } else if (e == ETIMEDOUT) {
++                cb->error_ = givenUp ? "the GPU did not finish it in 5 s: it hung, and the kernel has reset it (reset " +
++                                           std::to_string(faults) + " of this run)"
++                                     : "the GPU did not finish it in 5 s and is not answering; without gpu_recover=1 the "
++                                       "kernel waits for nothing again in this run";
++            } else if (e != 0) {
++                cb->error_ = std::string("waiting for it failed: ") + strerror(e);
++            }
+         }
+         cb->finish(e == 0 ? CommandBuffer::kCompleted : CommandBuffer::kError);
+         g.lock();
+@@ -671,6 +708,9 @@
+         if (cb->commands_ != nullptr) {
+             idle_.push_back(std::move(cb->commands_));
+         }
++        g.unlock();
++        cb.reset();
++        g.lock();
+     }
+ }
+ 
+--- a/include/hakios-metal/command.hpp
++++ b/include/hakios-metal/command.hpp
+@@ -64,7 +64,10 @@
+     enum Status { kNotEnqueued, kEnqueued, kCommitted, kScheduled, kCompleted, kError };
+ 
+     Status status() const { return status_.load(); }
+-    const std::string& error() const { return error_; }
++    const std::string& error() const;
++    void recordingFailed() noexcept { recordingFailed_.store(true); }
++    static bool inCompletion() { return completing_ != nullptr; }
++    bool isCompleting() const;
+ 
+     // run after completion (or error), on the queue's thread, in the order of commit; only before commit
+     void addCompletedHandler(std::function<void(CommandBuffer&)> handler);
+@@ -319,6 +322,10 @@
+     CommandQueue& queue_;
+     std::atomic<Status> status_{kNotEnqueued};
+     std::string error_;
++    std::atomic<bool> recordingFailed_{false};
++    struct CompletionScope { CommandBuffer* cb; CompletionScope* previous; };
++    static thread_local CompletionScope* completing_;
++    bool submitted_ = false;
+     pm4::Stream stream_;
+     std::vector<BoUse> uses_;
+     std::vector<std::shared_ptr<const Buffer>> kept_;   // the buffers it uses stay alive until it completes
+@@ -338,6 +345,9 @@
+     // a queue of its own with the driver; nullptr with *why when the driver has none to give
+     static std::unique_ptr<CommandQueue> make(Gpu& gpu, std::string* why);
+     ~CommandQueue();
++    // Call from an external owner while this object is still alive; idempotent.
++    void shutdown();
++    void setDeferredErrors(bool on) { deferredErrors_ = on; }
+ 
+     std::shared_ptr<CommandBuffer> commandBuffer();
+     Gpu& gpu() { return gpu_; }
+@@ -398,6 +408,7 @@
+     CommandQueue(Gpu& gpu, uint32_t id) : gpu_(gpu), id_(id) {}
+     void submit(std::shared_ptr<CommandBuffer> cb);
+     void waiter();
++    void completeError(std::shared_ptr<CommandBuffer> cb);
+     std::unique_ptr<Bo> takeCommandBo(size_t bytes, int* error);
+ 
+     Gpu& gpu_;
+@@ -425,6 +436,7 @@
+     std::deque<std::shared_ptr<CommandBuffer>> inFlight_;
+     std::vector<std::unique_ptr<Bo>> idle_;
+     bool quit_ = false;
++    bool deferredErrors_ = false;
+     std::thread thread_;
+ };
+ 
+--- a/include/hakios-metal/hakios_metal.h
++++ b/include/hakios-metal/hakios_metal.h
+@@ -441,12 +441,21 @@
+  * returns at once -- a draw's encoding then runs beside the caller's next work. A refused draw or clear is reported
+  * there (stderr) and fails its command buffer, as hakios_metal_cb_refuse would; the call itself returns 0. Copies,
+  * fills, blits, dispatches and anything asked back wait for what was told before them. Set it with no command buffer
+- * of the queue being recorded. */
++ * of the queue being recorded. The mode is fixed at the first command buffer:
++ * changing it later is refused and reported by hakios_metal_error(). Repeating
++ * the current setting is allowed. Encoding/mutation of each handle must be
++ * externally serialized; append's source must stay unchanged until it returns.
++ * Allocation failures retain the existing C++ exception contract. */
+ void hakios_metal_queue_set_deferred(hakios_metal_queue *queue, int on);
+ 
+ hakios_metal_cb *hakios_metal_cb_new(hakios_metal_queue *queue);
+ /* the command buffer is released by its owner; one still in flight is waited for first. It may be freed inside its
+- * own callback (the callback is the last thing to use the pointer). */
++ * own callback (the callback is the last thing to use the pointer). Queued
++ * work and callbacks retain their handles, queue and GPU. External free waits
++ * for recording and full completion, including callbacks. Release from a
++ * recorder or completion context is nonblocking; cleanup follows outstanding
++ * work. cb_wait in its own callback returns immediately. No new calls may
++ * start after owner release. Standalone resources still require a live device. */
+ void hakios_metal_cb_free(hakios_metal_cb *cb);
+ int hakios_metal_cb_copy(hakios_metal_cb *cb, hakios_metal_buffer *from, uint64_t from_offset, hakios_metal_buffer *to,
+     uint64_t to_offset, uint64_t length);

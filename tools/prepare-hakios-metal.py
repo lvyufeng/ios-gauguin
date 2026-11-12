@@ -14,7 +14,7 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--cache',type=Path,required=True)
     ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--profile',choices=['a619-baseline','a619-graphics-images'],default='a619-baseline')
+    ap.add_argument('--profile',choices=['a619-baseline','a619-graphics-images','a619-ownership'],default='a619-baseline')
     a=ap.parse_args()
     repo=Path(__file__).resolve().parents[1]
     spec=repo/'graphics/hakios-metal'
@@ -33,6 +33,7 @@ def main():
         pins[str(p)]=sha(p);sources.append((p,Path(*rel.parts[1:])))
     patch_names=['0001-a619-device-profile.patch']
     if a.profile=='a619-graphics-images':patch_names.append('0002-graphics-storage-images.patch')
+    if a.profile=='a619-ownership':patch_names.append('0003-owned-deferred-recording.patch')
     patches=[spec/'patches'/name for name in patch_names];assert all(p.is_file()for p in patches)
     overlays=sorted(p for p in (spec/'overlay').rglob('*') if p.is_file())
     for p in patches+overlays:pins[str(p)]=sha(p)

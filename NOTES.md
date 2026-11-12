@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — approved C4 desktop one-boot trial running; observe original
+
+The actual user answer to questionItemId
+["request_user_input_async","call_d10c2bc40437497c883a39ae9977241f",0]
+is 允许本轮写入、临时启动及回退. W=research/tmp/metal-ca-c4-20261112.
+W/approval.json SHA8fa388c1415929d201d150406613c18d2e80af9e4add02e1058424f51e015faa
+binds trial plan f04d847fda3237907eced7804e45d3a754fc51286754c0e13f68d80394b89a79
+and install plan886f11d68dbc05c071884431b706c23a83aaea061e3e79793cf1b2781e7a1fd6.
+Earlier two one-boot approvals remain consumed; this is a distinct exact C4
+authorization. No user screen attestation has been received.
+
+Original W/execute_trial.py is running in retained exec session36394,
+PID49955, with W/execution/claim.json. All80 pinned inputs passed before
+claim. Fresh29-file capture matched baseline. Install result: exact2 ranges,
+434176B applied/readback, no rollback;13B misc marker readback verified.
+Installed capture matched expected new binary. ObserverPID/PGID50741 launched
+once. Same0298 image SHA64596164315fc496ff30037bb1fdf982d1322069eee788e28554f38d6f43cc7e
+was sent/booted OKAY, total0.611s. Boot scope is consumed; NEVER rerun
+W/execute_trial.py, observer or fastboot boot because a result is delayed.
+
+Now wait on original session/PIDs. Observer has780s recovery window (GPU
+service600s), then the runner captures current-only logs, dynamically re-reads
+HFSX catalog and restores the original desktop binary + current catalog
+logicalSize field with readback. It finally captures restored29 files and
+evaluates exact private-core path/front-end markers and GPU work. If failure,
+inspect original receipts. Do not infer displayed desktop pixels/FPS from logs,
+and do not launch a second boot. Original backups and mkadt edit remain intact.
+
 ### 2026-11-12 CST — C4 desktop one-boot trial reviewed; awaiting its own approval
 
 Source follow-up 18e2dc5 adds a runtime dladdr check for the exact private

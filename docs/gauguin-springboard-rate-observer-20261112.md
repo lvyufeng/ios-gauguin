@@ -71,3 +71,49 @@ producer timing evidence to decide whether to prepare a separate dylib
 placement and SpringBoard launch experiment, with a separate exact write
 scope and consent. A 60 fps animation policy should follow measured Gauguin
 requests, not the Redmi's 80–120 fps value.
+
+## 2026-11-12 follow-up: bounded existing-file slot, still offline
+
+An additional read-only pass found the existing
+`/usr/local/lib/gauguin/libGauguinEAGL.dylib` at CNID 607529, one contiguous
+138-block data extent (565,248 allocated bytes), logical length 563,200 and
+SHA-256 `aafa07f85e6e2ae86d525ebcd1f5661a0fee561009521b28584b15da1e83eab9`.
+The current C4 backboardd job has no explicit dylib insertion, its launch
+cache has no reference to that library, and the C4 kernel source suppresses
+the automatic EAGL insertion. The old EAGL admission dylib can still load it
+in other modes; temporarily reusing this slot is suitable only for a
+separately approved, bounded trial with complete rollback.
+
+Separate `tools/build-sb-rate-slot.py` and
+`tools/prepare-sb-rate-slot-launch.py` keep the original pinned build and
+launch tools unchanged. The slot variant is an ad-hoc signed iOS 16 ARM64
+dylib, 87,232 bytes, SHA-256
+`d7e07dae4886e8adf47a19e130b9e4546f51b621f5b4b24b85201e94311e3638`.
+Its install name and both SpringBoard launch variants point to the existing
+EAGL path. `tools/capture-sb-rate-slot.py` read and pinned the current full
+allocations and catalog leaves for that file, SpringBoard's standalone job,
+and launchd's cache. Three catalogs occupy distinct blocks. The standalone
+job is 2,457 bytes and cache 795,924 bytes after the transform, each within
+its existing allocation. The transform still changes only the SpringBoard
+entry among 531 cached jobs.
+
+`tools/prepare-sb-rate-slot.py` produced a six-range data/catalog delta:
+**1,380,352 bytes for installation**, with 2,760,704 userdata bytes for a
+normal install plus restoration. It changes only the three files' logical
+length fields in their catalog leaves; no HFSX extent, allocation bitmap,
+volume header or GPT change is planned. Install plan SHA-256 is
+`574ecae90d57ce5af826975d7ad68bf54a2c0485e303d131068ac565b2e216e8`.
+`tools/review-sb-rate-slot.py` overlaid those exact six candidate ranges on
+read-only recovery reads and let the actual HFSX parser resolve all three
+candidate files. Review SHA-256 is
+`d1b608d31a8c357ba48efae91a1295204ffa719f1c5617a7dbc7b106d20a1856`.
+Both old and slot-variant artifact input pins still rehash exactly.
+
+This is **not** a device-qualified trial: no postboot dynamic-catalog
+restorer, bounded executor, misc marker or exact new authorization is yet
+prepared. The current phone remains in TWRP and no write or boot occurred.
+SpringBoard's dyld/AMFI acceptance and the iOS 16.7 hook ABI remain unknown.
+First use the pending 0301 trace to locate the lag; only if a SpringBoard
+request/turn gap remains plausible should this slot candidate become a
+separate reviewed phone trial. Replacing the EAGL file, even temporarily,
+would disable its old use during that trial and requires verified restoration.

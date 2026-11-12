@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — real A619 owned-core trial passed; original launch entry restored
+
+The authorized one-shot hardware trial is complete. Result report commit6265ea6
+updates docs/gauguin-metal-owned-hardware-20261112.md and the core report.
+Sourceb8a4b07; launch handoff06e1949. No new kernel/CI build, flash or boot retry.
+W=research/tmp/metal-hardware-20261112; E=W/execution.
+Original executePID65017 exited0, observerPID/PGID66203 terminal/no children.
+Fastboot sent and booted SAME0298 image64596164... once; TWRP was detected747s
+after boot. Claim-to-result826.551773s (initial pin hashing precedes claim).
+Actual approval70872409... for plane80817f0... is consumed; never relaunch E.
+
+Real probe1cb92917c87718fe918f9cdb loaded private corec9da25aa..., identified
+Adreno619/chip06010900 and seed1481645600. All8 GPU command buffers completed,
+2 callback-release/own-wait checks passed, and20480 byte/pixel comparisons
+matched independent CPU hashes. All7 cleanup observations reported allocated0.
+These are finite core lifetime/ordering/readback results, not desktop FPS.
+Kernel closes independently show epoch1 ready0/jobs8/nativefence8/clean1 for
+the new test, then epoch2 ready1/jobs8/nativefence16/clean1 for the retained
+old bootstrap. Old bootstrap's8 stages and queue-local fences1..8 succeeded.
+The entire600s service ended at598 renewals,35 submitted/35 completed/shadow440;
+only its first8 jobs belong to the new core test. Physical screen reply absent.
+
+All40 install ranges/9990144B and13-byte misc marker had verified readback.
+After capture, both original launch files were restored byte-for-byte through
+2 data-only ranges/8192B, without replaying pre-boot HFS metadata. All24 old
+static captured files retained; the private new test/core files remain inactive.
+Installed/post/restored captures verify87 file records and5 directory records
+each. Full3 old log prefixes retained; new stdout/stderr/backboardd suffixes
+4959/135/53070B. Those logs did not change during restoration. Default desktop
+core remains8a826583..., with old router/bootstrap/bundle intact. Device is TWRP.
+
+Current post-boot/post-restoration root header:
+1c43ad66d5195271397bd23a13ed4f284df231e1ad67b7c3552a15dc423ba539.
+Use this state and fresh captures for later work; original installation ranges
+and old headers are stale. No further phone action is authorized by this spent
+one-shot. Any retest must preserve this result and avoid replaying metadata.
+
+E/result.json and E/validation.json are original terminal successes.
+E/independent-review.json rechecks all173 ready pins, all actual captures,
+restoration bytes, current-only hashes, owner close epochs, final service totals
+and empty process group. Offline reviewv1 exited1 only because Python tuple
+elements were compared directly with decoded JSON lists; its failure is retained
+in E/independent-review-v1-failure.json. V2 canonicalizes representation and
+passes; no source/phone replay or additional device write followed that fix.
+W/review_completed.py and W/final-review-v2.log retain the final audit.
+Latest storage485836435456B/500000000000B admitted (W/storage-final.json).
+The complete fresh backup/candidate and all original phone backups remain.
+MAIN mkadt original7-line edit/SHA3c1085a7... stays uncommitted/untouched.
+
+Next GPU work remains C4: ordered CoreAnimation held/ordinary admission,
+broadcast commit-reached/completed state, scheduled/complete handler ordering,
+real gated frontend tests and a matched native bundle. This hardware result
+qualifies the isolated core foundation, not enabling uncorrected desktop async
+recording, complete Metal support, physical input/frame rate or the full phone
+objective. Raw phone evidence, identifiers and Apple artifacts remain outside git.
+
 ### 2026-11-12 CST — owned-core hardware trial authorized, installed and booted once
 
 Actual user reply to questionItemId

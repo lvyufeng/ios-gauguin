@@ -2,40 +2,64 @@
 
 ## Agent handoff / active work
 
-### 2026-11-12 CST — user-requested owned-core repeat2 booted once; observe original
+### 2026-11-12 CST — requested repeat2 passed on A619; launch entry restored
+
+The user's explicit 再刷机一次 request is fulfilled. Source b8a4b07,
+repeat boot handoff f5ddba5, final hardware/core reports e3f037e.
+R=research/tmp/metal-hardware-repeat2-20261112; first W=research/tmp/metal-hardware-20261112.
+Original repeat executor PID 3532 / exec session 85689 exited 0. Observer
+PID/process group 3973 is terminal with no surviving children. No new kernel
+build or CI run, no retry. Both original trials are complete; do not relaunch.
 
 The actual reply to questionItemId
 ["request_user_input_async","call_b2e95e56b80a40b580384d41e1324518",0]
-was 再刷机一次. Treat it as a new explicit repeat instruction, not a screen
-attestation and not reuse of the consumed first approval. Codex stated the
-same temporary image/probe and post-test restoration behavior before execution.
+was a new repeat instruction, not a screen attestation or reuse of the first
+approval. New plan:
+14ddfd2fac19bcbc6250461dce0a363eade1cd40052449015dfbeea919a53dc2;
+approval d62f0ee6d9464cf9cca060cf14c39ad01c9452926407458be787c44cabd2b599.
+This one-boot scope is now consumed. The same 0298 image 64596164315f... was
+sent and booted once (both OKAY, total 0.598 s). TWRP returned after 746 s;
+claim-to-result 808.155601 s. Exact kernel banner matched.
 
-R=research/tmp/metal-hardware-repeat2-20261112; first W=research/tmp/metal-hardware-20261112.
-New plan14ddfd2fac19bcbc6250461dce0a363eade1cd40052449015dfbeea919a53dc2,
-approvald62f0ee6d9464cf9cca060cf14c39ad01c9452926407458be787c44cabd2b599.
-Fresh29-file/5-directory capture matches prior restored static bytes and full
-old log prefixes. Header1c43ad66... remains unchanged. Existing test/core binaries
-are reused. Only2 launch-data blocks/8192B are activated and later restored;
-no full9.99MB installation, filesystem metadata writes, new image or new clone.
-The narrowed writer rejects metadata plans and passed14 actual-range controls.
-OneGiB whole-batch storage admitted at485837524992B/500GB.161 ready pins include
-101 preserved-first-trial pins, all checked. First evidence is untouched.
+Only two existing launch-file data blocks / 8192 B were activated and then
+restored, each with preimage/readback verification. The 13-byte misc marker
+also passed. No full 9.99 MB reinstall, HFS metadata replay, new image or clone.
+The narrowed writer passed 14 actual-range controls. Existing native probe
+1cb92917c87718fe918f9cdb and private core c9da25aa... were reused.
 
-Original R/execute_trial.py PID3532 (retained exec session85689) is active.
-R/execution/claim.json and R/authorized-execution.log are the original records.
-Activation2 ranges/8192B readback verified;13-byte misc marker also verified
-(after8698abf4...). ObserverPID/PGID3973 launched once. Actual fastboot sending
-and booting both returned OKAY, total0.598s, same0298 image64596164315f....
-This repeat's boot scope is consumed; never launch again because it is slow.
-600s service/780s observer and post-capture/data-only restoration are pending.
+Actual new seed 1734417142: all 8 ordered GPU command buffers, 2 callback
+release/own-wait checks, 20480 byte/pixel comparisons and 7 allocated=0
+observations passed. Kernel closes: new probe ready0/jobs8/fence8/epoch1/clean1;
+retained bootstrap ready1/jobs8/fence16/epoch2/clean1. Old bootstrap's 8 stages
+passed. Overall service: 598 renewals, 80 submitted / 80 completed, shadow980.
+Only the first 8 jobs belong to the new core; overall totals do not prove FPS.
 
-Observe only the original process/results. The runner will capture29 files,
-retain complete old log prefixes, restore the2 launch-data blocks, then validate
-current-only GPU output and both root owner epochs. Compare new observer SHA
-against firstc8bb4e36bf95bd75d526776d9ed60a1ccec789d7e2b9da9e52de97ef210968ef.
-Do not rerun original first or repeat helpers/stages. No screen attestation,
-FPS or desktop-async qualification follows from the user's repeat instruction.
-C4 remains unfinished. MAIN mkadt original edit remains untouched.
+Read-only R/review_completed.py / final-review.log independently accepted
+161 ready pins and all 101 preserved first-trial pins. All 116 actual file
+records across fresh/installed/post/restored captures checked, with five
+directory records each. All 26 static files match the inactive repeat baseline.
+All three old log prefixes remain; stdout/stderr/backboardd grew 4957/135/102456 B
+and did not change during launch restoration. Both original launch files are
+exactly restored; the private test remains inactive, old desktop core retained.
+Current device state was independently read as recovery after completion.
+
+Current post-boot/post-restoration root header:
+42ec2e54c3a7a0972786f70fc768e2c3e72f143353320dedf2e79ac78fdca388.
+The earlier 1c43ad66... header is historical. Require fresh current preconditions
+for future work. Repeat kernel log SHA:
+8d85a10ba23d9dcf3150cb424ac084a3d4ad5b47cca0dd0260e7171f9964a6bb,
+distinct from first c8bb4e36.... R/execution/result.json SHA:
+b21cdea55e2b676bc01540561fa65558b4b167943c89c42d786c7dab3ef32a7d.
+R/execution/validation.json and independent-review.json are terminal successes.
+Latest storage R/storage-final.json: 486053007360 B / 500000000000 B, admitted.
+All original backups and both trial evidence sets remain; raw files stay ignored.
+MAIN tools/mkadt.py original 7-line edit / SHA 3c1085a7... remains untouched.
+
+No physical screen attestation was received. Next GPU work is still C4:
+ordered held/ordinary CoreAnimation admission, broadcast reached/completed
+state, scheduled/completion handler ordering, gated frontend tests and a
+matched native bundle. The repeated core result does not qualify desktop
+asynchronous composition, physical input or useful frame rate.
 
 ### 2026-11-12 CST — real A619 owned-core trial passed; original launch entry restored
 

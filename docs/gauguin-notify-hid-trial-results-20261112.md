@@ -114,7 +114,7 @@ This alignment is saved in the private
 `tools/align-metal-contact300.py` pins the raw kernel and current-only
 backboardd log hashes, checks the absolute-clock invariant and refuses missing
 or ambiguous intervals. Its synthetic test covers stable and skipped beats,
-different clock origin, wrong timebase and malformed C4 rows.
+boundary uncertainty, different clock origin, wrong timebase and malformed C4 rows.
 
 In the first two aligned touch-active windows, GPU execution time in the
 recorded C4 buffers cannot explain the long gaps between *buffer creation*

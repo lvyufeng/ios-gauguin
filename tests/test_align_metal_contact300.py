@@ -46,6 +46,12 @@ def main():
     assert row['state']=='aligned' and row['c4_buffers_made']==1
     assert row['c4_buffers_done_within_window']==1 and row['held_retired']==1
     assert row['contact_mask_changes']==3 and row['c4_reported_gpu_ms']==[7.5]
+    start=(123456+600*320006)/19200
+    near=(f'HakiosMetal[backboardd 57]: timeline: made {start+1:.1f} '
+          f'committed {start+2:.1f} done {start+3:.1f} gpu 7.50\n')
+    boundary=analyzer.align(kernel,near,cadence)['intervals'][0]
+    assert boundary['state']=='aligned-with-boundary-uncertainty'
+    assert boundary['boundary_uncertain_buffers']==1 and boundary['c4_buffers_made']==0
     kernel,metal,cadence=synthetic(skipped=1)
     assert analyzer.align(kernel,metal,cadence)['intervals'][0]['state'].startswith('not-aligned')
     kernel,metal,cadence=synthetic()

@@ -1,18 +1,19 @@
 # Isolated Metal ownership hardware trial
 
-The isolated ownership-core check **passed on the real Adreno 619**. Eight GPU
-command buffers completed, two callback-release checks passed, all 20,480
-byte/pixel comparisons matched, and the kernel confirmed clean root-owner
-release. The original launch entry was restored byte-for-byte after capture.
+The isolated ownership-core check **passed twice on the real Adreno 619**.
+Each run completed eight GPU command buffers, passed two callback-release
+checks and all 20,480 byte/pixel comparisons, and closed its root owner cleanly.
+The original launch entry was restored byte-for-byte after each run.
 
 Preparation used read-only recovery access and local builds/image edits. The
 user then explicitly authorized the exact writes, one temporary boot and
 restoration described below. This qualifies the finite new-core test; desktop
 asynchronous CoreAnimation composition and physical frame rate remain open.
 
-The phone is in TWRP with the 16 GiB iOS HFSX root prefix of userdata unmounted.
-All 16,384 one-MiB device chunk hashes and the complete device SHA-256 match a
-fresh independent backup. Backup SHA-256:
+Before the first installation, the phone was in TWRP with the 16 GiB iOS HFSX
+root prefix of userdata unmounted. All 16,384 one-MiB device chunk hashes and
+the complete device SHA-256 matched a fresh independent backup. That preserved
+pre-installation backup has SHA-256:
 `a11ef472d1625485d48741a35bc9440ad44dd3f4c97894434fb726d2dc7c9608`.
 
 The first reconstruction stopped before transferring changed chunks because
@@ -168,11 +169,12 @@ retained. Logs did not change during restoration. The private test executable
 and library remain installed but inactive; the default desktop core is still
 `8a826583…`.
 
-Final observed device state is recovery. The post-boot and post-restoration root
-headers agree at
+The first run ended in recovery. Its post-boot and post-restoration root
+headers agreed at
 `1c43ad66d5195271397bd23a13ed4f284df231e1ad67b7c3552a15dc423ba539`.
-Future work must use that current state and fresh preconditions, not replay the
-consumed 9.99 MB installation metadata.
+That header is historical after the second run below. Future work must use
+fresh current preconditions, not replay the consumed 9.99 MB installation
+metadata.
 
 Evidence is in `W/execution/`: original install/marker/observer/restore receipts,
 all three captures, current-only log tails, `validation.json`, and
@@ -181,3 +183,59 @@ attestation was received in this run; launching SpringBoard and backboardd is
 not a substitute for a physical UI observation. CoreAnimation admission/wait
 ordering, full desktop GPU composition and physical FPS still require their
 own work.
+
+## User-requested second temporary boot
+
+The user then explicitly requested `再刷机一次`. This authorized one repeat of
+the same temporary image and probe, with capture and launch-entry restoration;
+it was not a screen observation or reuse of the first consumed approval.
+Private repeat evidence is in `research/tmp/metal-hardware-repeat2-20261112/`
+(`R`). The new plan is
+`14ddfd2fac19bcbc6250461dce0a363eade1cd40052449015dfbeea919a53dc2`.
+
+A fresh 29-file/five-directory capture matched the first restored state. The
+existing probe and private core were reused. Activation and restoration each
+changed only two launch-file data blocks, **8,192 bytes**, with verified
+preimages and readback. No binary installation, filesystem metadata write,
+new image or clone was needed. The narrowed writer passed 14 range controls.
+The complete repeat batch reserved 1 GiB within the 500 GB cap. The 13-byte
+recovery marker also passed readback.
+
+Original execution PID 3532 and observer PID/process group 3973 are terminal;
+the retained execution exited 0 and the observer group is empty. Fastboot
+accepted the same 0298 image once, reporting 0.598 s total. Recovery was
+detected after **746 s** and the exact kernel banner matched. Claim-to-result
+time was 808.155601 s. No retry or failure rollback occurred.
+
+The new log suffix identifies seed **1734417142**, the same native probe and
+the same private `c9da25aa…` core. All eight ordered jobs, two callback checks,
+20,480 readback comparisons and seven zero-allocation observations passed
+again. Independent CPU hash reconstruction matched every fill/copy and RGBA8
+clear. Kernel closes again showed the new probe at ready 0/jobs 8/fence 8/
+epoch 1/clean 1, then the retained bootstrap at ready 1/jobs 8/fence 16/epoch 2/
+clean 1. The retained bootstrap also completed its eight stages.
+
+The whole service ended at 598 renewals, **80 submitted and 80 completed** jobs,
+and shadow count 980. Only its first eight jobs belong to the new probe.
+The difference from the first run's 35 total jobs does not establish desktop
+FPS or explain physical screen behavior.
+
+Independent review rechecked all 161 ready pins, all 101 preserved first-run
+evidence pins, and 116 actual file records across fresh/installed/post/restored
+captures. All 26 static files match the inactive repeat baseline, including
+the two original launch files. Each capture retains five directory records.
+All three complete old log prefixes remain; new stdout/stderr/backboardd
+suffixes contain 4,957/135/102,456 bytes. Those logs did not change during
+restoration. The new kernel-log hash is
+`8d85a10ba23d9dcf3150cb424ac084a3d4ad5b47cca0dd0260e7171f9964a6bb`,
+distinct from the first run's preserved capture.
+
+The device is back in recovery with the private test inactive and the original
+desktop core/router/bootstrap retained. The current post-boot and
+post-restoration root headers agree at
+`42ec2e54c3a7a0972786f70fc768e2c3e72f143353320dedf2e79ac78fdca388`.
+The new request has been fulfilled; its one-boot scope is consumed.
+`R/execution/result.json`, `validation.json`, `independent-review.json` and
+`R/final-review.log` retain the terminal result and read-only audit. No new
+kernel build or CI run was needed. No physical screen attestation was received;
+CoreAnimation admission/wait ordering and desktop GPU performance remain open.

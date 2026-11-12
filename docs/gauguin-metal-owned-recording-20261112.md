@@ -3,8 +3,10 @@
 The `a619-ownership` core profile keeps command buffers, native queues and their
 GPU transport alive through deferred recording and completion. It addresses a
 prerequisite for asynchronous desktop rendering. The core subsequently passed
-an [isolated real-device test](gauguin-metal-owned-hardware-20261112.md) from a
-private library path. The normal desktop still uses its previous core;
+two [isolated real-device tests](gauguin-metal-owned-hardware-20261112.md) from
+a private library path. Each completed eight GPU jobs, two callback checks
+and 20,480 readback comparisons, with the original launch entry restored.
+The normal desktop still uses its previous core;
 asynchronous desktop composition remains unqualified.
 
 ## Changes

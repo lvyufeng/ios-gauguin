@@ -2,6 +2,116 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — full optional-fault kernel built and natively qualified
+
+R=research/tmp/gauguin-optional-fault-profile-worktree-20261112;
+W=R/research/tmp/optional-fault-native. Full details are in
+docs/gauguin-optional-fault-native-20261112.md. Previous goal turn made source
+progress; this turn adds an actual fresh complete kernel/native install.
+
+DSH v2 dispatcher 55911 finished exit 0 in 185.691 s, all 49 stage inputs
+unchanged; all 12 external file pins current. Make/qualification both exit 0.
+Exactly one build run gauguin.UV1bla; source commit 8787ed352c8b6546fcc39e3434d6937e81045db5, local branch only,
+214 active patches, source SHA 4e29d9db16724271641fb1c7c9f7a09ec2a24fef10e0f7be3d4fc4c282e1dfff, 5333 files. Only the expected board
+file differs from qualified 0298. Original source, candidate and build clone
+were checked unchanged; no cached object tree was reused.
+
+Native installed kernel is 17347344 B, SHA 3079754f80e690b7576968e6d3679d1fc79f8659552600058b34d7314f5dcc92; identity
+xnu-74ec6106a08a44889ffee9668d76986e. Actual native kernel, native archive version.o and
+manifest banners agree. Archive SHA 7940a22b9494924e012e3e4a27d49c6f44dcbe4dffe09752a5818f96fa763427; 261 required
+symbols have definitions. Codex's actual-artifact audit passed and is stored
+as W/codex-artifact-audit.json. Native reports and exact build log are in W;
+original stage claim/result are W/build-stage-run. This run is terminal: never
+restart it. No CI run was performed.
+
+Codex's prelaunch NUL-vs-newline qualifier correction is in v2 only; eight v1
+files remain preserved in W/review-v1-original. V1 was never launched. Repeated
+whole-batch storage admission used 8858370048 B; post accounting is
+450792763392 B of 500000000000 B, native-turn growth
+3548626944 B within the 8 GiB reservation. All backups, 82 original 0298 ready
+pins and 12 preserved 0297 evidence files match. MAIN mkadt stays unchanged.
+
+0298 individual consent is still absent; its plan 6872d2d396e1... and image
+64596164315f... remain unchanged. No approval298.json, trial298-v1 or
+execution298-v1 exists; no device command/write/boot, payload/package or image
+occurred. Next device action remains the exact existing 0298 one-shot plan
+only after its real individual answer, fresh preflight and original post helper.
+Do not infer consent from automatic continuation or substitute the new kernel.
+Future flag-on/off comparison still needs command-budget review: omitting
+sweetfb_hz=60 changes source fFlushTicks from 1 to 6 (default hz=10).
+
+This qualifies finished native artifacts only. Physical timing/overhead, real
+GPU/Metal and UI, all safe RAM/storage, peripherals, 90/120 Hz and daily use
+remain unqualified and the full objective stays active/incomplete.
+
+### 2026-11-12 CST — complete 0222 source materialized; native build running
+
+LAUNCH UPDATE: DSH's v2 dry inspection passed, and the one original pinned
+build dispatcher 55911 is confirmed live by ps with the exact v2 profile path.
+Its launch/claim/result live at R/research/tmp/optional-fault-native/
+build-stage-run; v2 profile SHA remains cf86a174.... Observe only this dispatcher
+and original result. Do not start another build. The repeated whole-batch
+storage gate passed and the fresh native compile is active (original dispatcher
+55911 still live at 1m36s, kernel-build.log contains actual compiler output).
+No completed native kernel/result has yet been observed.
+
+UPDATE: DSH preparation exec 11374 finished exit 0. Its original unlaunched
+profile SHA is c7018627cdb29d42a9c716ad2eada82ea2c260876e6d439c03db0c8b3c0e6d5d.
+Codex reviewed the actual scripts, compared the generic native qualifier to
+0298 (all prior checks retained), and checked all 54 prior byte literals and
+prior symbol literals are retained by the specific qualifier. Review found the
+two new gmb_record status constants must be NUL-terminated, not newline-ended:
+the accepted ARM64 TU has both NUL forms and neither newline form. Codex saved
+eight v1 files in R/research/tmp/optional-fault-native/review-v1-original, fixed
+only those qualifier constants/scope text and bound common/build paths to a new
+build-stage-profile-v2.json. No production code changed. V2 profile SHA is
+cf86a1746d5c868362470464b6b2b1b9dcd2be1fbf14c54eb9cf4ad0233ef15e, 49 file pins
+plus directory/external pins; exact review is codex-review-v2.json there.
+DSH is now tasked to run dry_inspect_optional.py once to new dry-inspection-v2
+receipts, then launch the one pinned v2 build only on positive gates. Original
+request/output is research/tmp/resume-ios-20261112/dsh-optional-native-launch-
+output.jsonl. Build source clone, dependency clone/object tree and native
+output were absent at Codex review. Observe that task's actual launch receipt
+and same dispatcher; never restart a claimed stage. No launch observed yet.
+
+Previous goal turn was progress: committed 8787ed3 plus accepted source/model
+tests and ARM64 TU; it did not complete the full phone objective. 0298 consent
+is still individually pending, not implied by automatic goal continuation.
+No approval298.json, trial298-v1 or execution298-v1 was present on this resume.
+
+DSH preparation exec session 11374 is live in the original
+research/tmp/resume-ios-20261112/dsh-optional-native-prepare-output.jsonl
+workflow. Observe that same handle/process; do not duplicate it. New private
+scripts/results are R/research/tmp/optional-fault-native, where
+R=research/tmp/gauguin-optional-fault-profile-worktree-20261112. This preparation
+is authorized only for host source materialization and build-script planning,
+not a kernel build, package or device action until Codex reviews the scripts.
+
+Whole-batch storage admission passed, exit 0, at 447244136448 B accounted,
+planned 8858370048 B (8 GiB for complete two-source/dependency/fresh-object/
+install/log batch plus 256 MiB pending 0298 capture); cap 500000000000 B.
+R/research/tmp/optional-fault-native/storage-preparation.log preserves it.
+DSH cloned the qualified full 0298 source to R/.deps-cache/p0-20261105/
+source-optional-fault-profile and strictly applied only committed 0222. Its
+full SHA is 4e29d9db16724271641fb1c7c9f7a09ec2a24fef10e0f7be3d4fc4c282e1dfff,
+5333 files; only bsd/dev/gauguin_gmu_board.c differs, SHA 25ad4528..., no
+additions/deletions. Root and board inodes differ from the retained baseline,
+whose full SHA remains 6ab302a6.... No full link or image has yet been observed.
+
+Independent Codex command-budget read found that omitting sweetfb_hz=60 is
+NOT a source-equivalent way to fit sweetgfprof=1: SweetFramebuffer.cpp starts
+hz at 10, so fFlushTicks changes from 1 to 6 when that explicit token is omitted.
+Although an omitted-Hz command would fit 605 bytes, it is not an accepted
+comparison command. Preserve the exact 0298 605-byte command and image; future
+enabled/disabled timing comparison needs a separately reviewed command budget.
+This concerns software copy cadence, not measured physical panel refresh/FPS.
+
+All runtime/graphics/watchdog/storage checks must survive the new full-link
+qualifier; local committed source provenance must be stated honestly (8787ed3
+has not been pushed). Preserve all trial/backup inputs, MAIN mkadt edit and cap.
+Full GPU/Metal, safe RAM/storage, peripherals, 90/120 Hz and daily use remain
+active and unqualified by this preparation.
+
 ### 2026-11-12 CST — optional 0222 source/model accepted; seven files committed
 
 R=research/tmp/gauguin-optional-fault-profile-worktree-20261112. Optional 0222

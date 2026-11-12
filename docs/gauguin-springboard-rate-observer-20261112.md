@@ -17,6 +17,21 @@ dylib through its [userland build/injection path](https://github.com/oosexgang/h
 Those rates and injection mechanics are source-specific; Gauguin iOS 16.7
 still needs its own measurement.
 
+HakiOS's [phone measurements](https://github.com/oosexgang/hakios-xnu-kernel/blob/main/docs/reference/metal-measurements.md#under-real-fingers-5-november)
+also show why a driver refresh number alone does not explain touch lag. On
+redwood, a missed touch-controller interrupt left a finger lift waiting
+88–169 ms; fixing the [Goodix/FocalTech report polling path](https://github.com/oosexgang/hakios-xnu-kernel/blob/main/drivers/input/hakios.goodix.c)
+reduced it to 5–6 ms. Its own 120 Hz panel still did not deliver 120 distinct
+frames per second across gestures: [the changelog](https://github.com/oosexgang/hakios-xnu-kernel/blob/main/CHANGELOG.md#2026-11-05-234)
+reports 109.6 at the default screen, with remaining long SpringBoard turns
+and GPU work. These are redwood results, not Gauguin measurements. Our next
+0301 trace must distinguish touch report/HID queue delay from C4 producer,
+submission and presentation delay. Only if that trace leaves SpringBoard's
+rate requests or turns as a plausible cause should the separate observer
+trial be run. The HakiOS [CA heartbeat issue](https://github.com/oosexgang/hakios-xnu-kernel/issues/40)
+describes a reported 120 Hz app-rate fix on renoir; it does not establish a
+60 Hz lag fix or a Gauguin result.
+
 `graphics/gauguin-sb-rate-trace/SBRateTrace.m` implements the read-only
 observations for SpringBoard. Its wrappers call the original animation and
 display-link methods once with the same arguments and return no changed
@@ -288,3 +303,33 @@ There was no actual phone write or boot. A full one-shot executor, boot/misc
 handling, postboot log capture and separate exact-scope user approval still
 remain before this observer can be tried on the device. The pinned 0301
 causal diagnostic is still first.
+
+## 2026-11-12 follow-up: separately gated one-shot trial, offline only
+
+`tools/prepare-sb-rate-trial.py` pins the independently reviewed 0304 image,
+six-range HFSX delta, current root backup, misc preimage, observer helper,
+restore code and log analyzers. It admits a fresh 1 GiB storage reserve before
+writing private `trial-plan.json` and `ready.json`. This preparation reads
+only local files; it is **not** a phone trial or a user approval.
+
+`tools/run-sb-rate-trial.py` first requires an individual user reply bound to
+the exact trial plan, install plan and image hashes. Without that reply it
+stops before ADB, fastboot or an execution claim. Its bounded sequence is:
+read-only recovery capture; install the three observer file replacements
+across six readback-verified userdata ranges (1,380,352 bytes); write the
+13-byte misc recovery marker; make one temporary image boot; collect the
+same-boot kernel, root and SpringBoard logs; dynamically restore the three
+original root files; and reparse those files plus the unchanged 29-file
+owned-root set. A failed restore may be retried once only after verified
+reverse rollback; the maximum modeled userdata write budget is 6,901,760
+bytes. At most one `fastboot reboot recovery` fallback is allowed. An
+unsuccessful install, unreadable device state, incomplete rollback or changed
+preimage stops progression rather than permitting another boot.
+
+The private gate test supplies fake `adb` and `fastboot` commands and confirms
+that absent approval executes neither and creates no trial directory. The
+result labels preserve distinctions among a SpringBoard log whose tail cannot
+be proven, a missing activation marker, an active observer without samples,
+and measured SpringBoard *requests and CPU turns*. None means physical panel
+FPS or smooth touch has been achieved. The distinct 0301 causal trace remains
+the next phone diagnostic, and its consent cannot authorize this trial.

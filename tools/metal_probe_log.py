@@ -75,7 +75,7 @@ def expected_hashes(seed):
     return out
 
 
-def qualify_probe_log(stdout, stderr, native, *, build, core):
+def _qualify_probe_receipt(stdout, stderr, native, *, build, core, memory_phases):
     need(re.fullmatch(r'[0-9a-f]{24}', build) is not None and
          re.fullmatch(r'[0-9a-f]{64}', core) is not None, 'invalid expected build/core')
     need('GAUGUIN METAL223 FAIL' not in stdout + '\n' + stderr,
@@ -89,7 +89,7 @@ def qualify_probe_log(stdout, stderr, native, *, build, core):
     seed = int(ident[1][0]);need(seed < 2**32, 'seed overflow')
     hashes = expected_hashes(seed)
     memory = records(stdout, PREFIX+'memory ', PREFIX+r'memory phase=(\S+) active_mb=(\d+) inactive_mb=(\d+) active_attr=(\d+) inactive_attr=(\d+) footprint=(\d+)')
-    need([r[1][0] for r in memory] == ['before-delay', 'compiled', 'completed'], 'memory checkpoint set/order differs')
+    need([r[1][0] for r in memory] == list(memory_phases), 'memory checkpoint set/order differs')
     for _, (_, active, inactive, aa, ia, footprint) in memory:
         need((active, inactive, aa, ia) == ('128', '128', '1', '1') and
              0 < int(footprint) <= 128*1024*1024, 'effective hard memory policy differs')
@@ -143,9 +143,21 @@ def qualify_probe_log(stdout, stderr, native, *, build, core):
     if fault >= 0:
         stop = native.find('SWEET GPU SERVICE: test deadline reached;')
         need(stop >= 0 and fault > stop, 'faulted client before planned stop')
-    return dict(state='qualified223-offscreen-readback-and-native-owner-handoff',
-                build=build, core=core, seed=seed, phases=list(PHASES),
-                output_words=output_words, completed_root_fences=8,
-                compositor_opens=len(opened), hashes=hashes,
-                MTLDevice_qualified=False, desktop_qualified=False,
-                high_refresh_qualified=False)
+    receipt = dict(
+        state='qualified223-offscreen-readback-and-native-owner-handoff',
+        build=build, core=core, seed=seed, phases=list(PHASES),
+        output_words=output_words, completed_root_fences=8,
+        compositor_opens=len(opened), hashes=hashes,
+        MTLDevice_qualified=False, desktop_qualified=False,
+        high_refresh_qualified=False)
+    layout = dict(begin=begin[0], identity=ident[0],
+                  memory=[row[0] for row in memory], result=result[0])
+    return receipt, layout
+
+
+def qualify_probe_log(stdout, stderr, native, *, build, core):
+    """Validate the legacy 0223 probe lifecycle with its before-delay checkpoint."""
+    receipt, _ = _qualify_probe_receipt(
+        stdout, stderr, native, build=build, core=core,
+        memory_phases=('before-delay', 'compiled', 'completed'))
+    return receipt

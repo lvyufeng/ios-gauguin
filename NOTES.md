@@ -2,6 +2,82 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0298 completed; strict bootstrap validated; ownership source work next
+
+0298 scope is consumed and terminal. Source/report commit 3836c1e39cc99b480dc6ebc79696b92cd4d50c5d
+contains the reviewed host validator, its regressions and
+docs/gauguin-trial298-results-20261112.md. Launch handoff was 06664e394b101a352ebf609464b5f7842f40970e.
+No CI run in this increment. DSH executed; Codex designed/reviewed the trial,
+binding, audit corrections and acceptance. Full phone objective stays active.
+
+W=research/tmp/gauguin-present-trace-worktree-20261112/research/tmp/dsh-trial298-prep;
+R=research/tmp/resume-ios-20261112. Trial dispatcher 8284 finished exit0 in
+815.635s including fresh preflight; isolated helper PGID8784 has no live child.
+One temporary fastboot boot, no retry. Exactly 13 misc bytes were written and
+readback verified, no rollback needed, no explicit userdata delta. Normal iOS
+runtime log writes were authorized. Observer recovered TWRP after745s
+(745.866639s elapsed), exact image/kernel banner xnu-d32fdbfabacc428f9f74401f3b674cbd.
+Plan6872d2d396e1..., image64596164315f... are the original approved0298, not0222.
+Post dispatcher17131 finished exit0 in16.550s. All88 trial/105 post/51 review
+pins and12 original0297 pins match. Do not rerun any original helper/stage.
+
+Post capture verifies24 static files,4 directory metadata sets,3 full old log
+prefixes; new stdout/stderr/backboardd tails3007/135/53071B. Current root header
+fb998b9aafcf92f7a6f2d48358b6c245a634dcb775822d352cfe4677665d7858.
+The old pre-boot header/log baselines are stale for a new trial: rebaseline
+from current captures and do fresh read-only checks, including current misc.
+
+Five complete cumulative CPU snapshots; latest prefix16 attempts/15 copied/
+1 zero-byte/0 invalid/0 refused,155520000B/15 layers.15 guard samples<0.5ms,
+15 copy samples[2,4)ms; p95/p99 same bins. Do not sum cumulative snapshots,
+infer later unreported activity or turn these into physical FPS. Finite600s
+service validated598 renewals and27 submitted/completed,16 recorded successes;
+later11 are sampled counters, not exact IB proof.4 BO refusals are after the
+planned stop.8 offscreen phase hashes/counts and fences1..8, clean owner handoff
+match captured installed bootstrap build9b9f99e2627808207562eee0/core8a826583....
+Backboardd has admission/first-open/draw work, but17 frontend summaries report
+0 presented. That counter is not panel FPS. Physical UI feedback is absent;
+do not infer defer state solely from absent log tokens. Full Metal API/device
+discovery, desktop/input/FPS, all safe RAM/storage/peripherals/high refresh and
+daily use remain unqualified.
+
+Host evidence: W/review298.json, codex-trial298-audit.json; R/trial298-runtime-review.json;
+bootstrap-parser298-result.json; bootstrap-parser298-review-v2-result.json;
+bootstrap-review-final/validation.json. Original legacy parser copy and strict
+memory-label rejection are preserved. New bootstrap entry passed raw logs;
+legacy signature/result remain unchanged.58 legacy checks,160 synthetic
+bootstrap checks+11 current-log checks,7 service unit tests pass. v1 sources
+and failures are preserved: original auditor over-rejected two content-pinned
+symlinks; later source review corrected3 negative cases using wrong log stream,
+bounded PIDs, and clarified userspace timing. No device re-execution in fixes.
+
+Future command budget review (R/future-command-budget-review.json) confirms six
+sweetpasmem consumers initialize0/discard parse presence; actual parser absence
+leaves0. Remove exactly ' sweetpasmem=0', append ' sweetgfprof=0' or '=1': both
+605B, retain sweetfb_hz=60. Feature gating equivalence only at those consumers;
+no runtime equivalence/approval. Native0222 stays unbooted and uninstalled.
+
+Next concrete action: implement/test the Metal ownership/admission foundation
+locally in a separate profile/worktree before enabling deferred/async behavior.
+No implementation or new ownership worktree exists yet. Read Rresults=
+research/tmp/gauguin-fault-results-worktree-20261112/research/tmp/
+deferrer-safe-design-20261112.md and async-commit-audit-20261112.md. Known opt-in
+deferrer lifetime bugs are source/host evidence, not observed default-path UI
+failures. Cover job/callback handle leases, self-owning recorder/per-state
+worker identity, queue+GPU storage leases and callback-safe teardown; native
+queue shutdown/join must finish while its object is alive, before destructor.
+All8 sync recording entry points must use the recorder ordering primitive.
+Frontend held/ordinary admission and wait/scheduled completion ordering remain
+a separate prerequisite. Old extraction mock sets finished before callbacks;
+actual core sets it after. Use actual core+FakeGpu for decisive regressions.
+Before a new worktree/build batch, admit the whole conservative1.75GiB budget
+(1879048192B, including256MiB future capture allowance), and preserve all pins.
+
+Storage checked before final handoff edits/commits: 450835124224B /
+500000000000B, admitted. Only small host oracle/test/report files were created;
+no new native image/build batch. MAIN mkadt SHA remains3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9,
+original diff unchanged/uncommitted. Keep raw phone evidence and Apple inputs out of git.
+
 ### 2026-11-12 CST — actual individual 0298 approval received; one launch dispatched
 
 User answered questionItemId ["request_user_input_async",

@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — SpringBoard observer kernel/image built offline
+
+Full goal remains smooth high-refresh iOS with Gauguin GPU acceleration;
+immediate 60 Hz touch lag is unresolved. The pinned 0301 exact-scope approval
+is still absent (no approval.json/execution). `adb get-state` returned
+`recovery`; no new phone write or boot. W301 image/plan and root remain
+unchanged. Do not use 0301 consent for the distinct SpringBoard observer.
+
+The W302 branch `codex/gauguin-sb-rate-trace-20261112` pushed commit
+`20c3b35` after `5560795`. Cloned W301 source301 with APFS clone into
+W302 `.deps-cache/p0-20261105/source304-sb-policy`; byte comparison shows
+only `bsd/kern/sweet_amfi.c` differs, exactly patch0226. Recorded and
+rechecked source-state after build. Storage-budget first refused a
+3800000000B simultaneous build+trial batch at496309448704B accounted,
+then admitted a separate3000000000B build batch. Local full
+`SKIP_TESTS=1 make install` exited0. Build manifest SHA
+e56269f3aa6e1f99b33a4acfa83e19365e471a3531e9a60864b4ab657b241183;
+kernel17348416B SHA e5a840b948858c91ddff76d8f941757e04d9cd6752b5041ac5b410c7bbe7b935,
+identity xnu-d1a9a6247e7f4664b6dff6ac512413b1. Focused host47-case
+ASAN/UBSAN and native single-TU results from prior turn still passed.
+
+`tools/package-sb-rate-observer.py` created a separate offline image
+20037632B SHA a11b7b7424af91803295d3cb1338e6084b69c9af7ff97ab28d7c500f2b9ea804,
+package receipt SHA3e463d62ea57b452d3db2fd180519dcab191f6589151183eb720e8daf5e2ea14.
+Boot command604B: retained sweettrace=2/touch_lat=1/sweetfb_hz=60,
+replaced metal_fps=timeline with sweet_sb_rate_probe=1. The first independent
+review rejected the assumption that firmware PA stayed fixed: new kernel
+__TEXT_EXEC grows one16KiB page, moving firmware PAs by16KiB and payload
+offsets by16640B. Revised `tools/review-sb-rate-observer-image.py` verified
+unchanged wrapper/shim/DTB, exact ADT PA updates, firmware order, range,
+content and padding, PAS tail, and policy strings in kernel. Review SHA
+700c47db0a1ed330cde75dff75a8107dd0c58e65c0e9fe164a089cbf94abeb9b.
+The five kernel asset consumers read dynamic ADT addresses and range/hash
+check them; phone acceptance remains unproven. No full trial executor or
+root install happened.
+
+Cleanup: retired duplicate457569543B build driver log with a private
+manifest; compressed retained457562293B build log to38743244B verified
+zstd, with another cleanup manifest. Kept source, build/SDK inputs, kernel,
+manifest and image. Fresh 1GiB future trial reserve admitted at
+498798858240B accounted (<500GB cap). Next phone step remains the separately
+approved W301/0301 causal trace. If its result supports SpringBoard
+request/turn delay, finish distinct W302 observer trial executor, seek
+its own exact-scope consent, then measure dyld load and physical cadence.
+Preserve backups, W301 pins and user's `tools/mkadt.py` edit.
+
 ### 2026-11-12 CST — HakiOS AMFI comparison blocks old SpringBoard slot trial
 
 The main goal is still smooth iOS with full Gauguin GPU acceleration and

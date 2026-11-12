@@ -180,6 +180,15 @@ comparators for Gauguin, not proof that Gauguin has the same touch bug or
 that async submit alone will solve the current lag. W301's same-boot
 HID→C4 trace remains the first phone measurement.
 
+The controller comparison rules out copying that particular touch fix:
+Gauguin's Novatek `nrt_poll` reads page, 67-byte report and restore page on
+*every* cycle before decode/HID, then calls `IOSleep(8)`. It has no
+interrupt-level predicate in that loop. Its actual sample period includes
+SPI, HID and scheduling time, so 125 Hz is not a measured input rate. The
+HakiOS report also records that merely doubling touch polling to 250 Hz did
+not improve its synthetic gesture rate. The 0301 same-boot trace must measure
+Gauguin's physical down/move/up timing and downstream frame path.
+
 Patch `xnu/patches/0229-gauguin-one-inflight-async-escrow.patch` SHA-256
 `9f97d5262b26816784f77799afd4931688fd505b279d307e7e8d4d4f98ca27fb`
 changes only the Gauguin GPU user client and its runtime-header contract.
@@ -216,3 +225,30 @@ receipts are `9e04f1a1597cc66bfeca997ad2716a41138f7853bd51221ca122d3a6523f9dab`
 and `c64ff8888b39ca6dd318189aedf5079110243737b52a67d4f0454913f9f8fb1b`.
 Patch-series tests and diff check passed. The W301/0301 plan and image were
 not changed; its separate exact-scope phone approval is still outstanding.
+
+## 2026-11-13 CI runner follow-up
+
+The first full-kernel Actions dispatch, run `43258091414` at commit `35e7026`,
+was cancelled before any step ran with the job annotation
+`The configuration 'macos-14-arm64-us-default' is not supported`. This is a
+runner-scheduling failure, not a compile result. GitHub's
+[runner retirement notice](https://github.com/actions/runner-images/issues/13518)
+says macOS 14 Actions images ended on 2026-11-02, and its
+[current runner list](https://github.com/actions/runner-images/blob/main/README.md)
+includes the arm64 `macos-15` label. Commit `07443e2` changes this workflow's
+runner label from `macos-14` to `macos-15`; fixed 13.5 dependency profile and
+requested gauguin DEVELOPMENT build are unchanged. Dispatch `43258392712`
+at that exact commit acquired a runner and passed checkout, profile and deps.
+It then failed before any kernel compilation: the workflow's generic
+`tests/run-all.sh` invoked every host script without the arguments,
+environment and source fixtures required by many newer tests, and reported
+43 test-file failures. These include stale GPU fixture compilation as well
+as missing parameters; they are not evidence that patch0229 fails a kernel
+build. Only `dxb-bootstrap.log` was uploaded, and the small xnu-kernel
+artifact contains no built kernel. The full failed-step log was retained
+privately with SHA-256
+`12727f1faa321d39afe6af0c49308c2e1b60ea0f7578be0d8fefb60aae1fe4f3`.
+The next workflow revision moves the unchanged host-suite gate after the
+kernel-build loop. It still returns failure on any host test error, while
+collecting a real compile/link result first. The workflow records actual
+Xcode/SDK in its build manifest when that stage runs.

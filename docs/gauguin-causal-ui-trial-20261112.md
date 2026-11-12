@@ -125,7 +125,9 @@ the intermediate ready/review pair was archived with manifest SHA-256
 The image, install plan and whole trial plan hashes did not change.
 The actual-range writer model passed 24 installation and rollback controls.
 Running the executor without this round's reply was verified to stop before
-device IO and before creating an execution claim.
+device IO and before creating an execution claim. A separate fake-IO
+`fastboot boot` code-5 fault test verified original desktop restoration and
+13-byte misc marker readback, without a device command.
 
 For a useful capture, start repeated swipes promptly after reaching the
 desktop; the second finger-down starts the bounded four-second trace. An

@@ -2,6 +2,40 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — scoped 60 Hz candidate device trial ready, approval pending
+
+Read docs/gauguin-60hz-candidate-trial-20261112.md before any device action.
+The user prioritizes sustained60Hz over high refresh. The patch0222 local
+kernel/image are offline-qualified only. Phone is in TWRP. Fresh read-only
+29-file/five-directory capture and live HFS parse passed; original desktop
+executable428400B and 16GiB backup match their pins. Current root header
+SHA8e81a422e334b7f484a17f9af7c6e85076319f41ac9a7dcca65b0301a45453fe.
+The catalog leaf moved since C4: current block44123/field offset2010;
+old44139/1434 must never be written. New install planSHA
+a6d1c2a4810d1f1d551ded7cdecdebbc47b73a27b71c02cf9ed3b5346708e3ed.
+Image299 SHA63c085a7bcbaacd494cc94b965b1386ffa8770f4e77cd4e415e7bf9389636f73
+is20,021,248B with same 605B 0298 command/shim/DTB/ADT/assets and new
+kernel identityxnu-355bac7a07774f6585bb66ee521f9ce7.
+
+W=research/tmp/gpu-poll-guard-20261112 inside this worktree. Whole trial plan
+SHA dfaad8e4db036aead3e3d83e5aba91194b21c00dbc9ca1ec61ee9202581b5c81;
+ready SHA a6f8cabe22bd98b6dfecddb2682b26d27c131c7b208968aa67998f2bd462546f,
+67 pins incl. full backup. Read-only review SHA
+ca4e6ad7f1538e17a6e62dfd040e8463b82e2e8fe38c4738b518aaa1a7b528d8;
+24 in-memory actual-range writer controls passed. Missing approval test refuses
+before execution claim or device IO. One planned boot/zero retries, C4 binary
+434176B install and same-length dynamic restoration, misc13B marker, bounded
+failure rollback/one recovery fallback. Normal userdata writes868352B;
+1GiB storage batch admitted at488925081600B/500GB. NO device write or boot
+has occurred for this trial; no approval file or execution directory exists.
+Prior 0298/C4 approvals are consumed. Project AGENTS.md requires individual
+confirmation of the exact destructive writes before executing. Ask only with
+the linked reviewable plan, then bind the actual reply to plan and image,
+run execute_trial.py once and observe its original claim/result. The user
+should perform repeated Home/App Library swipes and Settings opens during the
+service if available, with original speed video for distinct visible frames.
+No software counters alone qualify 60 physical fps or a smooth UI.
+
 ### 2026-11-12 CST — 60 Hz latency candidate, handset trial pending
 
 The user confirms that the iOS screen appears but remains laggy and requested

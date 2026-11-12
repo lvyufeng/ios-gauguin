@@ -20,7 +20,11 @@ or final restore/result yet. Observer waits up to780s, GPU service600s; after
 return the runner captures current-only logs, dynamically reads postboot HFSX
 catalog, restores original desktop434176B with readback, and repeats29-file
 capture. User was asked to do Home/App Library swipes and open Settings during
-service. Do not infer screen behavior before user observation or final logs.
+service. Subsequent direct reports arrived in order: "进不去桌面了", then
+"锁屏界面", then "哦 进去了 就是卡". The last is the current observation:
+desktop reached, still laggy; no exact report timestamps. Feedback receipt
+W300/user-feedback300.json SHAab146879b5081cf1123afddfbfe87fb5f9da9c9ca7e9b1cbb4bd750b5e475e63.
+Do not infer smoothness from boot success or declare a startup regression.
 If execution fails, inspect original receipts and recovery state; never boot
 again under this approval. Preserve all backups and mkadt user edit.
 

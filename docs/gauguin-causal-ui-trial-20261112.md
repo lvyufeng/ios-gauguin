@@ -158,3 +158,20 @@ storage script then admitted the full 1,073,741,824-byte reserve at
 The executor will recheck storage and device preimages again immediately
 before any authorized write. This recheck does not alter the proposed scope;
 a separate exact-scope user reply is still required by `AGENTS.md`.
+
+A further TWRP **read-only** preflight checked the live `gauguin` identity,
+114,919,714,816-byte userdata size, unmounted state and zero block holders.
+It read the exact root header, all 105 old desktop blocks, the old catalog
+leaf and the 4 KiB misc preimage, matched their full bytes to the pinned
+local files, and traversed HFSX to confirm the file CNID, fork and catalog
+length-field location. The root header was unchanged after the scan. The
+allowlisted read-only helper SHA-256 is
+`75e88285a4ae92c0119817c887ed7e06b9c9e1e9a4f3be9010ecfcec711e95a7`;
+it read 139,911,168 device bytes and issued zero write/reboot commands.
+Private result SHA-256 is
+`9cca4691fddbe6b9c1da9b664749f18a040857f8b60e8a160d55baa39aad7e3e`.
+An initial in-memory check stopped on a local Python attribute typo after
+reading device identity; it issued no write and was replaced by the passing
+allowlisted helper. No approval file or execution claim exists. The executor
+will independently repeat its full 29-file capture and preimage checks after
+the separately required user approval.

@@ -2,6 +2,60 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — user prioritizes smooth 60 Hz; one-shot candidate ready
+
+The user subsequently reported that iOS reached the screen but remains very
+laggy, and asked to establish 60 Hz before high refresh. This is a user
+observation; physical FPS and GPU-to-panel lineage remain unmeasured. C4's
+current-only kernel log shows 15 complete full-frame copies in 2–4 ms bins,
+but 14 of 15 GPU-read guard intervals exceeded0.5ms and two fell in the
+16–33.333ms bin. Earlier same-image repeat2 had31/31 guards below0.5ms;
+workloads were not matched. The source holds the global GPU lock across native
+submit and display read. Do not equate the 60 Hz software callback with real
+60 distinct panel frames. TWRP's mode was measured about60.244Hz earlier.
+
+Source branch codex/gauguin-60hz-surface-read-20261112 in
+research/tmp/gauguin-present-trace-worktree-20261112; commits5640885 and
+1d989ad, both pushed. Patch0222 batches only read-only native submit status
+reads between full hardware guards; writes, guard body, surface ownership and
+global lock remain unchanged. Actual host runtime model (ASan/UBSan) exercises
+faults after every status read and the production ring-span path: two-IB
+full health callbacks52->31, a check-count only. ARM64 TU syntax passed.
+GitHub Actions run43200631136 canceled twice before runner assignment; no CI
+compile result. Full local ARM64 kernel make0, build identity
+xnu-355bac7a07774f6585bb66ee521f9ce7, kernel SHA
+ff30b0829be9049645e96a3415441c172af1f3fe396c79314f1396bfa4b68241.
+Full isolated host suite lacked old source202 fixture cache, so the build used
+SKIP_TESTS=1 after focused runtime and present-copy checks passed. Offline
+one-boot image20,021,248B SHA
+63c085a7bcbaacd494cc94b965b1386ffa8770f4e77cd4e415e7bf9389636f73;
+same605B command/shim/DTB/ADT/assets as0298. Independent byte review
+SHA01dc87f491b3c4a6117911306ab81fa4fcaac351d227a39d4f32d395a3bdc937.
+No trial boot or phone write has occurred. The phone is reachable in TWRP.
+
+Reviewable trial doc: research/tmp/gauguin-present-trace-worktree-20261112/
+docs/gauguin-60hz-candidate-trial-20261112.md. W is that worktree's
+research/tmp/gpu-poll-guard-20261112. Fresh read-only29-file/five-directory
+capture and live HFS parse matched current root header
+8e81a422e334b7f484a17f9af7c6e85076319f41ac9a7dcca65b0301a45453fe.
+C4 catalog leaf moved to block44123/field offset2010; old44139/1434 is stale.
+New install planSHAa6d1c2a4810d1f1d551ded7cdecdebbc47b73a27b71c02cf9ed3b5346708e3ed;
+trial planSHA dfaad8e4db036aead3e3d83e5aba91194b21c00dbc9ca1ec61ee9202581b5c81;
+readySHA a6f8cabe22bd98b6dfecddb2682b26d27c131c7b208968aa67998f2bd462546f,
+67 pins incl. rehashed full16GiB backup. Independent ready reviewSHA
+ca4e6ad7f1538e17a6e62dfd040e8463b82e2e8fe38c4738b518aaa1a7b528d8.
+24 actual-range writer model cases passed, absent approval refused before device
+IO/claim. Storage 1GiB trial batch admitted at488925081600/500000000000B.
+Proposed exact scope: userdata434176B C4 install+434176B dynamic restore,
+misc13B marker, one candidate fastboot boot/no retry, at most one bounded
+recovery fallback if explicitly approved. No approval.json or execution/ exists.
+Prior C4/0298 approvals remain consumed. Project AGENTS.md requires new
+confirmation for these named destructive writes. After actual consent, bind
+the reply to both plan hashes/image and run W/execute_trial.py ONCE; preserve
+all backups and user tools/mkadt.py SHA3c1085a7... edit. Ask user to do repeat
+swipes/Settings and original speed video during service if available; only
+matched visible-frame/latency evidence can qualify a 60 Hz improvement.
+
 ### 2026-11-12 CST — C4 desktop backend ran on A619; original bundle restored
 
 The user authorized this distinct C4 one-boot scope through question item
@@ -10,7 +64,8 @@ W=research/tmp/metal-ca-c4-20261112. W/approval.json SHA
 8fa388c1415929d201d150406613c18d2e80af9e4add02e1058424f51e015faa.
 Observed report commit c85c776.
 The C4 approval and both earlier one-boot approvals are now consumed. No user
-screen attestation was received. Actual report:
+screen attestation was received during the original report; a later user
+message says the screen was reached and remains laggy. Actual report:
 docs/gauguin-metal-ca-c4-trial-20261112.md.
 
 Original W/execute_trial.py PID49955/session36394 exited0. ObserverPID/PGID50741

@@ -11,6 +11,7 @@
 #include <mutex>
 #include <vector>
 #include "gauguin_gpu_runtime.h"
+#include "gauguin_ui_trace.h"
 /* The baseline lacks this new capacity constant; still compile it to obtain a functional RED. */
 #ifndef GGR_MAX_QUEUES
 #define GGR_MAX_QUEUES 32u
@@ -24,6 +25,7 @@
 #define PAGE_SHIFT 14
 #define PAGE_SIZE 16384u
 #define PAGE_MASK (PAGE_SIZE-1)
+#define NSEC_PER_SEC 1000000000u
 #define OSDeclareDefaultStructors(C) public:C();~C() override;private:
 #define OSDefineMetaClassAndStructors(C,B) C::C()=default;C::~C()=default;
 #define OSTypeAlloc(C) new C()
@@ -36,7 +38,12 @@ static void test_log(const char *format,...){(void)format;}
 #define IOLog test_log
 /* CPU-only monotonic clock seam for the production elapsed wrappers. */
 [[maybe_unused]] static uint64_t mach_absolute_time(){static uint64_t ticks;return ++ticks;}
+[[maybe_unused]] static uint64_t mach_continuous_time(){return mach_absolute_time();}
 [[maybe_unused]] static void absolutetime_to_nanoseconds(uint64_t ticks,uint64_t *ns){*ns=ticks;}
+[[maybe_unused]] static void IODelay(unsigned){}
+extern "C" uint64_t sweet_ui_trace_clock(void){return mach_absolute_time();}
+extern "C" void sweet_ui_trace_record(uint32_t,uint64_t,uint32_t,uint32_t,uint64_t,uint64_t,uint64_t){}
+extern "C" void sweet_ui_trace_stop(uint32_t){}
 using UInt32=uint32_t;using IOOptionBits=uint32_t;using IOReturn=int;
 using IOByteCount=uint64_t;using addr64_t=uint64_t;using vm_size_t=uint64_t;
 using uintptr_t=std::uintptr_t;using task_t=void *;using ppnum_t=uint64_t;
@@ -217,6 +224,10 @@ extern "C" bool sweet_gpu_runtime_sync(){++sync_calls;if(fail_sync)hardware_read
 extern "C" void sweet_gpu_runtime_stop(){hardware_ready=false;}
 extern "C" bool sweet_gpu_runtime_heartbeat(){assert(lock_depth==1);++heartbeat_calls;return hardware_ready;}
 extern "C" bool sweet_gpu_runtime_done(uint32_t f){return hardware_ready&&f&&f<=completed;}
+extern "C" enum ggr_error sweet_gpu_runtime_issue(const uint64_t *,const uint32_t *,uint32_t,uint32_t *)
+{return GGR_UNAVAILABLE;}
+extern "C" enum ggr_error sweet_gpu_runtime_poll(uint32_t){return GGR_UNAVAILABLE;}
+extern "C" enum ggr_error sweet_gpu_runtime_wait(uint32_t){return GGR_UNAVAILABLE;}
 extern "C" bool sweet_gpu_runtime_parameter(uint32_t which,uint64_t *v){if(which!=1)return false;*v=619;return true;}
 extern "C" bool sweet_gpu_runtime_submit(const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *f)
 {

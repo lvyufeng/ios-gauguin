@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import subprocess
+import uuid
 from pathlib import Path
 
 
@@ -33,10 +34,13 @@ def extract(source,name):
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--candidate-root',type=Path,required=True)
-    ap.add_argument('--out',type=Path,required=True)
+    default_root=Path(os.environ['XNU_SOURCE']) if 'XNU_SOURCE' in os.environ else None
+    ap.add_argument('--candidate-root',type=Path,default=default_root)
+    ap.add_argument('--out',type=Path)
     args=ap.parse_args()
     repo=Path(__file__).resolve().parents[1]
+    if args.candidate_root is None:ap.error('--candidate-root or XNU_SOURCE is required')
+    if args.out is None:args.out=repo/'research/tmp'/('gpu-async-escrow-'+uuid.uuid4().hex)
     source=args.candidate_root.resolve()/'iokit/Kernel/arm/GauguinGPU.cpp'
     fixture=repo/'tests/fixtures/gpu-user/async_escrow_host.cpp'
     out=args.out.resolve()

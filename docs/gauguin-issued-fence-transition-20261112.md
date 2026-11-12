@@ -252,3 +252,15 @@ The next workflow revision moves the unchanged host-suite gate after the
 kernel-build loop. It still returns failure on any host test error, while
 collecting a real compile/link result first. The workflow records actual
 Xcode/SDK in its build manifest when that stage runs.
+
+The legacy GPU host fixtures were refreshed against source308 without
+changing production code. `tests/test_gpu_iokit.py` now supplies the UI trace
+and issued-fence seams and passed its actual user-client submit, sync, queue,
+read-only scatter/fault, slot and pilot cases. `tests/test_gmu_board.py` now
+supplies the added trace, continuous-delay, clock, WDT and profile seams;
+its actual board adapter, cold GPU pipeline and texture scenarios completed
+under ASAN/UBSAN. Four focused issued/async host scripts now accept the
+workflow's `XNU_SOURCE` environment and make unique private output directories
+when no CLI path is supplied; all four passed with that entry point. These
+fixtures do not assert that the pending asynchronous mode works on hardware.
+Other generic-suite failures remain and are still reported by CI.

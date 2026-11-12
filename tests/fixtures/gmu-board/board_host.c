@@ -13,12 +13,18 @@
 #include "gauguin_wdt_lease.h"
 #include "gauguin_gmu_asset.h"
 #include "gauguin_gpu_sqe_asset.h"
+#include "gauguin_ui_trace.h"
 #define GAUGUIN 1
 #define PAGE_SHIFT 14
 #define VM_PROT_READ 1
 #define VM_PROT_WRITE 2
 #define NSEC_PER_SEC UINT64_C(1000000000)
 #define NSEC_PER_MSEC UINT64_C(1000000)
+static void IODelay(unsigned us);
+void sweet_ui_trace_stop(uint32_t reason) {(void)reason;}
+void GauguinGPUProfileFreeze(void){}
+void GauguinGPUProfileDump(void (*record)(const char *)){(void)record;}
+void console_write(char *line,int bytes){(void)line;(void)bytes;}
 typedef uintptr_t vm_offset_t;typedef size_t vm_size_t;typedef unsigned ppnum_t,vm_prot_t;typedef int boolean_t;
 static _Alignas(16384) uint8_t ram[1048576],reset_page[16384],smmu[65536];
 static _Alignas(16384) uint8_t fw_page[5][49152],fw_asset[32768];
@@ -32,6 +38,7 @@ static struct {unsigned maps,nc_maps,translations,fail_translation,map_fail,misa
         perf_mode,perf_engine_calls,perf_complete_lines,perf_partial_lines,
         bw_mode,bw_engine_calls,bw_complete_lines,bw_partial_lines,test_complete_lines,test_partial_lines,dcvs_mode,dcvs_engine_calls,dcvs_request_lines,dcvs_complete_lines,dcvs_partial_lines,dcvs_missing,
         gpu_mode,gpu_context_calls,gpu_context_fail,gpu_smc_calls,gpu_smc_mode,gpu_drift,gpu_complete_lines,gpu_partial_lines,gpu_ap_complete_lines,gpu_input_lines;} h;
+static void IODelay(unsigned us){h.now+=(uint64_t)us*1000;}
 static _Alignas(16384) uint8_t core_page[16384];
 static unsigned start_mode,start_sticky,start_missing,start_busy,start_allones,start_expire,start_reads,start_complete,start_partial;
 static _Alignas(16384) uint8_t sqe_asset[32304];
@@ -301,6 +308,7 @@ bool PE_parse_boot_argn(const char *name,void *out,size_t n)
  static const char *const off[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet","sweetreboot","sweetbusprobe","sweetgpuprobe","sweetscmprobe","sweetwdttest"};
  for(unsigned i=0;i<12;i++)if(!strcmp(name,on[i])){*(int*)out=i==0?z.flag:z.bad_flag==i+1?0:1;return true;}
  for(unsigned i=0;i<9;i++)if(!strcmp(name,off[i])){if(i==0&&z.missing_init)return false;*(int*)out=z.bad_off==i+1?1:0;return true;}
+ if(!strcmp(name,"sweetgpuservice")){*(int*)out=0;return true;}
  CHECK(false);return false;
 }
 int ml_get_interrupts_enabled(void){return h.context!=1;}
@@ -337,9 +345,13 @@ bool gauguin_wdt_lease_check_budget(uint32_t n)
     return h.live;
 }
 void gauguin_wdt_lease_quarantine(void){++h.quarantine;h.live=false;}
+bool gauguin_wdt_lease_refresh(struct gauguin_wdt_refresh_record *out)
+{if(!h.live||!out)return false;*out=(struct gauguin_wdt_refresh_record){.sequence=1};return true;}
 bool sweet_gmu_clock_quiet(uint32_t *gx){if(h.clock_bad||(start_mode&&h.gx_on))return false;*gx=0;return true;}
 bool sweet_gmu_clock_live(bool allow,uint32_t *gx)
 {CHECK(!z.auth_done||host_unsecure_active()||host_write_active()||host_ib_active()||host_eop_active()||host_compute_active()||host_clear_active()||host_triangle_active()||host_sequence_active()||host_varying_active()||host_texture_active());h.allow_gx+=allow;*gx=h.gx_on?0x80000000u:0;return !h.clock_bad&&(allow||!h.gx_on);}
+bool sweet_gmu_clock_live_snapshot(uint32_t *gx)
+{if(!gx||h.clock_bad)return false;*gx=h.gx_on?0x80000000u:0;return true;}
 bool sweet_gmu_irq_quiet(uint32_t raw[3]){CHECK(!z.auth_done||host_unsecure_active()||host_write_active()||host_ib_active()||host_eop_active()||host_compute_active()||host_clear_active()||host_triangle_active()||host_sequence_active()||host_varying_active()||host_texture_active());raw[0]=raw[2]=0;raw[1]=h.core_irq?0x1000:0;return !h.irq_bad;}
 bool sweet_pas_stage_owner_valid(const struct sweet_pas_cpu_stage *p)
 {CHECK(!z.auth_done);++h.owner_calls;return h.owner_calls!=h.owner_fail&&p&&p->pa==owner&&p->metadata_bytes==6860&&p->reserved_bytes==16384;}

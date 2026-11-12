@@ -57,7 +57,11 @@ candidate. Source review then added nested completion scopes, synchronous
 exception propagation and ordered indexed-draw refusal. The first candidate,
 logs and exact test/runner source snapshots remain preserved.
 
-`W/host-02/result.json` records **23/23 passing positive scenarios**, exit 0.
+`W/host-02/result.json` records 23 passing positive scenarios. Final source
+review made recorder stop nonblocking from every recorder/completion context,
+including a foreign recorder; external stop still waits for worker exit.
+`W/host-03/result.json` records **23/23 passing positive scenarios**, exit 0,
+against that final source. The v2 source and native build remain preserved.
 The actual whole core (eleven translation units plus the real C API included
 by the test translation unit) ran under ASan and UBSan, C++17, `-O1 -g`, with
 other warnings fatal. The host-only unused `chipKnown` helper is excluded from
@@ -76,28 +80,31 @@ ordered indexed-draw refusal. Expected blocking cases include positive release
 signals. Each scenario runs in its own bounded process. External transport
 counters verify all queues and BOs close, with no live BO at transport teardown.
 
-`W/compatibility.json` records baseline/graphics profile equivalence, four
+`W/compatibility-final.json` records baseline/graphics profile equivalence, four
 ownership source changes, unchanged C declarations and baseline preservation.
 `python3 tests/test_storage_budget.py` exited 0 after review.
 
-Native build `W/native-02/result.json`, exit 0:
+Final native build `W/native-03/result.json`, exit 0:
 
 - 12 fresh ARM64 objects, iOS 16 deployment target, `-O2 -Wall -Wextra -Werror`.
 - Linked against the existing 13 AIR/NIR/IR3/Mesa archives from the pinned
   `build-v2/build-ios` tree. No archive was rebuilt or downloaded.
 - `libGauguinMetalCore.dylib`: 8,407,792 bytes, SHA-256
-  `7c10099329cc760650334919bf0a03a3b1eb452353104bccdf6bd63703c698cf`.
-- Build identity `211c070a11896f71ef9c7eec`; code signing and strict signature
+  `c9da25aad0aacc6966071a78157f942189b379353eafdbb96e2a3854cc107674`.
+- Build identity `8a71fe61aded108fa9ba5a22`; code signing and strict signature
   verification passed. All source, archive and header input pins remained
   unchanged. Xcode's iPhoneOS 26.5 SDK was used with an iOS 16 target.
 
-The batch was admitted with 2,147,483,648 planned bytes against the full
-500,000,000,000-byte project limit. Each host runner saved its actual admission
-in its output directory. No native kernel build or GitHub Actions run occurred.
+Initial batches were admitted with 2,147,483,648 planned bytes against the full
+500,000,000,000-byte project limit. The final host/native batch was admitted with
+1,073,741,824 planned bytes. Each host runner saved its actual admission in its
+output directory. No native kernel build or GitHub Actions run occurred.
 
 ## Remaining GPU work
 
-CoreAnimation frontend admission and wait ordering (C4) remains a prerequisite
+`W/frontend-prerequisite-audit.json` verifies all eight prepared frontend source
+pins and records the following source observations. CoreAnimation frontend
+admission and wait ordering (C4) remains a prerequisite
 before enabling deferred/asynchronous desktop rendering. Its existing held
 and ordinary commits do not share one atomic admission decision, and its
 single-token `_sent` semaphore does not describe the pre-submit window to

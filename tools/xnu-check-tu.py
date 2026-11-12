@@ -76,6 +76,7 @@ def main():
                 while flag in command:
                     index=command.index(flag);del command[index:index+2]
             object_path=out/(str(number)+'-'+path.stem+'.o')
+            command[1:1]=['-I',str(candidate/'iokit')]
             command+=['-I',str(candidate/'bsd/dev'),'-I',str(source/'bsd/dev'),
                 '-MF',str(object_path.with_suffix('.d')),'-o',str(object_path)]
             proc=subprocess.run(command,cwd=cwd,env=env,text=True,capture_output=True)

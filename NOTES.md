@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — HakiOS AMFI comparison blocks old SpringBoard slot trial
+
+The main goal is still smooth iOS with full Gauguin GPU acceleration and
+high refresh; the user's immediate 60 Hz/touch lag remains unmeasured and
+unfixed. 0301 exact-scope approval still has not arrived (no approval.json
+or execution); `adb get-state` is `recovery`. No phone write or boot this
+turn. Preserve pinned 0301 image/plan and wait for its own user reply.
+
+Source correction before preparing a second trial: HakiOS Redwood 63fc2b4
+`xnu/files/bsd/kern/kern_minimac.c` answers dyld AMFI request 0x5a with
+allow mask0xff, and its `userland/src/inject.c` explicitly credits that
+answer for `DYLD_INSERT_LIBRARIES` in SpringBoard. Gauguin 0301
+`sweet_amfi.c` returns PATH mask2 only for exact backboardd and gives
+SpringBoard ENOPOLICY even with `sweet_dyld_probe=1`. Therefore W302's
+existing-slot dylib+launchd delta cannot be considered a viable observer
+trial with the 0301 image. Do not create/run its executor against 0301.
+
+In `research/tmp/gauguin-sb-rate-trace-worktree-20261112`, branch
+`codex/gauguin-sb-rate-trace-20261112`, pushed commit `5560795` adds patch
+`0226-gauguin-springboard-dyld-rate-observer.patch` SHA
+4dbca60cf2194256abb32da2d12e0adce20d5f7049ad8cef38d9495acc0af6e9.
+It adds a separate default-off `sweet_sb_rate_probe=1` gate, allowing only
+mask2 to UID501 SpringBoard whose executable vnode is the exact root-owned,
+non-writable root-mount path. Existing backboardd gate/boot token/log prefix
+stay unchanged. Patch applies exactly to 0301 source's sole sweet_amfi.c.
+The actual policy plus unchanged XNU MAC dispatcher passed47 ASAN/UBSAN host
+cases, including old backboardd and new SpringBoard positive/negative cases;
+host receipt SHA361d76255426eaa85335373fbfe7870647913b3b9d2ba1d80ef28f19b3a2ad30.
+ARM64 native single-TU compile against 0301 generated headers passed;
+receipt SHAbeaa3d5bf7b2e04f63952c21467e0cfc52023ac85fe6a41d9f00f1a9c862d4f1.
+No full kernel build/image/runtime dyld result or visible FPS measurement.
+The proposed future boot command can replace `metal_fps=timeline` with
+`sweet_sb_rate_probe=1`, keeping touch_lat/sweettrace/60Hz at604B vs the
+current601B, but no image is prepared. See updated worktree doc.
+
+Next: obtain the separately approved pinned 0301 causal trace first. If
+SpringBoard animation/turn gaps remain likely, build a new image with patch
+0226, complete the observer trial executor and logs, and seek its own exact
+scope approval. Do not infer SpringBoard injection from an offline launchd
+plist transform. Preserve backups, rollback snapshots and the user's
+`tools/mkadt.py` edit.
+
 ### 2026-11-12 CST — dynamic SpringBoard observer restore modeled, no phone write
 
 The user goal remains full Gauguin GPU acceleration, high refresh and smooth

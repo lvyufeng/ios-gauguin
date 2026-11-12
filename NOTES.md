@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — live 0301 preimages match, consent still required
+
+The full smooth 60 Hz/Gauguin GPU/high-refresh goal is still unachieved.
+`adb get-state` is `recovery`; no W301 approval.json or execution directory.
+A new read-only, allowlisted TWRP preflight matched the exact `gauguin`
+identity, 114,919,714,816-byte userdata size, unmounted/no-holder state,
+root-header SHA `6e272d2e11ae716993301df334c35eeb5498b0a77adbccd965f924e28a5e77e4`,
+all 105 old desktop data blocks, old catalog leaf, HFSX file CNID/fork and
+length-field location, and misc 4 KiB preimage SHA
+`ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7`.
+The root header stayed unchanged after the read. Device bytes read:
+139,911,168; write/reboot commands: zero. Private script SHA
+`75e88285a4ae92c0119817c887ed7e06b9c9e1e9a4f3be9010ecfcec711e95a7`,
+receipt SHA `9cca4691fddbe6b9c1da9b664749f18a040857f8b60e8a160d55baa39aad7e3e`.
+The first inline probe stopped on a local missing-attribute typo after device
+identity reads; it issued no write. Corrected helper passed. W301 branch
+`codex/gauguin-causal-trace-20261112` pushed doc commit `97c2ac0` after
+`d48c0ea`; ready/plan/image and executor are unchanged. This preflight is
+not a boot or a touch-to-frame measurement. The one-shot executor repeats
+the full 29-file capture and preimage checks after approval.
+
+AGENTS.md requires a separate user confirmation for the 0301 userdata/misc
+writes and temporary boot. The latest exact-scope question remains pending;
+do not create approval.json or execute the trial without its actual matching
+reply. Preserve W301/W302 pins, phone backups, rollback snapshots, current
+source308, and the user's uncommitted `tools/mkadt.py` SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-13 CST — 0301 storage reserve restored, pins rechecked, consent pending
 
 Full objective remains smooth 60 Hz touch/UI, complete Gauguin GPU

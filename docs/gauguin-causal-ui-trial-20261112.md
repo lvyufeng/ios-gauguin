@@ -136,3 +136,25 @@ The resulting trace will distinguish a queue failure or slow kernel/GPU/copy
 span from a gap before frames are made. If the queue is healthy and frames
 remain sparse, add a read-only SpringBoard animation-request hook before
 trying a HakiOS-style 60 fps animation policy on Gauguin.
+
+## 2026-11-13 read-only readiness recheck
+
+The phone still reports `adb get-state` = `recovery`. No 0301 approval file,
+execution directory, device write or temporary boot exists. All 70 pinned
+ready inputs, totaling 17,282,686,800 bytes including the original root
+backup, were rehashed and matched; private receipt SHA-256 is
+`6aea3454d84680feb979fd5e037b40921f7f97726270eccb0f167b644c630a8f`.
+The ready, install, image and trial plan hashes above are unchanged.
+
+The live 1 GiB storage reserve initially failed under the 500 GB cap after
+new offline CI evidence was downloaded. Three older, reconstructible W303
+XNU source clones (source305/306/307) were verified absent from all 110
+W301/W302 trial pins and retired with a private cleanup manifest SHA-256
+`0cf9792e016035ffcffdf5adfc17ab148ff3dc4ff90241868ca5ffbd19088c70`.
+The current source308, phone backups and rollback snapshots remain. The
+storage script then admitted the full 1,073,741,824-byte reserve at
+498,900,963,328 bytes currently accounted, private receipt SHA-256
+`9defc99f13eec29512e7916661df6c5fc2c1a50da036289f653128f2aba3f07c`.
+The executor will recheck storage and device preimages again immediately
+before any authorized write. This recheck does not alter the proposed scope;
+a separate exact-scope user reply is still required by `AGENTS.md`.

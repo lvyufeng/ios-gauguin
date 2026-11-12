@@ -2,6 +2,62 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — 0299 boot still laggy; 0300 display/touch diagnostic prepared
+
+User directly reported during the authorized0299 boot: "还是很卡顿 触摸操作不跟手".
+The 0299 one-shot approval is consumed. Worktree
+research/tmp/gauguin-present-trace-worktree-20261112 branch
+codex/gauguin-60hz-surface-read-20261112 commits b2f2607 (result, source
+patch0223, 0300 plan) and 5c3dfc8 (handoff) are pushed. Read
+docs/gauguin-60hz-candidate-trial-results-20261112.md in that worktree.
+
+W299=worktree/research/tmp/gpu-poll-guard-20261112. Executor result SHA
+d1cf9c1207815a97c2b9390832fc520d75a90185e87ec555eed1affa57cb5772;
+independent terminal review SHA b1b63686832dc1489c47f58669830be61a40dd2cd424218b4ced6e8d5ceee7f7.
+One fastboot boot returned to TWRP after744s, original desktop executable
+restored with434176B readback and116 file records rehashed. Current root
+header SHA2c9814834dbf66065e479f77b04f7139d5da723d6bf44a26e2ea051669fdd752;
+original desktop SHA0a1b55bb20a29661de40099e58e45ec695ffb0bf78e132a9d10985450e868550.
+49/49 GPU submits completed and full guard checks fell to43.0 per submit
+versus58.7 in unmatched C4, but no user-visible speedup. The 60Hz software
+clock reached42300 callbacks/145 skips;104 held frames retired. In67 regular
+600-beat intervals, new panel presents rose by at most4 (27 intervals zero);
+nine touch-active intervals with144 NVT contact-mask changes had at most3
+new presents each. This is software counter cadence, not optical FPS or
+touch-to-photon latency. The user's lag report is consistent. Current logs
+cannot prove changed HID frames reached userland. No framebuffer notification
+callback registration line appeared; port registration/send status were not
+instrumented, so this is an unconfirmed lead.
+
+Patch0223 instruments framebuffer notification port/callback/send counters,
+explicitly zero-initializes client notification state, and counts changed HID
+dispatches/durations. Native ARM64 TUs and full local make install passed;
+SKIP_TESTS=1 because isolated old source202 host fixture cache is absent.
+Kernel SHAe0f5a016b831b3eb545f3c2812c58d072374068d56146ed585ec93a1522207fe,
+identity xnu-b644ce2e1b9943dba3aead8c5b65989d. Offline image300 SHA
+9d4bbee3cb0c0653bb157b6b989c47c9f82382a0ab16f91bc5aea8c742575d49
+is20,021,248B, with 600B metal_fps=timeline command; same wrapper/assets/
+kernel VM segment layout as0299. Independent byte review SHA
+1dc8b23f2e77ffe9c044f84b0ebb763c10e352ea938fa3f8a1b4ce6b57e19369.
+It has NOT booted.
+
+W300=worktree/research/tmp/gpu-notify-hid-20261112. Fresh read-only29-file/
+5-directory capture and live HFS delta matched current TWRP root. Install
+plan SHA7f53afce0661307ae6d084b88f69484c193f035df78c70094f607377069ada39,
+trial plan SHA9b9470515f404751030ebc5f07c5e80ff75d572ea372f8ec0f4ad5c23cb52491,
+72-pin ready SHA7553bbd0a074f06fa9409419902eb86d7e2a974eae24f8c8d35ec805f5b4b750,
+independent ready review SHA2661a579a859950894f7d48866311f5273a5ca49b2836e4e8ce1ed40a0dde1d1.
+24 actual-range writer controls pass; without fresh approval the runner refuses
+before device IO or execution claim. No approval.json/execution/ exists.
+Proposed scope userdata434176B install+434176B dynamic restore, misc13B marker,
+one temporary boot/no retry, at most one bounded recovery fallback. Trial1GiB
+storage batch admitted at492519837696/500000000000B accounted. Exact plan:
+worktree/docs/gauguin-notify-hid-trial-20261112.md. AGENTS.md requires a
+NEW user confirmation for these specific destructive actions. Do not reuse
+prior authorizations. Do not call0300 a smooth60Hz fix: it is a diagnostic to
+locate the touch-to-frame stall. Preserve backups and user's tools/mkadt.py
+SHA3c1085a7... uncommitted edit.
+
 ### 2026-11-12 CST — user prioritizes smooth 60 Hz; one-shot candidate ready
 
 The user subsequently reported that iOS reached the screen but remains very

@@ -34,12 +34,23 @@ copy slots can inflate it. Corrected the 0299 report to use held retirement.
 Metal timeline39 CBs, median GPU15.03ms, max59.25ms,15/39 over16.667ms;
 max made-to-commit2346.9ms. These do not prove physical FPS or causality.
 
-Current framebuffer source has no TimingElements, ColorElements or
-IOMFBDisplayRefresh properties; local HakiOS framebuffer publishes a60Hz
-mode/refresh dictionary. Next: implement a bounded metadata candidate based
-on exact ABI, native build/image review, then obtain NEW one-shot approval for
-device comparison. Also instrument HID queue drop/touch-to-SwapEnd before
-claiming responsiveness. No smooth60Hz or high refresh success yet.
+User requested an actual HakiOS success-case comparison. Official Redwood
+main rechecked at63fc2b4; K90 main at3c25d96, latest releasev0.1.2. See
+docs/gauguin-hakios-60hz-causal-review-20261112.md. Crucial correction:
+Redwood's framebuffer source says CA chooses fixed60Hz without
+IOMFBDisplayRefresh and does not require driver refresh notifications.
+Thus missing mode metadata/zero notification registrations do not explain
+Gauguin's33 frames by themselves. Its actual fast path combines an animation
+range hook (CA had requested24fps despite0.3ms GPU work), async issued fences
+with retained resources, deferred recording, a bounded presenter, CPU copy
+workers and touch latency tracing. The opt-in mode-only patch native TU
+compiled, but its full build was interrupted during SDK staging, with no new
+image/boot; the temporary worktree/882772KiB scratch was retired (cleanup
+receipt SHAe4fe96807d5db4bcedb91382404216f2f491c6c1653d726be896306240aafb65). Next
+measure HID queue enqueue/drop and SpringBoard CA animation requests/commits
+against SwapEnd on one clock, then choose a functional change. Do not copy
+Redwood/K90 hardware registers or claim smooth60Hz/high refresh yet. Any new
+phone write/boot needs NEW exact user approval.
 
 ### 2026-11-12 CST — 0300 authorized one-boot diagnostic IN PROGRESS
 

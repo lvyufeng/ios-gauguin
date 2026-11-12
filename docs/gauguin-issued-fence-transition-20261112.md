@@ -3,10 +3,21 @@
 The user reports a laggy C4 desktop. The 0300 boot completed all 51 native
 GPU submissions, but its GPU command-buffer sample had a 15.03 ms median,
 59.25 ms maximum and 15 of 39 over the 16.667 ms 60 Hz budget. Those are
-GPU-side samples, not a measured physical frame rate or proof that synchronous
-submission is the only lag source. The 0301 one-shot causal trace remains
-approved by neither a new reply nor a phone write, and this patch does not
-alter its pinned image or plan.
+frontend-reported command-buffer durations, not direct hardware GPU time, a
+measured physical frame rate or proof that synchronous submission is the only
+lag source. The 0301 one-shot causal trace still lacks a new approval and has
+not booted; this patch does not alter its pinned image or plan.
+
+The same 0300 kernel log gives a more specific CPU cost. Across 51 submits,
+the native submit path used 464,775,937 ns (9.11 ms per submit), including
+450,272,187 ns in 2,293 full board guards (8.83 ms per submit, **96.9%** of
+its measured CPU wall time). The guard's fault/configuration group accounts
+for 243,788,333 ns during submits (4.78 ms per submit, 54.1% of guard time).
+The user-client submit selector held its global lock for 640,928,125 ns total
+(12.57 ms per call; maximum 40.28 ms). Those counters are aggregate CPU
+wall time, not a paired touch-to-frame trace. A prior reduction in guard
+checks did not make the user's desktop feel smooth, so optimizing this
+measured cost alone is not yet evidence of a complete 60 Hz fix.
 
 ## Source comparison with HakiOS
 

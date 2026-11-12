@@ -62,9 +62,33 @@ the current cross-alias exclusion. The private scratch has not been booted.
 
 ## Next gate
 
-Complete the full kernel build, then compare this candidate to the unchanged
-0298 control under the same bounded continuous 60 Hz workload, real gestures
-and physical screen capture. Measure submit/guard intervals, copied bytes,
-missed software beats, visible distinct frames and first response. A lower
-health-check count by itself is not a 60 Hz fix. Device writes, a temporary
-boot and any new image need a distinct reviewed plan and exact user approval.
+The complete local macOS ARM64 `DEVELOPMENT` kernel build passed with make exit
+0, build identity `xnu-355bac7a07774f6585bb66ee521f9ce7` and kernel
+SHA-256 `ff30b0829be9049645e96a3415441c172af1f3fe396c79314f1396bfa4b68241`.
+The source snapshot differs from the verified 0298 source in only the runtime
+C file. Its manifest SHA-256 is
+`b36a76cf0917b890dfffaeda4978454d949031e026d5c566999e38fae140472e`.
+The full host suite could not run from this isolated worktree because older
+source202 fixture cache files are absent. The build used `SKIP_TESTS=1` after
+the focused runtime, guard and present-copy tests above passed individually.
+GitHub Actions run 43200631136 was cancelled twice before runner assignment;
+there is no CI compile result or error log for this patch.
+
+An offline 20,021,248-byte temporary boot image now contains the candidate
+kernel, SHA-256 `63c085a7bcbaacd494cc94b965b1386ffa8770f4e77cd4e415e7bf9389636f73`.
+Its 605-byte boot command, shim, DTB, outer geometry, ADT, firmware physical
+addresses, firmware bytes and padding match 0298 exactly. The independent
+offline review found the same ten kernel segment virtual ranges; one kernel
+file segment grew by 112 bytes. The review SHA-256 is
+`01dc87f491b3c4a6117911306ab81fa4fcaac351d227a39d4f32d395a3bdc937`.
+No device command, partition write or boot used this image. Private outputs
+and the exact build log are under `research/tmp/gpu-poll-guard-20261112` and
+`.deps-cache/p0-20261105/build299-60hz`. A cleanup manifest records 899,872,503
+bytes of duplicate logs/abandoned per-object-lock scratch removed while
+retaining the complete build log and all pinned inputs.
+
+Next compare this image with the unchanged 0298 control under the same bounded
+continuous 60 Hz workload, real gestures and physical screen capture. Measure
+submit/guard intervals, copied bytes, missed software beats, visible distinct
+frames and first response. A lower health-check count by itself is not a 60 Hz
+fix. A device boot requires a fresh reviewed trial plan and exact user approval.

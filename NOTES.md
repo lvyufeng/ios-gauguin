@@ -20,10 +20,20 @@ lock unchanged. Typed host ASan/UBSan checks including the production ring-span
 path and faults after every read pass. A two-IB model submission uses 31 rather
 than 52 full guards on that path; this is a check count, not a device speedup.
 ARM64 single-file syntax check passes. The per-IOSurface lock idea was stopped
-because task-backed surfaces can alias the same pixels. No phone write, boot,
-or new image has occurred in this milestone; the phone is reachable in TWRP.
-Next: full kernel CI build, then a separate approved same-workload physical
-60 Hz/gesture comparison before claiming a lag fix. Do not reuse C4 approval.
+because task-backed surfaces can alias the same pixels. Full local ARM64 kernel
+build passed (make0, identity xnu-355bac7a07774f6585bb66ee521f9ce7,
+SHA ff30b0829be9049645e96a3415441c172af1f3fe396c79314f1396bfa4b68241).
+CI43200631136 canceled twice before runner assignment; no CI compile result.
+The isolated full host suite lacks older source202 fixture cache; focused
+runtime/present tests passed and build used SKIP_TESTS=1. Offline image299 SHA
+63c085a7bcbaacd494cc94b965b1386ffa8770f4e77cd4e415e7bf9389636f73
+is20,021,248B, command605B identical to0298; independent review
+SHA01dc87f491b3c4a6117911306ab81fa4fcaac351d227a39d4f32d395a3bdc937.
+No phone write or boot occurred; it remains reachable in TWRP. Cleanup manifest
+retired899,872,503B of duplicate logs/abandoned scratch, preserving the full
+build log and original pinned inputs. Next: fresh scoped physical trial plan,
+then separately approved same-workload 60 Hz/gesture comparison. Do not reuse
+C4 approval or claim a speedup from host check counts.
 
 ### 2026-11-11 CST —0296 guard-group timing source and native TU
 

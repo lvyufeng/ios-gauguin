@@ -166,3 +166,53 @@ watchdog heartbeat handling while the runtime is BUSY. A completed fence
 must be the only path that clears `gpuState` or releases a mapped page; a
 fault must leave those pages retained. The unmodified 0301 diagnostic stays
 first for locating the user's current 60 Hz lag.
+
+## 2026-11-13 follow-up: opt-in one-in-flight user-client escrow, offline only
+
+HakiOS's [measured touch investigation](https://github.com/oosexgang/hakios-xnu-kernel/blob/main/docs/reference/metal-measurements.md#under-real-fingers-5-november)
+also matters here: its missed touch-interrupt handling delayed finger lift
+88–169 ms, then 5–6 ms after the driver fix, while the same report still
+identifies SpringBoard main-thread turns and GPU fences as other sources of
+jerk. The HakiOS [buffer close path](https://github.com/oosexgang/hakios-xnu-kernel/blob/63fc2b4633bac3af8e57dadab9f5a8d4cb940438/drivers/gpu/hakios.gpu.cpp#L443-L500)
+copies a busy handle to owned storage, defers its memory/surface/address until
+the fence completes, and may wait outside the global lock. Those are concrete
+comparators for Gauguin, not proof that Gauguin has the same touch bug or
+that async submit alone will solve the current lag. W301's same-boot
+HID→C4 trace remains the first phone measurement.
+
+Patch `xnu/patches/0229-gauguin-one-inflight-async-escrow.patch` SHA-256
+`9f97d5262b26816784f77799afd4931688fd505b279d307e7e8d4d4f98ca27fb`
+changes only the Gauguin GPU user client and its runtime-header contract.
+The default/root path remains synchronous. Only the compositor with
+`sweetgpuasync=1` uses the new issued path: it escrows every BO before the
+doorbell, keeps descriptors, surfaces and SMMU mappings through completion,
+tracks issued and completed queue fences separately, defers handle close,
+and lets CPU prep, explicit wait, framebuffer read and heartbeat observe the
+pending fence. A failed issue or completion retains the submitted mappings
+in fault quarantine; completion checks all retained aliases before clearing
+any surface. A caller deadline expiring does not free the GPU's pages.
+
+This is a **candidate contract**, not a performance result. The board still
+allows only one submission in flight, and the Gauguin user client still holds
+its global GPU lock across a blocking fence wait. HakiOS releases its lock
+around that wait; changing Gauguin's concurrency needs a separate lifetime
+and runtime-lock audit. The current implementation therefore may still hold
+up display or touch processing and must be measured before any claim of
+smooth 60 Hz. No whole-kernel link, opt-in boot, phone write, physical FPS or
+high-refresh result exists for patch0229.
+
+A 250,000,000-byte source/native batch was admitted before the 86,564 KiB
+APFS clone. A 5,336-file comparison found only the two patch files changed;
+`git apply --check`, reverse check and exact replay passed. Private
+source-state receipt SHA-256 is
+`62e7f1024de88d8da3d73f0e07b584cd8cedc28e1fca67111a06e749c25169c5`.
+The actual user-client TU passed native ARM64 compilation, receipt SHA-256
+`5e33eb34a8457e49cf1ec6bfc70c81a1069517a04720ca9fbc941b7c7d1a46c6`.
+ASAN/UBSAN host runs extracted the actual submit, completion and deferred
+close method bodies, used the shared C ABI validators, and covered early
+return, pending BO retention, queue counters, issue failure, sync default,
+deadline, route fault, two-BO alias failure and deferred close. Their private
+receipts are `9e04f1a1597cc66bfeca997ad2716a41138f7853bd51221ca122d3a6523f9dab`
+and `c64ff8888b39ca6dd318189aedf5079110243737b52a67d4f0454913f9f8fb1b`.
+Patch-series tests and diff check passed. The W301/0301 plan and image were
+not changed; its separate exact-scope phone approval is still outstanding.

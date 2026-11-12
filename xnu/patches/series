@@ -221,3 +221,4 @@
 0225-gauguin-issued-fence-runtime.patch
 0227-gauguin-guarded-issued-board-api.patch
 0228-gauguin-retained-gpu-owner.patch
+0229-gauguin-one-inflight-async-escrow.patch

@@ -106,21 +106,15 @@ output directory. No native kernel build or GitHub Actions run occurred.
 
 ## Remaining GPU work
 
-`W/frontend-prerequisite-audit.json` verifies all eight prepared frontend source
-pins and records the following source observations. CoreAnimation frontend
-admission and wait ordering (C4) remains a prerequisite
-before enabling deferred/asynchronous desktop rendering. Its existing held
-and ordinary commits do not share one atomic admission decision, and its
-single-token `_sent` semaphore does not describe the pre-submit window to
-multiple waiters. The current native frontend builder also pins the old core
-hash, so this new core must not be substituted into an existing device plan.
-
-Next: add a separate frontend profile with one ordered held/ordinary admission
-path, broadcast commit-reached/completed state, honest scheduled/completed
-waits and completion-handler ordering; validate the real frontend against
-gated core operations; then build a matched bundle/package. Only a separately
-reviewed device trial can establish actual CoreAnimation rendering, frame
-cadence, physical input behavior and useful GPU acceleration.
+`W/frontend-prerequisite-audit.json` identified the old frontend's held/ordinary
+commit race, single-token `_sent` wait and unqualified completion-handler
+admission. The separate [C4 frontend candidate](gauguin-metal-ca-c4-20261112.md)
+now supplies one admission FIFO, broadcast stages, ordered handlers, a gated
+host test of its actual methods and a native bundle matched to this core.
+It is not installed or qualified for desktop rendering. A separately reviewed
+device trial must establish actual CoreAnimation pixels and frame cadence before
+enabling this path on the phone. Physical input behavior, 90/120 Hz and useful
+GPU acceleration still require measured acceptance.
 
 Host sanitizer results establish the tested ownership and ordering contracts.
 They do not establish general race freedom, arbitrary application wait-cycle

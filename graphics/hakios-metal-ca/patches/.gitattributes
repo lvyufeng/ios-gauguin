@@ -1,0 +1,2 @@
+# Unified diff markers and source indentation must remain byte exact.
+*.patch -whitespace

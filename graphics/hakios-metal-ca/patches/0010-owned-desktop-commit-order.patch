@@ -1,0 +1,398 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -1222,14 +1222,12 @@
+ 	hakios_metal_queue *_queue;
+ 	NSUInteger _gpuPriority, _backgroundGPUPriority;
+ 	dispatch_queue_t _completionQueue;       /* only where Apple's own ivar is missing */
+-	dispatch_queue_t _deferred;              /* commits held for an event, in commit order; made on the first one */
+-	long _deferring;                         /* commits on _deferred not yet made (atomic) */
++	dispatch_queue_t _deferred;              /* every commit enters this FIFO, including ordinary commits */
+ }
+ - (instancetype)initWithHakiosDevice:(HakiosMetalDevice *)device descriptor:(id)descriptor;
+ - (hakios_metal_queue *)hakiosQueue;
+ - (dispatch_queue_t)hakiosCompletionQueue;
+-- (BOOL)hakiosDeferring;
+-- (void)hakiosDefer:(dispatch_block_t)commit;
++- (void)hakiosAdmit:(dispatch_block_t)commit; /* caller holds the queue's admission lock */
+ @end
+ 
+ @interface HakiosMetalCommandBuffer : _MTLCommandBuffer {
+@@ -1243,13 +1241,16 @@
+ 	double _createdAt;                       /* ...and when it was made: metal_fps's encoding time */
+ 	NSUInteger _protectionOptions;
+ 	NSMutableArray *_signals, *_waits;       /* { HakiosMetalEvent, value }: applied at completion / met before the GPU sees it */
+-	dispatch_semaphore_t _sent;              /* a held commit: signalled once it has reached the GPU */
++	NSCondition *_stateCondition;            /* broadcasts commit reached and completion to every waiter */
++	BOOL _reached, _finished;
++	dispatch_queue_t _handlerQueue;          /* per-buffer callback admission and delivery order */
+ 	NSMutableArray *_turned;                 /* HakiosMetalTexture: turned framebuffers drawn here, copied into their surfaces at commit */
+ }
+ - (instancetype)initWithHakiosQueue:(HakiosMetalCommandQueue *)queue;
+ - (void)hakiosTurnAtCommit:(id)texture;
+ - (hakios_metal_cb *)hakiosCommandBuffer;
+ - (double)hakiosCreatedAt;
++- (void)hakiosMarkScheduled;
+ @end
+ 
+ /* A parallel render encoder: one pass whose draws come from several sub-encoders, filled on any thread in any order and
+@@ -4781,18 +4782,10 @@
+ 		[self release];
+ 		return nil;
+ 	}
+-	{
+-		/* boot-arg metal_defer=1: this queue's command buffers recorded by a thread of hakios-metal's own (deferred
+-		 * recording), so that the window server's render thread does not wait for each draw's encoding (some 40 us a
+-		 * draw on the phone, 2 November) */
+-		char args[1024] = "";
+-		size_t size = sizeof(args) - 1;
+-
+-		if (sysctlbyname("kern.bootargs", args, &size, NULL, 0) == 0 && strstr(args, "metal_defer=1") != NULL) {
+-			hakios_metal_queue_set_deferred(_queue, 1);
+-			HM_ONCE("command buffers recorded deferred, by a thread of hakios-metal's (metal_defer=1)\n");
+-		}
+-	}
++	/* This isolated profile uses the owned core's deferred recorder for every buffer.
++	 * The frontend admission FIFO below carries both held and ordinary commits. */
++	hakios_metal_queue_set_deferred(_queue, 1);
++	HM_ONCE("owned frontend records on the core FIFO and admits every commit on one frontend FIFO\n");
+ 	_device = [device retain];
+ 	HM_ONCE("a command queue takes %lu command buffers at a time (maxCommandBufferCount); each one waits on the queue's "
+ 		"semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer "
+@@ -4886,18 +4879,14 @@
+  * in Apple's own ivar so that the base class's getter and this plug-in read the same thing. */
+ - (void)setCompletionQueue:(dispatch_queue_t)queue
+ {
+-	Ivar ivar = hm_completion_ivar();
+-	dispatch_queue_t held = ivar != NULL ? (dispatch_queue_t)object_getIvar(self, ivar) : _completionQueue;
+-
+-	if (held == queue) {
+-		return;
+-	}
+-	[queue retain];
+-	[held release];
+-	if (ivar != NULL) {
+-		object_setIvar(self, ivar, queue);
+-	} else {
+-		_completionQueue = queue;
++	@synchronized (self) {
++		Ivar ivar = hm_completion_ivar();
++		dispatch_queue_t held = ivar != NULL ? (dispatch_queue_t)object_getIvar(self, ivar) : _completionQueue;
++		if (held == queue) return;
++		[queue retain];
++		if (ivar != NULL) object_setIvar(self, ivar, queue);
++		else _completionQueue = queue;
++		[held release];
+ 	}
+ }
+ 
+@@ -4908,26 +4897,13 @@
+ 	return ivar != NULL ? (dispatch_queue_t)object_getIvar(self, ivar) : _completionQueue;
+ }
+ 
+-/* A command buffer that waits for an event is committed to the GPU on _deferred once the value has come; every buffer
+- * committed after it, while one is held, goes the same way, so that the queue's order is the order they reach the GPU
+- * in (Metal's: a queue's buffers run in commit order). */
+-- (BOOL)hakiosDeferring
++/* Called under @synchronized(queue): one lock defines admission order for held and ordinary buffers alike. */
++- (void)hakiosAdmit:(dispatch_block_t)commit
+ {
+-	return __atomic_load_n(&_deferring, __ATOMIC_ACQUIRE) != 0;
+-}
+-
+-- (void)hakiosDefer:(dispatch_block_t)commit
+-{
+-	@synchronized (self) {
+-		if (_deferred == NULL) {
+-			_deferred = dispatch_queue_create("hakios.metal.deferred-commits", DISPATCH_QUEUE_SERIAL);
+-		}
++	if (_deferred == NULL) {
++		_deferred = dispatch_queue_create("hakios.metal.ordered-commits", DISPATCH_QUEUE_SERIAL);
+ 	}
+-	__atomic_add_fetch(&_deferring, 1, __ATOMIC_ACQ_REL);
+-	dispatch_async(_deferred, ^{
+-		commit();
+-		__atomic_sub_fetch(&_deferring, 1, __ATOMIC_ACQ_REL);
+-	});
++	dispatch_async(_deferred, commit);
+ }
+ 
+ @end
+@@ -4958,6 +4934,8 @@
+ 	_queue = [queue retain];
+ 	_cb = hakios_metal_cb_new([queue hakiosQueue]);
+ 	_createdAt = hm_now();
++	_stateCondition = [[NSCondition alloc] init];
++	_handlerQueue = dispatch_queue_create("hakios.metal.ordered-handlers", DISPATCH_QUEUE_SERIAL);
+ 	if (_cb != NULL) {
+ 		hakios_metal_cb_skip_refused(_cb, !hm_strict());
+ 		hakios_metal_cb_set_profile(_cb, hm_fps_on());
+@@ -5012,9 +4990,8 @@
+ 	[_signals release];
+ 	[_turned release];
+ 	[_waits release];
+-	if (_sent != NULL) {
+-		dispatch_release(_sent);
+-	}
++	[_stateCondition release];
++	if (_handlerQueue != NULL) dispatch_release(_handlerQueue);
+ 	[_error release];
+ 	[_queue release];
+ 	[super dealloc];
+@@ -5029,7 +5006,13 @@
+ 
+ /* Metal's own numbers, which hakios_metal_status copies: not enqueued 0, enqueued 1, committed 2, scheduled 3,
+  * completed 4, error 5 */
+-- (MTLCommandBufferStatus)status { return (MTLCommandBufferStatus)hakios_metal_cb_status(_cb); }
++- (MTLCommandBufferStatus)status
++{
++	[_stateCondition lock];
++	BOOL pending = _committed && !_reached;
++	[_stateCondition unlock];
++	return pending ? MTLCommandBufferStatusCommitted : (MTLCommandBufferStatus)hakios_metal_cb_status(_cb);
++}
+ 
+ - (NSError *)error
+ {
+@@ -6090,48 +6073,44 @@
+ 
+ - (void)commit
+ {
+-	BOOL met = YES;
+-
+-	if (_committed) {
+-		HM_ONCE("a command buffer was committed twice; Metal asserts on that, this plug-in does nothing the second time\n");
+-		return;
+-	}
+-	_committed = YES;
+-	_committedAt = hm_now();
+-	/* each turned framebuffer drawn into, laid into its surface by the 2D engine after everything that drew it */
+-	for (HakiosMetalTexture *t in _turned) {
+-		[t hakiosTurnInto:_cb];
+-	}
+-	[self retain];
+-	for (NSArray *w in _waits) {
+-		met = met && [[w objectAtIndex:0] hakiosReached:[[w objectAtIndex:1] unsignedLongLongValue]];
+-	}
+-	hm_fps_encoded(_committedAt - _createdAt, !met || [_queue hakiosDeferring]);
+-	if (!met || [_queue hakiosDeferring]) {
+-		/* held: committed to the GPU from the queue's own serial queue once every value it waits for has come */
++	@synchronized (_queue) {
++		[_stateCondition lock];
++		if (_committed) {
++			[_stateCondition unlock];
++			HM_ONCE("a command buffer was committed twice; Metal asserts on that, this plug-in does nothing the second time\n");
++			return;
++		}
++		_committed = YES;
++		_committedAt = hm_now();
++		[_stateCondition unlock];
++		/* Snapshot inputs before admission. Each queue uses this same lock for the entire FIFO decision. */
+ 		NSArray *waits = [_waits copy];
+-
+-		_sent = dispatch_semaphore_create(0);
+-		[self retain];
+-		[_queue hakiosDefer:^{
++		NSArray *turned = [_turned copy];
++		BOOL held = NO;
++		for (NSArray *w in waits) {
++			if (![[w objectAtIndex:0] hakiosReached:[[w objectAtIndex:1] unsignedLongLongValue]]) held = YES;
++		}
++		hm_fps_encoded(_committedAt - _createdAt, held);
++		[self retain]; /* core completion callback */
++		[self retain]; /* frontend FIFO block */
++		[_queue hakiosAdmit:^{
++			/* Turn work enters the core before its commit, after all earlier queue admissions. */
++			for (HakiosMetalTexture *t in turned) [t hakiosTurnInto:_cb];
++			[turned release];
+ 			for (NSArray *w in waits) {
+ 				[[w objectAtIndex:0] hakiosWaitFor:[[w objectAtIndex:1] unsignedLongLongValue]];
+ 			}
+ 			[waits release];
++			const double began = hm_now();
+ 			hakios_metal_cb_commit(_cb, hm_completed, self);
+-			dispatch_semaphore_signal(_sent);
+-			[self hakiosDeliverScheduled];
++			/* In deferred mode commit posts to the core worker. Status drains that work before
++			 * we announce scheduling; an error awaiting its FIFO callback is terminal later. */
++			enum hakios_metal_status state = hakios_metal_cb_status(_cb);
++			hm_fps_commit(hm_now() - began);
++			if (state >= HAKIOS_METAL_SCHEDULED) [self hakiosMarkScheduled];
+ 			[self release];
+ 		}];
+-		return;
+ 	}
+-	{
+-		const double began = hm_now();
+-
+-		hakios_metal_cb_commit(_cb, hm_completed, self);
+-		hm_fps_commit(hm_now() - began);
+-	}
+-	[self hakiosDeliverScheduled];
+ }
+ 
+ /* abstract in _MTLCommandBuffer (its body is doesNotRecognizeSelector:), so inheriting it aborts. The deadline is
+@@ -6146,24 +6125,27 @@
+ 
+ - (void)waitUntilScheduled
+ {
++	[_stateCondition lock];
+ 	if (!_committed) {
++		[_stateCondition unlock];
+ 		HM_ONCE("a command buffer was waited on for scheduling before it was committed; Metal would wait for ever, "
+ 			"this plug-in returns\n");
++		return;
+ 	}
+-	/* committed: hakios_metal_cb_commit returned with it scheduled, so there is nothing left to wait for */
++	while (!_reached) [_stateCondition wait];
++	[_stateCondition unlock];
+ }
+ 
+ - (void)waitUntilCompleted
+ {
++	[_stateCondition lock];
+ 	if (!_committed) {
++		[_stateCondition unlock];
+ 		HM_ONCE("a command buffer was waited on before it was committed; Metal would wait for ever, this plug-in returns\n");
+ 		return;
+ 	}
+-	if (_sent != NULL) {
+-		/* a held commit: first that it has reached the GPU (passed on to the next waiter) */
+-		dispatch_semaphore_wait(_sent, DISPATCH_TIME_FOREVER);
+-		dispatch_semaphore_signal(_sent);
+-	}
++	while (!_finished) [_stateCondition wait];
++	[_stateCondition unlock];
+ 	{
+ 		const double began = hm_now();
+ 
+@@ -6174,49 +6156,57 @@
+ 
+ /* --- handlers --- */
+ 
+-/* where a handler runs: on the completion queue the daemon named, if it named one, else right here */
++/* Serialize each buffer's handler invocations, even if its client's completion queue is concurrent. */
+ - (void)hakiosDeliver:(MTLCommandBufferHandler)handler
+ {
+-	dispatch_queue_t queue = [_queue hakiosCompletionQueue];
+-
+-	if (queue != nil) {
+-		dispatch_async(queue, ^{ handler((id<MTLCommandBuffer>)self); });   /* the block retains the buffer and the handler */
+-		return;
+-	}
+-	handler((id<MTLCommandBuffer>)self);
++	MTLCommandBufferHandler copied = [handler copy];
++	HakiosMetalCommandBuffer *owner = [self retain];
++	dispatch_async(_handlerQueue, ^{
++		@autoreleasepool {
++			dispatch_queue_t queue;
++			@synchronized (owner->_queue) {
++				queue = [[owner->_queue hakiosCompletionQueue] retain];
++			}
++			if (queue != nil) {
++				dispatch_sync(queue, ^{ @autoreleasepool { copied((id<MTLCommandBuffer>)owner); } });
++			} else {
++				copied((id<MTLCommandBuffer>)owner);
++			}
++			[queue release];
++		}
++		[copied release];
++		[owner release];
++	});
+ }
+ 
+-- (void)hakiosDeliverScheduled
++- (void)hakiosMarkScheduled
+ {
+-	NSArray *scheduled;
+-
+-	@synchronized (self) {
+-		scheduled = _scheduled;
++	[_stateCondition lock];
++	if (!_reached) {
++		_reached = YES;
++		for (id handler in _scheduled) [self hakiosDeliver:(MTLCommandBufferHandler)handler];
++		[_scheduled release];
+ 		_scheduled = nil;
++		[_stateCondition broadcast];
+ 	}
+-	for (id handler in scheduled) {
+-		[self hakiosDeliver:(MTLCommandBufferHandler)handler];
+-	}
+-	[scheduled release];
++	[_stateCondition unlock];
+ }
+ 
+ - (void)hakiosCompletedNow
+ {
+-	NSArray *completed;
+-
++	[self hakiosMarkScheduled]; /* an error can finish before reaching the GPU */
+ 	[self error];   /* built now, on the completing thread, so that a handler reading -error gets the sentence */
+ 	/* the events this buffer signals, now that its work is done: before its handlers, which may read them */
+ 	for (NSArray *sg in _signals) {
+ 		[[sg objectAtIndex:0] hakiosSignal:[[sg objectAtIndex:1] unsignedLongLongValue]];
+ 	}
+-	@synchronized (self) {
+-		completed = _completed;
+-		_completed = nil;
+-	}
+-	for (id handler in completed) {
+-		[self hakiosDeliver:(MTLCommandBufferHandler)handler];
+-	}
+-	[completed release];
++	[_stateCondition lock];
++	_finished = YES;
++	for (id handler in _completed) [self hakiosDeliver:(MTLCommandBufferHandler)handler];
++	[_completed release];
++	_completed = nil;
++	[_stateCondition broadcast];
++	[_stateCondition unlock];
+ 	[self hakiosPaySlot];
+ }
+ 
+@@ -6227,16 +6217,12 @@
+ 	if (handler == NULL) {
+ 		return;
+ 	}
+-	@synchronized (self) {
+-		if (!_committed) {
+-			if (_scheduled == nil) {
+-				_scheduled = [[NSMutableArray alloc] init];
+-			}
+-			[_scheduled addObject:[[handler copy] autorelease]];
+-			return;
+-		}
+-	}
+-	[self hakiosDeliver:handler];
++	[_stateCondition lock];
++	if (!_reached) {
++		if (_scheduled == nil) _scheduled = [[NSMutableArray alloc] init];
++		[_scheduled addObject:[[handler copy] autorelease]];
++	} else [self hakiosDeliver:handler];
++	[_stateCondition unlock];
+ }
+ 
+ - (void)addCompletedHandler:(MTLCommandBufferHandler)handler
+@@ -6244,16 +6230,12 @@
+ 	if (handler == NULL) {
+ 		return;
+ 	}
+-	@synchronized (self) {
+-		if (hakios_metal_cb_status(_cb) < HAKIOS_METAL_COMPLETED) {
+-			if (_completed == nil) {
+-				_completed = [[NSMutableArray alloc] init];
+-			}
+-			[_completed addObject:[[handler copy] autorelease]];
+-			return;
+-		}
+-	}
+-	[self hakiosDeliver:handler];
++	[_stateCondition lock];
++	if (!_finished) {
++		if (_completed == nil) _completed = [[NSMutableArray alloc] init];
++		[_completed addObject:[[handler copy] autorelease]];
++	} else [self hakiosDeliver:handler];
++	[_stateCondition unlock];
+ }
+ 
+ /* --- presenting --- */

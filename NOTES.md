@@ -2,6 +2,54 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — one-in-flight issued fence runtime prepared offline
+
+The user goal remains full Gauguin GPU acceleration, high refresh and smooth
+iOS; the immediate 60 Hz/touch lag remains unresolved. The 0301 exact-scope
+approval is still absent: ready SHA7b2c97cdf384bea06b4fd29fe489daba1ff747f32e863785f6e9176032abbbc3
+unchanged, no approval.json/execution. Device remains TWRP; no new write/boot.
+Do not run the 0301 executor without the fresh user reply, and do not change
+its pinned image/plan under any answer to the pending question.
+
+Source-backed GPU review: HakiOS's Adreno submit returns an ISSUED fence,
+then its user client records it on every BO/IOSurface, waits outside the
+global lock, retains memory/mappings after an early close, and its presenter
+waits before reading surfaces. Gauguin currently waits for EOP, ring shadow
+and idle *inside* ggr_submit under the global lock; user-visible fences mean
+COMPLETED, and IOSurface gpuState becomes clear during that call. Removing
+the wait alone would be unsafe. See new worktree/docs/
+gauguin-issued-fence-transition-20261112.md for exact source links/contract.
+
+New isolated worktree research/tmp/gauguin-issued-fence-worktree-20261112,
+branch codex/gauguin-issued-fence-20261112, pushed commit10e1835. Patch0225
+SHA2879f0f67ac95db46a6dc9374df440776b786bc80cd25fc9e4b0125ea2a69912
+splits the real GPU runtime into ggr_issue (one in-flight, returns issued
+fence), ggr_poll (real EOP/shadow/idle, GGR_PENDING and fault quarantine),
+ggr_wait (bounded) while retaining synchronous ggr_submit as issue+wait.
+The current board/user client still calls ggr_submit, so this makes no
+user-visible or hardware change. One-in-flight prevents ring overwrite
+without copying HakiOS's RPTR hardware assumptions. It is a groundwork
+patch, not a 60 Hz fix.
+
+Patch replay to APFS-cloned source305 had zero fuzz; diff from pinned source301
+shows exactly runtime.c/.h changed, source-state recorded/checked. Actual
+runtime host ASAN/UBSAN passed17555 old runtime/ABI +72 health +127 new
+issued/pending/completion/deadline/wrap assertions. Existing ring-span suite
+passed54780 additional assertions. The once-stale submit-record fixture was
+updated for already-existing ggrb_perf fields;12139 assertions pass against
+both source301 and source305. Native ARM64 compile of changed runtime and
+unchanged GauguinGPU.cpp with new header passed. Host receipt SHA
+9098efd5c894c3b4a5d3ff18e799e3e7ccd039f7b6344c6d0fc6b821bb5746e9;
+native receipt SHA
+b23fe6d8202b44324317c55893d9299fb7e536f26bb07c059bb3ece2794fb3bd.
+No full kernel build, image, device command, write or measured speedup for
+this branch. User-client issued/completed fence namespaces, BO/IOSurface
+retention, deferred close, CPU prep/display-read waits, teardown and error
+quarantine remain before async can be used. 0301 trace should determine if
+GPU submit is on the real lag critical path. Storage budget admitted
+1288490189B for pending trial plus this offline work at496185352192B
+accounted. Preserve backups and mkadt user edit.
+
 ### 2026-11-12 CST — read-only SpringBoard rate observer built offline
 
 The 0301 exact-scope approval question is still pending: worktree

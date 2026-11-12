@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — 0301 storage reserve restored, pins rechecked, consent pending
+
+Full objective remains smooth 60 Hz touch/UI, complete Gauguin GPU
+acceleration and physical high refresh; none is phone-qualified. The phone
+still reports `adb get-state` = `recovery`; no 0301 approval.json,
+execution directory, partition write or boot. The W301/0301 exact plan SHA
+`5ef6e2f1bdd2240d233830f2754f7d517dc6066a938677e6b0cc8614e3d41d03`,
+install SHA `abab7f0f432f7ffe5f94234b5245be337bfe5d054a3887916338f2a465d81365`,
+image SHA `6f02f0ebe258a754dc915b7b786244e59e656989d7732ffa9af6a9148983653a`
+and 70-pin ready SHA `4ce5196d6cd8eb271b98708deeffa6586808ebc5368de2928c1480df1a4d9a12`
+remain unchanged. Fresh read-only rehash matched all 70 inputs totaling
+17,282,686,800 bytes, private receipt SHA
+`6aea3454d84680feb979fd5e037b40921f7f97726270eccb0f167b644c630a8f`.
+
+The 1 GiB trial reserve initially failed the 500 GB cap at
+499,166,879,744 bytes accounted. Three obsolete/reconstructible W303 APFS
+XNU source clones 305/306/307 were not under any of the 110 W301/W302
+active-trial pins, passed reverse-patch checks, and were retired after
+recording 5,336-file content digests for each. Conservative retired total
+259,692 KiB, cleanup manifest SHA
+`0cf9792e016035ffcffdf5adfc17ab148ff3dc4ff90241868ca5ffbd19088c70`.
+Current source308, W301/W302 pins, phone partition backups and rollback
+snapshots are intact. The storage script then admitted the full
+1,073,741,824-byte reserve at 498,900,963,328 bytes accounted, private
+receipt SHA `9defc99f13eec29512e7916661df6c5fc2c1a50da036289f653128f2aba3f07c`.
+W301 branch `codex/gauguin-causal-trace-20261112` pushed doc commit
+`d48c0ea`; W303 `codex/gauguin-issued-fence-20261112` pushed cleanup-doc
+commit `afbd946`. No plan/image/kernel code changed this turn.
+
+AGENTS.md still requires separate confirmation before the 0301 userdata/misc
+writes. After this read-only recheck, a new exact-scope asynchronous 0301
+question was sent with the unchanged plan and bounded rollback; no reply at
+this handoff. Do not infer consent from a previous 0300 authorization or from
+silence. When an actual matching reply arrives, bind its question item ID,
+answer and hash to the approval file, then let the one-shot executor recheck
+storage and live device preimages before writing. Preserve the user's
+uncommitted `tools/mkadt.py` SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-13 CST — async candidate full kernel built; CI suite still red
 
 Full objective remains smooth 60 Hz touch/UI, complete Gauguin GPU

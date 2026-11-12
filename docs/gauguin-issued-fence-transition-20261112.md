@@ -264,3 +264,21 @@ workflow's `XNU_SOURCE` environment and make unique private output directories
 when no CLI path is supplied; all four passed with that entry point. These
 fixtures do not assert that the pending asynchronous mode works on hardware.
 Other generic-suite failures remain and are still reported by CI.
+
+Dispatch `43261798908` on commit `4586bed` proved the missing kernel-build
+stage: exact patch0229 was applied, `build-gauguin rc=0`, and the
+`DEVELOPMENT_ARM64_GAUGUIN` manifest says `state=built`, `make_exit=0` under
+Xcode 16.0 on macOS 15 arm64. The downloaded Mach-O arm64 kernel is
+17,883,112 bytes, SHA-256
+`5fd6803ed89ddfca6af30eb9de1c66a088f1fa62446222f69b706cd07872b3a9`;
+the artifact's `SHA256SUMS` check passed and its strings include
+`sweetgpuasync` and the compositor opt-in log. Manifest SHA-256 is
+`06d160050c718f304ef1d413817aa5d92c07a100a6a6969346528de66e660d33`;
+private run/build receipt SHA-256 is
+`2f0106974753c9ab565bba227e0f2afa2e61f9815d7c10fc788a159b42cd18bd`.
+The Actions run is still **failure** because the unchanged generic host suite
+reported 43 test-file failures after the successful kernel build, mainly
+missing local input fixtures/arguments and stale host seams. Commit `cf74d32`
+fixes the directly relevant GPU seams and four focused CLI defaults; that
+commit was made after the run and is not covered by its remote test log.
+This kernel has not been packaged, booted or measured on the phone.

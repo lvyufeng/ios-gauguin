@@ -18,8 +18,12 @@ image once: send0.457s, boot0.135s, total0.601s. As of this handoff,
 observer is running; no TWRP return, log analysis, or desktop restoration
 has been observed yet. It waits up to780s for recovery (600s GPU service),
 then runner captures logs, dynamically restores original desktop434176B with
-readback and repeats29-file capture. User was asked to perform swipes and
-Settings interaction. Inspect original session/receipts; never launch a
+readback and repeats29-file capture. User reports arrived in order: initially
+"进不去桌面了", then "锁屏界面", then "哦 进去了 就是卡". Current observation is
+desktop reached, still laggy; exact timestamps unavailable. Feedback receipt
+W300/user-feedback300.json SHAab146879b5081cf1123afddfbfe87fb5f9da9c9ca7e9b1cbb4bd750b5e475e63.
+User was asked to perform swipes and Settings interaction. Inspect original
+session/receipts; never launch a
 second boot under this consent. Preserve backups and user's mkadt edit.
 
 ### 2026-11-12 CST — 0299 boot still laggy; 0300 display/touch diagnostic prepared

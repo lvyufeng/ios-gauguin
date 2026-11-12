@@ -2,8 +2,10 @@
 
 The `a619-ownership` core profile keeps command buffers, native queues and their
 GPU transport alive through deferred recording and completion. It addresses a
-prerequisite for asynchronous desktop rendering. It has not been installed on
-the phone and does not establish GPU accelerated desktop composition.
+prerequisite for asynchronous desktop rendering. The core subsequently passed
+an [isolated real-device test](gauguin-metal-owned-hardware-20261112.md) from a
+private library path. The normal desktop still uses its previous core;
+asynchronous desktop composition remains unqualified.
 
 ## Changes
 

@@ -1,8 +1,14 @@
 # Isolated Metal ownership hardware trial
 
-The requested real-device check is prepared for the qualified ownership core.
-Preparation performed read-only recovery access and local builds/image edits.
-No phone partition write or boot has occurred at this proposal milestone.
+The isolated ownership-core check **passed on the real Adreno 619**. Eight GPU
+command buffers completed, two callback-release checks passed, all 20,480
+byte/pixel comparisons matched, and the kernel confirmed clean root-owner
+release. The original launch entry was restored byte-for-byte after capture.
+
+Preparation used read-only recovery access and local builds/image edits. The
+user then explicitly authorized the exact writes, one temporary boot and
+restoration described below. This qualifies the finite new-core test; desktop
+asynchronous CoreAnimation composition and physical frame rate remain open.
 
 The phone is in TWRP with the 16 GiB iOS HFSX root prefix of userdata unmounted.
 All 16,384 one-MiB device chunk hashes and the complete device SHA-256 match a
@@ -105,8 +111,73 @@ The complete 33 GiB batch was admitted under the 500 GB project cap. No kernel
 build, CI run, flash or device trial was performed while preparing this plan.
 The final plan/hash and input pins are in `W/trial-plan.json` and `W/ready.json`.
 
-The pending explicit write confirmation is required by the project's
-`AGENTS.md` instruction to confirm each destructive step before running it.
-Successful future probe logs will qualify this finite core test and owner
-handoff only; CoreAnimation frontend ordering and physical desktop frame rate
-remain separate work.
+The project-required write confirmation was received as the exact answer
+`允许本轮写入、临时启动及回退` to question item
+`["request_user_input_async","call_2cfc4a42d88b4a39b79a638e83abe767",0]`.
+It binds plan
+`e80817f02bde654b43c9a6c278b832c00c4becdf9500d3c2f4905e4e07966d4d`.
+This one-shot authorization is now consumed.
+
+## Observed real-device result
+
+Source was committed as `b8a4b07`. Original execution PID 65017 and observer
+PID/process group 66203 are terminal, with no surviving observer children.
+The retained execution exits 0. All 173 reviewed input pins still match.
+
+All 40 install ranges read back correctly, followed by the complete installed
+29-file/five-directory check. The 13-byte recovery marker also read back
+correctly. Fastboot accepted the image once (send and boot both OKAY; 0.601 s
+reported total). The observer found TWRP after 747 s and verified the exact
+0298 kernel banner. No retry or failure rollback occurred. Claim-to-result time
+was 826.551773 s; initial input rehashing precedes that claim timestamp.
+
+Current-only stdout identifies probe `1cb92917c87718fe918f9cdb`, the new
+`c9da25aa…` core, Adreno 619/chip `06010900`, and seed `1481645600`:
+
+- Synchronous and deferred GPU fill/copy, both RGBA8 clears and cross-queue
+  append produced the exact independently recomputed readback hashes.
+- The deferred success and expected API-error callbacks both returned from
+  their own waits and released their command-buffer owners. FIFO sentinels
+  completed afterward.
+- Queue-mode freezing and early queue-wrapper release passed. All seven
+  cleanup observations reported zero remaining GPU allocation.
+- The complete result reported eight successful GPU jobs, two callbacks and
+  20,480 readback comparisons. This count mixes byte and pixel comparisons; it
+  is not a count of displayed pixels or frames.
+
+Kernel close records independently bind the two owner epochs:
+
+| Owner | Ready | Jobs | Native fence | Epoch | Clean |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| New isolated core probe | 0 | 8 | 8 | 1 | 1 |
+| Retained old bootstrap | 1 | 8 | 16 | 2 | 1 |
+
+The old router executed the unchanged bootstrap/core. Its eight offscreen
+stages reported success, with queue-local fences 1–8 and native arm fence 16.
+The overall finite service ended with 598 renewals and 35 submitted/completed
+jobs. Only the first eight belong to the new ownership probe; the remainder
+must not be attributed to it. These counters do not measure desktop FPS.
+
+The three complete pre-test log prefixes were retained. New suffixes contain
+4,959 bytes of root stdout, 135 bytes of root stderr and 53,070 bytes of
+backboardd output. Installed/post/restored captures verify all 87 file records
+and five directory records in each capture. The two launch files were restored
+through exactly two data ranges (8,192 bytes), then independently compared
+byte-for-byte with their originals. All 24 original static captured files are
+retained. Logs did not change during restoration. The private test executable
+and library remain installed but inactive; the default desktop core is still
+`8a826583…`.
+
+Final observed device state is recovery. The post-boot and post-restoration root
+headers agree at
+`1c43ad66d5195271397bd23a13ed4f284df231e1ad67b7c3552a15dc423ba539`.
+Future work must use that current state and fresh preconditions, not replay the
+consumed 9.99 MB installation metadata.
+
+Evidence is in `W/execution/`: original install/marker/observer/restore receipts,
+all three captures, current-only log tails, `validation.json`, and
+`independent-review.json`. No raw phone evidence was committed. No screen
+attestation was received in this run; launching SpringBoard and backboardd is
+not a substitute for a physical UI observation. CoreAnimation admission/wait
+ordering, full desktop GPU composition and physical FPS still require their
+own work.

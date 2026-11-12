@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — dynamic SpringBoard observer restore modeled, no phone write
+
+The user goal remains full Gauguin GPU acceleration, high refresh and smooth
+iOS; 60 Hz touch lag remains unresolved. 0301 exact-scope approval is still
+absent (`approval.json` and `execution` absent), and `adb get-state` is
+`recovery`. Do not run the pinned 0301 executor without the user reply. No
+partition write or boot occurred this turn.
+
+SpringBoard observer worktree `research/tmp/gauguin-sb-rate-trace-worktree-20261112`,
+branch `codex/gauguin-sb-rate-trace-20261112`, pushed commit `1ec3ba7`
+after `db7da74`. Added a read-only postboot HFSX restore preparer and an
+approval-gated exact-range restore core with no device entry point. The
+preparer resolves the current target catalog fields, retains unrelated leaf
+bytes and groups relocated fields if they share a block. The core validates
+the bound base plan, one-shot approval, recovery identity, full preimages,
+range bounds and old/new hashes. Fixture approvals cannot reach non-model
+IO. A read-only overlay of current phone root bytes simulated install and
+postboot unrelated catalog change; model restoration recovered all three
+files in the strict HFSX parser. Fault injection on every one of six writes
+verified reverse rollback, while a second fault produced explicit
+`restore-failed-rollback-incomplete`. Model review SHA
+2a00b96de1ffb15cee190c6c956a069990f4d39448530f4aff9a51deec37c8a7.
+Python compile and diff check passed. No actual phone write, boot, log or
+cadence measurement. See updated `docs/gauguin-springboard-rate-observer-20261112.md`.
+
+The observer slot candidate still lacks a complete bounded trial executor,
+misc recovery marker, selected temporary boot image, log collection and its
+own exact-scope user authorization. SpringBoard dyld/AMFI acceptance and
+20H392 hook ABI remain unverified. 0301 kernel/HID/Metal causal trace should
+come first; use its result to decide whether this second observer trial is
+appropriate. Preserve current backups/rollback snapshots, 0301 pins and
+user's `tools/mkadt.py` edit.
+
 ### 2026-11-12 CST — SpringBoard observer existing-slot delta reviewed offline
 
 The user still reports a laggy, unresponsive desktop; 60 Hz smoothness and

@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-12 CST — owned-core hardware trial authorized, installed and booted once
+
+Actual user reply to questionItemId
+["request_user_input_async","call_2cfc4a42d88b4a39b79a638e83abe767",0]
+was 允许本轮写入、临时启动及回退. W/approval.json binds that exact answer,
+all approved write/restore scopes, plane80817f02bde654b43c9a6c278b832c00c4becdf9500d3c2f4905e4e07966d4d
+and original0298 image64596164315f.... ApprovalSHA
+70872409c3a6d998d9afd66bc1c6265ea76052b78ff927cf56e34d063dff216c.
+This supersedes the pending-consent entry below; no further consent is needed
+for this exact trial or its already-approved launch-data restoration.
+
+W=research/tmp/metal-hardware-20261112. Original execute_trial.py PID65017,
+retained exec session73067, W/authorized-execution.log and W/execution/claim.json.
+All173 ready pins passed before its fresh preflight. Installation completed:
+40 ranges/9990144 bytes readback verified, no rollback. Installed29-file capture
+passed;13-byte misc marker readback verified, afterSHA8698abf44b69b8040dd109feefc23706f070a26932c47f2b44a835efb2b9c801.
+Observer PID/PGID66203 launched once. Actual fastboot sending and booting both
+returned OKAY, total0.601s. The boot scope is consumed; do not launch again.
+Runtime GPU outcome, post-capture and launch-entry restoration are pending.
+
+Observe only this original execution and observer. It should return to recovery
+after the600s service/780s observer, capture current-only tails, then restore
+the8192B launch-data ranges and verify them before parsing GPU results. No
+manual boot/retry while it runs. If it terminates early, inspect its original
+result and receipts; never replay pre-boot filesystem metadata after a boot.
+Protected original roots/backups, raw phone evidence and Apple artifacts remain
+private. C4 desktop async mode remains off and unqualified.
+
 ### 2026-11-12 CST — real-device owned-core trial fully prepared; write confirmation pending
 
 User requested 真机验证吧. Source commit b8a4b07 adds the isolated C-API

@@ -2,6 +2,42 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — 0301 offline follow-up; user currently away from phone
+
+The user answered the 0301 contact question with “我现在没在手机旁”. This says
+they are currently away, **not** whether they touched during the completed
+boot. No further phone boot, partition write, or fresh approval request is
+scheduled while they are away. The phone's last observed state is TWRP
+`recovery`, and the one-shot 0301 userdata/misc rollback and independent
+readback passed (details immediately below). Its approval is consumed.
+
+Offline analysis of the same 0301 log found 14 GPU submit selector `0x46`
+calls holding the global GPU lock for 153,018,229 ns total (mean 10.93 ms,
+maximum 24.61 ms); native board submit used 72,724,947 ns, with
+71,043,697 ns (97.7%) in full guards. The 597 heartbeat selector `0x102`
+calls held the lock for 1,800,704,843 ns total (mean 3.02 ms, maximum
+12.07 ms). These are aggregate CPU wall times across mostly startup/idle,
+with no touch-to-frame pairing or physical FPS result. Private analysis
+receipt SHA-256
+`30c563d44bdf80b65c2a86b837c26bd6e0c2bf1cb5212b85eb700f48a111e379`;
+user-reply receipt SHA-256
+`35d03edfa05da3b210267d3927e5b1c5f28f37833d9f4d9cf861a4230acd198b`.
+
+W301 results and uncertainty are in pushed commit `98a084c` on
+`codex/gauguin-causal-trace-20261112`, file
+`docs/gauguin-causal-ui-trial-results-20261113.md`. W303's offline issued
+fence candidate and its lock-cost follow-up are on
+`codex/gauguin-issued-fence-20261112`, commits `b3c2b08` and `11ea45e`; it remains
+default-off, has only an offline kernel-build result and has **not** been
+booted on the phone. Next: inspect the measured serialized GPU costs and
+candidate's lock/lifetime contract offline. A new touch-to-frame trial needs
+the user present for actual swipes and a fresh exact-scope confirmation
+under AGENTS.md. Smooth 60 Hz touch, complete GPU acceleration and physical
+high refresh are still unachieved. Preserve all phone backups and rollback
+snapshots, active trial pins, source308, and the user's uncommitted
+`tools/mkadt.py` SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-13 CST — approved 0301 boot returned safely, no gesture captured
 
 The full goal (smooth 60 Hz touch/UI, complete Gauguin GPU acceleration and

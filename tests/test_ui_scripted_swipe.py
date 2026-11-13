@@ -28,10 +28,19 @@ static struct timer timer;
 static uint64_t now;
 static unsigned sent,releases,markers,returns,fail_at,checks;
 static bool fail_alloc;
+static uint32_t display_state;
+static unsigned key_count;
+static bool key_held,wake_on_release;
 static struct sweet_hid_touch_snapshot events[442];
 static unsigned strokes[442],steps[442];
 #define CHECK(v) do {++checks;assert(v);} while(0)
 static uint64_t mach_absolute_time(void){return now;}
+uint32_t sweet_fb_display_state(void){return display_state;}
+void sweet_hid_key(int key,int down){
+    assert(key==0&&key_count<2&&down==(key_count==0));
+    key_held=down;++key_count;
+    if(!down&&wake_on_release)display_state=1;
+}
 static void clock_interval_to_deadline(unsigned n,unsigned scale,uint64_t *out){*out=now+(uint64_t)n*scale;}
 static thread_call_t thread_call_allocate(callback_t fire,void *p){assert(!p);timer.fire=fire;return fail_alloc?NULL:&timer;}
 static bool thread_call_enter_delayed(thread_call_t t,uint64_t due){
@@ -60,6 +69,8 @@ static void reset(void){
     memset(&timer,0,sizeof(timer));sweet_script_call=NULL;sweet_script_stroke=sweet_script_step=0;
     sweet_script_due=sweet_script_end=sweet_script_start=0;
     now=1000;sent=releases=markers=returns=fail_at=0;fail_alloc=false;
+    display_state=1;key_count=0;key_held=wake_on_release=false;
+    sweet_script_wake_mode=false;sweet_script_wake_phase=sweet_script_wake_polls=0;
 }
 static void fire(void){assert(timer.pending);timer.pending=false;now=timer.due;timer.fire(NULL,NULL);}
 int main(void){
@@ -90,6 +101,48 @@ int main(void){
     }
     reset();sweet_script_arm();fire();timer.pending=false;now=sweet_script_start-1;
     sweet_script_fire(NULL,NULL);CHECK(releases==1&&sent==1&&!timer.pending);
+
+    /* Already-on display: settle and run without touching the power button. */
+    reset();sweet_script_wake_mode=true;sweet_script_arm();fire();
+    CHECK(!sent&&!key_count&&timer.pending);
+    while(timer.pending)fire();CHECK(sent==442&&!key_count&&!releases);
+    CHECK(sweet_script_wake_phase==SWEET_WAKE_READY);
+
+    /* Off -> one inline press/release -> observed on -> settle -> workload. */
+    reset();sweet_script_wake_mode=true;display_state=2;wake_on_release=true;
+    sweet_script_arm();fire();CHECK(key_count==2&&!key_held&&!sent&&timer.pending);
+    fire();CHECK(!sent&&sweet_script_wake_phase==SWEET_WAKE_SETTLE);
+    while(timer.pending)fire();CHECK(sent==442&&key_count==2&&!key_held&&!releases);
+
+    /* A button pair is not success: no display-on means bounded refusal. */
+    reset();sweet_script_wake_mode=true;display_state=2;sweet_script_arm();
+    callbacks=0;while(timer.pending){CHECK(++callbacks<=102);fire();}
+    CHECK(!sent&&releases==1&&key_count==2&&!key_held);
+    sweet_script_fire(NULL,NULL);CHECK(!sent&&key_count==2);
+
+    reset();sweet_script_wake_mode=true;display_state=0;sweet_script_arm();fire();
+    CHECK(!sent&&!key_count&&releases==1&&!timer.pending);
+
+    /* Display loss during settle or a stroke stops input; no repeated wake. */
+    reset();sweet_script_wake_mode=true;display_state=2;wake_on_release=true;
+    sweet_script_arm();fire();fire();display_state=2;fire();
+    CHECK(!sent&&releases==1&&key_count==2&&!timer.pending);
+    reset();sweet_script_wake_mode=true;sweet_script_arm();fire();fire();
+    CHECK(sent==1&&events[0].active_mask==1);display_state=2;fire();
+    CHECK(sent==1&&releases==1&&!key_count&&!timer.pending);
+
+    /* Late callback after the wake deadline cannot leave a held key. */
+    reset();sweet_script_wake_mode=true;display_state=2;sweet_script_arm();fire();
+    timer.pending=false;now=sweet_script_end;sweet_script_fire(NULL,NULL);
+    CHECK(key_count==2&&!key_held&&!sent&&releases==1&&!timer.pending);
+
+    /* Count bound also terminates if a host clock does not advance. */
+    reset();sweet_script_wake_mode=true;display_state=2;sweet_script_arm();fire();
+    for(unsigned i=0;i<100;i++){
+        timer.pending=false;CHECK(!sweet_script_display_ready(now));
+        if(sweet_script_stroke==13)break;
+    }
+    CHECK(sweet_script_stroke==13&&!sent&&!key_held&&key_count==2&&releases==1);
     printf("PASS %u actual scripted stroke/marker/failure/deadline/release checks; CPU seams only\n",checks);
 }
 '''

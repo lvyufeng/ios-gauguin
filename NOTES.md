@@ -2,6 +2,50 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — approved 0301 boot returned safely, no gesture captured
+
+The full goal (smooth 60 Hz touch/UI, complete Gauguin GPU acceleration and
+physical high refresh) remains unachieved. User explicitly approved the exact
+one-shot W301/0301 userdata/misc write, temporary boot and rollback via
+question item ID
+`["request_user_input_async","call_3d6fcf4bf09e47f68da2756045abfcc4",0]`,
+answer `允许本轮 0301 写入、启动和回退`. Private approval SHA
+`d50c63a9ba9a7db43df10165455adefd4a99362ab2b2a609f4de53607a0e42df`.
+The runner rechecked all 70 pins, live 1 GiB budget and the full 29-file
+TWRP capture before writing. It installed/read back the planned 434,176
+userdata bytes, wrote the 13-byte misc recovery marker and launched the
+exact image **once**. The observer verified the kernel banner and saw TWRP
+return after 745 s, exit0. No boot retry or recovery fallback. The runner
+restored/read back 434,176 userdata bytes and its final 29-file comparison
+passed except expected log growth. An independent TWRP read matched original
+desktop data, original catalog logical length/file identity, and the exact
+original misc 4 KiB preimage. Root header changed during iOS boot but matched
+between postboot and restored captures. Independent restore receipt SHA
+`9f319e541c18d41eb13acc3b0c42c50357c174866d1b64bbabf7d6c07bf10746`.
+Current `adb get-state` = `recovery`. No second boot or additional write.
+
+The diagnostic validation failed **after safe restoration**:
+`selected gesture has no complete HID queue trace`. The strict UI254 parser
+found count0, gestures0, lost0, reason4/GPU_STOP. Novatek bootstrap passed;
+final summary was63,904 accepted packets, zero rejected, contact mask0 and
+no contact-mask transition logs. Backboardd opened a SweetHIDTouch client.
+GPU service completed14/14 native jobs with598 renewals; C4 recorded six
+command buffers in five windows, none C4-presented. These are observations,
+not proof of physical FPS or touch-to-frame latency. Whether the user
+actually touched during this boot is unknown; an asynchronous screen-action
+question was sent and is pending. If no touch occurred, a new separately
+approved trial with actual swipes is required. If touch did occur while NVT
+mask remained0, inspect physical-report delivery before tuning GPU cadence.
+No repeated 0301 trial is authorized. Private analysis receipt SHA
+`5136cc22e0cfee2addfd55c5ce1775e7e67a20e3d0158a8ced9426d248eedca3`;
+raw kernel log SHA
+`805dbf6dfd51c5fa0c949281499e5c80044cebca51ed18198c301b1a06b494a3`.
+W301 `codex/gauguin-causal-trace-20261112` pushed results commit `9c26233`;
+see `docs/gauguin-causal-ui-trial-results-20261113.md`. Preserve all phone
+backups/rollback snapshots, W301/W302 pins and user's uncommitted
+`tools/mkadt.py` SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+
 ### 2026-11-13 CST — live 0301 preimages match, consent still required
 
 The full smooth 60 Hz/Gauguin GPU/high-refresh goal is still unachieved.

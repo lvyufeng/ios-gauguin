@@ -47,12 +47,15 @@ def main():
     assert out.is_relative_to(repo/'research/tmp') and not out.exists()
     inputs=[Path(__file__).resolve(),source,fixture]
     pins={str(p):sha(p) for p in inputs}
-    bodies='\n\n'.join(extract(source.read_text(),name) for name in METHODS)
+    cpp=source.read_text()
+    bodies='\n\n'.join(extract(cpp,name) for name in METHODS)
+    helpers=cpp[cpp.index('/* All mutable samples'):cpp.index('\nstatic bool physicalPage(')]
     model=fixture.read_text()
     assert model.count('/* INSERT_REAL_ESCROW_METHODS */')==1
     out.mkdir(parents=True)
     composite=out/'escrow-host.cpp'
-    composite.write_text(model.replace('/* INSERT_REAL_ESCROW_METHODS */',bodies))
+    composite.write_text(model.replace('/* INSERT_REAL_ESCROW_METHODS */',bodies)
+                        .replace('/* INSERT_REAL_WAIT_HELPERS */',helpers))
     binary=out/'escrow-host'
     env=dict(os.environ,ASAN_OPTIONS='halt_on_error=1:detect_leaks=0',
              UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')

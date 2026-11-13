@@ -26,6 +26,7 @@
 #define PAGE_SIZE 16384u
 #define PAGE_MASK (PAGE_SIZE-1)
 #define NSEC_PER_SEC 1000000000u
+#define NSEC_PER_USEC 1000u
 #define OSDeclareDefaultStructors(C) public:C();~C() override;private:
 #define OSDefineMetaClassAndStructors(C,B) C::C()=default;C::~C()=default;
 #define OSTypeAlloc(C) new C()
@@ -41,6 +42,7 @@ static void test_log(const char *format,...){(void)format;}
 [[maybe_unused]] static uint64_t mach_continuous_time(){return mach_absolute_time();}
 [[maybe_unused]] static void absolutetime_to_nanoseconds(uint64_t ticks,uint64_t *ns){*ns=ticks;}
 [[maybe_unused]] static void IODelay(unsigned){}
+[[maybe_unused]] static void delay_for_interval(unsigned,unsigned){}
 extern "C" uint64_t sweet_ui_trace_clock(void){return mach_absolute_time();}
 extern "C" void sweet_ui_trace_record(uint32_t,uint64_t,uint32_t,uint32_t,uint64_t,uint64_t,uint64_t){}
 extern "C" void sweet_ui_trace_stop(uint32_t){}
@@ -114,6 +116,7 @@ struct IOUserClient : IOService {
 using IOLock=std::mutex;
 static unsigned lock_depth,heartbeat_calls;
 static IOLock *IOLockAlloc(){return new std::mutex;}
+[[maybe_unused]] static void IOLockFree(IOLock *m){delete m;}
 static void IOLockLock(IOLock *m){m->lock();++lock_depth;}
 static void IOLockUnlock(IOLock *m){assert(lock_depth);--lock_depth;m->unlock();}
 static IOLock *sweet_surface_lock=IOLockAlloc();
@@ -222,7 +225,7 @@ extern "C" bool sweet_gpu_runtime_ready(){return hardware_ready;}
 extern "C" bool sweet_gpu_runtime_install_root(uint64_t p){assert(!root_pa);root_pa=p;return hardware_ready;}
 extern "C" bool sweet_gpu_runtime_sync(){++sync_calls;if(fail_sync)hardware_ready=false;return hardware_ready;}
 extern "C" void sweet_gpu_runtime_stop(){hardware_ready=false;}
-extern "C" bool sweet_gpu_runtime_heartbeat(){assert(lock_depth==1);++heartbeat_calls;return hardware_ready;}
+extern "C" bool sweet_gpu_runtime_heartbeat(){assert(lock_depth==GAUGUIN_GPU_REQUEST_LOCKS);++heartbeat_calls;return hardware_ready;}
 extern "C" bool sweet_gpu_runtime_done(uint32_t f){return hardware_ready&&f&&f<=completed;}
 extern "C" enum ggr_error sweet_gpu_runtime_issue(const uint64_t *,const uint32_t *,uint32_t,uint32_t *)
 {return GGR_UNAVAILABLE;}

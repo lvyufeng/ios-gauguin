@@ -6,7 +6,7 @@ from pathlib import Path
 KINDS={1:'report',2:'hid-begin',3:'hid-end',4:'hid-return',5:'hid-enqueue',6:'hid-no-queue',
        10:'api-begin',11:'api-end',
        12:'submit-begin',13:'submit-end',14:'surface',20:'swap',21:'present-begin',
-       22:'present-end',23:'layer',24:'read-lock',25:'read-end'}
+       22:'present-end',23:'layer',24:'read-lock',25:'read-end',30:'synthetic-input'}
 FIELDS={'H':'version count reason lost start end numer denom which gestures'.split(),
         'E':'seq tick kind id pid flags a b c'.split(),'F':['count','lost']}
 
@@ -56,7 +56,16 @@ def parse(text):
         if clock_valid and not h['start']<=e['tick']<h['end']:raise ValueError('event outside time window')
         if i>1 and e['tick']<events[i-2]['tick']:raise ValueError('CPU clock regressed')
         if e['kind']==1 and (e['id']!=i or (not e['flags'] and not 0<e['a']<=e['b']<=e['tick'])):
-            raise ValueError('invalid physical report timing')
+            raise ValueError('invalid report timing')
+    reports={e['id']:e for e in events if e['kind']==1}
+    generated=set()
+    for e in events:
+        if e['kind']!=30:continue
+        origin=reports.get(e['id'])
+        if not origin or origin['seq']>=e['seq'] or e['id'] in generated or e['flags']>=13 or e['a']>33 or e['b']>1079 or e['c']>2399:
+            raise ValueError('invalid synthetic report marker')
+        generated.add(e['id'])
+    input_origin=('synthetic' if len(generated)==len(reports) else 'mixed') if generated else 'physical-driver-or-unmarked'
     # Match only explicit identities. Temporal proximity never proves a touch
     # caused a particular CA frame. Unpaired endpoints are retained as unknown.
     pairs={3:2,11:10,13:12,22:21,25:24};pending={};spans=[];unpaired=[]
@@ -89,7 +98,8 @@ def parse(text):
                             'enqueued':e['kind']==5 and bool(e['flags']),
                             'elapsed_ns':((e['tick']-begin['tick'])*h['numer'])//h['denom']})
     return {'scope':'CPU-clock kernel prefix; queue result is not SpringBoard receipt; no CA encode, GPU-only duration, panel latch or causal touch/frame proof',
-            'header':h,'clock_valid':clock_valid,'contention_seen':bool(h['lost']),
+            'header':h,'input_origin':input_origin,'physical_touch_qualified':False,
+            'clock_valid':clock_valid,'contention_seen':bool(h['lost']),
             'truncated_by_capacity':h['reason']==2,'events':events,'spans':spans,
             'unpaired_endpoints':unpaired,'queue_links':queue_links}
 

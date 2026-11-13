@@ -222,3 +222,5 @@
 0227-gauguin-guarded-issued-board-api.patch
 0228-gauguin-retained-gpu-owner.patch
 0229-gauguin-one-inflight-async-escrow.patch
+0230-gauguin-display-progress-during-gpu-wait.patch
+0231-gauguin-unattended-scripted-swipes.patch

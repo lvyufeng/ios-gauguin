@@ -116,6 +116,7 @@ def analyze(kernel_text, metal_text):
             'Nearest future event is temporal proximity, not a causal touch-to-frame link; '
             'Metal gpu duration is author-reported, and no panel latch or physical FPS is measured.',
             'capture': {'reason': header['reason'], 'duration_us': (end_ns-start_ns)//1000,
+                        'input_origin': capture['input_origin'], 'physical_touch_qualified': False,
                         'kernel_events': len(events), 'lost': header['lost'],
                         'truncated_by_capacity': capture['truncated_by_capacity'],
                         'unpaired_spans': len(capture['unpaired_endpoints'])},

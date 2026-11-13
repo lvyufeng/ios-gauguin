@@ -1,0 +1,224 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -29,6 +29,10 @@
+ extern "C" boolean_t pmap_valid_page(ppnum_t);
+
+ static IOLock *gLock;
++/* Request -> GPU; framebuffer -> GPU. Display never takes gRequests.
++ * Keep handle/queue mutation serialized while a request yields gLock for
++ * completion. The owner reference keeps its buffer array alive throughout. */
++static IOLock *gRequests;
+ static IOUserClient *gOwner;
+ /* Called with gLock. A faulted owner stays retained until reset. */
+ static bool completePendingOwnerLocked(bool wait,bool reap);
+@@ -57,8 +61,8 @@
+     0x09,0x40,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x4a,0x4b,0x4c,0x7e,
+     0x100,0x101,0x102,0x7c /* memory mapping,clientClose,heartbeat,bootstrap arm */
+ };
+-struct gapi_sample {uint64_t calls,failures,queue_ticks,held_ticks,max_held_ticks;};
+-struct gapi_pending {uint64_t token,queued,locked;uint32_t index;};
++struct gapi_sample {uint64_t calls,failures,queue_ticks,held_ticks,max_held_ticks,wait_ticks;};
++struct gapi_pending {uint64_t token,queued,locked;uint32_t index;uint64_t unlocked_ticks,paused_at;};
+ static struct gapi_sample gapi_samples[GAPI_COUNT];
+ static struct gapi_pending gapi_pending;
+ static uint64_t gapi_sequence,gapi_pending_queue,gapi_pending_held;
+@@ -75,7 +79,7 @@
+     if(index==GAPI_COUNT||gapi_pending.token||locked<queued||gapi_sequence==UINT64_MAX){
+         gapi_valid=false;return 0;
+     }
+-    gapi_pending={++gapi_sequence,queued,locked,index};
++    gapi_pending={++gapi_sequence,queued,locked,index,0,0};
+     sweet_ui_trace_record(GUT_API_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),selector,queued,locked,0);
+     return gapi_pending.token;
+ }
+@@ -84,12 +88,15 @@
+     if(!token||gapi_frozen)return;
+     if(token!=gapi_pending.token){gapi_valid=false;return;}
+     uint64_t now=mach_absolute_time();
+-    if(!gapi_valid||now<gapi_pending.locked){gapi_valid=false;gapi_pending={};return;}
++    if(!gapi_valid||gapi_pending.paused_at||now<gapi_pending.locked||
++       now-gapi_pending.locked<gapi_pending.unlocked_ticks){gapi_valid=false;gapi_pending={};return;}
+     sweet_ui_trace_record(GUT_API_END,token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,now,gapi_selectors[gapi_pending.index],0);
+-    uint64_t queued=gapi_pending.locked-gapi_pending.queued,held=now-gapi_pending.locked;
++    uint64_t queued=gapi_pending.locked-gapi_pending.queued;
++    uint64_t held=now-gapi_pending.locked-gapi_pending.unlocked_ticks;
+     struct gapi_sample sample=gapi_samples[gapi_pending.index];
+     if(gapi_add(&sample.calls,1)&&gapi_add(&sample.failures,result!=kIOReturnSuccess)&&
+-       gapi_add(&sample.queue_ticks,queued)&&gapi_add(&sample.held_ticks,held)){
++       gapi_add(&sample.queue_ticks,queued)&&gapi_add(&sample.held_ticks,held)&&
++       gapi_add(&sample.wait_ticks,gapi_pending.unlocked_ticks)){
+         if(held>sample.max_held_ticks)sample.max_held_ticks=held;
+         gapi_samples[gapi_pending.index]=sample;
+     }
+@@ -100,10 +107,10 @@
+     if(gapi_frozen)return;
+     gapi_frozen=true;
+     if(gapi_pending.token){
+-        uint64_t now=mach_absolute_time();
+-        if(now<gapi_pending.locked){gapi_valid=false;return;}
++        uint64_t now=gapi_pending.paused_at?gapi_pending.paused_at:mach_absolute_time();
++        if(now<gapi_pending.locked||now-gapi_pending.locked<gapi_pending.unlocked_ticks){gapi_valid=false;return;}
+         gapi_pending_queue=gapi_pending.locked-gapi_pending.queued;
+-        gapi_pending_held=now-gapi_pending.locked;
++        gapi_pending_held=now-gapi_pending.locked-gapi_pending.unlocked_ticks;
+     }
+ }
+ extern "C" void GauguinGPUProfileDump(void (*record)(const char *))
+@@ -116,13 +123,32 @@
+         gapi_valid?1u:0u,gapi_pending.token?1u:0u,gapi_pending.token?gapi_selectors[gapi_pending.index]:0u,
+         (unsigned long long)queued,(unsigned long long)held);record(line);
+     for(unsigned i=0;i<GAPI_COUNT;i++)if(gapi_samples[i].calls){
+-        uint64_t maximum;const struct gapi_sample *s=&gapi_samples[i];
++        uint64_t maximum,waited;const struct gapi_sample *s=&gapi_samples[i];
+         absolutetime_to_nanoseconds(s->queue_ticks,&queued);
+         absolutetime_to_nanoseconds(s->held_ticks,&held);
+         absolutetime_to_nanoseconds(s->max_held_ticks,&maximum);
+-        snprintf(line,sizeof(line),"SWEET GPU API PERF: selector=%x calls=%llu failures=%llu queue_ns=%llu held_ns=%llu max_held_ns=%llu; lock-held whole request",
++        absolutetime_to_nanoseconds(s->wait_ticks,&waited);
++        snprintf(line,sizeof(line),"SWEET GPU API PERF: selector=%x calls=%llu failures=%llu queue_ns=%llu held_ns=%llu max_held_ns=%llu wait_ns=%llu; held excludes unlocked wait",
+             gapi_selectors[i],(unsigned long long)s->calls,(unsigned long long)s->failures,
+-            (unsigned long long)queued,(unsigned long long)held,(unsigned long long)maximum);record(line);
++            (unsigned long long)queued,(unsigned long long)held,(unsigned long long)maximum,(unsigned long long)waited);record(line);
++    }
++}
++
++/* Only a serialized request can wait. Display may poll/complete the escrow
++ * during this interval, but cannot free a public handle or issue another job.
++ * Follow HakiOS's 200 us unlocked polling interval; hardware reads and all
++ * runtime transitions remain under gLock. This adds no unchecked GPU access. */
++static void gpuWaitUnlocked(void)
++{
++    if(gapi_pending.token&&!gapi_frozen)gapi_pending.paused_at=mach_absolute_time();
++    IOLockUnlock(gLock);
++    delay_for_interval(200,NSEC_PER_USEC);
++    IOLockLock(gLock);
++    if(gapi_pending.token&&!gapi_frozen){
++        uint64_t now=mach_absolute_time();
++        if(now<gapi_pending.paused_at)gapi_valid=false;
++        else gapi_add(&gapi_pending.unlocked_ticks,now-gapi_pending.paused_at);
++        gapi_pending.paused_at=0;
+     }
+ }
+
+@@ -252,8 +278,9 @@
+ {
+     if(gPublished||!sweet_gpu_runtime_ready())return false;
+     gMetalBootstrapMode=sweet_metal_desktop_enabled();
+-    IOLock *lock=IOLockAlloc();
+-    if(!lock)return false;
++    IOLock *lock=IOLockAlloc(),*requests=IOLockAlloc();
++    if(!lock||!requests){if(lock)IOLockFree(lock);if(requests)IOLockFree(requests);return false;}
++    gRequests=requests;
+     /* Display readers can race publication; install once and never replace. */
+     __atomic_store_n(&gLock,lock,__ATOMIC_RELEASE);
+     IOService *p=IOService::getPlatform();
+@@ -282,11 +309,11 @@
+     if(!gLock)return false;
+     /* Same lock as submit/map/close: a stalled owner cannot be hidden by an
+      * independent watchdog petter. Failure keeps DMA-visible pages retained. */
+-    uint64_t queued=mach_absolute_time();IOLockLock(gLock);
++    uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
+     uint64_t profile=gapi_begin(0x102,queued,mach_absolute_time());
+     bool ok=completePendingOwnerLocked(true,true)&&sweet_gpu_runtime_heartbeat();
+     gapi_end(profile,ok?kIOReturnSuccess:kIOReturnNotReady);
+-    IOLockUnlock(gLock);return ok;
++    IOLockUnlock(gLock);IOLockUnlock(gRequests);return ok;
+ }
+
+ /* Token 1: CPU-only path before GPU publication; 2: the GPU lock is held.
+@@ -472,23 +499,27 @@
+      * those entries retain their descriptors, surfaces and SMMU mappings. */
+     if(!fPendingCount)return kIOReturnSuccess;
+     if(!fPendingNativeFence||!fPendingQueue)return kIOReturnNotReady;
++    const uint32_t fence=fPendingNativeFence;
+     enum ggr_error rc=GGR_PENDING;
+-    if(wait&&deadline){
+-        /* msm timeouts are absolute on the continuous clock. A caller's
+-         * earlier deadline never frees or cancels a submitted GPU buffer. */
+-        __uint128_t target=(__uint128_t)deadline->seconds*NSEC_PER_SEC+
+-                           (uint64_t)deadline->nanoseconds;
+-        for(uint32_t i=0;i<200000;i++){
+-            rc=sweet_gpu_runtime_poll(fPendingNativeFence);
+-            if(rc!=GGR_PENDING)break;
+-            uint64_t now;
+-            absolutetime_to_nanoseconds(mach_continuous_time(),&now);
++    for(uint32_t i=0;i<10000;i++){
++        /* A display poll can finish the same job while gLock is yielded.
++         * gRequests excludes clientClose, new submissions and handle reuse. */
++        if(!fPendingCount)return reap&&!reapClosed()?kIOReturnNotReady:kIOReturnSuccess;
++        if(fPendingNativeFence!=fence){sweet_gpu_runtime_stop();return kIOReturnNotReady;}
++        rc=sweet_gpu_runtime_poll(fence);
++        if(rc!=GGR_PENDING||!wait)break;
++        if(deadline){
++            /* Caller timeout does not cancel DMA or release its memory. */
++            __uint128_t target=(__uint128_t)deadline->seconds*NSEC_PER_SEC+
++                               (uint64_t)deadline->nanoseconds;
++            uint64_t now;absolutetime_to_nanoseconds(mach_continuous_time(),&now);
+             if(target<=now)return kIOReturnTimeout;
+-            IODelay(10);
+-        }
+-        if(rc==GGR_PENDING){sweet_gpu_runtime_stop();return kIOReturnNotReady;}
+-    } else rc=wait?sweet_gpu_runtime_wait(fPendingNativeFence):
+-                   sweet_gpu_runtime_poll(fPendingNativeFence);
++        }
++        gpuWaitUnlocked();
++    }
++    /* The runtime enforces its original two-second pending deadline; the
++     * iteration cap additionally bounds a broken/nonadvancing host clock. */
++    if(wait&&rc==GGR_PENDING){sweet_gpu_runtime_stop();return kIOReturnNotReady;}
+     if(rc==GGR_PENDING)return kIOReturnNotReady;
+     if(rc!=GGR_OK||
+        fPendingQueue->issued!=fPendingQueueFence||
+@@ -532,7 +563,7 @@
+ {
+     bool releaseOwner=false;
+     if(gLock) {
+-        uint64_t queued=mach_absolute_time();IOLockLock(gLock);
++        uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
+         uint64_t profile=gapi_begin(0x101,queued,mach_absolute_time());
+         if(!fClosed) {
+             fClosed=true;bool clean=true;
+@@ -553,7 +584,7 @@
+             }
+             if(!clean)IOLog("SWEET GPU USER: client closed after fault; DMA-visible memory/tables retained until reset\n");
+         }
+-        gapi_end(profile,kIOReturnSuccess);IOLockUnlock(gLock);
++        gapi_end(profile,kIOReturnSuccess);IOLockUnlock(gLock);IOLockUnlock(gRequests);
+     }
+     if(!isInactive())terminate();
+     /* After terminate, drop only the explicit global-owner reference.
+@@ -573,7 +604,7 @@
+ {
+     if(fCompositor&&current_task()!=fTask)return kIOReturnNotPrivileged;
+     if(!options||!memory||!gLock)return kIOReturnBadArgument;
+-    uint64_t queued=mach_absolute_time();IOLockLock(gLock);
++    uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
+     uint64_t profile=gapi_begin(0x100,queued,mach_absolute_time());
+     IOReturn r=kIOReturnBadArgument;
+     gpu_buffer *b=!fClosed&&gOwner==this?find(type):nullptr;
+@@ -585,7 +616,7 @@
+     if(b&&!(b->surface&&b->surface->readOnly)&&sweet_gpu_runtime_ready()) {
+         b->memory->retain();*memory=b->memory;*options=0;r=kIOReturnSuccess;
+     }
+-    gapi_end(profile,r);IOLockUnlock(gLock);return r;
++    gapi_end(profile,r);IOLockUnlock(gLock);IOLockUnlock(gRequests);return r;
+ }
+
+ IOReturn GauguinGPUUserClient::surface(struct ggr_surface *r)
+@@ -734,7 +765,7 @@
+        a->scalarInputCount||a->scalarOutputCount||a->structureInputDescriptor||a->structureOutputDescriptor||!gLock)
+         return kIOReturnBadArgument;
+     bzero(&r,sizeof(r));memcpy(&r,a->structureInput,size);
+-    uint64_t queued=mach_absolute_time();IOLockLock(gLock);
++    uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
+     uint64_t profile=gapi_begin(selector,queued,mach_absolute_time());
+     IOReturn result=kIOReturnBadArgument;
+     fAllocationStage=0; /* runtime/client gate, before request validation */
+@@ -868,6 +899,6 @@
+             r.make.flags,buffers,(uint32_t)fBytes,fNextHandle,freeUnits,largest,(unsigned)fCompositor);
+     }
+     if(result==kIOReturnSuccess){memcpy(a->structureOutput,&r,size);a->structureOutputSize=(uint32_t)size;}
+-    gapi_end(profile,result);IOLockUnlock(gLock);return result;
++    gapi_end(profile,result);IOLockUnlock(gLock);IOLockUnlock(gRequests);return result;
+ }
+ #endif

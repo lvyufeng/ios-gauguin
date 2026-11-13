@@ -106,6 +106,8 @@ def main():
     source = SOURCE.read_text()
     begin = source.index('static thread_call_t sweet_swipe_call;')
     end = source.index('\n#endif', begin)
+    if '/* swp=2:' in source[begin:end]:
+        end = source.index('/* swp=2:', begin)
     fragment = source[begin:end]
     assert 'sweet_hid_touch_frame' not in fragment
     assert 'IOSleep' not in fragment and 'ml_io_map' not in fragment

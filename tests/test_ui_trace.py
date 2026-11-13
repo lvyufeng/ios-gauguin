@@ -59,6 +59,18 @@ def main():
         links=mod.parse(queue_log)['queue_links']
         assert links==[{'report_id':1,'event_stamp':103,'queue_seq':3,
                         'status':'hid-enqueue','enqueued':True,'elapsed_ns':41}]
+        script_log=queue_log.replace('count=4','count=5').replace(
+            'SWEET UI254 F:',
+            'SWEET UI254 E: seq=5 tick=107 kind=30 id=1 pid=0 flags=1 a=0 b=900 c=1200\nSWEET UI254 F:')
+        scripted=mod.parse(script_log)
+        assert scripted['input_origin']=='synthetic' and not scripted['physical_touch_qualified']
+        assert mod.parse(queue_log)['input_origin']=='physical-driver-or-unmarked'
+        for broken in (script_log.replace('kind=30 id=1','kind=30 id=99'),
+                       script_log.replace('a=0 b=900','a=34 b=900'),
+                       script_log.replace('b=900 c=1200','b=1080 c=1200')):
+            try:mod.parse(broken)
+            except ValueError:pass
+            else:raise AssertionError('invalid generated origin accepted')
         bad=[log.replace('version=1','version=2'),log.replace('numer=125','numer=0'),
              log.replace('seq=2 ','seq=1 '),log.replace('kind=2 ','kind=999 '),
              log.replace('count=15','count=14',1),log.replace('tick=1000100','tick=999999'),

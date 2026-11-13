@@ -26,7 +26,8 @@ with tempfile.TemporaryDirectory(prefix='gpu-iokit-') as tmp:
     env=dict(os.environ,ASAN_OPTIONS='halt_on_error=1:detect_leaks=0',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
     common=['-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(D)]
     subprocess.run(['clang','-std=c11',*common,'-c',str(D/'gauguin_gpu_runtime.c'),'-o',str(tmp/'core.o')],env=env,check=True)
-    subprocess.run(['clang++','-std=c++17',*common,*(['-DGAUGUIN_GPU_PILOT_HOST=1'] if pilot else []),str(unit),str(tmp/'core.o'),'-o',str(tmp/'test')],env=env,check=True)
+    gate=['-DGAUGUIN_GPU_REQUEST_LOCKS=2'] if 'static IOLock *gRequests;' in S.read_text() else ['-DGAUGUIN_GPU_REQUEST_LOCKS=1']
+    subprocess.run(['clang++','-std=c++17',*common,*gate,*(['-DGAUGUIN_GPU_PILOT_HOST=1'] if pilot else []),str(unit),str(tmp/'core.o'),'-o',str(tmp/'test')],env=env,check=True)
     subprocess.run([str(tmp/'test'),'submit'],env=env,check=True)
     subprocess.run([str(tmp/'test'),'sync'],env=env,check=True)
     subprocess.run([str(tmp/'test'),'queues'],env=env,check=True)

@@ -297,3 +297,25 @@ Current source308, W301/W302 pins, original phone backups and rollback
 snapshots remain. The full 1,073,741,824-byte capture reserve then passed
 at 498,900,963,328 bytes accounted. The 0301 executor will repeat this
 check and all device-preimage checks after its separate exact-scope consent.
+
+## 2026-11-13 observed synchronous GPU cost in 0301
+
+The separately approved 0301 diagnostic boot returned safely and restored
+the original desktop, but no physical contact was recorded: Novatek accepted
+63,904 packets with mask zero and the touch-linked trace had zero gestures.
+The user's follow-up says they are currently away from the phone, which does
+not prove whether they touched it during the trial. It cannot qualify a
+touch-to-frame bottleneck or a physical refresh rate; see the
+[0301 result](https://github.com/lvyufeng/ios-gauguin/blob/codex/gauguin-causal-trace-20261112/docs/gauguin-causal-ui-trial-results-20261113.md).
+
+The same boot did measure the still-synchronous GPU bridge: 14 submit calls
+held its global lock for 153,018,229 ns in total, 10.93 ms/call on average
+and 24.61 ms maximum. Native board submit used 72,724,947 ns, with
+71,043,697 ns (97.7%) in full guards. The 597 heartbeat calls held the lock
+for 3.02 ms/call on average and 12.07 ms maximum. These are aggregate CPU
+wall measurements across mostly startup/idle activity; there is no frame or
+touch pairing. They show that patch0229's issued-fence path still has guard
+and heartbeat lock costs to measure, and do not establish that enabling it
+would make the desktop smooth. Private aggregate receipt SHA-256 is
+`30c563d44bdf80b65c2a86b837c26bd6e0c2bf1cb5212b85eb700f48a111e379`.
+No new phone trial is scheduled while the user is away.

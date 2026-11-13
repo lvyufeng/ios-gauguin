@@ -77,7 +77,10 @@ compile checks, not a hardware performance result.
 
 Commit `1229548` is pushed. Actions run
 [43446429656](https://github.com/lvyufeng/ios-gauguin/actions/runs/43446429656)
-was dispatched for its exact full SHA and is still queued at this milestone.
+was dispatched for its exact full SHA. It ended with run conclusion `failure`
+and job conclusion `cancelled` before any step ran: GitHub reported that no
+hosted runner acquired the job after repeated attempts, with macOS arm64
+capacity notices. This provides no compiler or test result.
 To continue, the existing native 0301 build was used for a verified local
 incremental link. Re-linking its original object list reproduced every byte
 of its unstripped kernel except the linker's 16-byte `LC_UUID`. Comparing

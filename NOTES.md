@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — continue unattended: GPU wait/display patch and scripted load
+
+User explicitly asked to continue despite being away. W303 pushed `1229548`
+on `codex/gauguin-issued-fence-20261112`: patch0230 releases the GPU lock
+between guarded async completion polls while a separate request mutex
+protects handles/queues/close; display can finish the retained escrow. CPU
+profiling excludes these unlocked waits. Patch0231 adds `sweetnvt=0 swp=2`:
+one unlock stroke then six left/right pairs (13 strokes, 442 reports), all
+explicitly marked synthetic in UI254. This removes the user's presence as a
+requirement for an animation workload, but cannot measure physical touch or
+panel refresh. No new phone writes or boot have occurred.
+
+Retained source308 was APFS-cloned to W303 `.deps-cache/p0-20261105/
+source309-display-yield` after a 350,000,000-byte batch passed at
+499,080,052,736 bytes accounted. Exact replay found three changed source
+files. Two current ARM64 TUs passed native compile; actual wait/escrow,
+submit and full IOKit seam tests passed ASAN/UBSAN, including display
+completion and GPU stop while unlocked. Script callbacks passed 6,671
+checks and the original stroke passed 2,910; trace/marker/timeline and
+patch-series checks passed. Private receipts are under W303
+`research/tmp/issued-309/`; source-state SHA
+`1b351ab0f1540688cc3fcf3c5b2e80d73fa737f1dd323feee7750c38a5202bff`.
+GitHub Actions full kernel build **43446429656** was dispatched for exact
+commit `122954814f1ff92b3742d2eb0cb500f3d1c61adc`; last observed queued.
+Next: finish that build, package/review the exact unattended candidate and
+prepare a fresh read-only preflight and bounded rollback plan. Then obtain
+the per-trial destructive-write confirmation required by AGENTS.md; 0301's
+one-shot approval is consumed. Preserve source308/309, all original backups,
+rollback snapshots, active pins and user's unchanged `tools/mkadt.py`.
+See W303 `docs/gauguin-unattended-gpu-309-20261113.md`.
+
 ### 2026-11-13 CST — 0301 offline follow-up; user currently away from phone
 
 The user answered the 0301 contact question with “我现在没在手机旁”. This says

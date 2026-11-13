@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-13 CST — 0309 unattended trial ready; exact-scope reply pending
+
+User asked to keep working while away. W303 code commit `1229548` and trial
+doc commit `33ceb25` are on `codex/gauguin-issued-fence-20261112`. The new
+workload needs no person beside the phone: `sweetnvt=0 swp=2` generates one
+unlock stroke then six left/right pairs (13 strokes, 442 reports), explicitly
+marked synthetic. `sweetgpuasync=1` enables the one-in-flight issued-fence
+path; patch0230 yields the GPU lock between polls while retaining the request
+mutex and DMA escrow. Physical touch and panel FPS remain unqualified.
+
+CI run `43446429656` remained queued. A native local incremental link was
+completed instead: the original 0301 object list reproduced the original
+unstripped kernel except its 16-byte LC_UUID; comparison found exactly four
+changed implementation files and two headers. All four TUs were compiled,
+four objects replaced, and a fresh version identity linked with the unchanged
+flags/libraries/other objects. Protected inputs retained hashes and mtimes.
+Kernel 17,365,208 B SHA
+`60e08633e856e8c2c72083c673f0c630b3bc7fb170772a98d6ccfe8971169f9e`,
+identity `xnu-local309-5a3b61208fee4cba8f1f0e9e7c3da645`; the version template
+date remains the old date, so use this unique identity. This is not a clean
+CI build result. W303 `research/tmp/ui309-image.img` is 20,054,016 B, SHA
+`f0ce9885ccb059c099f49f9e1c433524d91f6d8e84e0b99603f5a67ef253f9e3`.
+Separate image review checked raw Mach-O bytes (no chained fixups), shim,
+DTB, firmware/padding, managed RAM, entry and low-PAS/ADT. Firmware pointers
+shift 32 KiB with kernel growth. Review receipt SHA
+`32c4c3dae2196ebb50ddf154abfea96a417b0a65f8ed6f73c5db1b00c2e3ab89`.
+
+Fresh read-only capture of 29 files passed with `adb get-state=recovery`.
+Root header SHA is
+`490a694e52106fbc3b1333800d7d0735b879909255c0e249c28037b13294731d`;
+live file/CNID/fork/catalog/misc preimages still match the fixed delta. The
+24 writer/rollback model checks passed. W303 private trial directory is
+`research/tmp/gpu-unattended309-20261113/`; `execute_trial.py` was tested to
+refuse absent approval before device IO. The 512 MiB execution reserve passed
+at 499,327,868,928 bytes accounted; bounded captures need at most 394,007,680 B.
+All 87 inputs including original 16 GiB backup rehashed. Plan SHA
+`f6e051b80e6b3ca0293d4dd2f31c444af886ec3fb3e9171a7700bd57f7c8c624`,
+install SHA `b75e258b2a0faa23667fef6639b1ae59bacecda5ff7f3adfe68be1c2ba0e4333`,
+ready SHA `3a2fab8e9061ba2ddad8ee58e707b9caed5674638ea572c78c25090de43469b0`.
+
+A fresh asynchronous 0309 exact-scope confirmation was requested after all
+preparation, explaining AGENTS.md's per-destructive-trial requirement. It
+is pending: **no approval.json, execution, partition write or new boot**.
+On its actual matching reply, bind that reply and exact plan/image/install
+hashes, then run the one-shot executor. Scope: userdata 434,176 B install +
+434,176 B restore; misc 13 B marker; one temporary boot/13 automated strokes;
+userdata failure/rollback cap 2,170,880 B; at most one recovery fallback.
+Never reuse 0301 approval. Preserve W309 pins, source308/309, original phone
+backups and rollback snapshots, W302 pins, and user's unchanged mkadt edit.
+Full smooth 60 Hz/GPU/high-refresh goal remains open.
+
 ### 2026-11-13 CST — continue unattended: GPU wait/display patch and scripted load
 
 User explicitly asked to continue despite being away. W303 pushed `1229548`

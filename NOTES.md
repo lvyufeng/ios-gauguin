@@ -5,14 +5,18 @@
 ### 2026-11-13 CST — 0309 unattended trial ready; exact-scope reply pending
 
 User asked to keep working while away. W303 code commit `1229548` and trial
-doc commit `33ceb25` are on `codex/gauguin-issued-fence-20261112`. The new
+doc commits `33ceb25` / `a88cf6a` are on `codex/gauguin-issued-fence-20261112`. The new
 workload needs no person beside the phone: `sweetnvt=0 swp=2` generates one
 unlock stroke then six left/right pairs (13 strokes, 442 reports), explicitly
 marked synthetic. `sweetgpuasync=1` enables the one-in-flight issued-fence
 path; patch0230 yields the GPU lock between polls while retaining the request
 mutex and DMA escrow. Physical touch and panel FPS remain unqualified.
 
-CI run `43446429656` remained queued. A native local incremental link was
+CI run `43446429656` ended `failure` / job `cancelled` without running any
+steps: no hosted runner acquired it after repeated attempts; annotations
+report macOS arm64 capacity constraints. This is not a compile failure.
+Receipts are under W303 `research/tmp/issued-309/ci43446429656/`.
+A native local incremental link was
 completed instead: the original 0301 object list reproduced the original
 unstripped kernel except its 16-byte LC_UUID; comparison found exactly four
 changed implementation files and two headers. All four TUs were compiled,

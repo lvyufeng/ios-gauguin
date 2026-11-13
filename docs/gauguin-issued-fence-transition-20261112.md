@@ -5,8 +5,9 @@ GPU submissions, but its GPU command-buffer sample had a 15.03 ms median,
 59.25 ms maximum and 15 of 39 over the 16.667 ms 60 Hz budget. Those are
 frontend-reported command-buffer durations, not direct hardware GPU time, a
 measured physical frame rate or proof that synchronous submission is the only
-lag source. The 0301 one-shot causal trace still lacks a new approval and has
-not booted; this patch does not alter its pinned image or plan.
+lag source. The separately approved 0301 one-shot causal trace booted and
+restored the original desktop, but recorded no touch contacts; see the
+2026-11-13 result below. This patch did not alter that trial's image or plan.
 
 The same 0300 kernel log gives a more specific CPU cost. Across 51 submits,
 the native submit path used 464,775,937 ns (9.11 ms per submit), including

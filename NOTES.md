@@ -2,6 +2,32 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — approved 0309 unattended boot in progress; restoration pending
+
+User explicitly approved `允许本轮 0309 写入、自动测试和回退` in question item
+`["request_user_input_async","call_7a9b8c48e0c84bb893ad6d7ed7f1b66c",0]`.
+The actual reply is bound in W303 private trial `approval.json`, SHA
+`91da1249bf449238732cee39da83f88e9a8aa72bc340a688d91cae1a2233d6ee`.
+The pinned executor SHA
+`f61728cbc8101b502659bfe748d05591b57ca23631cf1ad4c175527b9a0cb794`
+is running from W303 `research/tmp/gpu-unattended309-20261113/`.
+**Do not rerun it or launch another boot.** Execution was claimed once,
+all 87 pins passed, and the live 512 MiB reserve was admitted at
+499,330,142,208 bytes accounted. The current 29-file capture, fixed catalog
+identity and full data/misc preimages passed before writing. Install/readback
+of 434,176 userdata bytes and the 13-byte misc marker both succeeded.
+Observer PID/PGID `74903` launched the exact image once; `fastboot boot`
+reported sending and booting OKAY (0.593 s total).
+
+Current phase: await the bounded observer, then capture logs and restore the
+original frontend through the already authorized executor. No GPU, script,
+60 Hz or restore result is available yet. Progress/result files and private
+observer log are in `execution/`; outer log is `execute-20261114.log`.
+A separate allowlisted read-only restoration verifier is prepared at
+`post_restore_verify.py` with `readonly_recovery.py`; run it only after the
+executor has returned to TWRP and completed restoration. Preserve this active
+trial's pins and snapshots. No repeated trial is authorized by this reply.
+
 ### 2026-11-13 CST — 0309 unattended trial ready; exact-scope reply pending
 
 User asked to keep working while away. W303 code commit `1229548` and trial

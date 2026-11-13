@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — 0309 restored; script ran with display off
+
+The approved 0309 one-shot is finished and its authorization is consumed.
+TWRP returned automatically after 745 s, exact banner matched, no retry or
+recovery fallback. Both 434,176-byte install and restore readbacks passed.
+Final 29-file compare passed except expected log growth. Independent read-only
+verification matched original desktop data, file/CNID/fork/logical length,
+postboot root header and original misc 4 KiB; receipt SHA
+`d4fbecf0c9eea627ea24d27a3a3540d5ca474ac0f9af3a39c0a16e53938d5534`.
+The current root header is
+`7cfe30f1b55eb7ed941250226751b60b3b165625f6bab90697e90fa4f5f91055`.
+Executor result SHA
+`91e290ca814afe7ddf0a3da29d2f0cf77c30c5a7653348df0ca66f422ef7812c`
+is `trial-incomplete-or-failed` solely because the scripted capture had no
+repeated frame production/presentation; `restored=true`, one boot, observer0.
+
+All 13 strokes / 442 reports completed. UI254 contains416 records in4s,
+lost0, with68 generated reports and68 successful HID queue enqueues, but
+zero Metal buffers, SwapEnd or presentation events in that window. Async
+compositor opt-in was logged;14/14 total native jobs completed (8 root +6
+desktop startup),598 renewals. Submit API held mean6.659ms/max8.271ms;
+wait API accumulated4.437ms unlocked waiting. These are startup/idle CPU
+measurements, not smooth animation or a physical FPS result. Latest FB copy
+prefix:4 attempts,2 copied,1 GPU-read refusal; source currently retires a held
+frame even when its GPU guard refuses it, which remains a separate issue.
+
+The decisive workload precondition is in the log: display power requests are
+on/off/on/off, with the final off BEFORE the first synthetic stroke and no
+later on. First stroke starts225.225914s, about69.8s after the last C4 buffer
+completed. Power-order receipt SHA
+`c93eb4175deb9028b5b047e2e61f0d87b84514b5311c9f299e9ddc26e7281459`;
+analysis SHA `0d2db0b4c6e50eee77fd448538c5bfd6d4291eaddf10177ddfb247ee7e26959d`.
+W303 result doc pushed as commit `64c9a1c`:
+`docs/gauguin-unattended-gpu-309-results-20261114.md`. Raw logs stay private.
+Next work is offline: give the unattended script an observed display-state
+gate and one bounded HID wake press/release, wait for display-on before the
+stroke sequence, and abort on unknown/off state. Rechecked HakiOS's real
+benchmark: it unlocks before timed gestures; its SpringBoard hook also guards
+against delayed-release false long presses. Do not assume Gauguin is awake
+because a gesture was enqueued. No new phone boot/write is approved. Keep
+original backups/current rollback and active pins; preserve user's mkadt edit.
+
 ### 2026-11-14 CST — approved 0309 unattended boot in progress; restoration pending
 
 User explicitly approved `允许本轮 0309 写入、自动测试和回退` in question item

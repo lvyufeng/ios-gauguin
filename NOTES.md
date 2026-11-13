@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — 0310 display-aware unattended trial ready; new reply pending
+
+0309 is complete and safely restored; its one-shot approval is consumed.
+Its generated touches reached HID while display was off, so no animation
+workload was measured. Follow-up code `ea09a96` and reviewed plan doc
+`d017d65` are pushed on W303 `codex/gauguin-issued-fence-20261112`.
+Patch0232 adds an atomic cache of requested display power and timestamped
+power logs. Only `sweetnvt=0 swp=3` uses it: refuse unknown, send at most one
+inline power press/release pair if off, wait up to5s/100polls for on, settle1s,
+require on again, then run13 strokes. Later off/unknown aborts the workload.
+This is not proof of physical panel state, unlocked desktop or60Hz.
+
+Actual callback tests passed6,886 ASAN/UBSAN checks; original swipe2,910.
+Both changed ARM64 TUs compiled; exact patch replay changed only sweet_touch.c
+and SweetFramebuffer.cpp. The local verified incremental link replaced five
+implementation objects relative to0301 (three retained309 GPU objects plus
+the two new310 objects) and a new version object. Original-object relink
+again matched except LC_UUID; input hashes/mtimes stayed unchanged. Kernel
+17,365,456 B SHA
+`47f86a5371c8b48b425f910a81c7c432da4e515848d4995b294f3a3b53ce6cf7`,
+identity `xnu-local310-e8a65610fda2474a98e0eada9d12a2f8`. The old template
+date remains; use the unique identity. This is not a clean CI build result.
+0310 image20,054,016 B SHA
+`0a7726d90f5588a8f0c9d405066761d1c335030b9dc4df068660083adc339067`.
+Independent Mach-O/wrapper/firmware/ADT review passed; command606 bytes,
+only `swp=2`→`swp=3` versus0309. Review SHA
+`bd60cc861c6c39a0037e1ecfd6dfcf32f0b5fe1dfc59b964c6e3bd0e8342da08`.
+
+Private trial is W303 `research/tmp/gpu-display-wake310-20261114/`.
+Its baseline references the verified0309 restored29-file capture; fresh
+read-only HFSX/data/catalog/misc checks passed with current root header
+`7cfe30f1b55eb7ed941250226751b60b3b165625f6bab90697e90fa4f5f91055`.
+Writer model24 checks passed; display-log validator2 positive/12 negative
+cases passed. Actual executor rejects absent approval before device IO.
+Its SHA is `273057f0fe048b62248e808d7a561d7119bcff1587789fb3b6ab3a8b864d23d0`.
+The512MiB capture reserve passed at499,368,902,656 B accounted; the complete
+780MB build/capture batch was admitted before cloning. All93 ready inputs,
+including the original16GiB backup, rehashed. Plan SHA
+`b4813fc023f981b56408cb908982209c9d37c12942da69b3a48afb90ca47e41e`,
+install SHA `1d14000e1515dc6cf778cc8ae94269ff3c2de4b0f157380a0bed7c9fef5acbd3`,
+ready SHA `431efde8befffb4577c4378d68e2a154e7ed31e5bfb2b6affb022e6b0dca813f`.
+
+A fresh0310 exact-scope async confirmation has been requested. **Pending:
+no0310 approval.json, execution, partition write or boot.** Bind only the
+actual matching reply, including `allow_wake_button=true`, before invoking
+the one-shot executor. Same userdata434,176 B install +434,176 B restore;
+misc13 B; one temporary boot, at most one power pair,13 automatic strokes;
+failure/rollback userdata ceiling2,170,880 B; at most one recovery fallback.
+See W303 `docs/gauguin-display-aware-wake-310-20261114.md`. Preserve active
+0310/W302 pins, original backups, current rollback, source309/310 and user's
+mkadt edit. Source308 was retired with exact reconstruction proof below.
+Smooth60Hz/fullGPU/high-refresh remains unachieved.
+
 ### 2026-11-14 CST — space reclaimed for the display-aware unattended follow-up
 
 0309 is finished/restored as recorded below; no further phone boot is

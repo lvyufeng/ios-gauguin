@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — space reclaimed for the display-aware unattended follow-up
+
+0309 is finished/restored as recorded below; no further phone boot is
+authorized. Before preparing the next full candidate/capture batch, retired
+330,161,915 bytes of reconstructable obsolete generated files. These are the
+superseded source308 clone (exactly reconstructable by reversing0231/0230
+from retained source309), old CI binary/nm/log output with JSON manifests
+retained, temporary unstripped local-link copies, and duplicate static-file
+copies from completed0301 captures whose identical bytes remain in the
+current0309 captures. All raw trial logs, capture metadata, original partition
+backups, current0309 rollback data and all178 distinct W301/W302/W309 ready
+pins are preserved. No pin conflicts. Private cleanup manifest:
+W303 `research/tmp/issued-309/cleanup310.json`, SHA
+`18957425ef297aa5b32e395d1a263a177f29bbbe56a55fb493d17b44e587c26e`.
+The planned full follow-up batch is780,000,000 bytes including its eventual
+512MiB capture reserve; capacity check is being completed before cloning.
+Next implement a default-off display-state gate and one bounded wake
+press/release for `swp=3`, then compile and test before proposing a new trial.
+
 ### 2026-11-14 CST — 0309 restored; script ran with display off
 
 The approved 0309 one-shot is finished and its authorization is consumed.

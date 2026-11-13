@@ -73,7 +73,85 @@ origin and malformed-marker cases. Initial standalone ARM64 translation-unit
 compiles passed for both changed implementation files. These are CPU and
 compile checks, not a hardware performance result.
 
-Full kernel build, image packaging and exact unattended trial plan remain
-pending. The completed 0301 approval does not authorize another partition
-write. Original backups, rollback snapshots, source308 and W301/W302 pins
-remain retained.
+## Linked kernel and image review
+
+Commit `1229548` is pushed. Actions run
+[43446429656](https://github.com/lvyufeng/ios-gauguin/actions/runs/43446429656)
+was dispatched for its exact full SHA and is still queued at this milestone.
+To continue, the existing native 0301 build was used for a verified local
+incremental link. Re-linking its original object list reproduced every byte
+of its unstripped kernel except the linker's 16-byte `LC_UUID`. Comparing
+source309 against the build manifest found exactly four changed implementation
+files and two headers. The four implementations were compiled for ARM64;
+they replaced exactly four entries in the original object list. A separately
+compiled version object supplies the new unique identity
+`xnu-local309-5a3b61208fee4cba8f1f0e9e7c3da645` (the date in the retained
+version template remains the original template date). The unchanged link
+flags, libraries and remaining objects produced a complete kernel, with all
+protected input hashes and mtimes unchanged. This is an incremental native
+link, not a completed clean CI build.
+
+The kernel is 17,365,208 bytes, SHA-256
+`60e08633e856e8c2c72083c673f0c630b3bc7fb170772a98d6ccfe8971169f9e`.
+Its link manifest SHA-256 is
+`91cffbcd165ee397ceda2bda3f356a500526b69a569052210898bb07e964e527`.
+The 20,054,016-byte temporary boot image SHA-256 is
+`f0ce9885ccb059c099f49f9e1c433524d91f6d8e84e0b99603f5a67ef253f9e3`.
+A separate checker verified the Android wrapper, shim and DTB against 0301,
+and all ten embedded kernel segments directly against the Mach-O bytes
+(there are no chained fixups). It checked firmware contents, zero padding,
+managed RAM, entry point, ADT and pending low-PAS request. Firmware addresses
+move by 32 KiB with the kernel growth; the ADT points to the checked new
+locations. Review receipt SHA-256:
+`32c4c3dae2196ebb50ddf154abfea96a417b0a65f8ed6f73c5db1b00c2e3ab89`.
+
+The command is 606 bytes. It keeps the 60 Hz software clock and 600-second
+service, selects `sweetnvt=0 swp=2 sweetgpuasync=1`, and removes
+`sweettouchmode=0`, whose legacy consumer is bypassed by the script branch.
+No phone boot or performance result exists for this image yet.
+
+## Exact unattended phone trial awaiting confirmation
+
+A fresh read-only 29-file capture and live HFSX inspection passed in TWRP.
+Root header SHA-256 is
+`490a694e52106fbc3b1333800d7d0735b879909255c0e249c28037b13294731d`.
+The original desktop bytes, file identity, 105-block extent and catalog
+logical-size location still match. Misc is the checked original zero preimage.
+The actual range writer passed 24 model tests, including stale preimages,
+partial writes, incorrect readback and rollback. No device writes occurred.
+
+With a fresh exact-scope user reply, the prepared one-shot executor will:
+
+1. Rehash its inputs and recheck the current TWRP files and partition preimages.
+2. Write/read back the same 434,176-byte C4 frontend delta: 105 existing data
+   blocks and one existing catalog leaf, changing only its logical-size field.
+3. Write/read back the 13-byte misc recovery marker and temporarily boot the
+   exact 0309 image once. Enable async GPU submission and run the 13-stroke
+   workload automatically; no physical interaction is required.
+4. Observe for at most 780 seconds, collect the current logs, then restore
+   and read back 434,176 bytes for the original frontend. Normal userdata
+   writes total 868,352 bytes. The existing tested failure/rollback bound is
+   2,170,880 userdata bytes, with at most one `fastboot reboot recovery` if
+   recovery is needed. There is no repeated boot.
+
+Capture output has a calculated 394,007,680-byte maximum (four bounded full
+captures, current log tails, kernel dump, rollback files and metadata), covered
+by a 536,870,912-byte reserve under the 500 GB project cap. Each log capture
+refuses files above 8 MiB; an oversized postboot log fails diagnostics and
+takes the restoration path. The executor was tested to reject missing user
+approval before any device IO. The exact trial plan SHA-256 is
+`f6e051b80e6b3ca0293d4dd2f31c444af886ec3fb3e9171a7700bd57f7c8c624`;
+install plan SHA-256 is
+`b75e258b2a0faa23667fef6639b1ae59bacecda5ff7f3adfe68be1c2ba0e4333`.
+All 87 execution inputs were rehashed, including the retained 16 GiB backup.
+The immutable ready receipt SHA-256 is
+`3a2fab8e9061ba2ddad8ee58e707b9caed5674638ea572c78c25090de43469b0`.
+
+Validation requires the async opt-in, all 13 scripted strokes, explicitly
+synthetic/loss-free HID queue evidence, repeated C4 frame production and
+framebuffer presentations in the capture window, and completed native jobs.
+It reports frame gaps and API held/wait times. It does not equate scripted
+input, a software clock or successful copies with physical touch or panel
+refresh. Original backups, rollback snapshots, source308/309 and active pins
+remain retained. AGENTS.md requires confirmation before this new destructive
+trial; the completed 0301 one-shot approval is not reused.

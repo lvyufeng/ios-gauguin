@@ -1,5 +1,11 @@
 # 0309 candidate: display progress during GPU waits and unattended animation
 
+**2026-11-14: this one-shot trial is complete and the original frontend is
+restored.** The script ran while the display was off; see the
+[recorded result](gauguin-unattended-gpu-309-results-20261114.md).
+The preparation and approved scope below are historical, not permission to
+repeat the boot.
+
 The user is away from the phone and asked work to continue. The completed
 0301 trial measured no contact, so repeating an idle physical-touch trial
 would not exercise the lag. This candidate supplies a bounded automatic

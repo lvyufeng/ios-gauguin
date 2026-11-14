@@ -8,9 +8,13 @@ The exact pinned0310 executor is running as PID38713, exec session45560.
 It claimed the one-shot in W303
 `research/tmp/gpu-display-wake310-20261114/execution/claim.json` after
 rehashing all93 inputs and admitting the fresh512MiB reserve at
-499,458,293,760 B accounted. The fresh-before29-file capture has completed.
-Current phase must be read from its live handle, progress.jsonl and result
-receipts; this handoff was written while install/boot phases were pending.
+499,458,293,760 B accounted. The fresh-before29-file capture and catalog/
+preimage checks completed. Install/readback434,176 B and misc-marker/
+readback13 B succeeded. Observer PID/PGID39679 accepted the exact0310 image
+once: fastboot sending/booting both OKAY, total0.597s. Its live ps check
+showed bash running at01:03. Current phase is bounded observation before
+log capture and restoration; read its live handle, observer.log,
+progress.jsonl and result receipts.
 **Do not rerun the executor or launch another boot.** Authorization receipt
 SHA is `9aaf055218d4e4aa97de00e382c13306550df1bf7b7729b1e19b9956078b6326`.
 Follow session45560 through its bounded observer, capture and approved

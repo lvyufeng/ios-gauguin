@@ -2,6 +2,48 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0313 ready; individual approval required before next phone write
+
+0312 is terminal and independently restored; its authorization is consumed.
+Confirmed312: backboarddPID57queuehead67changes/68samples, C4still15gaps4.9..5.3s;
+SB observer had no activation. No60fps/SBreceipt claim. Next is a new313trial,
+not a rerun. ActiveW313branch codex/gauguin-sb-loader-20261114: code2150dfe,
+preparedtransaction/doc bfc8b35. Plan: W313docs/gauguin-springboard-loader-313-trial-20261114.md.
+
+313image20,054,016B SHA455102e9b8052a9b41e2d208d62e205b01218fb45fc8c093a19784eabe3f63e2;
+kernel17,366,192B SHAeb20c46690fdfecf76ec727217b30aa98b4395cd81a85f10799019ca14d9244d;
+identity xnu-local313-406b28bcd77f44ceba6a5bd597da7fa2.
+Link/package/independentreview passed; same593Bcommand andfirmware as312,
+9implobjects vs301. NoCIrun/no313boot. NativeSB library89,168B SHA
+b0b49caf5ecf11619d6223455017f6668203ce61e0816dd70f599a6de9b800a4.
+Initialpackage attempt wrote validimage but summaryprint usedoldfield; archived
+itsreceipt/script, retired thatgeneratedimage, fixedprint and reran success;
+finalimage/metadata independentlyreviewed, no extraimagecopyretained.
+
+Freshfourfilepreimages/HFSXmodels passed: install/restoreeach1,814,528B/8ranges,
+normalhostuserdata3,629,056B, failure+rollbackbound9,072,640B; misc13B marker,
+hostmiscmaximum26Bwithprebootrollback. Oneboot,13strokes/442reports,atmostone
+wakepair/onstategate,onefastbootrecoveryfallback. Originalinputforwarding/GPU
+policy preserved. 104exec(37SB)/117ObjC/native/signaturechecks pass; 8writepartial
+failuremodels/restoration/readback pass; missingconsentgate+2/12wakechecks pass.
+63readyinputs independentlyrehashed. 512MiBreserve admittedat499,432,296,448B,
+staticcapturebound376,971,104B. Source/initfailure visibility, not60fpsfixyet.
+
+PrivateW313/research/tmp/sb-loader-313/:
+ready SHA befac55d10f77f2a7581327ffc541a945ec4cacc780b228343729ffe66a12b3e
+trialplan SHA 3a6f41020f85a09677f3602073939d3fbb37d249f82b17a2b238af6cc2e35436
+installplan SHA 65f50d7d6a568ac01ccba7f30672861240a424d29600761e3d775bbeba4ffcea
+executor SHA 10dd25ce9353c1ff79fc1cc5143037862ab3253799d733b99a9674cbeaadb4c1
+Noapproval.json/executiondirectory. Currentrootstill7faaeed238ab8ad51846767eb8e6f98ecfd1d8a6243196f998bfd514892c522d.
+Afteractualmatchingconsent, bindanswerwithoutinventingasyncID, exactplan/install/
+imagehashes and requiredbooleans (including wake/script), source
+actual-user-sb-loader313-trial-reply, provenance direct-user-message or actual
+async-question-reply. Run W313tools/run-sb-cadence-trial.py ONCE; followthrough
+restore; independently run tools/verify-sb-cadence-restore.py --out underexecution.
+No manualscreenrequest needed. Preservecurrent312rollback,originalbackups,all
+readyinputs anduser's mkadt. No313phonewrite untilindividualapprovalarrives.
+
+
 ### 2026-11-14 CST —0313 protected SB loader candidate passed offline checks
 
 Active W313 is research/tmp/gauguin-sb-loader-worktree-20261114, branch

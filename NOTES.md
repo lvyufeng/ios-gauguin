@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —313 executor/observer live; never restart this one-shot
+
+Actual313approval is executing once: executor PID46732, execsession85430;
+observer PID/PGID47978. Private W313research/tmp/sb-loader-313/execution/claim,
+progress and observer receipts are authoritative. All63pins andfresh512MiB
+reserve passed at499,434,610,688B accounted. Install/readback1,814,528B/8ranges
+and misc13B marker/readback passed. Fixed313image455102e9... accepted once by
+fastboot, sending/bootingOKAY,total0.601s. Currentphase bounded observation;
+no finalGPU/SB/restore outcome yet. Do NOTrerun executor or bootanotherimage.
+Follow SAMEsession85430 to completion and approvedrestoration, then run
+W313tools/verify-sb-cadence-restore.py --out underthisexecutionfolder.
+Approval SHA0cc1711cc4cfb63f0c5d8ac139995a8368a9ac46da2c8a58f67453ce3e90bd89.
+
+Offline QuartzCore investigation continues in W313research/tmp/cadence-static-20261114/.
+request_synchronize constructs5e9ns and5.0s fallback deadlines; one downstream
+call is resolveddispatch_time. It may schedule a timeout rather thanblockinside
+thatfunction; remainingcallee exports/callers are beingresolved. Freezehasalso
+5e9ns. Do not claimthefive-secondrootcause fromliteralconstantorfunctionname.
+No frozen313inputwas changed bythisreadonlyanalysis.
+
+
+### 2026-11-14 CST —actual313 approval received; preflight before one-shot
+
+User directly wrote "授权313". This explicitly approves the already prepared
+0313 scope; no repeated permission is needed. Actualapprovalreceipt in W313
+research/tmp/sb-loader-313/approval.json SHA0cc1711cc4cfb63f0c5d8ac139995a8368a9ac46da2c8a58f67453ce3e90bd89, honest direct-user-message
+provenance, no invented async item ID. Ready/plan/install/executor hashes match.
+Noexecutionclaim existed at this checkpoint; next launch the fixed executor
+once and follow it through restoration, then independent four-file/misc readback.
+The overall GPU60Hz/smoothness goal is active and incomplete.
+
+During read-only work waiting for consent, actual20H392QuartzCore integer scan
+found a5seconddefault in CA::Render::Context::request_synchronize at0x1883281dc
+and another in -[CAWindowServerDisplay freeze]. Static callers of the former
+include CASSynchronize and CA::Context::synchronize. Units/call targets and
+runtime reachability still need audit; no root-cause claim. Privateevidence:
+W313research/tmp/cadence-static-20261114/. No frozen313inputs were changed.
+
+
 ### 2026-11-14 CST —0313 ready; individual approval required before next phone write
 
 0312 is terminal and independently restored; its authorization is consumed.

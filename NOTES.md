@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0312 completed and independently restored; SB observer missing
+
+Executor PID20172/session58470 and observer21183 are terminal; do not rerun.
+Approved0312 returned automatically to TWRP at745s, banner matched. Install
+and restore each1,814,528B/8ranges read back; misc13B marker verified. No
+boot retry, restore retry or recovery fallback. Final31-file comparison passed
+except expected log growth. Independent141,262,848B catalog read verified
+original four file logical/allocated images, CNIDs/forks and originalmisc4KiB.
+Current root header is7faaeed238ab8ad51846767eb8e6f98ecfd1d8a6243196f998bfd514892c522d.
+0312 approval is consumed. Future plans need fresh preimages/new header.
+
+Result state SpringBoard-observer-not-seen-root-restored, restored=true,
+observer0/executor1diagnostic. Result SHA5ad47a727c839e86e57da32c41bef81359e7efac17b3930ec6ae96b741ffaa0b.
+Independent receipt SHA8778cbbdac3aeb7c95897d5758a50ec746145ed2d3a0732506f13e21a144eb53.
+13strokes/442reports completed32.775527s (226.257649..259.033176s); display
+alreadyon,0powerpairs. Selected4s:519events,lost0,deadline,68accepted queues.
+One16384B queue ownedbybackboarddPID57:67headchangesacross68snapshots,
+nonnullport68/68,notificationattemptdelta67. Consumerprogress is proved;
+SpringBoard receipt and gesture acceptance are not.
+C4:31completedlogrecords,8madeinscript,15creationgaps4.9..5.3s,
+mediangap5.011996s. Selected4s:1make/commit/done,1SwapEnd/present-end.
+No60fps/physicalFPS qualification.
+
+SBdyldPATHmask2 returned0 for protectedmobilePID26, twice. Both launchplists
+and observer binary survived unchanged until restore preflight, but SBtail966B
+has NO observer activation/input/watch/turn markers. Constructor and initoffset
+exist in nativebinary; load/earlyinitialization still unknown. Do not read
+zero rows as no SB input. Next repair visibility into SBexec environment and
+constructor early exits, using prior protectedexec insertion design only after
+review; no new partition write is authorized yet. Historicalbackboardd lost
+DYLDenv does not prove SB's cause. No GPU policy fix inferred from missinglogs.
+Result doc W312/docs/gauguin-springboard-cadence-312-results-20261114.md;
+private evidence W312/research/tmp/sb-cadence-312/execution/;
+focusedsummary SHA17435f1b942acb8339e04789eb88dbf4352c186882ac6e163402b901bf1fbd59.
+Preserve originals,current312rollbackcapture,allpinnedinputs,user mkadt edit.
+
+
 ### 2026-11-14 CST —0312 executor live; do not rerun
 
 Approved0312 is executing once: executor PID20172, exec session58470;

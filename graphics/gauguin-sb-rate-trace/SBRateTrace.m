@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT
- * Read-only SpringBoard CA timing probe for iOS 16.7 (20H392).
+ * SpringBoard CA timing and bounded stack probe for iOS 16.7 (20H392).
  * The observation points follow HakiOS's inject_sb.c at 63fc2b4, but no
  * animation, display-link range, or CoreAnimation policy is changed here.
  */
@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sys/sysctl.h>
 #include <unistd.h>
+#include "SBStackMach.h"
 
 #define RATE_ROWS 512u
 #define CA_COMMIT_ORDER 2000000
@@ -44,8 +45,8 @@ static _Atomic bool enabled;
 static uint64_t main_woke, commit_began;
 /* One coherent word: turn start in us, low bits 0=last before-wait observer,
  * 1=body, 2=before-CA, 3=after-CA (zero start means unobserved/invalid).
- * These are observer milestones, not a sampled CPU backtrace. The watch never
- * wakes or suspends the main thread and creates no extra display link. */
+ * These are observer milestones. The watch creates no extra display link;
+ * the separate, bounded stack collector may briefly suspend the main thread. */
 static _Atomic uint64_t turn_watch=3, observed_turns, observed_inputs;
 static _Atomic uint64_t input_metadata_errors;
 static _Atomic uint64_t output_errors;
@@ -53,6 +54,19 @@ static void (*old_add_animation)(id,SEL,id,id);
 static void (*old_link_fps)(id,SEL,long);
 static void (*old_link_range)(id,SEL,CAFrameRateRange);
 static void (*old_send_event)(id,SEL,UIEvent *);
+static bool stack_allowed;
+static struct sb_registered_thread stack_main;
+static _Atomic bool stack_main_ready;
+
+static void
+register_stack_main(void)
+{
+    if (!stack_allowed || atomic_load_explicit(&stack_main_ready,memory_order_acquire) || !pthread_main_np()) return;
+    struct sb_registered_thread target={0};
+    if (!sb_register_current_thread(&target)) return;
+    stack_main=target;
+    atomic_store_explicit(&stack_main_ready,true,memory_order_release);
+}
 
 static uint64_t
 now_us(void)
@@ -122,6 +136,72 @@ caller_name(uintptr_t address,char *out,size_t capacity)
         (unsigned long long)(address-(uintptr_t)info.dli_fbase));
 }
 
+static const char stack_configuration[]="GAUGUIN SB STACK: active version=315 start_us=220000000 end_us=270000000 period_us=1000000 min_turn_us=250000 budget_us=2000 max_samples=64 depth=16\n";
+
+static void
+flush_stack_sample(unsigned sample,const struct sb_stack_result *snapshot)
+{
+    if (snapshot->suspend_result==KERN_SUCCESS && snapshot->resume_result!=KERN_SUCCESS) return;
+    const struct sb_stack_result result=*snapshot;
+    char line[768];
+    snprintf(line,sizeof(line),"GAUGUIN SB STACK: sample=%u requested_us=%llu us=%llu held_us=%llu resumed_us=%llu watch=%llu stopped_watch=%llu suspend=%d state=%d read=%d resume=%d stop=%u frames=%u valid=%u pc=%llx lr=%llx sp=%llx fp=%llx\n",
+        sample,(unsigned long long)result.requested_us,(unsigned long long)result.us,(unsigned long long)result.held_us,
+        (unsigned long long)result.resumed_us,(unsigned long long)result.expected_watch,
+        (unsigned long long)result.stopped_watch,result.suspend_result,result.state_result,
+        result.read_result,result.resume_result,result.stop,result.frames,(unsigned)result.registers_valid,
+        (unsigned long long)result.registers.pc,(unsigned long long)result.registers.lr,
+        (unsigned long long)result.registers.sp,(unsigned long long)result.registers.fp);
+    write_line(line);
+    if (result.registers_valid && result.resume_result==KERN_SUCCESS) {
+        for (unsigned i=0;i<result.frames+2;++i) {
+            uint64_t address=i==0?result.registers.pc:i==1?result.registers.lr:result.frame_lr[i-2];
+            char symbol[80]; caller_name((uintptr_t)address,symbol,sizeof(symbol));
+            snprintf(line,sizeof(line),"GAUGUIN SB STACK: frame sample=%u index=%u address=%llx image=%s\n",
+                     sample,i,(unsigned long long)address,symbol);
+            write_line(line);
+        }
+    }
+}
+
+/* The existing flush thread owns this state and all stack output. Every call
+ * to formatting, dladdr and write occurs after the matching resume attempt. */
+static bool
+sample_stack(void)
+{
+    static struct sb_mach_context context;
+    static struct sb_stack_policy policy;
+    static bool opened, stopped, resume_failed;
+    if (resume_failed) return false;
+    if (!stack_allowed || stopped) return true;
+    if (!opened) {
+        if (!atomic_load_explicit(&stack_main_ready,memory_order_acquire)) return true;
+        if (!sb_mach_open(&context,&stack_main,&turn_watch)) {
+            write_line("GAUGUIN SB STACK: unavailable=mach-context\n");
+            stopped=true; return true;
+        }
+        opened=true;
+        write_line(stack_configuration);
+    }
+    uint64_t now=now_us();
+    if (now>=SB_STACK_END_US || policy.disabled || policy.attempts>=SB_STACK_MAX_SAMPLES) {
+        sb_mach_close(&context); stopped=true; return true;
+    }
+    uint64_t watch=atomic_load_explicit(&turn_watch,memory_order_acquire);
+    struct sb_stack_result result;
+    if (!sb_stack_take(&policy,&sb_mach_ops,&context,&context.target,now,watch,&result)) return true;
+    if (result.suspend_result==KERN_SUCCESS && result.resume_result!=KERN_SUCCESS) {
+        /* Do not take any process locks, format, symbolize or run thread-exit
+         * cleanup while the target's resume status is uncertain. The flush
+         * thread remains in its existing sleep loop until the process exits. */
+        static const char failure[]="GAUGUIN SB STACK: stopped=resume-failure\n";
+        resume_failed=true;
+        (void)write(STDERR_FILENO,failure,sizeof(failure)-1);
+        return false;
+    }
+    flush_stack_sample(policy.attempts,&result);
+    return true;
+}
+
 static void
 flush_row(const struct rate_row *row)
 {
@@ -163,6 +243,7 @@ flush_thread(void *unused)
     struct rate_row batch[RATE_ROWS];
     for(;;) {
         sleep(1);
+        if (!sample_stack()) continue;
         pthread_mutex_lock(&rows_lock);
         uint32_t count=rows_count;
         uint32_t start=(rows_head+RATE_ROWS-count)%RATE_ROWS;
@@ -351,6 +432,7 @@ static void
 main_turn(CFRunLoopObserverRef observer,CFRunLoopActivity activity,void *info)
 {
     (void)observer;
+    register_stack_main();
     if(activity==kCFRunLoopAfterWaiting) {
         main_woke=now_us();
         commit_began=0;
@@ -401,7 +483,7 @@ __attribute__((constructor))
 static void
 start_rate_trace(void)
 {
-    write_line("GAUGUIN SB PROBE: constructor=313\n");
+    write_line("GAUGUIN SB PROBE: constructor=315\n");
     const char *process=getprogname();
     char args[1024]={0};
     size_t size=sizeof(args)-1;
@@ -417,6 +499,8 @@ start_rate_trace(void)
     if(mach_timebase_info(&timebase)!=KERN_SUCCESS||!timebase.numer||!timebase.denom) {
         write_line("GAUGUIN SB PROBE: refused reason=timebase\n");return;
     }
+    stack_allowed=true;
+    register_stack_main();
     Class layer=objc_getClass("CALayer");
     Class link=objc_getClass("CADisplayLink");
     Method add=layer?class_getInstanceMethod(layer,sel_registerName("addAnimation:forKey:")):NULL;

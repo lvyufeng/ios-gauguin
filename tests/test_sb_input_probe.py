@@ -2,6 +2,7 @@
 """Run the real SpringBoard probe over real ObjC dispatch and typed UIKit seams."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -17,7 +18,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--receipt', type=Path)
     args = parser.parse_args()
-    files = [Path(__file__).resolve(), SOURCE, FIXTURE]
+    analyzer = ROOT/'tools/analyze-sb-stack-log.py'
+    files = [Path(__file__).resolve(), SOURCE, FIXTURE, analyzer, *sorted(SOURCE.parent.glob("SBStack*.h"))]
     pins = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     source = SOURCE.read_text()
     assert source.count('#import <UIKit/UIKit.h>') == 1
@@ -34,15 +36,22 @@ def main():
         subprocess.run(['clang', '-std=gnu11', '-O1', '-g', '-fno-objc-arc',
                         '-Wall', '-Wextra', '-Werror', '-Wno-unused-function',
                         '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
-                        '-framework', 'Foundation', '-framework', 'QuartzCore', '-lobjc',
+                        '-framework', 'Foundation', '-framework', 'QuartzCore', '-lobjc', '-I', str(SOURCE.parent),
                         str(unit), '-o', str(binary)], env=env, check=True)
-        for case in ['abi', 'inherited', 'own']:
+        for case in ['abi', 'inherited', 'own', 'stack-format']:
             result = subprocess.run([str(binary), case], env=env, capture_output=True,
                                     text=True, timeout=30)
             assert result.returncode == 0, (case, result.returncode, result.stdout, result.stderr)
             assert result.stdout.startswith('PASS SpringBoard probe ')
             print(result.stdout, end='')
             logs[case] = {'stdout': result.stdout, 'stderr': result.stderr}
+            if case == 'stack-format':
+                spec = importlib.util.spec_from_file_location('stack_log', analyzer)
+                module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+                summary = module.summarize(module.parse(result.stderr))
+                assert summary['active'] and summary['sample_count']==summary['usable_stack_samples']==1
+                assert len(summary['samples'][0]['frame_rows'])==3 and not summary['resume_failures']
+                logs[case]['actual_format_parsed'] = True
     assert pins == {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     if args.receipt:
         assert not args.receipt.exists()

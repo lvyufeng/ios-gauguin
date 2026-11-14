@@ -103,6 +103,20 @@ int main(int argc,char **argv)
         check(argc==2);
         check(mach_timebase_info(&timebase)==KERN_SUCCESS&&timebase.numer&&timebase.denom);
         atomic_store(&enabled,true);
+        if(strcmp(argv[1],"stack-format")==0) {
+            struct sb_stack_result sample={0};
+            sample.requested_us=230000000;sample.us=230000010;
+            sample.held_us=230000020;sample.resumed_us=230000100;
+            sample.expected_watch=sample.stopped_watch=(UINT64_C(226000000)<<2)|2;
+            sample.registers=(struct sb_stack_registers){(uintptr_t)start_rate_trace,(uintptr_t)main_turn,0x10000,0x10020};
+            sample.frames=1;sample.frame_fp[0]=0x10020;sample.frame_lr[0]=(uintptr_t)sample_stack;
+            sample.registers_valid=true;sample.stop=SB_STACK_FRAME_END;
+            write_line(stack_configuration);flush_stack_sample(1,&sample);
+            sample.resume_result=5;flush_stack_sample(2,&sample); /* Must emit nothing after uncertain resume. */
+            check(atomic_load(&output_errors)==0);
+            printf("PASS SpringBoard probe actual stack formatting checks=%u; fixture addresses, no sampling\n",checks);
+            return 0;
+        }
         if(strcmp(argv[1],"abi")==0) {
             check(!install_input_hook(Nil)&&old_send_event==NULL);
             for(Class target in @[[WrongReturn class],[WrongArgument class]]) {

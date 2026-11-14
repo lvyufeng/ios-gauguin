@@ -23,13 +23,15 @@ def main():
     sdk=Path(subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip())
     headers=[sdk/'System/Library/Frameworks/QuartzCore.framework/Headers/CAFrameRateRange.h',
              sdk/'System/Library/Frameworks/QuartzCore.framework/Headers/CAAnimation.h',
-             sdk/'System/Library/Frameworks/QuartzCore.framework/Headers/CADisplayLink.h']
+             sdk/'System/Library/Frameworks/QuartzCore.framework/Headers/CADisplayLink.h',
+             sdk/'System/Library/Frameworks/UIKit.framework/Headers/UIEvent.h',
+             sdk/'System/Library/Frameworks/UIKit.framework/Headers/UITouch.h']
     pins={str(p):sha(p) for p in [source,Path(__file__).resolve(),sdk/'SDKSettings.json',*headers]}
     out.mkdir(parents=True)
     binary=out/'libGauguinSBRateTrace.dylib'
     argv=['xcrun','--sdk','iphoneos','clang','-target','arm64-apple-ios16.0',
           '-isysroot',str(sdk),'-std=gnu11','-O2','-fno-objc-arc','-Wall','-Wextra','-Werror',
-          '-dynamiclib','-framework','Foundation','-framework','QuartzCore','-lobjc',
+          '-dynamiclib','-framework','Foundation','-framework','QuartzCore','-framework','UIKit','-lobjc',
           '-Wl,-install_name,/usr/local/lib/gauguin/libGauguinSBRateTrace.dylib',
           str(source),'-o',str(binary)]
     def run(command,name):
@@ -49,6 +51,7 @@ def main():
     loads=(out/'loads.log').read_text()
     assert '/System/Library/Frameworks/Foundation.framework/Foundation' in loads
     assert '/System/Library/Frameworks/QuartzCore.framework/QuartzCore' in loads
+    assert '/System/Library/Frameworks/UIKit.framework/UIKit' in loads
     assert '/usr/local/lib/gauguin/libGauguinSBRateTrace.dylib' in loads
     assert all(sha(Path(p))==value for p,value in pins.items())
     result=dict(state='native-iOS16-readonly-SpringBoard-rate-trace-not-device-qualified',
@@ -56,7 +59,8 @@ def main():
                 platform_version=platform,source=str(source),compiler_argv=argv,
                 input_pins=pins,inputs_unchanged=True,installed=False,
                 device_writes=0,device_boots=0,remaining=['SpringBoard dyld insertion',
-                    '20H392 runtime hook ABI and log output','same-clock 0301 comparison'])
+                    '20H392 runtime hook ABI and log output','SpringBoard sendEvent delivery',
+                    'same-clock 0310 workload comparison'])
     (out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps({k:v for k,v in result.items() if k not in ('compiler_argv','input_pins')},indent=2))
 

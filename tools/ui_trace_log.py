@@ -6,9 +6,28 @@ from pathlib import Path
 KINDS={1:'report',2:'hid-begin',3:'hid-end',4:'hid-return',5:'hid-enqueue',6:'hid-no-queue',
        10:'api-begin',11:'api-end',
        12:'submit-begin',13:'submit-end',14:'surface',20:'swap',21:'present-begin',
-       22:'present-end',23:'layer',24:'read-lock',25:'read-end',30:'synthetic-input'}
+       22:'present-end',23:'layer',24:'read-lock',25:'read-end',30:'synthetic-input',
+       31:'hid-queue-state'}
 FIELDS={'H':'version count reason lost start end numer denom which gestures'.split(),
         'E':'seq tick kind id pid flags a b c'.split(),'F':['count','lost']}
+
+def summarize_queues(samples):
+    groups={}
+    for row in samples:groups.setdefault(row['queue_registry_id'],[]).append(row)
+    result=[]
+    for ident,rows in groups.items():
+        pids=sorted({r['owner_pid'] for r in rows});capacities=sorted({r['capacity'] for r in rows})
+        monotonic=all(b['notification_attempts']>=a['notification_attempts'] for a,b in zip(rows,rows[1:]))
+        consistent=len(pids)==len(capacities)==1 and monotonic and all(r['indices_in_bounds'] for r in rows)
+        changes=sum(a['head']!=b['head'] for a,b in zip(rows,rows[1:]))
+        result.append({'queue_registry_id':ident,'owner_pids':pids,'capacities':capacities,
+                       'samples':len(rows),'state_consistent':consistent,'head_changes_observed':changes,
+                       'consumer_index_progress_observed':consistent and changes>0,
+                       'nonnull_port_samples':sum(r['port_nonnull'] for r in rows),
+                       'first_notification_attempt_count':rows[0]['notification_attempts'],
+                       'notification_attempt_delta':rows[-1]['notification_attempts']-rows[0]['notification_attempts'] if monotonic else None,
+                       'scope':'Head changes on one queue show consumer index progress; unchanged snapshots do not prove no reads. Notification counts are attempts, not Mach delivery or SpringBoard receipt.'})
+    return result
 
 def parse(text):
     header=None;footer=None;events=[]
@@ -97,11 +116,23 @@ def parse(text):
                             'queue_seq':e['seq'],'status':KINDS[e['kind']],
                             'enqueued':e['kind']==5 and bool(e['flags']),
                             'elapsed_ns':((e['tick']-begin['tick'])*h['numer'])//h['denom']})
+    queue_states=[]
+    for e in events:
+        if e['kind']!=31:continue
+        if e['flags']&~3 or not 0<e['b']<1<<32:
+            raise ValueError('invalid HID queue snapshot flags/capacity')
+        head,tail=e['a']>>32,e['a']&0xffffffff
+        if not e['id']:raise ValueError('missing HID queue identity')
+        queue_states.append(dict(seq=e['seq'],tick=e['tick'],queue_registry_id=e['id'],owner_pid=e['pid'],
+                                 enqueued=bool(e['flags']&1),port_nonnull=bool(e['flags']&2),
+                                 head=head,tail=tail,capacity=e['b'],notification_attempts=e['c'],
+                                 indices_in_bounds=head<=e['b'] and tail<=e['b']))
     return {'scope':'CPU-clock kernel prefix; queue result is not SpringBoard receipt; no CA encode, GPU-only duration, panel latch or causal touch/frame proof',
             'header':h,'input_origin':input_origin,'physical_touch_qualified':False,
             'clock_valid':clock_valid,'contention_seen':bool(h['lost']),
             'truncated_by_capacity':h['reason']==2,'events':events,'spans':spans,
-            'unpaired_endpoints':unpaired,'queue_links':queue_links}
+            'unpaired_endpoints':unpaired,'queue_links':queue_links,'queue_state_samples':queue_states,
+            'queue_state_summary':summarize_queues(queue_states)}
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('log',type=Path);ap.add_argument('--out',type=Path)

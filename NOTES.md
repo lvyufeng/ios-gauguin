@@ -2,6 +2,22 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — approved0310 executor live; do not rerun
+
+The exact pinned0310 executor is running as PID38713, exec session45560.
+It claimed the one-shot in W303
+`research/tmp/gpu-display-wake310-20261114/execution/claim.json` after
+rehashing all93 inputs and admitting the fresh512MiB reserve at
+499,458,293,760 B accounted. The fresh-before29-file capture has completed.
+Current phase must be read from its live handle, progress.jsonl and result
+receipts; this handoff was written while install/boot phases were pending.
+**Do not rerun the executor or launch another boot.** Authorization receipt
+SHA is `9aaf055218d4e4aa97de00e382c13306550df1bf7b7729b1e19b9956078b6326`.
+Follow session45560 through its bounded observer, capture and approved
+restoration; only after it returns run the prepared read-only0310 restoration
+verifier. Outer log: `execute-20261114.log`; phase evidence is under execution/.
+No final boot, GPU, workload or restoration outcome is available yet.
+
 ### 2026-11-14 CST — actual 0310 approval received; preflight before one-shot execution
 
 The user directly replied: "允许本轮 0310 写入、唤醒测试和回退，继续无人值守验证。"

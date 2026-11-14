@@ -2,6 +2,34 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0312 executor live; do not rerun
+
+Approved0312 is executing once: executor PID20172, exec session58470;
+observer PID/PGID21183. Claim and progress receipts are in W312
+research/tmp/sb-cadence-312/execution/. All61inputpins and fresh512MiB
+reserve passed at499,396,177,920B accounted.
+Install/readback1,814,528B across8ranges passed; misc13B marker/readback passed.
+Fixed image1cf0fa2e... accepted by fastboot: sending/booting OKAY,0.596s.
+Current phase is bounded automatic observation; no final log, FPS or restore
+result yet. Do not invoke the executor again or boot another image. Follow
+session58470 and observer.log/progress.jsonl/result.json through completion,
+then run tools/verify-sb-cadence-restore.py --out under this execution folder.
+Approval receipt SHA12a2bbe38cba01e37e9a679a419f8b5f1d77f7ef0066f3c5ee870d0eaca65339.
+
+
+### 2026-11-14 CST —0312 actual approval received; preflight before one-shot
+
+User directly replied "允许" to the exact0312 scope in the preceding question.
+This authorizes the already reviewed0312 writes, one temporary boot, bounded
+wake/script and restoration. No repeated permission is needed for this round.
+W312 private approval.json SHA `12a2bbe38cba01e37e9a679a419f8b5f1d77f7ef0066f3c5ee870d0eaca65339`; provenance is direct-user-message,
+with no invented async question item ID. Executor/ready/plan hashes match.
+Phone read-only reports recovery; no executor/observer process or execution
+claim is present at this checkpoint. Next launch the pinned executor once,
+follow it through its bounded observation and restoration, then independently
+verify the original four files and misc. Do not substitute another image.
+
+
 ### 2026-11-14 CST —0312 ready for individual approval; no execution claim
 
 W312 code `cf3b6b0` and transaction/plan `ffa73d6` are committed on

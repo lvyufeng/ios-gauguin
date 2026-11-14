@@ -15,12 +15,19 @@ def test(source, output):
     originals = {name: (kern / name).read_bytes() for name in ('kern_exec.c', 'sweet_amfi.c', 'kern_memorystatus.c')}
     text = originals['kern_exec.c'].decode()
     assert 'static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);' in text
-    assert text.count('sweet_eagl_exec_inject(imgp);\n#endif\n\n\t/* Save space for envv[] NULL terminator */') == 1
+    assert text.count('sweet_eagl_exec_inject(imgp);') == 1
     output.mkdir(parents=True)
     for name, marker in [('env', 'SWEET_DYLD_EXEC_PROBE'), ('inject', 'SWEET_EAGL_INJECT')]:
         start = text.index('\n', text.index(f'/* {marker}_BEGIN:')) + 1
         end = text.index(f'/* {marker}_END */', start)
         (output / f'production-{name}.h').write_text(text[start:end])
+    sb = '/* SWEET_SB_INJECT_BEGIN:' in text
+    if sb:
+        start = text.index('\n', text.index('/* SWEET_SB_INJECT_BEGIN:')) + 1
+        end = text.index('/* SWEET_SB_INJECT_END */', start)
+        (output/'production-sb-inject.h').write_text(text[start:end])
+        assert 'static TUNABLE(uint32_t, sweet_sb_exec_probe, "sbp", 0);' in text
+        assert text.count('sweet_sb_exec_inject(imgp);') == 1
     for name, symbol in [('add', 'exec_add_user_string'), ('extract', 'exec_extract_strings')]:
         start = text.index(f'static int\n{symbol}(')
         end = text.index('\n}\n', start) + 3
@@ -54,11 +61,12 @@ def test(source, output):
         ' pilot-other-vnode pilot-writable-proxy pilot-thread-mismatch pilot-pid-reused pilot-wrong-uid pilot-foreign-task'
     ).split()
     if metal:cases+=['metal-gate','metal-clean','metal-existing']
+    if sb:cases += ['sb-'+name for name in ('mobile','already','duplicate','conflict','disabled','bad-flag','trace-off','metal-off','other-path','null-context','root','other-uid','setuid','null-thread','other-proc','script','addr32','no-cred','missing-vnode','no-target','wrong-target','target-owner','target-mode','target-acl','no-library','library-owner','library-mode','library-type','library-acl','partial-copy','exact-fit','one-short','shadow','shadow-no-exec','shadow-wrong-id','shadow-wrong-version','shadow-not-marked')]
     binary = output / 'eagl-inject-model'
     compiler = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--find', 'clang'], text=True).strip()
     sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
     build = [compiler, '-isysroot', sdk, '-std=gnu11', '-O1', '-g', '-Wall', '-Wextra', '-Werror',
-             '-fsanitize=address,undefined', '-fno-omit-frame-pointer', *(['-DGAUGUIN_METAL_DISCOVERY_HOST=1']if metal else[]), '-I', str(output), str(fixture), '-o', str(binary)]
+             '-fsanitize=address,undefined', '-fno-omit-frame-pointer', *(['-DGAUGUIN_METAL_DISCOVERY_HOST=1']if metal else[]), *(['-DGAUGUIN_SB_INJECT_HOST=1'] if sb else []), '-I', str(output), str(fixture), '-o', str(binary)]
     subprocess.run(build, check=True)
     for case in cases:
         result = subprocess.run([binary, case], capture_output=True, text=True)
@@ -66,6 +74,17 @@ def test(source, output):
         (output / f'{case}.stderr').write_text(result.stderr)
         assert result.returncode == 0 and not result.stderr, (case, result.returncode, result.stderr)
         lines = result.stdout.splitlines()
+        if case.startswith('sb-'):
+            match=re.fullmatch(r'SB MODEL PASS outcome=(\d+) reason=(\d+) event=([01])',lines[-1])
+            assert match, (case,lines)
+            outcome,reason,event=map(int,match.groups())
+            assert len(lines)==1+event,(case,lines)
+            if event:
+                report=re.fullmatch(r'SWEET SB INJECT: pid=\d+ outcome=(\d+) reason=(\d+) error=(\d+) added=([01]) envc=\d+ uid=\d+ ruid=\d+ insert_before=\d+ expected_before=\d+',lines[0])
+                assert report and tuple(map(int,report.group(1,2)))==(outcome,reason),(case,lines)
+                assert int(report[3])==(errno.EFAULT if case=='sb-partial-copy' else 0)
+                assert int(report[4])==int(outcome==1)
+            continue
         if case=='metal-gate':
             assert lines==['METAL GATE PASS 64 exact combinations'];continue
         if case.startswith('pilot-'):

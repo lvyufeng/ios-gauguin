@@ -1,0 +1,203 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -5404,6 +5404,8 @@
+ static TUNABLE(uint32_t, sweet_exec_loader_probe, "sweet_dyld_probe", 0);
+ static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);
+ static TUNABLE(uint32_t, sweet_metal_requested, "gmt", 0);
++/* Separate default-off, protected SpringBoard observer insertion. */
++static TUNABLE(uint32_t, sweet_sb_exec_probe, "sbp", 0);
+ static void sweet_eagl_gpu_record_proxy(struct image_params *imgp, proc_t p);
+ /* SWEET_DYLD_EXEC_PROBE_BEGIN: complete body used by the host boundary test. */
+ struct sweet_dyld_env_record {
+@@ -5902,6 +5904,182 @@
+ }
+ /* SWEET_EAGL_INJECT_END */
+ 
++/* SWEET_SB_INJECT_BEGIN: actual exec extraction/insertion host tests. */
++struct sweet_sb_env_record { unsigned insert, expected; };
++static const char sweet_sb_insert[] =
++    "DYLD_INSERT_LIBRARIES=/usr/local/lib/gauguin/libGauguinEAGL.dylib";
++
++static const char *
++sweet_sb_env_scan(const char *start, const char *end, int count,
++    struct sweet_sb_env_record *record)
++{
++    if (end < start || count < 0 || (size_t)count > (size_t)(end - start)) return NULL;
++    for (int i = 0; i < count; ++i) {
++        const char *nul = memchr(start, 0, (size_t)(end - start));
++        if (nul == NULL) return NULL;
++        size_t n = (size_t)(nul - start);
++        static const char key[] = "DYLD_INSERT_LIBRARIES=";
++        if (n >= sizeof(key)-1 && memcmp(start, key, sizeof(key)-1) == 0) {
++            record->insert++;
++            record->expected += sweet_dyld_env_equal(start, n, sweet_sb_insert);
++        }
++        start = nul+1;
++    }
++    return start;
++}
++
++static unsigned
++sweet_sb_inject_subject(struct image_params *imgp, proc_t p,
++    uid_t *effective, uid_t *real)
++{
++	vnode_t target = NULLVP, library = NULLVP;
++	unsigned reason = 1;
++	*effective = *real = (uid_t)-1;
++	if (p == NULL || imgp->ip_new_thread == THREAD_NULL ||
++	    p != (proc_t)get_bsdthreadtask_info(imgp->ip_new_thread)) {
++		return reason;
++	}
++	if (imgp->ip_vp == NULLVP || imgp->ip_scriptvp != NULLVP ||
++	    !(imgp->ip_flags & IMGPF_IS_64BIT_ADDR)) {
++		return 8;
++	}
++	/* __mac_execve activates a shadow proc before proc_exec_switch_task.
++	 * forkproc copies the caller's PID, unique ID and PID version to it. */
++	proc_t caller = current_proc();
++	if (caller == NULL || (p != caller && (!(imgp->ip_flags & IMGPF_EXEC) ||
++	    !proc_is_shadow(p) || proc_pid(p) != proc_pid(caller) ||
++	    proc_uniqueid(p) != proc_uniqueid(caller) ||
++	    proc_pidversion(p) != proc_pidversion(caller)))) {
++		return 9;
++	}
++	reason = 2;
++	vfs_context_t context = imgp->ip_vfs_context;
++	kauth_cred_t cred = vfs_context_ucred(context);
++	if (!IS_VALID_CRED(cred)) {
++		return reason;
++	}
++	*effective = kauth_cred_getuid(cred);
++	*real = kauth_cred_getruid(cred);
++	reason = 3;
++	if (*effective != *real || *effective != 501) {
++		return reason;
++	}
++	reason = 4;
++	if (vnode_lookup("/System/Library/CoreServices/SpringBoard.app/SpringBoard",
++	    VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT, &target,
++	    vfs_context_kernel()) != 0) {
++		goto out;
++	}
++	reason = 5;
++	if (target != imgp->ip_vp || !sweet_eagl_protected_node(target, context, *effective)) {
++		goto out;
++	}
++	reason = 6;
++	if (vnode_lookup("/usr/local/lib/gauguin/libGauguinEAGL.dylib",
++	    VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT, &library,
++	    vfs_context_kernel()) != 0) {
++		goto out;
++	}
++	reason = 7;
++	if (!sweet_eagl_protected_node(library, context, *effective)) {
++		goto out;
++	}
++	reason = 0;
++out:
++	if (library != NULLVP) {
++		vnode_put(library);
++	}
++	if (target != NULLVP) {
++		vnode_put(target);
++	}
++	/* imgp->ip_vp is borrowed from exec; its original iocount is not ours. */
++	return reason;
++}
++static void
++sweet_sb_exec_inject(struct image_params *imgp)
++{
++	struct sweet_sb_env_record record = {0};
++	unsigned outcome = SEI_INVALID, reason = 0, added = 0;
++	uid_t effective = (uid_t)-1, real = (uid_t)-1;
++	int error = 0;
++	if (sweet_sb_exec_probe != 1 || !sweet_metal_desktop_enabled() || imgp == NULL ||
++	    imgp->ip_strings == NULL || imgp->ip_vfs_context == NULL) {
++		return;
++	}
++	/* This runs immediately after the incoming env vector, before its NULL
++	 * pointer reservation and alignment. No applev strings have been added. */
++	uintptr_t base = (uintptr_t)imgp->ip_strings;
++	uintptr_t argv = (uintptr_t)imgp->ip_startargv;
++	uintptr_t env = (uintptr_t)imgp->ip_endargv;
++	uintptr_t tail = (uintptr_t)imgp->ip_strendp;
++	if (base > UINTPTR_MAX - (NCARGS + PAGE_SIZE) || argv <= base || env < argv ||
++	    tail < env || tail > base + NCARGS + PAGE_SIZE) {
++		return;
++	}
++	const char *path_end = memchr(imgp->ip_strings, 0, argv - base);
++	if (path_end == NULL || !sweet_dyld_env_equal(imgp->ip_strings,
++	    (size_t)(path_end - imgp->ip_strings), "executable_path=/System/Library/CoreServices/SpringBoard.app/SpringBoard")) {
++		return;
++	}
++	proc_t p = vfs_context_proc(imgp->ip_vfs_context);
++	/* A counted env vector must end exactly at the next free string byte. */
++	if (sweet_sb_env_scan(imgp->ip_endargv, imgp->ip_strendp,
++	    imgp->ip_envc, &record) != imgp->ip_strendp ||
++	    imgp->ip_strspace < 0 || imgp->ip_argspace < 0 ||
++	    imgp->ip_argspace > NCARGS || imgp->ip_argspace > imgp->ip_strspace ||
++	    (size_t)imgp->ip_strspace != NCARGS + PAGE_SIZE - (tail - base)) {
++		goto done;
++	}
++	outcome = SEI_CONFLICT;
++	if (record.insert && (record.insert != 1 || record.expected != 1)) {
++		goto done;
++	}
++	outcome = SEI_SUBJECT;
++	reason = sweet_sb_inject_subject(imgp, p, &effective, &real);
++	if (reason != 0) {
++		goto done;
++	}
++	if (record.insert == 1) {
++		outcome = SEI_ALREADY;
++		goto done;
++	}
++	outcome = SEI_SPACE;
++	/* Eight bytes each for the new env pointer and the original env NULL.
++	 * Include the exact future alignment too, preserving a previously valid
++	 * exec when the diagnostic cannot fit. All arithmetic follows bounds. */
++	size_t length = sizeof(sweet_sb_insert), pointer_size = 8;
++	if ((size_t)imgp->ip_strspace < length) {
++		goto done;
++	}
++	size_t padding = ((size_t)imgp->ip_strspace - length) % pointer_size;
++	size_t needed = length + pointer_size * 2 + padding;
++	if ((size_t)imgp->ip_argspace < needed ||
++	    (size_t)imgp->ip_strspace < length + padding) {
++		goto done;
++	}
++	char *old_end = imgp->ip_strendp;
++	int old_strings = imgp->ip_strspace, old_arguments = imgp->ip_argspace;
++	error = exec_add_user_string(imgp, CAST_USER_ADDR_T(sweet_sb_insert), UIO_SYSSPACE, TRUE);
++	if (error != 0) {
++		/* A partial copy can only touch unused tail bytes. Restore all live
++		 * metadata; the original env and original exec result are preserved. */
++		imgp->ip_strendp = old_end;
++		imgp->ip_strspace = old_strings;
++		imgp->ip_argspace = old_arguments;
++		outcome = SEI_COPY;
++		goto done;
++	}
++	imgp->ip_argspace -= (int)pointer_size;
++	imgp->ip_envc++;
++	added = 1;
++	outcome = SEI_APPENDED;
++done:
++	printf("SWEET SB INJECT: pid=%d outcome=%u reason=%u error=%d added=%u envc=%d uid=%u ruid=%u insert_before=%u expected_before=%u\n",
++	    p == NULL ? -1 : proc_pid(p), outcome, reason, error, added,
++	    imgp->ip_envc, effective, real, record.insert, record.expected);
++}
++/* SWEET_SB_INJECT_END */
++
+ /* SWEET_EAGL_GPU_PILOT_BEGIN */
+ static uint64_t sweet_eagl_launch_uniqueid;
+ 
+@@ -6157,6 +6335,7 @@
+ 
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ 	sweet_eagl_exec_inject(imgp);
++	sweet_sb_exec_inject(imgp);
+ #endif
+ 
+ 	/* Save space for envv[] NULL terminator */

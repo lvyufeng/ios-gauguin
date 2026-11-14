@@ -86,13 +86,13 @@ static int vnode_lookup(const char *path, int flags, vnode_t *out, vfs_context_t
     CHECK(ctx == &kernel_context);
     CHECK(flags == (VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT));
     lookups++;
-    if (strcmp(path, "/usr/libexec/backboardd") == 0) {
+    if ((strcmp(path, "/usr/libexec/backboardd") == 0 || strcmp(path, "/System/Library/CoreServices/SpringBoard.app/SpringBoard") == 0)) {
         if (missing_target) return ENOENT;
         *out = &target;
     } else if (strcmp(path, "/usr/libexec/xpcproxy") == 0) {
         *out = &proxy;
     } else {
-        CHECK(strcmp(path, "/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib") == 0);
+        CHECK(strcmp(path, "/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib") == 0 || strcmp(path, "/usr/local/lib/gauguin/libGauguinEAGL.dylib") == 0);
         if (missing_library) return ENOENT;
         *out = &library;
     }
@@ -166,6 +166,10 @@ static unsigned sweet_metal_requested;
 #include "production-add.h"
 #include "production-env.h"
 #include "production-inject.h"
+#ifdef GAUGUIN_SB_INJECT_HOST
+static unsigned sweet_sb_exec_probe;
+#include "production-sb-inject.h"
+#endif
 #include "production-extract.h"
 
 #define MEMORYSTATUS_ENTITLEMENT "com.apple.private.memorystatus"
@@ -312,14 +316,123 @@ static struct image_params run_extract(char *buf, user_addr_t *args, user_addr_t
         .ip_vfs_context = context, .ip_new_thread = image_thread,
     };
     CHECK(exec_extract_strings(&image) == 0);
-    CHECK(image.ip_endenvv == image.ip_strendp && image.ip_strspace % 8 == 0);
+    CHECK(image.ip_endenvv == image.ip_strendp &&
+        image.ip_strspace % ((flags & IMGPF_IS_64BIT_ADDR) ? 8 : 4) == 0);
     return image;
 }
+
+#ifdef GAUGUIN_SB_INJECT_HOST
+static void sb_case(const char *scenario)
+{
+#define SB(name) (strcmp(scenario,"sb-" name)==0)
+    const char *path="executable_path=/System/Library/CoreServices/SpringBoard.app/SpringBoard";
+    static char argument[NCARGS];strcpy(argument,"SpringBoard");
+    user_addr_t args[]={(user_addr_t)argument,0};
+    user_addr_t env[]={(user_addr_t)"LOG=keep",0,0,0};
+    char *before=calloc(1,NCARGS+PAGE_SIZE),*after=calloc(1,NCARGS+PAGE_SIZE);
+    CHECK(before&&after);
+    bool append=false,event=true;unsigned outcome=SEI_SUBJECT,reason=0,requested=1;
+    int flags=IMGPF_IS_64BIT_ADDR|IMGPF_WAS_64BIT_ADDR;
+    vnode_t actual=&target,script=NULL;vfs_context_t context=&exec_context;
+    sweet_eagl_inject_requested=2;sweet_metal_requested=2;
+    if(SB("mobile")||SB("exact-fit")||SB("one-short")||SB("partial-copy")) {
+        append=SB("mobile")||SB("exact-fit");
+        outcome=append?SEI_APPENDED:SB("one-short")?SEI_SPACE:SEI_COPY;
+        copy_failure=SB("partial-copy");
+        if(SB("exact-fit")||SB("one-short")) {
+            size_t fixed=sizeof("LOG=keep")+5*8+sizeof(sweet_sb_insert);
+            size_t length=NCARGS-fixed;
+            CHECK((length+sizeof("LOG=keep")+sizeof(sweet_sb_insert))%8==0);
+            if(SB("one-short"))length++;
+            memset(argument,'a',length-1);argument[length-1]=0;
+        }
+    } else if(SB("already")||SB("duplicate")||SB("conflict")) {
+        env[1]=(user_addr_t)(SB("conflict")?"DYLD_INSERT_LIBRARIES=/different":sweet_sb_insert);
+        if(SB("duplicate"))env[2]=(user_addr_t)sweet_sb_insert;
+        outcome=SB("already")?SEI_ALREADY:SEI_CONFLICT;
+    } else if(SB("disabled")||SB("bad-flag")||SB("trace-off")||SB("metal-off")||SB("other-path")||SB("null-context")) {
+        event=false;outcome=SEI_MODE;
+        if(SB("disabled"))requested=0;
+        if(SB("bad-flag"))requested=2;
+        if(SB("trace-off"))sweet_exec_loader_probe=0;
+        if(SB("metal-off"))sweet_metal_requested=0;
+        if(SB("other-path"))path="executable_path=/usr/libexec/backboardd";
+        if(SB("null-context"))context=NULL;
+    } else if(SB("root")||SB("other-uid")||SB("setuid")||SB("no-cred")) {
+        reason=SB("no-cred")?2:3;
+        if(SB("root"))credentials.uid=credentials.ruid=0;
+        if(SB("other-uid"))credentials.uid=credentials.ruid=502;
+        if(SB("setuid"))credentials.ruid=0;
+        if(SB("no-cred"))exec_context.cred=NULL;
+    } else if(SB("null-thread")||SB("other-proc")||SB("script")||SB("addr32")||SB("missing-vnode")) {
+        reason=SB("null-thread")||SB("other-proc")?1:8;
+        if(SB("null-thread"))image_thread=NULL;
+        if(SB("other-proc"))exec_context.proc=&other_process;
+        if(SB("script"))script=&library;
+        if(SB("addr32"))flags&=~IMGPF_IS_64BIT_ADDR;
+        if(SB("missing-vnode"))actual=NULL;
+    } else if(strncmp(scenario,"sb-shadow",9)==0) {
+        exec_context.proc=exec_thread.proc=&shadow_process;flags|=IMGPF_EXEC;
+        append=SB("shadow");
+        if(append)outcome=SEI_APPENDED;
+        else {
+            reason=9;
+            if(SB("shadow-no-exec"))flags&=~IMGPF_EXEC;
+            else if(SB("shadow-wrong-id"))shadow_process.uniqueid++;
+            else if(SB("shadow-wrong-version"))shadow_process.pidversion++;
+            else if(SB("shadow-not-marked"))shadow_process.shadow=false;
+            else CHECK(false);
+        }
+    } else if(SB("no-target")||SB("wrong-target")||SB("target-owner")||SB("target-mode")||SB("target-acl")) {
+        reason=SB("no-target")?4:5;
+        if(SB("no-target"))missing_target=true;
+        if(SB("wrong-target"))actual=&library;
+        if(SB("target-owner"))target.uid=501;
+        if(SB("target-mode"))target.mode|=S_IWOTH;
+        if(SB("target-acl"))target.auth=0;
+    } else {
+        reason=SB("no-library")?6:7;
+        if(SB("no-library"))missing_library=true;
+        else if(SB("library-owner"))library.uid=501;
+        else if(SB("library-mode"))library.mode|=S_IWGRP;
+        else if(SB("library-type"))library.type=2;
+        else if(SB("library-acl"))library.auth=EIO;
+        else CHECK(false);
+    }
+    struct image_params old=run_extract(before,args,env,path,flags,actual,script,context);
+    sweet_sb_exec_probe=requested;
+    struct image_params now=run_extract(after,args,env,path,flags,actual,script,context);
+    CHECK(target.refs==1&&library.refs==0);
+    CHECK(writes==(unsigned)(append||copy_failure));
+    CHECK(now.ip_argc==old.ip_argc&&now.ip_envc==old.ip_envc+append);
+    CHECK(now.ip_endargv-after==old.ip_endargv-before);
+    if(append) {
+        const char *end=old.ip_endargv;
+        for(int i=0;i<old.ip_envc;i++)end+=strlen(end)+1;
+        CHECK(memcmp(before,after,(size_t)(end-before))==0);
+        CHECK(strcmp(after+(end-before),sweet_sb_insert)==0);
+        size_t delta=(size_t)((now.ip_strendp-after)-(old.ip_strendp-before));
+        CHECK(old.ip_argspace-now.ip_argspace==(int)delta+8);
+        CHECK(old.ip_strspace-now.ip_strspace==(int)delta);
+        if(SB("exact-fit"))CHECK(now.ip_argspace==0);
+    } else {
+        CHECK(now.ip_strspace==old.ip_strspace&&now.ip_argspace==old.ip_argspace);
+        CHECK(now.ip_endenvv-after==old.ip_endenvv-before);
+        CHECK(memcmp(before,after,(size_t)(old.ip_endenvv-before))==0);
+    }
+    printf("SB MODEL PASS outcome=%u reason=%u event=%u\n",outcome,reason,event);
+    free(before);free(after);
+#undef SB
+}
+#endif
 
 int main(int argc, char **argv)
 {
     CHECK(argc == 2);
     const char *scenario = argv[1];
+#ifdef GAUGUIN_SB_INJECT_HOST
+    if(strncmp(scenario,"sb-",3)==0){sb_case(scenario);return 0;}
+#endif
 #ifdef GAUGUIN_METAL_DISCOVERY_HOST
     if(strcmp(scenario,"metal-gate")==0) {
         unsigned n=0;

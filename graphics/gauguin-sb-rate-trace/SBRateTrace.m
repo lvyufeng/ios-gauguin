@@ -401,21 +401,34 @@ __attribute__((constructor))
 static void
 start_rate_trace(void)
 {
+    write_line("GAUGUIN SB PROBE: constructor=313\n");
     const char *process=getprogname();
     char args[1024]={0};
     size_t size=sizeof(args)-1;
-    if(process==NULL||strcmp(process,"SpringBoard")!=0||
-        sysctlbyname("kern.bootargs",args,&size,NULL,0)!=0||
-        !has_token(args,"touch_lat=1")||
-        mach_timebase_info(&timebase)!=KERN_SUCCESS||
-        !timebase.numer||!timebase.denom)return;
+    if(process==NULL||strcmp(process,"SpringBoard")!=0) {
+        write_line("GAUGUIN SB PROBE: refused reason=process\n");return;
+    }
+    if(sysctlbyname("kern.bootargs",args,&size,NULL,0)!=0) {
+        write_line("GAUGUIN SB PROBE: refused reason=bootargs\n");return;
+    }
+    if(!has_token(args,"touch_lat=1")) {
+        write_line("GAUGUIN SB PROBE: refused reason=trace-flag\n");return;
+    }
+    if(mach_timebase_info(&timebase)!=KERN_SUCCESS||!timebase.numer||!timebase.denom) {
+        write_line("GAUGUIN SB PROBE: refused reason=timebase\n");return;
+    }
     Class layer=objc_getClass("CALayer");
     Class link=objc_getClass("CADisplayLink");
     Method add=layer?class_getInstanceMethod(layer,sel_registerName("addAnimation:forKey:")):NULL;
     Method fps=link?class_getInstanceMethod(link,sel_registerName("setPreferredFramesPerSecond:")):NULL;
     Method range=link?class_getInstanceMethod(link,sel_registerName("setPreferredFrameRateRange:")):NULL;
     pthread_t thread;
-    if(pthread_create(&thread,NULL,flush_thread,NULL)!=0)return;
+    int thread_error=pthread_create(&thread,NULL,flush_thread,NULL);
+    if(thread_error!=0) {
+        char failure[96];
+        snprintf(failure,sizeof(failure),"GAUGUIN SB PROBE: refused reason=thread rc=%d\n",thread_error);
+        write_line(failure);return;
+    }
     pthread_detach(thread);
     atomic_store_explicit(&enabled,true,memory_order_release);
     if(void_object_method(add,4)) {

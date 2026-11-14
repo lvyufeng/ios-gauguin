@@ -2,6 +2,22 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0315 live; installation and temporary boot accepted
+
+Executor PID63371 / tool session74053 is live. Observer PID/PGID64432 is live
+under that executor. Never restart this one-shot. All70 fixed inputs passed;
+the fresh384MiB reserve was admitted. Claim binds actual315 approval393d36d2...
+and the frozen plan36404b6e.... Install/readback passed8ranges/1,814,528bytes;
+misc13-byte marker verified. One fastboot boot accepted the fixed314image:
+sending and booting OKAY, total0.617s. No final iOS/SB/stack/restore result yet.
+
+Follow the SAME session74053 and W315 research/tmp/sb-stack-315/execution/
+observer-process.json, observer.log and progress.jsonl through the bounded
+observation and authorized restoration. An observation timeout is not a reason
+to restart. After terminal, run the independent four-file/misc verifier once.
+The library marker must be315 while the kernel banner remains314. The separate
+C4 wait fix remains uninstalled. User presence is not required.
+
 ### 2026-11-14 CST —actual 0315 permission received; fixed one-shot starting
 
 The user answered the existing async request: "允许本轮 0315 写入、采样和回退".

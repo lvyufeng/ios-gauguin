@@ -8,7 +8,7 @@ from pathlib import Path
 
 MAIN=Path('/Users/baai/Project/ios-gauguin')
 WORK=Path(__file__).resolve().parents[1]
-STATE=WORK/'research/tmp/sb-loader-313'
+STATE=WORK/'research/tmp/sb-spawn-314'
 
 
 def sha(data):return hashlib.sha256(data).hexdigest()

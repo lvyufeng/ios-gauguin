@@ -41,6 +41,18 @@ No 60fps claim follows from these changes.
 - The library is unchanged from the 0313 native/signature and 117-check ObjC
   validation; those results are reused with their exact input hashes.
 
-Private artifacts are in `research/tmp/sb-spawn-314/`. Linking, packaging,
-independent image review and a fresh four-file rollback preparation are next.
-No 0314 phone write or boot is authorized by the consumed 0313 permission.
+Source commit is `2783cc4`; private artifacts are in `research/tmp/sb-spawn-314/`.
+Local incremental linking, packaging and independent image review passed.
+The image is 20,054,016 bytes, SHA256
+`1e78df251263cdb2c524631d3c27f9db93391fd0134a7ef9e01e4e7d4dd19428`, identity
+`xnu-local314-89f1cb48b219472180eaa18439a10abb`. There was no new CI run.
+
+Fresh four-file preimages were read from the restored phone. Eight-range
+installation and restoration models passed partial-write rollback, rollback
+failure reporting and final HFSX verification; all writes stayed in RAM.
+The missing-approval gate stopped before device commands or an execution claim.
+Wake-log validation passed two positive and twelve negative cases.
+The [0314 one-shot plan](gauguin-springboard-spawn-314-trial-20261114.md) is ready
+with 65 fixed inputs and a fresh 512 MiB storage admission at 499,417,346,048
+accounted bytes. No 0314 phone write or boot is authorized by consumed 0313
+permission.

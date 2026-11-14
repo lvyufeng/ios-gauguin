@@ -2,6 +2,65 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0314 fully prepared; new trial approval required
+
+0313 is terminal and independently restored; its one-shot authorization is
+consumed. Do not rerun it. Current root header remains
+0605fd307cdb25e0a76fc28b1ae93f181b16b57368c6caee882f9de5151cb34b.
+0313 proved loader outcome6/reason9 before credentials, incoming insertion
+absent. No SpringBoard activation/receipt evidence. Its C4 completed buffers
+still have 14 gaps of4.9–5.3s; the completed-only trace cannot exclude other
+uncommitted/incomplete buffers. Full GPU/smooth60Hz goal remains incomplete.
+
+Active W314: research/tmp/gauguin-sb-spawn-worktree-20261114,
+branch codex/gauguin-sb-spawn-20261114, source commit2783cc4/patch0236.
+Strict init-parent spawn-child admission and fresh referenced target credentials
+fix a source-confirmed omission, with caller/flags diagnostics. Actual313caller
+was not logged; do not call the spawn attribution runtime-proven.
+Same313signedobserver(its313marker is library version), sameC4/GPUpolicy/593B
+command; no311pending-frame fix. No314phone writes or boots have occurred.
+
+314image20,054,016B SHA1e78df251263cdb2c524631d3c27f9db93391fd0134a7ef9e01e4e7d4dd19428;
+kernel17,366,192B SHA8251a1bb1f73ed3ef464607e3e4932f4ef128eef3775f1dc11b63db8e0f87dda;
+identity xnu-local314-89f1cb48b219472180eaa18439a10abb.
+Local incremental link9implobjects passed with verified301baseline; noCIrun.
+Parent313manifest e3ce1f80af374d985888340747f7075b845575554d94da769006576752e43a25;
+new314manifest5ad507a5cdedcd263a3d0a4bb21361c43f2fbd2ba71fdcfde194c979f2fd3908.
+Exactbaseline file is W303research/tmp/wake-310/local-link/baseline.unstripped;
+newmanifest records baseline_reproduction_path explicitly. Historical derived
+raw310/312/313outputs were retired; do not assume each parent has a baseline.
+
+118actualexec ASAN/UBSAN cases(51SB),nativeARM64TU/2133pins,patchreplay passed.
+Unchanged313library reuses117ObjC/native/signature results. Image independently
+reviewed; no undefinedsymbols. Fresh four-file capture/modelinstall+restore
+passed eight partial-write failures, rollbackfailure report, HFSXfinalreject
+rollback and unrelatedcatalog preservation. Gate test refuses beforedevice IO;
+wake2positive/12negative pass. All65readyinputs independently rehashed; model
+pins unchanged and user mkadt SHA3c1085a7... unchanged. Allsessions terminal.
+
+Private W314research/tmp/sb-spawn-314/:
+ready SHA f1840496d60c4280c55a394721dde7f2587c44634c72d55ce4f193f96f6df162
+trial-plan SHA e72a17eaa929e0a419d05f154f6ff1fcc435d9fcab58fae4c3281f6d406e7896
+install-plan SHA a4f85355059a5ede2007425ad6010e07ae488e1f3fba449209d0efefef94dd13
+executor SHA b3188fc9722ad35fac11732a2a8abf7d5bf8566feb82326a9f19f4b3afa0a3ce
+Plan docs/gauguin-springboard-spawn-314-trial-20261114.md.
+Noapproval.json or executiondirectory exists. Once actual matching314consent
+arrives, bind that actual answer(no invented asyncID), use source
+actual-user-sb-spawn314-trial-reply and direct-user-message or actual async
+provenance. Run tools/run-sb-cadence-trial.py exactlyonce; follow through restore
+and tools/verify-sb-cadence-restore.py. Install/restoreeach1,814,528B/8ranges;
+normal3,629,056B, failurebound9,072,640B; misc13B normal/max26B; oneboot/13strokes/
+442reports/atmostonewakepair/onefastbootrecoveryfallback. No user presence needed.
+
+620MBwholebatch admitted at499,349,606,400B; fresh512MiBtrialreserve admitted at
+499,417,346,048B. Exactcleanup retired157files/242,711,128logicalB; manifestSHA
+414c10487b23974bb2e8e069f50db4e5b37196a4ce0f664f444d69c5a6f8f11d.
+Onlyduplicate staticblobs fromcompleted historicalcaptures andderived313raw;
+retainedidenticalcounterparts,current313rollback,alllogs/JSON,allreadyinputs,
+originalbackups,allstrippedkernels/images/objects/baseline and311candidate kept.
+Do not clean current313rollback or new314pinnedinputs. Originaluser mkadt edit
+remains the sole maincode change. Await new314consent beforedestructive steps.
+
 ### 2026-11-14 CST —0314 protected spawn correction passed offline checks
 
 Active W314 research/tmp/gauguin-sb-spawn-worktree-20261114, branch

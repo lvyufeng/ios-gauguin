@@ -29,9 +29,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--out', type=Path, required=True)
     ap.add_argument('--baseline', type=Path,
-                    default=MAIN/'research/tmp/gauguin-sb-cadence-worktree-20261114/research/tmp/sb-cadence-312/execution/restored-capture/result.json')
+                    default=MAIN/'research/tmp/gauguin-sb-loader-worktree-20261114/research/tmp/sb-loader-313/execution/restored-capture/result.json')
     ap.add_argument('--springboard-capture', type=Path,
-                    default=WORK/'research/tmp/sb-loader-313/initial-capture/result.json')
+                    default=WORK/'research/tmp/sb-spawn-314/initial-capture/result.json')
     args = ap.parse_args()
     out = args.out.resolve()
     assert out.is_relative_to(WORK/'research/tmp') and not out.exists()

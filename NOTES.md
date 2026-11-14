@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0314 completed/restored; SB input and multi-second stalls proved
+
+ExecutorPID78096/session1853 andobserver78980 TERMINAL; independentverify
+session1125terminal. DoNOTrerun;314one-shotconsentconsumed. AutoTWRP746s,
+fixedbannerpass, install+restoreeach1,814,528B/8rangesreadbackpassed; misc13B.
+No bootretry/restoreretry/recoveryfallback. Final31staticfilecomparepassed
+exceptexpectedlogs. Independentfouroriginalallocated/logicalfiles,CNIDs/forks,
+andoriginalmisc4KiBverified. Currentrootheader
+3c5af5b175dabaa759a1ff22523a103d30cfe375a421f7757a2f37f80fea672e.
+ResultstateSpringBoard-cadence-observed-root-restored,executor0/observer0;
+SHA840af1b22c1342d07d6c9ff87b1262825063a062e17779d506edf6af0f891954.
+IndependentSHA df9c4f901f1f1cd97606bbbb8b1798e562a49cb29be26571320999fc437498cb.
+
+Loadernowruntimeproved: added1/outcome1/reason0/envc11 UID/RUID501,
+caller1 flags0x41c init1 shadow0 originalparent1. Actuallaunchdspawnpathconfirmed.
+Libraryconstructor313(versionmarker),rateall4flagsactive,inputsend_event1.
+NewSBtail1,379,299B/16,495records,no lost/metadata/writeerrors,prefixespreserved.
+Onepowerpair wokeoffdisplay;13strokes442reports,226.277680..259.048340s,
+32.770660s. Kernel4swindow792events,lost0;BBoardqueue67headchanges/68samples.
+Duringwhole script77touchentries,allmainthread,allpairednormalreturns/noexceptions.
+Medianwrapperspan1.774ms,two4.561708s/5.013756s;includesmetadatacollection,not
+anexactstackattribution. Windows35HomeScreen/39SystemGesture/3CoverSheet;
+28SBIconListViewentries. Publicinputdeliveryproved,gestureacceptance/physical
+latencynotproved. 117scriptmainturns,watchcoverswindow;15body/17beforeCA phases.
+
+FourCAobserverbrackets3.840996..4.689667s endwithin419usofC4creation, BEFORE
+thatbuffercommit(5.311..9.301mslater)andcompletion(20.147..27.387mslater).
+ThisfavorsCAclient/servertransactiondelivery/renderwakeupwaitinvestigation;
+notproofspecificfunction,norwholegapcausedbytheseGPUjobs. C4still27completed
+records,6madeinscript,15gaps4.9–5.3s,median5.013188s. Incomplete/uncommitted
+buffersunobserved. One30fpslinkrequest/11rangerequests/53animations(49max0)
+arenotproofglobalactualrate;doNOTblindlyforceallrequests60.
+FocusedsummarySHA94e0de597d6b59d37cb763d9486344d6a7e194f63ae88aa2ba2857bacb790d92;
+stallalignmentSHA13c879fca453746f4994209b581d7636df1f0b3ea706ad44b9d6c02fff1fc6f5.
+Resultsdoc docs/gauguin-springboard-spawn-314-results-20261114.md.
+Privateevidence W314research/tmp/sb-spawn-314/execution/.
+
+Nextconcreteaction: develop bounded main-thread PC/call-stack orcall-span
+observation tolocatetheactualwait duringreproducedlongturns. Use actualXNU/
+20H392semantics; keepanysamplingbounded andalwaysbalance thread suspension,
+avoidallocations/ObjC/symbolization whilepaused. Thesearedesignconstraints,
+NOsamplercode/nativebuild/newtrialpreparedyet. ExistingstaticCA5sfunctions are
+candidates,notconfirmedcallstacks. New315planneedsfreshpreimages/currentheader
+andseparateconsent beforephonewrites. Mayreusetheverified314kernelimage ifonly
+observerlibrarychanges; avoidunneededkernel/imagecopies underthe500GBcap.
+Runwholebatchstorageadmission beforeworktree/build; cleanup onlyverifiedobsolete
+duplicates, preserveoriginalbackups,current314restoredcapture,activepins/311fix.
+SeparateC4waitfixdc032fd/native2f7891bf... remainsUNINSTALLED (314used560284dd...).
+Do not substitute it intoa diagnosticcomparison withoutanexplicitnewfixedplan.
+FullGPU/smooth60Hzgoalactive/incomplete. Usernoton-site; no manualscreenrequest.
+
 ### 2026-11-14 CST —0314 executor/observer live; never restart this one-shot
 
 Actual314approval is executing once. ExecutorPID78096/session1853; observer

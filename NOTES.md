@@ -2,6 +2,37 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0313 protected SB loader candidate passed offline checks
+
+Active W313 is research/tmp/gauguin-sb-loader-worktree-20261114, branch
+codex/gauguin-sb-loader-20261114, based on W312 results ba86475.
+Code commit2150dfe adds0235: default-off sbp=1 protected SpringBoard-only exec
+insertion for mobile UID501 and existing C4 mode, using the tested argument
+copy/alignment path, no GPU policy change. Existing exact DYLD key is retained;
+conflicts, bad subject/library, lack of space or partial copy preserve oldexec.
+Kernel logs before-insertion counts/outcome. Library now logs constructor entry
+and explicit early refusals. SB loader failure is a hypothesis;312 did not prove
+where injection/init failed. Do not infer no SB touch from its empty observerlog.
+
+104 actualexec ASAN/UBSAN cases (37SB),117 actualObjC checks, nativekern_exec
+against2133header/configpins, signediOSlibrary and exactpatchreplay passed.
+Library SHA b0b49caf5ecf11619d6223455017f6668203ce61e0816dd70f599a6de9b800a4.
+W313 private research/tmp/sb-loader-313/ contains receipts/source and relink313.py.
+Local incremental313link is underway; noCIrun/noimageboot/noapproval ortrialyet.
+Finishimagepack/review, then fresh four-file preparation/models againstcurrent
+root7faaeed238ab8ad51846767eb8e6f98ecfd1d8a6243196f998bfd514892c522d.
+0312terminal/restored/approvalconsumed. FullGPU/smooth60FPSgoal remainsopen.
+
+60MBofflinebatch admitted, then105verifiedduplicates/derivedrawoutputs retired
+189,791,771B. Preservealloriginalbackups,current312restoredcapture,logs,ready
+pins,allstrippedkernels/images/objects/baselinereproduction. Rawderived310/312
+unstrippedoutputs were verified tostrip identically before retirement; their
+manifestoutputfields are historical, not extantfiles. CleanupmanifestSHA
+1e499fe4b55a0246453f4ad0d5eeb268f33ecd25f80e40e75a6286a029894fa7.
+620MBlink/image/prep/trialbatch admitted at499,363,512,320B, includes512MiBreserve.
+Mainuser mkadt edit remains untouched. See W313docs/gauguin-springboard-loader-313-20261114.md.
+
+
 ### 2026-11-14 CST —0312 completed and independently restored; SB observer missing
 
 Executor PID20172/session58470 and observer21183 are terminal; do not rerun.

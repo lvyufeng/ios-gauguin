@@ -1,0 +1,389 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -336,7 +336,55 @@
+     return 2;
+ }
+ extern "C" void GauguinGPUSurfaceEnd(uint32_t token)
+-{if(token==2){sweet_ui_trace_record(GUT_READ_END,gTraceReader,0,0,0,0,0);IOLockUnlock(gLock);}}
++{
++    if(token==2||token==3)sweet_ui_trace_record(GUT_READ_END,gTraceReader,0,0,0,0,0);
++    if(token==2)IOLockUnlock(gLock);
++}
++
++extern "C" uint32_t GauguinGPUFrameBegin(SweetSurface *const *surfaces,uint32_t count,uint32_t *state)
++{
++    if(!state)return 0;
++    *state=SWEET_GPU_FRAME_INVALID;
++    if(!surfaces||!count||count>4)return 0;
++    IOLock *lock=__atomic_load_n(&gLock,__ATOMIC_ACQUIRE);
++    if(!lock){*state=SWEET_GPU_FRAME_READY;return 1;}
++    IOLockLock(lock);
++    bool pending=false;
++    for(uint32_t i=0;i<count;i++)if(surfaces[i]){
++        if(surfaces[i]->gpuState>1){IOLockUnlock(lock);return 0;}
++        pending|=surfaces[i]->gpuState==1;
++    }
++    if(pending){
++        /* Poll once, without gRequests or a blocking wait. All submitted
++         * pages remain owned by the GPU client while the display retries. */
++        bool completed=completePendingOwnerLocked(false,false);
++        pending=false;
++        for(uint32_t i=0;i<count;i++)if(surfaces[i]){
++            if(surfaces[i]->gpuState>1){IOLockUnlock(lock);return 0;}
++            pending|=surfaces[i]->gpuState==1;
++        }
++        if(pending){
++            /* A supposedly completed owner with a still-busy surface is
++             * inconsistent, not an endlessly retryable pending fence. */
++            if(!completed)*state=SWEET_GPU_FRAME_PENDING;
++            IOLockUnlock(lock);return 0;
++        }
++    }
++    *state=SWEET_GPU_FRAME_READY;
++    return 2; /* all layers stay protected through the entire copy */
++}
++extern "C" void GauguinGPUFrameEnd(uint32_t token)
++{
++    if(token==2)IOLockUnlock(gLock);
++}
++extern "C" uint32_t GauguinGPUSurfaceBorrow(SweetSurface *s)
++{
++    /* Caller owns a ready frame token2. No runtime transition can run while
++     * it holds gLock; retain the existing per-layer read-span observation. */
++    if(!s||s->gpuState)return 0;
++    sweet_ui_trace_record(GUT_READ_LOCK,s->id,0,0,sweet_ui_trace_clock(),0,0);
++    gTraceReader=s->id;return 3;
++}
+
+ bool GauguinGPUUserClient::initWithTask(task_t task,void *sid,UInt32 type,OSDictionary *properties)
+ {
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -438,7 +438,7 @@
+ 	uint8_t       fPending[SWEET_FB_SWAP_REC_SIZE];     /* latest swap, not yet shown */
+     bool          fDirty;
+ #if defined(GAUGUIN)
+-    bool fHoldPresent, fHeldActive;
++    bool fHoldPresent, fHeldActive, fDeferGpuPresent;
+     bool fPhasePresent;
+     struct SweetPresentClock fPresentClock;
+     /* BEGIN SWEET PRESENT STATS FIELDS */
+@@ -450,11 +450,15 @@
+     bool presentClockTickLocked(uint64_t now, uint64_t *elapsed, bool *copy); /* fLock held */
+     void presentClockCopiedLocked(void); /* fLock held */
+     struct sweet_fb_frame fHeldPending;
++    struct sweet_fb_frame fHeldDeferred; /* the active frame waiting for its GPU fence */
++    uint64_t fHeldGPUDeferred;
+     uint64_t fHeldSubmitted, fHeldReplaced, fHeldConsumed, fHeldRetired, fHeldCanceled, fHeldRejected;
+     uint64_t fHeldRejectReasons[8]; /* 1 owner-null, 2 mask, 3..6 surface layer, 7 unregistered */
+     bool takeHeldFrameLocked(struct sweet_fb_frame *frame); /* fLock held */
+     void cancelHeldFrameLocked(struct sweet_fb_frame *frame, IOMobileFramebufferUserClient *owner);
+-    void finishHeldFrame(struct sweet_fb_frame *frame);
++    void cancelDeferredFrameLocked(struct sweet_fb_frame *frame, IOMobileFramebufferUserClient *owner);
++    void finishHeldFrame(struct sweet_fb_frame *frame,bool retry=false);
++    bool renderHeldFrame(struct sweet_fb_frame *frame,bool *presented);
+ #endif
+ 	uint32_t      fFlushTicks;    /* vsync ticks between panel copies */
+ 	bool          fPowerOff;      /* RequestPowerChange(0) */
+@@ -465,7 +469,7 @@
+ 	void addClient(IOMobileFramebufferUserClient *client);
+ 	void removeClient(IOMobileFramebufferUserClient *client);
+ 	bool swap(const uint8_t *rec, IOMobileFramebufferUserClient *owner);
+-	void present(const uint8_t *rec, SweetSurface *const *held = NULL);
++	void present(const uint8_t *rec, SweetSurface *const *held = NULL,uint32_t frameToken=0);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+
+@@ -601,8 +605,13 @@
+     int held = sweet_metal_desktop_enabled() ? 1 : 0;
+     PE_parse_boot_argn("sweetfb_hold", &held, sizeof(held));
+     fHoldPresent = held == 1;
++    int gpuAsync=0;
++    PE_parse_boot_argn("sweetgpuasync",&gpuAsync,sizeof(gpuAsync));
++    fDeferGpuPresent=fHoldPresent&&sweet_metal_desktop_enabled()&&gpuAsync==1;
+     fHeldActive = false;
+     bzero(&fHeldPending, sizeof(fHeldPending));
++    bzero(&fHeldDeferred, sizeof(fHeldDeferred));
++    fHeldGPUDeferred=0;
+     fHeldSubmitted = fHeldReplaced = fHeldConsumed = fHeldRetired = fHeldCanceled = fHeldRejected = 0;
+     bzero(fHeldRejectReasons, sizeof(fHeldRejectReasons));
+     /* BEGIN SWEET PRESENT STATS INIT */
+@@ -614,6 +623,7 @@
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");
+     /* END SWEET PRESENT STATS INIT */
+     if (fHoldPresent) IOLog("SWEET FB HOLD: enabled pending=1 active=1; original surfaces, prompt retirement\n");
++    if (fDeferGpuPresent) IOLog("SWEET FB GPU RETRY: enabled; pending active frame retained until completion or replacement\n");
+ #endif
+ 	fClients = OSArray::withCapacity(4);
+ 	fSurface = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes, SWEET_FB_FORMAT_BGRA);
+@@ -772,8 +782,9 @@
+ 	}
+     if (fb->fPowerOff) {
+ #if defined(GAUGUIN)
+-        struct sweet_fb_frame canceled = {};
++        struct sweet_fb_frame canceled = {}, deferred = {};
+         fb->cancelHeldFrameLocked(&canceled, NULL);
++        fb->cancelDeferredFrameLocked(&deferred, NULL);
+ #endif
+ 		/* Fade out: halve every channel each vsync, then black, then idle. */
+ 		uint32_t step = fb->fFadeStep;
+@@ -783,6 +794,7 @@
+         IOLockUnlock(fb->fLock);
+ #if defined(GAUGUIN)
+         sweet_fb_frame_release(&canceled);
++        sweet_fb_frame_release(&deferred);
+ #endif
+         if (step <= 6) {
+ 			for (uint32_t y = 0; y < fb->fHeight; y++) {
+@@ -808,6 +820,9 @@
+ #endif
+     flush = fb->fDirty && (count % fb->fFlushTicks) == 0;
+ 	if (flush) {
++#if defined(GAUGUIN)
++        if(!fb->fDeferGpuPresent)
++#endif
+ 		presents++;
+ 	}
+ 	if ((count % 600) == 0 || count == 2) {
+@@ -1008,6 +1023,8 @@
+         IOLog("SWEET FB HOLD: submitted=%llu replaced=%llu consumed=%llu retired=%llu canceled=%llu rejected=%llu pending=%u active=%u\n",
+             fb->fHeldSubmitted, fb->fHeldReplaced, fb->fHeldConsumed, fb->fHeldRetired,
+             fb->fHeldCanceled, fb->fHeldRejected, fb->fHeldPending.owner != NULL, fb->fHeldActive);
++        if(fb->fDeferGpuPresent) IOLog("SWEET FB GPU RETRY: deferred=%llu waiting=%u; pending fences are not retired\n",
++            fb->fHeldGPUDeferred,fb->fHeldDeferred.owner!=NULL);
+         if (fb->fHeldRejected != 0) {
+             IOLog("\nSWEET FB REJECT COUNTS: null=%llu mask=%llu surface0=%llu surface1=%llu surface2=%llu surface3=%llu unregistered=%llu\n",
+                 fb->fHeldRejectReasons[1], fb->fHeldRejectReasons[2], fb->fHeldRejectReasons[3],
+@@ -1038,7 +1055,7 @@
+         }
+ 	}
+ #if defined(GAUGUIN)
+-    if (rec != NULL) fb->presentClockCopiedLocked();
++    if (rec != NULL && !fb->fDeferGpuPresent) fb->presentClockCopiedLocked();
+ #endif
+     IOLockUnlock(fb->fLock);
+     if (rec != NULL) {
+@@ -1050,11 +1067,17 @@
+         if (measuring) { sample.timingValid = true; fb->fPresentSample = &sample; }
+         else if (priorSample != NULL) fb->fPresentSample = NULL; /* do not mix a reentrant call */
+         /* END SWEET PRESENT STATS START */
+-        fb->present(rec, fb->fHoldPresent ? frame.surfaces : NULL);
++        bool retry=false,presented=false;
++        if(fb->fHoldPresent)retry=fb->renderHeldFrame(&frame,&presented);
++        else fb->present(rec,NULL);
++        if(fb->fDeferGpuPresent&&presented){
++            ++presents;
++            IOLockLock(fb->fLock);fb->presentClockCopiedLocked();IOLockUnlock(fb->fLock);
++        }
+         /* BEGIN SWEET PRESENT STATS CLEAR */
+         if (measuring || priorSample != NULL) fb->fPresentSample = priorSample;
+         /* END SWEET PRESENT STATS CLEAR */
+-        if (fb->fHoldPresent) fb->finishHeldFrame(&frame);
++        if (fb->fHoldPresent) fb->finishHeldFrame(&frame,retry);
+         else IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
+         /* BEGIN SWEET PRESENT STATS RECORD */
+         if (measuring) {
+@@ -1100,17 +1123,19 @@
+ AppleCLCD::removeClient(IOMobileFramebufferUserClient *client)
+ {
+ #if defined(GAUGUIN)
+-    struct sweet_fb_frame retired = {};
++    struct sweet_fb_frame retired = {}, deferred = {};
+ #endif
+     IOLockLock(fLock);
+ #if defined(GAUGUIN)
+     cancelHeldFrameLocked(&retired, client);
++    cancelDeferredFrameLocked(&deferred, client);
+ #endif
+     unsigned int i = fClients->getNextIndexOfObject(client, 0);
+     if (i != (unsigned int)-1) fClients->removeObject(i);
+     IOLockUnlock(fLock);
+ #if defined(GAUGUIN)
+     sweet_fb_frame_release(&retired);
++    sweet_fb_frame_release(&deferred);
+ #endif
+ }
+
+@@ -1130,6 +1155,7 @@
+     for (uint32_t layer = 0; layer < SWEET_FB_LAYERS; layer++) {
+         sweet_surface_drop(frame->surfaces[layer]);
+     }
++    if(frame->owner)frame->owner->release();
+     bzero(frame, sizeof(*frame));
+ }
+
+@@ -1173,6 +1199,7 @@
+             return false;
+         }
+     }
++    owner->retain(); /* active/deferred frames must not outlive a raw client pointer */
+     frame->owner = owner;
+     return true;
+ }
+@@ -1195,7 +1222,13 @@
+ bool
+ AppleCLCD::takeHeldFrameLocked(struct sweet_fb_frame *frame)
+ {
+-    if (!fHoldPresent || !fDirty || fHeldActive || fHeldPending.owner == NULL) return false;
++    if (!fHoldPresent || !fDirty) return false;
++    if(fHeldDeferred.owner!=NULL){
++        if(!fHeldActive||fHeldPending.owner!=NULL)return false;
++        sweet_fb_frame_move(frame,&fHeldDeferred);
++        fDirty=false;return true; /* resume the same consumed, unretired frame */
++    }
++    if(fHeldActive||fHeldPending.owner==NULL)return false;
+     sweet_fb_frame_move(frame, &fHeldPending);
+     fDirty = false;
+     fHeldActive = true;
+@@ -1215,9 +1248,30 @@
+ }
+
+ void
+-AppleCLCD::finishHeldFrame(struct sweet_fb_frame *frame)
++AppleCLCD::cancelDeferredFrameLocked(struct sweet_fb_frame *frame,IOMobileFramebufferUserClient *owner)
++{
++    if(fHeldDeferred.owner!=NULL&&(owner==NULL||owner==fHeldDeferred.owner)){
++        sweet_fb_frame_move(frame,&fHeldDeferred);
++        fHeldActive=false;++fHeldRetired;
++        if(fHeldPending.owner==NULL)fDirty=false;
++    }
++}
++
++void
++AppleCLCD::finishHeldFrame(struct sweet_fb_frame *frame,bool retry)
+ {
+     bool consumed = frame->owner != NULL;
++    if(consumed&&retry){
++        IOLockLock(fLock);
++        bool registered=fClients->getNextIndexOfObject(frame->owner,0)!=(unsigned int)-1;
++        if(fDeferGpuPresent&&fHoldPresent&&!fPowerOff&&registered&&fHeldActive&&
++           fHeldPending.owner==NULL&&fHeldDeferred.owner==NULL){
++            sweet_fb_frame_move(&fHeldDeferred,frame);
++            fDirty=true;++fHeldGPUDeferred;
++            IOLockUnlock(fLock);return;
++        }
++        IOLockUnlock(fLock); /* a newer frame, close or sleep retires this one */
++    }
+     sweet_fb_frame_release(frame);  /* after GPURead and the copy, before another frame */
+     if (consumed) {
+         IOLockLock(fLock);
+@@ -1225,6 +1279,26 @@
+         fHeldRetired++;
+         IOLockUnlock(fLock);
+     }
++}
++
++bool
++AppleCLCD::renderHeldFrame(struct sweet_fb_frame *frame,bool *presented)
++{
++    *presented=false;
++    if(!fDeferGpuPresent){present(frame->record,frame->surfaces);*presented=true;return false;}
++    uint64_t begin=mach_absolute_time();
++    SweetFrameGPURead read(frame->surfaces,SWEET_FB_LAYERS);
++    if(fPresentSample!=NULL){
++        ++fPresentSample->gpuGuards;
++        if(fPresentSample->timingValid&&
++           !sweet_present_sample_add_ticks(&fPresentSample->waitTicks,begin,mach_absolute_time()))
++            fPresentSample->timingValid=false;
++        if(!read.valid())++fPresentSample->gpuRefusals;
++    }
++    if(!read.valid())return read.pending();
++    present(frame->record,frame->surfaces,read.lockToken());
++    *presented=true;
++    return false; /* frame lock is released before finish takes fLock */
+ }
+ #endif
+
+@@ -1243,7 +1317,7 @@
+ {
+     (void)owner;
+ #if defined(GAUGUIN)
+-    struct sweet_fb_frame next = {}, retired = {};
++    struct sweet_fb_frame next = {}, retired = {}, deferred = {};
+ #endif
+     IOLockLock(fLock);
+ #if defined(GAUGUIN)
+@@ -1264,6 +1338,9 @@
+             IOLockUnlock(fLock);
+             return false;
+         }
++        /* A newer accepted swap supersedes a waiting active frame. The
++         * surfaces and client are released only after dropping fLock. */
++        cancelDeferredFrameLocked(&deferred,NULL);
+         if (fPowerOff) {
+             cancelHeldFrameLocked(&retired, NULL);
+             fHeldCanceled++; /* accepted valid frame while the display is off */
+@@ -1290,6 +1367,7 @@
+     IOLockUnlock(fLock);
+ #if defined(GAUGUIN)
+     sweet_fb_frame_release(&retired);
++    sweet_fb_frame_release(&deferred);
+     sweet_fb_frame_release(&next);
+ #endif
+     if ((count % 1000) == 0) {
+@@ -1299,9 +1377,10 @@
+ }
+
+ void
+-AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held)
++AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held,uint32_t frameToken)
+ {
+     (void)held;
++    (void)frameToken;
+ #if defined(GAUGUIN)
+     sweet_ui_trace_record(GUT_PRESENT_BEGIN,get32(rec,0x50),0,0,get32(rec,0x104),0,0);
+ #endif
+@@ -1351,15 +1430,15 @@
+ #if defined(GAUGUIN)
+         /* BEGIN SWEET PRESENT STATS GUARD START */
+         uint64_t statsGuardBegin = 0;
+-        if (fPresentSample != NULL) {
++        if (fPresentSample != NULL && frameToken==0) {
+             ++fPresentSample->gpuGuards;
+             if (fPresentSample->timingValid) statsGuardBegin = mach_absolute_time();
+         }
+         /* END SWEET PRESENT STATS GUARD START */
+         sweet_ui_trace_record(GUT_LAYER,get32(rec,0x50),0,layer,id,s->width,s->height);
+-        SweetSurfaceGPURead gpuRead(s);
++        SweetSurfaceGPURead gpuRead(s,frameToken);
+         /* BEGIN SWEET PRESENT STATS GUARD END */
+-        if (fPresentSample != NULL) {
++        if (fPresentSample != NULL && frameToken==0) {
+             if (fPresentSample->timingValid &&
+                 !sweet_present_sample_add_ticks(&fPresentSample->waitTicks, statsGuardBegin, mach_absolute_time()))
+                 fPresentSample->timingValid = false;
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -72,10 +72,32 @@
+ void sweet_surface_drop(SweetSurface *surface);
+ extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *);
+ extern "C" void GauguinGPUSurfaceEnd(uint32_t);
++enum { SWEET_GPU_FRAME_READY, SWEET_GPU_FRAME_PENDING, SWEET_GPU_FRAME_INVALID };
++/* One nonblocking completion check for all retained layers. A ready token
++ * holds the GPU lock until FrameEnd; pending/invalid tokens hold no lock. */
++extern "C" uint32_t GauguinGPUFrameBegin(SweetSurface *const *,uint32_t,uint32_t *);
++extern "C" void GauguinGPUFrameEnd(uint32_t);
++extern "C" uint32_t GauguinGPUSurfaceBorrow(SweetSurface *);
++class SweetFrameGPURead {
++    uint32_t token,state;
++public:
++    SweetFrameGPURead(SweetSurface *const *s,uint32_t count)
++        : token(0),state(SWEET_GPU_FRAME_INVALID) {token=GauguinGPUFrameBegin(s,count,&state);}
++    ~SweetFrameGPURead() {GauguinGPUFrameEnd(token);}
++    bool valid() const {return token!=0;}
++    bool pending() const {return state==SWEET_GPU_FRAME_PENDING;}
++    uint32_t lockToken() const {return token;}
++    SweetFrameGPURead(const SweetFrameGPURead &)=delete;
++    SweetFrameGPURead &operator=(const SweetFrameGPURead &)=delete;
++};
+ class SweetSurfaceGPURead {
+     uint32_t token;
+ public:
+     explicit SweetSurfaceGPURead(SweetSurface *s) : token(GauguinGPUSurfaceBegin(s)) {}
++    /* The frame guard outlives every borrowed layer guard. Token3 ends only
++     * its trace span, never the frame's lock. Zero selects the legacy path. */
++    SweetSurfaceGPURead(SweetSurface *s,uint32_t frameToken)
++        : token(frameToken==2?GauguinGPUSurfaceBorrow(s):frameToken==1?1:GauguinGPUSurfaceBegin(s)) {}
+     ~SweetSurfaceGPURead() { GauguinGPUSurfaceEnd(token); }
+     bool valid() const { return token!=0; }
+     SweetSurfaceGPURead(const SweetSurfaceGPURead &)=delete;

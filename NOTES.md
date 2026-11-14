@@ -2,6 +2,46 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — offline pending GPU frame fix; 0310 remains frozen
+
+This branch is `codex/gauguin-pending-present-20261114`, based on W303
+`d017d65`. Main-worktree NOTES contains the full intervening device handoff.
+0309 finished/restored, but its gestures ran while display was requested off.
+0310 display-aware one-shot is prepared in W303 and still awaiting its exact
+approval. **No0310 execution or approval.json; never reuse0309 approval.**
+Read-only `adb get-state` returned `recovery` during this milestone.
+
+Patch0233 fixes the separately observed held-frame retirement on a pending
+GPU read. Only held desktop+`sweetgpuasync=1` uses the new frame guard. It
+checks all retained layers, polls once without blocking and copies nothing
+until all are ready, then holds gLock across all layer copies. Pending work
+stays the single active frame between timer beats; newer accepted swaps,
+close and sleep retire it. Client retention prevents owner-pointer reuse.
+Software present/copy counts no longer advance for pending attempts. The
+default synchronous layer guard remains. No boot image/link/device result
+exists for this patch, and smooth60Hz/fullGPU/high-refresh is not achieved.
+
+Actual helper host tests passed9,612 ASAN/UBSAN checks; full GPU IOUserClient
+host integration passed10,946. Both implementation TUs passed native ARM64
+compile against0301 with2,133 header/config pins and unchanged reference
+inputs. Exact forward replay/reverse dry run passed for3changed files;
+all228 series entries exist. Private small source overlay and receipts:
+`research/tmp/pending-311/`; final native receipt is `native-v2/result.json`,
+SHA `bfe586caf7f7029f1c68e2e209a48c48d8b8aa298cca6610079780810aadca62`.
+Patch SHA `4b9ce9fe000dee5c582e1152d88c26a0b49790e379b89a7e9384d38fb09f135d`.
+See `docs/gauguin-pending-gpu-presentation-311-20261114.md` for behavior,
+test limits and reproduction. No new CI run was dispatched.
+
+All93 frozen0310 pins rehashed unchanged,17,288,627,432 bytes including the
+original backup; ready SHA remains
+`431efde8befffb4577c4378d68e2a154e7ed31e5bfb2b6affb022e6b0dca813f`.
+Keep the pending0310 image/executor/inputs fixed. On its actual exact-scope
+reply execute only W303's reviewed0310 plan, with its existing wake limit
+and rollback. Never silently replace it with this unbooted branch. The
+600MB offline batch includes0310's512MiB reserve; preserve all original
+backups/current rollback and active pins, and main user's mkadt edit.
+Post-work512MiB reserve passed at499,388,981,248 B accounted, below500GB.
+
 ### 2026-11-12 CST — 0300 desktop lag confirmed, original restored
 
 The user clarified the 0300 boot reached the desktop after the lock screen,

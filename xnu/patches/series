@@ -225,3 +225,4 @@
 0230-gauguin-display-progress-during-gpu-wait.patch
 0231-gauguin-unattended-scripted-swipes.patch
 0232-gauguin-display-aware-scripted-wake.patch
+0233-gauguin-retry-pending-gpu-presentation.patch

@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0315 fully prepared; separate user approval is next
+
+ActiveW315 research/tmp/gauguin-sb-stack-worktree-20261114, branch
+codex/gauguin-sb-stack-20261114; sampler codee7b8a3a. Freshfourfilecapture,
+install/restorepartial-failuremodels,missingconsentgate,stackclassifications and
+2positive/12negativewakechecks passed. All70readyinputs independentlyrehashed;
+modelpinsunchanged. No315approval.json or executiondirectory. No315phonewrite/
+boot. 314terminal/restored/consentconsumed; currentroot3c5af5b175dabaa759a1ff22523a103d30cfe375a421f7757a2f37f80fea672e.
+
+Plan docs/gauguin-springboard-stack-315-trial-20261114.md.
+315usesNEW90,416Bobserver10683efc71f95f1a79563727cfef10374df8d1ec94f6249a83328b7d6660683b
+withconstructor315 andboundedself-mainstackcapture. ItREUSESfixed314image
+1e78df251263cdb2c524631d3c27f9db93391fd0134a7ef9e01e4e7d4dd19428,
+identityxnu-local314-89f1cb48b219472180eaa18439a10abb, same593Bcommand/C4baseline
+560284dd...; no newkernel/imagebuild. SeparateC4waitfixdc032fd/311framefixexcluded.
+Sampling220..270s,max64,>=1sinterval,turnage>=250mswhilephase1/2,16frames/64KiB;
+2ms stopsadditionalreads butNOTahardpausecap. Alwaysattemptmatchingresume;
+onuncertainresume noformat/locks/exitcleanup,onlyfixedwriteandexistingsleeploop.
+
+PrivateW315research/tmp/sb-stack-315/:
+ready SHA49afa2c5bf0fc928b1e5da9186a9ab9bbacba762d7b20f131ee4051d4b7ab81d
+trial-plan SHA36404b6e52e6622efec4756670f339c5f834ea8566b62574c8e2e0d7dc75e13e
+install-plan SHA8110b76655bc5e6ef9c172fac2d8fdbdfd66baa7ff02dc5ddc43a43a59280c5f
+executor SHA58214139f941c3d877beeeb681a62e03a74fbc6c29a5b017ec7d9288eb4ee5f5
+Afteractual315consent,bindactualanswer(noinventedasyncID), source
+actual-user-sb-stack315-trial-reply, provenance direct-user-message oractual
+async-question-reply. Approvalmustincludeallow_main_thread_sampling=True along
+withtheexistingone-shotinstall/restore/rollback/misc/boot/fallback/script/wake
+booleans. DoNOTreuse314approval. RunpinnedexecutorONCE,followrestoreandindependent
+verify. Expectnewlibrary315marker with314kernelbanner; thisisintentionalreuse.
+
+Normalhostuserdatawrite3,629,056B(1,814,528install+restoreeach),failurebound9,072,640B;
+misc13Bnormal/max26B,oneboot/no bootretry,maxonewakepair,13strokes442reports,
+maxonefastbootrecoveryfallback. 600sservice/780sobservation. Nouserpresence needed.
+Stackobserved verdictrequirescompletepolicy/clock/frameevidence andnoresumeerror;
+PCsamples stilldoNOTprove5srootcauseorphysical60FPS. Restorebeforeanalysisasbefore.
+
+52verifiedcompleted314fresh/poststaticduplicatesretired72,978,083B; cleanupSHA
+b1a31d4960369f7c704f1c9a5b104c5fdadcbb330528f796b5f3e383d35d58a4.
+Originals/current314restoredcapture/alllogs/JSON/readyinputs/kernel/nativeartifacts
+kept. Whole450MBbatch admittedat499,518,402,560B. Staticbound385,363,808B includes
+raw1025blocks andworst3xUTF8decodedring; observerchildenvPYTHONUTF8=1 pinned,
+main/tools/sweet-log.py nowalsopinned. New384MiBtrialreserve402,653,184Badmitted
+at499,524,509,696B; executionrechecksbudget. Preservecurrent314rollback+315pins.
+UsermkadtSHA3c1085a7... unchanged. Goalactive/incomplete; thisturnmadeconcreteprogress.
+
 ### 2026-11-14 CST —0315 bounded stack probe passed offline/native checks
 
 Previousgoalturn was PROGRESS:314completed/restored, proved77SBtouchentries and

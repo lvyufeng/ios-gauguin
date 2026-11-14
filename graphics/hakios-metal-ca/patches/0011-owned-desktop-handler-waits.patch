@@ -1,0 +1,129 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -1244,4 +1244,5 @@
+ 	NSCondition *_stateCondition;            /* broadcasts commit reached and completion to every waiter */
+ 	BOOL _reached, _finished;
++	NSUInteger _scheduledPending, _completedPending; /* protected by _stateCondition */
+ 	dispatch_queue_t _handlerQueue;          /* per-buffer callback admission and delivery order */
+ 	NSMutableArray *_turned;                 /* HakiosMetalTexture: turned framebuffers drawn here, copied into their surfaces at commit */
+@@ -1252,4 +1253,5 @@
+ - (double)hakiosCreatedAt;
+ - (void)hakiosMarkScheduled;
++- (void)hakiosQueueHandler:(MTLCommandBufferHandler)handler scheduled:(BOOL)scheduled;
+ @end
+ 
+@@ -4923,4 +4925,20 @@
+  * ============================================================================================================ */
+ 
++/* HM_CALLBACK_SCOPE_BEGIN: shared verbatim with the actual-method host test. */
++struct hm_callback_scope {
++    const void *buffer;
++    struct hm_callback_scope *previous;
++};
++static _Thread_local struct hm_callback_scope *hm_active_callback;
++static BOOL
++hm_inside_callback(id buffer)
++{
++    for (struct hm_callback_scope *scope = hm_active_callback; scope != NULL; scope = scope->previous) {
++        if (scope->buffer == (const void *)buffer) return YES;
++    }
++    return NO;
++}
++/* HM_CALLBACK_SCOPE_END */
++
+ @implementation HakiosMetalCommandBuffer
+ 
+@@ -6143,5 +6161,6 @@
+ 		return;
+ 	}
+-	while (!_reached) [_stateCondition wait];
++	const BOOL ownCallback = hm_inside_callback(self);
++	while (!_reached || (!ownCallback && _scheduledPending != 0)) [_stateCondition wait];
+ 	[_stateCondition unlock];
+ }
+@@ -6155,10 +6174,13 @@
+ 		return;
+ 	}
+-	while (!_finished) [_stateCondition wait];
++	const BOOL ownCallback = hm_inside_callback(self);
++	while (!_finished || (!ownCallback && (_scheduledPending != 0 || _completedPending != 0))) {
++		[_stateCondition wait];
++	}
+ 	[_stateCondition unlock];
+ 	{
+ 		const double began = hm_now();
+ 
+-		hakios_metal_cb_wait(_cb);   /* returns after the completion callback has run: the handlers are delivered by then */
++		hakios_metal_cb_wait(_cb);   /* also wait for the core completion callback itself to return */
+ 		hm_fps_waited(hm_now() - began);
+ 	}
+@@ -6178,9 +6200,12 @@
+ 				queue = [[owner->_queue hakiosCompletionQueue] retain];
+ 			}
+-			if (queue != nil) {
+-				dispatch_sync(queue, ^{ @autoreleasepool { copied((id<MTLCommandBuffer>)owner); } });
+-			} else {
+-				copied((id<MTLCommandBuffer>)owner);
+-			}
++			dispatch_block_t invoke = ^{
++				struct hm_callback_scope scope = { owner, hm_active_callback };
++				hm_active_callback = &scope;
++				@try { @autoreleasepool { copied((id<MTLCommandBuffer>)owner); } }
++				@finally { hm_active_callback = scope.previous; }
++			};
++			if (queue != nil) dispatch_sync(queue, invoke);
++			else invoke();
+ 			[queue release];
+ 		}
+@@ -6190,4 +6215,23 @@
+ }
+ 
++/* Caller holds _stateCondition. Count admission before publishing the stage.
++ * A callback waiting on its own buffer cannot wait for its own return; only
++ * that same-buffer callback scope skips the handler drain, not GPU progress. */
++- (void)hakiosQueueHandler:(MTLCommandBufferHandler)handler scheduled:(BOOL)scheduled
++{
++    if (scheduled) ++_scheduledPending;
++    else ++_completedPending;
++    [self hakiosDeliver:^(id<MTLCommandBuffer> buffer) {
++        @try { handler(buffer); }
++        @finally {
++            [_stateCondition lock];
++            if (scheduled) --_scheduledPending;
++            else --_completedPending;
++            [_stateCondition broadcast];
++            [_stateCondition unlock];
++        }
++    }];
++}
++
+ - (void)hakiosMarkScheduled
+ {
+@@ -6195,5 +6239,5 @@
+ 	if (!_reached) {
+ 		_reached = YES;
+-		for (id handler in _scheduled) [self hakiosDeliver:(MTLCommandBufferHandler)handler];
++		for (id handler in _scheduled) [self hakiosQueueHandler:(MTLCommandBufferHandler)handler scheduled:YES];
+ 		[_scheduled release];
+ 		_scheduled = nil;
+@@ -6213,5 +6257,5 @@
+ 	[_stateCondition lock];
+ 	_finished = YES;
+-	for (id handler in _completed) [self hakiosDeliver:(MTLCommandBufferHandler)handler];
++	for (id handler in _completed) [self hakiosQueueHandler:(MTLCommandBufferHandler)handler scheduled:NO];
+ 	[_completed release];
+ 	_completed = nil;
+@@ -6232,5 +6276,5 @@
+ 		if (_scheduled == nil) _scheduled = [[NSMutableArray alloc] init];
+ 		[_scheduled addObject:[[handler copy] autorelease]];
+-	} else [self hakiosDeliver:handler];
++	} else [self hakiosQueueHandler:handler scheduled:YES];
+ 	[_stateCondition unlock];
+ }
+@@ -6245,5 +6289,5 @@
+ 		if (_completed == nil) _completed = [[NSMutableArray alloc] init];
+ 		[_completed addObject:[[handler copy] autorelease]];
+-	} else [self hakiosDeliver:handler];
++	} else [self hakiosQueueHandler:handler scheduled:NO];
+ 	[_stateCondition unlock];
+ }

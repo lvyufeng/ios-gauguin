@@ -2,6 +2,53 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0315 bounded stack probe passed offline/native checks
+
+Previousgoalturn was PROGRESS:314completed/restored, proved77SBtouchentries and
+4–5s main-thread spans. ActiveW315 research/tmp/gauguin-sb-stack-worktree-20261114,
+branch codex/gauguin-sb-stack-20261114 based on314results0dc5b08. No315permission,
+phonewrite orboot. Currentphone remains independentlyrestored314; header
+3c5af5b175dabaa759a1ff22523a103d30cfe375a421f7757a2f37f80fea672e.
+
+New315observer usesexistingflusher, capturesonlyregisteredself-processmainthread,
+220..270s, >=250msoldphase1/2, >=1sbetweenattempts,max64. Briefthreadsuspend,
+recheckwatch,statePC/LR/SP/FP,<=16checked16Bframe readswithinpthreadstack and64KiB
+aboveSP,thenexactlyoneresumeattemptoneveryheldpath. Noalloc/ObjC/format/symbol
+workwhileheld. WarmMach/replyport/readpath beforefirstpause. 2msreadbudgetisNOT
+hardrealtimecap ofsyscalls;actualelapsedlogged. Onuncertainresumeresult rawfixed
+failuremessageonly; stopallfurtherflushing/samplingandstayinexistingsleeploop.
+NoCApolicy/inputforwarding/GPUchanges. Newlibraryconstructor315; reuse314kernel
+image1e78df25... isplanned, no newkernel/imagebuilt. C4waitfixdc032fd staysout.
+
+Actualcollector269ASAN/UBSANassertionspassed; nativeMacself-processsnapshotgot
+5frames/knownblockedtestfunction/resumed,33usonesample(notaniOSlatencyclaim).
+117existingObjCchecks plusactualformatter+parserintegrationpassed; stackparser
+44checks excludesmalformed/partial/mistimed/errorrows. SDKmach_vm.h isunsupported
+foriOS;finaltypedadapterusespublicLP64vm_read_overwrite with64bitsizeassertions.
+Failednative-v1 andearlierchecksretained. Finalnative-v3 signed90,416B SHA
+10683efc71f95f1a79563727cfef10374df8d1ec94f6249a83328b7d6660683b,
+installname existinglibGauguinEAGLslot. All69imports resolvedactual20H392cache.
+NoCIrun/noiOSruntimequalification. Allchecksessions terminal.
+
+PrivateW315research/tmp/sb-stack-315/ receipts:
+stack-host-v2/result.json339cfc6ef581c324baaf16ed4770c05bbcc1036580d9849d727098a506453f48
+observer-host-v3.json260a1e80313fe82de35bedbf561d05151d60f9f7b9fbb531f06558784f0db821
+stack-log-host-v1.json256cca23e06e09589ed72e5abc9f868e2e6bde0989acff1c43043ce2147e1782
+native-v3/result.json6e21efd8cc82191ca493542a27e996493ea8dde49550db5fd77eea89fe9b92e6
+abi-v3/result.json37ac63ccc25dd8b7ca154e0d47a120fa5ef97bf702f742f136f37bd9b094c45c
+source-review.jsonbbf480451dbd2b3b25c1f36cbd872c164e76f1950bd5faee9bcd93486fdf8a65
+Doc docs/gauguin-springboard-stack-315-20261114.md.
+
+60MBofflinebatch admittedat499,580,846,080B beforeworktree/builds. Reviewable
+cleanup-plan.json identifies52identicalstaticduplicatesfromcompleted314fresh/post
+captures,72,978,083B, withretainedidenticalcounterparts. NOTdeletedatthischeckpoint.
+Preservecurrent314restoredcapture/alllogs/JSON/originalbackups/allreadyinputs.
+Nextfinishstoragebatchadmission andfreshfourfile315install/restoremodels; reuse
+314image/review/manifestdirectlyratherthanclone. Consider384MiBtrialreserveONLY
+if fullstaticcapture/log/rollbackbound376,971,104B remainsproved; wholebatchmust
+beadmittedbeforepreparation. Thenfreezetransaction,reviewallpins,andrequestexact
+315consent asfinalstep. 314consentconsumed; nonewphonewritesyet. Goalactive/incomplete.
+
 ### 2026-11-14 CST —0314 completed/restored; SB input and multi-second stalls proved
 
 ExecutorPID78096/session1853 andobserver78980 TERMINAL; independentverify

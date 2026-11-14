@@ -2,6 +2,29 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — actual 0310 approval received; preflight before one-shot execution
+
+The user directly replied: "允许本轮 0310 写入、唤醒测试和回退，继续无人值守验证。"
+This explicitly authorizes the already-reviewed0310 scope, including the
+bounded wake pair and rollback; do not ask again. The actual message is
+bound in W303 `research/tmp/gpu-display-wake310-20261114/approval.json`, SHA
+`9aaf055218d4e4aa97de00e382c13306550df1bf7b7729b1e19b9956078b6326`.
+It is a direct chat reply, with no supplied async questionItemId; receipt
+labels that provenance honestly rather than inventing a platform item ID.
+Ready/plan/executor hashes match the frozen inputs below; read-only adb
+reports `recovery`, main mkadt unchanged. Fresh512MiB reserve preflight is
+in progress; at this handoff no execution claim, write or boot has occurred.
+
+Next invoke the exact0310 one-shot executor once, follow its live handle,
+collect logs and finish the approved restoration. Never substitute0311 or
+launch a second boot. A read-only independent verifier is prepared in the
+0310 private directory; it resolves the current HFS catalog leaf rather
+than assuming log growth leaves the original leaf in place. Run it after
+the executor has returned and restored the frontend. If this task compacts,
+inspect the actual live session/process and execution receipts before acting.
+The prior missing-approval blocker is resolved for this round. The overall
+GPU/smooth60Hz/high-refresh objective still requires device evidence.
+
 ### 2026-11-14 CST — blocked audit: 0310 exact-scope reply required
 
 The previous goal turn was progress:0311 was linked, packaged and reviewed.

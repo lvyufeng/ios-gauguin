@@ -2,6 +2,27 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —goal blocked: pending 0314 authorization, audit satisfied
+
+The goal tool returned status BLOCKED, objective unchanged: full GPU-backed
+smooth iOS on gauguin, first60Hz. Completion is not claimed. Missing314consent
+has persisted for3consecutivegoalturns:314preparation, offlineC4waitcorrection,
+and this revalidation. Previous turn was PROGRESS (dc032fd), not a verified
+live wait. Current process inventory found no matching live trial/observer/
+ABI/hosttest. All prior local runs are terminal. No314approval.json or execution
+claim exists; actual user approval remains only313, already consumed/restored.
+The existing async314request remains pending; do not send a duplicate request.
+
+No further phone write/boot is authorized. Fresh runtime input/scheduling and
+physical60FPS evidence is required before choosing another display/GPU change.
+Resume on actual314consent: freeze is still transaction36eb65b, image1e78df25...,
+C4binary560284dd..., readyf1840496... (full hashes below). Bind actualanswer and
+run the pinned executor once, follow approvedrestoration and independentverify.
+Do NOT substitute separateuninstalledC4callbackfixdc032fd into314.
+Blockedaudit: W314research/tmp/sb-spawn-314/blocked-goal-audit-20261114.json.
+Originalbackups,current313rollback,314pins,user mkadt andseparateC4candidate kept.
+If the user resumes a blocked goal, start a fresh blocked audit as instructed.
+
 ### 2026-11-14 CST —offline C4 callback-wait defect reproduced and corrected
 
 Prior goal turn made progress: prepared/pushed314code2783cc4 andtransaction36eb65b.

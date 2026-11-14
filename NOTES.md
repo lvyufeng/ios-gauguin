@@ -2,6 +2,49 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — 0311 kernel/image built and reviewed offline; 0310 reply still pending
+
+Previous turn made code progress (`ee0b1af`); this continuation completed
+its local native link and boot-image review. W311 branch
+`codex/gauguin-pending-present-20261114` now has pushed documentation commit
+`3233859`. Artifacts remain private in W311 `research/tmp/pending-311/`.
+Kernel identity `xnu-local311-75192593c4454281a8b4d3aeefc7779e`; use the ID,
+not the retained version template's older date. Kernel17,365,752 B SHA
+`4cdb2a5f60802f082f16788ea928a395e86cd0e055e9a652bd09dcda68fc4190`;
+boot image20,054,016 B SHA
+`6ba24020212e5dcc8858e17ace112e865991b51c13dfe28641513a0c298ffd74`.
+Link manifest SHA
+`c5079951137e80cbbaff8ec44c9bd2cf897ef97b34793e86d0f71c127a9a6cad`;
+independent image review SHA
+`acdef8d010db5321ce81537c5dfa224d36a0e5aa2b99720e302c66edcc6369a4`.
+
+The link reuses0301's verified flags/libraries/objects with5implementation
+replacements and a new version:3retained310 objects and the2fresh GPU/display
+objects. Source union checked5,336 entries;6,511 protected inputs retained
+hashes/mtimes. Reused310's baseline reproduction only after revalidating
+its inputs and its byte equality to original301 except16-byteLC_UUID.
+No clean CI build or new CI run. Separate review checked wrapper/padding,
+raw Mach-O bytes/entry/RAM, firmware/ADT/low-PAS and5new linked symbols in
+executable segments; zero undefined symbols. Command606 bytes is exactly
+0310; shim/DTB/firmware physical addresses and full ADT are unchanged.
+See W311 `docs/gauguin-pending-gpu-presentation-311-20261114.md`.
+
+A600MB whole link/image/capture batch was admitted at499,392,094,208 B.
+It includes the still-pending0310's512MiB capture reserve. No full clone or
+separate payload file; retained link outputs+image use61,787,407 file bytes.
+Post-image512MiB reserve passed at499,453,988,864 B accounted, leaving only
+9,140,224 B beyond that reserve. Fresh admission before any further batch.
+
+0310 ready/plan/image hashes are unchanged; no approval.json or execution
+directory. Main mkadt remains SHA
+`3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+Read-only adb again reports `recovery`; this turn performed no phone write
+or boot. **0311 is an unbooted candidate, not an approved execution plan.**
+Do not substitute it for frozen0310. Run0310 only on its actual matching
+reply to establish a display-on repeated-frame workload, then prepare a
+separate311 comparison using the same scripted workload. Full GPU coverage,
+usable60Hz, physical touch response and physical high refresh remain open.
+
 ### 2026-11-14 CST — pending GPU presentation fix committed; user away from phone/computer
 
 User is away from both devices. Continue work that needs no physical

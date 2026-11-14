@@ -2,6 +2,28 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —goal blocked awaiting actual 0315 authorization
+
+The goal tool returned BLOCKED with the full GPU/smooth60Hz objective unchanged.
+Completion is unproven. Missing0315 consent persisted for three consecutive goal
+turns: preparation/request (774ead2 / b5887ac), CA progress-path investigation
+(caf44a2 / b53b3ac), and this revalidation. The previous turn was progress; this
+turn is no progress, not a verified wait. Fresh process inventory found no live
+trial, observer, verifier or offline reader. There is no315 approval.json or
+execution directory; the existing async request is pending and must not be
+duplicated. No new phone command, write, boot, build or CI occurred.
+
+Private blocked audit: W315 research/tmp/sb-stack-315/blocked-goal-audit-20261114.json.
+The fixed ready/plan/install/executor hashes remain 49afa2c5... / 36404b6e... /
+8110b766... / 58214139... (full hashes below). 0314 result still reports restored
+and its independent restoration evidence is preserved. Do not reuse314 consent.
+On actual315 authorization, bind the actual reply to transaction8ee8dab, execute
+the pinned one-shot once, then restore and independently verify. Runtime stacks
+are now required to choose the actual stall path; static CA constants do not
+establish it. Keep the uninstalled C4 wait fix separate, preserve the current
+rollback capture, all fixed inputs and user-dirty mkadt.py. A user resume starts
+a fresh blocked audit; do not carry this three-turn count into that resumed run.
+
 ### 2026-11-14 CST —CA diagnostic deadline distinguished from reply expiry
 
 Previous goal turn was progress (774ead2 / b5887ac): 0315 consent request and

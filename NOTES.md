@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0310 finished/restored; display-on input but sparse C4 production
+
+The actual direct0310 approval was executed once and is consumed. Executor
+and observer are terminal. Phone returned automatically to TWRP after745s,
+exact banner matched, install/restore434,176 B each read back, no recovery
+fallback. Final29-file comparison passed except logs. Independent139,911,168 B
+read-only check passed original frontend/HFS identity+length and original
+misc4KiB; receipt SHA
+`a98667e4e1c4098e66a785cc4c5251c5a399a114659057e4556b13dac8f4fac7`.
+New current root header SHA
+`492c57e711dcb89e40330f8c4ffce88fc63ceec09edb519ad3e24dc75740c8c0`.
+Result SHA `f1272013e2b83d2613646f28af7287e3e90d96660c64a3083471193aef231abf`
+is diagnostic failure only: no repeated frame production/presentation in
+the selected4s window; restored=true, observer0, one boot, no retry/fallback.
+
+Display was already on; wake gate passed with0button pairs. All13strokes/
+442reports completed. UI254657records/4s, lost0, deadline stop;68accepted
+HID queue reports including releases,66down/movement contacts. Window has
+1C4 buffer made near the end but0commits/completions,0SwapEnd/present events.
+Whole boot40/40 GPU jobs (8root+32desktop). Nine C4 buffers were made during
+the32.768s script;17creation gaps in the whole log fall4.9..5.3s. Latest
+intact copy prefix16attempts/10copies/5GPU-refusals. No physical FPS or
+unlocked desktop qualification. Investigate HID→SpringBoard→CA scheduling;
+0311's prepared pending-frame fix cannot create missing producer frames.
+Exact C4 source also times waitUntilCompleted only AFTER its NSCondition
+wait; do not read the small wait metric as absence of a frontend stall.
+
+See `docs/gauguin-display-aware-wake-310-results-20261114.md`; private evidence
+is `research/tmp/gpu-display-wake310-20261114/execution/`. Do not rerun0310,
+reuse its preboot header or substitute0311 under its consumed authorization.
+Main NOTES retains complete cross-worktree handoff. Preserve backups, this
+new current rollback capture, all active inputs and the user's mkadt edit.
+
 ### 2026-11-12 CST — 0300 desktop lag confirmed, original restored
 
 The user clarified the 0300 boot reached the desktop after the lock screen,

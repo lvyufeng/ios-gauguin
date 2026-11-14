@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0312 input/cadence observer passed offline checks; not booted
+
+Active W312 is `research/tmp/gauguin-sb-cadence-worktree-20261114`, branch
+`codex/gauguin-sb-cadence-20261114`, based on W303 `4aabc9b` (0310 results).
+See `docs/gauguin-springboard-cadence-312-20261114.md`. Patch0234 adds a
+per-queue identity/PID/head/tail/notification-attempt snapshot and the precise
+SpringBoard dyld PATH-mask2 gate (`sbp=1`, default off). Native3TUs passed;
+AMFI47 and actual queue20 host cases passed. The actual ObjC observer passed
+117 ASAN/UBSAN checks and native iOS16 build/signature verification. Final
+library89,168B SHA `c829d5568ebf137b152e743db2e3147527b6d9bafddf43032cf4751e9d0ddb03`.
+No device load or FPS claim. No physical touch required for the planned trial.
+
+SpringBoard public sendEvent entry/return, four mainloop observer milestones,
+background watch and rate requests are read-only observations; no clock
+forcing, main-thread suspension or synthetic displaylink. Joint analyzer
+reproduces0310's17five-second gaps; absent SB instrumentation stays unknown.
+Actual launch jobs have no CA_FORCE_TIMER/CA_HEARTBEAT_RATE. HakiOS issue40
+addresses a60Hz ceiling, not this five-second delay. Current SB startup-log
+tail spans multiple boots and has no causal input evidence.
+
+Phone remains restored in recovery; current root header492c57e7... and0310
+approval consumed. Next link/package312 with frozen310 behavior plus0234,
+then prepare a new combined C4 frontend+SB slot/job/cache transaction, failure
+models, capture/rollback and exact-scope plan before any new device writes.
+Do not substitute unbooted0311 pending-presentation candidate for this work.
+Private evidence in W312 `research/tmp/sb-cadence-312/`.
+
+234 verified duplicate static non-log blobs in completed0299/0300/0309
+fresh/installed/post captures retired,334,105,572B; retained identical0310
+files, all restored captures/logs/receipts/original backups and ready pins.
+Cleanup manifest SHA d592cd4172c5bfcc2d3c3c64d2dd4407fa402a940daac6d2a88fbb027e70fe3a.
+620MB link/image/trial batch admitted at499,325,628,416B. W312 code committed
+`cf3b6b0`; local312 relink is in progress, no CI run or phone write.
+User's main tools/mkadt.py edit remains untouched.
+
+
+
 ### 2026-11-14 CST —0310 complete and restored; five-second C4 production gaps observed
 
 The actual direct0310 approval has been executed once and is consumed.

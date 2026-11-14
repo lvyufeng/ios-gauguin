@@ -2,6 +2,32 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0315 approval requested; offline stack symbols prepared
+
+Transaction commit `8ee8dab0c9ebc63edfb20882b0871078167ae8ce` and main handoff
+`c712831cfef3df308b8b2bd57120bcc1a77e5775` are confirmed on origin. The exact
+0315 request has now been sent through request_user_input_async. Its private
+`research/tmp/sb-stack-315/approval-request-pending.json` records no answer and
+approved=false. Do not send a duplicate request or treat it as consent. There
+is still no 0315 approval.json or execution directory. 0314 is terminal and
+independently restored; the user's direct "授权314" was already executed once.
+
+While awaiting the first 0315 response, read-only analysis prepared six actual
+20H392 QuartzCore function ranges, with local-symbol and LC_FUNCTION_STARTS
+checks and instruction hashes. Report `stack-symbol-ranges.json` SHA256
+`0ad9645851ea02f361534034fb4445ba494a83aeb3aba1ea94de9171e12b3393`;
+helper SHA256 `b824e196209a1d65de88b92dadb276a6f244a79110c4d5000e716ca297c1006d`.
+Both remain private in W315 research/tmp/sb-stack-315. Session 51364 completed
+successfully. See docs/gauguin-stack-symbolization-315-20261114.md in W315. This
+is a shortlist for interpreting future samples, not a runtime stall attribution.
+
+No frozen trial input changed. No new CI, native build, phone write or boot.
+The full GPU/smooth 60 Hz goal remains active and incomplete; this turn made
+preparation progress and sent the first 0315 approval request. On actual 0315
+consent, follow the fixed transaction below once, including restoration and
+independent verification. Keep the uninstalled C4 wait fix separate. Preserve
+the current 0314 rollback capture, all pinned inputs and user-dirty mkadt.py.
+
 ### 2026-11-14 CST —0315 fully prepared; separate user approval is next
 
 ActiveW315 research/tmp/gauguin-sb-stack-worktree-20261114, branch

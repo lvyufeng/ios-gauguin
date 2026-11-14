@@ -2,6 +2,31 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0314 protected spawn correction passed offline checks
+
+Active W314 research/tmp/gauguin-sb-spawn-worktree-20261114, branch
+codex/gauguin-sb-spawn-20261114, based on313 result0378c6c.
+Code2783cc4/patch0236 adds strictly bounded init-parent spawn-child admission; fresh held
+child credentials are used in a temporary VFS context, retaining exact protected
+SpringBoard/library checks and UID/RUID501. Shadow excludesSPAWN. Caller/flags/
+init/shadow/originalparent diagnostics added. Source-backed missingcase, not yet
+runtime proof of313caller. OldEAGL helper andGPU policy unchanged.
+118actualexec ASAN/UBSAN cases(51SB),nativeARM64kern_exec against2133header/config
+pins,and exactpatchreplay/reversedryrun passed. Reuse313signedobserver89,168B
+SHA b0b49caf5ecf11619d6223455017f6668203ce61e0816dd70f599a6de9b800a4;
+no need to rebuild unchangedlibrary. PrivateW314research/tmp/sb-spawn-314/.
+60MBofflinebatch admitted at499,573,506,048B. Retired157verifiedgenerated
+duplicates/derivedrawfiles,242,711,128logicalbytes. ManifestSHA
+414c10487b23974bb2e8e069f50db4e5b37196a4ce0f664f444d69c5a6f8f11d.
+Onlyobsolete staticcaptureduplicates andderived313rawkernel; retainedidentical
+counterparts/current313rollback/alllogs/JSON/readyinputs/originals are intact.
+620MBlink/image/prep/trial admission (including512MiBreserve) is beingchecked.
+Then link9replacementobjects viaverified301baseline, package/review, fresh
+four-file preimages against currentroot0605fd307cdb25e0a76fc28b1ae93f181b16b57368c6caee882f9de5151cb34b,
+modelrollback, pininputs andseekexact314approval. No314boot/writeauthorized.
+313is terminal/restored,consentconsumed. Keepcurrent313rollback/alloriginals/
+activepins/311candidate/user mkadt intact. FullGPU60Hzsmoothness remainsopen.
+
 ### 2026-11-14 CST —0313 completed/restored; exact loader reason9 observed
 
 313executorPID46732/session85430 andobserver47978terminal. DoNOTrerun;313approval

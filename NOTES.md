@@ -2,6 +2,18 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —actual 0314 approval received; fixed one-shot starting
+
+User directly wrote "授权314" and reactivated the full goal. This approves the
+previously prepared0314 scope; no repeated permission needed. Approvalreceipt
+W314research/tmp/sb-spawn-314/approval.json uses actualdirect-user-message
+provenance and no inventedasyncID. Ready/plan/install/executor/image match the
+frozen36eb65btransaction. Noexecutionclaim orotherexecutor existed atthischeck.
+Next invoke pinned W314tools/run-sb-cadence-trial.py ONCE, followthrough approved
+restore, then independentverify. Keep separateC4callbackfixdc032fd UNINSTALLED;
+314stilluses oldC4binary560284dd... andfixedimage1e78df25.... No311fixincluded.
+Freshgoalresume resets previousblocked audit; goalactive/incomplete.
+
 ### 2026-11-14 CST —goal blocked: pending 0314 authorization, audit satisfied
 
 The goal tool returned status BLOCKED, objective unchanged: full GPU-backed

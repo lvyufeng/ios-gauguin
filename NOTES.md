@@ -2,6 +2,25 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —actual 0315 permission received; fixed one-shot starting
+
+The user answered the existing async request: "允许本轮 0315 写入、采样和回退".
+Actual question item: ["request_user_input_async","call_e149d5403bb2411eb244466962875895",0].
+Approval receipt W315 research/tmp/sb-stack-315/approval.json SHA256
+393d36d230b428d9fe86af1549bb3f8d391c5d8ef09826575f3d74a3383a8457.
+It binds the actual answer, main-thread sampling scope and frozen plan/image
+hashes. The previous missing-consent blocker is resolved; do not request it again.
+No execution claim or matching executor/observer existed at this check.
+
+Next invoke pinned tools/run-sb-cadence-trial.py ONCE under W315, follow that
+same process through automatic restoration, then independently verify. Fixed
+transaction8ee8dab, ready49afa2c5..., executor58214139..., reused314image1e78df25...
+are unchanged. The observation library is315; the kernel banner remains314.
+Do not substitute the uninstalled C4 wait fix or retry the temporary boot.
+Full GPU/smooth60Hz completion remains unproven. The goal tool reported blocked
+at entry; this actual authorization removes that earlier blocker. Any resumed
+blocked audit starts fresh, not with the previous three-turn count.
+
 ### 2026-11-14 CST —goal blocked awaiting actual 0315 authorization
 
 The goal tool returned BLOCKED with the full GPU/smooth60Hz objective unchanged.

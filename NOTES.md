@@ -2,6 +2,39 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —CA diagnostic deadline distinguished from reply expiry
+
+Previous goal turn was progress (774ead2 / b5887ac): 0315 consent request and
+actual-OS symbol ranges prepared. There is no live executor/observer; current
+process inventory contains none. 0315 approval.json and execution remain absent.
+The existing async request is still pending, with no actual answer. This is the
+second consecutive goal turn with that missing permission; no duplicate request
+was sent, no phone command or write was run, and the goal remains active.
+
+New read-only evidence changes the interpretation of the five-second constant:
+actual20H392 request_synchronize has separate diagnostic/reply deadlines. Zero
+timeout takes the immediate-reply path. Positive timeout caps reply expiry at
+5000 ms and sets diagnostic expiry to infinity. A negative timeout with the
+diagnostic-level global >=1 uses now+5 seconds only for the diagnostic deadline,
+with infinite reply expiry; below1 both are infinite and no callback is added
+on that branch. sync_req_timeout calls check_sync_reqs, which still requires
+progress or actual reply expiry before sending. No unconditional five-second
+release is proved. increment_commit_seed updates context+0x38; Update destruction
+can update context+0x3c; both invoke check_sync_reqs(0). See W315 document
+docs/gauguin-ca-sync-progress-20261114.md for exact branches and limitations.
+
+Private W315 research/tmp/sb-stack-315 receipts:
+sync-callback-path-v2/result.json fd407dff1a13b21279c5bc9867a5059937081e3ae91fb3ab7ee1661bf49224f8
+sync-progress/result.json 4de737a390a421cb2bfc8fcbc87633d3544007991b499abea1204b6e25abe610
+sync-progress-interpretation.json 01e82f3a1fac45d47f2334f259916711df0f0c2e80b85ad7ce81bd57c0919e17
+Read sessions 74138, 51221, 10582 and 62634 are terminal. No new native build or
+CI. Frozen315 inputs unchanged; do not shorten a CA timeout from static evidence.
+Next requires actual315 consent and runtime stack observation under the fixed
+8ee8dab transaction, then restoration and independent verification. 0314's
+consent is already consumed/restored. The separate C4 wait fix stays uninstalled.
+Full GPU/smooth60Hz completion is unproven; further static guesses cannot select
+the actual stalled path. Preserve rollback captures, pins and user mkadt edit.
+
 ### 2026-11-14 CST —0315 approval requested; offline stack symbols prepared
 
 Transaction commit `8ee8dab0c9ebc63edfb20882b0871078167ae8ce` and main handoff

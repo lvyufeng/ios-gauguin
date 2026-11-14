@@ -2,6 +2,43 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0313 completed/restored; exact loader reason9 observed
+
+313executorPID46732/session85430 andobserver47978terminal. DoNOTrerun;313approval
+consumed. AutoTWRP745s/bannerpass, install+restoreeach1,814,528B/8rangesverified,
+misc13Bverified,0retry/0fallback. Final31staticfilescomparepassedexceptlogs.
+Independentfouroriginalallocated/logicalfiles,CNIDs/forks,misc4KiBverified.
+Currentroot0605fd307cdb25e0a76fc28b1ae93f181b16b57368c6caee882f9de5151cb34b.
+ResultSHA3e07e32633729b3d7f34ae175388debe834479fb904c6db80be66eb3b3e7c574;
+independentSHA3d8c0d7adedde9477a0452fcf5433b62076846ebf4b8fa932f370727b6cad92e.
+
+Newevidence: actualSBexecPID26envc10,insert_before0/expected0,added0,
+outcome6/reason9. It was refused bycurrent/same-exec-shadow provenancecheck
+BEFOREcredentials;printedUID4294967295issentinel,notactualUID. LaterAMFIUID501
+PATH2rc0. SBtail966B,noctor/activation. Library/plistsrestorednormally.
+Sourcecheck: ordinaryspawnchildmustdifferfromparentcaller; currentSBguardlacks
+trustedlaunchdspawnbranch. SourcealsofreezesVFScontextcred beforeposix_spawn
+credentialadoption. Nextimplementstrictinit-parent/child-thread/original-parent
+spawnbranch, targetkauth_cred_proc_ref andtemporarychild-credentialVFScontext;
+retainUID501/exactprotectedvnode/library/ACLchecks, logcaller+flags+identity.
+Actualcaller/flagsnotloggedin313, so doNOTcallspawnattributionruntime-proven.
+
+Onepowerpair wokeoffdisplay;settle/on-gatepassed,13strokes442reports32.771470s.
+4swindow506records,lost0,1unpairedspan;BBoardqueue67headchanges/68samplesagain.
+28completedC4logs,6createdinscript,14gaps4.9..5.3s,median5.010485s;
+selectedwindow1make/commit/done/SwapEnd/present-end. Stillnot60FPS.
+C4madeisprintedonlyatcompletion: uncommitted/uncompletedbuffersremainunseen.
+ResultsdocW313docs/gauguin-springboard-loader-313-results-20261114.md.
+
+Read-onlyactual20H392QuartzCoreanalysisW313research/tmp/cadence-static-20261114:
+request_synchronize5sdefaultdispatch_afterdeadline, receivehelpermach_msg1stimeout,
+freeze5sdispatch_semaphore_wait, MetalPipelinewait_for_completiondispatch_block_wait
+FOREVER. ActualCAobservercreateorder2000000/activities0xa0confirmedviaexports.
+No runtimecausalityclaim. See docs/gauguin-five-second-sync-paths-20261114.md.
+No313inputchanged. A60MBofflinefollowupadmissionisbeingcollectedbefore314work.
+FullGPU/smooth60Hzgoalactive/incomplete;thisgoalturnmadeconcreteprogress.
+
+
 ### 2026-11-14 CST —313 executor/observer live; never restart this one-shot
 
 Actual313approval is executing once: executor PID46732, execsession85430;

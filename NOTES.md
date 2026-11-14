@@ -2,6 +2,21 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0314 executor/observer live; never restart this one-shot
+
+Actual314approval is executing once. ExecutorPID78096/session1853; observer
+PID/PGID78980. PrivateW314research/tmp/sb-spawn-314/execution/claim,progress and
+observer receipts are authoritative. All65pins andfresh512MiBreserve passed at
+499,428,220,928B accounted. Install/readback1,814,528B/8ranges andmisc13B passed.
+Fixed314image1e78df25... accepted once byfastboot, sending/bootingOKAY,total0.600s.
+Current phase bounded observation; nofinalSB/GPU/restore outcome yet.
+Do NOT rerun executor or bootanotherimage. Follow SAMEsession1853, withprocess/
+claim checks ifobservations expire, through authorizedrestore. Afterterminal,
+run W314tools/verify-sb-cadence-restore.py --out underthisexecutionfolder.
+Approval SHA48d23f298d60138d31d3e36a381103d1fd819fa65a6d9e6076eaa6054dbe1064.
+Sourcecommit2783cc4,transaction36eb65b. SeparateC4waitfixdc032fd remainsuninstalled.
+FullGPU60Hzsmoothnessgoalactive/incomplete; actual314consentresolvedpriorblocker.
+
 ### 2026-11-14 CST —actual 0314 approval received; fixed one-shot starting
 
 User directly wrote "授权314" and reactivated the full goal. This approves the

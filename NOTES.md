@@ -2,6 +2,38 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — blocked audit: 0310 exact-scope reply required
+
+The previous goal turn was progress:0311 was linked, packaged and reviewed.
+This continuation rechecked0310 ready/plan/image and0311 image/manifest/review
+hashes successfully. The phone again reports `recovery`;0310 has no actual
+matching approval reply, no approval.json and no execution directory.0311
+remains unbooted, without an execution plan, and its physical-FPS qualification
+is false. No matching trial/link/package/review/fastboot job is live; this is
+not a running-build or device-observer wait.
+
+The same authorization condition has persisted through at least three
+consecutive goal turns: the pending-frame code milestone (`ee0b1af`), its
+link/image milestone (W311 `3233859`, main `8b0ff92`), and this revalidation.
+Useful offline preparation for the next evidence-led trial is complete.
+The next decisive evidence is repeated frame production/presentation during
+the already-prepared display-on scripted0310 workload. More speculative
+performance/mode changes cannot qualify the user's requested end state.
+Goal will be set `blocked` for missing0310 exact-scope authorization after
+this handoff is committed; it is NOT complete. Full GPU use, smooth60Hz,
+physical touch latency and actual high refresh remain unverified.
+
+The user can authorize remotely; no physical presence is needed. Keep the
+existing question and reviewed W303
+`docs/gauguin-display-aware-wake-310-20261114.md` scope:434,176 B userdata
+install/readback,13 B misc marker, one fixed temporary boot, at most one
+power press/release pair,13 scripted strokes, capture,434,176 B restore;
+failure/rollback userdata ceiling2,170,880 B and at most one recovery
+fallback. Bind only an actual matching reply, including wake permission.
+Never reuse0309 authorization or substitute0311. A generic goal continuation
+is not that per-destructive-trial reply required by AGENTS.md.
+Preserve all active pins/backups/current rollback and user's mkadt edit.
+
 ### 2026-11-14 CST — 0311 kernel/image built and reviewed offline; 0310 reply still pending
 
 Previous turn made code progress (`ee0b1af`); this continuation completed

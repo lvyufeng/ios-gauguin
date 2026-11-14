@@ -39,10 +39,14 @@ static proc_t get_bsdthreadtask_info(thread_t thread) { return thread->proc; }
 struct credential { uid_t uid, ruid; };
 typedef struct credential *kauth_cred_t;
 #define IS_VALID_CRED(cred) ((cred) != NULL)
-struct context { proc_t proc; kauth_cred_t cred; };
-typedef struct context *vfs_context_t;
+struct vfs_context { thread_t vc_thread; kauth_cred_t vc_ucred; };
+typedef struct vfs_context *vfs_context_t;
 static struct credential credentials = {501, 501};
-static struct context exec_context = {&process, &credentials}, kernel_context;
+static struct vfs_context exec_context = {&exec_thread, &credentials}, kernel_context;
+static struct thread other_context_thread = {&other_process};
+static struct credential root_context_credentials = {0,0}, mobile_context_credentials = {501,501};
+static bool target_cred_missing;
+static unsigned target_cred_refs;
 static proc_t running_proc = &process;
 static proc_t current_proc(void) { return running_proc; }
 static int proc_pid(proc_t p) { return p->pid; }
@@ -51,11 +55,19 @@ static int proc_pidversion(proc_t p) { return p->pidversion; }
 static bool proc_is_shadow(proc_t p) { return p->shadow; }
 static bool proc_isinitproc(proc_t p) { return p == &launchd; }
 static int proc_original_ppid(proc_t p) { return p->original_parent; }
-static proc_t vfs_context_proc(vfs_context_t ctx) { return ctx->proc; }
-static kauth_cred_t vfs_context_ucred(vfs_context_t ctx) { return ctx->cred; }
+static proc_t vfs_context_proc(vfs_context_t ctx) { return ctx->vc_thread->proc; }
+static kauth_cred_t vfs_context_ucred(vfs_context_t ctx) { return ctx->vc_ucred; }
 static vfs_context_t vfs_context_kernel(void) { return &kernel_context; }
 static uid_t kauth_cred_getuid(kauth_cred_t cred) { return cred->uid; }
 static uid_t kauth_cred_getruid(kauth_cred_t cred) { return cred->ruid; }
+static kauth_cred_t kauth_cred_proc_ref(proc_t p) {
+    CHECK(p==vfs_context_proc(&exec_context));
+    if(target_cred_missing)return NULL;
+    target_cred_refs++;return &credentials;
+}
+static void kauth_cred_unref(kauth_cred_t *cred) {
+    CHECK(*cred==&credentials&&target_cred_refs>0);target_cred_refs--;*cred=NULL;
+}
 
 #define VREG 1
 #define NULLVP NULL
@@ -110,8 +122,8 @@ static int vnode_getattr(vnode_t node, struct vnode_attr *a, vfs_context_t ctx)
 
 static int vnode_authorize(vnode_t node, vnode_t parent, int action, vfs_context_t ctx)
 {
-    CHECK(node->refs > 0 && parent == NULL && ctx == &exec_context);
-    CHECK(action == KAUTH_VNODE_WRITE_DATA && ctx->cred->uid == 501);
+    CHECK(node->refs > 0 && parent == NULL && vfs_context_proc(ctx)==vfs_context_proc(&exec_context));
+    CHECK(action == KAUTH_VNODE_WRITE_DATA && ctx->vc_ucred==&credentials && ctx->vc_ucred->uid == 501);
     authorizations++;
     return node->auth;
 }
@@ -335,7 +347,25 @@ static void sb_case(const char *scenario)
     int flags=IMGPF_IS_64BIT_ADDR|IMGPF_WAS_64BIT_ADDR;
     vnode_t actual=&target,script=NULL;vfs_context_t context=&exec_context;
     sweet_eagl_inject_requested=2;sweet_metal_requested=2;
-    if(SB("mobile")||SB("exact-fit")||SB("one-short")||SB("partial-copy")) {
+    if(strncmp(scenario,"sb-spawn",8)==0) {
+        flags|=IMGPF_SPAWN;running_proc=&launchd;
+        append=SB("spawn")||SB("spawn-stale-context");
+        outcome=append?SEI_APPENDED:SEI_SUBJECT;reason=append?0:9;
+        if(SB("spawn-stale-context"))exec_context.vc_ucred=&root_context_credentials;
+        else if(SB("spawn-wrong-parent"))running_proc=&other_process;
+        else if(SB("spawn-reparented"))process.original_parent=2;
+        else if(SB("spawn-exec"))flags=(flags&~IMGPF_SPAWN)|IMGPF_EXEC;
+        else if(SB("spawn-both"))flags|=IMGPF_EXEC;
+        else if(SB("spawn-shadow"))process.shadow=true;
+        else if(SB("spawn-foreign-thread")){image_thread=&other_context_thread;reason=1;}
+        else if(SB("spawn-child-root")){credentials.uid=credentials.ruid=0;reason=3;}
+        else if(SB("spawn-stale-mobile-child-root")) {
+            credentials.uid=credentials.ruid=0;exec_context.vc_ucred=&mobile_context_credentials;reason=3;
+        } else if(SB("spawn-missing-child-cred")){target_cred_missing=true;reason=2;}
+        else CHECK(SB("spawn"));
+    } else if(SB("null-caller")) {
+        running_proc=NULL;reason=9;
+    } else if(SB("mobile")||SB("exact-fit")||SB("one-short")||SB("partial-copy")) {
         append=SB("mobile")||SB("exact-fit");
         outcome=append?SEI_APPENDED:SB("one-short")?SEI_SPACE:SEI_COPY;
         copy_failure=SB("partial-copy");
@@ -363,22 +393,24 @@ static void sb_case(const char *scenario)
         if(SB("root"))credentials.uid=credentials.ruid=0;
         if(SB("other-uid"))credentials.uid=credentials.ruid=502;
         if(SB("setuid"))credentials.ruid=0;
-        if(SB("no-cred"))exec_context.cred=NULL;
+        if(SB("no-cred")){exec_context.vc_ucred=NULL;target_cred_missing=true;}
     } else if(SB("null-thread")||SB("other-proc")||SB("script")||SB("addr32")||SB("missing-vnode")) {
         reason=SB("null-thread")||SB("other-proc")?1:8;
         if(SB("null-thread"))image_thread=NULL;
-        if(SB("other-proc"))exec_context.proc=&other_process;
+        if(SB("other-proc"))exec_context.vc_thread=&other_context_thread;
         if(SB("script"))script=&library;
         if(SB("addr32"))flags&=~IMGPF_IS_64BIT_ADDR;
         if(SB("missing-vnode"))actual=NULL;
     } else if(strncmp(scenario,"sb-shadow",9)==0) {
-        exec_context.proc=exec_thread.proc=&shadow_process;flags|=IMGPF_EXEC;
+        exec_thread.proc=&shadow_process;flags|=IMGPF_EXEC;
         append=SB("shadow");
         if(append)outcome=SEI_APPENDED;
         else {
             reason=9;
             if(SB("shadow-no-exec"))flags&=~IMGPF_EXEC;
             else if(SB("shadow-wrong-id"))shadow_process.uniqueid++;
+            else if(SB("shadow-wrong-pid"))shadow_process.pid=58;
+            else if(SB("shadow-both"))flags|=IMGPF_SPAWN;
             else if(SB("shadow-wrong-version"))shadow_process.pidversion++;
             else if(SB("shadow-not-marked"))shadow_process.shadow=false;
             else CHECK(false);
@@ -402,7 +434,9 @@ static void sb_case(const char *scenario)
     struct image_params old=run_extract(before,args,env,path,flags,actual,script,context);
     sweet_sb_exec_probe=requested;
     struct image_params now=run_extract(after,args,env,path,flags,actual,script,context);
-    CHECK(target.refs==1&&library.refs==0);
+    CHECK(target.refs==1&&library.refs==0&&target_cred_refs==0);
+    if(SB("spawn-stale-context"))CHECK(exec_context.vc_ucred==&root_context_credentials);
+    if(SB("spawn-stale-mobile-child-root"))CHECK(exec_context.vc_ucred==&mobile_context_credentials);
     CHECK(writes==(unsigned)(append||copy_failure));
     CHECK(now.ip_argc==old.ip_argc&&now.ip_envc==old.ip_envc+append);
     CHECK(now.ip_endargv-after==old.ip_endargv-before);
@@ -511,13 +545,13 @@ int main(int argc, char **argv)
         if (CASE("duplicate")) env[3] = (user_addr_t)sweet_eagl_insert;
     } else if (CASE("other-proc") || CASE("null-thread") || CASE("script") || CASE("addr32") || CASE("missing-vnode")) {
         reason = CASE("other-proc") || CASE("null-thread") ? 1 : 8;
-        if (CASE("other-proc")) exec_context.proc = &other_process;
+        if (CASE("other-proc")) exec_context.vc_thread = &other_context_thread;
         if (CASE("null-thread")) image_thread = NULL;
         if (CASE("script")) script = &library;
         if (CASE("addr32")) flags &= ~IMGPF_IS_64BIT_ADDR;
         if (CASE("missing-vnode")) actual = NULL;
     } else if (strncmp(scenario, "shadow", 6) == 0) {
-        exec_context.proc = exec_thread.proc = &shadow_process;
+        exec_thread.proc = &shadow_process;
         flags |= IMGPF_EXEC;
         append = CASE("shadow");
         if (append) {
@@ -534,7 +568,7 @@ int main(int argc, char **argv)
         }
     } else if (CASE("no-cred") || CASE("setuid") || CASE("other-uid")) {
         reason = CASE("no-cred") ? 2 : 3;
-        if (CASE("no-cred")) exec_context.cred = NULL;
+        if (CASE("no-cred")) exec_context.vc_ucred = NULL;
         if (CASE("setuid")) credentials.ruid = 0;
         if (CASE("other-uid")) credentials.uid = credentials.ruid = 502;
     } else if (CASE("no-target") || CASE("wrong-target") || CASE("target-mount") ||

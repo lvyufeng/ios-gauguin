@@ -1,0 +1,61 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -5947,21 +5947,30 @@
+ 	 * forkproc copies the caller's PID, unique ID and PID version to it. */
+ 	proc_t caller = current_proc();
+-	if (caller == NULL || (p != caller && (!(imgp->ip_flags & IMGPF_EXEC) ||
+-	    !proc_is_shadow(p) || proc_pid(p) != proc_pid(caller) ||
+-	    proc_uniqueid(p) != proc_uniqueid(caller) ||
+-	    proc_pidversion(p) != proc_pidversion(caller)))) {
++	bool shadow_exec = caller != NULL && (imgp->ip_flags & IMGPF_EXEC) &&
++	    !(imgp->ip_flags & IMGPF_SPAWN) && proc_is_shadow(p) &&
++	    proc_pid(p) == proc_pid(caller) && proc_uniqueid(p) == proc_uniqueid(caller) &&
++	    proc_pidversion(p) == proc_pidversion(caller);
++	bool launchd_spawn = caller != NULL && p != caller && proc_isinitproc(caller) &&
++	    (imgp->ip_flags & IMGPF_SPAWN) && !(imgp->ip_flags & IMGPF_EXEC) &&
++	    !proc_is_shadow(p) && proc_original_ppid(p) == proc_pid(caller);
++	if (caller == NULL || (p != caller && !shadow_exec && !launchd_spawn)) {
+ 		return 9;
+ 	}
+ 	reason = 2;
+-	vfs_context_t context = imgp->ip_vfs_context;
+-	kauth_cred_t cred = vfs_context_ucred(context);
++	/* posix_spawn captures vc_ucred before adopting the child's requested
++	 * credentials. Check the actual target, and use that same held credential
++	 * for synchronous vnode authorization instead of the parent's old view. */
++	kauth_cred_t cred = kauth_cred_proc_ref(p);
+ 	if (!IS_VALID_CRED(cred)) {
+ 		return reason;
+ 	}
++	struct vfs_context target_context = *imgp->ip_vfs_context;
++	target_context.vc_ucred = cred;
++	vfs_context_t context = &target_context;
+ 	*effective = kauth_cred_getuid(cred);
+ 	*real = kauth_cred_getruid(cred);
+ 	reason = 3;
+ 	if (*effective != *real || *effective != 501) {
+-		return reason;
++		goto out;
+ 	}
+ 	reason = 4;
+@@ -5993,4 +6002,5 @@
+ 		vnode_put(target);
+ 	}
++	kauth_cred_unref(&cred);
+ 	/* imgp->ip_vp is borrowed from exec; its original iocount is not ours. */
+ 	return reason;
+@@ -6075,7 +6085,11 @@
+ 	outcome = SEI_APPENDED;
+ done:
+-	printf("SWEET SB INJECT: pid=%d outcome=%u reason=%u error=%d added=%u envc=%d uid=%u ruid=%u insert_before=%u expected_before=%u\n",
++	printf("SWEET SB INJECT: pid=%d outcome=%u reason=%u error=%d added=%u envc=%d uid=%u ruid=%u insert_before=%u expected_before=%u caller=%d flags=%x init=%u shadow=%u ppid=%d\n",
+ 	    p == NULL ? -1 : proc_pid(p), outcome, reason, error, added,
+-	    imgp->ip_envc, effective, real, record.insert, record.expected);
++	    imgp->ip_envc, effective, real, record.insert, record.expected,
++	    current_proc() ? proc_pid(current_proc()) : -1, (unsigned)imgp->ip_flags,
++	    (unsigned)(current_proc() && proc_isinitproc(current_proc())),
++	    (unsigned)(p && proc_is_shadow(p)),
++	    p ? proc_original_ppid(p) : -1);
+ }
+ /* SWEET_SB_INJECT_END */

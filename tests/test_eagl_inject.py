@@ -61,7 +61,7 @@ def test(source, output):
         ' pilot-other-vnode pilot-writable-proxy pilot-thread-mismatch pilot-pid-reused pilot-wrong-uid pilot-foreign-task'
     ).split()
     if metal:cases+=['metal-gate','metal-clean','metal-existing']
-    if sb:cases += ['sb-'+name for name in ('mobile','already','duplicate','conflict','disabled','bad-flag','trace-off','metal-off','other-path','null-context','root','other-uid','setuid','null-thread','other-proc','script','addr32','no-cred','missing-vnode','no-target','wrong-target','target-owner','target-mode','target-acl','no-library','library-owner','library-mode','library-type','library-acl','partial-copy','exact-fit','one-short','shadow','shadow-no-exec','shadow-wrong-id','shadow-wrong-version','shadow-not-marked')]
+    if sb:cases += ['sb-'+name for name in ('mobile','already','duplicate','conflict','disabled','bad-flag','trace-off','metal-off','other-path','null-context','root','other-uid','setuid','null-thread','other-proc','script','addr32','no-cred','missing-vnode','no-target','wrong-target','target-owner','target-mode','target-acl','no-library','library-owner','library-mode','library-type','library-acl','partial-copy','exact-fit','one-short','shadow','shadow-no-exec','shadow-wrong-id','shadow-wrong-version','shadow-not-marked','shadow-wrong-pid','shadow-both','null-caller','spawn','spawn-stale-context','spawn-wrong-parent','spawn-reparented','spawn-exec','spawn-both','spawn-shadow','spawn-foreign-thread','spawn-child-root','spawn-stale-mobile-child-root','spawn-missing-child-cred')]
     binary = output / 'eagl-inject-model'
     compiler = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--find', 'clang'], text=True).strip()
     sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
@@ -80,7 +80,7 @@ def test(source, output):
             outcome,reason,event=map(int,match.groups())
             assert len(lines)==1+event,(case,lines)
             if event:
-                report=re.fullmatch(r'SWEET SB INJECT: pid=\d+ outcome=(\d+) reason=(\d+) error=(\d+) added=([01]) envc=\d+ uid=\d+ ruid=\d+ insert_before=\d+ expected_before=\d+',lines[0])
+                report=re.fullmatch(r'SWEET SB INJECT: pid=\d+ outcome=(\d+) reason=(\d+) error=(\d+) added=([01]) envc=\d+ uid=\d+ ruid=\d+ insert_before=\d+ expected_before=\d+ caller=-?\d+ flags=[0-9a-f]+ init=[01] shadow=[01] ppid=\d+',lines[0])
                 assert report and tuple(map(int,report.group(1,2)))==(outcome,reason),(case,lines)
                 assert int(report[3])==(errno.EFAULT if case=='sb-partial-copy' else 0)
                 assert int(report[4])==int(outcome==1)

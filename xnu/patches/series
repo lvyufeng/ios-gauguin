@@ -227,3 +227,4 @@
 0232-gauguin-display-aware-scripted-wake.patch
 0234-gauguin-springboard-input-cadence-observer.patch
 0235-gauguin-protected-springboard-exec-insertion.patch
+0236-gauguin-springboard-spawn-identity.patch

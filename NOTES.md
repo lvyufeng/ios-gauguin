@@ -2,6 +2,59 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0310 complete and restored; five-second C4 production gaps observed
+
+The actual direct0310 approval has been executed once and is consumed.
+Executor session45560/PID38713 and observer39679 are terminal: do not rerun.
+The exact image returned automatically to TWRP after745s; banner matched.
+Install and restore each434,176 B read back; misc13 B marker verified before
+boot. Final29-file comparison passed except expected log growth. No retry
+or recovery fallback. Independent read-only139,911,168 B verification passed
+the original frontend, live HFS file/CNID/fork/logical length and original
+misc4KiB. Receipt SHA
+`a98667e4e1c4098e66a785cc4c5251c5a399a114659057e4556b13dac8f4fac7`.
+Current root header SHA is now
+`492c57e711dcb89e40330f8c4ffce88fc63ceec09edb519ad3e24dc75740c8c0`;
+the catalog leaf remains block44123/offset2010. Use the new restored-capture
+baseline plus fresh preimages for any future trial, never0310's preboot header.
+
+Terminal result SHA
+`f1272013e2b83d2613646f28af7287e3e90d96660c64a3083471193aef231abf`
+is diagnostic failure only: `scripted capture has no repeated frame
+production/presentation`; restored=true, observer0, boot_attempts1,
+recovery_fallbacks0. Display was already on: gate/settle passed,0power pairs,
+no off request during all13strokes/442reports. This does not qualify the
+off-to-on wake branch or an unlocked desktop.
+
+Selected4s UI254 window:657records, lost0, deadline stop,68accepted HID queue
+reports including releases (66down/movement contacts);1C4 buffer made near
+the end,0commits/completions,0SwapEnd/present events. Whole boot40/40 GPU
+jobs:8root+32desktop. Nine buffers were made during the32.768s script, and
+17gaps between adjacent creations in the full log are4.9..5.3s. Example
+creation times231.455734,236.461884,241.469140,246.477292s. C4 reported GPU
+duration median13.533ms/max57.389ms; neither is physical FPS/occupancy.
+Latest intact copy prefix16attempts/10copies/5GPU refusals. Legacy `presents`
+counts attempted flushes and must not be treated as successful physical frames.
+
+Next prioritize HID→SpringBoard receipt/gesture recognition→CA frame-clock
+scheduling. The cause of the five-second production pattern is not established.
+0311's reviewed pending-frame fix remains relevant to read refusals, but
+does not create absent producer buffers; do not blindly substitute its boot.
+Exact pinned C4 source also starts `hm_fps_waited` AFTER NSCondition waiting
+in waitUntilCompleted, so that metric omits frontend wait time. Source
+SHA `0cfb2ac2a1bcac321a888a5f8fdc93fcf7279bbc9e83c5c59e52f69ae5056195`
+matches native-final-v3's input pin and the installed binary's build metadata.
+No new performance patch was made from these hypotheses during this trial.
+
+W303 result doc commit `4aabc9b`:
+`docs/gauguin-display-aware-wake-310-results-20261114.md`. Private evidence
+is W303 `research/tmp/gpu-display-wake310-20261114/execution/`;
+diagnostic-summary SHA
+`40ded4d1f924e8c1a6b9f17d3fe7fe9956ade525598866842889a79663766c03`.
+Preserve original backups, new current rollback capture, all active inputs
+and user's mkadt edit. No further phone boot/write is authorized by0310.
+The overall fullGPU/smooth60Hz/physical-touch/high-refresh goal is not achieved.
+
 ### 2026-11-14 CST — approved0310 executor live; do not rerun
 
 The exact pinned0310 executor is running as PID38713, exec session45560.

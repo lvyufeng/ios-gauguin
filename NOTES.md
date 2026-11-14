@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —offline C4 callback-wait defect reproduced and corrected
+
+Prior goal turn made progress: prepared/pushed314code2783cc4 andtransaction36eb65b.
+This continuation made further concrete progress while314consent remains pending
+(second consecutive turn with that pending trial; no new phone operation).
+Actual C4 waitUntilScheduled/waitUntilCompleted return beforeclienthandlers end.
+Four ASAN/UBSANbaseline scenarios each release3waiters whilehandler is explicitly
+held. Apple API docs require handlers. Patch0011-owned-desktop-handler-waits
+adds stagependingcounts and same-bufferTLS callbackscope; preservesGPUwait,
+FIFO/order and preventsown-callbackdeadlock. Cross-bufferwaitstillblocks.
+Nine finalhost scenarios pass, including error paths,reentrantGPUwait,crossbuffer,
+late-handlerextension andpriorFIFO/broadcast/order regression. Testerrorwaitsetup
+now startsaftercommit ratherthanracingprecommit. No new native sourcechange
+outside the one C4mfile; patchreplay/reversedryrun pass.
+
+Candidate/tests/doc commitdc032fd on W314 (separate from314transaction36eb65b).
+Separatecandidate under W314research/tmp/c4-wait-audit-20261114/:
+prepared-wait-fix.json SHA bb1967a4e5eb08ff6de5ee13b7d264af8d1711e244e7b83ec9f77bb943a74031
+candidate source SHA35d804453030967986bc8fb76b8da29d3305eb72d1cdd55c2a9373959f28d808.
+Native/signaturepassed,429,712B, fits430,080B existingallocation with368Bspare;
+binary SHA2f7891bf7372de4cb805767cb76d6d06ed930c6884cebcd94d3ddf7562d8ba4b.
+Native receipt9fc1d6ec7cefbe3738b320a20ba22ba6ca16c066dc6b0069e489206eaf7b9b56.
+Actual20H392cache ABI568imports passed,newTLV/ObjCexceptionimports allresolved;
+receipt ded0264f96e368dbd65ddad6a558ccac9a8db429f7608d2134d7d5ac1e9ef300.
+Final baselinehost-v2 receipt4282f37843b7164e5a9b0289403d17b99bfca7fe5f59ebf2069316046bf0a7fc;
+fixedhost-v2 c7f6fdab8174b703094742bf95c4a2e370c2b9a9ff973fcdec44306d6249d739.
+All processes terminal. NoCI/noinstallation/nohardwareFPSqualification.
+
+Five-second causalclaim stillunproven:14paired completed-buffergaps in313 have
+priorlifetime median36.616ms/max196.546ms, done-to-nextmade median4.971686s/
+min4.786308s. Made startsAFTERsuperqueue-slot acquisition ANDcorecb_new;
+completionlog precedesclienthandlerdelivery. Existinghm_fps_waited still starts
+AFTERconditionwait, thusalsoexcludesnewhandlerdrain. DoNOTtreatzero waitmetric
+asproofno blocking. Hiddenuncommitted/incompletebuffersremainunobserved.
+See docs/gauguin-c4-handler-wait-fix-20261114.md forboundaries/reproduction.
+
+20MBofflinebatch+unchanged512MiB314reserve admittedat499,419,611,136B.
+All65frozen314pins revalidated (originalbackup freshlyhashedbyABIaudit).
+DoNOTsubstitute thisC4candidate into314:314stilluses binary560284dd... and
+image1e78df25..., exactplan/ready/executor belowunchanged. Approvalrequestpending
+receipt W314research/tmp/sb-spawn-314/approval-request-pending.json exists;
+NOapproval.json or executiondirectory. Actualfuture314answer mustbindthat
+frozenplan, thenexecuteonceandrestore. Userpresence notneeded.
+FullGPU/smooth60Hzobjectiveactive/incomplete. Next runtimeevidence stillneeds
+314consent; callbackfix is ready for a later separately prepared comparison.
+
 ### 2026-11-14 CST —0314 fully prepared; new trial approval required
 
 0313 is terminal and independently restored; its one-shot authorization is

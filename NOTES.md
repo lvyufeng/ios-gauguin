@@ -2,6 +2,57 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0315 completed/restored; main-thread stalls located in Mach IPC
+
+0315 executor PID63371/session74053, observer64432 and independent verifier
+session85403 are TERMINAL. Do not rerun; this one-shot permission is consumed.
+Auto TWRP745s, exact314banner confirmed with observer constructor315. Install
+and restore each passed8ranges/1,814,528bytes; misc13B. No boot/recovery/restore
+retry. All log prefixes and final31static comparison passed. Independent four
+original logical/allocated files, forks/CNIDs and original misc4KiB passed.
+Current verified root header c730d0d2cf6dc74c0fd7b1b6e91570246845e80d1c177a39f6cacad9a2474912.
+Preserve W315 research/tmp/sb-stack-315/execution/restored-capture as CURRENT
+rollback capture, original backups and the fixed315 inputs.
+
+Result SpringBoard-stack-observed-root-restored; SHA231af899124048698d9a150a09048afcc219afdcfe339f58c1f661be2d9ddc61.
+Independent SHA d0d75892d54b2785ceafba0b5efd3d5bf5ece2d410dde96df1aeec7df95e751e.
+42/42 usable snapshots, no suspend/state/resume errors or missing/policy/clock
+rows, maximum capture579us, no >=2ms sample. Samples225.445858..269.919555s.
+One wakepair,13strokes/442reports226.236219..259.011245s. Full-script77 public
+touch entries, allmain, allpaired, median1.688ms/max4.627870s; not physical
+latency qualification. Selected4s window alone has0entries; do not mistake it
+for full-script input loss. C4still26completed logs,6createdduring script,
+13gaps4.9..5.3s, median5.011604s. Full GPU/smooth60Hz remains unproven.
+
+Actual20H392 symbolication:41/42 samples in mach_msg2_trap. 32 include CA::Render::
+Message::send_message through Encoder/Context/Transaction commit;4 are
+__CASCreateFencePort;5 are render-display-layer snapshot RPCs;1 is layer layout.
+The dominant sampled callsite1882fea00 passes mach_msg options1 (SEND only),
+receive size/port0 and timeout0; it is not the earlier wait_for_synchronize
+receive path. Fence/snapshot callsites pass options3 (SEND+RECEIVE), timeout0;
+their exact kernel send/receive phase is still unknown. Static arguments from
+the exact sampled PCs were verified in actual cache; do not claim queue-full
+or missing receiver wakeup until kernel/receiver evidence confirms it.
+
+Private W315 research/tmp/sb-stack-315/execution/:
+stack analysis f291f427faa518fd70af311516ac9ce82013492878d2b92bd65c5f263f692356
+focused summary 613ae101f9328b492283e04abefaa0452a4f968e14bdf0cef0442002d7ac620c
+symbolicated stacks 1a7138e8c8a99e207954503395e01a9fb47d572c68e725654092d535807702da
+stack alignment 8401fd21608a12712b534475846b99e6341d5cf926d9781cde0a6a55f6d2281e
+Static message-wait-path315/result.json9f89093eb048002b44b204c67b30abc82c3489ed4e183fd84abb54b24305c9dc.
+Host symbolizer v2 handles actual executable S_SYMBOL_STUBS by declared stride;
+v1's libdispatch export test failed outside __text and was retained. Final
+self-check5508ec48... and4system-librarycheck29c2dfdb... passed. All host readers
+terminal. Three long CA brackets4.470..4.925s contain13 send-path samples and
+end within1068us of C4creation, before those jobs commit/complete.
+
+NEXT: inspect the actual kernel Mach send / message queue / receiver wakeup
+path, using these observed send-only callsites rather than the old five-second
+diagnostic constant. No316 candidate or permission yet; no further phone write
+is authorized. Any new trial needs fresh c730... preimages and storage admission.
+No new kernel CI/build this round; C4wait fix remains uninstalled. Prior goal
+blocked status was for missing315consent, which this actual approved run resolved.
+
 ### 2026-11-14 CST —0315 live; installation and temporary boot accepted
 
 Executor PID63371 / tool session74053 is live. Observer PID/PGID64432 is live

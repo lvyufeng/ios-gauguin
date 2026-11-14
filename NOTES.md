@@ -2,6 +2,47 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST —0312 ready for individual approval; no execution claim
+
+W312 code `cf3b6b0` and transaction/plan `ffa73d6` are committed on
+`codex/gauguin-sb-cadence-20261114`. Exact Chinese trial doc:
+W312 `docs/gauguin-springboard-cadence-312-trial-20261114.md`.
+The local incremental link and independent image review passed; no CI run.
+Image20,054,016B SHA `1cf0fa2e2b0664575be7e17dcea44345b2c057d73931f32af077e0525f48bae9`;
+kernel17,365,784B SHA `ca6f834ecbb0ba20d9b0a6e22e79b520c72288cb2a7b9045feab9f9d1373f8ca`;
+identity `xnu-local312-4af69afdc08c4ec180dd2bbf152e576f`.
+Same0310wake/script/async behavior plus0234. Command593B removes
+metal_fps=timeline and adds sbp=1; touch_lat=1 still emits per-C4 timelines.
+No new GPU fix or60fps claim;0311 remains separate and unbooted.
+
+The fresh read-only four-file delta installs1,814,528B (8ranges): EAGLslot,
+SBjob, launchdcache and same0310C4frontend. Restore<=1,814,528B resolves live
+catalog leaves; normaluserdata3,629,056B, failure+rollback bound9,072,640B.
+Misc13B marker (host maximum26B with preboot rollback), one temporary boot,
+13strokes/442reports, at most one wake power pair and one recovery fallback.
+31-file bounded captures before/after/restored, logs aligned only after
+restoration. Actual-HFSX RAM models passed partial-write failures at every
+install/restore range, rollback failure and final-verify-failure controls.
+Missing-consent gate and2positive/12negative wake checks passed.
+512MiB reserve admitted at499,393,937,408B; staticcapturebound376,971,104B.
+
+Private W312 `research/tmp/sb-cadence-312/`:
+- trial-plan SHA `e566a731b3df82ad5b8e390c125fec2113d51f99030a1479b79f3f35ddb65ea2`
+- install-plan SHA `6f182fd736b5ccc4d66b6acc277e358b52ca843e6a5d749de65bddc11c784a4f`
+- ready SHA `90918ac526306d91fb9706e33b068a74b2c25728157222aeb68ea6e18dc48a47`,61pins rechecked.
+- executor SHA `8beea7d736544761f208ca99dbd11ab9d89d0d5eb7fb18b25852fc1e115319d5`.
+No approval.json/execution directory. Current root492c57e7... remains intact;
+0310 approval is consumed. Do not execute312 until actual matching consent.
+On consent, bind actual answer (no invented async item ID), exact plan/install/
+image hashes and booleans including allow_scripted_input/allow_wake_button;
+source `actual-user-sb-cadence312-trial-reply`, provenance direct-user-message
+or actual async-question-reply. Invoke tools/run-sb-cadence-trial.py once,
+follow its process through recovery and restoration, then independently run
+tools/verify-sb-cadence-restore.py with a new --out under the execution folder.
+No manual screen/touch request needed. Preserve everyreadyinput, original
+backup, current0310restored capture and user's main mkadt edit.
+
+
 ### 2026-11-14 CST —0312 input/cadence observer passed offline checks; not booted
 
 Active W312 is `research/tmp/gauguin-sb-cadence-worktree-20261114`, branch

@@ -2,6 +2,52 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — pending GPU presentation fix committed; user away from phone/computer
+
+User is away from both devices. Continue work that needs no physical
+observation; absence is not an exact approval for another partition trial.
+The frozen0310 question below is still pending: no approval.json, execution,
+write or boot. Read-only `adb get-state` again returned `recovery`.
+
+New isolated sparse W311 is
+`research/tmp/gauguin-pending-present-worktree-20261114`, branch
+`codex/gauguin-pending-present-20261114`, based on W303 `d017d65`.
+Commit `ee0b1af` is pushed. Patch0233 fixes the separately observed path
+that retired a held frame when its GPU read was pending. It is enabled
+only for held desktop presentation with `sweetgpuasync=1`: check all
+layers and poll once without blocking; if pending, retain the same active
+frame until another eligible beat. Once all layers are ready, hold gLock
+across all copies with borrowed per-layer guards. New accepted swaps,
+client removal and sleep retire deferred work. A retained client prevents
+owner-pointer reuse; no release under fLock or after acquiring it from a
+GPU-held copy. Pending attempts no longer count as software copies/presents.
+
+The actual helper host fixture passed9,612 ASAN/UBSAN assertions, including
+partial readiness, retries, latest-frame replacement, close/sleep races,
+client/surface lifetime and a competing writer. Existing full IOUserClient
+host checks passed10,946. Both implementation TUs compiled for ARM64 using
+0301's2,133 header/config inputs, with reference/input hashes unchanged.
+Exact forward replay/reverse dry run changed only3files;228 series entries
+exist. Native receipt W311 `research/tmp/pending-311/native-v2/result.json`
+SHA `bfe586caf7f7029f1c68e2e209a48c48d8b8aa298cca6610079780810aadca62`.
+Source overlay has only11selected files. No full link, new CI run, boot
+image or phone validation exists for this patch. See W311
+`docs/gauguin-pending-gpu-presentation-311-20261114.md` for code behavior,
+receipts and exact limits. Smooth60Hz/fullGPU/high-refresh remains open.
+
+All93 frozen0310 inputs rehashed unchanged (17,288,627,432 B, including the
+original backup). Its ready SHA remains
+`431efde8befffb4577c4378d68e2a154e7ed31e5bfb2b6affb022e6b0dca813f`;
+the recheck receipt is W311 `research/tmp/pending-311/frozen-310-recheck.json`.
+The600MB offline batch was admitted before allocation, including0310's
+512MiB reserve; a post-work512MiB reserve passed at499,388,981,248 B accounted.
+All original backups/current rollback/active pins remain; main mkadt SHA
+is still `3c1085a743c65570cbfccc54f73848e16c3807676702d0730b8a0526ca1ecec9`.
+Next device step remains the exact W3030310 plan on its actual matching
+reply, not this unbooted patch. Observe a real display-on repeated-frame
+workload first; then package/qualify the pending-frame fix under its own
+reviewed scope. No person needs to operate the phone for0310.
+
 ### 2026-11-14 CST — 0310 display-aware unattended trial ready; new reply pending
 
 0309 is complete and safely restored; its one-shot approval is consumed.

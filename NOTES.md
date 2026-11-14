@@ -2,6 +2,45 @@
 
 ## Agent handoff / active work
 
+### 2026-11-14 CST — 0311 fix locally linked and image reviewed, not booted
+
+Code remains `ee0b1af` on this W311 branch. The private
+`research/tmp/pending-311/` now contains a verified local incremental kernel
+link and independently reviewed boot image. Identity
+`xnu-local311-75192593c4454281a8b4d3aeefc7779e`; the version template's old
+date remains, so use the unique identity. Kernel17,365,752 B SHA
+`4cdb2a5f60802f082f16788ea928a395e86cd0e055e9a652bd09dcda68fc4190`;
+image20,054,016 B SHA
+`6ba24020212e5dcc8858e17ace112e865991b51c13dfe28641513a0c298ffd74`.
+Link manifest SHA
+`c5079951137e80cbbaff8ec44c9bd2cf897ef97b34793e86d0f71c127a9a6cad`;
+review receipt SHA
+`acdef8d010db5321ce81537c5dfa224d36a0e5aa2b99720e302c66edcc6369a4`.
+
+The link replaces5implementation objects from0301 (3retained310 objects
+plus freshly compiled GPU/framebuffer) and a new version. Reused310's exact
+baseline reproduction after rechecking hashes/mtimes and normalizing only
+LC_UUID versus original301. All6,511 protected inputs remained unchanged;
+source310+overlay union checked5,336 entries. No clean rebuild or new CI run.
+Separate review checked wrapper, raw Mach-O segment bytes/entry/RAM,
+firmware ranges/padding, full ADT/low-PAS and5new symbols in executable
+segments. No undefined symbols. Command606 bytes is exactly0310; same
+swp=3 scripted wake and async opt-in. Shim/DTB/firmware addresses/ADT unchanged.
+
+Before allocation, a600MB link/image/capture batch was admitted at
+499,392,094,208 B, including0310's512MiB reserve. No new full clone or separate
+payload file: linked outputs+image61,787,407 file bytes. Scripts and receipts
+are private beside the image; doc has their hashes. See
+`docs/gauguin-pending-gpu-presentation-311-20261114.md`.
+Post-image512MiB capture reserve admitted at499,453,988,864 B accounted;
+only9,140,224 B remains beyond that reserve. No further large allocation
+without a fresh batch capacity check.
+**0311 has not booted and has no execution plan or approval.** Do not
+substitute it into frozen0310's pending scope. First run exactly0310 only
+on its actual matching reply, confirm a display-on repeated-frame workload,
+then prepare a separate comparison with this image. Full GPU, usable60Hz,
+physical finger response and physical high refresh remain unachieved.
+
 ### 2026-11-14 CST — offline pending GPU frame fix; 0310 remains frozen
 
 This branch is `codex/gauguin-pending-present-20261114`, based on W303

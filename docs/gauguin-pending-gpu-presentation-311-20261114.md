@@ -9,8 +9,9 @@ this defect explains all the reported lag. That trial's gestures also ran
 with display power requested off, as recorded in the
 [0309 results](gauguin-unattended-gpu-309-results-20261114.md).
 
-Patch0233 is an offline follow-up to source310. It has not been linked into
-a boot image or executed on the phone. The independently prepared 0310
+Patch0233 is a follow-up to source310. Code commit `ee0b1af` has now been
+locally linked and packaged as an independently reviewed 0311 candidate.
+It has not been executed on the phone. The separately prepared 0310
 display-wake trial remains frozen and awaiting its own exact-scope reply.
 
 ## Frame and lock behavior
@@ -72,8 +73,9 @@ locks and pixel copying remain seams; neither test runs an Adreno or XNU VM.
 
 Both changed implementation translation units passed native ARM64 compilation
 against the verified 0301 reference build's 2,133 header/configuration inputs.
-The reference manifest, inputs and reference files remained unchanged. This
-is a selected-file compile, not a full link, clean CI build or device result.
+The reference manifest, inputs and reference files remained unchanged. These
+selected-file checks are separate from the subsequent local link below;
+neither is a clean CI build or a device result.
 The source overlay contains only eleven selected files, not a full clone.
 Exact patch replay changed only `GauguinGPU.cpp`, `SweetFramebuffer.cpp` and
 `SweetSurface.h`; the reverse dry run also passed. All 228 series entries exist.
@@ -97,6 +99,54 @@ python3 tests/test_gpu_pending_present.py --candidate-root research/tmp/pending-
 XNU_SOURCE=research/tmp/pending-311/source python3 tests/test_gpu_iokit.py
 ```
 
+## Linked and reviewed 0311 image
+
+The native link uses the same verified 0301 object list, flags and libraries
+as 0310. Five implementation objects differ from that original build: three
+unchanged 0310 replacements, plus the freshly compiled GPU and framebuffer
+objects for patch0233. A new version object supplies the unique identity
+`xnu-local311-75192593c4454281a8b4d3aeefc7779e`. The retained version template
+still carries its old date; use this identity and the manifest's creation UTC.
+
+The existing 0310 baseline reproduction was reused rather than written
+again. Its complete bytes still match the original unstripped 0301 kernel
+after normalizing only the 16-byte `LC_UUID`, and all of its original link
+inputs retain their recorded hashes and modification times. The source union
+of source310 plus the small overlay was checked across 5,336 entries. This
+link retained and rechecked 6,511 inputs, including source, replacement
+objects, original objects, flags, libraries and receipts. No full clone,
+clean rebuild or new GitHub Actions run was performed.
+
+| Artifact under `research/tmp/pending-311/` | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `local-link/kernel.development.gauguin` | 17,365,752 | `4cdb2a5f60802f082f16788ea928a395e86cd0e055e9a652bd09dcda68fc4190` |
+| `ui311-image.img` | 20,054,016 | `6ba24020212e5dcc8858e17ace112e865991b51c13dfe28641513a0c298ffd74` |
+| `local-link/build-manifest.json` | 2,794,925 | `c5079951137e80cbbaff8ec44c9bd2cf897ef97b34793e86d0f71c127a9a6cad` |
+| `ui311-review.json` | 1,859 | `acdef8d010db5321ce81537c5dfa224d36a0e5aa2b99720e302c66edcc6369a4` |
+
+Packaging preserves the exact 606-byte 0310 command, including `swp=3`,
+`sweetnvt=0` and `sweetgpuasync=1`. The shim, DTB, all firmware contents and
+physical addresses, full ADT and low-PAS request are unchanged. The payload
+was built in memory and written once inside the boot image, avoiding a
+redundant payload file. A separate parser checked the outer header/padding,
+every embedded kernel segment directly against Mach-O, the entry point,
+managed RAM, firmware ranges and low-PAS zero tail. There are no chained
+fixups and no undefined symbols. All five expected new guard/render/cancel
+symbols have addresses inside executable Mach-O segments.
+
+Private link/package/review scripts are `relink311.py`, `package311.py` and
+`review311.py` in the same directory. Their SHA-256 values are respectively
+`8960e975ae21a016e58ba82a939c22f75fe0e9ebbf5f7196ee144780c9490e39`,
+`da8540d4d71672536c3589a20cb4e06d8d510a7f90bd6ba6c1267705eb31f177` and
+`c83b127c157c8bf419c69920cab94190f15e6d1f2c660661227bed7392a268f6`.
+The scripts refuse existing build/image outputs. Image metadata SHA-256 is
+`f16e8f82bea109581ec4e6acbe8adef7d6ab7b12d506d871c265e68c7e131978`.
+
+The 600,000,000-byte link/image/capture batch was separately admitted at
+499,392,094,208 bytes accounted. It includes the pending 0310 trial's entire
+536,870,912-byte capture reserve. The retained link outputs and boot image
+use 61,787,407 file bytes; scripts and receipts fit the remaining allocation.
+
 ## Device and next action
 
 The phone was read-only checked as `recovery`; no partition write or boot
@@ -108,14 +158,18 @@ original backup, were rehashed unchanged (17,288,627,432 bytes). There is no
 The 600,000,000-byte offline batch was admitted before creating this sparse
 worktree, including 536,870,912 bytes reserved for the pending 0310 capture.
 Original backups, current rollback files and all active pins were preserved.
-After this work, the same 536,870,912-byte reserve was admitted again at
-499,388,981,248 bytes accounted against the 500,000,000,000-byte project cap.
+After the source/test milestone, the same 536,870,912-byte reserve was
+admitted at 499,388,981,248 bytes accounted. After linking and packaging, it
+was admitted again at 499,453,988,864 bytes against the 500,000,000,000-byte
+project cap. Only about 9.14 MB remains beyond that reserved capture budget;
+another build batch must pass a fresh capacity check.
 
 First run the exact reviewed
 [0310 display-wake trial](gauguin-display-aware-wake-310-20261114.md) only
-when its matching approval arrives. Do not substitute this unbooted code
-into that approved scope. It will establish whether the unattended script
-actually produces repeated frames while the display is on. A subsequent
-candidate can then include this patch and measure pending-to-copy behavior,
-frame gaps and GPU/CPU timing under the same workload. Physical touch,
+when its matching approval arrives. Do not substitute 0311 into that scope.
+It will establish whether the unattended script actually produces repeated
+frames while the display is on. The reviewed 0311 image is then available
+for a separately prepared comparison of pending-to-copy behavior, frame
+gaps and GPU/CPU timing under the same workload. It has no execution plan or
+approval yet. Physical touch,
 physical refresh, high refresh and smooth 60 Hz remain unqualified.

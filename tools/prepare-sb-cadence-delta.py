@@ -26,7 +26,8 @@ def prepare(capture_dir, binary_receipt, c4, out):
     binary_raw = binary_receipt.read_bytes()
     binary = json.loads(binary_raw)
     assert capture['state'] == 'readonly-four-file-cadence-capture'
-    assert binary['state'] == 'native-iOS16-readonly-SpringBoard-rate-trace-not-device-qualified'
+    assert binary['state'] == 'native-iOS16-SpringBoard-timing-stack-probe-not-device-qualified'
+    assert binary['main_thread_sampling'] and binary['maximum_samples']==64 and binary['maximum_stack_frames']==16
     assert binary['install_name'] == REUSE_SLOT
     observer = Path(binary['binary']).read_bytes()
     assert sha(observer) == binary['sha256']

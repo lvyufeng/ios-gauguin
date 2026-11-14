@@ -10,8 +10,9 @@ GPU policy or application input forwarding.
 ## Sampling boundary
 
 The existing flush thread samples only between 220 and 270 seconds of the boot
-clock, at most once per second and at most 64 times. It requires the existing
-main-loop watch to be in the body or before-CA phase for at least 250 ms.
+clock, at most once per second and at most 64 times. It requires the body or
+before-CA phase and a main-loop turn age of at least 250 ms; this is not a
+measurement of how long that particular phase has lasted.
 The target is a Mach thread right captured on SpringBoard's own main thread,
 with its pthread-reported stack bounds. It refuses the sampler thread itself.
 
@@ -86,5 +87,16 @@ Private artifacts are under `research/tmp/sb-stack-315/`.
 Standalone parser receipt SHA256: `256cca23e06e09589ed72e5abc9f868e2e6bde0989acff1c43043ce2147e1782`.
 
 A 60 MB offline batch was admitted at 499,580,846,080 accounted bytes before
-the sparse worktree and builds. Trial storage, fresh four-file preimages,
-rollback models and the final fixed plan are the remaining preparation work.
+the sparse worktree and builds. The [0315 fixed trial plan](gauguin-springboard-stack-315-trial-20261114.md)
+is now prepared from fresh four-file preimages. Eight-range installation and
+restoration fault models, missing-consent/classification checks and wake-log
+validation passed. All 70 fixed inputs were independently rehashed.
+
+52 completed-0314 static duplicates were retired with retained identical copies,
+freeing 72,978,083 logical bytes. A 450 MB whole preparation/trial batch was
+admitted at 499,518,402,560 accounted bytes. The exact capture/log/rollback bound,
+including worst-case UTF-8 replacement expansion for the kernel ring, is
+385,363,808 bytes. A 384 MiB (402,653,184-byte) trial reserve was separately
+admitted at 499,524,509,696 accounted bytes; the observer's Python children use
+explicit UTF-8 mode. The current 0314 restored capture, originals, logs and
+all pinned inputs are intact. No 0315 approval or execution claim exists.

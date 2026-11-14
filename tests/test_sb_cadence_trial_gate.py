@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 WORK = Path(__file__).resolve().parents[1]
-STATE = WORK/'research/tmp/sb-spawn-314'
+STATE = WORK/'research/tmp/sb-stack-315'
 RUNNER = WORK/'tools/run-sb-cadence-trial.py'
 
 
@@ -43,7 +43,18 @@ def main():
     assert runner.classify_observer({'observer_seen':True,'records_in_window':1,'input':{'hook_active':True}},True) == \
         'SpringBoard-cadence-observed-root-restored'
     assert runner.classify_observer({'observer_seen':True,'records_in_window':1,'input':{'hook_active':False}},True)=='SpringBoard-input-hook-not-active-root-restored'
-    print('SpringBoard 0314 gate refused before any device command; observation classification checked')
+    stack={'active':True,'unavailable':[],'resume_failures':0,'missing_sample_ids':[],
+           'incomplete_frame_samples':[],'policy_error_samples':[],'clock_error_samples':[],
+           'usable_stack_samples':1}
+    assert runner.classify_stacks(stack,True)=='SpringBoard-stack-observed-root-restored'
+    assert runner.classify_stacks(stack,False)=='SpringBoard-stack-constructor-missing-root-restored'
+    assert runner.classify_stacks({**stack,'active':False},True)=='SpringBoard-stack-probe-unavailable-root-restored'
+    assert runner.classify_stacks({**stack,'unavailable':['mach-context']},True)=='SpringBoard-stack-probe-unavailable-root-restored'
+    assert runner.classify_stacks({**stack,'resume_failures':1},True)=='SpringBoard-stack-resume-failure-root-restored'
+    for key in ('missing_sample_ids','incomplete_frame_samples','policy_error_samples','clock_error_samples'):
+        assert runner.classify_stacks({**stack,key:[1]},True)=='SpringBoard-stack-log-unqualified-root-restored'
+    assert runner.classify_stacks({**stack,'usable_stack_samples':0},True)=='SpringBoard-no-qualified-stack-root-restored'
+    print('SpringBoard 0315 gate refused before any device command; observation classification checked')
 
 
 if __name__=='__main__':

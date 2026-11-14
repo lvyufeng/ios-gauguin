@@ -11,7 +11,7 @@ from pathlib import Path
 
 MAIN = Path('/Users/baai/Project/ios-gauguin')
 WORK = Path(__file__).resolve().parents[1]
-BASE = WORK/'research/tmp/sb-spawn-314'
+BASE = WORK/'research/tmp/sb-stack-315'
 sys.path[:0] = [str(MAIN/'research/tmp/dsh-0175'),
                 str(MAIN/'research/tmp/gauguin-causal-trace-worktree-20261112/research/tmp/gpu-causal-trace-20261112')]
 from write_root_delta175v2 import RecoveryIO

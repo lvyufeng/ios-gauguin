@@ -15,7 +15,7 @@ from pathlib import Path
 
 WORK = Path(__file__).resolve().parents[1]
 MAIN = Path('/Users/baai/Project/ios-gauguin')
-STATE = WORK/'research/tmp/sb-spawn-314'
+STATE = WORK/'research/tmp/sb-stack-315'
 EXEC = STATE/'execution'
 LOG_PATHS = ('/private/var/tmp/gauguin-gles180.log',
              '/private/var/tmp/gauguin-gles180.stderr.log',
@@ -54,7 +54,7 @@ def module(name,path):
 def authorization(plan_path,ready_path,approval_path):
     """All checks here precede device IO and an execution directory claim."""
     plan,ready = load(plan_path),load(ready_path)
-    require(ready['state']=='ready-SpringBoard-spawn314-one-shot' and
+    require(ready['state']=='ready-SpringBoard-stack315-one-shot' and
             ready['trial_plan_sha256']==sha(plan_path) and
             ready['install_plan_sha256']==sha(STATE/'slot-delta/install-plan.json') and
             ready['image_sha256']==plan['image_sha256'], 'reviewed trial pins differ')
@@ -62,20 +62,20 @@ def authorization(plan_path,ready_path,approval_path):
     approval = load(approval_path)
     expected = ('approved','one_shot','allow_install','allow_restore','allow_rollback',
                 'allow_misc_marker','allow_temporary_boot','allow_recovery_fallback',
-                'allow_scripted_input','allow_wake_button')
+                'allow_scripted_input','allow_wake_button','allow_main_thread_sampling')
     require(all(approval.get(key) is True for key in expected) and
             approval.get('fixture_only') is not True and
             approval.get('plan_sha256')==ready['install_plan_sha256'] and
             approval.get('trial_plan_sha256')==ready['trial_plan_sha256'] and
             approval.get('image_sha256')==plan['image_sha256'] and
-            approval.get('source')=='actual-user-sb-spawn314-trial-reply' and
+            approval.get('source')=='actual-user-sb-stack315-trial-reply' and
             approval.get('provenance') in ('direct-user-message','async-question-reply') and
             (approval.get('provenance')!='async-question-reply' or
              (isinstance(approval.get('question_item_id'),str) and approval['question_item_id'])) and
             isinstance(approval.get('user_answer'),str) and approval['user_answer'].strip() and
             approval.get('user_answer_sha256')==hashlib.sha256(approval['user_answer'].encode()).hexdigest(),
             'separate user reply is not bound to this exact trial')
-    require(plan['state']=='prepared-SpringBoard-spawn314-one-shot' and
+    require(plan['state']=='prepared-SpringBoard-stack315-one-shot' and
             plan['install_plan_sha256']==ready['install_plan_sha256'] and
             plan['image_sha256']==sha(plan['image']) and
             plan['observer_helper'] in ready['input_pins'] and
@@ -88,11 +88,12 @@ def authorization(plan_path,ready_path,approval_path):
             plan['misc_write_bytes']==13 and plan['observer_seconds']==780 and
             plan['failed_restore_retry_limit']==1 and
             plan['maximum_fastboot_reboot_recovery_fallbacks']==1 and
-            plan['storage_reserve_bytes']==536870912 and
+            plan['storage_reserve_bytes']==402653184 and
             plan['no_new_files_or_HFSX_allocations'] is True and
             plan['diagnostic_only'] is True and plan['wake_button_pairs_max']==1 and
             plan['scripted_strokes']==13 and plan['require_display_on'] is True and
-            plan['async_compositor'] is True and
+            plan['async_compositor'] is True and plan['observer_python_utf8'] is True and
+            plan['main_thread_sampling']=={'version':315,'start_us':220000000,'end_us':270000000,'period_us':1000000,'min_turn_us':250000,'budget_us':2000,'max_samples':64,'depth':16,'stack_window_bytes':65536,'hard_realtime_pause_limit':False} and
             plan['physical_FPS_qualified'] is False and
             plan['retry_only_after_verified_rollback'] is True,
             'unexpected SpringBoard trial scope')
@@ -215,6 +216,16 @@ def classify_observer(analysis,prefix_preserved):
     return 'SpringBoard-cadence-observed-root-restored'
 
 
+def classify_stacks(stacks,constructor_seen):
+    if not constructor_seen:return 'SpringBoard-stack-constructor-missing-root-restored'
+    if not stacks['active'] or stacks['unavailable']:return 'SpringBoard-stack-probe-unavailable-root-restored'
+    if stacks['resume_failures']:return 'SpringBoard-stack-resume-failure-root-restored'
+    if any(stacks[key] for key in ('missing_sample_ids','incomplete_frame_samples','policy_error_samples','clock_error_samples')):
+        return 'SpringBoard-stack-log-unqualified-root-restored'
+    if not stacks['usable_stack_samples']:return 'SpringBoard-no-qualified-stack-root-restored'
+    return 'SpringBoard-stack-observed-root-restored'
+
+
 def main():
     plan_path,ready_path,approval_path=(STATE/'trial-plan.json',STATE/'ready.json',
                                         STATE/'approval.json')
@@ -233,6 +244,7 @@ def main():
     rate_log=module('sb_rate_log',WORK/'tools/analyze-sb-rate-log.py')
     ui_log=module('ui_trace_log',WORK/'tools/ui_trace_log.py')
     joint_log=module('joint_cadence',WORK/'tools/analyze-sb-cadence.py')
+    stack_log=module('stack_log',WORK/'tools/analyze-sb-stack-log.py')
     EXEC.mkdir(exist_ok=False)
     save(EXEC/'claim.json',{'pid':os.getpid(),'started':time.time(),
                             'trial_plan_sha256':ready['trial_plan_sha256'],
@@ -274,7 +286,7 @@ def main():
         with (EXEC/'observer.log').open('x') as log:
             child=subprocess.Popen(['bash',plan['observer_helper'],plan['image'],
                                     str(EXEC/'kernel.log'),str(plan['observer_seconds'])],
-                                   stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+                                   stdout=log,stderr=subprocess.STDOUT,start_new_session=True,env=dict(os.environ,PYTHONUTF8='1'))
             boot_started=True
             result['boot_attempts']=1
             save(EXEC/'observer-process.json',{'pid':child.pid,'pgid':child.pid,
@@ -358,6 +370,11 @@ def main():
                             'touch_hook_active':analysis['input']['hook_active']}
         qualified=result['springboard_log_prefix_preserved'] and all(result['other_log_prefix_preserved'].values())
         result['state']=classify_observer(analysis,qualified)
+        stacks=stack_log.summarize(stack_log.parse(sb_text))
+        save(EXEC/'springboard-stack-analysis.json',stacks)
+        result['stack_analysis']={key:stacks[key] for key in ('active','sample_count','usable_stack_samples','resume_failures','suspend_failures','state_failures','maximum_capture_elapsed_us','over_budget_samples','missing_sample_ids','incomplete_frame_samples','policy_error_samples','clock_error_samples','unavailable')}
+        if result['state']=='SpringBoard-cadence-observed-root-restored':
+            result['state']=classify_stacks(stacks,'GAUGUIN SB PROBE: constructor=315' in sb_text.splitlines())
         if bounds==(None,None):result['state']='SpringBoard-cadence-window-missing-root-restored'
     except (Exception,KeyboardInterrupt) as error:
         result.update(state='trial-incomplete-or-failed',error=repr(error))
@@ -389,7 +406,7 @@ def main():
                   finished=time.time())
     save(EXEC/'result.json',result)
     print(json.dumps(result,indent=2),flush=True)
-    return 0 if result['state']=='SpringBoard-cadence-observed-root-restored' else 1
+    return 0 if result['state']=='SpringBoard-stack-observed-root-restored' else 1
 
 
 if __name__=='__main__':

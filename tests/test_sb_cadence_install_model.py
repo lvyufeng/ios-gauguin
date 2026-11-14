@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 WORK = Path(__file__).resolve().parents[1]
-BASE = WORK/'research/tmp/sb-spawn-314'
+BASE = WORK/'research/tmp/sb-stack-315'
 
 
 def load(name,path):

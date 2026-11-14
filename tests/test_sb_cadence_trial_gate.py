@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 WORK = Path(__file__).resolve().parents[1]
-STATE = WORK/'research/tmp/sb-cadence-312'
+STATE = WORK/'research/tmp/sb-loader-313'
 RUNNER = WORK/'tools/run-sb-cadence-trial.py'
 
 
@@ -43,7 +43,7 @@ def main():
     assert runner.classify_observer({'observer_seen':True,'records_in_window':1,'input':{'hook_active':True}},True) == \
         'SpringBoard-cadence-observed-root-restored'
     assert runner.classify_observer({'observer_seen':True,'records_in_window':1,'input':{'hook_active':False}},True)=='SpringBoard-input-hook-not-active-root-restored'
-    print('SpringBoard 0312 gate refused before any device command; observation classification checked')
+    print('SpringBoard 0313 gate refused before any device command; observation classification checked')
 
 
 if __name__=='__main__':

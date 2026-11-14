@@ -1,6 +1,6 @@
 from pathlib import Path
 import hashlib,importlib.util,json
-WORK=Path(__file__).resolve().parents[1];W=WORK/'research/tmp/sb-cadence-312';p=WORK/'tools/run-sb-cadence-trial.py';spec=importlib.util.spec_from_file_location('wake_trial310',p);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+WORK=Path(__file__).resolve().parents[1];W=WORK/'research/tmp/sb-loader-313';p=WORK/'tools/run-sb-cadence-trial.py';spec=importlib.util.spec_from_file_location('wake_trial310',p);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 rows=['SWEET FB POWER: state=2 tick=100; requested, panel unqualified','SWEET UI WAKE: power press tick=101 state=off','SWEET UI WAKE: power release tick=102; one pair only','SWEET FB POWER: state=1 tick=103; requested, panel unqualified','SWEET UI WAKE: display-on confirmed tick=110; begin workload']
 for i in range(13):rows += [f'SWEET UI SCRIPT: begin stroke={i} tick={111+i*10} origin=synthetic',f'SWEET UI SCRIPT: end stroke={i} tick={112+i*10} events=34; HID return only']
 valid='\n'.join(rows);assert m.validate_wake_log(valid)=={'button_pairs':1,'first_stroke_tick':111,'last_release_tick':232}

@@ -52,10 +52,14 @@ gap or establish 60fps by themselves.
   `b0b49caf5ecf11619d6223455017f6668203ce61e0816dd70f599a6de9b800a4`.
 
 Source commit: `2150dfe`. Private work is `research/tmp/sb-loader-313/`.
-This candidate has not booted and has no write approval or prepared trial yet.
-Next finish linking/image review and prepare fresh preimages, models and
-restoration against root header
+The candidate has not booted and has no write approval. Linking and independent
+image review passed. The [0313 unattended plan](gauguin-springboard-loader-313-trial-20261114.md)
+is prepared from fresh four-file preimages, with install/restore fault models,
+63 rechecked inputs and a fresh 512 MiB storage admission. Current root header:
 `7faaeed238ab8ad51846767eb8e6f98ecfd1d8a6243196f998bfd514892c522d`.
+Image SHA256 `455102e9b8052a9b41e2d208d62e205b01218fb45fc8c093a19784eabe3f63e2`;
+identity `xnu-local313-406b28bcd77f44ceba6a5bd597da7fa2`.
+No phone writes may use the consumed 0312 authorization.
 
 ## Storage
 

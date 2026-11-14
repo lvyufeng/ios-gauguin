@@ -15,7 +15,7 @@ from pathlib import Path
 
 WORK = Path(__file__).resolve().parents[1]
 MAIN = Path('/Users/baai/Project/ios-gauguin')
-STATE = WORK/'research/tmp/sb-cadence-312'
+STATE = WORK/'research/tmp/sb-loader-313'
 EXEC = STATE/'execution'
 LOG_PATHS = ('/private/var/tmp/gauguin-gles180.log',
              '/private/var/tmp/gauguin-gles180.stderr.log',
@@ -54,7 +54,7 @@ def module(name,path):
 def authorization(plan_path,ready_path,approval_path):
     """All checks here precede device IO and an execution directory claim."""
     plan,ready = load(plan_path),load(ready_path)
-    require(ready['state']=='ready-SpringBoard-cadence312-one-shot' and
+    require(ready['state']=='ready-SpringBoard-loader313-one-shot' and
             ready['trial_plan_sha256']==sha(plan_path) and
             ready['install_plan_sha256']==sha(STATE/'slot-delta/install-plan.json') and
             ready['image_sha256']==plan['image_sha256'], 'reviewed trial pins differ')
@@ -68,14 +68,14 @@ def authorization(plan_path,ready_path,approval_path):
             approval.get('plan_sha256')==ready['install_plan_sha256'] and
             approval.get('trial_plan_sha256')==ready['trial_plan_sha256'] and
             approval.get('image_sha256')==plan['image_sha256'] and
-            approval.get('source')=='actual-user-sb-cadence312-trial-reply' and
+            approval.get('source')=='actual-user-sb-loader313-trial-reply' and
             approval.get('provenance') in ('direct-user-message','async-question-reply') and
             (approval.get('provenance')!='async-question-reply' or
              (isinstance(approval.get('question_item_id'),str) and approval['question_item_id'])) and
             isinstance(approval.get('user_answer'),str) and approval['user_answer'].strip() and
             approval.get('user_answer_sha256')==hashlib.sha256(approval['user_answer'].encode()).hexdigest(),
             'separate user reply is not bound to this exact trial')
-    require(plan['state']=='prepared-SpringBoard-cadence312-one-shot' and
+    require(plan['state']=='prepared-SpringBoard-loader313-one-shot' and
             plan['install_plan_sha256']==ready['install_plan_sha256'] and
             plan['image_sha256']==sha(plan['image']) and
             plan['observer_helper'] in ready['input_pins'] and
@@ -330,6 +330,8 @@ def main():
         kernel=(EXEC/'kernel.log').read_text(errors='replace')
         require(plan['kernel_banner'] in kernel,'kernel banner not from pinned observer image')
         sb_text=(EXEC/'springboard-new.log').read_text(errors='replace')
+        result['loader_initialization_lines']=[line for line in sb_text.splitlines() if line.startswith('GAUGUIN SB PROBE:')]
+        result['kernel_insertion_lines']=[line for line in kernel.splitlines() if line.startswith('SWEET SB INJECT:')]
         parsed=rate_log.parse(sb_text)
         try:
             trace=ui_log.parse(kernel)

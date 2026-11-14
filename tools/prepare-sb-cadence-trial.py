@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze the complete 0312 trial and rollback before requesting approval."""
+"""Freeze the complete 0313 trial and rollback before requesting approval."""
 import hashlib
 import importlib.util
 import json
@@ -9,7 +9,7 @@ from pathlib import Path
 
 MAIN=Path('/Users/baai/Project/ios-gauguin')
 WORK=Path(__file__).resolve().parents[1]
-STATE=WORK/'research/tmp/sb-cadence-312'
+STATE=WORK/'research/tmp/sb-loader-313'
 W301=MAIN/'research/tmp/gauguin-causal-trace-worktree-20261112'
 BACKUP=MAIN/'research/tmp/metal-hardware-20261112/backup/iosroot-current.hfsx'
 RESERVE=536870912
@@ -26,15 +26,15 @@ def save(path,value):
 def main():
     assert not any((STATE/name).exists() for name in ('trial-plan.json','ready.json','approval.json','execution'))
     install_path=STATE/'slot-delta/install-plan.json'
-    image_path=STATE/'ui312-image.json';review_path=STATE/'ui312-review.json'
+    image_path=STATE/'ui313-image.json';review_path=STATE/'ui313-review.json'
     manifest_path=STATE/'local-link/build-manifest.json'
     install,image,review,manifest=[json.loads(p.read_text()) for p in (install_path,image_path,review_path,manifest_path)]
     assert install['state']=='prepared-four-file-SpringBoard-cadence-delta'
     assert install['install_write_bytes']==1814528 and install['changed_ranges']==8
-    assert install['root_header_sha256']=='492c57e711dcb89e40330f8c4ffce88fc63ceec09edb519ad3e24dc75740c8c0'
-    assert image['state']=='offline-SpringBoard-input-cadence-candidate'
-    assert review['state']=='reviewed-offline-SpringBoard-cadence312-image'
-    assert sha(image['image'])==image['image_sha256']==review['image_sha256']=='1cf0fa2e2b0664575be7e17dcea44345b2c057d73931f32af077e0525f48bae9'
+    assert install['root_header_sha256']=='7faaeed238ab8ad51846767eb8e6f98ecfd1d8a6243196f998bfd514892c522d'
+    assert image['state']=='offline-SpringBoard-loader-candidate'
+    assert review['state']=='reviewed-offline-SpringBoard-loader313-image'
+    assert sha(image['image'])==image['image_sha256']==review['image_sha256']=='455102e9b8052a9b41e2d208d62e205b01218fb45fc8c093a19784eabe3f63e2'
     assert sha(manifest_path)==image['manifest_sha256']
     assert image['kernel_sha256']==manifest['kernel']['sha256']==review['kernel_sha256']
     assert image['kernel_banner']==manifest['kernel_banner']
@@ -67,7 +67,7 @@ def main():
     admission=json.loads(budget.stdout);assert admission['admitted']
     save(STATE/'storage-trial-admission.json',admission)
     observer=MAIN/'research/tmp/dsh-0174/observe_ready_fastboot174.sh'
-    plan=dict(state='prepared-SpringBoard-cadence312-one-shot',image=image['image'],image_sha256=image['image_sha256'],image_bytes=image['image_bytes'],kernel_banner=image['kernel_banner'],boot_command=image['command'],observer_helper=str(observer),
+    plan=dict(state='prepared-SpringBoard-loader313-one-shot',image=image['image'],image_sha256=image['image_sha256'],image_bytes=image['image_bytes'],kernel_banner=image['kernel_banner'],boot_command=image['command'],observer_helper=str(observer),
         service_seconds=600,observer_seconds=780,root_header_sha256=install['root_header_sha256'],install_plan_sha256=sha(install_path),
         misc_before_sha256=sha(misc),misc_write_bytes=13,maximum_host_misc_write_bytes=26,
         temporary_boots=1,boot_retries=0,install_userdata_bytes=1814528,
@@ -76,15 +76,15 @@ def main():
         storage_reserve_bytes=RESERVE,springboard_log_path='/private/var/log/springboard.log',
         no_new_files_or_HFSX_allocations=True,changed_root_files=[r['path'] for r in install['rows'].values()],
         wake_button_pairs_max=1,require_display_on=True,scripted_strokes=13,scripted_reports=442,async_compositor=True,
-        input_origin='synthetic',diagnostic_only=True,physical_FPS_qualified=False,needs_separate_user_approval=True,
+        input_origin='synthetic',protected_SpringBoard_exec_insertion=True,diagnostic_only=True,physical_FPS_qualified=False,needs_separate_user_approval=True,
         device_writes=0,boot_attempts=0)
     plan_path=STATE/'trial-plan.json';save(plan_path,plan)
     pins=[plan_path,STATE/'storage-bound.json',STATE/'storage-trial-admission.json',install_path,STATE/'slot-capture/result.json',image_path,review_path,Path(image['image']),manifest_path,*model_paths,misc,BACKUP,observer,
-          STATE/'expected-baseline.json',STATE/'capture-profile.json',STATE/'native-slot-v3/result.json',STATE/'kernel-native-v2/result.json',STATE/'host-v3.json',STATE/'hid-queue-host-v1.json',STATE/'amfi-host-v1/result.json',STATE/'patch-replay.json',
+          STATE/'expected-baseline.json',STATE/'capture-profile.json',STATE/'native-library-v1/result.json',STATE/'native-v1/result.json',STATE/'observer-host-v1.json',MAIN/'research/tmp/gauguin-sb-cadence-worktree-20261114/research/tmp/sb-cadence-312/hid-queue-host-v1.json',MAIN/'research/tmp/gauguin-sb-cadence-worktree-20261114/research/tmp/sb-cadence-312/amfi-host-v1/result.json',STATE/'patch-replay.json',STATE/'exec-host-v2/result.json',
           MAIN/'tools/sweet-log-pull.sh',MAIN/'tools/kernel_banner.py',MAIN/'tools/recovery_marker.py',MAIN/'tools/storage-budget.py',
           MAIN/'research/tmp/dsh-0175/local_hfs175v3.py',MAIN/'research/tmp/dsh-0175/write_root_delta175v2.py',W301/'research/tmp/gpu-causal-trace-20261112/metal_ca_c5_delta.py',
           WORK/'tools/analyze-sb-rate-log.py',WORK/'tools/analyze-ui-timeline.py',WORK/'tools/ui_trace_log.py',WORK/'tools/sb_cadence_launch.py',
-          WORK/'graphics/gauguin-sb-rate-trace/SBRateTrace.m',WORK/'xnu/patches/0234-gauguin-springboard-input-cadence-observer.patch']
+          WORK/'graphics/gauguin-sb-rate-trace/SBRateTrace.m',WORK/'xnu/patches/0234-gauguin-springboard-input-cadence-observer.patch',WORK/'xnu/patches/0235-gauguin-protected-springboard-exec-insertion.patch']
     pins.extend(sorted((WORK/'tools').glob('*sb-cadence*.py')))
     for name in install['rows']:
         for folder,kind in [('slot-capture','old'),('slot-delta','new')]:
@@ -92,7 +92,7 @@ def main():
     pins=sorted(set(p.resolve() for p in pins));assert all(p.is_file() for p in pins)
     hashes={str(p):sha(p) for p in pins}
     assert all(sha(name)==digest for name,digest in hashes.items())
-    ready=dict(state='ready-SpringBoard-cadence312-one-shot',trial_plan_sha256=sha(plan_path),install_plan_sha256=sha(install_path),image_sha256=image['image_sha256'],root_header_sha256=install['root_header_sha256'],input_pins=hashes,pin_count=len(hashes),approval_pending=True,device_writes=0,boot_attempts=0)
+    ready=dict(state='ready-SpringBoard-loader313-one-shot',trial_plan_sha256=sha(plan_path),install_plan_sha256=sha(install_path),image_sha256=image['image_sha256'],root_header_sha256=install['root_header_sha256'],input_pins=hashes,pin_count=len(hashes),approval_pending=True,device_writes=0,boot_attempts=0)
     save(STATE/'ready.json',ready)
     print(json.dumps({k:v for k,v in ready.items() if k!='input_pins'},indent=2))
 

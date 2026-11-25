@@ -1,0 +1,415 @@
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -28,6 +28,7 @@
+ #include "gauguin_gmu_clock.h"
+ #include "gauguin_gmu_board.h"
+ #include "gauguin_gmu_asset.h"
++#include "gauguin_gpu_zap_asset.h"
+ #include "cmd_db_snapshot.h"
+ extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
+ extern void thread_terminate_self(void);
+@@ -86,6 +87,8 @@
+     if ((gpu != 0 && gpu != 1) || (gpu == 1 && dcvs != 1)) return false;
+     int start = 0; (void)PE_parse_boot_argn("sweetgpustart", &start, sizeof(start));
+     if ((start != 0 && start != 1) || (start == 1 && gpu != 1)) return false;
++    int zap = 0; (void)PE_parse_boot_argn("sweetgpuzap", &zap, sizeof(zap));
++    if ((zap != 0 && zap != 1) || (zap == 1 && start != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -119,6 +122,14 @@
+     if (!(cx_requested ? sweet_bus_cx_plan_prepare(&plan, &cx_plan) : sweet_bus_plan_prepare(&plan))) {
+         bcm_record("SWEET BCM BOOT: same-boot CMDDB preparation failed; no watchdog/RSC write");
+         return;
++    }
++    const bool zap_requested=sweet_gpu_zap_requested();
++    if(zap_requested){
++        struct gza_view code;
++        if(!bcm_context()||!sweet_gpu_zap_asset_view(&code)||code.bytes!=GPZ_CODE_BYTES){
++            bcm_record("SWEET GPU ZAP BOOT: pinned b02 unavailable; no watchdog/RSC write");return;
++        }
++        snprintf(line,sizeof(line),"SWEET GPU ZAP BOOT: pinned b02 pa=%016llx bytes=%u; no watchdog/RSC write yet",(unsigned long long)code.pa,code.bytes);bcm_record(line);
+     }
+     const bool fw_requested=bcm_firmware_requested();
+     if(fw_requested){
+@@ -225,7 +236,16 @@
+                         if(sweet_gpu_cp_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+                         snprintf(line,sizeof(line),"SWEET GPU CP BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)cp_result,(unsigned)sweet_gpu_cp_state());bcm_record(line);return;
+                     }
+-                    bcm_record("SWEET GPU CP BOOT: first native ME_INIT/WHERE_AM_I completed; GPU requests held; awaiting watchdog reset; no ZAP/rendering/Metal");
++                    if(zap_requested){
++                        bcm_record("SWEET GPU CP BOOT: first native ME_INIT/WHERE_AM_I completed; GPU requests held; before signed ZAP; no unsecured/rendering/Metal");
++                        struct gpz_receipt zap;
++                        enum gpz_result zap_result=sweet_gpu_zap_once(&zap);
++                        if(zap_result!=GPZ_OK){
++                            if(sweet_gpu_zap_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
++                            snprintf(line,sizeof(line),"SWEET GPU ZAP BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)zap_result,(unsigned)sweet_gpu_zap_state());bcm_record(line);return;
++                        }
++                        bcm_record("SWEET GPU ZAP BOOT: signed ZAP load accepted; GPU requests held; awaiting watchdog reset; no unsecured/rendering/Metal");
++                    }else bcm_record("SWEET GPU CP BOOT: first native ME_INIT/WHERE_AM_I completed; GPU requests held; awaiting watchdog reset; no ZAP/rendering/Metal");
+                 }
+             }else{
+                 bcm_record("SWEET BCM BOOT: GMU clock trial done; requests retained; awaiting watchdog reset; no firmware/reset-release/PAS/GX operation");
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -1154,4 +1154,203 @@
+ }
+ 
+ 
++/* Signed ZAP at the native post-CP call point; no legacy PAS flag relaxation. */
++static unsigned gpzb_lifecycle;
++static uint64_t gpzb_last_now;
++static struct gpz_context gpzb_context;
++static struct gpz_receipt gpzb_work;
++enum gpzb_reason {PZB_NONE,PZB_CONTEXT,PZB_CONFIG,PZB_LIFECYCLE,PZB_WDT,PZB_OWNER,
++    PZB_FW,PZB_SQE,PZB_APERTURE,PZB_CORE,PZB_CP,PZB_CLOCK,PZB_IRQ,PZB_RESET,
++    PZB_FAULT,PZB_ROUTES,PZB_DEVICE,PZB_NC,PZB_SCOPE,PZB_TIME};
++static struct {unsigned reason,phase,scope;uint64_t now;uint32_t rbbm,cp,shadow,busy;} gpzb_diagnostic;
++bool sweet_gpu_zap_requested(void)
++{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1;}
++enum gmb_state sweet_gpu_zap_state(void)
++{return (enum gmb_state)__atomic_load_n(&gpzb_lifecycle,__ATOMIC_ACQUIRE);}
++static bool gpzb_flags(void)
++{
++    static const char *const on[]={"sweetgpuzap","sweetbusvote","sweetpasprobe","sweetpasstage",
++        "sweetcxpower","sweetgmuclk","sweetgmufw","sweetgmuperf","sweetgmubw","sweetgmudcvs","sweetgpucontext","sweetgpustart"};
++    static const char *const off[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet",
++        "sweetreboot","sweetbusprobe","sweetgpuprobe","sweetscmprobe","sweetwdttest"};
++    for(unsigned i=0;i<sizeof(on)/sizeof(on[0]);i++){int v=0;(void)PE_parse_boot_argn(on[i],&v,sizeof(v));if(v!=1)return false;}
++    for(unsigned i=0;i<sizeof(off)/sizeof(off[0]);i++){int v=0;(void)PE_parse_boot_argn(off[i],&v,sizeof(v));if(v)return false;}
++    return true;
++}
++bool sweet_gpu_zap_owner_phase(enum gpz_phase phase,uint64_t pa)
++{
++    return gmb_thread()&&sweet_gpu_zap_state()==GMB_RUNNING&&
++        __atomic_load_n(&gpzb_context.state,__ATOMIC_ACQUIRE)==1&&
++        phase>=GPZ_SEAL&&phase<=GPZ_FINAL&&gpzb_context.phase==(unsigned)phase&&
++        pa==gmb_stage.pa&&pa==gpzb_context.work.owner_pa;
++}
++bool sweet_gpu_zap_owner_action_allowed(enum gpz_owner_action action,uint64_t pa)
++{
++    const struct gpz_receipt *r=&gpzb_context.work;
++    if(action==GPZO_SEAL)return sweet_gpu_zap_owner_phase(GPZ_SEAL,pa)&&!r->owner_sealed;
++    if(action==GPZO_INIT_ENTER)return sweet_gpu_zap_owner_phase(GPZ_INIT,pa)&&r->owner_sealed==1&&!r->transaction[0].smc_calls;
++    unsigned id=action==GPZO_INIT_ACCEPT?0:action==GPZO_MEM_ACCEPT?1:2;
++    enum gpz_phase phase=id==0?GPZ_INIT:id==1?GPZ_MEM:GPZ_AUTH;
++    if(action!=GPZO_INIT_ACCEPT&&action!=GPZO_MEM_ACCEPT&&action!=GPZO_AUTH_ACCEPT)return false;
++    const struct gpz_transaction *t=&r->transaction[id];
++    return sweet_gpu_zap_owner_phase(phase,pa)&&r->owner_sealed==1&&!gpzb_context.pending_raw&&
++        t->has_returned==1&&t->smc_calls&&!t->returned.x[0]&&!t->returned.x[1]&&
++        (id!=2||(r->copy.written==GPZ_CODE_BYTES&&r->copy.checked==GPZ_CODE_BYTES));
++}
++static bool gpzb_reject(enum gpz_phase phase,enum gpz_scope scope,enum gpzb_reason reason)
++{
++    if(!gpzb_diagnostic.reason){gpzb_diagnostic.reason=reason;gpzb_diagnostic.phase=phase;
++        gpzb_diagnostic.scope=scope;gpzb_diagnostic.now=mach_absolute_time();}
++    return false;
++}
++static bool gpzb_time(enum gpz_phase phase,enum gpz_scope scope)
++{
++    uint64_t now=mach_absolute_time();gpzb_diagnostic.now=now;
++    if(now<gpzb_context.last_now||now<gpzb_last_now||now>=gpzb_context.total_end||now>=gpzb_context.phase_end)
++        return gpzb_reject(phase,scope,PZB_TIME);
++    gpzb_last_now=now;return true;
++}
++static bool gpzb_parents(void)
++{
++    const struct ggq_receipt *q=&ggq_work;
++    return sweet_gpu_cp_state()==GMB_READY&&sweet_gpu_core_state()==GMB_READY&&
++        sweet_gpu_start_state()==GMB_READY&&sweet_gmu_firmware_state()==GMB_READY&&sweet_gmu_board_state()==GMB_READY&&
++        ggq_context.state==2&&ggq_context.phase==GGQ_DONE&&ggq_result==GGQ_OK&&
++        !memcmp(q,&ggq_context.work,sizeof(*q))&&q->complete==1&&q->requests_retained==1&&
++        q->commands_written==15&&q->commands_checked==8192&&q->ring_written==8192&&q->ring_checked==8192&&
++        q->scratch_written==1024&&q->scratch_checked==1024&&q->sqe_start_attempted==1&&q->submit_attempted==1&&
++        q->rptr==15&&!(q->busy&(1u<<23))&&!(q->rbbm_status&GGQ_RBBM_ERRORS)&&!(q->cp_status&GGQ_CP_ERRORS)&&
++        ggc_context.state==2&&ggc_context.phase==GGC_DONE&&ggc_result==GGC_OK&&
++        ggc_work.configured==1&&ggc_work.requests_retained==1&&ggc_work.mem_written==133&&ggc_work.mem_compared==1024&&
++        ggc_work.list_length==132&&ggc_work.list_offset==72&&ggc_context.zero_checked==1024&&
++        gfw_work.phase==GMF_DONE&&gfw_work.result==GMF_OK&&gfw_work.release_attempted&&gfw_work.oob_attempted&&
++        gfw_context.state==2&&gfw_context.perf_valid&&gfw_context.bw_valid&&gfw_context.test_valid&&
++        gfw_context.dcvs_valid&&gfw_context.dcvs_return_valid&&!gfw_context.dcvs_return&&
++        ggb_sqe_requested&&ggb_sqe_loaded&&ggb_sqe_written==8192&&ggb_sqe_checked==8192&&
++        ggb_aperture.state==2&&ggb_secure_result==GPA_OK&&ggp_plan_valid(&ggb_plan)&&ggb_plan.owner_pa==gmb_stage.pa;
++}
++static bool gpzb_guard(void *cookie,enum gpz_phase phase,enum gpz_scope scope,unsigned minimum)
++{
++    (void)cookie;
++    if(gpzb_diagnostic.reason)return false;
++    gpzb_diagnostic.phase=phase;gpzb_diagnostic.scope=scope;gpzb_diagnostic.now=mach_absolute_time();
++    if(!gmb_thread())return gpzb_reject(phase,scope,PZB_CONTEXT);
++    if(!gpzb_time(phase,scope))return false;
++    if(!sweet_gpu_zap_owner_phase(phase,gmb_stage.pa)||!gpzb_parents())return gpzb_reject(phase,scope,PZB_LIFECYCLE);
++    bool auth0=gpzb_context.work.transaction[2].has_returned&&
++        !gpzb_context.work.transaction[2].returned.x[0]&&!gpzb_context.work.transaction[2].returned.x[1];
++    if((minimum!=3&&minimum!=10)||scope>GPZ_LATE||
++       (scope==GPZ_LIVE&&(phase>GPZ_AUTH||auth0||gpzb_context.pending_raw))||
++       (scope==GPZ_SECURE&&(phase!=GPZ_INIT&&phase!=GPZ_MEM&&phase!=GPZ_AUTH))||
++       (scope==GPZ_LATE&&(!auth0||(phase!=GPZ_AUTH&&phase!=GPZ_FINAL))))return gpzb_reject(phase,scope,PZB_SCOPE);
++    if(!gauguin_wdt_lease_check_budget(minimum*GAUGUIN_WDT_CLOCK_HZ))return gpzb_reject(phase,scope,PZB_WDT);
++    if(!gpzb_time(phase,scope))return false;
++    if(!sweet_pas_zap_owner_live(phase,gmb_stage.pa))return gpzb_reject(phase,scope,PZB_OWNER);
++    if(!gpzb_time(phase,scope))return false;
++    /* No GPU/low-buffer access in native interrupted continuation or after
++     * AUTH0. The owner predicate above checks only geometry once INIT enters. */
++    if(scope!=GPZ_LIVE)return true;
++    if(!gmb_reset||!gmb_smmu||!gmb_ram||!ggx_core||!gfw_map[GMF_AO]||
++       gfw_map[GMF_CSR]!=gmb_reset||!ggc_maps_ready||ggc_created!=6)return gpzb_reject(phase,scope,PZB_CORE);
++    uint32_t gx,irq[3],v;
++    if(!sweet_gmu_clock_live(true,&gx)||(gx&0x80000001u)!=0x80000000u)return gpzb_reject(phase,scope,PZB_CLOCK);
++    if(!sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000))return gpzb_reject(phase,scope,PZB_IRQ);
++    if(gfw_load32(gmb_reset+0x2000))return gpzb_reject(phase,scope,PZB_RESET);
++    if(!gfw_faults(false))return gpzb_reject(phase,scope,PZB_FAULT);
++    if(!ggb_context_valid()||(gfw_work.host_info&(1u<<24))||
++       ggx_context.state!=2||ggx_context.phase!=GGX_DONE||ggx_result!=GGX_OK||
++       ggx_work.bank!=ggb_smmu.bank||ggx_work.asid!=ggb_smmu.asid||ggx_work.ttbr0!=ggb_smmu.ttbr0||
++       ggx_work.ack_valid!=1||ggx_work.ack_clear_attempted!=1||ggx_work.request_retained!=1||ggx_work.core_opened!=1||
++       memcmp(&ggc_work.start,&ggx_work,sizeof(ggx_work))||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x34,&v)||v||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x7f4,&v)||(v&1u))return gpzb_reject(phase,scope,PZB_ROUTES);
++    if(ggc_alias[0]!=ggx_core||ggc_alias[8]!=gmb_reset||ggc_alias[9]!=gfw_map[GMF_AO]||
++       !ggc_device_valid(ggx_core,0x03d00000)||!ggc_device_valid(gmb_reset,0x03d7c000)||
++       !ggc_device_valid(gfw_map[GMF_AO],0x03d8c000))return gpzb_reject(phase,scope,PZB_DEVICE);
++    if(!ggq_nc_valid())return gpzb_reject(phase,scope,PZB_NC);
++    gpzb_diagnostic.rbbm=gfw_load32(ggx_core+4*0x201);gpzb_diagnostic.cp=gfw_load32(ggx_core+4*0x823);
++    if((gpzb_diagnostic.rbbm&GGQ_RBBM_ERRORS)||(gpzb_diagnostic.cp&GGQ_CP_ERRORS))return gpzb_reject(phase,scope,PZB_FAULT);
++    gpzb_diagnostic.shadow=gfw_load32(gmb_ram+ggb_plan.region[GGP_SCRATCH].offset-GMB_PAGE);
++    gpzb_diagnostic.busy=gfw_load32(gfw_map[GMF_AO]+0x2c30);
++    if(gpzb_diagnostic.shadow!=15||(gpzb_diagnostic.busy&(1u<<23)))return gpzb_reject(phase,scope,PZB_CP);
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return gpzb_reject(phase,scope,PZB_WDT);
++    return gpzb_time(phase,scope);
++}
++bool sweet_gpu_zap_copy_live(void)
++{return gpzb_guard(NULL,GPZ_COPY,GPZ_LIVE,3);}
++static uint64_t gpzb_now(void *cookie)
++{(void)cookie;return mach_absolute_time();}
++static bool gpzb_deadline(void *cookie,unsigned seconds,uint64_t *out)
++{(void)cookie;if(!out||(seconds!=20&&seconds!=5&&seconds!=2&&seconds!=1))return false;clock_interval_to_deadline(seconds,NSEC_PER_SEC,out);return true;}
++static bool gpzb_owner(void *cookie,enum gpz_owner_action action,uint64_t pa)
++{(void)cookie;return pa==gmb_stage.pa&&sweet_pas_zap_owner_action(action);}
++static bool gpzb_copy(void *cookie,struct gpz_copy *out)
++{(void)cookie;return sweet_pas_zap_copy(out);}
++static void gpzb_invoke(void *cookie,struct gpz_registers *r)
++{
++    (void)cookie;struct gpa_registers scalar;
++    _Static_assert(sizeof(scalar.x)==sizeof(r->x),"same seven scalar registers");
++    memcpy(scalar.x,r->x,sizeof(scalar.x));ggb_invoke(NULL,&scalar);memcpy(r->x,scalar.x,sizeof(r->x));
++}
++static bool gpzb_delay(void *cookie,unsigned ms)
++{(void)cookie;if(ms!=30)return false;IOSleep(ms);return true;}
++static void gpzb_quarantine(void *cookie)
++{
++    (void)cookie;bool needs=sweet_gmu_board_state()!=GMB_QUARANTINED;
++    __atomic_store_n(&gpzb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    sweet_pas_zap_quarantine();
++    __atomic_store_n(&ggq_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggc_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    if(needs)gmb_fail(GMB_GPU,"signed ZAP load");
++}
++static void gpzb_record(void *cookie,enum gpz_event event,const struct gpz_receipt *r)
++{
++    (void)cookie;if(event==GPZE_TERMINAL)return;char line[256];
++    unsigned id=r->phase==GPZ_INIT?0:r->phase==GPZ_MEM?1:2;
++    const struct gpz_transaction *t=&r->transaction[id];
++    if(event==GPZE_BEFORE){
++        unsigned fn=id==0?0x42000201u:id==1?0x42000202u:0x42000205u;
++        snprintf(line,sizeof(line),"SWEET GPU ZAP: before phase=%u fresh=%u fn=%08x arginfo=%x pas=13 pa=%016llx bytes=%u",
++            r->phase,t->fresh_attempts+1,fn,id==0?0x82u:id==1?3u:1u,(unsigned long long)(id==2?0:r->owner_pa),id==1?4096u:0u);gmb_record(line);return;
++    }
++    snprintf(line,sizeof(line),"SWEET GPU ZAP RAW: phase=%u calls=%u x0=%016llx x1=%016llx x2=%016llx x3=%016llx",r->phase,t->smc_calls,
++        (unsigned long long)t->returned.x[0],(unsigned long long)t->returned.x[1],(unsigned long long)t->returned.x[2],(unsigned long long)t->returned.x[3]);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU ZAP RAW: phase=%u calls=%u x4=%016llx x5=%016llx x6=%016llx fresh=%u continuations=%u",r->phase,t->smc_calls,
++        (unsigned long long)t->returned.x[4],(unsigned long long)t->returned.x[5],(unsigned long long)t->returned.x[6],t->fresh_attempts,t->continuations);gmb_record(line);
++}
++static void gpzb_terminal(void)
++{
++    const struct gpz_receipt *r=&gpzb_context.work;char line[256];
++    snprintf(line,sizeof(line),"SWEET GPU ZAP: %s phase=%u rc=%u sealed=%u copy=%u/%u owner=%u retained=%u",r->complete?"complete":"partial",
++        r->phase,r->result,r->owner_sealed,r->copy.written,r->copy.checked,(unsigned)sweet_pas_zap_owner_state(),r->requests_retained);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU ZAP COUNTS: init=%u/%u/%u mem=%u/%u/%u auth=%u/%u/%u",
++        r->transaction[0].fresh_attempts,r->transaction[0].smc_calls,r->transaction[0].continuations,
++        r->transaction[1].fresh_attempts,r->transaction[1].smc_calls,r->transaction[1].continuations,
++        r->transaction[2].fresh_attempts,r->transaction[2].smc_calls,r->transaction[2].continuations);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU ZAP GUARD: reason=%u scope=%u phase=%u now=%016llx entry=%016llx total_end=%016llx phase_end=%016llx",
++        gpzb_diagnostic.reason,gpzb_diagnostic.scope,gpzb_diagnostic.phase,(unsigned long long)gpzb_diagnostic.now,
++        (unsigned long long)gpzb_context.entry,(unsigned long long)gpzb_context.total_end,(unsigned long long)gpzb_context.phase_end);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU ZAP LIVE: rbbm=%08x cp=%08x shadow=%08x busy=%08x; cached pre-AUTH, no post-AUTH GPU/secure-buffer read",
++        gpzb_diagnostic.rbbm,gpzb_diagnostic.cp,gpzb_diagnostic.shadow,gpzb_diagnostic.busy);gmb_record(line);
++}
++enum gpz_result sweet_gpu_zap_once(struct gpz_receipt *out)
++{
++    if(!out||!sweet_gpu_zap_requested())return GPZ_ARGUMENT;unsigned idle=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&gpzb_lifecycle,&idle,GMB_RUNNING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GPZ_ALREADY;
++    memset(&gpzb_diagnostic,0,sizeof(gpzb_diagnostic));gpzb_last_now=0;
++    if(!gpzb_flags()||!gmb_thread()){
++        gpzb_diagnostic.reason=PZB_CONFIG;gpzb_context.work.result=GPZ_GUARD;gpzb_quarantine(NULL);gpzb_terminal();return GPZ_GUARD;
++    }
++    const struct gpz_ops ops={NULL,gpzb_now,gpzb_deadline,gpzb_guard,gpzb_owner,gpzb_copy,gmb_barrier,gpzb_invoke,gpzb_delay,gpzb_record,gpzb_quarantine};
++    const struct gpz_plan plan={gmb_stage.pa};
++    enum gpz_result result=gpz_start_once(&gpzb_context,&ops,&plan,&gpzb_work);
++    if(result!=GPZ_OK){
++        if(sweet_gpu_zap_state()!=GMB_QUARANTINED)gpzb_quarantine(NULL);
++        gpzb_context.work.result=(uint32_t)result;gpzb_terminal();return result;
++    }
++    *out=gpzb_work;__atomic_store_n(&gpzb_lifecycle,GMB_READY,__ATOMIC_RELEASE);gpzb_terminal();return GPZ_OK;
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -80,4 +80,9 @@
+  * no ZAP, unsecured mode, multi-ring scheduling, rendering or Metal claim. */
+ enum ggq_result sweet_gpu_cp_once(struct ggq_receipt *);
+ enum gmb_state sweet_gpu_cp_state(void);
++/* Signed ZAP load after this boot's completed core/first CP. Separate exact1
++ * opt-in; legacy PAS flags stay0. No unsecured mode/rendering/Metal claim. */
++bool sweet_gpu_zap_requested(void);
++enum gpz_result sweet_gpu_zap_once(struct gpz_receipt *);
++enum gmb_state sweet_gpu_zap_state(void);
+ #endif
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -28,6 +28,7 @@
+ #include <pexpert/arm64/boot.h>
+ #include <libkern/crypto/sha2.h>
+ #include "gauguin_pas_stage.h"
++#include "gauguin_gpu_zap_asset.h"
+ 
+ /* Canonical MACH/PEXPERT-private declarations, hidden from the BSD exported
+  * header view (as in gauguin_pas_probe.c for its pmap APIs). */
+@@ -255,4 +256,103 @@
+     for(unsigned i=PST_BYTES;i<PST_PAGE;i++)if(bytes[i])return false;
+     return true;
+ }
++/* Distinct post-CP owner transfer. Original staging/claim/validator unchanged. */
++static unsigned psz_lifecycle;
++static struct gza_view psz_code;
++enum psz_state sweet_pas_zap_owner_state(void)
++{return (enum psz_state)__atomic_load_n(&psz_lifecycle,__ATOMIC_ACQUIRE);}
++static bool psz_context(void)
++{return ml_get_interrupts_enabled()&&!ml_at_interrupt_context()&&!get_preemption_level();}
++static bool psz_flags(void)
++{
++    static const char *const on[]={"sweetgpuzap","sweetpasprobe","sweetpasstage"};
++    static const char *const off[]={"sweetpasinit","sweetpasmem"};
++    for(unsigned i=0;i<sizeof(on)/sizeof(on[0]);i++){int v=0;(void)PE_parse_boot_argn(on[i],&v,sizeof(v));if(v!=1)return false;}
++    for(unsigned i=0;i<sizeof(off)/sizeof(off[0]);i++){int v=0;(void)PE_parse_boot_argn(off[i],&v,sizeof(v));if(v)return false;}
++    return true;
++}
++static bool psz_geometry(void)
++{
++    uint64_t pa=pst_ready.pa;
++    if(!psz_context()||__atomic_load_n(&pst_state,__ATOMIC_ACQUIRE)!=PST_CLAIMED||
++       !pa||(pa&(PST_REGION-1))||pa>UINT64_C(0x100000000)-PST_REGION||
++       pst_ready.metadata_bytes!=PST_BYTES||pst_ready.reserved_bytes!=PST_PAGE||
++       !pst_mapping||(pst_mapping&(PST_PAGE-1))||pst_mapping>UINTPTR_MAX-(PST_PAGE-1))return false;
++    for(unsigned off=0;off<PST_REGION;off+=PST_PAGE){ppnum_t pn=(ppnum_t)((pa+off)>>PAGE_SHIFT);
++        if(pmap_valid_page(pn)||pmap_cache_attributes(pn)!=UINT32_C(0xd0000006))return false;}
++    return ml_vtophys(pst_mapping)==pa&&ml_vtophys(pst_mapping+PST_PAGE-1)==pa+PST_PAGE-1;
++}
++bool sweet_pas_zap_owner_live(enum gpz_phase phase,uint64_t expected_pa)
++{
++    enum psz_state s=sweet_pas_zap_owner_state();
++    if(expected_pa!=pst_ready.pa||!sweet_gpu_zap_owner_phase(phase,pst_ready.pa)||!psz_geometry())return false;
++    bool valid=phase==GPZ_SEAL?(s==PSZ_IDLE||s==PSZ_SEALED):
++        phase==GPZ_INIT?(s==PSZ_SEALED||s==PSZ_INIT_ENTERED||s==PSZ_INIT_DONE):
++        phase==GPZ_MEM?(s==PSZ_INIT_DONE||s==PSZ_MEM_DONE):
++        phase==GPZ_COPY?(s==PSZ_MEM_DONE||s==PSZ_COPYING||s==PSZ_COPIED):
++        phase==GPZ_AUTH?(s==PSZ_COPIED||s==PSZ_AUTH_DONE):phase==GPZ_FINAL&&s==PSZ_AUTH_DONE;
++    if(!valid)return false;
++    /* INIT_ENTER happens before any SMC. Once entered, even an interrupted
++     * return may have modified SCM_RW bytes: never rehash/rewrite MDT then. */
++    return s>=PSZ_INIT_ENTERED||sweet_pas_stage_owner_valid(&pst_ready);
++}
++void sweet_pas_zap_quarantine(void)
++{__atomic_store_n(&psz_lifecycle,PSZ_FAILED,__ATOMIC_RELEASE);}
++bool sweet_pas_zap_owner_action(enum gpz_owner_action action)
++{
++    if(!psz_flags()||!psz_geometry()||!sweet_gpu_zap_owner_action_allowed(action,pst_ready.pa))return false;
++    enum psz_state before,after;
++    switch(action){
++    case GPZO_SEAL:before=PSZ_IDLE;after=PSZ_SEALED;break;
++    case GPZO_INIT_ENTER:before=PSZ_SEALED;after=PSZ_INIT_ENTERED;break;
++    case GPZO_INIT_ACCEPT:before=PSZ_INIT_ENTERED;after=PSZ_INIT_DONE;break;
++    case GPZO_MEM_ACCEPT:before=PSZ_INIT_DONE;after=PSZ_MEM_DONE;break;
++    case GPZO_AUTH_ACCEPT:before=PSZ_COPIED;after=PSZ_AUTH_DONE;break;
++    default:return false;
++    }
++    if(action==GPZO_SEAL){
++        unsigned idle=PSZ_IDLE;
++        if(!__atomic_compare_exchange_n(&psz_lifecycle,&idle,PSZ_SEALING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return false;
++        if(!sweet_pas_stage_owner_valid(&pst_ready)||!sweet_gpu_zap_asset_view(&psz_code)||
++           psz_code.bytes!=GPZ_CODE_BYTES||psz_code.pa<UINT64_C(0x100000000)){
++            sweet_pas_zap_quarantine();return false;}
++        __atomic_store_n(&psz_lifecycle,PSZ_SEALED,__ATOMIC_RELEASE);return true;
++    }
++    unsigned expected=(unsigned)before;
++    return __atomic_compare_exchange_n(&psz_lifecycle,&expected,(unsigned)after,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE);
++}
++static void psz_barrier(void)
++{__asm__ volatile("dsb sy" ::: "memory");}
++static bool psz_overlap(const void *p,size_t n,const void *q,size_t m)
++{uintptr_t a=(uintptr_t)p,b=(uintptr_t)q;return a<=b?b-a<n:a-b<m;}
++bool sweet_pas_zap_copy(struct gpz_copy *out)
++{
++    _Static_assert(GPZ_CODE_BYTES==GZA_CODE_BYTES,"fixed b02 size");
++    if(!out||(uintptr_t)out>UINTPTR_MAX-(sizeof(*out)-1)||!psz_flags()||!psz_geometry()||
++       !sweet_gpu_zap_owner_phase(GPZ_COPY,pst_ready.pa)||
++       psz_overlap(out,sizeof(*out),(const void *)pst_mapping,PST_PAGE)||
++       psz_overlap(out,sizeof(*out),psz_code.data,GZA_RESERVED_BYTES))return false;
++    unsigned expected=PSZ_MEM_DONE;
++    if(!__atomic_compare_exchange_n(&psz_lifecycle,&expected,PSZ_COPYING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return false;
++    *out=(struct gpz_copy){0};struct gza_view current;
++    if(!sweet_gpu_zap_copy_live()||!sweet_gpu_zap_asset_view(&current)||
++       current.data!=psz_code.data||current.pa!=psz_code.pa||current.bytes!=GPZ_CODE_BYTES){sweet_pas_zap_quarantine();return false;}
++    volatile uint8_t *dst=(volatile uint8_t *)pst_mapping;
++    for(unsigned base=0;base<GPZ_CODE_BYTES;base+=64){
++        if(!sweet_gpu_zap_copy_live()){sweet_pas_zap_quarantine();return false;}
++        for(unsigned i=base;i<base+64;i++){dst[i]=psz_code.data[i];++out->written;}
++        if(!sweet_gpu_zap_copy_live()){sweet_pas_zap_quarantine();return false;}
++    }
++    psz_barrier();
++    for(unsigned base=0;base<GPZ_CODE_BYTES;base+=64){
++        if(!sweet_gpu_zap_copy_live()){sweet_pas_zap_quarantine();return false;}
++        for(unsigned i=base;i<base+64;i++){
++            if(dst[i]!=psz_code.data[i]){sweet_pas_zap_quarantine();return false;}++out->checked;}
++        if(!sweet_gpu_zap_copy_live()){sweet_pas_zap_quarantine();return false;}
++    }
++    psz_barrier();
++    if(!sweet_gpu_zap_copy_live()){sweet_pas_zap_quarantine();return false;}
++    __atomic_store_n(&psz_lifecycle,PSZ_COPIED,__ATOMIC_RELEASE);return true;
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_pas_stage.h
++++ b/bsd/dev/gauguin_pas_stage.h
+@@ -2,6 +2,7 @@
+ #define GAUGUIN_PAS_STAGE_H
+ #include <stdbool.h>
+ #include <stdint.h>
++#include "gauguin_gpu_zap.h"
+ 
+ /* CPU staging only. No EL3 authentication, permission or GPU readiness claim.
+  * Addresses are this boot's dynamically selected reservation, never an old log
+@@ -31,4 +32,20 @@
+  * hash/zero-tail unchanged. No new mapping, buffer pointer, claim or retry.
+  */
+ bool sweet_pas_stage_owner_valid(const struct sweet_pas_cpu_stage *);
++
++/* Internal post-CP bridge: comparison keys only, no mutable-pointer/PA setter.
++ * Original CLAIMED record/metadata validator stay unchanged. New phase-aware
++ * geometry validation permits native SCM_RW changes only after INIT_ENTER. */
++enum psz_state {PSZ_IDLE,PSZ_SEALING,PSZ_SEALED,PSZ_INIT_ENTERED,PSZ_INIT_DONE,
++    PSZ_MEM_DONE,PSZ_COPYING,PSZ_COPIED,PSZ_AUTH_DONE,PSZ_FAILED};
++enum psz_state sweet_pas_zap_owner_state(void);
++bool sweet_pas_zap_owner_live(enum gpz_phase,uint64_t);
++bool sweet_pas_zap_owner_action(enum gpz_owner_action);
++bool sweet_pas_zap_copy(struct gpz_copy *);
++void sweet_pas_zap_quarantine(void);
++/* The board checks private engine/CP/owner identity and actual successful raw
++ * receipts before accepting an action. Copy guards may only run in COPY. */
++bool sweet_gpu_zap_owner_phase(enum gpz_phase,uint64_t);
++bool sweet_gpu_zap_owner_action_allowed(enum gpz_owner_action,uint64_t);
++bool sweet_gpu_zap_copy_live(void);
+ #endif /* GAUGUIN_PAS_STAGE_H */

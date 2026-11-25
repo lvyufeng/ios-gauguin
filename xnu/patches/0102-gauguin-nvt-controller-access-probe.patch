@@ -1,0 +1,202 @@
+diff --git a/bsd/dev/gauguin_nvt_probe.c b/bsd/dev/gauguin_nvt_probe.c
+--- a/bsd/dev/gauguin_nvt_probe.c
++++ b/bsd/dev/gauguin_nvt_probe.c
+@@ -1,7 +1,9 @@
+ /*
+  * Gauguin NVT stage0 diagnostic.
+  * Opt-in sweetnvtprobe=1: one worker, delayed30seconds, named GCC/TLMM reads.
+- * No wrapper/SE map or access, register writes, RPMh, SPI, touch reset or HID.
++ * Mode2 adds a controlled controller access experiment, temporarily voting only
++ * confirmed M/S AHB and S0 clocks, then reading named wrapper/SE registers.
++ * No GPIO writes, RPMh, SE configuration, SPI command, touch reset or HID.
+  * Source: https://github.com/LineageOS/android_kernel_xiaomi_gauguin/tree/
+  * 19b63c8192b1c9b7c4d931d7d3be92024bc2d778
+  * drivers/clk/qcom/{gcc-lagoon.c,clk-rcg2.c,clk-alpha-pll.c},
+@@ -162,7 +164,7 @@
+     return stable;
+ }
+ 
+-static void
++static bool
+ nvt_probe_run(void)
+ {
+     static const uint32_t branches[5] = {0x21004, 0x21008, 0x2100c, 0x21014, 0x21144};
+@@ -173,7 +175,7 @@
+     vm_offset_t clocks = ml_io_map(NVT_PROBE_GCC_PA + NVT_PROBE_GCC_CLOCK_PAGE, 0x1000);
+     if (!vote || !clocks) {
+         printf("SWEET NVT PROBE: GCC mapping failed; stop\n");
+-        return;
++        return false;
+     }
+     nvt_probe_phase("GCC vote and five CBCRs");
+     printf("SWEET NVT PROBE: GCC vote@52000=%08x\n", nvt_probe_read(vote, 0));
+@@ -181,8 +183,8 @@
+         uint32_t value = nvt_probe_read(clocks, branches[i] - NVT_PROBE_GCC_CLOCK_PAGE);
+         printf("SWEET NVT PROBE: GCC CBCR@%x=%08x\n", branches[i], value);
+     }
+-    if (!nvt_probe_clock_first(clocks, &source) || !nvt_probe_clock_stable(clocks, &source)) return;
+-    if (!nvt_probe_parent((source.cfg >> 8) & 7u)) return;
++    if (!nvt_probe_clock_first(clocks, &source) || !nvt_probe_clock_stable(clocks, &source)) return false;
++    if (!nvt_probe_parent((source.cfg >> 8) & 7u)) return false;
+     for (unsigned i = 0; i < 6; ++i) {
+         char phase[64];
+         snprintf(phase, sizeof(phase), "map TLMM GPIO%u", pins[i]);
+@@ -190,7 +192,7 @@
+         vm_offset_t pin = ml_io_map(NVT_PROBE_TLMM_PA + pins[i] * 0x1000u, 0x1000);
+         if (!pin) {
+             printf("SWEET NVT PROBE: GPIO%u mapping failed; stop\n", pins[i]);
+-            return;
++            return false;
+         }
+         snprintf(phase, sizeof(phase), "read TLMM GPIO%u cfg/io", pins[i]);
+         nvt_probe_phase(phase);
+@@ -198,15 +200,134 @@
+         printf("SWEET NVT PROBE: GPIO%u cfg=%08x io=%08x\n", pins[i], cfg, io);
+     }
+     printf("SWEET NVT PROBE: stage0 snapshot complete; SE/fabric and touch remain unqualified\n");
++    return true;
++}
++
++static void
++nvt_probe_se_phase(const char *phase)
++{
++    char line[112];
++    snprintf(line, sizeof(line), "SWEET NVT PROBE: stage1 %s", phase);
++    printf("%s\n", line);
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++static void
++nvt_probe_vote_write(vm_offset_t vote, uint32_t value)
++{
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)vote = value;
++    __asm__ volatile("dsb osh" ::: "memory");
++}
++
++static bool
++nvt_probe_gate(vm_offset_t clocks, uint32_t offset, bool ahb)
++{
++    uint32_t value = 0;
++    /* Deliberate2ms polling budget; native clk_branch_wait uses200us.
++     * The iteration bound does not bound a synchronous MMIO stall. */
++    for (unsigned i = 0; i < 2000; ++i) {
++        value = nvt_probe_read(clocks, offset - NVT_PROBE_GCC_CLOCK_PAGE);
++        /* Native clk_branch_wait exempts HWCG-enabled AHB branches. */
++        if ((ahb && (value & 2u)) || !(value & 0x80000000u) ||
++            (value & 0xf0000000u) == 0x20000000u) {
++            printf("SWEET NVT PROBE: stage1 gate@%x ready raw=%08x\n", offset, value);
++            return true;
++        }
++        delay(1);
++    }
++    printf("SWEET NVT PROBE: stage1 gate@%x timed out raw=%08x\n", offset, value);
++    return false;
++}
++
++/* A first controlled access, NOT a claim that clock readback proves fabric
++ * access. A synchronous bus abort/hang cannot be bounded by this software.
++ * Persist evidence before each phase. No other XNU QUP0 owner exists in this
++ * bring-up configuration; this is not a shared/refcounted clock driver.
++ * Restore only bits that this invocation added, preserving unrelated votes.
++ * Core/core2x bits8/9 and all touch GPIOs are deliberately untouched.
++ */
++static void
++nvt_probe_se_run(void)
++{
++    static const uint32_t bits[3] = {1u << 6, 1u << 7, 1u << 10};
++    static const uint32_t gates[3] = {0x21004, 0x21008, 0x21144};
++    static const uint32_t shape_regs[5] = {0x64, 0xe24, 0xe28, 0x800, 0x804};
++    static const uint32_t config_regs[15] = {
++        0x48, 0x7c, 0x258, 0x224, 0x230, 0x250, 0x24c, 0x268,
++        0x260, 0x264, 0x284, 0x288, 0xe1c, 0xe18, 0x614
++    };
++    uint32_t before, added = 0, observed, wrapper_version, fw, sfw, status;
++    vm_offset_t wrapper, se;
++    nvt_probe_se_phase("map confirmed GCC windows");
++    vm_offset_t vote = ml_io_map(NVT_PROBE_GCC_PA + NVT_PROBE_GCC_VOTE_PAGE, 0x1000);
++    vm_offset_t clocks = ml_io_map(NVT_PROBE_GCC_PA + NVT_PROBE_GCC_CLOCK_PAGE, 0x1000);
++    if (!vote || !clocks) {
++        printf("SWEET NVT PROBE: stage1 GCC mapping failed\n");
++        return;
++    }
++    before = nvt_probe_read(vote, 0);
++    nvt_probe_se_phase("enable M/S AHB and S0 votes only");
++    for (unsigned i = 0; i < 3; ++i) {
++        observed = nvt_probe_read(vote, 0);
++        if (!(observed & bits[i])) {
++            added |= bits[i];
++            nvt_probe_vote_write(vote, observed | bits[i]);
++        }
++        observed = nvt_probe_read(vote, 0);
++        if (!(observed & bits[i])) {
++            printf("SWEET NVT PROBE: stage1 vote rejected bit=%08x raw=%08x\n", bits[i], observed);
++            goto restore;
++        }
++        if (!nvt_probe_gate(clocks, gates[i], i < 2)) goto restore;
++    }
++    nvt_probe_se_phase("map wrapper0 for first HW_VERSION read");
++    wrapper = ml_io_map(0x008c0000u, 0x2000);
++    if (!wrapper) goto restore;
++    nvt_probe_se_phase("read wrapper0 HW_VERSION; access unverified until returned");
++    wrapper_version = nvt_probe_read(wrapper, 4);
++    printf("SWEET NVT PROBE: stage1 wrapper_version=%08x\n", wrapper_version);
++    if (!wrapper_version || wrapper_version == UINT32_MAX || !(wrapper_version >> 28)) goto restore;
++    nvt_probe_se_phase("map SE0 for identity/status reads");
++    se = ml_io_map(0x00880000u, 0x4000);
++    if (!se) goto restore;
++    nvt_probe_se_phase("read SE0 FW revisions and status");
++    fw = nvt_probe_read(se, 0x68);
++    sfw = nvt_probe_read(se, 0x6c);
++    status = nvt_probe_read(se, 0x40);
++    printf("SWEET NVT PROBE: stage1 SE0 fw=%08x sfw=%08x status=%08x\n", fw, sfw, status);
++    if (((fw >> 8) & 255u) != 1u || (status & ((1u << 12) | 1u))) {
++        printf("SWEET NVT PROBE: stage1 not idle SPI; no further SE reads\n");
++        goto restore;
++    }
++    nvt_probe_se_phase("read SE0 FIFO shape and occupancy");
++    for (unsigned i = 0; i < 5; ++i) {
++        printf("SWEET NVT PROBE: stage1 SE0@%x=%08x\n", shape_regs[i], nvt_probe_read(se, shape_regs[i]));
++    }
++    nvt_probe_se_phase("read SE0 clock/packing/mode/IRQ configuration");
++    for (unsigned i = 0; i < 15; ++i) {
++        printf("SWEET NVT PROBE: stage1 SE0@%x=%08x\n", config_regs[i], nvt_probe_read(se, config_regs[i]));
++    }
++    printf("SWEET NVT PROBE: stage1 controller snapshot complete; no SPI transaction or touch input\n");
++restore:
++    nvt_probe_se_phase("restore only added clock votes");
++    observed = nvt_probe_read(vote, 0);
++    if (added) nvt_probe_vote_write(vote, observed & ~added);
++    observed = nvt_probe_read(vote, 0);
++    printf("SWEET NVT PROBE: stage1 vote before=%08x added=%08x after=%08x restored=%u\n",
++        before, added, observed, (unsigned)((observed & added) == 0));
+ }
+ 
+ static void
+ nvt_probe_thread(void *argument, wait_result_t result)
+ {
+-    (void)argument; (void)result;
+-    printf("SWEET NVT PROBE: worker delayed30s, GCC/TLMM reads only\n");
++    unsigned mode = (unsigned)(uintptr_t)argument;
++    (void)result;
++    printf("SWEET NVT PROBE: worker mode=%u delayed30s; %s\n", mode,
++        mode == 2 ? "stage0 then controller clock-vote/access experiment" : "GCC/TLMM reads only");
+     for (unsigned i = 0; i < 30; ++i) IOSleep(1000);
+-    nvt_probe_run();
++    if (nvt_probe_run() && mode == 2) nvt_probe_se_run();
+     nvt_probe_phase("worker finished");
+     thread_terminate_self();
+ }
+@@ -217,9 +338,9 @@
+     int enabled = 0;
+     thread_t thread;
+     (void)PE_parse_boot_argn("sweetnvtprobe", &enabled, sizeof(enabled));
+-    if (enabled != 1) return; /* Default and every other value: no IO or worker. */
++    if (enabled != 1 && enabled != 2) return; /* Default: no IO or worker. */
+     if (__atomic_exchange_n(&nvt_probe_started, 1, __ATOMIC_ACQ_REL)) return;
+-    kern_return_t result = kernel_thread_start(nvt_probe_thread, NULL, &thread);
++    kern_return_t result = kernel_thread_start(nvt_probe_thread, (void *)(uintptr_t)enabled, &thread);
+     if (result == KERN_SUCCESS) {
+         thread_deallocate(thread);
+     } else {

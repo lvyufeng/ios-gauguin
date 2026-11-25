@@ -1,0 +1,38 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -231,7 +231,7 @@
+     for(unsigned n=0;n<2;n++){
+         if(s->bank[n]>=GSM_BANKS||s->slot[n]>=GSM_STREAMS)return false;
+         uint32_t cb=0x8000+0x1000*s->bank[n];
+-        if(!gmb_read32(NULL,cb+0x58,&gfw_work.fsr[n])||gfw_work.fsr[n]||
++        if(!gmb_read32(NULL,cb+0x58,&gfw_work.fsr[n])||(gfw_work.fsr[n]&GSM_FSR_FAULT_MASK)||
+            !gmb_read32(NULL,cb,&v)||v!=s->sctlr[n]||
+            !gmb_read32(NULL,cb+4,&v)||v!=s->actlr[n]||
+            !gmb_read32(NULL,cb+0x10,&v)||v!=s->tcr2||
+diff --git a/bsd/dev/gauguin_gmu_smmu.c b/bsd/dev/gauguin_gmu_smmu.c
+--- a/bsd/dev/gauguin_gmu_smmu.c
++++ b/bsd/dev/gauguin_gmu_smmu.c
+@@ -286,7 +286,7 @@
+     for(unsigned n=0;n<2;n++){
+         unsigned base=CB(w->bank[n]);uint32_t fsr;
+         if(!r32(c,base+0x58,&fsr)||!w32(c,base+0x58,fsr)||!sync_memory(c)||!r32(c,base+0x58,&fsr))return GSM_IO;
+-        if(fsr)return mismatch(c,GSD_FAULT32,base+0x58,UINT32_MAX,0,fsr);
++        if(fsr&GSM_FSR_FAULT_MASK)return mismatch(c,GSD_FAULT32,base+0x58,GSM_FSR_FAULT_MASK,0,fsr);
+         w->smr_after[n]=w->stream_match?(VALID|4u+n):0;
+         if(w->stream_match){r=store(c,SMR(w->slot[n]),w->smr_after[n],UINT32_MAX);if(r)return r;}
+         w->s2cr_after[n]=w->bank[n];
+diff --git a/bsd/dev/gauguin_gmu_smmu.h b/bsd/dev/gauguin_gmu_smmu.h
+--- a/bsd/dev/gauguin_gmu_smmu.h
++++ b/bsd/dev/gauguin_gmu_smmu.h
+@@ -3,6 +3,10 @@
+ #include "gauguin_gmu_memory.h"
+ #define GSM_STREAMS 128u
+ #define GSM_BANKS 8u
++/* IHI0062D.c16.5.9 / pinned native FSR_FAULT: MULTI31,SS30,UUT8,
++ * ASF7,TLBLKF6,TLBMCF5,EF4,PF3,AFF2,TF1. Format[10:9] is generated
++ * read-only information, not W1C fault status. Preserve raw diagnostic FSR. */
++#define GSM_FSR_FAULT_MASK UINT32_C(0xc00001fe)
+ enum gsm_result {GSM_OK,GSM_ARGUMENT,GSM_ALREADY,GSM_IO,GSM_CAPABILITY,
+     GSM_INHERITED,GSM_ROUTING,GSM_READBACK,GSM_TIMEOUT,GSM_TRANSLATION};
+ /* Private board owner supplies the sole retained03d40000+10000 Device mapping.

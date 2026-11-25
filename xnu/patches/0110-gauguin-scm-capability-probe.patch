@@ -1,0 +1,226 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_scm_probe.c
+@@ -0,0 +1,195 @@
++/*
++ * Scalar-only Qualcomm SCM capability diagnostic; sweetscmprobe=1, defaultoff.
++ * One post-root worker waits45seconds. It calls only INFO/IS_CALL_AVAILABLE;
++ * PAS1/2/5/6 are queried IDs, never invoked operations. No shared buffer/PA,
++ * GPU register, power vote, watchdog, SMMU or firmware state mutation.
++ * Native ABI/resume reference (not the old shim watchdog helper):
++ * https://github.com/LineageOS/android_kernel_xiaomi_gauguin/blob/19b63c8192b1c9b7c4d931d7d3be92024bc2d778/drivers/soc/qcom/scm.c
++ * __scm_call_armv8_64/32, is_scm_armv8, __scm_call2, scm_is_call_available.
++ * Software bounds cannot interrupt a firmware SMC that never returns.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++
++extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
++extern void thread_terminate_self(void);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++void sweet_scm_probe_init(void);
++
++#define SCMP_INFO 0x02000601u
++#define SCMP_FAST_INFO32 0x82000601u
++#define SCMP_FAST_INFO64 0xc2000601u
++#define SCMP_WIDE 0x40000000u
++#define SCMP_RESUMES 8u
++#define SCMP_BUSY_ATTEMPTS 4u
++static unsigned scmp_started;
++static const uint32_t scmp_pas_ids[4] = {0x02000201u, 0x02000202u, 0x02000205u, 0x02000206u};
++
++struct scmp_registers { uint64_t x[7]; };
++enum scmp_result { SCMP_RETURNED, SCMP_BAD_REQUEST, SCMP_BAD_CONTEXT,
++                   SCMP_RESUME_LIMIT, SCMP_BUSY_LIMIT };
++
++static void
++scmp_record(const char *line)
++{
++    printf("%s\n", line);
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++static bool
++scmp_context(void)
++{
++    return ml_get_interrupts_enabled() && !ml_at_interrupt_context() &&
++        get_preemption_level() == 0;
++}
++
++static void
++scmp_invoke(struct scmp_registers *r)
++{
++    register uint64_t x0 __asm__("x0") = r->x[0];
++    register uint64_t x1 __asm__("x1") = r->x[1];
++    register uint64_t x2 __asm__("x2") = r->x[2];
++    register uint64_t x3 __asm__("x3") = r->x[3];
++    register uint64_t x4 __asm__("x4") = r->x[4];
++    register uint64_t x5 __asm__("x5") = r->x[5];
++    register uint64_t x6 __asm__("x6") = r->x[6];
++    __asm__ volatile("smc #0"
++        : "+r"(x0), "+r"(x1), "+r"(x2), "+r"(x3), "+r"(x4), "+r"(x5), "+r"(x6)
++        :
++        : "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
++          "x16", "x17", "cc", "memory");
++    r->x[0] = x0; r->x[1] = x1; r->x[2] = x2; r->x[3] = x3;
++    r->x[4] = x4; r->x[5] = x5; r->x[6] = x6;
++}
++
++static bool
++scmp_allowed(uint32_t function, uint32_t query, bool wide, bool busy_retry)
++{
++    if (query == SCMP_FAST_INFO32 && !busy_retry)
++        return function == (wide ? SCMP_FAST_INFO64 : SCMP_FAST_INFO32);
++    if (function != (SCMP_INFO | (wide ? SCMP_WIDE : 0u)) || !busy_retry)
++        return false;
++    for (unsigned i = 0; i < 4; ++i) if (query == scmp_pas_ids[i]) return true;
++    return false;
++}
++
++static enum scmp_result
++scmp_query(uint32_t function, uint32_t query, bool wide, bool busy_retry,
++    struct scmp_registers *out)
++{
++    char line[224];
++    unsigned attempts = busy_retry ? SCMP_BUSY_ATTEMPTS : 1;
++    if (!out || !scmp_allowed(function, query, wide, busy_retry)) return SCMP_BAD_REQUEST;
++    for (unsigned attempt = 0; attempt < attempts; ++attempt) {
++        struct scmp_registers r = {{function, 1, query, 0, 0, 0, 0}};
++        for (unsigned resume = 0; resume < SCMP_RESUMES; ++resume) {
++            if (!scmp_context()) return SCMP_BAD_CONTEXT;
++            snprintf(line, sizeof(line), "SWEET SCM PROBE: before INFO fn=%08x query=%08x width=%u attempt=%u resume=%u",
++                function, query, wide ? 64u : 32u, attempt, resume);
++            scmp_record(line);
++            /* Match native w0..w6 semantics for each32-bit entry/resume;
++             * preserve full raw returned registers for the log before this. */
++            if (!wide) for (unsigned i = 0; i < 7; ++i) r.x[i] = (uint32_t)r.x[i];
++            scmp_invoke(&r);
++            *out = r;
++            snprintf(line, sizeof(line), "SWEET SCM PROBE: raw fn=%08x query=%08x x0=%016llx x1=%016llx x2=%016llx x3=%016llx",
++                function, query, (unsigned long long)r.x[0], (unsigned long long)r.x[1],
++                (unsigned long long)r.x[2], (unsigned long long)r.x[3]);
++            scmp_record(line);
++            /* Preserve every returned x0..x6 on continuation, including x6.
++             * Native uses full r0 for64-bit and low32 for32-bit interruption. */
++            bool interrupted = wide ? r.x[0] == 1 : (uint32_t)r.x[0] == 1;
++            if (!interrupted) break;
++            if (resume + 1 == SCMP_RESUMES) return SCMP_RESUME_LIMIT;
++        }
++        if (!busy_retry || (int32_t)out->x[0] != -12) return SCMP_RETURNED;
++        if (attempt + 1 == attempts) return SCMP_BUSY_LIMIT;
++        IOSleep(30); /* native fresh EBUSY retry, never a continuation restart */
++    }
++    return SCMP_BUSY_LIMIT;
++}
++
++static void
++scmp_run(void)
++{
++    struct scmp_registers r = {{0}};
++    char line[160];
++    bool wide = true;
++    unsigned available = 0;
++    enum scmp_result result = scmp_query(SCMP_FAST_INFO64, SCMP_FAST_INFO32, true, false, &r);
++    if (result != SCMP_RETURNED) goto stopped;
++    if ((int32_t)r.x[0] != 0 || r.x[1] == 0) {
++        wide = false;
++        result = scmp_query(SCMP_FAST_INFO32, SCMP_FAST_INFO32, false, false, &r);
++        if (result != SCMP_RETURNED) goto stopped;
++        if ((int32_t)r.x[0] != 0 || (uint32_t)r.x[1] == 0) {
++            scmp_record("SWEET SCM PROBE: no validated ARMv8 ABI; no legacy fallback");
++            return;
++        }
++    }
++    snprintf(line, sizeof(line), "SWEET SCM PROBE: ABI width=%u validated by INFO self-query", wide ? 64u : 32u);
++    scmp_record(line);
++    for (unsigned i = 0; i < 4; ++i) {
++        result = scmp_query(SCMP_INFO | (wide ? SCMP_WIDE : 0u), scmp_pas_ids[i], wide, true, &r);
++        if (result != SCMP_RETURNED) goto stopped;
++        if ((int32_t)r.x[0] != 0 || (int32_t)r.x[1] < 0) {
++            scmp_record("SWEET SCM PROBE: INFO query error; no further calls");
++            return;
++        }
++        if ((int32_t)r.x[1] > 0) available |= 1u << i;
++        snprintf(line, sizeof(line), "SWEET SCM PROBE: queried PAS cmd=%u available=%u; PAS not invoked",
++            scmp_pas_ids[i] & 255u, (int32_t)r.x[1] > 0 ? 1u : 0u);
++        scmp_record(line);
++    }
++    snprintf(line, sizeof(line), "SWEET SCM PROBE: complete width=%u availability_mask=%x; queries only, PAS13 authorization untested",
++        wide ? 64u : 32u, available);
++    scmp_record(line);
++    return;
++stopped:
++    if (result == SCMP_BAD_CONTEXT) {
++        printf("SWEET SCM PROBE: invalid context; no further calls\n");
++        return;
++    }
++    snprintf(line, sizeof(line), "SWEET SCM PROBE: stopped control=%u; no further calls", (unsigned)result);
++    scmp_record(line);
++}
++
++static void
++scmp_worker(void *argument, wait_result_t wait_result)
++{
++    (void)argument; (void)wait_result;
++    if (!scmp_context()) {
++        printf("SWEET SCM PROBE: invalid worker context; stopped\n");
++        thread_terminate_self();
++        return;
++    }
++    scmp_record("SWEET SCM PROBE: delay=45s; scalar INFO capability queries only");
++    for (unsigned i = 0; i < 45; ++i) IOSleep(1000);
++    if (scmp_context()) scmp_run();
++    else printf("SWEET SCM PROBE: invalid context after delay; stopped\n");
++    thread_terminate_self();
++}
++
++void
++sweet_scm_probe_init(void)
++{
++    int enabled = 0;
++    thread_t thread;
++    (void)PE_parse_boot_argn("sweetscmprobe", &enabled, sizeof(enabled));
++    if (enabled != 1) return;
++    if (__atomic_exchange_n(&scmp_started, 1, __ATOMIC_ACQ_REL)) return;
++    kern_return_t result = kernel_thread_start(scmp_worker, NULL, &thread);
++    if (result == KERN_SUCCESS) thread_deallocate(thread);
++    else printf("SWEET SCM PROBE: worker creation failed=%d; no inline fallback\n", result);
++}
++#endif /* GAUGUIN */
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -110,6 +110,7 @@
+ bsd/dev/sweet_touch.c			standard
+ bsd/dev/gauguin_nvt_probe.c		standard
+ bsd/dev/gauguin_gpu_probe.c		standard
++bsd/dev/gauguin_scm_probe.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -405,6 +405,7 @@
+ #endif
+ #if defined(GAUGUIN)
+ extern void sweet_gpu_probe_init(void);
++extern void sweet_scm_probe_init(void);
+ #endif
+ void set_rootvnode(vnode_t);
+ 
+@@ -1070,6 +1071,7 @@
+ #if defined(GAUGUIN)
+ 	/* Opt-in diagnostic creates its own delayed worker; no inline MMIO. */
+ 	sweet_gpu_probe_init();
++	sweet_scm_probe_init();
+ #endif
+ 
+ #if 0 /* not yet */

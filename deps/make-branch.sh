@@ -12,6 +12,10 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 work=${1:?usage: deps/make-branch.sh WORKDIR [BRANCH]}
 branch=${2:-gauguin}
 cd "$work"
+[ -z "$(git status --porcelain)" ] || {
+	echo "make-branch requires a clean fresh checkout; existing files were preserved" >&2
+	exit 1
+}
 
 # Base: the upstream xnu commit the series is written against, with the one
 # fix the series needs for non-SWEET machine configs: bsd/dev/sweet_sample.c
@@ -27,20 +31,10 @@ done
 
 # Apply the series exactly as CI/deps/apply-patches.sh does: the mirror
 # staging, then git apply of every patch.
-SWEET_GUARD=1 bash "$repo/deps/mirror/xnu/prepare.sh" "$PWD" "$repo/deps/mirror"
-bash "$repo/deps/mirror/xnu/prepare-bearssl.sh" "$PWD" "$repo/deps/mirror"
-n=0
-for p in "$repo"/xnu/patches/*.patch; do
-	if git apply --check "$p"; then
-		git apply "$p"
-		n=$((n + 1))
-	else
-		echo "FAILED: $(basename "$p")" >&2
-		git apply --check "$p" 2>&1 | head -5 >&2
-		exit 1
-	fi
-done
-git add -A
-git commit -qm "gauguin: sweet/gauguin kernel sources (xnu-$base + $(ls "$repo"/xnu/patches/*.patch | wc -l) patches)"
+bash "$repo/deps/apply-patches.sh" "$PWD" "$repo/deps/mirror" gauguin
+n=$(python3 "$repo/tools/xnu-patches.py" list | wc -l | tr -d ' ')
+git add -A -- . ':!bsd/pthread/sweet_libpthread/TargetConditionals.h' \
+    ':!bsd/sweet_hfs/TargetConditionals.h'
+git commit -qm "gauguin: sweet/gauguin kernel sources (xnu-$base + $n patches)"
 echo "$branch: $n patches applied on $base ($(git rev-parse --short HEAD))"
 echo "push: git push -u origin HEAD:refs/heads/$branch" >&2

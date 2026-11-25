@@ -1,0 +1,644 @@
+diff --git a/bsd/dev/gauguin_blank352.h b/bsd/dev/gauguin_blank352.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_blank352.h
+@@ -0,0 +1,118 @@
++#ifndef GAUGUIN_BLANK352_H
++#define GAUGUIN_BLANK352_H
++
++#include "gauguin_blank351.h"
++#include <stddef.h>
++#include <stdint.h>
++
++enum {
++    SCAN352_COPY_NS = 5500000,
++    SCAN352_FAST_COPY = 4,
++    SCAN352_WIDTH = 1080, SCAN352_HEIGHT = 2400,
++    SCAN352_PANEL_STRIDE = 4320, SCAN352_SOURCE_STRIDE = 4608
++};
++
++static inline bool
++scan352_can_copy(uint32_t line, uint32_t end)
++{
++    return line >= SCAN351_OPEN && end <= SCAN351_TOTAL && end > line &&
++        (uint64_t)(end - line) * SCAN351_MIN_LINE_NS >= SCAN352_COPY_NS;
++}
++
++static inline bool
++scan352_can_take(const struct scan351_slot *slot, const struct scan351_position *pos, bool from_ready)
++{
++    if (!scan352_can_copy(pos->line, pos->end)) return false;
++    const bool same_slot = slot->attempts && slot->frame == pos->frame;
++    return from_ready ? same_slot && slot->attempts == 1 && !slot->done : !same_slot;
++}
++
++static inline uint32_t
++scan352_delay_lines(const struct scan351_slot *slot, const struct scan351_position *pos)
++{
++    if ((slot->attempts && slot->frame == pos->frame) ||
++        !scan352_can_copy(SCAN351_OPEN, pos->end) ||
++        (pos->line >= SCAN351_OPEN && !scan352_can_copy(pos->line, pos->end)))
++        return SCAN351_TOTAL - pos->line + SCAN351_OPEN;
++    return pos->line < SCAN351_OPEN ? SCAN351_OPEN - pos->line : 0;
++}
++
++/* A distinct ticket for each timed take, even when it reuses the surface ID. */
++static inline uint64_t
++scan352_ticket(uint64_t attempt, uint32_t surface)
++{
++    if (!surface || !attempt || attempt > UINT32_MAX) return 0;
++    return (attempt << 32) | surface;
++}
++
++static inline bool
++scan352_matches(uint64_t delivered, uint64_t waiting, uint64_t waiting_generation,
++    uint64_t pending_generation, uint32_t surface)
++{
++    return delivered && delivered == waiting && waiting_generation == pending_generation &&
++        (uint32_t)delivered == surface;
++}
++
++/* Only the observed full-panel geometry uses the paired integer copy path. */
++static inline bool
++scan352_copy_supported(uintptr_t dst, uintptr_t src, uint32_t width, uint32_t height,
++    uint32_t dst_stride, uint32_t src_stride)
++{
++    if (!dst || !src || (dst & 15) || (src & 7) ||
++        width != SCAN352_WIDTH || height != SCAN352_HEIGHT ||
++        dst_stride != SCAN352_PANEL_STRIDE || src_stride != SCAN352_SOURCE_STRIDE)
++        return false;
++    const size_t source_bytes = (SCAN352_HEIGHT - 1) * SCAN352_SOURCE_STRIDE + SCAN352_PANEL_STRIDE;
++    const size_t panel_bytes = SCAN352_HEIGHT * SCAN352_PANEL_STRIDE;
++    return dst >= src ? dst - src >= source_bytes : src - dst >= panel_bytes;
++}
++
++static inline void
++scan352_copy_row(void *dst, const void *src)
++{
++    const size_t row_bytes = SCAN352_PANEL_STRIDE;
++#if defined(__aarch64__)
++    size_t remaining = row_bytes & ~(size_t)127;
++    /* The panel mapping is write-combined. Use the same integer store
++     * instructions as the kernel copy with four times the bytes per branch. */
++    __asm__ volatile(
++        "1:\n"
++        "ldp x8, x9, [%[s]]\n"
++        "ldp x10, x11, [%[s], #16]\n"
++        "ldp x12, x13, [%[s], #32]\n"
++        "ldp x14, x15, [%[s], #48]\n"
++        "stnp x8, x9, [%[d]]\n"
++        "stnp x10, x11, [%[d], #16]\n"
++        "stnp x12, x13, [%[d], #32]\n"
++        "stnp x14, x15, [%[d], #48]\n"
++        "ldp x8, x9, [%[s], #64]\n"
++        "ldp x10, x11, [%[s], #80]\n"
++        "ldp x12, x13, [%[s], #96]\n"
++        "ldp x14, x15, [%[s], #112]\n"
++        "stnp x8, x9, [%[d], #64]\n"
++        "stnp x10, x11, [%[d], #80]\n"
++        "stnp x12, x13, [%[d], #96]\n"
++        "stnp x14, x15, [%[d], #112]\n"
++        "add %[s], %[s], #128\n"
++        "add %[d], %[d], #128\n"
++        "subs %[n], %[n], #128\n"
++        "b.ne 1b\n"
++        : [d] "+&r"(dst), [s] "+&r"(src), [n] "+&r"(remaining)
++        :
++        : "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "cc", "memory");
++    __builtin_memcpy(dst, src, row_bytes & 127);
++#else
++    __builtin_memcpy(dst, src, row_bytes);
++#endif
++}
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++uint64_t sweet_fb352_waiting_ticket(void);
++void sweet_fb352_signal_ready(uint64_t ticket, uint32_t fence);
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/bsd/dev/gauguin_frame344.h b/bsd/dev/gauguin_frame344.h
+--- a/bsd/dev/gauguin_frame344.h
++++ b/bsd/dev/gauguin_frame344.h
+@@ -8,7 +8,7 @@
+ enum frame344_kind {
+     F344_SWAP = 40, F344_ATTEMPT, F344_RESULT, F344_LOCK, F344_COPY,
+     F344_ISSUE, F344_WRITER, F344_EOP, F344_READY,
+-    F344_VBLANK, F344_CRC, F344_TIMING, F351_PRESENT
++    F344_VBLANK, F344_CRC, F344_TIMING, F351_PRESENT, F352_WAKE
+ };
+ 
+ #ifdef __cplusplus
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -26,7 +26,7 @@
+ #ifndef GUT_BOARD_HOST_TEST
+ #include "gauguin_frame344.h"
+ #include "gauguin_scanout345.h"
+-#include "gauguin_blank351.h"
++#include "gauguin_blank352.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+@@ -57,7 +57,7 @@
+ static thread_call_t scan_call;
+ static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
+ static volatile uint32_t *scan_intf;
+-static bool scan351_enabled, scan351_published;
++static bool scan351_enabled, scan351_published, scan352_enabled;
+ static struct {
+     uint64_t last_tick, edge_tick, startup_end;
+     uint32_t frame, edge_streak, arm_frame, crc_frame, crc_candidate_frame, crc_candidate;
+@@ -301,7 +301,8 @@
+     if (scan.edge_streak < 3) return;
+     if (scan351_enabled && scan.edge_streak == 3) {
+         struct scan351_position pos = {0};
+-        const bool enabled = scan351_position(&pos) && scan351_can_copy(SCAN351_OPEN, pos.end);
++        const bool enabled = scan351_position(&pos) &&
++            (scan352_enabled ? scan352_can_copy(SCAN351_OPEN, pos.end) : scan351_can_copy(SCAN351_OPEN, pos.end));
+         __atomic_store_n(&scan351_published, enabled, __ATOMIC_RELEASE);
+         printf("SWEET F351 WINDOW: available=%u frame=%u end=%u\n", enabled, pos.frame, pos.end);
+     }
+@@ -519,7 +520,7 @@
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    if (enabled < 2 || enabled > 7 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    if (enabled < 2 || enabled > 8 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
+     // Use a mode value so the complete 607-byte boot line still fits.
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+@@ -528,7 +529,8 @@
+     scan.counter_readonly = enabled >= 4;
+     scan.crc_blanking = enabled >= 5;
+     scan.crc_preserve_idle_data = enabled >= 6;
+-    scan351_enabled = enabled == 7;
++    scan351_enabled = enabled >= 7;
++    scan352_enabled = enabled == 8;
+     scan.crc_blocked = enabled == 4;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -27,6 +27,7 @@
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
+ #include "../../../bsd/dev/gauguin_frame344.h"
++#include "../../../bsd/dev/gauguin_blank352.h"
+ static_assert(GUT_HID_QUEUE_STATE==31 && GUT_BO_ALLOC333==32 && GUT_BO_REUSE335==33,
+     "legacy UI254 event kinds must agree with the HID producer and host decoder");
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+@@ -402,7 +403,8 @@
+ 
+ /* Token 1: CPU-only path before GPU publication; 2: the GPU lock is held.
+  * The token avoids unlocking a lock published between begin and end. Lock
+- * order is framebuffer -> GPU -> surface lookup; GPU never calls framebuffer. */
++ * order is framebuffer -> GPU -> surface lookup. Completion can signal
++ * the display workloop without taking its gate or the framebuffer lock. */
+ extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *s)
+ {
+     IOLock *lock=__atomic_load_n(&gLock,__ATOMIC_ACQUIRE);
+@@ -717,12 +719,15 @@
+             return kIOReturnNotReady;
+         }
+     }
++    const uint64_t displayTicket = sweet_fb352_waiting_ticket();
++    bool displayReady = false;
+     for(uint32_t i=0;i<fPendingCount;i++){
+         gpu_buffer *b=fPending[i];
+         if(b->surface){
+             uintptr_t ptr=b->surface->kernelAddress();
+             flush_dcache64(ptr,(unsigned)b->size,0);
+             memoryBarrier();b->surface->gpuState=0;
++            if (displayTicket && (uint32_t)displayTicket == b->surface->id) displayReady = true;
+             sweet_ui_trace_record(GUT_SURFACE,fPendingQueueFence,0,b->flags,
+                                   b->surface->id,fPendingNativeFence,1);
+         }
+@@ -732,6 +737,7 @@
+     fNativeFence=fPendingNativeFence;
+     sweet_frame344_record(F344_READY,fence,0,0,0,0);
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
++    if (displayReady) sweet_fb352_signal_ready(displayTicket, fence);
+     if(reap&&!reapClosed())return kIOReturnNotReady;
+     return kIOReturnSuccess;
+ }
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -40,7 +40,7 @@
+ #include "SweetPresentClock.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
+ #include "../../../bsd/dev/gauguin_frame344.h"
+-#include "../../../bsd/dev/gauguin_blank351.h"
++#include "../../../bsd/dev/gauguin_blank352.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ /* END SWEET PRESENT STATS INCLUDE */
+@@ -58,6 +58,7 @@
+ #include <IOKit/IOLocks.h>
+ #include <IOKit/IOWorkLoop.h>
+ #include <IOKit/IOTimerEventSource.h>
++#include <IOKit/IOInterruptEventSource.h>
+ #include <IOKit/system.h>
+ #include <pexpert/pexpert.h>
+ #include <kern/clock.h>
+@@ -448,8 +449,15 @@
+     bool fPhasePresent;
+     struct SweetPresentClock fPresentClock;
+     struct scan351_slot fBlankSlot;
++    bool fReadyRequested;
++    IOInterruptEventSource *fReadyEvent;
++    uint64_t fReadyGeneration;
++    void attachReadyEvent();
++    void clearReadyTicketLocked();
++    static void readyEventFired(OSObject *, IOInterruptEventSource *, int);
++    void stop(IOService *) APPLE_KEXT_OVERRIDE;
+     bool blankPendingLocked() const;
+-    bool takeBlankFrameLocked(struct sweet_fb_frame *, uint64_t *);
++    bool takeBlankFrameLocked(struct sweet_fb_frame *, uint64_t *, uint64_t readyTicket = 0);
+     void presentTimed(uint8_t *, struct sweet_fb_frame *, uint64_t, uint64_t);
+     /* BEGIN SWEET PRESENT STATS FIELDS */
+     bool fPresentStatsEnabled;
+@@ -478,12 +486,56 @@
+ 	void addClient(IOMobileFramebufferUserClient *client);
+ 	void removeClient(IOMobileFramebufferUserClient *client);
+ 	bool swap(const uint8_t *rec, IOMobileFramebufferUserClient *owner);
+-	bool present(const uint8_t *rec, SweetSurface *const *held = NULL, uint64_t blankFrame = UINT64_MAX);
++	bool present(const uint8_t *rec, SweetSurface *const *held = NULL,
++        uint64_t blankFrame = UINT64_MAX, uint64_t retryTicket = 0);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
+ static AppleCLCD *gSweetFB;
+ 
++#if defined(GAUGUIN)
++struct SweetReadySignal {
++    uint64_t ticket;
++    uint32_t fence;
++};
++
++/* There is one panel. The lock lives for the boot and serializes posting
++ * with detaching the optional workloop source. The ticket is a value, not
++ * a borrowed surface reference. Only the held swap owns those references. */
++static IOLock *gReadyLock;
++static IOInterruptEventSource *gReadySource;
++static SweetReadySignal gReadySignal;
++static uint64_t gReadyTicket;
++
++extern "C" uint64_t
++sweet_fb352_waiting_ticket(void)
++{
++    const uint64_t ticket = __atomic_load_n(&gReadyTicket, __ATOMIC_ACQUIRE);
++    return ticket && sweet_frame351_window() ? ticket : 0;
++}
++
++extern "C" void
++sweet_fb352_signal_ready(uint64_t ticket, uint32_t fence)
++{
++    if (!ticket || ticket != sweet_fb352_waiting_ticket()) return;
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!lock) return;
++    IOLockLock(lock);
++    if (gReadySource && ticket == sweet_fb352_waiting_ticket()) {
++        gReadySignal = {ticket, fence};
++        gReadySource->interruptOccurred(nullptr, nullptr, 0);
++    }
++    IOLockUnlock(lock);
++}
++
++static void
++sweet_fb352_clear_ticket(uint64_t ticket)
++{
++    if (ticket)
++        __atomic_compare_exchange_n(&gReadyTicket, &ticket, 0, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
++}
++#endif
++
+ OSDefineMetaClassAndStructors(AppleCLCD, IOMobileFramebuffer);
+ 
+ class IOMobileFramebufferUserClient : public IOUserClient {
+@@ -623,8 +675,11 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 7;
++    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 8;
+     fBlankSlot = {};
++    fReadyRequested = statsRequested == 8;
++    fReadyEvent = nullptr;
++    fReadyGeneration = 0;
+     fPresentSample = NULL;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");
+@@ -655,6 +710,10 @@
+ 	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
+ #if defined(GAUGUIN)
+     configurePresentClock();
++    if (fReadyRequested && fPhasePresent) {
++        attachReadyEvent();
++        IOLog("SWEET F352 READY: event=%u budget=%u\n", fReadyEvent != nullptr, SCAN352_COPY_NS);
++    }
+ #endif
+     armVsync(fVsync);
+ 
+@@ -696,30 +755,130 @@
+             fPresentClock.beat, fPresentClock.copySpan);
+     } else {
+         IOLog("SWEET FB CLOCK: rejected clock geometry; legacy timer selected\n");
++    }
++}
++
++void
++AppleCLCD::attachReadyEvent()
++{
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!lock) {
++        IOLock *created = IOLockAlloc();
++        if (!created) return;
++        if (__atomic_compare_exchange_n(&gReadyLock, &lock, created, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
++            lock = created;
++        else
++            IOLockFree(created);
++    }
++    auto *event = IOInterruptEventSource::interruptEventSource(this, &AppleCLCD::readyEventFired);
++    if (!event) return;
++    if (fWorkLoop->addEventSource(event) != kIOReturnSuccess) {
++        event->release();
++        return;
++    }
++    event->enable();
++    IOLockLock(lock);
++    if (!gReadySource) gReadySource = fReadyEvent = event;
++    IOLockUnlock(lock);
++    if (!fReadyEvent) {
++        fWorkLoop->removeEventSource(event);
++        event->release();
++    }
++}
++
++void
++AppleCLCD::stop(IOService *provider)
++{
++    IOInterruptEventSource *event = nullptr;
++    if (fLock) {
++        IOLockLock(fLock);
++        event = fReadyEvent;
++        clearReadyTicketLocked();
++        fReadyEvent = nullptr;
++        IOLockUnlock(fLock);
++    }
++    if (event) {
++        IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++        IOLockLock(lock);
++        gReadySource = nullptr;
++        gReadySignal = {};
++        IOLockUnlock(lock);
++        fWorkLoop->removeEventSource(event);
++        event->release();
++    }
++    IOMobileFramebuffer::stop(provider);
++}
++
++void
++AppleCLCD::clearReadyTicketLocked()
++{
++    if (!fReadyEvent) return;
++    __atomic_store_n(&gReadyTicket, 0, __ATOMIC_RELEASE);
++    fReadyGeneration = 0;
++}
++
++void
++AppleCLCD::readyEventFired(OSObject *owner, IOInterruptEventSource *sender, int)
++{
++    auto *fb = static_cast<AppleCLCD *>(owner);
++    SweetReadySignal signal = {};
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    IOLockLock(lock);
++    if (gReadySource == sender) {
++        signal = gReadySignal;
++        gReadySignal = {};
+     }
++    IOLockUnlock(lock);
++    if (!signal.ticket) return;
++
++    struct sweet_fb_frame frame = {};
++    uint64_t blankFrame = UINT64_MAX;
++    IOLockLock(fb->fLock);
++    const bool taken = fb->takeBlankFrameLocked(&frame, &blankFrame, signal.ticket);
++    const uint64_t attempt = taken ? fb->fHeldConsumed : 0;
++    IOLockUnlock(fb->fLock);
++    if (!taken) return;
++    sweet_frame344_record(F352_WAKE, attempt, 0, signal.ticket, signal.fence, blankFrame);
++    /* The timed attempt already armed the next beat. Keep notifications
++     * on that clock even when completion makes a second copy possible. */
++    fb->presentTimed(frame.record, &frame, attempt, blankFrame);
+ }
+ 
+ bool
+ AppleCLCD::blankPendingLocked() const
+ {
+     return fPhasePresent && fHoldPresent && fDirty && !fPowerOff &&
+-        fHeldPending.owner && get32(fHeldPending.record,0x104) == 1 && sweet_frame351_window();
++        fHeldPending.owner && get32(fHeldPending.record,0x104) == 1 &&
++        (!fReadyRequested || fReadyEvent) && sweet_frame351_window();
+ }
+ 
+ bool
+-AppleCLCD::takeBlankFrameLocked(struct sweet_fb_frame *frame, uint64_t *blankFrame)
++AppleCLCD::takeBlankFrameLocked(struct sweet_fb_frame *frame, uint64_t *blankFrame, uint64_t readyTicket)
+ {
+     struct scan351_position pos;
+-    if (!blankPendingLocked() || !sweet_frame351_position(&pos) ||
+-        !scan351_can_take(&fBlankSlot,&pos)) return false;
+-    if (fBlankSlot.attempts && pos.frame == fBlankSlot.frame) {
+-        uint64_t retry;
+-        nanoseconds_to_absolutetime(SCAN351_RETRY_NS,&retry);
+-        if (pos.tick - fBlankSlot.attempted_at < retry) return false;
++    if (!blankPendingLocked() || !sweet_frame351_position(&pos)) return false;
++    if (fReadyRequested) {
++        if (!scan352_can_take(&fBlankSlot, &pos, readyTicket != 0)) return false;
++        if (readyTicket && !scan352_matches(readyTicket, sweet_fb352_waiting_ticket(), fReadyGeneration,
++            fHeldPending.generation, fHeldPending.surfaces[0]->id)) return false;
++    } else {
++        if (!scan351_can_take(&fBlankSlot,&pos)) return false;
++        if (fBlankSlot.attempts && pos.frame == fBlankSlot.frame) {
++            uint64_t retry;
++            nanoseconds_to_absolutetime(SCAN351_RETRY_NS,&retry);
++            if (pos.tick - fBlankSlot.attempted_at < retry) return false;
++        }
+     }
+     if (!takeHeldFrameLocked(frame)) return false;
+     scan351_take(&fBlankSlot,&pos);
+     *blankFrame = pos.frame;
++    if (fReadyRequested) {
++        clearReadyTicketLocked();
++        if (!readyTicket) {
++            fReadyGeneration = frame->generation;
++            __atomic_store_n(&gReadyTicket, scan352_ticket(fHeldConsumed, frame->surfaces[0]->id), __ATOMIC_RELEASE);
++        }
++    }
+     return true;
+ }
+ 
+@@ -763,10 +922,12 @@
+         struct scan351_position pos;
+         if (sweet_frame351_position(&pos)) {
+             uint64_t delta;
+-            const uint64_t ns = (uint64_t)scan351_delay_lines(&fBlankSlot,&pos) * SCAN351_NOMINAL_LINE_NS;
++            const uint32_t lines = fReadyRequested ? scan352_delay_lines(&fBlankSlot,&pos) :
++                scan351_delay_lines(&fBlankSlot,&pos);
++            const uint64_t ns = (uint64_t)lines * SCAN351_NOMINAL_LINE_NS;
+             nanoseconds_to_absolutetime(ns ? ns : SCAN351_POLL_NS,&delta);
+             uint64_t blankWake = pos.tick + delta;
+-            if (fBlankSlot.attempts && fBlankSlot.frame == pos.frame) {
++            if (!fReadyRequested && fBlankSlot.attempts && fBlankSlot.frame == pos.frame) {
+                 uint64_t retry;
+                 nanoseconds_to_absolutetime(SCAN351_RETRY_NS,&retry);
+                 if (blankWake < fBlankSlot.attempted_at + retry)
+@@ -1138,7 +1299,10 @@
+     /* END SWEET PRESENT STATS START */
+     if (frameAttempt) sweet_frame344_record(F344_ATTEMPT,frameAttempt,frame->retries,
+         frame->generation,get32(rec,0x50),get32(rec,0x104));
+-    bool ready = present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame);
++    const uint64_t retryTicket = fReadyRequested && blankFrame != UINT64_MAX ?
++        scan352_ticket(frameAttempt, frame->surfaces[0]->id) : 0;
++    bool ready = present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket);
++    if (ready) sweet_fb352_clear_ticket(retryTicket);
+     if (frameAttempt) sweet_frame344_record(F344_RESULT,frameAttempt,ready ? 1 : 0,
+         measuring ? sample.copiedBytes : 0,measuring ? sample.gpuRefusals : 0,0);
+     /* BEGIN SWEET PRESENT STATS CLEAR */
+@@ -1297,6 +1461,7 @@
+ {
+     if (fHoldPresent && fHeldPending.owner != NULL &&
+         (owner == NULL || fHeldPending.owner == owner)) {
++        clearReadyTicketLocked();
+         sweet_fb_frame_move(frame, &fHeldPending);
+         fDirty = false;
+         fHeldCanceled++;
+@@ -1308,6 +1473,7 @@
+ {
+     /* Zero permanently disables retry after epoch exhaustion. A closed owner
+      * must not be revived if a later client reuses the same pointer value. */
++    clearReadyTicketLocked();
+     if (fHeldRetryEpoch == UINT64_MAX) fHeldRetryEpoch = 0;
+     else if (fHeldRetryEpoch != 0) ++fHeldRetryEpoch;
+ }
+@@ -1382,6 +1548,7 @@
+             IOLockUnlock(fLock);
+             return false;
+         }
++        clearReadyTicketLocked();
+         next.retryEpoch = fHeldRetryEpoch;
+         next.generation = fHeldSubmitted + 1;
+         if (fPowerOff) {
+@@ -1421,12 +1588,15 @@
+ }
+ 
+ bool
+-AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held, uint64_t blankFrame)
++AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held, uint64_t blankFrame, uint64_t retryTicket)
+ {
+     (void)held;
+     (void)blankFrame;
++    (void)retryTicket;
+     bool ready = true;
++    bool fastBlank = false;
+ #if defined(GAUGUIN)
++    fastBlank = blankFrame != UINT64_MAX && fReadyRequested;
+     sweet_ui_trace_record(GUT_PRESENT_BEGIN,get32(rec,0x50),0,0,get32(rec,0x104),0,0);
+ #endif
+ 	uint32_t mask = get32(rec, 0x104);
+@@ -1491,6 +1661,7 @@
+         }
+         /* END SWEET PRESENT STATS GUARD END */
+         if(!gpuRead.valid()){ready=false;s->release();continue;}
++        sweet_fb352_clear_ticket(retryTicket);
+ #endif
+ 		/*
+ 		 * Sample the surface being swapped - the one userland just handed
+@@ -1498,7 +1669,7 @@
+ 		 * earlier attempt sampled fSurface and concluded "the image never
+ 		 * changes"; it was reading the wrong object (NOTES (48)).
+ 		 */
+-		{
++		if (!fastBlank) {
+ 			static uint64_t sampled;
+ 			if ((++sampled % 8) == 1) {
+ 				uint32_t nb = 0, dist = 0, px0 = 0;
+@@ -1517,7 +1688,7 @@
+ 		 * where) or whether the blit is placing garbage. Four corners and the
+ 		 * middle answer that in one line.
+ 		 */
+-		if (sweet_fb_corner_logged < 8) {
++		if (!fastBlank && sweet_fb_corner_logged < 8) {
+ 			sweet_fb_corner_logged++;
+ 			uintptr_t b = s->kernelAddress();
+ 			if (b != 0 && s->width > 1 && s->height > 1 && s->bytesPerRow != 0) {
+@@ -1581,7 +1752,7 @@
+ 		    s->memory == NULL || last > s->memory->getLength()) {
+ 			src = 0;
+ 		}
+-		if (sweet_fb_clip_logged < 24) {
++		if (!fastBlank && sweet_fb_clip_logged < 24) {
+ 			sweet_fb_clip_logged++;
+ 			IOLog("SWEET FB: clip swap=%u src %d,%d %dx%d -> dst panel %d,%d %dx%d "
+ 			    "(panel %ux%u, off %d,%d)\n", get32(rec, 0x50), sx, sy, w, h,
+@@ -1595,12 +1766,17 @@
+ 			 * pixels to save a few thousand stores is a loss (NOTES 16:35).
+ 			 * The rectangle is already in the record - use it.
+ 			 */
++            const uintptr_t dst = fPixels + (uint64_t)dy * fRowBytes + (uint64_t)dx * 4;
++            const uintptr_t first = src + s->offset + (uint64_t)sy * s->bytesPerRow + (uint64_t)sx * 4;
+             /* BEGIN SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
++            const bool pairedCopy = fastBlank && dx == 0 && dy == 0 && s->memory != fSurface->memory &&
++                scan352_copy_supported(dst, first, w, h, fRowBytes, s->bytesPerRow);
+             struct scan351_position copyStart = {0};
+             const bool checked = blankFrame != UINT64_MAX;
+             if (checked && (!sweet_frame351_position(&copyStart) ||
+-                copyStart.frame != blankFrame || !scan351_can_copy(copyStart.line, copyStart.end))) {
++                copyStart.frame != blankFrame || !(fastBlank ? scan352_can_copy(copyStart.line, copyStart.end) :
++                scan351_can_copy(copyStart.line, copyStart.end)))) {
+                 sweet_frame344_record(F351_PRESENT,blankFrame,0,id,copyStart.line,copyStart.end);
+                 ready = false;
+                 s->release();
+@@ -1611,11 +1787,18 @@
+             const uint64_t frameCopyBegin = sweet_frame344_clock();
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+-			for (int32_t y = 0; y < h; y++) {
+-				memcpy((void *)(fPixels + (uint64_t)(dy + y) * fRowBytes + (uint64_t)dx * 4),
+-				    (const void *)(src + s->offset + (uint64_t)(sy + y) * s->bytesPerRow + (uint64_t)sx * 4),
+-				    (size_t)w * 4);
+-			}
++#if defined(GAUGUIN)
++            if (pairedCopy) {
++                for (int32_t y = 0; y < h; ++y)
++                    scan352_copy_row((void *)(dst + (uint64_t)y * fRowBytes),
++                        (const void *)(first + (uint64_t)y * s->bytesPerRow));
++            } else
++#endif
++            {
++                for (int32_t y = 0; y < h; ++y)
++                    memcpy((void *)(dst + (uint64_t)y * fRowBytes),
++                        (const void *)(first + (uint64_t)y * s->bytesPerRow), (size_t)w * 4);
++            }
+             /* BEGIN SWEET PRESENT STATS COPY END */
+ #if defined(GAUGUIN)
+             if (checked) __asm__ volatile("dsb sy" ::: "memory");
+@@ -1625,7 +1808,8 @@
+                 struct scan351_position copyEnd = {0};
+                 const bool verified = sweet_frame351_position(&copyEnd) && copyEnd.frame == blankFrame &&
+                     copyEnd.line >= copyStart.line && copyEnd.line < copyStart.end && copyEnd.end == copyStart.end;
+-                sweet_frame344_record(F351_PRESENT,blankFrame,verified ? 1 : 2,id,copyStart.line,
++                const uint32_t flags = (verified ? 1 : 2) | (pairedCopy ? SCAN352_FAST_COPY : 0);
++                sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
+                     ((uint64_t)copyStart.end << 32) | copyEnd.line);
+             }
+             if (fPresentSample != NULL) {

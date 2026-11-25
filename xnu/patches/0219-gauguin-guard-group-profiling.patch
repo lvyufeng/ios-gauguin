@@ -1,0 +1,96 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3928,12 +3928,36 @@
+ {int flag=0;(void)PE_parse_boot_argn("sweetgpuservice",&flag,sizeof(flag));return flag==1&&sweet_gpu_runtime_requested();}
+ static uint64_t ggrb_ns(void *cookie)
+ {(void)cookie;uint64_t ns;absolutetime_to_nanoseconds(mach_absolute_time(),&ns);return ns;}
++enum { GGRB_GUARD_OWNER, GGRB_GUARD_LEASE, GGRB_GUARD_UNSECURED,
++       GGRB_GUARD_CLOCK, GGRB_GUARD_IRQ, GGRB_GUARD_FAULTS, GGRB_GUARD_GROUPS };
++struct ggrb_guard_perf { uint64_t calls,ticks,overlap_calls,overlap_ticks; };
+ struct ggrb_perf_sample {
+     uint64_t checks,check_ticks,max_check_ticks;
+     uint64_t submits,submit_ticks,submit_checks,submit_check_ticks;
+     uint32_t pending;
++    struct ggrb_guard_perf groups[GGRB_GUARD_GROUPS];
+ };
+ static struct ggrb_perf_sample ggrb_perf;
++/* Times are wall-clock intervals and can overlap GPU work. The pending flag
++ * samples global submit-pending at guard end; it is not per-submit ownership. */
++static void ggrb_guard_time(unsigned group,uint64_t begin,uint64_t end)
++{
++    if(group>=GGRB_GUARD_GROUPS||end<begin)return;
++    struct ggrb_guard_perf *g=&ggrb_perf.groups[group];
++    __atomic_fetch_add(&g->calls,1,__ATOMIC_RELAXED);
++    __atomic_fetch_add(&g->ticks,end-begin,__ATOMIC_RELAXED);
++    if(__atomic_load_n(&ggrb_perf.pending,__ATOMIC_ACQUIRE)) {
++        __atomic_fetch_add(&g->overlap_calls,1,__ATOMIC_RELAXED);
++        __atomic_fetch_add(&g->overlap_ticks,end-begin,__ATOMIC_RELAXED);
++    }
++}
++#define GGRB_TIMED_GUARD(group,expr) ({ \
++    uint64_t ggrb_timing_start=mach_absolute_time(); \
++    bool ggrb_timing_result=(expr); \
++    uint64_t ggrb_timing_end=mach_absolute_time(); \
++    ggrb_guard_time((group),ggrb_timing_start,ggrb_timing_end); \
++    ggrb_timing_result; \
++})
+ static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current,struct gfw_micro_wait *wait)
+ {
+     /* An experiment in bounded waiting, NOT a relaxed SMMU invariant. Never
+@@ -3989,16 +4013,16 @@
+     if(mach_absolute_time()>=ggrb_end)return ggrb_reject(&sample,3);
+     if(!sweet_gpu_runtime_requested())return ggrb_reject(&sample,4);
+     if(sweet_gmu_board_state()!=GMB_READY)return ggrb_reject(&sample,5);
+-    if(!sweet_pas_zap_owner_authenticated(gmb_stage.pa))return ggrb_reject(&sample,6);
+-    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggrb_reject(&sample,7);
+-    if(!ggwb_unsecured())return ggrb_reject(&sample,8);
+-    if(!sweet_gmu_clock_live_snapshot(&sample.gx))return ggrb_reject(&sample,9);
++    if(!GGRB_TIMED_GUARD(GGRB_GUARD_OWNER,sweet_pas_zap_owner_authenticated(gmb_stage.pa)))return ggrb_reject(&sample,6);
++    if(!GGRB_TIMED_GUARD(GGRB_GUARD_LEASE,gauguin_wdt_lease_check_budget(GMB_MIN)))return ggrb_reject(&sample,7);
++    if(!GGRB_TIMED_GUARD(GGRB_GUARD_UNSECURED,ggwb_unsecured()))return ggrb_reject(&sample,8);
++    if(!GGRB_TIMED_GUARD(GGRB_GUARD_CLOCK,sweet_gmu_clock_live_snapshot(&sample.gx)))return ggrb_reject(&sample,9);
+     sample.valid|=1;
+     if((sample.gx&0x80000001u)!=0x80000000u)return ggrb_reject(&sample,10);
+-    if(!sweet_gmu_irq_quiet(sample.irq))return ggrb_reject(&sample,11);
++    if(!GGRB_TIMED_GUARD(GGRB_GUARD_IRQ,sweet_gmu_irq_quiet(sample.irq)))return ggrb_reject(&sample,11);
+     sample.valid|=2;
+     if(sample.irq[1]&0x1000)return ggrb_reject(&sample,12);
+-    if(!gfw_faults(false))return ggrb_reject(&sample,13);
++    if(!GGRB_TIMED_GUARD(GGRB_GUARD_FAULTS,gfw_faults(false)))return ggrb_reject(&sample,13);
+     sample.valid|=4;
+     sample.reset=gfw_load32(gmb_reset+0x2000);sample.valid|=8;
+     if(sample.reset)return ggrb_reject(&sample,14);
+@@ -4113,7 +4137,16 @@
+     snprintf(line,sizeof(line),"SWEET GPU PERF: checks=%llu check_ns=%llu max_check_ns=%llu; unchanged guard body, CPU clock only",
+         ggrb_perf.checks,check_ns,max_ns);gmb_record(line);
+     snprintf(line,sizeof(line),"SWEET GPU PERF: submits=%llu submit_ns=%llu submit_checks=%llu submit_check_ns=%llu pending=%u; remainder includes CPU and GPU",
+-        ggrb_perf.submits,submit_ns,ggrb_perf.submit_checks,submit_check_ns,ggrb_perf.pending);gmb_record(line);
++        ggrb_perf.submits,submit_ns,ggrb_perf.submit_checks,submit_check_ns,__atomic_load_n(&ggrb_perf.pending,__ATOMIC_ACQUIRE));gmb_record(line);
++    for(unsigned group=0;group<GGRB_GUARD_GROUPS;group++) {
++        struct ggrb_guard_perf *g=&ggrb_perf.groups[group];
++        uint64_t elapsed_ns,overlap_ns;
++        absolutetime_to_nanoseconds(__atomic_load_n(&g->ticks,__ATOMIC_RELAXED),&elapsed_ns);
++        absolutetime_to_nanoseconds(__atomic_load_n(&g->overlap_ticks,__ATOMIC_RELAXED),&overlap_ns);
++        snprintf(line,sizeof(line),"SWEET GPU GUARD PERF: group=%u calls=%llu ns=%llu pending_end_calls=%llu pending_end_ns=%llu; CPU wall, pending sampled at end",
++            group,__atomic_load_n(&g->calls,__ATOMIC_RELAXED),elapsed_ns,
++            __atomic_load_n(&g->overlap_calls,__ATOMIC_RELAXED),overlap_ns);gmb_record(line);
++    }
+     GauguinGPUProfileDump(gmb_record);
+ }
+ bool sweet_gpu_runtime_ready(void)
+@@ -4191,13 +4224,13 @@
+ {
+     if(!ggrb_root||!sweet_gpu_runtime_ready())return false;
+     uint64_t begin=mach_absolute_time(),checks=ggrb_perf.checks,ticks=ggrb_perf.check_ticks;
+-    ggrb_perf.pending=1;
++    __atomic_store_n(&ggrb_perf.pending,1,__ATOMIC_RELEASE);
+     enum ggr_error rc=ggr_submit(&ggrb_context,a,w,n,fence);
+     uint64_t end=mach_absolute_time();
+     ++ggrb_perf.submits;ggrb_perf.submit_ticks+=end>=begin?end-begin:0;
+     ggrb_perf.submit_checks+=ggrb_perf.checks-checks;
+     ggrb_perf.submit_check_ticks+=ggrb_perf.check_ticks-ticks;
+-    ggrb_perf.pending=0;
++    __atomic_store_n(&ggrb_perf.pending,0,__ATOMIC_RELEASE);
+     /* Keep all startup/failure evidence. Continuous rendering uses the
+      * existing hardware-checked counters and periodic success snapshots,
+      * avoiding a synchronous UFS mark/ring write for every draw submission. */

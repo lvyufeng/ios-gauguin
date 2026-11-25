@@ -1,0 +1,140 @@
+--- a/osfmk/ipc/ipc_kmsg.c
++++ b/osfmk/ipc/ipc_kmsg.c
+@@ -170,7 +170,18 @@
+ } f371_slots[F371_SLOTS];
+ 
+ static struct f371_delivery f371_pairs[F372_PAIR_CAP];
+-static uint64_t f372_start, f372_misses[F372_MISS_CAP];
++enum f373_unmatched_reason {
++	F373_UNMATCHED_KEY = 1,
++	F373_UNMATCHED_ID,
++	F373_UNMATCHED_POST,
++	F373_UNMATCHED_BUSY,
++};
++
++static struct f373_unmatched {
++	uint64_t tick, receiver_thread, copyout;
++	uint32_t message_id, reason, result;
++} f373_unmatched[F372_MISS_CAP];
++static uint64_t f372_start;
+ static uint64_t f371_source, f371_receiver, f371_end;
+ static uint64_t f371_gate = F371_CLOSED;
+ static uint32_t f371_sent, f371_copied, f371_missed, f371_busy, f371_evicted, f371_failed;
+@@ -361,34 +372,63 @@
+ }
+ 
+ static bool
+-f371_take(ipc_kmsg_t kmsg, ipc_space_t space, struct f371_delivery *delivery)
++f371_take(ipc_kmsg_t kmsg, ipc_space_t space, struct f371_delivery *delivery,
++    uint32_t *unmatched_index)
+ {
+ 	task_t task = current_task();
+ 	if (!f371_task(task, f371_receiver) || space != task->itk_space ||
+-	    f371_identity(&ipc_kmsg_get_trailer(kmsg, false)->msgh_audit) != f371_source ||
+-	    !f371_enter(mach_absolute_time())) {
++	    f371_identity(&ipc_kmsg_get_trailer(kmsg, false)->msgh_audit) != f371_source) {
+ 		return false;
+ 	}
++	const uint64_t tick = mach_absolute_time();
++	if (!f371_enter(tick)) {
++		return false;
++	}
+ 	const uintptr_t key = (uintptr_t)kmsg;
+ 	struct f371_slot *slot = f371_slot_for(kmsg);
+-	bool found = false;
++	const uint32_t message_id = (uint32_t)ikm_header(kmsg)->msgh_id;
++	enum f373_unmatched_reason reason = F373_UNMATCHED_BUSY;
+ 	if (f371_try_slot(slot)) {
+-		if (__atomic_load_n(&slot->key, __ATOMIC_RELAXED) == key &&
+-		    slot->data.message_id == (uint32_t)ikm_header(kmsg)->msgh_id &&
+-		    slot->data.post >= slot->data.send) {
++		if (__atomic_load_n(&slot->key, __ATOMIC_RELAXED) != key) {
++			reason = F373_UNMATCHED_KEY;
++		} else if (slot->data.message_id != message_id) {
++			reason = F373_UNMATCHED_ID;
++		} else if (slot->data.post < slot->data.send) {
++			reason = F373_UNMATCHED_POST;
++		} else {
+ 			*delivery = slot->data;
+ 			delivery->receiver_thread = thread_tid(current_thread());
+ 			__atomic_store_n(&slot->key, 0, __ATOMIC_RELAXED);
+-			found = true;
++			f371_release_slot(slot);
++			f371_leave();
++			return true;
+ 		}
+ 		f371_release_slot(slot);
+ 	}
+-	if (!found) {
+-		const uint32_t i = __atomic_fetch_add(&f371_missed, 1, __ATOMIC_RELAXED);
+-		if (i < F372_MISS_CAP) f372_misses[i] = mach_absolute_time();
++	const uint32_t i = __atomic_fetch_add(&f371_missed, 1, __ATOMIC_RELAXED);
++	if (i < F372_MISS_CAP) {
++		f373_unmatched[i] = (struct f373_unmatched){
++			.tick = tick,
++			.receiver_thread = thread_tid(current_thread()),
++			.message_id = message_id,
++			.reason = reason,
++		};
++		*unmatched_index = i;
+ 	}
+ 	f371_leave();
+-	return found;
++	return false;
++}
++
++static void
++f373_complete_unmatched(uint32_t index, mach_msg_return_t result)
++{
++	const uint64_t now = mach_absolute_time();
++	if (!f371_enter(now)) {
++		return;
++	}
++	f373_unmatched[index].copyout = now;
++	f373_unmatched[index].result = (uint32_t)result;
++	f371_leave();
+ }
+ 
+ static void
+@@ -445,7 +485,11 @@
+ 		    count, F372_PAIR_CAP, f371_sent, F371_SENDS, f371_copied, f371_missed,
+ 		    f371_busy, f371_evicted, f371_failed, (unsigned long long)f372_start);
+ 		for (unsigned i = 0; i < MIN(f371_missed, F372_MISS_CAP); ++i) {
+-			printf("SWEET F372 M: tick=%llu\n", (unsigned long long)f372_misses[i]);
++			const struct f373_unmatched *row = &f373_unmatched[i];
++			printf("SWEET F372 M: tick=%llu\n", (unsigned long long)row->tick);
++			printf("SWEET F373 U: ordinal=%u tick=%llu tid=%llu id=%u reason=%u copyout=%llu result=%u\n",
++			    i, (unsigned long long)row->tick, (unsigned long long)row->receiver_thread,
++			    row->message_id, row->reason, (unsigned long long)row->copyout, row->result);
+ 		}
+ 	}
+ 	const uint32_t end = MIN(cursor + F372_BLOCK, count);
+@@ -6773,7 +6817,9 @@
+ 
+ #if defined(GAUGUIN)
+ 	struct f371_delivery f371_delivery;
+-	const bool f371_matched = __improbable(f371_live()) && f371_take(kmsg, space, &f371_delivery);
++	uint32_t unmatched_index = UINT32_MAX;
++	const bool f371_matched = __improbable(f371_live()) &&
++	    f371_take(kmsg, space, &f371_delivery, &unmatched_index);
+ #endif
+ 
+ 	mr = ipc_kmsg_copyout_header(kmsg, space, option);
+@@ -6781,6 +6827,8 @@
+ #if defined(GAUGUIN)
+ 		if (f371_matched) {
+ 			f371_complete(&f371_delivery, mr);
++		} else if (unmatched_index < F372_MISS_CAP) {
++			f373_complete_unmatched(unmatched_index, mr);
+ 		}
+ 		f372_observe_copyout(space, 0);
+ #endif
+@@ -6798,6 +6846,8 @@
+ #if defined(GAUGUIN)
+ 	if (f371_matched) {
+ 		f371_complete(&f371_delivery, mr);
++	} else if (unmatched_index < F372_MISS_CAP) {
++		f373_complete_unmatched(unmatched_index, mr);
+ 	}
+ 	f372_observe_copyout(space, f371_matched && mr == MACH_MSG_SUCCESS ?
+ 	    (uint16_t)f371_delivery.serial : 0);

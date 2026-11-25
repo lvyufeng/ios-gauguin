@@ -1,0 +1,67 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -4249,6 +4249,49 @@
+     if(root[1]!=ggrb_root){ggr_fail(&ggrb_context,GGR_IO);return false;}
+     return sweet_gpu_runtime_sync();
+ }
++enum ggr_error sweet_gpu_runtime_issue(const uint64_t *a,const uint32_t *w,uint32_t n,uint32_t *fence)
++{
++    if(!fence)return GGR_ARGUMENT;
++    *fence=0;
++    if(!ggrb_root||!sweet_gpu_runtime_ready())return GGR_UNAVAILABLE;
++    enum ggr_error rc=ggr_issue(&ggrb_context,a,w,n,fence);
++    if(rc!=GGR_OK)return rc;
++    /* A doorbell may already be live. Any failed post-issue route/owner
++     * proof quarantines; the user client must retain all referenced pages. */
++    if(!ggrb_live(NULL)||!ggrb_routes()){
++        ggr_fail(&ggrb_context,GGR_IO);*fence=0;return GGR_IO;
++    }
++    return GGR_OK;
++}
++enum ggr_error sweet_gpu_runtime_poll(uint32_t fence)
++{
++    if(!fence||fence>ggrb_context.submitted)return GGR_ARGUMENT;
++    if(!ggrb_root||!ggrb_started)return GGR_UNAVAILABLE;
++    if(ggrb_context.state==GGR_READY)
++        return fence<=ggrb_context.completed&&sweet_gpu_runtime_ready()?GGR_OK:GGR_UNAVAILABLE;
++    if(ggrb_context.state!=GGR_BUSY)return GGR_UNAVAILABLE;
++    /* Poll remains available while READY-only service gates are false.
++     * Sample the full live owner and SMMU route before every completion read. */
++    if(!ggrb_live(NULL)||!ggrb_routes()){
++        ggr_fail(&ggrb_context,GGR_IO);return GGR_IO;
++    }
++    if(fence<=ggrb_context.completed)return GGR_OK;
++    if(fence!=ggrb_context.submitted)return GGR_ARGUMENT;
++    enum ggr_error rc=ggr_poll(&ggrb_context);
++    if(rc==GGR_OK&&!sweet_gpu_runtime_ready())return GGR_UNAVAILABLE;
++    return rc;
++}
++enum ggr_error sweet_gpu_runtime_wait(uint32_t fence)
++{
++    if(!fence||fence>ggrb_context.submitted)return GGR_ARGUMENT;
++    for(uint32_t i=0;i<200000;i++){
++        enum ggr_error rc=sweet_gpu_runtime_poll(fence);
++        if(rc!=GGR_PENDING)return rc;
++        if(!ggrb_delay(NULL,10))break;
++    }
++    ggr_fail(&ggrb_context,GGR_TIMEOUT);
++    return GGR_TIMEOUT;
++}
+ bool sweet_gpu_runtime_submit(const uint64_t *a,const uint32_t *w,uint32_t n,uint32_t *fence)
+ {
+     if(!ggrb_root||!sweet_gpu_runtime_ready())return false;
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -125,6 +125,12 @@
+ bool sweet_gpu_runtime_ready(void);
+ bool sweet_gpu_runtime_install_root(uint64_t directory_pa);
+ bool sweet_gpu_runtime_sync(void);
++/* Board guarded issued-fence path. The caller retains every referenced BO
++ * and IOSurface until poll/wait proves completion or quarantines the GPU.
++ * The existing synchronous submit remains the only active user-client path. */
++enum ggr_error sweet_gpu_runtime_issue(const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
++enum ggr_error sweet_gpu_runtime_poll(uint32_t);
++enum ggr_error sweet_gpu_runtime_wait(uint32_t);
+ bool sweet_gpu_runtime_submit(const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
+ bool sweet_gpu_runtime_done(uint32_t);
+ bool sweet_gpu_runtime_parameter(uint32_t,uint64_t *);

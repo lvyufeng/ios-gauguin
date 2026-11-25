@@ -1,0 +1,105 @@
+diff --git a/bsd/dev/gauguin_scanout345.h b/bsd/dev/gauguin_scanout345.h
+--- a/bsd/dev/gauguin_scanout345.h
++++ b/bsd/dev/gauguin_scanout345.h
+@@ -74,6 +74,13 @@
+ }
+
+ static inline bool
++scan345_counter_readable(const struct scan345_status *status)
++{
++    // The diagnostic observes the counters even when their control reads zero.
++    return status->enable == 1 && (status->count == 0 || status->count == 3);
++}
++
++static inline bool
+ scan345_edge_60(uint64_t interval_ns, uint64_t bracket_ns, uint32_t line, uint32_t vtotal)
+ {
+     /* At the frame counter boundary the current line must have wrapped.
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -59,10 +59,11 @@
+     uint64_t last_tick, edge_tick, startup_end;
+     uint32_t frame, edge_streak, arm_frame, crc_frame, crc_candidate_frame, crc_candidate;
+     uint32_t polls, gate_logs;
++    uint32_t readonly_samples, readonly_first_frame, readonly_first_line, readonly_last_line;
+     enum scan345_gate last_gate;
+     struct scan345_geometry geometry, counter_candidate;
+     bool have_frame, configured, crc_blocked, have_crc, have_candidate;
+-    bool counter_opt_in, counter_attempted;
++    bool counter_opt_in, counter_attempted, counter_readonly;
+ } scan;
+
+ static bool frame_active(void)
+@@ -121,6 +122,8 @@
+     if (!scan345_timing(status, geometry)) return SCAN345_GEOMETRY;
+     if (scan.geometry.vtotal && !scan345_same_timing(&scan.geometry, geometry))
+         return SCAN345_CHANGED;
++    if (scan.counter_readonly)
++        return scan345_counter_readable(status) ? SCAN345_OK : SCAN345_COUNTERS;
+     const uint32_t count_mask = scan.counter_opt_in ? UINT32_MAX : F346_COUNT_ON;
+     return (status->count & count_mask) == F346_COUNT_ON ? SCAN345_OK : SCAN345_COUNTERS;
+ }
+@@ -182,6 +185,10 @@
+         printf("SWEET F346 COUNTER: cleanup poll=%u readable=%u before=%x after=%x\n",
+             scan.polls, readable, before, after);
+     }
++    if (scan.counter_readonly)
++        printf("SWEET F347 RO: samples=%u first_frame=%u first_line=%u last_frame=%u last_line=%u\n",
++            scan.readonly_samples, scan.readonly_first_frame, scan.readonly_first_line,
++            scan.frame, scan.readonly_last_line);
+     printf("SWEET F345 DPU: stopped=%s polls=%u configured=%u restored=%u gate=%u\n",
+         reason, scan.polls, scan.configured, restored, scan.last_gate);
+ }
+@@ -287,6 +294,13 @@
+         const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
+         const uint64_t sampled = mach_absolute_time();
+         if (frame == checked_frame && line < geometry.vtotal) {
++            if (scan.counter_readonly) {
++                if (scan.readonly_samples++ == 0) {
++                    scan.readonly_first_frame = frame;
++                    scan.readonly_first_line = line;
++                }
++                scan.readonly_last_line = line;
++            }
+             scan_edge(frame, sampled, line);
+             if (sample_crc) scan_crc(frame, line, control, sig);
+             scan.have_frame = true;
+@@ -305,11 +319,14 @@
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    if ((enabled != 2 && enabled != 3) || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    if (enabled < 2 || enabled > 4 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
+     // Use a mode value so the complete 607-byte boot line still fits.
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
++    if (enabled == 4 && hz != 60) return;
+     scan.counter_opt_in = enabled == 3 && hz == 60;
++    scan.counter_readonly = enabled == 4;
++    scan.crc_blocked = scan.counter_readonly;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+@@ -332,7 +349,8 @@
+     scan_gcc = (const volatile uint32_t *)ml_io_map_with_prot(F344_GCC_PAGE, F344_PAGE, VM_PROT_READ);
+     scan_disp = (const volatile uint32_t *)ml_io_map_with_prot(F344_DISPCC_PA, F344_PAGE, VM_PROT_READ);
+     scan_mdp = (const volatile uint32_t *)ml_io_map_with_prot(F344_MDP_PA, F344_PAGE, VM_PROT_READ);
+-    scan_intf = (volatile uint32_t *)ml_io_map_with_prot(F344_INTF_PAGE, F344_PAGE, VM_PROT_READ | VM_PROT_WRITE);
++    const vm_prot_t intf_prot = scan.counter_readonly ? VM_PROT_READ : VM_PROT_READ | VM_PROT_WRITE;
++    scan_intf = (volatile uint32_t *)ml_io_map_with_prot(F344_INTF_PAGE, F344_PAGE, intf_prot);
+     if (!scan_gcc || !scan_disp || !scan_mdp || !scan_intf) {
+         scan_intf = NULL;
+         scan_stop("map");
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -618,7 +618,7 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    fPresentStatsEnabled = statsRequested == 1 || statsRequested == 2 || statsRequested == 3;
++    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 4;
+     fPresentSample = NULL;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");

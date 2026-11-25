@@ -1,0 +1,205 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_cpufreq399.h
+@@ -0,0 +1,47 @@
++/* Read-only CPUFreq-HW sampling for the two Lagoon frequency domains.
++ * The caller maps only the stock DT resources and supplies ordered reads. */
++#ifndef GAUGUIN_CPUFREQ399_H
++#define GAUGUIN_CPUFREQ399_H
++
++#include <stdint.h>
++
++enum {
++    CPU399_DOMAIN_COUNT = 2,
++    CPU399_DOMAIN_BYTES = 0x1000,
++    CPU399_LUT = 0x110,
++    CPU399_LUT_STRIDE = 32,
++    CPU399_LUT_ENTRIES = 40,
++    CPU399_PERF_STATE = 0x920,
++    CPU399_CYCLES = 0x9c0,
++};
++
++struct cpu399_domain_sample {
++    uint32_t index, frequency_row, cycles;
++};
++
++static inline bool
++cpu399_sample_domain(uint32_t (*read)(void *, unsigned), void *cookie,
++    struct cpu399_domain_sample *out)
++{
++    const uint32_t enable = read(cookie, 0);
++    if (enable == UINT32_MAX || !(enable & 1u)) {
++        return false;
++    }
++
++    const uint32_t index = read(cookie, CPU399_PERF_STATE);
++    if (index >= CPU399_LUT_ENTRIES) {
++        return false;
++    }
++
++    const uint32_t row = read(cookie, CPU399_LUT + index * CPU399_LUT_STRIDE);
++    const uint32_t cycles = read(cookie, CPU399_CYCLES);
++    if (row == UINT32_MAX || ((row >> 30) && !(row & 0xffu)) ||
++        read(cookie, CPU399_PERF_STATE) != index || read(cookie, 0) != enable) {
++        return false;
++    }
++
++    *out = {index, row, cycles};
++    return true;
++}
++
++#endif
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -156,6 +156,98 @@
+ static uint64_t gDisplayWriterThread398;
+ static uint32_t gDisplayIssueCpus398[8], gDisplayOtherWriter398;
+ 
++#include "../../../bsd/dev/gauguin_cpufreq399.h"
++
++static const unsigned kDisplayClockSampleLimit = 24;
++static const uint64_t kDisplayClockSampleInterval = UINT64_C(38400000);
++static IOMemoryMap *gDisplayClock399Maps[CPU399_DOMAIN_COUNT];
++struct DisplayClock399Reading {
++    uint64_t tick, end;
++    unsigned mask;
++    cpu399_domain_sample domains[CPU399_DOMAIN_COUNT];
++};
++static struct DisplayClock399 {
++    uint32_t fence, cpu;
++    DisplayClock399Reading issue, completed;
++} gDisplayClock399Samples[kDisplayClockSampleLimit];
++static uint64_t gDisplayClock399Next;
++static unsigned gDisplayClock399Count;
++
++static void discardDisplayClock399Maps()
++{
++    for (auto &mapping : gDisplayClock399Maps) {
++        OSSafeReleaseNULL(mapping);
++    }
++}
++
++static void mapDisplayClocks399()
++{
++    constexpr uint64_t bases[] = {UINT64_C(0x18323000), UINT64_C(0x18325800)};
++    static_assert(sizeof(bases) / sizeof(bases[0]) == CPU399_DOMAIN_COUNT, "CPU frequency domains");
++    for (unsigned domain = 0; domain < CPU399_DOMAIN_COUNT; ++domain) {
++        auto *memory = IOMemoryDescriptor::withPhysicalAddress(
++            bases[domain], CPU399_DOMAIN_BYTES, kIODirectionOut);
++        if (memory) {
++            gDisplayClock399Maps[domain] = memory->map(kIOMapReadOnly | kIOMapInhibitCache);
++            memory->release(); // The mapping owns a reference until stop.
++        }
++        if (!gDisplayClock399Maps[domain] || !gDisplayClock399Maps[domain]->getVirtualAddress()) {
++            discardDisplayClock399Maps();
++            return;
++        }
++    }
++}
++
++static uint32_t readDisplayClock399(void *cookie, unsigned offset)
++{
++    auto *registers = static_cast<const volatile uint32_t *>(cookie);
++    const uint32_t value = registers[offset / sizeof(uint32_t)];
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++
++static void readDisplayClocks399(DisplayClock399Reading &sample, uint64_t tick)
++{
++    sample.tick = tick;
++    for (unsigned domain = 0; domain < CPU399_DOMAIN_COUNT; ++domain) {
++        void *registers = reinterpret_cast<void *>(gDisplayClock399Maps[domain]->getVirtualAddress());
++        if (cpu399_sample_domain(readDisplayClock399, registers, &sample.domains[domain])) {
++            sample.mask |= 1u << domain;
++        }
++    }
++    sample.end = mach_absolute_time();
++}
++
++static void sampleDisplayClockIssue399(uint64_t displayTicket, uint32_t fence)
++{
++    if (!displayTicket || !gDisplayClock399Maps[0] ||
++        gDisplayClock399Count == kDisplayClockSampleLimit ||
++        thread_tid(current_thread()) != gDisplayWriterThread398) {
++        return;
++    }
++    const uint64_t tick = mach_absolute_time();
++    const int cpu = cpu_number();
++    if (tick < gDisplayClock399Next || cpu < 0 || cpu >= 8) {
++        return;
++    }
++    auto &sample = gDisplayClock399Samples[gDisplayClock399Count++];
++    sample.fence = fence;
++    sample.cpu = cpu;
++    readDisplayClocks399(sample.issue, tick);
++    gDisplayClock399Next = tick + kDisplayClockSampleInterval;
++}
++
++static void sampleDisplayClockCompletion399(uint32_t fence)
++{
++    if (!gDisplayClock399Maps[0] || !gDisplayClock399Count) {
++        return;
++    }
++    auto &sample = gDisplayClock399Samples[gDisplayClock399Count - 1];
++    if (sample.fence == fence && !sample.completed.tick) {
++        readDisplayClocks399(sample.completed, mach_absolute_time());
++    }
++}
++
+ static void observeDisplayIssueCpu398(uint64_t displayTicket)
+ {
+     if (!gDisplayPerformanceCpus398 || gapi_frozen) return;
+@@ -248,6 +340,17 @@
+             gDisplayIssueCpus398[3],gDisplayIssueCpus398[4],gDisplayIssueCpus398[5],
+             gDisplayIssueCpus398[6],gDisplayIssueCpus398[7]);record(line);
+     }
++    for (unsigned i = 0; i < gDisplayClock399Count; ++i) {
++        const auto &sample = gDisplayClock399Samples[i];
++        const auto &issue = sample.issue, &done = sample.completed;
++        snprintf(line, sizeof(line), "SWEET CPU399: fence=%u cpu=%u issue=%llu:%llu:%u:%u:%08x:%u:%u:%08x:%u done=%llu:%llu:%u:%u:%08x:%u:%u:%08x:%u",
++            sample.fence, sample.cpu, issue.tick, issue.end, issue.mask, issue.domains[0].index,
++            issue.domains[0].frequency_row, issue.domains[0].cycles, issue.domains[1].index,
++            issue.domains[1].frequency_row, issue.domains[1].cycles, done.tick, done.end, done.mask,
++            done.domains[0].index, done.domains[0].frequency_row, done.domains[0].cycles,
++            done.domains[1].index, done.domains[1].frequency_row, done.domains[1].cycles);
++        record(line);
++    }
+ }
+ 
+ /* Only a serialized request can wait. Display may poll/complete the escrow
+@@ -462,6 +565,11 @@
+     bool started=attached&&s->start(p);
+     if(attached&&!started)s->detach(p);
+     s->release();gPublished=started;
++    if (started && gDisplayPerformanceCpus398 && displayMode == 9) {
++        IOLockLock(gLock);
++        mapDisplayClocks399();
++        IOLockUnlock(gLock);
++    }
+     IOLog("SWEET GPU MAP324: enabled=%u service=%u ordinary-unsubmitted-owner-only\n",gMapUnrelated?1u:0u,started?1u:0u);
+     if(sweet_eagl_gpu_pilot_enabled())
+         IOLog("SWEET GPU USER: service=%u compositor-pilot single-client sync-default\n",started);
+@@ -472,6 +580,7 @@
+ extern "C" void GauguinGPUStop(void)
+ {
+     if(gLock)IOLockLock(gLock);
++    discardDisplayClock399Maps();
+     ggr_bootstrap_fail(&gMetalBootstrap);
+     sweet_gpu_runtime_stop();
+     if(gLock)IOLockUnlock(gLock);
+@@ -997,6 +1106,7 @@
+     if (displayReady) sweet_fb352_signal_ready(displayTicket, fence,
+         displayTicket == fPendingDisplayTicket ? fPendingDisplayVersion : UINT32_MAX);
+     fPendingDisplayTicket = 0;
++    sampleDisplayClockCompletion399(fence);
+     if(reap&&!reapClosed())return kIOReturnNotReady;
+     return kIOReturnSuccess;
+ }
+@@ -1281,6 +1391,7 @@
+                         GauguinGPUSurfaceState(b->surface) & SCAN354_GPU_VERSION);
+                 }
+             }
++            if (fCompositor) sampleDisplayClockIssue399(fPendingDisplayTicket, fence);
+         }
+         if (ok && fAsync && fPendingDisplayTicket)
+             __atomic_store_n(&gIssuedDisplayProbeTicket, fPendingDisplayTicket, __ATOMIC_RELEASE);

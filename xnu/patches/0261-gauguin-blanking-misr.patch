@@ -1,0 +1,312 @@
+diff --git a/bsd/dev/gauguin_scanout345.h b/bsd/dev/gauguin_scanout345.h
+--- a/bsd/dev/gauguin_scanout345.h
++++ b/bsd/dev/gauguin_scanout345.h
+@@ -124,4 +124,51 @@
+     return line >= geometry->first + 128 && line < geometry->first + 1536;
+ }
+ 
++
++enum {
++    SCAN349_BLANK_START = 2752, SCAN349_BLANK_END = 4480,
++    SCAN349_LINE_BITS = 13, SCAN349_TICK_BITS = 20, SCAN349_READ_US = 250
++};
++
++static inline bool
++scan349_timing(const struct scan345_geometry *geometry)
++{
++    return geometry->htotal == 462 && geometry->vtotal == 4910 &&
++        geometry->first == 32 && geometry->last == 2431;
++}
++
++static inline bool
++scan349_line(uint32_t line)
++{
++    return line >= SCAN349_BLANK_START && line < SCAN349_BLANK_END;
++}
++
++struct scan349_read {
++    uint64_t start, end;
++    uint32_t line, signature;
++};
++
++/* The two polls have separate timing brackets on the wire. The caller has
++ * already checked both line endpoints, the frame and the ready status. */
++static inline bool
++scan349_pack(const struct scan349_read *first, const struct scan349_read *second,
++    uint32_t *lines, uint64_t *signatures, uint64_t *ticks)
++{
++    const uint64_t limit = UINT64_C(1) << SCAN349_TICK_BITS;
++    if (first->start >= first->end || first->end >= second->start ||
++        second->start >= second->end || !scan349_line(first->line) ||
++        !scan349_line(second->line) || first->line >= second->line)
++        return false;
++    const uint64_t first_width = first->end - first->start;
++    const uint64_t gap = second->start - first->start;
++    const uint64_t second_width = second->end - second->start;
++    if (first_width >= limit || gap >= limit || second_width >= limit)
++        return false;
++    *lines = first->line | (second->line << SCAN349_LINE_BITS);
++    *signatures = ((uint64_t)first->signature << 32) | second->signature;
++    *ticks = (gap << (2 * SCAN349_TICK_BITS)) |
++        (first_width << SCAN349_TICK_BITS) | second_width;
++    return true;
++}
++
+ #endif
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -63,6 +63,9 @@
+     enum scan345_gate last_gate;
+     struct scan345_geometry geometry, counter_candidate;
+     struct scan348_motion motion;
++    struct scan349_read first_blank;
++    uint32_t misr_writes, crc_pairs, crc_not_ready, crc_rejected;
++    bool crc_blanking, misr_fault;
+     bool have_frame, configured, crc_blocked, have_crc, have_candidate;
+     bool counter_opt_in, counter_attempted, counter_readonly;
+ } scan;
+@@ -124,7 +127,8 @@
+     if (scan.geometry.vtotal && !scan345_same_timing(&scan.geometry, geometry))
+         return SCAN345_CHANGED;
+     if (scan.counter_readonly)
+-        return scan345_counter_readable(status) ? SCAN345_OK : SCAN345_COUNTERS;
++        return scan345_counter_readable(status) && (!scan.crc_blanking || status->count == 0) ?
++            SCAN345_OK : SCAN345_COUNTERS;
+     const uint32_t count_mask = scan.counter_opt_in ? UINT32_MAX : F346_COUNT_ON;
+     return (status->count & count_mask) == F346_COUNT_ON ? SCAN345_OK : SCAN345_COUNTERS;
+ }
+@@ -162,13 +166,51 @@
+     return readback == F346_COUNT_ON;
+ }
+ 
++/* All mode-5 writes go through this literal register address. The count
++ * control, signature and clock registers are read-only in this mode. */
++static void scan349_misr_write(uint32_t value)
++{
++    ++scan.misr_writes;
++    scan_intf_write(F344_MISR_CTRL, value);
++}
++
++static bool scan349_owned(uint32_t control)
++{
++    return (control & ~F344_CRC_STATUS) == F344_CRC_CONFIG;
++}
++
++static bool scan349_stop(void)
++{
++    uint32_t before = UINT32_MAX, after = UINT32_MAX;
++    struct scan345_status status = {0};
++    struct scan345_geometry geometry = {0};
++    // Check route and the exact preexisting geometry again before cleanup.
++    const bool readable = scan.misr_writes == 2 &&
++        scan_route(&status, &geometry) == SCAN345_OK && scan349_timing(&geometry);
++    if (readable) {
++        before = scan_intf[F344_MISR_CTRL / 4];
++        after = before;
++        if (scan349_owned(before)) {
++            scan349_misr_write(F344_CRC_CLEAR);
++            scan349_misr_write(0);
++            after = scan_intf[F344_MISR_CTRL / 4];
++        }
++    }
++    printf("SWEET F349 RESET: poll=%u readable=%u before=%x after=%x writes=%u fault=%u pairs=%u not_ready=%u rejected=%u\n",
++        scan.polls, readable, before, after, scan.misr_writes, scan.misr_fault,
++        scan.crc_pairs, scan.crc_not_ready, scan.crc_rejected);
++    return !scan.misr_writes || (readable && after == 0);
++}
++
+ static void scan_stop(const char *reason)
+ {
+     bool restored = !scan.configured;
+     struct scan345_status status = {0};
+-    const bool readable = (scan.configured || scan.counter_attempted) &&
++    const bool readable = !scan.crc_blanking && (scan.configured || scan.counter_attempted) &&
+         scan_clocks(&status) == SCAN345_OK && scan_mdp[0] == UINT32_C(0x60040000);
+-    if (scan.configured && readable) {
++    if (scan.crc_blanking) {
++        restored = scan349_stop();
++    } else if (scan.configured && readable) {
+         const uint32_t current = scan_intf[F344_MISR_CTRL / 4];
+         if ((current & ~F344_CRC_STATUS) == F344_CRC_CONFIG) {
+             scan_intf_write(F344_MISR_CTRL, F344_CRC_CLEAR);
+@@ -210,11 +252,34 @@
+     if (scan.edge_tick) absolutetime_to_nanoseconds(tick - scan.edge_tick, &interval);
+     absolutetime_to_nanoseconds(tick - scan.last_tick, &bracket);
+     scan.edge_tick = tick;
+-    if (step == 1 && scan345_edge_60(interval, bracket, line, scan.geometry.vtotal))
++    if (step == 1 && (!scan.crc_blanking || line < scan.readonly_last_line) &&
++        scan345_edge_60(interval, bracket, line, scan.geometry.vtotal))
+         ++scan.edge_streak;
+     else
+         scan.edge_streak = 0;
+     if (scan.edge_streak < 3) return;
++    if (scan.crc_blanking) {
++        scan.crc_blocked = true;
++        if (!scan349_timing(&scan.geometry)) return;
++        // Recheck the one-shot setup immediately before the first store.
++        struct scan345_status status = {0};
++        struct scan345_geometry geometry = {0};
++        if (scan_route(&status, &geometry) != SCAN345_OK || !scan349_timing(&geometry) ||
++            scan_intf[F344_FRAME_COUNT / 4] != frame) return;
++        const uint32_t preimage = scan_intf[F344_MISR_CTRL / 4];
++        uint32_t readback = preimage;
++        if (preimage == 0) {
++            scan349_misr_write(F344_CRC_CLEAR);
++            scan349_misr_write(F344_CRC_CONFIG);
++            readback = scan_intf[F344_MISR_CTRL / 4];
++            scan.configured = scan349_owned(readback);
++            scan.arm_frame = frame;
++            scan.crc_blocked = !scan.configured;
++        }
++        printf("SWEET F349 ARM: poll=%u frame=%u line=%u streak=%u preimage=%x readback=%x writes=%u\n",
++            scan.polls, frame, line, scan.edge_streak, preimage, readback, scan.misr_writes);
++        return;
++    }
+     const uint32_t preimage = scan_intf[F344_MISR_CTRL / 4];
+     printf("SWEET F345 CRC: poll=%u frame=%u preimage=%x line=%u\n",
+         scan.polls, frame, preimage, line);
+@@ -243,6 +308,47 @@
+         signature, line, control);
+     scan.have_crc = true;
+     scan.crc_frame = frame;
++}
++
++static void scan349_crc(uint32_t frame, uint32_t line, uint32_t checked_line,
++    uint32_t before_control, uint32_t after_control, uint32_t signature,
++    uint64_t before, uint64_t sampled)
++{
++    if (!scan349_owned(before_control) || !scan349_owned(after_control)) {
++        scan.misr_fault = true;
++        scan.crc_blocked = true;
++        return;
++    }
++    if (before_control != (F344_CRC_CONFIG | F344_CRC_STATUS) ||
++        after_control != before_control) {
++        ++scan.crc_not_ready;
++        return;
++    }
++    uint64_t ns;
++    absolutetime_to_nanoseconds(sampled - before, &ns);
++    if (!scan349_line(checked_line) || checked_line < line ||
++        sampled <= before || ns > SCAN349_READ_US * NSEC_PER_USEC) {
++        ++scan.crc_rejected;
++        return;
++    }
++    const struct scan349_read read = {before, sampled, line, signature};
++    if (!scan.have_candidate || frame != scan.crc_candidate_frame) {
++        scan.have_candidate = true;
++        scan.crc_candidate_frame = frame;
++        scan.first_blank = read;
++        return;
++    }
++    uint32_t lines;
++    uint64_t signatures, ticks;
++    scan.have_crc = true;
++    scan.crc_frame = frame;
++    if (!scan349_pack(&scan.first_blank, &read, &lines, &signatures, &ticks)) {
++        ++scan.crc_rejected;
++        return;
++    }
++    // Both signatures are retained, even when they disagree. No third read.
++    sweet_frame344_record(F344_CRC, frame, lines, signatures, scan.first_blank.start, ticks);
++    ++scan.crc_pairs;
+ }
+ 
+ static void scan_poll(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+@@ -284,7 +390,8 @@
+         scan.counter_candidate.vtotal = 0;
+         if (expired && !scan.configured && !scan.crc_blocked) {
+             scan.crc_blocked = true;
+-            printf("SWEET F345 CRC: edge qualification expired at poll=%u\n", scan.polls);
++            if (!scan.crc_blanking)
++                printf("SWEET F345 CRC: edge qualification expired at poll=%u\n", scan.polls);
+         }
+         if (!scan.geometry.vtotal) {
+             scan.geometry = geometry;
+@@ -294,15 +401,21 @@
+         const uint64_t before = mach_absolute_time();
+         const uint32_t frame = scan_intf[F344_FRAME_COUNT / 4];
+         const uint32_t line = scan_intf[F344_LINE_COUNT / 4];
+-        const bool sample_crc = scan.configured && frame - scan.arm_frame >= 2 &&
+-            (!scan.have_crc || frame != scan.crc_frame) && scan345_crc_line(&geometry, line);
++        const bool sample_crc = scan.configured && !scan.crc_blocked &&
++            frame - scan.arm_frame >= 2 && (!scan.have_crc || frame != scan.crc_frame) &&
++            (scan.crc_blanking ? scan.have_frame && frame == scan.frame &&
++                scan.crc_pairs < 3000 && scan349_line(line) : scan345_crc_line(&geometry, line));
+         const uint32_t control = sample_crc ? scan_intf[F344_MISR_CTRL / 4] : 0;
+         const uint32_t sig = control == (F344_CRC_CONFIG | F344_CRC_STATUS) ?
+             scan_intf[F344_MISR_SIG / 4] : 0;
++        const bool blank_read = sample_crc && scan.crc_blanking;
++        const uint32_t checked_control = blank_read ? scan_intf[F344_MISR_CTRL / 4] : control;
++        const uint32_t checked_line = blank_read ? scan_intf[F344_LINE_COUNT / 4] : line;
+         const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
+         const bool same_control = !scan.counter_readonly || scan_intf[F345_COUNT_EN / 4] == status.count;
+         const uint64_t sampled = mach_absolute_time();
+         if (same_control && frame == checked_frame && line < geometry.vtotal) {
++            scan_edge(frame, sampled, line);
+             if (scan.counter_readonly) {
+                 scan348_sample(&scan.motion, status.count, frame, line);
+                 if (scan.readonly_samples++ == 0) {
+@@ -311,14 +424,17 @@
+                 }
+                 scan.readonly_last_line = line;
+             }
+-            scan_edge(frame, sampled, line);
+-            if (sample_crc) scan_crc(frame, line, control, sig);
++            if (blank_read)
++                scan349_crc(frame, line, checked_line, control, checked_control, sig, before, sampled);
++            else if (sample_crc)
++                scan_crc(frame, line, control, sig);
+             scan.have_frame = true;
+             scan.frame = frame;
+             scan.last_tick = before;
+         } else if (scan.counter_readonly) {
+             scan.motion.previous_valid = false;
+             scan.motion.rejected_control += !same_control;
++            if (blank_read) ++scan.crc_rejected;
+         }
+     }
+     uint64_t deadline;
+@@ -332,14 +448,15 @@
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    if (enabled < 2 || enabled > 4 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    if (enabled < 2 || enabled > 5 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
+     // Use a mode value so the complete 607-byte boot line still fits.
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+-    if (enabled == 4 && hz != 60) return;
++    if (enabled >= 4 && hz != 60) return;
+     scan.counter_opt_in = enabled == 3 && hz == 60;
+-    scan.counter_readonly = enabled == 4;
+-    scan.crc_blocked = scan.counter_readonly;
++    scan.counter_readonly = enabled >= 4;
++    scan.crc_blanking = enabled == 5;
++    scan.crc_blocked = enabled == 4;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+@@ -362,7 +479,8 @@
+     scan_gcc = (const volatile uint32_t *)ml_io_map_with_prot(F344_GCC_PAGE, F344_PAGE, VM_PROT_READ);
+     scan_disp = (const volatile uint32_t *)ml_io_map_with_prot(F344_DISPCC_PA, F344_PAGE, VM_PROT_READ);
+     scan_mdp = (const volatile uint32_t *)ml_io_map_with_prot(F344_MDP_PA, F344_PAGE, VM_PROT_READ);
+-    const vm_prot_t intf_prot = scan.counter_readonly ? VM_PROT_READ : VM_PROT_READ | VM_PROT_WRITE;
++    const bool may_write = !scan.counter_readonly || scan.crc_blanking;
++    const vm_prot_t intf_prot = may_write ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
+     scan_intf = (volatile uint32_t *)ml_io_map_with_prot(F344_INTF_PAGE, F344_PAGE, intf_prot);
+     if (!scan_gcc || !scan_disp || !scan_mdp || !scan_intf) {
+         scan_intf = NULL;
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -618,7 +618,7 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 4;
++    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 5;
+     fPresentSample = NULL;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");

@@ -1,0 +1,238 @@
+diff --git a/bsd/conf/files b/bsd/conf/files
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -122,6 +122,7 @@
+ bsd/dev/gauguin_pas_init.c		standard
+ bsd/dev/gauguin_cx_rail_plan.c		standard
+ bsd/dev/gauguin_cx_power.c		standard
++bsd/dev/gauguin_gcc_votes.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+diff --git a/bsd/dev/gauguin_gcc_votes.c b/bsd/dev/gauguin_gcc_votes.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gcc_votes.c
+@@ -0,0 +1,133 @@
++/* Shared gauguin GCC vote page. Pinned native19b63c8192b1c9b7c4d931d7d3be92024bc2d778
++ * gcc-lagoon.c: QUP0 bits6/7/10 at52000; GPU_DIV bit8 at52008;
++ * GPLL0 FSM vote bit0 at52010. Distinct words require no cross-client RMW.
++ * The one map is acquired once, retained and published only after validation.
++ * No HLOS client may create another alias of this page in the opted-in path.
++ */
++#ifdef GCC_VOTES_HOST_TEST
++#include "gcc_votes_shim.h"
++#else
++#include <pexpert/arm64/board_config.h>
++#endif
++#if defined(GAUGUIN) || defined(GCC_VOTES_HOST_TEST)
++#ifndef GCC_VOTES_HOST_TEST
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <machine/machine_routines.h>
++#include <vm/pmap.h>
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern vm_offset_t ml_vtophys(vm_offset_t);
++extern boolean_t pmap_valid_page(ppnum_t);
++extern unsigned int pmap_cache_attributes(ppnum_t);
++extern int get_preemption_level(void);
++#endif
++#include "gauguin_gcc_votes.h"
++#define GGV_PA UINT64_C(0x00150000)
++#define GGV_BYTES 0x4000u
++#define GGV_TOUCH 0x2000u
++#define GGV_TOUCH_BITS 0x4c0u
++_Static_assert(PAGE_SHIFT == 14, "one16KiB GCC vote page");
++static vm_offset_t ggv_map;
++/* 0 idle,1 mapping owner,2 ready,3 mapping rejected.
++ * GPU uncertainty has a separate latch and leaves the touch word usable.
++ */
++static unsigned ggv_mapping_state, ggv_gpu_quarantined, ggv_gpu_owner;
++static bool ggv_context(void)
++{ return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
++static bool ggv_ready(void)
++{ return __atomic_load_n(&ggv_mapping_state, __ATOMIC_ACQUIRE) == 2u; }
++static uint32_t ggv_read(uint32_t off)
++{
++#ifdef GCC_VOTES_HOST_TEST
++    return ggv_test_read(ggv_map,off);
++#else
++    uint32_t value = *(volatile uint32_t *)(ggv_map + off);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++#endif
++}
++static void ggv_write(uint32_t off,uint32_t value)
++{
++#ifdef GCC_VOTES_HOST_TEST
++    ggv_test_write(ggv_map,off,value);
++#else
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)(ggv_map + off) = value;
++    __asm__ volatile("dsb osh" ::: "memory");
++#endif
++}
++bool ggv_prepare(void)
++{
++    if (!ggv_context()) return false;
++    if (ggv_ready()) return true;
++    unsigned expected=0;
++    if (!__atomic_compare_exchange_n(&ggv_mapping_state,&expected,1u,false,
++        __ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE)) return false;
++    ppnum_t page=(ppnum_t)(GGV_PA >> PAGE_SHIFT);
++    if (!pmap_valid_page(page) && (pmap_cache_attributes(page)&255u)==7u) {
++        vm_offset_t map=ml_io_map_with_prot(GGV_PA,GGV_BYTES,VM_PROT_READ|VM_PROT_WRITE);
++        if (map && ml_vtophys(map)==GGV_PA && ml_vtophys(map+GGV_BYTES-1u)==GGV_PA+GGV_BYTES-1u) {
++            ggv_map=map;
++            __atomic_store_n(&ggv_mapping_state,2u,__ATOMIC_RELEASE);
++            return true;
++        }
++    }
++    __atomic_store_n(&ggv_mapping_state,3u,__ATOMIC_RELEASE);
++    return false; /* failed/partial mapping is never retried or aliased */
++}
++uint32_t ggv_touch_read(void)
++{ return ggv_context() && ggv_ready() ? ggv_read(GGV_TOUCH) : UINT32_MAX; }
++bool ggv_touch_update(uint32_t mask,uint32_t value)
++{
++    if (!ggv_context() || !ggv_ready() || !mask || (mask&~GGV_TOUCH_BITS) || (value&~mask)) return false;
++    uint32_t before=ggv_read(GGV_TOUCH);
++    if (before==UINT32_MAX) return false;
++    uint32_t wanted=(before&~mask)|value;
++    /* Preserve the legacy touch write/readback behavior even for an equal
++     * value; only the GPU's fixed hold interface skips a no-op store. */
++    ggv_write(GGV_TOUCH,wanted);
++    uint32_t after=ggv_read(GGV_TOUCH);
++    return after!=UINT32_MAX && (after&mask)==value;
++}
++static bool ggv_gpu_address(enum ggv_gpu_vote vote,uint32_t *off,uint32_t *bit)
++{
++    if (vote==GGV_PLL0) {*off=0x2010;*bit=1;return true;}
++    if (vote==GGV_GPU_DIV) {*off=0x2008;*bit=0x100;return true;}
++    return false;
++}
++bool ggv_gpu_read(enum ggv_gpu_vote vote,uint32_t *out)
++{
++    uint32_t off,bit;
++    if (!out || !ggv_context() || !ggv_ready() ||
++        __atomic_load_n(&ggv_gpu_quarantined,__ATOMIC_ACQUIRE) || !ggv_gpu_address(vote,&off,&bit)) return false;
++    uint32_t value=ggv_read(off);if(value==UINT32_MAX)return false;
++    *out=value;return true;
++}
++bool ggv_gpu_hold(enum ggv_gpu_vote vote,uint32_t *out)
++{
++    uint32_t off,bit;
++    if (!out || !ggv_context() || !ggv_ready() ||
++        __atomic_load_n(&ggv_gpu_quarantined,__ATOMIC_ACQUIRE) || !ggv_gpu_address(vote,&off,&bit)) return false;
++    unsigned expected=0;
++    if (!__atomic_compare_exchange_n(&ggv_gpu_owner,&expected,1u,false,
++        __ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE)) return false;
++    if (__atomic_load_n(&ggv_gpu_quarantined,__ATOMIC_ACQUIRE)) {
++        __atomic_store_n(&ggv_gpu_owner,0u,__ATOMIC_RELEASE);return false;
++    }
++    uint32_t before=ggv_read(off);
++    if(before==UINT32_MAX){__atomic_store_n(&ggv_gpu_owner,0u,__ATOMIC_RELEASE);return false;}
++    uint32_t wanted=before|bit;
++    if (wanted!=before) {
++        /* Quarantine BEFORE the store; a nonreturning/faulting access must
++         * never leave GPU authorization to try another operation. */
++        __atomic_store_n(&ggv_gpu_quarantined,1u,__ATOMIC_RELEASE);
++        ggv_write(off,wanted);
++        uint32_t after=ggv_read(off);
++        if (after!=wanted) {__atomic_store_n(&ggv_gpu_owner,0u,__ATOMIC_RELEASE);return false;}
++        *out=after;
++        __atomic_store_n(&ggv_gpu_quarantined,0u,__ATOMIC_RELEASE);
++    } else *out=before;
++    __atomic_store_n(&ggv_gpu_owner,0u,__ATOMIC_RELEASE);
++    return true;
++}
++#endif
+diff --git a/bsd/dev/gauguin_gcc_votes.h b/bsd/dev/gauguin_gcc_votes.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gcc_votes.h
+@@ -0,0 +1,26 @@
++#ifndef GAUGUIN_GCC_VOTES_H
++#define GAUGUIN_GCC_VOTES_H
++#include <stdbool.h>
++#include <stdint.h>
++/* Single permanent Device RW mapping of GCC150000+4000. Touch word152000
++ * remains serialized by the existing NVT worker mutex. GPU uses distinct
++ * words152008/152010: no register/mask/pointer is supplied by that client.
++ * No vote rollback, PLL programming, clock-rate policy or GPU readiness here.
++ * The caller owns its subsystem lifetime and validates power/WDT prerequisites
++ * before EACH GPU operation. A failed write is uncertain; never retry it.
++ * A software deadline cannot cancel a blocked fabric access.
++ */
++bool ggv_prepare(void);
++/* Only after successful prepare. UINT32_MAX is returned if not ready; update
++ * rejects missing/invalid state and masks outside the three native touch bits.
++ */
++uint32_t ggv_touch_read(void);
++bool ggv_touch_update(uint32_t mask, uint32_t value);
++enum ggv_gpu_vote { GGV_PLL0, GGV_GPU_DIV };
++bool ggv_gpu_read(enum ggv_gpu_vote, uint32_t *out);
++/* Add exactly PLL0 bit0 or GPU_DIV bit8 and read back; skip an already-held
++ * vote. Preserve every unrelated bit. Success writes the readback to out;
++ * failure leaves out unchanged. No mapping or implicit prepare is performed.
++ */
++bool ggv_gpu_hold(enum ggv_gpu_vote, uint32_t *out);
++#endif
+diff --git a/bsd/dev/gauguin_nvt/kernel-bus/nvt_kernel_bus.c b/bsd/dev/gauguin_nvt/kernel-bus/nvt_kernel_bus.c
+--- a/bsd/dev/gauguin_nvt/kernel-bus/nvt_kernel_bus.c
++++ b/bsd/dev/gauguin_nvt/kernel-bus/nvt_kernel_bus.c
+@@ -25,6 +25,7 @@
+ extern void sweet_log_mark_sync(const char *);
+ #endif
+ #include "nvt_kernel_bus.h"
++#include "../../gauguin_gcc_votes.h"
+ 
+ static LCK_GRP_DECLARE(nvt_bus_group, "gauguin-nvt-bus");
+ static LCK_MTX_DECLARE(nvt_bus_mutex, &nvt_bus_group);
+@@ -45,7 +46,7 @@
+ static const uint32_t nv_pin_values[6] = {0x89, 0x89, 0x85, 0x84, 0x1c3, 0x1c1};
+ static const uint32_t nv_vote_bits[3] = {1u << 6, 1u << 7, 1u << 10};
+ static const uint32_t nv_gates[3] = {0x21004, 0x21008, 0x21144};
+-struct nv_maps { vm_offset_t clock, vote, wrapper, se, pins[6]; };
++struct nv_maps { vm_offset_t clock, wrapper, se, pins[6]; };
+ static struct nv_maps nv_maps;
+ struct nv_pin_save { uint32_t cfg, io, mask; bool touched, io_touched; };
+ struct nvt_bus {
+@@ -144,11 +145,11 @@
+     /* Even a rejected/partial vote removal can gate SE. No SE callback may
+      * run until all required votes and native gate checks succeed again. */
+     b->qualified = false;
+-    if (b->status.added_votes && nv_set(nv_maps.vote, 0, b->status.added_votes, 0)) {
++    if (b->status.added_votes && !ggv_touch_update(b->status.added_votes, 0)) {
+         if (accessible) {
+             bool requalified = true;
+             for (unsigned i = 0; i < 3; i++) {
+-                if (nv_set(nv_maps.vote, 0, nv_vote_bits[i], nv_vote_bits[i]) ||
++                if (!ggv_touch_update(nv_vote_bits[i], nv_vote_bits[i]) ||
+                     !nv_gate(nv_gates[i], i < 2)) { requalified = false; break; }
+             }
+             b->qualified = requalified;
+@@ -244,15 +245,19 @@
+     b->status.generation = ++nv_generation;
+     b->status.state = NVT_BUS_OPEN;
+     int error = ENOMEM;
+-    if (!nv_map(&nv_maps.vote, NV_VOTE_PA, 0x1000) ||
++    if (!ggv_prepare() ||
+         !nv_map(&nv_maps.clock, NV_CLOCK_PA, 0x1000)) goto fail;
+     error = ENOTSUP;
+     if (!nv_clock()) goto fail; /* unknown source: no votes or wrapper/SE access */
+-    b->status.vote_before = nv_read(nv_maps.vote, 0);
++    b->status.vote_before = ggv_touch_read();
++    error = EIO;
++    if (b->status.vote_before == UINT32_MAX) goto fail;
+     for (unsigned i = 0; i < 3; i++) {
+-        if (!(nv_read(nv_maps.vote, 0) & nv_vote_bits[i])) {
++        uint32_t vote = ggv_touch_read();
++        if (vote == UINT32_MAX) goto fail;
++        if (!(vote & nv_vote_bits[i])) {
+             b->status.added_votes |= nv_vote_bits[i];
+-            error = nv_set(nv_maps.vote, 0, nv_vote_bits[i], nv_vote_bits[i]);
++            error = ggv_touch_update(nv_vote_bits[i], nv_vote_bits[i]) ? 0 : EIO;
+             if (error) goto fail;
+         }
+         if (!nv_gate(nv_gates[i], i < 2)) { error = ETIMEDOUT; goto fail; }

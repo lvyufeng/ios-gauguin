@@ -1,0 +1,151 @@
+--- a/bsd/dev/gauguin_probe358.h
++++ b/bsd/dev/gauguin_probe358.h
+@@ -16,10 +16,12 @@
+ struct scan358_request {
+     uint64_t ticket;
+     uint32_t frame;
++    bool retried;
+ };
+ 
+ struct scan358_probe_slot {
+     struct scan358_request request;
++    uint64_t retry_ticket;
+     uint32_t sent;
+ };
+ 
+@@ -29,12 +31,29 @@
+ scan358_offer(struct scan358_probe_slot *slot, uint32_t frame, uint64_t ticket)
+ {
+     const uint32_t step = frame - slot->request.frame;
++    const bool same = slot->sent && !step;
+     if (!ticket || slot->sent >= SCAN358_PROBE_LIMIT ||
+-        (slot->sent && (!step || step >= UINT32_C(0x80000000))))
++        (same && slot->retry_ticket != ticket) ||
++        (slot->sent && step >= UINT32_C(0x80000000)))
+         return false;
+     slot->request.ticket = ticket;
+     slot->request.frame = frame;
++    slot->request.retried = same;
++    slot->retry_ticket = 0;
+     ++slot->sent;
++    return true;
++}
++
++/* Only a failed trylock can be admitted again. A real hardware poll
++ * consumes the scan's opportunity even if its fence is still pending. */
++static inline bool
++scan358_allow_lock_retry(struct scan358_probe_slot *slot, const struct scan358_request *request)
++{
++    if (!request->ticket || request->retried || slot->request.retried ||
++        slot->request.frame != request->frame || slot->request.ticket ||
++        slot->retry_ticket || slot->sent >= SCAN358_PROBE_LIMIT)
++        return false;
++    slot->retry_ticket = request->ticket;
+     return true;
+ }
+ 
+--- a/bsd/dev/gauguin_frame344.h
++++ b/bsd/dev/gauguin_frame344.h
+@@ -9,7 +9,7 @@
+     F344_SWAP = 40, F344_ATTEMPT, F344_RESULT, F344_LOCK, F344_COPY,
+     F344_ISSUE, F344_WRITER, F344_EOP, F344_READY,
+     F344_VBLANK, F344_CRC, F344_TIMING, F351_PRESENT, F352_WAKE, F353_READY, F353_TAKE, F354_PROMOTE, F354_VALIDATE,
+-    F357_BOUND, F357_CALIBRATION, F358_PROBE
++    F357_BOUND, F357_CALIBRATION, F358_PROBE, F366_PROBE_LOCK_RETRY
+ };
+ 
+ #ifdef __cplusplus
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -60,6 +60,21 @@
+     uint64_t ticket;
+     uint32_t version, fence;
+ } gCompletedDisplayWrite;
++/* Published after native issue under gLock. An atomic ticket is only an
++ * eligibility hint; the probe still validates the version under gLock. */
++static uint64_t gIssuedDisplayProbeTicket;
++
++extern "C" uint64_t GauguinGPUDisplayProbeTicket(void)
++{
++    return __atomic_load_n(&gIssuedDisplayProbeTicket, __ATOMIC_ACQUIRE);
++}
++
++static void clearDisplayProbeTicket(uint64_t ticket)
++{
++    if (ticket)
++        __atomic_compare_exchange_n(&gIssuedDisplayProbeTicket, &ticket, 0, false,
++            __ATOMIC_RELEASE, __ATOMIC_RELAXED);
++}
+ /* Pilot access starts only after the existing root test has released its
+  * client following the six native fences. Protected by gLock. */
+ static constexpr uint32_t kPilotRootFences = 6;
+@@ -775,6 +790,7 @@
+ }
+ void GauguinGPUUserClient::cancelDisplayWriter()
+ {
++    clearDisplayProbeTicket(fPendingDisplayTicket);
+     sweet_fb357_finish_writer(fPendingDisplayTicket, fPendingDisplayVersion, 0);
+     fPendingDisplayTicket = 0;
+ }
+@@ -817,6 +833,7 @@
+         /* Fault escrow stays mapped until reset. */
+         return rc==GGR_TIMEOUT?kIOReturnTimeout:kIOReturnNotReady;
+     }
++    clearDisplayProbeTicket(fPendingDisplayTicket);
+     sweet_frame344_record(F344_EOP,fence,0,0,0,0);
+     /* Check every retained alias before clearing any surface or pending BO.
+      * A failed late alias must leave the complete submitted set quarantined. */
+@@ -1127,6 +1144,8 @@
+                 }
+             }
+         }
++        if (ok && fAsync && fPendingDisplayTicket)
++            __atomic_store_n(&gIssuedDisplayProbeTicket, fPendingDisplayTicket, __ATOMIC_RELEASE);
+     }
+ out:
+     io342::phase(0x46,11);
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -411,6 +411,7 @@
+ /* A waiting swap, a ready candidate and an active copy own independent
+  * display references. Owner pointers are only compared under fLock. */
+ extern "C" uint32_t GauguinGPUSurfaceState(SweetSurface *);
++extern "C" uint64_t GauguinGPUDisplayProbeTicket(void);
+ extern "C" uint32_t GauguinGPUSurfaceReadyFence(SweetSurface *, uint64_t, uint32_t, uint32_t *);
+ 
+ struct sweet_fb_frame {
+@@ -600,12 +601,14 @@
+ sweet_fb358_request_probe(uint32_t frame)
+ {
+     if (!__atomic_load_n(&gReadyRetainsIssued, __ATOMIC_ACQUIRE)) return;
++    const uint64_t ticket = GauguinGPUDisplayProbeTicket();
++    if (!ticket) return;
+     IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+     if (!IOLockTryLock(lock)) return;
+     if (gReadySource && scan357_terminal(gReadyWriters) == SCAN357_NONE) {
+         for (const auto &writer : gReadyWriters) {
+             if (!writer.ticket || writer.terminal) continue;
+-            if (scan358_offer(&gReadyProbe, frame, writer.ticket))
++            if (writer.ticket == ticket && scan358_offer(&gReadyProbe, frame, ticket))
+                 gReadySource->interruptOccurred(nullptr, nullptr, 0);
+             break;
+         }
+@@ -1133,9 +1136,16 @@
+         const uint64_t start = probe ? sweet_frame344_clock() : 0;
+         const uint32_t fence = GauguinGPUSurfaceReadyFence(surface, writer.ticket, writer.version,
+             probe ? &outcome : nullptr);
++        bool rearm = false;
++        if (probe && outcome == SCAN358_PROBE_LOCK_BUSY) {
++            IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++            IOLockLock(lock);
++            rearm = gReadyDisplay == this && scan358_allow_lock_retry(&gReadyProbe, probe);
++            IOLockUnlock(lock);
++        }
+         if (start)
+-            sweet_frame344_record(F358_PROBE, probe->frame, outcome, writer.ticket,
+-                ((uint64_t)writer.version << 32) | fence, start);
++            sweet_frame344_record(rearm ? F366_PROBE_LOCK_RETRY : F358_PROBE,
++                probe->frame, outcome, writer.ticket, ((uint64_t)writer.version << 32) | fence, start);
+         surface->release();
+     }
+     if (probe && !surface) return false;

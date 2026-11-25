@@ -1,0 +1,283 @@
+--- a/bsd/dev/gauguin_page_flip.h
++++ b/bsd/dev/gauguin_page_flip.h
+@@ -10,7 +10,12 @@
+     F382_SLOT_BYTES = 0x9e4000,
+     F382_MAX_FLIPS = 1024,
+     F382_CUTOFF_GUARD_LINES = 192,
++    F382_DRAIN_MS = 180, F382_DRAIN_POLLS = 160,
+     F382_WAIT = 0, F382_TOUCHED = 1, F382_CONFIRMED = 2, F382_UNCERTAIN = 3
++};
++
++enum {
++    F382_DRAIN_WAIT = 0, F382_DRAIN_DONE, F382_DRAIN_QUARANTINED
+ };
+ 
+ #ifdef __cplusplus
+@@ -24,7 +29,7 @@
+ bool sweet_frame382_ending(void);
+ unsigned sweet_frame382_issue(unsigned front, unsigned next, uint32_t *scan);
+ unsigned sweet_frame382_latch(unsigned next, uint32_t requested_scan);
+-void sweet_fb382_poll(uint32_t scan);
++unsigned sweet_fb382_poll(uint32_t scan);
+ 
+ #ifdef __cplusplus
+ }
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -749,7 +749,7 @@
+     vm_offset_t map[3];
+     uint32_t address[3], requests;
+     volatile uint32_t *source, *pitch, *sourceXY, *flush;
+-    bool enabled, padded;
++    bool enabled, padded, stop_requested;
+ } scan382;
+ 
+ static bool scan382_route(const struct scan381_state *s)
+@@ -893,10 +893,20 @@
+ 
+ bool sweet_frame382_ending(void)
+ {
++    if (__atomic_load_n(&scan382.stop_requested, __ATOMIC_ACQUIRE) || !frame_active())
++        return true;
+     uint64_t ticks;
+-    nanoseconds_to_absolutetime(NSEC_PER_MSEC * 180, &ticks);
++    nanoseconds_to_absolutetime(NSEC_PER_MSEC * F382_DRAIN_MS, &ticks);
+     const uint64_t now = mach_absolute_time();
+     return now >= frames.end || frames.end - now <= ticks;
++}
++
++/* The owned route remains published until its final latch is confirmed or
++ * the drain times out. Closing the trace ring does not revoke this access. */
++static bool scan382_position(struct scan351_position *position)
++{
++    return __atomic_load_n(&scan351_published, __ATOMIC_ACQUIRE) &&
++        scan351_position(position);
+ }
+ 
+ uintptr_t sweet_frame382_buffer(unsigned slot)
+@@ -910,7 +920,8 @@
+     if (!sweet_frame382_active() || front > F382_SECOND || next > F382_SECOND || front == next ||
+         scan382.requests >= F382_MAX_FLIPS + (next == F382_FRONT))
+         return F382_UNCERTAIN;
+-    if (!sweet_frame351_position(&before) || before.line < SCAN351_OPEN ||
++    if ((next != F382_FRONT && sweet_frame382_ending()) ||
++        !scan382_position(&before) || before.line < SCAN351_OPEN ||
+         before.end < before.line + F382_CUTOFF_GUARD_LINES)
+         return F382_WAIT;
+     const uint32_t oldPitch = f411_pitch(scan382.padded, front);
+@@ -940,7 +951,7 @@
+     const uint32_t sourceXY = *scan382.sourceXY;
+     ml_set_interrupts_enabled(interrupts);
+     if (flush != 1 || source != scan382.address[next] || pitch != nextPitch || sourceXY != nextXY ||
+-        !sweet_frame351_position(&after) || after.frame != before.frame || after.line >= before.end)
++        !scan382_position(&after) || after.frame != before.frame || after.line >= before.end)
+         return F382_UNCERTAIN;
+     *frame = before.frame;
+     return F382_TOUCHED;
+@@ -951,7 +962,7 @@
+     struct scan351_position a, b;
+     if (!sweet_frame382_active() || next > F382_SECOND)
+         return F382_UNCERTAIN;
+-    if (!sweet_frame351_position(&a))
++    if (!scan382_position(&a))
+         return F382_WAIT;
+     const uint32_t delta = a.frame - requested_scan;
+     if (delta > 1)
+@@ -960,7 +971,7 @@
+         return F382_WAIT;
+     const uint32_t flush = *scan382.flush;
+     const uint32_t source = *scan382.source;
+-    if (!sweet_frame351_position(&b) || a.frame != b.frame || a.line > b.line)
++    if (!scan382_position(&b) || a.frame != b.frame || a.line > b.line)
+         return F382_WAIT;
+     if (source != scan382.address[next] || flush & ~1u ||
+         !scan382_live_route(f411_pitch(scan382.padded, next), f411_source_xy(scan382.padded, next)))
+@@ -1380,12 +1391,54 @@
+     if (scan357_enabled && scan.first_blank.signature == signature) scan357_pair(frame, sampled);
+ }
+ 
++static struct {
++    const char *reason;
++    uint64_t deadline;
++    unsigned polls;
++} scan416;
++
++static void scan_poll_again(void)
++{
++    uint64_t deadline;
++    clock_interval_to_deadline(F344_POLL_US, NSEC_PER_USEC, &deadline);
++    thread_call_enter_delayed(scan_call, deadline);
++}
++
++static void scan_finish(const char *reason)
++{
++    if (sweet_frame382_active()) {
++        if (!scan416.reason) {
++            scan416.reason = reason;
++            clock_interval_to_deadline(F382_DRAIN_MS, NSEC_PER_MSEC, &scan416.deadline);
++            __atomic_store_n(&scan382.stop_requested, true, __ATOMIC_RELEASE);
++        }
++        unsigned state = F382_DRAIN_WAIT;
++        if (mach_absolute_time() < scan416.deadline && scan416.polls < F382_DRAIN_POLLS) {
++            ++scan416.polls;
++            state = sweet_fb382_poll(scan.frame);
++            if (state == F382_DRAIN_WAIT) {
++                scan_poll_again();
++                return;
++            }
++        }
++        const char *outcome = "timeout";
++        if (state == F382_DRAIN_DONE) outcome = "restored";
++        else if (state == F382_DRAIN_QUARANTINED) outcome = "quarantined";
++        printf("SWEET F416 DRAIN: cause=%s result=%s polls=%u\n", reason, outcome, scan416.polls);
++    }
++    scan_stop(reason);
++}
++
+ static void scan_poll(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+ {
+     const uint64_t tick = mach_absolute_time();
++    if (scan416.reason) {
++        scan_finish(scan416.reason);
++        return;
++    }
+     if (scan357_enabled) scan357_finish_if_expired(tick);
+     if (!frame_active() || tick >= frames.end || scan.polls >= F344_POLL_LIMIT) {
+-        scan_stop("deadline");
++        scan_finish("deadline");
+         return;
+     }
+     ++scan.polls;
+@@ -1403,7 +1456,7 @@
+     scan.last_gate = gate;
+     if (gate != SCAN345_OK) {
+         if (scan.configured || scan.counter_attempted || expired) {
+-            scan_stop("route");
++            scan_finish("route");
+             return;
+         }
+         scan.have_frame = false;
+@@ -1475,9 +1528,7 @@
+             if (blank_read) ++scan.crc_rejected;
+         }
+     }
+-    uint64_t deadline;
+-    clock_interval_to_deadline(F344_POLL_US, NSEC_PER_USEC, &deadline);
+-    thread_call_enter_delayed(scan_call, deadline);
++    scan_poll_again();
+ }
+ 
+ static void start_manual_preview(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -526,7 +526,8 @@
+     static void stage384Fired(OSObject *, IOInterruptEventSource *, int);
+     bool acquireScanoutProbe415(unsigned, scanout415_lease *);
+     uint64_t releaseScanoutProbe415(bool);
+-    void flip382Poll(uint32_t scan);
++    bool flip382EndingLocked() const;
++    unsigned flip382Poll(uint32_t scan);
+     void flip382AdvanceLocked(uint32_t scan, bool fromStaging = false);
+     uintptr_t flip382Begin(const struct sweet_fb_frame *, uint64_t, uint64_t, bool, bool *);
+     void flip382Finish(const struct sweet_fb_frame *, uint64_t, uint64_t);
+@@ -795,7 +796,7 @@
+     uint32_t physical[2] = {};
+     const bool idle = !fFlip382.closed && fFlip382.stage == sweet_fb_flip382::Idle &&
+         !fHeldStopped && !fPowerOff && !fCalibrating && !fHeldActive && !fHeldReady.owner &&
+-        !sweet_frame382_ending() && !(attempted & (1u << slot));
++        !flip382EndingLocked() && !(attempted & (1u << slot));
+     const uintptr_t cpu = idle ? sweet_frame382_buffer(slot) : 0;
+     const bool acquired = cpu && sweet_frame414_reserved_physical(physical) &&
+         scanout383.memory[index] && scanout383.memory[index]->getLength() == F411_SLOT_BYTES &&
+@@ -849,17 +850,18 @@
+     return released;
+ }
+ 
+-extern "C" void
++extern "C" unsigned
+ sweet_fb382_poll(uint32_t frame)
+ {
+     IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+-    if (!lock || !IOLockTryLock(lock)) return;
++    if (!lock || !IOLockTryLock(lock)) return F382_DRAIN_WAIT;
+     auto *display = gReadyDisplay;
+     if (display) display->retain();
+     IOLockUnlock(lock);
+-    if (!display) return;
+-    display->flip382Poll(frame);
++    if (!display) return F382_DRAIN_WAIT;
++    const unsigned state = display->flip382Poll(frame);
+     display->release();
++    return state;
+ }
+ 
+ extern "C" unsigned
+@@ -2227,8 +2229,7 @@
+     return stage384EnabledLocked() && fHeldReady.owner && fHeldReady.ready.observed &&
+         blankEnabledLocked() &&
+         !fHeldActive && !fCalibrating && fFlip382.stage == sweet_fb_flip382::Idle &&
+-        fFlip382.copies < F382_MAX_FLIPS && mach_absolute_time() >= fStage384PauseUntil &&
+-        !sweet_frame382_ending();
++        mach_absolute_time() >= fStage384PauseUntil && !flip382EndingLocked();
+ }
+ 
+ void
+@@ -2261,12 +2262,22 @@
+     IOLockUnlock(fb->fLock);
+ }
+ 
+-void
++bool
++AppleCLCD::flip382EndingLocked() const
++{
++    return fFlip382.copies >= F382_MAX_FLIPS || sweet_frame382_ending();
++}
++
++unsigned
+ AppleCLCD::flip382Poll(uint32_t scan)
+ {
+-    if (!IOLockTryLock(fLock)) return;
++    if (!IOLockTryLock(fLock)) return F382_DRAIN_WAIT;
+     flip382AdvanceLocked(scan);
++    unsigned state = F382_DRAIN_WAIT;
++    if (fFlip382.closed) state = F382_DRAIN_DONE;
++    else if (fFlip382.stage == sweet_fb_flip382::Quarantined) state = F382_DRAIN_QUARANTINED;
+     IOLockUnlock(fLock);
++    return state;
+ }
+ 
+ void
+@@ -2300,12 +2311,14 @@
+         }
+         flip.receipt = {};
+         flip.closed = flip.front == F382_FRONT;
++        if (flip.closed)
++            IOLog("SWEET F416 FRONT: copies=%u consumed=%llu\n", flip.copies, fHeldConsumed);
+         signalStage384Locked();
+         return;
+     }
+     if (fHeldActive || fCalibrating || flip.stage == sweet_fb_flip382::Copying ||
+         flip.stage == sweet_fb_flip382::GPUProbe) return;
+-    if (sweet_frame382_ending()) {
++    if (flip382EndingLocked()) {
+         if (fromStaging) return;
+         if (flip.front == F382_FRONT) {
+             flip.closed = true;
+@@ -2348,8 +2361,7 @@
+     auto &flip = fFlip382;
+     uintptr_t dst = 0;
+     if (!flip.closed) {
+-        if (flip.stage != sweet_fb_flip382::Idle || sweet_frame382_ending() ||
+-            flip.copies >= F382_MAX_FLIPS || fHeldStopped || fPowerOff ||
++        if (flip.stage != sweet_fb_flip382::Idle || flip382EndingLocked() || fHeldStopped || fPowerOff ||
+             (early && (!fHeldRetryEpoch || frame->retryEpoch != fHeldRetryEpoch))) {
+             *blocked = true;
+         } else if ((!early && blankFrame == UINT64_MAX) || !attempt || !frame->ready.observed ||
+@@ -2600,6 +2612,7 @@
+ AppleCLCD::takeHeldFrameLocked(struct sweet_fb_frame *frame, struct sweet_fb_frame *candidate)
+ {
+     if (!fHoldPresent || fHeldStopped || !fDirty || fHeldActive || fCalibrating) return false;
++    if (sweet_frame382_active() && !fFlip382.closed && flip382EndingLocked()) return false;
+     if (!candidate) candidate = fHeldReady.owner ? &fHeldReady : &fHeldPending;
+     if (!candidate->owner || (fReadyAcrossFrames && candidate->generation < fHeldLastTaken))
+         return false;

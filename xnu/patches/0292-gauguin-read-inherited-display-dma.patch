@@ -1,0 +1,187 @@
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -302,6 +302,176 @@
+         }
+     }
+     if (scan367.attempts == F367_MAX_ATTEMPTS) scan367_finish("unstable");
++}
++
++/* Read-only handoff snapshot. The downstream recovery probed this APPS
++ * SMMU and reported 71 groups. This does not inspect page tables or
++ * program streams, and a recovery mapping is not inherited evidence. */
++enum {
++    F381_APPS = 0x15000000, F381_APPS_SIZE = 0x100000, F381_GROUPS = 71,
++    F381_SCAN_SAMPLES = 3, F381_MAX_SAMPLES = 8
++};
++
++struct scan381_stream {
++    uint32_t matches, index, smr, s2cr;
++    uint32_t cbar, sctlr;
++};
++
++struct scan381_state {
++    uint32_t id0, id1, id2, control, secure, source[4];
++    uint32_t groups[F381_GROUPS][2];
++    struct scan381_stream streams[2];
++};
++
++static struct {
++    struct scan381_state stable;
++    vm_offset_t global;
++    vm_offset_t pages[3];
++    uint32_t physical[3], page_count;
++    uint32_t attempts, count, first, last;
++    bool done;
++} scan381;
++
++static void scan381_finish(const char *status)
++{
++    scan381.done = true;
++    printf("SWEET F381 DMA: status=%s attempts=%u samples=%u first=%u last=%u extra_mmio_writes=0\n",
++        status, scan381.attempts, scan381.count, scan381.first, scan381.last);
++}
++
++static const volatile uint32_t *scan381_word(uint32_t pa)
++{
++    if ((pa & 3) != 0 || pa < F381_APPS || pa > F381_APPS + F381_APPS_SIZE - sizeof(uint32_t))
++        return NULL;
++    const uint32_t page = pa & ~(F344_PAGE - 1u);
++    if (page == F381_APPS)
++        return (const volatile uint32_t *)(scan381.global + (pa - page));
++    for (uint32_t i = 0; i < scan381.page_count; ++i)
++        if (scan381.physical[i] == page)
++            return scan381.pages[i] ? (const volatile uint32_t *)(scan381.pages[i] + (pa - page)) : NULL;
++    if (scan381.page_count == sizeof(scan381.pages) / sizeof(scan381.pages[0]))
++        return NULL;
++    const uint32_t i = scan381.page_count++;
++    scan381.physical[i] = page;
++    const vm_offset_t mapping = ml_io_map_with_prot(page, F344_PAGE, VM_PROT_READ);
++    if (!mapping || ml_vtophys(mapping) != page ||
++        ml_vtophys(mapping + F344_PAGE - 1) != page + F344_PAGE - 1)
++        return NULL;
++    scan381.pages[i] = mapping;
++    return (const volatile uint32_t *)(mapping + (pa - page));
++}
++
++static bool scan381_capture(struct scan381_state *s)
++{
++    const volatile uint32_t *pipe = (const volatile uint32_t *)(scan367.pages[0] + 0x1000);
++    s->secure = pipe[0x70 / 4];
++    for (unsigned i = 0; i < 4; ++i)
++        s->source[i] = pipe[0x14 / 4 + i];
++    if (s->secure != 0 || s->source[0] != 0xa0000000 ||
++        s->source[1] || s->source[2] || s->source[3] ||
++        scan_mdp[0x2018 / 4] != 0)
++        return false;
++
++    const volatile uint32_t *reg = (const volatile uint32_t *)scan381.global;
++    s->control = reg[0];
++    s->id0 = reg[0x20 / 4];
++    s->id1 = reg[0x24 / 4];
++    s->id2 = reg[0x28 / 4];
++    if ((s->id0 & ((1u << 27) | 255)) != ((1u << 27) | F381_GROUPS) ||
++        s->control == UINT32_MAX || s->id1 == UINT32_MAX || s->id2 == UINT32_MAX)
++        return false;
++    const bool extended = (s->control & (1u << 3)) != 0;
++    if (extended && !(s->id0 & (1u << 8))) return false;
++    const uint32_t mask = extended ? 0xffff : 0x7fff;
++    for (unsigned i = 0; i < F381_GROUPS; ++i) {
++        const uint32_t smr = reg[0x800 / 4 + i];
++        const uint32_t s2cr = reg[0xc00 / 4 + i];
++        s->groups[i][0] = smr;
++        s->groups[i][1] = s2cr;
++        if (!(extended ? s2cr & (1u << 10) : smr >> 31))
++            continue;
++        for (unsigned j = 0; j < 2; ++j) {
++            const uint32_t sid = 0x800 + j * 2;
++            if ((smr ^ sid) & mask & ~((smr >> 16) & mask)) continue;
++            struct scan381_stream *stream = &s->streams[j];
++            ++stream->matches;
++            stream->index = i;
++            stream->smr = smr;
++            stream->s2cr = s2cr;
++        }
++    }
++
++    const uint32_t stride = (s->id1 & (1u << 31)) ? 0x10000 : 0x1000;
++    const uint32_t banks = s->id1 & 255;
++    const uint32_t pages = 2u << ((s->id1 >> 28) & 7);
++    for (unsigned j = 0; j < 2; ++j)
++        s->streams[j].cbar = s->streams[j].sctlr = UINT32_MAX;
++    if (stride * pages != F381_APPS_SIZE / 2 ||
++        (uint64_t)stride * banks > F381_APPS_SIZE / 2)
++        return true; /* Global observation remains valid. */
++    for (unsigned j = 0; j < 2; ++j) {
++        struct scan381_stream *stream = &s->streams[j];
++        const uint32_t bank = stream->s2cr & 255;
++        if (stream->matches != 1 || stream->s2cr & (3u << 16) ||
++            bank >= banks || bank < ((s->id1 >> 16) & 255))
++            continue;
++        const volatile uint32_t *cbar = scan381_word(F381_APPS + stride + bank * 4);
++        const volatile uint32_t *sctlr = scan381_word(F381_APPS + F381_APPS_SIZE / 2 + bank * stride);
++        if (!cbar || !sctlr) continue;
++        stream->cbar = *cbar;
++        stream->sctlr = *sctlr;
++    }
++    return true;
++}
++
++static void scan381_poll(uint32_t frame)
++{
++    if (scan381.done || !scan367.done || scan367.samples != F367_SAMPLES ||
++        (scan381.attempts && frame == scan381.last)) return;
++    if (scan367.snapshot.ctl[0][0] != 0 || scan367.snapshot.ctl[0][2] != 2 ||
++        scan367.snapshot.ctl[0][3] != 0x01000005 || scan367.snapshot.pipe[0][4] != 0xa0000000 ||
++        scan367.snapshot.pipe[0][0] != 0x09600438 || scan367.snapshot.pipe[0][5] != 4320) {
++        scan381_finish("route-differs");
++        return;
++    }
++    if (!scan381.global) {
++        scan381.global = ml_io_map_with_prot(F381_APPS, F344_PAGE, VM_PROT_READ);
++        if (!scan381.global || ml_vtophys(scan381.global) != F381_APPS ||
++            ml_vtophys(scan381.global + F344_PAGE - 1) != F381_APPS + F344_PAGE - 1) {
++            scan381_finish("map-failed");
++            return;
++        }
++    }
++    ++scan381.attempts;
++    scan381.last = frame;
++    struct scan351_position first, last;
++    uint64_t duration_ns = UINT64_MAX;
++    struct scan381_state sample = {0};
++    if (scan351_position(&first) && first.frame == frame && scan381_capture(&sample) &&
++        scan351_position(&last) && last.frame == frame && first.line <= last.line &&
++        first.tick <= last.tick)
++        absolutetime_to_nanoseconds(last.tick - first.tick, &duration_ns);
++    if (duration_ns <= UINT64_C(1000000)) {
++        if (!scan381.count || memcmp(&scan381.stable, &sample, sizeof(sample))) {
++            scan381.stable = sample;
++            scan381.first = frame;
++            scan381.count = 0;
++        }
++        if (++scan381.count == F381_SCAN_SAMPLES) {
++            const struct scan381_state *s = &scan381.stable;
++            printf("SWEET F381 APPS: id0=%08x id1=%08x id2=%08x control=%08x secure=%08x groups=%d\n",
++                s->id0, s->id1, s->id2, s->control, s->secure, F381_GROUPS);
++            for (unsigned j = 0; j < 2; ++j) {
++                const struct scan381_stream *stream = &s->streams[j];
++                printf("SWEET F381 STREAM: sid=%03x matches=%u index=%u smr=%08x s2cr=%08x cbar=%08x sctlr=%08x\n",
++                    0x800 + j * 2, stream->matches, stream->index, stream->smr, stream->s2cr,
++                    stream->cbar, stream->sctlr);
++            }
++            scan381_finish("stable");
++            return;
++        }
++    }
++    if (scan381.attempts == F381_MAX_SAMPLES) scan381_finish("unstable");
+ }
+ 
+ static void scan_report(enum scan345_gate gate, const struct scan345_status *s)
+@@ -764,6 +934,7 @@
+             scan.frame = frame;
+             scan.last_tick = before;
+             if (scan357_enabled) scan367_poll(frame);
++            if (phase380_enabled) scan381_poll(frame);
+             if (scan357_enabled && scan358_probe_line(line) && sweet_frame351_window())
+                 sweet_fb358_request_probe(frame);
+         } else if (scan.counter_readonly) {

@@ -1,0 +1,161 @@
+--- a/include/hakios-metal/pm4.hpp
++++ b/include/hakios-metal/pm4.hpp
+@@ -78,6 +78,13 @@
+     void packet(uint32_t opcode, const uint32_t* prefix, uint32_t prefixCount,
+                 const uint32_t* data, uint32_t count, uint32_t zeroWords);
+ 
++    // Both streams are encoder-owned. Copy a whole-packet range from a
++    // distinct stream without decoding the payload or rebuilding its headers.
++    void appendEncoded(const Stream& from, size_t first, size_t count) {
++        const auto start = from.words_.begin() + first;
++        words_.insert(words_.end(), start, start + count);
++    }
++
+     const std::vector<uint32_t>& words() const { return words_; }
+     size_t size() const { return words_.size(); }
+     void clear() { words_.clear(); }
+--- a/src/Recording342.hpp
++++ b/src/Recording342.hpp
+@@ -30,11 +30,15 @@
+         const uint64_t stop=ended && ended<at ? ended : at;
+         return running && stop>=start ? stop-start : 0;
+     }
+-    uint64_t snapshot(uint64_t at) const noexcept { return completed+partial(at); }
+-    Values snapshotCategories(uint64_t at) const noexcept {
+-        Values result=completedByClass;
+-        result[category]+=partial(at);
+-        return result;
++    // Admission holds the recorder mutex. The worker can still publish end
++    // while outside that mutex, so both prefixes must share this one read.
++    uint64_t snapshot(uint64_t at, Values* classes = nullptr) const noexcept {
++        const uint64_t active = partial(at);
++        if (classes) {
++            *classes = completedByClass;
++            (*classes)[category] += active;
++        }
++        return completed + active;
+     }
+     void begin(uint64_t at,unsigned kind) noexcept {
+         category=kind<CategoryCount?kind:Control;
+--- a/src/c_api.cpp
++++ b/src/c_api.cpp
+@@ -120,8 +120,13 @@
+             auto& admitted=state->jobs.back();
+             admitted.sequence=++state->sequence;
+             admitted.enqueued=gauguin338::nowNs();
+-            admitted.busyPrefix=state->meter.snapshot(admitted.enqueued);
+-            if (kind==1) queued342(cb,admitted.sequence,state->meter.snapshotCategories(admitted.enqueued));
++            if (kind == 1) {
++                gauguin342::Values prefix;
++                admitted.busyPrefix = state->meter.snapshot(admitted.enqueued, &prefix);
++                queued342(cb, admitted.sequence, prefix);
++            } else {
++                admitted.busyPrefix = state->meter.snapshot(admitted.enqueued);
++            }
+             // No increment can survive a failed insertion. The worker takes
+             // the same mutex before it can see the newly admitted job.
+             state->jobs.back().pending->fetch_add(1);
+--- a/src/render.cpp
++++ b/src/render.cpp
+@@ -1832,14 +1832,13 @@
+               vfdControl1(vs.vertexIdRegid, vs.instanceIdRegid, kRegidNone, kRegidNone), vfdControl2None(), vfdControl3None(), vfdControl4None(),
+               vfdControl5None(), 0});
+         if (fetch.count != 0) {
+-            std::vector<uint32_t> dec, dst;
++            uint32_t dec[2 * kMaxVertexAttributes];
+             for (uint32_t loc = 0; loc < fetch.count; loc++) {
+-                dec.push_back(fetch.decode[loc]);
+-                dec.push_back(fetch.stepRate[loc]);
+-                dst.push_back(fetch.dest[loc]);
+-            }
+-            stream.registers(REG_A6XX_VFD_DECODE_INSTR, dec.data(), uint32_t(dec.size()));
+-            stream.registers(REG_A6XX_VFD_DEST_CNTL_INSTR, dst.data(), uint32_t(dst.size()));
++                dec[2 * loc] = fetch.decode[loc];
++                dec[2 * loc + 1] = fetch.stepRate[loc];
++            }
++            stream.registers(REG_A6XX_VFD_DECODE_INSTR, dec, 2 * fetch.count);
++            stream.registers(REG_A6XX_VFD_DEST_CNTL_INSTR, fetch.dest, fetch.count);
+             for (uint32_t bi = 0; bi < kMaxVertexBuffers; bi++) {
+                 if (!fetch.used[bi]) continue;
+                 regs(stream, regVfdFetchBase(bi), {uint32_t(fetch.base[bi]), uint32_t(fetch.base[bi] >> 32), fetch.size[bi], fetch.stride[bi]});
+@@ -1941,10 +1940,12 @@
+         // (a depth written by the stage, into a pass with a depth attachment: its register, and FRAG_WRITES_Z, as
+         // tu6_emit_fs_outputs sets them for a stage writing FRAG_RESULT_DEPTH)
+         const bool fragDepth = fs.depthRegid != kRegidNone && pass.depth != nullptr;
+-        std::vector<uint32_t> out = {components, spFsOutputCntl0(fragDepth ? fs.depthRegid : kRegidNone, kRegidNone, kRegidNone, dual),
+-                                     A6XX_SP_FS_OUTPUT_CNTL1_MRT(numRt)};
+-        for (uint32_t i = 0; i < numOut; i++) out.push_back(spFsOutputReg(fs.colorRegid[i], fs.colorHalf[i] != 0));
+-        stream.registers(REG_A6XX_SP_FS_RENDER_COMPONENTS, out.data(), uint32_t(out.size()));
++        uint32_t out[3 + kMaxColorOutputs] = {
++            components, spFsOutputCntl0(fragDepth ? fs.depthRegid : kRegidNone, kRegidNone, kRegidNone, dual),
++            A6XX_SP_FS_OUTPUT_CNTL1_MRT(numRt),
++        };
++        for (uint32_t i = 0; i < numOut; i++) out[3 + i] = spFsOutputReg(fs.colorRegid[i], fs.colorHalf[i] != 0);
++        stream.registers(REG_A6XX_SP_FS_RENDER_COMPONENTS, out, 3 + numOut);
+         regs(stream, REG_A6XX_RB_FS_OUTPUT_CNTL0, {(fragDepth ? A6XX_RB_FS_OUTPUT_CNTL0_FRAG_WRITES_Z : 0u) | (dual ? A6XX_RB_FS_OUTPUT_CNTL0_DUAL_COLOR_IN_ENABLE : 0u),
+                                                    A6XX_RB_FS_OUTPUT_CNTL1_MRT(numRt), components});
+     }
+@@ -2702,20 +2703,11 @@
+ 
+ }  // namespace render
+ 
+-// a pass's words onto the command buffer's stream, packet by packet, behind a NOP that marks where an encoder began
+-// (for whoever reads the stream back)
++// The marker stays at each encoder boundary. Every source packet is
++// already encoded by Stream, with the original addresses and order.
+ void appendStream(pm4::Stream& to, const pm4::Stream& from) {
+-    const std::vector<uint32_t>& w = from.words();
+-    to.packet(pm4::kNop, nullptr, 0);
+-    for (size_t i = 0; i < w.size();) {
+-        pm4::Header h = pm4::decode(w[i]);
+-        if (h.kind == pm4::Header::kRegisters) {
+-            to.registers(h.reg, &w[i + 1], h.count);
+-        } else {
+-            to.packet(h.opcode, h.count ? &w[i + 1] : nullptr, h.count);
+-        }
+-        i += 1 + h.count;
+-    }
++    to.nop();
++    to.appendEncoded(from, 0, from.size());
+ }
+ 
+ // appendStream for the draws of one pass, leaving out every register write that puts the value the register already
+@@ -2728,7 +2720,7 @@
+     bool forgot = false;
+     using namespace a6xx;
+     const std::vector<uint32_t>& w = from.words();
+-    to.packet(pm4::kNop, nullptr, 0);
++    to.nop();
+     for (size_t i = 0; i < w.size();) {
+         pm4::Header h = pm4::decode(w[i]);
+         if (h.kind == pm4::Header::kRegisters) {
+@@ -2744,7 +2736,11 @@
+                     runLen = 0;
+                 }
+             }
+-            if (runLen != 0) to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
++            if (runLen == h.count) {
++                to.appendEncoded(from, i, 1 + h.count);
++            } else if (runLen != 0) {
++                to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
++            }
+         } else {
+             switch (h.opcode) {
+             case pm4::kNop: case CP_WAIT_MEM_GTE: case CP_SKIP_IB2_ENABLE_GLOBAL: case CP_WAIT_FOR_IDLE: case CP_LOAD_STATE6_GEOM:
+@@ -2757,7 +2753,7 @@
+                 forgot = true;
+                 break;
+             }
+-            to.packet(h.opcode, h.count ? &w[i + 1] : nullptr, h.count);
++            to.appendEncoded(from, i, 1 + h.count);
+         }
+         i += 1 + h.count;
+     }
+@@ -3232,6 +3228,7 @@
+ 
+ // the open pass's tail: what puts its colour and depth in memory, before anything else is recorded or the buffer runs
+ bool CommandBuffer::append(CommandBuffer& other) {
++    if (&other == this) return fail("append a command buffer to itself");
+     if (status_ > kEnqueued || other.status_ > kEnqueued) {
+         return fail("append after commit");
+     }

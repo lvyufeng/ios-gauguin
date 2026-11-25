@@ -1,0 +1,112 @@
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -439,16 +439,17 @@
+     }
+     *out=table;return true;
+ }
+-static enum gmf_result dcvs(struct gmf_context *c)
++static enum gmf_result dcvs(struct gmf_context *c,bool profile355)
+ {
+     c->dcvs_started=1;
+     if(!rd(c,GMF_CSR,C(0x1f992),&c->dcvs_before))return GMF_IO;
+     if(c->dcvs_before&0x80008000u)return GMF_INHERITED;
+-    /* Native gmu_dcvs_set maps Linux active pwrlevel5 to ascending PERF1.
+-     * The SAME selected253MHz DT row specifies BW5 (min4,max7), not BW1.
+-     * Native mailbox words1cbfc..1cbff lie inside retained TCM, not CSR. */
++    /* Fixed native profiles from the same captured active DT: default
++     * Linux level5 -> PERF1/253MHz/BW5; opt-in level4 -> PERF2/355MHz/BW7.
++     * PERF already contains ARC128/GX2/MX3 for355, BW7 is3072000000Bps.
++     * No caller-provided votes. Mailbox/OOB order and every guard unchanged. */
+     const uint32_t off[]={T(0x1cbfc),T(0x1cbfd),T(0x1cbfe)};
+-    const uint32_t value[]={0,0x30000001,0x00005005};
++    const uint32_t value[]={0,profile355?0x30000002u:0x30000001u,profile355?0x00007007u:0x00005005u};
+     for(unsigned n=0;n<3;n++)if(!barrier(c)||!wr(c,GMF_TCM,off[n],value[n]))return GMF_IO;
+     c->dcvs_trigger_attempted=1;
+     if(!barrier(c)||!wr(c,GMF_CSR,C(0x1f994),1u<<23))return GMF_IO;
+@@ -468,9 +469,9 @@
+     c->dcvs_valid=1;return GMF_OK;
+ }
+ static enum gmf_result bootstrap(struct gmf_context *c,const struct gmf_ops *ops,
+-    const struct gmf_plan *plan,struct gmf_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool request_dcvs)
+-{
+-    if((request_dcvs&&!bw)||!c||!span(ops,sizeof(*ops))||!span(out,sizeof(*out))||!span(plan,sizeof(*plan))||
++    const struct gmf_plan *plan,struct gmf_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool request_dcvs,bool profile355)
++{
++    if((profile355&&!request_dcvs)||(request_dcvs&&!bw)||!c||!span(ops,sizeof(*ops))||!span(out,sizeof(*out))||!span(plan,sizeof(*plan))||
+        overlap(plan,sizeof(*plan),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
+        overlap(out,sizeof(*out),plan,sizeof(*plan))||overlap(out,sizeof(*out),ops,sizeof(*ops))||
+        !gmf_plan_valid(plan)||!ops->guard||!ops->read||!ops->write||
+@@ -521,20 +522,23 @@
+         c->test_started=1;rc=request(c,&test,1,c->test_ack,3);
+         if(!rc)c->test_valid=1;
+     }
+-    if(!rc&&request_dcvs)rc=dcvs(c);
++    if(!rc&&request_dcvs)rc=dcvs(c,profile355);
+     if(!rc&&!guard(c))rc=GMF_IO;c->work.phase=c->phase;
+     if(!rc){c->phase=GMF_DONE;c->work.phase=GMF_DONE;*out=c->work;}
+     __atomic_store_n(&c->state,rc?3:2,__ATOMIC_RELEASE);return rc;
+ }
+ enum gmf_result gmf_bootstrap_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,struct gmf_receipt *out)
+-{return bootstrap(c,ops,plan,out,false,NULL,false);}
++{return bootstrap(c,ops,plan,out,false,NULL,false,false);}
+ enum gmf_result gmf_bootstrap_perf_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,struct gmf_receipt *out)
+-{return bootstrap(c,ops,plan,out,true,NULL,false);}
++{return bootstrap(c,ops,plan,out,true,NULL,false,false);}
+ enum gmf_result gmf_bootstrap_bw_test_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
+-{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,false);}
++{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,false,false);}
+ enum gmf_result gmf_bootstrap_dcvs_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
+-{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,true);}
++{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,true,false);}
++enum gmf_result gmf_bootstrap_dcvs355_once(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
++{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,true,true);}
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -146,4 +146,9 @@
+  * measured rate, dynamic governor, GPU execution or Metal qualification. */
+ enum gmf_result gmf_bootstrap_dcvs_once(struct gmf_context *,const struct gmf_ops *,
+     const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
++/* Adjacent active-DT profile only:355MHz PERF2/BW7. The same once-state,
++ * native six stores, deadline, guards and quarantine apply. No governor,
++ * frequency measurement or additional transaction. Context/receipt ABI unchanged. */
++enum gmf_result gmf_bootstrap_dcvs355_once(struct gmf_context *,const struct gmf_ops *,
++    const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
+ #endif
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -763,6 +763,10 @@
+ static enum gmb_result gfw_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool dcvs,bool gpu,bool sqe)
+ {
++    int profile=0;PE_parse_boot_argn("gpf",&profile,sizeof(profile));
++    /* Omitted/0 retains253MHz. Unknown values or a non-DCVS entry refuse
++     * before the once-state or any firmware board operation is acquired. */
++    if((profile!=0&&profile!=2)||(profile&&!dcvs))return GMB_ARGUMENT;
+     if((sqe&&!gpu)||(gpu&&!dcvs)||(dcvs&&!bw)||!stage||!out||!gmf_plan_valid(plan)||(bw&&(!perf||!gmf_bw_plan_valid(bw))))return GMB_ARGUMENT;
+     unsigned expected=GMB_IDLE;
+     if(!__atomic_compare_exchange_n(&gfw_lifecycle,&expected,GMB_RUNNING,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMB_ALREADY;
+@@ -795,7 +799,8 @@
+     }
+     struct gmf_ops ops={NULL,gfw_guard,gfw_read,gfw_write,gmb_barrier,gfw_delay,
+         gfw_asset_view,gfw_copy,gfw_shared_read,gfw_shared_write};
+-    gfw_work.result=dcvs?gmf_bootstrap_dcvs_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++    gfw_work.result=dcvs?(profile==2?gmf_bootstrap_dcvs355_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++        gmf_bootstrap_dcvs_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware)):
+         bw?gmf_bootstrap_bw_test_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
+         perf?gmf_bootstrap_perf_once(&gfw_context,&ops,plan,&gfw_work.firmware):
+         gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
+@@ -829,7 +834,8 @@
+         snprintf(line,sizeof(line),"SWEET GMU TEST: complete request=00500105 words=1 ack=%08x/%08x/%08x; native legacy startup only",gfw_context.test_ack[0],gfw_context.test_ack[1],gfw_context.test_ack[2]);gmb_record(line);
+     }
+     if(dcvs){
+-        gmb_record("SWEET GMU DCVS: request perf_index=1 hz=253000000 bw_index=5 Bps=2188000000 option=00000000 perf=30000001 bw=00005005; requested, not measured");
++        if(profile==2)gmb_record("SWEET GMU DCVS: request perf_index=2 hz=355000000 bw_index=7 Bps=3072000000 option=00000000 perf=30000002 bw=00007007; requested, not measured");
++        else gmb_record("SWEET GMU DCVS: request perf_index=1 hz=253000000 bw_index=5 Bps=2188000000 option=00000000 perf=30000001 bw=00005005; requested, not measured");
+         snprintf(line,sizeof(line),"SWEET GMU DCVS: complete before=%08x ack=%08x cleared=%08x return=%08x; native register/OOB request only",gfw_context.dcvs_before,gfw_context.dcvs_ack,gfw_context.dcvs_cleared,gfw_context.dcvs_return);gmb_record(line);
+     }
+     return GMB_OK;

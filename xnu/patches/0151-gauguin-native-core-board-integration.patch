@@ -1,0 +1,207 @@
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -212,13 +212,13 @@
+                 else if(perf)bcm_record("SWEET GMU BOOT: PERF diagnostic done; awaiting watchdog reset; no BW/TEST/normal HFI_ON/GPU commands/Metal");
+                 else bcm_record("SWEET GMU BOOT: INIT/version diagnostic done; awaiting watchdog reset; no normal HFI_ON/GPU commands/Metal");
+                 if(start){
+-                    struct ggx_receipt core;
+-                    enum ggx_result core_result=sweet_gpu_start_once(&core);
+-                    if(core_result!=GGX_OK){
+-                        if(sweet_gpu_start_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+-                        snprintf(line,sizeof(line),"SWEET GPU START BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)core_result,(unsigned)sweet_gpu_start_state());bcm_record(line);return;
++                    struct ggc_receipt core;
++                    enum ggc_result core_result=sweet_gpu_core_once(&core);
++                    if(core_result!=GGC_OK){
++                        if(sweet_gpu_core_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
++                        snprintf(line,sizeof(line),"SWEET GPU CORE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)core_result,(unsigned)sweet_gpu_core_state());bcm_record(line);return;
+                     }
+-                    bcm_record("SWEET GPU START BOOT: native MMU/OOB/core reads done; GPU requests held; awaiting watchdog reset; no commands/Metal");
++                    bcm_record("SWEET GPU CORE BOOT: native core/restore configuration done; GPU requests held; awaiting watchdog reset; no CP commands/Metal");
+                 }
+             }else{
+                 bcm_record("SWEET BCM BOOT: GMU clock trial done; requests retained; awaiting watchdog reset; no firmware/reset-release/PAS/GX operation");
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -793,4 +793,163 @@
+     *out=ggx_work;__atomic_store_n(&ggx_board_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggx_records(true);return GGX_OK;
+ }
+ 
++/* Live native A619 core setup. All original cold/GGX APIs retain their scope. */
++static unsigned ggc_board_lifecycle,ggc_board_phase,ggc_maps_ready,ggc_created;
++static uint64_t ggc_deadline,ggc_phase_deadline;
++static vm_offset_t ggc_alias[10];
++static struct ggc_context ggc_context;
++static struct ggc_receipt ggc_work;
++static enum ggc_result ggc_result;
++enum gmb_state sweet_gpu_core_state(void)
++{return (enum gmb_state)__atomic_load_n(&ggc_board_lifecycle,__ATOMIC_ACQUIRE);}
++static bool ggc_nc_valid(void)
++{
++    if(!gmb_ram||!ggp_plan_valid(&ggb_plan)||gmb_ram>UINTPTR_MAX-(GGM_REGION_BYTES-GMB_PAGE-1))return false;
++    const struct ggp_region *r=&ggb_plan.region[GGP_REGLIST];
++    vm_offset_t va=gmb_ram+r->offset-GMB_PAGE;uint64_t pa=gmb_stage.pa+r->offset;
++    ppnum_t pn=(ppnum_t)(pa>>PAGE_SHIFT);
++    return !(va&(GMB_PAGE-1))&&!pmap_valid_page(pn)&&pmap_cache_attributes(pn)==UINT32_C(0xd0000006)&&
++        ml_vtophys(va)==pa&&ml_vtophys(va+GMB_PAGE-1)==pa+GMB_PAGE-1;
++}
++static bool ggc_board_guard(void *cookie,enum ggc_phase phase)
++{
++    (void)cookie;
++    if(phase<GGC_BUS||phase>GGC_FINAL||phase<ggc_board_phase||phase>ggc_board_phase+1)return false;
++    if(phase!=ggc_board_phase){ggc_board_phase=phase;clock_interval_to_deadline(4,NSEC_PER_SEC,&ggc_phase_deadline);}
++    uint32_t gx,irq[3];
++    if(sweet_gpu_core_state()!=GMB_RUNNING||sweet_gmu_firmware_state()!=GMB_READY||
++       sweet_gmu_board_state()!=GMB_READY||!gmb_thread()||mach_absolute_time()>=ggc_deadline||
++       mach_absolute_time()>=ggc_phase_deadline||!gauguin_wdt_lease_check_budget(GMB_MIN)||
++       !sweet_pas_stage_owner_valid(&gmb_stage)||!gmb_reset||!gmb_smmu||!gmb_ram||
++       !gfw_map[GMF_AO]||!gfw_map[GMF_GBIF]||gfw_map[GMF_CSR]!=gmb_reset||
++       gfw_work.phase!=GMF_DONE||gfw_work.result!=GMF_OK||!gfw_work.release_attempted||
++       !gfw_work.oob_attempted||gfw_context.state!=2||!gfw_context.perf_valid||
++       !gfw_context.bw_valid||!gfw_context.test_valid||!gfw_context.dcvs_valid||
++       !gfw_context.dcvs_return_valid||gfw_context.dcvs_return||
++       !ggb_sqe_requested||!ggb_sqe_loaded||ggb_sqe_written!=8192||ggb_sqe_checked!=8192||
++       ggb_aperture.state!=2||ggb_secure_result!=GPA_OK||
++       !sweet_gmu_clock_live(true,&gx)||!sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000)||
++       gfw_load32(gmb_reset+0x2000)||!gfw_faults(false)||!ggb_context_valid()||
++       (gfw_work.host_info&(1u<<24))||!ggc_nc_valid())return false;
++    enum gmb_state parent=sweet_gpu_start_state();
++    if(phase==GGC_BUS){if(parent!=GMB_IDLE||ggx_context.state||ggx_core)return false;}
++    else if(phase==GGC_MMU_OOB){if(parent!=GMB_IDLE&&parent!=GMB_READY)return false;}
++    else if(parent!=GMB_READY)return false;
++    if(parent==GMB_READY){
++        uint32_t v;const struct ggx_receipt *r=&ggx_work;
++        if(ggx_context.state!=2||ggx_context.phase!=GGX_DONE||ggx_result!=GGX_OK||!ggx_core||
++           r->bank!=ggb_smmu.bank||r->asid!=ggb_smmu.asid||r->ttbr0!=ggb_smmu.ttbr0||
++           r->ack_valid!=1||r->ack_clear_attempted!=1||r->request_retained!=1||r->core_opened!=1||
++           (gx&0x80000001u)!=0x80000000u||
++           !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x34,&v)||v||
++           !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x7f4,&v)||(v&1u))return false;
++    }
++    return mach_absolute_time()<ggc_deadline&&mach_absolute_time()<ggc_phase_deadline&&
++        gauguin_wdt_lease_check_budget(GMB_MIN);
++}
++static vm_offset_t ggc_address(uint32_t reg,bool write)
++{
++    if(!ggc_register_allowed(reg,write))return 0;
++    if(ggc_context.phase==GGC_BUS)return write&&reg==0x3c45?gfw_map[GMF_GBIF]+0x3114:0;
++    if(ggc_context.phase<GGC_ADDRESS||ggc_context.phase>GGC_REGLIST||!ggc_maps_ready)return 0;
++    uint32_t byte=reg*4,page=byte&~(GMB_PAGE-1);
++    for(unsigned i=0;i<10;i++){
++        uint32_t off;if(!ggc_register_page(i,&off))return 0;
++        if(off==page&&ggc_alias[i])return ggc_alias[i]+byte-page;
++    }
++    return 0;
++}
++static bool ggc_board_read32(void *cookie,uint32_t reg,uint32_t *out)
++{(void)cookie;vm_offset_t va=ggc_address(reg,false);if(!va||!out)return false;*out=gfw_load32(va);return true;}
++static bool ggc_board_write32(void *cookie,uint32_t reg,uint32_t value)
++{
++    (void)cookie;vm_offset_t va=ggc_address(reg,true);
++    if(!va||(reg==0x3c45&&(ggc_context.phase!=GGC_BUS||value)))return false;
++    gfw_store32(va,value);return true;
++}
++static bool ggc_board_start(void *cookie,struct ggx_receipt *out)
++{
++    (void)cookie;
++    if(!out||ggc_context.phase!=GGC_MMU_OOB||sweet_gpu_start_state()!=GMB_IDLE||
++       !ggc_board_guard(NULL,GGC_MMU_OOB))return false;
++    return sweet_gpu_start_once(out)==GGX_OK;
++}
++static bool ggc_device_valid(vm_offset_t va,uint64_t pa)
++{
++    ppnum_t pn=(ppnum_t)(pa>>PAGE_SHIFT);
++    return va&&!(va&(GMB_PAGE-1))&&va<=UINTPTR_MAX-(GMB_PAGE-1)&&
++        !pmap_valid_page(pn)&&(pmap_cache_attributes(pn)&255u)==7u&&
++        ml_vtophys(va)==pa&&ml_vtophys(va+GMB_PAGE-1)==pa+GMB_PAGE-1;
++}
++static bool ggc_board_open(void *cookie)
++{
++    (void)cookie;
++    if(ggc_maps_ready||ggc_created||ggc_context.phase!=GGC_MAP||ggc_register_page_count()!=10||
++       !ggc_board_guard(NULL,GGC_MAP))return false;
++    gmb_record("SWEET GPU CORE: before native core register pages; GPU OOB owned, private aliases retained");
++    for(unsigned i=0;i<10;i++){
++        uint32_t off;if(!ggc_register_page(i,&off)||!ggc_board_guard(NULL,GGC_MAP))return false;
++        uint64_t pa=UINT64_C(0x03d00000)+off;vm_offset_t va=0;
++        if(off==0)va=ggx_core;
++        else if(off==0xc000)va=gfw_map[GMF_GBIF];
++        else if(off==0x7c000)va=gmb_reset;
++        else if(off==0x8c000)va=gfw_map[GMF_AO];
++        else{
++            if(off!=0x20000&&off!=0x24000&&off!=0x28000&&off!=0x2c000&&off!=0x3c000&&off!=0x68000)return false;
++            ppnum_t pn=(ppnum_t)(pa>>PAGE_SHIFT);
++            if(pmap_valid_page(pn)||(pmap_cache_attributes(pn)&255u)!=7u||!ggc_board_guard(NULL,GGC_MAP))return false;
++            va=ml_io_map_with_prot((vm_offset_t)pa,GMB_PAGE,VM_PROT_READ|VM_PROT_WRITE);
++            /* Keep even a bad returned alias for diagnostics; never retry. */
++            ggc_alias[i]=va;++ggc_created;
++        }
++        ggc_alias[i]=va;
++        if(!ggc_device_valid(va,pa)||!ggc_board_guard(NULL,GGC_MAP))return false;
++    }
++    if(ggc_created!=6)return false;ggc_maps_ready=1;return ggc_board_guard(NULL,GGC_MAP);
++}
++static vm_offset_t ggc_reglist_address(uint32_t off)
++{
++    if(ggc_context.phase!=GGC_REGLIST||!ggc_maps_ready||(off&3)||off>=4096||!gmb_ram)return 0;
++    return gmb_ram+ggb_plan.region[GGP_REGLIST].offset-GMB_PAGE+off;
++}
++static bool ggc_reglist_read(void *cookie,uint32_t off,uint32_t *out)
++{(void)cookie;vm_offset_t va=ggc_reglist_address(off);if(!va||!out)return false;*out=gfw_load32(va);return true;}
++static bool ggc_reglist_write(void *cookie,uint32_t off,uint32_t value)
++{(void)cookie;vm_offset_t va=ggc_reglist_address(off);if(!va)return false;gfw_store32(va,value);return true;}
++static void ggc_records(bool complete)
++{
++    const struct ggc_receipt *r=complete?&ggc_work:&ggc_context.work;char line[224];
++    snprintf(line,sizeof(line),"SWEET GPU CORE: %s phase=%u rc=%u reads=%u writes=%u memory=%u/%u hwcg_skip=%u configured=%u retained=%u",complete?"complete":"partial",ggc_context.phase,ggc_result,r->reads,r->writes,r->mem_written,r->mem_compared,r->hwcg_skipped,r->configured,r->requests_retained);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU CORE PAGES: ready=%u required=10 map_attempts=%u reused=%u; private Device aliases retained",ggc_maps_ready,ggc_created,ggc_maps_ready?4u:0u);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU CORE RESTORE: iova=%08x pa=%016llx values=66 length=%u offset=%u bytes=544; live registers, no CP/SQE execution",ggb_plan.region[GGP_REGLIST].iova,gmb_stage.pa+ggb_plan.region[GGP_REGLIST].offset,r->list_length,r->list_offset);gmb_record(line);
++    if(complete)for(unsigned i=0;i<GGC_REGLIST_VALUES;i++){
++        snprintf(line,sizeof(line),"SWEET GPU CORE RGL: index=%u reg=%05x value=%08x",i,ggc_context.reglist[4+2*i],ggc_context.reglist[5+2*i]);gmb_record(line);
++    }
++    else if(ggc_context.diagnostic.valid){
++        snprintf(line,sizeof(line),"SWEET GPU CORE SAMPLE: phase=%u reg=%05x value=%08x; last cached sample",ggc_context.phase,ggc_context.diagnostic.reg,ggc_context.diagnostic.value);gmb_record(line);
++    }
++}
++enum ggc_result sweet_gpu_core_once(struct ggc_receipt *out)
++{
++    if(!out)return GGC_ARGUMENT;unsigned expected=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&ggc_board_lifecycle,&expected,GMB_RUNNING,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GGC_ALREADY;
++    clock_interval_to_deadline(8,NSEC_PER_SEC,&ggc_deadline);ggc_phase_deadline=ggc_deadline;ggc_result=GGC_GUARD;
++    if(gauguin_wdt_lease_check_budget(13u*GAUGUIN_WDT_CLOCK_HZ)&&
++       ggb_sqe_requested&&ggb_sqe_loaded&&ggb_sqe_same()){
++        struct ggc_ops ops={NULL,ggc_board_guard,ggc_board_read32,ggc_board_write32,gmb_barrier,
++            ggc_board_start,ggc_board_open,ggc_reglist_read,ggc_reglist_write};
++        ggc_result=ggc_core_once(&ggc_context,&ops,&ggb_plan,&ggb_smmu,&ggc_work);
++    }
++    if(ggc_result!=GGC_OK||!ggc_board_guard(NULL,GGC_FINAL)){
++        if(ggc_result==GGC_OK)ggc_result=GGC_GUARD;
++        bool needs_quarantine=sweet_gmu_board_state()!=GMB_QUARANTINED;
++        __atomic_store_n(&ggc_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++        __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++        __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++        if(needs_quarantine)gmb_fail(GMB_GPU,"native live GPU core setup");
++        ggc_records(false);return ggc_result;
++    }
++    *out=ggc_work;__atomic_store_n(&ggc_board_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggc_records(true);return GGC_OK;
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -6,6 +6,7 @@
+ #include "gauguin_gpu_smmu.h"
+ #include "gauguin_gpu_aperture.h"
+ #include "gauguin_gpu_start.h"
++#include "gauguin_gpu_core.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+     GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE,GMB_GPU};
+@@ -68,4 +69,8 @@
+  * Success holds GPU/boot-slumber requests for later CP startup; no commands. */
+ enum ggx_result sweet_gpu_start_once(struct ggx_receipt *);
+ enum gmb_state sweet_gpu_start_state(void);
++/* Native core configuration/live restore list after pinned SQE cold staging.
++ * Reuses the existing GGX bootstrap; no SQE/CP execution or HOST release. */
++enum ggc_result sweet_gpu_core_once(struct ggc_receipt *);
++enum gmb_state sweet_gpu_core_state(void);
+ #endif

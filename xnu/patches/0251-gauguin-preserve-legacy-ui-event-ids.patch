@@ -1,0 +1,23 @@
+--- a/bsd/dev/gauguin_ui_trace.h
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -13,7 +13,8 @@
+     GUT_API_BEGIN=10, GUT_API_END, GUT_SUBMIT_BEGIN, GUT_SUBMIT_END, GUT_SURFACE,
+     GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END,
+     GUT_SYNTHETIC=30 /* explicit origin marker for a generated report ID */,
+-    GUT_BO_ALLOC333=31, GUT_BO_REUSE335=32
++    /* Keep the legacy UI254 decoder ABI across separately linked producers. */
++    GUT_HID_QUEUE_STATE=31, GUT_BO_ALLOC333=32, GUT_BO_REUSE335=33
+ };
+ struct gut_event {
+     uint64_t seq, tick, id;
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -26,6 +26,8 @@
+ #include "../../../bsd/kern/sweet_eagl_diagnostics.h"
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
++static_assert(GUT_HID_QUEUE_STATE==31 && GUT_BO_ALLOC333==32 && GUT_BO_REUSE335==33,
++    "legacy UI254 event kinds must agree with the HID producer and host decoder");
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+ extern "C" boolean_t pmap_valid_page(ppnum_t);
+ #include "Kernel342.hpp"

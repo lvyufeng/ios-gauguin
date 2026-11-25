@@ -1,0 +1,24 @@
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -32,7 +32,6 @@
+ #include "gauguin_probe358.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+-extern void ml_io_unmap(vm_offset_t, vm_size_t);
+ extern uint32_t sweet_fb_display_state(void);
+ extern void sweet_log_append(const char *, int);
+ 
+@@ -196,10 +195,8 @@
+ 
+ static void scan367_finish(const char *status)
+ {
+-    for (size_t i = 0; i < sizeof(scan367.pages) / sizeof(scan367.pages[0]); ++i) {
+-        if (scan367.pages[i]) ml_io_unmap(scan367.pages[i], F344_PAGE);
+-        scan367.pages[i] = 0;
+-    }
++    /* ml_io_map_with_prot creates permanent mappings on this ARM64
++     * kernel. Retain the bounded read-only pages for this boot. */
+     scan367.done = true;
+     printf("SWEET F367 ROUTE: status=%s attempts=%u samples=%u first=%u last=%u\n",
+         status, scan367.attempts, scan367.samples, scan367.first_frame, scan367.last_frame);

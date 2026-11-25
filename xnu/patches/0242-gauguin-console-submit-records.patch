@@ -1,0 +1,26 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -230,7 +230,9 @@
+ /* The root's legacy queue completes synchronously. An opted-in compositor
+  * queue may have one issued number ahead of its completed prefix. */
+ struct gpu_queue {uint32_t id,issued,completed;};
+-/* SUBMIT327: CPU metadata only under the existing request/GPU locks.
++/* SUBMIT328: same327 CPU metadata under the existing request/GPU locks.
++ * Fixed-width hex rows are235 bytes including newline, within the actual
++ * 255-byte serial console payload limit. No fields or bits are omitted.
+  * No validator, result, ownership, GPU access or retry changes. Stages1..4
+  * are dispatch gates;10..20 identify the original submit refusal branches.
+  * At most64 records and one limit marker over the whole boot. */
+@@ -246,10 +248,10 @@
+     if(result==kIOReturnSuccess||!compositor||!async||gsub_diag327_count>=65)return;
+     if(gsub_diag327_count==64){
+         ++gsub_diag327_count;
+-        IOLog("SWEET GPU SUBMIT327: limit=64 coverage=incomplete\n");return;
++        IOLog("SWEET GS328: limit=64 coverage=incomplete\n");return;
+     }
+     ++gsub_diag327_count;
+-    IOLog("SWEET GPU SUBMIT327: seq=%u tick=%llu token=%llu rc=%08x stage=%u index=%u handle=%u requested=%08x actual=%08x bo_state=%u cmd_type=%u cmd_index=%u cmd_offset=%u cmd_bytes=%u bos=%u cmds=%u queue=%u flags=%08x fence=%u pending=%u native=%u bytes=%llu\n",
++    IOLog("SWEET GS328: %08x %016llx %016llx %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %016llx\n",
+         gsub_diag327_count,(unsigned long long)mach_absolute_time(),(unsigned long long)token,
+         (uint32_t)result,d->stage,d->index,d->handle,d->requested,d->actual,d->bo_state,
+         d->cmd_type,d->cmd_index,d->cmd_offset,d->cmd_bytes,r->nr_bos,r->nr_cmds,

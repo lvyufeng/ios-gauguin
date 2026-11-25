@@ -1,0 +1,74 @@
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -70,7 +70,7 @@
+ {return alive_time(c)&&c->ops.read_reg(c->ops.cookie,r,v)&&alive_time(c);}
+ static bool poll_mr(struct ggr_context *c,enum ggr_memory m,uint32_t off,uint32_t *v)
+ {return alive_time(c)&&c->ops.read_memory(c->ops.cookie,m,off,v)&&alive_time(c);}
+-static bool poll_barrier(struct ggr_context *c)
++static bool deadline_barrier(struct ggr_context *c)
+ {return alive_time(c)&&c->ops.barrier(c->ops.cookie)&&alive_time(c);}
+ static bool poll_faults(struct ggr_context *c)
+ {
+@@ -109,7 +109,8 @@
+     }
+     return GGR_OK;
+ }
+-enum ggr_error ggr_issue(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *fence)
++static enum ggr_error issue(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,
++    uint32_t count,uint32_t *fence,bool share_span_guards)
+ {
+     if(!c||!addresses||!words||!fence||!count||count>GGR_MAX_COMMANDS)return GGR_ARGUMENT;
+     for(uint32_t i=0;i<count;i++)if(addresses[i]<GGR_VA_START||addresses[i]>=GGR_VA_END||
+@@ -138,7 +139,11 @@
+     } else for(uint32_t i=0;i<n;i++) {
+         if(!alive(c)||!c->ops.write_ring(c->ops.cookie,4*((c->wptr+i)%8192),packet[i])||!alive(c))goto io;
+     }
+-    if(!barrier(c))goto io;
++    /* In the asynchronous span path the full guards after the write and
++     * before the readback also bracket this CPU barrier. Keep the deadline
++     * around the barrier itself and the full guards at both ends of each
++     * span. The ring remains CPU-owned until the guarded MMIO below. */
++    if(!(share_span_guards&&c->ops.ring_span?deadline_barrier(c):barrier(c)))goto io;
+     if(c->ops.ring_span) {
+         if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,true)||!alive(c))goto io;
+     } else for(uint32_t i=0;i<n;i++) {
+@@ -152,7 +157,7 @@
+     uint32_t i;
+     for(i=0;i<200;i++) {
+         uint32_t status;
+-        if(!alive(c)||!poll_barrier(c)||!poll_rd(c,0x23b13,&status)||!alive(c))goto io;
++        if(!alive(c)||!deadline_barrier(c)||!poll_rd(c,0x23b13,&status)||!alive(c))goto io;
+         if(!(status&1u))break;
+         if(!delay(c)||!wr(c,0x807,end))goto io;
+     }
+@@ -166,6 +171,12 @@
+ io:ggr_fail(c,GGR_IO);return GGR_IO;
+ }
+ 
++enum ggr_error ggr_issue(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,
++    uint32_t count,uint32_t *fence)
++{
++    return issue(c,addresses,words,count,fence,true);
++}
++
+ enum ggr_error ggr_poll(struct ggr_context *c)
+ {
+     if(!c||c->state!=GGR_BUSY)return GGR_UNAVAILABLE;
+@@ -183,7 +194,7 @@
+     c->operation_end_ns=now+UINT64_C(2000000000);
+     uint32_t control,shadow,busy;
+     ++c->polls;
+-    if(!alive(c)||!poll_faults(c)||!poll_barrier(c)||
++    if(!alive(c)||!poll_faults(c)||!deadline_barrier(c)||
+        !poll_mr(c,GGR_COMPLETION,0,&control)||!poll_mr(c,GGR_SHADOW,0,&shadow)||
+        !poll_rd(c,0x23b0c,&busy)||!alive(c))goto io;
+     if(busy==UINT32_MAX||shadow>=8192||
+@@ -220,7 +231,7 @@
+ {
+     if(!fence)return GGR_ARGUMENT;
+     uint32_t issued=0;
+-    enum ggr_error result=ggr_issue(c,addresses,words,count,&issued);
++    enum ggr_error result=issue(c,addresses,words,count,&issued,false);
+     if(result!=GGR_OK)return result;
+     result=ggr_wait(c,issued);
+     if(result==GGR_OK)*fence=issued;

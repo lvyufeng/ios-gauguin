@@ -1,0 +1,154 @@
+diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -82,6 +82,10 @@
+ 
+ #define UFS_BLOCK       4096u
+ #define BOUNCE_SIZE     (1u << 20)
++#define SWEET_LOG_SIZE          (4u << 20)
++#define SWEET_LOG_BLOCKS        (1 + SWEET_LOG_SIZE / UFS_BLOCK)
++#define SWEET_MARK_BLOCKS      64u
++#define UFS_RESERVED_TAIL_BLOCKS (SWEET_LOG_BLOCKS + SWEET_MARK_BLOCKS)
+ #define PRDT_CHUNK      (256u << 10)            /* PRDT byte count field: 18 bits */
+ #define PRDT_MAX        (BOUNCE_SIZE / PRDT_CHUNK)
+ #define CMD_TIMEOUT_NS  (5ull * NSEC_PER_SEC)
+@@ -142,7 +146,8 @@
+ 	vm_offset_t dma;                        /* kernel VA of the DMA allocation */
+ 	uint64_t dma_pa;
+ 	uint8_t lun;
+-	uint64_t first_block, nblocks;          /* partition, in 4 KiB device blocks */
++	uint64_t first_block, nblocks;          /* physical GPT bounds, never reduced */
++	uint64_t fs_nblocks;                    /* BSD-visible blocks excluding log/marks */
+ 	uint32_t secsize;                       /* logical sector size for the BSD layer */
+ 	bool writable;                          /* boot-arg ufsrw=1 */
+ 	bool cache;                             /* boot-arg ufscache=1 */
+@@ -446,6 +451,12 @@
+ static int
+ ufs_write_blocks(uint64_t lba, uint32_t count)
+ {
++	/* Retain the physical partition guards below and add the exposed limit. */
++	if (!su.fs_nblocks || lba < su.first_block ||
++	    lba - su.first_block >= su.fs_nblocks ||
++	    count > su.fs_nblocks - (lba - su.first_block)) {
++		return EPERM;
++	}
+ 	if (!su.writable || !su.nblocks || count == 0 || count > BOUNCE_SIZE / UFS_BLOCK ||
+ 	    lba < su.first_block || lba - su.first_block >= su.nblocks ||
+ 	    count > su.nblocks - (lba - su.first_block) || lba + count - 1 > UINT32_MAX) {
+@@ -560,6 +571,44 @@
+ 	}
+ 	printf("SWEET UFS: no GPT partition named \"%s\"\n", want);
+ 	return ENOENT;
++}
++
++/* This port currently mounts raw HFS+/HFSX. Validate its on-disk extent before
++ * hiding the diagnostic tail; never truncate an unknown or larger filesystem.
++ * No filesystem, GPT or device writes are performed by this validation.
++ */
++static int
++ufs_configure_geometry(void)
++{
++	if (!su.first_block || su.first_block > UINT32_MAX ||
++	    su.nblocks <= UFS_RESERVED_TAIL_BLOCKS ||
++	    su.nblocks - 1 > UINT32_MAX - su.first_block) {
++		return ENXIO;
++	}
++	uint64_t exposed = su.nblocks - UFS_RESERVED_TAIL_BLOCKS;
++	int error = ufs_read_blocks(su.first_block, 1);
++	if (error) {
++		return error;
++	}
++	const uint8_t *vh = (const uint8_t *)(su.dma + DMA_BOUNCE + 1024);
++	uint16_t signature = (uint16_t)((uint16_t)vh[0] << 8 | vh[1]);
++	uint16_t version = (uint16_t)((uint16_t)vh[2] << 8 | vh[3]);
++	uint32_t block = ((uint32_t)vh[40] << 24) | ((uint32_t)vh[41] << 16) |
++	    ((uint32_t)vh[42] << 8) | vh[43];
++	uint32_t count = ((uint32_t)vh[44] << 24) | ((uint32_t)vh[45] << 16) |
++	    ((uint32_t)vh[46] << 8) | vh[47];
++	if (!((signature == 0x482b && version == 4) ||
++	    (signature == 0x4858 && version == 5)) || block < DEV_BSIZE ||
++	    (block & (block - 1)) || !count ||
++	    count > (exposed * UFS_BLOCK) / block) {
++		printf("SWEET UFS: unsupported/oversized HFS geometry sig=%#x version=%u block=%u count=%u; refusing\n",
++		    signature, version, block, count);
++		return ENXIO;
++	}
++	su.fs_nblocks = exposed;
++	printf("SWEET UFS: physical blocks=%llu exposed=%llu reserved tail=%u; HFS bytes=%llu\n",
++	    su.nblocks, su.fs_nblocks, UFS_RESERVED_TAIL_BLOCKS, (uint64_t)count * block);
++	return 0;
+ }
+ 
+ static int
+@@ -623,9 +672,11 @@
+ {
+ 	int error = 0;
+ 	caddr_t vaddr = NULL;
+-	uint64_t off = (uint64_t)buf_blkno(bp) * su.secsize;
++	uint64_t off;
++	int64_t block_number = buf_blkno(bp);
++	uint32_t sector = su.secsize;
+ 	uint32_t count = buf_count(bp);
+-	uint64_t part_bytes = su.nblocks * UFS_BLOCK;
++	uint64_t part_bytes = su.fs_nblocks * UFS_BLOCK;
+ 
+ 	bool rd = buf_flags(bp) & B_READ;
+ 
+@@ -634,6 +685,12 @@
+ 		error = EROFS;
+ 		goto done;
+ 	}
++	/* Bound the sector number before multiplication can wrap. */
++	if (!sector || block_number < 0 || (uint64_t)block_number > part_bytes / sector) {
++		error = EINVAL;
++		goto done;
++	}
++	off = (uint64_t)block_number * sector;
+ 	if (off > part_bytes || count > part_bytes - off) {
+ 		error = EINVAL;
+ 		goto done;
+@@ -716,7 +773,7 @@
+ 		*f = UFS_BLOCK;
+ 		return 0;
+ 	case DKIOCGETBLOCKCOUNT:
+-		*o = su.nblocks * UFS_BLOCK / su.secsize;
++		*o = su.fs_nblocks * UFS_BLOCK / su.secsize;
+ 		return 0;
+ 	case DKIOCISWRITABLE:
+ 		*f = su.writable;
+@@ -763,7 +820,7 @@
+ static int
+ sweet_ufs_psize(__unused dev_t dev)
+ {
+-	return su.ready ? (int)MIN(su.nblocks * UFS_BLOCK / su.secsize, INT_MAX) : -1;
++	return su.ready ? (int)MIN(su.fs_nblocks * UFS_BLOCK / su.secsize, INT_MAX) : -1;
+ }
+ 
+ static int
+@@ -883,6 +940,9 @@
+ 		printf("SWEET UFS: looking for partition \"%s\"\n", want);
+ 		error = ufs_find_partition(want);
+ 		printf("SWEET UFS: find partition rc=%d\n", error);
++	}
++	if (!error) {
++		error = ufs_configure_geometry();
+ 	}
+ 	lck_mtx_unlock(&sweet_dma_owner_lock);
+ 	lck_mtx_unlock(&sweet_io_serial_lock);
+@@ -978,8 +1038,6 @@
+  * ring offset of byte n = n % ring size. Read it from a recovery with
+  * tools/sweet-log-pull.sh. Disabled with boot-arg sweetlog=0.
+  */
+-#define SWEET_LOG_SIZE          (4u << 20)
+-#define SWEET_LOG_BLOCKS        (1 + SWEET_LOG_SIZE / UFS_BLOCK)
+ #define SWEET_LOG_SECS          10u
+ 
+ static char sweet_log_ring[SWEET_LOG_SIZE];
+@@ -1053,7 +1111,6 @@
+  * 64 blocks: the init tail alone records ~12 checkpoints, and the ring in front
+  * of them is only SWEET_LOG_BLOCKS long, so the mark area must not grow past it.
+  */
+-#define SWEET_MARK_BLOCKS      64u
+ /* Marks live here until the log thread writes them; see sweet_log_mark(). */
+ static char sweet_mark_ram[SWEET_MARK_BLOCKS * 4096];
+ static uint32_t sweet_mark_dirty[SWEET_MARK_BLOCKS / 32];

@@ -1,0 +1,284 @@
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -88,7 +88,7 @@
+     int start = 0; (void)PE_parse_boot_argn("sweetgpustart", &start, sizeof(start));
+     if ((start != 0 && start != 1) || (start == 1 && gpu != 1)) return false;
+     int zap = 0; (void)PE_parse_boot_argn("sweetgpuzap", &zap, sizeof(zap));
+-    if ((zap != 0 && zap != 1) || (zap == 1 && start != 1)) return false;
++    if ((zap != 0 && zap != 1 && zap != 2) || (zap != 0 && start != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -244,7 +244,16 @@
+                             if(sweet_gpu_zap_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+                             snprintf(line,sizeof(line),"SWEET GPU ZAP BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)zap_result,(unsigned)sweet_gpu_zap_state());bcm_record(line);return;
+                         }
+-                        bcm_record("SWEET GPU ZAP BOOT: signed ZAP load accepted; GPU requests held; awaiting watchdog reset; no unsecured/rendering/Metal");
++                        if(sweet_gpu_unsecure_requested()){
++                            bcm_record("SWEET GPU ZAP BOOT: signed ZAP load accepted; GPU requests held; before native unsecured append; no rendering/Metal");
++                            struct ggu_receipt unsecure;
++                            enum ggu_result unsecure_result=sweet_gpu_unsecure_once(&unsecure);
++                            if(unsecure_result!=GGU_OK){
++                                if(sweet_gpu_unsecure_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
++                                snprintf(line,sizeof(line),"SWEET GPU UNSECURE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)unsecure_result,(unsigned)sweet_gpu_unsecure_state());bcm_record(line);return;
++                            }
++                            bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; awaiting watchdog reset; no rendering/Metal");
++                        }else bcm_record("SWEET GPU ZAP BOOT: signed ZAP load accepted; GPU requests held; awaiting watchdog reset; no unsecured/rendering/Metal");
+                     }else bcm_record("SWEET GPU CP BOOT: first native ME_INIT/WHERE_AM_I completed; GPU requests held; awaiting watchdog reset; no ZAP/rendering/Metal");
+                 }
+             }else{
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -1164,12 +1164,14 @@
+     PZB_FAULT,PZB_ROUTES,PZB_DEVICE,PZB_NC,PZB_SCOPE,PZB_TIME};
+ static struct {unsigned reason,phase,scope;uint64_t now;uint32_t rbbm,cp,shadow,busy;} gpzb_diagnostic;
+ bool sweet_gpu_zap_requested(void)
+-{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1;}
++{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2;}
+ enum gmb_state sweet_gpu_zap_state(void)
+ {return (enum gmb_state)__atomic_load_n(&gpzb_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool gpzb_flags(void)
+ {
+-    static const char *const on[]={"sweetgpuzap","sweetbusvote","sweetpasprobe","sweetpasstage",
++    int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
++    if(mode!=1&&mode!=2)return false;
++    static const char *const on[]={"sweetbusvote","sweetpasprobe","sweetpasstage",
+         "sweetcxpower","sweetgmuclk","sweetgmufw","sweetgmuperf","sweetgmubw","sweetgmudcvs","sweetgpucontext","sweetgpustart"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet",
+         "sweetreboot","sweetbusprobe","sweetgpuprobe","sweetscmprobe","sweetwdttest"};
+@@ -1353,4 +1355,170 @@
+     *out=gpzb_work;__atomic_store_n(&gpzb_lifecycle,GMB_READY,__ATOMIC_RELEASE);gpzb_terminal();return GPZ_OK;
+ }
+ 
++/* New authorized post-AUTH stage. The signed loader's late scope is unchanged. */
++static unsigned ggub_lifecycle,ggub_phase,ggub_sealed;
++static uint64_t ggub_entry,ggub_phase_entry,ggub_deadline,ggub_phase_end,ggub_last_now;
++static struct ggu_context ggub_context;
++static struct ggu_receipt ggub_work;
++static enum ggu_result ggub_result;
++enum ggub_reason {UGD_NONE,UGD_CONFIG,UGD_PHASE,UGD_CONTEXT,UGD_TIME,UGD_WDT,
++    UGD_SIGNED,UGD_OWNER,UGD_CLOCK,UGD_IRQ,UGD_RESET,UGD_FAULT,UGD_ROUTES,
++    UGD_DEVICE,UGD_NC,UGD_ENTRY_BUDGET};
++static struct {unsigned reason,phase;uint64_t now;uint32_t rbbm,cp;} ggub_diagnostic;
++bool sweet_gpu_unsecure_requested(void)
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2;}
++enum gmb_state sweet_gpu_unsecure_state(void)
++{return (enum gmb_state)__atomic_load_n(&ggub_lifecycle,__ATOMIC_ACQUIRE);}
++static bool ggub_reject(enum ggu_phase phase,enum ggub_reason reason)
++{
++    if(!ggub_diagnostic.reason){ggub_diagnostic.reason=reason;ggub_diagnostic.phase=phase;ggub_diagnostic.now=mach_absolute_time();}
++    return false;
++}
++static bool ggub_time(enum ggu_phase phase)
++{
++    uint64_t now=mach_absolute_time();ggub_diagnostic.phase=phase;ggub_diagnostic.now=now;
++    if(now<ggub_last_now||now>=ggub_deadline||now>=ggub_phase_end)return ggub_reject(phase,UGD_TIME);
++    ggub_last_now=now;return true;
++}
++static bool ggub_signed(void)
++{
++    const struct gpz_receipt *r=&gpzb_work;
++    if(sweet_gpu_zap_state()!=GMB_READY||__atomic_load_n(&gpzb_context.state,__ATOMIC_ACQUIRE)!=2||
++       gpzb_context.phase!=GPZ_DONE||gpzb_context.pending_raw||memcmp(r,&gpzb_context.work,sizeof(*r))||
++       r->phase!=GPZ_DONE||r->result!=GPZ_OK||r->complete!=1||r->owner_sealed!=1||r->requests_retained!=1||
++       r->owner_pa!=gmb_stage.pa||r->copy.written!=1984||r->copy.checked!=1984||!gpzb_parents())return false;
++    for(unsigned i=0;i<3;i++){
++        const struct gpz_transaction *t=&r->transaction[i];
++        if(t->has_returned!=1||!t->fresh_attempts||t->fresh_attempts>GPZ_FRESH_ATTEMPTS||
++           t->continuations>GPZ_CONTINUATIONS||t->smc_calls!=t->fresh_attempts+t->continuations||
++           t->returned.x[0]||t->returned.x[1])return false;
++    }
++    return true;
++}
++static bool ggub_guard(void *cookie,enum ggu_phase phase)
++{
++    (void)cookie;if(ggub_diagnostic.reason)return false;
++    if(phase<GGU_SEAL||phase>GGU_FINAL||phase<ggub_phase||phase>ggub_phase+1)return ggub_reject(phase,UGD_PHASE);
++    if(phase!=ggub_phase){
++        ggub_phase=phase;ggub_phase_entry=mach_absolute_time();
++        if(ggub_phase_entry<ggub_last_now||ggub_phase_entry>=ggub_deadline)return ggub_reject(phase,UGD_TIME);
++        clock_interval_to_deadline(2,NSEC_PER_SEC,&ggub_phase_end);
++    }
++    if(sweet_gpu_unsecure_state()!=GMB_RUNNING||
++       !((ggub_context.state==1&&ggub_context.phase==(unsigned)phase)||
++         (ggub_context.state==2&&ggub_context.phase==GGU_DONE&&phase==GGU_FINAL))||
++       (phase>GGU_SEAL&&(!ggub_sealed||ggub_context.work.sealed!=1)))return ggub_reject(phase,UGD_PHASE);
++    if(!gmb_thread())return ggub_reject(phase,UGD_CONTEXT);
++    if(!ggub_time(phase))return false;
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggub_reject(phase,UGD_WDT);
++    if(!ggub_time(phase))return false;
++    if(!ggub_signed())return ggub_reject(phase,UGD_SIGNED);
++    if(!sweet_pas_zap_owner_authenticated(gmb_stage.pa))return ggub_reject(phase,UGD_OWNER);
++    if(!ggub_time(phase))return false;
++    if(!gmb_reset||!gmb_smmu||!gmb_ram||!ggx_core||!gfw_map[GMF_AO]||
++       gfw_map[GMF_CSR]!=gmb_reset||!ggc_maps_ready||ggc_created!=6)return ggub_reject(phase,UGD_DEVICE);
++    uint32_t gx,irq[3],v;
++    if(!sweet_gmu_clock_live(true,&gx)||(gx&0x80000001u)!=0x80000000u)return ggub_reject(phase,UGD_CLOCK);
++    if(!sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000))return ggub_reject(phase,UGD_IRQ);
++    if(gfw_load32(gmb_reset+0x2000))return ggub_reject(phase,UGD_RESET);
++    if(!gfw_faults(false))return ggub_reject(phase,UGD_FAULT);
++    if(!ggb_context_valid()||(gfw_work.host_info&(1u<<24))||ggx_context.state!=2||ggx_context.phase!=GGX_DONE||ggx_result!=GGX_OK||
++       ggx_work.bank!=ggb_smmu.bank||ggx_work.asid!=ggb_smmu.asid||ggx_work.ttbr0!=ggb_smmu.ttbr0||
++       ggx_work.ack_valid!=1||ggx_work.ack_clear_attempted!=1||ggx_work.request_retained!=1||ggx_work.core_opened!=1||
++       memcmp(&ggc_work.start,&ggx_work,sizeof(ggx_work))||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x34,&v)||v||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x7f4,&v)||(v&1u))return ggub_reject(phase,UGD_ROUTES);
++    if(ggc_alias[0]!=ggx_core||ggc_alias[8]!=gmb_reset||ggc_alias[9]!=gfw_map[GMF_AO]||
++       !ggc_device_valid(ggx_core,0x03d00000)||!ggc_device_valid(gmb_reset,0x03d7c000)||
++       !ggc_device_valid(gfw_map[GMF_AO],0x03d8c000))return ggub_reject(phase,UGD_DEVICE);
++    if(!ggq_nc_valid())return ggub_reject(phase,UGD_NC);
++    ggub_diagnostic.rbbm=gfw_load32(ggx_core+4*0x201);ggub_diagnostic.cp=gfw_load32(ggx_core+4*0x823);
++    if((ggub_diagnostic.rbbm&GGQ_RBBM_ERRORS)||(ggub_diagnostic.cp&GGQ_CP_ERRORS))return ggub_reject(phase,UGD_FAULT);
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggub_reject(phase,UGD_WDT);
++    return ggub_time(phase);
++}
++static bool ggub_seal(void *cookie,uint64_t pa)
++{
++    (void)cookie;
++    if(ggub_sealed||ggub_context.phase!=GGU_SEAL||ggub_context.work.sealed||pa!=gmb_stage.pa||
++       !sweet_gpu_unsecure_requested()||!gpzb_flags()||!ggub_signed()||!sweet_pas_zap_owner_authenticated(pa))return false;
++    ggub_sealed=1;return true;
++}
++static bool ggub_read(void *cookie,uint32_t reg,uint32_t *out)
++{
++    (void)cookie;if(!out||!ggu_register_allowed(reg,false))return false;
++    vm_offset_t va=ggq_address(reg,false);if(!va)return false;*out=gfw_load32(va);return true;
++}
++static bool ggub_write(void *cookie,uint32_t reg,uint32_t value)
++{
++    (void)cookie;if(!ggu_register_allowed(reg,true)||ggub_context.phase!=GGU_SUBMIT||
++       (reg==0x807?value!=GGU_END_DWORD:value>1))return false;
++    vm_offset_t va=ggq_address(reg,true);if(!va)return false;gfw_store32(va,value);return true;
++}
++static vm_offset_t ggub_memory(enum ggq_memory memory,uint32_t off,bool write)
++{
++    if(!gmb_ram||(off&3))return 0;
++    enum ggu_phase phase=(enum ggu_phase)ggub_context.phase;
++    bool ring=memory==GGQ_RING&&off<80,scratch=memory==GGQ_SCRATCH&&off==0;
++    bool commands=ring&&off>=60;
++    if(write){if(phase!=GGU_COMMANDS||!commands)return 0;}
++    else if(!((phase==GGU_CAPTURE&&(ring||scratch))||(phase==GGU_COMMANDS&&commands)||(phase==GGU_WAIT&&scratch)))return 0;
++    return gmb_ram+ggb_plan.region[memory==GGQ_RING?GGP_RING:GGP_SCRATCH].offset-GMB_PAGE+off;
++}
++static bool ggub_memory_read(void *cookie,enum ggq_memory memory,uint32_t off,uint32_t *out)
++{(void)cookie;vm_offset_t va=ggub_memory(memory,off,false);if(!va||!out)return false;*out=gfw_load32(va);return true;}
++static bool ggub_memory_write(void *cookie,enum ggq_memory memory,uint32_t off,uint32_t value)
++{(void)cookie;vm_offset_t va=ggub_memory(memory,off,true);if(!va)return false;gfw_store32(va,value);return true;}
++static void ggub_quarantine(void *cookie)
++{
++    (void)cookie;bool needs=sweet_gmu_board_state()!=GMB_QUARANTINED;
++    __atomic_store_n(&ggub_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggub_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&gpzb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);sweet_pas_zap_quarantine();
++    __atomic_store_n(&ggq_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggc_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    if(needs)gmb_fail(GMB_GPU,"native unsecured-mode append");
++}
++static void ggub_records(bool complete)
++{
++    const struct ggu_receipt *r=complete?&ggub_work:&ggub_context.work;char line[256];
++    snprintf(line,sizeof(line),"SWEET GPU UNSECURE: %s phase=%u rc=%u reads=%u writes=%u sealed=%u commands=%u/%u prefix=%u clean=%u complete=%u retained=%u",
++        complete?"complete":"partial",ggub_context.phase,ggub_result,r->reads,r->writes,r->sealed,r->commands_written,r->commands_checked,r->prefix_checked,r->clean_checked,r->complete,r->requests_retained);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU UNSECURE INITIAL: wptr=%08x shadow=%08x busy=%08x; no ring/SQE/scratch reinitialization",r->initial_wptr,r->initial_shadow,r->initial_busy);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU UNSECURE FENCE: checks=%u status=%08x slow=%u counters=%u/%u before=%016llx after=%016llx keepalive=%u/%u submit=%u",
++        r->fence_checks,r->fence_status,r->fence_slow,r->counter_before_valid,r->counter_after_valid,r->counter_before,r->counter_after,r->keepalive_set_attempted,r->keepalive_clear_attempted,r->submit_attempted);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU UNSECURE IDLE: polls=%u rptr=%08x busy=%08x rbbm=%08x cp=%08x; device shadow20 and AO busy bit23",r->idle_polls,r->rptr,r->busy,r->rbbm_status,r->cp_status);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU UNSECURE GUARD: reason=%u phase=%u now=%016llx entry=%016llx phase_entry=%016llx total_end=%016llx phase_end=%016llx; cached post-AUTH ticks",
++        ggub_diagnostic.reason,ggub_diagnostic.phase,ggub_diagnostic.now,ggub_entry,ggub_phase_entry,ggub_deadline,ggub_phase_end);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU UNSECURE FAULT: rbbm=%08x cp=%08x; cached authorized post-AUTH GPU samples, no secure-buffer read",ggub_diagnostic.rbbm,ggub_diagnostic.cp);gmb_record(line);
++    if(complete)for(unsigned i=0;i<GGU_COMMAND_WORDS;i++){
++        snprintf(line,sizeof(line),"SWEET GPU UNSECURE WORD: index=%u value=%08x",GGU_START_DWORD+i,ggub_context.command.word[i]);gmb_record(line);
++    }else if(ggub_context.diagnostic.valid){
++        const struct ggu_diagnostic *d=&ggub_context.diagnostic;
++        snprintf(line,sizeof(line),"SWEET GPU UNSECURE SAMPLE: phase=%u memory=%u off=%05x expected=%08x actual=%08x; last cached sample",ggub_context.phase,d->memory,d->reg,d->expected,d->actual);gmb_record(line);
++    }
++}
++enum ggu_result sweet_gpu_unsecure_once(struct ggu_receipt *out)
++{
++    if(!out||!sweet_gpu_unsecure_requested())return GGU_ARGUMENT;unsigned idle=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&ggub_lifecycle,&idle,GMB_RUNNING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GGU_ALREADY;
++    ggub_entry=ggub_phase_entry=ggub_last_now=mach_absolute_time();ggub_phase=GGU_IDLE;ggub_sealed=0;
++    clock_interval_to_deadline(4,NSEC_PER_SEC,&ggub_deadline);ggub_phase_end=ggub_deadline;
++    memset(&ggub_diagnostic,0,sizeof(ggub_diagnostic));ggub_result=GGU_GUARD;
++    if(!gpzb_flags()||!gmb_thread())ggub_reject(GGU_IDLE,UGD_CONFIG);
++    else if(!gauguin_wdt_lease_check_budget(8u*GAUGUIN_WDT_CLOCK_HZ))ggub_reject(GGU_IDLE,UGD_ENTRY_BUDGET);
++    else{
++        const struct ggu_ops ops={NULL,ggub_guard,ggub_seal,ggub_read,ggub_write,gmb_barrier,ggq_board_delay,ggub_memory_read,ggub_memory_write,ggub_quarantine};
++        ggub_result=ggu_start_once(&ggub_context,&ops,&ggb_plan,&ggub_work);
++    }
++    if(ggub_result!=GGU_OK||!ggub_guard(NULL,GGU_FINAL)){
++        if(ggub_result==GGU_OK)ggub_result=GGU_GUARD;
++        if(sweet_gpu_unsecure_state()!=GMB_QUARANTINED)ggub_quarantine(NULL);
++        ggub_records(false);return ggub_result;
++    }
++    *out=ggub_work;__atomic_store_n(&ggub_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggub_records(true);return GGU_OK;
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -8,6 +8,7 @@
+ #include "gauguin_gpu_start.h"
+ #include "gauguin_gpu_core.h"
+ #include "gauguin_gpu_cp.h"
++#include "gauguin_gpu_unsecure.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+     GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE,GMB_GPU};
+@@ -80,9 +81,15 @@
+  * no ZAP, unsecured mode, multi-ring scheduling, rendering or Metal claim. */
+ enum ggq_result sweet_gpu_cp_once(struct ggq_receipt *);
+ enum gmb_state sweet_gpu_cp_state(void);
+-/* Signed ZAP load after this boot's completed core/first CP. Separate exact1
+- * opt-in; legacy PAS flags stay0. No unsecured mode/rendering/Metal claim. */
++/* Signed ZAP load after this boot's completed core/first CP. Exact modes1/2
++ * request signing; mode2 additionally requests the separately guarded native
++ * unsecured append below. Mode1 behavior and legacy PAS0 remain unchanged. */
+ bool sweet_gpu_zap_requested(void);
+ enum gpz_result sweet_gpu_zap_once(struct gpz_receipt *);
+ enum gmb_state sweet_gpu_zap_state(void);
++/* Post-AUTH native5word RB0 append under THIS private signed/CP/core/FW owner.
++ * Mode2 only; no secure-region access or original MDT revalidation. */
++bool sweet_gpu_unsecure_requested(void);
++enum ggu_result sweet_gpu_unsecure_once(struct ggu_receipt *);
++enum gmb_state sweet_gpu_unsecure_state(void);
+ #endif
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -265,7 +265,9 @@
+ {return ml_get_interrupts_enabled()&&!ml_at_interrupt_context()&&!get_preemption_level();}
+ static bool psz_flags(void)
+ {
+-    static const char *const on[]={"sweetgpuzap","sweetpasprobe","sweetpasstage"};
++    int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
++    if(mode!=1&&mode!=2)return false;
++    static const char *const on[]={"sweetpasprobe","sweetpasstage"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem"};
+     for(unsigned i=0;i<sizeof(on)/sizeof(on[0]);i++){int v=0;(void)PE_parse_boot_argn(on[i],&v,sizeof(v));if(v!=1)return false;}
+     for(unsigned i=0;i<sizeof(off)/sizeof(off[0]);i++){int v=0;(void)PE_parse_boot_argn(off[i],&v,sizeof(v));if(v)return false;}
+@@ -355,4 +357,10 @@
+     __atomic_store_n(&psz_lifecycle,PSZ_COPIED,__ATOMIC_RELEASE);return true;
+ }
+ 
++/* Ownership predicate only: no GPU permission, pointer setter or secure read. */
++bool sweet_pas_zap_owner_authenticated(uint64_t expected_pa)
++{
++    return sweet_pas_zap_owner_state()==PSZ_AUTH_DONE&&expected_pa==pst_ready.pa&&psz_geometry();
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_pas_stage.h
++++ b/bsd/dev/gauguin_pas_stage.h
+@@ -43,6 +43,10 @@
+ bool sweet_pas_zap_owner_action(enum gpz_owner_action);
+ bool sweet_pas_zap_copy(struct gpz_copy *);
+ void sweet_pas_zap_quarantine(void);
++/* Read-only post-AUTH geometry/state. Board must separately authorize GPU/RB
++ * access from its actual private signed/CP/firmware receipts. Never hashes,
++ * reads or rewrites the retained secure region; PA is comparison only. */
++bool sweet_pas_zap_owner_authenticated(uint64_t);
+ /* The board checks private engine/CP/owner identity and actual successful raw
+  * receipts before accepting an action. Copy guards may only run in COPY. */
+ bool sweet_gpu_zap_owner_phase(enum gpz_phase,uint64_t);

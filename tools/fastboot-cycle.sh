@@ -69,24 +69,10 @@ sh "$here/sweet-log-pull.sh" "$out" 2>&1 | tail -2
 
 # Refuse to present a log from an older kernel: the ring keeps the previous boot
 # when this one died before logging started (NOTES 23:50).
-python3 - "$img" "$out" <<'PYCHK'
-import sys
-img, log = sys.argv[1], sys.argv[2]
-d = open(img, 'rb').read()
-i = d.find(b'Darwin Kernel Version')
-want = d[i + 22:i + 75] if i >= 0 else b''
-try:
-    got = open(log, 'rb').readline()[22:75]
-except OSError:
-    got = b''
-if want and got != want:
-    print('STALE LOG: image kernel is %r but the log is %r'
-          % (want.decode('utf8', 'replace'), got.decode('utf8', 'replace')),
-          file=sys.stderr)
-    sys.exit(3)
-PYCHK
-rc=$?
-[ "$rc" = 3 ] && exit 3
+if ! python3 "$here/kernel_banner.py" "$img" "$out"; then
+	echo "STALE LOG: missing, ambiguous or mismatched kernel banner" >&2
+	exit 3
+fi
 tail -25 "$out"
 
 # Leave misc armed for the next cycle: the phone may be sitting in UEFI by now

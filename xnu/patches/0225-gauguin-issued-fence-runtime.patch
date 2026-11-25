@@ -1,0 +1,147 @@
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -109,7 +109,7 @@
+     }
+     return GGR_OK;
+ }
+-enum ggr_error ggr_submit(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *fence)
++enum ggr_error ggr_issue(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *fence)
+ {
+     if(!c||!addresses||!words||!fence||!count||count>GGR_MAX_COMMANDS)return GGR_ARGUMENT;
+     for(uint32_t i=0;i<count;i++)if(addresses[i]<GGR_VA_START||addresses[i]>=GGR_VA_END||
+@@ -123,8 +123,9 @@
+        !poll_mr(c,GGR_SHADOW,0,&shadow)||shadow!=c->wptr||
+        !poll_mr(c,GGR_COMPLETION,0,&control)||control!=c->completed||
+        !poll_rd(c,0x23b0c,&busy)||!alive(c)||busy==UINT32_MAX||(busy&(1u<<23)))goto io;
+-    /* One in flight: the whole ring is idle, so wrapping cannot overwrite an
+-     * unread packet. CP_RB_CNTL already selects the native 8192-DWORD ring. */
++    /* One in flight: the whole ring is idle before this issue, so wrapping
++     * cannot overwrite an unread packet. A second issue is refused until
++     * ggr_poll confirms EOP, shadow and idle for this one. */
+     uint32_t packet[GGR_RING_PACKET_WORDS],n=0,next=c->submitted+1;
+     for(uint32_t i=0;i<count;i++) {
+         packet[n++]=0x70bf8003u;packet[n++]=(uint32_t)addresses[i];
+@@ -157,18 +158,71 @@
+     }
+     if(i==200)goto timeout;
+     if(!wr(c,0x1f8c3,0))goto io;
+-    for(i=0;i<200000;i++) {
+-        ++c->polls;
+-        if(!alive(c)||!poll_faults(c)||!poll_barrier(c)||
+-           !poll_mr(c,GGR_COMPLETION,0,&control)||!poll_mr(c,GGR_SHADOW,0,&shadow)||
+-           !poll_rd(c,0x23b0c,&busy)||!alive(c))goto io;
+-        if(busy==UINT32_MAX||shadow>=8192||control>next)goto io;
+-        if(control==next&&shadow==end&&!(busy&(1u<<23))) {
+-            if(!alive(c))goto io;
+-            c->wptr=end;c->completed=next;c->state=GGR_READY;*fence=next;return GGR_OK;
+-        }
+-        if(!delay(c))goto timeout;
+-    }
++    c->pending_wptr=end;
++    c->pending_deadline_ns=c->operation_end_ns;
++    *fence=next;
++    return GGR_OK;
+ timeout:ggr_fail(c,GGR_TIMEOUT);return GGR_TIMEOUT;
+ io:ggr_fail(c,GGR_IO);return GGR_IO;
+ }
++
++enum ggr_error ggr_poll(struct ggr_context *c)
++{
++    if(!c||c->state!=GGR_BUSY)return GGR_UNAVAILABLE;
++    if(c->completed==UINT32_MAX||c->submitted!=c->completed+1||
++       c->pending_wptr>=8192||!c->pending_deadline_ns){
++        ggr_fail(c,GGR_IO);return GGR_IO;
++    }
++    /* The read itself has a fresh bounded guard. A caller that comes back
++     * after the pending deadline may still observe a fence already complete;
++     * the original deadline limits only a fence that remains pending. */
++    uint64_t now=c->ops.nanoseconds(c->ops.cookie);
++    if(now>UINT64_MAX-UINT64_C(2000000000)){
++        ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;
++    }
++    c->operation_end_ns=now+UINT64_C(2000000000);
++    uint32_t control,shadow,busy;
++    ++c->polls;
++    if(!alive(c)||!poll_faults(c)||!poll_barrier(c)||
++       !poll_mr(c,GGR_COMPLETION,0,&control)||!poll_mr(c,GGR_SHADOW,0,&shadow)||
++       !poll_rd(c,0x23b0c,&busy)||!alive(c))goto io;
++    if(busy==UINT32_MAX||shadow>=8192||
++       control<c->completed||control>c->submitted)goto io;
++    if(control==c->submitted&&shadow==c->pending_wptr&&!(busy&(1u<<23))) {
++        c->wptr=c->pending_wptr;
++        c->completed=c->submitted;
++        c->pending_wptr=0;
++        c->pending_deadline_ns=0;
++        c->state=GGR_READY;
++        return GGR_OK;
++    }
++    if(c->ops.nanoseconds(c->ops.cookie)>=c->pending_deadline_ns)goto timeout;
++    return GGR_PENDING;
++timeout:ggr_fail(c,GGR_TIMEOUT);return GGR_TIMEOUT;
++io:ggr_fail(c,GGR_IO);return GGR_IO;
++}
++
++enum ggr_error ggr_wait(struct ggr_context *c,uint32_t fence)
++{
++    if(!c||!fence||fence>c->submitted)return GGR_ARGUMENT;
++    if(fence<=c->completed&&c->state==GGR_READY)return GGR_OK;
++    if(c->state!=GGR_BUSY||fence!=c->submitted)return GGR_UNAVAILABLE;
++    for(uint32_t i=0;i<200000;i++) {
++        enum ggr_error result=ggr_poll(c);
++        if(result!=GGR_PENDING)return result;
++        if(!delay(c))break;
++    }
++    ggr_fail(c,GGR_TIMEOUT);
++    return GGR_TIMEOUT;
++}
++
++enum ggr_error ggr_submit(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *fence)
++{
++    if(!fence)return GGR_ARGUMENT;
++    uint32_t issued=0;
++    enum ggr_error result=ggr_issue(c,addresses,words,count,&issued);
++    if(result!=GGR_OK)return result;
++    result=ggr_wait(c,issued);
++    if(result==GGR_OK)*fence=issued;
++    return result;
++}
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -77,7 +77,7 @@
+ 
+ enum ggr_memory { GGR_RING, GGR_SHADOW, GGR_COMPLETION };
+ enum ggr_state { GGR_COLD, GGR_READY, GGR_BUSY, GGR_FAILED };
+-enum ggr_error { GGR_OK, GGR_ARGUMENT, GGR_UNAVAILABLE, GGR_IO, GGR_TIMEOUT };
++enum ggr_error { GGR_OK, GGR_ARGUMENT, GGR_UNAVAILABLE, GGR_IO, GGR_TIMEOUT, GGR_PENDING };
+ struct ggr_ops {
+     void *cookie;
+     bool (*healthy)(void *);
+@@ -95,15 +95,23 @@
+ };
+ struct ggr_context {
+     uint32_t state, wptr, submitted, completed, last_error, polls;
++    uint32_t pending_wptr;
+     uint32_t scratch_iova, completion_iova;
+-    uint64_t operation_end_ns;
++    uint64_t operation_end_ns, pending_deadline_ns;
+     struct ggr_ops ops;
+ };
+-/* Caller serializes all entries. No memory may be freed on a started failure.
+- * Submission is initially synchronous: success requires the GPU's EOP value,
+- * WHERE_AM_I shadow, no live fault and idle. A returned fence is real, already
+- * completed; an AO/ring reading alone is never treated as a completion. */
++/* Caller serializes all entries. One issued command is permitted in flight;
++ * this core never releases or owns client BOs. A failed started submission
++ * quarantines, so its memory must be retained by the owner. ggr_issue returns
++ * an issued fence after the doorbell protocol, not completion. ggr_poll checks
++ * EOP, WHERE_AM_I, faults and idle; GGR_PENDING is not completion. A late poll
++ * can accept a completed fence, while a still-pending fence past its original
++ * two-second deadline quarantines. */
+ enum ggr_error ggr_open(struct ggr_context *,const struct ggr_ops *,uint32_t,uint32_t);
++enum ggr_error ggr_issue(struct ggr_context *,const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
++enum ggr_error ggr_poll(struct ggr_context *);
++enum ggr_error ggr_wait(struct ggr_context *,uint32_t);
++/* Retained synchronous API: only publishes a fence after ggr_wait completes. */
+ enum ggr_error ggr_submit(struct ggr_context *,const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
+ /* Read-only idle/real-EOP/fault check with a fresh bounded operation deadline.
+  * A failed started check quarantines; it never rings the GPU or pets a WDT. */

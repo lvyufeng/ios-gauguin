@@ -1,0 +1,180 @@
+diff --git a/bsd/dev/gauguin_deadlines419.h b/bsd/dev/gauguin_deadlines419.h
+--- a/bsd/dev/gauguin_deadlines419.h
++++ b/bsd/dev/gauguin_deadlines419.h
+@@ -1,10 +1,11 @@
+ #ifndef GAUGUIN_DEADLINES419_H
+ #define GAUGUIN_DEADLINES419_H
+ 
++#include <stdbool.h>
+ #include <stdint.h>
+ 
+ enum {
+-    F419_GPU = 64, F419_PROMOTE, F419_COPY, F419_DISPATCH,
++    F419_GPU = 64, F419_PROMOTE, F419_COPY, F419_DISPATCH, F425_RAW = 69,
+     F419_CAPACITY = 12288, F419_MAX_WIRE_BYTES = 786432
+ };
+ 
+@@ -12,10 +13,22 @@
+ extern "C" {
+ #endif
+ uint64_t sweet_frame419_clock(void);
++bool sweet_frame425_observing(void);
+ void sweet_frame419_record(uint32_t kind, uint64_t id, uint32_t lane,
+     uint32_t version, uint64_t a, uint64_t b, uint64_t c);
+ #ifdef __cplusplus
+ }
+ #endif
+ 
++/* Existing writer row field, without adding a per-submit record. The issue
++ * operation is bracketed around its native call. Its return is not the
++ * earliest possible time at which the GPU could have seen the submit. */
++static inline uint64_t
++f425_issue_bounds(uint64_t observed, uint64_t before, uint64_t after)
++{
++    if (!before || before > after || after > observed || observed - before > UINT32_MAX)
++        return 0;
++    return ((observed - before) << 32) | (after - before);
++}
++
+ #endif
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -82,6 +82,7 @@
+ #define F344_CRC_CONFIG UINT32_C(0x81000101)
+ 
+ static struct gut_core frames, timeline419;
++static bool passive425;
+ static mach_timebase_info_data_t frame_timebase;
+ static bool frame_header, frame_footer;
+ static thread_call_t scan_call, manual_preview_call;
+@@ -357,6 +358,39 @@
+             (unsigned long long)s->ticket, s->fence, s->frame, s->line, s->stroke,
+             (unsigned long long)s->bounds.earliest_tick, (unsigned long long)s->bounds.latest_tick);
+         if (size > 0 && (size_t)size < sizeof(line)) sweet_log_append(line, size);
++    }
++}
++
++enum { F425_RAW_LIMIT = 2304 };
++static struct eop405_state eop425;
++static unsigned raw425_emitted;
++
++bool sweet_frame425_observing(void)
++{
++    return __atomic_load_n(&passive425, __ATOMIC_ACQUIRE);
++}
++
++static void scan425_observe(void)
++{
++    if (raw425_emitted >= F425_RAW_LIMIT || !sweet_frame351_window() ||
++        sweet_frame382_ending() || !sweet_frame419_clock()) return;
++    uint64_t ticket;
++    uint32_t fence, value;
++    const uint64_t begin = mach_absolute_time();
++    if (!GauguinGPUObserveDisplayWord405(&ticket, &fence, &value)) return;
++    const uint64_t end = mach_absolute_time();
++    if (fence > eop425.fence && (value == fence || value == fence - 1u) &&
++        !eop425.reported && eop425.last_pending_begin) {
++        sweet_frame419_record(F425_RAW, eop425.ticket, eop425.fence, 0,
++            eop425.last_pending_begin, 0, 0);
++        ++raw425_emitted;
++    }
++    struct eop405_bracket bounds;
++    if (eop405_observe(&eop425, ticket, fence, value, begin, end, &bounds) &&
++        bounds.latest_tick && raw425_emitted < F425_RAW_LIMIT) {
++        sweet_frame419_record(F425_RAW, ticket, fence, 0,
++            bounds.earliest_tick, bounds.latest_tick, begin);
++        ++raw425_emitted;
+     }
+ }
+ 
+@@ -1543,6 +1577,7 @@
+             if (scan357_enabled && !manual_preview && !sustained417 &&
+                 scan358_probe_line(line) && sweet_frame351_window())
+                 sweet_fb358_request_probe(frame);
++            if (sweet_frame425_observing()) scan425_observe();
+             scan405_observe(frame, line);
+         } else if (scan.counter_readonly) {
+             scan.motion.previous_valid = false;
+@@ -1596,11 +1631,17 @@
+     }
+     printf("SWEET F344: armed window=45s capacity=%u\n", capacity);
+     unsigned diagnostic = 0;
+-    if (sustained && PE_parse_boot_argn("f419", &diagnostic, sizeof(diagnostic)) && diagnostic == 1) {
++    if (sustained && PE_parse_boot_argn("f419", &diagnostic, sizeof(diagnostic)) &&
++        (diagnostic == 1 || diagnostic == 2)) {
+         const size_t bytes = F419_CAPACITY * sizeof(struct gut_event);
+         struct gut_event *timeline = kalloc_data(bytes, Z_WAITOK | Z_ZERO);
+-        if (timeline && !gut_init_frames(&timeline419, timeline, F419_CAPACITY, window, now))
+-            kfree_data(timeline, bytes);
++        if (timeline) {
++            if (gut_init_frames(&timeline419, timeline, F419_CAPACITY, window, now))
++                __atomic_store_n(&passive425, diagnostic == 2, __ATOMIC_RELEASE);
++            else
++                kfree_data(timeline, bytes);
++        }
++        if (sweet_frame425_observing()) printf("SWEET F425: passive completion sampling only\n");
+     }
+     if (preview) {
+         thread_call_t call = thread_call_allocate_with_options(start_manual_preview, NULL,
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -592,7 +592,7 @@
+     gpu_buffer *fPending[GGR_MAX_BUFFERS];
+     gpu_queue *fPendingQueue;
+     uint32_t fPendingCount,fPendingNativeFence,fPendingQueueFence;
+-    uint64_t fPendingDisplayTicket;
++    uint64_t fPendingDisplayTicket, fIssue425Before, fIssue425After;
+     uint32_t fPendingDisplayVersion;
+     bool fClosed, fCompositor, fAsync;
+     gpu_buffer *find(uint32_t);
+@@ -820,7 +820,7 @@
+     if(fCompositor)task_reference(fTask);
+     fNextHandle=1;fNextQueue=1;fBootstrapJobs=0;fAllocationStage=0;fAllocationFailures=0;
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
+-    fPendingDisplayTicket = 0;
++    fPendingDisplayTicket = fIssue425Before = fIssue425After = 0;
+     fPendingDisplayVersion = 0;
+     fCachedBytes=0;fCachedCount=0;fCacheCursor336=0;fCacheEnabled=false;
+     fAsync=false;return true;
+@@ -1132,7 +1132,7 @@
+     if (fCompositor) __atomic_store_n(&gauguin_display_thread_398,0,__ATOMIC_RELEASE);
+     clearDisplayProbeTicket(fPendingDisplayTicket);
+     sweet_fb357_finish_writer(fPendingDisplayTicket, fPendingDisplayVersion, 0);
+-    fPendingDisplayTicket = 0;
++    fPendingDisplayTicket = fIssue425Before = fIssue425After = 0;
+ }
+ 
+ IOReturn GauguinGPUUserClient::finishPending(bool wait,bool reap,const struct ggr_timespec *deadline)
+@@ -1208,7 +1208,8 @@
+     sweet_frame344_record(F344_READY,fence,0,0,0,0);
+     if (observedEop)
+         sweet_frame419_record(F419_GPU, fPendingDisplayTicket, fence, fPendingDisplayVersion,
+-            observedEop, mach_absolute_time(), 0);
++            observedEop, mach_absolute_time(), f425_issue_bounds(observedEop, fIssue425Before, fIssue425After));
++    fIssue425Before = fIssue425After = 0;
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
+     if (fPendingDisplayTicket) {
+         gCompletedDisplayWrite = {fPendingDisplayTicket, fPendingDisplayVersion, fence};
+@@ -1475,8 +1476,11 @@
+         io342::phase(0x46,10);
+         memoryBarrier();uint32_t fence=0;
+         sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);
++        const uint64_t issueBefore = fAsync && (fPendingDisplayTicket || producerVersion) &&
++            sweet_frame425_observing() ? sweet_frame419_clock() : 0;
+         bool ok=fAsync?sweet_gpu_runtime_issue(addresses,words,r->nr_cmds,&fence)==GGR_OK:
+                        sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
++        const uint64_t issueAfter = issueBefore ? mach_absolute_time() : 0;
+         io342::phase(0x46,11);
+         if (producerVersion) {
+             // The pending BO escrow still belongs to this submission.
+@@ -1493,6 +1497,8 @@
+         if(fAsync){
+             if(ok){
+                 fPendingNativeFence=fence;r->fence=++q->issued;
++                fIssue425Before = issueBefore;
++                fIssue425After = issueAfter;
+                 result=kIOReturnSuccess; /* issued; BOs/surfaces remain owned */
+             } else {
+                 sweet_gpu_runtime_stop();

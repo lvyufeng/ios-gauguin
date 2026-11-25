@@ -1,0 +1,420 @@
+diff --git a/bsd/conf/files b/bsd/conf/files
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -128,4 +128,6 @@
+ bsd/dev/gauguin_gmu_smmu.c		standard
+ bsd/dev/gauguin_gmu_board.c		standard
++bsd/dev/gauguin_gmu_firmware.c		standard
++bsd/dev/gauguin_gmu_asset.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+diff --git a/bsd/dev/gauguin_bus_probe.c b/bsd/dev/gauguin_bus_probe.c
+--- a/bsd/dev/gauguin_bus_probe.c
++++ b/bsd/dev/gauguin_bus_probe.c
+@@ -516,4 +516,5 @@
+ }
+
++static unsigned bus_plan_ready;
+ static bool
+ bus_plan_prepare(struct gbcm_plan *out, struct gcr_plan *cx)
+@@ -550,4 +551,5 @@
+     *out = bus_work->plan;
+     if (cx) *cx = cx_plan;
++    __atomic_store_n(&bus_plan_ready,1u,__ATOMIC_RELEASE);
+     bus_record("SWEET BUS: same-boot CPU plan ready; no RSC access or submission yet");
+     return true;
+@@ -558,4 +560,14 @@
+ bool sweet_bus_cx_plan_prepare(struct gbcm_plan *out, struct gcr_plan *cx)
+ { return cx != NULL && bus_plan_prepare(out, cx); }
++
++bool sweet_bus_arc_entries(struct ndb_entry *out)
++{
++    if(!out||!bus_context()||!__atomic_load_n(&bus_plan_ready,__ATOMIC_ACQUIRE)||!bus_work||
++       memcmp(bus_work->raw[0],bus_work->raw[1],BUS_RAW_BYTES))return false;
++    struct ndb_entry entries[4];
++    for(unsigned i=0;i<4;i++)if(ndb_lookup(bus_work->raw[0],BUS_RAW_BYTES,bus_arc_names[i],
++        strlen(bus_arc_names[i]),&entries[i])!=NDB_OK)return false;
++    memcpy(out,entries,sizeof(entries));return true;
++}
+
+ static void
+diff --git a/bsd/dev/gauguin_bus_probe.h b/bsd/dev/gauguin_bus_probe.h
+--- a/bsd/dev/gauguin_bus_probe.h
++++ b/bsd/dev/gauguin_bus_probe.h
+@@ -12,3 +12,9 @@
+  * Both outputs remain unchanged on failure; no RSC access or voltage claim. */
+ bool sweet_bus_cx_plan_prepare(struct gbcm_plan *, struct gcr_plan *);
++struct ndb_entry;
++/* Copy four ARC entries from the already published immutable same-boot CPU
++ * snapshot (cx/mx/gfx/xo order). No recapture/map/MMIO, outputs only after all
++ * lookups succeed and both retained copies still match. Consumer applies its
++ * own board policy before any firmware/OOB/resource programming. */
++bool sweet_bus_arc_entries(struct ndb_entry *);
+ #endif
+diff --git a/bsd/dev/gauguin_gmu_asset.c b/bsd/dev/gauguin_gmu_asset.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_asset.c
+@@ -0,0 +1,42 @@
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <vm/vm_map.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <pexpert/device_tree.h>
++#include <pexpert/arm64/boot.h>
++#include <libkern/crypto/sha2.h>
++#include "gauguin_gmu_asset.h"
++extern unsigned long gPhysBase,real_phys_size;
++extern vm_offset_t arm_vm_kernelcache_phys_end;
++static const uint8_t gma_expected[32]={
++    0x9e,0xf1,0x0b,0x2b,0x17,0x90,0x54,0xfb,0x57,0xaf,0x25,0x00,0x8e,0x29,0xfe,0xb2,
++    0x43,0x00,0xc2,0xea,0xae,0xab,0xf9,0x07,0xbd,0x74,0x17,0x86,0xbb,0xac,0xbf,0x2e
++};
++bool sweet_gmu_asset_view(struct gma_view *out)
++{
++    if(!out)return false;
++    const boot_args *a=PE_state.bootArgs;
++    DTEntry node;const void *property=NULL;unsigned length=0;uint64_t range[2];
++    if(!a||a->Version!=kBootArgsVersion2||a->physBase!=gPhysBase||!real_phys_size||
++       !a->memSize||a->memSize>real_phys_size||a->physBase>UINT64_MAX-real_phys_size||
++       (a->topOfKernelData&0x3fff)||a->topOfKernelData<a->physBase||
++       a->topOfKernelData>a->physBase+a->memSize||arm_vm_kernelcache_phys_end<a->physBase||
++       arm_vm_kernelcache_phys_end>a->topOfKernelData||
++       SecureDTLookupEntry(NULL,"/chosen/memory-map",&node)!=kSuccess||
++       SecureDTGetProperty(node,"A619GMUFirmware",&property,&length)!=kSuccess||
++       !property||length!=sizeof(range))return false;
++    memcpy(range,property,sizeof(range));uint64_t pa=range[0],bytes=range[1];
++    if(!pa||(pa&0x3fff)||bytes!=32768||pa<arm_vm_kernelcache_phys_end||
++       pa>=a->topOfKernelData||bytes>a->topOfKernelData-pa||
++       bytes>a->physBase+a->memSize-pa)return false;
++    vm_offset_t first=ml_static_ptovirt((vm_offset_t)pa);
++    if(!first||first>UINTPTR_MAX-32767||ml_static_ptovirt((vm_offset_t)(pa+32767))!=first+32767)return false;
++    uint8_t digest[32];SHA256_CTX ctx;
++    SHA256_Init(&ctx);SHA256_Update(&ctx,(const void *)first,32768);SHA256_Final(digest,&ctx);
++    if(memcmp(digest,gma_expected,sizeof(digest)))return false;
++    *out=(struct gma_view){(const uint8_t *)first,pa,32768};return true;
++}
++#endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gmu_asset.h b/bsd/dev/gauguin_gmu_asset.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_asset.h
+@@ -0,0 +1,11 @@
++#ifndef GAUGUIN_GMU_ASSET_H
++#define GAUGUIN_GMU_ASSET_H
++#include <stdbool.h>
++#include <stdint.h>
++struct gma_view {const uint8_t *data;uint64_t pa;uint32_t bytes;};
++/* Read-only view of the exact pinned32768-byte A619GMUFirmware data asset.
++ * Boot-argument/ADT bounds, contiguous direct-map endpoints and fresh native
++ * SHA256 are required. No allocation/mapping/TCM access/firmware execution or
++ * physical authorization. Caller output is untouched on failure. */
++bool sweet_gmu_asset_view(struct gma_view *);
++#endif
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -0,0 +1,247 @@
++/* Fixed A619 legacy bootstrap, native19b63c8 adreno_a6xx_gmu/kgsl_hfi.
++ * No physical mapping, crypto, allocation, interrupt enable or secure call. */
++#include <string.h>
++#include "gauguin_gmu_firmware.h"
++#include "cmd_db_snapshot.h"
++static const uint32_t addresses[4]={0x30000,0x30010,0x30050,0x300a0};
++static const unsigned counts[4]={7,8,8,4};
++static const uint16_t levels[4][16]={
++    {0,16,64,128,192,256,384},{0,16,64,128,192,256,320,384},
++    {0,64,128,192,256,320,384,416},{0,32,80,128}
++};
++static const char names[4][9]={"cx.lvl","mx.lvl","gfx.lvl","xo.lvl"};
++bool gmf_plan_valid(const struct gmf_plan *p)
++{
++    if(!p)return false;
++    for(unsigned n=0;n<4;n++)if(p->address[n]!=addresses[n]||p->count[n]!=counts[n]||
++        p->selector[n]!=counts[n]-1||p->level[n]!=levels[n][counts[n]-1]||
++        memcmp(p->levels[n],levels[n],sizeof(levels[n])))return false;
++    return true;
++}
++bool gmf_plan_build(const struct ndb_entry *entries,struct gmf_plan *out)
++{
++    if(!entries||!out)return false;struct gmf_plan p={0};
++    for(unsigned n=0;n<4;n++){
++        const struct ndb_entry *e=&entries[n];struct ndb_arc_levels arc;
++        if(memcmp(e->name,names[n],9)||e->address!=addresses[n]||e->owner_slave!=3||
++           e->bank_version!=0x1000||e->aux_length!=32||ndb_decode_arc(e,&arc)!=NDB_OK||
++           arc.count!=counts[n]||memcmp(arc.value,levels[n],counts[n]*sizeof(uint16_t)))return false;
++        p.address[n]=e->address;p.count[n]=arc.count;p.selector[n]=arc.count-1;
++        p.level[n]=arc.value[p.selector[n]];memcpy(p.levels[n],arc.value,arc.count*sizeof(uint16_t));
++    }
++    if(!gmf_plan_valid(&p))return false;*out=p;return true;
++}
++#define C(word) (((word)-0x1f000u)*4u)
++#define A(word) (((word)-0x23000u)*4u)
++#define R(word) (0x1000u+4u*(word))
++#define P(word) (4u*(word)-0x4000u)
++#define T(word) (((word)-0x1b000u)*4u)
++static bool guard(struct gmf_context *c)
++{return c->ops.guard(c->ops.cookie,c->phase);}
++static bool rd(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t *v)
++{return guard(c)&&c->ops.read(c->ops.cookie,w,off,v)&&guard(c);}
++static bool wr(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t v)
++{
++    if(!guard(c))return false;++c->work.writes;
++    return c->ops.write(c->ops.cookie,w,off,v)&&guard(c);
++}
++static bool barrier(struct gmf_context *c)
++{return guard(c)&&c->ops.barrier(c->ops.cookie)&&guard(c);}
++static enum gmf_result store(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t v)
++{uint32_t actual;if(!wr(c,w,off,v)||!barrier(c)||!rd(c,w,off,&actual))return GMF_IO;return actual==v?GMF_OK:GMF_READBACK;}
++static enum gmf_result mask(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t set)
++{uint32_t old;if(!rd(c,w,off,&old)||old==UINT32_MAX)return GMF_IO;return store(c,w,off,old|set);}
++static enum gmf_result poll(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t mask_bits,uint32_t value,uint32_t *out)
++{
++    for(unsigned i=0;i<1000;i++){
++        uint32_t v;if(!rd(c,w,off,&v)||v==UINT32_MAX)return GMF_IO;++c->work.polls;
++        if((v&mask_bits)==value){if(out)*out=v;return GMF_OK;}
++        if(i+1<1000&&(!guard(c)||!c->ops.delay_us(c->ops.cookie,100)||!guard(c)))return GMF_IO;
++    }
++    return GMF_TIMEOUT;
++}
++static enum gmf_result preflight(struct gmf_context *c)
++{
++    uint32_t reset,busy,req,ack,pdc1,pdc3;
++    if(!rd(c,GMF_CSR,C(0x1f800),&reset)||!rd(c,GMF_AO,R(0x101),&busy)||
++       !rd(c,GMF_AO,A(0x23b07),&req)||!rd(c,GMF_AO,A(0x23b08),&ack)||
++       !rd(c,GMF_PDC,P(0x1572),&pdc1)||!rd(c,GMF_PDC,P(0x15d6),&pdc3)||
++       !rd(c,GMF_CSR,C(0x1f980),&c->work.hfi_before))return GMF_IO;
++    if(reset!=1||busy||req||ack||pdc1||pdc3||(c->work.hfi_before&1))return GMF_INHERITED;
++    return GMF_OK;
++}
++static enum gmf_result ucode(struct gmf_context *c)
++{
++    enum gmf_result rc;
++    rc=store(c,GMF_CSR,C(0x1f9cc),1);if(rc)return rc;
++    /* Native command write: STATUS0 bit24 disables SDE clock gating, not
++     * a general RW register whose complete value should be compared. */
++    if(!wr(c,GMF_AO,R(4),1u<<24)||!barrier(c))return GMF_IO;
++    static const uint32_t rsc[][2]={
++        {0xb,1},{0xe,0},{0xd,0},{0x10,0},{0xf,0},{0x12,0x80000000},{0x11,0},
++        {0x100,0},{8,0x4520},{9,0x4510},{0xa,0x4514},
++        {0x180,0xa7a506a0},{0x181,0xa1e6a6e7},{0x182,0xa2e081e1},
++        {0x183,0xe9a982e2},{0x184,0x0020e8a8}
++    };
++    for(unsigned i=0;i<sizeof(rsc)/sizeof(*rsc);i++){rc=store(c,GMF_AO,R(rsc[i][0]),rsc[i][1]);if(rc)return rc;}
++    static const uint32_t seq[]={0xfebea1e1,0xa5a4a3a2,0x8382a6e0,0xbce3e284,0x002081fc};
++    for(unsigned i=0;i<5;i++){rc=store(c,GMF_SEQ,4*i,seq[i]);if(rc)return rc;}
++    for(unsigned n=0;n<2;n++){
++        unsigned base=n?0x15d6:0x1572;
++        rc=store(c,GMF_PDC,P(base+1),7);if(rc)return rc;
++        rc=store(c,GMF_PDC,P(base+2),0);if(rc)return rc;
++        rc=store(c,GMF_PDC,P(base),0);if(rc)return rc;
++        unsigned domain[3]={GMF_MX,GMF_CX,GMF_XO};
++        unsigned data[2][3]={{1,0,0},{2,2,3}};
++        for(unsigned j=0;j<3;j++){
++            rc=store(c,GMF_PDC,P(base+3+4*j),0x10108);if(rc)return rc;
++            rc=store(c,GMF_PDC,P(base+4+4*j),c->plan.address[domain[j]]);if(rc)return rc;
++            rc=store(c,GMF_PDC,P(base+5+4*j),data[n][j]);if(rc)return rc;
++        }
++    }
++    rc=store(c,GMF_PDC,P(0x1148),0);if(rc)return rc;
++    return store(c,GMF_PDC,P(0x1140),0x80000001);
++}
++static bool shared_guard(void *cookie){return guard(cookie);}
++static bool shared_read(void *cookie,uint32_t word,uint32_t *v)
++{struct gmf_context *c=cookie;return c->ops.shared_read(c->ops.cookie,word,v);}
++static bool shared_write(void *cookie,uint32_t word,uint32_t v)
++{struct gmf_context *c=cookie;return c->ops.shared_write(c->ops.cookie,word,v);}
++static bool shared_barrier(void *cookie)
++{struct gmf_context *c=cookie;return c->ops.barrier(c->ops.cookie);}
++static enum gmf_result load_configure(struct gmf_context *c,const uint8_t *asset,size_t bytes)
++{
++    struct gmf_copy copy={0};enum gmf_result rc;
++    if(!c->ops.copy(c->ops.cookie,asset,bytes,&copy)||!guard(c)||copy.written!=8192||copy.checked!=8192)return GMF_ASSET;
++    c->work.tcm_written=copy.written;c->work.tcm_checked=copy.checked;
++    /* The pinned legacy image carries zero metadata here. Read actual TCM
++     * after exact copy/readback; later FW-result plus ACKs qualify execution. */
++    for(unsigned i=0;i<5;i++)if(!rd(c,GMF_TCM,T(0x1d3f8+i),&c->work.versions[i]))return GMF_IO;
++    for(unsigned i=0;i<5;i++)if(c->work.versions[i])return GMF_VERSION;
++    struct ggh_ops hfi={c,shared_guard,shared_read,shared_write,shared_barrier};
++    if(ggh_bind(&c->hfi,&hfi,1)!=GGH_OK)return GMF_TRANSPORT;
++    /* Keep host delivery masked; native message bit0 is polled even when
++     * masked. NS GIC predicates stay quiet. Clear inherited status under reset. */
++    rc=store(c,GMF_CSR,C(0x1f993),UINT32_MAX);if(rc)return rc;
++    rc=store(c,GMF_AO,A(0x23b06),UINT32_MAX);if(rc)return rc;
++    if(!wr(c,GMF_CSR,C(0x1f991),UINT32_MAX)||!wr(c,GMF_AO,A(0x23b04),UINT32_MAX)||!barrier(c))return GMF_IO;
++    static const uint32_t config[][3]={
++        {GMF_CSR,C(0x1f81c),0},{GMF_CSR,C(0x1f801),2},
++        {GMF_CSR,C(0x1f985),0x60001000},{GMF_CSR,C(0x1f984),1},
++        {GMF_AO,A(0x23b11),0x80a008a0},{GMF_CSR,C(0x1f82d),0x4052},
++        {GMF_CSR,C(0x1f982),0x06019000},{GMF_CSR,C(0x1f900),0x6000a000},
++        {GMF_CSR,C(0x1f400),1},{GMF_CSR,C(0x1f401),1},{GMF_CSR,C(0x1f40f),1},
++        {GMF_CSR,C(0x1f8c0),0x09c40400},{GMF_CSR,C(0x1f8c1),0x000a1680},
++        {GMF_CSR,C(0x1f8c2),0x000a1680},{GMF_CSR,C(0x1f901),0}
++    };
++    for(unsigned i=0;i<sizeof(config)/sizeof(*config);i++){rc=store(c,(enum gmf_window)config[i][0],config[i][1],config[i][2]);if(rc)return rc;}
++    rc=mask(c,GMF_CSR,C(0x1f8c0),7);if(rc)return rc;
++    return mask(c,GMF_CSR,C(0x1f8e8),0xf11);
++}
++static enum gmf_result release_boot(struct gmf_context *c)
++{
++    /* A619 has GBIF (native excludes only A630 among A6xx). Its halt word
++     * is GPU-relative0x3c45 ->03d0f114, offset3114 in the narrow CX map. */
++    enum gmf_result rc=store(c,GMF_GBIF,0x3114,0);if(rc)return rc;
++    c->phase=GMF_RELEASING;
++    if(!wr(c,GMF_CSR,C(0x1f800),0)||!barrier(c))return GMF_IO;
++    c->phase=GMF_BOOTING;
++    rc=poll(c,GMF_CSR,C(0x1f81c),UINT32_MAX,0xbabeface,&c->work.fw_result);if(rc)return rc;
++    uint32_t info;if(!rd(c,GMF_CSR,C(0x1f992),&info))return GMF_IO;
++    return info&(1u<<15)?GMF_FAULT:GMF_OK;
++}
++static enum gmf_result gx_hfi(struct gmf_context *c)
++{
++    enum gmf_result rc;
++    rc=store(c,GMF_TCM,T(0x1cbf8),0);if(rc)return rc;
++    rc=store(c,GMF_TCM,T(0x1cbf9),c->plan.selector[GMF_GFX]);if(rc)return rc;
++    rc=store(c,GMF_TCM,T(0x1cbfa),c->plan.selector[GMF_MX]);if(rc)return rc;
++    if(!rd(c,GMF_CSR,C(0x1f992),&c->work.oob_before))return GMF_IO;
++    if(c->work.oob_before&0x40008000u)return GMF_INHERITED;
++    c->phase=GMF_GX_REQUEST;
++    if(!wr(c,GMF_CSR,C(0x1f994),1u<<22)||!barrier(c))return GMF_IO;
++    rc=poll(c,GMF_CSR,C(0x1f992),1u<<30,1u<<30,&c->work.oob_after);if(rc)return rc;
++    if(c->work.oob_after&(1u<<15))return GMF_FAULT;
++    if(!wr(c,GMF_CSR,C(0x1f991),1u<<30)||!barrier(c))return GMF_IO;
++    uint32_t info;if(!rd(c,GMF_CSR,C(0x1f992),&info))return GMF_IO;
++    if(info&(1u<<30))return GMF_READBACK;
++    c->phase=GMF_HFI_START;
++    if(!wr(c,GMF_CSR,C(0x1f986),1)||!barrier(c))return GMF_IO;
++    return poll(c,GMF_CSR,C(0x1f980),1,1,&c->work.hfi_after);
++}
++static enum gmf_result drain_debug(struct gmf_context *c,unsigned queue,uint32_t bit)
++{
++    for(unsigned i=0;i<16;i++){
++        uint32_t reply[19],info;size_t n=0;
++        enum ggh_result r=ggh_receive(&c->hfi,queue,reply,19,&n);
++        if(r==GGH_OK){
++            if((reply[0]&255)==100)return GMF_FAULT;
++            if(((reply[0]>>16)&15)==2||(reply[0]&255)!=101)return GMF_ACK;
++            ++c->work.debug_messages;continue;
++        }
++        if(r!=GGH_EMPTY)return GMF_TRANSPORT;
++        if(!rd(c,GMF_CSR,C(0x1f992),&info))return GMF_IO;
++        if(info&0x8000)return GMF_FAULT;
++        if(!(info&bit))return GMF_OK;
++        if(!wr(c,GMF_CSR,C(0x1f991),bit)||!barrier(c))return GMF_IO;
++    }
++    return GMF_ACK;
++}
++static enum gmf_result request(struct gmf_context *c,const uint32_t *packet,unsigned words,uint32_t *ack,unsigned ack_words)
++{
++    uint32_t info;enum gmf_result rc=drain_debug(c,2,4);if(rc)return rc;
++    rc=drain_debug(c,1,1);if(rc)return rc;
++    if(!rd(c,GMF_CSR,C(0x1f992),&info))return GMF_IO;
++    if(info&0x8001)return GMF_INHERITED;
++    if(ggh_send(&c->hfi,packet,words)!=GGH_OK)return GMF_TRANSPORT;
++    if(!guard(c)||!wr(c,GMF_CSR,C(0x1f994),1)||!barrier(c))return GMF_IO;
++    rc=poll(c,GMF_CSR,C(0x1f992),1,1,&info);if(rc)return rc;
++    if(info&0x8000)return GMF_FAULT;
++    if(!wr(c,GMF_CSR,C(0x1f991),1)||!barrier(c))return GMF_IO;
++    for(unsigned i=0;i<16;i++){
++        uint32_t reply[19];size_t n=0;enum ggh_result r=ggh_receive(&c->hfi,1,reply,19,&n);
++        if(r!=GGH_OK)return GMF_TRANSPORT;
++        if(((reply[0]>>16)&15)==2){
++            if(n!=ack_words||reply[1]!=packet[0]||reply[2]==UINT32_MAX||
++               (ack_words==4&&reply[2]!=0))return GMF_ACK;
++            memcpy(ack,reply,ack_words*4);return GMF_OK;
++        }
++        if((reply[0]&255)!=101)return GMF_ACK;
++        ++c->work.debug_messages;
++    }
++    return GMF_ACK;
++}
++static enum gmf_result handshake(struct gmf_context *c)
++{
++    c->phase=GMF_HANDSHAKE;
++    const uint32_t init[5]={0x00100500,0,0x60006000,0x4000,1};
++    const uint32_t version[2]={0x00200201,0x100b0000};
++    enum gmf_result rc=request(c,init,5,c->work.init_ack,3);if(rc)return rc;
++    rc=request(c,version,2,c->work.version_ack,4);if(rc)return rc;
++    uint32_t v=c->work.version_ack[3];c->work.reported_version=v;
++    return (v>>28)==1&&((v>>16)&0xfff)>=11?GMF_OK:GMF_VERSION;
++}
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++enum gmf_result gmf_bootstrap_once(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,struct gmf_receipt *out)
++{
++    if(!c||!span(ops,sizeof(*ops))||!span(out,sizeof(*out))||!span(plan,sizeof(*plan))||
++       overlap(plan,sizeof(*plan),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
++       overlap(out,sizeof(*out),plan,sizeof(*plan))||overlap(out,sizeof(*out),ops,sizeof(*ops))||
++       !gmf_plan_valid(plan)||!ops->guard||!ops->read||!ops->write||
++       !ops->barrier||!ops->delay_us||!ops->asset||!ops->copy||!ops->shared_read||!ops->shared_write)return GMF_ARGUMENT;
++    struct gmf_ops copy=*ops;struct gmf_plan p=*plan;uint32_t expected=0;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMF_ALREADY;
++    c->ops=copy;c->plan=p;c->phase=GMF_RESET;
++    const uint8_t *asset=NULL;size_t bytes=0;enum gmf_result rc=GMF_OK;
++    if(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
++       (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1))rc=GMF_ASSET;
++    if(!rc)rc=preflight(c);if(!rc)rc=ucode(c);if(!rc)rc=load_configure(c,asset,bytes);if(!rc)rc=release_boot(c);
++    if(!rc)rc=gx_hfi(c);if(!rc)rc=handshake(c);
++    if(!rc&&!guard(c))rc=GMF_IO;c->work.phase=c->phase;
++    if(!rc){c->phase=GMF_DONE;c->work.phase=GMF_DONE;*out=c->work;}
++    __atomic_store_n(&c->state,rc?3:2,__ATOMIC_RELEASE);return rc;
++}
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -0,0 +1,47 @@
++#ifndef GAUGUIN_GMU_FIRMWARE_H
++#define GAUGUIN_GMU_FIRMWARE_H
++#include "gauguin_gmu_hfi.h"
++struct ndb_entry;
++#define GMF_FW_BYTES 32768u
++enum gmf_domain {GMF_CX,GMF_MX,GMF_GFX,GMF_XO,GMF_DOMAINS};
++struct gmf_plan {uint32_t address[4],count[4],selector[4],level[4];uint16_t levels[4][16];};
++bool gmf_plan_build(const struct ndb_entry *,struct gmf_plan *);
++bool gmf_plan_valid(const struct gmf_plan *);
++/* Byte offsets from the fixed private board mappings, NOT native word
++ * offsets: CSR03d7c000, AO/RSC03d8c000, PDCcfg0b294000, PDCseq0b490000,
++ * TCM03d6c000. Native GPU-relative register names are converted in this TU. */
++enum gmf_window {GMF_CSR,GMF_AO,GMF_PDC,GMF_SEQ,GMF_TCM,GMF_GBIF,GMF_WINDOWS};
++enum gmf_phase {GMF_RESET,GMF_RELEASING,GMF_BOOTING,GMF_GX_REQUEST,GMF_HFI_START,GMF_HANDSHAKE,GMF_DONE};
++enum gmf_result {GMF_OK,GMF_ARGUMENT,GMF_ALREADY,GMF_IO,GMF_INHERITED,GMF_ASSET,
++    GMF_READBACK,GMF_TIMEOUT,GMF_VERSION,GMF_TRANSPORT,GMF_ACK,GMF_FAULT};
++struct gmf_copy {uint32_t written,checked;};
++struct gmf_ops {void *cookie;
++    bool (*guard)(void *,enum gmf_phase);
++    bool (*read)(void *,enum gmf_window,uint32_t,uint32_t *);
++    bool (*write)(void *,enum gmf_window,uint32_t,uint32_t);
++    bool (*barrier)(void *);bool (*delay_us)(void *,unsigned);
++    /* asset verifies exact size/SHA and retained same-boot ADT/direct map.
++     * copy writes/compares exactly8192 native AHB words under reset, with
++     * guards around bounded chunks. No executing caller-supplied bytes. */
++    bool (*asset)(void *,const uint8_t **,size_t *);
++    bool (*copy)(void *,const uint8_t *,size_t,struct gmf_copy *);
++    bool (*shared_read)(void *,uint32_t,uint32_t *);
++    bool (*shared_write)(void *,uint32_t,uint32_t);
++};
++struct gmf_receipt {uint32_t phase,versions[5],fw_result,oob_before,oob_after;
++    uint32_t hfi_before,hfi_after,init_ack[3],version_ack[4],reported_version;
++    uint32_t tcm_written,tcm_checked,writes,polls,debug_messages;};
++struct gmf_context {uint32_t state;enum gmf_phase phase;struct gmf_ops ops;
++    struct gmf_plan plan;struct ggh_channel hfi;struct gmf_receipt work;};
++/* One cold native bootstrap: PDC/RSC/TCM/power/version -> reset release and
++ * fresh FW result -> A619 boot-slumber OOB -> HFI init and INIT/version ACKs.
++ * Exact pinned legacy asset + native family rules select v1 transport; the
++ * two actual replies then qualify it. Zero version words alone are not proof.
++ * Does NOT send DCVS/BW tables/TEST or claim normal HFI_ON, GPU commands,
++ * secure ZAP authentication or Metal. Those remain required later stages.
++ * Caller has already completed the actual SMMU/NC image and all board guards.
++ * Started failures quarantine forever; no retry/rollback/reset assertion.
++ */
++enum gmf_result gmf_bootstrap_once(struct gmf_context *,const struct gmf_ops *,
++    const struct gmf_plan *,struct gmf_receipt *);
++#endif

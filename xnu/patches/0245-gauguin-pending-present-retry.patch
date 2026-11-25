@@ -1,0 +1,196 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -406,6 +406,8 @@
+     uint8_t record[SWEET_FB_SWAP_REC_SIZE];
+     SweetSurface *surfaces[SWEET_FB_LAYERS];
+     IOMobileFramebufferUserClient *owner;
++    uint64_t retryEpoch;
++    uint32_t retries;
+ };
+ static void sweet_fb_frame_release(struct sweet_fb_frame *);
+ static void sweet_fb_frame_move(struct sweet_fb_frame *, struct sweet_fb_frame *);
+@@ -454,7 +456,10 @@
+     uint64_t fHeldRejectReasons[8]; /* 1 owner-null, 2 mask, 3..6 surface layer, 7 unregistered */
+     bool takeHeldFrameLocked(struct sweet_fb_frame *frame); /* fLock held */
+     void cancelHeldFrameLocked(struct sweet_fb_frame *frame, IOMobileFramebufferUserClient *owner);
+-    void finishHeldFrame(struct sweet_fb_frame *frame);
++    uint64_t fHeldRetryEpoch, fHeldRequeued;
++    uint64_t fHeldRetrySuperseded, fHeldRetryCanceled, fHeldRetryExhausted;
++    void invalidateHeldRetryLocked(void); /* fLock held */
++    void finishHeldFrame(struct sweet_fb_frame *frame, bool retry = false);
+ #endif
+ 	uint32_t      fFlushTicks;    /* vsync ticks between panel copies */
+ 	bool          fPowerOff;      /* RequestPowerChange(0) */
+@@ -465,7 +470,7 @@
+ 	void addClient(IOMobileFramebufferUserClient *client);
+ 	void removeClient(IOMobileFramebufferUserClient *client);
+ 	bool swap(const uint8_t *rec, IOMobileFramebufferUserClient *owner);
+-	void present(const uint8_t *rec, SweetSurface *const *held = NULL);
++	bool present(const uint8_t *rec, SweetSurface *const *held = NULL);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
+@@ -603,6 +608,8 @@
+     fHoldPresent = held == 1;
+     fHeldActive = false;
+     bzero(&fHeldPending, sizeof(fHeldPending));
++    fHeldRetryEpoch = 1;
++    fHeldRequeued = fHeldRetrySuperseded = fHeldRetryCanceled = fHeldRetryExhausted = 0;
+     fHeldSubmitted = fHeldReplaced = fHeldConsumed = fHeldRetired = fHeldCanceled = fHeldRejected = 0;
+     bzero(fHeldRejectReasons, sizeof(fHeldRejectReasons));
+     /* BEGIN SWEET PRESENT STATS INIT */
+@@ -613,7 +620,10 @@
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");
+     /* END SWEET PRESENT STATS INIT */
+-    if (fHoldPresent) IOLog("SWEET FB HOLD: enabled pending=1 active=1; original surfaces, prompt retirement\n");
++    if (fHoldPresent) {
++        IOLog("SWEET FB HOLD: enabled pending=1 active=1; original surfaces, prompt retirement\n");
++        IOLog("SWEET FB RETRY332: enabled max_retries=8; GPU read guards retained\n");
++    }
+ #endif
+ 	fClients = OSArray::withCapacity(4);
+ 	fSurface = sweet_surface_create_physical(fPhys, fWidth, fHeight, fRowBytes, SWEET_FB_FORMAT_BGRA);
+@@ -1008,6 +1018,8 @@
+         IOLog("SWEET FB HOLD: submitted=%llu replaced=%llu consumed=%llu retired=%llu canceled=%llu rejected=%llu pending=%u active=%u\n",
+             fb->fHeldSubmitted, fb->fHeldReplaced, fb->fHeldConsumed, fb->fHeldRetired,
+             fb->fHeldCanceled, fb->fHeldRejected, fb->fHeldPending.owner != NULL, fb->fHeldActive);
++        IOLog("SWEET FB RETRY332: requeued=%llu newer=%llu canceled=%llu exhausted=%llu; max_retries=8\n",
++            fb->fHeldRequeued, fb->fHeldRetrySuperseded, fb->fHeldRetryCanceled, fb->fHeldRetryExhausted);
+         if (fb->fHeldRejected != 0) {
+             IOLog("\nSWEET FB REJECT COUNTS: null=%llu mask=%llu surface0=%llu surface1=%llu surface2=%llu surface3=%llu unregistered=%llu\n",
+                 fb->fHeldRejectReasons[1], fb->fHeldRejectReasons[2], fb->fHeldRejectReasons[3],
+@@ -1050,11 +1062,11 @@
+         if (measuring) { sample.timingValid = true; fb->fPresentSample = &sample; }
+         else if (priorSample != NULL) fb->fPresentSample = NULL; /* do not mix a reentrant call */
+         /* END SWEET PRESENT STATS START */
+-        fb->present(rec, fb->fHoldPresent ? frame.surfaces : NULL);
++        bool ready = fb->present(rec, fb->fHoldPresent ? frame.surfaces : NULL);
+         /* BEGIN SWEET PRESENT STATS CLEAR */
+         if (measuring || priorSample != NULL) fb->fPresentSample = priorSample;
+         /* END SWEET PRESENT STATS CLEAR */
+-        if (fb->fHoldPresent) fb->finishHeldFrame(&frame);
++        if (fb->fHoldPresent) fb->finishHeldFrame(&frame, !ready);
+         else IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
+         /* BEGIN SWEET PRESENT STATS RECORD */
+         if (measuring) {
+@@ -1107,7 +1119,10 @@
+     cancelHeldFrameLocked(&retired, client);
+ #endif
+     unsigned int i = fClients->getNextIndexOfObject(client, 0);
+-    if (i != (unsigned int)-1) fClients->removeObject(i);
++    if (i != (unsigned int)-1) {
++        invalidateHeldRetryLocked();
++        fClients->removeObject(i);
++    }
+     IOLockUnlock(fLock);
+ #if defined(GAUGUIN)
+     sweet_fb_frame_release(&retired);
+@@ -1215,16 +1230,45 @@
+ }
+ 
+ void
+-AppleCLCD::finishHeldFrame(struct sweet_fb_frame *frame)
+-{
+-    bool consumed = frame->owner != NULL;
+-    sweet_fb_frame_release(frame);  /* after GPURead and the copy, before another frame */
+-    if (consumed) {
+-        IOLockLock(fLock);
+-        fHeldActive = false;
+-        fHeldRetired++;
+-        IOLockUnlock(fLock);
+-    }
++AppleCLCD::invalidateHeldRetryLocked(void)
++{
++    /* Zero permanently disables retry after epoch exhaustion. A closed owner
++     * must not be revived if a later client reuses the same pointer value. */
++    if (fHeldRetryEpoch == UINT64_MAX) fHeldRetryEpoch = 0;
++    else if (fHeldRetryEpoch != 0) ++fHeldRetryEpoch;
++}
++
++void
++AppleCLCD::finishHeldFrame(struct sweet_fb_frame *frame, bool retry)
++{
++    if (frame->owner == NULL) return;
++    bool requeued = false;
++    IOLockLock(fLock);
++    if (retry) {
++        if (!fHoldPresent || !fHeldActive || fPowerOff || fHeldRetryEpoch == 0 ||
++            frame->retryEpoch != fHeldRetryEpoch ||
++            fClients->getNextIndexOfObject(frame->owner, 0) == (unsigned int)-1) {
++            ++fHeldRetryCanceled;
++        } else if (fHeldPending.owner != NULL) {
++            ++fHeldRetrySuperseded; /* a newer accepted swap wins */
++        } else if (frame->retries >= 8) {
++            ++fHeldRetryExhausted;
++        } else {
++            ++frame->retries;
++            sweet_fb_frame_move(&fHeldPending, frame);
++            fDirty = true;
++            fHeldActive = false;
++            ++fHeldRequeued;
++            requeued = true;
++        }
++    }
++    IOLockUnlock(fLock);
++    if (requeued) return; /* retained surfaces moved; no reference was dropped */
++    sweet_fb_frame_release(frame); /* after GPURead, outside framebuffer lock */
++    IOLockLock(fLock);
++    fHeldActive = false;
++    ++fHeldRetired;
++    IOLockUnlock(fLock);
+ }
+ #endif
+ 
+@@ -1264,6 +1308,7 @@
+             IOLockUnlock(fLock);
+             return false;
+         }
++        next.retryEpoch = fHeldRetryEpoch;
+         if (fPowerOff) {
+             cancelHeldFrameLocked(&retired, NULL);
+             fHeldCanceled++; /* accepted valid frame while the display is off */
+@@ -1298,10 +1343,11 @@
+     return true;
+ }
+ 
+-void
++bool
+ AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held)
+ {
+     (void)held;
++    bool ready = true;
+ #if defined(GAUGUIN)
+     sweet_ui_trace_record(GUT_PRESENT_BEGIN,get32(rec,0x50),0,0,get32(rec,0x104),0,0);
+ #endif
+@@ -1366,7 +1412,7 @@
+             if (!gpuRead.valid()) ++fPresentSample->gpuRefusals;
+         }
+         /* END SWEET PRESENT STATS GUARD END */
+-        if(!gpuRead.valid()){s->release();continue;}
++        if(!gpuRead.valid()){ready=false;s->release();continue;}
+ #endif
+ 		/*
+ 		 * Sample the surface being swapped - the one userland just handed
+@@ -1498,8 +1544,9 @@
+ 		s->release();
+ 	}
+ #if defined(GAUGUIN)
+-    sweet_ui_trace_record(GUT_PRESENT_END,get32(rec,0x50),0,0,mask,0,0);
+-#endif
++    sweet_ui_trace_record(GUT_PRESENT_END,get32(rec,0x50),0,ready ? 0 : 1,mask,0,0);
++#endif
++    return ready;
+ }
+ 
+ bool
+@@ -1697,6 +1744,9 @@
+ 			IOLockLock(fFB->fLock);
+ 			if (off != fFB->fPowerOff) {
+ 				fFB->fPowerOff = off;
++#if defined(GAUGUIN)
++                if (off) fFB->invalidateHeldRetryLocked();
++#endif
+ 				fFB->fFadeStep = 0;
+ 				fFB->fDirty = true;     /* on: redraw the latest frame */
+ 			}

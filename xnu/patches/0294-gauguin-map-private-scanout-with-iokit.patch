@@ -1,0 +1,116 @@
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -40,7 +40,8 @@
+ #include "gauguin_page_flip.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+-extern vm_offset_t ml_io_map_wcomb(vm_offset_t, vm_size_t);
++extern bool sweet_fb383_map(uint32_t, uint32_t, uintptr_t[2]);
++extern void sweet_fb383_discard(void);
+ extern boolean_t pmap_valid_address(uint64_t);
+ extern uint32_t sweet_fb_display_state(void);
+ extern void sweet_log_append(const char *, int);
+@@ -520,10 +521,9 @@
+         scan_mdp[0x2000 / 4] == 0x01000005;
+ }
+ 
+-static vm_offset_t scan382_map(uint32_t pa, uint32_t size, bool pixels)
+-{
+-    const vm_offset_t va = pixels ? ml_io_map_wcomb(pa, size) :
+-        ml_io_map_with_prot(pa, size, VM_PROT_READ | VM_PROT_WRITE);
++static vm_offset_t scan382_map_registers(uint32_t pa, uint32_t size)
++{
++    const vm_offset_t va = ml_io_map_with_prot(pa, size, VM_PROT_READ | VM_PROT_WRITE);
+     if (!va || ml_vtophys(va) != pa || ml_vtophys(va + size - 1) != (uint64_t)pa + size - 1)
+         return 0;
+     return va;
+@@ -558,20 +558,34 @@
+         if (pmap_valid_address(pa))
+             return false;
+     scan382.address[F382_FRONT] = 0xa0000000;
++    uintptr_t slots[2];
++    if (!sweet_fb383_map((uint32_t)start, (uint32_t)slot, slots)) {
++        printf("SWEET F383 MAP: allocation-failed\n");
++        return false;
++    }
+     for (unsigned i = F382_FIRST; i <= F382_SECOND; ++i) {
+         scan382.address[i] = (uint32_t)(start + (i - 1) * slot);
+-        scan382.map[i] = scan382_map(scan382.address[i], (uint32_t)slot, true);
+-        if (!scan382.map[i])
++        scan382.map[i] = slots[i - 1];
++        if (ml_vtophys(scan382.map[i]) != scan382.address[i] ||
++            ml_vtophys(scan382.map[i] + slot - 1) != (uint64_t)scan382.address[i] + slot - 1) {
++            sweet_fb383_discard();
++            printf("SWEET F383 MAP: translation-mismatch\n");
+             return false;
+-    }
+-    const vm_offset_t vig = scan382_map(0x0ae04000, F344_PAGE, false);
+-    const vm_offset_t ctl = scan382_map(0x0ae00000, F344_PAGE, false);
+-    if (!vig || !ctl)
++        }
++    }
++    printf("SWEET F383 MAP: two-private-IOKit-WC-slots\n");
++    const vm_offset_t vig = scan382_map_registers(0x0ae04000, F344_PAGE);
++    const vm_offset_t ctl = scan382_map_registers(0x0ae00000, F344_PAGE);
++    if (!vig || !ctl) {
++        sweet_fb383_discard();
+         return false;
++    }
+     scan382.source = (volatile uint32_t *)(vig + 0x1014);
+     scan382.flush = (volatile uint32_t *)(ctl + 0x2018);
+-    if (*scan382.source != scan382.address[F382_FRONT] || *scan382.flush)
++    if (*scan382.source != scan382.address[F382_FRONT] || *scan382.flush) {
++        sweet_fb383_discard();
+         return false;
++    }
+     printf("SWEET F382 BACKING: first=%08x second=%08x bytes=%d\n",
+         scan382.address[1], scan382.address[2], F382_SLOT_BYTES);
+     __atomic_store_n(&scan382.enabled, true, __ATOMIC_RELEASE);
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -655,6 +655,45 @@
+         }
+     }
+     IOLockUnlock(lock);
++}
++
++static struct {
++    IOMemoryDescriptor *memory[2];
++    IOMemoryMap *mapping[2];
++} scanout383;
++
++/* The private descriptors are never published as IOSurfaces. This is the
++ * same VM mapping path as the inherited front framebuffer. */
++extern "C" void
++sweet_fb383_discard(void)
++{
++    for (unsigned i = 0; i < 2; ++i) {
++        OSSafeReleaseNULL(scanout383.mapping[i]);
++        OSSafeReleaseNULL(scanout383.memory[i]);
++    }
++}
++
++extern "C" bool
++sweet_fb383_map(uint32_t first, uint32_t bytes, uintptr_t address[2])
++{
++    if (bytes != F382_SLOT_BYTES || scanout383.memory[0] || scanout383.memory[1])
++        return false;
++    uintptr_t result[2] = {};
++    for (unsigned i = 0; i < 2; ++i) {
++        scanout383.memory[i] = IOMemoryDescriptor::withPhysicalAddress(
++            static_cast<uint64_t>(first) + i * bytes,bytes,kIODirectionInOut);
++        if (scanout383.memory[i])
++            scanout383.mapping[i] = scanout383.memory[i]->map(kIOMapWriteCombineCache);
++        if (scanout383.mapping[i])
++            result[i] = static_cast<uintptr_t>(scanout383.mapping[i]->getVirtualAddress());
++        if (!result[i]) {
++            sweet_fb383_discard();
++            return false;
++        }
++    }
++    address[0] = result[0];
++    address[1] = result[1];
++    return true;
+ }
+ 
+ extern "C" void

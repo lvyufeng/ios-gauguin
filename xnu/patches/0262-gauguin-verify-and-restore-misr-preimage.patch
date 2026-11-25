@@ -1,0 +1,130 @@
+diff --git a/bsd/dev/gauguin_scanout345.h b/bsd/dev/gauguin_scanout345.h
+--- a/bsd/dev/gauguin_scanout345.h
++++ b/bsd/dev/gauguin_scanout345.h
+@@ -171,4 +171,13 @@
+     return true;
+ }
+
++/* Bit 24 selects data. All other bits must be clear in the observed idle value. */
++#define SCAN350_DATA_INPUT UINT32_C(0x01000000)
++
++static inline bool
++scan350_idle_pair(uint32_t first, uint32_t second, uint32_t frame_step)
++{
++    return first == SCAN350_DATA_INPUT && second == first && frame_step == 1;
++}
++
+ #endif
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -66,6 +66,8 @@
+     struct scan349_read first_blank;
+     uint32_t misr_writes, crc_pairs, crc_not_ready, crc_rejected;
+     bool crc_blanking, misr_fault;
++    uint32_t misr_preimage, misr_first_frame, misr_first_value;
++    bool crc_preserve_idle_data, misr_first_seen;
+     bool have_frame, configured, crc_blocked, have_crc, have_candidate;
+     bool counter_opt_in, counter_attempted, counter_readonly;
+ } scan;
+@@ -166,8 +168,8 @@
+     return readback == F346_COUNT_ON;
+ }
+
+-/* All mode-5 writes go through this literal register address. The count
+- * control, signature and clock registers are read-only in this mode. */
++/* All blanking-CRC writes go through this literal register address.
++ * Count control, signature and clocks stay read-only. */
+ static void scan349_misr_write(uint32_t value)
+ {
+     ++scan.misr_writes;
+@@ -190,16 +192,16 @@
+     if (readable) {
+         before = scan_intf[F344_MISR_CTRL / 4];
+         after = before;
+-        if (scan349_owned(before)) {
++        if (scan349_owned(before) && (!scan.crc_preserve_idle_data || !scan.misr_fault)) {
+             scan349_misr_write(F344_CRC_CLEAR);
+-            scan349_misr_write(0);
++            scan349_misr_write(scan.misr_preimage);
+             after = scan_intf[F344_MISR_CTRL / 4];
+         }
+     }
+     printf("SWEET F349 RESET: poll=%u readable=%u before=%x after=%x writes=%u fault=%u pairs=%u not_ready=%u rejected=%u\n",
+         scan.polls, readable, before, after, scan.misr_writes, scan.misr_fault,
+         scan.crc_pairs, scan.crc_not_ready, scan.crc_rejected);
+-    return !scan.misr_writes || (readable && after == 0);
++    return !scan.misr_writes || (readable && after == scan.misr_preimage);
+ }
+
+ static void scan_stop(const char *reason)
+@@ -267,14 +269,38 @@
+         if (scan_route(&status, &geometry) != SCAN345_OK || !scan349_timing(&geometry) ||
+             scan_intf[F344_FRAME_COUNT / 4] != frame) return;
+         const uint32_t preimage = scan_intf[F344_MISR_CTRL / 4];
++        unsigned read_index = 0;
++        bool eligible = preimage == 0;
++        if (scan.crc_preserve_idle_data) {
++            // Each control observation is enclosed by the same low-line
++            // counter slot. The second independently qualified edge can arm.
++            if (scan_intf[F344_FRAME_COUNT / 4] != frame ||
++                scan_intf[F345_COUNT_EN / 4] != 0 || mach_absolute_time() >= scan.startup_end)
++                return;
++            read_index = scan.misr_first_seen ? 2 : 1;
++            eligible = scan.misr_first_seen && scan.edge_streak == 4 &&
++                scan350_idle_pair(scan.misr_first_value, preimage, frame - scan.misr_first_frame);
++            if (!scan.misr_first_seen) {
++                scan.misr_first_seen = true;
++                scan.misr_first_value = preimage;
++                scan.misr_first_frame = frame;
++                scan.crc_blocked = preimage != SCAN350_DATA_INPUT;
++            }
++        }
+         uint32_t readback = preimage;
+-        if (preimage == 0) {
++        if (eligible) {
++            scan.misr_preimage = preimage;
+             scan349_misr_write(F344_CRC_CLEAR);
+             scan349_misr_write(F344_CRC_CONFIG);
+             readback = scan_intf[F344_MISR_CTRL / 4];
+             scan.configured = scan349_owned(readback);
+             scan.arm_frame = frame;
+             scan.crc_blocked = !scan.configured;
++        }
++        if (read_index) {
++            printf("SWEET F350 PRE: read=%u poll=%u frame=%u line=%u streak=%u value=%x\n",
++                read_index, scan.polls, frame, line, scan.edge_streak, preimage);
++            if (!eligible) return;
+         }
+         printf("SWEET F349 ARM: poll=%u frame=%u line=%u streak=%u preimage=%x readback=%x writes=%u\n",
+             scan.polls, frame, line, scan.edge_streak, preimage, readback, scan.misr_writes);
+@@ -448,14 +474,15 @@
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    if (enabled < 2 || enabled > 5 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    if (enabled < 2 || enabled > 6 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
+     // Use a mode value so the complete 607-byte boot line still fits.
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+     if (enabled >= 4 && hz != 60) return;
+     scan.counter_opt_in = enabled == 3 && hz == 60;
+     scan.counter_readonly = enabled >= 4;
+-    scan.crc_blanking = enabled == 5;
++    scan.crc_blanking = enabled >= 5;
++    scan.crc_preserve_idle_data = enabled == 6;
+     scan.crc_blocked = enabled == 4;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -618,7 +618,7 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 5;
++    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 6;
+     fPresentSample = NULL;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");

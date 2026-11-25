@@ -1,0 +1,12 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -3113,7 +3113,8 @@
+ #if defined(GAUGUIN)
+             const uint64_t storesDone = timePairedCopy && frameCopyBegin ? mach_absolute_time() : 0;
+             if (ordered) __asm__ volatile("dsb sy" ::: "memory");
+-            const uint64_t frameCopyEnd = frameCopyBegin ? mach_absolute_time() : 0;
++            // Private scanout also needs a completion tick when tracing is closed.
++            const uint64_t frameCopyEnd = (frameCopyBegin || flipDst) ? mach_absolute_time() : 0;
+             const uint64_t runtimeEnd = timePairedCopy && frameCopyBegin ? thread_get_runtime_self() : 0;
+             if (frameCopyBegin) sweet_frame344_record(F344_COPY,id,layer,frameCopyBegin,
+                 frameCopyEnd,(uint64_t)(uint32_t)w * (uint32_t)h * 4);

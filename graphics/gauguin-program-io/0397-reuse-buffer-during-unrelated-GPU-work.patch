@@ -1,0 +1,179 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -144,6 +144,7 @@
+     uint32_t slots,connections;
+     bool invalid;
+ } gCache335;
++static uint64_t gPendingCache397Hits, gPendingCache397CaptureHits;
+ static void cache335_count(uint64_t *value)
+ {if(!gapi_frozen){if(*value==UINT64_MAX)gCache335.invalid=true;else ++*value;}}
+ 
+@@ -206,6 +207,11 @@
+         (unsigned long long)gMapStats.calls,(unsigned long long)gMapStats.fast,
+         (unsigned long long)gMapStats.waited,(unsigned long long)gMapStats.failures,
+         !gMapStats.overflow&&gapi_valid?1u:0u);record(line);
++    if (gMapUnrelated) {
++        snprintf(line,sizeof(line),"SWEET BC397: pending_hits=%llu capture_hits=%llu valid=%u",
++            (unsigned long long)gPendingCache397Hits,(unsigned long long)gPendingCache397CaptureHits,
++            !gCache335.invalid&&gapi_valid?1u:0u);record(line);
++    }
+ }
+ 
+ /* Only a serialized request can wait. Display may poll/complete the escrow
+@@ -348,7 +354,11 @@
+     IOReturn add(IOMemoryDescriptor *,SweetSurface *,uint64_t,uint32_t,uint32_t *);
+     bool drop(gpu_buffer *);
+     bool retire335(gpu_buffer *);
+-    gpu_buffer *takeCached335(uint64_t,uint32_t);
++    gpu_buffer *takeCached335(uint64_t,uint32_t,bool pending=false);
++    bool pendingOwner397() const;
++    bool disjointPending397(const gpu_buffer &) const;
++    void publishCached397(gpu_buffer *,uint64_t,struct ggr_new &,bool pending);
++    bool reusePending397(struct ggr_new &);
+     bool trimCached335(uint64_t,bool);
+     void cacheState335(void);
+     bool reapClosed(void);
+@@ -696,7 +706,7 @@
+ {
+     if(!gapi_frozen&&fCacheEnabled){gCache335.slots=fCachedCount;gCache335.bytes=fCachedBytes;}
+ }
+-gpu_buffer *GauguinGPUUserClient::takeCached335(uint64_t bytes,uint32_t flags)
++gpu_buffer *GauguinGPUUserClient::takeCached335(uint64_t bytes,uint32_t flags,bool pending)
+ {
+     if(!fCacheEnabled||fClosed||!fNextHandle)return nullptr;
+     for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++) {
+@@ -705,11 +715,86 @@
+            !b->installed||b->size!=bytes||b->flags!=flags)continue;
+         if(b->memory->getRetainCount()!=1)continue;
+         if(!OSDynamicCast(IOBufferMemoryDescriptor,b->memory))continue;
++        if(pending&&!disjointPending397(*b))continue;
+         b->cached=false;--fCachedCount;fCachedBytes-=b->mappingSize;
+         cache335_count(&gCache335.hits);cacheState335();return b;
+     }
+-    cache335_count(&gCache335.misses);return nullptr;
+-}
++    /* The pending-only attempt is speculative. The old allocation path
++     * accounts for a miss if it still cannot reuse a BO after completion. */
++    if(!pending)cache335_count(&gCache335.misses);
++    return nullptr;
++}
++
++bool GauguinGPUUserClient::pendingOwner397() const
++{
++    return fPendingCount&&fPendingCount<=GGR_MAX_BUFFERS&&fPendingQueue&&fPendingNativeFence&&fPendingQueueFence&&
++        fPendingQueue->issued==fPendingQueueFence&&fPendingQueue->completed!=UINT32_MAX&&
++        fPendingQueueFence==fPendingQueue->completed+1&&
++        sweet_gpu_runtime_pending_metadata(fPendingNativeFence);
++}
++
++static bool validResidentRange397(const gpu_buffer &buffer)
++{
++    return buffer.mappingSize&&buffer.mappingAddress>=GGR_VA_START&&buffer.mappingAddress<GGR_VA_END&&
++        buffer.mappingSize<=GGR_VA_END-buffer.mappingAddress;
++}
++
++bool GauguinGPUUserClient::disjointPending397(const gpu_buffer &cached) const
++{
++    if(!validResidentRange397(cached)||cached.address!=cached.mappingAddress||cached.size!=cached.mappingSize)
++        return false;
++    for(uint32_t i=0;i<fPendingCount;i++) {
++        const auto *active=fPending[i];
++        if(!active||!active->memory||!active->installed||!active->pending||active->memory==cached.memory||
++           !validResidentRange397(*active))return false;
++        if(cached.mappingAddress<active->mappingAddress+active->mappingSize&&
++           active->mappingAddress<cached.mappingAddress+cached.mappingSize)return false;
++    }
++    return true;
++}
++
++static bool validAllocation397(const struct ggr_new &request)
++{
++    return request.size&&request.size<=GGR_MAX_BO_BYTES&&!request.handle&&
++        !(request.flags&~(GGR_BO_READONLY|GGR_BO_WC));
++}
++
++void GauguinGPUUserClient::publishCached397(gpu_buffer *b,uint64_t bytes,struct ggr_new &request,bool pending)
++{
++    auto *memory=OSDynamicCast(IOBufferMemoryDescriptor,b->memory);
++    gbo333_record(3,1,0,0);
++    io342::phase(0x42,5);
++    bzero(memory->getBytesNoCopy(),(size_t)bytes);memoryBarrier();
++    gbo333_record(4,0,0,0);
++    io342::phase(0x42,11);
++    b->handle=fNextHandle++;request.handle=b->handle;fAllocationStage=0;
++    gbo333_record(5,b->mappingSize,b->handle,request.flags);
++    if(gapi_pending.token&&!gapi_frozen&&gapi_valid)
++        sweet_ui_trace_record(GUT_BO_REUSE335,gapi_pending.token,
++            (uint32_t)proc_pid(current_proc()),1,bytes,b->handle,request.flags);
++    if(pending){
++        cache335_count(&gPendingCache397Hits);
++        if(sweet_frame344_clock())cache335_count(&gPendingCache397CaptureHits);
++    }
++}
++
++bool GauguinGPUUserClient::reusePending397(struct ggr_new &request)
++{
++    /* Both request locks are held. Return only an already installed,
++     * completed ordinary allocation. Fresh backing, eviction, PTE writes
++     * and any wait/reap remain on the original path. */
++    if(!gMapUnrelated||!fCompositor||!fAsync||!fCachedCount||!validAllocation397(request)||
++       !pendingOwner397())return false;
++    const uint64_t bytes=(request.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
++    auto *b=takeCached335(bytes,request.flags,true);
++    if(!b)return false;
++    io342::phase(0x42,3);
++    fAllocationStage=2;
++    gbo333_record(2,bytes,request.flags,0);
++    publishCached397(b,bytes,request,true);
++    return true;
++}
++
+ bool GauguinGPUUserClient::retire335(gpu_buffer *b)
+ {
+     if(!b->memory)return true;
+@@ -935,11 +1020,7 @@
+     trace342.phase(3);
+     const bool fast=gMapUnrelated&&fCompositor&&fAsync&&b&&b->memory&&
+         !b->surface&&!b->pending&&!b->closePending&&
+-        OSDynamicCast(IOBufferMemoryDescriptor,b->memory)!=nullptr&&
+-        fPendingCount&&fPendingCount<=GGR_MAX_BUFFERS&&fPendingQueue&&fPendingNativeFence&&fPendingQueueFence&&
+-        fPendingQueue->issued==fPendingQueueFence&&fPendingQueue->completed!=UINT32_MAX&&
+-        fPendingQueueFence==fPendingQueue->completed+1&&
+-        sweet_gpu_runtime_pending_metadata(fPendingNativeFence);
++        OSDynamicCast(IOBufferMemoryDescriptor,b->memory)!=nullptr&&pendingOwner397();
+     trace342.phase(4);
+     bool waited=false;
+     if(b&&fPendingCount&&!fast){
+@@ -1201,6 +1282,7 @@
+     bool passive=selector==0x09||selector==0x43||selector==0x44||
+                  selector==0x45||selector==0x47||selector==0x48;
+     if(fClosed||!fBuffers||gOwner!=this){result=kIOReturnNotReady;goto out;}
++    if(selector==0x42&&reusePending397(r.make)){result=kIOReturnSuccess;goto out;}
+     if(fAsync&&fPendingCount&&!passive){
+         result=finishPending(true,true);
+         if(result!=kIOReturnSuccess){if(selector==0x46)fSubmitDiag327.stage=2;goto out;}
+@@ -1216,22 +1298,12 @@
+     case 0x42: {
+         io342::phase(0x42,3);
+         fAllocationStage=1; /* request flags/shape */
+-        if(!r.make.size||r.make.size>GGR_MAX_BO_BYTES||r.make.handle||(r.make.flags&~(GGR_BO_READONLY|GGR_BO_WC)))break;
++        if(!validAllocation397(r.make))break;
+         uint64_t n=(r.make.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
+         fAllocationStage=2; /* backing IOBuffer allocation */
+         gbo333_record(2,n,0,0);
+         if(gpu_buffer *b=takeCached335(n,r.make.flags)) {
+-            auto *m=OSDynamicCast(IOBufferMemoryDescriptor,b->memory);
+-            gbo333_record(3,1,0,0);
+-            io342::phase(0x42,5);
+-            bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
+-            gbo333_record(4,0,0,0);
+-            io342::phase(0x42,11);
+-            b->handle=fNextHandle++;r.make.handle=b->handle;fAllocationStage=0;
+-            gbo333_record(5,b->mappingSize,b->handle,b->flags);
+-            if(gapi_pending.token&&!gapi_frozen&&gapi_valid)
+-                sweet_ui_trace_record(GUT_BO_REUSE335,gapi_pending.token,
+-                    (uint32_t)proc_pid(current_proc()),1,n,b->handle,b->flags);
++            publishCached397(b,n,r.make,false);
+             result=kIOReturnSuccess;break;
+         }
+         if(fCacheEnabled&&!trimCached335(n,false)){

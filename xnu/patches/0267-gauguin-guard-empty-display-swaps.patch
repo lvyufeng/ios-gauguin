@@ -1,0 +1,39 @@
+diff --git a/bsd/dev/gauguin_ready354.h b/bsd/dev/gauguin_ready354.h
+--- a/bsd/dev/gauguin_ready354.h
++++ b/bsd/dev/gauguin_ready354.h
+@@ -9,6 +9,13 @@
+  * held display record can never match again after a wrap. */
+ #define SCAN354_GPU_STATUS 3u
+ #define SCAN354_GPU_VERSION (~SCAN354_GPU_STATUS)
++
++/* An empty layer-zero update is valid, but has no GPU writer to watch. */
++static inline bool
++scan354_single_surface(uint32_t layers, bool retained)
++{
++    return layers == 1 && retained;
++}
+ 
+ static inline uint32_t
+ scan354_next_version(uint32_t state)
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -942,7 +942,8 @@
+ bool
+ AppleCLCD::waitingForReadyLocked() const
+ {
+-    return blankEnabledLocked() && fHeldPending.owner && get32(fHeldPending.record,0x104) == 1;
++    return blankEnabledLocked() && fHeldPending.owner &&
++        scan354_single_surface(get32(fHeldPending.record,0x104), fHeldPending.surfaces[0] != nullptr);
+ }
+ 
+ bool
+@@ -1686,7 +1687,7 @@
+         next.retryEpoch = fHeldRetryEpoch;
+         next.generation = fHeldSubmitted + 1;
+         uint64_t surface = 0;
+-        if (fReadyAcrossFrames && get32(rec,0x104) == 1) {
++        if (fReadyAcrossFrames && scan354_single_surface(get32(rec,0x104), next.surfaces[0] != nullptr)) {
+             next.surfaceVersion = scan354_next_version(GauguinGPUSurfaceState(next.surfaces[0]));
+             if (fHeldPending.surfaces[0] == next.surfaces[0] && fHeldPending.surfaceVersion >= next.surfaceVersion)
+                 next.surfaceVersion = scan354_next_version(fHeldPending.surfaceVersion);

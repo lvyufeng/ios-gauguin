@@ -1,0 +1,342 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -43,6 +43,7 @@
+ #include "../../../bsd/dev/gauguin_ready353.h"
+ #include "../../../bsd/dev/gauguin_ready354.h"
+ #include "../../../bsd/dev/gauguin_ready357.h"
++#include "../../../bsd/dev/gauguin_calibration357.h"
+ #include "../../../bsd/dev/gauguin_copy356.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+@@ -473,6 +474,10 @@
+     uint64_t pendingTicketLocked() const;
+     struct sweet_fb_frame *boundFrameLocked(unsigned, uint64_t);
+     void replacePendingLocked(struct sweet_fb_retired *retired);
++    unsigned calibrate357(unsigned step, uint32_t frame);
++    bool fCalibrating;
++    unsigned fCalibrationStep;
++    uint32_t fCalibrationPixel;
+     bool blankEnabledLocked() const;
+     bool waitingForReadyLocked() const;
+     void observePendingReady();
+@@ -536,6 +541,7 @@
+ static uint32_t gReadyVersion;              /* gReadyLock */
+ static bool gReadyRetainsIssued;
+ static struct scan357_writer gReadyWriters[SCAN357_WRITERS]; /* gReadyLock */
++static AppleCLCD *gReadyDisplay;                             /* gReadyLock */
+ 
+ extern "C" uint64_t
+ sweet_fb352_waiting_ticket(void)
+@@ -584,6 +590,21 @@
+     if (gReadySource && scan357_signal(gReadyWriters, ticket, version, fence))
+         gReadySource->interruptOccurred(nullptr, nullptr, 0);
+     IOLockUnlock(lock);
++}
++
++extern "C" unsigned
++sweet_fb357_calibration(unsigned step, uint32_t frame)
++{
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!lock) return 0;
++    IOLockLock(lock);
++    auto *display = gReadyDisplay;
++    if (display) display->retain();
++    IOLockUnlock(lock);
++    if (!display) return 0;
++    const unsigned result = display->calibrate357(step, frame);
++    display->release();
++    return result;
+ }
+ 
+ static void
+@@ -729,6 +750,9 @@
+     bzero(fHeldIssued, sizeof(fHeldIssued));
+     bzero(&fHeldReady, sizeof(fHeldReady));
+     fHeldLastTaken = 0;
++    fCalibrating = false;
++    fCalibrationStep = SCAN357_PAUSE;
++    fCalibrationPixel = 0;
+     fHeldRetryEpoch = 1;
+     fHeldRequeued = fHeldRetrySuperseded = fHeldRetryCanceled = fHeldRetryExhausted = 0;
+     fHeldSubmitted = fHeldReplaced = fHeldConsumed = fHeldRetired = fHeldCanceled = fHeldRejected = 0;
+@@ -843,6 +867,7 @@
+     IOLockLock(lock);
+     if (!gReadySource) {
+         gReadySource = fReadyEvent = event;
++        if (fReadyAcrossFrames) gReadyDisplay = this;
+         __atomic_store_n(&gReadyRetainsIssued, fReadyAcrossFrames, __ATOMIC_RELEASE);
+     }
+     IOLockUnlock(lock);
+@@ -873,6 +898,7 @@
+         IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+         IOLockLock(lock);
+         gReadySource = nullptr;
++        gReadyDisplay = nullptr;
+         gReadySignal = {};
+         __atomic_store_n(&gReadyRetainsIssued, false, __ATOMIC_RELEASE);
+         IOLockUnlock(lock);
+@@ -888,6 +914,63 @@
+     if (!fReadyEvent) return;
+     __atomic_store_n(&gReadyTicket, 0, __ATOMIC_RELEASE);
+     fReadyGeneration = 0;
++}
++
++/* These isolated output markers run after the measured workload. fLock
++ * excludes a take, and fHeldActive excludes a copy already in progress. */
++unsigned
++AppleCLCD::calibrate357(unsigned step, uint32_t frame)
++{
++    IOLockLock(fLock);
++    unsigned result = 0;
++    const bool abort = step == SCAN357_ABORT;
++    const bool usable = fHoldPresent && fPhasePresent && fReadyAcrossFrames && !fHeldStopped && !fPowerOff &&
++        !fHeldActive && fPixels && fWidth == 1080 && fHeight == 2400 && fRowBytes == 4320;
++    if (step == SCAN357_PAUSE && usable && !fCalibrating) {
++        fCalibrating = true;
++        fCalibrationStep = SCAN357_PAUSE;
++        sweet_frame344_record(F357_CALIBRATION, frame, 1, 0, 0, 0);
++        result = 1;
++    } else if (step == SCAN357_RESUME || abort) {
++        result = step == SCAN357_RESUME && fCalibrating && fCalibrationStep == SCAN357_RESTORE ? 1 : 2;
++    }
++    if (usable && fCalibrating &&
++        ((step >= SCAN357_FIRST && step <= SCAN357_RESTORE && step == fCalibrationStep+1) ||
++         (abort && fCalibrationStep >= SCAN357_FIRST && fCalibrationStep < SCAN357_RESTORE))) {
++        struct scan351_position pos;
++        if (sweet_frame351_position(&pos) && (abort || pos.frame == frame) &&
++            scan357_calibration_window(&pos)) {
++            volatile uint32_t *pixel = (volatile uint32_t *)(fPixels +
++                (uint64_t)(fHeight/2)*fRowBytes + (fWidth/2)*sizeof(uint32_t));
++            const uint32_t before = *pixel;
++            if (step == SCAN357_FIRST) fCalibrationPixel = before;
++            if (before == scan357_pixel(fCalibrationPixel, fCalibrationStep)) {
++                const uint32_t value = scan357_pixel(fCalibrationPixel, step);
++                const uint64_t begin = mach_absolute_time();
++                *pixel = value;
++                __asm__ volatile("dsb sy" ::: "memory");
++                const uint32_t observed = *pixel;
++                const uint64_t end = mach_absolute_time();
++                struct scan351_position after;
++                const bool verified = observed == value && sweet_frame351_position(&after) &&
++                    pos.frame == after.frame && pos.line <= after.line && after.line < pos.end &&
++                    pos.end == after.end;
++                fCalibrationStep = abort ? SCAN357_RESTORE : step;
++                sweet_frame344_record(F357_CALIBRATION, ((uint64_t)step<<32)|pos.frame,
++                    verified, begin, end, ((uint64_t)fCalibrationPixel<<32)|observed);
++                result = verified ? 1 : 2;
++            } else {
++                result = 2;  /* Do not overwrite pixels another update owns. */
++            }
++        }
++    }
++    if (step == SCAN357_RESUME || abort) {
++        fCalibrating = false;
++        sweet_frame344_record(F357_CALIBRATION, ((uint64_t)SCAN357_RESUME<<32)|frame,
++            !abort && result==1, 0, 0, 0);
++    }
++    IOLockUnlock(fLock);
++    return result;
+ }
+ 
+ uint64_t
+@@ -1156,7 +1239,7 @@
+     /* An asynchronous ready notification must keep an already due
+      * software beat deliverable instead of rearming it a beat away. */
+     if (phase && fReadyAcrossFrames && fPresentClock.nextBeat <= now) deadline = now;
+-    if (phase && blankPendingLocked() && (!fReadyAcrossFrames || fHeldReady.owner)) {
++    if (phase && !fCalibrating && blankPendingLocked() && (!fReadyAcrossFrames || fHeldReady.owner)) {
+         struct scan351_position pos;
+         if (sweet_frame351_position(&pos)) {
+             uint64_t delta;
+@@ -1728,7 +1811,7 @@
+ bool
+ AppleCLCD::takeHeldFrameLocked(struct sweet_fb_frame *frame, struct sweet_fb_frame *candidate)
+ {
+-    if (!fHoldPresent || fHeldStopped || !fDirty || fHeldActive) return false;
++    if (!fHoldPresent || fHeldStopped || !fDirty || fHeldActive || fCalibrating) return false;
+     if (!candidate) candidate = fHeldReady.owner ? &fHeldReady : &fHeldPending;
+     if (!candidate->owner || (fReadyAcrossFrames && candidate->generation < fHeldLastTaken))
+         return false;
+diff --git a/bsd/dev/gauguin_frame344.h b/bsd/dev/gauguin_frame344.h
+--- a/bsd/dev/gauguin_frame344.h
++++ b/bsd/dev/gauguin_frame344.h
+@@ -9,7 +9,7 @@
+     F344_SWAP = 40, F344_ATTEMPT, F344_RESULT, F344_LOCK, F344_COPY,
+     F344_ISSUE, F344_WRITER, F344_EOP, F344_READY,
+     F344_VBLANK, F344_CRC, F344_TIMING, F351_PRESENT, F352_WAKE, F353_READY, F353_TAKE, F354_PROMOTE, F354_VALIDATE,
+-    F357_BOUND
++    F357_BOUND, F357_CALIBRATION
+ };
+ 
+ #ifdef __cplusplus
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -27,6 +27,7 @@
+ #include "gauguin_frame344.h"
+ #include "gauguin_scanout345.h"
+ #include "gauguin_blank352.h"
++#include "gauguin_calibration357.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+@@ -58,6 +59,9 @@
+ static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
+ static volatile uint32_t *scan_intf;
+ static bool scan351_enabled, scan351_published, scan352_enabled;
++static bool scan357_enabled;
++static uint64_t scan357_due, scan357_deadline;
++static uint32_t scan357_step, scan357_previous;
+ static struct {
+     uint64_t last_tick, edge_tick, startup_end;
+     uint32_t frame, edge_streak, arm_frame, crc_frame, crc_candidate_frame, crc_candidate;
+@@ -242,8 +246,16 @@
+     return !scan.misr_writes || (readable && after == scan.misr_preimage);
+ }
+ 
++static void scan357_abort(void)
++{
++    if (scan357_step > SCAN357_PAUSE && scan357_step < SCAN357_FINISHED)
++        sweet_fb357_calibration(SCAN357_ABORT, scan357_previous);
++    scan357_step = SCAN357_FINISHED;
++}
++
+ static void scan_stop(const char *reason)
+ {
++    if (scan357_enabled) scan357_abort();
+     if (scan351_enabled) __atomic_store_n(&scan351_published, false, __ATOMIC_RELEASE);
+     bool restored = !scan.configured;
+     struct scan345_status status = {0};
+@@ -382,6 +394,47 @@
+     scan.crc_frame = frame;
+ }
+ 
++void sweet_frame357_calibrate_after_script(void)
++{
++    if (!scan357_enabled || !frame_active()) return;
++    uint64_t due, deadline;
++    clock_interval_to_deadline(SCAN357_CALIBRATION_WAIT_MS, NSEC_PER_MSEC, &due);
++    clock_interval_to_deadline(SCAN357_CALIBRATION_LIMIT_MS, NSEC_PER_MSEC, &deadline);
++    scan357_deadline = deadline;
++    __atomic_store_n(&scan357_due, due, __ATOMIC_RELEASE);
++}
++
++static void scan357_finish_if_expired(uint64_t now)
++{
++    if (__atomic_load_n(&scan357_due, __ATOMIC_ACQUIRE) && now >= scan357_deadline &&
++        scan357_step < SCAN357_FINISHED) {
++        scan357_abort();
++    }
++}
++
++static void scan357_pair(uint32_t frame, uint64_t tick)
++{
++    const uint64_t due = __atomic_load_n(&scan357_due, __ATOMIC_ACQUIRE);
++    if (!due || tick < due || scan357_step >= SCAN357_FINISHED ||
++        (scan357_step != SCAN357_PAUSE && frame - scan357_previous < SCAN357_CALIBRATION_GAP))
++        return;
++    if (scan357_step == SCAN357_ABORT) {
++        scan357_abort();
++        return;
++    }
++    const unsigned progress = sweet_fb357_calibration(scan357_step, frame);
++    if (progress == 1) {
++        scan357_previous = frame;
++        ++scan357_step;
++    } else if (progress == 2) {
++        /* Defer the one possible recovery store to a later qualified pair.
++         * Expiry also releases the presentation pause if pairs stop. */
++        scan357_step = SCAN357_ABORT;
++        scan357_previous = frame;
++    }
++    if (scan357_step == SCAN357_ABORT && progress == 1) scan357_step = SCAN357_FINISHED;
++}
++
+ static void scan349_crc(uint32_t frame, uint32_t line, uint32_t checked_line,
+     uint32_t before_control, uint32_t after_control, uint32_t signature,
+     uint64_t before, uint64_t sampled)
+@@ -421,11 +474,13 @@
+     // Both signatures are retained, even when they disagree. No third read.
+     sweet_frame344_record(F344_CRC, frame, lines, signatures, scan.first_blank.start, ticks);
+     ++scan.crc_pairs;
++    if (scan357_enabled && scan.first_blank.signature == signature) scan357_pair(frame, sampled);
+ }
+ 
+ static void scan_poll(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+ {
+     const uint64_t tick = mach_absolute_time();
++    if (scan357_enabled) scan357_finish_if_expired(tick);
+     if (!frame_active() || tick >= frames.end || scan.polls >= F344_POLL_LIMIT) {
+         scan_stop("deadline");
+         return;
+@@ -531,6 +586,7 @@
+     scan.crc_preserve_idle_data = enabled >= 6;
+     scan351_enabled = enabled >= 7;
+     scan352_enabled = enabled >= 8;
++    scan357_enabled = enabled == 9;
+     scan.crc_blocked = enabled == 4;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -38,6 +38,7 @@
+ #include <IOKit/SweetHIDTouchFrame.h>
+ #include "gauguin_ui_trace.h"
+ #include "gauguin_frame344.h"
++#include "gauguin_calibration357.h"
+ /*
+  * gauguin is SM7225 (lito / lagoon), NOT the SM7125 the port was planned on.
+  * The TLMM is at 0x00f100000 (`qcom,lagoon-pinctrl`, 0x30000 - read from the
+@@ -613,6 +614,7 @@
+ 	printf("SWEET UI SCRIPT: end stroke=%u tick=%llu events=34; HID return only\n", stroke, (unsigned long long)mach_absolute_time());
+ 	if (++sweet_script_stroke >= 13) {
+ 		printf("SWEET UI SCRIPT: complete strokes=13 events=442; UI acceptance and physical touch unqualified\n");
++		if (sweet_script_wake_mode) sweet_frame357_calibrate_after_script();
+ 		return;
+ 	}
+ 	sweet_script_step = 0;
+diff --git a/bsd/dev/gauguin_calibration357.h b/bsd/dev/gauguin_calibration357.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_calibration357.h
+@@ -0,0 +1,38 @@
++#ifndef GAUGUIN_CALIBRATION357_H
++#define GAUGUIN_CALIBRATION357_H
++
++#include "gauguin_blank351.h"
++
++enum {
++    SCAN357_PAUSE, SCAN357_FIRST, SCAN357_SECOND, SCAN357_RESTORE,
++    SCAN357_RESUME, SCAN357_ABORT, SCAN357_FINISHED,
++    SCAN357_CALIBRATION_GAP = 8, SCAN357_CALIBRATION_WAIT_MS = 750,
++    SCAN357_CALIBRATION_LIMIT_MS = 1500
++};
++
++static inline bool
++scan357_calibration_window(const struct scan351_position *pos)
++{
++    return pos->line >= 2752 && pos->line < pos->end &&
++        (uint64_t)(pos->end - pos->line) * SCAN351_MIN_LINE_NS >= 2400000;
++}
++
++static inline uint32_t
++scan357_pixel(uint32_t original, unsigned step)
++{
++    if (step == SCAN357_FIRST) return original ^ UINT32_C(0x00ff0000);
++    if (step == SCAN357_SECOND) return original ^ UINT32_C(0x0000ff00);
++    return original;
++}
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++void sweet_frame357_calibrate_after_script(void);
++/* 0 waits without a store, 1 verifies the step, 2 terminates on failure. */
++unsigned sweet_fb357_calibration(unsigned step, uint32_t frame);
++#ifdef __cplusplus
++}
++#endif
++
++#endif

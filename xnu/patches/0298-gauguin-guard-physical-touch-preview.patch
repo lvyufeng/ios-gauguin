@@ -1,0 +1,149 @@
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -37,6 +37,7 @@
+ #include "gauguin_probe358.h"
+ #include "gauguin_frame375_present.h"
+ #include "gauguin_frame380_phase.h"
++#include "gauguin_frame387_preview.h"
+ #include "gauguin_page_flip.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+@@ -73,7 +74,8 @@
+ static struct gut_core frames;
+ static mach_timebase_info_data_t frame_timebase;
+ static bool frame_header, frame_footer;
+-static thread_call_t scan_call;
++static thread_call_t scan_call, manual_preview_call;
++static bool manual_preview;
+ static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
+ static volatile uint32_t *scan_intf;
+ static bool scan351_enabled, scan351_published, scan352_enabled;
+@@ -1126,7 +1128,7 @@
+             if (scan357_enabled) scan367_poll(frame);
+             if (phase380_enabled) scan381_poll(frame);
+             if (sweet_frame382_active()) sweet_fb382_poll(frame);
+-            if (scan357_enabled && scan358_probe_line(line) && sweet_frame351_window())
++            if (scan357_enabled && !manual_preview && scan358_probe_line(line) && sweet_frame351_window())
+                 sweet_fb358_request_probe(frame);
+         } else if (scan.counter_readonly) {
+             scan.motion.previous_valid = false;
+@@ -1139,19 +1141,23 @@
+     thread_call_enter_delayed(scan_call, deadline);
+ }
+ 
++static void start_manual_preview(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
++{
++    if (sweet_fb_display_state() == 1) sweet_frame344_prepare();
++}
++
+ static void frame_init(void)
+ {
+     uint32_t enabled = 0, script = 0, physical = 0;
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    /* Both scripted wake modes use this capture, with the fixed drag only in mode 4. */
+-    if (enabled < 2 || enabled > 9 || (script != 3 && script != 4) ||
+-        physical || !sweet_metal_desktop_enabled()) return;
+-    // Use a mode value so the complete 607-byte boot line still fits.
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+-    if (enabled >= 4 && hz != 60) return;
++    const bool preview = f387_physical_profile(enabled, script, physical, hz);
++    if (enabled < 2 || enabled > 9 || (!preview && ((script != 3 && script != 4) || physical)) ||
++        !sweet_metal_desktop_enabled() || (enabled >= 4 && hz != 60)) return;
++    manual_preview = preview;
+     scan.counter_opt_in = enabled == 3 && hz == 60;
+     scan.counter_readonly = enabled >= 4;
+     scan.crc_blanking = enabled >= 5;
+@@ -1165,7 +1171,7 @@
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+     clock_timebase_info(&frame_timebase);
+     if (!window || !frame_timebase.numer || !frame_timebase.denom) return;
+-    phase380_enabled = scan357_enabled && script == 4 &&
++    phase380_enabled = scan357_enabled && (script == 4 || preview) &&
+         frame_timebase.numer == 625 && frame_timebase.denom == 12;
+     struct gut_event *events = kalloc_data(capacity * sizeof(*events), Z_WAITOK | Z_ZERO);
+     if (!events) return;
+@@ -1174,7 +1180,13 @@
+         return;
+     }
+     printf("SWEET F344: armed window=45s capacity=%u\n", capacity);
+-    if (scan357_enabled)
++    if (preview) {
++        thread_call_t call = thread_call_allocate_with_options(start_manual_preview, NULL,
++            THREAD_CALL_PRIORITY_KERNEL, THREAD_CALL_OPTIONS_ONCE);
++        __atomic_store_n(&manual_preview_call, call, __ATOMIC_RELEASE);
++        if (call) printf("SWEET F387 MANUAL: ready for first physical contact\n");
++    }
++    if (scan357_enabled && !preview)
+         printf("SWEET F358 PROBE: first_line=%u limit=%u\n",
+             SCAN358_PROBE_FIRST_LINE, SCAN358_PROBE_LIMIT);
+ }
+@@ -1224,7 +1236,8 @@
+         return;
+     }
+     scan_intf += F344_INTF_OFF / 4;
+-    if (scan357_enabled) {
++    if (manual_preview) printf("SWEET F387 MANUAL: opening guarded display window\n");
++    if (scan357_enabled && !manual_preview) {
+         struct frame374_receiver receiver = {0};
+         proc_iterate(PROC_ALLPROCLIST, frame374_find_receiver, &receiver, NULL, NULL);
+         if (receiver.receivers == 1) {
+@@ -1296,7 +1309,15 @@
+ uint64_t sweet_ui_trace_clock(void)
+ {return gut_enabled(&trace)?mach_absolute_time():0;}
+ uint64_t sweet_ui_trace_report(uint64_t begin,uint64_t end,uint32_t status,uint32_t mask)
+-{return gut_report(&trace,begin,end,status,mask);}
++{
++#ifndef GUT_BOARD_HOST_TEST
++    thread_call_t call = __atomic_load_n(&manual_preview_call, __ATOMIC_ACQUIRE);
++    if (call && !status && mask && mask < 1024 &&
++        __atomic_load_n(&frames.state, __ATOMIC_ACQUIRE) == GUT_ARMED &&
++        sweet_fb_display_state() == 1) thread_call_enter(call);
++#endif
++    return gut_report(&trace,begin,end,status,mask);
++}
+ void sweet_ui_trace_record(uint32_t kind,uint64_t id,uint32_t pid,uint32_t flags,uint64_t a,uint64_t b,uint64_t c)
+ {gut_record(&trace,kind,id,pid,flags,a,b,c);}
+ void sweet_ui_trace_stop(uint32_t reason)
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -48,6 +48,7 @@
+ #include "../../../bsd/dev/gauguin_copy379_probe.h"
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ #include "../../../bsd/dev/gauguin_frame380_phase.h"
++#include "../../../bsd/dev/gauguin_frame387_preview.h"
+ #include "../../../bsd/dev/gauguin_page_flip.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+@@ -891,10 +892,12 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    int swipe375 = 0, hz375 = 0;
++    int swipe375 = 0, hz375 = 0, physical387 = 0;
+     PE_parse_boot_argn("swp", &swipe375, sizeof(swipe375));
+     PE_parse_boot_argn("sweetfb_hz", &hz375, sizeof(hz375));
+-    fFrameInfo375 = fHoldPresent && statsRequested == 9 && swipe375 == 4 && hz375 == 60;
++    PE_parse_boot_argn("sweetnvt", &physical387, sizeof(physical387));
++    const bool preview = f387_physical_profile(statsRequested, swipe375, physical387, hz375);
++    fFrameInfo375 = fHoldPresent && statsRequested == 9 && (swipe375 == 4 || preview) && hz375 == 60;
+     fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
+     fFlip382 = {};
+     fStage384Loop = nullptr;
+--- /dev/null
++++ b/bsd/dev/gauguin_frame387_preview.h
+@@ -0,0 +1,12 @@
++#ifndef GAUGUIN_FRAME387_PREVIEW_H
++#define GAUGUIN_FRAME387_PREVIEW_H
++
++#include <stdbool.h>
++
++static inline bool
++f387_physical_profile(unsigned stats, unsigned script, unsigned physical, unsigned hz)
++{
++    return stats == 9 && script == 0 && physical == 1 && hz == 60;
++}
++
++#endif

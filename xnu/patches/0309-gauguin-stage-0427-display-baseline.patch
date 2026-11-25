@@ -1,0 +1,4476 @@
+diff --git a/bsd/dev/gauguin_completion_sample405.h b/bsd/dev/gauguin_completion_sample405.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_completion_sample405.h
+@@ -0,0 +1,45 @@
++#ifndef GAUGUIN_COMPLETION_SAMPLE_405_H
++#define GAUGUIN_COMPLETION_SAMPLE_405_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++struct eop405_state {
++    uint64_t ticket, last_pending_begin, last_read_end;
++    uint32_t fence;
++    bool reported;
++};
++
++struct eop405_bracket {
++    uint64_t earliest_tick, latest_tick;
++};
++
++/* The word is a GPU end-of-pipe observation only. The caller must have
++ * checked the same issued token and permanent mapping on both sides. */
++static inline bool
++eop405_observe(struct eop405_state *s, uint64_t ticket, uint32_t fence,
++    uint32_t observed, uint64_t begin, uint64_t end, struct eop405_bracket *out)
++{
++    if (!(ticket>>32) || !(uint32_t)ticket || !fence || !begin || end < begin ||
++        (observed != fence && observed != fence - 1u)) return false;
++    if (ticket != s->ticket) {
++        if (fence <= s->fence) return false;
++        *s = (struct eop405_state){ticket, 0, 0, fence, false};
++    }
++    if (fence != s->fence || begin < s->last_read_end || s->reported) return false;
++    s->last_read_end = end;
++    if (observed != fence) {
++        s->last_pending_begin = begin;
++        // Keep the lower bound even when guarded completion clears the
++        // issued token before the first matching raw sample.
++        *out = (struct eop405_bracket){begin, 0};
++        return true;
++    }
++    // A pending load occurred somewhere in its interval. Its begin is
++    // the conservative lower bound, even if EOP changed before its end.
++    *out = (struct eop405_bracket){s->last_pending_begin, end};
++    s->reported = true;
++    return true;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_cpufreq402.h b/bsd/dev/gauguin_cpufreq402.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_cpufreq402.h
+@@ -0,0 +1,177 @@
++/* The Lagoon performance cluster uses firmware-owned voltage/frequency rows.
++ * The caller owns the device mapping and supplies ordered reads and writes. */
++#ifndef GAUGUIN_CPUFREQ402_H
++#define GAUGUIN_CPUFREQ402_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum {
++    CPU402_ENABLE = 0x0,
++    CPU402_FREQ_LUT = 0x110,
++    CPU402_VOLT_LUT = 0x114,
++    CPU402_LUT_STRIDE = 32,
++    CPU402_LUT_ENTRIES = 40,
++    CPU402_PERF_STATE = 0x920,
++    CPU402_CYCLES = 0x9c0,
++    CPU402_TARGET_L = 73, /* 1,401,600 kHz at the stock 19.2 MHz XO. */
++    CPU402_TEMP_READY = 0xe4,
++    CPU402_TEMP_STATUS = 0xa0,
++    CPU402_TEMP_MIN = 50,
++    CPU402_TEMP_LIMIT = 650, /* Deci-Celsius. */
++    CPU402_LAST_CONTACT = 14,
++    CPU402_CONTACT_BITS = 4,
++};
++
++#define CPU402_FACTORY_ALTERNATE UINT32_C(0x0002000f)
++
++typedef uint32_t (*cpu402_read_t)(void *, unsigned);
++typedef void (*cpu402_write_t)(void *, unsigned, uint32_t);
++
++struct cpu402_point {
++    uint32_t enable, original, selected, original_row, target_row;
++    uint32_t original_volt, target_volt;
++};
++
++static inline uint32_t
++cpu402_row(cpu402_read_t read, void *cookie, unsigned table, unsigned row)
++{
++    return read(cookie, table + row * CPU402_LUT_STRIDE);
++}
++
++static inline bool
++cpu402_find_point(cpu402_read_t read, void *cookie, struct cpu402_point *out)
++{
++    /* Same-phone Android recovery policy6, excluding its alternate source.
++     * The special last row can differ in core count and marks the end. */
++    static const uint8_t stock[] = {41, 51, 54, 65, 73, 81, 92, 99, 108, 111, 115};
++    const uint32_t enable = read(cookie, CPU402_ENABLE);
++    const uint32_t index = read(cookie, CPU402_PERF_STATE);
++    const uint32_t first = cpu402_row(read, cookie, CPU402_FREQ_LUT, 0);
++    if (enable == UINT32_MAX || !(enable & 1u) || index != 0 ||
++        first != CPU402_FACTORY_ALTERNATE) {
++        return false;
++    }
++
++    uint32_t previous = 0, selected = 0, target = 0;
++    unsigned count = 0;
++    bool ended = false;
++    for (unsigned row = 1; row < CPU402_LUT_ENTRIES; ++row) {
++        const uint32_t raw = cpu402_row(read, cookie, CPU402_FREQ_LUT, row);
++        const uint32_t pll = raw >> 30, cores = (raw >> 16) & 7u, l = raw & 0xffu;
++        if (raw == UINT32_MAX || !pll || !l) {
++            return false;
++        }
++        if (l == previous) {
++            ended = true;
++            break;
++        }
++        previous = l;
++        if (cores < 1 || cores > 2 || count >= sizeof(stock) || l != stock[count++]) {
++            return false;
++        }
++        if (l == CPU402_TARGET_L && cores == 2) {
++            selected = row;
++            target = raw;
++        }
++    }
++    if (!ended || count != sizeof(stock) || !selected) {
++        return false;
++    }
++
++    const uint32_t old_volt = cpu402_row(read, cookie, CPU402_VOLT_LUT, index);
++    const uint32_t new_volt = cpu402_row(read, cookie, CPU402_VOLT_LUT, selected);
++    if (old_volt == UINT32_MAX || new_volt == UINT32_MAX ||
++        !(old_volt & 0xfffu) || !(new_volt & 0xfffu) ||
++        read(cookie, CPU402_ENABLE) != enable || read(cookie, CPU402_PERF_STATE) != index) {
++        return false;
++    }
++    *out = (struct cpu402_point){enable, index, selected, first, target, old_volt, new_volt};
++    return true;
++}
++
++static inline bool
++cpu402_matches(cpu402_read_t read, void *cookie, const struct cpu402_point *p)
++{
++    return read(cookie, CPU402_ENABLE) == p->enable &&
++        cpu402_row(read, cookie, CPU402_FREQ_LUT, p->original) == p->original_row &&
++        cpu402_row(read, cookie, CPU402_VOLT_LUT, p->original) == p->original_volt &&
++        cpu402_row(read, cookie, CPU402_FREQ_LUT, p->selected) == p->target_row &&
++        cpu402_row(read, cookie, CPU402_VOLT_LUT, p->selected) == p->target_volt;
++}
++
++static inline bool
++cpu402_select(cpu402_read_t read, cpu402_write_t write, void *cookie,
++    const struct cpu402_point *point, bool *restore_pending)
++{
++    if (*restore_pending || !cpu402_matches(read, cookie, point) ||
++        read(cookie, CPU402_PERF_STATE) != point->original) {
++        return false;
++    }
++    /* Retain the preimage before trying the ordered write. A failed readback
++     * can still represent a write that reached the controller. */
++    *restore_pending = true;
++    write(cookie, CPU402_PERF_STATE, point->selected);
++    return read(cookie, CPU402_PERF_STATE) == point->selected;
++}
++
++static inline bool
++cpu402_restore(cpu402_read_t read, cpu402_write_t write, void *cookie,
++    const struct cpu402_point *point, bool *restore_pending)
++{
++    if (!*restore_pending) {
++        return true;
++    }
++    if (!cpu402_matches(read, cookie, point)) {
++        return false;
++    }
++    const uint32_t current = read(cookie, CPU402_PERF_STATE);
++    if (current == point->selected) {
++        write(cookie, CPU402_PERF_STATE, point->original);
++    } else if (current != point->original) {
++        return false;
++    }
++    if (read(cookie, CPU402_PERF_STATE) != point->original) {
++        return false;
++    }
++    *restore_pending = false;
++    return true;
++}
++
++static inline bool
++cpu402_temperature(cpu402_read_t read, void *cookie, int *hottest)
++{
++    const uint32_t ready = read(cookie, CPU402_TEMP_READY);
++    if (ready == UINT32_MAX || !(ready & (1u << 3))) {
++        return false;
++    }
++    int high = -1;
++    for (unsigned id = 9; id <= 12; ++id) {
++        const unsigned offset = CPU402_TEMP_STATUS + id * 4;
++        uint32_t status = read(cookie, offset);
++        /* The Android TSENS 2.x driver checks validity on up to three
++         * reads. Every sensor here still requires a valid conversion. */
++        for (unsigned retry = 0; retry < 2 && status != UINT32_MAX && !(status & (1u << 21)); ++retry)
++            status = read(cookie, offset);
++        const int deci = status & 0x7ffu;
++        if (status == UINT32_MAX || !(status & (1u << 21)) ||
++            (status & ((1u << 19) | (1u << 11))) || deci < CPU402_TEMP_MIN) {
++            return false;
++        }
++        if (deci > high) high = deci;
++    }
++    *hottest = high;
++    const uint32_t last_ready = read(cookie, CPU402_TEMP_READY);
++    return high < CPU402_TEMP_LIMIT && last_ready != UINT32_MAX && (last_ready & (1u << 3));
++}
++
++static inline unsigned
++cpu402_contact(uint64_t packed, uint64_t now, uint64_t lease)
++{
++    const unsigned contact = packed & ((1u << CPU402_CONTACT_BITS) - 1u);
++    const uint64_t tick = packed >> CPU402_CONTACT_BITS;
++    return contact <= CPU402_LAST_CONTACT && tick && tick <= now && now - tick <= lease ?
++        contact : 0;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_deadlines419.h b/bsd/dev/gauguin_deadlines419.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_deadlines419.h
+@@ -0,0 +1,34 @@
++#ifndef GAUGUIN_DEADLINES419_H
++#define GAUGUIN_DEADLINES419_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum {
++    F419_GPU = 64, F419_PROMOTE, F419_COPY, F419_DISPATCH, F425_RAW = 69,
++    F419_CAPACITY = 12288, F419_MAX_WIRE_BYTES = 786432
++};
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++uint64_t sweet_frame419_clock(void);
++bool sweet_frame425_observing(void);
++void sweet_frame419_record(uint32_t kind, uint64_t id, uint32_t lane,
++    uint32_t version, uint64_t a, uint64_t b, uint64_t c);
++#ifdef __cplusplus
++}
++#endif
++
++/* Existing writer row field, without adding a per-submit record. The issue
++ * operation is bracketed around its native call. Its return is not the
++ * earliest possible time at which the GPU could have seen the submit. */
++static inline uint64_t
++f425_issue_bounds(uint64_t observed, uint64_t before, uint64_t after)
++{
++    if (!before || before > after || after > observed || observed - before > UINT32_MAX)
++        return 0;
++    return ((observed - before) << 32) | (after - before);
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_display_previous404.h b/bsd/dev/gauguin_display_previous404.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_display_previous404.h
+@@ -0,0 +1,19 @@
++#ifndef GAUGUIN_DISPLAY_PREVIOUS_404_H
++#define GAUGUIN_DISPLAY_PREVIOUS_404_H
++
++/* Included beside the exact busy-producer record. The display publication
++ * lock serializes both paths. Only one generation can claim this version. */
++static inline bool
++display404_previous_allowed(const struct display401_writer *writer, uint32_t surface, uint32_t version)
++{
++    return !writer->ticket || writer->surface!=surface || writer->version!=version;
++}
++
++static inline void
++display404_previous_claimed(struct display401_writer *writer, uint32_t surface, uint32_t version)
++{
++    if (writer->cookie && !writer->ticket && writer->surface==surface && writer->version==version)
++        *writer = (struct display401_writer){0};
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_display_writer401.h b/bsd/dev/gauguin_display_writer401.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_display_writer401.h
+@@ -0,0 +1,59 @@
++/* The existing display publication lock serializes these value-only receipts.
++ * The GPU retains every submitted BO through its normal completion path. */
++#ifndef GAUGUIN_DISPLAY_WRITER_401_H
++#define GAUGUIN_DISPLAY_WRITER_401_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++struct display401_writer {
++    uint32_t cookie, surface, version;
++    uint64_t ticket;
++};
++
++/* In the serialized GPU path, publication follows exact BO WRITE escrow.
++ * A submission already bound to a normal display generation stays there. */
++static inline bool
++display401_publish(struct display401_writer *writer, uint32_t cookie,
++    uint32_t surface, uint32_t version, uint64_t existing_ticket)
++{
++    if (writer->cookie || existing_ticket || !cookie || !surface || !version || (version & 3u))
++        return false;
++    *writer = (struct display401_writer){cookie, surface, version, 0};
++    return true;
++}
++
++static inline bool
++display401_matches(const struct display401_writer *writer, uint32_t cookie,
++    uint32_t surface, uint32_t version)
++{
++    return cookie && cookie==writer->cookie && surface==writer->surface &&
++        version==writer->version && !writer->ticket;
++}
++
++/* The caller independently checks the live busy state and that admitting
++ * the ticket cannot conflict with an already-retained display writer. */
++static inline bool
++display401_claim(struct display401_writer *writer, uint32_t cookie,
++    uint64_t ticket, uint32_t version)
++{
++    if (!(ticket>>32) || !display401_matches(writer,cookie,(uint32_t)ticket,version))
++        return false;
++    writer->ticket = ticket;
++    return true;
++}
++
++/* Seal under the publication lock immediately before native issue. After
++ * sealing, the ordinary ordered fence and cache path owns the returned ticket. */
++static inline uint64_t
++display401_seal(struct display401_writer *writer, uint32_t cookie,
++    uint32_t surface, uint32_t version)
++{
++    if (!cookie || cookie!=writer->cookie || surface!=writer->surface ||
++        version!=writer->version) return 0;
++    const uint64_t ticket = writer->ticket;
++    *writer = (struct display401_writer){0};
++    return ticket;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_frame385.h b/bsd/dev/gauguin_frame385.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_frame385.h
+@@ -0,0 +1,12 @@
++#ifndef GAUGUIN_FRAME385_H
++#define GAUGUIN_FRAME385_H
++
++#include <stdint.h>
++
++void sweet_ca385_arm(uint64_t source, uint64_t receiver);
++void sweet_ca385_swipe(unsigned number, uint64_t start);
++uint64_t sweet_ca385_send_frame(uint64_t tick, uint32_t id);
++void sweet_ca385_send(uint64_t tick, uint16_t serial, uint32_t id, uint64_t frame);
++void sweet_ca385_receive(uint64_t address, uint32_t size, uint32_t id, uint16_t serial);
++
++#endif
+diff --git a/bsd/dev/gauguin_frame385_observer.h b/bsd/dev/gauguin_frame385_observer.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_frame385_observer.h
+@@ -0,0 +1,331 @@
++/* Included by kdebug.c. Observe the two identified tasks' native tracepoints
++ * and transport. All reads use copyin from the current task. No user stores,
++ * debug-register changes, or changes to the original scheduling paths. */
++#include <mach/arm/thread_status.h>
++#include "gauguin_frame385.h"
++
++enum {
++	F385_SOURCE = 1, F385_ENCODED, F385_SEND, F385_RECEIVE, F385_COMMAND,
++	F385_APPLY, F385_BEFORE_INCLUDE, F385_AFTER_INCLUDE, F385_SWAP,
++	F385_GESTURE_CAP = 3072, F385_RECEIPTS = 256,
++	F385_MAX_STACK = 12, F385_MAX_MEMBERS = 24, F385_SWIPES = 13
++};
++
++struct f385_row {
++	uint64_t tick, thread, a, b, c, d;
++	uint16_t kind, stroke;
++};
++
++/* A later stroke cannot consume the earlier stroke's retention. */
++static struct f385_gesture {
++	uint64_t begin, until;
++	unsigned count;
++	struct f385_row rows[F385_GESTURE_CAP];
++} f385_gestures[F385_SWIPES];
++static unsigned f385_windows;
++static uint64_t f385_source, f385_receiver;
++static uint64_t f385_source_slide, f385_receiver_slide;
++/* Slot payload is value-only. The bounded table tracks the last put at an
++ * address for this stroke. A collision can remove a witness. */
++static struct f385_delivery {
++	uint64_t address, time, tid;
++	uint32_t size, id;
++	uint16_t serial, stroke;
++} f385_receipts[F385_RECEIPTS];
++static bool f385_receipts_busy;
++static unsigned f385_dropped_puts;
++
++extern struct arm_saved_state *get_user_regs(thread_t);
++
++static uint64_t
++f385_identity(task_t task)
++{
++	const audit_token_t *token = task_get_audit_token(task);
++	return ((uint64_t)token->val[7] << 32) | token->val[5];
++}
++
++void
++sweet_ca385_arm(uint64_t source, uint64_t receiver)
++{
++	if (f374_start && source && receiver && source != receiver && !f385_source) {
++		f385_source = source;
++		__atomic_store_n(&f385_receiver, receiver, __ATOMIC_RELEASE);
++	}
++}
++
++void
++sweet_ca385_swipe(unsigned number, uint64_t start)
++{
++	if (!__atomic_load_n(&f385_receiver, __ATOMIC_ACQUIRE) ||
++	    number != __atomic_load_n(&f385_windows, __ATOMIC_RELAXED) + 1 ||
++	    number > F385_SWIPES || start < f374_start || start >= f374_end) return;
++	uint64_t duration = 0;
++	nanoseconds_to_absolutetime(UINT64_C(650000000), &duration);
++	f385_gestures[number-1].begin = start;
++	f385_gestures[number-1].until = start + duration;
++	__atomic_store_n(&f385_windows, number, __ATOMIC_RELEASE);
++}
++
++static unsigned
++f385_stroke(uint64_t tick)
++{
++	const unsigned lane = __atomic_load_n(&f385_windows, __ATOMIC_ACQUIRE);
++	if (!lane) return 0;
++	const struct f385_gesture *g = &f385_gestures[lane-1];
++	if (tick < g->begin || tick >= g->until || tick >= f374_end) return 0;
++	return lane;
++}
++
++static bool
++f385_read(uint64_t base, unsigned offset, void *value, size_t count)
++{
++	return base && base <= UINT64_MAX - offset && copyin(base + offset, value, count) == 0;
++}
++
++static uint32_t
++f385_pid(uint64_t context)
++{
++	uint32_t pid = 0;
++	return f385_read(context, 0xbc, &pid, sizeof(pid)) ? pid : 0;
++}
++
++static void
++f385_record(unsigned stroke, unsigned kind, uint64_t tick, uint64_t tid,
++    uint64_t a, uint64_t b, uint64_t c, uint64_t d)
++{
++	if (stroke && tick >= f374_start && tick < f374_end) {
++		struct f385_gesture *g = &f385_gestures[stroke-1];
++		unsigned i = __atomic_fetch_add(&g->count, 1, __ATOMIC_RELAXED);
++		if (i < F385_GESTURE_CAP) {
++			g->rows[i] = (struct f385_row){tick, tid, a, b, c, d, kind, stroke};
++		}
++	}
++}
++
++static bool
++f385_cache(uint64_t raw_slide, uint64_t *published)
++{
++	const uint64_t prior = __atomic_load_n(published, __ATOMIC_ACQUIRE);
++	/* Store slide+1 so an unshifted cache can be qualified too. */
++	if (prior) return prior == raw_slide + 1;
++	if (raw_slide & 0x3fff || raw_slide >= UINT64_C(0x100000000)) return false;
++	const uint8_t uuid[16] = {0x9e,0x40,0xb2,0xeb,0x26,0x0c,0x3a,0xf1,
++		0xae,0x45,0xa1,0xa5,0x51,0xa8,0xc1,0xb9};
++	uint8_t actual[16];
++	if (!f385_read(UINT64_C(0x188284f30) + raw_slide, 0, actual, sizeof(actual)) ||
++	    memcmp(uuid, actual, sizeof(uuid))) return false;
++	uint64_t expected = 0;
++	return __atomic_compare_exchange_n(published, &expected, raw_slide + 1,
++	           false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE) || expected == raw_slide + 1;
++}
++
++static bool
++f385_native_code(uint32_t code)
++{
++	switch (code) {
++	case 0x31ca01dd: case 0x31ca01de:
++	case 0x31ca0009: case 0x31ca000a:
++	case 0x31ca027d: case 0x31ca027e: case 0x31ca0084:
++		return true;
++	default:
++		return false;
++	}
++}
++
++static bool
++f385_packet(uint32_t id)
++{
++	return id >= 40002 && id <= 40005;
++}
++
++/* This stack read runs before the port lock. The QuartzCore return PC marks
++ * the direct send-message call in the selected context commit implementation. */
++uint64_t
++sweet_ca385_send_frame(uint64_t tick, uint32_t id)
++{
++	if (!tick || !f385_packet(id) || !f385_stroke(tick) ||
++	    f385_identity(current_task()) != f385_source) return 0;
++	uint64_t slide = __atomic_load_n(&f385_source_slide, __ATOMIC_ACQUIRE);
++	struct arm_saved_state *ss = get_user_regs(current_thread());
++	if (!slide || !ss || !is_saved_state64(ss)) return 0;
++	uint64_t fp = get_saved_state_fp(ss);
++	const uint64_t sp = get_saved_state_sp(ss);
++	for (unsigned i = 0; i < F385_MAX_STACK; ++i) {
++		uint64_t frame[2];
++		if (fp < sp || fp - sp > 0x20000 || (fp & 15) ||
++		    !f385_read(fp, 0, &frame, sizeof(frame)) ||
++		    frame[0] <= fp || frame[0] - sp > 0x20000 || (frame[0] & 15)) break;
++		if (frame[1] == UINT64_C(0x1882b29fc) + slide - 1) return frame[0];
++		fp = frame[0];
++	}
++	return 0;
++}
++
++void
++sweet_ca385_send(uint64_t tick, uint16_t serial, uint32_t id, uint64_t frame)
++{
++	const unsigned stroke = f385_stroke(tick);
++	if (!stroke || !frame || !serial || !f385_packet(id) || !f375_enter()) return;
++	f385_record(stroke, F385_SEND, tick, thread_tid(current_thread()), serial, frame, id, 0);
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++static struct f385_delivery *
++f385_delivery_for(uint64_t address)
++{
++	return &f385_receipts[((address >> 4) ^ (address >> 12)) & (F385_RECEIPTS - 1)];
++}
++
++void
++sweet_ca385_receive(uint64_t address, uint32_t size, uint32_t id, uint16_t serial)
++{
++	const uint64_t receiver = __atomic_load_n(&f385_receiver, __ATOMIC_ACQUIRE);
++	if (!receiver || !address || f385_identity(current_task()) != receiver) return;
++	const uint64_t tick = mach_absolute_time();
++	const unsigned stroke = f385_stroke(tick);
++	if (!stroke || !f375_enter()) return;
++	if (__atomic_test_and_set(&f385_receipts_busy, __ATOMIC_ACQUIRE)) {
++		__atomic_fetch_add(&f385_dropped_puts, 1, __ATOMIC_RELAXED);
++	} else {
++		struct f385_delivery *slot = f385_delivery_for(address);
++		*slot = (struct f385_delivery){address, tick, thread_tid(current_thread()),
++			size, id, size >= 24 && f385_packet(id) ? serial : 0, stroke};
++		__atomic_clear(&f385_receipts_busy, __ATOMIC_RELEASE);
++	}
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++static bool
++f385_find_receive(unsigned stroke, uint64_t address, struct f385_delivery *delivery)
++{
++	if (__atomic_test_and_set(&f385_receipts_busy, __ATOMIC_ACQUIRE)) return false;
++	const struct f385_delivery *slot = f385_delivery_for(address);
++	*delivery = *slot;
++	__atomic_clear(&f385_receipts_busy, __ATOMIC_RELEASE);
++	uint32_t actual_size, actual_id;
++	return delivery->address == address && delivery->stroke == stroke && delivery->serial &&
++	       f385_read(address, 4, &actual_size, sizeof(actual_size)) &&
++	       f385_read(address, 20, &actual_id, sizeof(actual_id)) &&
++	       actual_size >= 24 && actual_size <= delivery->size && actual_id == delivery->id;
++}
++
++static bool
++f385_member(uint64_t update, uint64_t context, uint64_t *found)
++{
++	uint64_t node;
++	*found = 0;
++	if (!f385_read(update, 0x128, &node, sizeof(node))) return false;
++	for (unsigned i = 0; node && i < F385_MAX_MEMBERS; ++i) {
++		struct {
++			uint64_t next, context, name;
++			uint32_t seed, flags;
++		} member;
++		if (!f385_read(node, 0, &member, sizeof(member)) || member.next == node) return false;
++		if (member.context == context) {
++			*found = (UINT64_C(1) << 32) | member.seed;
++			return true;
++		}
++		node = member.next;
++	}
++	return !node;
++}
++
++#include "gauguin_frame390_membership.h"
++#include "gauguin_frame390_transactions.h"
++
++static void
++f385_kdebug(uint64_t identity, const struct kdebug_trace64_args *uap, uint64_t tick)
++{
++	const unsigned stroke = f385_stroke(tick);
++	const uint64_t receiver = __atomic_load_n(&f385_receiver, __ATOMIC_ACQUIRE);
++	if (!stroke || !receiver || !f385_native_code(uap->code) ||
++	    (identity != receiver && identity != f385_source)) return;
++	const bool before = uap->code == 0x31ca027d, after_include = uap->code == 0x31ca027e;
++	struct f390_lane *lane = identity == receiver && (before || after_include) ? &f390_lanes[stroke-1] : NULL;
++	if (lane) __atomic_fetch_add(&lane->raw[after_include], 1, __ATOMIC_RELAXED);
++	struct arm_saved_state *ss = get_user_regs(current_thread());
++	if (!ss || !is_saved_state64(ss)) return;
++	const uint64_t base_pc = UINT64_C(0x1c261ec58);
++	const uint64_t pc = get_saved_state_pc(ss);
++	if (pc < base_pc) return;
++	const uint64_t slide = pc - base_pc;
++	const bool source = identity == f385_source;
++	if (!f385_cache(slide, source ? &f385_source_slide : &f385_receiver_slide)) return;
++	const uint64_t lr = get_saved_state_lr(ss);
++	if (lr < slide) return;
++	const uint64_t site = lr - slide;
++	const uint64_t tid = thread_tid(current_thread());
++	uint64_t address, member;
++	uint32_t context_id, seed;
++	if (source) {
++		const uint64_t fp = get_saved_state_fp(ss);
++		if (site == UINT64_C(0x1882b1c10) && uap->code == 0x31ca01dd && uap->arg1 <= UINT32_MAX) {
++			f385_record(stroke, F385_SOURCE, tick, tid, fp, uap->arg1, 0, 0);
++		} else if (site == UINT64_C(0x1882b27f4) && uap->code == 0x31ca01de &&
++		    f385_read(get_saved_state_reg(ss, 19), 0x1e0, &address, sizeof(address)) &&
++		    f385_read(address, 4, &context_id, sizeof(context_id))) {
++			f385_record(stroke, F385_ENCODED, tick, tid, fp, context_id, 0, 0);
++		}
++		return;
++	}
++	if ((site == UINT64_C(0x18846f440) && uap->code == 0x31ca0009) ||
++	    (site == UINT64_C(0x1884703a8) && uap->code == 0x31ca000a)) {
++		const bool apply = uap->code == 0x31ca000a;
++		const uint64_t command = get_saved_state_reg(ss, 27);
++		const uint64_t context = get_saved_state_reg(ss, 24);
++		struct f385_delivery receive;
++		if (!f385_read(command, 0x10, &address, sizeof(address)) ||
++		    !f385_find_receive(stroke, address, &receive) ||
++		    !f385_read(context, 0x10, &context_id, sizeof(context_id)) ||
++		    !context_id || context_id != (apply ? uap->arg2 : uap->arg1) ||
++		    !f385_read(context, 0x38, &seed, sizeof(seed))) return;
++		if (!apply) {
++			f385_record(stroke, F385_RECEIVE, receive.time, receive.tid,
++			    address, receive.serial, receive.id, receive.size);
++		} else if (uap->arg4 != (uint32_t)f385_source) {
++			return;
++		}
++		f385_record(stroke, apply ? F385_APPLY : F385_COMMAND, tick, tid, command,
++		    receive.serial, context, ((uint64_t)context_id << 32) | seed);
++		return;
++	}
++	if ((site == UINT64_C(0x1882fc5cc) && uap->code == 0x31ca027d) ||
++	    (site == UINT64_C(0x1882fc858) && uap->code == 0x31ca027e)) {
++		const bool after = uap->code == 0x31ca027e;
++		__atomic_fetch_add(&lane->site[after], 1, __ATOMIC_RELAXED);
++		const uint64_t context = get_saved_state_reg(ss, 21);
++		const uint64_t update = get_saved_state_reg(ss, 22);
++		if (f385_pid(context) != (uint32_t)f385_source ||
++		    !f385_read(context, 0x10, &context_id, sizeof(context_id)) ||
++		    !context_id || (!after && uap->arg1 != context_id) ||
++		    !f385_read(update, 0xe0, &seed, sizeof(seed)) ||
++		    !f385_member(update, context, &member)) return;
++		__atomic_fetch_add(&lane->read[after], 1, __ATOMIC_RELAXED);
++		f385_record(stroke, after ? F385_AFTER_INCLUDE : F385_BEFORE_INCLUDE, tick, tid,
++		    update, context, ((uint64_t)seed << 32) | context_id, member);
++		return;
++	}
++	if (uap->code != 0x31ca0084 || !uap->arg1 || uap->arg1 > UINT32_MAX || uap->arg4 > UINT32_MAX) return;
++	switch (site) {
++	case UINT64_C(0x1882d166c): address = get_saved_state_reg(ss, 25); break;
++	case UINT64_C(0x1882d2508):
++		if (!f385_read(get_saved_state_sp(ss), 0x60, &address, sizeof(address))) return;
++		break;
++	case UINT64_C(0x18852c79c): case UINT64_C(0x18852c7f0): case UINT64_C(0x18852c870):
++	case UINT64_C(0x18852c8c0): case UINT64_C(0x18852cba4): case UINT64_C(0x18852ccf4):
++		address = get_saved_state_reg(ss, 23);
++		break;
++	default: return;
++	}
++	if (f385_read(address, 0xe0, &seed, sizeof(seed)) && seed == uap->arg4) {
++		f390_swap(stroke, tick, tid, slide, address, (uint32_t)uap->arg1, seed);
++		f385_record(stroke, F385_SWAP, tick, tid, address, uap->arg1, seed, 0);
++	}
++}
++
++static void
++f385_drain(void)
++{
++	f390_drain();
++	f393_drain_transactions();
++}
+diff --git a/bsd/dev/gauguin_frame390_membership.h b/bsd/dev/gauguin_frame390_membership.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_frame390_membership.h
+@@ -0,0 +1,115 @@
++/* Included after the verified CA delivery and address helpers. */
++enum {
++	F390_CAP = 48, F390_WIRE = 40, F390_BLOCK = 16,
++	F390_ABSENT = 0, F390_PRESENT, F390_AMBIGUOUS, F390_INCOMPLETE
++};
++
++struct f390_snapshot {
++	uint64_t tick, thread, context, update;
++	uint32_t swap, seed, id, version;
++	uint8_t member, gate;
++};
++
++static struct f390_lane {
++	struct f390_snapshot rows[F390_CAP];
++	unsigned count;
++	unsigned raw[2], site[2], read[2];
++} f390_lanes[F385_SWIPES];
++
++struct f393_member {
++    uint64_t context;
++    uint32_t id, version;
++};
++
++struct f393_members {
++    struct f393_member entries[F385_MAX_MEMBERS];
++    unsigned count;
++};
++static struct f393_members f393_versions[F385_SWIPES][F390_CAP];
++
++static void
++f390_swap(unsigned stroke, uint64_t tick, uint64_t thread, uint64_t slide,
++    uint64_t update, uint32_t swap, uint32_t seed)
++{
++	struct f390_lane *lane = &f390_lanes[stroke-1];
++	const unsigned index = __atomic_fetch_add(&lane->count, 1, __ATOMIC_RELAXED);
++	if (index >= F390_CAP) return;
++	typeof(lane->rows[0]) *row = &lane->rows[index];
++	row->tick = tick;
++	row->thread = thread;
++	row->update = update;
++	row->swap = swap;
++	row->seed = seed;
++	uint8_t gate = 0;
++	row->gate = f385_read(UINT64_C(0x1e1df7755) + slide, 0, &gate, sizeof(gate)) ? !!gate : 2;
++	row->member = F390_INCOMPLETE;
++	uint64_t node;
++	if (!f385_read(update, 0x128, &node, sizeof(node))) return;
++	struct f393_members *versions = &f393_versions[stroke-1][index];
++	unsigned member_count = 0;
++	for (unsigned i = 0; node && i < F385_MAX_MEMBERS; ++i) {
++		struct {
++			uint64_t next, context, name;
++			uint32_t seed, flags;
++		} receipt;
++		uint32_t pid, next_id;
++		if (!f385_read(node, 0, &receipt, sizeof(receipt)) || receipt.next == node ||
++		    !f385_read(receipt.context, 0xbc, &pid, sizeof(pid))) return;
++		if (pid == (uint32_t)f385_source) {
++			if (!f385_read(receipt.context, 0x10, &next_id, sizeof(next_id)) || !next_id) return;
++			const struct f393_member value = {receipt.context, next_id, receipt.seed};
++			unsigned existing = 0;
++			while (existing < member_count) {
++				const struct f393_member *other = &versions->entries[existing];
++				if (other->context == value.context && other->id == value.id && other->version == value.version) break;
++				++existing;
++			}
++			if (existing == member_count) versions->entries[member_count++] = value;
++		}
++		node = receipt.next;
++	}
++	if (node) return;
++	versions->count = member_count;
++	if (member_count > 1) {
++		row->member = F390_AMBIGUOUS;
++	} else if (member_count == 1) {
++		row->member = F390_PRESENT;
++		row->context = versions->entries[0].context;
++		row->id = versions->entries[0].id;
++		row->version = versions->entries[0].version;
++	} else {
++		row->member = F390_ABSENT;
++	}
++}
++
++static void
++f390_drain(void)
++{
++	uint8_t packed[F390_BLOCK * F390_WIRE];
++	char encoded[4 * ((sizeof(packed) + 2) / 3) + 1];
++	char line[sizeof(encoded)+64];
++	for (unsigned i = 0; i < f385_windows; ++i) {
++		const struct f390_lane *lane = &f390_lanes[i];
++		const unsigned seen = lane->count, available = MIN(seen, F390_CAP);
++		printf("SWEET F390 Q %u %u %u %u %u %u %u %u %u\n", i+1, available, seen-available,
++		    lane->raw[0], lane->site[0], lane->read[0], lane->raw[1], lane->site[1], lane->read[1]);
++		for (unsigned at = 0; at < available; at += F390_BLOCK) {
++			const unsigned count = MIN(available-at, F390_BLOCK);
++			for (unsigned j = 0; j < count; ++j) {
++				const typeof(lane->rows[0]) *row = &lane->rows[at+j];
++				uint8_t *p = &packed[j*F390_WIRE];
++				f372_le32(p, (uint32_t)(row->tick - f374_start));
++				f372_le32(p+4, row->member | ((uint32_t)row->gate << 8));
++				f374_le64(p+8, row->thread);
++				f372_le32(p+16, row->swap);
++				f372_le32(p+20, row->seed);
++				f374_le64(p+24, row->context);
++				f372_le32(p+32, row->id);
++				f372_le32(p+36, row->version);
++			}
++			f372_base64(packed, count*F390_WIRE, encoded);
++			const int n = snprintf(line, sizeof(line), "\nSWEET F390 B %u %u %u %s\n", i+1, at, count, encoded);
++			if (n > 0 && (size_t)n < sizeof(line)) sweet_log_append(line, n);
++		}
++	}
++}
+diff --git a/bsd/dev/gauguin_frame390_transactions.h b/bsd/dev/gauguin_frame390_transactions.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_frame390_transactions.h
+@@ -0,0 +1,200 @@
++/* Compact receipts from captured values. Run after the CA observer gate closes. */
++#ifndef GAUGUIN_TRANSACTION390_H
++#define GAUGUIN_TRANSACTION390_H
++
++struct f390_commit_receipt {
++	const struct f385_row *commit, *encoded, *send, *receive, *command, *apply;
++	uint64_t before, after;
++};
++
++/* The optional native markers prove a first inclusion only when the entry
++ * saw an empty membership and the exit saw the exact stored version. */
++static void
++f390_inclusion(const struct f385_row *rows, unsigned count, const struct f390_snapshot *snap,
++    struct f390_commit_receipt *receipt)
++{
++	const uint64_t key = ((uint64_t)snap->seed << 32) | snap->id;
++	const uint64_t version = (UINT64_C(1) << 32) | snap->version;
++	const struct f385_row *entry = NULL, *exit = NULL;
++	for (unsigned i = 0; i < count; ++i) {
++		const struct f385_row *row = &rows[i];
++		if (row->thread != snap->thread || row->a != snap->update || row->b != snap->context || row->c != key ||
++		    row->tick < receipt->apply->tick || row->tick >= snap->tick)
++			continue;
++		if (row->kind == F385_BEFORE_INCLUDE && row->d == 0) {
++			if (entry) return;
++			entry = row;
++		} else if (row->kind == F385_AFTER_INCLUDE && row->d == version) {
++			if (exit) return;
++			exit = row;
++		}
++	}
++	if (entry && exit && entry->tick < exit->tick) {
++		receipt->before = entry->tick;
++		receipt->after = exit->tick;
++	}
++}
++
++static bool
++f390_commit_for_snapshot(const struct f385_row *rows, unsigned count,
++    const struct f390_snapshot *snap, struct f390_commit_receipt *result)
++{
++	if (snap->member != F390_PRESENT) return false;
++	const uint64_t version = ((uint64_t)snap->id << 32) | snap->version;
++	struct f390_commit_receipt r = {0};
++	for (unsigned i = 0; i < count; ++i) {
++		const struct f385_row *row = &rows[i];
++		if (row->kind == F385_APPLY && row->c == snap->context && row->d == version && row->tick < snap->tick) {
++			if (r.apply) return false;
++			r.apply = row;
++		}
++	}
++	if (!r.apply) return false;
++	for (unsigned i = 0; i < count; ++i) {
++		const struct f385_row *row = &rows[i];
++		if (row->kind != F385_COMMAND || row->thread != r.apply->thread || row->a != r.apply->a ||
++		    row->tick >= r.apply->tick)
++			continue;
++		if (r.command && r.command->tick == row->tick) return false;
++		if (!r.command || r.command->tick < row->tick) r.command = row;
++	}
++	if (!r.command || r.command->b != r.apply->b || r.command->c != r.apply->c ||
++	    (r.command->d >> 32) != snap->id || (uint32_t)(r.command->d + 1) != snap->version ||
++	    !r.apply->b || r.apply->b > UINT16_MAX)
++		return false;
++	for (unsigned i = 0; i < count; ++i) {
++		const struct f385_row *row = &rows[i];
++		if (row->kind == F385_RECEIVE && row->b == r.apply->b) {
++			if (r.receive) return false;
++			r.receive = row;
++		} else if (row->kind == F385_SEND && row->a == r.apply->b) {
++			if (r.send) return false;
++			r.send = row;
++		}
++	}
++	if (!r.receive || !r.send || !r.send->b || r.receive->c != r.send->c || !f385_packet((uint32_t)r.send->c) ||
++	    r.send->tick > r.receive->tick || r.receive->tick >= r.command->tick)
++		return false;
++	for (unsigned i = 0; i < count; ++i) {
++		const struct f385_row *row = &rows[i];
++		if (row->thread == r.send->thread && row->a == r.send->b && row->tick < r.send->tick &&
++		    (row->kind == F385_SOURCE || row->kind == F385_ENCODED)) {
++			if (r.commit && r.commit->tick == row->tick) return false;
++			if (!r.commit || r.commit->tick < row->tick) r.commit = row;
++		}
++	}
++	if (!r.commit || r.commit->kind != F385_SOURCE || r.commit->b != snap->id) return false;
++	for (unsigned i = 0; i < count; ++i) {
++		const struct f385_row *row = &rows[i];
++		if (row->thread == r.send->thread && row->a == r.send->b && row->tick > r.send->tick &&
++		    (row->kind == F385_SOURCE || row->kind == F385_ENCODED)) {
++			if (r.encoded && r.encoded->tick == row->tick) return false;
++			if (!r.encoded || row->tick < r.encoded->tick) r.encoded = row;
++		} else if (row->kind == F385_SEND && row != r.send && row->thread == r.send->thread &&
++		    row->b == r.send->b && r.commit->tick < row->tick && row->tick < r.send->tick) {
++			return false;
++		}
++	}
++	if (!r.encoded || r.encoded->kind != F385_ENCODED || r.encoded->b != snap->id) return false;
++	for (unsigned i = 0; i < count; ++i) {
++		const struct f385_row *row = &rows[i];
++		if (row->kind == F385_SEND && row != r.send && row->thread == r.send->thread && row->b == r.send->b &&
++		    r.send->tick <= row->tick && row->tick <= r.encoded->tick)
++			return false;
++	}
++	f390_inclusion(rows, count, snap, &r);
++	*result = r;
++	return true;
++}
++
++enum { F390_TRANSACTION_WIRE = 56 };
++
++static void
++f390_pack_transaction(uint8_t *out, unsigned index, const struct f390_commit_receipt *r)
++{
++	const struct f385_row *parts[] = {r->commit, r->encoded, r->send, r->receive, r->command, r->apply};
++	f372_le32(out, index);
++	f372_le32(out+4, (uint32_t)(r->send->a | (r->send->c << 16)));
++	for (unsigned i = 0; i < sizeof(parts)/sizeof(parts[0]); ++i)
++		f372_le32(out+8+4*i, (uint32_t)(parts[i]->tick - f374_start));
++	f374_le64(out+32, r->send->thread);
++	f374_le64(out+40, r->receive->thread);
++	f372_le32(out+48, r->before ? (uint32_t)(r->before - f374_start) : 0);
++	f372_le32(out+52, r->after ? (uint32_t)(r->after - f374_start) : 0);
++}
++
++enum { F393_RECEIPTS = 32, F393_WIRE = 80 };
++_Static_assert(F390_CAP <= 64, "snapshot mask holds each retained swap");
++
++static bool
++f393_same_member(const struct f393_member *a, const struct f393_member *b)
++{
++    return a->context == b->context && a->id == b->id && a->version == b->version;
++}
++
++static bool
++f393_contains(const struct f393_members *members, const struct f393_member *key)
++{
++    for (unsigned i = 0; i < members->count; ++i) {
++        if (f393_same_member(&members->entries[i], key)) return true;
++    }
++    return false;
++}
++
++static void
++f393_drain_transactions(void)
++{
++    uint8_t packed[F393_RECEIPTS * F393_WIRE];
++    char encoded[4 * ((F390_BLOCK * F393_WIRE + 2) / 3) + 1];
++    char line[sizeof(encoded)+64];
++    for (unsigned lane = 0; lane < f385_windows; ++lane) {
++        const struct f385_gesture *g = &f385_gestures[lane];
++        const struct f390_lane *swaps = &f390_lanes[lane];
++        const unsigned retained = MIN(g->count, F385_GESTURE_CAP);
++        const unsigned available = MIN(swaps->count, F390_CAP);
++        unsigned count = 0, omitted = 0;
++        if (g->count == retained && swaps->count == available) {
++            for (unsigned i = 0; i < available; ++i) {
++                const struct f393_members *members = &f393_versions[lane][i];
++                for (unsigned m = 0; m < members->count; ++m) {
++                    const struct f393_member *key = &members->entries[m];
++                    unsigned first = i;
++                    uint64_t membership = 0;
++                    for (unsigned s = 0; s < available; ++s) {
++                        if (!f393_contains(&f393_versions[lane][s], key)) continue;
++                        membership |= UINT64_C(1) << s;
++                        if (swaps->rows[s].tick < swaps->rows[first].tick) first = s;
++                    }
++                    if (membership & ((UINT64_C(1) << i) - 1)) continue;
++                    struct f390_snapshot snap = swaps->rows[first];
++                    snap.context = key->context;
++                    snap.id = key->id;
++                    snap.version = key->version;
++                    snap.member = F390_PRESENT;
++                    struct f390_commit_receipt receipt;
++                    if (!f390_commit_for_snapshot(g->rows, retained, &snap, &receipt)) continue;
++                    if (count == F393_RECEIPTS) {
++                        ++omitted;
++                        continue;
++                    }
++                    uint8_t *dst = packed + count++ * F393_WIRE;
++                    f390_pack_transaction(dst, first, &receipt);
++                    f374_le64(dst+56, key->context);
++                    f372_le32(dst+64, key->id);
++                    f372_le32(dst+68, key->version);
++                    f374_le64(dst+72, membership);
++                }
++            }
++        }
++        printf("SWEET F393 Q %u %u %u %u %u\n", lane+1, retained, g->count-retained, count, omitted);
++        for (unsigned i = 0; i < count; i += F390_BLOCK) {
++            const unsigned n = MIN(count-i, F390_BLOCK);
++            f372_base64(packed+i*F393_WIRE, n*F393_WIRE, encoded);
++            const int size = snprintf(line, sizeof(line), "\nSWEET F393 B %u %u %u %s\n", lane+1, i, n, encoded);
++            if (size > 0 && (size_t)size < sizeof(line)) sweet_log_append(line, size);
++        }
++    }
++    printf("SWEET F393 F %u %u %u\n", (unsigned)(f385_source_slide && f385_receiver_slide), f385_windows,
++        __atomic_load_n(&f385_dropped_puts, __ATOMIC_RELAXED));
++}
++#endif
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -760,13 +760,24 @@
+     gfw_reply_record();
+     return rc;
+ }
++static bool gfw_frame409_bw11(int profile, bool sqe)
++{
++    if(profile!=5||!sqe)return false;
++    int script=0,stats=0,refresh=0,native=0,service=0,seconds=0;
++    return PE_parse_boot_argn("swp",&script,sizeof(script))&&script==4&&
++        PE_parse_boot_argn("sweetfb_stats",&stats,sizeof(stats))&&stats==9&&
++        PE_parse_boot_argn("sweetfb_hz",&refresh,sizeof(refresh))&&refresh==60&&
++        PE_parse_boot_argn("sweetnvt",&native,sizeof(native))&&!native&&
++        PE_parse_boot_argn("sweetgpuservice",&service,sizeof(service))&&service==1&&
++        PE_parse_boot_argn("sweetgpuservicesecs",&seconds,sizeof(seconds))&&seconds==600;
++}
+ static enum gmb_result gfw_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool dcvs,bool gpu,bool sqe)
+ {
+     int profile=0;PE_parse_boot_argn("gpf",&profile,sizeof(profile));
+     /* Omitted/0 retains253MHz. Unknown values or a non-DCVS entry refuse
+      * before the once-state or any firmware board operation is acquired. */
+-    if((profile!=0&&profile!=4)||(profile&&!dcvs))return GMB_ARGUMENT;
++    if((profile!=0&&profile!=4&&profile!=5)||(profile&&!dcvs))return GMB_ARGUMENT;
+     if((sqe&&!gpu)||(gpu&&!dcvs)||(dcvs&&!bw)||!stage||!out||!gmf_plan_valid(plan)||(bw&&(!perf||!gmf_bw_plan_valid(bw))))return GMB_ARGUMENT;
+     unsigned expected=GMB_IDLE;
+     if(!__atomic_compare_exchange_n(&gfw_lifecycle,&expected,GMB_RUNNING,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMB_ALREADY;
+@@ -799,11 +810,17 @@
+     }
+     struct gmf_ops ops={NULL,gfw_guard,gfw_read,gfw_write,gmb_barrier,gfw_delay,
+         gfw_asset_view,gfw_copy,gfw_shared_read,gfw_shared_write};
+-    gfw_work.result=dcvs?(profile==4?gmf_bootstrap_dcvs565_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
+-        gmf_bootstrap_dcvs_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware)):
+-        bw?gmf_bootstrap_bw_test_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
+-        perf?gmf_bootstrap_perf_once(&gfw_context,&ops,plan,&gfw_work.firmware):
+-        gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
++    const bool bw11=dcvs&&gfw_frame409_bw11(profile,sqe);
++    if(bw11){
++        gfw_work.result=gmf_bootstrap_dcvs650_bw11_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware);
++    }else{
++        gfw_work.result=dcvs?(profile==5?gmf_bootstrap_dcvs650_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++            profile==4?gmf_bootstrap_dcvs565_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++            gmf_bootstrap_dcvs_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware)):
++            bw?gmf_bootstrap_bw_test_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++            perf?gmf_bootstrap_perf_once(&gfw_context,&ops,plan,&gfw_work.firmware):
++            gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
++    }
+     if(gfw_work.result!=GMF_OK)return gfw_fail(GMB_FIRMWARE,"native firmware/HFI bootstrap");
+     if(perf&&(!gfw_context.perf_requested||!gfw_context.perf_started||!gfw_context.perf_valid))
+         return gfw_fail(GMB_FIRMWARE,"PERF ACK receipt unavailable");
+@@ -834,7 +851,9 @@
+         snprintf(line,sizeof(line),"SWEET GMU TEST: complete request=00500105 words=1 ack=%08x/%08x/%08x; native legacy startup only",gfw_context.test_ack[0],gfw_context.test_ack[1],gfw_context.test_ack[2]);gmb_record(line);
+     }
+     if(dcvs){
+-        if(profile==4)gmb_record("SWEET GMU DCVS: request perf_index=4 hz=565000000 bw_index=9 Bps=5412000000 option=00000000 perf=30000004 bw=00009009; requested, not measured");
++        if(bw11)gmb_record("SWEET GMU DCVS: request perf_index=5 hz=650000000 bw_index=11 Bps=7216000000 option=00000000 perf=30000005 bw=0000b00b; requested, not measured");
++        else if(profile==5)gmb_record("SWEET GMU DCVS: request perf_index=5 hz=650000000 bw_index=10 Bps=6220000000 option=00000000 perf=30000005 bw=0000a00a; requested, not measured");
++        else if(profile==4)gmb_record("SWEET GMU DCVS: request perf_index=4 hz=565000000 bw_index=9 Bps=5412000000 option=00000000 perf=30000004 bw=00009009; requested, not measured");
+         else gmb_record("SWEET GMU DCVS: request perf_index=1 hz=253000000 bw_index=5 Bps=2188000000 option=00000000 perf=30000001 bw=00005005; requested, not measured");
+         snprintf(line,sizeof(line),"SWEET GMU DCVS: complete before=%08x ack=%08x cleared=%08x return=%08x; native register/OOB request only",gfw_context.dcvs_before,gfw_context.dcvs_ack,gfw_context.dcvs_cleared,gfw_context.dcvs_return);gmb_record(line);
+     }
+@@ -3922,6 +3941,19 @@
+  * native unsecured append and full original DATA19 table validation. Old
+  * diagnostic guards retain their one-shot deadlines and are never reused. */
+ static struct ggr_context ggrb_context;
++static vm_offset_t ggrb_completion405;
++
++bool sweet_gpu_runtime_observe_completion405(uint32_t *out);
++bool sweet_gpu_runtime_observe_completion405(uint32_t *out)
++{
++    const vm_offset_t word = __atomic_load_n(&ggrb_completion405, __ATOMIC_ACQUIRE);
++    if (!out || !word || sweet_gmu_board_state() != GMB_READY) return false;
++    const uint32_t value = gfw_load32(word);
++    if (__atomic_load_n(&ggrb_completion405, __ATOMIC_ACQUIRE) != word ||
++        sweet_gmu_board_state() != GMB_READY) return false;
++    *out = value;
++    return true;
++}
+ static uint64_t ggrb_end,ggrb_root;
+ static unsigned ggrb_started;
+ static bool ggrb_service;
+@@ -4133,6 +4165,7 @@
+ static void ggrb_quarantine(void *cookie)
+ {
+     (void)cookie;
++    __atomic_store_n(&ggrb_completion405, 0, __ATOMIC_RELEASE);
+     /* Every legacy continuation is excluded by mode12. Invalidate the boot
+      * authorities before cached diagnostics; mappings and DMA pages remain. */
+     __atomic_store_n(&ggub_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+@@ -4220,6 +4253,12 @@
+         if(ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);
+         return false;
+     }
++    // This NC board reservation survives quarantine. Reuse exactly the
++    // same completion word that ggrb_memory reads under the GPU lock.
++    if (ggrb_service && ggq_nc_valid()) {
++        const vm_offset_t word = gmb_ram + ggb_data_plan.data.offset - GMB_PAGE;
++        __atomic_store_n(&ggrb_completion405, word, __ATOMIC_RELEASE);
++    }
+     if(ggrb_service)gmb_record("SWEET GPU USER: runtime READY initial_shadow=20 service=1; health-gated watchdog owner, no Metal");
+     else gmb_record("SWEET GPU USER: runtime READY initial_shadow=20 window=20s; real dynamic msm API, no Metal");
+     return true;
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -439,17 +439,15 @@
+     }
+     *out=table;return true;
+ }
+-static enum gmf_result dcvs(struct gmf_context *c,bool profile565)
++static enum gmf_result dcvs(struct gmf_context *c,uint32_t perf_index,uint32_t bw_index)
+ {
+     c->dcvs_started=1;
+     if(!rd(c,GMF_CSR,C(0x1f992),&c->dcvs_before))return GMF_IO;
+     if(c->dcvs_before&0x80008000u)return GMF_INHERITED;
+-    /* Fixed native profiles from the same captured active DT: default
+-     * Linux level5 -> PERF1/253MHz/BW5; opt-in level2 -> PERF4/565MHz/BW9.
+-     * PERF already contains ARC256/GX4/MX5 for565, BW9 is5412000000Bps.
+-     * No caller-provided votes. Mailbox/OOB order and every guard unchanged. */
++    /* The fixed wrappers select PERF and BW indices admitted by the same
++     * captured Android DT. Both indices address already acknowledged tables. */
+     const uint32_t off[]={T(0x1cbfc),T(0x1cbfd),T(0x1cbfe)};
+-    const uint32_t value[]={0,profile565?0x30000004u:0x30000001u,profile565?0x00009009u:0x00005005u};
++    const uint32_t value[]={0,0x30000000u | perf_index,(bw_index << 12) | bw_index};
+     for(unsigned n=0;n<3;n++)if(!barrier(c)||!wr(c,GMF_TCM,off[n],value[n]))return GMF_IO;
+     c->dcvs_trigger_attempted=1;
+     if(!barrier(c)||!wr(c,GMF_CSR,C(0x1f994),1u<<23))return GMF_IO;
+@@ -469,9 +467,11 @@
+     c->dcvs_valid=1;return GMF_OK;
+ }
+ static enum gmf_result bootstrap(struct gmf_context *c,const struct gmf_ops *ops,
+-    const struct gmf_plan *plan,struct gmf_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool request_dcvs,bool profile565)
+-{
+-    if((profile565&&!request_dcvs)||(request_dcvs&&!bw)||!c||!span(ops,sizeof(*ops))||!span(out,sizeof(*out))||!span(plan,sizeof(*plan))||
++    const struct gmf_plan *plan,struct gmf_receipt *out,bool perf,const struct gmf_bw_plan *bw,
++    uint32_t perf_index,uint32_t bw_index)
++{
++    const bool request_dcvs=perf_index!=0;
++    if((request_dcvs&&!bw)||!c||!span(ops,sizeof(*ops))||!span(out,sizeof(*out))||!span(plan,sizeof(*plan))||
+        overlap(plan,sizeof(*plan),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
+        overlap(out,sizeof(*out),plan,sizeof(*plan))||overlap(out,sizeof(*out),ops,sizeof(*ops))||
+        !gmf_plan_valid(plan)||!ops->guard||!ops->read||!ops->write||
+@@ -522,23 +522,34 @@
+         c->test_started=1;rc=request(c,&test,1,c->test_ack,3);
+         if(!rc)c->test_valid=1;
+     }
+-    if(!rc&&request_dcvs)rc=dcvs(c,profile565);
++    if(!rc&&request_dcvs)rc=dcvs(c,perf_index,bw_index);
+     if(!rc&&!guard(c))rc=GMF_IO;c->work.phase=c->phase;
+     if(!rc){c->phase=GMF_DONE;c->work.phase=GMF_DONE;*out=c->work;}
+     __atomic_store_n(&c->state,rc?3:2,__ATOMIC_RELEASE);return rc;
+ }
+ enum gmf_result gmf_bootstrap_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,struct gmf_receipt *out)
+-{return bootstrap(c,ops,plan,out,false,NULL,false,false);}
++{return bootstrap(c,ops,plan,out,false,NULL,0,0);}
+ enum gmf_result gmf_bootstrap_perf_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,struct gmf_receipt *out)
+-{return bootstrap(c,ops,plan,out,true,NULL,false,false);}
++{return bootstrap(c,ops,plan,out,true,NULL,0,0);}
+ enum gmf_result gmf_bootstrap_bw_test_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
+-{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,false,false);}
++{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,0,0);}
+ enum gmf_result gmf_bootstrap_dcvs_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
+-{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,true,false);}
++{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,1,5);}
+ enum gmf_result gmf_bootstrap_dcvs565_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
+-{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,true,true);}
++{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,4,9);}
++enum gmf_result gmf_bootstrap_dcvs650_once(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
++{if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,5,10);}
++enum gmf_result gmf_bootstrap_dcvs650_bw11_once(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
++{
++    /* Stock bin 169 admits BW 8–12 at 650 MHz. The bounded test uses
++     * one step above the default BW10, on the same acknowledged table. */
++    if(!bw)return GMF_ARGUMENT;
++    return bootstrap(c,ops,plan,out,true,bw,5,11);
++}
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -151,4 +151,8 @@
+  * frequency measurement or additional transaction. Context/receipt ABI unchanged. */
+ enum gmf_result gmf_bootstrap_dcvs565_once(struct gmf_context *,const struct gmf_ops *,
+     const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
++enum gmf_result gmf_bootstrap_dcvs650_once(struct gmf_context *,const struct gmf_ops *,
++    const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
++enum gmf_result gmf_bootstrap_dcvs650_bw11_once(struct gmf_context *,const struct gmf_ops *,
++    const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
+ #endif
+diff --git a/bsd/dev/gauguin_kernel_producer401.h b/bsd/dev/gauguin_kernel_producer401.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_kernel_producer401.h
+@@ -0,0 +1,142 @@
++/* Included by kdebug.c beside the native CA observer. Identity-only records
++ * hold no pointers to caller objects, IOSurfaces, or native buffer storage. */
++#ifndef GAUGUIN_KERNEL_PRODUCER_401_H
++#define GAUGUIN_KERNEL_PRODUCER_401_H
++
++#include "gauguin_render_producer401.h"
++
++enum { F401_PRODUCER_CAP = 64 };
++static LCK_GRP_DECLARE(f401_producer_group, "display producer");
++static LCK_SPIN_DECLARE(f401_producer_lock, &f401_producer_group);
++static struct render401_producer f401_scope[F376_DISPLAY_THREADS];
++static struct {
++    uint64_t renderer, expires;
++    uint32_t cookie, surface;
++} f401_producers[F401_PRODUCER_CAP];
++static uint32_t f401_next_epoch, f401_next_cookie;
++
++uint32_t sweet_ca401_declare_target(task_t, uint64_t, uint64_t, uint32_t);
++uint32_t sweet_ca401_swap_cookie(uint32_t);
++uint32_t sweet_ca401_writer_target(task_t, uint32_t);
++
++static struct render401_producer *
++f401_find_scope(uint64_t renderer, uint64_t tid, bool create)
++{
++    struct render401_producer *available = NULL;
++    for (unsigned i = 0; i < F376_DISPLAY_THREADS; ++i) {
++        struct render401_producer *scope = &f401_scope[i];
++        if (scope->depth && scope->renderer == renderer && scope->thread == tid) {
++            return scope;
++        }
++        if (!scope->depth && !available) available = scope;
++    }
++    return create ? available : NULL;
++}
++
++static void
++f401_native_render(uint64_t identity, unsigned kind, uint64_t tick)
++{
++    if ((kind != F374_RENDER_BEGIN && kind != F374_RENDER_END) ||
++        tick < f374_start || tick >= f374_end) return;
++
++    const uint64_t tid = thread_tid(current_thread());
++    struct arm_saved_state *ss = get_user_regs(current_thread());
++    const uint64_t native_pc = UINT64_C(0x1c261ec58);
++    const uint64_t expected = kind == F374_RENDER_BEGIN ?
++        UINT64_C(0x1884f4f3c) : UINT64_C(0x1884f6b7c);
++    bool certified = false;
++    if (ss && is_saved_state64(ss) && get_saved_state_pc(ss) >= native_pc) {
++        const uint64_t slide = get_saved_state_pc(ss) - native_pc;
++        certified = f385_cache(slide, &f385_receiver_slide) && get_saved_state_lr(ss) == expected + slide;
++    }
++
++    lck_spin_lock(&f401_producer_lock);
++    struct render401_producer *scope = f401_find_scope(identity, tid, certified && kind == F374_RENDER_BEGIN);
++    if (scope && !certified) {
++        scope->ambiguous = true;
++        const unsigned slot = scope->cookie % F401_PRODUCER_CAP;
++        if (scope->cookie && f401_producers[slot].cookie == scope->cookie) f401_producers[slot].expires = 0;
++    } else if (scope && kind == F374_RENDER_BEGIN && f401_next_epoch < UINT32_MAX) {
++        render401_begin(scope, identity, tid, tick, ++f401_next_epoch);
++    } else if (scope && kind == F374_RENDER_END) {
++        render401_end(scope, identity, tid, tick);
++    }
++    lck_spin_unlock(&f401_producer_lock);
++}
++
++/* The GPU user's task identity and this frame's native render thread
++ * must agree before the frontend can obtain a one-capture cookie. */
++uint32_t
++sweet_ca401_declare_target(task_t task, uint64_t object, uint64_t made, uint32_t surface)
++{
++    if (task != current_task() || !f375_enter()) return 0;
++    const uint64_t tick = mach_absolute_time();
++    const uint64_t who = f385_identity(task);
++    const uint64_t tid = thread_tid(current_thread());
++    const unsigned lane = f385_stroke(tick);
++    uint32_t cookie = 0;
++    if (who && who == f374_receiver && lane && surface) {
++        lck_spin_lock(&f401_producer_lock);
++        struct render401_producer *scope = f401_find_scope(who, tid, false);
++        if (scope && f401_next_cookie < UINT32_MAX) {
++            const uint32_t previous = scope->cookie;
++            const uint32_t next = f401_next_cookie + 1;
++            const unsigned slot = next % F401_PRODUCER_CAP;
++            if (previous || f401_producers[slot].expires <= tick) {
++                cookie = render401_declare(scope, who, tid, tick, f374_end, object, made, surface, next);
++                if (cookie == next) {
++                    f401_next_cookie = next;
++                    f401_producers[slot].cookie = cookie;
++                    f401_producers[slot].surface = surface;
++                    f401_producers[slot].renderer = who;
++                    f401_producers[slot].expires = f385_gestures[lane - 1].until;
++                } else if (!cookie && previous && scope->ambiguous) {
++                    const unsigned old = previous % F401_PRODUCER_CAP;
++                    if (f401_producers[old].cookie == previous) f401_producers[old].expires = 0;
++                }
++            }
++        }
++        lck_spin_unlock(&f401_producer_lock);
++    }
++    __atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++    return cookie;
++}
++
++uint32_t
++sweet_ca401_swap_cookie(uint32_t surface)
++{
++    if (!surface || !f375_enter()) return 0;
++    const uint64_t now = mach_absolute_time();
++    const uint64_t who = f385_identity(current_task());
++    const uint64_t tid = thread_tid(current_thread());
++    uint32_t cookie = 0;
++    if (who && who == f374_receiver && f385_stroke(now)) {
++        lck_spin_lock(&f401_producer_lock);
++        const struct render401_producer *scope = f401_find_scope(who, tid, false);
++        if (scope) cookie = render401_lookup(scope, who, tid, now, f374_end, surface);
++        lck_spin_unlock(&f401_producer_lock);
++    }
++    __atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++    return cookie;
++}
++
++uint32_t
++sweet_ca401_writer_target(task_t task, uint32_t cookie)
++{
++    if (!cookie || task != current_task() || !f375_enter()) return 0;
++    const uint64_t tick = mach_absolute_time();
++    const uint64_t who = f385_identity(task);
++    uint32_t target = 0;
++    if (who && who == f374_receiver && f385_stroke(tick)) {
++        lck_spin_lock(&f401_producer_lock);
++        const unsigned index = cookie % F401_PRODUCER_CAP;
++        if (f401_producers[index].cookie == cookie && f401_producers[index].renderer == who &&
++            tick < f401_producers[index].expires) {
++            target = f401_producers[index].surface;
++        }
++        lck_spin_unlock(&f401_producer_lock);
++    }
++    __atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++    return target;
++}
++#endif
+diff --git a/bsd/dev/gauguin_linear_scanout411.h b/bsd/dev/gauguin_linear_scanout411.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_linear_scanout411.h
+@@ -0,0 +1,34 @@
++#ifndef GAUGUIN_LINEAR_SCANOUT_411_H
++#define GAUGUIN_LINEAR_SCANOUT_411_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum {
++    F411_RENDER_WIDTH = 1125,
++    F411_RENDER_HEIGHT = 2436,
++    F411_RENDER_PITCH = 4608,
++    F411_PANEL_WIDTH = 1080,
++    F411_PANEL_HEIGHT = 2400,
++    F411_PANEL_PITCH = 4320,
++    F411_CROP_X = 22,
++    F411_CROP_Y = 18,
++    F411_SOURCE_XY = (F411_CROP_Y << 16) | F411_CROP_X,
++    F411_VIEW_OFFSET = F411_CROP_Y * F411_RENDER_PITCH + F411_CROP_X * 4,
++    F411_PAGE_BYTES = 0x4000,
++    F411_SLOT_BYTES = 0xab8000
++};
++
++static inline uint32_t
++f411_pitch(bool padded, unsigned slot)
++{
++    return padded && slot ? F411_RENDER_PITCH : F411_PANEL_PITCH;
++}
++
++static inline uint32_t
++f411_source_xy(bool padded, unsigned slot)
++{
++    return padded && slot ? F411_SOURCE_XY : 0;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_page_flip.h b/bsd/dev/gauguin_page_flip.h
+--- a/bsd/dev/gauguin_page_flip.h
++++ b/bsd/dev/gauguin_page_flip.h
+@@ -10,7 +10,12 @@
+     F382_SLOT_BYTES = 0x9e4000,
+     F382_MAX_FLIPS = 1024,
+     F382_CUTOFF_GUARD_LINES = 192,
++    F382_DRAIN_MS = 180, F382_DRAIN_POLLS = 160,
+     F382_WAIT = 0, F382_TOUCHED = 1, F382_CONFIRMED = 2, F382_UNCERTAIN = 3
++};
++
++enum {
++    F382_DRAIN_WAIT = 0, F382_DRAIN_DONE, F382_DRAIN_QUARANTINED
+ };
+ 
+ #ifdef __cplusplus
+@@ -22,9 +27,10 @@
+ uintptr_t sweet_frame382_buffer(unsigned slot);
+ bool sweet_frame382_active(void);
+ bool sweet_frame382_ending(void);
++unsigned sweet_frame382_copy_limit(void);
+ unsigned sweet_frame382_issue(unsigned front, unsigned next, uint32_t *scan);
+ unsigned sweet_frame382_latch(unsigned next, uint32_t requested_scan);
+-void sweet_fb382_poll(uint32_t scan);
++unsigned sweet_fb382_poll(uint32_t scan);
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/bsd/dev/gauguin_producer_transport401.h b/bsd/dev/gauguin_producer_transport401.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_producer_transport401.h
+@@ -0,0 +1,21 @@
++#ifndef GAUGUIN_PRODUCER_TRANSPORT_401_H
++#define GAUGUIN_PRODUCER_TRANSPORT_401_H
++
++#include <stdint.h>
++
++enum { GGR_DISPLAY_PRODUCER401 = 0x7d };
++
++struct ggr_display_producer401 {
++    uint64_t object;
++    uint64_t created_tick;
++    uint32_t surface;
++    uint32_t cookie;
++};
++
++#ifdef __cplusplus
++static_assert(sizeof(ggr_display_producer401) == 24, "display producer request");
++#else
++_Static_assert(sizeof(struct ggr_display_producer401) == 24, "display producer request");
++#endif
++
++#endif
+diff --git a/bsd/dev/gauguin_ready357.h b/bsd/dev/gauguin_ready357.h
+--- a/bsd/dev/gauguin_ready357.h
++++ b/bsd/dev/gauguin_ready357.h
+@@ -3,7 +3,15 @@
+ 
+ #include "gauguin_ready354.h"
+ 
+-enum { SCAN357_WRITERS = 2, SCAN357_NONE = SCAN357_WRITERS };
++enum { SCAN357_WRITERS = 2, SCAN357_NONE = SCAN357_WRITERS, SCAN391_RETIRE_SLOTS = SCAN357_WRITERS + 1 };
++
++static inline bool
++scan391_keep(uint64_t ticket, uint32_t version, uint32_t incoming_surface)
++{
++    const uint32_t surface = (uint32_t)ticket;
++    return (ticket >> 32) && surface && incoming_surface && surface != incoming_surface &&
++        version && scan354_has_version(version, version);
++}
+ 
+ /* The native submit path has one in-flight fence. The second mailbox
+  * cell lets the next writer bind before the workloop drains completion. */
+@@ -68,6 +76,8 @@
+ #endif
+ bool sweet_fb357_claim_writer(uint64_t ticket, uint32_t version);
+ void sweet_fb357_finish_writer(uint64_t ticket, uint32_t version, uint32_t fence);
++uint32_t sweet_fb391_previous_surface(void);
++uint64_t sweet_fb391_claim_previous(uint32_t surface, uint32_t version);
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/bsd/dev/gauguin_render_producer401.h b/bsd/dev/gauguin_render_producer401.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_render_producer401.h
+@@ -0,0 +1,86 @@
++/* Associate an actual frontend color target with a native render scope.
++ * The caller serializes access and authenticates the native begin/end sites.
++ * This identity is not a completion or permission to read the surface. */
++#ifndef GAUGUIN_RENDER_PRODUCER_401_H
++#define GAUGUIN_RENDER_PRODUCER_401_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++struct render401_producer {
++    uint64_t renderer, thread, begin;
++    uint64_t object, created;
++    uint32_t epoch, depth, surface, cookie;
++    bool ambiguous;
++};
++
++static inline void
++render401_begin(struct render401_producer *scope, uint64_t renderer,
++    uint64_t thread, uint64_t tick, uint32_t epoch)
++{
++    if (!renderer || !thread || !tick || !epoch) return;
++    if (scope->depth) {
++        if (renderer != scope->renderer || thread != scope->thread || tick < scope->begin) return;
++        scope->ambiguous = true;
++        if (scope->depth < UINT32_MAX) ++scope->depth;
++        return;
++    }
++    *scope = (struct render401_producer){
++        .renderer = renderer, .thread = thread, .begin = tick, .epoch = epoch, .depth = 1
++    };
++}
++
++static inline void
++render401_end(struct render401_producer *scope, uint64_t renderer, uint64_t thread,
++    uint64_t tick)
++{
++    if (renderer == scope->renderer && thread == scope->thread && tick >= scope->begin && scope->depth) {
++        if (scope->depth == UINT32_MAX) return;
++        if (--scope->depth == 0) *scope = (struct render401_producer){0};
++    }
++}
++
++static inline bool
++render401_current(const struct render401_producer *scope, uint64_t renderer,
++    uint64_t thread, uint64_t tick, uint64_t capture_end)
++{
++    return scope->depth == 1 && !scope->ambiguous && scope->renderer == renderer &&
++           scope->thread == thread && tick >= scope->begin && tick < capture_end;
++}
++
++/* The caller assigns a fresh nonzero cookie and carries it on the exact
++ * command buffer. Duplicate reports for the same buffer coalesce. */
++static inline uint32_t
++render401_declare(struct render401_producer *scope, uint64_t renderer,
++    uint64_t thread, uint64_t tick, uint64_t capture_end, uint64_t object,
++    uint64_t created, uint32_t surface, uint32_t cookie)
++{
++    if (!render401_current(scope, renderer, thread, tick, capture_end) ||
++        !object || created < scope->begin || created > tick || !surface || !cookie) {
++        return 0;
++    }
++    if (scope->cookie) {
++        if (scope->object == object && scope->created == created && scope->surface == surface) {
++            return scope->cookie;
++        }
++        scope->ambiguous = true;
++        return 0;
++    }
++    scope->object = object;
++    scope->created = created;
++    scope->surface = surface;
++    scope->cookie = cookie;
++    return cookie;
++}
++
++static inline uint32_t
++render401_lookup(const struct render401_producer *scope, uint64_t renderer,
++    uint64_t thread, uint64_t tick, uint64_t capture_end, uint32_t surface)
++{
++    if (render401_current(scope, renderer, thread, tick, capture_end) &&
++        surface && scope->surface == surface) {
++        return scope->cookie;
++    }
++    return 0;
++}
++#endif
+diff --git a/bsd/dev/gauguin_scanout_write415.h b/bsd/dev/gauguin_scanout_write415.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_scanout_write415.h
+@@ -0,0 +1,21 @@
++#ifndef GAUGUIN_SCANOUT_WRITE_415_H
++#define GAUGUIN_SCANOUT_WRITE_415_H
++
++#include "gauguin_linear_scanout411.h"
++#include "gauguin_page_flip.h"
++
++class IOMemoryDescriptor;
++
++struct scanout415_lease {
++    void *display;
++    IOMemoryDescriptor *memory;
++    uintptr_t cpu;
++    uint32_t physical;
++    unsigned slot;
++    uint64_t acquired;
++};
++
++extern "C" bool sweet_fb415_acquire(unsigned, scanout415_lease *);
++extern "C" uint64_t sweet_fb415_release(const scanout415_lease *, bool);
++
++#endif
+diff --git a/bsd/dev/gauguin_sustain417.h b/bsd/dev/gauguin_sustain417.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_sustain417.h
+@@ -0,0 +1,23 @@
++#ifndef GAUGUIN_SUSTAIN_417_H
++#define GAUGUIN_SUSTAIN_417_H
++
++#include <stdbool.h>
++
++enum {
++    F417_FLIP_LIMIT = 3072, F417_CAPTURE_RECORDS = 6144,
++    F417_SAMPLE_MS = 10, F417_HALF_DRAG = 160, F417_REPORT_LIMIT = 3300
++};
++
++static inline bool f417_profile(unsigned capture, unsigned script, unsigned physical, unsigned hz)
++{
++    return capture == 9 && script == 5 && physical == 0 && hz == 60;
++}
++
++static inline unsigned f417_position(unsigned step)
++{
++    const unsigned phase = step % (2 * F417_HALF_DRAG);
++    const unsigned offset = phase <= F417_HALF_DRAG ? phase : 2 * F417_HALF_DRAG - phase;
++    return 900 - 720 * offset / F417_HALF_DRAG;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -15,6 +15,7 @@
+ #include <kern/task.h>
+ #include <kern/thread_call.h>
+ #include <machine/machine_routines.h>
++#include <arm/memory_types.h>
+ #include <mach/mach_time.h>
+ #include <mach/vm_prot.h>
+ #include <vm/pmap.h>
+@@ -33,15 +34,23 @@
+ #include "gauguin_frame344.h"
+ #include "gauguin_scanout345.h"
+ #include "gauguin_blank352.h"
++#include "gauguin_linear_scanout411.h"
+ #include "gauguin_calibration357.h"
+ #include "gauguin_probe358.h"
+ #include "gauguin_frame375_present.h"
+ #include "gauguin_frame380_phase.h"
+ #include "gauguin_frame387_preview.h"
+ #include "gauguin_frame388_receipts.h"
++#include "gauguin_frame385.h"
+ #include "gauguin_page_flip.h"
++#include "gauguin_sustain417.h"
++#include "gauguin_deadlines419.h"
++#include "gauguin_cpufreq402.h"
++#include "gauguin_completion_sample405.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern vm_offset_t io_map(vm_map_offset_t, vm_size_t, unsigned int, vm_prot_t, bool);
++extern void ml_io_unmap(vm_offset_t, vm_size_t);
+ extern bool sweet_fb383_map(uint32_t, uint32_t, uintptr_t[2]);
+ extern void sweet_fb383_discard(void);
+ extern boolean_t pmap_valid_address(uint64_t);
+@@ -72,11 +81,12 @@
+ };
+ #define F344_CRC_CONFIG UINT32_C(0x81000101)
+ 
+-static struct gut_core frames;
++static struct gut_core frames, timeline419;
++static bool passive425;
+ static mach_timebase_info_data_t frame_timebase;
+ static bool frame_header, frame_footer;
+ static thread_call_t scan_call, manual_preview_call;
+-static bool manual_preview;
++static bool manual_preview, sustained417;
+ static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
+ static volatile uint32_t *scan_intf;
+ static bool scan351_enabled, scan351_published, scan352_enabled;
+@@ -101,6 +111,289 @@
+     bool counter_opt_in, counter_attempted, counter_readonly;
+ } scan;
+ 
++/* Only the scan worker owns the selector and its restoration. The synthetic
++ * input work item publishes a short lease, with no calls into the GPU path. */
++enum {
++    CPU402_DOMAIN_PAGE = 0x18324000, CPU402_DOMAIN_OFFSET = 0x1800,
++    CPU402_TSENS_PAGE = 0x0c260000, CPU402_TSENS_OFFSET = 0x3000,
++    CPU402_SROT_PAGE = 0x0c220000, CPU402_SROT_CONTROL = 0x2004,
++    CPU402_EVENT_LIMIT = 512,
++};
++
++static struct {
++    vm_offset_t perf_map, temp_map, srot_map;
++    volatile uint32_t *perf, *temp;
++    struct cpu402_point point;
++    uint64_t lease, sample_period, next_sample, retry_restore;
++    unsigned stroke, selects, restores;
++    bool configured, restore_pending, disabled;
++} cpu402;
++static uint64_t cpu402_touch_lease;
++
++enum cpu402_event_kind { CPU402_BEGIN, CPU402_SAMPLE, CPU402_END, CPU403_INTERRUPTED };
++static struct cpu402_event {
++    uint64_t tick, end;
++    unsigned stroke, state, cycles;
++    int temp;
++    enum cpu402_event_kind kind;
++} cpu402_events[CPU402_EVENT_LIMIT];
++static unsigned cpu402_events_used, cpu402_events_lost;
++
++static void scan402_record(enum cpu402_event_kind kind, uint64_t tick, uint64_t end,
++    unsigned state, unsigned cycles, int temp)
++{
++    if (cpu402_events_used == CPU402_EVENT_LIMIT) {
++        ++cpu402_events_lost;
++        return;
++    }
++    cpu402_events[cpu402_events_used++] = (struct cpu402_event){
++        tick, end, cpu402.stroke, state, cycles, temp, kind
++    };
++}
++
++void sweet_frame402_touch(unsigned stroke, uint64_t tick);
++void sweet_frame402_touch(unsigned stroke, uint64_t tick)
++{
++    uint64_t state = 0;
++    if (stroke && stroke <= CPU402_LAST_CONTACT && tick <= (UINT64_MAX >> CPU402_CONTACT_BITS))
++        state = (tick << CPU402_CONTACT_BITS) | stroke;
++    __atomic_store_n(&cpu402_touch_lease, state, __ATOMIC_RELEASE);
++}
++
++static uint32_t cpu402_read(void *cookie, unsigned offset)
++{
++    const volatile uint32_t *regs = cookie;
++    const uint32_t value = regs[offset / sizeof(uint32_t)];
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++
++static void cpu402_write(void *cookie, unsigned offset, uint32_t value)
++{
++    volatile uint32_t *regs = cookie;
++    assert(offset == CPU402_PERF_STATE);
++    (void)offset;
++    regs[CPU402_PERF_STATE / sizeof(uint32_t)] = value;
++    __asm__ volatile("dsb osh" ::: "memory");
++}
++
++static void scan402_unmap(void)
++{
++    if (cpu402.perf_map) ml_io_unmap(cpu402.perf_map, F344_PAGE);
++    if (cpu402.temp_map) ml_io_unmap(cpu402.temp_map, F344_PAGE);
++    if (cpu402.srot_map) ml_io_unmap(cpu402.srot_map, F344_PAGE);
++    cpu402.perf_map = cpu402.temp_map = cpu402.srot_map = 0;
++    cpu402.perf = cpu402.temp = NULL;
++}
++
++static void scan402_prepare(void)
++{
++    cpu402.perf_map = io_map(CPU402_DOMAIN_PAGE, F344_PAGE, VM_WIMG_IO, VM_PROT_READ | VM_PROT_WRITE, true);
++    cpu402.temp_map = io_map(CPU402_TSENS_PAGE, F344_PAGE, VM_WIMG_IO, VM_PROT_READ, true);
++    cpu402.srot_map = io_map(CPU402_SROT_PAGE, F344_PAGE, VM_WIMG_IO, VM_PROT_READ, true);
++    if (!cpu402.perf_map || !cpu402.temp_map || !cpu402.srot_map) {
++        printf("SWEET CPU402 MAP: admitted=0\n");
++        scan402_unmap();
++        return;
++    }
++    cpu402.perf = (volatile uint32_t *)(cpu402.perf_map + CPU402_DOMAIN_OFFSET);
++    cpu402.temp = (volatile uint32_t *)(cpu402.temp_map + CPU402_TSENS_OFFSET);
++    const uint32_t srot = cpu402_read((void *)cpu402.srot_map, CPU402_SROT_CONTROL);
++    /* Controller enabled and all four CPU6/7 thermal sensors enabled. */
++    const uint32_t sensor_mask = (0xfu << (9 + 3)) | 1u;
++    const bool sensors = srot != UINT32_MAX && (srot & sensor_mask) == sensor_mask;
++    cpu402.configured = sensors && cpu402_find_point(cpu402_read, (void *)cpu402.perf, &cpu402.point);
++    if (!cpu402.configured) {
++        const uint32_t enable = cpu402_read((void *)cpu402.perf, CPU402_ENABLE);
++        printf("SWEET CPU402 MAP: admitted=0 sensor_state=%08x enable=%08x state=%u\n",
++            srot, enable, cpu402_read((void *)cpu402.perf, CPU402_PERF_STATE));
++        if (enable != UINT32_MAX && (enable & 1u)) {
++            for (unsigned i = 0; i < CPU402_LUT_ENTRIES; ++i)
++                printf("SWEET CPU402 LUT: row=%u freq=%08x volt=%08x\n", i,
++                    cpu402_row(cpu402_read, (void *)cpu402.perf, CPU402_FREQ_LUT, i),
++                    cpu402_row(cpu402_read, (void *)cpu402.perf, CPU402_VOLT_LUT, i));
++        }
++        scan402_unmap();
++        return;
++    }
++    nanoseconds_to_absolutetime(35 * NSEC_PER_MSEC, &cpu402.lease);
++    nanoseconds_to_absolutetime(20 * NSEC_PER_MSEC, &cpu402.sample_period);
++    const struct cpu402_point *p = &cpu402.point;
++    printf("SWEET CPU402 MAP: admitted=1 enable=%08x original=%u:%08x:%08x "
++        "target=%u:%08x:%08x sensor_state=%08x\n", p->enable, p->original, p->original_row,
++        p->original_volt, p->selected, p->target_row, p->target_volt, srot);
++}
++
++static void scan402_end(uint64_t tick)
++{
++    if (!cpu402.restore_pending) return;
++    const bool restored = cpu402_restore(cpu402_read, cpu402_write, (void *)cpu402.perf,
++        &cpu402.point, &cpu402.restore_pending);
++    if (!restored) {
++        cpu402.disabled = true;
++        cpu402.retry_restore = tick + cpu402.sample_period;
++    } else {
++        ++cpu402.restores;
++    }
++    scan402_record(CPU402_END, tick, mach_absolute_time(), restored,
++        cpu402_read((void *)cpu402.perf, CPU402_PERF_STATE), -1);
++}
++
++static void scan402_poll(void)
++{
++    if (!cpu402.configured) return;
++    const uint64_t contact = __atomic_load_n(&cpu402_touch_lease, __ATOMIC_ACQUIRE);
++    if (!contact && !cpu402.restore_pending) return;
++    const uint64_t tick = mach_absolute_time();
++    const unsigned stroke = cpu402_contact(contact, tick, cpu402.lease);
++    if (!stroke || stroke != cpu402.stroke || cpu402.disabled) {
++        if (cpu402.restore_pending && tick >= cpu402.retry_restore) scan402_end(tick);
++        if (!stroke || stroke == cpu402.stroke || cpu402.disabled) return;
++        int hottest = -1;
++        if (stroke < cpu402.stroke) return;
++        cpu402.stroke = stroke;
++        if (!cpu402_temperature(cpu402_read, (void *)cpu402.temp, &hottest)) {
++            // This stroke stays at the original point. A later contact
++            // needs its own fresh and valid set of thermal readings.
++            scan402_record(CPU402_BEGIN, tick, mach_absolute_time(), 0, 0, hottest);
++            return;
++        }
++        const bool selected = cpu402_select(cpu402_read, cpu402_write, (void *)cpu402.perf,
++            &cpu402.point, &cpu402.restore_pending);
++        scan402_record(CPU402_BEGIN, tick, mach_absolute_time(), selected, 0, hottest);
++        if (!selected) {
++            cpu402.disabled = true;
++            scan402_end(tick);
++            return;
++        }
++        ++cpu402.selects;
++        cpu402.next_sample = tick + cpu402.sample_period;
++    }
++    if (!cpu402.restore_pending || tick < cpu402.next_sample) return;
++    int hottest = -1;
++    const uint32_t index = cpu402_read((void *)cpu402.perf, CPU402_PERF_STATE);
++    const bool thermals = cpu402_temperature(cpu402_read, (void *)cpu402.temp, &hottest);
++    if (!thermals || index != cpu402.point.selected) {
++        const bool selectorChanged = index != cpu402.point.selected;
++        cpu402.disabled = selectorChanged;
++        scan402_record(CPU403_INTERRUPTED, tick, mach_absolute_time(),
++            selectorChanged ? 2 : 1, index, hottest);
++        scan402_end(tick);
++        return;
++    }
++    cpu402.next_sample = tick + cpu402.sample_period;
++    const uint64_t sampled = mach_absolute_time();
++    const uint32_t cycles = cpu402_read((void *)cpu402.perf, CPU402_CYCLES);
++    const uint64_t after = mach_absolute_time();
++    scan402_record(CPU402_SAMPLE, sampled, after, index, cycles, hottest);
++}
++
++static void scan402_stop(void)
++{
++    if (!cpu402.perf_map) return;
++    scan402_end(mach_absolute_time());
++    /* The drive loop retains bounded values only. Output cannot change its
++     * timing and is emitted after the selector has been restored. */
++    scan402_unmap();
++}
++
++static void scan402_dump(void)
++{
++    if (!cpu402.configured) return;
++    for (unsigned i = 0; i < cpu402_events_used; ++i) {
++        const struct cpu402_event *e = &cpu402_events[i];
++        printf("SWEET CPU402 E: kind=%u tick=%llu end=%llu stroke=%u state=%u cycles=%u temp=%d\n",
++            e->kind, (unsigned long long)e->tick, (unsigned long long)e->end,
++            e->stroke, e->state, e->cycles, e->temp);
++    }
++    printf("SWEET CPU402 STOP: selects=%u restores=%u pending=%u disabled=%u lost=%u\n",
++        cpu402.selects, cpu402.restores, cpu402.restore_pending, cpu402.disabled, cpu402_events_lost);
++}
++
++extern bool GauguinGPUObserveDisplayWord405(uint64_t *, uint32_t *, uint32_t *);
++
++enum { EOP405_LIMIT = 256 };
++static struct eop405_state eop405_probe;
++static struct {
++    struct eop405_bracket bounds;
++    uint64_t ticket;
++    uint32_t fence, frame, line, stroke;
++} eop405_records[EOP405_LIMIT];
++static unsigned eop405_used, eop405_lost;
++static uint64_t eop405_recorded_ticket;
++
++static void scan405_observe(uint32_t frame, uint32_t line)
++{
++    if (!cpu402.configured) return;
++    const uint64_t contact = __atomic_load_n(&cpu402_touch_lease, __ATOMIC_ACQUIRE);
++    if (!contact) return;
++    const uint64_t begin = mach_absolute_time();
++    const unsigned stroke = cpu402_contact(contact, begin, cpu402.lease);
++    if (stroke < 3 || stroke > 13) return;
++    uint64_t ticket;
++    uint32_t fence, value;
++    if (!GauguinGPUObserveDisplayWord405(&ticket, &fence, &value)) return;
++    const uint64_t end = mach_absolute_time();
++    struct eop405_bracket got;
++    if (!eop405_observe(&eop405_probe, ticket, fence, value, begin, end, &got)) return;
++    if (ticket != eop405_recorded_ticket) {
++        eop405_recorded_ticket = ticket;
++        if (eop405_used == EOP405_LIMIT) {
++            ++eop405_lost;
++        } else {
++            ++eop405_used;
++        }
++    }
++    if (!eop405_lost)
++        eop405_records[eop405_used-1] = (typeof(eop405_records[0])){got,ticket,fence,frame,line,stroke};
++}
++
++static void scan405_dump(void)
++{
++    printf("SWEET EOP405: samples=%u lost=%u\n", eop405_used, eop405_lost);
++    for (unsigned i = 0; i < eop405_used; ++i) {
++        const typeof(eop405_records[0]) *s = &eop405_records[i];
++        char line[96];
++        const int size = snprintf(line, sizeof(line), "\nEOP405 %llx %x %x %x %x %llx %llx\n",
++            (unsigned long long)s->ticket, s->fence, s->frame, s->line, s->stroke,
++            (unsigned long long)s->bounds.earliest_tick, (unsigned long long)s->bounds.latest_tick);
++        if (size > 0 && (size_t)size < sizeof(line)) sweet_log_append(line, size);
++    }
++}
++
++enum { F425_RAW_LIMIT = 2304 };
++static struct eop405_state eop425;
++static unsigned raw425_emitted;
++
++bool sweet_frame425_observing(void)
++{
++    return __atomic_load_n(&passive425, __ATOMIC_ACQUIRE);
++}
++
++static void scan425_observe(void)
++{
++    if (raw425_emitted >= F425_RAW_LIMIT || !sweet_frame351_window() ||
++        sweet_frame382_ending() || !sweet_frame419_clock()) return;
++    uint64_t ticket;
++    uint32_t fence, value;
++    const uint64_t begin = mach_absolute_time();
++    if (!GauguinGPUObserveDisplayWord405(&ticket, &fence, &value)) return;
++    const uint64_t end = mach_absolute_time();
++    if (fence > eop425.fence && (value == fence || value == fence - 1u) &&
++        !eop425.reported && eop425.last_pending_begin) {
++        sweet_frame419_record(F425_RAW, eop425.ticket, eop425.fence, 0,
++            eop425.last_pending_begin, 0, 0);
++        ++raw425_emitted;
++    }
++    struct eop405_bracket bounds;
++    if (eop405_observe(&eop425, ticket, fence, value, begin, end, &bounds) &&
++        bounds.latest_tick && raw425_emitted < F425_RAW_LIMIT) {
++        sweet_frame419_record(F425_RAW, ticket, fence, 0,
++            bounds.earliest_tick, bounds.latest_tick, begin);
++        ++raw425_emitted;
++    }
++}
++
+ static bool frame_active(void)
+ {
+     return __atomic_load_n(&frames.state, __ATOMIC_ACQUIRE) == GUT_CAPTURE
+@@ -113,9 +406,23 @@
+ }
+ 
+ 
++uint64_t sweet_frame419_clock(void)
++{
++    return __atomic_load_n(&timeline419.state, __ATOMIC_ACQUIRE) == GUT_CAPTURE &&
++        gut_enabled(&timeline419) ? mach_absolute_time() : 0;
++}
++
++void sweet_frame419_record(uint32_t kind, uint64_t id, uint32_t lane,
++    uint32_t version, uint64_t a, uint64_t b, uint64_t c)
++{
++    gut_record(&timeline419, kind, id, lane, version, a, b, c);
++}
++
+ void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
+     uint64_t a, uint64_t b, uint64_t c)
+ {
++    if (sustained417 && kind != F344_VBLANK && kind != F344_CRC && kind != F344_TIMING)
++        return;
+     gut_record(&frames, kind, id, 0, flags, a, b, c);
+ }
+ 
+@@ -168,7 +475,7 @@
+ bool sweet_frame351_window(void)
+ {
+     return __atomic_load_n(&scan351_published, __ATOMIC_ACQUIRE) &&
+-        frame_active() && mach_absolute_time() < frames.end;
++        (sustained417 || frame_active()) && mach_absolute_time() < frames.end;
+ }
+ 
+ static bool scan351_position(struct scan351_position *out)
+@@ -491,8 +798,8 @@
+ static struct {
+     vm_offset_t map[3];
+     uint32_t address[3], requests;
+-    volatile uint32_t *source, *flush;
+-    bool enabled;
++    volatile uint32_t *source, *pitch, *sourceXY, *flush;
++    bool enabled, padded, stop_requested;
+ } scan382;
+ 
+ static bool scan382_route(const struct scan381_state *s)
+@@ -509,7 +816,7 @@
+     return true;
+ }
+ 
+-static bool scan382_live_route(void)
++static bool scan382_live_route(uint32_t pitch, uint32_t sourceXY)
+ {
+     const volatile uint32_t *global = (const volatile uint32_t *)scan381.global;
+     const volatile uint32_t *cbar = scan381_word(F381_APPS + 0x1008);
+@@ -518,7 +825,7 @@
+     return cbar && sctlr && global[0] == 0x00200406 &&
+         global[0x80c / 4] == 0x80020800 && global[0xc0c / 4] == 2 &&
+         *cbar == 0x0001f000 && *sctlr == 0x000000e0 &&
+-        pipe[0x70 / 4] == 0 && pipe[0x24 / 4] == 4320 &&
++        pipe[0x70 / 4] == 0 && pipe[0x24 / 4] == pitch && pipe[0x08 / 4] == sourceXY &&
+         pipe[0x00 / 4] == 0x09600438 && pipe[0x30 / 4] == 0x000237ff &&
+         scan_mdp[0x2014 / 4] == 0 && scan_mdp[0x20f4 / 4] == 2 &&
+         scan_mdp[0x2000 / 4] == 0x01000005;
+@@ -543,16 +850,17 @@
+         size != sizeof(owner))
+         return false;
+     memcpy(owner, property, sizeof(owner));
+-    if (!scan382_route(s) || !scan382_live_route() ||
++    if (!scan382_route(s) || !scan382_live_route(F411_PANEL_PITCH, 0) ||
+         SecureDTGetProperty(chosen, "LowPASReservation", &property, &size) != kSuccess ||
+         size != sizeof(pas))
+         return false;
+     memcpy(pas, property, sizeof(pas));
+     const uint64_t start = owner[0], slot = owner[1], payload = owner[2], length = owner[3];
++    const bool padded = slot == F411_SLOT_BYTES;
+     if (memcmp(pas, "LPASOWN1", 8) || payload != pas[10] || length != pas[11] || pas[2] > length ||
+         !payload || !length || payload >= UINT64_C(0x100000000) ||
+         length > UINT64_C(0x100000000) - payload ||
+-        slot != F382_SLOT_BYTES || (start & (F344_PAGE - 1)) || start < payload ||
++        (!padded && slot != F382_SLOT_BYTES) || (start & (F344_PAGE - 1)) || start < payload ||
+         start > payload + length || 2 * slot > payload + length - start ||
+         start + 2 * slot > pas[2] + payload || start + 2 * slot > pas[8] ||
+         (start < 0xa2400000 && start + 2 * slot > 0xa0000000))
+@@ -569,14 +877,15 @@
+     for (unsigned i = F382_FIRST; i <= F382_SECOND; ++i) {
+         scan382.address[i] = (uint32_t)(start + (i - 1) * slot);
+         scan382.map[i] = slots[i - 1];
+-        if (ml_vtophys(scan382.map[i]) != scan382.address[i] ||
+-            ml_vtophys(scan382.map[i] + slot - 1) != (uint64_t)scan382.address[i] + slot - 1) {
+-            sweet_fb383_discard();
+-            printf("SWEET F383 MAP: translation-mismatch\n");
+-            return false;
+-        }
+-    }
+-    printf("SWEET F383 MAP: two-private-IOKit-WC-slots\n");
++        for (uint64_t offset = 0; offset < slot; offset += F344_PAGE) {
++            if (ml_vtophys(scan382.map[i] + offset) != (uint64_t)scan382.address[i] + offset) {
++                sweet_fb383_discard();
++                printf("SWEET F383 MAP: translation-mismatch\n");
++                return false;
++            }
++        }
++    }
++    printf("SWEET F383 MAP: %s\n", padded ? "two-private-reserved-linear-slots" : "two-private-IOKit-WC-slots");
+     const vm_offset_t vig = scan382_map_registers(0x0ae04000, F344_PAGE);
+     const vm_offset_t ctl = scan382_map_registers(0x0ae00000, F344_PAGE);
+     if (!vig || !ctl) {
+@@ -584,13 +893,17 @@
+         return false;
+     }
+     scan382.source = (volatile uint32_t *)(vig + 0x1014);
++    scan382.pitch = (volatile uint32_t *)(vig + 0x1024);
++    scan382.sourceXY = (volatile uint32_t *)(vig + 0x1008);
+     scan382.flush = (volatile uint32_t *)(ctl + 0x2018);
+-    if (*scan382.source != scan382.address[F382_FRONT] || *scan382.flush) {
++    if (*scan382.source != scan382.address[F382_FRONT] || *scan382.pitch != F411_PANEL_PITCH ||
++        *scan382.sourceXY || *scan382.flush) {
+         sweet_fb383_discard();
+         return false;
+     }
+-    printf("SWEET F382 BACKING: first=%08x second=%08x bytes=%d\n",
+-        scan382.address[1], scan382.address[2], F382_SLOT_BYTES);
++    printf("SWEET F382 BACKING: first=%08x second=%08x bytes=%u\n",
++        scan382.address[1], scan382.address[2], (unsigned)slot);
++    scan382.padded = padded;
+     __atomic_store_n(&scan382.enabled, true, __ATOMIC_RELEASE);
+     return true;
+ }
+@@ -600,14 +913,57 @@
+     return __atomic_load_n(&scan382.enabled, __ATOMIC_ACQUIRE);
+ }
+ 
++static uint32_t scanout414Latched;
++
++bool sweet_frame414_reserved_physical(uint32_t physical[2])
++{
++    if (!sweet_frame382_active() ||
++        __atomic_load_n(&scanout414Latched, __ATOMIC_ACQUIRE) != ((1u << F382_FIRST) | (1u << F382_SECOND)))
++        return false;
++    physical[0] = scan382.address[F382_FIRST];
++    physical[1] = scan382.address[F382_SECOND];
++    return true;
++}
++
++bool sweet_frame411_padded(void)
++{
++    return sweet_frame382_active() && scan382.padded;
++}
++
++bool sweet_frame415_front_confirmed(unsigned front)
++{
++    if (!sweet_frame411_padded() || (front != F382_FIRST && front != F382_SECOND)) return false;
++    struct scan351_position before, after;
++    return sweet_frame351_position(&before) && !*scan382.flush &&
++        *scan382.source == scan382.address[front] &&
++        scan382_live_route(F411_RENDER_PITCH, F411_SOURCE_XY) &&
++        sweet_frame351_position(&after) && before.frame == after.frame && before.line <= after.line &&
++        *scan382.source == scan382.address[front] && !*scan382.flush;
++}
++
++unsigned sweet_frame382_copy_limit(void)
++{
++    return sustained417 ? F417_FLIP_LIMIT : F382_MAX_FLIPS;
++}
++
+ bool sweet_frame382_ending(void)
+ {
++    if (__atomic_load_n(&scan382.stop_requested, __ATOMIC_ACQUIRE) || (!sustained417 && !frame_active()))
++        return true;
+     uint64_t ticks;
+-    nanoseconds_to_absolutetime(NSEC_PER_MSEC * 180, &ticks);
++    nanoseconds_to_absolutetime(NSEC_PER_MSEC * F382_DRAIN_MS, &ticks);
+     const uint64_t now = mach_absolute_time();
+     return now >= frames.end || frames.end - now <= ticks;
+ }
+ 
++/* The owned route remains published until its final latch is confirmed or
++ * the drain times out. Closing the trace ring does not revoke this access. */
++static bool scan382_position(struct scan351_position *position)
++{
++    return __atomic_load_n(&scan351_published, __ATOMIC_ACQUIRE) &&
++        scan351_position(position);
++}
++
+ uintptr_t sweet_frame382_buffer(unsigned slot)
+ {
+     return sweet_frame382_active() && slot >= F382_FIRST && slot <= F382_SECOND ? scan382.map[slot] : 0;
+@@ -617,12 +973,17 @@
+ {
+     struct scan351_position before, after;
+     if (!sweet_frame382_active() || front > F382_SECOND || next > F382_SECOND || front == next ||
+-        scan382.requests >= F382_MAX_FLIPS + (next == F382_FRONT))
++        scan382.requests >= sweet_frame382_copy_limit() + (next == F382_FRONT))
+         return F382_UNCERTAIN;
+-    if (!sweet_frame351_position(&before) || before.line < SCAN351_OPEN ||
++    if ((next != F382_FRONT && sweet_frame382_ending()) ||
++        !scan382_position(&before) || before.line < SCAN351_OPEN ||
+         before.end < before.line + F382_CUTOFF_GUARD_LINES)
+         return F382_WAIT;
+-    if (!scan382_live_route() || *scan382.source != scan382.address[front] || *scan382.flush)
++    const uint32_t oldPitch = f411_pitch(scan382.padded, front);
++    const uint32_t nextPitch = f411_pitch(scan382.padded, next);
++    const uint32_t oldXY = f411_source_xy(scan382.padded, front);
++    const uint32_t nextXY = f411_source_xy(scan382.padded, next);
++    if (!scan382_live_route(oldPitch, oldXY) || *scan382.source != scan382.address[front] || *scan382.flush)
+         return F382_UNCERTAIN;
+     const boolean_t interrupts = ml_set_interrupts_enabled(FALSE);
+     const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
+@@ -633,15 +994,19 @@
+         return F382_WAIT;
+     }
+     ++scan382.requests;
++    if (oldPitch != nextPitch) *scan382.pitch = nextPitch;
++    if (oldXY != nextXY) *scan382.sourceXY = nextXY;
+     *scan382.source = scan382.address[next];
+     __asm__ volatile("dsb oshst" ::: "memory");
+     *scan382.flush = 1;
+     __asm__ volatile("dsb sy" ::: "memory");
+     const uint32_t flush = *scan382.flush;
+     const uint32_t source = *scan382.source;
++    const uint32_t pitch = *scan382.pitch;
++    const uint32_t sourceXY = *scan382.sourceXY;
+     ml_set_interrupts_enabled(interrupts);
+-    if (flush != 1 || source != scan382.address[next] ||
+-        !sweet_frame351_position(&after) || after.frame != before.frame || after.line >= before.end)
++    if (flush != 1 || source != scan382.address[next] || pitch != nextPitch || sourceXY != nextXY ||
++        !scan382_position(&after) || after.frame != before.frame || after.line >= before.end)
+         return F382_UNCERTAIN;
+     *frame = before.frame;
+     return F382_TOUCHED;
+@@ -652,7 +1017,7 @@
+     struct scan351_position a, b;
+     if (!sweet_frame382_active() || next > F382_SECOND)
+         return F382_UNCERTAIN;
+-    if (!sweet_frame351_position(&a))
++    if (!scan382_position(&a))
+         return F382_WAIT;
+     const uint32_t delta = a.frame - requested_scan;
+     if (delta > 1)
+@@ -661,11 +1026,15 @@
+         return F382_WAIT;
+     const uint32_t flush = *scan382.flush;
+     const uint32_t source = *scan382.source;
+-    if (!sweet_frame351_position(&b) || a.frame != b.frame || a.line > b.line)
++    if (!scan382_position(&b) || a.frame != b.frame || a.line > b.line)
+         return F382_WAIT;
+-    if (source != scan382.address[next] || flush & ~1u || !scan382_live_route())
++    if (source != scan382.address[next] || flush & ~1u ||
++        !scan382_live_route(f411_pitch(scan382.padded, next), f411_source_xy(scan382.padded, next)))
+         return F382_UNCERTAIN;
+-    return flush ? F382_WAIT : F382_CONFIRMED;
++    if (flush) return F382_WAIT;
++    if (scan382.padded && next != F382_FRONT)
++        __atomic_fetch_or(&scanout414Latched, 1u << next, __ATOMIC_RELEASE);
++    return F382_CONFIRMED;
+ }
+ 
+ static void scan_report(enum scan345_gate gate, const struct scan345_status *s)
+@@ -746,6 +1115,7 @@
+ 
+ static void scan_stop(const char *reason)
+ {
++    scan402_stop();
+     if (scan357_enabled && !scan367.done) scan367_finish("stopped");
+     if (scan357_enabled) scan357_abort();
+     if (scan351_enabled) __atomic_store_n(&scan351_published, false, __ATOMIC_RELEASE);
+@@ -785,6 +1155,8 @@
+     }
+     printf("SWEET F345 DPU: stopped=%s polls=%u configured=%u restored=%u gate=%u\n",
+         reason, scan.polls, scan.configured, restored, scan.last_gate);
++    scan402_dump();
++    scan405_dump();
+ }
+ 
+ static struct {
+@@ -863,7 +1235,7 @@
+ 
+ bool sweet_frame375_edge(uint32_t frame, uint64_t *lo, uint64_t *hi)
+ {
+-    if (!frame_active()) return false;
++    if (!(sustained417 ? sweet_frame351_window() : frame_active())) return false;
+     const unsigned index = frame % F375_INFO_QUEUE;
+     const uint32_t version = __atomic_load_n(&frame375_edges[index].version, __ATOMIC_ACQUIRE);
+     if (!version || version & 1) return false;
+@@ -1074,18 +1446,62 @@
+     if (scan357_enabled && scan.first_blank.signature == signature) scan357_pair(frame, sampled);
+ }
+ 
++static struct {
++    const char *reason;
++    uint64_t deadline;
++    unsigned polls;
++} scan416;
++
++static void scan_poll_again(void)
++{
++    uint64_t deadline;
++    clock_interval_to_deadline(F344_POLL_US, NSEC_PER_USEC, &deadline);
++    thread_call_enter_delayed(scan_call, deadline);
++}
++
++static void scan_finish(const char *reason)
++{
++    if (sweet_frame382_active()) {
++        if (!scan416.reason) {
++            scan416.reason = reason;
++            clock_interval_to_deadline(F382_DRAIN_MS, NSEC_PER_MSEC, &scan416.deadline);
++            __atomic_store_n(&scan382.stop_requested, true, __ATOMIC_RELEASE);
++        }
++        unsigned state = F382_DRAIN_WAIT;
++        if (mach_absolute_time() < scan416.deadline && scan416.polls < F382_DRAIN_POLLS) {
++            ++scan416.polls;
++            state = sweet_fb382_poll(scan.frame);
++            if (state == F382_DRAIN_WAIT) {
++                scan_poll_again();
++                return;
++            }
++        }
++        const char *outcome = "timeout";
++        if (state == F382_DRAIN_DONE) outcome = "restored";
++        else if (state == F382_DRAIN_QUARANTINED) outcome = "quarantined";
++        printf("SWEET F416 DRAIN: cause=%s result=%s polls=%u\n", reason, outcome, scan416.polls);
++    }
++    scan_stop(reason);
++}
++
+ static void scan_poll(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+ {
+     const uint64_t tick = mach_absolute_time();
++    if (scan416.reason) {
++        scan_finish(scan416.reason);
++        return;
++    }
+     if (scan357_enabled) scan357_finish_if_expired(tick);
+-    if (!frame_active() || tick >= frames.end || scan.polls >= F344_POLL_LIMIT) {
+-        scan_stop("deadline");
++    if ((!sustained417 && !frame_active()) || tick >= frames.end || scan.polls >= F344_POLL_LIMIT) {
++        scan_finish("deadline");
+         return;
+     }
+     ++scan.polls;
+     struct scan345_status status = {0};
+     struct scan345_geometry geometry = {0};
+     const enum scan345_gate gate = scan_route(&status, &geometry);
++    if (gate == SCAN345_OK && scan.configured && !scan.crc_blocked) scan402_poll();
++    else if (cpu402.restore_pending && tick >= cpu402.retry_restore) scan402_end(tick);
+     const bool expired = tick >= scan.startup_end;
+     if (scan.polls == 1 || (expired && !scan.configured && !scan.crc_blocked) || (gate != scan.last_gate &&
+         (scan.gate_logs < 16 || scan.configured))) {
+@@ -1095,7 +1511,7 @@
+     scan.last_gate = gate;
+     if (gate != SCAN345_OK) {
+         if (scan.configured || scan.counter_attempted || expired) {
+-            scan_stop("route");
++            scan_finish("route");
+             return;
+         }
+         scan.have_frame = false;
+@@ -1158,17 +1574,18 @@
+             if (scan357_enabled) scan367_poll(frame);
+             if (phase380_enabled) scan381_poll(frame);
+             if (sweet_frame382_active()) sweet_fb382_poll(frame);
+-            if (scan357_enabled && !manual_preview && scan358_probe_line(line) && sweet_frame351_window())
++            if (scan357_enabled && !manual_preview && !sustained417 &&
++                scan358_probe_line(line) && sweet_frame351_window())
+                 sweet_fb358_request_probe(frame);
++            if (sweet_frame425_observing()) scan425_observe();
++            scan405_observe(frame, line);
+         } else if (scan.counter_readonly) {
+             scan.motion.previous_valid = false;
+             scan.motion.rejected_control += !same_control;
+             if (blank_read) ++scan.crc_rejected;
+         }
+     }
+-    uint64_t deadline;
+-    clock_interval_to_deadline(F344_POLL_US, NSEC_PER_USEC, &deadline);
+-    thread_call_enter_delayed(scan_call, deadline);
++    scan_poll_again();
+ }
+ 
+ static void start_manual_preview(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+@@ -1185,9 +1602,11 @@
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+     const bool preview = f387_physical_profile(enabled, script, physical, hz);
+-    if (enabled < 2 || enabled > 9 || (!preview && ((script != 3 && script != 4) || physical)) ||
++    const bool sustained = f417_profile(enabled, script, physical, hz);
++    if (enabled < 2 || enabled > 9 || (!preview && !sustained && ((script != 3 && script != 4) || physical)) ||
+         !sweet_metal_desktop_enabled() || (enabled >= 4 && hz != 60)) return;
+     manual_preview = preview;
++    sustained417 = sustained;
+     scan.counter_opt_in = enabled == 3 && hz == 60;
+     scan.counter_readonly = enabled >= 4;
+     scan.crc_blanking = enabled >= 5;
+@@ -1196,12 +1615,13 @@
+     scan352_enabled = enabled >= 8;
+     scan357_enabled = enabled == 9;
+     scan.crc_blocked = enabled == 4;
+-    const uint32_t capacity = scan357_enabled ? SCAN358_FRAME_CAPACITY : 16384;
++    const uint32_t capacity = sustained417 ? F417_CAPTURE_RECORDS :
++        (scan357_enabled ? SCAN358_FRAME_CAPACITY : 16384);
+     uint64_t window;
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+     clock_timebase_info(&frame_timebase);
+     if (!window || !frame_timebase.numer || !frame_timebase.denom) return;
+-    phase380_enabled = scan357_enabled && (script == 4 || preview) &&
++    phase380_enabled = scan357_enabled && (script == 4 || preview || sustained417) &&
+         frame_timebase.numer == 625 && frame_timebase.denom == 12;
+     struct gut_event *events = kalloc_data(capacity * sizeof(*events), Z_WAITOK | Z_ZERO);
+     if (!events) return;
+@@ -1210,13 +1630,26 @@
+         return;
+     }
+     printf("SWEET F344: armed window=45s capacity=%u\n", capacity);
++    unsigned diagnostic = 0;
++    if (sustained && PE_parse_boot_argn("f419", &diagnostic, sizeof(diagnostic)) &&
++        (diagnostic == 1 || diagnostic == 2)) {
++        const size_t bytes = F419_CAPACITY * sizeof(struct gut_event);
++        struct gut_event *timeline = kalloc_data(bytes, Z_WAITOK | Z_ZERO);
++        if (timeline) {
++            if (gut_init_frames(&timeline419, timeline, F419_CAPACITY, window, now))
++                __atomic_store_n(&passive425, diagnostic == 2, __ATOMIC_RELEASE);
++            else
++                kfree_data(timeline, bytes);
++        }
++        if (sweet_frame425_observing()) printf("SWEET F425: passive completion sampling only\n");
++    }
+     if (preview) {
+         thread_call_t call = thread_call_allocate_with_options(start_manual_preview, NULL,
+             THREAD_CALL_PRIORITY_KERNEL, THREAD_CALL_OPTIONS_ONCE);
+         __atomic_store_n(&manual_preview_call, call, __ATOMIC_RELEASE);
+         if (call) printf("SWEET F387 MANUAL: ready for first physical contact\n");
+     }
+-    if (scan357_enabled && !preview)
++    if (scan357_enabled && !preview && !sustained417)
+         printf("SWEET F358 PROBE: first_line=%u limit=%u\n",
+             SCAN358_PROBE_FIRST_LINE, SCAN358_PROBE_LIMIT);
+ }
+@@ -1254,6 +1687,7 @@
+     if (__atomic_load_n(&frames.state, __ATOMIC_ACQUIRE) != GUT_ARMED) return;
+     const uint64_t tick = mach_absolute_time();
+     if (!gut_report(&frames, tick, tick, 0, 1)) return;
++    (void)gut_report(&timeline419, tick, tick, 0, 1);
+     scan_gcc = (const volatile uint32_t *)ml_io_map_with_prot(F344_GCC_PAGE, F344_PAGE, VM_PROT_READ);
+     scan_disp = (const volatile uint32_t *)ml_io_map_with_prot(F344_DISPCC_PA, F344_PAGE, VM_PROT_READ);
+     scan_mdp = (const volatile uint32_t *)ml_io_map_with_prot(F344_MDP_PA, F344_PAGE, VM_PROT_READ);
+@@ -1266,15 +1700,21 @@
+         return;
+     }
+     scan_intf += F344_INTF_OFF / 4;
++    uint32_t stock_profile = 0;
++    PE_parse_boot_argn("gpf", &stock_profile, sizeof(stock_profile));
++    if (stock_profile == 5 && scan357_enabled && phase380_enabled && !manual_preview && !sustained417)
++        scan402_prepare();
+     if (phase380_enabled) f388_arm(&phase388, frames.start, frames.end);
+     if (manual_preview) printf("SWEET F387 MANUAL: opening guarded display window\n");
+-    if (scan357_enabled && !manual_preview) {
++    if (sustained417) printf("SWEET F417 DISPLAY: compact CRC and vblank, copies=%u\n", sweet_frame382_copy_limit());
++    if (scan357_enabled && !manual_preview && !sustained417) {
+         struct frame374_receiver receiver = {0};
+         proc_iterate(PROC_ALLPROCLIST, frame374_find_receiver, &receiver, NULL, NULL);
+         if (receiver.receivers == 1) {
+             sweet_ca374_arm(receiver.receiver, frames.start, frames.end);
+             if (receiver.sources == 1)
+                 sweet_frame371_arm(receiver.source, receiver.receiver, frames.start, frames.end);
++                sweet_ca385_arm(receiver.source, receiver.receiver);
+         }
+     }
+     clock_interval_to_deadline(F345_STARTUP_MS, NSEC_PER_MSEC, &scan.startup_end);
+@@ -1283,9 +1723,47 @@
+     else scan_stop("timer");
+ }
+ 
++static void frame419_drain(void)
++{
++    static bool header, footer, overflow;
++    static uint32_t wire_bytes;
++    if (footer) return;
++
++    struct gut_event batch[32];
++    struct gut_meta meta;
++    uint32_t count;
++    if (!gut_read(&timeline419, batch, 32, &count, &meta)) return;
++    if (!header) {
++        header = true;
++        printf("SWEET F419 H: count=%u reason=%u lost=%llu start=%llu end=%llu\n",
++            meta.count, meta.reason, (unsigned long long)meta.lost, (unsigned long long)meta.start,
++            (unsigned long long)meta.end);
++    }
++    for (uint32_t i = 0; i < count && !overflow; ++i) {
++        const struct gut_event *row = batch + i;
++        char line[128];
++        const int bytes = snprintf(line, sizeof(line), "\nF419E %x %llx %x %llx %x %x %llx %llx %llx\n",
++            (uint32_t)row->seq, (unsigned long long)row->tick, row->kind, (unsigned long long)row->id,
++            row->pid, row->flags, (unsigned long long)row->a, (unsigned long long)row->b,
++            (unsigned long long)row->c);
++        if (bytes <= 0 || (size_t)bytes >= sizeof(line) || (uint32_t)bytes > F419_MAX_WIRE_BYTES - wire_bytes) {
++            overflow = true;
++        } else {
++            sweet_log_append(line, bytes);
++            wire_bytes += bytes;
++        }
++    }
++    if (meta.state == GUT_DRAINED) {
++        footer = true;
++        printf("SWEET F419 F: count=%u lost=%llu bytes=%u overflow=%u\n",
++            meta.count, (unsigned long long)meta.lost, wire_bytes, overflow);
++    }
++}
++
+ static void frame_drain(void)
+ {
+     if (frame_footer) {
++        frame419_drain();
+         frame388_drain();
+         sweet_ca374_drain();
+         sweet_frame371_drain();
+@@ -1304,7 +1782,7 @@
+     for (uint32_t i = 0; i < n; ++i) {
+         const struct gut_event *row = batch + i;
+         char line[160];
+-        int bytes = snprintf(line, sizeof(line), "\nSWEET F344 E %x %llx %x %llx %x %llx %llx %llx\n",
++        int bytes = snprintf(line, sizeof(line), "\nF344E %x %llx %x %llx %x %llx %llx %llx\n",
+             (uint32_t)row->seq, (unsigned long long)row->tick, row->kind,
+             (unsigned long long)row->id, row->flags, (unsigned long long)row->a,
+             (unsigned long long)row->b, (unsigned long long)row->c);
+diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -37,8 +37,11 @@
+ #if defined(GAUGUIN)
+ #include <IOKit/SweetHIDTouchFrame.h>
+ #include "gauguin_ui_trace.h"
++#include "gauguin_sustain417.h"
+ #include "gauguin_frame344.h"
++#include "gauguin_frame385.h"
+ #include "gauguin_calibration357.h"
++extern void sweet_frame402_touch(unsigned stroke, uint64_t tick);
+ /*
+  * gauguin is SM7225 (lito / lagoon), NOT the SM7125 the port was planned on.
+  * The TLMM is at 0x00f100000 (`qcom,lagoon-pinctrl`, 0x30000 - read from the
+@@ -548,6 +551,7 @@
+ static void
+ sweet_motion_abort(void)
+ {
++	sweet_frame402_touch(0, 0);
+ 	sweet_motion_armed = false;
+ 	int rc = 0;
+ 	if (sweet_motion_step) {
+@@ -573,6 +577,7 @@
+ 	snapshot.active_mask = down ? 1 : 0;
+ 	snapshot.x[0] = x;
+ 	snapshot.y[0] = 1200;
++	sweet_frame402_touch(down ? 14 : 0, mach_absolute_time());
+ 	int rc = sweet_hid_touch_frame(&snapshot);
+ 	uint64_t returned = mach_absolute_time();
+ 	sweet_motion_samples[step].entered = now;
+@@ -601,9 +606,80 @@
+ 	printf("SWEET M362: complete reports=%u\n", sweet_motion_step);
+ }
+ 
++/* One warmed, continuous horizontal drag. The due time is absolute to
++ * avoid accumulating callback jitter over the 33-second motion window. */
++static bool sweet_continuous_mode;
++static struct {
++	uint64_t due, interval, start, last, max_gap;
++	unsigned reports;
++	bool armed;
++} motion417;
++
++static void
++motion417_arm(void)
++{
++	nanoseconds_to_absolutetime(F417_SAMPLE_MS * NSEC_PER_MSEC, &motion417.interval);
++	if (!motion417.interval) return;
++	clock_interval_to_deadline(6, NSEC_PER_SEC, &motion417.due);
++	motion417.armed = true;
++	thread_call_enter_delayed(sweet_script_call, motion417.due);
++}
++
++static void
++motion417_finish(uint64_t now, bool complete)
++{
++	motion417.armed = false;
++	int rc = 0;
++	if (motion417.reports) {
++		struct sweet_hid_touch_snapshot release = {0};
++		rc = sweet_hid_touch_frame(&release);
++	}
++	printf("SWEET F417 MOTION: end=%llu reports=%u max_gap=%llu release_rc=%x complete=%u\n",
++	    (unsigned long long)now, motion417.reports, (unsigned long long)motion417.max_gap,
++	    rc, complete && !rc);
++}
++
++static void
++motion417_fire(uint64_t now)
++{
++	if (sweet_fb_display_state() != 1 || (motion417.start && now < motion417.start)) {
++		motion417_finish(now, false);
++		return;
++	}
++	if (now < motion417.due) {
++		thread_call_enter_delayed(sweet_script_call, motion417.due);
++		return;
++	}
++	if (!motion417.start) {
++		motion417.start = now;
++		printf("SWEET F417 MOTION: begin=%llu interval=%llu limit=%u\n",
++		    (unsigned long long)now, (unsigned long long)motion417.interval, F417_REPORT_LIMIT);
++	}
++	const uint64_t step = (now - motion417.start) / motion417.interval;
++	if (step >= F417_REPORT_LIMIT) {
++		motion417_finish(now, true);
++		return;
++	}
++	if (motion417.last && now - motion417.last > motion417.max_gap)
++		motion417.max_gap = now - motion417.last;
++	motion417.last = now;
++	struct sweet_hid_touch_snapshot position = {0};
++	position.active_mask = 1;
++	position.x[0] = f417_position((unsigned)step);
++	position.y[0] = 1200;
++	++motion417.reports;
++	if (sweet_hid_touch_frame(&position)) {
++		motion417_finish(mach_absolute_time(), false);
++		return;
++	}
++	motion417.due = motion417.start + (step + 1) * motion417.interval;
++	thread_call_enter_delayed(sweet_script_call, motion417.due);
++}
++
+ static void
+ sweet_script_abort(void)
+ {
++	sweet_frame402_touch(0, 0);
+ 	struct sweet_hid_touch_snapshot release = {0};
+ 	int rc = sweet_hid_touch_frame(&release);
+ 	sweet_script_stroke = 13;
+@@ -660,7 +736,8 @@
+ 	if (sweet_script_call == NULL) return;
+ 	uint64_t now = mach_absolute_time();
+ 	if (sweet_script_stroke >= 13) {
+-		if (sweet_motion_armed) sweet_motion_fire(now);
++		if (motion417.armed) motion417_fire(now);
++		else if (sweet_motion_armed) sweet_motion_fire(now);
+ 		return;
+ 	}
+ 	if (now < sweet_script_due || now >= sweet_script_end ||
+@@ -684,6 +761,8 @@
+ 	}
+ 	if (!step) {
+ 		sweet_script_start = now;
++		/* The CA capture follows the gesture, regardless of UI trace admission. */
++		sweet_ca385_swipe(stroke + 1, now);
+ 		printf("SWEET UI SCRIPT: begin stroke=%u tick=%llu origin=synthetic\n", stroke, (unsigned long long)now);
+ 	}
+ 	struct sweet_hid_touch_snapshot snapshot = {0};
+@@ -691,6 +770,7 @@
+ 	snapshot.x[0] = x; snapshot.y[0] = y;
+ 	uint64_t id = sweet_ui_trace_report(now, now, 0, snapshot.active_mask);
+ 	if (id) sweet_ui_trace_record(GUT_SYNTHETIC, id, 0, stroke, step, x, y);
++	sweet_frame402_touch(down ? stroke + 1 : 0, mach_absolute_time());
+ 	int rc = sweet_hid_touch_frame_traced(&snapshot, id);
+ 	if (id) sweet_ui_trace_record(GUT_HID_RETURN, id, 0, (uint32_t)rc, snapshot.active_mask, 0, 0);
+ 	if (rc) { sweet_script_abort(); return; }
+@@ -701,6 +781,11 @@
+ 		return;
+ 	}
+ 	printf("SWEET UI SCRIPT: end stroke=%u tick=%llu events=34; HID return only\n", stroke, (unsigned long long)mach_absolute_time());
++	if (sweet_continuous_mode) {
++		sweet_script_stroke = 13;
++		motion417_arm();
++		return;
++	}
+ 	if (++sweet_script_stroke >= 13) {
+ 		printf("SWEET UI SCRIPT: complete strokes=13 events=442; UI acceptance and physical touch unqualified\n");
+ 		if (sweet_script_wake_mode) sweet_frame357_calibrate_after_script();
+@@ -725,7 +810,8 @@
+ 	clock_interval_to_deadline(180, NSEC_PER_SEC, &sweet_script_due);
+ 	clock_interval_to_deadline(181500, NSEC_PER_MSEC, &sweet_script_end);
+ 	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
+-	printf("SWEET UI SCRIPT: armed strokes=13 origin=synthetic physical=off; first at +180s\n");
++	printf("SWEET UI SCRIPT: armed strokes=%u origin=synthetic physical=off; first at +180s\n",
++	    sweet_continuous_mode ? 1u : 13u);
+ 	if (sweet_script_wake_mode) printf("SWEET UI WAKE: enabled; one power pair if off, 5s limit, observe on before strokes\n");
+ }
+ #endif
+@@ -1298,7 +1384,14 @@
+ 		sweet_script_arm();
+ 		return;
+ 	}
+-	if (physical == 0 && (swipe == 3 || swipe == 4)) {
++	if (physical == 0 && (swipe == 3 || swipe == 4 || swipe == 5)) {
++		if (swipe == 5) {
++			unsigned capture = 0, hz = 0;
++			(void)PE_parse_boot_argn("sweetfb_stats", &capture, sizeof(capture));
++			(void)PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
++			if (!f417_profile(capture, swipe, physical, hz)) return;
++			sweet_continuous_mode = true;
++		}
+ 		sweet_motion_mode = swipe == 4;
+ 		sweet_script_wake_mode = true;
+ 		sweet_script_arm();
+diff --git a/bsd/kern/kdebug.c b/bsd/kern/kdebug.c
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -131,9 +131,8 @@
+ }
+ 
+ static void
+-f375_record(unsigned kind, uint64_t a, uint64_t b, uint64_t c, uint64_t d)
+-{
+-	const uint64_t tick = mach_absolute_time();
++f375_record_at(unsigned kind, uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t tick)
++{
+ 	if (tick >= f374_start && tick < f374_end) {
+ 		const uint32_t index = __atomic_fetch_add(&f374_count, 1, __ATOMIC_RELAXED);
+ 		if (index < F374_EVENT_CAP) {
+@@ -143,17 +142,31 @@
+ 	}
+ }
+ 
++static void
++f375_record(unsigned kind, uint64_t a, uint64_t b, uint64_t c, uint64_t d)
++{
++	f375_record_at(kind, a, b, c, d, mach_absolute_time());
++}
++
++#include "../dev/gauguin_frame385_observer.h"
++#include "../dev/gauguin_kernel_producer401.h"
++
+ /* Reserve this lane for display events from the verified BackBoard task. */
+ static void
+ f374_observe(struct proc *p, const struct kdebug_trace64_args *uap)
+ {
+ 	const unsigned kind = f374_kind(uap->code);
+-	if (!kind || !f375_enter()) return;
+-	const audit_token_t *token = task_get_audit_token(proc_task(p));
+-	const uint64_t identity = ((uint64_t)token->val[7] << 32) | token->val[5];
+-	if (identity && identity == f374_receiver) {
+-		f375_record(kind, uap->arg1, uap->arg2, uap->arg3, uap->arg4);
+-	}
++	const bool native_transaction = f385_native_code(uap->code);
++	if (!kind && !native_transaction) return;
++	const uint64_t tick = mach_absolute_time();
++	const bool transaction = native_transaction && f385_stroke(tick);
++	if ((!kind && !transaction) || !f375_enter()) return;
++	const uint64_t identity = f385_identity(proc_task(p));
++	if (kind && identity && identity == f374_receiver) {
++		f375_record_at(kind, uap->arg1, uap->arg2, uap->arg3, uap->arg4, tick);
++		f401_native_render(identity, kind, tick);
++	}
++	if (transaction) f385_kdebug(identity, uap, tick);
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+ }
+ 
+@@ -358,6 +371,7 @@
+ 	f377_copy_drain();
+ 	f379_drain();
+ 	f380_drain();
++	f385_drain();
+ }
+ #endif
+ 
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -15,6 +15,8 @@
+ #include <IOKit/IOUserClient.h>
+ #include <IOKit/IOBufferMemoryDescriptor.h>
+ #include <kern/clock.h>
++#include <kern/cpu_number.h>
++#include <machine/machine_routines.h>
+ #include <kern/task.h>
+ #include <kern/thread.h> /* BO333 numeric current-thread ID */
+ #include <mach/mach_time.h>
+@@ -27,6 +29,7 @@
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
+ #include "../../../bsd/dev/gauguin_frame344.h"
++#include "../../../bsd/dev/gauguin_deadlines419.h"
+ #include "../../../bsd/dev/gauguin_blank352.h"
+ #include "../../../bsd/dev/gauguin_ready354.h"
+ #include "../../../bsd/dev/gauguin_ready357.h"
+@@ -63,6 +66,21 @@
+ /* Published after native issue under gLock. An atomic ticket is only an
+  * eligibility hint; the probe still validates the version under gLock. */
+ static uint64_t gIssuedDisplayProbeTicket;
++static uint32_t gIssuedDisplayFence405;
++extern "C" bool sweet_gpu_runtime_observe_completion405(uint32_t *);
++
++extern "C" bool GauguinGPUObserveDisplayWord405(uint64_t *ticket, uint32_t *fence, uint32_t *observed)
++{
++    const uint64_t issued = __atomic_load_n(&gIssuedDisplayProbeTicket, __ATOMIC_ACQUIRE);
++    if (!issued) return false;
++    const uint32_t expected = __atomic_load_n(&gIssuedDisplayFence405, __ATOMIC_RELAXED);
++    if (!expected || !sweet_gpu_runtime_observe_completion405(observed) ||
++        __atomic_load_n(&gIssuedDisplayProbeTicket, __ATOMIC_ACQUIRE) != issued ||
++        __atomic_load_n(&gIssuedDisplayFence405, __ATOMIC_RELAXED) != expected) return false;
++    *ticket = issued;
++    *fence = expected;
++    return true;
++}
+ 
+ extern "C" uint64_t GauguinGPUDisplayProbeTicket(void)
+ {
+@@ -144,6 +162,32 @@
+     uint32_t slots,connections;
+     bool invalid;
+ } gCache335;
++static uint64_t gPendingCache397Hits, gPendingCache397CaptureHits;
++
++extern "C" {
++uint64_t gauguin_display_thread_398;
++uint64_t gauguin_display_preferred_dispatches_398;
++}
++static bool gDisplayPerformanceCpus398;
++static uint64_t gDisplayWriterThread398;
++static uint32_t gDisplayIssueCpus398[8], gDisplayOtherWriter398;
++
++static void observeDisplayIssueCpu398(uint64_t displayTicket)
++{
++    if (!gDisplayPerformanceCpus398 || gapi_frozen) return;
++    const uint64_t tid=thread_tid(current_thread());
++    uint64_t selected=__atomic_load_n(&gauguin_display_thread_398,__ATOMIC_RELAXED);
++    if (!selected && displayTicket && tid) {
++        selected=gDisplayWriterThread398=tid;
++        __atomic_store_n(&gauguin_display_thread_398,tid,__ATOMIC_RELEASE);
++    }
++    if (!selected || tid!=selected) {
++        if (displayTicket && gDisplayOtherWriter398!=UINT32_MAX) ++gDisplayOtherWriter398;
++        return;
++    }
++    const int cpu=cpu_number();
++    if (cpu>=0 && cpu<8 && gDisplayIssueCpus398[cpu]!=UINT32_MAX) ++gDisplayIssueCpus398[cpu];
++}
+ static void cache335_count(uint64_t *value)
+ {if(!gapi_frozen){if(*value==UINT64_MAX)gCache335.invalid=true;else ++*value;}}
+ 
+@@ -168,6 +212,7 @@
+ }
+ extern "C" void GauguinGPUProfileFreeze(void)
+ {
++    __atomic_store_n(&gauguin_display_thread_398,0,__ATOMIC_RELEASE);
+     if(gapi_frozen)return;
+     gapi_frozen=true;
+     if(gapi_pending.token){
+@@ -206,6 +251,19 @@
+         (unsigned long long)gMapStats.calls,(unsigned long long)gMapStats.fast,
+         (unsigned long long)gMapStats.waited,(unsigned long long)gMapStats.failures,
+         !gMapStats.overflow&&gapi_valid?1u:0u);record(line);
++    if (gMapUnrelated) {
++        snprintf(line,sizeof(line),"SWEET BC397: pending_hits=%llu capture_hits=%llu valid=%u",
++            (unsigned long long)gPendingCache397Hits,(unsigned long long)gPendingCache397CaptureHits,
++            !gCache335.invalid&&gapi_valid?1u:0u);record(line);
++    }
++    if (gDisplayPerformanceCpus398) {
++        snprintf(line,sizeof(line),"SWEET CPU398: tid=%llu selected=%llu other_writer=%u issues=%u,%u,%u,%u,%u,%u,%u,%u",
++            (unsigned long long)gDisplayWriterThread398,
++            (unsigned long long)__atomic_load_n(&gauguin_display_preferred_dispatches_398,__ATOMIC_RELAXED),
++            gDisplayOtherWriter398,gDisplayIssueCpus398[0],gDisplayIssueCpus398[1],gDisplayIssueCpus398[2],
++            gDisplayIssueCpus398[3],gDisplayIssueCpus398[4],gDisplayIssueCpus398[5],
++            gDisplayIssueCpus398[6],gDisplayIssueCpus398[7]);record(line);
++    }
+ }
+ 
+ /* Only a serialized request can wait. Display may poll/complete the escrow
+@@ -287,6 +345,200 @@
+ }
+ static volatile uint64_t *leafAt(uint64_t address)
+ {return gPtes+512+(address-GGR_VA_START)/4096;}
++
++#include "../../../bsd/dev/gauguin_linear_scanout411.h"
++#include "../../../bsd/dev/gauguin_scanout_write415.h"
++
++extern "C" bool sweet_fb414_reserved_descriptors(IOMemoryDescriptor *[2], uint32_t [2]);
++
++/* Called under the native GPU lock, between completed submits. The display
++ * service publishes these two descriptors only after both boot-owned slots
++ * have latched. This test never issues GPU work or exposes a client handle. */
++static bool bootScanoutReadOnlyVerified414;
++
++static bool probeBootScanout414()
++{
++    static bool attempted;
++    if (attempted || !gPtes || !sweet_gpu_runtime_ready()) return true;
++    IOMemoryDescriptor *memory[2] = {};
++    uint32_t physical[2] = {};
++    if (!sweet_fb414_reserved_descriptors(memory, physical)) return true;
++    attempted = true;
++
++    constexpr uint64_t slotBytes = F411_SLOT_BYTES;
++    constexpr uint64_t pageBytes = 4096;
++    constexpr uint64_t readOnlyLeaf = 0xec3;
++    for (unsigned slot = 0; slot < 2; ++slot) {
++        if (!memory[slot] || memory[slot]->getLength() != slotBytes) {
++            IOLog("SWEET F414 GPU MAP: refused-extent\n");
++            return true;
++        }
++        for (uint64_t offset = 0; offset < slotBytes; offset += pageBytes) {
++            IOByteCount contiguous = 0;
++            const uint64_t pa = memory[slot]->getPhysicalSegment(offset, &contiguous, kIOMemoryMapperNone);
++            if (pa != physical[slot] + offset || contiguous < pageBytes) {
++                IOLog("SWEET F414 GPU MAP: refused-physical-segment\n");
++                return true;
++            }
++        }
++    }
++
++    uint64_t address[2] = {reserveAddress(slotBytes), 0};
++    if (address[0]) address[1] = reserveAddress(slotBytes);
++    if (!address[1]) {
++        if (address[0]) releaseAddress(address[0], slotBytes);
++        IOLog("SWEET F414 GPU MAP: refused-aperture\n");
++        return true;
++    }
++    for (unsigned slot = 0; slot < 2; ++slot) memory[slot]->retain();
++
++    // Retain both descriptors and VA ranges on a bad leaf or failed sync.
++    // Neither allocation can be repurposed while translation is uncertain.
++    for (unsigned slot = 0; slot < 2; ++slot) {
++        for (uint64_t offset = 0; offset < slotBytes; offset += pageBytes) {
++            if (*leafAt(address[slot] + offset)) {
++                sweet_gpu_runtime_stop();
++                IOLog("SWEET F414 GPU MAP: quarantined-stale-leaf\n");
++                return false;
++            }
++        }
++    }
++    for (unsigned slot = 0; slot < 2; ++slot)
++        for (uint64_t offset = 0; offset < slotBytes; offset += pageBytes)
++            *leafAt(address[slot] + offset) = (physical[slot] + offset) | readOnlyLeaf;
++
++    memoryBarrier();
++    if (!sweet_gpu_runtime_sync()) {
++        sweet_gpu_runtime_stop();
++        IOLog("SWEET F414 GPU MAP: quarantined-publication\n");
++        return false;
++    }
++    for (unsigned slot = 0; slot < 2; ++slot) {
++        for (uint64_t offset = 0; offset < slotBytes; offset += pageBytes) {
++            if (*leafAt(address[slot] + offset) != ((physical[slot] + offset) | readOnlyLeaf)) {
++                sweet_gpu_runtime_stop();
++                IOLog("SWEET F414 GPU MAP: quarantined-readback\n");
++                return false;
++            }
++        }
++    }
++    for (unsigned slot = 0; slot < 2; ++slot)
++        for (uint64_t offset = 0; offset < slotBytes; offset += pageBytes)
++            *leafAt(address[slot] + offset) = 0;
++
++    memoryBarrier();
++    if (!sweet_gpu_runtime_sync()) {
++        sweet_gpu_runtime_stop();
++        IOLog("SWEET F414 GPU MAP: quarantined-removal\n");
++        return false;
++    }
++    for (unsigned slot = 0; slot < 2; ++slot) {
++        releaseAddress(address[slot], slotBytes);
++        memory[slot]->release();
++    }
++    bootScanoutReadOnlyVerified414 = true;
++    IOLog("SWEET F414 GPU MAP: published-and-removed read-only pages=%u per-slot=%u\n",
++          static_cast<unsigned>(2 * slotBytes / pageBytes), static_cast<unsigned>(slotBytes / pageBytes));
++    return true;
++}
++
++/* Exact scope: a compositor submit between jobs, after both physical
++ * latches and the read-only aperture proof. Only two off-screen words are
++ * writable by the trusted indirect buffer. No map or command is exported. */
++static bool probeBootScanoutWrite415()
++{
++    static unsigned attempted;
++    constexpr unsigned slots = (1u << F382_FIRST) | (1u << F382_SECOND);
++    if (!bootScanoutReadOnlyVerified414 || attempted == slots || !sweet_gpu_runtime_ready()) return true;
++    scanout415_lease lease = {};
++    if (!sweet_fb415_acquire(attempted, &lease)) return true;
++    attempted |= 1u << lease.slot;
++
++    constexpr uint64_t page = 4096;
++    constexpr uint64_t tail = F411_SLOT_BYTES - page;
++    constexpr uint64_t offsets[2] = {0, tail};
++    static_assert(F411_VIEW_OFFSET >= sizeof(uint32_t));
++    static_assert(F411_VIEW_OFFSET + (F411_PANEL_HEIGHT - 1) * F411_RENDER_PITCH +
++        F411_PANEL_PITCH <= F411_SLOT_BYTES - sizeof(uint32_t));
++    for (const auto offset : offsets) {
++        IOByteCount length = 0;
++        const uint64_t pa = lease.memory->getPhysicalSegment(offset, &length, kIOMemoryMapperNone);
++        if (pa != lease.physical + offset || length < page) {
++            sweet_fb415_release(&lease, true);
++            IOLog("SWEET F415 GPU WRITE: slot=%u refused-physical-segment\n", lease.slot);
++            return true;
++        }
++    }
++
++    auto *command = IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
++        kIODirectionInOut | kIOMapWriteCombineCache, PAGE_SIZE, PAGE_SIZE);
++    const bool prepared = command && command->prepare() == kIOReturnSuccess;
++    auto *ib = prepared ? static_cast<uint32_t *>(command->getBytesNoCopy()) : nullptr;
++    uint64_t commandPA = 0;
++    const uint64_t address = ib && physicalPage(command, 0, &commandPA) ? reserveAddress(3 * page) : 0;
++    if (!address) {
++        if (prepared) command->complete();
++        if (command) command->release();
++        sweet_fb415_release(&lease, true);
++        IOLog("SWEET F415 GPU WRITE: slot=%u refused-command-allocation\n", lease.slot);
++        return true;
++    }
++
++    auto fail = [&](const char *reason) {
++        // The command, VA reservation and display lease stay owned until reset.
++        sweet_gpu_runtime_stop();
++        sweet_fb415_release(&lease, false);
++        IOLog("SWEET F415 GPU WRITE: slot=%u quarantined-%s\n", lease.slot, reason);
++        return false;
++    };
++    const uint64_t leaves[3] = {commandPA | 0xec3, lease.physical | UINT64_C(0xe43),
++        (lease.physical + tail) | UINT64_C(0xe43)};
++    for (unsigned i = 0; i < 3; ++i)
++        if (*leafAt(address + i * page)) return fail("stale-leaf");
++
++    volatile uint32_t *first = reinterpret_cast<volatile uint32_t *>(lease.cpu);
++    volatile uint32_t *last = reinterpret_cast<volatile uint32_t *>(lease.cpu + F411_SLOT_BYTES - 4);
++    memoryBarrier();
++    const uint32_t savedFirst = *first, savedLast = *last;
++    const uint32_t patternFirst = savedFirst ^ UINT32_C(0x194b07ea);
++    const uint32_t patternLast = savedLast ^ UINT32_C(0xd6c21e35);
++    // Known A619 CP_MEM_WRITE header. The runtime appends its normal EOP.
++    const uint32_t words[] = {0x703d8003u, static_cast<uint32_t>(address + page), 0, patternFirst,
++        0x703d8003u, static_cast<uint32_t>(address + 3 * page - 4), 0, patternLast};
++    memcpy(ib, words, sizeof(words));
++    for (unsigned i = 0; i < 3; ++i) *leafAt(address + i * page) = leaves[i];
++    memoryBarrier();
++    if (!sweet_gpu_runtime_sync()) return fail("publication");
++    for (unsigned i = 0; i < 3; ++i)
++        if (*leafAt(address + i * page) != leaves[i]) return fail("readback");
++
++    const uint32_t count = sizeof(words) / sizeof(words[0]);
++    uint32_t fence = 0;
++    const uint64_t issued = mach_absolute_time();
++    if (sweet_gpu_runtime_issue(&address, &count, 1, &fence) != GGR_OK || !fence ||
++        sweet_gpu_runtime_wait(fence) != GGR_OK) return fail("completion");
++    const uint64_t completed = mach_absolute_time();
++    memoryBarrier();
++    const bool written = *first == patternFirst && *last == patternLast;
++    for (unsigned i = 0; i < 3; ++i) *leafAt(address + i * page) = 0;
++    memoryBarrier();
++    if (!sweet_gpu_runtime_sync()) return fail("removal");
++    for (unsigned i = 0; i < 3; ++i)
++        if (*leafAt(address + i * page)) return fail("cleared-leaf");
++
++    *first = savedFirst;
++    *last = savedLast;
++    memoryBarrier();
++    if (*first != savedFirst || *last != savedLast) return fail("restoration");
++    releaseAddress(address, 3 * page);
++    command->complete();
++    command->release();
++    const uint64_t released = sweet_fb415_release(&lease, true);
++    IOLog("SWEET F415 GPU WRITE: slot=%u physical=%08x fence=%u acquire=%llu issue=%llu eop=%llu release=%llu %s\n",
++        lease.slot, lease.physical, fence, lease.acquired, issued, completed, released,
++        written && released ? "qualified" : "unverified");
++    return true;
++}
+ 
+ struct gpu_buffer {
+     IOMemoryDescriptor *memory;
+@@ -340,7 +592,7 @@
+     gpu_buffer *fPending[GGR_MAX_BUFFERS];
+     gpu_queue *fPendingQueue;
+     uint32_t fPendingCount,fPendingNativeFence,fPendingQueueFence;
+-    uint64_t fPendingDisplayTicket;
++    uint64_t fPendingDisplayTicket, fIssue425Before, fIssue425After;
+     uint32_t fPendingDisplayVersion;
+     bool fClosed, fCompositor, fAsync;
+     gpu_buffer *find(uint32_t);
+@@ -348,7 +600,11 @@
+     IOReturn add(IOMemoryDescriptor *,SweetSurface *,uint64_t,uint32_t,uint32_t *);
+     bool drop(gpu_buffer *);
+     bool retire335(gpu_buffer *);
+-    gpu_buffer *takeCached335(uint64_t,uint32_t);
++    gpu_buffer *takeCached335(uint64_t,uint32_t,bool pending=false);
++    bool pendingOwner397() const;
++    bool disjointPending397(const gpu_buffer &) const;
++    void publishCached397(gpu_buffer *,uint64_t,struct ggr_new &,bool pending);
++    bool reusePending397(struct ggr_new &);
+     bool trimCached335(uint64_t,bool);
+     void cacheState335(void);
+     bool reapClosed(void);
+@@ -397,6 +653,8 @@
+     gMetalBootstrapMode=sweet_metal_desktop_enabled();
+     int mapRequested=0;PE_parse_boot_argn("sweetgpumap",&mapRequested,sizeof(mapRequested));
+     gMapUnrelated=mapRequested==1;
++    gDisplayPerformanceCpus398=gMapUnrelated&&ml_get_max_cpu_number()==7&&
++        ml_get_cpu_number(0x600)==6&&ml_get_cpu_number(0x700)==7;
+     IOLock *lock=IOLockAlloc(),*requests=IOLockAlloc();
+     if(!lock||!requests){if(lock)IOLockFree(lock);if(requests)IOLockFree(requests);return false;}
+     gRequests=requests;
+@@ -442,6 +700,12 @@
+ 
+ /* Display takes an acquire snapshot while holding its own frame references.
+  * A read reservation leaves the completed version visible to observers. */
++extern "C" uint32_t sweet_ca401_declare_target(task_t, uint64_t, uint64_t, uint32_t);
++extern "C" uint32_t sweet_ca401_writer_target(task_t, uint32_t);
++extern "C" bool sweet_fb401_publish_writer(uint32_t, uint32_t, uint32_t, uint64_t);
++extern "C" uint64_t sweet_fb401_seal_writer(uint32_t, uint32_t, uint32_t);
++#include "../../../bsd/dev/gauguin_producer_transport401.h"
++
+ extern "C" uint32_t GauguinGPUSurfaceState(SweetSurface *s)
+ {
+     const uint32_t state = __atomic_load_n(&s->gpuState, __ATOMIC_ACQUIRE);
+@@ -556,7 +820,7 @@
+     if(fCompositor)task_reference(fTask);
+     fNextHandle=1;fNextQueue=1;fBootstrapJobs=0;fAllocationStage=0;fAllocationFailures=0;
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
+-    fPendingDisplayTicket = 0;
++    fPendingDisplayTicket = fIssue425Before = fIssue425After = 0;
+     fPendingDisplayVersion = 0;
+     fCachedBytes=0;fCachedCount=0;fCacheCursor336=0;fCacheEnabled=false;
+     fAsync=false;return true;
+@@ -696,7 +960,7 @@
+ {
+     if(!gapi_frozen&&fCacheEnabled){gCache335.slots=fCachedCount;gCache335.bytes=fCachedBytes;}
+ }
+-gpu_buffer *GauguinGPUUserClient::takeCached335(uint64_t bytes,uint32_t flags)
++gpu_buffer *GauguinGPUUserClient::takeCached335(uint64_t bytes,uint32_t flags,bool pending)
+ {
+     if(!fCacheEnabled||fClosed||!fNextHandle)return nullptr;
+     for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++) {
+@@ -705,11 +969,86 @@
+            !b->installed||b->size!=bytes||b->flags!=flags)continue;
+         if(b->memory->getRetainCount()!=1)continue;
+         if(!OSDynamicCast(IOBufferMemoryDescriptor,b->memory))continue;
++        if(pending&&!disjointPending397(*b))continue;
+         b->cached=false;--fCachedCount;fCachedBytes-=b->mappingSize;
+         cache335_count(&gCache335.hits);cacheState335();return b;
+     }
+-    cache335_count(&gCache335.misses);return nullptr;
+-}
++    /* The pending-only attempt is speculative. The old allocation path
++     * accounts for a miss if it still cannot reuse a BO after completion. */
++    if(!pending)cache335_count(&gCache335.misses);
++    return nullptr;
++}
++
++bool GauguinGPUUserClient::pendingOwner397() const
++{
++    return fPendingCount&&fPendingCount<=GGR_MAX_BUFFERS&&fPendingQueue&&fPendingNativeFence&&fPendingQueueFence&&
++        fPendingQueue->issued==fPendingQueueFence&&fPendingQueue->completed!=UINT32_MAX&&
++        fPendingQueueFence==fPendingQueue->completed+1&&
++        sweet_gpu_runtime_pending_metadata(fPendingNativeFence);
++}
++
++static bool validResidentRange397(const gpu_buffer &buffer)
++{
++    return buffer.mappingSize&&buffer.mappingAddress>=GGR_VA_START&&buffer.mappingAddress<GGR_VA_END&&
++        buffer.mappingSize<=GGR_VA_END-buffer.mappingAddress;
++}
++
++bool GauguinGPUUserClient::disjointPending397(const gpu_buffer &cached) const
++{
++    if(!validResidentRange397(cached)||cached.address!=cached.mappingAddress||cached.size!=cached.mappingSize)
++        return false;
++    for(uint32_t i=0;i<fPendingCount;i++) {
++        const auto *active=fPending[i];
++        if(!active||!active->memory||!active->installed||!active->pending||active->memory==cached.memory||
++           !validResidentRange397(*active))return false;
++        if(cached.mappingAddress<active->mappingAddress+active->mappingSize&&
++           active->mappingAddress<cached.mappingAddress+cached.mappingSize)return false;
++    }
++    return true;
++}
++
++static bool validAllocation397(const struct ggr_new &request)
++{
++    return request.size&&request.size<=GGR_MAX_BO_BYTES&&!request.handle&&
++        !(request.flags&~(GGR_BO_READONLY|GGR_BO_WC));
++}
++
++void GauguinGPUUserClient::publishCached397(gpu_buffer *b,uint64_t bytes,struct ggr_new &request,bool pending)
++{
++    auto *memory=OSDynamicCast(IOBufferMemoryDescriptor,b->memory);
++    gbo333_record(3,1,0,0);
++    io342::phase(0x42,5);
++    bzero(memory->getBytesNoCopy(),(size_t)bytes);memoryBarrier();
++    gbo333_record(4,0,0,0);
++    io342::phase(0x42,11);
++    b->handle=fNextHandle++;request.handle=b->handle;fAllocationStage=0;
++    gbo333_record(5,b->mappingSize,b->handle,request.flags);
++    if(gapi_pending.token&&!gapi_frozen&&gapi_valid)
++        sweet_ui_trace_record(GUT_BO_REUSE335,gapi_pending.token,
++            (uint32_t)proc_pid(current_proc()),1,bytes,b->handle,request.flags);
++    if(pending){
++        cache335_count(&gPendingCache397Hits);
++        if(sweet_frame344_clock())cache335_count(&gPendingCache397CaptureHits);
++    }
++}
++
++bool GauguinGPUUserClient::reusePending397(struct ggr_new &request)
++{
++    /* Both request locks are held. Return only an already installed,
++     * completed ordinary allocation. Fresh backing, eviction, PTE writes
++     * and any wait/reap remain on the original path. */
++    if(!gMapUnrelated||!fCompositor||!fAsync||!fCachedCount||!validAllocation397(request)||
++       !pendingOwner397())return false;
++    const uint64_t bytes=(request.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
++    auto *b=takeCached335(bytes,request.flags,true);
++    if(!b)return false;
++    io342::phase(0x42,3);
++    fAllocationStage=2;
++    gbo333_record(2,bytes,request.flags,0);
++    publishCached397(b,bytes,request,true);
++    return true;
++}
++
+ bool GauguinGPUUserClient::retire335(gpu_buffer *b)
+ {
+     if(!b->memory)return true;
+@@ -790,9 +1129,10 @@
+ }
+ void GauguinGPUUserClient::cancelDisplayWriter()
+ {
++    if (fCompositor) __atomic_store_n(&gauguin_display_thread_398,0,__ATOMIC_RELEASE);
+     clearDisplayProbeTicket(fPendingDisplayTicket);
+     sweet_fb357_finish_writer(fPendingDisplayTicket, fPendingDisplayVersion, 0);
+-    fPendingDisplayTicket = 0;
++    fPendingDisplayTicket = fIssue425Before = fIssue425After = 0;
+ }
+ 
+ IOReturn GauguinGPUUserClient::finishPending(bool wait,bool reap,const struct ggr_timespec *deadline)
+@@ -834,6 +1174,7 @@
+         return rc==GGR_TIMEOUT?kIOReturnTimeout:kIOReturnNotReady;
+     }
+     clearDisplayProbeTicket(fPendingDisplayTicket);
++    const uint64_t observedEop = fPendingDisplayTicket ? sweet_frame419_clock() : 0;
+     sweet_frame344_record(F344_EOP,fence,0,0,0,0);
+     /* Check every retained alias before clearing any surface or pending BO.
+      * A failed late alias must leave the complete submitted set quarantined. */
+@@ -865,6 +1206,10 @@
+     fPendingQueue->completed=fPendingQueueFence;
+     fNativeFence=fPendingNativeFence;
+     sweet_frame344_record(F344_READY,fence,0,0,0,0);
++    if (observedEop)
++        sweet_frame419_record(F419_GPU, fPendingDisplayTicket, fence, fPendingDisplayVersion,
++            observedEop, mach_absolute_time(), f425_issue_bounds(observedEop, fIssue425Before, fIssue425After));
++    fIssue425Before = fIssue425After = 0;
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
+     if (fPendingDisplayTicket) {
+         gCompletedDisplayWrite = {fPendingDisplayTicket, fPendingDisplayVersion, fence};
+@@ -883,6 +1228,7 @@
+         uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
+         uint64_t profile=gapi_begin(0x101,queued,mach_absolute_time());
+         if(!fClosed) {
++            if (fCompositor) __atomic_store_n(&gauguin_display_thread_398,0,__ATOMIC_RELEASE);
+             fClosed=true;bool clean=true;
+             if(fPendingCount&&finishPending(true,true)!=kIOReturnSuccess)clean=false;
+             if(fBuffers)for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
+@@ -935,11 +1281,7 @@
+     trace342.phase(3);
+     const bool fast=gMapUnrelated&&fCompositor&&fAsync&&b&&b->memory&&
+         !b->surface&&!b->pending&&!b->closePending&&
+-        OSDynamicCast(IOBufferMemoryDescriptor,b->memory)!=nullptr&&
+-        fPendingCount&&fPendingCount<=GGR_MAX_BUFFERS&&fPendingQueue&&fPendingNativeFence&&fPendingQueueFence&&
+-        fPendingQueue->issued==fPendingQueueFence&&fPendingQueue->completed!=UINT32_MAX&&
+-        fPendingQueueFence==fPendingQueue->completed+1&&
+-        sweet_gpu_runtime_pending_metadata(fPendingNativeFence);
++        OSDynamicCast(IOBufferMemoryDescriptor,b->memory)!=nullptr&&pendingOwner397();
+     trace342.phase(4);
+     bool waited=false;
+     if(b&&fPendingCount&&!fast){
+@@ -1007,9 +1349,16 @@
+     if((r->flags&~UINT32_C(0x80000010))||(r->flags&0x1f)!=0x10||r->fence||
+        !r->nr_bos||r->nr_bos>GGR_MAX_BUFFERS||!r->nr_cmds||r->nr_cmds>GGR_MAX_COMMANDS||
+        !q||q->issued==UINT32_MAX||r->in_syncobjs||r->out_syncobjs||r->nr_in_syncobjs||
+-       r->nr_out_syncobjs||r->syncobj_stride||r->pad||r->fence_fd!=-1||
++       r->nr_out_syncobjs||r->syncobj_stride||(r->pad&&(!fCompositor||!fAsync))||r->fence_fd!=-1||
+        !ggr_user_span(r->bos,(uint64_t)r->nr_bos*sizeof(struct ggr_submit_bo))||
+        !ggr_user_span(r->cmds,(uint64_t)r->nr_cmds*sizeof(struct ggr_submit_cmd)))return kIOReturnBadArgument;
++    if (fCompositor && fAsync &&
++        (!probeBootScanout414() || !probeBootScanoutWrite415()))
++        return kIOReturnNotReady;
++    const uint32_t producerCookie = r->pad;
++    r->pad = 0;
++    uint32_t producerSurface = producerCookie ? sweet_ca401_writer_target(fTask, producerCookie) : 0;
++    uint32_t producerVersion = 0;
+     auto bos=IONew(struct ggr_submit_bo,r->nr_bos);
+     auto cmds=IONew(struct ggr_submit_cmd,r->nr_cmds);
+     IOReturn result=kIOReturnBadArgument;
+@@ -1081,6 +1430,12 @@
+             }
+         }
+         io342::phase(0x46,9);
++        if (producerSurface) {
++            unsigned surfaceWrites = 0;
++            for (uint32_t i = 0; i < r->nr_bos; ++i)
++                if (resolved[i]->surface && (bos[i].flags & 2u)) ++surfaceWrites;
++            if (surfaceWrites != 1) producerSurface = 0;
++        }
+         const uint64_t displayTicket = fAsync ? sweet_fb352_waiting_ticket() : 0;
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+             gpu_buffer *b=resolved[i];
+@@ -1094,20 +1449,56 @@
+                         fPendingDisplayVersion = version;
+                     }
+                 }
++                if (writer && producerSurface == b->surface->id && !fPendingDisplayTicket) {
++                    const uint32_t version = GauguinGPUSurfaceState(b->surface) & SCAN354_GPU_VERSION;
++                    if (sweet_fb401_publish_writer(producerCookie, producerSurface, version, fPendingDisplayTicket))
++                        producerVersion = version;
++                }
+                 flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
++            }
++        }
++        const uint32_t previousSurface = fAsync && !fPendingDisplayTicket ? sweet_fb391_previous_surface() : 0;
++        if (previousSurface) {
++            // The current swap has priority. An older descriptor is eligible
++            // only when this exact submission writes its expected version.
++            for (uint32_t i = 0; i < r->nr_bos; ++i) {
++                auto *surface = resolved[i]->surface;
++                if (!surface || surface->id != previousSurface || !(bos[i].flags & 2u)) continue;
++                const uint32_t version = GauguinGPUSurfaceState(surface) & SCAN354_GPU_VERSION;
++                const uint64_t previous = sweet_fb391_claim_previous(surface->id,version);
++                if (previous) {
++                    fPendingDisplayTicket = previous;
++                    fPendingDisplayVersion = version;
++                    break;
++                }
+             }
+         }
+         io342::phase(0x46,10);
+         memoryBarrier();uint32_t fence=0;
+         sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);
++        const uint64_t issueBefore = fAsync && (fPendingDisplayTicket || producerVersion) &&
++            sweet_frame425_observing() ? sweet_frame419_clock() : 0;
+         bool ok=fAsync?sweet_gpu_runtime_issue(addresses,words,r->nr_cmds,&fence)==GGR_OK:
+                        sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
++        const uint64_t issueAfter = issueBefore ? mach_absolute_time() : 0;
+         io342::phase(0x46,11);
++        if (producerVersion) {
++            // The pending BO escrow still belongs to this submission.
++            // Seal before reporting the issue or cancelling a failed issue.
++            const uint64_t exact = sweet_fb401_seal_writer(producerCookie, producerSurface, producerVersion);
++            if (exact) {
++                assert(!fPendingDisplayTicket);
++                fPendingDisplayTicket = exact;
++                fPendingDisplayVersion = producerVersion;
++            }
++        }
+         if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;fSubmitDiag327.stage=20;}
+         if(!ok&&fSubmitDiag327.stage!=20)fSubmitDiag327.stage=19;
+         if(fAsync){
+             if(ok){
+                 fPendingNativeFence=fence;r->fence=++q->issued;
++                fIssue425Before = issueBefore;
++                fIssue425After = issueAfter;
+                 result=kIOReturnSuccess; /* issued; BOs/surfaces remain owned */
+             } else {
+                 sweet_gpu_runtime_stop();
+@@ -1131,6 +1522,7 @@
+         memoryBarrier();
+         sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,r->queueid,r->fence,fence);
+         if (ok && fAsync && sweet_frame344_clock()) {
++            if (fCompositor) observeDisplayIssueCpu398(fPendingDisplayTicket);
+             const auto* io = io342::current();
+             sweet_frame344_record(F344_ISSUE,fence,0,io ? io->token() : 0,r->queueid,r->fence);
+             for (uint32_t i = 0; i < r->nr_bos; ++i) {
+@@ -1144,8 +1536,10 @@
+                 }
+             }
+         }
+-        if (ok && fAsync && fPendingDisplayTicket)
++        if (ok && fAsync && fPendingDisplayTicket) {
++            __atomic_store_n(&gIssuedDisplayFence405, fence, __ATOMIC_RELAXED);
+             __atomic_store_n(&gIssuedDisplayProbeTicket, fPendingDisplayTicket, __ATOMIC_RELEASE);
++        }
+     }
+ out:
+     io342::phase(0x46,11);
+@@ -1157,6 +1551,22 @@
+ IOReturn GauguinGPUUserClient::externalMethod(uint32_t selector,IOExternalMethodArguments *a,
+     IOExternalMethodDispatch *,OSObject *,void *)
+ {
++    // Scope query only. It cannot drain the pending GPU or alter BO ownership.
++    if (selector == GGR_DISPLAY_PRODUCER401) {
++        if (!fCompositor || !fAsync || fTask != current_task()) return kIOReturnUnsupported;
++        ggr_display_producer401 request{};
++        if (!a || !a->structureInput || !a->structureOutput ||
++            a->structureInputSize != sizeof(request) || a->structureOutputSize != sizeof(request) ||
++            a->scalarInputCount || a->scalarOutputCount ||
++            a->structureInputDescriptor || a->structureOutputDescriptor) return kIOReturnBadArgument;
++        memcpy(&request, a->structureInput, sizeof(request));
++        if (!request.object || !request.created_tick || !request.surface || request.cookie)
++            return kIOReturnBadArgument;
++        request.cookie = sweet_ca401_declare_target(fTask, request.object, request.created_tick, request.surface);
++        memcpy(a->structureOutput, &request, sizeof(request));
++        a->structureOutputSize = sizeof(request);
++        return kIOReturnSuccess;
++    }
+     if(fCompositor&&current_task()!=fTask)return kIOReturnNotPrivileged;
+     union { struct ggr_param param;struct ggr_new make;struct ggr_info info;
+         struct ggr_cpu_prep prep;struct ggr_cpu_fini fini;struct ggr_close close;
+@@ -1185,6 +1595,7 @@
+     bool passive=selector==0x09||selector==0x43||selector==0x44||
+                  selector==0x45||selector==0x47||selector==0x48;
+     if(fClosed||!fBuffers||gOwner!=this){result=kIOReturnNotReady;goto out;}
++    if(selector==0x42&&reusePending397(r.make)){result=kIOReturnSuccess;goto out;}
+     if(fAsync&&fPendingCount&&!passive){
+         result=finishPending(true,true);
+         if(result!=kIOReturnSuccess){if(selector==0x46)fSubmitDiag327.stage=2;goto out;}
+@@ -1200,22 +1611,12 @@
+     case 0x42: {
+         io342::phase(0x42,3);
+         fAllocationStage=1; /* request flags/shape */
+-        if(!r.make.size||r.make.size>GGR_MAX_BO_BYTES||r.make.handle||(r.make.flags&~(GGR_BO_READONLY|GGR_BO_WC)))break;
++        if(!validAllocation397(r.make))break;
+         uint64_t n=(r.make.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
+         fAllocationStage=2; /* backing IOBuffer allocation */
+         gbo333_record(2,n,0,0);
+         if(gpu_buffer *b=takeCached335(n,r.make.flags)) {
+-            auto *m=OSDynamicCast(IOBufferMemoryDescriptor,b->memory);
+-            gbo333_record(3,1,0,0);
+-            io342::phase(0x42,5);
+-            bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
+-            gbo333_record(4,0,0,0);
+-            io342::phase(0x42,11);
+-            b->handle=fNextHandle++;r.make.handle=b->handle;fAllocationStage=0;
+-            gbo333_record(5,b->mappingSize,b->handle,b->flags);
+-            if(gapi_pending.token&&!gapi_frozen&&gapi_valid)
+-                sweet_ui_trace_record(GUT_BO_REUSE335,gapi_pending.token,
+-                    (uint32_t)proc_pid(current_proc()),1,n,b->handle,b->flags);
++            publishCached397(b,n,r.make,false);
+             result=kIOReturnSuccess;break;
+         }
+         if(fCacheEnabled&&!trimCached335(n,false)){
+diff --git a/iokit/Kernel/arm/Kernel342.hpp b/iokit/Kernel/arm/Kernel342.hpp
+--- a/iokit/Kernel/arm/Kernel342.hpp
++++ b/iokit/Kernel/arm/Kernel342.hpp
+@@ -82,13 +82,15 @@
+ };
+ inline void formatRow(Line& line,const Row& r,unsigned i) noexcept {
+     const auto& p=r.phases;line.used=0;line.ok=true;line.data[0]=0;line.word("SWEET IO342: row");
+-    line.field(" index=",i);line.field(" token=",r.token);line.field(" pid=",r.pid);line.field(" tid=",r.tid);
+-    line.field(" selector=",r.selector);line.field(" queue=",r.queue);line.field(" fence=",r.fence);
+-    line.field(" handle=",r.handle);line.field(" bytes=",r.bytes);line.field(" bos=",r.bos);line.field(" cmds=",r.cmds);
+-    line.field(" result=",r.result);line.field(" first_ns=",p.first);line.field(" last_ns=",p.last);
+-    line.field(" query_ns=",p.queryWall);line.field(" queries=",p.queries);line.field(" mask=",p.mask);
+-    line.field(" flags=",p.flags);line.field(" wait_ns=",r.waitNs);line.field(" waits=",r.waits);
+-    line.array(" begin=",p.begin);line.array(" end=",p.end);line.array(" cpu=",p.cpu);line.array(" envelope=",p.envelope);
++    // Version 2 keeps the original field order and widths. The header
++    // identifies positional rows so the names can be dropped from each row.
++    line.field(" ",i);line.field(" ",r.token);line.field(" ",r.pid);line.field(" ",r.tid);
++    line.field(" ",r.selector);line.field(" ",r.queue);line.field(" ",r.fence);
++    line.field(" ",r.handle);line.field(" ",r.bytes);line.field(" ",r.bos);line.field(" ",r.cmds);
++    line.field(" ",r.result);line.field(" ",p.first);line.field(" ",p.last);
++    line.field(" ",p.queryWall);line.field(" ",p.queries);line.field(" ",p.mask);
++    line.field(" ",p.flags);line.field(" ",r.waitNs);line.field(" ",r.waits);
++    line.array(" ",p.begin);line.array(" ",p.end);line.array(" ",p.cpu);line.array(" ",p.envelope);
+ }
+ // One atomic reservation in the EXISTING persistent RAM ring per complete
+ // line. Bypass console_write's256-byte chunks; the next original BC335
+@@ -113,7 +115,7 @@
+     const bool byteLimited=rowBytes>dumpByteLimit-4096;
+     if(byteLimited)invalid=true;
+     line.used=0;line.ok=true;line.data[0]=0;
+-    line.word("SWEET IO342: begin version=1");line.field(" first_ns=",windowFirst);
++    line.word("SWEET IO342: begin version=2");line.field(" first_ns=",windowFirst);
+     line.field(" last_ns=",windowLast);line.field(" count=",count);line.field(" capacity=",capacity);
+     line.field(" lost=",lost);line.field(" pending=",active!=nullptr);line.field(" invalid=",invalid);
+     line.field(" row_bytes=",rowBytes);line.field(" byte_limit=",dumpByteLimit);
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -46,11 +46,15 @@
+ #include "../../../bsd/dev/gauguin_calibration357.h"
+ #include "../../../bsd/dev/gauguin_probe358.h"
+ #include "../../../bsd/dev/gauguin_copy379_probe.h"
++#include "../../../bsd/dev/gauguin_linear_scanout411.h"
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ #include "../../../bsd/dev/gauguin_frame380_phase.h"
+ #include "../../../bsd/dev/gauguin_frame387_preview.h"
+ #include "../../../bsd/dev/gauguin_frame388_receipts.h"
++#include "../../../bsd/dev/gauguin_scanout_write415.h"
+ #include "../../../bsd/dev/gauguin_page_flip.h"
++#include "../../../bsd/dev/gauguin_sustain417.h"
++#include "../../../bsd/dev/gauguin_deadlines419.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+@@ -422,11 +426,14 @@
+ /* A waiting swap, a ready candidate and an active copy own independent
+  * display references. Owner pointers are only compared under fLock. */
+ extern "C" uint32_t GauguinGPUSurfaceState(SweetSurface *);
++extern "C" uint32_t sweet_ca401_swap_cookie(uint32_t);
++#include "../../../bsd/dev/gauguin_display_writer401.h"
++#include "../../../bsd/dev/gauguin_display_previous404.h"
+ extern "C" uint64_t GauguinGPUDisplayProbeTicket(void);
+ extern "C" uint32_t GauguinGPUSurfaceReadyFence(SweetSurface *, uint64_t, uint32_t, uint32_t *);
+ 
+ struct sweet_fb_flip382 {
+-    enum { Idle, Copying, Ready, Pending, Quarantined };
++    enum { Idle, Copying, Ready, Pending, Quarantined, GPUProbe };
+     unsigned stage, front, next, copies;
+     uint32_t scan;
+     uint64_t attempt, issueTick, stageEpoch;
+@@ -449,6 +456,7 @@
+     SweetSurface *surfaces[SWEET_FB_LAYERS];
+     uint64_t generation;
+ };
++static uint64_t requestedPresentation375(const uint8_t *record);
+ static void sweet_fb_frame_release(struct sweet_fb_frame *);
+ static void sweet_fb_frame_move(struct sweet_fb_frame *, struct sweet_fb_frame *);
+ static void sweet_fb_frame_retire(struct sweet_fb_retired *, struct sweet_fb_frame *);
+@@ -503,10 +511,13 @@
+     void attachReadyEvent();
+     void clearReadyTicketLocked();
+     uint64_t watchPendingReadyLocked();
++    bool bindBusyProducer401Locked(uint32_t cookie, uint32_t observed, uint32_t swapID,
++        uint32_t mask, uint64_t &packedSurface);
+     bool collectIssuedLocked(bool polled, struct sweet_fb_retired *retired);
+     uint64_t pendingTicketLocked() const;
+     struct sweet_fb_frame *boundFrameLocked(unsigned, uint64_t);
+-    void replacePendingLocked(struct sweet_fb_retired *retired);
++    void replacePendingLocked(const struct sweet_fb_frame &next, struct sweet_fb_retired *retired,
++        struct sweet_fb_retired *previous);
+     unsigned calibrate357(unsigned step, uint32_t frame);
+     IOWorkLoop *fStage384Loop;
+     IOInterruptEventSource *fStage384Event;
+@@ -516,10 +527,13 @@
+     bool stage384CanTakeLocked() const;
+     void signalStage384Locked();
+     static void stage384Fired(OSObject *, IOInterruptEventSource *, int);
+-    void flip382Poll(uint32_t scan);
+-    void flip382AdvanceLocked(uint32_t scan);
++    bool acquireScanoutProbe415(unsigned, scanout415_lease *);
++    uint64_t releaseScanoutProbe415(bool);
++    bool flip382EndingLocked() const;
++    unsigned flip382Poll(uint32_t scan);
++    void flip382AdvanceLocked(uint32_t scan, bool fromStaging = false);
+     uintptr_t flip382Begin(const struct sweet_fb_frame *, uint64_t, uint64_t, bool, bool *);
+-    void flip382Finish(const struct sweet_fb_frame *, uint64_t, uint64_t);
++    void flip382Finish(const struct sweet_fb_frame *, uint64_t attempt, uint64_t staged, uint64_t copyBegin);
+     struct sweet_fb_flip382 fFlip382;
+     void deliverFrameInfo375Locked(uint64_t now);
+     void queueFrameInfo375(const struct sweet_fb_frame *, uint64_t blankFrame, uint64_t checked);
+@@ -548,7 +562,7 @@
+     void configurePresentClock(void);
+     bool presentClockTickLocked(uint64_t now, uint64_t *elapsed, bool *copy); /* fLock held */
+     void presentClockCopiedLocked(void); /* fLock held */
+-    struct sweet_fb_frame fHeldPending, fHeldIssued[SCAN357_WRITERS], fHeldReady;
++    struct sweet_fb_frame fHeldPending, fHeldPrevious, fHeldIssued[SCAN357_WRITERS], fHeldReady;
+     uint64_t fHeldLastTaken;
+     uint64_t fHeldSubmitted, fHeldReplaced, fHeldConsumed, fHeldRetired, fHeldCanceled, fHeldRejected;
+     uint64_t fHeldRejectReasons[8]; /* 1 owner-null, 2 mask, 3..6 surface layer, 7 unregistered */
+@@ -572,7 +586,7 @@
+ 	bool present(const uint8_t *rec, SweetSurface *const *held = NULL,
+         uint64_t blankFrame = UINT64_MAX, uint64_t retryTicket = 0,
+         uint32_t version = UINT32_MAX, uint64_t attempt = 0, bool *stale = nullptr,
+-        uint64_t *verifiedFullCopy = nullptr, uintptr_t flipDst = 0);
++        uint64_t *verifiedFullCopy = nullptr, uintptr_t flipDst = 0, uint64_t *privateCopyBegin = nullptr);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
+@@ -592,11 +606,39 @@
+ static IOInterruptEventSource *gReadySource;
+ static SweetReadySignal gReadySignal;
+ static uint64_t gReadyTicket;
++static uint64_t gPreviousTicket;
++static uint32_t gPreviousVersion;                   /* gReadyLock */
+ static uint32_t gReadyVersion;              /* gReadyLock */
+ static bool gReadyRetainsIssued;
+ static struct scan357_writer gReadyWriters[SCAN357_WRITERS]; /* gReadyLock */
+ static struct scan358_probe_slot gReadyProbe;                /* gReadyLock */
+ static AppleCLCD *gReadyDisplay;                             /* gReadyLock */
++static display401_writer gBusyDisplayWriter401;               /* gReadyLock */
++
++extern "C" bool
++sweet_fb401_publish_writer(uint32_t cookie, uint32_t surface, uint32_t version, uint64_t existing)
++{
++    if (!cookie || !__atomic_load_n(&gReadyRetainsIssued, __ATOMIC_ACQUIRE)) return false;
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!lock) return false;
++    IOLockLock(lock);
++    const bool published = gReadySource && sweet_frame351_window() &&
++        display401_publish(&gBusyDisplayWriter401, cookie, surface, version, existing);
++    IOLockUnlock(lock);
++    return published;
++}
++
++extern "C" uint64_t
++sweet_fb401_seal_writer(uint32_t cookie, uint32_t surface, uint32_t version)
++{
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!lock) return 0;
++    IOLockLock(lock);
++    const uint64_t ticket = display401_seal(&gBusyDisplayWriter401, cookie, surface, version);
++    IOLockUnlock(lock);
++    return ticket;
++}
++
+ 
+ extern "C" uint64_t
+ sweet_fb352_waiting_ticket(void)
+@@ -634,6 +676,30 @@
+     if (bound) sweet_frame344_record(F357_BOUND, ticket >> 32, 0, ticket, version, 0);
+     IOLockUnlock(lock);
+     return bound;
++}
++
++extern "C" uint32_t
++sweet_fb391_previous_surface(void)
++{
++    return (uint32_t)__atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE);
++}
++
++extern "C" uint64_t
++sweet_fb391_claim_previous(uint32_t surface, uint32_t version)
++{
++    if (!surface || !__atomic_load_n(&gReadyRetainsIssued, __ATOMIC_ACQUIRE)) return 0;
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    IOLockLock(lock);
++    const uint64_t ticket = __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE);
++    const bool claimed = gReadySource && sweet_frame351_window() && (uint32_t)ticket == surface &&
++        display404_previous_allowed(&gBusyDisplayWriter401, surface, version) &&
++        scan357_claim(gReadyWriters, ticket, gPreviousVersion, version);
++    if (claimed) {
++        display404_previous_claimed(&gBusyDisplayWriter401, surface, version);
++        sweet_frame344_record(F357_BOUND, ticket >> 32, 1, ticket, version, 0);
++    }
++    IOLockUnlock(lock);
++    return claimed ? ticket : 0;
+ }
+ 
+ extern "C" void
+@@ -673,6 +739,8 @@
+     IOMemoryMap *mapping[2];
+ } scanout383;
+ 
++extern "C" bool sweet_frame411_padded(void);
++
+ /* The private descriptors are never published as IOSurfaces. This is the
+  * same VM mapping path as the inherited front framebuffer. */
+ extern "C" void
+@@ -687,7 +755,8 @@
+ extern "C" bool
+ sweet_fb383_map(uint32_t first, uint32_t bytes, uintptr_t address[2])
+ {
+-    if (bytes != F382_SLOT_BYTES || scanout383.memory[0] || scanout383.memory[1])
++    if ((bytes != F382_SLOT_BYTES && bytes != F411_SLOT_BYTES) ||
++        scanout383.memory[0] || scanout383.memory[1])
+         return false;
+     uintptr_t result[2] = {};
+     for (unsigned i = 0; i < 2; ++i) {
+@@ -707,17 +776,95 @@
+     return true;
+ }
+ 
+-extern "C" void
+-sweet_fb382_poll(uint32_t frame)
++extern "C" bool sweet_frame414_reserved_physical(uint32_t [2]);
++
++extern "C" bool
++sweet_fb414_reserved_descriptors(IOMemoryDescriptor *memory[2], uint32_t physical[2])
++{
++    if (!sweet_frame414_reserved_physical(physical)) return false;
++    if (!scanout383.memory[0] || !scanout383.memory[1]) return false;
++    memory[0] = scanout383.memory[0];
++    memory[1] = scanout383.memory[1];
++    return true;
++}
++
++extern "C" bool sweet_frame415_front_confirmed(unsigned front);
++
++bool AppleCLCD::acquireScanoutProbe415(unsigned attempted, scanout415_lease *lease)
++{
++    if (!IOLockTryLock(fLock)) return false;
++    const unsigned front = fFlip382.front;
++    const unsigned slot = front == F382_FIRST ? F382_SECOND : F382_FIRST;
++    const unsigned index = slot - F382_FIRST;
++    uint32_t physical[2] = {};
++    const bool idle = !fFlip382.closed && fFlip382.stage == sweet_fb_flip382::Idle &&
++        !fHeldStopped && !fPowerOff && !fCalibrating && !fHeldActive && !fHeldReady.owner &&
++        !flip382EndingLocked() && !(attempted & (1u << slot));
++    const uintptr_t cpu = idle ? sweet_frame382_buffer(slot) : 0;
++    const bool acquired = cpu && sweet_frame414_reserved_physical(physical) &&
++        scanout383.memory[index] && scanout383.memory[index]->getLength() == F411_SLOT_BYTES &&
++        sweet_frame415_front_confirmed(front);
++    if (acquired) {
++        auto *memory = scanout383.memory[index];
++        memory->retain();
++        fFlip382.stage = sweet_fb_flip382::GPUProbe;
++        *lease = {this, memory, cpu, physical[index], slot, mach_absolute_time()};
++    }
++    IOLockUnlock(fLock);
++    return acquired;
++}
++
++uint64_t AppleCLCD::releaseScanoutProbe415(bool reusable)
++{
++    IOLockLock(fLock);
++    uint64_t released = 0;
++    if (fFlip382.stage == sweet_fb_flip382::GPUProbe) {
++        fFlip382.stage = reusable ? sweet_fb_flip382::Idle : sweet_fb_flip382::Quarantined;
++        if (reusable) {
++            released = mach_absolute_time();
++            signalStage384Locked();
++        }
++    }
++    IOLockUnlock(fLock);
++    return released;
++}
++
++extern "C" bool sweet_fb415_acquire(unsigned attempted, scanout415_lease *lease)
+ {
+     IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+-    if (!lock || !IOLockTryLock(lock)) return;
++    if (!lock || !IOLockTryLock(lock)) return false;
+     auto *display = gReadyDisplay;
+     if (display) display->retain();
+     IOLockUnlock(lock);
+-    if (!display) return;
+-    display->flip382Poll(frame);
++    if (!display) return false;
++    if (display->acquireScanoutProbe415(attempted, lease)) return true;
+     display->release();
++    return false;
++}
++
++extern "C" uint64_t sweet_fb415_release(const scanout415_lease *lease, bool reusable)
++{
++    auto *display = static_cast<AppleCLCD *>(lease->display);
++    const uint64_t released = display->releaseScanoutProbe415(reusable);
++    if (reusable) {
++        lease->memory->release();
++        display->release();
++    }
++    return released;
++}
++
++extern "C" unsigned
++sweet_fb382_poll(uint32_t frame)
++{
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!lock || !IOLockTryLock(lock)) return F382_DRAIN_WAIT;
++    auto *display = gReadyDisplay;
++    if (display) display->retain();
++    IOLockUnlock(lock);
++    if (!display) return F382_DRAIN_WAIT;
++    const unsigned state = display->flip382Poll(frame);
++    display->release();
++    return state;
+ }
+ 
+ extern "C" unsigned
+@@ -881,6 +1028,7 @@
+     fHoldPresent = held == 1;
+     fHeldActive = fHeldStopped = false;
+     bzero(&fHeldPending, sizeof(fHeldPending));
++    bzero(&fHeldPrevious, sizeof(fHeldPrevious));
+     bzero(fHeldIssued, sizeof(fHeldIssued));
+     bzero(&fHeldReady, sizeof(fHeldReady));
+     fHeldLastTaken = 0;
+@@ -899,7 +1047,9 @@
+     PE_parse_boot_argn("sweetfb_hz", &hz375, sizeof(hz375));
+     PE_parse_boot_argn("sweetnvt", &physical387, sizeof(physical387));
+     const bool preview = f387_physical_profile(statsRequested, swipe375, physical387, hz375);
+-    fFrameInfo375 = fHoldPresent && statsRequested == 9 && (swipe375 == 4 || preview) && hz375 == 60;
++    const bool sustained = f417_profile(statsRequested, swipe375, physical387, hz375);
++    fFrameInfo375 = fHoldPresent && statsRequested == 9 && hz375 == 60 &&
++        (swipe375 == 4 || preview || sustained);
+     fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
+     fFlip382 = {};
+     fStage384Loop = nullptr;
+@@ -957,7 +1107,18 @@
+     }
+     if (fFrameInfo375 && fPhasePresent) {
+         uint32_t workUs = 0;
+-        PE_parse_boot_argn("sweet_ca_work_us", &workUs, sizeof(workUs));
++        if (!PE_parse_boot_argn("sweet_ca_work_us", &workUs, sizeof(workUs))) {
++            // The bounded scripted profile uses the independently replayed
++            // work duration. Keep the inherited default for other profiles.
++            uint32_t script = 0, mode = 0, rate = 0, physical = 0, gpu = 0;
++            PE_parse_boot_argn("swp", &script, sizeof(script));
++            PE_parse_boot_argn("sweetfb_stats", &mode, sizeof(mode));
++            PE_parse_boot_argn("sweetfb_hz", &rate, sizeof(rate));
++            PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
++            PE_parse_boot_argn("gpf", &gpu, sizeof(gpu));
++            if (script == 4 && mode == 9 && rate == 60 && !physical && gpu == 5)
++                workUs = 7200;
++        }
+         if (workUs > 0 && workUs <= 32000) {
+             nanoseconds_to_absolutetime((uint64_t)workUs * 1000, &fCAWorkTicks);
+             IOLog("SWEET F388 DISPATCH: work_us=%u\n", workUs);
+@@ -1051,7 +1212,7 @@
+     IOInterruptEventSource *staging = nullptr;
+     IOWorkLoop *stagingLoop = nullptr;
+     IOTimerEventSource *cadence = nullptr;
+-    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+     if (fLock) {
+         IOLockLock(fLock);
+         event = fReadyEvent;
+@@ -1086,6 +1247,7 @@
+         IOLockLock(lock);
+         gReadySource = nullptr;
+         gReadyDisplay = nullptr;
++        __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
+         gReadySignal = {};
+         gReadyProbe = {};
+         __atomic_store_n(&gReadyRetainsIssued, false, __ATOMIC_RELEASE);
+@@ -1182,28 +1344,78 @@
+     if (fHeldIssued[i].owner &&
+         scan352_ticket(fHeldIssued[i].generation, fHeldIssued[i].surfaces[0]->id) == ticket)
+         return &fHeldIssued[i];
++    if (ticket && ticket == __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE)) return &fHeldPrevious;
+     return ticket == pendingTicketLocked() ? &fHeldPending : nullptr;
+ }
+ 
+-/* A new swap may replace only a descriptor the driver hasn't claimed.
+- * A claim and the replacement decision use the same publication lock. */
++/* Keep one older pending surface until its writer binds or one more swap
++ * arrives. The publication lock orders replacement and native claims. */
+ void
+-AppleCLCD::replacePendingLocked(struct sweet_fb_retired *retired)
+-{
+-    unsigned bound = SCAN357_NONE;
++AppleCLCD::replacePendingLocked(const struct sweet_fb_frame &next, struct sweet_fb_retired *retired,
++    struct sweet_fb_retired *previous)
++{
+     if (fReadyAcrossFrames && fReadyEvent) {
+         IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+         IOLockLock(lock);
++        if (fHeldPrevious.owner) {
++            const unsigned bound = scan357_find(gReadyWriters, __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE));
++            __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
++            if (bound != SCAN357_NONE) {
++                sweet_fb_frame_move(&fHeldIssued[bound], &fHeldPrevious);
++            } else {
++                sweet_fb_frame_retire(previous, &fHeldPrevious);
++                ++fHeldReplaced;
++            }
++        }
++        const uint64_t ticket = pendingTicketLocked();
++        const unsigned bound = scan357_find(gReadyWriters, ticket);
++        const bool keep = stage384EnabledLocked() && blankEnabledLocked() && fHeldPending.owner == next.owner &&
++            scan354_single_surface(get32(next.record,0x104),next.surfaces[0] != nullptr) &&
++            scan354_single_surface(get32(fHeldPending.record,0x104),fHeldPending.surfaces[0] != nullptr) &&
++            scan391_keep(ticket, fHeldPending.surfaceVersion, next.surfaces[0]->id);
+         clearReadyTicketLocked();
+-        bound = scan357_find(gReadyWriters, pendingTicketLocked());
++        if (bound != SCAN357_NONE) {
++            sweet_fb_frame_move(&fHeldIssued[bound], &fHeldPending);
++        } else if (keep) {
++            sweet_fb_frame_move(&fHeldPrevious,&fHeldPending);
++            gPreviousVersion = fHeldPrevious.surfaceVersion;
++            __atomic_store_n(&gPreviousTicket, ticket, __ATOMIC_RELEASE);
++        }
+         IOLockUnlock(lock);
+     }
+-    if (bound != SCAN357_NONE)
+-        sweet_fb_frame_move(&fHeldIssued[bound], &fHeldPending);
+-    else {
++    if (fHeldPending.owner) {
+         sweet_fb_frame_retire(retired, &fHeldPending);
+         ++fHeldReplaced;
+     }
++}
++
++bool
++AppleCLCD::bindBusyProducer401Locked(uint32_t cookie, uint32_t observed, uint32_t swapID,
++    uint32_t mask, uint64_t &packedSurface)
++{
++    if (!fReadyEvent || !waitingForReadyLocked() || !stage384EnabledLocked()) return false;
++    auto *surface = fHeldPending.surfaces[0];
++    const uint32_t version = observed & SCAN354_GPU_VERSION;
++    const uint64_t ticket = pendingTicketLocked();
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    IOLockLock(lock);
++    const bool exact = gReadySource && sweet_frame351_window() && GauguinGPUSurfaceState(surface) == observed &&
++        display401_matches(&gBusyDisplayWriter401, cookie, surface->id, version) &&
++        scan357_claim(gReadyWriters, ticket, version, version);
++    if (exact) {
++        const bool claimed = display401_claim(&gBusyDisplayWriter401, cookie, ticket, version);
++        assert(claimed);
++        (void)claimed;
++        fHeldPending.surfaceVersion = version;
++        packedSurface = (uint64_t)version << 32 | surface->id;
++        fReadyGeneration = fHeldPending.generation;
++        gReadyVersion = version;
++        __atomic_store_n(&gReadyTicket, ticket, __ATOMIC_RELEASE);
++        sweet_frame344_record(F344_SWAP, fHeldSubmitted, 0, swapID, mask, packedSurface);
++        sweet_frame344_record(F357_BOUND, ticket >> 32, 2, ticket, version, cookie);
++    }
++    IOLockUnlock(lock);
++    return exact;
+ }
+ 
+ uint64_t
+@@ -1236,6 +1448,7 @@
+         const struct scan357_writer writer = gReadyWriters[index];
+         auto *candidate = boundFrameLocked(index, writer.ticket);
+         if (candidate == &fHeldPending) clearReadyTicketLocked();
++        if (candidate == &fHeldPrevious) __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
+         gReadyWriters[index] = {};
+         IOLockUnlock(lock);
+         if (!candidate) continue;
+@@ -1260,9 +1473,11 @@
+         sweet_fb_frame_move(&fHeldReady, candidate);
+         sweet_frame344_record(F353_READY, generation, polled, surfaceID, writer.fence, observedFrame);
+         sweet_frame344_record(F354_PROMOTE, generation, 0, retired[done].generation, version, surfaceID);
++        sweet_frame419_record(F419_PROMOTE, writer.ticket, writer.fence, version, generation,
++            observedFrame, requestedPresentation375(fHeldReady.record));
+         marked = true;
+     }
+-    fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    fDirty = fHeldPending.owner || fHeldPrevious.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
+     if (marked) signalStage384Locked();
+     return marked;
+ }
+@@ -1500,6 +1715,7 @@
+                 fb->notifyVsyncLocked(tick, 1);
+                 sweet_frame380_notice(F380_ALIGNED, tick, &pulse);
+                 sweet_frame388_notice(F380_ALIGNED, tick, &dispatch);
++                sweet_frame419_record(F419_DISPATCH, pulse.scan, 0, 0, pulse.edge, dispatch.ready, tick);
+             } else {
+                 sweet_frame380_notice(F380_MISSED, tick, nullptr);
+                 sweet_frame388_notice(F380_MISSED, tick, nullptr);
+@@ -1635,7 +1851,7 @@
+ #endif
+     if (fb->fPowerOff) {
+ #if defined(GAUGUIN)
+-        struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++        struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+         fb->cancelHeldFramesLocked(&waiting, &ready, issued, nullptr);
+ #endif
+ 		/* Fade out: halve every channel each vsync, then black, then idle. */
+@@ -1973,7 +2189,7 @@
+     --fFrameInfo375Size;
+     if (!captured || fPowerOff) return;
+     IOReturn code = kIOReturnNotReady;
+-    if (fFrameInfo375Sends < F375_INFO_LIMIT) {
++    if (fFrameInfo375Sends < sweet_frame382_copy_limit()) {
+         for (unsigned i = 0; i < fClients->getCount(); ++i) {
+             auto *client = static_cast<IOMobileFramebufferUserClient *>(fClients->getObject(i));
+             if (client->fFrameInfo375ID != copy.owner) continue;
+@@ -2006,7 +2222,7 @@
+     fStage384Event = event;
+     event->enable();
+     IOLockUnlock(fLock);
+-    IOLog("SWEET F384 WORKER: separate=1 copies=%u\n", F382_MAX_FLIPS);
++    IOLog("SWEET F384 WORKER: separate=1 copies=%u\n", sweet_frame382_copy_limit());
+ }
+ 
+ bool
+@@ -2021,8 +2237,7 @@
+     return stage384EnabledLocked() && fHeldReady.owner && fHeldReady.ready.observed &&
+         blankEnabledLocked() &&
+         !fHeldActive && !fCalibrating && fFlip382.stage == sweet_fb_flip382::Idle &&
+-        fFlip382.copies < F382_MAX_FLIPS && mach_absolute_time() >= fStage384PauseUntil &&
+-        !sweet_frame382_ending();
++        mach_absolute_time() >= fStage384PauseUntil && !flip382EndingLocked();
+ }
+ 
+ void
+@@ -2045,20 +2260,36 @@
+     if (!taken) return;
+     fb->presentTimed(frame.record, &frame, attempt, UINT64_MAX, true);
+     IOLockLock(fb->fLock);
++    // The staging barrier and frame release are complete. If the blanking
++    // window is still open, the same serialized flip path can publish now.
++    if (fb->fFlip382.stage == sweet_fb_flip382::Ready && fb->fFlip382.attempt == attempt) {
++        struct scan351_position position;
++        if (sweet_frame351_position(&position)) fb->flip382AdvanceLocked(position.frame, true);
++    }
+     if (fb->fHeldReady.generation > generation) fb->signalStage384Locked();
+     IOLockUnlock(fb->fLock);
+ }
+ 
++bool
++AppleCLCD::flip382EndingLocked() const
++{
++    return fFlip382.copies >= sweet_frame382_copy_limit() || sweet_frame382_ending();
++}
++
++unsigned
++AppleCLCD::flip382Poll(uint32_t scan)
++{
++    if (!IOLockTryLock(fLock)) return F382_DRAIN_WAIT;
++    flip382AdvanceLocked(scan);
++    unsigned state = F382_DRAIN_WAIT;
++    if (fFlip382.closed) state = F382_DRAIN_DONE;
++    else if (fFlip382.stage == sweet_fb_flip382::Quarantined) state = F382_DRAIN_QUARANTINED;
++    IOLockUnlock(fLock);
++    return state;
++}
++
+ void
+-AppleCLCD::flip382Poll(uint32_t scan)
+-{
+-    if (!IOLockTryLock(fLock)) return;
+-    flip382AdvanceLocked(scan);
+-    IOLockUnlock(fLock);
+-}
+-
+-void
+-AppleCLCD::flip382AdvanceLocked(uint32_t scan)
++AppleCLCD::flip382AdvanceLocked(uint32_t scan, bool fromStaging)
+ {
+     auto &flip = fFlip382;
+     if (flip.closed || flip.stage == sweet_fb_flip382::Quarantined) return;
+@@ -2088,11 +2319,15 @@
+         }
+         flip.receipt = {};
+         flip.closed = flip.front == F382_FRONT;
++        if (flip.closed)
++            IOLog("SWEET F416 FRONT: copies=%u consumed=%llu\n", flip.copies, fHeldConsumed);
+         signalStage384Locked();
+         return;
+     }
+-    if (fHeldActive || fCalibrating || flip.stage == sweet_fb_flip382::Copying) return;
+-    if (sweet_frame382_ending()) {
++    if (fHeldActive || fCalibrating || flip.stage == sweet_fb_flip382::Copying ||
++        flip.stage == sweet_fb_flip382::GPUProbe) return;
++    if (flip382EndingLocked()) {
++        if (fromStaging) return;
+         if (flip.front == F382_FRONT) {
+             flip.closed = true;
+             return;
+@@ -2114,7 +2349,8 @@
+     if (result == F382_TOUCHED) {
+         flip.issueTick = mach_absolute_time();
+         flip.stage = sweet_fb_flip382::Pending;
+-        IOLog("SWEET F382 I %llu %u %u %llu\n",flip.attempt,flip.scan,flip.next,flip.issueTick);
++        IOLog("SWEET F382 I %llu %u %u %llu%s\n",flip.attempt,flip.scan,flip.next,flip.issueTick,
++            fromStaging ? " C" : "");
+     } else if (result != F382_WAIT) {
+         flip.stage = sweet_fb_flip382::Quarantined;
+         IOLog("SWEET F382 STOP: uncertain-request front=%u next=%u scan=%u\n",flip.front,flip.next,scan);
+@@ -2133,8 +2369,7 @@
+     auto &flip = fFlip382;
+     uintptr_t dst = 0;
+     if (!flip.closed) {
+-        if (flip.stage != sweet_fb_flip382::Idle || sweet_frame382_ending() ||
+-            flip.copies >= F382_MAX_FLIPS || fHeldStopped || fPowerOff ||
++        if (flip.stage != sweet_fb_flip382::Idle || flip382EndingLocked() || fHeldStopped || fPowerOff ||
+             (early && (!fHeldRetryEpoch || frame->retryEpoch != fHeldRetryEpoch))) {
+             *blocked = true;
+         } else if ((!early && blankFrame == UINT64_MAX) || !attempt || !frame->ready.observed ||
+@@ -2162,7 +2397,7 @@
+ }
+ 
+ void
+-AppleCLCD::flip382Finish(const struct sweet_fb_frame *frame, uint64_t attempt, uint64_t staged)
++AppleCLCD::flip382Finish(const struct sweet_fb_frame *frame, uint64_t attempt, uint64_t staged, uint64_t copyBegin)
+ {
+     IOLockLock(fLock);
+     auto &flip = fFlip382;
+@@ -2173,6 +2408,9 @@
+         if (staged)
+             IOLog("SWEET F%u P %llu %u %llu\n",flip.stageEpoch ? 384u : 382u,attempt,flip.next,staged);
+         const uint64_t target = requestedPresentation375(frame->record);
++        if (staged && copyBegin)
++            sweet_frame419_record(F419_COPY, attempt, frame->surfaces[0]->id, frame->surfaceVersion,
++                frame->generation, target, copyBegin);
+         uint64_t separation = 0;
+         if (target && staged)
+             absolutetime_to_nanoseconds(staged > target ? staged - target : target - staged, &separation);
+@@ -2198,14 +2436,15 @@
+     const uint64_t retryTicket = fReadyRequested && !fReadyAcrossFrames && blankFrame != UINT64_MAX ?
+         scan352_ticket(frameAttempt, frame->surfaces[0]->id) : 0;
+     bool stale = false;
+-    uint64_t verifiedFullCopy = 0;
++    uint64_t verifiedFullCopy = 0, privateCopyBegin = 0;
+     const uint32_t version = frame->ready.observed ? frame->surfaceVersion : UINT32_MAX;
+     bool blocked = false;
+     const uintptr_t flipDst = flip382Begin(frame,frameAttempt,blankFrame,earlyStage,&blocked);
+     const bool ready = !blocked && (!earlyStage || flipDst) &&
+         present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket,
+-        version, frameAttempt, &stale, flipDst || frame->frameInfoOwner ? &verifiedFullCopy : nullptr, flipDst);
+-    if (flipDst) flip382Finish(frame,frameAttempt,ready ? verifiedFullCopy : 0);
++        version, frameAttempt, &stale, flipDst || frame->frameInfoOwner ? &verifiedFullCopy : nullptr,
++        flipDst, &privateCopyBegin);
++    if (flipDst) flip382Finish(frame, frameAttempt, ready ? verifiedFullCopy : 0, privateCopyBegin);
+     else if (ready && verifiedFullCopy) queueFrameInfo375(frame, blankFrame, verifiedFullCopy);
+     if (ready) sweet_fb352_clear_ticket(retryTicket);
+     if (frameAttempt) sweet_frame344_record(F344_RESULT,frameAttempt,ready ? 1 : 0,
+@@ -2265,7 +2504,7 @@
+ AppleCLCD::removeClient(IOMobileFramebufferUserClient *client)
+ {
+ #if defined(GAUGUIN)
+-    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+ #endif
+     IOLockLock(fLock);
+ #if defined(GAUGUIN)
+@@ -2385,6 +2624,7 @@
+ AppleCLCD::takeHeldFrameLocked(struct sweet_fb_frame *frame, struct sweet_fb_frame *candidate)
+ {
+     if (!fHoldPresent || fHeldStopped || !fDirty || fHeldActive || fCalibrating) return false;
++    if (sweet_frame382_active() && !fFlip382.closed && flip382EndingLocked()) return false;
+     if (!candidate) candidate = fHeldReady.owner ? &fHeldReady : &fHeldPending;
+     if (!candidate->owner || (fReadyAcrossFrames && candidate->generation < fHeldLastTaken))
+         return false;
+@@ -2398,7 +2638,7 @@
+     }
+     fHeldLastTaken = candidate->generation;
+     sweet_fb_frame_move(frame, candidate);
+-    fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    fDirty = fHeldPending.owner || fHeldPrevious.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
+     fHeldActive = true;
+     fHeldConsumed++;
+     return true;
+@@ -2410,6 +2650,7 @@
+ {
+     if (!fHoldPresent) return;
+     const bool cancelPending = fHeldPending.owner && (!owner || fHeldPending.owner == owner);
++    const bool cancelPrevious = fHeldPrevious.owner && (!owner || fHeldPrevious.owner == owner);
+     if (fReadyAcrossFrames && fReadyEvent) {
+         IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+         IOLockLock(lock);
+@@ -2418,6 +2659,13 @@
+             if (i != SCAN357_NONE) gReadyWriters[i] = {};
+             clearReadyTicketLocked();
+         }
++        if (cancelPrevious) {
++            const unsigned i = scan357_find(gReadyWriters, __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE));
++            if (i != SCAN357_NONE) gReadyWriters[i] = {};
++            __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
++            sweet_fb_frame_retire(&issued[SCAN357_WRITERS], &fHeldPrevious);
++            ++fHeldCanceled;
++        }
+         for (unsigned i = 0; i < SCAN357_WRITERS; ++i) {
+             if (!fHeldIssued[i].owner || (owner && fHeldIssued[i].owner != owner)) continue;
+             gReadyWriters[i] = {};
+@@ -2435,7 +2683,7 @@
+         sweet_fb_frame_retire(ready, &fHeldReady);
+         ++fHeldCanceled;
+     }
+-    fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    fDirty = fHeldPending.owner || fHeldPrevious.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
+ }
+ 
+ void
+@@ -2503,7 +2751,7 @@
+     (void)owner;
+ #if defined(GAUGUIN)
+     struct sweet_fb_frame next = {};
+-    struct sweet_fb_retired retired = {}, retiredReady = {}, issued[SCAN357_WRITERS] = {};
++    struct sweet_fb_retired retired = {}, retiredReady = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+ #endif
+     IOLockLock(fLock);
+ #if defined(GAUGUIN)
+@@ -2531,6 +2779,7 @@
+         uint64_t surface = 0;
+         uint32_t observedSurfaceState = 0;
+         bool advancedPastPending = false;
++        uint32_t producerCookie = 0;
+         if (fReadyAcrossFrames && scan354_single_surface(get32(rec,0x104), next.surfaces[0] != nullptr)) {
+             observedSurfaceState = GauguinGPUSurfaceState(next.surfaces[0]);
+             next.surfaceVersion = scan354_next_version(observedSurfaceState);
+@@ -2539,19 +2788,26 @@
+                 advancedPastPending = true;
+             }
+             surface = ((uint64_t)next.surfaceVersion << 32) | next.surfaces[0]->id;
++            if (!fPowerOff && !advancedPastPending && (observedSurfaceState & SCAN354_GPU_STATUS) == 1 &&
++                stage384EnabledLocked())
++                producerCookie = sweet_ca401_swap_cookie(next.surfaces[0]->id);
+         }
+         if (fPowerOff) {
+             cancelHeldFramesLocked(&retired, &retiredReady, issued, nullptr);
+             fHeldCanceled++; /* accepted valid frame while the display is off */
+             fDirty = false;
+         } else {
+-            if (fHeldPending.owner != NULL) replacePendingLocked(&retired);
++            if (fHeldPending.owner || fHeldPrevious.owner)
++                replacePendingLocked(next, &retired, &issued[SCAN357_WRITERS]);
+             sweet_fb_frame_move(&fHeldPending, &next);
+             fDirty = true;
+         }
+         fHeldSubmitted++;
+         const uint32_t swapID = get32(rec,0x50);
+-        sweet_frame344_record(F344_SWAP,fHeldSubmitted,fPowerOff,swapID,get32(rec,0x104),surface);
++        const bool exactProducer = producerCookie &&
++            bindBusyProducer401Locked(producerCookie, observedSurfaceState, swapID, get32(rec,0x104), surface);
++        if (!exactProducer)
++            sweet_frame344_record(F344_SWAP, fHeldSubmitted, fPowerOff, swapID, get32(rec,0x104), surface);
+         if (owner->fFrameInfo375ID && surface && !fPowerOff)
+             sweet_ca375_platform(F375_TARGET,swapID,fHeldSubmitted,requestedPresentation375(rec),surface);
+         if (surface && !fPowerOff && fSwapTimingSamples < 1024 && sweet_frame344_clock()) {
+@@ -2562,7 +2818,7 @@
+                 (thread << 32) | observedSurfaceState,surface);
+             ++fSwapTimingSamples;
+         }
+-        watchPendingReadyLocked();
++        if (!exactProducer) watchPendingReadyLocked();
+     } else
+ #endif
+     {
+@@ -2588,7 +2844,8 @@
+ 
+ bool
+ AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held, uint64_t blankFrame, uint64_t retryTicket,
+-    uint32_t version, uint64_t attempt, bool *stale, uint64_t *verifiedFullCopy, uintptr_t flipDst)
++    uint32_t version, uint64_t attempt, bool *stale, uint64_t *verifiedFullCopy, uintptr_t flipDst,
++    uint64_t *privateCopyBegin)
+ {
+     (void)held;
+     (void)blankFrame;
+@@ -2598,6 +2855,7 @@
+     (void)stale;
+     (void)verifiedFullCopy;
+     (void)flipDst;
++    (void)privateCopyBegin;
+     bool ready = true;
+     bool fastBlank = false;
+ #if defined(GAUGUIN)
+@@ -2780,12 +3038,26 @@
+ 			 * pixels to save a few thousand stores is a loss (NOTES 16:35).
+ 			 * The rectangle is already in the record - use it.
+ 			 */
+-            const uintptr_t dst = (flipDst ? flipDst : fPixels) + (uint64_t)dy * fRowBytes + (uint64_t)dx * 4;
++            uint32_t dstStride = fRowBytes;
++            uintptr_t target = flipDst ? flipDst : fPixels;
++#if defined(GAUGUIN)
++            const bool padded = flipDst && sweet_frame411_padded();
++            if (padded) {
++                dstStride = F411_RENDER_PITCH;
++                target += F411_VIEW_OFFSET;
++            }
++#endif
++            const uintptr_t dst = target + (uint64_t)dy * dstStride + (uint64_t)dx * 4;
+             const uintptr_t first = src + s->offset + (uint64_t)sy * s->bytesPerRow + (uint64_t)sx * 4;
+             /* BEGIN SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
++            const bool fullPadded = padded && w == F411_PANEL_WIDTH && h == F411_PANEL_HEIGHT &&
++                sx == F411_CROP_X && sy == F411_CROP_Y && s->offset == 0 && s->planeCount == 0 &&
++                s->pixelFormat == SWEET_FB_FORMAT_BGRA && s->width == F411_RENDER_WIDTH &&
++                s->height == F411_RENDER_HEIGHT && s->bytesPerRow == F411_RENDER_PITCH &&
++                s->allocSize == F411_SLOT_BYTES;
+             const bool pairedCopy = fastBlank && dx == 0 && dy == 0 && s->memory != fSurface->memory &&
+-                scan352_copy_supported(dst, first, w, h, fRowBytes, s->bytesPerRow);
++                (padded ? fullPadded : scan352_copy_supported(dst, first, w, h, fRowBytes, s->bytesPerRow));
+             if (flipDst && (!pairedCopy || layer != 0 || mask != 1)) {
+                 ready = false;
+                 *stale = true;
+@@ -2816,7 +3088,12 @@
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
+-            if (probeLane) {
++            if (flipDst && privateCopyBegin) *privateCopyBegin = sweet_frame419_clock();
++            if (padded) {
++                for (int32_t y = 0; y < h; ++y)
++                    memcpy((void *)(dst + (uint64_t)y * dstStride),
++                        (const void *)(first + (uint64_t)y * s->bytesPerRow), F411_PANEL_PITCH);
++            } else if (probeLane) {
+                 uint64_t segmentStart = frameCopyBegin;
+                 for (unsigned i = 0; i < F379_SEGMENTS; ++i) {
+                     const unsigned firstRow = i * F379_SEGMENT_ROWS;
+@@ -2848,7 +3125,8 @@
+ #if defined(GAUGUIN)
+             const uint64_t storesDone = timePairedCopy && frameCopyBegin ? mach_absolute_time() : 0;
+             if (ordered) __asm__ volatile("dsb sy" ::: "memory");
+-            const uint64_t frameCopyEnd = frameCopyBegin ? mach_absolute_time() : 0;
++            // Private scanout also needs a completion tick when tracing is closed.
++            const uint64_t frameCopyEnd = (frameCopyBegin || flipDst) ? mach_absolute_time() : 0;
+             const uint64_t runtimeEnd = timePairedCopy && frameCopyBegin ? thread_get_runtime_self() : 0;
+             if (frameCopyBegin) sweet_frame344_record(F344_COPY,id,layer,frameCopyBegin,
+                 frameCopyEnd,(uint64_t)(uint32_t)w * (uint32_t)h * 4);
+@@ -3106,7 +3384,7 @@
+ 		if (args->scalarInputCount >= 1) {
+ 			bool off = args->scalarInput[0] == 0;
+ #if defined(GAUGUIN)
+-            struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++            struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+ #endif
+ 			IOLockLock(fFB->fLock);
+ 			if (off != fFB->fPowerOff) {
+diff --git a/osfmk/ipc/ipc_kmsg.c b/osfmk/ipc/ipc_kmsg.c
+--- a/osfmk/ipc/ipc_kmsg.c
++++ b/osfmk/ipc/ipc_kmsg.c
+@@ -153,6 +153,7 @@
+ #include "../../bsd/dev/gauguin_frame344.h"
+ #include "../../bsd/dev/gauguin_frame376_wire.h"
+ #include "../../bsd/dev/gauguin_frame377_slots.h"
++#include "../../bsd/dev/gauguin_frame385.h"
+ 
+ extern void sweet_log_append(const char *, int);
+ 
+@@ -162,6 +163,7 @@
+ struct f371_delivery {
+ 	uint64_t send, post, copyout, source_thread, receiver_thread;
+ 	uint32_t serial, message_id;
++	bool f385_commit;
+ };
+ 
+ static struct f377_ipc_bucket {
+@@ -194,6 +196,8 @@
+ #define F372_RECEIVER_SLOTS 512
+ static struct f372_receiver_slot {
+ 	uint64_t thread, stamp;
++	uintptr_t f385_key;
++	uint16_t f385_serial;
+ } f372_receivers[F372_RECEIVER_SLOTS];
+ static uint64_t f372_receiver_sequence;
+ 
+@@ -269,7 +273,7 @@
+ }
+ 
+ static void
+-f372_observe_copyout(ipc_space_t space, uint16_t serial)
++f372_observe_copyout(ipc_space_t space, uint16_t serial, ipc_kmsg_t kmsg, uint16_t ca_serial)
+ {
+ 	if (!f371_live()) return;
+ 	task_t task = current_task();
+@@ -281,8 +285,28 @@
+ 	if (!owner && __atomic_compare_exchange_n(&slot->thread, &owner, thread, false,
+ 	    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) owner = thread;
+ 	if (owner != thread) return;
++	slot->f385_key = (uintptr_t)kmsg;
++	slot->f385_serial = ca_serial;
+ 	const uint64_t sequence = __atomic_add_fetch(&f372_receiver_sequence, 1, __ATOMIC_RELAXED);
+ 	__atomic_store_n(&slot->stamp, (sequence << 16) | serial, __ATOMIC_RELEASE);
++}
++
++/* The same receive thread consumes this immediately before the buffer
++ * allocation is freed, after the final scalar or vector user copyout. */
++static void
++f385_observe_put(ipc_kmsg_t kmsg, uint64_t address, uint32_t size, uint32_t id, mach_msg_return_t mr)
++{
++	if (!f371_live() || (uint32_t)task_pid(current_task()) != (uint32_t)f371_receiver) return;
++	const uint64_t thread = thread_tid(current_thread());
++	struct f372_receiver_slot *slot = f372_receiver_for(thread);
++	uint16_t serial = 0;
++	if (__atomic_load_n(&slot->thread, __ATOMIC_ACQUIRE) == thread &&
++	    slot->f385_key == (uintptr_t)kmsg) {
++		if (mr == MACH_MSG_SUCCESS) serial = slot->f385_serial;
++		slot->f385_key = 0;
++		slot->f385_serial = 0;
++	}
++	sweet_ca385_receive(address, size, id, serial);
+ }
+ 
+ static struct f377_ipc_bucket *
+@@ -295,7 +319,7 @@
+  * ownership rules. In a bucket, a reserved key hides the payload until
+  * publication. A full bucket preserves all live identities. */
+ static void
+-f371_send(ipc_kmsg_t kmsg, ipc_port_t port, uint64_t tick)
++f371_send(ipc_kmsg_t kmsg, ipc_port_t port, uint64_t tick, uint64_t ca_frame)
+ {
+ 	ipc_space_t space = ip_get_receiver(port);
+ 	if (!space || !is_active(space) || !f371_task(space->is_task, f371_receiver) ||
+@@ -317,7 +341,10 @@
+ 				.source_thread = thread_tid(current_thread()),
+ 				.serial = serial,
+ 				.message_id = (uint32_t)ikm_header(kmsg)->msgh_id,
++				.f385_commit = ca_frame != 0,
+ 			};
++			if (ca_frame) sweet_ca385_send(tick, (uint16_t)serial,
++			    (uint32_t)ikm_header(kmsg)->msgh_id, ca_frame);
+ 			f377_publish(&bucket->keys, (unsigned)way, key);
+ 			if (way > 0) __atomic_fetch_add(&f377_ipc_spill, 1, __ATOMIC_RELAXED);
+ 		} else {
+@@ -3283,6 +3310,10 @@
+ #endif /* IMPORTANCE_INHERITANCE */
+ 
+ 	hdr = ikm_header(kmsg);
++#if defined(GAUGUIN)
++	const uint64_t ca_frame = f371_tick ?
++	    sweet_ca385_send_frame(f371_tick, (uint32_t)hdr->msgh_id) : 0;
++#endif
+ 	/* don't allow the creation of a circular loop */
+ 	if (hdr->msgh_bits & MACH_MSGH_BITS_CIRCULAR) {
+ 		ipc_kmsg_destroy(kmsg, IPC_KMSG_DESTROY_ALL);
+@@ -3410,7 +3441,7 @@
+ 
+ #if defined(GAUGUIN)
+ 		if (f371_tick && !kernel_reply) {
+-			f371_send(kmsg, port, f371_tick);
++			f371_send(kmsg, port, f371_tick, ca_frame);
+ 		}
+ #endif
+ 
+@@ -3721,6 +3752,10 @@
+ 
+ failed:
+ 
++#if defined(GAUGUIN)
++	f385_observe_put(kmsg, rcv_msg_addr, cpout_msg_size,
++	    cpout_msg_size ? (uint32_t)user_hdr->msgh_id : 0, mr);
++#endif
+ 	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
+ 	    (rcv_msg_addr >= VM_MIN_KERNEL_AND_KEXT_ADDRESS ||
+ 	    rcv_msg_addr + cpout_msg_size >= VM_MIN_KERNEL_AND_KEXT_ADDRESS) ? (uintptr_t)0 : (uintptr_t)rcv_msg_addr,
+@@ -3823,6 +3858,9 @@
+ 		}
+ 	}
+ 
++#if defined(GAUGUIN)
++	f385_observe_put(kmsg, rcv_addr, copyout_size, (uint32_t)user_hdr->msgh_id, mr);
++#endif
+ 	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
+ 	    (rcv_addr >= VM_MIN_KERNEL_AND_KEXT_ADDRESS ||
+ 	    rcv_addr + copyout_size >= VM_MIN_KERNEL_AND_KEXT_ADDRESS) ? (uintptr_t)0 : (uintptr_t)rcv_addr,
+@@ -6816,7 +6854,7 @@
+ 		} else if (unmatched_index < F372_MISS_CAP) {
+ 			f373_complete_unmatched(unmatched_index, mr);
+ 		}
+-		f372_observe_copyout(space, 0);
++		f372_observe_copyout(space, 0, kmsg, 0);
+ #endif
+ 		return mr;
+ 	}
+@@ -6835,8 +6873,9 @@
+ 	} else if (unmatched_index < F372_MISS_CAP) {
+ 		f373_complete_unmatched(unmatched_index, mr);
+ 	}
+-	f372_observe_copyout(space, f371_matched && mr == MACH_MSG_SUCCESS ?
+-	    (uint16_t)f371_delivery.serial : 0);
++	const uint16_t serial = f371_matched && mr == MACH_MSG_SUCCESS ?
++	    (uint16_t)f371_delivery.serial : 0;
++	f372_observe_copyout(space, serial, kmsg, serial && f371_delivery.f385_commit ? serial : 0);
+ #endif
+ 	return mr;
+ }
+diff --git a/osfmk/kern/sched_prim.c b/osfmk/kern/sched_prim.c
+--- a/osfmk/kern/sched_prim.c
++++ b/osfmk/kern/sched_prim.c
+@@ -5617,6 +5617,42 @@
+ 	return pset;
+ }
+ 
++#if defined(GAUGUIN)
++extern uint64_t gauguin_display_thread_398;
++extern uint64_t gauguin_display_preferred_dispatches_398;
++extern uint64_t sweet_frame344_clock(void);
++
++static bool
++gauguin_display_idle_performance_cpu(processor_set_t pset, processor_t cpu)
++{
++	return cpu != PROCESSOR_NULL && cpu->processor_set == pset &&
++	       cpu->processor_primary == cpu && (cpu->cpu_id == 6 || cpu->cpu_id == 7) &&
++	       cpu->is_recommended && cpu->state == PROCESSOR_IDLE;
++}
++
++/* The caller holds this pset and the thread locks. As in the usual idle
++ * dispatch, the selected core remains protected until processor_setrun. */
++static processor_t
++gauguin_display_preferred_cpu(processor_set_t pset, processor_t hint, thread_t thread)
++{
++	const uint64_t tid = __atomic_load_n(&gauguin_display_thread_398, __ATOMIC_ACQUIRE);
++	if (!tid || tid != thread_tid(thread) || thread->bound_processor != PROCESSOR_NULL ||
++	    thread->sched_pri >= BASEPRI_RTQUEUES || !pset->online_processor_count || !sweet_frame344_clock()) {
++		return PROCESSOR_NULL;
++	}
++	if (gauguin_display_idle_performance_cpu(pset, hint)) {
++		return hint;
++	}
++	for (unsigned cpu = 6; cpu <= 7; ++cpu) {
++		processor_t candidate = processor_array[cpu];
++		if (gauguin_display_idle_performance_cpu(pset, candidate)) {
++			return candidate;
++		}
++	}
++	return PROCESSOR_NULL;
++}
++#endif
++
+ /*
+  *	thread_setrun:
+  *
+@@ -5673,7 +5709,15 @@
+ 
+ 			pset_lock(starting_pset);
+ 
+-			processor = SCHED(choose_processor)(starting_pset, processor_hint, thread);
++#if defined(GAUGUIN)
++			processor = gauguin_display_preferred_cpu(starting_pset, processor_hint, thread);
++			if (processor != PROCESSOR_NULL) {
++				__atomic_fetch_add(&gauguin_display_preferred_dispatches_398, 1, __ATOMIC_RELAXED);
++			} else
++#endif
++			{
++				processor = SCHED(choose_processor)(starting_pset, processor_hint, thread);
++			}
+ 			if (processor != PROCESSOR_NULL) {
+ 				pset = processor->processor_set;
+ 				pset_assert_locked(pset);

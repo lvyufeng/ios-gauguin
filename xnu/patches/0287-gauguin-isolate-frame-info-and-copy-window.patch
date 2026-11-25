@@ -1,0 +1,409 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_frame376_wire.h
+@@ -0,0 +1,52 @@
++#ifndef GAUGUIN_FRAME376_WIRE_H
++#define GAUGUIN_FRAME376_WIRE_H
++
++#include "gauguin_frame372_wire.h"
++
++enum {
++    F376_TRANSPORT_BYTES = 110000,
++    F376_TRANSPORT_THREADS = 64,
++    F376_DISPLAY_THREADS = 32,
++    F376_COPY_CAP = 32,
++    F376_COPY_TICKS = 96000, /* 5 ms on the pinned 19.2 MHz timebase */
++    F376_PAIR_MAX = 23,
++};
++
++static inline unsigned
++f376_uleb32(uint8_t *out, uint32_t value)
++{
++    unsigned used = 0;
++    do {
++        const uint8_t group = value & 0x7f;
++        value >>= 7;
++        out[used++] = group | (value ? 0x80 : 0);
++    } while (value);
++    return used;
++}
++
++static inline unsigned
++f376_pack_pair(uint8_t *out, uint64_t base, uint32_t serial, uint32_t message,
++    uint64_t send, uint64_t post, uint64_t copyout, uint8_t source, uint8_t receiver)
++{
++    if (!serial || serial > UINT16_MAX || send < base || post < send ||
++        copyout < post || copyout - base > UINT32_MAX) {
++        return 0;
++    }
++    f372_le32(out, (uint32_t)(send - base));
++    out[4] = (uint8_t)serial;
++    out[5] = (uint8_t)(serial >> 8);
++    out[6] = source;
++    out[7] = receiver;
++    const bool common = message >= 40002 && message <= 40005;
++    out[8] = common ? (uint8_t)(message - 40002) : 4;
++    unsigned size = 9;
++    if (!common) {
++        f372_le32(out + size, message);
++        size += 4;
++    }
++    size += f376_uleb32(out + size, (uint32_t)(post - send));
++    size += f376_uleb32(out + size, (uint32_t)(copyout - send));
++    return size;
++}
++
++#endif
+--- a/bsd/dev/gauguin_frame374_wire.h
++++ b/bsd/dev/gauguin_frame374_wire.h
+@@ -5,7 +5,7 @@
+ #include "gauguin_frame375_present.h"
+ 
+ enum {
+-    F374_EVENT_CAP = 16384, F374_WIRE_CAP = 210000, F374_BLOCK = 32,
++    F374_EVENT_CAP = 16384, F374_WIRE_CAP = 164000, F374_BLOCK = 32,
+     F374_MAX_ROW = 34,
+     F374_RENDER_BEGIN = 1, F374_RENDER_END, F374_ANNOTATION, F374_FRAME_INFO,
+     F374_HITCH, F374_RENDER_TIME, F374_VSYNC, F374_VSYNC_UPDATE,
+@@ -25,14 +25,9 @@
+     case 0x31ca000e: return F374_RENDER_END;
+     case 0x31ca0084: return F374_ANNOTATION;
+     case 0x31ca002c: return F374_FRAME_INFO;
+-    case 0x31ca01e0: return F374_HITCH;
+     case 0x31ca0010: return F374_RENDER_TIME;
+     case 0x31ca0000: return F374_VSYNC;
+     case 0x31ca0110: return F374_VSYNC_UPDATE;
+-    case 0x31ca01dd: return F375_ENCODE_BEGIN;
+-    case 0x31ca01de: return F375_ENCODE_END;
+-    case 0x31ca0219: return F375_SERVER_THREAD;
+-    case 0x31ca0104: return F375_DID_COMMIT;
+     default: return 0;
+     }
+ }
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -67,27 +67,32 @@
+ #include <mach/mach_time.h>
+ #include <pexpert/pexpert.h>
+ #include "../dev/gauguin_frame374_wire.h"
+-
+-void sweet_ca374_arm(uint64_t, uint64_t, uint64_t, uint64_t);
++#include "../dev/gauguin_frame376_wire.h"
++
++void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
++void sweet_frame376_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+ void sweet_ca374_drain(void);
+ extern void sweet_log_append(const char *, int);
+ 
+ #define F374_CLOSED (UINT32_C(1) << 31)
+ static uint32_t f374_gate = F374_CLOSED, f374_count;
+ static bool f374_configured, f374_exported;
+-static uint64_t f374_source, f374_receiver, f374_start, f374_end;
++static uint64_t f374_receiver, f374_start, f374_end;
+ static struct f374_event f374_events[F374_EVENT_CAP];
+-static uint64_t f374_threads[F372_THREAD_CAP];
++static uint64_t f374_threads[F376_DISPLAY_THREADS];
++static uint32_t f376_copy_count;
++static struct f376_copy_tail {
++	uint64_t attempt, begin, end, runtime_begin, runtime_end;
++} f376_copy_tails[F376_COPY_CAP];
+ 
+ void
+-sweet_ca374_arm(uint64_t source, uint64_t receiver, uint64_t start, uint64_t end)
++sweet_ca374_arm(uint64_t receiver, uint64_t start, uint64_t end)
+ {
+ 	if (!f374_configured || !(kdebug_enable & KDEBUG_ENABLE_TRACE) ||
+ 	    !kdebug_debugid_explicitly_enabled(0x31ca002c) || !receiver ||
+ 	    !start || end <= start || end - start > UINT32_MAX || f374_start) {
+ 		return;
+ 	}
+-	f374_source = source;
+ 	f374_receiver = receiver;
+ 	f374_start = start;
+ 	f374_end = end;
+@@ -120,7 +125,7 @@
+ 	}
+ }
+ 
+-/* Only SpringBoard encoding spans and verified BackBoard trace classes. */
++/* Reserve this lane for display events from the verified BackBoard task. */
+ static void
+ f374_observe(struct proc *p, const struct kdebug_trace64_args *uap)
+ {
+@@ -128,10 +133,8 @@
+ 	if (!kind || !f375_enter()) return;
+ 	const audit_token_t *token = task_get_audit_token(proc_task(p));
+ 	const uint64_t identity = ((uint64_t)token->val[7] << 32) | token->val[5];
+-	const bool encode = kind == F375_ENCODE_BEGIN || kind == F375_ENCODE_END;
+-	if (identity && identity == (encode ? f374_source : f374_receiver)) {
+-		if (encode || kind == F375_DID_COMMIT) f375_record(kind, 0, 0, 0, 0);
+-		else f375_record(kind, uap->arg1, uap->arg2, uap->arg3, uap->arg4);
++	if (identity && identity == f374_receiver) {
++		f375_record(kind, uap->arg1, uap->arg2, uap->arg3, uap->arg4);
+ 	}
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+ }
+@@ -141,6 +144,20 @@
+ {
+ 	if ((kind != F375_TARGET && kind != F375_DELIVERY) || !swap || !f375_enter()) return;
+ 	f375_record(kind, swap, b, c, d);
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++void
++sweet_frame376_copy(uint64_t attempt, uint64_t begin, uint64_t end,
++    uint64_t runtime_begin, uint64_t runtime_end)
++{
++	if (!attempt || !begin || end < begin || end - begin < F376_COPY_TICKS || !f375_enter()) return;
++	if (begin >= f374_start && end < f374_end) {
++		const unsigned index = __atomic_fetch_add(&f376_copy_count, 1, __ATOMIC_RELAXED);
++		if (index < F376_COPY_CAP) {
++			f376_copy_tails[index] = (struct f376_copy_tail){attempt, begin, end, runtime_begin, runtime_end};
++		}
++	}
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+ }
+ 
+@@ -178,7 +195,7 @@
+ 		const struct f374_event *event = &f374_events[index];
+ 		unsigned thread = 0;
+ 		while (thread < threads && f374_threads[thread] != event->thread) ++thread;
+-		if (thread == F372_THREAD_CAP) break;
++		if (thread == F376_DISPLAY_THREADS) break;
+ 		const unsigned size = f374_pack(packed + used, f374_start, f374_end, event, (uint8_t)thread);
+ 		if (!size || total + size > F374_WIRE_CAP) break;
+ 		if (thread == threads) {
+@@ -197,6 +214,14 @@
+ 	if (count) f374_block(emitted - count, count, packed, used);
+ 	printf("SWEET F374 F: rows=%u threads=%u bytes=%u lost=%u\n",
+ 	    emitted, threads, total, captured - emitted);
++	const unsigned tails = __atomic_load_n(&f376_copy_count, __ATOMIC_RELAXED);
++	const unsigned kept = tails < F376_COPY_CAP ? tails : F376_COPY_CAP;
++	for (unsigned i = 0; i < kept; i++) {
++		const struct f376_copy_tail *row = &f376_copy_tails[i];
++		printf("SWEET F376 C: attempt=%llu begin=%llu end=%llu cpu_begin=%llu cpu_end=%llu\n",
++		    row->attempt, row->begin, row->end, row->runtime_begin, row->runtime_end);
++	}
++	printf("SWEET F376 C footer: rows=%u lost=%u\n", kept, tails - kept);
+ }
+ #endif
+ 
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -38,7 +38,9 @@
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+ extern void sweet_log_append(const char *, int);
+-extern void sweet_ca374_arm(uint64_t, uint64_t, uint64_t, uint64_t);
++extern void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
++extern void sweet_frame371_arm(uint64_t, uint64_t, uint64_t, uint64_t);
++extern void sweet_frame371_drain(void);
+ extern void sweet_ca374_drain(void);
+ extern task_t proc_task(proc_t);
+ 
+@@ -818,9 +820,11 @@
+     if (scan357_enabled) {
+         struct frame374_receiver receiver = {0};
+         proc_iterate(PROC_ALLPROCLIST, frame374_find_receiver, &receiver, NULL, NULL);
+-        if (receiver.receivers == 1)
+-            sweet_ca374_arm(receiver.sources == 1 ? receiver.source : 0,
+-                receiver.receiver, frames.start, frames.end);
++        if (receiver.receivers == 1) {
++            sweet_ca374_arm(receiver.receiver, frames.start, frames.end);
++            if (receiver.sources == 1)
++                sweet_frame371_arm(receiver.source, receiver.receiver, frames.start, frames.end);
++        }
+     }
+     clock_interval_to_deadline(F345_STARTUP_MS, NSEC_PER_MSEC, &scan.startup_end);
+     scan_call = thread_call_allocate(scan_poll, NULL);
+@@ -832,6 +836,7 @@
+ {
+     if (frame_footer) {
+         sweet_ca374_drain();
++        sweet_frame371_drain();
+         return;
+     }
+     struct gut_event batch[32];
+--- a/osfmk/ipc/ipc_kmsg.c
++++ b/osfmk/ipc/ipc_kmsg.c
+@@ -151,7 +151,7 @@
+ #if defined(GAUGUIN)
+ #include <mach/mach_time.h>
+ #include "../../bsd/dev/gauguin_frame344.h"
+-#include "../../bsd/dev/gauguin_frame372_wire.h"
++#include "../../bsd/dev/gauguin_frame376_wire.h"
+ 
+ extern void sweet_log_append(const char *, int);
+ 
+@@ -460,7 +460,7 @@
+ 	for (unsigned i = 0; i < f372_thread_count; ++i) {
+ 		if (f372_threads[i] == thread) return (int)i;
+ 	}
+-	if (!thread || f372_thread_count == F372_THREAD_CAP) return -1;
++	if (!thread || f372_thread_count == F376_TRANSPORT_THREADS) return -1;
+ 	const unsigned index = f372_thread_count++;
+ 	f372_threads[index] = thread;
+ 	printf("SWEET F372 D: index=%u tid=%llu\n", index, (unsigned long long)thread);
+@@ -470,7 +470,7 @@
+ void
+ sweet_frame371_drain(void)
+ {
+-	static uint32_t cursor;
++	static uint32_t cursor, total;
+ 	static bool header, done;
+ 	if (done || !__atomic_load_n(&f371_end, __ATOMIC_RELAXED)) {
+ 		return;
+@@ -494,24 +494,26 @@
+ 	}
+ 	const uint32_t end = MIN(cursor + F372_BLOCK, count);
+ 	if (cursor < end) {
+-		static uint8_t packed[F372_BLOCK * F372_ROW];
++		static uint8_t packed[F372_BLOCK * F376_PAIR_MAX];
+ 		static char encoded[4 * ((sizeof(packed) + 2) / 3) + 1];
+ 		static char line[sizeof(encoded) + 64];
++		unsigned used = 0;
+ 		for (uint32_t i = cursor; i < end; ++i) {
+ 			const struct f371_delivery *row = &f371_pairs[i];
+ 			const int sender = f372_thread_index(row->source_thread);
+ 			const int receiver = f372_thread_index(row->receiver_thread);
+-			if (sender < 0 || receiver < 0 ||
+-			    !f372_pack_pair(packed + (i - cursor) * F372_ROW, f372_start,
+-			    row->serial, row->message_id, row->send, row->post, row->copyout,
+-			    (uint8_t)sender, (uint8_t)receiver)) {
++			const unsigned size = sender < 0 || receiver < 0 ? 0 :
++			    f376_pack_pair(packed + used, f372_start, row->serial, row->message_id,
++			    row->send, row->post, row->copyout, (uint8_t)sender, (uint8_t)receiver);
++			if (!size || total + used + size > F376_TRANSPORT_BYTES) {
+ 				printf("SWEET F372: refused row=%u\n", i);
+ 				done = true;
+ 				return;
+ 			}
+-		}
+-		f372_base64(packed, (end - cursor) * F372_ROW, encoded);
+-		const int bytes = snprintf(line, sizeof(line), "\nSWEET F372 B %u %u %s\n", cursor, end - cursor, encoded);
++			used += size;
++		}
++		f372_base64(packed, used, encoded);
++		const int bytes = snprintf(line, sizeof(line), "\nSWEET F376 P %u %u %s\n", cursor, end - cursor, encoded);
+ 		if (bytes <= 0 || (size_t)bytes >= sizeof(line)) {
+ 			printf("SWEET F372: refused block=%u\n", cursor);
+ 			done = true;
+@@ -519,8 +521,10 @@
+ 		}
+ 		sweet_log_append(line, bytes);
+ 		cursor = end;
++		total += used;
+ 	}
+ 	if (cursor == count) {
++		printf("SWEET F376 P footer: rows=%u bytes=%u\n", count, total);
+ 		done = true;
+ 		printf("SWEET F372 F: count=%u threads=%u\n", count, f372_thread_count);
+ 	}
+--- a/bsd/dev/gauguin_blank352.h
++++ b/bsd/dev/gauguin_blank352.h
+@@ -6,7 +6,8 @@
+ #include <stdint.h>
+ 
+ enum {
+-    SCAN352_COPY_NS = 5500000,
++    /* Conservative lead time at every take, retry and final pre-store check. */
++    SCAN352_COPY_NS = 6700000,
+     SCAN352_FAST_COPY = 4,
+     SCAN352_WIDTH = 1080, SCAN352_HEIGHT = 2400,
+     SCAN352_PANEL_STRIDE = 4320, SCAN352_SOURCE_STRIDE = 4608
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -49,6 +49,8 @@
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
++#include <kern/thread.h>
++extern "C" void sweet_frame376_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+ /* END SWEET PRESENT STATS INCLUDE */
+ #endif
+ 
+@@ -482,6 +484,7 @@
+     void replacePendingLocked(struct sweet_fb_retired *retired);
+     unsigned calibrate357(unsigned step, uint32_t frame);
+     void deliverFrameInfo375Locked(uint64_t now);
++    void deliverFrameInfo376();
+     void queueFrameInfo375(const struct sweet_fb_frame *, uint64_t blankFrame, uint64_t checked);
+     bool fFrameInfo375;
+     uint32_t fFrameInfo375Owners, fFrameInfo375Sends;
+@@ -1359,7 +1362,6 @@
+ #if defined(GAUGUIN)
+     bool phaseCopy = false;
+     if (fb->fPhasePresent) now = mach_absolute_time(); /* include time waiting for fLock */
+-    if (fb->fFrameInfo375) fb->deliverFrameInfo375Locked(now);
+     if (!fb->presentClockTickLocked(now, &elapsed, &phaseCopy)) {
+         struct sweet_fb_frame frame = {};
+         uint64_t blankFrame = UINT64_MAX;
+@@ -1367,6 +1369,7 @@
+         const uint64_t attempt = taken ? fb->fHeldConsumed : 0;
+         IOLockUnlock(fb->fLock);
+         if (taken) fb->presentTimed(frame.record,&frame,attempt,blankFrame);
++        if (fb->fFrameInfo375) fb->deliverFrameInfo376();
+         fb->armVsync(sender);
+         return;
+     }
+@@ -1416,6 +1419,7 @@
+         sweet_fb_retired_release(&waiting);
+         sweet_fb_retired_release(&ready);
+         for (auto &frame : issued) sweet_fb_retired_release(&frame);
++        if (fb->fFrameInfo375) fb->deliverFrameInfo376();
+ #endif
+         if (step <= 6) {
+ 			for (uint32_t y = 0; y < fb->fHeight; y++) {
+@@ -1694,6 +1698,7 @@
+ #endif
+ 	}
+ #if defined(GAUGUIN)
++    if (fb->fFrameInfo375) fb->deliverFrameInfo376();
+     if (fb->fReadyAcrossFrames) fb->observePendingReady();
+ #endif
+ 	fb->armVsync(sender);
+@@ -1756,6 +1761,16 @@
+     }
+     sweet_ca375_platform(F375_DELIVERY, copy.swap,
+         ((uint64_t)(uint32_t)code << 32) | copy.scan, lo, hi);
++}
++
++/* Sending a Mach notification may wake a renderer. Service receipts after
++ * the guarded copy, while retaining the same workloop and client lock. */
++void
++AppleCLCD::deliverFrameInfo376()
++{
++    IOLockLock(fLock);
++    deliverFrameInfo375Locked(mach_absolute_time());
++    IOLockUnlock(fLock);
+ }
+ 
+ void
+@@ -2369,6 +2384,8 @@
+             }
+             uint64_t statsCopyBegin = 0;
+             if (fPresentSample != NULL && fPresentSample->timingValid) statsCopyBegin = mach_absolute_time();
++            const bool timePairedCopy = checked && pairedCopy && fFrameInfo375;
++            const uint64_t runtimeBegin = timePairedCopy ? thread_get_runtime_self() : 0;
+             const uint64_t frameCopyBegin = sweet_frame344_clock();
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+@@ -2391,8 +2408,10 @@
+             /* BEGIN SWEET PRESENT STATS COPY END */
+ #if defined(GAUGUIN)
+             if (checked) __asm__ volatile("dsb sy" ::: "memory");
++            const uint64_t frameCopyEnd = frameCopyBegin ? mach_absolute_time() : 0;
++            const uint64_t runtimeEnd = timePairedCopy && frameCopyBegin ? thread_get_runtime_self() : 0;
+             if (frameCopyBegin) sweet_frame344_record(F344_COPY,id,layer,frameCopyBegin,
+-                mach_absolute_time(),(uint64_t)(uint32_t)w * (uint32_t)h * 4);
++                frameCopyEnd,(uint64_t)(uint32_t)w * (uint32_t)h * 4);
+             if (checked) {
+                 struct scan351_position copyEnd = {0};
+                 const bool verified = sweet_frame351_position(&copyEnd) && copyEnd.frame == blankFrame &&
+@@ -2402,6 +2421,7 @@
+                     *verifiedFullCopy = mach_absolute_time();
+                 sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
+                     ((uint64_t)copyStart.end << 32) | copyEnd.line);
++                if (runtimeEnd) sweet_frame376_copy(attempt, frameCopyBegin, frameCopyEnd, runtimeBegin, runtimeEnd);
+             }
+             if (fPresentSample != NULL) {
+                 if (fPresentSample->timingValid &&

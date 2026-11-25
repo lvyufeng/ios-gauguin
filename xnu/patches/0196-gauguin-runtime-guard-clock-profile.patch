@@ -1,0 +1,74 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3905,6 +3905,12 @@
+ {int flag=0;(void)PE_parse_boot_argn("sweetgpuservice",&flag,sizeof(flag));return flag==1&&sweet_gpu_runtime_requested();}
+ static uint64_t ggrb_ns(void *cookie)
+ {(void)cookie;uint64_t ns;absolutetime_to_nanoseconds(mach_absolute_time(),&ns);return ns;}
++struct ggrb_perf_sample {
++    uint64_t checks,check_ticks,max_check_ticks;
++    uint64_t submits,submit_ticks,submit_checks,submit_check_ticks;
++    uint32_t pending;
++};
++static struct ggrb_perf_sample ggrb_perf;
+ static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current)
+ {
+     /* An experiment in bounded waiting, NOT a relaxed SMMU invariant. Never
+@@ -3943,7 +3949,7 @@
+     gfw_micro_sample.elapsed_us=elapsed>UINT32_MAX?UINT32_MAX:(uint32_t)elapsed;
+     return recovered;
+ }
+-static bool ggrb_live(void *cookie)
++static bool ggrb_live_check(void *cookie)
+ {
+     (void)cookie;struct ggrb_live_sample sample={0};
+     /* Preserve the original predicate order and short-circuit hardware trace. */
+@@ -3974,6 +3980,17 @@
+     if(!ggrb_live_sample.reason)ggrb_live_sample=sample;
+     return true;
+ }
++static bool ggrb_live(void *cookie)
++{
++    /* Time the unchanged predicate/IO body. The extra reads are CPU clock
++     * samples only; no guard, MMIO order or rejection condition is omitted. */
++    uint64_t begin=mach_absolute_time();
++    bool ok=ggrb_live_check(cookie);
++    uint64_t end=mach_absolute_time(),ticks=end>=begin?end-begin:0;
++    ++ggrb_perf.checks;ggrb_perf.check_ticks+=ticks;
++    if(ticks>ggrb_perf.max_check_ticks)ggrb_perf.max_check_ticks=ticks;
++    return ok;
++}
+ static bool ggrb_routes(void)
+ {
+     const struct ggs_receipt *s=&ggb_smmu;uint32_t v;uint64_t t;
+@@ -4033,6 +4050,15 @@
+     const struct gfw_micro_sample *m=&gfw_micro_sample;
+     snprintf(line,sizeof(line),"SWEET GPU STOP MICRO: attempts=%u recovered=%u polls=%u initial=%08x current=%08x expected=%08x mask=%08x elapsed_us=%u; exact guard retained",
+         m->attempts,m->recovered,m->polls,m->initial,m->current,m->expected,m->mask,m->elapsed_us);gmb_record(line);
++    uint64_t check_ns,max_ns,submit_ns,submit_check_ns;
++    absolutetime_to_nanoseconds(ggrb_perf.check_ticks,&check_ns);
++    absolutetime_to_nanoseconds(ggrb_perf.max_check_ticks,&max_ns);
++    absolutetime_to_nanoseconds(ggrb_perf.submit_ticks,&submit_ns);
++    absolutetime_to_nanoseconds(ggrb_perf.submit_check_ticks,&submit_check_ns);
++    snprintf(line,sizeof(line),"SWEET GPU PERF: checks=%llu check_ns=%llu max_check_ns=%llu; unchanged guard body, CPU clock only",
++        ggrb_perf.checks,check_ns,max_ns);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU PERF: submits=%llu submit_ns=%llu submit_checks=%llu submit_check_ns=%llu pending=%u; remainder includes CPU and GPU",
++        ggrb_perf.submits,submit_ns,ggrb_perf.submit_checks,submit_check_ns,ggrb_perf.pending);gmb_record(line);
+ }
+ bool sweet_gpu_runtime_ready(void)
+ {
+@@ -4108,7 +4134,14 @@
+ bool sweet_gpu_runtime_submit(const uint64_t *a,const uint32_t *w,uint32_t n,uint32_t *fence)
+ {
+     if(!ggrb_root||!sweet_gpu_runtime_ready())return false;
++    uint64_t begin=mach_absolute_time(),checks=ggrb_perf.checks,ticks=ggrb_perf.check_ticks;
++    ggrb_perf.pending=1;
+     enum ggr_error rc=ggr_submit(&ggrb_context,a,w,n,fence);
++    uint64_t end=mach_absolute_time();
++    ++ggrb_perf.submits;ggrb_perf.submit_ticks+=end>=begin?end-begin:0;
++    ggrb_perf.submit_checks+=ggrb_perf.checks-checks;
++    ggrb_perf.submit_check_ticks+=ggrb_perf.check_ticks-ticks;
++    ggrb_perf.pending=0;
+     /* Keep all startup/failure evidence. Continuous rendering uses the
+      * existing hardware-checked counters and periodic success snapshots,
+      * avoiding a synchronous UFS mark/ring write for every draw submission. */

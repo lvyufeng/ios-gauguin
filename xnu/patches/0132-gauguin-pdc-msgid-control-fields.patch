@@ -1,0 +1,98 @@
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -336,6 +336,14 @@
+         gmb_record(line);
+     }
+ }
++static void gfw_pdc_records(void)
++{
++    for(unsigned i=0;i<6;i++)if(gfw_context.pdc_msgid_valid&(1u<<i)){
++        char line[192];unsigned off=i<3?0x15d4+16*i:0x1764+16*(i-3);
++        snprintf(line,sizeof(line),"SWEET GMU PDC MSGID: off=%05x requested=00010108 readback=%08x checked_mask=%08x policy=native-write; other bits unqualified",off,gfw_context.pdc_msgid_readback[i],GMF_PDC_MSGID_FIELDS);
++        gmb_record(line);
++    }
++}
+ static enum gmb_result gfw_fail(enum gmb_result rc,const char *why)
+ {
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+@@ -357,6 +365,7 @@
+         gmb_record(line);
+     }
+     gfw_hidden_records();
++    gfw_pdc_records();
+     return rc;
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+@@ -396,6 +405,7 @@
+     if(!sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_DONE))return gfw_fail(GMB_MEMORY,"final firmware owner/phase predicates");
+     *out=gfw_work;__atomic_store_n(&gfw_lifecycle,GMB_READY,__ATOMIC_RELEASE);
+     gfw_hidden_records();
++    gfw_pdc_records();
+     gmb_record("SWEET GMU FW: complete native FW result and INIT/version ACKs; no normal HFI_ON/GPU/Metal qualification");
+     return GMB_OK;
+ }
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -70,6 +70,20 @@
+ }
+ static enum gmf_result mask(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t set)
+ {uint32_t old;if(!rd(c,w,off,&old)||old==UINT32_MAX)return GMF_IO;return store(c,w,off,old|set);}
++static enum gmf_result pdc_msgid(struct gmf_context *c,unsigned index)
++{
++    if(index>=6)return GMF_ARGUMENT;
++    uint32_t actual,word=index<3?0x1575+4*index:0x15d9+4*(index-3),off=P(word);
++    /* Native fixed MSGID; compare documented WRITE/RESP_REQ only. Actual131
++     * PDC read10100 after10108. This does not establish length/other-bit
++     * semantics or change the separate generic RPMh/BCM register checks. */
++    if(!wr(c,GMF_PDC,off,0x10108)||!barrier(c)||!rd(c,GMF_PDC,off,&actual))return GMF_IO;
++    if(actual==UINT32_MAX)return mismatch(c,GMFD_STORE32,GMF_PDC,off,UINT32_MAX,0x10108,actual);
++    if((actual&GMF_PDC_MSGID_FIELDS)!=GMF_PDC_MSGID_FIELDS)
++        return mismatch(c,GMFD_STORE32,GMF_PDC,off,GMF_PDC_MSGID_FIELDS,GMF_PDC_MSGID_FIELDS,actual);
++    c->pdc_msgid_readback[index]=actual;c->pdc_msgid_valid|=1u<<index;
++    return GMF_OK;
++}
+ static enum gmf_result poll(struct gmf_context *c,enum gmf_window w,uint32_t off,uint32_t mask_bits,uint32_t value,uint32_t *out)
+ {
+     for(unsigned i=0;i<1000;i++){
+@@ -118,7 +132,7 @@
+         unsigned domain[3]={GMF_MX,GMF_CX,GMF_XO};
+         unsigned data[2][3]={{1,0,0},{2,2,3}};
+         for(unsigned j=0;j<3;j++){
+-            rc=store(c,GMF_PDC,P(base+3+4*j),0x10108);if(rc)return rc;
++            rc=pdc_msgid(c,3*n+j);if(rc)return rc;
+             rc=store(c,GMF_PDC,P(base+4+4*j),c->plan.address[domain[j]]);if(rc)return rc;
+             rc=store(c,GMF_PDC,P(base+5+4*j),data[n][j]);if(rc)return rc;
+         }
+@@ -262,6 +276,7 @@
+     c->ops=copy;c->plan=p;c->phase=GMF_RESET;
+     memset(&c->diagnostic,0,sizeof(c->diagnostic));
+     c->hidden_valid=0;memset(c->hidden_readback,0,sizeof(c->hidden_readback));
++    c->pdc_msgid_valid=0;memset(c->pdc_msgid_readback,0,sizeof(c->pdc_msgid_readback));
+     const uint8_t *asset=NULL;size_t bytes=0;enum gmf_result rc=GMF_OK;
+     if(!guard(c)||!c->ops.asset(c->ops.cookie,&asset,&bytes)||!guard(c)||!asset||bytes!=GMF_FW_BYTES||
+        (uintptr_t)asset>UINTPTR_MAX-(GMF_FW_BYTES-1))rc=GMF_ASSET;
+diff --git a/bsd/dev/gauguin_gmu_firmware.h b/bsd/dev/gauguin_gmu_firmware.h
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -3,6 +3,9 @@
+ #include "gauguin_gmu_hfi.h"
+ struct ndb_entry;
+ #define GMF_FW_BYTES 32768u
++/* Pinned rpmh-rsc.c: WRITE bit16 and RESP_REQ bit8. PDC length and other
++ * bits have no qualified readback semantics; retain the native10108 write. */
++#define GMF_PDC_MSGID_FIELDS ((1u<<16)|(1u<<8))
+ enum gmf_domain {GMF_CX,GMF_MX,GMF_GFX,GMF_XO,GMF_DOMAINS};
+ struct gmf_plan {uint32_t address[4],count[4],selector[4],level[4];uint16_t levels[4][16];};
+ bool gmf_plan_build(const struct ndb_entry *,struct gmf_plan *);
+@@ -41,7 +44,8 @@
+     struct gmf_diagnostic diagnostic;
+     /* Native fixed-zero HIDDEN_TCS_CMDn_ADDR writes, not bitwise-qualified.
+      * Cache only the existing read; no public success receipt is changed. */
+-    uint32_t hidden_valid,hidden_readback[3];};
++    uint32_t hidden_valid,hidden_readback[3];
++    uint32_t pdc_msgid_valid,pdc_msgid_readback[6];};
+ /* One cold native bootstrap: PDC/RSC/TCM/power/version -> reset release and
+  * fresh FW result -> A619 boot-slumber OOB -> HFI init and INIT/version ACKs.
+  * Exact pinned legacy asset + native family rules select v1 transport; the

@@ -1,0 +1,245 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -5411,17 +5411,20 @@
+ 	return length == n && memcmp(s, expected, n) == 0;
+ }
+ 
+-static bool
++static const char sweet_eagl_insert[] =
++	    "DYLD_INSERT_LIBRARIES=/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib";
++
++static const char *
+ sweet_dyld_env_scan(const char *start, const char *end, int count,
+     bool environment, struct sweet_dyld_env_record *record)
+ {
+ 	if (count < 0 || (size_t)count > (size_t)(end - start)) {
+-		return false;
++		return NULL;
+ 	}
+ 	for (int i = 0; i < count; ++i) {
+ 		const char *nul = memchr(start, 0, (size_t)(end - start));
+ 		if (nul == NULL) {
+-			return false;
++			return NULL;
+ 		}
+ 		size_t n = (size_t)(nul - start);
+ 		if (!environment) {
+@@ -5433,7 +5436,7 @@
+ 			    memcmp(start, insert, sizeof(insert) - 1) == 0) {
+ 				record->insert++;
+ 				record->expected += sweet_dyld_env_equal(start, n,
+-				    "DYLD_INSERT_LIBRARIES=/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib");
++				    sweet_eagl_insert);
+ 			}
+ 			if (n >= sizeof(mode) - 1 &&
+ 			    memcmp(start, mode, sizeof(mode) - 1) == 0) {
+@@ -5444,7 +5447,7 @@
+ 		}
+ 		start = nul + 1;
+ 	}
+-	return true;
++	return start;
+ }
+ 
+ static void
+@@ -5677,6 +5680,188 @@
+ }
+ 
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);
++/* SWEET_EAGL_INJECT_BEGIN: complete body used by typed host boundary tests. */
++enum sweet_eagl_inject_outcome {
++	SEI_APPENDED = 1, SEI_ALREADY, SEI_MODE, SEI_CONFLICT, SEI_SPACE,
++	SEI_SUBJECT, SEI_COPY, SEI_INVALID
++};
++
++static bool
++sweet_eagl_protected_node(vnode_t node, vfs_context_t context, uid_t effective)
++{
++	struct vnode_attr attributes;
++	if (node == NULLVP || vnode_vtype(node) != VREG) {
++		return false;
++	}
++	mount_t mount = vnode_mount(node);
++	if (mount == NULL || !(vfs_flags(mount) & MNT_ROOTFS)) {
++		return false;
++	}
++	VATTR_INIT(&attributes);
++	VATTR_WANTED(&attributes, va_uid);
++	VATTR_WANTED(&attributes, va_mode);
++	if (vnode_getattr(node, &attributes, vfs_context_kernel()) != 0 ||
++	    !VATTR_IS_SUPPORTED(&attributes, va_uid) ||
++	    !VATTR_IS_SUPPORTED(&attributes, va_mode) || attributes.va_uid != 0 ||
++	    (attributes.va_mode & (S_IWGRP | S_IWOTH)) != 0) {
++		return false;
++	}
++	if (effective != 0) {
++		int error = vnode_authorize(node, NULLVP, KAUTH_VNODE_WRITE_DATA, context);
++		if (error != EACCES && error != EPERM) {
++			return false;
++		}
++	}
++	return true;
++}
++
++static unsigned
++sweet_eagl_inject_subject(struct image_params *imgp, proc_t p,
++    uid_t *effective, uid_t *real)
++{
++	vnode_t target = NULLVP, library = NULLVP;
++	unsigned reason = 1;
++	*effective = *real = (uid_t)-1;
++	if (p == NULL || p != current_proc() || imgp->ip_vp == NULLVP ||
++	    imgp->ip_scriptvp != NULLVP || !(imgp->ip_flags & IMGPF_IS_64BIT_ADDR)) {
++		return reason;
++	}
++	reason = 2;
++	vfs_context_t context = imgp->ip_vfs_context;
++	kauth_cred_t cred = vfs_context_ucred(context);
++	if (!IS_VALID_CRED(cred)) {
++		return reason;
++	}
++	*effective = kauth_cred_getuid(cred);
++	*real = kauth_cred_getruid(cred);
++	reason = 3;
++	if (*effective != *real || (*effective != 0 && *effective != 501)) {
++		return reason;
++	}
++	reason = 4;
++	if (vnode_lookup("/usr/libexec/backboardd",
++	    VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT, &target,
++	    vfs_context_kernel()) != 0) {
++		goto out;
++	}
++	reason = 5;
++	if (target != imgp->ip_vp || !sweet_eagl_protected_node(target, context, *effective)) {
++		goto out;
++	}
++	reason = 6;
++	if (vnode_lookup("/usr/local/lib/gauguin/libGauguinEAGLAdmission.dylib",
++	    VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT, &library,
++	    vfs_context_kernel()) != 0) {
++		goto out;
++	}
++	reason = 7;
++	if (!sweet_eagl_protected_node(library, context, *effective)) {
++		goto out;
++	}
++	reason = 0;
++out:
++	if (library != NULLVP) {
++		vnode_put(library);
++	}
++	if (target != NULLVP) {
++		vnode_put(target);
++	}
++	/* imgp->ip_vp is borrowed from exec; its original iocount is not ours. */
++	return reason;
++}
++
++static void
++sweet_eagl_exec_inject(struct image_params *imgp)
++{
++	struct sweet_dyld_env_record record = {0};
++	unsigned outcome = SEI_INVALID, reason = 0, added = 0;
++	uid_t effective = (uid_t)-1, real = (uid_t)-1;
++	int error = 0;
++	if (sweet_eagl_inject_requested != 1 || !sweet_exec_loader_probe || imgp == NULL ||
++	    imgp->ip_strings == NULL || imgp->ip_vfs_context == NULL) {
++		return;
++	}
++	/* This runs immediately after the incoming env vector, before its NULL
++	 * pointer reservation and alignment. No applev strings have been added. */
++	uintptr_t base = (uintptr_t)imgp->ip_strings;
++	uintptr_t argv = (uintptr_t)imgp->ip_startargv;
++	uintptr_t env = (uintptr_t)imgp->ip_endargv;
++	uintptr_t tail = (uintptr_t)imgp->ip_strendp;
++	if (base > UINTPTR_MAX - (NCARGS + PAGE_SIZE) || argv <= base || env < argv ||
++	    tail < env || tail > base + NCARGS + PAGE_SIZE) {
++		return;
++	}
++	const char *path_end = memchr(imgp->ip_strings, 0, argv - base);
++	if (path_end == NULL || !sweet_dyld_env_equal(imgp->ip_strings,
++	    (size_t)(path_end - imgp->ip_strings), "executable_path=/usr/libexec/backboardd")) {
++		return;
++	}
++	proc_t p = vfs_context_proc(imgp->ip_vfs_context);
++	/* A counted env vector must end exactly at the next free string byte. */
++	if (sweet_dyld_env_scan(imgp->ip_endargv, imgp->ip_strendp,
++	    imgp->ip_envc, true, &record) != imgp->ip_strendp ||
++	    imgp->ip_strspace < 0 || imgp->ip_argspace < 0 ||
++	    imgp->ip_argspace > NCARGS || imgp->ip_argspace > imgp->ip_strspace ||
++	    (size_t)imgp->ip_strspace != NCARGS + PAGE_SIZE - (tail - base)) {
++		goto done;
++	}
++	outcome = SEI_MODE;
++	if (record.mode != 1 || record.admission != 1) {
++		goto done;
++	}
++	outcome = SEI_CONFLICT;
++	if (record.insert && (record.insert != 1 || record.expected != 1)) {
++		goto done;
++	}
++	outcome = SEI_SUBJECT;
++	reason = sweet_eagl_inject_subject(imgp, p, &effective, &real);
++	if (reason != 0) {
++		goto done;
++	}
++	if (record.insert == 1) {
++		outcome = SEI_ALREADY;
++		goto done;
++	}
++	outcome = SEI_SPACE;
++	/* Eight bytes each for the new env pointer and the original env NULL.
++	 * Include the exact future alignment too, preserving a previously valid
++	 * exec when the diagnostic cannot fit. All arithmetic follows bounds. */
++	size_t length = sizeof(sweet_eagl_insert), pointer_size = 8;
++	if ((size_t)imgp->ip_strspace < length) {
++		goto done;
++	}
++	size_t padding = ((size_t)imgp->ip_strspace - length) % pointer_size;
++	size_t needed = length + pointer_size * 2 + padding;
++	if ((size_t)imgp->ip_argspace < needed ||
++	    (size_t)imgp->ip_strspace < length + padding) {
++		goto done;
++	}
++	char *old_end = imgp->ip_strendp;
++	int old_strings = imgp->ip_strspace, old_arguments = imgp->ip_argspace;
++	error = exec_add_user_string(imgp, CAST_USER_ADDR_T(sweet_eagl_insert), UIO_SYSSPACE, TRUE);
++	if (error != 0) {
++		/* A partial copy can only touch unused tail bytes. Restore all live
++		 * metadata; the original env and original exec result are preserved. */
++		imgp->ip_strendp = old_end;
++		imgp->ip_strspace = old_strings;
++		imgp->ip_argspace = old_arguments;
++		outcome = SEI_COPY;
++		goto done;
++	}
++	imgp->ip_argspace -= (int)pointer_size;
++	imgp->ip_envc++;
++	added = 1;
++	outcome = SEI_APPENDED;
++done:
++	printf("SWEET EAGL INJECT: pid=%d outcome=%u reason=%u error=%d added=%u envc=%d uid=%u ruid=%u\n",
++	    p == NULL ? -1 : proc_pid(p), outcome, reason, error, added,
++	    imgp->ip_envc, effective, real);
++}
++/* SWEET_EAGL_INJECT_END */
++#endif
++
+ /*
+  * exec_extract_strings
+  *
+@@ -5876,6 +6061,10 @@
+ 		imgp->ip_argspace -= new_ptr_size; /* to hold envv[] entry */
+ 		imgp->ip_envc++;
+ 	}
++
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++	sweet_eagl_exec_inject(imgp);
++#endif
+ 
+ 	/* Save space for envv[] NULL terminator */
+ 	if (imgp->ip_argspace < new_ptr_size) {

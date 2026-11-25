@@ -1,0 +1,186 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -10,6 +10,8 @@
+  *   sel 0   create: scalar [parent id], struct in = serialized property
+  *           dictionary (binary or XML), struct out = lock result (0xa68)
+  *   sel 4   lookup by id: scalar [id], struct out = lock result
++ *   sel 6   wrap client image: struct in = address:u64, width, height,
++ *           pixel format, bytes/element, bytes/row, size:u32; lock result out
+  *   sel 34  lookup by mach port: scalar [port name], struct out = lock result
+  *   sel 35  create mach port: scalars [id, options], scalar out [port name]
+  *   traps   0/1 use count +/- (id, category), 2 lock / 3 unlock
+@@ -43,6 +45,7 @@
+ enum {
+ 	kSweetSurfaceCreate             = 0,
+ 	kSweetSurfaceLookup             = 4,
++	kSweetSurfaceWrapImage          = 6,
+ 	kSweetSurfaceLimits             = 13,
+ 	kSweetSurfaceLookupFromPort     = 34,
+ 	kSweetSurfaceCreatePort         = 35,
+@@ -76,7 +79,7 @@
+ static volatile SInt32 sweet_surface_abi_results;
+ static volatile SInt32 sweet_surface_abi_ignored[48];
+ #endif
+-static uint64_t      sweet_surface_wired;       /* bytes of buffer surfaces */
++static uint64_t      sweet_surface_wired;       /* buffer and wrapped-image pages */
+ #define SWEET_SURFACE_WIRED_MAX         (1536ull << 20)
+ 
+ OSDefineMetaClassAndStructors(SweetSurface, OSObject);
+@@ -84,11 +87,14 @@
+ void
+ SweetSurface::free()
+ {
+-	if (OSDynamicCast(IOBufferMemoryDescriptor, memory) != NULL) {
+-		OSAddAtomic64(-(SInt64)allocSize, (volatile SInt64 *)&sweet_surface_wired);
+-	}
+ 	OSSafeReleaseNULL(kernelMap);
++	if (memoryPrepared) {
++		memory->complete();
++	}
+ 	OSSafeReleaseNULL(memory);
++	if (wiredSize != 0) {
++		OSAddAtomic64(-(SInt64)wiredSize, (volatile SInt64 *)&sweet_surface_wired);
++	}
+ 	OSSafeReleaseNULL(state);
+ 	OSObject::free();
+ }
+@@ -102,7 +108,8 @@
+ 	}
+ 	IOLockLock(sweet_surface_lock);
+ 	if (kernelMap == NULL && memory != NULL) {
+-		kernelMap = memory->map(kIOMapWriteCombineCache);
++		/* Preserve the cache type of task-backed images as well as panel memory. */
++		kernelMap = memory->map(mapCache);
+ 	}
+ 	IOLockUnlock(sweet_surface_lock);
+ 	return kernelMap != NULL ? (uintptr_t)kernelMap->getVirtualAddress() : 0;
+@@ -414,6 +421,7 @@
+ 	IOReturn addRef(SweetSurface *s, SweetSurfaceRef **refOut, bool *existing);
+ 	IOReturn returnSurface(SweetSurface *s, IOExternalMethodArguments *args);
+ 	IOReturn create(IOExternalMethodArguments *args);
++	IOReturn wrapImage(IOExternalMethodArguments *args);
+ 
+ public:
+ 	bool initWithTask(task_t owningTask, void *securityID, UInt32 type) APPLE_KEXT_OVERRIDE;
+@@ -742,6 +750,7 @@
+ 		} else {
+ 			bzero(mem->getBytesNoCopy(), s->allocSize);
+ 			s->memory = mem;
++			s->wiredSize = s->allocSize;
+ 			s->mapCache = kIOMapDefaultCache;
+ 			if (!sweet_surface_publish(s)) {
+ 				ret = kIOReturnNoResources;
+@@ -762,6 +771,90 @@
+ 		return ret;
+ 	}
+ 	ret = returnSurface(s, args);   /* takes the creator's user count */
++	s->release();
++	return ret;
++}
++
++/*
++ * 20H392 IOSurfaceClientWrapClientImage sends selector6 and constructs a
++ * client on ANY successful return. Accepting it with zero output creates a
++ * client with no state page, crashing GetBulkAttachments at address0x30.
++ * Pin the caller's actual pixels; substituting a blank allocation would
++ * lose the application's image. Keep the exact byte extent and cache type.
++ */
++IOReturn
++IOSurfaceRootUserClient::wrapImage(IOExternalMethodArguments *args)
++{
++	struct {
++		uint64_t address;
++		uint32_t width, height, pixelFormat, bytesPerElement, bytesPerRow, size;
++	} input;
++	static_assert(sizeof(input) == 32, "20H392 wrapped image wire size");
++	IOByteCount outputSize = args->structureOutputDescriptor != NULL ?
++	    args->structureOutputDescriptor->getLength() : args->structureOutputSize;
++	if (args->scalarInputCount != 0 || args->scalarOutputCount != 0 ||
++	    outputSize < SWEET_SURFACE_RESULT_SIZE ||
++	    (args->structureOutputDescriptor == NULL && args->structureOutput == NULL)) {
++		return kIOReturnBadArgument;
++	}
++	if (args->structureInputDescriptor != NULL) {
++		if (args->structureInputDescriptor->getLength() != sizeof(input) ||
++		    args->structureInputDescriptor->readBytes(0, &input, sizeof(input)) != sizeof(input)) {
++			return kIOReturnBadArgument;
++		}
++	} else {
++		if (args->structureInput == NULL || args->structureInputSize != sizeof(input)) {
++			return kIOReturnBadArgument;
++		}
++		memcpy(&input, args->structureInput, sizeof(input));
++	}
++	if (input.address == 0 || input.width == 0 || input.height == 0 ||
++	    input.width > SWEET_SURFACE_MAX_DIM || input.height > SWEET_SURFACE_MAX_DIM ||
++	    input.bytesPerElement == 0 || input.bytesPerElement > 64 ||
++	    input.bytesPerRow < (uint64_t)input.width * input.bytesPerElement ||
++	    input.size == 0 || input.size > SWEET_SURFACE_MAX_ALLOC ||
++	    (uint64_t)input.bytesPerRow * input.height > input.size ||
++	    input.address > UINT64_MAX - input.size) {
++		return kIOReturnBadArgument;
++	}
++
++	SweetSurface *s = sweet_surface_alloc();
++	if (s == NULL) {
++		return kIOReturnNoMemory;
++	}
++	s->width = input.width;
++	s->height = input.height;
++	s->pixelFormat = input.pixelFormat;
++	s->bytesPerElement = (uint16_t)input.bytesPerElement;
++	s->bytesPerRow = input.bytesPerRow;
++	s->elementWidth = s->elementHeight = 1;
++	s->allocSize = input.size;
++	s->mapCache = kIOMapDefaultCache;
++	uint32_t charge = (uint32_t)round_page((input.address & PAGE_MASK) + input.size);
++	IOReturn ret = kIOReturnNoMemory;
++	uint64_t previous = (uint64_t)OSAddAtomic64(charge, (volatile SInt64 *)&sweet_surface_wired);
++	if (previous > SWEET_SURFACE_WIRED_MAX - charge) {
++		OSAddAtomic64(-(SInt64)charge, (volatile SInt64 *)&sweet_surface_wired);
++	} else {
++		s->wiredSize = charge;
++		s->memory = IOMemoryDescriptor::withAddressRange(input.address, input.size,
++		    kIODirectionInOut | kIOMemoryThreadSafe, fTask);
++		if (s->memory != NULL) {
++			ret = s->memory->prepare();
++			if (ret == kIOReturnSuccess) {
++				s->memoryPrepared = true;
++				ret = sweet_surface_publish(s) ? returnSurface(s, args) : kIOReturnNoResources;
++			}
++		}
++	}
++	if (ret != kIOReturnSuccess || sweet_surface_creates_logged < 64) {
++		char name[32];
++		proc_selfname(name, sizeof(name));
++		sweet_surface_creates_logged++;
++		IOLog("SWEET SURF: %s wrap id %u %ux%u fmt 0x%x bpe %u bpr %u size %u wired %u -> 0x%x\n",
++		    name, s->id, s->width, s->height, s->pixelFormat, s->bytesPerElement,
++		    s->bytesPerRow, s->allocSize, s->wiredSize, ret);
++	}
+ 	s->release();
+ 	return ret;
+ }
+@@ -784,6 +877,8 @@
+ 	}
+ 	case kSweetSurfaceCreate:
+ 		return create(args);
++	case kSweetSurfaceWrapImage:
++		return wrapImage(args);
+ 	case kSweetSurfaceLookup: {
+ 		SweetSurface *s = sweet_surface_copy((uint32_t)arg0);
+ 		IOReturn ret = kIOReturnNotFound;
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -40,8 +40,10 @@
+ 	IOOptionBits              mapCache;     /* cache mode for user mappings */
+ 	IOBufferMemoryDescriptor *state;        /* shared state page, read-only for users */
+ 	IOMemoryMap              *kernelMap;    /* lazily created for kernel copies */
++	uint32_t                  wiredSize;    /* quota charge, including partial pages */
++	bool                      memoryPrepared;
+ 
+-	bool init() APPLE_KEXT_OVERRIDE { gpuState=0; return OSObject::init(); }
++	bool init() APPLE_KEXT_OVERRIDE { gpuState=0; wiredSize=0; memoryPrepared=false; return OSObject::init(); }
+ 	void free() APPLE_KEXT_OVERRIDE;
+ 
+ 	/* Kernel address of the pixels (mapped on first use), or 0. */

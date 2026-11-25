@@ -1,0 +1,426 @@
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -127,7 +127,8 @@
+ bool sweet_gpu_runtime_sync(void);
+ /* Board guarded issued-fence path. The caller retains every referenced BO
+  * and IOSurface until poll/wait proves completion or quarantines the GPU.
+- * The existing synchronous submit remains the only active user-client path. */
++ * The user client defaults to the synchronous path; only the opted-in
++ * compositor may return the issued fence while a submission remains BUSY. */
+ enum ggr_error sweet_gpu_runtime_issue(const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
+ enum ggr_error sweet_gpu_runtime_poll(uint32_t);
+ enum ggr_error sweet_gpu_runtime_wait(uint32_t);
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -1,8 +1,9 @@
+ /* msm-numbered IOKit transport for the existing A619 bootstrap.
+  * Interface compatibility: HakiOS 63fc2b4633bac3af8e57dadab9f5a8d4cb940438.
+  * The backend, ownership, exact wire validation and SweetSurface adapter here
+- * are local. Opt-in and one client; submissions initially synchronize
+- * before returning. This is not an IOAccelerator or a Metal implementation. */
++ * are local. Opt-in and one client; default submissions synchronize before
++ * returning. The compositor's issued-fence path needs sweetgpuasync=1.
++ * This is not an IOAccelerator or a Metal implementation. */
+ #include <pexpert/arm64/board_config.h>
+ #include <pexpert/pexpert.h>
+ #if defined(GAUGUIN)
+@@ -29,6 +30,8 @@
+ 
+ static IOLock *gLock;
+ static IOUserClient *gOwner;
++/* Called with gLock. A faulted owner stays retained until reset. */
++static bool completePendingOwnerLocked(bool wait,bool reap);
+ static uint32_t gTraceReader; /* protected by gLock; numeric ID only */
+ /* Pilot access starts only after the existing root test has released its
+  * client following the six native fences. Protected by gLock. */
+@@ -189,11 +192,11 @@
+     uint64_t address,size;
+     uint64_t mappingAddress,mappingSize; /* page-aligned SMMU window, not logical pixel bounds */
+     uint32_t handle,flags;
+-    bool installed;
++    bool installed,pending,closePending;
+ };
+-/* Queue-local sequential fences map to the one synchronous hardware ring.
+- * Every visible number denotes a completed submit on this exact live queue. */
+-struct gpu_queue {uint32_t id,completed;};
++/* The root's legacy queue completes synchronously. An opted-in compositor
++ * queue may have one issued number ahead of its completed prefix. */
++struct gpu_queue {uint32_t id,issued,completed;};
+ class GauguinGPUUserClient : public IOUserClient {
+     OSDeclareDefaultStructors(GauguinGPUUserClient);
+     task_t fTask;
+@@ -202,14 +205,19 @@
+     uint32_t fNextHandle,fNextQueue,fNativeFence,fBootstrapJobs;
+     uint32_t fAllocationStage,fAllocationFailures;
+     gpu_queue fDefaultQueue,fQueues[GGR_MAX_QUEUES];
+-    bool fClosed, fCompositor;
++    gpu_buffer *fPending[GGR_MAX_BUFFERS];
++    gpu_queue *fPendingQueue;
++    uint32_t fPendingCount,fPendingNativeFence,fPendingQueueFence;
++    bool fClosed, fCompositor, fAsync;
+     gpu_buffer *find(uint32_t);
+     gpu_queue *queue(uint32_t);
+     IOReturn add(IOMemoryDescriptor *,SweetSurface *,uint64_t,uint32_t,uint32_t *);
+     bool drop(gpu_buffer *);
++    bool reapClosed(void);
+     IOReturn submit(struct ggr_submit *);
+     IOReturn surface(struct ggr_surface *);
+ public:
++    IOReturn finishPending(bool wait,bool reap,const struct ggr_timespec *deadline=nullptr);
+     bool initWithTask(task_t,void *,UInt32,OSDictionary *) APPLE_KEXT_OVERRIDE;
+     bool start(IOService *) APPLE_KEXT_OVERRIDE;
+     IOReturn clientClose(void) APPLE_KEXT_OVERRIDE;
+@@ -218,6 +226,13 @@
+     IOReturn externalMethod(uint32_t,IOExternalMethodArguments *,IOExternalMethodDispatch *,OSObject *,void *) APPLE_KEXT_OVERRIDE;
+ };
+ OSDefineMetaClassAndStructors(GauguinGPUUserClient,IOUserClient);
++
++static bool completePendingOwnerLocked(bool wait,bool reap)
++{
++    if(!gOwner)return true;
++    auto *owner=OSDynamicCast(GauguinGPUUserClient,gOwner);
++    return owner&&owner->finishPending(wait,reap)==kIOReturnSuccess;
++}
+ 
+ /* Class name deliberately matches the reused userspace transport. */
+ class HakiosGPU : public IOService {
+@@ -250,7 +265,7 @@
+     if(attached&&!started)s->detach(p);
+     s->release();gPublished=started;
+     if(sweet_eagl_gpu_pilot_enabled())
+-        IOLog("SWEET GPU USER: service=%u compositor-pilot single-client synchronous-submit\n",started);
++        IOLog("SWEET GPU USER: service=%u compositor-pilot single-client sync-default\n",started);
+     else
+         IOLog("SWEET GPU USER: service=%u root-only single-client synchronous-submit\n",started);
+     return started;
+@@ -269,7 +284,7 @@
+      * independent watchdog petter. Failure keeps DMA-visible pages retained. */
+     uint64_t queued=mach_absolute_time();IOLockLock(gLock);
+     uint64_t profile=gapi_begin(0x102,queued,mach_absolute_time());
+-    bool ok=sweet_gpu_runtime_heartbeat();
++    bool ok=completePendingOwnerLocked(true,true)&&sweet_gpu_runtime_heartbeat();
+     gapi_end(profile,ok?kIOReturnSuccess:kIOReturnNotReady);
+     IOLockUnlock(gLock);return ok;
+ }
+@@ -284,6 +299,11 @@
+     uint64_t queued=sweet_ui_trace_clock();
+     IOLockLock(lock);
+     sweet_ui_trace_record(GUT_READ_LOCK,s->id,0,s->gpuState,queued,0,0);
++    /* A compositor may have returned an issued fence. Never read its pixels
++     * before the board proves completion; the next timer beat can retry. */
++    if(s->gpuState==1&&!completePendingOwnerLocked(false,false)){
++        IOLockUnlock(lock);return 0;
++    }
+     if(s->gpuState){IOLockUnlock(lock);return 0;}
+     gTraceReader=s->id;
+     return 2;
+@@ -299,7 +319,9 @@
+     if(!IOUserClient::initWithTask(task,sid,type,properties))return false;
+     fTask=task;fCompositor=!admin;
+     if(fCompositor)task_reference(fTask);
+-    fNextHandle=1;fNextQueue=1;fBootstrapJobs=0;fAllocationStage=0;fAllocationFailures=0;return true;
++    fNextHandle=1;fNextQueue=1;fBootstrapJobs=0;fAllocationStage=0;fAllocationFailures=0;
++    fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
++    fAsync=false;return true;
+ }
+ bool GauguinGPUUserClient::start(IOService *p)
+ {
+@@ -307,6 +329,9 @@
+     IOLockLock(gLock);
+     bool compositorReady=!fCompositor||(gReleasedRootFence>=kPilotRootFences&&
+         (!gMetalBootstrapMode||gMetalBootstrap.ready));
++    uint32_t async=0;
++    fAsync=fCompositor&&gMetalBootstrapMode&&
++        PE_parse_boot_argn("sweetgpuasync",&async,sizeof(async))&&async==1;
+     bool ok=!gOwner&&compositorReady&&sweet_gpu_runtime_ready()&&prepareTables();
+     if(ok){fBuffers=IONewZero(gpu_buffer,GGR_MAX_CLIENT_BUFFERS);ok=fBuffers!=nullptr;}
+     if(ok&&gMetalBootstrapMode&&!fCompositor)ok=ggr_bootstrap_begin(&gMetalBootstrap);
+@@ -318,6 +343,7 @@
+         gOwner=this;
+         if(fCompositor)IOLog("SWEET GPU AUTH: compositor opened pid=%d root_fence=%u\n",
+             proc_pid(current_proc()),gReleasedRootFence);
++        if(fCompositor)IOLog("SWEET GPU USER: compositor issued-fence opt-in=%u\n",fAsync);
+     }
+     IOLockUnlock(gLock);return ok;
+ }
+@@ -333,7 +359,7 @@
+     /* Preserve legacy default/single-queue clients. Once there are multiple
+      * explicit queues, zero cannot guess a fence's namespace. A used default
+      * queue retains its own identity rather than aliasing a later new queue. */
+-    if(fDefaultQueue.completed)return &fDefaultQueue;
++    if(fDefaultQueue.issued)return &fDefaultQueue;
+     gpu_queue *only=nullptr;
+     for(auto &q:fQueues)if(q.id){if(only)return nullptr;only=&q;}
+     return only?only:&fDefaultQueue;
+@@ -404,7 +430,7 @@
+     /* A live/faulted DMA window retains BOTH the descriptor and its surface;
+      * dropping the original task's surface reference cannot recycle pixels. */
+     m->retain();if(s)s->retain();
+-    *slot={m,s,address+bias,size,address,mappingSize,fNextHandle++,flags,true};fBytes+=mappingSize;
++    *slot={m,s,address+bias,size,address,mappingSize,fNextHandle++,flags,true,false,false};fBytes+=mappingSize;
+     fAllocationStage=8;
+     for(uint64_t off=0;off<mappingSize;off+=4096) {
+         uint64_t pa=0;
+@@ -419,6 +445,7 @@
+ bool GauguinGPUUserClient::drop(gpu_buffer *b)
+ {
+     if(!b->memory)return true;
++    if(b->pending)return false;
+     if(!sweet_gpu_runtime_ready())return false;
+     for(uint64_t off=0;off<b->mappingSize;off+=4096)*leafAt(b->mappingAddress+off)=0;
+     memoryBarrier();
+@@ -427,6 +454,80 @@
+     b->memory->complete();b->memory->release();OSSafeReleaseNULL(b->surface);
+     bzero(b,sizeof(*b));return true;
+ }
++bool GauguinGPUUserClient::reapClosed(void)
++{
++    if(fPendingCount)return false;
++    bool any=false;
++    for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)
++        if(fBuffers[i].memory&&fBuffers[i].closePending){any=true;break;}
++    if(!any)return true;
++    if(!sweet_gpu_runtime_ready())return false;
++    for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)
++        if(fBuffers[i].memory&&fBuffers[i].closePending&&!drop(fBuffers+i))return false;
++    return true;
++}
++IOReturn GauguinGPUUserClient::finishPending(bool wait,bool reap,const struct ggr_timespec *deadline)
++{
++    /* Caller holds gLock. The pending array points only into fBuffers;
++     * those entries retain their descriptors, surfaces and SMMU mappings. */
++    if(!fPendingCount)return kIOReturnSuccess;
++    if(!fPendingNativeFence||!fPendingQueue)return kIOReturnNotReady;
++    enum ggr_error rc=GGR_PENDING;
++    if(wait&&deadline){
++        /* msm timeouts are absolute on the continuous clock. A caller's
++         * earlier deadline never frees or cancels a submitted GPU buffer. */
++        __uint128_t target=(__uint128_t)deadline->seconds*NSEC_PER_SEC+
++                           (uint64_t)deadline->nanoseconds;
++        for(uint32_t i=0;i<200000;i++){
++            rc=sweet_gpu_runtime_poll(fPendingNativeFence);
++            if(rc!=GGR_PENDING)break;
++            uint64_t now;
++            absolutetime_to_nanoseconds(mach_continuous_time(),&now);
++            if(target<=now)return kIOReturnTimeout;
++            IODelay(10);
++        }
++        if(rc==GGR_PENDING){sweet_gpu_runtime_stop();return kIOReturnNotReady;}
++    } else rc=wait?sweet_gpu_runtime_wait(fPendingNativeFence):
++                   sweet_gpu_runtime_poll(fPendingNativeFence);
++    if(rc==GGR_PENDING)return kIOReturnNotReady;
++    if(rc!=GGR_OK||
++       fPendingQueue->issued!=fPendingQueueFence||
++       fPendingQueue->completed>=fPendingQueueFence){
++        sweet_gpu_runtime_stop();
++        for(uint32_t i=0;i<fPendingCount;i++)
++            if(fPending[i]&&fPending[i]->surface)fPending[i]->surface->gpuState=2;
++        /* Fault escrow stays mapped until reset. */
++        return rc==GGR_TIMEOUT?kIOReturnTimeout:kIOReturnNotReady;
++    }
++    /* Check every retained alias before clearing any surface or pending BO.
++     * A failed late alias must leave the complete submitted set quarantined. */
++    for(uint32_t i=0;i<fPendingCount;i++){
++        gpu_buffer *b=fPending[i];
++        if(!b||!b->memory||!b->pending||
++           (b->surface&&!b->surface->kernelAddress())){
++            sweet_gpu_runtime_stop();
++            for(uint32_t j=0;j<fPendingCount;j++)
++                if(fPending[j]&&fPending[j]->surface)fPending[j]->surface->gpuState=2;
++            return kIOReturnNotReady;
++        }
++    }
++    for(uint32_t i=0;i<fPendingCount;i++){
++        gpu_buffer *b=fPending[i];
++        if(b->surface){
++            uintptr_t ptr=b->surface->kernelAddress();
++            flush_dcache64(ptr,(unsigned)b->size,0);
++            memoryBarrier();b->surface->gpuState=0;
++            sweet_ui_trace_record(GUT_SURFACE,fPendingQueueFence,0,b->flags,
++                                  b->surface->id,fPendingNativeFence,1);
++        }
++        b->pending=false;fPending[i]=nullptr;
++    }
++    fPendingQueue->completed=fPendingQueueFence;
++    fNativeFence=fPendingNativeFence;
++    fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
++    if(reap&&!reapClosed())return kIOReturnNotReady;
++    return kIOReturnSuccess;
++}
+ IOReturn GauguinGPUUserClient::clientClose(void)
+ {
+     bool releaseOwner=false;
+@@ -435,6 +536,7 @@
+         uint64_t profile=gapi_begin(0x101,queued,mach_absolute_time());
+         if(!fClosed) {
+             fClosed=true;bool clean=true;
++            if(fPendingCount&&finishPending(true,true)!=kIOReturnSuccess)clean=false;
+             if(fBuffers)for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
+             if(gOwner==this) {
+                 if(gMetalBootstrapMode&&!fCompositor) {
+@@ -479,6 +581,7 @@
+      * pixels stay accessible through their original read-only IOSurface, while
+      * generic texture replace/read calls fail rather than obtaining a writable
+      * alias through IOConnectMapMemory. Ordinary GPU-RO upload BOs are unchanged. */
++    if(b&&fPendingCount&&finishPending(true,true)!=kIOReturnSuccess)b=nullptr;
+     if(b&&!(b->surface&&b->surface->readOnly)&&sweet_gpu_runtime_ready()) {
+         b->memory->retain();*memory=b->memory;*options=0;r=kIOReturnSuccess;
+     }
+@@ -522,10 +625,14 @@
+ 
+ IOReturn GauguinGPUUserClient::submit(struct ggr_submit *r)
+ {
++    if(fAsync&&fPendingCount){
++        IOReturn settled=finishPending(true,true);
++        if(settled!=kIOReturnSuccess)return settled;
++    }
+     gpu_queue *q=queue(r->queueid);
+     if((r->flags&~UINT32_C(0x80000010))||(r->flags&0x1f)!=0x10||r->fence||
+        !r->nr_bos||r->nr_bos>GGR_MAX_BUFFERS||!r->nr_cmds||r->nr_cmds>GGR_MAX_COMMANDS||
+-       !q||q->completed==UINT32_MAX||r->in_syncobjs||r->out_syncobjs||r->nr_in_syncobjs||
++       !q||q->issued==UINT32_MAX||r->in_syncobjs||r->out_syncobjs||r->nr_in_syncobjs||
+        r->nr_out_syncobjs||r->syncobj_stride||r->pad||r->fence_fd!=-1||
+        !ggr_user_span(r->bos,(uint64_t)r->nr_bos*sizeof(struct ggr_submit_bo))||
+        !ggr_user_span(r->cmds,(uint64_t)r->nr_cmds*sizeof(struct ggr_submit_cmd)))return kIOReturnBadArgument;
+@@ -560,6 +667,15 @@
+                 if(!ptr)goto out;
+             }
+         }
++        /* Escrow every descriptor and mapping BEFORE the doorbell. A failed
++         * post-doorbell issue cannot prove that the GPU never saw the BOs. */
++        if(fAsync){
++            fPendingCount=r->nr_bos;fPendingQueue=q;fPendingQueueFence=q->issued+1;
++            for(uint32_t i=0;i<r->nr_bos;i++){
++                gpu_buffer *b=find(bos[i].handle);
++                fPending[i]=b;b->pending=true;
++            }
++        }
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+             gpu_buffer *b=find(bos[i].handle);
+             if(b->surface) {
+@@ -569,19 +685,32 @@
+         }
+         memoryBarrier();uint32_t fence=0;
+         sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);
+-        bool ok=sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
++        bool ok=fAsync?sweet_gpu_runtime_issue(addresses,words,r->nr_cmds,&fence)==GGR_OK:
++                       sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
+         if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;}
+-        for(uint32_t i=0;i<r->nr_bos;i++) {
+-            gpu_buffer *b=find(bos[i].handle);
+-            if(b->surface) {
+-                if(ok)flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
+-                b->surface->gpuState=ok?0:2;
+-                sweet_ui_trace_record(GUT_SURFACE,gapi_pending.token,(uint32_t)proc_pid(current_proc()),bos[i].flags,b->surface->id,fence,ok);
++        if(fAsync){
++            if(ok){
++                fPendingNativeFence=fence;r->fence=++q->issued;
++                result=kIOReturnSuccess; /* issued; BOs/surfaces remain owned */
++            } else {
++                sweet_gpu_runtime_stop();
++                for(uint32_t i=0;i<fPendingCount;i++)
++                    if(fPending[i]->surface)fPending[i]->surface->gpuState=2;
++                result=kIOReturnTimeout; /* fault escrow is never released */
+             }
++        } else {
++            for(uint32_t i=0;i<r->nr_bos;i++) {
++                gpu_buffer *b=find(bos[i].handle);
++                if(b->surface) {
++                    if(ok)flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
++                    b->surface->gpuState=ok?0:2;
++                    sweet_ui_trace_record(GUT_SURFACE,gapi_pending.token,(uint32_t)proc_pid(current_proc()),bos[i].flags,b->surface->id,fence,ok);
++                }
++            }
++            if(ok){fNativeFence=fence;r->fence=++q->completed;q->issued=q->completed;result=kIOReturnSuccess;}
++            else result=kIOReturnTimeout;
+         }
+         memoryBarrier();
+-        if(ok){fNativeFence=fence;r->fence=++q->completed;result=kIOReturnSuccess;}
+-        else result=kIOReturnTimeout;
+         sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,r->queueid,r->fence,fence);
+     }
+ out:
+@@ -609,7 +738,18 @@
+     uint64_t profile=gapi_begin(selector,queued,mach_absolute_time());
+     IOReturn result=kIOReturnBadArgument;
+     fAllocationStage=0; /* runtime/client gate, before request validation */
+-    if(fClosed||!fBuffers||gOwner!=this||!sweet_gpu_runtime_ready()){result=kIOReturnNotReady;goto out;}
++    /* These requests can inspect or defer a handle while one fence runs.
++     * Allocation, mapping, submit and queue teardown first complete it. */
++    bool passive=selector==0x09||selector==0x43||selector==0x44||
++                 selector==0x45||selector==0x47||selector==0x48;
++    if(fClosed||!fBuffers||gOwner!=this){result=kIOReturnNotReady;goto out;}
++    if(fAsync&&fPendingCount&&!passive){
++        result=finishPending(true,true);
++        if(result!=kIOReturnSuccess)goto out;
++    }
++    if(!sweet_gpu_runtime_ready()&&!(fAsync&&fPendingCount&&passive)){
++        result=kIOReturnNotReady;goto out;
++    }
+     switch(selector) {
+     case 0x40:
+         if(r.param.pipe!=0x10||r.param.len||r.param.pad)break;
+@@ -633,15 +773,36 @@
+         else {result=kIOReturnUnsupported;break;}
+         result=kIOReturnSuccess;break;
+     }
+-    case 0x09: {gpu_buffer *b=find(r.close.handle);if(b&&!r.close.pad)result=drop(b)?kIOReturnSuccess:kIOReturnNotReady;break;}
++    case 0x09: {
++        gpu_buffer *b=find(r.close.handle);
++        if(b&&!r.close.pad){
++            if(fAsync&&fPendingCount){
++                /* Closing removes the public handle, not the DMA owner. */
++                b->handle=0;b->closePending=true;result=kIOReturnSuccess;
++            } else result=drop(b)?kIOReturnSuccess:kIOReturnNotReady;
++        }
++        break;
++    }
+     case 0x44: {
+         gpu_buffer *b=find(r.prep.handle);
+         if(b&&!(r.prep.op&~7u)&&ggr_timeout_valid(&r.prep.timeout)&&
+            !(b->surface&&b->surface->readOnly&&(r.prep.op&2u))) {
++            if(b->pending){
++                result=finishPending(!(r.prep.op&4u),true,
++                                     (r.prep.op&4u)?nullptr:&r.prep.timeout);
++                if(result!=kIOReturnSuccess)break;
++            }
+             memoryBarrier();result=kIOReturnSuccess;
+         }break;
+     }
+-    case 0x45:if(find(r.fini.handle)){memoryBarrier();result=kIOReturnSuccess;}break;
++    case 0x45:{
++        gpu_buffer *b=find(r.fini.handle);
++        if(b){
++            result=b->pending?finishPending(true,true):kIOReturnSuccess;
++            if(result==kIOReturnSuccess)memoryBarrier();
++        }
++        break;
++    }
+     case 0x46:
+         if(gMetalBootstrapMode&&!fCompositor&&gMetalBootstrap.armed) {
+             ggr_bootstrap_fail(&gMetalBootstrap);result=kIOReturnNotPrivileged;break;
+@@ -656,6 +817,9 @@
+         if(r.wait.fence&&!r.wait.flags&&ggr_timeout_valid(&r.wait.timeout)) {
+             gpu_queue *q=queue(r.wait.queueid);
+             if(q&&r.wait.fence<=q->completed)result=kIOReturnSuccess;
++            else if(fAsync&&q&&q==fPendingQueue&&r.wait.fence==fPendingQueueFence&&
++                    r.wait.fence<=q->issued)
++                result=finishPending(true,true,&r.wait.timeout);
+         }
+         break;
+     case 0x48:
+@@ -665,12 +829,12 @@
+         result=kIOReturnNoResources;
+         if(fNextQueue) {
+             for(auto &q:fQueues)if(!q.id) {
+-                q={fNextQueue++,0};r.queue.id=q.id;result=kIOReturnSuccess;break;
++                q={fNextQueue++,0,0};r.queue.id=q.id;result=kIOReturnSuccess;break;
+             }
+         }
+         break;
+     case 0x4b:
+-        if(r.queueId){gpu_queue *q=queue(r.queueId);if(q){*q={0,0};result=kIOReturnSuccess;}}break;
++        if(r.queueId){gpu_queue *q=queue(r.queueId);if(q){*q={0,0,0};result=kIOReturnSuccess;}}break;
+     case 0x4c:result=kIOReturnUnsupported;break;
+     case GGR_BOOTSTRAP_SELECTOR:
+         if(fCompositor){result=kIOReturnNotPrivileged;break;}

@@ -1,0 +1,87 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -492,6 +492,7 @@
+     bool fPresentStatsEnabled;
+     SweetPresentSample *fPresentSample; /* timer workloop only; points to stack */
+     uint32_t fEmpty355Receipts;         /* workloop only */
++    uint32_t fSwapTimingSamples;        /* fLock held */
+     SweetPresentStats fPresentStats;     /* protected by fLock */
+     /* END SWEET PRESENT STATS FIELDS */
+     void configurePresentClock(void);
+@@ -653,6 +654,10 @@
+ 	uint64_t            fNotifySent[SWEET_FB_NOTIFY_TYPES];
+ 	uint64_t            fNotifyFailed[SWEET_FB_NOTIFY_TYPES];
+ 	uint64_t            fPortRegistrations;
++#if defined(GAUGUIN)
++	uint64_t            fObservedSwapBeginTick;
++	uint32_t            fObservedSwapBeginID;
++#endif
+ 
+ 	bool initWithTask(task_t owningTask, void *securityID, UInt32 type) APPLE_KEXT_OVERRIDE;
+ 	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+@@ -792,6 +797,7 @@
+     fReadyGeneration = 0;
+     fPresentSample = NULL;
+     fEmpty355Receipts = 0;
++    fSwapTimingSamples = 0;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");
+     /* END SWEET PRESENT STATS INIT */
+@@ -2012,10 +2018,15 @@
+         next.retryEpoch = fHeldRetryEpoch;
+         next.generation = fHeldSubmitted + 1;
+         uint64_t surface = 0;
++        uint32_t observedSurfaceState = 0;
++        bool advancedPastPending = false;
+         if (fReadyAcrossFrames && scan354_single_surface(get32(rec,0x104), next.surfaces[0] != nullptr)) {
+-            next.surfaceVersion = scan354_next_version(GauguinGPUSurfaceState(next.surfaces[0]));
+-            if (fHeldPending.surfaces[0] == next.surfaces[0] && fHeldPending.surfaceVersion >= next.surfaceVersion)
++            observedSurfaceState = GauguinGPUSurfaceState(next.surfaces[0]);
++            next.surfaceVersion = scan354_next_version(observedSurfaceState);
++            if (fHeldPending.surfaces[0] == next.surfaces[0] && fHeldPending.surfaceVersion >= next.surfaceVersion) {
+                 next.surfaceVersion = scan354_next_version(fHeldPending.surfaceVersion);
++                advancedPastPending = true;
++            }
+             surface = ((uint64_t)next.surfaceVersion << 32) | next.surfaces[0]->id;
+         }
+         if (fPowerOff) {
+@@ -2028,8 +2039,14 @@
+             fDirty = true;
+         }
+         fHeldSubmitted++;
+-        sweet_frame344_record(F344_SWAP,fHeldSubmitted,fPowerOff,
+-            get32(rec,0x50),get32(rec,0x104),surface);
++        const uint32_t swapID = get32(rec,0x50);
++        sweet_frame344_record(F344_SWAP,fHeldSubmitted,fPowerOff,swapID,get32(rec,0x104),surface);
++        if (surface && !fPowerOff && fSwapTimingSamples < 1024 && sweet_frame344_clock()) {
++            const uint64_t begin = owner->fObservedSwapBeginID == swapID ? owner->fObservedSwapBeginTick : 0;
++            /* Wire kind 62 carries an observation keyed by the accepted swap. */
++            sweet_frame344_record(62,fHeldSubmitted,advancedPastPending,begin,observedSurfaceState,surface);
++            ++fSwapTimingSamples;
++        }
+         watchPendingReadyLocked();
+     } else
+ #endif
+@@ -2328,6 +2345,10 @@
+ 	bzero(fNotifySent, sizeof(fNotifySent));
+ 	bzero(fNotifyFailed, sizeof(fNotifyFailed));
+ 	fPortRegistrations = 0;
++#if defined(GAUGUIN)
++	fObservedSwapBeginTick = 0;
++	fObservedSwapBeginID = 0;
++#endif
+ 	/*
+ 	 * Who opened the display? backboardd succeeds (open AppleCLCD -> 0x0) yet
+ 	 * nothing is ever swapped except two frames from kernel_task, so the
+@@ -2460,6 +2481,10 @@
+ 	case kSweetFBSwapBegin:
+ 		IOLockLock(fFB->fLock);
+ 		out[0] = ++fFB->fSwapID;
++#if defined(GAUGUIN)
++		fObservedSwapBeginID = fFB->fSwapID;
++		fObservedSwapBeginTick = sweet_frame344_clock();
++#endif
+ 		IOLockUnlock(fFB->fLock);
+ 		outCount = 1;
+ 		break;

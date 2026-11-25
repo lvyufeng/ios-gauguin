@@ -1,0 +1,132 @@
+--- a/bsd/dev/sweet_sample.c
++++ b/bsd/dev/sweet_sample.c
+@@ -18,6 +18,7 @@
+ #include <sys/systm.h>
+ #include <sys/proc.h>
+ #include <sys/proc_internal.h>
++#include <kern/clock.h>
+ #include <kern/task.h>
+ #include <kern/thread.h>
+ #include <pexpert/pexpert.h>
+@@ -27,6 +28,13 @@
+ extern void sweet_sample_start(void);
+ 
+ static char sweet_sample_names[128];
++
++struct sweet_sample_scope {
++	bool springboard_seen;
++	bool backboardd_seen;
++	unsigned targets;
++	unsigned duplicates;
++};
+ 
+ static bool
+ sweet_sample_wanted(const char *name)
+@@ -49,13 +57,30 @@
+ extern void sweet_sample_task(const char *name, int pid, task_t task);  /* osfmk/kern/exception.c */
+ 
+ static int
+-sweet_sample_proc(proc_t p, __unused void *arg)
++sweet_sample_proc(proc_t p, void *arg)
+ {
+ 	char name[32];
+ 	proc_name(proc_pid(p), name, sizeof(name));
+ 	if (sweet_sample_wanted(name)) {
+ 		task_t task = proc_task(p);
+ 		if (task != TASK_NULL) {
++			struct sweet_sample_scope *scope = arg;
++			if (scope != NULL) {
++				bool *seen;
++				if (strcmp(name, "SpringBoard") == 0) {
++					seen = &scope->springboard_seen;
++				} else if (strcmp(name, "backboardd") == 0) {
++					seen = &scope->backboardd_seen;
++				} else {
++					return PROC_RETURNED;
++				}
++				if (*seen) {
++					scope->duplicates++;
++					return PROC_RETURNED;
++				}
++				*seen = true;
++				scope->targets++;
++			}
+ 			sweet_sample_task(name, proc_pid(p), task);
+ 		}
+ 	}
+@@ -67,15 +92,41 @@
+ {
+ 	static int chan;
+ 	int first = 90, interval = 120, count = 40;
+-	if (!PE_parse_boot_argn("sweetsample", sweet_sample_names, sizeof(sweet_sample_names))) {
++	int profile = 0;
++	bool fixed_profile = PE_parse_boot_argn("gsp", &profile, sizeof(profile));
++	if (fixed_profile) {
++		char legacy_names[128];
++		int legacy_timing;
++
++		/* A short, explicit profile fits the existing payload command field.
++		 * Refuse mixed configuration rather than silently overriding an off
++		 * switch or changing the independently reviewed sampling interval. */
++		if (profile != 316) {
++			printf("SMP316 refused: reason=profile\n");
++			return;
++		}
++		if (PE_parse_boot_argn("sweetsample", legacy_names, sizeof(legacy_names)) ||
++		    PE_parse_boot_argn("sweetsampledelay", &legacy_timing, sizeof(legacy_timing)) ||
++		    PE_parse_boot_argn("sweetsampleinterval", &legacy_timing, sizeof(legacy_timing)) ||
++		    PE_parse_boot_argn("sweetsamplecount", &legacy_timing, sizeof(legacy_timing))) {
++			printf("SMP316 refused: reason=mixed-options\n");
++			return;
++		}
+ 		strlcpy(sweet_sample_names, "SpringBoard,backboardd", sizeof(sweet_sample_names));
++		first = 220;
++		interval = 6;
++		count = 8;
++	} else {
++		if (!PE_parse_boot_argn("sweetsample", sweet_sample_names, sizeof(sweet_sample_names))) {
++			strlcpy(sweet_sample_names, "SpringBoard,backboardd", sizeof(sweet_sample_names));
++		}
++		if (sweet_sample_names[0] == '-') {
++			return;
++		}
++		PE_parse_boot_argn("sweetsampledelay", &first, sizeof(first));
++		PE_parse_boot_argn("sweetsampleinterval", &interval, sizeof(interval));
++		PE_parse_boot_argn("sweetsamplecount", &count, sizeof(count));
+ 	}
+-	if (sweet_sample_names[0] == '-') {
+-		return;
+-	}
+-	PE_parse_boot_argn("sweetsampledelay", &first, sizeof(first));
+-	PE_parse_boot_argn("sweetsampleinterval", &interval, sizeof(interval));
+-	PE_parse_boot_argn("sweetsamplecount", &count, sizeof(count));
+ 	if (first < 1 || first > 3600) {
+ 		first = 90;
+ 	}
+@@ -87,10 +138,25 @@
+ 	}
+ 	printf("SMP armed: %s delay=%d interval=%d count=%d\n",
+ 	    sweet_sample_names, first, interval, count);
++	if (fixed_profile) {
++		printf("SMP316 armed: targets=%s delay=%d interval=%d count=%d max_targets=2 max_threads=64 frames=16 coherent_frames=0\n",
++		    sweet_sample_names, first, interval, count);
++	}
+ 	(void)tsleep(&chan, PZERO, "sweetsmp", first * hz);
+ 	for (int i = 0; i < count; i++) {
++		struct sweet_sample_scope scope = { 0 };
++
++		if (fixed_profile) {
++			printf("SMP316 begin cycle=%d tick=%llu\n", i,
++			    (unsigned long long)mach_absolute_time());
++		}
+ 		printf("SMP --- sample %d\n", i);
+-		proc_iterate(PROC_ALLPROCLIST, sweet_sample_proc, NULL, NULL, NULL);
++		proc_iterate(PROC_ALLPROCLIST, sweet_sample_proc,
++		    fixed_profile ? &scope : NULL, NULL, NULL);
++		if (fixed_profile) {
++			printf("SMP316 end cycle=%d tick=%llu targets=%u duplicates=%u\n", i,
++			    (unsigned long long)mach_absolute_time(), scope.targets, scope.duplicates);
++		}
+ 		if (i + 1 < count) {
+ 			(void)tsleep(&chan, PZERO, "sweetsmp", interval * hz);
+ 		}

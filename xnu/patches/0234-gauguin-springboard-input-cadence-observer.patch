@@ -1,0 +1,226 @@
+diff --git a/bsd/dev/gauguin_ui_trace.h b/bsd/dev/gauguin_ui_trace.h
+--- a/bsd/dev/gauguin_ui_trace.h
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -12,7 +12,9 @@
+     GUT_HID_ENQUEUE, GUT_HID_NO_QUEUE,
+     GUT_API_BEGIN=10, GUT_API_END, GUT_SUBMIT_BEGIN, GUT_SUBMIT_END, GUT_SURFACE,
+     GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END,
+-    GUT_SYNTHETIC=30 /* explicit origin marker for a generated report ID */
++    GUT_SYNTHETIC=30, /* explicit origin marker for a generated report ID */
++    GUT_HID_QUEUE_STATE=31 /* queue registry ID; owner PID; enqueue/port flags;
++                           * packed head:tail, capacity, notification attempts */
+ };
+ struct gut_event {
+     uint64_t seq, tick, id;
+diff --git a/bsd/kern/sweet_amfi.c b/bsd/kern/sweet_amfi.c
+--- a/bsd/kern/sweet_amfi.c
++++ b/bsd/kern/sweet_amfi.c
+@@ -61,6 +61,9 @@
+  * or permission to open the GPU, and is not a general application policy.
+  */
+ static TUNABLE(uint32_t, sweet_dyld_probe, "sweet_dyld_probe", 0);
++/* Separate opt-in for the read-only SpringBoard animation-rate observer.
++ * Keep the existing backboardd permission and its boot argument unchanged. */
++static TUNABLE(uint32_t, sweet_sb_rate_probe, "sbp", 0);
+ 
+ /* SWEET_DYLD_PROBE_BEGIN: compiled unchanged by the typed host boundary model. */
+ struct sweet_dyld_policy_args {
+@@ -131,6 +134,64 @@
+ 	return trusted;
+ }
+ 
++static bool
++sweet_sb_rate_probe_subject(proc_t p, uid_t *effective, uid_t *real)
++{
++	kauth_cred_t cred = NULL;
++	vnode_t actual = NULLVP, expected = NULLVP;
++	struct vnode_attr attributes;
++	bool trusted = false;
++	int error;
++	*effective = *real = (uid_t)-1;
++	if (p == NULL || p != current_proc()) {
++		return false;
++	}
++	cred = kauth_cred_proc_ref(p);
++	if (cred == NULL) {
++		return false;
++	}
++	*effective = kauth_cred_getuid(cred);
++	*real = kauth_cred_getruid(cred);
++	kauth_cred_unref(&cred);
++	if (*effective != 501 || *real != 501) {
++		return false;
++	}
++	actual = proc_getexecutablevnode(p);
++	if (actual == NULLVP || vnode_lookup("/System/Library/CoreServices/SpringBoard.app/SpringBoard",
++	    VNODE_LOOKUP_NOFOLLOW | VNODE_LOOKUP_NOCROSSMOUNT, &expected,
++	    vfs_context_kernel()) != 0) {
++		goto out;
++	}
++	if (actual != expected || vnode_vtype(actual) != VREG ||
++	    vnode_mount(actual) == NULL || !(vfs_flags(vnode_mount(actual)) & MNT_ROOTFS)) {
++		goto out;
++	}
++	VATTR_INIT(&attributes);
++	VATTR_WANTED(&attributes, va_uid);
++	VATTR_WANTED(&attributes, va_mode);
++	if (vnode_getattr(actual, &attributes, vfs_context_kernel()) != 0 ||
++	    !VATTR_IS_SUPPORTED(&attributes, va_uid) ||
++	    !VATTR_IS_SUPPORTED(&attributes, va_mode) || attributes.va_uid != 0 ||
++	    (attributes.va_mode & (S_IWGRP | S_IWOTH)) != 0) {
++		goto out;
++	}
++	/* The mobile caller must not be able to rewrite the executable. */
++	error = vnode_authorize(actual, NULLVP, KAUTH_VNODE_WRITE_DATA,
++	    vfs_context_current());
++	if (error != EACCES && error != EPERM) {
++		goto out;
++	}
++	trusted = true;
++out:
++	if (expected != NULLVP) {
++		vnode_put(expected);
++	}
++	if (actual != NULLVP) {
++		vnode_put(actual);
++	}
++	return trusted;
++}
++
+ static int
+ sweet_dyld_probe_syscall(proc_t p, int call, user_addr_t user_args)
+ {
+@@ -138,16 +199,23 @@
+ 	uint64_t output = 2; /* actual1067 ALLOW_PATH_VARS; bit2 is shared-cache */
+ 	uid_t effective, real;
+ 	char name[32];
++	bool backboard, springboard, trusted;
+ 	int error;
+-	if (!sweet_dyld_probe || call != 90 || p == NULL || p != current_proc()) {
++	if ((!sweet_dyld_probe && !sweet_sb_rate_probe) || call != 90 ||
++	    p == NULL || p != current_proc()) {
+ 		return ENOPOLICY;
+ 	}
+ 	proc_name(proc_pid(p), name, sizeof(name));
+-	if (strcmp(name, "backboardd") != 0) {
++	backboard = sweet_dyld_probe && strcmp(name, "backboardd") == 0;
++	springboard = sweet_sb_rate_probe && strcmp(name, "SpringBoard") == 0;
++	if (!backboard && !springboard) {
+ 		return ENOPOLICY;
+ 	}
+-	if (!sweet_dyld_probe_subject(p, &effective, &real)) {
+-		printf("SWEET DYLD PROBE: pid=%d uid=%u ruid=%u protected-exec=0 rc=%d\n",
++	trusted = backboard ? sweet_dyld_probe_subject(p, &effective, &real) :
++	    sweet_sb_rate_probe_subject(p, &effective, &real);
++	if (!trusted) {
++		printf("%s: pid=%d uid=%u ruid=%u protected-exec=0 rc=%d\n",
++		    backboard ? "SWEET DYLD PROBE" : "SWEET SB DYLD PROBE",
+ 		    proc_pid(p), effective, real, ENOPOLICY);
+ 		return ENOPOLICY;
+ 	}
+@@ -161,7 +229,8 @@
+ 	if (error == 0) {
+ 		error = copyout(&output, args.output_flags, sizeof(output));
+ 	}
+-	printf("SWEET DYLD PROBE: pid=%d uid=%u ruid=%u protected-exec=1 output-mask=2 rc=%d\n",
++	printf("%s: pid=%d uid=%u ruid=%u protected-exec=1 output-mask=2 rc=%d\n",
++	    backboard ? "SWEET DYLD PROBE" : "SWEET SB DYLD PROBE",
+ 	    proc_pid(p), effective, real, error);
+ 	return error;
+ }
+@@ -583,7 +652,7 @@
+ void
+ sweet_amfi_policy_register(void)
+ {
+-	if (sweet_dyld_probe) {
++	if (sweet_dyld_probe || sweet_sb_rate_probe) {
+ 		int probe_error = mac_policy_register(&sweet_dyld_probe_conf,
+ 		    &sweet_dyld_probe_handle, NULL);
+ 		printf("SWEET DYLD PROBE: AMFI policy registered rc=%d; outputPATHmask2 only, GPU privileges unchanged\n",
+diff --git a/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.cpp b/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.cpp
+--- a/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.cpp
++++ b/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.cpp
+@@ -241,6 +241,19 @@
+     super::sendDataAvailableNotification();
+ }
+ 
++#if defined(GAUGUIN)
++bool IOHIDEventServiceQueue::copyTraceState(UInt32 *head, UInt32 *tail,
++                                         UInt32 *capacity, UInt64 *notifications)
++{
++    if (!dataQueue || !head || !tail || !capacity || !notifications) return false;
++    *head = __c11_atomic_load((_Atomic UInt32 *)&dataQueue->head, __ATOMIC_ACQUIRE);
++    *tail = __c11_atomic_load((_Atomic UInt32 *)&dataQueue->tail, __ATOMIC_ACQUIRE);
++    *capacity = getQueueSize();
++    *notifications = _notificationCount;
++    return true; /* a snapshot, not proof of Mach delivery or SpringBoard receipt */
++}
++#endif
++
+ //---------------------------------------------------------------------------
+ // get a mem descriptor.  replacing default behavior
+ 
+diff --git a/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.h b/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.h
+--- a/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.h
++++ b/iokit/Kernel/arm/hid/IOHIDEventServiceQueue.h
+@@ -67,6 +67,10 @@
+     virtual IOMemoryDescriptor *getMemoryDescriptor(void) APPLE_KEXT_OVERRIDE;
+     virtual void setNotificationPort(mach_port_t port) APPLE_KEXT_OVERRIDE;
+     virtual bool serialize(OSSerialize * serializer) const APPLE_KEXT_OVERRIDE;
++#if defined(GAUGUIN)
++    /* Client gate held. Observes user-updated indices without consuming data. */
++    bool copyTraceState(UInt32 *head, UInt32 *tail, UInt32 *capacity, UInt64 *notifications);
++#endif
+ 
+ };
+ 
+diff --git a/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp b/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp
+--- a/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp
++++ b/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp
+@@ -253,6 +253,13 @@
+     _commandGate  = NULL;
+     _state        = 0;
+     _queue        = NULL;
++#if defined(GAUGUIN)
++    {
++        proc_t process = (proc_t)get_bsdtask_info(owningTask);
++        pid_t pid = process ? proc_pid(process) : 0;
++        _tracePID = pid > 0 ? (uint32_t)pid : 0;
++    }
++#endif
+     
+ exit:
+     return result;
+@@ -647,10 +654,18 @@
+             IOHID_DEBUG(kIOHIDDebugCode_HIDEventServiceEnqueueFail, event->getTimeStampOfType(kIOHIDEventTimestampTypeDefault), event->getOptions() & kIOHIDEventOptionContinuousTime, 0, 0);
+         }
+ #if defined(GAUGUIN)
+-        if (event->getType() == kIOHIDEventTypeDigitizer)
++        if (event->getType() == kIOHIDEventTypeDigitizer) {
+             sweet_ui_trace_record(GUT_HID_ENQUEUE,
+                 event->getTimeStampOfType(kIOHIDEventTimestampTypeAbsolute),
+                 0, result != false, _eventCount, _droppedEventCount, 0);
++            UInt32 head = 0, tail = 0, capacity = 0;
++            UInt64 notifications = 0;
++            if (_queue->copyTraceState(&head, &tail, &capacity, &notifications))
++                sweet_ui_trace_record(GUT_HID_QUEUE_STATE,
++                    getRegistryEntryID(),
++                    _tracePID, (result != false ? 1u : 0u) | (_queuePort != 0 ? 2u : 0u),
++                    ((uint64_t)head << 32) | tail, capacity, notifications);
++        }
+ #endif
+     }
+ }
+diff --git a/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.h b/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.h
+--- a/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.h
++++ b/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.h
+@@ -66,6 +66,9 @@
+     uint64_t                    _lastDroppedEventTime;
+     uint64_t                    _eventCount;
+     mach_port_t                 _queuePort;
++#if defined(GAUGUIN)
++    uint32_t                    _tracePID;
++#endif
+   
+     void eventServiceCallback(  IOHIDEventService *             sender,
+                                 void *                          context,

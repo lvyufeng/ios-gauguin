@@ -1,0 +1,616 @@
+--- a/bsd/dev/gauguin_blank352.h
++++ b/bsd/dev/gauguin_blank352.h
+@@ -7,7 +7,7 @@
+ 
+ enum {
+     /* Conservative lead time at every take, retry and final pre-store check. */
+-    SCAN352_COPY_NS = 6700000,
++    SCAN352_COPY_NS = 5500000,
+     SCAN352_FAST_COPY = 4,
+     SCAN352_WIDTH = 1080, SCAN352_HEIGHT = 2400,
+     SCAN352_PANEL_STRIDE = 4320, SCAN352_SOURCE_STRIDE = 4608
+--- /dev/null
++++ b/bsd/dev/gauguin_copy377.h
+@@ -0,0 +1,90 @@
++#ifndef GAUGUIN_COPY377_H
++#define GAUGUIN_COPY377_H
++
++#include "gauguin_blank352.h"
++
++enum {
++    SCAN377_BLOCK_BYTES = 288,
++    SCAN377_PREFETCHED_BLOCKS = 13,
++    SCAN377_TAIL_BLOCKS = 2,
++    SCAN377_PREFETCH_NEAR = 512,
++    SCAN377_PREFETCH_FAR = 640
++};
++
++static_assert((SCAN377_PREFETCHED_BLOCKS + SCAN377_TAIL_BLOCKS) *
++    SCAN377_BLOCK_BYTES == SCAN352_PANEL_STRIDE, "copy covers one complete row");
++static_assert((SCAN377_PREFETCHED_BLOCKS - 1) * SCAN377_BLOCK_BYTES +
++    SCAN377_PREFETCH_FAR + 64 <= SCAN352_PANEL_STRIDE, "prefetch stays in the source row");
++
++#define SCAN377_BLOCK \
++"ldp x8, x9, [%[s], #0]\n" \
++"ldp x10, x11, [%[s], #16]\n" \
++"ldp x12, x13, [%[s], #32]\n" \
++"ldp x14, x15, [%[s], #48]\n" \
++"stnp x8, x9, [%[d], #0]\n" \
++"stnp x10, x11, [%[d], #16]\n" \
++"stnp x12, x13, [%[d], #32]\n" \
++"stnp x14, x15, [%[d], #48]\n" \
++"ldp x8, x9, [%[s], #64]\n" \
++"ldp x10, x11, [%[s], #80]\n" \
++"ldp x12, x13, [%[s], #96]\n" \
++"ldp x14, x15, [%[s], #112]\n" \
++"stnp x8, x9, [%[d], #64]\n" \
++"stnp x10, x11, [%[d], #80]\n" \
++"stnp x12, x13, [%[d], #96]\n" \
++"stnp x14, x15, [%[d], #112]\n" \
++"ldp x8, x9, [%[s], #128]\n" \
++"ldp x10, x11, [%[s], #144]\n" \
++"ldp x12, x13, [%[s], #160]\n" \
++"ldp x14, x15, [%[s], #176]\n" \
++"stnp x8, x9, [%[d], #128]\n" \
++"stnp x10, x11, [%[d], #144]\n" \
++"stnp x12, x13, [%[d], #160]\n" \
++"stnp x14, x15, [%[d], #176]\n" \
++"ldp x8, x9, [%[s], #192]\n" \
++"ldp x10, x11, [%[s], #208]\n" \
++"ldp x12, x13, [%[s], #224]\n" \
++"ldp x14, x15, [%[s], #240]\n" \
++"stnp x8, x9, [%[d], #192]\n" \
++"stnp x10, x11, [%[d], #208]\n" \
++"stnp x12, x13, [%[d], #224]\n" \
++"stnp x14, x15, [%[d], #240]\n" \
++"ldp x8, x9, [%[s], #256]\n" \
++"ldp x10, x11, [%[s], #272]\n" \
++"stnp x8, x9, [%[d], #256]\n" \
++"stnp x10, x11, [%[d], #272]\n" \
++"add %[s], %[s], #288\n" \
++"add %[d], %[d], #288\n"
++
++static inline void
++scan377_copy_row(void *dst, const void *src)
++{
++#if defined(__aarch64__)
++    size_t remaining = SCAN377_PREFETCHED_BLOCKS;
++    /* Schedule source fetches ahead of the interleaved integer loads and
++     * write-combined stores. A separate two-block tail bounds the hints
++     * to the current row, including in the last row of the surface. */
++    __asm__ volatile(
++        "1:\n"
++        "prfm pldl1keep, [%[s], #%c[near]]\n"
++        "prfm pldl1keep, [%[s], #%c[far]]\n"
++        SCAN377_BLOCK
++        "subs %[n], %[n], #1\n"
++        "b.ne 1b\n"
++        "mov %[n], #%c[tail]\n"
++        "2:\n"
++        SCAN377_BLOCK
++        "subs %[n], %[n], #1\n"
++        "b.ne 2b\n"
++        : [d] "+&r"(dst), [s] "+&r"(src), [n] "+&r"(remaining)
++        : [near] "i"(SCAN377_PREFETCH_NEAR), [far] "i"(SCAN377_PREFETCH_FAR),
++          [tail] "i"(SCAN377_TAIL_BLOCKS)
++        : "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "cc", "memory");
++#else
++    __builtin_memcpy(dst, src, SCAN352_PANEL_STRIDE);
++#endif
++}
++
++#undef SCAN377_BLOCK
++
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_frame377_slots.h
+@@ -0,0 +1,47 @@
++#ifndef GAUGUIN_FRAME377_SLOTS_H
++#define GAUGUIN_FRAME377_SLOTS_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum { F377_IPC_WAYS = 4 };
++#define F377_RESERVED ((uintptr_t)1)
++
++struct f377_keys {
++    uintptr_t key[F377_IPC_WAYS];
++};
++
++static inline int
++f377_lookup(const struct f377_keys *bucket, uintptr_t key)
++{
++    for (unsigned way = 0; way < F377_IPC_WAYS; ++way) {
++        if (__atomic_load_n(&bucket->key[way], __ATOMIC_ACQUIRE) == key) return (int)way;
++    }
++    return -1;
++}
++
++static inline int
++f377_reserve(struct f377_keys *bucket)
++{
++    for (unsigned way = 0; way < F377_IPC_WAYS; ++way) {
++        uintptr_t free = 0;
++        if (__atomic_compare_exchange_n(&bucket->key[way], &free, F377_RESERVED, false,
++            __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) return (int)way;
++    }
++    return -1;
++}
++
++static inline void
++f377_publish(struct f377_keys *bucket, unsigned way, uintptr_t key)
++{
++    __atomic_store_n(&bucket->key[way], key, __ATOMIC_RELEASE);
++}
++
++static inline bool
++f377_release(struct f377_keys *bucket, unsigned way, uintptr_t key)
++{
++    return __atomic_compare_exchange_n(&bucket->key[way], &key, 0, false,
++        __ATOMIC_RELEASE, __ATOMIC_RELAXED);
++}
++
++#endif
+--- a/bsd/dev/gauguin_frame376_wire.h
++++ b/bsd/dev/gauguin_frame376_wire.h
+@@ -4,11 +4,12 @@
+ #include "gauguin_frame372_wire.h"
+ 
+ enum {
+-    F376_TRANSPORT_BYTES = 110000,
++    F376_TRANSPORT_BYTES = 104000,
+     F376_TRANSPORT_THREADS = 64,
+     F376_DISPLAY_THREADS = 32,
+-    F376_COPY_CAP = 32,
+-    F376_COPY_TICKS = 96000, /* 5 ms on the pinned 19.2 MHz timebase */
++    F377_COPY_CAP = 1024,
++    F377_COPY_BLOCK = 32,
++    F377_COPY_ROW = 18,
+     F376_PAIR_MAX = 23,
+ };
+ 
+@@ -49,4 +50,21 @@
+     return size;
+ }
+ 
++static inline bool
++f377_pack_copy(uint8_t out[F377_COPY_ROW], uint64_t base, uint64_t attempt,
++    uint64_t begin, uint64_t stores, uint64_t end, uint64_t runtime)
++{
++    if (!attempt || attempt > UINT16_MAX || begin < base || stores < begin ||
++        end < stores || end - base > UINT32_MAX || runtime > UINT32_MAX) {
++        return false;
++    }
++    out[0] = (uint8_t)attempt;
++    out[1] = (uint8_t)(attempt >> 8);
++    f372_le32(out + 2, (uint32_t)(begin - base));
++    f372_le32(out + 6, (uint32_t)(stores - begin));
++    f372_le32(out + 10, (uint32_t)(end - stores));
++    f372_le32(out + 14, (uint32_t)runtime);
++    return true;
++}
++
+ #endif
+--- a/bsd/dev/gauguin_frame374_wire.h
++++ b/bsd/dev/gauguin_frame374_wire.h
+@@ -5,7 +5,7 @@
+ #include "gauguin_frame375_present.h"
+ 
+ enum {
+-    F374_EVENT_CAP = 16384, F374_WIRE_CAP = 164000, F374_BLOCK = 32,
++    F374_EVENT_CAP = 16384, F374_WIRE_CAP = 155000, F374_BLOCK = 32,
+     F374_MAX_ROW = 34,
+     F374_RENDER_BEGIN = 1, F374_RENDER_END, F374_ANNOTATION, F374_FRAME_INFO,
+     F374_HITCH, F374_RENDER_TIME, F374_VSYNC, F374_VSYNC_UPDATE,
+--- a/osfmk/ipc/ipc_kmsg.c
++++ b/osfmk/ipc/ipc_kmsg.c
+@@ -152,6 +152,7 @@
+ #include <mach/mach_time.h>
+ #include "../../bsd/dev/gauguin_frame344.h"
+ #include "../../bsd/dev/gauguin_frame376_wire.h"
++#include "../../bsd/dev/gauguin_frame377_slots.h"
+ 
+ extern void sweet_log_append(const char *, int);
+ 
+@@ -163,11 +164,10 @@
+ 	uint32_t serial, message_id;
+ };
+ 
+-static struct f371_slot {
+-	uintptr_t key;
+-	uint32_t busy;
+-	struct f371_delivery data;
+-} f371_slots[F371_SLOTS];
++static struct f377_ipc_bucket {
++	struct f377_keys keys;
++	struct f371_delivery data[F377_IPC_WAYS];
++} f377_ipc_buckets[F371_SLOTS];
+ 
+ static struct f371_delivery f371_pairs[F372_PAIR_CAP];
+ enum f373_unmatched_reason {
+@@ -184,7 +184,8 @@
+ static uint64_t f372_start;
+ static uint64_t f371_source, f371_receiver, f371_end;
+ static uint64_t f371_gate = F371_CLOSED;
+-static uint32_t f371_sent, f371_copied, f371_missed, f371_busy, f371_evicted, f371_failed;
++static uint32_t f371_sent, f371_copied, f371_missed, f371_failed;
++static uint32_t f377_ipc_spill, f377_ipc_full;
+ 
+ /* A thread's stamp changes for every observed BackBoard copyout, including
+  * copyouts from other tasks. Zero in the low bits means no scoped receipt.
+@@ -284,31 +285,15 @@
+ 	__atomic_store_n(&slot->stamp, (sequence << 16) | serial, __ATOMIC_RELEASE);
+ }
+ 
+-static struct f371_slot *
+-f371_slot_for(ipc_kmsg_t kmsg)
+-{
+-	const uintptr_t key = (uintptr_t)kmsg;
+-	return &f371_slots[((key >> 8) ^ (key >> 20)) & (F371_SLOTS - 1)];
+-}
+-
+-static bool
+-f371_try_slot(struct f371_slot *slot)
+-{
+-	if (__atomic_exchange_n(&slot->busy, 1, __ATOMIC_ACQUIRE)) {
+-		__atomic_fetch_add(&f371_busy, 1, __ATOMIC_RELAXED);
+-		return false;
+-	}
+-	return true;
+-}
+-
+-static void
+-f371_release_slot(struct f371_slot *slot)
+-{
+-	__atomic_store_n(&slot->busy, 0, __ATOMIC_RELEASE);
+-}
+-
+-/* The port is already locked by ipc_kmsg_send. Keep the destination check
+- * under that lock and never acquire another lock for the observation. */
++static struct f377_ipc_bucket *
++f377_bucket_for(uintptr_t key)
++{
++	return &f377_ipc_buckets[((key >> 8) ^ (key >> 20)) & (F371_SLOTS - 1)];
++}
++
++/* The port is already locked by ipc_kmsg_send. Keep its existing
++ * ownership rules. In a bucket, a reserved key hides the payload until
++ * publication. A full bucket preserves all live identities. */
+ static void
+ f371_send(ipc_kmsg_t kmsg, ipc_port_t port, uint64_t tick)
+ {
+@@ -319,55 +304,51 @@
+ 		return;
+ 	}
+ 	const uint32_t serial = __atomic_fetch_add(&f371_sent, 1, __ATOMIC_RELAXED) + 1;
+-	struct f371_slot *slot = f371_slot_for(kmsg);
+-	if (serial <= F371_SENDS && f371_try_slot(slot)) {
++	if (serial <= F371_SENDS) {
+ 		const uintptr_t key = (uintptr_t)kmsg;
+-		const uintptr_t previous = __atomic_load_n(&slot->key, __ATOMIC_RELAXED);
+-		if (previous && previous != key) {
+-			__atomic_fetch_add(&f371_evicted, 1, __ATOMIC_RELAXED);
+-		}
+-		slot->data = (struct f371_delivery){
+-			.send = tick,
+-			.source_thread = thread_tid(current_thread()),
+-			.serial = serial,
+-			.message_id = (uint32_t)ikm_header(kmsg)->msgh_id,
+-		};
+-		__atomic_store_n(&slot->key, key, __ATOMIC_RELEASE);
+-		f371_release_slot(slot);
++		struct f377_ipc_bucket *bucket = f377_bucket_for(key);
++		int way = f377_lookup(&bucket->keys, key);
++		if (way < 0) {
++			way = f377_reserve(&bucket->keys);
++		}
++		if (way >= 0) {
++			bucket->data[way] = (struct f371_delivery){
++				.send = tick,
++				.source_thread = thread_tid(current_thread()),
++				.serial = serial,
++				.message_id = (uint32_t)ikm_header(kmsg)->msgh_id,
++			};
++			f377_publish(&bucket->keys, (unsigned)way, key);
++			if (way > 0) __atomic_fetch_add(&f377_ipc_spill, 1, __ATOMIC_RELAXED);
++		} else {
++			__atomic_fetch_add(&f377_ipc_full, 1, __ATOMIC_RELAXED);
++		}
+ 	}
+ 	f371_leave();
+ }
+ 
+-/* Called before freeing the message, including undeliverable messages. The
+- * key can only be replaced by a distinct live kmsg until this object is freed. */
++/* The existing kmsg lifetime orders send and post before receiver copyout.
++ * Copyout copies the identity out before freeing the way. Free removes
++ * the matching key before the allocator can hand out the same address. */
+ static void
+ f371_forget(ipc_kmsg_t kmsg)
+ {
+-	struct f371_slot *slot = f371_slot_for(kmsg);
+-	uintptr_t key = (uintptr_t)kmsg;
+-	if (__atomic_load_n(&slot->key, __ATOMIC_RELAXED) == key) {
+-		(void)__atomic_compare_exchange_n(&slot->key, &key, 0, false,
+-		    __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+-	}
+-}
+-
+-/* Entry to the existing post path, after mqueue admission and before the
+- * message is queued or handed directly to a receiver. */
++	const uintptr_t key = (uintptr_t)kmsg;
++	struct f377_ipc_bucket *bucket = f377_bucket_for(key);
++	const int way = f377_lookup(&bucket->keys, key);
++	if (way >= 0) (void)f377_release(&bucket->keys, (unsigned)way, key);
++}
++
++/* The caller owns the kmsg at mqueue post entry, before transfer to a
++ * receiver. Other messages in the bucket can publish to their own ways. */
+ static void
+ f371_post(ipc_kmsg_t kmsg)
+ {
+-	struct f371_slot *slot = f371_slot_for(kmsg);
+ 	const uintptr_t key = (uintptr_t)kmsg;
+-	if (__atomic_load_n(&slot->key, __ATOMIC_ACQUIRE) != key ||
+-	    !f371_enter(mach_absolute_time())) {
+-		return;
+-	}
+-	if (f371_try_slot(slot)) {
+-		if (__atomic_load_n(&slot->key, __ATOMIC_RELAXED) == key) {
+-			slot->data.post = mach_absolute_time();
+-		}
+-		f371_release_slot(slot);
+-	}
++	struct f377_ipc_bucket *bucket = f377_bucket_for(key);
++	const int way = f377_lookup(&bucket->keys, key);
++	if (way < 0 || !f371_enter(mach_absolute_time())) return;
++	bucket->data[way].post = mach_absolute_time();
+ 	f371_leave();
+ }
+ 
+@@ -385,25 +366,24 @@
+ 		return false;
+ 	}
+ 	const uintptr_t key = (uintptr_t)kmsg;
+-	struct f371_slot *slot = f371_slot_for(kmsg);
++	struct f377_ipc_bucket *bucket = f377_bucket_for(key);
++	const int way = f377_lookup(&bucket->keys, key);
+ 	const uint32_t message_id = (uint32_t)ikm_header(kmsg)->msgh_id;
+-	enum f373_unmatched_reason reason = F373_UNMATCHED_BUSY;
+-	if (f371_try_slot(slot)) {
+-		if (__atomic_load_n(&slot->key, __ATOMIC_RELAXED) != key) {
+-			reason = F373_UNMATCHED_KEY;
+-		} else if (slot->data.message_id != message_id) {
++	enum f373_unmatched_reason reason = F373_UNMATCHED_KEY;
++	if (way >= 0) {
++		const struct f371_delivery *row = &bucket->data[way];
++		if (row->message_id != message_id) {
+ 			reason = F373_UNMATCHED_ID;
+-		} else if (slot->data.post < slot->data.send) {
++		} else if (row->post < row->send) {
+ 			reason = F373_UNMATCHED_POST;
+ 		} else {
+-			*delivery = slot->data;
++			*delivery = *row;
+ 			delivery->receiver_thread = thread_tid(current_thread());
+-			__atomic_store_n(&slot->key, 0, __ATOMIC_RELAXED);
+-			f371_release_slot(slot);
+-			f371_leave();
+-			return true;
+-		}
+-		f371_release_slot(slot);
++			if (f377_release(&bucket->keys, (unsigned)way, key)) {
++				f371_leave();
++				return true;
++			}
++		}
+ 	}
+ 	const uint32_t i = __atomic_fetch_add(&f371_missed, 1, __ATOMIC_RELAXED);
+ 	if (i < F372_MISS_CAP) {
+@@ -483,7 +463,9 @@
+ 		header = true;
+ 		printf("SWEET F372 H: count=%u cap=%u sent=%u sent_cap=%u copied=%u missed=%u busy=%u evicted=%u failed=%u start=%llu\n",
+ 		    count, F372_PAIR_CAP, f371_sent, F371_SENDS, f371_copied, f371_missed,
+-		    f371_busy, f371_evicted, f371_failed, (unsigned long long)f372_start);
++		    0u, 0u, f371_failed, (unsigned long long)f372_start);
++		printf("SWEET F377 IPC: buckets=%u ways=%u spill=%u full=%u\n",
++		    F371_SLOTS, F377_IPC_WAYS, f377_ipc_spill, f377_ipc_full);
+ 		for (unsigned i = 0; i < MIN(f371_missed, F372_MISS_CAP); ++i) {
+ 			const struct f373_unmatched *row = &f373_unmatched[i];
+ 			printf("SWEET F372 M: tick=%llu\n", (unsigned long long)row->tick);
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -70,7 +70,7 @@
+ #include "../dev/gauguin_frame376_wire.h"
+ 
+ void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
+-void sweet_frame376_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
++void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+ void sweet_ca374_drain(void);
+ extern void sweet_log_append(const char *, int);
+ 
+@@ -80,10 +80,10 @@
+ static uint64_t f374_receiver, f374_start, f374_end;
+ static struct f374_event f374_events[F374_EVENT_CAP];
+ static uint64_t f374_threads[F376_DISPLAY_THREADS];
+-static uint32_t f376_copy_count;
+-static struct f376_copy_tail {
+-	uint64_t attempt, begin, end, runtime_begin, runtime_end;
+-} f376_copy_tails[F376_COPY_CAP];
++static uint32_t f377_copy_count;
++static struct f377_copy_event {
++	uint64_t attempt, begin, stores, end, runtime;
++} f377_copies[F377_COPY_CAP];
+ 
+ void
+ sweet_ca374_arm(uint64_t receiver, uint64_t start, uint64_t end)
+@@ -148,17 +148,44 @@
+ }
+ 
+ void
+-sweet_frame376_copy(uint64_t attempt, uint64_t begin, uint64_t end,
+-    uint64_t runtime_begin, uint64_t runtime_end)
+-{
+-	if (!attempt || !begin || end < begin || end - begin < F376_COPY_TICKS || !f375_enter()) return;
++sweet_frame377_copy(uint64_t attempt, uint64_t begin, uint64_t stores,
++    uint64_t end, uint64_t runtime)
++{
++	if (!attempt || !begin || !f375_enter()) return;
+ 	if (begin >= f374_start && end < f374_end) {
+-		const unsigned index = __atomic_fetch_add(&f376_copy_count, 1, __ATOMIC_RELAXED);
+-		if (index < F376_COPY_CAP) {
+-			f376_copy_tails[index] = (struct f376_copy_tail){attempt, begin, end, runtime_begin, runtime_end};
++		const unsigned index = __atomic_fetch_add(&f377_copy_count, 1, __ATOMIC_RELAXED);
++		if (index < F377_COPY_CAP) {
++			f377_copies[index] = (struct f377_copy_event){attempt, begin, stores, end, runtime};
+ 		}
+ 	}
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++static void
++f377_copy_drain(void)
++{
++	const unsigned captured = __atomic_load_n(&f377_copy_count, __ATOMIC_RELAXED);
++	const unsigned available = captured < F377_COPY_CAP ? captured : F377_COPY_CAP;
++	unsigned emitted = 0;
++	while (emitted < available) {
++		uint8_t packed[F377_COPY_BLOCK * F377_COPY_ROW];
++		char encoded[4 * ((sizeof(packed) + 2) / 3) + 1];
++		char text[sizeof(encoded) + 64];
++		unsigned count = 0;
++		while (count < F377_COPY_BLOCK && emitted + count < available) {
++			const struct f377_copy_event *row = &f377_copies[emitted + count];
++			if (!f377_pack_copy(packed + count * F377_COPY_ROW, f374_start, row->attempt,
++			    row->begin, row->stores, row->end, row->runtime)) break;
++			++count;
++		}
++		if (!count) break;
++		f372_base64(packed, count * F377_COPY_ROW, encoded);
++		const int length = snprintf(text, sizeof(text), "\nSWEET F377 C %u %u %s\n", emitted, count, encoded);
++		if (length <= 0 || (size_t)length >= sizeof(text)) break;
++		emitted += count;
++		sweet_log_append(text, length);
++	}
++	printf("SWEET F377 C footer: rows=%u lost=%u\n", emitted, captured - emitted);
+ }
+ 
+ static void
+@@ -214,14 +241,7 @@
+ 	if (count) f374_block(emitted - count, count, packed, used);
+ 	printf("SWEET F374 F: rows=%u threads=%u bytes=%u lost=%u\n",
+ 	    emitted, threads, total, captured - emitted);
+-	const unsigned tails = __atomic_load_n(&f376_copy_count, __ATOMIC_RELAXED);
+-	const unsigned kept = tails < F376_COPY_CAP ? tails : F376_COPY_CAP;
+-	for (unsigned i = 0; i < kept; i++) {
+-		const struct f376_copy_tail *row = &f376_copy_tails[i];
+-		printf("SWEET F376 C: attempt=%llu begin=%llu end=%llu cpu_begin=%llu cpu_end=%llu\n",
+-		    row->attempt, row->begin, row->end, row->runtime_begin, row->runtime_end);
+-	}
+-	printf("SWEET F376 C footer: rows=%u lost=%u\n", kept, tails - kept);
++	f377_copy_drain();
+ }
+ #endif
+ 
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -45,12 +45,12 @@
+ #include "../../../bsd/dev/gauguin_ready357.h"
+ #include "../../../bsd/dev/gauguin_calibration357.h"
+ #include "../../../bsd/dev/gauguin_probe358.h"
+-#include "../../../bsd/dev/gauguin_copy356.h"
++#include "../../../bsd/dev/gauguin_copy377.h"
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+-extern "C" void sweet_frame376_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
++extern "C" void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+ /* END SWEET PRESENT STATS INCLUDE */
+ #endif
+ 
+@@ -484,7 +484,6 @@
+     void replacePendingLocked(struct sweet_fb_retired *retired);
+     unsigned calibrate357(unsigned step, uint32_t frame);
+     void deliverFrameInfo375Locked(uint64_t now);
+-    void deliverFrameInfo376();
+     void queueFrameInfo375(const struct sweet_fb_frame *, uint64_t blankFrame, uint64_t checked);
+     bool fFrameInfo375;
+     uint32_t fFrameInfo375Owners, fFrameInfo375Sends;
+@@ -1362,6 +1361,7 @@
+ #if defined(GAUGUIN)
+     bool phaseCopy = false;
+     if (fb->fPhasePresent) now = mach_absolute_time(); /* include time waiting for fLock */
++    if (fb->fFrameInfo375) fb->deliverFrameInfo375Locked(now);
+     if (!fb->presentClockTickLocked(now, &elapsed, &phaseCopy)) {
+         struct sweet_fb_frame frame = {};
+         uint64_t blankFrame = UINT64_MAX;
+@@ -1369,7 +1369,6 @@
+         const uint64_t attempt = taken ? fb->fHeldConsumed : 0;
+         IOLockUnlock(fb->fLock);
+         if (taken) fb->presentTimed(frame.record,&frame,attempt,blankFrame);
+-        if (fb->fFrameInfo375) fb->deliverFrameInfo376();
+         fb->armVsync(sender);
+         return;
+     }
+@@ -1419,7 +1418,6 @@
+         sweet_fb_retired_release(&waiting);
+         sweet_fb_retired_release(&ready);
+         for (auto &frame : issued) sweet_fb_retired_release(&frame);
+-        if (fb->fFrameInfo375) fb->deliverFrameInfo376();
+ #endif
+         if (step <= 6) {
+ 			for (uint32_t y = 0; y < fb->fHeight; y++) {
+@@ -1698,7 +1696,6 @@
+ #endif
+ 	}
+ #if defined(GAUGUIN)
+-    if (fb->fFrameInfo375) fb->deliverFrameInfo376();
+     if (fb->fReadyAcrossFrames) fb->observePendingReady();
+ #endif
+ 	fb->armVsync(sender);
+@@ -1761,16 +1758,6 @@
+     }
+     sweet_ca375_platform(F375_DELIVERY, copy.swap,
+         ((uint64_t)(uint32_t)code << 32) | copy.scan, lo, hi);
+-}
+-
+-/* Sending a Mach notification may wake a renderer. Service receipts after
+- * the guarded copy, while retaining the same workloop and client lock. */
+-void
+-AppleCLCD::deliverFrameInfo376()
+-{
+-    IOLockLock(fLock);
+-    deliverFrameInfo375Locked(mach_absolute_time());
+-    IOLockUnlock(fLock);
+ }
+ 
+ void
+@@ -2392,7 +2379,7 @@
+ #if defined(GAUGUIN)
+             if (pairedCopy && fReadyAcrossFrames) {
+                 for (int32_t y = 0; y < h; ++y)
+-                    scan356_copy_row((void *)(dst + (uint64_t)y * fRowBytes),
++                    scan377_copy_row((void *)(dst + (uint64_t)y * fRowBytes),
+                         (const void *)(first + (uint64_t)y * s->bytesPerRow));
+             } else if (pairedCopy) {
+                 for (int32_t y = 0; y < h; ++y)
+@@ -2407,6 +2394,7 @@
+             }
+             /* BEGIN SWEET PRESENT STATS COPY END */
+ #if defined(GAUGUIN)
++            const uint64_t storesDone = timePairedCopy && frameCopyBegin ? mach_absolute_time() : 0;
+             if (checked) __asm__ volatile("dsb sy" ::: "memory");
+             const uint64_t frameCopyEnd = frameCopyBegin ? mach_absolute_time() : 0;
+             const uint64_t runtimeEnd = timePairedCopy && frameCopyBegin ? thread_get_runtime_self() : 0;
+@@ -2421,7 +2409,8 @@
+                     *verifiedFullCopy = mach_absolute_time();
+                 sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
+                     ((uint64_t)copyStart.end << 32) | copyEnd.line);
+-                if (runtimeEnd) sweet_frame376_copy(attempt, frameCopyBegin, frameCopyEnd, runtimeBegin, runtimeEnd);
++                if (storesDone && runtimeEnd >= runtimeBegin)
++                    sweet_frame377_copy(attempt, frameCopyBegin, storesDone, frameCopyEnd, runtimeEnd - runtimeBegin);
+             }
+             if (fPresentSample != NULL) {
+                 if (fPresentSample->timingValid &&

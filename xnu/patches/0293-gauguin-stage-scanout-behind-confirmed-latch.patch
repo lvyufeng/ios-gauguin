@@ -1,0 +1,560 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_page_flip.h
+@@ -0,0 +1,31 @@
++#ifndef GAUGUIN_PAGE_FLIP_H
++#define GAUGUIN_PAGE_FLIP_H
++
++#include <stdint.h>
++#include <stdbool.h>
++
++enum {
++    F382_FRONT = 0, F382_FIRST = 1, F382_SECOND = 2,
++    F382_COPY_BYTES = 1080 * 2400 * 4,
++    F382_SLOT_BYTES = 0x9e4000,
++    F382_MAX_FLIPS = 1024,
++    F382_WAIT = 0, F382_TOUCHED = 1, F382_CONFIRMED = 2, F382_UNCERTAIN = 3
++};
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/* Caller serializes these operations with the display lock. The native C
++ * adapter never writes a framebuffer. */
++uintptr_t sweet_frame382_buffer(unsigned slot);
++bool sweet_frame382_active(void);
++bool sweet_frame382_ending(void);
++unsigned sweet_frame382_issue(unsigned front, unsigned next, uint32_t *scan);
++unsigned sweet_frame382_latch(unsigned next, uint32_t requested_scan);
++void sweet_fb382_poll(uint32_t scan);
++
++#ifdef __cplusplus
++}
++#endif
++#endif
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -17,6 +17,8 @@
+ #include <machine/machine_routines.h>
+ #include <mach/mach_time.h>
+ #include <mach/vm_prot.h>
++#include <vm/pmap.h>
++#include <pexpert/device_tree.h>
+ #include "../kern/sweet_eagl_diagnostics.h"
+ #endif
+ #include "gauguin_ui_trace.h"
+@@ -35,8 +37,11 @@
+ #include "gauguin_probe358.h"
+ #include "gauguin_frame375_present.h"
+ #include "gauguin_frame380_phase.h"
++#include "gauguin_page_flip.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern vm_offset_t ml_io_map_wcomb(vm_offset_t, vm_size_t);
++extern boolean_t pmap_valid_address(uint64_t);
+ extern uint32_t sweet_fb_display_state(void);
+ extern void sweet_log_append(const char *, int);
+ extern void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
+@@ -424,6 +429,8 @@
+     return true;
+ }
+ 
++static bool scan382_prepare(const struct scan381_state *);
++
+ static void scan381_poll(uint32_t frame)
+ {
+     if (scan381.done || !scan367.done || scan367.samples != F367_SAMPLES ||
+@@ -468,10 +475,179 @@
+                     stream->cbar, stream->sctlr);
+             }
+             scan381_finish("stable");
++            if (!scan382_prepare(s)) printf("SWEET F382 BACKING: declined\n");
+             return;
+         }
+     }
+     if (scan381.attempts == F381_MAX_SAMPLES) scan381_finish("unstable");
++}
++
++/* Only enabled by the loader's validated optional ownership property.
++ * The source and flush registers are the two writable DPU words. */
++static struct {
++    vm_offset_t map[3];
++    uint32_t address[3], requests;
++    volatile uint32_t *source, *flush;
++    bool enabled;
++} scan382;
++
++static bool scan382_route(const struct scan381_state *s)
++{
++    if (s->id0 != 0x4c017e47 || s->id1 != 0x6000003f || s->id2 != 0x5111 ||
++        s->control != 0x00200406 || s->secure != 0)
++        return false;
++    for (unsigned i = 0; i < 2; ++i) {
++        const struct scan381_stream *r = &s->streams[i];
++        if (r->matches != 1 || r->index != 3 || r->smr != 0x80020800 || r->s2cr != 2 ||
++            r->cbar != 0x0001f000 || r->sctlr != 0x000000e0)
++            return false;
++    }
++    return true;
++}
++
++static bool scan382_live_route(void)
++{
++    const volatile uint32_t *global = (const volatile uint32_t *)scan381.global;
++    const volatile uint32_t *cbar = scan381_word(F381_APPS + 0x1008);
++    const volatile uint32_t *sctlr = scan381_word(F381_APPS + 0x82000);
++    const volatile uint32_t *pipe = (const volatile uint32_t *)(scan367.pages[0] + 0x1000);
++    return cbar && sctlr && global[0] == 0x00200406 &&
++        global[0x80c / 4] == 0x80020800 && global[0xc0c / 4] == 2 &&
++        *cbar == 0x0001f000 && *sctlr == 0x000000e0 &&
++        pipe[0x70 / 4] == 0 && pipe[0x24 / 4] == 4320 &&
++        pipe[0x00 / 4] == 0x09600438 && pipe[0x30 / 4] == 0x000237ff &&
++        scan_mdp[0x2014 / 4] == 0 && scan_mdp[0x20f4 / 4] == 2 &&
++        scan_mdp[0x2000 / 4] == 0x01000005;
++}
++
++static vm_offset_t scan382_map(uint32_t pa, uint32_t size, bool pixels)
++{
++    const vm_offset_t va = pixels ? ml_io_map_wcomb(pa, size) :
++        ml_io_map_with_prot(pa, size, VM_PROT_READ | VM_PROT_WRITE);
++    if (!va || ml_vtophys(va) != pa || ml_vtophys(va + size - 1) != (uint64_t)pa + size - 1)
++        return 0;
++    return va;
++}
++
++static bool scan382_prepare(const struct scan381_state *s)
++{
++    DTEntry chosen = NULL;
++    const void *property = NULL;
++    unsigned size = 0;
++    uint64_t owner[4], pas[16];
++    if (SecureDTLookupEntry(NULL, "/chosen", &chosen) != kSuccess ||
++        SecureDTGetProperty(chosen, "DPUPrivateBuffers", &property, &size) != kSuccess ||
++        size != sizeof(owner))
++        return false;
++    memcpy(owner, property, sizeof(owner));
++    if (!scan382_route(s) || !scan382_live_route() ||
++        SecureDTGetProperty(chosen, "LowPASReservation", &property, &size) != kSuccess ||
++        size != sizeof(pas))
++        return false;
++    memcpy(pas, property, sizeof(pas));
++    const uint64_t start = owner[0], slot = owner[1], payload = owner[2], length = owner[3];
++    if (memcmp(pas, "LPASOWN1", 8) || payload != pas[10] || length != pas[11] || pas[2] > length ||
++        !payload || !length || payload >= UINT64_C(0x100000000) ||
++        length > UINT64_C(0x100000000) - payload ||
++        slot != F382_SLOT_BYTES || (start & (F344_PAGE - 1)) || start < payload ||
++        start > payload + length || 2 * slot > payload + length - start ||
++        start + 2 * slot > pas[2] + payload || start + 2 * slot > pas[8] ||
++        (start < 0xa2400000 && start + 2 * slot > 0xa0000000))
++        return false;
++    for (uint64_t pa = start; pa < start + 2 * slot; pa += F344_PAGE)
++        if (pmap_valid_address(pa))
++            return false;
++    scan382.address[F382_FRONT] = 0xa0000000;
++    for (unsigned i = F382_FIRST; i <= F382_SECOND; ++i) {
++        scan382.address[i] = (uint32_t)(start + (i - 1) * slot);
++        scan382.map[i] = scan382_map(scan382.address[i], (uint32_t)slot, true);
++        if (!scan382.map[i])
++            return false;
++    }
++    const vm_offset_t vig = scan382_map(0x0ae04000, F344_PAGE, false);
++    const vm_offset_t ctl = scan382_map(0x0ae00000, F344_PAGE, false);
++    if (!vig || !ctl)
++        return false;
++    scan382.source = (volatile uint32_t *)(vig + 0x1014);
++    scan382.flush = (volatile uint32_t *)(ctl + 0x2018);
++    if (*scan382.source != scan382.address[F382_FRONT] || *scan382.flush)
++        return false;
++    printf("SWEET F382 BACKING: first=%08x second=%08x bytes=%d\n",
++        scan382.address[1], scan382.address[2], F382_SLOT_BYTES);
++    __atomic_store_n(&scan382.enabled, true, __ATOMIC_RELEASE);
++    return true;
++}
++
++bool sweet_frame382_active(void)
++{
++    return __atomic_load_n(&scan382.enabled, __ATOMIC_ACQUIRE);
++}
++
++bool sweet_frame382_ending(void)
++{
++    uint64_t ticks;
++    nanoseconds_to_absolutetime(NSEC_PER_MSEC * 180, &ticks);
++    const uint64_t now = mach_absolute_time();
++    return now >= frames.end || frames.end - now <= ticks;
++}
++
++uintptr_t sweet_frame382_buffer(unsigned slot)
++{
++    return sweet_frame382_active() && slot >= F382_FIRST && slot <= F382_SECOND ? scan382.map[slot] : 0;
++}
++
++unsigned sweet_frame382_issue(unsigned front, unsigned next, uint32_t *frame)
++{
++    struct scan351_position before, after;
++    if (!sweet_frame382_active() || front > F382_SECOND || next > F382_SECOND || front == next ||
++        scan382.requests >= F382_MAX_FLIPS + (next == F382_FRONT))
++        return F382_UNCERTAIN;
++    if (!sweet_frame351_position(&before) || before.line < SCAN351_OPEN ||
++        before.end < before.line + 192)
++        return F382_WAIT;
++    if (!scan382_live_route() || *scan382.source != scan382.address[front] || *scan382.flush)
++        return F382_UNCERTAIN;
++    const boolean_t interrupts = ml_set_interrupts_enabled(FALSE);
++    const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
++    const uint32_t checked_line = scan_intf[F344_LINE_COUNT / 4];
++    if (checked_frame != before.frame || checked_line < before.line || before.end < checked_line + 192) {
++        ml_set_interrupts_enabled(interrupts);
++        return F382_WAIT;
++    }
++    ++scan382.requests;
++    *scan382.source = scan382.address[next];
++    __asm__ volatile("dsb oshst" ::: "memory");
++    *scan382.flush = 1;
++    __asm__ volatile("dsb sy" ::: "memory");
++    const uint32_t flush = *scan382.flush;
++    const uint32_t source = *scan382.source;
++    ml_set_interrupts_enabled(interrupts);
++    if (flush != 1 || source != scan382.address[next] ||
++        !sweet_frame351_position(&after) || after.frame != before.frame || after.line >= before.end)
++        return F382_UNCERTAIN;
++    *frame = before.frame;
++    return F382_TOUCHED;
++}
++
++unsigned sweet_frame382_latch(unsigned next, uint32_t requested_scan)
++{
++    struct scan351_position a, b;
++    if (!sweet_frame382_active() || next > F382_SECOND)
++        return F382_UNCERTAIN;
++    if (!sweet_frame351_position(&a))
++        return F382_WAIT;
++    const uint32_t delta = a.frame - requested_scan;
++    if (delta > 1)
++        return F382_UNCERTAIN;
++    if (!delta)
++        return F382_WAIT;
++    const uint32_t flush = *scan382.flush;
++    const uint32_t source = *scan382.source;
++    if (!sweet_frame351_position(&b) || a.frame != b.frame || a.line > b.line)
++        return F382_WAIT;
++    if (source != scan382.address[next] || flush & ~1u || !scan382_live_route())
++        return F382_UNCERTAIN;
++    return flush ? F382_WAIT : F382_CONFIRMED;
+ }
+ 
+ static void scan_report(enum scan345_gate gate, const struct scan345_status *s)
+@@ -935,6 +1111,7 @@
+             scan.last_tick = before;
+             if (scan357_enabled) scan367_poll(frame);
+             if (phase380_enabled) scan381_poll(frame);
++            if (sweet_frame382_active()) sweet_fb382_poll(frame);
+             if (scan357_enabled && scan358_probe_line(line) && sweet_frame351_window())
+                 sweet_fb358_request_probe(frame);
+         } else if (scan.counter_readonly) {
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -48,6 +48,7 @@
+ #include "../../../bsd/dev/gauguin_copy379_probe.h"
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ #include "../../../bsd/dev/gauguin_frame380_phase.h"
++#include "../../../bsd/dev/gauguin_page_flip.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+@@ -422,6 +423,15 @@
+ extern "C" uint64_t GauguinGPUDisplayProbeTicket(void);
+ extern "C" uint32_t GauguinGPUSurfaceReadyFence(SweetSurface *, uint64_t, uint32_t, uint32_t *);
+ 
++struct sweet_fb_flip382 {
++    enum { Idle, Copying, Ready, Pending, Quarantined };
++    unsigned stage, front, next;
++    uint32_t scan;
++    uint64_t attempt, issueTick;
++    struct f375_copy receipt;
++    bool closed;
++};
++
+ struct sweet_fb_frame {
+     struct scan353_ready ready;
+     uint8_t record[SWEET_FB_SWAP_REC_SIZE];
+@@ -495,6 +505,11 @@
+     struct sweet_fb_frame *boundFrameLocked(unsigned, uint64_t);
+     void replacePendingLocked(struct sweet_fb_retired *retired);
+     unsigned calibrate357(unsigned step, uint32_t frame);
++    void flip382Poll(uint32_t scan);
++    void flip382AdvanceLocked(uint32_t scan);
++    uintptr_t flip382Begin(const struct sweet_fb_frame *, uint64_t, uint64_t, bool *);
++    void flip382Finish(const struct sweet_fb_frame *, uint64_t, uint64_t);
++    struct sweet_fb_flip382 fFlip382;
+     void deliverFrameInfo375Locked(uint64_t now);
+     void queueFrameInfo375(const struct sweet_fb_frame *, uint64_t blankFrame, uint64_t checked);
+     bool fFrameInfo375;
+@@ -546,7 +561,7 @@
+ 	bool present(const uint8_t *rec, SweetSurface *const *held = NULL,
+         uint64_t blankFrame = UINT64_MAX, uint64_t retryTicket = 0,
+         uint32_t version = UINT32_MAX, uint64_t attempt = 0, bool *stale = nullptr,
+-        uint64_t *verifiedFullCopy = nullptr);
++        uint64_t *verifiedFullCopy = nullptr, uintptr_t flipDst = 0);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
+@@ -640,6 +655,19 @@
+         }
+     }
+     IOLockUnlock(lock);
++}
++
++extern "C" void
++sweet_fb382_poll(uint32_t frame)
++{
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!lock || !IOLockTryLock(lock)) return;
++    auto *display = gReadyDisplay;
++    if (display) display->retain();
++    IOLockUnlock(lock);
++    if (!display) return;
++    display->flip382Poll(frame);
++    display->release();
+ }
+ 
+ extern "C" unsigned
+@@ -821,6 +849,7 @@
+     PE_parse_boot_argn("sweetfb_hz", &hz375, sizeof(hz375));
+     fFrameInfo375 = fHoldPresent && statsRequested == 9 && swipe375 == 4 && hz375 == 60;
+     fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
++    fFlip382 = {};
+     fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 9;
+     fBlankSlot = {};
+     fCAVsync = nullptr;
+@@ -1009,8 +1038,10 @@
+     IOLockLock(fLock);
+     unsigned result = 0;
+     const bool abort = step == SCAN357_ABORT;
++    const uintptr_t destination = fFlip382.front ? sweet_frame382_buffer(fFlip382.front) : fPixels;
+     const bool usable = fHoldPresent && fPhasePresent && fReadyAcrossFrames && !fHeldStopped && !fPowerOff &&
+-        !fHeldActive && fPixels && fWidth == 1080 && fHeight == 2400 && fRowBytes == 4320;
++        !fHeldActive && destination && fFlip382.stage == sweet_fb_flip382::Idle &&
++        fWidth == 1080 && fHeight == 2400 && fRowBytes == 4320;
+     if (step == SCAN357_PAUSE && usable && !fCalibrating) {
+         fCalibrating = true;
+         fCalibrationStep = SCAN357_PAUSE;
+@@ -1025,7 +1056,7 @@
+         struct scan351_position pos;
+         if (sweet_frame351_position(&pos) && (abort || pos.frame == frame) &&
+             scan357_calibration_window(&pos)) {
+-            volatile uint32_t *pixel = (volatile uint32_t *)(fPixels +
++            volatile uint32_t *pixel = (volatile uint32_t *)(destination +
+                 (uint64_t)(fHeight/2)*fRowBytes + (fWidth/2)*sizeof(uint32_t));
+             const uint32_t before = *pixel;
+             if (step == SCAN357_FIRST) fCalibrationPixel = before;
+@@ -1285,7 +1316,8 @@
+ AppleCLCD::takeBlankFrameLocked(struct sweet_fb_frame *frame, uint64_t *blankFrame, uint64_t readyTicket)
+ {
+     struct scan351_position pos;
+-    if (!blankPendingLocked() || !sweet_frame351_position(&pos)) return false;
++    if (!blankPendingLocked() || !sweet_frame351_position(&pos) ||
++        (sweet_frame382_active() && fFlip382.stage != sweet_fb_flip382::Idle)) return false;
+     if (fReadyAcrossFrames) {
+         if (!scan353_can_take(&fHeldReady.ready, &fBlankSlot, &pos)) return false;
+     } else if (fReadyRequested) {
+@@ -1863,6 +1895,124 @@
+ }
+ 
+ void
++AppleCLCD::flip382Poll(uint32_t scan)
++{
++    if (!IOLockTryLock(fLock)) return;
++    flip382AdvanceLocked(scan);
++    IOLockUnlock(fLock);
++}
++
++void
++AppleCLCD::flip382AdvanceLocked(uint32_t scan)
++{
++    auto &flip = fFlip382;
++    if (flip.closed || flip.stage == sweet_fb_flip382::Quarantined) return;
++    if (fPowerOff || fHeldStopped) {
++        flip.stage = sweet_fb_flip382::Quarantined;
++        IOLog("SWEET F382 STOP: display-inactive front=%u next=%u\n",flip.front,flip.next);
++        return;
++    }
++    if (flip.stage == sweet_fb_flip382::Pending) {
++        uint64_t age = 0;
++        absolutetime_to_nanoseconds(mach_absolute_time() - flip.issueTick, &age);
++        const unsigned result = age <= UINT64_C(45000000) ?
++            sweet_frame382_latch(flip.next, flip.scan) : F382_UNCERTAIN;
++        if (result == F382_WAIT) return;
++        if (result != F382_CONFIRMED) {
++            flip.stage = sweet_fb_flip382::Quarantined;
++            IOLog("SWEET F382 STOP: uncertain-latch front=%u next=%u scan=%u\n",flip.front,flip.next,scan);
++            return;
++        }
++        flip.front = flip.next;
++        flip.stage = sweet_fb_flip382::Idle;
++        IOLog("SWEET F382 L %llu %u %u %llu\n",flip.attempt,flip.scan+1,flip.front,mach_absolute_time());
++        if (flip.receipt.owner && fFrameInfo375Size < F375_INFO_QUEUE) {
++            flip.receipt.scan = flip.scan + 1;
++            fFrameInfo375Pending[(fFrameInfo375Head+fFrameInfo375Size)%F375_INFO_QUEUE] = flip.receipt;
++            ++fFrameInfo375Size;
++        }
++        flip.receipt = {};
++        flip.closed = flip.front == F382_FRONT;
++        return;
++    }
++    if (fHeldActive || fCalibrating || flip.stage == sweet_fb_flip382::Copying) return;
++    if (sweet_frame382_ending()) {
++        if (flip.front == F382_FRONT) {
++            flip.closed = true;
++            return;
++        }
++        flip.next = F382_FRONT;
++        flip.receipt = {};
++        flip.attempt = 0;
++        flip.stage = sweet_fb_flip382::Ready;
++    }
++    if (flip.stage != sweet_fb_flip382::Ready) return;
++    const unsigned result = sweet_frame382_issue(flip.front, flip.next, &flip.scan);
++    if (result == F382_TOUCHED) {
++        flip.issueTick = mach_absolute_time();
++        flip.stage = sweet_fb_flip382::Pending;
++        IOLog("SWEET F382 I %llu %u %u %llu\n",flip.attempt,flip.scan,flip.next,flip.issueTick);
++    } else if (result != F382_WAIT) {
++        flip.stage = sweet_fb_flip382::Quarantined;
++        IOLog("SWEET F382 STOP: uncertain-request front=%u next=%u scan=%u\n",flip.front,flip.next,scan);
++    }
++}
++
++uintptr_t
++AppleCLCD::flip382Begin(const struct sweet_fb_frame *frame, uint64_t attempt,
++    uint64_t blankFrame, bool *blocked)
++{
++    if (!sweet_frame382_active() || !get32(frame->record,0x104)) return 0;
++    bool haveLayer = false;
++    for (const auto *surface : frame->surfaces) haveLayer |= surface != nullptr;
++    if (!haveLayer) return 0; /* Empty layers retain the inherited path. */
++    IOLockLock(fLock);
++    auto &flip = fFlip382;
++    uintptr_t dst = 0;
++    if (!flip.closed) {
++        if (flip.stage != sweet_fb_flip382::Idle || sweet_frame382_ending()) {
++            *blocked = true;
++        } else if (blankFrame == UINT64_MAX || !attempt || !frame->ready.observed ||
++            !frame->surfaces[0] || get32(frame->record,0x104) != 1) {
++            if (flip.front) {
++                flip.stage = sweet_fb_flip382::Quarantined;
++                IOLog("SWEET F382 STOP: unsupported-update front=%u\n",flip.front);
++                *blocked = true;
++            }
++        } else {
++            flip.next = flip.front == F382_FIRST ? F382_SECOND : F382_FIRST;
++            dst = sweet_frame382_buffer(flip.next);
++            if (dst) {
++                flip.stage = sweet_fb_flip382::Copying;
++                flip.attempt = attempt;
++            } else {
++                *blocked = true;
++            }
++        }
++    }
++    IOLockUnlock(fLock);
++    return dst;
++}
++
++void
++AppleCLCD::flip382Finish(const struct sweet_fb_frame *frame, uint64_t attempt, uint64_t staged)
++{
++    IOLockLock(fLock);
++    auto &flip = fFlip382;
++    if (flip.stage == sweet_fb_flip382::Copying && flip.attempt == attempt) {
++        flip.stage = staged ? sweet_fb_flip382::Ready : sweet_fb_flip382::Idle;
++        if (staged) IOLog("SWEET F382 P %llu %u %llu\n",attempt,flip.next,staged);
++        const uint64_t target = requestedPresentation375(frame->record);
++        uint64_t separation = 0;
++        if (target && staged)
++            absolutetime_to_nanoseconds(staged > target ? staged - target : target - staged, &separation);
++        flip.receipt = frame->frameInfoOwner && target && staged && separation <= UINT64_C(2000000000) ?
++            f375_copy{target,staged,get32(frame->record,0x50),0,frame->frameInfoOwner} : f375_copy{};
++    }
++    IOLockUnlock(fLock);
++}
++
++void
+ AppleCLCD::presentTimed(uint8_t *rec, struct sweet_fb_frame *frame,
+     uint64_t frameAttempt, uint64_t blankFrame)
+ {
+@@ -1880,9 +2030,12 @@
+     bool stale = false;
+     uint64_t verifiedFullCopy = 0;
+     const uint32_t version = frame->ready.observed ? frame->surfaceVersion : UINT32_MAX;
+-    bool ready = present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket,
+-        version, frameAttempt, &stale, frame->frameInfoOwner ? &verifiedFullCopy : nullptr);
+-    if (ready && verifiedFullCopy) queueFrameInfo375(frame, blankFrame, verifiedFullCopy);
++    bool blocked = false;
++    const uintptr_t flipDst = flip382Begin(frame,frameAttempt,blankFrame,&blocked);
++    const bool ready = !blocked && present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket,
++        version, frameAttempt, &stale, flipDst || frame->frameInfoOwner ? &verifiedFullCopy : nullptr, flipDst);
++    if (flipDst) flip382Finish(frame,frameAttempt,ready ? verifiedFullCopy : 0);
++    else if (ready && verifiedFullCopy) queueFrameInfo375(frame, blankFrame, verifiedFullCopy);
+     if (ready) sweet_fb352_clear_ticket(retryTicket);
+     if (frameAttempt) sweet_frame344_record(F344_RESULT,frameAttempt,ready ? 1 : 0,
+         measuring ? sample.copiedBytes : 0,measuring ? sample.gpuRefusals : 0,0);
+@@ -2264,7 +2417,7 @@
+ 
+ bool
+ AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held, uint64_t blankFrame, uint64_t retryTicket,
+-    uint32_t version, uint64_t attempt, bool *stale, uint64_t *verifiedFullCopy)
++    uint32_t version, uint64_t attempt, bool *stale, uint64_t *verifiedFullCopy, uintptr_t flipDst)
+ {
+     (void)held;
+     (void)blankFrame;
+@@ -2273,6 +2426,7 @@
+     (void)attempt;
+     (void)stale;
+     (void)verifiedFullCopy;
++    (void)flipDst;
+     bool ready = true;
+     bool fastBlank = false;
+ #if defined(GAUGUIN)
+@@ -2455,12 +2609,18 @@
+ 			 * pixels to save a few thousand stores is a loss (NOTES 16:35).
+ 			 * The rectangle is already in the record - use it.
+ 			 */
+-            const uintptr_t dst = fPixels + (uint64_t)dy * fRowBytes + (uint64_t)dx * 4;
++            const uintptr_t dst = (flipDst ? flipDst : fPixels) + (uint64_t)dy * fRowBytes + (uint64_t)dx * 4;
+             const uintptr_t first = src + s->offset + (uint64_t)sy * s->bytesPerRow + (uint64_t)sx * 4;
+             /* BEGIN SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
+             const bool pairedCopy = fastBlank && dx == 0 && dy == 0 && s->memory != fSurface->memory &&
+                 scan352_copy_supported(dst, first, w, h, fRowBytes, s->bytesPerRow);
++            if (flipDst && (!pairedCopy || layer != 0 || mask != 1)) {
++                ready = false;
++                *stale = true;
++                s->release();
++                continue;
++            }
+             struct scan351_position copyStart = {0};
+             const bool checked = blankFrame != UINT64_MAX;
+             if (checked && (!sweet_frame351_position(&copyStart) ||
+@@ -2521,14 +2681,17 @@
+             if (frameCopyBegin) sweet_frame344_record(F344_COPY,id,layer,frameCopyBegin,
+                 frameCopyEnd,(uint64_t)(uint32_t)w * (uint32_t)h * 4);
+             if (checked) {
++                if (flipDst && verifiedFullCopy) *verifiedFullCopy = frameCopyEnd;
+                 struct scan351_position copyEnd = {0};
+                 const bool verified = sweet_frame351_position(&copyEnd) && copyEnd.frame == blankFrame &&
+                     copyEnd.line >= copyStart.line && copyEnd.line < copyStart.end && copyEnd.end == copyStart.end;
+                 const uint32_t flags = (verified ? 1 : 2) | (pairedCopy ? SCAN352_FAST_COPY : 0);
+-                if (verifiedFullCopy && verified && pairedCopy && layer == 0 && mask == 1)
+-                    *verifiedFullCopy = mach_absolute_time();
+-                sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
+-                    ((uint64_t)copyStart.end << 32) | copyEnd.line);
++                if (!flipDst) {
++                    if (verifiedFullCopy && verified && pairedCopy && layer == 0 && mask == 1)
++                        *verifiedFullCopy = mach_absolute_time();
++                    sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
++                        ((uint64_t)copyStart.end << 32) | copyEnd.line);
++                }
+                 if (storesDone && runtimeEnd >= runtimeBegin)
+                     sweet_frame377_copy(attempt, frameCopyBegin, storesDone, frameCopyEnd, runtimeEnd - runtimeBegin);
+                 if (probeLane)

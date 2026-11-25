@@ -1,0 +1,292 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -119,6 +119,7 @@
+ bsd/dev/gauguin_wdt_test.c		standard
+ bsd/dev/gauguin_bcm_transport.c		standard
+ bsd/dev/gauguin_bcm_coordinator.c		standard
++bsd/dev/gauguin_pas_init.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -1,6 +1,8 @@
+-/* Opt-in first BCM submission trial. No PAS/SMC/GPU operation here.
++/* Opt-in BCM submission trial with a separately enabled first PAS INIT_IMAGE.
++ * No MEM_SETUP, AUTH_RESET, firmware-code load or GPU execution here.
+  * One preemptible coordinator serializes: CPU-stage claim -> same-boot CMDDB
+- * plan -> watchdog arm/advance -> native six-command transfer -> reset wait.
++ * plan -> watchdog arm/advance -> native six-command transfer -> optional
++ * PAS INIT_IMAGE -> reset wait. Default sweetpasinit=0 preserves the BCM trial.
+  * Both staging memory and successful votes remain retained until reset.
+  */
+ #include <pexpert/arm64/board_config.h>
+@@ -18,6 +20,7 @@
+ #include "gauguin_bus_probe.h"
+ #include "gauguin_bcm_transport.h"
+ #include "gauguin_wdt_lease.h"
++#include "gauguin_pas_init.h"
+ extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
+ extern void thread_terminate_self(void);
+ extern int get_preemption_level(void);
+@@ -40,6 +43,9 @@
+         int value = 0; (void)PE_parse_boot_argn(off[i], &value, sizeof(value));
+         if (value != 0) return false;
+     }
++    int init = 0;
++    (void)PE_parse_boot_argn("sweetpasinit", &init, sizeof(init));
++    if (init != 0 && init != 1) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -87,7 +93,21 @@
+         snprintf(line, sizeof(line), "SWEET BCM BOOT: cmd%u addr=%05x data=%08x wait=%u status=%08x", i, plan.cmd[i].address, plan.cmd[i].data, plan.cmd[i].wait, receipt.cmd_status[i]);
+         bcm_record(line);
+     }
+-    bcm_record("SWEET BCM BOOT: requests held; awaiting watchdog reset; coordinator performed no PAS/SMC/GPU operation");
++    if (sweet_pas_init_requested()) {
++        struct gpi_receipt pas;
++        enum gpi_rc result = sweet_pas_init_image_once(&stage, &pas);
++        if (result != GPI_OK) {
++            gauguin_wdt_lease_quarantine();
++            snprintf(line, sizeof(line), "SWEET BCM BOOT: PAS INIT stopped rc=%u state=%u; no retry or later PAS/GPU operation", (unsigned)result, (unsigned)sweet_pas_init_state());
++            bcm_record(line);
++            return;
++        }
++        snprintf(line, sizeof(line), "SWEET BCM BOOT: PAS INIT returned success pa=%016llx calls=%u; no MEM_SETUP/AUTH_RESET/GPU operation", pas.stage_pa, pas.smc_calls);
++        bcm_record(line);
++        bcm_record("SWEET BCM BOOT: PAS INIT trial done; requests and shared buffer retained; awaiting watchdog reset");
++    } else {
++        bcm_record("SWEET BCM BOOT: requests held; awaiting watchdog reset; coordinator performed no PAS/SMC/GPU operation");
++    }
+     for (unsigned i = 0; i < 30; ++i) IOSleep(1000);
+     gauguin_wdt_lease_quarantine();
+     bcm_record("SWEET BCM BOOT: survived30 requested seconds after transfer; reset unqualified, no retry or vote release");
+--- /dev/null
++++ b/bsd/dev/gauguin_pas_init.c
+@@ -0,0 +1,185 @@
++/* One-shot PAS13 INIT_IMAGE only. Native pin19b63c8192b1c9b7c4d931d7d3be92024bc2d778:
++ * subsys-pil-tz.c pil_init_image_trusted; scm.c __scm_call_armv8_64/__scm_call2;
++ * scm.h SCM_SIP_FNID, SCM_ARGS(2,SCM_VAL,SCM_RW). Normal yielding SCM64:
++ * x0=42000201 x1=82 x2=13 x3=claimed PA x4..x6=0. No length argument.
++ *
++ * The known runtime SCM probe is disabled by immutable boot flags; the loader
++ * has completed. This latch serializes this helper, not unknown SCM clients.
++ * Native uses no CPU pin and preserves x0..x6 across full64 x0==1 continuation.
++ * Continuations have no UFS logging or sleep. Native returns int transport, so
++ * BUSY comparison uses signed low32 (-12); successful x0/x1 must both be FULL0.
++ * Busy starts fresh registers after30ms. Diagnostic bounds:68 total fresh calls,
++ * 8 total continuations, shared5s CPU deadline, fresh10s/3s watchdog budgets.
++ * None of these software bounds can interrupt a non-returning secure call.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/clock.h>
++#include <machine/machine_routines.h>
++#include <mach/mach_time.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++#include "gauguin_pas_init.h"
++#include "gauguin_bcm_transport.h"
++#include "gauguin_wdt_lease.h"
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++
++#define GPI_FUNCTION UINT64_C(0x42000201)
++#define GPI_ARGINFO UINT64_C(0x82)
++#define GPI_PAS_ID UINT64_C(13)
++#define GPI_BUSY_ATTEMPTS 68u
++#define GPI_CONTINUATIONS 8u
++#define GPI_INITIAL_BUDGET (10u * 32765u)
++#define GPI_CALL_BUDGET (3u * 32765u)
++static unsigned gpi_lifecycle;
++
++static bool gpi_context(void)
++{ return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
++static void gpi_record(const char *line)
++{
++    printf("%s\n", line);
++    if (gpi_context()) { sweet_log_mark_sync(line); sweet_log_flush_now(); }
++}
++bool sweet_pas_init_requested(void)
++{
++    int flag = 0; (void)PE_parse_boot_argn("sweetpasinit", &flag, sizeof(flag));
++    return flag == 1;
++}
++enum gpi_state sweet_pas_init_state(void)
++{ return (enum gpi_state)__atomic_load_n(&gpi_lifecycle, __ATOMIC_ACQUIRE); }
++static bool gpi_flags(void)
++{
++    static const char *const required[] = {"sweetbusvote", "sweetpasprobe", "sweetpasstage"};
++    static const char *const off[] = {"sweettouchmode", "sweetwdtpet", "sweetreboot",
++        "sweetbusprobe", "sweetgpuprobe", "sweetscmprobe", "sweetwdttest"};
++    for (unsigned i = 0; i < sizeof(required) / sizeof(required[0]); ++i) {
++        int value = 0; (void)PE_parse_boot_argn(required[i], &value, sizeof(value));
++        if (value != 1) return false;
++    }
++    for (unsigned i = 0; i < sizeof(off) / sizeof(off[0]); ++i) {
++        int value = 0; (void)PE_parse_boot_argn(off[i], &value, sizeof(value));
++        if (value != 0) return false;
++    }
++    return true;
++}
++static enum gpi_rc gpi_guard(uint64_t deadline, uint32_t minimum)
++{
++    if (!gpi_context()) return GPI_CONTEXT;
++    if (sweet_bcm_transport_state() != GBCMT_COMPLETE) return GPI_PREREQUISITE;
++    if (mach_absolute_time() >= deadline) return GPI_TIMEOUT;
++    if (!gauguin_wdt_lease_check_budget(minimum)) return GPI_BUDGET;
++    return GPI_OK;
++}
++/* Same register constraints/clobbers as the reviewed scalar SCM wrapper;
++ * every returned x0..x6 is kept, including continuation context in x6. */
++static void gpi_invoke(struct gpi_registers *r)
++{
++    register uint64_t x0 __asm__("x0") = r->x[0];
++    register uint64_t x1 __asm__("x1") = r->x[1];
++    register uint64_t x2 __asm__("x2") = r->x[2];
++    register uint64_t x3 __asm__("x3") = r->x[3];
++    register uint64_t x4 __asm__("x4") = r->x[4];
++    register uint64_t x5 __asm__("x5") = r->x[5];
++    register uint64_t x6 __asm__("x6") = r->x[6];
++    __asm__ volatile("smc #0"
++        : "+r"(x0), "+r"(x1), "+r"(x2), "+r"(x3), "+r"(x4), "+r"(x5), "+r"(x6)
++        :
++        : "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
++          "x16", "x17", "cc", "memory");
++    r->x[0] = x0; r->x[1] = x1; r->x[2] = x2; r->x[3] = x3;
++    r->x[4] = x4; r->x[5] = x5; r->x[6] = x6;
++}
++static void gpi_raw(const struct gpi_receipt *receipt)
++{
++    if (!receipt->has_returned) return;
++    const struct gpi_registers *r = &receipt->returned;
++    char line[224];
++    snprintf(line, sizeof(line), "SWEET PAS INIT: raw calls=%u x0=%016llx x1=%016llx x2=%016llx x3=%016llx",
++        receipt->smc_calls, (unsigned long long)r->x[0], (unsigned long long)r->x[1],
++        (unsigned long long)r->x[2], (unsigned long long)r->x[3]);
++    gpi_record(line);
++    snprintf(line, sizeof(line), "SWEET PAS INIT: raw calls=%u x4=%016llx x5=%016llx x6=%016llx fresh=%u continuations=%u",
++        receipt->smc_calls, (unsigned long long)r->x[4], (unsigned long long)r->x[5],
++        (unsigned long long)r->x[6], receipt->fresh_attempts, receipt->continuations);
++    gpi_record(line);
++}
++static enum gpi_rc gpi_finish(enum gpi_rc rc, const struct gpi_receipt *receipt, struct gpi_receipt *out)
++{
++    if (rc != GPI_OK) {
++        gauguin_wdt_lease_quarantine(); /* software only; no pet/disable/free */
++    }
++    *out = *receipt;
++    /* Publish the complete caller record before the terminal state. */
++    __atomic_store_n(&gpi_lifecycle, rc == GPI_OK ? GPI_COMPLETE : GPI_QUARANTINED, __ATOMIC_RELEASE);
++    char line[192];
++    snprintf(line, sizeof(line), "SWEET PAS INIT: terminal rc=%u returned=%u calls=%u fresh=%u continuations=%u; INIT_IMAGE only, no AUTH/RESET/GPU; retained until reset",
++        (unsigned)rc, receipt->has_returned, receipt->smc_calls, receipt->fresh_attempts, receipt->continuations);
++    gpi_record(line);
++    return rc;
++}
++enum gpi_rc
++sweet_pas_init_image_once(const struct sweet_pas_cpu_stage *input, struct gpi_receipt *out)
++{
++    unsigned expected = GPI_IDLE;
++    if (!sweet_pas_init_requested()) return GPI_OFF;
++    if (input == NULL || out == NULL) return GPI_ARGUMENT;
++    if (!__atomic_compare_exchange_n(&gpi_lifecycle, &expected, GPI_RUNNING, false,
++        __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return GPI_ALREADY;
++    struct gpi_receipt receipt = {0};
++    const struct sweet_pas_cpu_stage stage = *input;
++    receipt.stage_pa = stage.pa;
++    if (!gpi_context()) return gpi_finish(GPI_CONTEXT, &receipt, out);
++    if (!gpi_flags()) return gpi_finish(GPI_CONFIG, &receipt, out);
++    if (!stage.pa || (stage.pa & UINT64_C(0xfffff)) || stage.pa > UINT64_C(0xfff00000) ||
++        stage.metadata_bytes != 6860 || stage.reserved_bytes != 16384 ||
++        sweet_bcm_transport_state() != GBCMT_COMPLETE) return gpi_finish(GPI_PREREQUISITE, &receipt, out);
++    uint64_t deadline;
++    clock_interval_to_deadline(5, NSEC_PER_SEC, &deadline);
++    for (unsigned fresh = 0; fresh < GPI_BUSY_ATTEMPTS; ++fresh) {
++        struct gpi_registers r = {{GPI_FUNCTION, GPI_ARGINFO, GPI_PAS_ID, stage.pa, 0, 0, 0}};
++        char line[192];
++        snprintf(line, sizeof(line), "SWEET PAS INIT: before fresh=%u fn=42000201 arginfo=82 pas=13 pa=%016llx; SCM_RW retained, software timeout cannot cancel SMC",
++            fresh + 1u, (unsigned long long)stage.pa);
++        gpi_record(line);
++        bool first_call = true;
++        for (;;) {
++            /* After every synchronous pre-call log, and before each tight
++             * continuation: fresh read-only budgets, no intervening UFS/sleep. */
++            enum gpi_rc guard = gpi_guard(deadline, receipt.smc_calls == 0 ? GPI_INITIAL_BUDGET : GPI_CALL_BUDGET);
++            if (guard != GPI_OK) {
++                if (!first_call) gpi_raw(&receipt);
++                return gpi_finish(guard, &receipt, out);
++            }
++            if (first_call) ++receipt.fresh_attempts;
++            else ++receipt.continuations;
++            ++receipt.smc_calls;
++            __asm__ volatile("dsb sy" ::: "memory");
++            gpi_invoke(&r);
++            receipt.returned = r; receipt.has_returned = 1;
++            if (r.x[0] != UINT64_C(1)) break;
++            if (receipt.continuations == GPI_CONTINUATIONS) {
++                gpi_raw(&receipt);
++                return gpi_finish(GPI_CONTINUATION_LIMIT, &receipt, out);
++            }
++            first_call = false;
++        }
++        /* The continuation chain ended. Only now may synchronous logs run. */
++        gpi_raw(&receipt);
++        enum gpi_rc guard = gpi_guard(deadline, GPI_CALL_BUDGET);
++        if (guard != GPI_OK) return gpi_finish(guard, &receipt, out);
++        if ((int32_t)r.x[0] == -12) {
++            if (fresh + 1u == GPI_BUSY_ATTEMPTS) return gpi_finish(GPI_BUSY_LIMIT, &receipt, out);
++            IOSleep(30); /* fresh native BUSY retry, not continuation */
++            continue;
++        }
++        if (r.x[0] != 0) return gpi_finish(GPI_TRANSPORT, &receipt, out);
++        if (r.x[1] != 0) return gpi_finish(GPI_SERVICE, &receipt, out);
++        return gpi_finish(GPI_OK, &receipt, out);
++    }
++    return gpi_finish(GPI_BUSY_LIMIT, &receipt, out);
++}
++#endif /* GAUGUIN */
+--- /dev/null
++++ b/bsd/dev/gauguin_pas_init.h
+@@ -0,0 +1,37 @@
++#ifndef GAUGUIN_PAS_INIT_H
++#define GAUGUIN_PAS_INIT_H
++#include <stdbool.h>
++#include <stdint.h>
++#include "gauguin_pas_stage.h"
++
++struct gpi_registers { uint64_t x[7]; };
++enum gpi_state { GPI_IDLE, GPI_RUNNING, GPI_COMPLETE, GPI_QUARANTINED };
++enum gpi_rc { GPI_OK, GPI_OFF, GPI_ARGUMENT, GPI_ALREADY, GPI_CONTEXT,
++    GPI_CONFIG, GPI_PREREQUISITE, GPI_BUDGET, GPI_TIMEOUT,
++    GPI_CONTINUATION_LIMIT, GPI_BUSY_LIMIT, GPI_TRANSPORT, GPI_SERVICE };
++struct gpi_receipt {
++    uint64_t stage_pa;
++    struct gpi_registers returned;
++    uint32_t has_returned, smc_calls, fresh_attempts, continuations;
++};
++/* The trusted single coordinator must pass its same-boot one-way CPU-stage
++ * claim after native BCM COMPLETE. This API cannot authenticate a fabricated
++ * CPU record and does not create a new staging buffer. It verifies geometry,
++ * exact opt-in/conflict flags, current BCM state and fresh watchdog budgets.
++ *
++ * Only PAS13 INIT_IMAGE is invoked. COMPLETE requires full64 transport x0==0
++ * and service x1==0; it is not firmware authentication/reset or GPU execution.
++ * SCM_RW may modify metadata: retain the existing reservation/mapping without
++ * restaging, freeing, hashing it as an immutable result, or undoing changes.
++ *
++ * OFF/NULL/ALREADY leave receipt untouched. After a successful atomic attempt
++ * claim, every terminal path publishes a deterministic receipt; has_returned
++ * distinguishes no SMC return from an actual raw return. Any started failure
++ * quarantines authorization until reset. There is no retry/unclaim/cleanup API.
++ * Software bounds cannot cancel an SMC that never returns; prior normal-running
++ * watchdog expiry does not establish containment of arbitrary secure hangs.
++ */
++bool sweet_pas_init_requested(void);
++enum gpi_rc sweet_pas_init_image_once(const struct sweet_pas_cpu_stage *, struct gpi_receipt *);
++enum gpi_state sweet_pas_init_state(void);
++#endif /* GAUGUIN_PAS_INIT_H */

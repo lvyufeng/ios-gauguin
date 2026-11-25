@@ -1,0 +1,57 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -295,7 +295,7 @@
+     task_t fTask;
+     gpu_buffer *fBuffers;
+     uint64_t fBytes,fCachedBytes;
+-    uint32_t fCachedCount;
++    uint32_t fCachedCount,fCacheCursor336;
+     bool fCacheEnabled;
+     uint32_t fNextHandle,fNextQueue,fNativeFence,fBootstrapJobs;
+     uint32_t fAllocationStage,fAllocationFailures;
+@@ -425,7 +425,7 @@
+     if(fCompositor)task_reference(fTask);
+     fNextHandle=1;fNextQueue=1;fBootstrapJobs=0;fAllocationStage=0;fAllocationFailures=0;
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
+-    fCachedBytes=0;fCachedCount=0;fCacheEnabled=false;
++    fCachedBytes=0;fCachedCount=0;fCacheCursor336=0;fCacheEnabled=false;
+     fAsync=false;return true;
+ }
+ bool GauguinGPUUserClient::start(IOService *p)
+@@ -580,11 +580,31 @@
+         b->size>=PAGE_SIZE&&b->size<=kCache335MaxBo&&b->size==b->mappingSize&&
+         b->address==b->mappingAddress&&!(b->flags&~(GGR_BO_READONLY|GGR_BO_WC));
+     if(eligible&&memory->getRetainCount()!=1)cache335_count(&gCache335.aliases);
+-    if(eligible&&memory->getRetainCount()==1&&fCachedCount<kCache335Slots&&
+-       b->mappingSize<=kCache335Bytes-fCachedBytes) {
+-        b->handle=0;b->closePending=false;b->cached=true;
+-        ++fCachedCount;fCachedBytes+=b->mappingSize;
+-        cache335_count(&gCache335.stores);cacheState335();return true;
++    if(eligible&&memory->getRetainCount()==1) {
++        if(fCachedCount>=kCache335Slots||b->mappingSize>kCache335Bytes-fCachedBytes) {
++            const uint64_t available=kCache335Bytes-fCachedBytes;
++            const uint64_t required=b->mappingSize>available?b->mappingSize-available:0;
++            gpu_buffer *victim=nullptr;uint32_t next=fCacheCursor336;
++            // One rotating victim only. A larger new class which would need
++            // multiple SMMU removals keeps the original release-new fallback.
++            for(uint32_t step=0;step<GGR_MAX_CLIENT_BUFFERS;step++) {
++                uint32_t index=(fCacheCursor336+step)%GGR_MAX_CLIENT_BUFFERS;
++                gpu_buffer *old=fBuffers+index;
++                if(old->cached&&old->memory&&old->installed&&!old->pending&&
++                   !old->closePending&&old->mappingSize>=required) {
++                    victim=old;next=(index+1)%GGR_MAX_CLIENT_BUFFERS;break;
++                }
++            }
++            if(victim) {
++                if(!drop(victim))return false; // retain original DMA escrow on failure
++                fCacheCursor336=next;
++            }
++        }
++        if(fCachedCount<kCache335Slots&&b->mappingSize<=kCache335Bytes-fCachedBytes) {
++            b->handle=0;b->closePending=false;b->cached=true;
++            ++fCachedCount;fCachedBytes+=b->mappingSize;
++            cache335_count(&gCache335.stores);cacheState335();return true;
++        }
+     }
+     return drop(b);
+ }

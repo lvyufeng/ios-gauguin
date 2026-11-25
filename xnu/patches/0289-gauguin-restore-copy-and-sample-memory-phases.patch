@@ -1,0 +1,348 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_frame378_probe.h
+@@ -0,0 +1,66 @@
++#ifndef GAUGUIN_FRAME378_PROBE_H
++#define GAUGUIN_FRAME378_PROBE_H
++
++#include "gauguin_frame372_wire.h"
++
++enum {
++    F378_PROBE_ROWS = 8,
++    F378_PROBE_BLOCK = 8,
++    F378_PROBE_CAP = 80,
++    F378_CONTROL_LIMIT = 16,
++    F378_SCENE_LIMIT = 32,
++    F378_CONTROL = 1,
++    F378_STROKE2 = 2,
++    F378_STROKE6 = 3,
++    F378_ROW_FIRST = 128,
++    F378_ROW_STEP = 288,
++    F378_MIN_SLACK_NS = 5700000,
++    F378_PROBE_ROW_BYTES = 55,
++};
++
++/* Offsets are 19.2 MHz absolute ticks relative to F344 arming. The
++ * windows replay the times of the observed stroke 2 and 6 release tails. */
++static inline unsigned
++f378_probe_class(uint64_t tick, uint64_t start, uint64_t attempt)
++{
++    if (!start || !attempt || tick < start) return 0;
++    const uint64_t offset = tick - start;
++    if (offset >= UINT64_C(157056000) && offset < UINT64_C(166656000)) return F378_STROKE2;
++    if (offset >= UINT64_C(336960000) && offset < UINT64_C(346752000)) return F378_STROKE6;
++    return attempt % 71 == 0 ? F378_CONTROL : 0;
++}
++
++struct f378_probe_deltas {
++    uint32_t read[F378_PROBE_ROWS];
++    uint32_t issue[F378_PROBE_ROWS];
++    uint32_t drain;
++};
++
++static inline bool
++f378_le24(uint8_t *out, uint32_t value)
++{
++    if (value > 0xffffff) return false;
++    out[0] = (uint8_t)value;
++    out[1] = (uint8_t)(value >> 8);
++    out[2] = (uint8_t)(value >> 16);
++    return true;
++}
++
++static inline bool
++f378_pack_probe(uint8_t out[F378_PROBE_ROW_BYTES], uint64_t attempt, unsigned lane,
++    const struct f378_probe_deltas *group)
++{
++    if (!attempt || attempt > UINT16_MAX || lane < F378_CONTROL || lane > F378_STROKE6)
++        return false;
++    out[0] = (uint8_t)attempt;
++    out[1] = (uint8_t)(attempt >> 8);
++    out[2] = (uint8_t)lane;
++    out[3] = (uint8_t)(attempt % F378_PROBE_ROWS);
++    for (unsigned row = 0; row < F378_PROBE_ROWS; ++row) {
++        if (!f378_le24(out + 4 + row * 6, group->read[row]) ||
++            !f378_le24(out + 7 + row * 6, group->issue[row])) return false;
++    }
++    return f378_le24(out + 4 + 6 * F378_PROBE_ROWS, group->drain);
++}
++
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_copy378_probe.h
+@@ -0,0 +1,113 @@
++#ifndef GAUGUIN_COPY378_PROBE_H
++#define GAUGUIN_COPY378_PROBE_H
++
++#include "gauguin_copy356.h"
++#include "gauguin_frame378_probe.h"
++
++static_assert(F378_ROW_FIRST + (F378_PROBE_ROWS - 1) * F378_ROW_STEP < SCAN352_HEIGHT,
++    "probe rows stay inside the original surface");
++
++#define SCAN378_LOAD64 \
++"ldp x8, x9, [%[s], #0]\n" \
++"ldp x10, x11, [%[s], #16]\n" \
++"ldp x12, x13, [%[s], #32]\n" \
++"ldp x14, x15, [%[s], #48]\n"
++
++#define SCAN378_STORE64 \
++"stnp x8, x9, [%[d], #0]\n" \
++"stnp x10, x11, [%[d], #16]\n" \
++"stnp x12, x13, [%[d], #32]\n" \
++"stnp x14, x15, [%[d], #48]\n"
++
++#define SCAN378_REST288 \
++"ldp x8, x9, [%[s], #64]\n" \
++"ldp x10, x11, [%[s], #80]\n" \
++"ldp x12, x13, [%[s], #96]\n" \
++"ldp x14, x15, [%[s], #112]\n" \
++"stnp x8, x9, [%[d], #64]\n" \
++"stnp x10, x11, [%[d], #80]\n" \
++"stnp x12, x13, [%[d], #96]\n" \
++"stnp x14, x15, [%[d], #112]\n" \
++"ldp x8, x9, [%[s], #128]\n" \
++"ldp x10, x11, [%[s], #144]\n" \
++"ldp x12, x13, [%[s], #160]\n" \
++"ldp x14, x15, [%[s], #176]\n" \
++"stnp x8, x9, [%[d], #128]\n" \
++"stnp x10, x11, [%[d], #144]\n" \
++"stnp x12, x13, [%[d], #160]\n" \
++"stnp x14, x15, [%[d], #176]\n" \
++"ldp x8, x9, [%[s], #192]\n" \
++"ldp x10, x11, [%[s], #208]\n" \
++"ldp x12, x13, [%[s], #224]\n" \
++"ldp x14, x15, [%[s], #240]\n" \
++"stnp x8, x9, [%[d], #192]\n" \
++"stnp x10, x11, [%[d], #208]\n" \
++"stnp x12, x13, [%[d], #224]\n" \
++"stnp x14, x15, [%[d], #240]\n" \
++"ldp x8, x9, [%[s], #256]\n" \
++"ldp x10, x11, [%[s], #272]\n" \
++"stnp x8, x9, [%[d], #256]\n" \
++"stnp x10, x11, [%[d], #272]\n" \
++"add %[s], %[s], #288\n" \
++"add %[d], %[d], #288\n"
++
++static inline uint32_t
++scan378_delta(uint64_t begin, uint64_t end)
++{
++    return end >= begin && end - begin <= UINT32_MAX ? (uint32_t)(end - begin) : UINT32_MAX;
++}
++
++/* Only the first 64 bytes of this row are timed. The other instructions
++ * preserve the original 0375 data movement, including its prefetch. */
++static inline void
++scan378_probe_row(void *dst, const void *src, unsigned probe, bool drain,
++    struct f378_probe_deltas *out)
++{
++#if defined(__aarch64__)
++    size_t remaining = SCAN352_PANEL_STRIDE - SCAN356_COPY_BLOCK_BYTES;
++    uint64_t before, loaded, issued, drained;
++    __asm__ volatile(
++        "prfm pldl1keep, [%[s], #160]\n"
++        "isb\n"
++        "mrs %[before], cntvct_el0\n"
++        SCAN378_LOAD64
++        "dsb ld\n"
++        "isb\n"
++        "mrs %[loaded], cntvct_el0\n"
++        SCAN378_STORE64
++        "isb\n"
++        "mrs %[issued], cntvct_el0\n"
++        "mov %[drained], %[issued]\n"
++        "cbz %w[drain], 1f\n"
++        "dsb st\n"
++        "isb\n"
++        "mrs %[drained], cntvct_el0\n"
++        "1:\n"
++        SCAN378_REST288
++        "2:\n"
++        "prfm pldl1keep, [%[s], #160]\n"
++        SCAN378_LOAD64
++        SCAN378_STORE64
++        SCAN378_REST288
++        "subs %[n], %[n], #288\n"
++        "b.ne 2b\n"
++        : [d] "+&r"(dst), [s] "+&r"(src), [n] "+&r"(remaining),
++          [before] "=&r"(before), [loaded] "=&r"(loaded),
++          [issued] "=&r"(issued), [drained] "=&r"(drained)
++        : [drain] "r"((unsigned)drain)
++        : "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "cc", "memory");
++    out->read[probe] = scan378_delta(before, loaded);
++    out->issue[probe] = scan378_delta(loaded, issued);
++    if (drain) out->drain = scan378_delta(issued, drained);
++#else
++    __builtin_memcpy(dst, src, SCAN352_PANEL_STRIDE);
++    out->read[probe] = out->issue[probe] = 0;
++    if (drain) out->drain = 0;
++#endif
++}
++
++#undef SCAN378_LOAD64
++#undef SCAN378_STORE64
++#undef SCAN378_REST288
++
++#endif
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -68,9 +68,12 @@
+ #include <pexpert/pexpert.h>
+ #include "../dev/gauguin_frame374_wire.h"
+ #include "../dev/gauguin_frame376_wire.h"
++#include "../dev/gauguin_frame378_probe.h"
+ 
+ void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
+ void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
++unsigned sweet_frame378_select(uint64_t, uint64_t);
++void sweet_frame378_probe(uint64_t, unsigned, const struct f378_probe_deltas *);
+ void sweet_ca374_drain(void);
+ extern void sweet_log_append(const char *, int);
+ 
+@@ -84,6 +87,13 @@
+ static struct f377_copy_event {
+ 	uint64_t attempt, begin, stores, end, runtime;
+ } f377_copies[F377_COPY_CAP];
++
++static uint32_t f378_selected[4], f378_count;
++static struct f378_probe_event {
++	uint64_t attempt;
++	unsigned lane;
++	struct f378_probe_deltas deltas;
++} f378_probes[F378_PROBE_CAP];
+ 
+ void
+ sweet_ca374_arm(uint64_t receiver, uint64_t start, uint64_t end)
+@@ -186,6 +196,64 @@
+ 		sweet_log_append(text, length);
+ 	}
+ 	printf("SWEET F377 C footer: rows=%u lost=%u\n", emitted, captured - emitted);
++}
++
++unsigned
++sweet_frame378_select(uint64_t attempt, uint64_t tick)
++{
++	if (!f375_enter()) return 0;
++	unsigned lane = tick < f374_end ? f378_probe_class(tick, f374_start, attempt) : 0;
++	if (lane) {
++		const unsigned limit = lane == F378_CONTROL ? F378_CONTROL_LIMIT : F378_SCENE_LIMIT;
++		unsigned count = __atomic_load_n(&f378_selected[lane], __ATOMIC_RELAXED);
++		while (count < limit &&
++		    !__atomic_compare_exchange_n(&f378_selected[lane], &count, count + 1, true,
++		    __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
++		if (count >= limit) lane = 0;
++	}
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++	return lane;
++}
++
++void
++sweet_frame378_probe(uint64_t attempt, unsigned lane, const struct f378_probe_deltas *deltas)
++{
++	if (!lane || !f375_enter()) return;
++	const unsigned index = __atomic_fetch_add(&f378_count, 1, __ATOMIC_RELAXED);
++	if (index < F378_PROBE_CAP) {
++		f378_probes[index] = (struct f378_probe_event){attempt, lane, *deltas};
++	}
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++static void
++f378_drain(void)
++{
++	const unsigned selected = f378_selected[F378_CONTROL] + f378_selected[F378_STROKE2] +
++	    f378_selected[F378_STROKE6];
++	const unsigned available = f378_count < F378_PROBE_CAP ? f378_count : F378_PROBE_CAP;
++	unsigned emitted = 0;
++	while (emitted < available) {
++		uint8_t packed[F378_PROBE_BLOCK * F378_PROBE_ROW_BYTES];
++		char encoded[4 * ((sizeof(packed) + 2) / 3) + 1];
++		char line[sizeof(encoded) + 64];
++		unsigned count = 0;
++		while (count < F378_PROBE_BLOCK && emitted + count < available) {
++			const struct f378_probe_event *row = &f378_probes[emitted + count];
++			if (!f378_pack_probe(packed + count * F378_PROBE_ROW_BYTES,
++			    row->attempt, row->lane, &row->deltas)) break;
++			++count;
++		}
++		if (!count) break;
++		f372_base64(packed, count * F378_PROBE_ROW_BYTES, encoded);
++		const int length = snprintf(line, sizeof(line), "\nSWEET F378 P %u %u %s\n", emitted, count, encoded);
++		if (length <= 0 || (size_t)length >= sizeof(line)) break;
++		emitted += count;
++		sweet_log_append(line, length);
++	}
++	printf("SWEET F378 F: rows=%u lost=%u control=%u stroke2=%u stroke6=%u\n",
++	    emitted, selected - emitted, f378_selected[F378_CONTROL],
++	    f378_selected[F378_STROKE2], f378_selected[F378_STROKE6]);
+ }
+ 
+ static void
+@@ -242,6 +310,7 @@
+ 	printf("SWEET F374 F: rows=%u threads=%u bytes=%u lost=%u\n",
+ 	    emitted, threads, total, captured - emitted);
+ 	f377_copy_drain();
++	f378_drain();
+ }
+ #endif
+ 
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -45,12 +45,14 @@
+ #include "../../../bsd/dev/gauguin_ready357.h"
+ #include "../../../bsd/dev/gauguin_calibration357.h"
+ #include "../../../bsd/dev/gauguin_probe358.h"
+-#include "../../../bsd/dev/gauguin_copy377.h"
++#include "../../../bsd/dev/gauguin_copy378_probe.h"
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+ extern "C" void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
++extern "C" unsigned sweet_frame378_select(uint64_t, uint64_t);
++extern "C" void sweet_frame378_probe(uint64_t, unsigned, const struct f378_probe_deltas *);
+ /* END SWEET PRESENT STATS INCLUDE */
+ #endif
+ 
+@@ -2374,12 +2376,31 @@
+             const bool timePairedCopy = checked && pairedCopy && fFrameInfo375;
+             const uint64_t runtimeBegin = timePairedCopy ? thread_get_runtime_self() : 0;
+             const uint64_t frameCopyBegin = sweet_frame344_clock();
++            const bool probeMargin = timePairedCopy && fReadyAcrossFrames && copyStart.end > copyStart.line &&
++                (uint64_t)(copyStart.end - copyStart.line) * SCAN351_MIN_LINE_NS >= F378_MIN_SLACK_NS;
++            const unsigned probeLane = probeMargin && frameCopyBegin ?
++                sweet_frame378_select(attempt, frameCopyBegin) : 0;
++            struct f378_probe_deltas probe = {};
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
+-            if (pairedCopy && fReadyAcrossFrames) {
++            if (probeLane) {
++                unsigned sample = 0, sampleRow = F378_ROW_FIRST;
++                const unsigned drainRow = (unsigned)(attempt % F378_PROBE_ROWS);
++                for (int32_t y = 0; y < h; ++y) {
++                    auto *target = (void *)(dst + (uint64_t)y * fRowBytes);
++                    auto *source = (const void *)(first + (uint64_t)y * s->bytesPerRow);
++                    if (sample < F378_PROBE_ROWS && (unsigned)y == sampleRow) {
++                        scan378_probe_row(target, source, sample, sample == drainRow, &probe);
++                        ++sample;
++                        sampleRow += F378_ROW_STEP;
++                    } else {
++                        scan356_copy_row(target, source);
++                    }
++                }
++            } else if (pairedCopy && fReadyAcrossFrames) {
+                 for (int32_t y = 0; y < h; ++y)
+-                    scan377_copy_row((void *)(dst + (uint64_t)y * fRowBytes),
++                    scan356_copy_row((void *)(dst + (uint64_t)y * fRowBytes),
+                         (const void *)(first + (uint64_t)y * s->bytesPerRow));
+             } else if (pairedCopy) {
+                 for (int32_t y = 0; y < h; ++y)
+@@ -2411,6 +2432,8 @@
+                     ((uint64_t)copyStart.end << 32) | copyEnd.line);
+                 if (storesDone && runtimeEnd >= runtimeBegin)
+                     sweet_frame377_copy(attempt, frameCopyBegin, storesDone, frameCopyEnd, runtimeEnd - runtimeBegin);
++                if (probeLane)
++                    sweet_frame378_probe(attempt, probeLane, &probe);
+             }
+             if (fPresentSample != NULL) {
+                 if (fPresentSample->timingValid &&

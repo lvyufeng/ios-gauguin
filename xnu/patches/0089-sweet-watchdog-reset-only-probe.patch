@@ -1,0 +1,72 @@
+--- a/iokit/Kernel/arm/SweetWatchdog.cpp
++++ b/iokit/Kernel/arm/SweetWatchdog.cpp
+@@ -23,6 +23,7 @@
+ #include <IOKit/IOLib.h>
+ #include <IOKit/IOMemoryDescriptor.h>
+ #include <sys/proc.h>
++#include <kern/clock.h>
+ #include <kern/kalloc.h>
+ #include <pexpert/pexpert.h>
+ #include <machine/machine_routines.h>
+@@ -87,6 +88,7 @@
+ static thread_call_t sweet_wdt_call;
+ static unsigned sweet_wdt_ticks_total;
+ static unsigned sweet_wdt_burst;
++static thread_call_t sweet_wdt_pet_call;
+ 
+ extern "C" void sweet_dump_tick(void);
+ 
+@@ -166,6 +168,34 @@
+ 
+ static void sweet_wdt_schedule(void);
+ 
++/* Opt-in RESET-only experiment. Keep the existing status sampler and its
++ * cadence independent so the extra operation is periodic WDT0_RST writes. */
++static void
++sweet_wdt_pet_sample(thread_call_param_t, thread_call_param_t)
++{
++	static volatile uint32_t *wdt;
++	static unsigned count;
++	if (wdt == NULL) {
++		wdt = (volatile uint32_t *)ml_io_map(SWEET_APSS_WDT_PA, SWEET_APSS_WDT_SIZE);
++		if (wdt == NULL) {
++			IOLog("SWEET WDT PET: cannot map watchdog, stopping\n");
++			return;
++		}
++	}
++	uint32_t enabled = wdt[2];
++	uint32_t status = wdt[3];
++	wdt[1] = 1; /* WDT0_RST, the pet operation in gauguin watchdog_v2.c. */
++	__asm__ volatile("dmb oshst" ::: "memory");
++	uint64_t now = mach_absolute_time();
++	if (++count <= 5 || count % 10 == 0) {
++		IOLog("SWEET WDT PET: count=%u at=%llu en=%x sts=%x\n",
++		    count, now, enabled, status);
++	}
++	uint64_t deadline;
++	clock_interval_to_deadline(1, NSEC_PER_SEC, &deadline);
++	thread_call_enter_delayed(sweet_wdt_pet_call, deadline);
++}
++
+ void
+ sweet_wdt_thread_start(void)
+ {
+@@ -174,6 +204,18 @@
+ 	}
+ 	sweet_wdt_call = thread_call_allocate(sweet_wdt_sample, NULL);
+ 	sweet_wdt_schedule();
++	int pet = 0;
++	PE_parse_boot_argn("sweetwdtpet", &pet, sizeof(pet));
++	if (pet == 1) {
++		sweet_wdt_pet_call = thread_call_allocate(sweet_wdt_pet_sample, NULL);
++		if (sweet_wdt_pet_call == NULL) {
++			IOLog("SWEET WDT PET: allocation failed\n");
++			return;
++		}
++		uint64_t deadline;
++		clock_interval_to_deadline(1, NSEC_PER_SEC, &deadline);
++		thread_call_enter_delayed(sweet_wdt_pet_call, deadline);
++	}
+ }
+ 
+ /* Re-arm one second out, from inside the callback as well as at start. */

@@ -1,0 +1,92 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -1736,6 +1736,81 @@
+ 
+ /* Exact 20H392 functions only: no process-wide library stand-ins. */
+ 
++/* 20H392 CARenderer uses this descriptor entry, not the name/constants hook
++ * in the original iOS16.5 integration. Observe the original method unchanged:
++ * no function substitutions, altered constants, cached success or retry. */
++static id (*hm_gauguin_original_descriptor)(id, SEL, MTLFunctionDescriptor *, NSError **);
++static uint64_t hm_gauguin_descriptor_calls;
++
++static id
++hm_gauguin_descriptor(id library, SEL selector, MTLFunctionDescriptor *descriptor, NSError **error)
++{
++	id device = ((id (*)(id, SEL))objc_msgSend)(library, sel_getUid("device"));
++	if (![device isKindOfClass:[HakiosMetalDevice class]])
++		return hm_gauguin_original_descriptor(library, selector, descriptor, error);
++
++	const uint64_t call = __atomic_add_fetch(&hm_gauguin_descriptor_calls, 1, __ATOMIC_RELAXED);
++	NSString *name = [descriptor name];
++	BOOL constants = [descriptor constantValues] != nil;
++	BOOL present = name != nil && [[library functionNames] containsObject:name];
++	if (call <= 64) {
++		hm_print("GAUGUIN METAL233 specialization begin call=%llu api=descriptor name=%s constants=%u present=%u\n",
++			 (unsigned long long)call, name ? [name UTF8String] : "<nil>", constants, present);
++	}
++	id function = hm_gauguin_original_descriptor(library, selector, descriptor, error);
++	if (function == nil) {
++		NSError *failure = error != NULL ? *error : nil;
++		hm_print("GAUGUIN METAL233 specialization failed call=%llu name=%s domain=%s code=%lld reason=%s errorPointer=%u\n",
++			 (unsigned long long)call, name ? [name UTF8String] : "<nil>",
++			 failure ? [[failure domain] UTF8String] : "<none>", (long long)[failure code],
++			 failure ? [[failure localizedDescription] UTF8String] : "<none>", error != NULL);
++	} else if (call <= 64) {
++		hm_print("GAUGUIN METAL233 specialization end call=%llu ok=1\n", (unsigned long long)call);
++	}
++	return function;
++}
++
++static BOOL
++hm_gauguin_trace_specialization(void)
++{
++	static dispatch_once_t once;
++	static BOOL installed;
++	dispatch_once(&once, ^{
++		/* Exact actual20H392 ABI, read independently from its shared cache.
++		 * Validate all selectors before changing a single implementation. */
++		const struct { const char *cls, *sel, *type; } checks[] = {
++			{ "_MTLLibrary", "newFunctionWithDescriptor:error:", "@32@0:8@16^@24" },
++			{ "_MTLLibrary", "device", "@16@0:8" },
++			{ "_MTLLibrary", "functionNames", "@16@0:8" },
++			{ "MTLFunctionDescriptor", "name", "@16@0:8" },
++			{ "MTLFunctionDescriptor", "constantValues", "@16@0:8" },
++		};
++		for (size_t i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
++			Class cls = objc_getClass(checks[i].cls);
++			Method method = cls ? class_getInstanceMethod(cls, sel_getUid(checks[i].sel)) : NULL;
++			if (method == NULL || strcmp(method_getTypeEncoding(method), checks[i].type)) {
++				hm_print("GAUGUIN METAL233 specialization ABI rejected class=%s selector=%s\n", checks[i].cls, checks[i].sel);
++				return;
++			}
++		}
++		Class cls = objc_getClass("_MTLLibrary");
++		unsigned count = 0;
++		Method *own = class_copyMethodList(cls, &count), target = NULL;
++		SEL selector = sel_getUid("newFunctionWithDescriptor:error:");
++		for (unsigned i = 0; i < count; i++)
++			if (method_getName(own[i]) == selector) target = own[i];
++		if (target != NULL) {
++			hm_gauguin_original_descriptor = (id (*)(id, SEL, MTLFunctionDescriptor *, NSError **))method_getImplementation(target);
++			method_setImplementation(target, (IMP)hm_gauguin_descriptor);
++			installed = YES;
++		}
++		free(own);
++		hm_print("GAUGUIN METAL233 specialization trace installed=%u root-only delegated-original\n", installed);
++	});
++	return installed;
++}
++
++
+ /*
+  * (hakios) boot-arg ca_prof=US, the window server: every US microseconds every thread of the process is looked at
+  * -- running or waiting -- and its stack taken (the program counter, the link register, the frame chain); every
+@@ -2063,6 +2138,7 @@
+ 	gauguin_metal_profile_cache();
+ 	hm_ensure_spi([self class]);
+ 	hm_functions_encode_from_metadata();
++	if (!hm_gauguin_trace_specialization()) return nil;
+ 	self = [super init];
+ 	if (self == nil) {
+ 		return nil;

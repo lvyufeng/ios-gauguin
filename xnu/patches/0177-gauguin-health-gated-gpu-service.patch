@@ -1,0 +1,324 @@
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -90,6 +90,11 @@
+     int zap = 0; (void)PE_parse_boot_argn("sweetgpuzap", &zap, sizeof(zap));
+     if ((zap != 0 && zap != 1 && zap != 2 && zap != 3 && zap != 4 && zap != 5 && zap != 6 && zap != 7 && zap != 8 && zap != 9 && zap != 10 && zap != 11 && zap != 12) || (zap != 0 && start != 1)) return false;
+     int probe = 0, stage = 0;
++    int service = 0, seconds = 0;
++    (void)PE_parse_boot_argn("sweetgpuservice", &service, sizeof(service));
++    (void)PE_parse_boot_argn("sweetgpuservicesecs", &seconds, sizeof(seconds));
++    if ((service != 0 && service != 1) || (service == 1 && zap != 12) ||
++        (seconds != 0 && (service != 1 || seconds < 60 || seconds > 3600))) return false;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+     return probe == 1 && stage == 1;
+@@ -256,6 +261,27 @@
+                                 if(!sweet_gpu_runtime_start()){
+                                     gauguin_wdt_lease_quarantine();bcm_record("SWEET GPU USER: runtime start failed; owners retained");return;
+                                 }
++                                if(sweet_gpu_service_requested()){
++                                    int seconds=0;(void)PE_parse_boot_argn("sweetgpuservicesecs",&seconds,sizeof(seconds));
++                                    uint64_t service_end=UINT64_MAX;
++                                    if(seconds)clock_interval_to_deadline((uint32_t)seconds,NSEC_PER_SEC,&service_end);
++                                    snprintf(line,sizeof(line),"SWEET GPU SERVICE: owner online test_seconds=%d; watchdog remains enabled, failures retain DMA owners",seconds);bcm_record(line);
++                                    bool expired=false;
++                                    for(;;){
++                                        IOSleep(1000);
++                                        if(!bcm_context()){
++                                            gauguin_wdt_lease_quarantine();
++                                            bcm_record("SWEET GPU SERVICE: invalid coordinator context; no lock/refresh, DMA owners retained");return;
++                                        }
++                                        if(mach_absolute_time()>=service_end){expired=true;break;}
++                                        if(!GauguinGPUHeartbeat())break;
++                                    }
++                                    extern void GauguinGPUStop(void);GauguinGPUStop();
++                                    gauguin_wdt_lease_quarantine();
++                                    bcm_record(expired?"SWEET GPU SERVICE: test deadline reached; no more refresh, owners retained until hardware reset":
++                                        "SWEET GPU SERVICE: health/owner failure; no more refresh, owners retained until hardware reset");
++                                    return;
++                                }
+                             }else if(sweet_gpu_texture_requested()){
+                                 bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; before native A619 texture sequence; no Metal");
+                                 struct ggf_receipt texture;
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3805,8 +3805,12 @@
+ static struct ggr_context ggrb_context;
+ static uint64_t ggrb_end,ggrb_root;
+ static unsigned ggrb_started;
++static bool ggrb_service;
++static uint32_t ggrb_refreshes;
+ bool sweet_gpu_runtime_requested(void)
+ {int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==12;}
++bool sweet_gpu_service_requested(void)
++{int flag=0;(void)PE_parse_boot_argn("sweetgpuservice",&flag,sizeof(flag));return flag==1&&sweet_gpu_runtime_requested();}
+ static uint64_t ggrb_ns(void *cookie)
+ {(void)cookie;uint64_t ns;absolutetime_to_nanoseconds(mach_absolute_time(),&ns);return ns;}
+ static bool ggrb_live(void *cookie)
+@@ -3882,14 +3886,38 @@
+        sweet_gpu_write_state()!=GMB_IDLE||sweet_gpu_ib_state()!=GMB_IDLE||sweet_gpu_eop_state()!=GMB_IDLE||
+        sweet_gpu_compute_state()!=GMB_IDLE||sweet_gpu_clear_state()!=GMB_IDLE||sweet_gpu_draw_state()!=GMB_IDLE||
+        sweet_gpu_sequence_state()!=GMB_IDLE||sweet_gpu_varying_state()!=GMB_IDLE||sweet_gpu_texture_state()!=GMB_IDLE)return false;
+-    ggrb_started=1;clock_interval_to_deadline(20,NSEC_PER_SEC,&ggrb_end);
++    ggrb_started=1;ggrb_service=sweet_gpu_service_requested();
++    if(ggrb_service)ggrb_end=UINT64_MAX;
++    else clock_interval_to_deadline(20,NSEC_PER_SEC,&ggrb_end);
+     struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,gmb_barrier,ggq_board_delay,ggrb_quarantine};
+     enum ggr_error rc=ggr_open(&ggrb_context,&ops,ggb_plan.region[GGP_SCRATCH].iova,ggb_data_plan.data.iova);
+     if(rc!=GGR_OK||!sweet_gpu_runtime_ready()||!GauguinGPUStart()) {
+         if(ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);
+         return false;
+     }
+-    gmb_record("SWEET GPU USER: runtime READY initial_shadow=20 window=20s; real dynamic msm API, no Metal");return true;
++    if(ggrb_service)gmb_record("SWEET GPU USER: runtime READY initial_shadow=20 service=1; health-gated watchdog owner, no Metal");
++    else gmb_record("SWEET GPU USER: runtime READY initial_shadow=20 window=20s; real dynamic msm API, no Metal");
++    return true;
++}
++bool sweet_gpu_runtime_heartbeat(void)
++{
++    if(!ggrb_service||!sweet_gpu_runtime_ready())return false;
++    /* The IOKit bridge holds the same operation lock as every user request.
++     * Check real GPU idle/EOP/faults and all live routes/power before ONE pet.
++     * On any failed proof, poison authorities and retain all DMA owners. */
++    if(ggr_check_idle(&ggrb_context)!=GGR_OK||!sweet_gpu_runtime_ready())return false;
++    struct gauguin_wdt_refresh_record refresh;
++    if(!gauguin_wdt_lease_refresh(&refresh)) {
++        ggr_fail(&ggrb_context,GGR_UNAVAILABLE);return false;
++    }
++    ggrb_refreshes=refresh.sequence;
++    if(refresh.sequence==1||refresh.sequence%30==0) {
++        char line[192];
++        snprintf(line,sizeof(line),"SWEET GPU SERVICE: renew=%u before=%u after=%u submitted=%u completed=%u shadow=%u; health/idle/routes/power verified",
++            refresh.sequence,refresh.before_count,refresh.after_count,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr);
++        gmb_record(line);
++    }
++    return true;
+ }
+ bool sweet_gpu_runtime_sync(void)
+ {
+@@ -3940,6 +3968,14 @@
+     }
+ }
+ void sweet_gpu_runtime_stop(void)
+-{if(ggrb_started&&ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);}
++{
++    if(ggrb_started&&ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);
++    if(ggrb_service) {
++        char line[192];
++        snprintf(line,sizeof(line),"SWEET GPU SERVICE: final renewals=%u submitted=%u completed=%u shadow=%u; quarantined, no further refresh",
++            ggrb_refreshes,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr);
++        gmb_record(line); /* cached only, AFTER authorities were poisoned */
++    }
++}
+ 
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -76,6 +76,21 @@
+     }
+     return GGR_OK;
+ }
++enum ggr_error ggr_check_idle(struct ggr_context *c)
++{
++    if(!c||c->state!=GGR_READY)return GGR_UNAVAILABLE;
++    uint64_t now=c->ops.nanoseconds(c->ops.cookie);
++    if(now>UINT64_MAX-UINT64_C(2000000000)){ggr_fail(c,GGR_UNAVAILABLE);return GGR_UNAVAILABLE;}
++    c->operation_end_ns=now+UINT64_C(2000000000);
++    uint32_t wptr,shadow,eop,busy;
++    if(!faults(c)||!rd(c,0x807,&wptr)||wptr!=c->wptr||
++       !mr(c,GGR_SHADOW,0,&shadow)||shadow!=c->wptr||
++       !mr(c,GGR_COMPLETION,0,&eop)||eop!=c->completed||
++       !rd(c,0x23b0c,&busy)||busy==UINT32_MAX||(busy&(1u<<23))) {
++        ggr_fail(c,GGR_IO);return GGR_IO;
++    }
++    return GGR_OK;
++}
+ enum ggr_error ggr_submit(struct ggr_context *c,const uint64_t *addresses,const uint32_t *words,uint32_t count,uint32_t *fence)
+ {
+     if(!c||!addresses||!words||!fence||!count||count>GGR_MAX_COMMANDS)return GGR_ARGUMENT;
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -96,10 +96,14 @@
+  * completed; an AO/ring reading alone is never treated as a completion. */
+ enum ggr_error ggr_open(struct ggr_context *,const struct ggr_ops *,uint32_t,uint32_t);
+ enum ggr_error ggr_submit(struct ggr_context *,const uint64_t *,const uint32_t *,uint32_t,uint32_t *);
++/* Read-only idle/real-EOP/fault check with a fresh bounded operation deadline.
++ * A failed started check quarantines; it never rings the GPU or pets a WDT. */
++enum ggr_error ggr_check_idle(struct ggr_context *);
+ void ggr_fail(struct ggr_context *,enum ggr_error);
+ 
+ /* Private board owner, implemented alongside the proven A619 bootstrap. */
+ bool sweet_gpu_runtime_requested(void);
++bool sweet_gpu_service_requested(void);
+ bool sweet_gpu_runtime_start(void);
+ bool sweet_gpu_runtime_ready(void);
+ bool sweet_gpu_runtime_install_root(uint64_t directory_pa);
+@@ -108,7 +112,9 @@
+ bool sweet_gpu_runtime_done(uint32_t);
+ bool sweet_gpu_runtime_parameter(uint32_t,uint64_t *);
+ void sweet_gpu_runtime_stop(void);
++bool sweet_gpu_runtime_heartbeat(void);
+ bool GauguinGPUStart(void);
++bool GauguinGPUHeartbeat(void);
+ #if defined(__cplusplus)
+ }
+ #endif
+--- a/bsd/dev/gauguin_wdt_lease.h
++++ b/bsd/dev/gauguin_wdt_lease.h
+@@ -60,6 +60,22 @@
+  */
+ bool gauguin_wdt_lease_check_budget(uint32_t minimum_remaining_ticks);
+ 
++struct gauguin_wdt_refresh_record {
++    uint64_t refreshed_at_ticks;
++    uint32_t sequence, before_count, after_count;
++};
++
++/* Opt-in sweetgpuservice=1/mode12 only. The GPU owner must hold its operation
++ * lock and verify idle/EOP/fault/routes/power BEFORE calling. Serialize with
++ * budget checks. Require fresh advancing counter + CPU-clock agreement, exact
++ * EN3/thresholds/quiet NS IRQs and three seconds left before ONE RST1 write.
++ * Check the reset counter/readbacks before moving the CPU-time epoch. Never
++ * enable/disable/reprogram thresholds, sleep, retry or release DMA memory.
++ * Failure permanently quarantines this lease. A concurrent quarantine cannot
++ * revoke an already in-flight store; it can never be overwritten as READY.
++ * Callers must stop refreshing after ANY GPU/owner/health failure. */
++bool gauguin_wdt_lease_refresh(struct gauguin_wdt_refresh_record *out);
++
+ /* Pure software latch, valid even on error paths. Consumes the shared attempt
+  * and prevents every future arm/budget success; never accesses hardware.
+  * It cannot cancel an already in-flight arm/read or a downstream operation.
+--- a/bsd/dev/gauguin_wdt_test.c
++++ b/bsd/dev/gauguin_wdt_test.c
+@@ -63,8 +63,9 @@
+ 
+ /* Monotonic lifecycle: IDLE -> ARMING -> READY -> QUARANTINED, or any
+  * started/explicitly quarantined state -> QUARANTINED. No return to IDLE.
+- * READY publishes the immutable arm/ready snapshot with release/acquire.
+- * budget_busy serializes mutable last-sample bookkeeping, never spins.
++ * READY publishes the arm/ready snapshot with release/acquire. The explicit
++ * GPU service refresh can move its epoch only after a verified RST1 pulse.
++ * budget_busy serializes samples/refresh epochs, never spins.
+  */
+ enum wdt_lease_state { WDL_IDLE, WDL_ARMING, WDL_READY, WDL_QUARANTINED };
+ static unsigned wdt_lease_state;
+@@ -72,6 +73,7 @@
+ static struct gauguin_wdt_lease_record wdt_lease_record;
+ static uint32_t wdt_lease_last_count;
+ static uint64_t wdt_lease_last_at;
++static uint32_t wdt_refresh_sequence;
+ 
+ struct wdt_arm_snapshot {
+     uint32_t status;
+@@ -424,6 +426,93 @@
+     return valid && still_ready;
+ }
+ 
++bool
++gauguin_wdt_lease_refresh(struct gauguin_wdt_refresh_record *out)
++{
++    int service = 0, mode = 0;
++    (void)PE_parse_boot_argn("sweetgpuservice", &service, sizeof(service));
++    (void)PE_parse_boot_argn("sweetgpuzap", &mode, sizeof(mode));
++    if (!out || service != 1 || mode != 12 ||
++        __atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) != WDL_READY) {
++        return false;
++    }
++    if (!wdt_bus_requested() || !wdt_context()) {
++        return wdt_lease_fail("SWEET WDT SERVICE: invalid owner/context; quarantined");
++    }
++    unsigned clear = 0;
++    if (!__atomic_compare_exchange_n(&wdt_budget_busy, &clear, 1u, false,
++        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
++        return wdt_lease_fail("SWEET WDT SERVICE: concurrent lease operation; quarantined");
++    }
++    bool valid = false;
++    uint32_t before = 0, after = 0, irq = UINT32_MAX;
++    uint32_t en = 0, bark = 0, bite = 0, status = 0, reason = 1;
++    uint64_t now = 0, elapsed_ns = 0, refreshed_at = 0;
++    if (__atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) != WDL_READY ||
++        !wdt_context() || !sweet_wdt_irq_quiet(&irq) || wdt_refresh_sequence == UINT32_MAX) {
++        goto done;
++    }
++    en = wdt_read(WDT_EN); bark = wdt_read(WDT_BARK);
++    bite = wdt_read(WDT_BITE); status = wdt_read(WDT_STS);
++    reason = 2;
++    before = (status >> 1) & 0xfffffu;
++    now = mach_absolute_time();
++    if (en != 3u || bark != WDT_BARK_TICKS || bite != WDT_BITE_TICKS ||
++        before < wdt_lease_last_count || before <= wdt_lease_record.ready_count ||
++        before >= WDT_BITE_TICKS || WDT_BITE_TICKS - before < 3u * WDT_HZ ||
++        now < wdt_lease_last_at || now < wdt_lease_record.ready_at_ticks ||
++        !wdt_cpu_window(wdt_lease_record.armed_at_ticks, now, 3u * WDT_HZ)) {
++        goto done;
++    }
++    absolutetime_to_nanoseconds(now - wdt_lease_record.ready_at_ticks, &elapsed_ns);
++    reason = 3;
++    if (elapsed_ns < UINT64_C(50000000) || elapsed_ns >= UINT64_C(23000000000)) {
++        goto done;
++    }
++    /* A stuck or implausibly slow counter must not gain an unlimited stream
++     * of new CPU epochs. Permit 25% nominal-rate variation plus 10ms skew. */
++    uint64_t expected_ticks = elapsed_ns * WDT_HZ / UINT64_C(1000000000);
++    uint64_t progressed = before - wdt_lease_record.ready_count;
++    uint64_t tolerance = expected_ticks / 4u + WDT_HZ / 100u;
++    reason = 4;
++    if (progressed + tolerance < expected_ticks || progressed > expected_ticks + tolerance ||
++        !wdt_context() || __atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) != WDL_READY) {
++        goto done;
++    }
++    refreshed_at = mach_absolute_time(); /* anchor BEFORE the pulse, not its readback */
++    reason = 5;
++    if (!wdt_cpu_window(wdt_lease_record.armed_at_ticks, refreshed_at, 3u * WDT_HZ)) {
++        goto done;
++    }
++    wdt_write(WDT_RST, 1u);
++    en = wdt_read(WDT_EN); bark = wdt_read(WDT_BARK);
++    bite = wdt_read(WDT_BITE); status = wdt_read(WDT_STS);
++    after = (status >> 1) & 0xfffffu;
++    now = mach_absolute_time();
++    reason = 6;
++    valid = en == 3u && bark == WDT_BARK_TICKS && bite == WDT_BITE_TICKS &&
++        after < before && after <= WDT_HZ / 4u && now >= refreshed_at &&
++        wdt_context() && __atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) == WDL_READY;
++    if (valid) {
++        wdt_lease_record.armed_at_ticks = refreshed_at;
++        wdt_lease_record.ready_at_ticks = now;
++        wdt_lease_record.ready_count = after;
++        wdt_lease_last_count = after;
++        wdt_lease_last_at = now;
++        ++wdt_refresh_sequence;
++    }
++done:
++    __atomic_store_n(&wdt_budget_busy, 0u, __ATOMIC_RELEASE);
++    if (!valid) {
++        char line[192];
++        snprintf(line, sizeof(line), "SWEET WDT SERVICE: failed reason=%u seq=%u before=%u after=%u dt_ns=%llu en=%x bark=%u bite=%u; no retry/disable",
++            reason, wdt_refresh_sequence, before, after, elapsed_ns, en, bark, bite);
++        return wdt_lease_fail(line); /* cached observations only; no diagnostic MMIO */
++    }
++    *out = (struct gauguin_wdt_refresh_record){refreshed_at, wdt_refresh_sequence, before, after};
++    return true;
++}
++
+ static void
+ wdt_worker(void *argument, wait_result_t result)
+ {
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -160,6 +160,15 @@
+     sweet_gpu_runtime_stop();
+     if(gLock)IOLockUnlock(gLock);
+ }
++extern "C" bool GauguinGPUHeartbeat(void)
++{
++    if(!gLock)return false;
++    /* Same lock as submit/map/close: a stalled owner cannot be hidden by an
++     * independent watchdog petter. Failure keeps DMA-visible pages retained. */
++    IOLockLock(gLock);
++    bool ok=sweet_gpu_runtime_heartbeat();
++    IOLockUnlock(gLock);return ok;
++}
+ 
+ /* Token 1: CPU-only path before GPU publication; 2: the GPU lock is held.
+  * The token avoids unlocking a lock published between begin and end. Lock

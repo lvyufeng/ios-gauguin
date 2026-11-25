@@ -1,0 +1,214 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -137,6 +137,7 @@
+ bsd/dev/gauguin_gmu_asset.c		standard
+ bsd/dev/gauguin_gpu_sqe_asset.c		standard
+ bsd/dev/gauguin_gpu_zap_asset.c		standard
++bsd/dev/gauguin_gpu_zap.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_zap.c
+@@ -0,0 +1,125 @@
++/* PAS13: fixed19b63c8 PIL descriptors and normal SCM64 control flow. */
++#include <stddef.h>
++#include <string.h>
++#include "gauguin_gpu_zap.h"
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++static enum gpz_result time_check(struct gpz_context *c)
++{
++    uint64_t now=c->ops.now(c->ops.cookie);
++    if(now<c->last_now||now>=c->total_end||now>=c->phase_end)return GPZ_DEADLINE;
++    c->last_now=now;return GPZ_OK;
++}
++static enum gpz_result guard(struct gpz_context *c,enum gpz_scope scope,unsigned minimum)
++{
++    enum gpz_result r=time_check(c);if(r)return r;
++    if(!c->ops.guard(c->ops.cookie,(enum gpz_phase)c->phase,scope,minimum))return GPZ_GUARD;
++    return time_check(c);
++}
++static enum gpz_result phase(struct gpz_context *c,enum gpz_phase next,unsigned seconds,enum gpz_scope scope,unsigned minimum)
++{
++    if(next!=c->phase+1u)return GPZ_GUARD;
++    if(c->phase!=GPZ_IDLE){enum gpz_result r=time_check(c);if(r)return r;}
++    c->phase=c->work.phase=(uint32_t)next;
++    if(!c->ops.deadline(c->ops.cookie,seconds,&c->phase_end))return GPZ_DEADLINE;
++    return guard(c,scope,minimum);
++}
++static void event(struct gpz_context *c,enum gpz_event e)
++{c->ops.record(c->ops.cookie,e,&c->work);}
++static enum gpz_result owner(struct gpz_context *c,enum gpz_owner_action action)
++{return c->ops.owner(c->ops.cookie,action,c->work.owner_pa)?GPZ_OK:GPZ_OWNER;}
++static struct gpz_registers fresh_frame(const struct gpz_context *c,unsigned id)
++{
++    static const uint64_t functions[]={UINT64_C(0x42000201),UINT64_C(0x42000202),UINT64_C(0x42000205)};
++    struct gpz_registers r={{functions[id],id==0?UINT64_C(0x82):id==1?3u:1u,13,
++        id==2?0:c->work.owner_pa,id==1?GPZ_MEM_BYTES:0,0,0}};
++    return r;
++}
++static enum gpz_result transaction(struct gpz_context *c,unsigned id)
++{
++    struct gpz_transaction *t=&c->work.transaction[id];
++    c->last_transaction=id;
++    for(unsigned attempt=0;attempt<GPZ_FRESH_ATTEMPTS;attempt++){
++        struct gpz_registers r=fresh_frame(c,id);
++        event(c,GPZE_BEFORE);
++        bool continuation=false;
++        for(;;){
++            enum gpz_result check=guard(c,GPZ_SECURE,t->smc_calls?3u:10u);
++            if(check)return check;
++            /* The real barrier/invoke provider is a fixed scalar DSB+SMC;
++             * nothing may log, sleep, remap or inspect GPU between them. */
++            if(!c->ops.barrier(c->ops.cookie))return GPZ_IO;
++            if(continuation)++t->continuations;else ++t->fresh_attempts;
++            ++t->smc_calls;c->ops.invoke(c->ops.cookie,&r);
++            t->returned=r;t->has_returned=1;c->pending_raw=1;
++            if(r.x[0]!=UINT64_C(1))break;
++            if(t->continuations==GPZ_CONTINUATIONS)return GPZ_CONTINUATION_LIMIT;
++            continuation=true;
++        }
++        bool busy=(int32_t)r.x[0]==-12;
++        if(!busy&&r.x[0])return GPZ_TRANSPORT;
++        if(!busy&&r.x[1])return GPZ_SERVICE;
++        if(busy&&attempt+1u==GPZ_FRESH_ATTEMPTS)return GPZ_BUSY_LIMIT;
++        /* A known terminal failure is logged only by finish after quarantine.
++         * Successful/BUSY raw returns may be logged outside the tight chain. */
++        event(c,GPZE_RAW);c->pending_raw=0;
++        enum gpz_result check=guard(c,id==2&&!busy?GPZ_LATE:GPZ_SECURE,3);
++        if(check)return check;
++        if(!busy)return GPZ_OK;
++        if(!c->ops.delay_ms(c->ops.cookie,30))return GPZ_IO;
++        check=guard(c,GPZ_SECURE,3);if(check)return check;
++    }
++    return GPZ_BUSY_LIMIT;
++}
++#define TRY(x) do{enum gpz_result r=(x);if(r)return r;}while(0)
++static enum gpz_result run(struct gpz_context *c)
++{
++    c->entry=c->last_now=c->ops.now(c->ops.cookie);
++    if(!c->ops.deadline(c->ops.cookie,20,&c->total_end)||c->total_end<=c->entry)return GPZ_DEADLINE;
++    TRY(phase(c,GPZ_SEAL,1,GPZ_LIVE,10));
++    TRY(owner(c,GPZO_SEAL));c->work.owner_sealed=1;c->work.requests_retained=1;
++    TRY(guard(c,GPZ_LIVE,3));
++    TRY(phase(c,GPZ_INIT,5,GPZ_LIVE,10));
++    TRY(owner(c,GPZO_INIT_ENTER));
++    TRY(transaction(c,0));TRY(owner(c,GPZO_INIT_ACCEPT));TRY(guard(c,GPZ_SECURE,3));
++    TRY(phase(c,GPZ_MEM,5,GPZ_LIVE,10));
++    TRY(transaction(c,1));TRY(owner(c,GPZO_MEM_ACCEPT));TRY(guard(c,GPZ_SECURE,3));
++    TRY(phase(c,GPZ_COPY,2,GPZ_LIVE,3));
++    if(!c->ops.copy(c->ops.cookie,&c->work.copy))return GPZ_IO;
++    if(c->work.copy.written!=GPZ_CODE_BYTES||c->work.copy.checked!=GPZ_CODE_BYTES)return GPZ_IO;
++    TRY(guard(c,GPZ_LIVE,3));
++    if(!c->ops.barrier(c->ops.cookie))return GPZ_IO;
++    TRY(guard(c,GPZ_LIVE,3));
++    TRY(phase(c,GPZ_AUTH,5,GPZ_LIVE,10));
++    TRY(transaction(c,2));TRY(owner(c,GPZO_AUTH_ACCEPT));TRY(guard(c,GPZ_LATE,3));
++    TRY(phase(c,GPZ_FINAL,1,GPZ_LATE,3));
++    return GPZ_OK;
++}
++#undef TRY
++enum gpz_result gpz_start_once(struct gpz_context *c,const struct gpz_ops *o,
++    const struct gpz_plan *p,struct gpz_receipt *out)
++{
++    if(!span(c,sizeof(*c))||!span(o,sizeof(*o))||!span(p,sizeof(*p))||!span(out,sizeof(*out))||
++       overlap(c,sizeof(*c),o,sizeof(*o))||overlap(c,sizeof(*c),p,sizeof(*p))||overlap(c,sizeof(*c),out,sizeof(*out))||
++       overlap(o,sizeof(*o),p,sizeof(*p))||overlap(o,sizeof(*o),out,sizeof(*out))||overlap(p,sizeof(*p),out,sizeof(*out)))return GPZ_ARGUMENT;
++    const struct gpz_ops ops=*o;const struct gpz_plan plan=*p;
++    if(!plan.owner_pa||(plan.owner_pa&UINT64_C(0xfffff))||plan.owner_pa>UINT64_C(0xfff00000)||
++       !ops.now||!ops.deadline||!ops.guard||!ops.owner||!ops.copy||!ops.barrier||!ops.invoke||
++       !ops.delay_ms||!ops.record||!ops.quarantine)return GPZ_ARGUMENT;
++    unsigned expected=0;
++    if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GPZ_ALREADY;
++    c->ops=ops;c->phase=GPZ_IDLE;c->pending_raw=c->last_transaction=0;
++    memset(&c->work,0,sizeof(c->work));c->work.owner_pa=plan.owner_pa;
++    enum gpz_result result=run(c);c->work.result=(uint32_t)result;
++    if(result!=GPZ_OK){
++        __atomic_store_n(&c->state,3,__ATOMIC_RELEASE);
++        c->ops.quarantine(c->ops.cookie);
++        if(c->pending_raw){event(c,GPZE_RAW);c->pending_raw=0;}
++        event(c,GPZE_TERMINAL);return result;
++    }
++    c->phase=c->work.phase=GPZ_DONE;c->work.complete=1;
++    *out=c->work;__atomic_store_n(&c->state,2,__ATOMIC_RELEASE);
++    event(c,GPZE_TERMINAL);return GPZ_OK;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_zap.h
+@@ -0,0 +1,73 @@
++#ifndef GAUGUIN_GPU_ZAP_H
++#define GAUGUIN_GPU_ZAP_H
++#include <stdbool.h>
++#include <stdint.h>
++enum gpz_phase {GPZ_IDLE,GPZ_SEAL,GPZ_INIT,GPZ_MEM,GPZ_COPY,GPZ_AUTH,GPZ_FINAL,GPZ_DONE};
++enum gpz_result {GPZ_OK,GPZ_ARGUMENT,GPZ_ALREADY,GPZ_GUARD,GPZ_DEADLINE,
++    GPZ_OWNER,GPZ_IO,GPZ_CONTINUATION_LIMIT,GPZ_BUSY_LIMIT,GPZ_TRANSPORT,GPZ_SERVICE};
++/* LIVE permits the board's pre-transaction clock/route/GPU checks. SECURE
++ * is the tight normal-SCM path: CPU/context, time, WDT and owner metadata
++ * only, no GPU/secure-buffer access or diagnostic IO. LATE is after AUTH
++ * returned full64 success: no secure-buffer or GPU register access. */
++enum gpz_scope {GPZ_LIVE,GPZ_SECURE,GPZ_LATE};
++enum gpz_owner_action {GPZO_SEAL,GPZO_INIT_ENTER,GPZO_INIT_ACCEPT,GPZO_MEM_ACCEPT,GPZO_AUTH_ACCEPT};
++enum gpz_event {GPZE_BEFORE,GPZE_RAW,GPZE_TERMINAL};
++#define GPZ_CODE_BYTES 1984u
++#define GPZ_MEM_BYTES 4096u
++#define GPZ_CONTINUATIONS 8u
++#define GPZ_FRESH_ATTEMPTS 68u
++struct gpz_registers {uint64_t x[7];};
++struct gpz_transaction {
++    struct gpz_registers returned;
++    uint32_t has_returned,smc_calls,fresh_attempts,continuations;
++};
++struct gpz_copy {uint32_t written,checked;};
++struct gpz_receipt {
++    uint64_t owner_pa;
++    struct gpz_transaction transaction[3]; /* INIT, MEM, AUTH */
++    struct gpz_copy copy;
++    uint32_t phase,result,owner_sealed,complete,requests_retained;
++};
++struct gpz_plan {uint64_t owner_pa;};
++struct gpz_ops {
++    void *cookie;
++    uint64_t (*now)(void *);
++    bool (*deadline)(void *,unsigned,uint64_t *);
++    bool (*guard)(void *,enum gpz_phase,enum gpz_scope,unsigned);
++    /* PA is a comparison key only. The provider must derive destination and
++     * authority from its own sealed owner, never install a caller-chosen PA. */
++    bool (*owner)(void *,enum gpz_owner_action,uint64_t);
++    bool (*copy)(void *,struct gpz_copy *);
++    bool (*barrier)(void *);
++    void (*invoke)(void *,struct gpz_registers *);
++    bool (*delay_ms)(void *,unsigned);
++    void (*record)(void *,enum gpz_event,const struct gpz_receipt *);
++    void (*quarantine)(void *);
++};
++struct gpz_context {
++    uint32_t state,phase,pending_raw,last_transaction;
++    uint64_t entry,last_now,total_end,phase_end;
++    struct gpz_ops ops;
++    struct gpz_receipt work;
++};
++/* Fixed signed-PAS13 loader transaction engine; it has no SMC instruction,
++ * memory mapping or mutable destination pointer. The live provider must seal
++ * this boot's completed CP/core/FW plus actual claimed owner, immutable b02
++ * and retained resources. Owner callbacks enforce private phase authority.
++ * COPY performs exactly1984 bytes with readback under bounded live guards;
++ * it never clears a tail, reloads MDT or touches the region after AUTH.
++ *
++ * Native order: INIT6860 -> MEM_SETUP4096 -> b02 -> AUTH. This diagnostic uses
++ * 20s total,5s per SCM transaction,2s copy and1s seal/final. Fresh10s first-
++ * call/3s later watchdog budgets,68 BUSY attempts and8 total continuations per
++ * transaction are policy, not native promises or secure-hang containment.
++ * Continue only for FULL64 x0==1, preserving all seven returned registers;
++ * no log/sleep/fresh frame inside a continuation chain. BUSY is signed low32
++ * -12 and retries fresh after30ms. Success needs FULL64 x0/x1 zero.
++ * Failure is permanent, with shared quarantine before deferred failure raw/
++ * terminal records. No cleanup or restarted stage; output untouched on any
++ * refusal/failure. Success is signed-load acceptance only, not rendering/Metal.
++ * Linking alone never dispatches this engine; a live board adapter is needed. */
++enum gpz_result gpz_start_once(struct gpz_context *,const struct gpz_ops *,
++    const struct gpz_plan *,struct gpz_receipt *);
++#endif /* GAUGUIN_GPU_ZAP_H */

@@ -1,0 +1,408 @@
+--- a/bsd/dev/gauguin_frame380_phase.h
++++ b/bsd/dev/gauguin_frame380_phase.h
+@@ -1,5 +1,5 @@
+-/* Observed DPU phase and notification timing for the 60 Hz trial.
+- * Limits use the qualified 19.2 MHz absolute clock. */
++/* DPU phase and notification timing for the J17 panel's 136659 kHz
++ * DSC clock family. All times use the qualified 19.2 MHz absolute clock. */
+ #ifndef GAUGUIN_FRAME380_PHASE_H
+ #define GAUGUIN_FRAME380_PHASE_H
+ 
+@@ -7,6 +7,9 @@
+ #include <stdint.h>
+ 
+ enum {
++    F380_VTOTAL_60 = 4910,
++    F380_VTOTAL_90 = 3286,
++    F380_VTOTAL_120 = 2445,
+     F380_HISTORY = 20,
+     F380_MAX_BRACKET = 57600,        /* 3 ms */
+     F380_MIN_SAMPLE_PERIOD = 259200, /* 13.5 ms */
+@@ -31,7 +34,7 @@
+ 
+ struct f380_fit {
+     uint64_t midpoints[F380_HISTORY], previous;
+-    uint32_t frame;
++    uint32_t frame, total_lines;
+     unsigned count, next;
+ };
+ 
+@@ -46,24 +49,49 @@
+     bool has_scan;
+ };
+ 
+-static inline bool
+-f380_fit_add(struct f380_fit *fit, uint32_t frame, uint64_t lo, uint64_t hi,
+-    struct f380_prediction *out)
+-{
+-    if (!lo || lo >= hi || hi - lo > F380_MAX_BRACKET) {
++struct f380_budget {
++    uint64_t work, ready;
++};
++
++struct f380_dispatch {
++    struct f380_wake pulse;
++    uint64_t ready;
++    uint32_t total_lines;
++};
++
++static inline bool
++f380_known_total(uint32_t lines)
++{
++    return lines == F380_VTOTAL_60 || lines == F380_VTOTAL_90 || lines == F380_VTOTAL_120;
++}
++
++/* In this clock family VFP changes while the transport line time is fixed. */
++static inline uint64_t
++f380_scale(uint64_t ticks_at_60, uint32_t lines)
++{
++    return (ticks_at_60 * lines + F380_VTOTAL_60 / 2) / F380_VTOTAL_60;
++}
++
++static inline bool
++f380_fit_add_mode(struct f380_fit *fit, uint32_t total_lines, uint32_t frame,
++    uint64_t lo, uint64_t hi, struct f380_prediction *out)
++{
++    if (!f380_known_total(total_lines) || !lo || lo >= hi ||
++        hi - lo > f380_scale(F380_MAX_BRACKET, total_lines)) {
+         fit->count = fit->next = 0;
+         return false;
+     }
+     const uint64_t point = lo + (hi - lo) / 2;
+-    if (fit->count && (frame - fit->frame != 1 || point <= fit->previous ||
+-        point - fit->previous < F380_MIN_SAMPLE_PERIOD ||
+-        point - fit->previous > F380_MAX_SAMPLE_PERIOD)) {
++    if (fit->count && (total_lines != fit->total_lines || frame - fit->frame != 1 ||
++        point <= fit->previous || point - fit->previous < f380_scale(F380_MIN_SAMPLE_PERIOD, total_lines) ||
++        point - fit->previous > f380_scale(F380_MAX_SAMPLE_PERIOD, total_lines))) {
+         fit->count = fit->next = 0;
+     }
+     fit->midpoints[fit->next] = point;
+     fit->next = (fit->next + 1) % F380_HISTORY;
+     fit->previous = point;
+     fit->frame = frame;
++    fit->total_lines = total_lines;
+     if (fit->count < F380_HISTORY) ++fit->count;
+     if (fit->count < F380_HISTORY) return false;
+ 
+@@ -79,7 +107,8 @@
+     const uint64_t covariance = 20 * weighted - 190 * sum;
+     const uint64_t period = (covariance + 6650) / 13300;
+     const uint64_t next = (sum * 13300 + covariance * 210 + 133000) / 266000;
+-    if (period < F380_MIN_PERIOD || period > F380_MAX_PERIOD ||
++    if (period < f380_scale(F380_MIN_PERIOD, total_lines) ||
++        period > f380_scale(F380_MAX_PERIOD, total_lines) ||
+         origin > UINT64_MAX - next || origin + next <= hi) return false;
+     out->edge = origin + next;
+     out->observed = hi;
+@@ -89,10 +118,25 @@
+ }
+ 
+ static inline bool
++f380_fit_add(struct f380_fit *fit, uint32_t frame, uint64_t lo, uint64_t hi,
++    struct f380_prediction *out)
++{
++    return f380_fit_add_mode(fit, F380_VTOTAL_60, frame, lo, hi, out);
++}
++
++static inline bool
++f380_fresh_mode(const struct f380_prediction *p, uint32_t total_lines, uint64_t now)
++{
++    return f380_known_total(total_lines) && p->observed && now >= p->observed &&
++        now - p->observed <= f380_scale(F380_MAX_AGE, total_lines) && p->edge > p->observed &&
++        p->period >= f380_scale(F380_MIN_PERIOD, total_lines) &&
++        p->period <= f380_scale(F380_MAX_PERIOD, total_lines);
++}
++
++static inline bool
+ f380_fresh(const struct f380_prediction *p, uint64_t now)
+ {
+-    return p->observed && now >= p->observed && now - p->observed <= F380_MAX_AGE &&
+-        p->edge > p->observed && p->period >= F380_MIN_PERIOD && p->period <= F380_MAX_PERIOD;
++    return f380_fresh_mode(p, F380_VTOTAL_60, now);
+ }
+ 
+ static inline bool
+@@ -103,45 +147,100 @@
+ }
+ 
+ static inline bool
++f380_can_send_mode(const struct f380_sent *sent, uint32_t total_lines, uint64_t now)
++{
++    return !sent->tick || (now >= sent->tick &&
++        now - sent->tick >= f380_scale(F380_MIN_NOTIFY_GAP, total_lines));
++}
++
++static inline bool
+ f380_can_send(const struct f380_sent *sent, uint64_t now)
+ {
+-    return !sent->tick || (now >= sent->tick && now - sent->tick >= F380_MIN_NOTIFY_GAP);
+-}
+-
+-static inline bool
+-f380_pick(const struct f380_prediction *p, const struct f380_sent *sent, uint64_t now,
+-    struct f380_wake *out)
+-{
+-    if (!f380_fresh(p, now)) return false;
++    return f380_can_send_mode(sent, F380_VTOTAL_60, now);
++}
++
++/* SurfaceFlinger VSyncDispatch selects the first eligible VSync at or
++ * after max(earliest_vsync, now + work + ready). The fitted DPU phase
++ * supplies the scan ordinal as well as the predicted timestamp. */
++static inline bool
++f380_pick_deadline(const struct f380_prediction *p, const struct f380_sent *sent,
++    uint32_t total_lines, uint64_t now, uint64_t earliest_vsync,
++    struct f380_budget budget, struct f380_dispatch *out)
++{
++    if (!f380_fresh_mode(p, total_lines, now) || !budget.work ||
++        budget.work > UINT64_MAX - budget.ready) return false;
++    const uint64_t lead = budget.work + budget.ready;
++    if (now > UINT64_MAX - lead) return false;
++    const uint64_t earliest = earliest_vsync > now + lead ? earliest_vsync : now + lead;
+     for (unsigned i = 0; i < 4; ++i) {
+         const uint64_t advance = i * p->period;
+         if (p->edge > UINT64_MAX - advance) return false;
+         const uint64_t edge = p->edge + advance;
+-        if (edge < F380_LEAD) continue;
+-        const uint64_t wake = edge - F380_LEAD;
++        if (edge < earliest) continue;
++        const uint64_t ready = edge - budget.ready;
++        const uint64_t wake = ready - budget.work;
+         const uint32_t scan = p->frame + 1 + i;
+-        if (wake < now || !f380_can_send(sent, wake) ||
++        if (!wake || !f380_can_send_mode(sent, total_lines, wake) ||
+             (sent->has_scan && !f380_newer(scan, sent->scan))) continue;
+-        if (wake - now > F380_MAX_WAKE_AHEAD || wake - p->observed > F380_MAX_AGE)
++        if (wake - now > f380_scale(F380_MAX_WAKE_AHEAD, total_lines) ||
++            wake - p->observed > f380_scale(F380_MAX_AGE, total_lines))
+             return false;
+-        out->wake = wake;
+-        out->edge = edge;
+-        out->observed = p->observed;
+-        out->scan = scan;
+-        out->source = p->frame;
++        out->pulse.wake = wake;
++        out->pulse.edge = edge;
++        out->pulse.observed = p->observed;
++        out->pulse.scan = scan;
++        out->pulse.source = p->frame;
++        out->ready = ready;
++        out->total_lines = total_lines;
+         return true;
+     }
+     return false;
++}
++
++static inline bool
++f380_pick(const struct f380_prediction *p, const struct f380_sent *sent, uint64_t now,
++    struct f380_wake *out)
++{
++    const struct f380_budget budget = {F380_LEAD, 0};
++    struct f380_dispatch dispatch;
++    if (!f380_pick_deadline(p, sent, F380_VTOTAL_60, now, 0, budget, &dispatch)) return false;
++    *out = dispatch.pulse;
++    return true;
++}
++
++static inline bool
++f380_due_mode(const struct f380_prediction *p, const struct f380_sent *sent,
++    uint32_t total_lines, const struct f380_wake *wake, uint64_t now)
++{
++    return f380_fresh_mode(p, total_lines, now) && wake->wake && now >= wake->wake && now < wake->edge &&
++        now >= wake->observed && now - wake->observed <= f380_scale(F380_MAX_AGE, total_lines) &&
++        f380_newer(wake->scan, p->frame) &&
++        (!sent->has_scan || f380_newer(wake->scan, sent->scan)) &&
++        f380_can_send_mode(sent, total_lines, now);
+ }
+ 
+ static inline bool
+ f380_due(const struct f380_prediction *p, const struct f380_sent *sent,
+     const struct f380_wake *wake, uint64_t now)
+ {
+-    return f380_fresh(p, now) && wake->wake && now >= wake->wake && now < wake->edge &&
+-        now >= wake->observed && now - wake->observed <= F380_MAX_AGE &&
+-        f380_newer(wake->scan, p->frame) &&
+-        (!sent->has_scan || f380_newer(wake->scan, sent->scan)) && f380_can_send(sent, now);
++    return f380_due_mode(p, sent, F380_VTOTAL_60, wake, now);
++}
++
++static inline bool
++f380_dispatch_due(const struct f380_prediction *p, const struct f380_sent *sent,
++    uint32_t total_lines, const struct f380_dispatch *dispatch, uint64_t now)
++{
++    return dispatch->total_lines == total_lines &&
++        f380_due_mode(p, sent, total_lines, &dispatch->pulse, now);
++}
++
++/* Round up the scan time from the last legal flip request to the edge. */
++static inline uint64_t
++f380_ready_ticks(const struct f380_prediction *p, uint32_t total_lines, uint32_t tail_lines)
++{
++    if (!f380_known_total(total_lines) || !tail_lines || tail_lines >= total_lines ||
++        p->period > f380_scale(F380_MAX_PERIOD, total_lines)) return 0;
++    return (p->period * tail_lines + total_lines - 1) / total_lines;
+ }
+ 
+ enum f380_notice { F380_SOFTWARE, F380_ALIGNED, F380_MISSED };
+@@ -149,7 +248,7 @@
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+-bool sweet_frame380_prediction(uint64_t, struct f380_prediction *);
++bool sweet_frame380_prediction(uint64_t, struct f380_prediction *, uint32_t *tail_lines);
+ void sweet_frame380_notice(enum f380_notice, uint64_t, const struct f380_wake *);
+ #ifdef __cplusplus
+ }
+--- a/bsd/dev/gauguin_page_flip.h
++++ b/bsd/dev/gauguin_page_flip.h
+@@ -9,6 +9,7 @@
+     F382_COPY_BYTES = 1080 * 2400 * 4,
+     F382_SLOT_BYTES = 0x9e4000,
+     F382_MAX_FLIPS = 1024,
++    F382_CUTOFF_GUARD_LINES = 192,
+     F382_WAIT = 0, F382_TOUCHED = 1, F382_CONFIRMED = 2, F382_UNCERTAIN = 3
+ };
+ 
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -619,14 +619,15 @@
+         scan382.requests >= F382_MAX_FLIPS + (next == F382_FRONT))
+         return F382_UNCERTAIN;
+     if (!sweet_frame351_position(&before) || before.line < SCAN351_OPEN ||
+-        before.end < before.line + 192)
++        before.end < before.line + F382_CUTOFF_GUARD_LINES)
+         return F382_WAIT;
+     if (!scan382_live_route() || *scan382.source != scan382.address[front] || *scan382.flush)
+         return F382_UNCERTAIN;
+     const boolean_t interrupts = ml_set_interrupts_enabled(FALSE);
+     const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
+     const uint32_t checked_line = scan_intf[F344_LINE_COUNT / 4];
+-    if (checked_frame != before.frame || checked_line < before.line || before.end < checked_line + 192) {
++    if (checked_frame != before.frame || checked_line < before.line ||
++        before.end < checked_line + F382_CUTOFF_GUARD_LINES) {
+         ml_set_interrupts_enabled(interrupts);
+         return F382_WAIT;
+     }
+@@ -794,6 +795,8 @@
+  * reads a versioned snapshot without introducing MMIO or a lock dependency. */
+ static struct f380_fit phase380_fit;
+ static uint32_t phase380_version;
++/* Published once with the qualified scan351 window. */
++static uint32_t phase380_tail_lines;
+ static struct f380_prediction phase380_prediction;
+ 
+ static void phase380_publish(const struct f380_prediction *p)
+@@ -806,7 +809,7 @@
+     __atomic_fetch_add(&phase380_version, 1, __ATOMIC_RELEASE);
+ }
+ 
+-bool sweet_frame380_prediction(uint64_t tick, struct f380_prediction *out)
++bool sweet_frame380_prediction(uint64_t tick, struct f380_prediction *out, uint32_t *tail_lines)
+ {
+     if (!sweet_frame351_window()) return false;
+     const uint32_t version = __atomic_load_n(&phase380_version, __ATOMIC_ACQUIRE);
+@@ -821,6 +824,7 @@
+     if (__atomic_load_n(&phase380_version, __ATOMIC_RELAXED) != version || !f380_fresh(&p, tick))
+         return false;
+     *out = p;
++    if (tail_lines) *tail_lines = phase380_tail_lines;
+     return true;
+ }
+ 
+@@ -882,6 +886,9 @@
+         struct scan351_position pos = {0};
+         const bool enabled = scan351_position(&pos) &&
+             (scan352_enabled ? scan352_can_copy(SCAN351_OPEN, pos.end) : scan351_can_copy(SCAN351_OPEN, pos.end));
++        if (enabled && pos.end >= SCAN351_OPEN + F382_CUTOFF_GUARD_LINES &&
++            scan.geometry.vtotal == F380_VTOTAL_60)
++            phase380_tail_lines = F380_VTOTAL_60 - pos.end + F382_CUTOFF_GUARD_LINES;
+         __atomic_store_n(&scan351_published, enabled, __ATOMIC_RELEASE);
+         printf("SWEET F351 WINDOW: available=%u frame=%u end=%u\n", enabled, pos.frame, pos.end);
+     }
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -490,8 +490,9 @@
+     struct scan351_slot fBlankSlot;
+     IOTimerEventSource *fCAVsync;
+     uint64_t fCAVsyncRetryAfter;
++    uint64_t fCAWorkTicks;
+     unsigned fCAVsyncMisses;
+-    struct f380_wake fCAVsyncWake;
++    struct f380_dispatch fCAVsyncWake;
+     struct f380_sent fCAVsyncSent;
+     bool armCAVsyncLocked(uint64_t tick);
+     static void caVsyncFired(OSObject *, IOTimerEventSource *);
+@@ -907,6 +908,7 @@
+     fBlankSlot = {};
+     fCAVsync = nullptr;
+     fCAVsyncRetryAfter = 0;
++    fCAWorkTicks = 0;
+     fCAVsyncMisses = 0;
+     fCAVsyncWake = {};
+     fCAVsyncSent = {};
+@@ -953,6 +955,12 @@
+         IOLog("SWEET F352 READY: event=%u budget=%u\n", fReadyEvent != nullptr, SCAN352_COPY_NS);
+     }
+     if (fFrameInfo375 && fPhasePresent) {
++        uint32_t workUs = 0;
++        PE_parse_boot_argn("sweet_ca_work_us", &workUs, sizeof(workUs));
++        if (workUs > 0 && workUs <= 32000) {
++            nanoseconds_to_absolutetime((uint64_t)workUs * 1000, &fCAWorkTicks);
++            IOLog("SWEET F388 DISPATCH: work_us=%u\n", workUs);
++        }
+         auto *timer = IOTimerEventSource::timerEventSource(this, &AppleCLCD::caVsyncFired);
+         if (timer && fWorkLoop->addEventSource(timer) == kIOReturnSuccess) fCAVsync = timer;
+         else if (timer) timer->release();
+@@ -1451,18 +1459,22 @@
+ {
+     if (!fCAVsync) return false;
+     if (!fPhasePresent || fHeldStopped || fPowerOff) {
+-        if (fCAVsyncWake.wake) fCAVsync->cancelTimeout();
++        if (fCAVsyncWake.pulse.wake) fCAVsync->cancelTimeout();
+         fCAVsyncWake = {};
+         return false;
+     }
+     if (tick < fCAVsyncRetryAfter || fCAVsyncMisses >= F380_MAX_CONSECUTIVE_MISSES) return false;
+-    if (fCAVsyncWake.wake) return true;
++    if (fCAVsyncWake.pulse.wake) return true;
+     struct f380_prediction prediction = {};
+-    struct f380_wake pulse = {};
+-    if (!sweet_frame380_prediction(tick, &prediction) ||
+-        !f380_pick(&prediction, &fCAVsyncSent, tick, &pulse) ||
+-        fCAVsync->wakeAtTime(pulse.wake) != kIOReturnSuccess) return false;
+-    fCAVsyncWake = pulse;
++    uint32_t tailLines = 0;
++    if (!sweet_frame380_prediction(tick, &prediction, &tailLines)) return false;
++    const uint64_t ready = f380_ready_ticks(&prediction, F380_VTOTAL_60, tailLines);
++    if (!ready || (!fCAWorkTicks && ready >= F380_LEAD)) return false;
++    const struct f380_budget budget = {fCAWorkTicks ? fCAWorkTicks : F380_LEAD - ready, ready};
++    struct f380_dispatch dispatch = {};
++    if (!f380_pick_deadline(&prediction, &fCAVsyncSent, F380_VTOTAL_60, tick, 0, budget, &dispatch) ||
++        fCAVsync->wakeAtTime(dispatch.pulse.wake) != kIOReturnSuccess) return false;
++    fCAVsyncWake = dispatch;
+     return true;
+ }
+ 
+@@ -1471,15 +1483,17 @@
+ {
+     auto *fb = static_cast<AppleCLCD *>(owner);
+     IOLockLock(fb->fLock);
+-    if (fb->fCAVsync == sender && fb->fCAVsyncWake.wake) {
++    if (fb->fCAVsync == sender && fb->fCAVsyncWake.pulse.wake) {
+         const uint64_t tick = mach_absolute_time();
+-        const struct f380_wake pulse = fb->fCAVsyncWake;
++        const struct f380_dispatch dispatch = fb->fCAVsyncWake;
++        const struct f380_wake &pulse = dispatch.pulse;
+         if (tick >= pulse.wake || sender->wakeAtTime(pulse.wake) != kIOReturnSuccess) {
+             fb->fCAVsyncWake = {};
+             struct f380_prediction prediction = {};
+             if (fb->fPhasePresent && !fb->fHeldStopped && !fb->fPowerOff &&
+-                sweet_frame380_prediction(tick, &prediction) &&
+-                f380_due(&prediction, &fb->fCAVsyncSent, &pulse, tick)) {
++                sweet_frame380_prediction(tick, &prediction, nullptr) &&
++                (!fb->fCAWorkTicks || tick < dispatch.ready) &&
++                f380_dispatch_due(&prediction, &fb->fCAVsyncSent, F380_VTOTAL_60, &dispatch, tick)) {
+                 fb->fCAVsyncSent = {tick, pulse.scan, true};
+                 fb->fCAVsyncMisses = 0;
+                 fb->notifyVsyncLocked(tick, 1);

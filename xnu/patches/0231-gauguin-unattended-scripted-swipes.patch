@@ -1,0 +1,118 @@
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -35,6 +35,8 @@
+ void sweet_touch_init(void);
+
+ #if defined(GAUGUIN)
++#include <IOKit/SweetHIDTouchFrame.h>
++#include "gauguin_ui_trace.h"
+ /*
+  * gauguin is SM7225 (lito / lagoon), NOT the SM7125 the port was planned on.
+  * The TLMM is at 0x00f100000 (`qcom,lagoon-pinctrl`, 0x30000 - read from the
+@@ -496,6 +498,83 @@
+ 	thread_call_enter_delayed(sweet_swipe_call, sweet_swipe_due);
+ 	printf("SWEET UI SWIPE: one stroke armed at +180s, physical polling disabled\n");
+ }
++
++/* swp=2: bounded unattended animation workload. One unlock stroke then six
++ * left/right pairs. Every generated report is marked SYNTHETIC in UI254;
++ * these timestamps never measure Novatek or physical finger latency. */
++static thread_call_t sweet_script_call;
++static unsigned sweet_script_stroke, sweet_script_step;
++static uint64_t sweet_script_due, sweet_script_end, sweet_script_start;
++
++static void
++sweet_script_abort(void)
++{
++	struct sweet_hid_touch_snapshot release = {0};
++	int rc = sweet_hid_touch_frame(&release);
++	sweet_script_stroke = 13;
++	printf("SWEET UI SCRIPT: aborted; final release rc=%x, no retry\n", rc);
++}
++
++static void
++sweet_script_fire(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
++{
++	if (sweet_script_call == NULL || sweet_script_stroke >= 13) return;
++	uint64_t now = mach_absolute_time();
++	if (now < sweet_script_due || now >= sweet_script_end ||
++	    (sweet_script_step && now < sweet_script_start)) {
++		sweet_script_abort(); return;
++	}
++	unsigned stroke = sweet_script_stroke, step = sweet_script_step++;
++	bool down = step <= 32;
++	int x = 540, y = down ? 2390 - (1490 * (int)step) / 32 : 900;
++	if (stroke) {
++		unsigned position = down ? step : 32;
++		x = stroke & 1 ? 900 - (720 * (int)position) / 32 : 180 + (720 * (int)position) / 32;
++		y = 1200;
++	}
++	if (!step) {
++		sweet_script_start = now;
++		printf("SWEET UI SCRIPT: begin stroke=%u tick=%llu origin=synthetic\n", stroke, (unsigned long long)now);
++	}
++	struct sweet_hid_touch_snapshot snapshot = {0};
++	snapshot.active_mask = down ? 1 : 0;
++	snapshot.x[0] = x; snapshot.y[0] = y;
++	uint64_t id = sweet_ui_trace_report(now, now, 0, snapshot.active_mask);
++	if (id) sweet_ui_trace_record(GUT_SYNTHETIC, id, 0, stroke, step, x, y);
++	int rc = sweet_hid_touch_frame_traced(&snapshot, id);
++	if (id) sweet_ui_trace_record(GUT_HID_RETURN, id, 0, (uint32_t)rc, snapshot.active_mask, 0, 0);
++	if (rc) { sweet_script_abort(); return; }
++	if (down) {
++		uint64_t deadline;
++		clock_interval_to_deadline(10, NSEC_PER_MSEC, &deadline);
++		thread_call_enter_delayed(sweet_script_call, deadline);
++		return;
++	}
++	printf("SWEET UI SCRIPT: end stroke=%u tick=%llu events=34; HID return only\n", stroke, (unsigned long long)mach_absolute_time());
++	if (++sweet_script_stroke >= 13) {
++		printf("SWEET UI SCRIPT: complete strokes=13 events=442; UI acceptance and physical touch unqualified\n");
++		return;
++	}
++	sweet_script_step = 0;
++	unsigned gap = stroke == 0 ? 6 : 2;
++	clock_interval_to_deadline(gap, NSEC_PER_SEC, &sweet_script_due);
++	clock_interval_to_deadline(gap * 1000 + 1500, NSEC_PER_MSEC, &sweet_script_end);
++	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
++}
++
++static void
++sweet_script_arm(void)
++{
++	if (sweet_script_call != NULL) return;
++	sweet_script_call = thread_call_allocate(sweet_script_fire, NULL);
++	if (sweet_script_call == NULL) {
++		printf("SWEET UI SCRIPT: no timer; disabled\n"); return;
++	}
++	clock_interval_to_deadline(180, NSEC_PER_SEC, &sweet_script_due);
++	clock_interval_to_deadline(181500, NSEC_PER_MSEC, &sweet_script_end);
++	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
++	printf("SWEET UI SCRIPT: armed strokes=13 origin=synthetic physical=off; first at +180s\n");
++}
+ #endif
+
+ static void
+@@ -1062,6 +1141,10 @@
+ 		sweet_swipe_arm();
+ 		return; /* Diagnostic only: neither physical nor legacy probes run. */
+ 	}
++	if (physical == 0 && swipe == 2) {
++		sweet_script_arm();
++		return;
++	}
+ 	/* Independent opt-in stage0; default returns before mapping hardware. */
+ 	extern void sweet_nvt_probe_init(void);
+ 	sweet_nvt_probe_init();
+--- a/bsd/dev/gauguin_ui_trace.h
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -11,7 +11,8 @@
+     GUT_REPORT=1, GUT_HID_BEGIN, GUT_HID_END, GUT_HID_RETURN,
+     GUT_HID_ENQUEUE, GUT_HID_NO_QUEUE,
+     GUT_API_BEGIN=10, GUT_API_END, GUT_SUBMIT_BEGIN, GUT_SUBMIT_END, GUT_SURFACE,
+-    GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END
++    GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END,
++    GUT_SYNTHETIC=30 /* explicit origin marker for a generated report ID */
+ };
+ struct gut_event {
+     uint64_t seq, tick, id;

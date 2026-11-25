@@ -1,0 +1,88 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -1250,6 +1250,7 @@
+ static uint64_t gpzb_last_now;
+ static struct gpz_context gpzb_context;
+ static struct gpz_receipt gpzb_work;
++static struct gauguin_wdt_refresh_record gpzb_boot_refresh;
+ enum gpzb_reason {PZB_NONE,PZB_CONTEXT,PZB_CONFIG,PZB_LIFECYCLE,PZB_WDT,PZB_OWNER,
+     PZB_FW,PZB_SQE,PZB_APERTURE,PZB_CORE,PZB_CP,PZB_CLOCK,PZB_IRQ,PZB_RESET,
+     PZB_FAULT,PZB_ROUTES,PZB_DEVICE,PZB_NC,PZB_SCOPE,PZB_TIME};
+@@ -1322,6 +1323,27 @@
+         ggb_sqe_requested&&ggb_sqe_loaded&&ggb_sqe_written==8192&&ggb_sqe_checked==8192&&
+         ggb_aperture.state==2&&ggb_secure_result==GPA_OK&&ggp_plan_valid(&ggb_plan)&&ggb_plan.owner_pa==gmb_stage.pa&&ggb_profile_cached();
+ }
++/* Called only after the serialized SEAL-phase live guard has verified the
++ * completed CP command, idle/EOP, faults, power, routes and retained owners.
++ * No client service is published at this point. Keep the existing refresh
++ * readback protocol and monotonic sequence shared with later heartbeats. */
++static bool gpzb_checkpoint(enum gpz_phase phase)
++{
++    if (phase != GPZ_SEAL || !sweet_gpu_service_requested() || gpzb_boot_refresh.sequence) {
++        return true;
++    }
++    struct gauguin_wdt_refresh_record refresh;
++    if (!gauguin_wdt_lease_refresh(&refresh) || refresh.sequence != 1) {
++        return gpzb_reject(phase, GPZ_LIVE, PZB_WDT);
++    }
++    gpzb_boot_refresh = refresh;
++    char line[192];
++    snprintf(line, sizeof(line),
++        "SWEET GPU WDT: pre-ZAP checkpoint seq=%u before=%u after=%u; CP idle/EOP/fault/routes/power verified",
++        refresh.sequence, refresh.before_count, refresh.after_count);
++    gmb_record(line);
++    return true;
++}
+ static bool gpzb_guard(void *cookie,enum gpz_phase phase,enum gpz_scope scope,unsigned minimum)
+ {
+     (void)cookie;
+@@ -1336,7 +1358,13 @@
+        (scope==GPZ_LIVE&&(phase>GPZ_AUTH||auth0||gpzb_context.pending_raw))||
+        (scope==GPZ_SECURE&&(phase!=GPZ_INIT&&phase!=GPZ_MEM&&phase!=GPZ_AUTH))||
+        (scope==GPZ_LATE&&(!auth0||(phase!=GPZ_AUTH&&phase!=GPZ_FINAL))))return gpzb_reject(phase,scope,PZB_SCOPE);
+-    if(!gauguin_wdt_lease_check_budget(minimum*GAUGUIN_WDT_CLOCK_HZ))return gpzb_reject(phase,scope,PZB_WDT);
++    bool checkpoint = phase == GPZ_SEAL && scope == GPZ_LIVE &&
++        sweet_gpu_service_requested() && !gpzb_boot_refresh.sequence;
++    /* A renewal requires its existing three-second budget. The caller's full
++     * requested budget is checked again after that one verified pulse and
++     * before any SEAL/SCM action is admitted. Other scopes retain their check. */
++    unsigned entry_minimum = checkpoint ? 3u : minimum;
++    if(!gauguin_wdt_lease_check_budget(entry_minimum*GAUGUIN_WDT_CLOCK_HZ))return gpzb_reject(phase,scope,PZB_WDT);
+     if(!gpzb_time(phase,scope))return false;
+     if(!sweet_pas_zap_owner_live(phase,gmb_stage.pa))return gpzb_reject(phase,scope,PZB_OWNER);
+     if(!gpzb_time(phase,scope))return false;
+@@ -1367,6 +1395,8 @@
+     gpzb_diagnostic.busy=gfw_load32(gfw_map[GMF_AO]+0x2c30);
+     if(gpzb_diagnostic.shadow!=15||(gpzb_diagnostic.busy&(1u<<23)))return gpzb_reject(phase,scope,PZB_CP);
+     if(!gauguin_wdt_lease_check_budget(GMB_MIN))return gpzb_reject(phase,scope,PZB_WDT);
++    if(!gpzb_checkpoint(phase))return false;
++    if(checkpoint&&!gauguin_wdt_lease_check_budget(minimum*GAUGUIN_WDT_CLOCK_HZ))return gpzb_reject(phase,scope,PZB_WDT);
+     return gpzb_time(phase,scope);
+ }
+ bool sweet_gpu_zap_copy_live(void)
+@@ -3911,7 +3941,7 @@
+         ggr_fail(&ggrb_context,GGR_UNAVAILABLE);return false;
+     }
+     ggrb_refreshes=refresh.sequence;
+-    if(refresh.sequence==1||refresh.sequence%30==0) {
++    if(refresh.sequence==gpzb_boot_refresh.sequence+1||refresh.sequence%30==0) {
+         char line[192];
+         snprintf(line,sizeof(line),"SWEET GPU SERVICE: renew=%u before=%u after=%u submitted=%u completed=%u shadow=%u; health/idle/routes/power verified",
+             refresh.sequence,refresh.before_count,refresh.after_count,ggrb_context.submitted,ggrb_context.completed,ggrb_context.wptr);
+--- a/bsd/dev/gauguin_wdt_lease.h
++++ b/bsd/dev/gauguin_wdt_lease.h
+@@ -65,8 +65,12 @@
+     uint32_t sequence, before_count, after_count;
+ };
+
+-/* Opt-in sweetgpuservice=1/mode12 only. The GPU owner must hold its operation
+- * lock and verify idle/EOP/fault/routes/power BEFORE calling. Serialize with
++/* Opt-in sweetgpuservice=1/mode12 only. The serialized boot coordinator may
++ * call once at the live pre-ZAP SEAL boundary before client publication, after
++ * verifying the completed CP command, idle/EOP/fault/routes/power and retained
++ * owners. Later the GPU owner must hold its operation lock and verify the
++ * same live health properties BEFORE calling. Both share the monotonic
++ * refresh sequence, including the initial boot checkpoint. Serialize with
+  * budget checks. Require fresh advancing counter + CPU-clock agreement, exact
+  * EN3/thresholds/quiet NS IRQs and three seconds left before ONE RST1 write.
+  * Confirm read-only clock-domain acknowledgement with an adjacent equal STS

@@ -1,0 +1,160 @@
+diff --git a/include/hakios-metal/command.hpp b/include/hakios-metal/command.hpp
+--- a/include/hakios-metal/command.hpp
++++ b/include/hakios-metal/command.hpp
+@@ -15,6 +15,7 @@
+ #include <atomic>
+ #include <condition_variable>
+ #include <cstdint>
++#include <cstring>
+ #include <deque>
+ #include <functional>
+ #include <memory>
+@@ -219,46 +220,63 @@
+     void finish(Status s);
+     void use(const Buffer& b, bool write) { uses_.push_back(BoUse{&b.bo(), write}); }
+ public:
+-    // What each register written in a pass holds, for appendDeduped: a draw writes some 500 of them and almost all
+-    // hold their value already, so each is looked up once, in an open-addressed table of its own (std::unordered_map's
+-    // find and insert, two lookups and a node a register, were most of a draw's 20 us of deduplication on the phone)
++    // Track the values written by type-4 packets in this pass. A packet
++    // normally compares one contiguous range in one lazily allocated page.
+     class RegShadow {
+     public:
+-        // whether REG held VALUE; it holds VALUE from now on
+-        bool hold(uint32_t reg, uint32_t value) {
+-            if (keys_.empty() || 2 * (used_ + 1) > keys_.size()) grow();
+-            const size_t mask = keys_.size() - 1;
+-            for (size_t i = (reg * 2654435761u) & mask;; i = (i + 1) & mask) {
+-                if (keys_[i] == reg) {
+-                    const bool same = values_[i] == value;
+-                    values_[i] = value;
+-                    return same;
+-                }
+-                if (keys_[i] == kEmpty) {
+-                    keys_[i] = reg;
+-                    values_[i] = value;
+-                    used_++;
+-                    return false;
+-                }
++        static constexpr uint32_t kPageWords = 64;
++
++        // The encoder breaks a packet at page boundaries. A set result bit
++        // means the value at that index was already known and identical.
++        uint64_t holdRange(uint32_t reg, const uint32_t* values, uint32_t count) {
++            if (pageIndices_.empty()) pageIndices_.resize(kPageCount);
++            uint16_t& index = pageIndices_[reg / kPageWords];
++            if (!index) {
++                pages_.emplace_back();
++                index = static_cast<uint16_t>(pages_.size());
++            }
++            Page& page = pages_[index - 1];
++            if (page.epoch != epoch_) {
++                page.epoch = epoch_;
++                page.known = 0;
++            }
++            const uint32_t first = reg % kPageWords;
++            const uint64_t mask = UINT64_MAX >> (kPageWords - count);
++            uint64_t known = (page.known >> first) & mask;
++            uint32_t* stored = page.words + first;
++            const size_t bytes = count * sizeof(*stored);
++            if (known == mask && std::memcmp(stored, values, bytes) == 0) return mask;
++
++            uint64_t unchanged = 0;
++            for (; known; known &= known - 1) {
++                const unsigned i = __builtin_ctzll(known);
++                if (stored[i] == values[i]) unchanged |= UINT64_C(1) << i;
++            }
++            std::memcpy(stored, values, bytes);
++            page.known |= mask << first;
++            return unchanged;
++        }
++        void clear() {
++            if (++epoch_ == kEmpty) {
++                for (Page& page : pages_) page.epoch = kEmpty;
++                epoch_ = 0;
+             }
+         }
+-        void clear() {
+-            std::fill(keys_.begin(), keys_.end(), kEmpty);
+-            used_ = 0;
+-        }
+     private:
+-        static constexpr uint32_t kEmpty = ~0u;
+-        void grow() {
+-            std::vector<uint32_t> keys = std::move(keys_), values = std::move(values_);
+-            keys_.assign(std::max<size_t>(1024, keys.size() * 2), kEmpty);
+-            values_.assign(keys_.size(), 0);
+-            used_ = 0;
+-            for (size_t i = 0; i < keys.size(); i++) {
+-                if (keys[i] != kEmpty) hold(keys[i], values[i]);
+-            }
+-        }
+-        std::vector<uint32_t> keys_, values_;
+-        size_t used_ = 0;
++        // Retain the existing C++ symbol in the signed Core export list.
++        [[gnu::used]] static constexpr uint32_t kEmpty = ~0u;
++        // A decoded type-4 start is 18 bits and its nonempty run fits
++        // within a 7-bit count. Include the last register of that run.
++        static constexpr uint32_t kPageCount = ((1u << 18) + 126) / kPageWords + 1;
++        static_assert(kPageCount <= UINT16_MAX, "register page index fits");
++        struct Page {
++            uint64_t known = 0;
++            uint32_t epoch = kEmpty;
++            uint32_t words[kPageWords]{};
++        };
++        std::vector<uint16_t> pageIndices_;
++        std::vector<Page> pages_;
++        uint32_t epoch_ = 0;
+     };
+
+ private:
+diff --git a/src/render.cpp b/src/render.cpp
+--- a/src/render.cpp
++++ b/src/render.cpp
+@@ -2724,14 +2724,7 @@
+         if (h.kind == pm4::Header::kRegisters) {
+             uint32_t runStart = 0, runLen = 0;
+             bool shortened = false;
+-            for (uint32_t k = 0; k < h.count; k++) {
+-                const uint32_t reg = h.reg + k, value = w[i + 1 + k];
+-                const bool same = regs.hold(reg, value) && reg != REG_A6XX_HLSQ_INVALIDATE_CMD;
+-                if (!same) {
+-                    if (runLen == 0) runStart = k;
+-                    runLen++;
+-                    continue;
+-                }
++            const auto omitKnown = [&] {
+                 if (!shortened) {
+                     if (copyAt < i) to.appendEncoded(from, copyAt, i - copyAt);
+                     shortened = true;
+@@ -2740,6 +2733,30 @@
+                     to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
+                     runLen = 0;
+                 }
++            };
++            constexpr uint32_t pageWords = CommandBuffer::RegShadow::kPageWords;
++            for (uint32_t k = 0; k < h.count;) {
++                const uint32_t reg = h.reg + k;
++                const uint32_t count = std::min(h.count - k, pageWords - reg % pageWords);
++                uint64_t same = regs.holdRange(reg, &w[i + 1 + k], count);
++                const uint32_t invalidate = REG_A6XX_HLSQ_INVALIDATE_CMD - reg;
++                if (invalidate < count) same &= ~(UINT64_C(1) << invalidate);
++
++                if (!same) {
++                    if (runLen == 0) runStart = k;
++                    runLen += count;
++                } else if (same == (UINT64_MAX >> (pageWords - count))) {
++                    omitKnown();
++                } else {
++                    for (uint32_t j = 0; j < count; ++j) {
++                        if ((same >> j) & 1u) omitKnown();
++                        else {
++                            if (runLen == 0) runStart = k + j;
++                            ++runLen;
++                        }
++                    }
++                }
++                k += count;
+             }
+             if (shortened) {
+                 if (runLen != 0) to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);

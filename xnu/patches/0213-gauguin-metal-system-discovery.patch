@@ -1,0 +1,124 @@
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -5403,6 +5403,7 @@
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ static TUNABLE(uint32_t, sweet_exec_loader_probe, "sweet_dyld_probe", 0);
+ static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);
++static TUNABLE(uint32_t, sweet_metal_requested, "gmt", 0);
+ static void sweet_eagl_gpu_record_proxy(struct image_params *imgp, proc_t p);
+ /* SWEET_DYLD_EXEC_PROBE_BEGIN: complete body used by the host boundary test. */
+ struct sweet_dyld_env_record {
+@@ -5699,6 +5700,14 @@
+ 	       (sweet_eagl_inject_requested == 1 || sweet_eagl_inject_requested == 2);
+ }
+ 
++/* Public Metal discovery uses no EAGL injection. Keep launchd/protected-text
++ * GPU provenance checks independent from this userland rendering choice. */
++bool
++sweet_metal_desktop_enabled(void)
++{
++    return sweet_exec_loader_probe == 1 && sweet_eagl_inject_requested == 2 && sweet_metal_requested == 2;
++}
++
+ enum sweet_eagl_inject_outcome {
+ 	SEI_APPENDED = 1, SEI_ALREADY, SEI_MODE, SEI_CONFLICT, SEI_SPACE,
+ 	SEI_SUBJECT, SEI_COPY, SEI_INVALID
+@@ -5827,6 +5836,9 @@
+ 	    (size_t)(path_end - imgp->ip_strings), "executable_path=/usr/libexec/backboardd")) {
+ 		return;
+ 	}
++    /* The reviewed desktop job must also remove its explicit old DYLD env.
++     * This gate suppresses automatic insertion; it never edits incoming env. */
++    if (sweet_metal_desktop_enabled()) return;
+ 	proc_t p = vfs_context_proc(imgp->ip_vfs_context);
+ 	/* A counted env vector must end exactly at the next free string byte. */
+ 	if (sweet_dyld_env_scan(imgp->ip_endargv, imgp->ip_strendp,
+--- a/bsd/kern/sweet_eagl_diagnostics.h
++++ b/bsd/kern/sweet_eagl_diagnostics.h
+@@ -5,6 +5,7 @@
+ 
+ __BEGIN_DECLS
+ bool sweet_eagl_diagnostics_enabled(void);
++bool sweet_metal_desktop_enabled(void);
+ bool sweet_eagl_diagnostic_caller(proc_t p);
+ bool sweet_eagl_gpu_pilot_enabled(void);
+ bool sweet_eagl_gpu_pilot_caller(proc_t p);
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -232,9 +232,7 @@
+ extern "C" bool GauguinGPUStart(void)
+ {
+     if(gPublished||!sweet_gpu_runtime_ready())return false;
+-    uint32_t mode=0;
+-    gMetalBootstrapMode=sweet_eagl_gpu_pilot_enabled()&&
+-        PE_parse_boot_argn("gmt",&mode,sizeof(mode))&&mode==2;
++    gMetalBootstrapMode=sweet_metal_desktop_enabled();
+     IOLock *lock=IOLockAlloc();
+     if(!lock)return false;
+     /* Display readers can race publication; install once and never replace. */
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -34,6 +34,7 @@
+  * the GUI by default: boot-arg sweetfb_noconsole=1 stops drawing it from
+  * the first swap on (it still reaches the persistent log; panics draw).
+  */
++#include "../../../bsd/kern/sweet_eagl_diagnostics.h"
+ #include "SweetSurface.h"
+ #if defined(GAUGUIN)
+ #include "SweetPresentClock.h"
+@@ -305,6 +306,39 @@
+ 	return true;
+ }
+ 
++/* SWEET_METAL_PUBLICATION_BEGIN: host tests use this complete body. */
++static IOService *sweet_metal_publisher;
++static bool
++sweet_metal_publish(IOService *service)
++{
++    IOService *expected = nullptr;
++    if (!__atomic_compare_exchange_n(&sweet_metal_publisher, &expected, service, false,
++        __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return false;
++    if (!service->setProperty("MetalPluginName", "GauguinMetalDesktop") ||
++        !service->setProperty("MetalPluginClassName", "GauguinDesktopMetalDevice")) {
++        service->removeProperty("MetalPluginName");
++        service->removeProperty("MetalPluginClassName");
++        expected = service;
++        (void)__atomic_compare_exchange_n(&sweet_metal_publisher, &expected, (IOService *)nullptr,
++            false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
++        IOLog("SWEET METAL246: plugin publication failed\n");
++        return false;
++    }
++    IOLog("SWEET METAL246: single system plugin published name=GauguinMetalDesktop\n");
++    return true;
++}
++static void
++sweet_metal_unpublish(IOService *service)
++{
++    if (__atomic_load_n(&sweet_metal_publisher, __ATOMIC_ACQUIRE) != service) return;
++    service->removeProperty("MetalPluginName");
++    service->removeProperty("MetalPluginClassName");
++    IOService *expected = service;
++    (void)__atomic_compare_exchange_n(&sweet_metal_publisher, &expected, (IOService *)nullptr,
++        false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
++}
++/* SWEET_METAL_PUBLICATION_END */
++
+ bool
+ IOAcceleratorES::start(IOService *provider)
+ {
+@@ -325,6 +359,7 @@
+ 	/* Without this, matching succeeds but nothing can open the service -
+ 	 * backboardd found it 214 times and never opened it (NOTES (43)). */
+ 	setProperty(kIOUserClientClassKey, "IOAcceleratorESUserClient");
++	if (sweet_metal_desktop_enabled()) (void)sweet_metal_publish(this);
+ 	registerService();
+ 	IOLog("SWEET GPU: stub IOAcceleratorES published\n");
+ 	return true;
+@@ -333,6 +368,7 @@
+ void
+ IOAcceleratorES::stop(IOService *provider)
+ {
++	sweet_metal_unpublish(this);
+ 	IOService::stop(provider);
+ }
+ 

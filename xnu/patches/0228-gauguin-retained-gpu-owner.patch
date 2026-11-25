@@ -1,0 +1,41 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -311,6 +311,10 @@
+     if(ok){fBuffers=IONewZero(gpu_buffer,GGR_MAX_CLIENT_BUFFERS);ok=fBuffers!=nullptr;}
+     if(ok&&gMetalBootstrapMode&&!fCompositor)ok=ggr_bootstrap_begin(&gMetalBootstrap);
+     if(ok) {
++        /* The fault path deliberately keeps DMA mappings and gOwner. Keep
++         * the client object too, so a later completion/stop cannot inspect
++         * a dangling owner after clientClose terminates its connection. */
++        retain();
+         gOwner=this;
+         if(fCompositor)IOLog("SWEET GPU AUTH: compositor opened pid=%d root_fence=%u\n",
+             proc_pid(current_proc()),gReleasedRootFence);
+@@ -425,6 +429,7 @@
+ }
+ IOReturn GauguinGPUUserClient::clientClose(void)
+ {
++    bool releaseOwner=false;
+     if(gLock) {
+         uint64_t queued=mach_absolute_time();IOLockLock(gLock);
+         uint64_t profile=gapi_begin(0x101,queued,mach_absolute_time());
+@@ -441,13 +446,18 @@
+                 if(clean) {
+                     if(!fCompositor&&fNativeFence>gReleasedRootFence)gReleasedRootFence=fNativeFence;
+                     gOwner=nullptr;
++                    releaseOwner=true;
+                 }
+             }
+             if(!clean)IOLog("SWEET GPU USER: client closed after fault; DMA-visible memory/tables retained until reset\n");
+         }
+         gapi_end(profile,kIOReturnSuccess);IOLockUnlock(gLock);
+     }
+-    if(!isInactive())terminate();return kIOReturnSuccess;
++    if(!isInactive())terminate();
++    /* After terminate, drop only the explicit global-owner reference.
++     * A failed close keeps that reference and all DMA-visible pages. */
++    if(releaseOwner)release();
++    return kIOReturnSuccess;
+ }
+ void GauguinGPUUserClient::free(void)
+ {

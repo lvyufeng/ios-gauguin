@@ -1,0 +1,161 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -230,6 +230,31 @@
+ /* The root's legacy queue completes synchronously. An opted-in compositor
+  * queue may have one issued number ahead of its completed prefix. */
+ struct gpu_queue {uint32_t id,issued,completed;};
++/* SUBMIT327: CPU metadata only under the existing request/GPU locks.
++ * No validator, result, ownership, GPU access or retry changes. Stages1..4
++ * are dispatch gates;10..20 identify the original submit refusal branches.
++ * At most64 records and one limit marker over the whole boot. */
++struct gsub_diag327 {
++    uint32_t stage,index,handle,requested,actual,bo_state;
++    uint32_t cmd_type,cmd_index,cmd_offset,cmd_bytes;
++};
++static uint32_t gsub_diag327_count;
++static void gsub_diag327_log(const struct gsub_diag327 *d,const struct ggr_submit *r,
++    IOReturn result,bool compositor,bool async,uint64_t token,uint32_t pending,
++    uint32_t native,uint64_t bytes)
++{
++    if(result==kIOReturnSuccess||!compositor||!async||gsub_diag327_count>=65)return;
++    if(gsub_diag327_count==64){
++        ++gsub_diag327_count;
++        IOLog("SWEET GPU SUBMIT327: limit=64 coverage=incomplete\n");return;
++    }
++    ++gsub_diag327_count;
++    IOLog("SWEET GPU SUBMIT327: seq=%u tick=%llu token=%llu rc=%08x stage=%u index=%u handle=%u requested=%08x actual=%08x bo_state=%u cmd_type=%u cmd_index=%u cmd_offset=%u cmd_bytes=%u bos=%u cmds=%u queue=%u flags=%08x fence=%u pending=%u native=%u bytes=%llu\n",
++        gsub_diag327_count,(unsigned long long)mach_absolute_time(),(unsigned long long)token,
++        (uint32_t)result,d->stage,d->index,d->handle,d->requested,d->actual,d->bo_state,
++        d->cmd_type,d->cmd_index,d->cmd_offset,d->cmd_bytes,r->nr_bos,r->nr_cmds,
++        r->queueid,r->flags,r->fence,pending,native,(unsigned long long)bytes);
++}
+ class GauguinGPUUserClient : public IOUserClient {
+     OSDeclareDefaultStructors(GauguinGPUUserClient);
+     task_t fTask;
+@@ -237,6 +262,7 @@
+     uint64_t fBytes;
+     uint32_t fNextHandle,fNextQueue,fNativeFence,fBootstrapJobs;
+     uint32_t fAllocationStage,fAllocationFailures;
++    struct gsub_diag327 fSubmitDiag327;
+     gpu_queue fDefaultQueue,fQueues[GGR_MAX_QUEUES];
+     gpu_buffer *fPending[GGR_MAX_BUFFERS];
+     gpu_queue *fPendingQueue;
+@@ -682,9 +708,10 @@
+ 
+ IOReturn GauguinGPUUserClient::submit(struct ggr_submit *r)
+ {
++    fSubmitDiag327={10,UINT32_MAX,0,0,0,0,0,0,0,0};
+     if(fAsync&&fPendingCount){
+         IOReturn settled=finishPending(true,true);
+-        if(settled!=kIOReturnSuccess)return settled;
++        if(settled!=kIOReturnSuccess){fSubmitDiag327.stage=11;return settled;}
+     }
+     gpu_queue *q=queue(r->queueid);
+     if((r->flags&~UINT32_C(0x80000010))||(r->flags&0x1f)!=0x10||r->fence||
+@@ -696,9 +723,9 @@
+     auto bos=IONew(struct ggr_submit_bo,r->nr_bos);
+     auto cmds=IONew(struct ggr_submit_cmd,r->nr_cmds);
+     IOReturn result=kIOReturnBadArgument;
+-    if(!bos||!cmds){result=kIOReturnNoMemory;goto out;}
++    if(!bos||!cmds){fSubmitDiag327.stage=12;result=kIOReturnNoMemory;goto out;}
+     if(copyin(r->bos,bos,r->nr_bos*sizeof(*bos))||copyin(r->cmds,cmds,r->nr_cmds*sizeof(*cmds))) {
+-        result=kIOReturnVMError;goto out;
++        fSubmitDiag327.stage=13;result=kIOReturnVMError;goto out;
+     }
+     {
+         uint64_t addresses[GGR_MAX_COMMANDS];uint32_t words[GGR_MAX_COMMANDS];
+@@ -706,13 +733,33 @@
+             gpu_buffer *b=find(bos[i].handle);
+             if(!b||!bos[i].flags||(bos[i].flags&~3u)||
+                ((bos[i].flags&2)&&(b->flags&GGR_BO_READONLY))||
+-               (bos[i].presumed&&bos[i].presumed!=b->address))goto out;
+-            for(uint32_t j=0;j<i;j++)if(bos[j].handle==bos[i].handle)goto out;
++               (bos[i].presumed&&bos[i].presumed!=b->address)){
++                fSubmitDiag327.stage=14;fSubmitDiag327.index=i;
++                fSubmitDiag327.handle=bos[i].handle;fSubmitDiag327.requested=bos[i].flags;
++                fSubmitDiag327.actual=b?b->flags:0;
++                fSubmitDiag327.bo_state=(b?1u:0u)|(b&&b->pending?2u:0u)|
++                    (b&&b->closePending?4u:0u)|(b&&b->surface?8u:0u)|
++                    (bos[i].presumed?16u:0u)|(b&&bos[i].presumed==b->address?32u:0u);
++                goto out;
++            }
++            for(uint32_t j=0;j<i;j++)if(bos[j].handle==bos[i].handle){
++                fSubmitDiag327.stage=15;fSubmitDiag327.index=i;
++                fSubmitDiag327.handle=bos[i].handle;fSubmitDiag327.cmd_index=j;goto out;
++            }
+         }
+         for(uint32_t i=0;i<r->nr_cmds;i++) {
+-            if(cmds[i].submit_idx>=r->nr_bos)goto out;
++            if(cmds[i].submit_idx>=r->nr_bos){
++                fSubmitDiag327.stage=16;fSubmitDiag327.index=i;
++                fSubmitDiag327.cmd_index=cmds[i].submit_idx;goto out;
++            }
+             gpu_buffer *b=find(bos[cmds[i].submit_idx].handle);
+-            if(!(bos[cmds[i].submit_idx].flags&1)||!ggr_command_range(cmds+i,b->size))goto out;
++            if(!(bos[cmds[i].submit_idx].flags&1)||!ggr_command_range(cmds+i,b->size)){
++                fSubmitDiag327.stage=17;fSubmitDiag327.index=i;fSubmitDiag327.handle=b->handle;
++                fSubmitDiag327.requested=bos[cmds[i].submit_idx].flags;fSubmitDiag327.actual=b->flags;
++                fSubmitDiag327.cmd_type=cmds[i].type;fSubmitDiag327.cmd_index=cmds[i].submit_idx;
++                fSubmitDiag327.cmd_offset=cmds[i].submit_offset;fSubmitDiag327.cmd_bytes=cmds[i].size;
++                goto out;
++            }
+             addresses[i]=b->address+cmds[i].submit_offset;words[i]=cmds[i].size/4;
+         }
+         /* Validate ALL requests before changing any surface state or ringing
+@@ -721,7 +768,7 @@
+             gpu_buffer *b=find(bos[i].handle);
+             if(b->surface) {
+                 uintptr_t ptr=b->surface->kernelAddress();
+-                if(!ptr)goto out;
++                if(!ptr){fSubmitDiag327.stage=18;fSubmitDiag327.index=i;fSubmitDiag327.handle=b->handle;goto out;}
+             }
+         }
+         /* Escrow every descriptor and mapping BEFORE the doorbell. A failed
+@@ -744,7 +791,8 @@
+         sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);
+         bool ok=fAsync?sweet_gpu_runtime_issue(addresses,words,r->nr_cmds,&fence)==GGR_OK:
+                        sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
+-        if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;}
++        if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;fSubmitDiag327.stage=20;}
++        if(!ok&&fSubmitDiag327.stage!=20)fSubmitDiag327.stage=19;
+         if(fAsync){
+             if(ok){
+                 fPendingNativeFence=fence;r->fence=++q->issued;
+@@ -795,6 +843,7 @@
+     uint64_t profile=gapi_begin(selector,queued,mach_absolute_time());
+     IOReturn result=kIOReturnBadArgument;
+     fAllocationStage=0; /* runtime/client gate, before request validation */
++    if(selector==0x46)fSubmitDiag327={1,UINT32_MAX,0,0,0,0,0,0,0,0};
+     /* These requests can inspect or defer a handle while one fence runs.
+      * Allocation, mapping, submit and queue teardown first complete it. */
+     bool passive=selector==0x09||selector==0x43||selector==0x44||
+@@ -802,9 +851,10 @@
+     if(fClosed||!fBuffers||gOwner!=this){result=kIOReturnNotReady;goto out;}
+     if(fAsync&&fPendingCount&&!passive){
+         result=finishPending(true,true);
+-        if(result!=kIOReturnSuccess)goto out;
++        if(result!=kIOReturnSuccess){if(selector==0x46)fSubmitDiag327.stage=2;goto out;}
+     }
+     if(!sweet_gpu_runtime_ready()&&!(fAsync&&fPendingCount&&passive)){
++        if(selector==0x46)fSubmitDiag327.stage=3;
+         result=kIOReturnNotReady;goto out;
+     }
+     switch(selector) {
+@@ -862,6 +912,7 @@
+     }
+     case 0x46:
+         if(gMetalBootstrapMode&&!fCompositor&&gMetalBootstrap.armed) {
++            fSubmitDiag327.stage=4;
+             ggr_bootstrap_fail(&gMetalBootstrap);result=kIOReturnNotPrivileged;break;
+         }
+         result=submit(&r.submit);
+@@ -924,6 +975,9 @@
+             fAllocationFailures,fAllocationStage,result,(uint32_t)(r.make.size>>32),(uint32_t)r.make.size,
+             r.make.flags,buffers,(uint32_t)fBytes,fNextHandle,freeUnits,largest,(unsigned)fCompositor);
+     }
++    if(selector==0x46&&result!=kIOReturnSuccess)
++        gsub_diag327_log(&fSubmitDiag327,&r.submit,result,fCompositor,fAsync,profile,
++            fPendingCount,fNativeFence,fBytes);
+     if(result==kIOReturnSuccess){memcpy(a->structureOutput,&r,size);a->structureOutputSize=(uint32_t)size;}
+     gapi_end(profile,result);IOLockUnlock(gLock);IOLockUnlock(gRequests);return result;
+ }

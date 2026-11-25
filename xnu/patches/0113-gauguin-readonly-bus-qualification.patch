@@ -1,0 +1,910 @@
+--- /dev/null
++++ b/bsd/dev/cmd_db_snapshot.c
+@@ -0,0 +1,79 @@
++#include "cmd_db_snapshot.h"
++#include <string.h>
++/* Fixed native19b63c8192b1c9b7c4d931d7d3be92024bc2d778
++ * drivers/soc/qcom/cmd-db.c:24–75,112–128,147–177,204–230;
++ * drivers/regulator/rpmh-regulator.c:1266–1335.
++ * Native header checksum is unused; do not invent checksum verification. */
++static uint16_t u16(const uint8_t *p)
++{ return (uint16_t)((uint16_t)p[0]|(uint16_t)p[1]<<8); }
++static uint32_t u32(const uint8_t *p)
++{ return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24; }
++static int range(size_t start,size_t bytes,size_t end)
++{ return start<=end && bytes<=end-start; }
++
++enum ndb_result ndb_lookup(const uint8_t *blob,size_t bytes,const char *name,
++    size_t name_bytes,struct ndb_entry *out)
++{
++    uint8_t key[8]={0};
++    struct ndb_entry candidate;
++    size_t total=0;
++    unsigned matches=0;
++    if(!blob||!name||!out||!name_bytes||name_bytes>8) return NDB_ARGUMENT;
++    if(bytes<NDB_HEADER_BYTES||bytes>NDB_MAX_BYTES) return NDB_LENGTH;
++    for(size_t i=0;i<name_bytes;++i) {
++        if((uint8_t)name[i]<0x21||(uint8_t)name[i]>0x7e) return NDB_ARGUMENT;
++        key[i]=(uint8_t)name[i];
++    }
++    if(u32(blob+4)!=UINT32_C(0x0c0330db)) return NDB_FORMAT;
++    if(u32(blob)!=1||(u32(blob+140)&1)) return NDB_UNSUPPORTED;
++    memset(&candidate,0,sizeof(candidate));
++    for(unsigned bank=0;bank<8;++bank) {
++        const uint8_t *h=blob+8+16*bank;
++        uint16_t slave=u16(h),count=u16(h+6);
++        if(!slave) break; /* Same termination rule as native get_header. */
++        if(slave<3||slave>5) return NDB_UNSUPPORTED;
++        if(count>NDB_MAX_ENTRIES-total) return NDB_CAPACITY;
++        total+=count;
++        size_t entries=NDB_HEADER_BYTES+(size_t)u16(h+2);
++        size_t aux_base=NDB_HEADER_BYTES+(size_t)u16(h+4);
++        if(!range(entries,(size_t)count*24,bytes)||!range(aux_base,0,bytes)) return NDB_LENGTH;
++        for(unsigned i=0;i<count;++i) {
++            const uint8_t *e=blob+entries+(size_t)i*24;
++            uint16_t length=u16(e+20);
++            size_t aux=aux_base+(size_t)u16(e+22);
++            if(!range(aux,length,bytes)) return NDB_LENGTH;
++            if(memcmp(e,key,8)) continue;
++            if(++matches>1) return NDB_AMBIGUOUS;
++            if(length>NDB_MAX_AUX) return NDB_CAPACITY;
++            memcpy(candidate.name,e,8);
++            candidate.address=u32(e+16);
++            candidate.priority[0]=u32(e+8); candidate.priority[1]=u32(e+12);
++            candidate.owner_slave=slave; candidate.bank_version=u16(h+8);
++            candidate.aux_length=length;
++            /* Do NOT rediscover the bank from address>>16 (debugfs .mol bug). */
++            memcpy(candidate.aux,blob+aux,length);
++        }
++    }
++    if(!matches) return NDB_NOT_FOUND;
++    *out=candidate;
++    return NDB_OK;
++}
++
++enum ndb_result ndb_decode_arc(const struct ndb_entry *entry,struct ndb_arc_levels *out)
++{
++    struct ndb_arc_levels parsed={{0},0};
++    int padding=0;
++    if(!entry||!out) return NDB_ARGUMENT;
++    if(entry->owner_slave!=3||!entry->address||((entry->address>>16)&7)!=3||
++        (entry->address&15)) return NDB_NOT_ARC;
++    if(!entry->aux_length||entry->aux_length>NDB_MAX_AUX||(entry->aux_length&1)) return NDB_LENGTH;
++    for(unsigned i=0;i<entry->aux_length/2;++i) {
++        uint16_t level=u16(entry->aux+2*i);
++        if(i && !level) padding=1;
++        if(padding) {if(level) return NDB_FORMAT;continue;}
++        if(parsed.count && level<=parsed.value[parsed.count-1]) return NDB_FORMAT;
++        parsed.value[parsed.count++]=level;
++    }
++    *out=parsed;
++    return NDB_OK;
++}
+--- /dev/null
++++ b/bsd/dev/cmd_db_snapshot.h
+@@ -0,0 +1,29 @@
++#ifndef GAUGUIN_CMD_DB_SNAPSHOT_H
++#define GAUGUIN_CMD_DB_SNAPSHOT_H
++#include <stddef.h>
++#include <stdint.h>
++/* Pure parser of an immutable CPU-owned byte snapshot. No mapping/MMIO/RPMh.
++ * Bounds are policy, not an assertion that firmware trusts arbitrary buffers.
++ * The debugfs text export cannot substitute for this binary snapshot format. */
++enum { NDB_HEADER_BYTES=144, NDB_MAX_BYTES=0x20000, NDB_MAX_ENTRIES=1024,
++       NDB_MAX_AUX=32, NDB_MAX_LEVELS=16 };
++enum ndb_result { NDB_OK, NDB_ARGUMENT, NDB_LENGTH, NDB_FORMAT,
++    NDB_UNSUPPORTED, NDB_NOT_FOUND, NDB_AMBIGUOUS, NDB_CAPACITY, NDB_NOT_ARC };
++struct ndb_entry {
++    char name[9];
++    uint32_t address, priority[2];
++    uint16_t owner_slave, bank_version, aux_length;
++    uint8_t aux[NDB_MAX_AUX];
++};
++struct ndb_arc_levels { uint16_t value[NDB_MAX_LEVELS]; unsigned count; };
++/* Validate every traversed entry's range, resolve auxiliary data using its
++ * actual containing RSC header, and reject duplicate requested keys rather
++ * than silently applying native's first-match policy. Zero-address metadata
++ * may be read, but cannot pass ndb_decode_arc. Output unchanged on failure.
++ * name_bytes is1..8 non-NUL printable bytes, zero-padded like native lookup.
++ * Inputs/output must not alias and callers retain snapshot immutability. */
++enum ndb_result ndb_lookup(const uint8_t *,size_t,const char *,size_t,struct ndb_entry *);
++/* Metadata only. No voltage/readback/current-vote/ownership claim, and no
++ * automatic LOW_SVS selector. Strictly ordered levels plus zero tail padding. */
++enum ndb_result ndb_decode_arc(const struct ndb_entry *,struct ndb_arc_levels *);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_bcm_plan.c
+@@ -0,0 +1,101 @@
++#include "gauguin_bcm_plan.h"
++#include "cmd_db_snapshot.h"
++#include <string.h>
++
++/* All six rows are VERIFIED metadata (see header). */
++const struct gbcm_board_row gbcm_board[GBCM_COUNT] = {
++    {"MC0", 0x50000, 2050000, 16,  0},
++    {"SH0", 0x50004, 3650000, 32,  1},
++    {"SN0", 0x5002c,  530000, 16,  3},
++    {"SN6", 0x50044,  530000, 16,  3},
++    {"CE0", 0x5006c,    7935,  8,  6},
++    {"ACV", 0x50080,       1,  0, 11},
++};
++_Static_assert(GBCM_COUNT == 6, "board table and plan are six rows");
++
++static uint32_t le32(const uint8_t *p)
++{
++    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 |
++        (uint32_t)p[3] << 24;
++}
++
++enum gbcm_result
++gbcm_decode(const struct ndb_entry *entry, struct gbcm_db *out)
++{
++    struct gbcm_db db;
++    if (!entry || !out) {
++        return GBCM_ARGUMENT;
++    }
++    if (entry->aux_length != GBCM_AUX_BYTES) {
++        return GBCM_MALFORMED;
++    }
++    memset(&db, 0, sizeof(db));
++    db.address = entry->address;
++    db.unit = le32(entry->aux);
++    db.width = (uint16_t)((uint16_t)entry->aux[4] | (uint16_t)entry->aux[5] << 8);
++    db.bank_version = entry->bank_version; /* observed, not a version gate */
++    db.vcd = entry->aux[6];
++    db.reserved = entry->aux[7];
++    if (db.reserved) {
++        return GBCM_MALFORMED;
++    }
++    if (entry->owner_slave != 5 || (db.address >> 16) != 5 ||
++        !db.address || (db.address & 3u)) {
++        return GBCM_NOT_BCM;
++    }
++    if (!db.unit || db.vcd >= GBCM_MAX_VCD) {
++        return GBCM_MALFORMED;
++    }
++    *out = db;
++    return GBCM_OK;
++}
++
++static int name_matches(const char *stored, const char *name)
++{
++    /* Exact zero-padded 8-byte key, like the native cmd-db lookup. */
++    char key[8] = {0};
++    memcpy(key, name, strlen(name));
++    return !memcmp(stored, key, sizeof(key));
++}
++
++enum gbcm_result
++gbcm_build(const struct ndb_entry *entries, size_t count, struct gbcm_plan *out)
++{
++    struct gbcm_plan plan;
++    if (!entries || !out || count != GBCM_COUNT) {
++        return GBCM_ARGUMENT;
++    }
++    memset(&plan, 0, sizeof(plan));
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        const struct gbcm_board_row *row = &gbcm_board[i];
++        enum gbcm_result rc = gbcm_decode(&entries[i], &plan.db[i]);
++        if (rc != GBCM_OK) {
++            return rc;
++        }
++        if (!name_matches(entries[i].name, row->name) ||
++            plan.db[i].address != row->address || plan.db[i].unit != row->unit ||
++            plan.db[i].width != row->width || plan.db[i].vcd != row->vcd) {
++            return GBCM_MISMATCH;
++        }
++        for (unsigned j = 0; j < i; ++j) {
++            if (!memcmp(entries[j].name, entries[i].name, sizeof(entries[i].name))) {
++                return GBCM_ARGUMENT;
++            }
++        }
++    }
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        int last = i + 1 == GBCM_COUNT ||
++            plan.db[i + 1].vcd != plan.db[i].vcd;
++        uint32_t x = i == GBCM_ACV ? 0 : GBCM_VOTE_MAX;
++        uint32_t y = i == GBCM_ACV ? GBCM_ACV_APPS : GBCM_VOTE_MAX;
++        plan.cmd[i].address = plan.db[i].address;
++        plan.cmd[i].data = (last ? GBCM_COMMIT : 0) | GBCM_VALID |
++            x << 14 | y;
++        plan.cmd[i].wait = (uint8_t)last;
++        if (last) {
++            plan.wait_mask |= 1u << i;
++        }
++    }
++    *out = plan;
++    return GBCM_OK;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_bcm_plan.h
+@@ -0,0 +1,80 @@
++#ifndef GAUGUIN_BCM_PLAN_H
++#define GAUGUIN_BCM_PLAN_H
++#include <stddef.h>
++#include <stdint.h>
++/* Pure BCM command-DB decode and bounded six-command BOOT plan: PLAN ONLY.
++ * "Command" means one BCM_TCS_CMD data word per board row (6 of 6). Nothing
++ * here maps, reads or writes hardware, RPMh, SMC or PAS, and nothing
++ * is submitted. The board metadata below is VERIFIED for all six rows
++ * (parent-reviewed cmd-db text, research/tmp/dsh-gpu-bus-audit/REPORT.md);
++ * aux layout follows native pinned19b63c8192b1c9b7c4d931d7d3be92024bc2d778
++ * drivers/soc/qcom/msm_bus/msm_bus_fabric_rpmh.c:55-60 (struct bcm_db),
++ * :26-41 (BCM_TCS_CMD macro). Runtime callers supply entries parsed by
++ * cmd_db_snapshot.h from a CPU-owned snapshot. */
++struct ndb_entry; /* bsd/dev/cmd_db_snapshot.h */
++
++enum {
++    GBCM_COUNT = 6,
++    GBCM_AUX_BYTES = 8,
++    GBCM_MAX_VCD = 16,
++    GBCM_VOTE_MAX = 0x3fff,    /* BCM_TCS_CMD_VOTE_MASK, both 14-bit limits */
++};
++
++enum gbcm_result {
++    GBCM_OK, GBCM_ARGUMENT, GBCM_NOT_BCM, GBCM_MALFORMED, GBCM_MISMATCH,
++};
++
++struct gbcm_db {
++    uint32_t address, unit;
++    uint16_t width, bank_version;
++    uint8_t vcd, reserved;
++};
++struct gbcm_command {
++    uint32_t address, data;
++    uint8_t wait;
++};
++struct gbcm_plan {
++    struct gbcm_db db[GBCM_COUNT];
++    struct gbcm_command cmd[GBCM_COUNT];
++    uint32_t wait_mask;
++};
++
++enum {
++    GBCM_ACV = 5,              /* row index of ACV in the board table */
++    GBCM_COMMIT = 0x40000000u, /* BCM_TCS_CMD_COMMIT_MASK */
++    GBCM_VALID = 0x20000000u,  /* BCM_TCS_CMD_VALID_MASK */
++    /* Native APPS ACV mask (msm_bus_arb_rpmh.c:23,477-494), not a bit number:
++     * BCM_TCS_CMD(commit, valid, 0, BCM_TCS_CMD_ACV_APPS). */
++    GBCM_ACV_APPS = 0x8,
++    GBCM_EXPECT_WAIT_MASK = 0x3b,
++};
++
++/* Exact verified board rows, in deliberate BOOT plan order. SN0 before SN6
++ * within VCD3 is a board choice, not a claim about native client order. */
++struct gbcm_board_row {
++    const char *name;
++    uint32_t address, unit;
++    uint16_t width;
++    uint8_t vcd;
++};
++extern const struct gbcm_board_row gbcm_board[GBCM_COUNT];
++
++/* aux must be exactly8 bytes, reserved byte0; owner bank5, address bank5,
++ * nonzero, 4-byte aligned, unit>0, VCD<16; LE field order. bank_version is
++ * copied as observed, never version-gated. Output untouched on failure. */
++enum gbcm_result gbcm_decode(const struct ndb_entry *entry, struct gbcm_db *out);
++/* count must be6; entries[i] must be the zero-padded name of board row i and
++ * match its address/unit/width/vcd; duplicate names rejected; width0 is
++ * accepted only because the table itself requires it for ACV. Commands in
++ * board order: commit when this is ACV or the next row has another VCD
++ * (i.e. it ends its VCD); wait=commit, so active wait_mask=0x3b covers the five
++ * committed VCD groups, ACV's group included (ACV ends its own VCD and is one
++ * of the five). No TCS slot is chosen here.
++ * Numeric rows use the temporary boot-lifetime maximum (0x3fff/0x3fff):
++ * not an ordinary client vector, not a real frequency/current floor or a
++ * daily power policy, and not applied to ACV/ARC/ALC. *out is assigned only
++ * after every check passes and out must not alias entry input. */
++enum gbcm_result gbcm_build(const struct ndb_entry *entries, size_t count,
++    struct gbcm_plan *out);
++
++#endif /* GAUGUIN_BCM_PLAN_H */
+--- /dev/null
++++ b/bsd/dev/gauguin_bus_probe.c
+@@ -0,0 +1,576 @@
++/*
++ * Gauguin BCM qualification worker: sweetbusprobe=1 (exact value 1), default
++ * off, one kernel thread, one attempt per boot. After a 45 second delay it
++ * takes ONE read-only snapshot of the reserved cmd-db (80860000+20000), builds
++ * the reviewed six-command BOOT plan from CPU-owned copies only, and then, only
++ * if all six board rows validated, takes ONE read-only apps DRV2 snapshot
++ * (18220000+4000). PLAN ONLY: no RPMh/RSC/BCM/PDC/RESP/IRQ_CLEAR register is
++ * written, no SMC, PAS, clock vote, power or GPU action happens, and nothing is
++ * submitted. The sweep is not a claim of current bandwidth or GPU readiness.
++ *
++ * Board facts: /reserved-memory/memory@80860000 (qcom,cmd-db, no-map) and
++ * /soc/rsc@18200000 drv-2=18220000+10000, tcs-offset d00 (board-parent-review).
++ * RSC offsets follow pinned drivers/soc/qcom/rpmh-rsc.c:30-74,112-116.
++ */
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <machine/machine_routines.h>
++#include <vm/pmap.h>
++#include <pexpert/pexpert.h>
++#include <IOKit/IOLib.h>
++#include <libkern/crypto/sha2.h>
++#include "cmd_db_snapshot.h"
++#include "gauguin_bcm_plan.h"
++
++/* Canonical MACH/PEXPERT-private declarations, hidden from the BSD header view
++ * (as in the existing gauguin probes). */
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t phys_addr, vm_size_t size, vm_prot_t prot);
++extern vm_offset_t ml_vtophys(vm_offset_t vaddr);
++extern boolean_t pmap_valid_page(ppnum_t);
++extern unsigned int pmap_cache_attributes(ppnum_t);
++extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
++extern void thread_terminate_self(void);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++
++void sweet_bus_probe_init(void);
++
++_Static_assert(PAGE_SHIFT == 14, "CMDDB/RSC pmap precheck assumes 16KiB pages");
++
++#define BUS_CMDB_PA        0x80860000u
++#define BUS_CMDB_BYTES     0x20000u
++#define BUS_CMDB_PAGES     (BUS_CMDB_BYTES / PAGE_SIZE)
++#define BUS_RSC_PA         0x18220000u
++#define BUS_RSC_BYTES      0x4000u
++#define BUS_RSC_PAGES      (BUS_RSC_BYTES / PAGE_SIZE)
++#define BUS_WIMG_IO        0x7u
++#define BUS_WIMG_MASK      0xffu
++
++/* DRV2 whitelist: frame +0xc configuration (never ID/solver at +0/+4), the
++ * global IRQ pair at d00, then only the eight fixed normal TCS blocks (stride
++ * 2a0) and their ENABLED commands. */
++#define BUS_RSC_CONFIG     0x0cu
++#define BUS_RSC_IRQ_BASE   0xd00u
++#define BUS_RSC_TCS_BASE   0xd00u
++#define BUS_RSC_TCS_STRIDE 0x2a0u
++#define BUS_RSC_TCS_COUNT  8u
++#define BUS_RSC_CMD_STRIDE 0x14u
++#define BUS_RSC_CMD_COUNT  16u
++#define BUS_RSC_CMD_BASE   0x30u
++#define BUS_RSC_WAIT       0x10u
++#define BUS_RSC_CONTROL    0x14u
++#define BUS_RSC_STATUS     0x18u
++#define BUS_RSC_ENABLE     0x1cu
++#define BUS_RSC_NCPT_MASK  0x1fu
++#define BUS_RSC_NCPT_SHIFT 27
++#define BUS_RSC_COUNT_SHIFT 12
++#define BUS_RSC_COUNT_MASK 0x3fu
++#define BUS_RSC_MIN_COUNT  8u
++#define BUS_RSC_MIN_NCPT   1u
++#define BUS_RSC_MAX_NCPT   16u
++#define BUS_RSC_MIN_PLAN   6u
++#define BUS_RSC_MAX_END    0x4000u
++#define BUS_RSC_CANDIDATES 2u
++
++#define BUS_RAW_BYTES  BUS_CMDB_BYTES
++#define BUS_RAW_CHUNK  64u
++#define BUS_RAW_LINES  (BUS_RAW_BYTES / BUS_RAW_CHUNK)
++#define BUS_LINE_BYTES 192u
++
++struct bus_rsc_cmd {
++    uint32_t msgid, address, data, status;
++};
++struct bus_rsc_tcs {
++    uint32_t wait, control, status, enable;
++    struct bus_rsc_cmd cmd[BUS_RSC_CMD_COUNT];
++};
++struct bus_rsc_snapshot {
++    uint32_t config, irq_enable, irq_status;
++    struct bus_rsc_tcs tcs[BUS_RSC_TCS_COUNT];
++};
++/* VALUE storage allocated once before mapping and retained until reboot. */
++struct bus_work {
++    uint8_t raw[2][BUS_RAW_BYTES];
++    struct bus_rsc_snapshot rsc[2];
++    struct gbcm_plan plan;
++};
++
++static const char *const bus_arc_names[] = {"cx.lvl", "mx.lvl", "gfx.lvl", "xo.lvl"};
++
++static unsigned bus_started;
++static struct bus_work *bus_work;
++
++/* ONE read path for every CMDDB/RSC word: aligned volatile u32 load, oshld. */
++static uint32_t
++bus_mmio_read(vm_offset_t base, uint32_t offset)
++{
++    uint32_t value = *(volatile uint32_t *)(base + offset);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++}
++
++static bool
++bus_context(void)
++{
++    return ml_get_interrupts_enabled() && !ml_at_interrupt_context() &&
++        get_preemption_level() == 0;
++}
++
++static void
++bus_record(const char *line)
++{
++    printf("%s\n", line);
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++/* Bounded sector: unmanaged (not pmap-managed) and Device IO cache type. */
++static bool
++bus_premap(vm_offset_t pa, size_t bytes)
++{
++    char line[BUS_LINE_BYTES];
++    unsigned pages = (unsigned)(bytes / PAGE_SIZE);
++    for (unsigned i = 0; i < pages; ++i) {
++        vm_offset_t page = pa + (vm_offset_t)i * PAGE_SIZE;
++        ppnum_t pn = (ppnum_t)(page >> PAGE_SHIFT);
++        boolean_t managed = pmap_valid_page(pn);
++        unsigned wimg = pmap_cache_attributes(pn);
++        if (managed || (wimg & BUS_WIMG_MASK) != BUS_WIMG_IO) {
++            snprintf(line, sizeof(line),
++                "SWEET BUS: pmap mismatch pa=%08x managed=%u wimg=%08x; stopped",
++                (uint32_t)page, managed ? 1u : 0u, wimg);
++            bus_record(line);
++            return false;
++        }
++    }
++    return true;
++}
++
++static bool
++bus_readonly_map(vm_offset_t pa, size_t bytes, vm_offset_t *mapped)
++{
++    char line[BUS_LINE_BYTES];
++    vm_offset_t va = ml_io_map_with_prot(pa, bytes, VM_PROT_READ);
++
++    if (!va) {
++        snprintf(line, sizeof(line), "SWEET BUS: map failed pa=%08x size=%05x; stopped",
++            (uint32_t)pa, (unsigned)bytes);
++        bus_record(line);
++        return false;
++    }
++    if (ml_vtophys(va) != pa || ml_vtophys(va + bytes - 1) != pa + bytes - 1) {
++        snprintf(line, sizeof(line), "SWEET BUS: translation mismatch pa=%08x size=%05x; stopped",
++            (uint32_t)pa, (unsigned)bytes);
++        bus_record(line);
++        return false;
++    }
++    *mapped = va;
++    return true;
++}
++
++static void
++bus_sha256(const uint8_t *bytes, size_t length, char hex[SHA256_DIGEST_STRING_LENGTH])
++{
++    static const char digits[] = "0123456789abcdef";
++    uint8_t digest[SHA256_DIGEST_LENGTH];
++    SHA256_CTX ctx;
++
++    SHA256_Init(&ctx);
++    SHA256_Update(&ctx, bytes, length);
++    SHA256_Final(digest, &ctx);
++    for (unsigned i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
++        hex[2u * i] = digits[digest[i] >> 4];
++        hex[2u * i + 1u] = digits[digest[i] & 15u];
++    }
++    hex[2u * SHA256_DIGEST_LENGTH] = '\0';
++}
++
++/* Exactly 2048 printf lines of 64 bytes; offsets 00000..1ffc0. */
++static void
++bus_dump_raw(const uint8_t *raw)
++{
++    static const char digits[] = "0123456789abcdef";
++    char line[BUS_LINE_BYTES];
++    char data[2u * BUS_RAW_CHUNK + 1u];
++
++    bus_record("SWEET BUS: marking before capture");
++    for (unsigned off = 0; off < BUS_RAW_BYTES; off += BUS_RAW_CHUNK) {
++        for (unsigned i = 0; i < BUS_RAW_CHUNK; ++i) {
++            uint8_t byte = raw[off + i];
++            data[2u * i] = digits[byte >> 4];
++            data[2u * i + 1u] = digits[byte & 15u];
++        }
++        data[2u * BUS_RAW_CHUNK] = '\0';
++        snprintf(line, sizeof(line), "SWEET CMDB RAW: offset=%05x data=%s", off, data);
++        printf("%s\n", line);
++    }
++}
++
++/* Every CMDDB word is read unconditionally on EACH pass and stored as explicit
++ * little-endian bytes in normal memory. Zero is data: no holes, no shortcuts.
++ * Exactly 2 x 32768 MMIO loads per run; the copies must be byte-identical. */
++static bool
++bus_dump_cmddb(vm_offset_t mapping, struct bus_work *work)
++{
++    char sha[SHA256_DIGEST_STRING_LENGTH];
++    char line[BUS_LINE_BYTES];
++
++    for (unsigned pass = 0; pass < 2; ++pass) {
++        for (uint32_t off = 0; off < BUS_CMDB_BYTES; off += 4) {
++            uint32_t word = bus_mmio_read(mapping, off);
++            work->raw[pass][off] = (uint8_t)word;
++            work->raw[pass][off + 1] = (uint8_t)(word >> 8);
++            work->raw[pass][off + 2] = (uint8_t)(word >> 16);
++            work->raw[pass][off + 3] = (uint8_t)(word >> 24);
++        }
++    }
++    if (memcmp(work->raw[0], work->raw[1], BUS_RAW_BYTES) != 0) {
++        bus_record("SWEET BUS: CMDDB copies differ; stopped");
++        return false;
++    }
++    snprintf(line, sizeof(line), "SWEET BUS: CMDDB stable reads=%u",
++        (unsigned)(2u * (BUS_CMDB_BYTES / 4u)));
++    bus_record(line);
++    bus_sha256(work->raw[0], BUS_RAW_BYTES, sha);
++    snprintf(line, sizeof(line), "SWEET CMDB BEGIN: bytes=%u sha256=%s",
++        (unsigned)BUS_RAW_BYTES, sha);
++    bus_record(line);
++    bus_dump_raw(work->raw[0]);
++    snprintf(line, sizeof(line), "SWEET CMDB END: bytes=%u sha256=%s",
++        (unsigned)BUS_RAW_BYTES, sha);
++    bus_record(line);
++    return true;
++}
++
++static bool
++bus_parse_metadata(struct bus_work *work)
++{
++    char line[BUS_LINE_BYTES];
++    struct ndb_entry entries[GBCM_COUNT];
++    struct ndb_arc_levels levels;
++
++    work->plan = (struct gbcm_plan){0};
++
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        const char *name = gbcm_board[i].name;
++        if (ndb_lookup(work->raw[0], BUS_RAW_BYTES, name, strlen(name), &entries[i]) != NDB_OK) {
++            snprintf(line, sizeof(line), "SWEET BUS: CMDDB metadata %s invalid; stopped", name);
++            bus_record(line);
++            return false;
++        }
++    }
++    if (gbcm_build(entries, GBCM_COUNT, &work->plan) != GBCM_OK) {
++        bus_record("SWEET BUS: CMDDB board plan invalid; stopped");
++        return false;
++    }
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        const struct gbcm_db *db = &work->plan.db[i];
++        snprintf(line, sizeof(line),
++            "SWEET BUS: BCM %s addr=%05x owner=%u bankver=%04x unit=%u width=%u vcd=%u",
++            entries[i].name, db->address, entries[i].owner_slave, db->bank_version,
++            db->unit, db->width, db->vcd);
++        bus_record(line);
++    }
++    for (unsigned i = 0; i < sizeof(bus_arc_names) / sizeof(bus_arc_names[0]); ++i) {
++        struct ndb_entry entry;
++        if (ndb_lookup(work->raw[0], BUS_RAW_BYTES, bus_arc_names[i],
++            strlen(bus_arc_names[i]), &entry) != NDB_OK ||
++            ndb_decode_arc(&entry, &levels) != NDB_OK) {
++            snprintf(line, sizeof(line), "SWEET BUS: ARC %s invalid; stopped", bus_arc_names[i]);
++            bus_record(line);
++            return false;
++        }
++        snprintf(line, sizeof(line), "SWEET BUS: ARC %s addr=%05x owner=%u levels=%u",
++            bus_arc_names[i], entry.address, entry.owner_slave, levels.count);
++        bus_record(line);
++        for (unsigned j = 0; j < levels.count; j += 8u) {
++            size_t used = (size_t)snprintf(line, sizeof(line), "SWEET BUS: ARC %s lv:", bus_arc_names[i]);
++            for (unsigned k = j; k < levels.count && k < j + 8u && used + 6u < sizeof(line); ++k) {
++                used += (size_t)snprintf(line + used, sizeof(line) - used, " %u", levels.value[k]);
++            }
++            bus_record(line);
++        }
++    }
++    return true;
++}
++
++/* PLAN ONLY: bytes actually swept by the planner, plus TCS requirements. */
++static void
++bus_report_plan(const struct bus_work *work)
++{
++    char line[BUS_LINE_BYTES];
++
++    snprintf(line, sizeof(line), "SWEET BUS: PLAN ONLY cmds=%u waitmask=%08x",
++        (unsigned)GBCM_COUNT, work->plan.wait_mask);
++    bus_record(line);
++    for (unsigned i = 0; i < GBCM_COUNT; ++i) {
++        const struct gbcm_command *cmd = &work->plan.cmd[i];
++        snprintf(line, sizeof(line), "SWEET BUS: PLAN ONLY cmd%u addr=%05x data=%08x commit=%u wait=%u",
++            i, cmd->address, cmd->data,
++            (cmd->data & GBCM_COMMIT) ? 1u : 0u, cmd->wait);
++        bus_record(line);
++    }
++}
++
++static void
++bus_report_rsc(const struct bus_rsc_snapshot *rsc, unsigned ncpt, uint32_t end)
++{
++    char line[BUS_LINE_BYTES];
++    unsigned candidates = 0;
++
++    snprintf(line, sizeof(line), "SWEET BUS: RSC DRV2 config=%08x count=%u ncpt=%u end=%04x",
++        rsc->config, (unsigned)((rsc->config >> BUS_RSC_COUNT_SHIFT) & BUS_RSC_COUNT_MASK),
++        ncpt, end);
++    bus_record(line);
++    snprintf(line, sizeof(line), "SWEET BUS: RSC DRV2 irq_enable=%08x irq_status=%08x",
++        rsc->irq_enable, rsc->irq_status);
++    bus_record(line);
++    for (unsigned t = 0; t < BUS_RSC_TCS_COUNT; ++t) {
++        const struct bus_rsc_tcs *tcs = &rsc->tcs[t];
++        snprintf(line, sizeof(line), "SWEET BUS: RSC TCS%u wait=%08x control=%08x status=%08x enable=%08x",
++            t, tcs->wait, tcs->control, tcs->status, tcs->enable);
++        bus_record(line);
++        for (unsigned c = 0; c < ncpt; ++c) {
++            if (!(tcs->enable & (1u << c))) {
++                continue;
++            }
++            snprintf(line, sizeof(line), "SWEET BUS: RSC TCS%u cmd%u msgid=%08x addr=%08x data=%08x status=%08x",
++                t, c, tcs->cmd[c].msgid, tcs->cmd[c].address,
++                tcs->cmd[c].data, tcs->cmd[c].status);
++            bus_record(line);
++        }
++        /* Candidate slot ONLY: ACTIVE0..1 with idle status (neither 0 nor all
++         * ones), CONTROL/ENABLE/WAIT zero and no pending own IRQ bit. This is
++         * not a lease, ownership or current-bandwidth proof. */
++        if (t < BUS_RSC_CANDIDATES && tcs->status != 0 && tcs->status != 0xffffffffu &&
++            tcs->control == 0 && tcs->enable == 0 && tcs->wait == 0 &&
++            (rsc->irq_status & (1u << t)) == 0) {
++            ++candidates;
++        }
++    }
++    snprintf(line, sizeof(line),
++        "SWEET BUS: RSC observations ncpt=%u candidate_active_idle=%u; not an ownership/current-vote proof",
++        ncpt, candidates);
++    bus_record(line);
++    /* Six commands need capacity AND at least one idle ACTIVE candidate. */
++    if (ncpt < BUS_RSC_MIN_PLAN || candidates == 0) {
++        bus_record("SWEET BUS: RSC not ready for 6-command transport");
++    }
++}
++
++/* Validates DRV2 geometry from the configuration word alone. */
++static bool
++bus_rsc_geometry(uint32_t config, unsigned *ncpt)
++{
++    char line[BUS_LINE_BYTES];
++    unsigned count = (config >> BUS_RSC_COUNT_SHIFT) & BUS_RSC_COUNT_MASK;
++    unsigned commands = (config >> BUS_RSC_NCPT_SHIFT) & BUS_RSC_NCPT_MASK;
++    uint32_t end;
++
++    if (count < BUS_RSC_MIN_COUNT || commands < BUS_RSC_MIN_NCPT ||
++        commands > BUS_RSC_MAX_NCPT) {
++        snprintf(line, sizeof(line), "SWEET BUS: RSC geometry config=%08x; stopped", config);
++        bus_record(line);
++        return false;
++    }
++    end = BUS_RSC_TCS_BASE + (BUS_RSC_TCS_COUNT - 1u) * BUS_RSC_TCS_STRIDE +
++        BUS_RSC_CMD_BASE + (commands - 1u) * BUS_RSC_CMD_STRIDE + 0x10u;
++    if (end > BUS_RSC_MAX_END) {
++        bus_record("SWEET BUS: RSC read end beyond 4000; stopped");
++        return false;
++    }
++    *ncpt = commands;
++    return true;
++}
++
++/* One DRV2 snapshot through the whitelist into a zeroed normal struct. The
++ * configuration word is re-read first and must equal the first snapshot
++ * (validated geometry) before any TCS word is read; the enable words then
++ * decide which commands are read by their real index c. Both snapshots must
++ * match, including configuration and enable masks, before results are used. */
++static bool
++bus_capture_rsc(vm_offset_t mapping, uint32_t validated_config,
++    struct bus_rsc_snapshot *out, unsigned ncpt)
++{
++    char line[BUS_LINE_BYTES];
++
++    memset(out, 0, sizeof(*out));
++    out->config = bus_mmio_read(mapping, BUS_RSC_CONFIG);
++    if (out->config != validated_config) {
++        snprintf(line, sizeof(line),
++            "SWEET BUS: RSC configuration changed %08x!=%08x; stopped",
++            out->config, validated_config);
++        bus_record(line);
++        return false;
++    }
++    out->irq_enable = bus_mmio_read(mapping, BUS_RSC_IRQ_BASE);
++    out->irq_status = bus_mmio_read(mapping, BUS_RSC_IRQ_BASE + 4u);
++    for (unsigned t = 0; t < BUS_RSC_TCS_COUNT; ++t) {
++        uint32_t base = BUS_RSC_TCS_BASE + t * BUS_RSC_TCS_STRIDE;
++        struct bus_rsc_tcs *tcs = &out->tcs[t];
++        tcs->wait = bus_mmio_read(mapping, base + BUS_RSC_WAIT);
++        tcs->control = bus_mmio_read(mapping, base + BUS_RSC_CONTROL);
++        tcs->status = bus_mmio_read(mapping, base + BUS_RSC_STATUS);
++        tcs->enable = bus_mmio_read(mapping, base + BUS_RSC_ENABLE);
++        if (tcs->enable >> ncpt) {
++            snprintf(line, sizeof(line), "SWEET BUS: RSC TCS%u enable %08x beyond ncpt=%u; stopped",
++                t, tcs->enable, ncpt);
++            bus_record(line);
++            return false;
++        }
++    }
++    for (unsigned t = 0; t < BUS_RSC_TCS_COUNT; ++t) {
++        struct bus_rsc_tcs *tcs = &out->tcs[t];
++        uint32_t base = BUS_RSC_TCS_BASE + t * BUS_RSC_TCS_STRIDE;
++        for (unsigned c = 0; c < ncpt; ++c) {
++            uint32_t at = base + BUS_RSC_CMD_BASE + c * BUS_RSC_CMD_STRIDE;
++            if (!(tcs->enable & (1u << c))) {
++                continue;
++            }
++            tcs->cmd[c].msgid = bus_mmio_read(mapping, at);
++            tcs->cmd[c].address = bus_mmio_read(mapping, at + 4u);
++            tcs->cmd[c].data = bus_mmio_read(mapping, at + 8u);
++            tcs->cmd[c].status = bus_mmio_read(mapping, at + 12u);
++        }
++    }
++    return true;
++}
++
++static void
++bus_run(void)
++{
++    char line[BUS_LINE_BYTES];
++    vm_offset_t cmdb;
++    vm_offset_t rsc;
++    struct bus_work *work = bus_work;
++    unsigned ncpt = 0;
++    uint32_t config;
++
++    if (!bus_context()) {
++        bus_record("SWEET BUS: invalid context; stopped");
++        return;
++    }
++    bus_record("SWEET BUS: begin pmap check CMDDB pa=80860000 bytes=20000");
++    if (!bus_premap(BUS_CMDB_PA, BUS_CMDB_BYTES)) {
++        return;
++    }
++    bus_record("SWEET BUS: pmap OK CMDDB pages=8");
++    bus_record("SWEET BUS: begin map CMDDB pa=80860000 bytes=20000 prot=readonly");
++    if (!bus_readonly_map(BUS_CMDB_PA, BUS_CMDB_BYTES, &cmdb)) {
++        return;
++    }
++    bus_record("SWEET BUS: mapping OK CMDDB readonly; first read next");
++    if (!bus_dump_cmddb(cmdb, work)) {
++        return;
++    }
++    if (!bus_parse_metadata(work)) {
++        return;
++    }
++    bus_report_plan(work);
++    bus_record("SWEET BUS: begin pmap check RSC DRV2 pa=18220000 bytes=4000");
++    if (!bus_premap(BUS_RSC_PA, BUS_RSC_BYTES)) {
++        return;
++    }
++    bus_record("SWEET BUS: pmap OK RSC pages=1");
++    bus_record("SWEET BUS: begin map RSC DRV2 pa=18220000 bytes=4000 prot=readonly");
++    if (!bus_readonly_map(BUS_RSC_PA, BUS_RSC_BYTES, &rsc)) {
++        return;
++    }
++    bus_record("SWEET BUS: mapping OK RSC readonly; first read next");
++    config = bus_mmio_read(rsc, BUS_RSC_CONFIG);
++    if (!bus_rsc_geometry(config, &ncpt)) {
++        return;
++    }
++    snprintf(line, sizeof(line), "SWEET BUS: RSC geometry OK config=%08x ncpt=%u end=%04x",
++        config, ncpt,
++        BUS_RSC_TCS_BASE + (BUS_RSC_TCS_COUNT - 1u) * BUS_RSC_TCS_STRIDE +
++            BUS_RSC_CMD_BASE + (ncpt - 1u) * BUS_RSC_CMD_STRIDE + 0x10u);
++    bus_record(line);
++    /* Both VALUE snapshots start zeroed; each capture re-zeroes its own. */
++    memset(&work->rsc[0], 0, sizeof(work->rsc[0]));
++    memset(&work->rsc[1], 0, sizeof(work->rsc[1]));
++    if (!bus_capture_rsc(rsc, config, &work->rsc[0], ncpt)) {
++        return;
++    }
++    if (!bus_capture_rsc(rsc, config, &work->rsc[1], ncpt)) {
++        return;
++    }
++    if (memcmp(&work->rsc[0], &work->rsc[1], sizeof(work->rsc[0])) != 0) {
++        bus_record("SWEET BUS: RSC snapshots differ; stopped");
++        return;
++    }
++    bus_record("SWEET BUS: RSC stable captures=2");
++    bus_report_rsc(&work->rsc[0], ncpt,
++        BUS_RSC_TCS_BASE + (BUS_RSC_TCS_COUNT - 1u) * BUS_RSC_TCS_STRIDE +
++            BUS_RSC_CMD_BASE + (ncpt - 1u) * BUS_RSC_CMD_STRIDE + 0x10u);
++    bus_record("SWEET BUS: PLAN ONLY; no bandwidth submitted, no GPU execution; observation only");
++}
++
++static void
++bus_worker(void *argument, wait_result_t result)
++{
++    (void)argument;
++    (void)result;
++    int mode = 0;
++
++    if (!bus_context()) {
++        printf("SWEET BUS: invalid worker context; stopped\n");
++        thread_terminate_self();
++        return;
++    }
++    (void)PE_parse_boot_argn("sweettouchmode", &mode, sizeof(mode));
++    if (mode != 0) {
++        printf("SWEET BUS: sweettouchmode=%d conflicts; stopped\n", mode);
++        thread_terminate_self();
++        return;
++    }
++    bus_record("SWEET BUS: worker delay=45s");
++    for (unsigned i = 0; i < 45; ++i) {
++        IOSleep(1000);
++    }
++    if (!bus_context()) {
++        printf("SWEET BUS: invalid context after delay; stopped\n");
++        thread_terminate_self();
++        return;
++    }
++    if (!bus_work) {
++        bus_work = (struct bus_work *)IOMalloc(sizeof(*bus_work));
++        if (!bus_work) {
++            printf("SWEET BUS: allocation failed; stopped\n");
++            thread_terminate_self();
++            return;
++        }
++        memset(bus_work, 0, sizeof(*bus_work));
++        bus_record("SWEET BUS: allocation OK; retained until reboot");
++    }
++    bus_run();
++    thread_terminate_self();
++}
++
++void
++sweet_bus_probe_init(void)
++{
++    int enabled = 0;
++    thread_t thread;
++
++    (void)PE_parse_boot_argn("sweetbusprobe", &enabled, sizeof(enabled));
++    if (enabled != 1) {
++        return;
++    }
++    if (__atomic_exchange_n(&bus_started, 1, __ATOMIC_ACQ_REL)) {
++        return;
++    }
++    kern_return_t result = kernel_thread_start(bus_worker, NULL, &thread);
++    if (result == KERN_SUCCESS) {
++        thread_deallocate(thread);
++    } else {
++        printf("SWEET BUS: worker creation failed=%d; no inline fallback\n", result);
++    }
++}
++#endif /* GAUGUIN */
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -113,6 +113,9 @@
+ bsd/dev/gauguin_scm_probe.c		standard
+ bsd/dev/gauguin_pas_probe.c		standard
+ bsd/dev/gauguin_pas_stage.c		standard
++bsd/dev/cmd_db_snapshot.c		standard
++bsd/dev/gauguin_bcm_plan.c		standard
++bsd/dev/gauguin_bus_probe.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -407,6 +407,7 @@
+ extern void sweet_gpu_probe_init(void);
+ extern void sweet_scm_probe_init(void);
+ extern void sweet_pas_probe_init(void);
++extern void sweet_bus_probe_init(void);
+ #endif
+ void set_rootvnode(vnode_t);
+ 
+@@ -1074,6 +1075,7 @@
+ 	sweet_gpu_probe_init();
+ 	sweet_scm_probe_init();
+ 	sweet_pas_probe_init();
++	sweet_bus_probe_init();
+ #endif
+ 
+ #if 0 /* not yet */

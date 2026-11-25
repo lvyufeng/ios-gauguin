@@ -1,0 +1,350 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -1,11 +1,5 @@
+-/*
+- * (hakios) This is vcvkk's plug-in (github.com/vcvkk/darwin-redwood, branch hakios-workspace, userland/src/HakiosMetal.m
+- * at eb9fdf5), the one that serves CoreAnimation's window server, with what this tree adds for it: CoreAnimation's
+- * shaders chosen by pipeline (hm_bitcode_for()), QuartzCore's pipeline library given a default.metallib, stand-ins for
+- * functions the library lacks (hm_stand_ins), and the device shown to the window server alone (metal_all=1: all).
+- * Built instead of hakios-metal's plug-in with METAL_PLUGIN=ca (userland/build.sh); the library it needs comes from
+- * tools/ca-metallib.py.
+- */
++/* Gauguin root offscreen CA profile: exact image-owned functions and constants.
++ * Derived from the pinned MIT HakiOS frontend; no nearest shader/effect stand-ins. */
+ /*
+  * HakiosMetal: the Metal plug-in of hakios, over the C interface of hakios-metal.
+  *
+@@ -87,6 +81,9 @@
+ 
+ #import <Foundation/Foundation.h>
+ #include "GauguinMetalProfile.h"
++
++/* Root offscreen qualification counts accepted real draws, not just readback blits. */
++static uint64_t hm_gauguin_ca_draws, hm_gauguin_ca_refusals;
+ #include <sys/sysctl.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+@@ -1505,91 +1502,6 @@
+ 	});
+ }
+ 
+-/*
+- * The nearest variant to a fragment function the library does not have. CoreAnimation makes pipelines at run time that no
+- * precompiled one is: TimgA2S1Xhf_Ixrg (an opaque image, for a compositing filter, the default wallpaper's head) or
+- * TimgBdsoA2Xhfn_Isrc (darkenSourceOver, the status bar's legibility gradient). Compiled from the one variant the window server's
+- * library holds, those drew something else altogether: the head nothing, the gradient solid white (4 November).
+- * A label is T(what is sampled) B(the blend) A(the varyings) S(a second sampler) X(flags)_(the inputs): what is sampled, the blend
+- * and the varyings must be the same, or it is another program. Then the fewest inputs changed, and a flag left out (a feature the
+- * program did not ask for is not fed) before a flag added. What the letters mean is read from the labels, not from a document.
+- */
+-static NSString *
+-hm_ca_nearest(NSString *frag)
+-{
+-	static NSMutableDictionary *told;
+-	static NSRegularExpression *form;
+-	static NSString *const prefix = @"com.apple.coreanimation.frag.";
+-	NSString *best = nil;
+-	NSInteger bestCost = NSIntegerMax;
+-
+-	if (![frag hasPrefix:prefix]) {
+-		return nil;
+-	}
+-	static dispatch_once_t once;
+-
+-	dispatch_once(&once, ^{
+-		form = [[NSRegularExpression alloc] initWithPattern:@"^(T[a-z0-9]{3})?(B[a-z]{3})?(D[a-z]{2})?(A[0-9])(S[0-9])?(L[a-z]{2})?X([a-z]*)((?:_[A-Za-z0-9]+)*)$"
+-							    options:0 error:NULL];
+-		told = [[NSMutableDictionary alloc] init];
+-	});
+-	NSString *(^part)(NSTextCheckingResult *, NSUInteger, NSString *) = ^NSString *(NSTextCheckingResult *m, NSUInteger i, NSString *of) {
+-		NSRange r = [m rangeAtIndex:i];
+-
+-		return r.location == NSNotFound ? @"" : [of substringWithRange:r];
+-	};
+-	NSString *want = [frag substringFromIndex:[prefix length]];
+-	NSTextCheckingResult *w = [form firstMatchInString:want options:0 range:NSMakeRange(0, [want length])];
+-
+-	if (w == nil) {
+-		return nil;
+-	}
+-	for (NSString *candidate in hm_ca_frag_vert) {
+-		if (![candidate hasPrefix:prefix] || hm_ca_variants[candidate] == nil) {
+-			continue;
+-		}
+-		NSString *have = [candidate substringFromIndex:[prefix length]];
+-		NSTextCheckingResult *h = [form firstMatchInString:have options:0 range:NSMakeRange(0, [have length])];
+-		BOOL same = h != nil;
+-		NSInteger cost = 0;
+-
+-		for (NSUInteger i = 1; same && i <= 6; i++) {
+-			same = [part(w, i, want) isEqualToString:part(h, i, have)];
+-		}
+-		if (!same) {
+-			continue;
+-		}
+-		NSString *wantFlags = part(w, 7, want), *haveFlags = part(h, 7, have);
+-		NSArray *wantIn = [part(w, 8, want) componentsSeparatedByString:@"_"], *haveIn = [part(h, 8, have) componentsSeparatedByString:@"_"];
+-
+-		if ([wantIn count] != [haveIn count]) {
+-			continue;
+-		}
+-		for (NSUInteger i = 0; i < [wantIn count]; i++) {
+-			/* (an input that does more than was asked for last: IsrcN3Oc3mtc4 is a colour matrix, not a plain sample) */
+-			cost += [wantIn[i] isEqualToString:haveIn[i]] ? 0 : 100 + labs((long)[haveIn[i] length] - (long)[wantIn[i] length]);
+-		}
+-		for (NSUInteger i = 0; i < [wantFlags length]; i++) {
+-			cost += [haveFlags rangeOfString:[wantFlags substringWithRange:NSMakeRange(i, 1)]].location == NSNotFound ? 3 : 0;
+-		}
+-		for (NSUInteger i = 0; i < [haveFlags length]; i++) {
+-			cost += [wantFlags rangeOfString:[haveFlags substringWithRange:NSMakeRange(i, 1)]].location == NSNotFound ? 10 : 0;
+-		}
+-		if (cost < bestCost || (cost == bestCost && [candidate compare:best] == NSOrderedAscending)) {
+-			best = candidate;
+-			bestCost = cost;
+-		}
+-	}
+-	@synchronized (told) {
+-		if (told[frag] == nil) {
+-			told[frag] = @YES;
+-			hm_print("CoreAnimation's %s is not in the library: %s stands in for it\n", [want UTF8String],
+-				 best != nil ? [[best substringFromIndex:[prefix length]] UTF8String] : "nothing of the same kind");
+-		}
+-	}
+-	return best;
+-}
+-
+ /* The module to compile for FUNCTION (of the pipeline labelled PIPELINE, vertex stage or not): its variant when
+  * CoreAnimation's labels name one, else what the function itself has. */
+ static NSData *
+@@ -1599,42 +1511,6 @@
+ 	NSString *name = [function respondsToSelector:@selector(name)] ? [function name] : nil, *label = nil, *chosen = nil;
+ 	NSData *own = ((NSData *(*)(id, SEL))objc_msgSend)(function, sel_getUid("bitcodeData")), *variant = nil;
+ 
+-	if (name != nil && [name hasPrefix:@"edr_scale_"]) {
+-		/* the stand-in at compile time too: the window server gets edr_scale by a road the library hooks do not see,
+-		 * and the later CoreAnimation's reads buffers iOS 16.5's never binds (see hm_stand_ins) */
+-		static NSData *copies[2];
+-		static dispatch_once_t once;
+-		const int lpf = [name hasSuffix:@"_lpf"];
+-
+-		dispatch_once(&once, ^{
+-			id<MTLDevice> device = [function respondsToSelector:@selector(device)] ? [function device] : nil;
+-
+-			if (device == nil) device = MTLCreateSystemDefaultDevice();   /* (the function's own answered nil) */
+-			NSError *e = nil;
+-			id lib = [device newLibraryWithURL:[NSURL fileURLWithPath:@"/usr/local/share/gauguin/metal-ca/QuartzCore-default.metallib"]
+-						     error:&e];
+-			hm_print("inplace_copy for edr_scale: device %s, library %s%s\n", device ? "yes" : "nil", lib ? "opened" : "not opened: ",
+-				 lib ? "" : [[e description] UTF8String]);
+-			for (int i = 0; i < 2 && lib != nil; i++) {
+-				id f = [lib newFunctionWithName:i ? @"inplace_copy_lpf" : @"inplace_copy_lph"];
+-
+-				if (f != nil && [f respondsToSelector:sel_getUid("bitcodeData")]) {
+-					copies[i] = [((NSData *(*)(id, SEL))objc_msgSend)(f, sel_getUid("bitcodeData")) retain];
+-				}
+-				[f release];
+-			}
+-			[lib release];
+-		});
+-		static unsigned told;
+-		if (told++ < 3 || (told & (told - 1)) == 0) {
+-			hm_print("CoreAnimation's %s: %s (%u times)\n", [name UTF8String], copies[lpf] != nil ?
+-				 "compiled as inplace_copy, the source as it is" : "no inplace_copy to stand in, its own module", told);
+-		}
+-		if (copies[lpf] != nil) {
+-			return copies[lpf];
+-		}
+-		return own;
+-	}
+ 	if (name == nil || ![name hasPrefix:@"fixed_"]) {
+ 		return own;
+ 	}
+@@ -1660,9 +1536,6 @@
+ 		NSString *frag = under.location != NSNotFound ?
+ 			[@"com.apple.coreanimation.frag." stringByAppendingString:[spec substringFromIndex:NSMaxRange(under)]] : nil;
+ 
+-		if (frag != nil && hm_ca_variants[frag] == nil) {
+-			frag = hm_ca_nearest(frag);
+-		}
+ 		chosen = frag == nil ? nil : (vertex ? hm_ca_frag_vert[frag] : frag);
+ 		variant = chosen != nil ? hm_ca_variants[chosen] : nil;
+ 	}
+@@ -1701,9 +1574,6 @@
+ 		NSString *frag = under.location != NSNotFound ?
+ 			[@"com.apple.coreanimation.frag." stringByAppendingString:[spec substringFromIndex:NSMaxRange(under)]] : nil;
+ 
+-		if (frag != nil && hm_ca_variants[frag] == nil) {
+-			frag = hm_ca_nearest(frag);
+-		}
+ 		chosen = frag == nil ? nil : (vertex ? hm_ca_frag_vert[frag] : frag);
+ 		variant = chosen != nil ? hm_ca_variants[chosen] : nil;
+ 	}
+@@ -1864,85 +1734,7 @@
+ 	});
+ }
+ 
+-/*
+- * Functions CoreAnimation of iOS 16.5 asks its library for that the library given it (QuartzCore-default.metallib:
+- * this image's uber shaders and a later CoreAnimation's other functions) does not have under that name, each answered
+- * with the nearest one it has: luma_boost (a picture's luminance raised) by inplace_copy, the picture as it is -- both
+- * read only the source at texture 3 beside std_vert1 (Metal's reflection on a Mac); edr_scale, tried first, reads
+- * buffers 5 and 7 that CoreAnimation binds for neither, and its draws were refused. A function asked for that the
+- * library has is never touched. (hakios)
+- */
+-static const char *const hm_stand_ins[][3] = {
+-	/* asked for, given instead, "always" when the library's own is the wrong one (not just missing) */
+-	{ "luma_boost_lph", "inplace_copy_lph", "" },
+-	{ "luma_boost_lpf", "inplace_copy_lpf", "" },
+-	/* the later CoreAnimation's edr_scale reads buffers 5 and 7 and texture 9; iOS 16.5's binds three fragment
+-	 * buffers and its source at 3, and 3 259 of its draws were refused in one run (logs/163451-run.log) */
+-	{ "edr_scale_lph", "inplace_copy_lph", "always" },
+-	{ "edr_scale_lpf", "inplace_copy_lpf", "always" },
+-};
+-static id (*hm_orig_fn_name)(id, SEL, NSString *);
+-static id (*hm_orig_fn_constants)(id, SEL, NSString *, MTLFunctionConstantValues *, NSError **);
+-
+-static NSString *
+-hm_stand_in(NSString *name, BOOL found)
+-{
+-	for (size_t i = 0; name != nil && i < sizeof(hm_stand_ins) / sizeof(hm_stand_ins[0]); i++) {
+-		if (strcmp([name UTF8String], hm_stand_ins[i][0]) == 0 && (!found || hm_stand_ins[i][2][0] != 0)) {
+-			return [NSString stringWithUTF8String:hm_stand_ins[i][1]];
+-		}
+-	}
+-	return nil;
+-}
+-
+-static id
+-hm_fn_name(id self, SEL sel, NSString *name)
+-{
+-	id f = hm_orig_fn_name(self, sel, name);
+-	NSString *other = hm_stand_in(name, f != nil);
+-
+-	if (other != nil) {
+-		[f release];
+-		f = hm_orig_fn_name(self, sel, other);
+-	}
+-	if (other != nil && f != nil) {
+-		HM_ONCE("the library has no %s: %s stands in for it\n", [name UTF8String], [other UTF8String]);
+-	}
+-	return f;
+-}
+-
+-static id
+-hm_fn_constants(id self, SEL sel, NSString *name, MTLFunctionConstantValues *values, NSError **error)
+-{
+-	id f = hm_orig_fn_constants(self, sel, name, values, error);
+-	NSString *other = hm_stand_in(name, f != nil);
+-
+-	if (other != nil) {
+-		[f release];
+-		f = hm_orig_fn_constants(self, sel, other, values, error);
+-	}
+-	if (other != nil && f != nil) {
+-		if (error != NULL) *error = nil;
+-		HM_ONCE("the library has no %s: %s stands in for it (with constants)\n", [name UTF8String], [other UTF8String]);
+-	}
+-	return f;
+-}
+-
+-static void
+-hm_library_stand_ins(void)
+-{
+-	static dispatch_once_t once;
+-
+-	dispatch_once(&once, ^{
+-		Class library = NSClassFromString(@"_MTLLibrary");
+-		Method a = library ? class_getInstanceMethod(library, @selector(newFunctionWithName:)) : NULL;
+-		Method b = library ? class_getInstanceMethod(library, @selector(newFunctionWithName:constantValues:error:)) : NULL;
+-
+-		if (a != NULL) hm_orig_fn_name = (id (*)(id, SEL, NSString *))method_setImplementation(a, (IMP)hm_fn_name);
+-		if (b != NULL) hm_orig_fn_constants = (id (*)(id, SEL, NSString *, MTLFunctionConstantValues *, NSError **))
+-			method_setImplementation(b, (IMP)hm_fn_constants);
+-	});
+-}
++/* Exact 20H392 functions only: no process-wide library stand-ins. */
+ 
+ /*
+  * (hakios) boot-arg ca_prof=US, the window server: every US microseconds every thread of the process is looked at
+@@ -2267,7 +2059,6 @@
+ 		native_bridge_metal_first_problem(problem, sizeof(problem));
+ 		hm_print("no metal2vulkan device (%s): hakios-metal's instead\n", problem);
+ 	}
+-	hm_library_stand_ins();
+ 	ca_prof_start();
+ 	gauguin_metal_profile_cache();
+ 	hm_ensure_spi([self class]);
+@@ -2328,6 +2119,13 @@
+ 
+ /* Private limits-table bootstrap only. No public feature-family certification
+  * is claimed by the bounded diagnostic. No MPS or compositor client is admitted. */
++- (NSDictionary *)gauguinCAExactStats
++{
++	return @{ @"profile": @1,
++		  @"draws": @(__atomic_load_n(&hm_gauguin_ca_draws, __ATOMIC_RELAXED)),
++		  @"refusals": @(__atomic_load_n(&hm_gauguin_ca_refusals, __ATOMIC_RELAXED)) };
++}
++
+ - (NSUInteger)featureProfile { return 0; }
+ - (BOOL)supportsFamily:(MTLGPUFamily)family { (void)family; return NO; }
+ - (BOOL)supportsFeatureSet:(MTLFeatureSet)set { (void)set; return NO; }
+@@ -8100,32 +7898,6 @@
+ 	}
+ }
+ 
+-/*
+- * YES for a draw of luma_boost, unless boot-arg metal_luma_boost=1. A library that has its own (an iOS 17
+- * QuartzCore's, CA_QC_METALLIB off a Mac: the colour already drawn, by framebuffer fetch, through a LUT) gets it
+- * drawn as a full-screen pass at 1.5 ms a draw, 83% of the GPU's timed passes (logs/224205-run.log,
+- * metal_fps=draws); its stand-in there, inplace_copy, stores through texture 3 as an image, which a draw cannot
+- * (logs/225648-run.log: backboardd aborted). The picture as it is -- what inplace_copy stands for -- is the draw
+- * left out.
+- */
+-static BOOL
+-hm_luma_boost_left_out(const char *program)
+-{
+-	static int keep = -1;
+-
+-	if (program == NULL || strstr(program, "+luma_boost_l") == NULL) {
+-		return NO;
+-	}
+-	if (keep < 0) {
+-		char args[1024] = "";
+-		size_t size = sizeof(args) - 1;
+-
+-		keep = sysctlbyname("kern.bootargs", args, &size, NULL, 0) == 0 && strstr(args, "metal_luma_boost=1") != NULL;
+-		HM_ONCE("luma_boost: %s (metal_luma_boost=1 draws it)\n", keep ? "drawn" : "left out, the picture as it is");
+-	}
+-	return !keep;
+-}
+-
+ /* YES when the draw is to be left out (metal_skip); prints the kind once when tracing */
+ static BOOL
+ hm_trace_draw(const void *which, const char *program, const struct hakios_metal_render_pass *pass, hakios_metal_texture *const *textures, unsigned count,
+@@ -8258,9 +8030,8 @@
+ 
+ 	hm_dump_config(hakios_metal_program_name(program), fs, _fsOffsets, _fsHighest);
+ 	if (hm_trace_draw([_pipeline hakiosProgram], hakios_metal_program_name([_pipeline hakiosProgram]), &_pass, fsTex, _fsHighestTexture, (unsigned)primitive, 0)) {
+-		return;
+-	}
+-	if (hm_luma_boost_left_out(hakios_metal_program_name([_pipeline hakiosProgram]))) {
++		__atomic_fetch_add(&hm_gauguin_ca_refusals, 1, __ATOMIC_RELAXED);
++		hakios_metal_cb_refuse(cb, "the exact CA profile cannot omit a debug-skipped draw");
+ 		return;
+ 	}
+ 	if (indexBuffer != nil && ![indexBuffer isKindOfClass:[HakiosMetalBuffer class]]) {
+@@ -8298,12 +8069,14 @@
+ 		[_visibilityCounted addIndex:(NSUInteger)(_pass.visibility_offset / 8)];
+ 	}
+ 	if (drawn != 0) {
++		__atomic_fetch_add(&hm_gauguin_ca_refusals, 1, __ATOMIC_RELAXED);
+ 		hm_print("refused: a draw of %s, primitive %lu, %lu vertices from %lu, %lu instance(s), load %u store %u, %u vertex and %u fragment "
+ 			 "buffer slots: %s\n", hakios_metal_program_name([_pipeline hakiosProgram]), (unsigned long)primitive, (unsigned long)count,
+ 			 (unsigned long)start, (unsigned long)instances, _pass.load_action, _pass.store_action, _vsHighest, _fsHighest, hakios_metal_error());
+ 		hakios_metal_cb_refuse(cb, hakios_metal_error());
+ 		return;
+ 	}
++	__atomic_fetch_add(&hm_gauguin_ca_draws, 1, __ATOMIC_RELAXED);
+ 	hm_spend_clears(&_pass);   /* the fills are recorded: the pass's later draws load what they left */
+ }
+ 

@@ -1,0 +1,16 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -119,8 +119,12 @@
+ IOMemoryMap *
+ SweetSurface::mapPixelsInTask(task_t task)
+ {
++	/* Same-task mappings otherwise may be static aliases of the caller's VA.
++	 * An immutable surface must keep its own mapping after that VA is unmapped
++	 * or reused. Keep the independent view read-only and preserve cache type. */
+ 	return memory != NULL ? memory->createMappingInTask(task, 0,
+-	    kIOMapAnywhere | mapCache | (readOnly ? kIOMapReadOnly : 0)) : NULL;
++	    kIOMapAnywhere | mapCache |
++	    (readOnly ? (kIOMapReadOnly | kIOMapUnique) : 0)) : NULL;
+ }
+ 
+ static uint32_t *

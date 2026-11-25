@@ -1,0 +1,641 @@
+--- a/bsd/dev/gauguin_frame374_wire.h
++++ b/bsd/dev/gauguin_frame374_wire.h
+@@ -2,12 +2,14 @@
+ #define GAUGUIN_FRAME374_WIRE_H
+ 
+ #include "gauguin_frame372_wire.h"
++#include "gauguin_frame375_present.h"
+ 
+ enum {
+     F374_EVENT_CAP = 16384, F374_WIRE_CAP = 210000, F374_BLOCK = 32,
+     F374_MAX_ROW = 34,
+     F374_RENDER_BEGIN = 1, F374_RENDER_END, F374_ANNOTATION, F374_FRAME_INFO,
+-    F374_HITCH, F374_RENDER_TIME, F374_VSYNC, F374_VSYNC_UPDATE
++    F374_HITCH, F374_RENDER_TIME, F374_VSYNC, F374_VSYNC_UPDATE,
++    F375_ENCODE_BEGIN, F375_ENCODE_END, F375_SERVER_THREAD, F375_DID_COMMIT
+ };
+ 
+ struct f374_event {
+@@ -27,6 +29,10 @@
+     case 0x31ca0010: return F374_RENDER_TIME;
+     case 0x31ca0000: return F374_VSYNC;
+     case 0x31ca0110: return F374_VSYNC_UPDATE;
++    case 0x31ca01dd: return F375_ENCODE_BEGIN;
++    case 0x31ca01de: return F375_ENCODE_END;
++    case 0x31ca0219: return F375_SERVER_THREAD;
++    case 0x31ca0104: return F375_DID_COMMIT;
+     default: return 0;
+     }
+ }
+@@ -57,14 +63,24 @@
+     case F374_RENDER_END:
+     case F374_VSYNC:
+     case F374_VSYNC_UPDATE:
++    case F375_ENCODE_BEGIN:
++    case F375_ENCODE_END:
++    case F375_DID_COMMIT:
+         return 6;
+     case F374_ANNOTATION:
+         if (event->a > UINT32_MAX || event->d > UINT32_MAX) return 0;
+         f372_le32(out + 6, (uint32_t)event->a);
+         f372_le32(out + 10, (uint32_t)event->d);
+         return 14;
++    case F375_SERVER_THREAD:
++        if (event->a > UINT32_MAX || event->b > UINT32_MAX) return 0;
++        f372_le32(out + 6, (uint32_t)event->a);
++        f372_le32(out + 10, (uint32_t)event->b);
++        return 14;
+     case F374_FRAME_INFO:
+     case F374_HITCH:
++    case F375_TARGET:
++    case F375_DELIVERY:
+         if (event->a > UINT32_MAX) return 0;
+         f372_le32(out + 6, (uint32_t)event->a);
+         f374_le64(out + 10, event->b);
+--- /dev/null
++++ b/bsd/dev/gauguin_frame375_present.h
+@@ -0,0 +1,53 @@
++#ifndef GAUGUIN_FRAME375_PRESENT_H
++#define GAUGUIN_FRAME375_PRESENT_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum {
++    F375_INFO_TYPE = 3,
++    F375_INFO_PRESENT = 1,
++    F375_INFO_REQUESTED = 2,
++    F375_INFO_MASK = F375_INFO_PRESENT | F375_INFO_REQUESTED,
++    F375_INFO_ARGS = 6,
++    F375_INFO_QUEUE = 8,
++    F375_INFO_LIMIT = 1024,
++    F375_IF_EDGE_LIMIT_NS = 4000000
++};
++
++/* Values used by the 20H392 IOMobileFramebuffer FrameInfo decoder. */
++static inline void
++f375_values(uint64_t values[F375_INFO_ARGS], uint32_t swap, uint64_t actual, uint64_t target)
++{
++    values[0] = UINT32_C(0x80000000) | F375_INFO_MASK;
++    values[1] = swap;
++    values[2] = (uint32_t)actual;
++    values[3] = (uint32_t)(actual >> 32);
++    values[4] = (uint32_t)target;
++    values[5] = (uint32_t)(target >> 32);
++}
++
++struct f375_copy {
++    uint64_t target, copied;
++    uint32_t swap, scan, owner;
++};
++
++static inline bool
++f375_scan_after_copy(const struct f375_copy *copy, uint32_t scan, uint64_t lo, uint64_t hi)
++{
++    return copy->swap && copy->owner && copy->target && copy->copied &&
++        scan == copy->scan && lo && lo < hi && copy->copied < hi;
++}
++
++#if defined(__cplusplus)
++extern "C" {
++#endif
++bool sweet_frame375_edge(uint32_t frame, uint64_t *lo, uint64_t *hi);
++void sweet_ca375_platform(unsigned kind, uint32_t swap, uint64_t b, uint64_t c, uint64_t d);
++#if defined(__cplusplus)
++}
++#endif
++
++enum { F375_TARGET = 13, F375_DELIVERY = 14 };
++
++#endif
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -33,11 +33,12 @@
+ #include "gauguin_blank352.h"
+ #include "gauguin_calibration357.h"
+ #include "gauguin_probe358.h"
++#include "gauguin_frame375_present.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+ extern void sweet_log_append(const char *, int);
+-extern void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
++extern void sweet_ca374_arm(uint64_t, uint64_t, uint64_t, uint64_t);
+ extern void sweet_ca374_drain(void);
+ extern task_t proc_task(proc_t);
+ 
+@@ -417,11 +418,48 @@
+         reason, scan.polls, scan.configured, restored, scan.last_gate);
+ }
+ 
++static struct {
++    uint32_t version, scan;
++    uint64_t lo, hi;
++} frame375_edges[F375_INFO_QUEUE];
++
++static void frame375_publish_edge(uint32_t frame, uint64_t lo, uint64_t hi)
++{
++    const unsigned index = frame % F375_INFO_QUEUE;
++    __atomic_fetch_add(&frame375_edges[index].version, 1, __ATOMIC_ACQ_REL);
++    __atomic_store_n(&frame375_edges[index].scan, frame, __ATOMIC_RELAXED);
++    __atomic_store_n(&frame375_edges[index].lo, lo, __ATOMIC_RELAXED);
++    __atomic_store_n(&frame375_edges[index].hi, hi, __ATOMIC_RELAXED);
++    __atomic_fetch_add(&frame375_edges[index].version, 1, __ATOMIC_RELEASE);
++}
++
++bool sweet_frame375_edge(uint32_t frame, uint64_t *lo, uint64_t *hi)
++{
++    if (!frame_active()) return false;
++    const unsigned index = frame % F375_INFO_QUEUE;
++    const uint32_t version = __atomic_load_n(&frame375_edges[index].version, __ATOMIC_ACQUIRE);
++    if (!version || version & 1) return false;
++    const uint32_t observed = __atomic_load_n(&frame375_edges[index].scan, __ATOMIC_RELAXED);
++    const uint64_t first = __atomic_load_n(&frame375_edges[index].lo, __ATOMIC_RELAXED);
++    const uint64_t last = __atomic_load_n(&frame375_edges[index].hi, __ATOMIC_RELAXED);
++    __atomic_thread_fence(__ATOMIC_ACQUIRE);
++    if (__atomic_load_n(&frame375_edges[index].version, __ATOMIC_RELAXED) != version || observed != frame)
++        return false;
++    *lo = first;
++    *hi = last;
++    return true;
++}
++
+ static void scan_edge(uint32_t frame, uint64_t tick, uint32_t line)
+ {
+     const uint32_t step = frame - scan.frame;
+     if (!scan.have_frame || step == 0) return;
+     sweet_frame344_record(F344_VBLANK, frame, step, scan.last_tick, tick, line);
++    if (scan357_enabled && scan.configured && step == 1 && scan.last_tick < tick) {
++        uint64_t width = 0;
++        absolutetime_to_nanoseconds(tick - scan.last_tick, &width);
++        if (width <= F375_IF_EDGE_LIMIT_NS) frame375_publish_edge(frame, scan.last_tick, tick);
++    }
+     if (scan.configured || scan.crc_blocked) return;
+     uint64_t interval = 0, bracket = 0;
+     if (scan.edge_tick) absolutetime_to_nanoseconds(tick - scan.edge_tick, &interval);
+@@ -733,8 +771,8 @@
+ }
+ 
+ struct frame374_receiver {
+-    uint64_t identity;
+-    unsigned count;
++    uint64_t source, receiver;
++    unsigned sources, receivers;
+ };
+ 
+ static int frame374_find_receiver(proc_t process, void *argument)
+@@ -743,13 +781,20 @@
+     char name[32];
+     const int pid = proc_pid(process);
+     proc_name(pid, name, sizeof(name));
+-    if (strcmp(name, "backboardd") != 0) return PROC_RETURNED;
++    const bool source = strcmp(name, "SpringBoard") == 0;
++    if (!source && strcmp(name, "backboardd") != 0) return PROC_RETURNED;
+     task_t task = proc_task(process);
+     if (task == TASK_NULL) return PROC_RETURNED;
+     const audit_token_t *token = task_get_audit_token(task);
+     if (token->val[5] != (uint32_t)pid || pid <= 0) return PROC_RETURNED;
+-    receiver->identity = ((uint64_t)token->val[7] << 32) | token->val[5];
+-    ++receiver->count;
++    const uint64_t identity = ((uint64_t)token->val[7] << 32) | token->val[5];
++    if (source) {
++        receiver->source = identity;
++        ++receiver->sources;
++    } else {
++        receiver->receiver = identity;
++        ++receiver->receivers;
++    }
+     return PROC_RETURNED;
+ }
+ 
+@@ -773,8 +818,9 @@
+     if (scan357_enabled) {
+         struct frame374_receiver receiver = {0};
+         proc_iterate(PROC_ALLPROCLIST, frame374_find_receiver, &receiver, NULL, NULL);
+-        if (receiver.count == 1)
+-            sweet_ca374_arm(receiver.identity, frames.start, frames.end);
++        if (receiver.receivers == 1)
++            sweet_ca374_arm(receiver.sources == 1 ? receiver.source : 0,
++                receiver.receiver, frames.start, frames.end);
+     }
+     clock_interval_to_deadline(F345_STARTUP_MS, NSEC_PER_MSEC, &scan.startup_end);
+     scan_call = thread_call_allocate(scan_poll, NULL);
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -68,58 +68,79 @@
+ #include <pexpert/pexpert.h>
+ #include "../dev/gauguin_frame374_wire.h"
+ 
+-void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
++void sweet_ca374_arm(uint64_t, uint64_t, uint64_t, uint64_t);
+ void sweet_ca374_drain(void);
+ extern void sweet_log_append(const char *, int);
+ 
+ #define F374_CLOSED (UINT32_C(1) << 31)
+ static uint32_t f374_gate = F374_CLOSED, f374_count;
+ static bool f374_configured, f374_exported;
+-static uint64_t f374_receiver, f374_start, f374_end;
++static uint64_t f374_source, f374_receiver, f374_start, f374_end;
+ static struct f374_event f374_events[F374_EVENT_CAP];
+ static uint64_t f374_threads[F372_THREAD_CAP];
+ 
+ void
+-sweet_ca374_arm(uint64_t receiver, uint64_t start, uint64_t end)
++sweet_ca374_arm(uint64_t source, uint64_t receiver, uint64_t start, uint64_t end)
+ {
+ 	if (!f374_configured || !(kdebug_enable & KDEBUG_ENABLE_TRACE) ||
+ 	    !kdebug_debugid_explicitly_enabled(0x31ca002c) || !receiver ||
+ 	    !start || end <= start || end - start > UINT32_MAX || f374_start) {
+ 		return;
+ 	}
++	f374_source = source;
+ 	f374_receiver = receiver;
+ 	f374_start = start;
+ 	f374_end = end;
+ 	__atomic_store_n(&f374_gate, 0, __ATOMIC_RELEASE);
+ }
+ 
+-/* Mirror only the selected existing userspace trace events during F344. */
+-static void
+-f374_observe(struct proc *p, const struct kdebug_trace64_args *uap)
+-{
+-	const unsigned kind = f374_kind(uap->code);
+-	if (!kind) return;
++static bool
++f375_enter(void)
++{
+ 	uint32_t gate = __atomic_load_n(&f374_gate, __ATOMIC_ACQUIRE);
+ 	while (!(gate & F374_CLOSED)) {
+ 		if (__atomic_compare_exchange_n(&f374_gate, &gate, gate + 1, true,
+ 		    __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE)) {
+-			break;
+-		}
+-	}
+-	if (gate & F374_CLOSED) return;
++			return true;
++		}
++	}
++	return false;
++}
++
++static void
++f375_record(unsigned kind, uint64_t a, uint64_t b, uint64_t c, uint64_t d)
++{
+ 	const uint64_t tick = mach_absolute_time();
+ 	if (tick >= f374_start && tick < f374_end) {
+-		const audit_token_t *token = task_get_audit_token(proc_task(p));
+-		const uint64_t receiver = ((uint64_t)token->val[7] << 32) | token->val[5];
+-		if (receiver == f374_receiver) {
+-			const uint32_t index = __atomic_fetch_add(&f374_count, 1, __ATOMIC_RELAXED);
+-			if (index < F374_EVENT_CAP) {
+-				f374_events[index] = (struct f374_event){tick,
+-				    thread_tid(current_thread()), uap->arg1, uap->arg2,
+-				    uap->arg3, uap->arg4, kind};
+-			}
+-		}
+-	}
++		const uint32_t index = __atomic_fetch_add(&f374_count, 1, __ATOMIC_RELAXED);
++		if (index < F374_EVENT_CAP) {
++			f374_events[index] = (struct f374_event){tick,
++			    thread_tid(current_thread()), a, b, c, d, kind};
++		}
++	}
++}
++
++/* Only SpringBoard encoding spans and verified BackBoard trace classes. */
++static void
++f374_observe(struct proc *p, const struct kdebug_trace64_args *uap)
++{
++	const unsigned kind = f374_kind(uap->code);
++	if (!kind || !f375_enter()) return;
++	const audit_token_t *token = task_get_audit_token(proc_task(p));
++	const uint64_t identity = ((uint64_t)token->val[7] << 32) | token->val[5];
++	const bool encode = kind == F375_ENCODE_BEGIN || kind == F375_ENCODE_END;
++	if (identity && identity == (encode ? f374_source : f374_receiver)) {
++		if (encode || kind == F375_DID_COMMIT) f375_record(kind, 0, 0, 0, 0);
++		else f375_record(kind, uap->arg1, uap->arg2, uap->arg3, uap->arg4);
++	}
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++void
++sweet_ca375_platform(unsigned kind, uint32_t swap, uint64_t b, uint64_t c, uint64_t d)
++{
++	if ((kind != F375_TARGET && kind != F375_DELIVERY) || !swap || !f375_enter()) return;
++	f375_record(kind, swap, b, c, d);
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+ }
+ 
+@@ -149,7 +170,7 @@
+ 	const unsigned captured = __atomic_load_n(&f374_count, __ATOMIC_RELAXED);
+ 	const bool live = (kdebug_enable & KDEBUG_ENABLE_TRACE) &&
+ 	    kdebug_debugid_explicitly_enabled(0x31ca002c);
+-	printf("SWEET F374 H: version=1 active=%u start=%llu end=%llu captured=%u\n",
++	printf("SWEET F374 H: version=2 active=%u start=%llu end=%llu captured=%u\n",
+ 	    (unsigned)live, (unsigned long long)f374_start, (unsigned long long)f374_end, captured);
+ 	unsigned threads = 0, total = 0, emitted = 0, used = 0, count = 0;
+ 	uint8_t packed[F374_BLOCK * F374_MAX_ROW];
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -46,6 +46,7 @@
+ #include "../../../bsd/dev/gauguin_calibration357.h"
+ #include "../../../bsd/dev/gauguin_probe358.h"
+ #include "../../../bsd/dev/gauguin_copy356.h"
++#include "../../../bsd/dev/gauguin_frame375_present.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ /* END SWEET PRESENT STATS INCLUDE */
+@@ -90,6 +91,7 @@
+ 	kSweetFBIsMainDisplay           = 18,
+ 	kSweetFBGetDotPitch             = 28,
+ 	kSweetFBNotifications           = 72,
++	kSweetFBChangeFrameInfo         = 73,
+ 	/*
+ 	 * Selectors backboardd actually calls on the shipping driver (NOTES
+ 	 * 21:50); meanings inferred from the call signatures, each logged until
+@@ -99,7 +101,7 @@
+ 	kSweetFBUnknown22               = 22,
+ 	kSweetFBUnknown29               = 29,
+ 	kSweetFBUnknown33               = 33,
+-	kSweetFBTimingInfo              = 74,
++	kSweetFBSupportedFrameInfo      = 74,
+ 	kSweetFBDisplayModes            = 79,
+ };
+ 
+@@ -424,6 +426,7 @@
+     uint64_t generation;
+     uint32_t retries;
+     uint32_t surfaceVersion;
++    uint32_t frameInfoOwner;
+ };
+ struct sweet_fb_retired {
+     SweetSurface *surfaces[SWEET_FB_LAYERS];
+@@ -478,6 +481,12 @@
+     struct sweet_fb_frame *boundFrameLocked(unsigned, uint64_t);
+     void replacePendingLocked(struct sweet_fb_retired *retired);
+     unsigned calibrate357(unsigned step, uint32_t frame);
++    void deliverFrameInfo375Locked(uint64_t now);
++    void queueFrameInfo375(const struct sweet_fb_frame *, uint64_t blankFrame, uint64_t checked);
++    bool fFrameInfo375;
++    uint32_t fFrameInfo375Owners, fFrameInfo375Sends;
++    uint32_t fFrameInfo375Head, fFrameInfo375Size;
++    struct f375_copy fFrameInfo375Pending[F375_INFO_QUEUE];
+     bool fCalibrating;
+     unsigned fCalibrationStep;
+     uint32_t fCalibrationPixel;
+@@ -522,7 +531,8 @@
+ 	bool swap(const uint8_t *rec, IOMobileFramebufferUserClient *owner);
+ 	bool present(const uint8_t *rec, SweetSurface *const *held = NULL,
+         uint64_t blankFrame = UINT64_MAX, uint64_t retryTicket = 0,
+-        uint32_t version = UINT32_MAX, uint64_t attempt = 0, bool *stale = nullptr);
++        uint32_t version = UINT32_MAX, uint64_t attempt = 0, bool *stale = nullptr,
++        uint64_t *verifiedFullCopy = nullptr);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
+@@ -659,6 +669,7 @@
+ 	uint64_t            fObservedSwapBeginTick;
+ 	uint32_t            fObservedSwapBeginID;
+ 	uint32_t            fObservedSwapBeginThread;
++	uint32_t            fFrameInfo375ID, fFrameInfo375Mask;
+ #endif
+ 
+ 	bool initWithTask(task_t owningTask, void *securityID, UInt32 type) APPLE_KEXT_OVERRIDE;
+@@ -669,7 +680,7 @@
+ 	IOReturn externalMethod(uint32_t selector, IOExternalMethodArguments *args,
+ 	    IOExternalMethodDispatch *dispatch, OSObject *target,
+ 	    void *reference) APPLE_KEXT_OVERRIDE;
+-	void notify(uint32_t type, const uint64_t *values, uint32_t count);
++	IOReturn notify(uint32_t type, const uint64_t *values, uint32_t count);
+ 	bool hasNotification(uint32_t type) const;
+ 	void logNotificationStats(unsigned index) const; /* fFB->fLock held */
+ };
+@@ -791,6 +802,11 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
++    int swipe375 = 0, hz375 = 0;
++    PE_parse_boot_argn("swp", &swipe375, sizeof(swipe375));
++    PE_parse_boot_argn("sweetfb_hz", &hz375, sizeof(hz375));
++    fFrameInfo375 = fHoldPresent && statsRequested == 9 && swipe375 == 4 && hz375 == 60;
++    fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
+     fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 9;
+     fBlankSlot = {};
+     fReadyRequested = statsRequested == 8 || statsRequested == 9;
+@@ -1343,6 +1359,7 @@
+ #if defined(GAUGUIN)
+     bool phaseCopy = false;
+     if (fb->fPhasePresent) now = mach_absolute_time(); /* include time waiting for fLock */
++    if (fb->fFrameInfo375) fb->deliverFrameInfo375Locked(now);
+     if (!fb->presentClockTickLocked(now, &elapsed, &phaseCopy)) {
+         struct sweet_fb_frame frame = {};
+         uint64_t blankFrame = UINT64_MAX;
+@@ -1375,6 +1392,9 @@
+ 		 * one backboardd is waiting on.
+ 		 */
+ 		for (uint32_t t = 0; t < SWEET_FB_NOTIFY_TYPES; t++) {
++#if defined(GAUGUIN)
++			if (t == F375_INFO_TYPE && client->fFrameInfo375ID) continue;
++#endif
+ 			if (t != SWEET_FB_NOTIFY_VSYNC && client->hasNotification(t)) {
+ 				client->notify(t, values, 6);
+ 			}
+@@ -1680,6 +1700,64 @@
+ }
+ 
+ #if defined(GAUGUIN)
++static uint64_t
++requestedPresentation375(const uint8_t *record)
++{
++    uint64_t target = 0;
++    // Timestamp tag 1 from IOMobileFramebufferSwapSetTimestamps.
++    memcpy(&target, record, sizeof(target));
++    return target;
++}
++
++void
++AppleCLCD::queueFrameInfo375(const struct sweet_fb_frame *frame, uint64_t blankFrame, uint64_t checked)
++{
++    if (!frame->frameInfoOwner || blankFrame == UINT64_MAX || fFrameInfo375Size == F375_INFO_QUEUE)
++        return;
++    const uint64_t target = requestedPresentation375(frame->record);
++    uint64_t separation = 0;
++    absolutetime_to_nanoseconds(checked > target ? checked - target : target - checked, &separation);
++    if (!target || separation > UINT64_C(2000000000)) return;
++    const unsigned index = (fFrameInfo375Head + fFrameInfo375Size) % F375_INFO_QUEUE;
++    fFrameInfo375Pending[index] = {target, checked, get32(frame->record,0x50),
++        (uint32_t)blankFrame + 1, frame->frameInfoOwner};
++    ++fFrameInfo375Size;
++}
++
++/* The queue is owned by the display workloop. Client lookup and send run under
++ * fLock. A queued receipt contains no client pointer or surface reference. */
++void
++AppleCLCD::deliverFrameInfo375Locked(uint64_t now)
++{
++    if (!fFrameInfo375Size) return;
++    const auto copy = fFrameInfo375Pending[fFrameInfo375Head];
++    uint64_t lo = 0, hi = 0, age = 0;
++    if (now <= copy.copied) return;
++    absolutetime_to_nanoseconds(now - copy.copied, &age);
++    const bool captured = sweet_frame375_edge(copy.scan, &lo, &hi) && hi <= now &&
++        f375_scan_after_copy(&copy, copy.scan, lo, hi);
++    if (!captured && age <= UINT64_C(100000000) && !fPowerOff) return;
++    fFrameInfo375Head = (fFrameInfo375Head + 1) % F375_INFO_QUEUE;
++    --fFrameInfo375Size;
++    if (!captured || fPowerOff) return;
++    IOReturn code = kIOReturnNotReady;
++    if (fFrameInfo375Sends < F375_INFO_LIMIT) {
++        for (unsigned i = 0; i < fClients->getCount(); ++i) {
++            auto *client = static_cast<IOMobileFramebufferUserClient *>(fClients->getObject(i));
++            if (client->fFrameInfo375ID != copy.owner) continue;
++            if (client->fFrameInfo375Mask == F375_INFO_MASK && client->hasNotification(F375_INFO_TYPE)) {
++                uint64_t values[F375_INFO_ARGS];
++                f375_values(values, copy.swap, hi, copy.target);
++                code = client->notify(F375_INFO_TYPE, values, F375_INFO_ARGS);
++                ++fFrameInfo375Sends;
++            }
++            break;
++        }
++    }
++    sweet_ca375_platform(F375_DELIVERY, copy.swap,
++        ((uint64_t)(uint32_t)code << 32) | copy.scan, lo, hi);
++}
++
+ void
+ AppleCLCD::presentTimed(uint8_t *rec, struct sweet_fb_frame *frame,
+     uint64_t frameAttempt, uint64_t blankFrame)
+@@ -1696,9 +1774,11 @@
+     const uint64_t retryTicket = fReadyRequested && !fReadyAcrossFrames && blankFrame != UINT64_MAX ?
+         scan352_ticket(frameAttempt, frame->surfaces[0]->id) : 0;
+     bool stale = false;
++    uint64_t verifiedFullCopy = 0;
+     const uint32_t version = frame->ready.observed ? frame->surfaceVersion : UINT32_MAX;
+     bool ready = present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket,
+-        version, frameAttempt, &stale);
++        version, frameAttempt, &stale, frame->frameInfoOwner ? &verifiedFullCopy : nullptr);
++    if (ready && verifiedFullCopy) queueFrameInfo375(frame, blankFrame, verifiedFullCopy);
+     if (ready) sweet_fb352_clear_ticket(retryTicket);
+     if (frameAttempt) sweet_frame344_record(F344_RESULT,frameAttempt,ready ? 1 : 0,
+         measuring ? sample.copiedBytes : 0,measuring ? sample.gpuRefusals : 0,0);
+@@ -2017,6 +2097,7 @@
+             return false;
+         }
+         if (!fReadyAcrossFrames) clearReadyTicketLocked();
++        next.frameInfoOwner = owner->fFrameInfo375ID;
+         next.retryEpoch = fHeldRetryEpoch;
+         next.generation = fHeldSubmitted + 1;
+         uint64_t surface = 0;
+@@ -2043,6 +2124,8 @@
+         fHeldSubmitted++;
+         const uint32_t swapID = get32(rec,0x50);
+         sweet_frame344_record(F344_SWAP,fHeldSubmitted,fPowerOff,swapID,get32(rec,0x104),surface);
++        if (owner->fFrameInfo375ID && surface && !fPowerOff)
++            sweet_ca375_platform(F375_TARGET,swapID,fHeldSubmitted,requestedPresentation375(rec),surface);
+         if (surface && !fPowerOff && fSwapTimingSamples < 1024 && sweet_frame344_clock()) {
+             const uint64_t begin = owner->fObservedSwapBeginID == swapID ? owner->fObservedSwapBeginTick : 0;
+             const uint64_t thread = begin ? owner->fObservedSwapBeginThread : 0;
+@@ -2077,7 +2160,7 @@
+ 
+ bool
+ AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held, uint64_t blankFrame, uint64_t retryTicket,
+-    uint32_t version, uint64_t attempt, bool *stale)
++    uint32_t version, uint64_t attempt, bool *stale, uint64_t *verifiedFullCopy)
+ {
+     (void)held;
+     (void)blankFrame;
+@@ -2085,6 +2168,7 @@
+     (void)version;
+     (void)attempt;
+     (void)stale;
++    (void)verifiedFullCopy;
+     bool ready = true;
+     bool fastBlank = false;
+ #if defined(GAUGUIN)
+@@ -2314,6 +2398,8 @@
+                 const bool verified = sweet_frame351_position(&copyEnd) && copyEnd.frame == blankFrame &&
+                     copyEnd.line >= copyStart.line && copyEnd.line < copyStart.end && copyEnd.end == copyStart.end;
+                 const uint32_t flags = (verified ? 1 : 2) | (pairedCopy ? SCAN352_FAST_COPY : 0);
++                if (verifiedFullCopy && verified && pairedCopy && layer == 0 && mask == 1)
++                    *verifiedFullCopy = mach_absolute_time();
+                 sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
+                     ((uint64_t)copyStart.end << 32) | copyEnd.line);
+             }
+@@ -2377,6 +2463,17 @@
+ 	if (fFB == NULL || !IOUserClient::start(provider)) {
+ 		return false;
+ 	}
++#if defined(GAUGUIN)
++	fFrameInfo375ID = fFrameInfo375Mask = 0;
++	char name[32];
++	proc_selfname(name, sizeof(name));
++	if (fFB->fFrameInfo375 && strcmp(name, "backboardd") == 0) {
++		IOLockLock(fFB->fLock);
++		if (fFB->fFrameInfo375Owners < UINT32_MAX)
++			fFrameInfo375ID = ++fFB->fFrameInfo375Owners;
++		IOLockUnlock(fFB->fLock);
++	}
++#endif
+ 	fFB->addClient(this);
+ 	return true;
+ }
+@@ -2451,13 +2548,13 @@
+ }
+ 
+ /* Called with the framebuffer lock held. */
+-void
++IOReturn
+ IOMobileFramebufferUserClient::notify(uint32_t type, const uint64_t *values, uint32_t count)
+ {
+ 	OSAsyncReference64 ref;
+ 
+ 	if (type >= SWEET_FB_NOTIFY_TYPES || fFunc[type] == 0 || fPort == MACH_PORT_NULL) {
+-		return;
++		return kIOReturnNotReady;
+ 	}
+ 	bzero(ref, sizeof(ref));
+ 	setAsyncReference64(ref, fPort, (mach_vm_address_t)fFunc[type], fRefcon[type], fTask);
+@@ -2465,6 +2562,7 @@
+ 	    (io_user_reference_t *)values, count, kIOUserNotifyOptionCanDrop);
+ 	if (result == kIOReturnSuccess) fNotifySent[type]++;
+ 	else fNotifyFailed[type]++;
++	return result;
+ }
+ 
+ static uint64_t sweet_fb_logged;        /* selectors already logged (< 64) */
+@@ -2597,8 +2695,34 @@
+ 		}
+ 		break;
+ 	}
+-	case kSweetFBTimingInfo: {
++	case kSweetFBSupportedFrameInfo: {
++#if defined(GAUGUIN)
++		if (fFrameInfo375ID) {
++			static const char tags[2][64] = {"Presentation_time", "Requested_presentation"};
++			if (args->scalarInputCount != 1 || args->scalarOutputCount != 1 ||
++			    !args->structureOutput || args->structureOutputDescriptor ||
++			    args->structureOutputSize != sizeof(tags[0]) || args->scalarInput[0] >= 2) {
++				return kIOReturnBadArgument;
++			}
++			args->scalarOutput[0] = 2;
++			memcpy(args->structureOutput, tags[args->scalarInput[0]], sizeof(tags[0]));
++			return kIOReturnSuccess;
++		}
++#endif
+ 		/* Also all-zero for the same experiment (NOTES 21:44). */
++		break;
++	}
++	case kSweetFBChangeFrameInfo: {
++#if defined(GAUGUIN)
++		if (fFrameInfo375ID) {
++			if (args->scalarInputCount != 2 || args->scalarInput[0] != F375_INFO_TYPE ||
++			    (args->scalarInput[1] & ~(uint64_t)(UINT32_C(0x80000000) | F375_INFO_MASK)))
++				return kIOReturnBadArgument;
++			IOLockLock(fFB->fLock);
++			fFrameInfo375Mask = (uint32_t)args->scalarInput[1] & F375_INFO_MASK;
++			IOLockUnlock(fFB->fLock);
++		}
++#endif
+ 		break;
+ 	}
+ 	case kSweetFBDisplayModes: {

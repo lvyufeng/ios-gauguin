@@ -1,0 +1,223 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -99,6 +99,20 @@
+ }
+ /* END BO333 helper */
+ 
++/* BC335: per-connection completed-owned-BO cache. All mutations hold the
++ * original request/GPU locks. Exported descriptor aliases exclude retention.
++ * Cached handles are zero; fBytes includes their still-resident mappings. */
++static constexpr uint32_t kCache335Slots=32;
++static constexpr uint64_t kCache335Bytes=16ull<<20;
++static constexpr uint64_t kCache335MaxBo=1ull<<20;
++static struct {
++    uint64_t hits,misses,stores,evicts,aliases,bytes;
++    uint32_t slots,connections;
++    bool invalid;
++} gCache335;
++static void cache335_count(uint64_t *value)
++{if(!gapi_frozen){if(*value==UINT64_MAX)gCache335.invalid=true;else ++*value;}}
++
+ static void gapi_end(uint64_t token,IOReturn result)
+ {
+     if(!token||gapi_frozen)return;
+@@ -133,6 +147,12 @@
+ {
+     if(!record||!gapi_frozen||gapi_dumped)return;
+     gapi_dumped=true;char line[256];uint64_t queued,held;
++    snprintf(line,sizeof(line),"SWEET BC335: hits=%llu misses=%llu stores=%llu evicts=%llu aliases=%llu valid=%u",
++        (unsigned long long)gCache335.hits,(unsigned long long)gCache335.misses,
++        (unsigned long long)gCache335.stores,(unsigned long long)gCache335.evicts,
++        (unsigned long long)gCache335.aliases,!gCache335.invalid&&gapi_valid?1u:0u);record(line);
++    snprintf(line,sizeof(line),"SWEET BC335: slots=%u bytes=%llu connections=%u; completed prefix, zeroed owned only",
++        gCache335.slots,(unsigned long long)gCache335.bytes,gCache335.connections);record(line);
+     absolutetime_to_nanoseconds(gapi_pending_queue,&queued);
+     absolutetime_to_nanoseconds(gapi_pending_held,&held);
+     snprintf(line,sizeof(line),"SWEET GPU API PERF: valid=%u pending=%u selector=%x queue_ns=%llu held_ns=%llu; completed prefix, elapsed CPU clock only",
+@@ -238,7 +258,7 @@
+     uint64_t address,size;
+     uint64_t mappingAddress,mappingSize; /* page-aligned SMMU window, not logical pixel bounds */
+     uint32_t handle,flags;
+-    bool installed,pending,closePending;
++    bool installed,pending,closePending,cached;
+ };
+ /* The root's legacy queue completes synchronously. An opted-in compositor
+  * queue may have one issued number ahead of its completed prefix. */
+@@ -274,7 +294,9 @@
+     OSDeclareDefaultStructors(GauguinGPUUserClient);
+     task_t fTask;
+     gpu_buffer *fBuffers;
+-    uint64_t fBytes;
++    uint64_t fBytes,fCachedBytes;
++    uint32_t fCachedCount;
++    bool fCacheEnabled;
+     uint32_t fNextHandle,fNextQueue,fNativeFence,fBootstrapJobs;
+     uint32_t fAllocationStage,fAllocationFailures;
+     struct gsub_diag327 fSubmitDiag327;
+@@ -287,6 +309,10 @@
+     gpu_queue *queue(uint32_t);
+     IOReturn add(IOMemoryDescriptor *,SweetSurface *,uint64_t,uint32_t,uint32_t *);
+     bool drop(gpu_buffer *);
++    bool retire335(gpu_buffer *);
++    gpu_buffer *takeCached335(uint64_t,uint32_t);
++    bool trimCached335(uint64_t,bool);
++    void cacheState335(void);
+     bool reapClosed(void);
+     IOReturn submit(struct ggr_submit *);
+     IOReturn surface(struct ggr_surface *);
+@@ -399,6 +425,7 @@
+     if(fCompositor)task_reference(fTask);
+     fNextHandle=1;fNextQueue=1;fBootstrapJobs=0;fAllocationStage=0;fAllocationFailures=0;
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
++    fCachedBytes=0;fCachedCount=0;fCacheEnabled=false;
+     fAsync=false;return true;
+ }
+ bool GauguinGPUUserClient::start(IOService *p)
+@@ -419,6 +446,11 @@
+          * a dangling owner after clientClose terminates its connection. */
+         retain();
+         gOwner=this;
++        fCacheEnabled=fCompositor&&fAsync;
++        if(fCacheEnabled){
++            ++gCache335.connections;
++            IOLog("SWEET BC335: enabled slots=32 bytes=16777216 max_bo=1048576 zero=1\n");
++        }
+         if(fCompositor)IOLog("SWEET GPU AUTH: compositor opened pid=%d root_fence=%u\n",
+             proc_pid(current_proc()),gReleasedRootFence);
+         if(fCompositor)IOLog("SWEET GPU USER: compositor issued-fence opt-in=%u\n",fAsync);
+@@ -508,7 +540,7 @@
+     /* A live/faulted DMA window retains BOTH the descriptor and its surface;
+      * dropping the original task's surface reference cannot recycle pixels. */
+     m->retain();if(s)s->retain();
+-    *slot={m,s,address+bias,size,address,mappingSize,fNextHandle++,flags,true,false,false};fBytes+=mappingSize;
++    *slot={m,s,address+bias,size,address,mappingSize,fNextHandle++,flags,true,false,false,false};fBytes+=mappingSize;
+     fAllocationStage=8;
+     for(uint64_t off=0;off<mappingSize;off+=4096) {
+         uint64_t pa=0;
+@@ -519,6 +551,54 @@
+     memoryBarrier();fAllocationStage=9;
+     if(!sweet_gpu_runtime_sync())return kIOReturnNotReady; /* retained until reset */
+     *handle=slot->handle;fAllocationStage=0;return kIOReturnSuccess;
++}
++
++void GauguinGPUUserClient::cacheState335(void)
++{
++    if(!gapi_frozen&&fCacheEnabled){gCache335.slots=fCachedCount;gCache335.bytes=fCachedBytes;}
++}
++gpu_buffer *GauguinGPUUserClient::takeCached335(uint64_t bytes,uint32_t flags)
++{
++    if(!fCacheEnabled||fClosed||!fNextHandle)return nullptr;
++    for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++) {
++        gpu_buffer *b=fBuffers+i;
++        if(!b->cached||!b->memory||b->surface||b->handle||b->pending||b->closePending||
++           !b->installed||b->size!=bytes||b->flags!=flags)continue;
++        if(b->memory->getRetainCount()!=1)continue;
++        if(!OSDynamicCast(IOBufferMemoryDescriptor,b->memory))continue;
++        b->cached=false;--fCachedCount;fCachedBytes-=b->mappingSize;
++        cache335_count(&gCache335.hits);cacheState335();return b;
++    }
++    cache335_count(&gCache335.misses);return nullptr;
++}
++bool GauguinGPUUserClient::retire335(gpu_buffer *b)
++{
++    if(!b->memory)return true;
++    if(b->pending||!sweet_gpu_runtime_ready())return false;
++    auto *memory=OSDynamicCast(IOBufferMemoryDescriptor,b->memory);
++    const bool eligible=fCacheEnabled&&!fClosed&&!b->cached&&!b->surface&&memory&&b->installed&&
++        b->size>=PAGE_SIZE&&b->size<=kCache335MaxBo&&b->size==b->mappingSize&&
++        b->address==b->mappingAddress&&!(b->flags&~(GGR_BO_READONLY|GGR_BO_WC));
++    if(eligible&&memory->getRetainCount()!=1)cache335_count(&gCache335.aliases);
++    if(eligible&&memory->getRetainCount()==1&&fCachedCount<kCache335Slots&&
++       b->mappingSize<=kCache335Bytes-fCachedBytes) {
++        b->handle=0;b->closePending=false;b->cached=true;
++        ++fCachedCount;fCachedBytes+=b->mappingSize;
++        cache335_count(&gCache335.stores);cacheState335();return true;
++    }
++    return drop(b);
++}
++bool GauguinGPUUserClient::trimCached335(uint64_t bytes,bool all)
++{
++    for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++) {
++        bool empty=false;
++        if(!all) {
++            for(uint32_t j=0;j<GGR_MAX_CLIENT_BUFFERS;j++)if(!fBuffers[j].memory){empty=true;break;}
++            if(empty&&bytes<=GGR_MAX_CLIENT_BYTES-fBytes)return true;
++        }
++        if(fBuffers[i].cached&&!drop(fBuffers+i))return false;
++    }
++    return true;
+ }
+ 
+ bool GauguinGPUUserClient::drop(gpu_buffer *b)
+@@ -529,6 +609,10 @@
+     for(uint64_t off=0;off<b->mappingSize;off+=4096)*leafAt(b->mappingAddress+off)=0;
+     memoryBarrier();
+     if(!sweet_gpu_runtime_sync())return false;
++    if(b->cached){
++        --fCachedCount;fCachedBytes-=b->mappingSize;
++        cache335_count(&gCache335.evicts);cacheState335();
++    }
+     releaseAddress(b->mappingAddress,b->mappingSize);fBytes-=b->mappingSize;
+     b->memory->complete();b->memory->release();OSSafeReleaseNULL(b->surface);
+     bzero(b,sizeof(*b));return true;
+@@ -542,7 +626,7 @@
+     if(!any)return true;
+     if(!sweet_gpu_runtime_ready())return false;
+     for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)
+-        if(fBuffers[i].memory&&fBuffers[i].closePending&&!drop(fBuffers+i))return false;
++        if(fBuffers[i].memory&&fBuffers[i].closePending&&!retire335(fBuffers+i))return false;
+     return true;
+ }
+ IOReturn GauguinGPUUserClient::finishPending(bool wait,bool reap,const struct ggr_timespec *deadline)
+@@ -884,8 +968,32 @@
+         uint64_t n=(r.make.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
+         fAllocationStage=2; /* backing IOBuffer allocation */
+         gbo333_record(2,n,0,0);
++        if(gpu_buffer *b=takeCached335(n,r.make.flags)) {
++            auto *m=OSDynamicCast(IOBufferMemoryDescriptor,b->memory);
++            gbo333_record(3,1,0,0);
++            bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
++            gbo333_record(4,0,0,0);
++            b->handle=fNextHandle++;r.make.handle=b->handle;fAllocationStage=0;
++            gbo333_record(5,b->mappingSize,b->handle,b->flags);
++            if(gapi_pending.token&&!gapi_frozen&&gapi_valid)
++                sweet_ui_trace_record(GUT_BO_REUSE335,gapi_pending.token,
++                    (uint32_t)proc_pid(current_proc()),1,n,b->handle,b->flags);
++            result=kIOReturnSuccess;break;
++        }
++        if(fCacheEnabled&&!trimCached335(n,false)){
++            gbo333_record(3,0,0,0);result=kIOReturnNotReady;break;
++        }
+         auto m=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
+             kIODirectionInOut|kIOMemoryKernelUserShared|kIOMapWriteCombineCache,(vm_size_t)n,PAGE_SIZE);
++        // Under allocator pressure, release retained completed mappings and
++        // retry the backing allocation once. Failure leaves the original code.
++        if(!m&&fCacheEnabled&&fCachedCount) {
++            if(!trimCached335(n,true)){
++                gbo333_record(3,0,0,0);result=kIOReturnNotReady;break;
++            }
++            m=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
++                kIODirectionInOut|kIOMemoryKernelUserShared|kIOMapWriteCombineCache,(vm_size_t)n,PAGE_SIZE);
++        }
+         gbo333_record(3,m!=nullptr,0,0);
+         if(!m){result=kIOReturnNoMemory;break;}
+         bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
+@@ -906,7 +1014,7 @@
+             if(fAsync&&fPendingCount){
+                 /* Closing removes the public handle, not the DMA owner. */
+                 b->handle=0;b->closePending=true;result=kIOReturnSuccess;
+-            } else result=drop(b)?kIOReturnSuccess:kIOReturnNotReady;
++            } else result=retire335(b)?kIOReturnSuccess:kIOReturnNotReady;
+         }
+         break;
+     }
+--- a/bsd/dev/gauguin_ui_trace.h
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -13,6 +13,7 @@
+     GUT_API_BEGIN=10, GUT_API_END, GUT_SUBMIT_BEGIN, GUT_SUBMIT_END, GUT_SURFACE,
+     GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END,
+     GUT_SYNTHETIC=30, /* explicit origin marker for a generated report ID */
++    GUT_BO_REUSE335=33, /* completed-owned mapping reused; API token */
+     GUT_BO_ALLOC333=32, /* CPU allocation phases; API token and numeric metadata */
+     GUT_HID_QUEUE_STATE=31 /* queue registry ID; owner PID; enqueue/port flags;
+                            * packed head:tail, capacity, notification attempts */

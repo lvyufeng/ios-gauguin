@@ -1,0 +1,44 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -81,6 +81,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ #include "GauguinMetalProfile.h"
++#include "GauguinFP16Proof.h"
+ 
+ /* Root offscreen qualification counts accepted real draws, not just readback blits. */
+ static uint64_t hm_gauguin_ca_draws, hm_gauguin_ca_refusals;
+@@ -476,6 +477,7 @@
+ @interface HakiosMetalDevice : _MTLDevice {
+ 	io_service_t _acceleratorService;        /* the IOAcceleratorES service Metal handed us */
+ 	hakios_metal_device *_gpu;               /* hakios-metal's device: the kernel's HakiosGPU client */
++    BOOL _gauguinNativeFP16; /* remains NO until the root probe validates actual half pixels */
+ 	struct MTLTargetDeviceArch _target;      /* answered by pointer: see -targetDeviceInfo */
+ 	char _targetName[96];                    /* the bytes _target.name points at, inside the object */
+ 	NSString *_name;
+@@ -2189,6 +2191,25 @@
+ 
+ - (NSUInteger)featureProfile { return 0; }
+ - (BOOL)supportsFamily:(MTLGPUFamily)family { (void)family; return NO; }
++
++/* Actual20H392 QuartzCore uses this specific SPI (not a family certification)
++ * to choose the image-owned LPH shader ABI. Only enable it after real half
++ * buffer/arithmetic/varying/store readback in this admitted root process. */
++- (BOOL)supportsNativeHardwareFP16
++{
++    return __atomic_load_n(&_gauguinNativeFP16, __ATOMIC_ACQUIRE);
++}
++
++- (BOOL)gauguinEnableNativeFP16:(NSUInteger)seed hash:(uint64_t)hash pixels:(NSUInteger)pixels
++{
++    if (seed > UINT32_MAX || pixels != 4096 || hash != gauguin_fp16_expected_hash((uint32_t)seed) ||
++        __atomic_load_n(&_gauguinNativeFP16, __ATOMIC_ACQUIRE)) return NO;
++    __atomic_store_n(&_gauguinNativeFP16, YES, __ATOMIC_RELEASE);
++    hm_print("GAUGUIN METAL235 nativeFP16 enabled seed=%u pixels=4096 hash=%016llx root-only families=0\n",
++             (unsigned)seed, (unsigned long long)hash);
++    return YES;
++}
++
+ - (BOOL)supportsFeatureSet:(MTLFeatureSet)set { (void)set; return NO; }
+ 
+ /* Actual gauguin runtime cap: one BO <=64MiB, entire client <=256MiB.

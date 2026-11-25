@@ -1,0 +1,87 @@
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -11,7 +11,11 @@
+ #define GGR_VA_END   UINT64_C(0x80000000)
+ #define GGR_MAX_COMMANDS 128u
+ #define GGR_RING_PACKET_WORDS (4u * GGR_MAX_COMMANDS + 8u)
++/* A submission may refer to at most256 BOs; live objects include cached
++ * shader/ring/image allocations across many submissions. These are distinct
++ * limits. The byte quota and GPU VA extent still bound total residency. */
+ #define GGR_MAX_BUFFERS 256u
++#define GGR_MAX_CLIENT_BUFFERS 1024u
+ #define GGR_MAX_QUEUES 32u
+ #define GGR_MAX_BO_BYTES (64u << 20)
+ #define GGR_MAX_CLIENT_BYTES (256u << 20)
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -292,7 +292,7 @@
+     if(!gLock||!IOUserClient::start(p))return false;
+     IOLockLock(gLock);
+     bool ok=!gOwner&&(!fCompositor||gReleasedRootFence>=kPilotRootFences)&&sweet_gpu_runtime_ready()&&prepareTables();
+-    if(ok){fBuffers=IONewZero(gpu_buffer,GGR_MAX_BUFFERS);ok=fBuffers!=nullptr;}
++    if(ok){fBuffers=IONewZero(gpu_buffer,GGR_MAX_CLIENT_BUFFERS);ok=fBuffers!=nullptr;}
+     if(ok) {
+         gOwner=this;
+         if(fCompositor)IOLog("SWEET GPU AUTH: compositor opened pid=%d root_fence=%u\n",
+@@ -303,7 +303,7 @@
+ gpu_buffer *GauguinGPUUserClient::find(uint32_t handle)
+ {
+     if(!handle||!fBuffers)return nullptr;
+-    for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].handle==handle)return fBuffers+i;
++    for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].handle==handle)return fBuffers+i;
+     return nullptr;
+ }
+ gpu_queue *GauguinGPUUserClient::queue(uint32_t id)
+@@ -324,7 +324,7 @@
+         return kIOReturnNoResources;
+     fAllocationStage=4; /* buffer slot */
+     gpu_buffer *slot=nullptr;
+-    for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(!fBuffers[i].memory){slot=fBuffers+i;break;}
++    for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(!fBuffers[i].memory){slot=fBuffers+i;break;}
+     if(!slot)return kIOReturnNoResources;
+     fAllocationStage=5; /* GPU VA reservation */
+     uint64_t address=reserveAddress(size);
+@@ -373,7 +373,7 @@
+         uint64_t profile=gapi_begin(0x101,queued,mach_absolute_time());
+         if(!fClosed) {
+             fClosed=true;bool clean=true;
+-            if(fBuffers)for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
++            if(fBuffers)for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
+             if(gOwner==this&&clean) {
+                 if(!fCompositor&&fNativeFence>gReleasedRootFence)gReleasedRootFence=fNativeFence;
+                 gOwner=nullptr;
+@@ -388,7 +388,7 @@
+ {
+     /* Even unusual start/death paths must not release a descriptor still
+      * visible to DMA. Normal clientClose has already completed/unmapped it. */
+-    if(fBuffers){IODelete(fBuffers,gpu_buffer,GGR_MAX_BUFFERS);fBuffers=nullptr;}
++    if(fBuffers){IODelete(fBuffers,gpu_buffer,GGR_MAX_CLIENT_BUFFERS);fBuffers=nullptr;}
+     if(fCompositor)task_deallocate(fTask);
+     IOUserClient::free();
+ }
+@@ -424,7 +424,7 @@
+     if(r->handle==UINT32_MAX)r->handle=0;
+     else {
+         gpu_buffer *existing=nullptr;
+-        for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].surface==s){existing=fBuffers+i;break;}
++        for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].surface==s){existing=fBuffers+i;break;}
+         if(existing)r->handle=existing->handle;
+         else ret=add(s->memory,s,s->allocSize,0,&r->handle);
+     }
+@@ -575,13 +575,14 @@
+     if(selector==0x42&&result!=kIOReturnSuccess&&fAllocationFailures<8){
+         ++fAllocationFailures;
+         uint32_t buffers=0,freeUnits=0,largest=0,run=0;
+-        if(fBuffers)for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(fBuffers[i].memory)++buffers;
++        if(fBuffers)for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(fBuffers[i].memory)++buffers;
+         for(unsigned i=0;i<256;i++)for(unsigned bit=0;bit<64;bit++){
+             if(gAllocated[i]&(UINT64_C(1)<<bit))run=0;
+             else {++freeUnits;if(++run>largest)largest=run;}
+         }
+         /* Cached CPU metadata only, under the existing operation lock. No
+-         * extra MMIO, recovery, quota/flag changes or success-path logging.
++         * extra MMIO, recovery, flag changes or success-path logging. Private live-object capacity
++         * is independent of the unchanged per-submit BO/byte limits.
+          * Stage:0 gate,1 request,2 backing,3 limits,4 slots,5 VA,6 prepare,
+          * 7 spans,8 PTE,9 sync. Preserve the original result and ownership. */
+         IOLog("SWEET GPU BO FAIL: seq=%u stage=%u rc=%08x size_hi=%08x size_lo=%08x flags=%08x buffers=%u bytes=%u next=%u free_units=%u largest_units=%u compositor=%u\n",

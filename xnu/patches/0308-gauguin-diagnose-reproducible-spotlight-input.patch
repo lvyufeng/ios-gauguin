@@ -1,0 +1,157 @@
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -85,7 +85,7 @@
+ static mach_timebase_info_data_t frame_timebase;
+ static bool frame_header, frame_footer;
+ static thread_call_t scan_call, manual_preview_call;
+-static bool manual_preview, sustained417;
++static bool manual_preview, sustained417, spotlight426;
+ static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
+ static volatile uint32_t *scan_intf;
+ static bool scan351_enabled, scan351_published, scan352_enabled;
+@@ -1567,10 +1567,13 @@
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+     const bool preview = f387_physical_profile(enabled, script, physical, hz);
+-    const bool sustained = f417_profile(enabled, script, physical, hz);
+-    if (enabled < 2 || enabled > 9 || (!preview && !sustained && ((script != 3 && script != 4) || physical)) ||
++    unsigned search = 0;
++    PE_parse_boot_argn("s426", &search, sizeof(search));
++    spotlight426 = search == 1 && f417_profile(enabled, script, physical, hz);
++    const bool sustained = !spotlight426 && f417_profile(enabled, script, physical, hz);
++    if (enabled < 2 || enabled > 9 || (!preview && !sustained && !spotlight426 && ((script != 3 && script != 4) || physical)) ||
+         !sweet_metal_desktop_enabled() || (enabled >= 4 && hz != 60)) return;
+-    manual_preview = preview;
++    manual_preview = preview || spotlight426;
+     sustained417 = sustained;
+     scan.counter_opt_in = enabled == 3 && hz == 60;
+     scan.counter_readonly = enabled >= 4;
+@@ -1586,7 +1589,7 @@
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+     clock_timebase_info(&frame_timebase);
+     if (!window || !frame_timebase.numer || !frame_timebase.denom) return;
+-    phase380_enabled = scan357_enabled && (script == 4 || preview || sustained417) &&
++    phase380_enabled = scan357_enabled && (script == 4 || manual_preview || sustained417) &&
+         frame_timebase.numer == 625 && frame_timebase.denom == 12;
+     struct gut_event *events = kalloc_data(capacity * sizeof(*events), Z_WAITOK | Z_ZERO);
+     if (!events) return;
+@@ -1664,9 +1667,10 @@
+     if (stock_profile == 5 && scan357_enabled && phase380_enabled && !manual_preview && !sustained417)
+         scan402_prepare();
+     if (phase380_enabled) f388_arm(&phase388, frames.start, frames.end);
+-    if (manual_preview) printf("SWEET F387 MANUAL: opening guarded display window\n");
++    if (spotlight426) printf("SWEET F426: opening guarded Spotlight display window\n");
++    else if (manual_preview) printf("SWEET F387 MANUAL: opening guarded display window\n");
+     if (sustained417) printf("SWEET F417 DISPLAY: compact CRC and vblank, copies=%u\n", sweet_frame382_copy_limit());
+-    if (scan357_enabled && !manual_preview && !sustained417) {
++    if (scan357_enabled && (!manual_preview || spotlight426) && !sustained417) {
+         struct frame374_receiver receiver = {0};
+         proc_iterate(PROC_ALLPROCLIST, frame374_find_receiver, &receiver, NULL, NULL);
+         if (receiver.receivers == 1) {
+diff --git a/bsd/kern/kdebug.c b/bsd/kern/kdebug.c
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -3056,10 +3056,12 @@
+ 
+ #if defined(GAUGUIN)
+ 	static char ca_filter[] = "S0x31ca";
+-	unsigned int stats = 0, swipe = 0, hz = 0;
++	unsigned int stats = 0, swipe = 0, hz = 0, spotlight = 0;
++	PE_parse_boot_argn("s426", &spotlight, sizeof(spotlight));
+ 	if (!n_events &&
+ 	    PE_parse_boot_argn("sweetfb_stats", &stats, sizeof(stats)) && stats == 9 &&
+-	    PE_parse_boot_argn("swp", &swipe, sizeof(swipe)) && swipe == 4 &&
++	    PE_parse_boot_argn("swp", &swipe, sizeof(swipe)) &&
++	    (swipe == 4 || (swipe == 5 && spotlight == 1)) &&
+ 	    PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz)) && hz == 60) {
+ 		n_events = 8192;
+ 		filter_desc = ca_filter;
+diff --git a/bsd/dev/sweet_touch.c b/bsd/dev/sweet_touch.c
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -608,7 +608,9 @@
+ 
+ /* One warmed, continuous horizontal drag. The due time is absolute to
+  * avoid accumulating callback jitter over the 33-second motion window. */
+-static bool sweet_continuous_mode;
++static bool sweet_continuous_mode, sweet_spotlight_mode;
++enum { F426_STROKES = 11, F426_TAP_STEPS = 10 };
++static const int f426_key_x[] = {335,445,555,665,775,445,555,665,335};
+ static struct {
+ 	uint64_t due, interval, start, last, max_gap;
+ 	unsigned reports;
+@@ -752,9 +754,16 @@
+ 		}
+ 	}
+ 	unsigned stroke = sweet_script_stroke, step = sweet_script_step++;
+-	bool down = step <= 32;
++	const bool key = sweet_spotlight_mode && stroke >= 2 && stroke < F426_STROKES;
++	const unsigned last_step = key ? F426_TAP_STEPS : 32;
++	bool down = step <= last_step;
+ 	int x = 540, y = down ? 2390 - (1490 * (int)step) / 32 : 900;
+-	if (stroke) {
++	if (key) {
++		x = f426_key_x[stroke - 2];
++		y = 1835;
++	} else if (sweet_spotlight_mode && stroke == 1) {
++		y = down ? 900 + (630 * (int)step) / 32 : 1530;
++	} else if (stroke) {
+ 		unsigned position = down ? step : 32;
+ 		x = stroke & 1 ? 900 - (720 * (int)position) / 32 : 180 + (720 * (int)position) / 32;
+ 		y = 1200;
+@@ -780,22 +789,28 @@
+ 		thread_call_enter_delayed(sweet_script_call, deadline);
+ 		return;
+ 	}
+-	printf("SWEET UI SCRIPT: end stroke=%u tick=%llu events=34; HID return only\n", stroke, (unsigned long long)mach_absolute_time());
++	printf("SWEET UI SCRIPT: end stroke=%u tick=%llu events=%u; HID return only\n",
++	    stroke, (unsigned long long)mach_absolute_time(), last_step + 2);
+ 	if (sweet_continuous_mode) {
+ 		sweet_script_stroke = 13;
+ 		motion417_arm();
+ 		return;
+ 	}
+-	if (++sweet_script_stroke >= 13) {
++	if (++sweet_script_stroke >= (sweet_spotlight_mode ? F426_STROKES : 13)) {
++		if (sweet_spotlight_mode) {
++			sweet_script_stroke = 13;
++			printf("SWEET F426 SCRIPT: complete strokes=11 reports=176; HID return only\n");
++			return;
++		}
+ 		printf("SWEET UI SCRIPT: complete strokes=13 events=442; UI acceptance and physical touch unqualified\n");
+ 		if (sweet_script_wake_mode) sweet_frame357_calibrate_after_script();
+ 		if (sweet_motion_mode) sweet_motion_arm();
+ 		return;
+ 	}
+ 	sweet_script_step = 0;
+-	unsigned gap = stroke == 0 ? 6 : 2;
+-	clock_interval_to_deadline(gap, NSEC_PER_SEC, &sweet_script_due);
+-	clock_interval_to_deadline(gap * 1000 + 1500, NSEC_PER_MSEC, &sweet_script_end);
++	const unsigned gap = stroke == 0 ? 6000 : (sweet_spotlight_mode ? (stroke == 1 ? 3000 : 1250) : 2000);
++	clock_interval_to_deadline(gap, NSEC_PER_MSEC, &sweet_script_due);
++	clock_interval_to_deadline(gap + 1500, NSEC_PER_MSEC, &sweet_script_end);
+ 	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
+ }
+ 
+@@ -811,7 +826,7 @@
+ 	clock_interval_to_deadline(181500, NSEC_PER_MSEC, &sweet_script_end);
+ 	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
+ 	printf("SWEET UI SCRIPT: armed strokes=%u origin=synthetic physical=off; first at +180s\n",
+-	    sweet_continuous_mode ? 1u : 13u);
++	    sweet_continuous_mode ? 1u : (sweet_spotlight_mode ? F426_STROKES : 13u));
+ 	if (sweet_script_wake_mode) printf("SWEET UI WAKE: enabled; one power pair if off, 5s limit, observe on before strokes\n");
+ }
+ #endif
+@@ -1390,7 +1405,10 @@
+ 			(void)PE_parse_boot_argn("sweetfb_stats", &capture, sizeof(capture));
+ 			(void)PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+ 			if (!f417_profile(capture, swipe, physical, hz)) return;
+-			sweet_continuous_mode = true;
++			unsigned search = 0;
++			PE_parse_boot_argn("s426", &search, sizeof(search));
++			sweet_spotlight_mode = search == 1;
++			sweet_continuous_mode = !sweet_spotlight_mode;
+ 		}
+ 		sweet_motion_mode = swipe == 4;
+ 		sweet_script_wake_mode = true;

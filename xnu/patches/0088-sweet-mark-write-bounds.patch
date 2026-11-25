@@ -1,0 +1,62 @@
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -1160,7 +1160,7 @@
+ 	MARK_PUT('\n');
+ #undef MARK_PUT
+ 	/* Dirty bitmap: one bit per slot, so a flush writes only new blocks. */
+-	__atomic_fetch_or(&sweet_mark_dirty[slot / 32], 1u << (slot % 32), __ATOMIC_RELAXED);
++	__atomic_fetch_or(&sweet_mark_dirty[slot / 32], 1u << (slot % 32), __ATOMIC_RELEASE);
+ }
+ 
+ /*
+@@ -1189,26 +1189,43 @@
+ static uint32_t
+ sweet_log_mark_flush(void)
+ {
+-	uint64_t base = su.first_block + su.nblocks - SWEET_LOG_BLOCKS - SWEET_MARK_BLOCKS;
+ 	uint8_t *blk = (uint8_t *)(su.dma + DMA_MARK);
+ 	uint32_t written = 0;
+ 
+-	if (!su.ready || !su.writable) {
++	/* Validate before subtraction/addition and before narrowing to WRITE(10)'s
++	 * 32-bit LBA. The mark area must fit entirely within the root partition. */
++	if (!su.ready || !su.writable || su.first_block == 0 ||
++	    su.nblocks < SWEET_LOG_BLOCKS + SWEET_MARK_BLOCKS ||
++	    su.first_block > UINT32_MAX ||
++	    su.nblocks - 1 > UINT32_MAX - su.first_block) {
+ 		return 0;
+ 	}
++	uint64_t base = su.first_block +
++	    (su.nblocks - SWEET_LOG_BLOCKS - SWEET_MARK_BLOCKS);
+ 	lck_mtx_lock(&sweet_mark_lock);
+ 	for (uint32_t i = 0; i < SWEET_MARK_BLOCKS; i++) {
+-		uint32_t word = __atomic_load_n(&sweet_mark_dirty[i / 32], __ATOMIC_RELAXED);
+-		if (!(word & (1u << (i % 32)))) {
++		uint32_t bit = 1u << (i % 32);
++		/* Claim this update before copying. A new mark during the I/O sets
++		 * the bit again and must survive the completion of this write. */
++		uint32_t word = __atomic_fetch_and(&sweet_mark_dirty[i / 32],
++		    ~bit, __ATOMIC_ACQUIRE);
++		if (!(word & bit)) {
+ 			continue;
+ 		}
++		uint64_t lba = base + i;
++		uint8_t cdb[10] = {
++			0x2a, 0,
++			(uint8_t)(lba >> 24), (uint8_t)(lba >> 16),
++			(uint8_t)(lba >> 8), (uint8_t)lba,
++			0, 0, 1, 0
++		};
+ 		memcpy(blk, sweet_mark_ram + (uint64_t)i * UFS_BLOCK, UFS_BLOCK);
+ 		clean_dcache64((addr64_t)(su.dma_pa + DMA_MARK), UFS_BLOCK, TRUE);
+-		if (ufs_scsi_slot((const uint8_t[]){ 0x2a, 0, 0, 0, 0, 0, 0, 0, 1, 0 },
+-		    sizeof(uint8_t[10]), UFS_BLOCK, true, su.dma_pa + DMA_MARK,
++		if (ufs_scsi_slot(cdb, sizeof(cdb), UFS_BLOCK, true, su.dma_pa + DMA_MARK,
+ 		    UFS_SLOT_MARK) == 0) {
+-			__atomic_fetch_and(&sweet_mark_dirty[i / 32], ~(1u << (i % 32)), __ATOMIC_RELAXED);
+ 			written++;
++		} else {
++			__atomic_fetch_or(&sweet_mark_dirty[i / 32], bit, __ATOMIC_RELEASE);
+ 		}
+ 	}
+ 	lck_mtx_unlock(&sweet_mark_lock);

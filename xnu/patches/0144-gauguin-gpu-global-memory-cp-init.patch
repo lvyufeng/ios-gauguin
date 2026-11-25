@@ -1,0 +1,123 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -124,6 +124,7 @@
+ bsd/dev/gauguin_cx_power.c		standard
+ bsd/dev/gauguin_gcc_votes.c		standard
+ bsd/dev/gauguin_gmu_memory.c		standard
++bsd/dev/gauguin_gpu_memory.c		standard
+ bsd/dev/gauguin_gmu_hfi.c			standard
+ bsd/dev/gauguin_gmu_smmu.c		standard
+ bsd/dev/gauguin_gmu_board.c		standard
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_memory.c
+@@ -0,0 +1,68 @@
++/* Native19b63c8 KGSL global memory/protection, LPAE and A619 CP_ME_INIT bytes.
++ * Pure bounded constructors only; actual GPU lifecycle remains separate. */
++#include <string.h>
++#include "gauguin_gpu_memory.h"
++static const struct ggp_region regions[GGP_COUNT]={
++    {0xa0000,0x8000,0xfc000000,GGP_SQE_BYTES,0x8000,0,1,1},
++    {0xa8000,0x8000,0xfc008000,0x8000,0x8000,0,1,0},
++    {0xb0000,0x4000,0xfc010000,0x1000,0x1000,1,0,0},
++    {0xb4000,0x4000,0xfc014000,0x1000,0x1000,1,0,0}
++};
++static bool span(const void *p,size_t n)
++{return p&&n&&(uintptr_t)p<=UINTPTR_MAX-(n-1);}
++static bool overlap(const void *a,size_t an,const void *b,size_t bn)
++{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<an:x-y<bn;}
++static bool owner_valid(uint64_t pa)
++{return pa&&!(pa&(GGM_REGION_BYTES-1))&&pa<=UINT64_C(0xfff00000);}
++bool ggp_plan_valid(const struct ggp_plan *p)
++{
++    if(!span(p,sizeof(*p))||!owner_valid(p->owner_pa))return false;
++    for(unsigned i=0;i<GGP_COUNT;i++)if(memcmp(&p->region[i],&regions[i],sizeof(regions[i])))return false;
++    return true;
++}
++bool ggp_plan_build(const struct ggm_plan *gmu,struct ggp_plan *out)
++{
++    if(!span(gmu,sizeof(*gmu))||!span(out,sizeof(*out))||
++       overlap(gmu,sizeof(*gmu),out,sizeof(*out))||!ggm_plan_valid(gmu))return false;
++    /* A later expanded GMU layout must never silently overlap this tail. */
++    if(GGM_ARENA_END>GGP_TABLE_OFFSET||GGP_ARENA_END>GGM_REGION_BYTES)return false;
++    for(unsigned i=0;i<GGM_COUNT;i++)if(gmu->region[i].offset>GGP_TABLE_OFFSET||
++        gmu->region[i].reserved>GGP_TABLE_OFFSET-gmu->region[i].offset)return false;
++    struct ggp_plan p={0};p.owner_pa=gmu->owner_pa;memcpy(p.region,regions,sizeof(regions));
++    *out=p;return true;
++}
++static void put64(uint8_t *p,uint64_t v)
++{for(unsigned i=0;i<8;i++)p[i]=(uint8_t)(v>>(8*i));}
++bool ggp_emit_tables(const struct ggp_plan *p,unsigned ias,unsigned oas,
++    void *memory,size_t capacity,struct ggp_s1_config *out)
++{
++    unsigned ips;
++    switch(oas){case 32:ips=0;break;case 36:ips=1;break;case 40:ips=2;break;case 42:ips=3;break;case 44:ips=4;break;case 48:ips=5;break;default:return false;}
++    if(!ggp_plan_valid(p)||ias<32||ias>39||capacity<GGP_TABLE_BYTES||
++       !span(memory,GGP_TABLE_BYTES)||!span(out,sizeof(*out))||
++       overlap(memory,GGP_TABLE_BYTES,p,sizeof(*p))||overlap(out,sizeof(*out),p,sizeof(*p))||
++       overlap(memory,GGP_TABLE_BYTES,out,sizeof(*out)))return false;
++    uint64_t pa=p->owner_pa+GGP_TABLE_OFFSET;
++    struct ggp_s1_config cfg={pa,pa+0x3000,((uint64_t)ips<<32)|UINT64_C(0x802000)|(64-ias),0xf404ff44u,0xe4u,ias,oas};
++    uint8_t *dst=memory;memset(dst,0,GGP_TABLE_BYTES);
++    put64(dst+3*8,(pa+0x1000)|3);
++    put64(dst+0x1000+480*8,(pa+0x2000)|3);
++    for(unsigned r=0;r<GGP_COUNT;r++){
++        const struct ggp_region *m=&p->region[r];
++        uint64_t attr=UINT64_C(0xe03)|(m->privileged?0:0x40u)|(m->readonly?0x80u:0);
++        if(!m->executable)attr|=UINT64_C(3)<<53;
++        for(unsigned off=0;off<m->mapped;off+=0x1000){
++            unsigned index=((m->iova+off)>>12)&511;
++            put64(dst+0x2000+index*8,(p->owner_pa+m->offset+off)|attr);
++        }
++    }
++    *out=cfg;return true;
++}
++bool ggp_cp_init_build(const struct ggp_plan *p,struct ggp_cp_init *out)
++{
++    if(!ggp_plan_valid(p)||!span(out,sizeof(*out))||overlap(p,sizeof(*p),out,sizeof(*out)))return false;
++    /* Exact pinned cp_type7_packet(CP_ME_INIT,11), native _set_ordinals mask
++     * and11 payload words. A619 has no APRIV feature: RB is user RO NX. */
++    struct ggp_cp_init packet={{0x70c8000b,0x16f,3,0x20000000,0,0,0,2,0,0,0,0}};
++    packet.word[8]=p->region[GGP_REGLIST].iova;*out=packet;return true;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_memory.h
+@@ -0,0 +1,39 @@
++#ifndef GAUGUIN_GPU_MEMORY_H
++#define GAUGUIN_GPU_MEMORY_H
++#include "gauguin_gmu_memory.h"
++/* Native A619 GPU globals use a distinct SID0 context, not GMU SID4/5.
++ * CPU-only bring-up allocation inside the retained owner's unused tail.
++ * Native64-bit GPU global window is fc000000+20MiB; this private allocation
++ * uses only its first96KiB. CPU16KiB reservations and SMMU4KiB leaves differ.
++ * No ownership, DMA, map, cache, controller, secure stream or execution action.
++ */
++#define GGP_TABLE_OFFSET 0x9c000u
++#define GGP_TABLE_BYTES 0x4000u
++#define GGP_ARENA_END 0xb8000u
++#define GGP_GLOBAL_BASE 0xfc000000u
++#define GGP_SQE_BYTES 32300u
++#define GGP_CP_INIT_WORDS 12u
++enum ggp_region_id {GGP_SQE,GGP_RING,GGP_SCRATCH,GGP_REGLIST,GGP_COUNT};
++struct ggp_region {uint32_t offset,reserved,iova,bytes,mapped,privileged,readonly,executable;};
++struct ggp_plan {uint64_t owner_pa;struct ggp_region region[GGP_COUNT];};
++struct ggp_s1_config {uint64_t ttbr0,ttbr1,tcr;uint32_t mair0,mair1,ias,oas;};
++struct ggp_cp_init {uint32_t word[GGP_CP_INIT_WORDS];};
++/* Input is the already validated GMU layout so every retained region and its
++ * metadata/table reservations remain disjoint. Output is atomic on failure. */
++bool ggp_plan_build(const struct ggm_plan *,struct ggp_plan *);
++bool ggp_plan_valid(const struct ggp_plan *);
++/* Emit exactly16KiB of little-endian L1/L2/L3 plus empty TTBR1 root bytes.
++ * Exactly18 4KiB leaves: SQE8(user RO executable), RB8(user RO NX), scratch1
++ * and reglist1(privileged RW NX). Padding, GMU/metadata/table pages and all
++ * other VAs remain unmapped. Native NC/outer-shareable/AF/nG/AP/XN policy;
++ * no cacheable alias or software PTE metadata. Caller later supplies actual
++ * hardware IAS/OAS, same-boot NC ownership and GPU SID/bank authorization.
++ * All input/output ranges must be private ordinary RAM and nonoverlapping. */
++bool ggp_emit_tables(const struct ggp_plan *,unsigned ias,unsigned oas,
++    void *,size_t,struct ggp_s1_config *);
++/* Exact native CP_ME_INIT type7+11 ordinals bytes; reglist pointer comes from
++ * this plan. This does NOT populate the live powerup register list, verify
++ * SQE asset bytes, submit a ring or qualify GPU execution. Those hardware,
++ * firmware, security and ordering prerequisites remain the caller's duty. */
++bool ggp_cp_init_build(const struct ggp_plan *,struct ggp_cp_init *);
++#endif

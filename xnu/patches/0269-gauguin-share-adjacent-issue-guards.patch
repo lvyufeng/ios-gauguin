@@ -1,0 +1,43 @@
+diff --git a/bsd/dev/gauguin_gpu_runtime.c b/bsd/dev/gauguin_gpu_runtime.c
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -46,6 +46,11 @@
+ }
+ static bool alive(struct ggr_context *c)
+ {return alive_time(c)&&c->ops.healthy(c->ops.cookie);}
++
++/* The caller may already hold the full check from the immediately preceding
++ * effect. Recheck the operation deadline even at that shared boundary. */
++static bool before_issue_effect(struct ggr_context *c,bool shared)
++{return shared?alive_time(c):alive(c);}
+ static bool rd(struct ggr_context *c,uint32_t r,uint32_t *v)
+ {return alive(c)&&c->ops.read_reg(c->ops.cookie,r,v)&&alive(c);}
+ static bool wr(struct ggr_context *c,uint32_t r,uint32_t v)
+@@ -162,16 +167,23 @@
+         if(!wr(c,0x1f8c3,1)||!wr(c,0x807,end))goto io;
+     }
+     c->submitted=next;
+-    /* Native fence-off path: protocol WPTR reissues, not command replays. */
++    /* The doorbell above ends in a full live check. The asynchronous span
++     * path shares adjacent full checks during acknowledgement as well:
++     * after status / before delay or disable, and after delay / before a
++     * WPTR reissue. Each reissue ends in a full check for the next poll.
++     * The register sequence, deadlines, and failure path stay the same. */
++    const bool share_ack_guards=share_span_guards&&c->ops.ring_span;
+     uint32_t i;
+     for(i=0;i<200;i++) {
+         uint32_t status;
+-        if(!alive(c)||!deadline_barrier(c)||!poll_rd(c,0x23b13,&status)||!alive(c))goto io;
++        if(!before_issue_effect(c,share_ack_guards)||!deadline_barrier(c)||
++           !poll_rd(c,0x23b13,&status)||!alive(c))goto io;
+         if(!(status&1u))break;
+-        if(!delay(c)||!wr(c,0x807,end))goto io;
++        if(!before_issue_effect(c,share_ack_guards)||!c->ops.delay_us(c->ops.cookie,10)||!alive(c)||
++           !before_issue_effect(c,share_ack_guards)||!c->ops.write_reg(c->ops.cookie,0x807,end)||!alive(c))goto io;
+     }
+     if(i==200)goto timeout;
+-    if(!wr(c,0x1f8c3,0))goto io;
++    if(!before_issue_effect(c,share_ack_guards)||!c->ops.write_reg(c->ops.cookie,0x1f8c3,0)||!alive(c))goto io;
+     c->pending_wptr=end;
+     c->pending_deadline_ns=c->operation_end_ns;
+     *fence=next;

@@ -1,0 +1,130 @@
+diff --git a/src/render.cpp b/src/render.cpp
+--- a/src/render.cpp
++++ b/src/render.cpp
+@@ -742,24 +742,22 @@
+ // below it may be one no ldc reads (QuartzCore's path_blit_vert_lph reads 1 and 2 and leaves 0 unbound), and an
+ // unbound one there gets a descriptor of size 0, which the ldc's bound check turns into zeros, rather than whatever
+ // the block held.
+-bool uboDescriptors(const Stage& s, const Bindings& b, uint64_t program, std::vector<uint32_t>* out, std::string* why) {
+-    auto name = [&s]() { return std::string(stageName(s)); };   // (built only for a refusal: a string a draw is an allocation a draw)
+-    out->clear();
++bool uboDescriptors(const Stage& s, const Bindings& b, uint64_t program, uint32_t* out, std::string* why) {
++    auto name = [&s]() { return std::string(stageName(s)); };
++    // checkStage bounds numUbos before either stage reaches this packing path.
+     for (uint32_t u = 0; u < s.k.numUbos; u++) {
++        uint32_t* const descriptor = out + 2 * u;
+         if (s.k.constantDataUbo != 0 && u == s.k.constantDataUbo - 1) {
+             // the constant data, where the program's words were uploaded (they carry it at constantDataOffset)
+-            uint32_t d[2];
+-            uboDescriptor(program + s.k.constantDataOffset, (s.k.constantDataSize + 15) / 16, d);
+-            out->push_back(d[0]);
+-            out->push_back(d[1]);
++            uboDescriptor(program + s.k.constantDataOffset, (s.k.constantDataSize + 15) / 16, descriptor);
+             continue;
+         }
+         if (u >= b.buffers.size() || b.buffers[u].buffer == nullptr) {
+             if (u + 1 == s.k.numUbos) {
+                 return refuse(why, name() + ": no buffer bound at index " + n(u) + " (a constant buffer it indexes)");
+             }
+-            out->push_back(0);
+-            out->push_back(0);
++            descriptor[0] = 0;
++            descriptor[1] = 0;
+             continue;
+         }
+         const Binding& x = b.buffers[u];
+@@ -769,10 +767,7 @@
+             return refuse(why, name() + ": buffer " + n(u) + ": offset " + n(x.offset) + " is not a multiple of 4 inside it");
+         }
+         const uint64_t vec4s = (x.buffer->length() - x.offset + 15) / 16;
+-        uint32_t d[2];
+-        uboDescriptor(x.buffer->gpuAddress() + x.offset, uint32_t(std::min<uint64_t>(vec4s, kUboMaxVec4)), d);
+-        out->push_back(d[0]);
+-        out->push_back(d[1]);
++        uboDescriptor(x.buffer->gpuAddress() + x.offset, uint32_t(std::min<uint64_t>(vec4s, kUboMaxVec4)), descriptor);
+     }
+     return true;
+ }
+@@ -1404,8 +1399,8 @@
+     if (!stageTextures(vs, vsBindings, pass, &vsTex, why, gmem) || !stageTextures(fs, fsBindings, pass, &fsTex, why, gmem)) {
+         return false;
+     }
+-    std::vector<uint32_t> vsUbos, fsUbos;
+-    if (!uboDescriptors(vs, vsBindings, vsProgram, &vsUbos, why) || !uboDescriptors(fs, fsBindings, fsProgram, &fsUbos, why)) {
++    uint32_t vsUbos[2 * kMaxVertexBuffers], fsUbos[2 * kMaxVertexBuffers];
++    if (!uboDescriptors(vs, vsBindings, vsProgram, vsUbos, why) || !uboDescriptors(fs, fsBindings, fsProgram, fsUbos, why)) {
+         return false;
+     }
+     GfxIbos ibos;
+@@ -1727,7 +1722,7 @@
+     // (ST6_CONSTANTS, direct, at immediatesOffsetVec4)
+     // ... then the pushed constant ranges, indirect, as compute uploads them (fd6_emit_user_consts / tu6_emit_xs's ranges,
+     // tu_shader.cc:1397-1421) into the stage's own block
+-    auto programOf = [&](const Stage& s, const Bindings& b, const std::vector<PushedRange>& ranges, const std::vector<uint32_t>& ubos, uint64_t address,
++    auto programOf = [&](const Stage& s, const Bindings& b, const std::vector<PushedRange>& ranges, const uint32_t* ubos, uint64_t address,
+                          uint32_t ctrlReg0, uint32_t regCtrl0, uint32_t regInstrlen, uint32_t regObjFirstExec, uint32_t regHwStackOffset) {
+         reg(stream, regCtrl0, ctrlReg0);
+         reg(stream, regInstrlen, s.k.instrlen);
+@@ -1760,8 +1755,8 @@
+         }
+         // the UBO descriptors from the packet, before the constants in Gallium's order (fd6_emit_user_consts :332-337;
+         // the two loads do not overlap, so the order is the witness's and nothing more)
+-        if (!ubos.empty()) {
+-            loadDirect(stream, s, ST6_UBO, 0, uint32_t(ubos.size() / 2), ubos.data(), uint32_t(ubos.size()));
++        if (s.k.numUbos != 0) {
++            loadDirect(stream, s, ST6_UBO, 0, s.k.numUbos, ubos, 2 * s.k.numUbos);
+         }
+     };
+     if (o.programVs) {
+@@ -2721,25 +2716,34 @@
+     using namespace a6xx;
+     const std::vector<uint32_t>& w = from.words();
+     to.nop();
++    // Move consecutive unchanged packets in one copy, stopping before any
++    // register packet whose payload has been shortened or omitted.
++    size_t copyAt = 0;
+     for (size_t i = 0; i < w.size();) {
+         pm4::Header h = pm4::decode(w[i]);
+         if (h.kind == pm4::Header::kRegisters) {
+             uint32_t runStart = 0, runLen = 0;
++            bool shortened = false;
+             for (uint32_t k = 0; k < h.count; k++) {
+                 const uint32_t reg = h.reg + k, value = w[i + 1 + k];
+                 const bool same = regs.hold(reg, value) && reg != REG_A6XX_HLSQ_INVALIDATE_CMD;
+                 if (!same) {
+                     if (runLen == 0) runStart = k;
+                     runLen++;
+-                } else if (runLen != 0) {
++                    continue;
++                }
++                if (!shortened) {
++                    if (copyAt < i) to.appendEncoded(from, copyAt, i - copyAt);
++                    shortened = true;
++                }
++                if (runLen != 0) {
+                     to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
+                     runLen = 0;
+                 }
+             }
+-            if (runLen == h.count) {
+-                to.appendEncoded(from, i, 1 + h.count);
+-            } else if (runLen != 0) {
+-                to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
++            if (shortened) {
++                if (runLen != 0) to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
++                copyAt = i + 1 + h.count;
+             }
+         } else {
+             switch (h.opcode) {
+@@ -2753,10 +2757,10 @@
+                 forgot = true;
+                 break;
+             }
+-            to.appendEncoded(from, i, 1 + h.count);
+         }
+         i += 1 + h.count;
+     }
++    if (copyAt < w.size()) to.appendEncoded(from, copyAt, w.size() - copyAt);
+     return forgot;
+ }
+ 

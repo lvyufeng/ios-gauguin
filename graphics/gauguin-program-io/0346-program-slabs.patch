@@ -1,0 +1,193 @@
+diff --git a/include/hakios-metal/command.hpp b/include/hakios-metal/command.hpp
+--- a/include/hakios-metal/command.hpp
++++ b/include/hakios-metal/command.hpp
+@@ -332,7 +332,7 @@
+     // once a draw, was 7-10 us of a draw's 50 on the phone, and CoreAnimation's uber shader is 31 000 words. (The copy
+     // compared is a CPU one: reading the piece back is uncached memory.)
+     struct Uploaded {
+-        std::vector<uint32_t> words;
++        std::shared_ptr<const std::vector<uint32_t>> words;
+         uint64_t gpuAddress;
+     };
+     // the GPU address of K's words in this buffer, uploading them when they are not there; 0 with *WHY when out of memory
+@@ -439,9 +439,17 @@
+     std::mutex poolLock_;
+     std::unordered_map<uint64_t, std::vector<std::shared_ptr<Buffer>>> freeBuffers_;   // by size: giveSlabs', giveBuffer's
+     uint64_t freeBytes_ = 0;
+-    struct Resident { std::vector<uint32_t> words; std::shared_ptr<Buffer> buffer; };
++    struct Resident {
++        std::shared_ptr<const std::vector<uint32_t>> words;
++        std::shared_ptr<Buffer> buffer;
++        uint64_t offset = 0;
++    };
++    __attribute__((visibility("hidden")))
++    Resident programStorage(const Kernel& k, std::string* why, bool allowSlab);
+     std::unordered_multimap<const uint32_t*, Resident> resident_;   // (under lock_) programBuffer's
+     uint64_t residentBytes_ = 0;
++    std::shared_ptr<Buffer> programSlab_;
++    uint64_t programSlabUsed_ = 0;
+     std::atomic<bool> vscOverflowed_{false};
+     std::vector<std::shared_ptr<Buffer>> private_[2];   // (under lock_) privateMemory's, by layout, the last the current one
+     uint32_t privatePerFiber_[2] = {0, 0};
+diff --git a/src/Allocation342.hpp b/src/Allocation342.hpp
+--- a/src/Allocation342.hpp
++++ b/src/Allocation342.hpp
+@@ -7,7 +7,7 @@
+ namespace gauguin342 {
+ struct NewBoData {
+     std::array<uint64_t,6> wall{},cpu{},envelope{};
+-    uint64_t calls=0,ok=0,failed=0,queries=0,queryWall=0,flags=0;
++    uint64_t calls=0,ok=0,failed=0,queries=0,queryWall=0,flags=0,slabReuses=0;
+     uint64_t maxJob=0,maxTid=0,maxHandle=0,maxBytes=0;
+     gauguin342phase::Data<6> maximum;
+ };
+diff --git a/src/Recording342.hpp b/src/Recording342.hpp
+--- a/src/Recording342.hpp
++++ b/src/Recording342.hpp
+@@ -235,7 +235,8 @@
+     line.values("newbo_max",std::array<uint64_t,10>{nbo.maxJob,nbo.maxTid,nbo.maxHandle,nbo.maxBytes,maximum.first,maximum.last,maximum.mask,maximum.queries,maximum.queryWall,maximum.flags});
+     auto rawArray=[&](const char* name,const uint64_t(&v)[6]) noexcept {std::array<uint64_t,6> a{};for(unsigned i=0;i<6;i++)a[i]=v[i];line.values(name,a);};
+     rawArray("newbo_begin",maximum.begin);rawArray("newbo_end",maximum.end);rawArray("newbo_max_cpu",maximum.cpu);rawArray("newbo_max_envelope",maximum.envelope);
+-    line.add(" io_identity_flags=%u newbo_flags=%llu\n",g.identityFlags,u(nbo.flags));
++    line.add(" io_identity_flags=%u newbo_flags=%llu program_slab_reuses=%llu\n",
++        g.identityFlags,u(nbo.flags),u(nbo.slabReuses));
+ 
+     if (!line.valid) {std::fputs("GAUGUIN CR342: formatting=failed coverage=incomplete\n",stderr);return;}
+     std::fputs(line.bytes,stderr);
+diff --git a/src/command.cpp b/src/command.cpp
+--- a/src/command.cpp
++++ b/src/command.cpp
+@@ -124,13 +124,13 @@
+ uint64_t CommandBuffer::programAddress(const Kernel& k, std::string* why) {
+     auto* detail342=gauguin342::programData();
+     gauguin342::TimeProbe<4> address342(detail342?&detail342->address:nullptr);
+-    const uint32_t n = std::max<uint32_t>(k.numWords, 1);
+     auto same = [&](const Uploaded& u) {
+-        if (u.words.size() != k.numWords) return false;
++        const auto& words = *u.words;
++        if (words.size() != k.numWords) return false;
+         for (uint32_t i = 0; i < k.numWords; i += 64) {
+-            if (u.words[i] != k.words[i]) return false;
+-        }
+-        return k.numWords == 0 || u.words.back() == k.words[k.numWords - 1];
++            if (words[i] != k.words[i]) return false;
++        }
++        return k.numWords == 0 || words.back() == k.words[k.numWords - 1];
+     };
+     const auto [first, last] = uploaded_.equal_range(k.words);
+     for (auto it = first; it != last; ++it) {
+@@ -141,17 +141,19 @@
+     }
+     gauguin342::programCount(detail342,1);
+     address342.phase(1);
+-    (void)n;
+-    std::shared_ptr<Buffer> b = queue_.programBuffer(k, why);
+-    if (b == nullptr) return 0;
++    auto resident = queue_.programStorage(k, why, true);
++    if (!resident.buffer) return 0;
++    const uint64_t address = resident.buffer->gpuAddress() + resident.offset;
+     address342.phase(2);
+-    use(*b, false);
+-    keep(b);
++    use(*resident.buffer, false);
++    keep(std::move(resident.buffer));
+     address342.phase(3);
+-    uploaded_.emplace(k.words, Uploaded{std::vector<uint32_t>(k.words, k.words + k.numWords), b->gpuAddress()});
+-    gauguin342::programCount(detail342,11,4ull*k.numWords);
++    // Keep the same immutable CPU snapshot across command buffers. The
++    // retained BO above owns the GPU bytes even if the resident entry goes.
++    uploaded_.emplace(k.words, Uploaded{std::move(resident.words), address});
++    gauguin342::programCount(detail342,11,4ull*k.numWords); // logical bytes held by this command buffer
+     address342.complete();
+-    return b->gpuAddress();
++    return address;
+ }
+ 
+ namespace {
+@@ -210,18 +212,28 @@
+ }
+ 
+ std::shared_ptr<Buffer> CommandQueue::programBuffer(const Kernel& k, std::string* why) {
++    return programStorage(k, why, false).buffer;
++}
++
++CommandQueue::Resident CommandQueue::programStorage(const Kernel& k, std::string* why, bool allowSlab) {
+     auto* detail342=gauguin342::programData();
+     gauguin342::TimeProbe<5> resident342(detail342?&detail342->resident:nullptr);
+     std::lock_guard<std::mutex> g(lock_);
+     resident342.phase(1);
++    const uint64_t bytes = 4ull * std::max<uint32_t>(k.numWords, 1);
++    const uint64_t codeBytes = 4ull * k.numWords;
+     const auto [first, last] = resident_.equal_range(k.words);
+     for (auto it = first; it != last;) {
+         gauguin342::programCount(detail342,5);
+         const Resident& r = it->second;
+-        if (r.words.size() == k.numWords && std::memcmp(r.words.data(), k.words, 4ull * k.numWords) == 0) {
+-            gauguin342::programCount(detail342,3);resident342.skip();return r.buffer;
+-        }
+-        residentBytes_ -= 4ull * r.words.size();
++        if (r.words->size() == k.numWords && (!codeBytes || std::memcmp(r.words->data(), k.words, codeBytes) == 0)) {
++            if (allowSlab || (r.offset == 0 && r.buffer->length() == bytes)) {
++                gauguin342::programCount(detail342,3);resident342.skip();return r;
++            }
++            ++it;
++            continue;
++        }
++        residentBytes_ -= 4ull * std::max<size_t>(r.words->size(), 1);
+         it = resident_.erase(it);   // (the pointer's words have changed: a freed program's)
+     }
+     gauguin342::programCount(detail342,4);
+@@ -229,18 +241,46 @@
+     if (residentBytes_ > (64ull << 20)) {
+         resident_.clear();
+         residentBytes_ = 0;
++        programSlab_.reset();
+     }
+     resident342.phase(2);
+     gauguin342::ProgramAllocationScope allocation342(detail342?&detail342->newBo:nullptr);
+-    std::shared_ptr<Buffer> b = newBuffer(gpu_, 4ull * std::max<uint32_t>(k.numWords, 1), why);
+-    if (b == nullptr || b->contents() == nullptr) return nullptr;
++    Resident result;
++    if (allowSlab && bytes <= kSlabBytes / 2) {
++        const uint64_t extent = (bytes + kPieceAlign - 1) & ~(kPieceAlign - 1);
++        const bool reuse = programSlab_ && extent <= kSlabBytes - programSlabUsed_;
++        if (!reuse) {
++            std::string slabError;
++            auto slab = newBuffer(gpu_, kSlabBytes, &slabError);
++            if (slab && slab->contents()) {
++                programSlab_ = std::move(slab);
++                programSlabUsed_ = 0;
++            }
++        }
++        if (programSlab_ && extent <= kSlabBytes - programSlabUsed_) {
++            // Append only. Recorded and in-flight work keeps entire BOs.
++            // Eviction never recycles a range that can still be read.
++            result.buffer = programSlab_;
++            result.offset = programSlabUsed_;
++            programSlabUsed_ += extent;
++            if (reuse && detail342 && !gauguin342phase::add(detail342->newBo.slabReuses, 1))
++                detail342->newBo.flags |= gauguin342phase::overflow;
++        }
++    }
++    if (!result.buffer) result.buffer = newBuffer(gpu_, bytes, why);
++    if (!result.buffer || !result.buffer->contents()) return {};
+     resident342.phase(3);
+-    memcpy(b->contents(), k.words, 4ull * k.numWords);
+-    resident_.emplace(k.words, Resident{std::vector<uint32_t>(k.words, k.words + k.numWords), b});
+-    residentBytes_ += 4ull * k.numWords;
+-    gauguin342::programCount(detail342,12,4ull*k.numWords);
++    auto words = std::make_shared<std::vector<uint32_t>>();
++    if (codeBytes) {
++        words->assign(k.words, k.words + k.numWords);
++        memcpy(static_cast<char*>(result.buffer->contents()) + result.offset, words->data(), codeBytes);
++    }
++    result.words = std::move(words);
++    resident_.emplace(k.words, result);
++    residentBytes_ += bytes;
++    gauguin342::programCount(detail342,12,codeBytes);
+     resident342.phase(4);resident342.complete();
+-    return b;
++    return result;
+ }
+ 
+ namespace {

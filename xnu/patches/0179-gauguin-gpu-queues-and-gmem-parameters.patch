@@ -1,0 +1,169 @@
+diff --git a/bsd/dev/gauguin_gpu_core.c b/bsd/dev/gauguin_gpu_core.c
+--- a/bsd/dev/gauguin_gpu_core.c
++++ b/bsd/dev/gauguin_gpu_core.c
+@@ -326,6 +326,22 @@
+ size_t ggc_register_page_count(void){return COUNT(pages);}
+ bool ggc_register_page(size_t n,uint32_t *out)
+ {if(n>=COUNT(pages)||!out)return false;*out=pages[n];return true;}
++bool ggc_gmem_layout(uint64_t *base,uint64_t *size)
++{
++    if(!base||!size||base==size)return false;
++    uint32_t words[4]={0},seen=0;
++    for(size_t i=0;i<COUNT(config);i++) {
++        if(config[i].reg<0xe0bu||config[i].reg>0xe0eu)continue;
++        unsigned at=config[i].reg-0xe0bu;
++        if(config[i].mask||(seen&(1u<<at)))return false;
++        seen|=1u<<at;words[at]=config[i].value;
++    }
++    uint64_t first=((uint64_t)words[1]<<32)|words[0];
++    uint64_t last=((uint64_t)words[3]<<32)|words[2];
++    if(seen!=15||last<first||last==UINT64_MAX||
++       (first&4095)||((last+1)&4095))return false;
++    *base=first;*size=last-first+1;return true;
++}
+ #define TRY(x) do{rc=(x);if(rc)goto done;}while(0)
+ enum ggc_result ggc_core_once(struct ggc_context *c,const struct ggc_ops *ops,
+     const struct ggp_plan *plan,const struct ggs_receipt *gpu,struct ggc_receipt *out)
+diff --git a/bsd/dev/gauguin_gpu_core.h b/bsd/dev/gauguin_gpu_core.h
+--- a/bsd/dev/gauguin_gpu_core.h
++++ b/bsd/dev/gauguin_gpu_core.h
+@@ -54,4 +54,8 @@
+ bool ggc_register_allowed(uint32_t,bool);
+ size_t ggc_register_page_count(void);
+ bool ggc_register_page(size_t,uint32_t *);
++/* The UCHE GMEM aperture programmed by this driver's native config table.
++ * These are configured GPU addresses, not a new live MMIO measurement. The
++ * runtime parameter path must separately require the completed READY owner. */
++bool ggc_gmem_layout(uint64_t *,uint64_t *);
+ #endif
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3957,9 +3957,13 @@
+ bool sweet_gpu_runtime_parameter(uint32_t p,uint64_t *v)
+ {
+     if(!v||!sweet_gpu_runtime_ready())return false;
++    if(p==2||p==6) {
++        uint64_t base,size;
++        if(!ggc_gmem_layout(&base,&size))return false;
++        *v=p==2?size:base;return true;
++    }
+     switch(p) {
+     case 1:*v=619;return true;
+-    case 2:*v=512*1024;return true;
+     /* Real recovery DT qcom,chipid=06010900; native A619 descriptor has
+      * core6/major1/minor9 and GMEM512KiB. No copied 642L bank/UBWC values. */
+     case 3:*v=0x06010900;return true;
+diff --git a/bsd/dev/gauguin_gpu_runtime.h b/bsd/dev/gauguin_gpu_runtime.h
+--- a/bsd/dev/gauguin_gpu_runtime.h
++++ b/bsd/dev/gauguin_gpu_runtime.h
+@@ -11,6 +11,7 @@
+ #define GGR_VA_END   UINT64_C(0x80000000)
+ #define GGR_MAX_COMMANDS 128u
+ #define GGR_MAX_BUFFERS 256u
++#define GGR_MAX_QUEUES 32u
+ #define GGR_MAX_BO_BYTES (64u << 20)
+ #define GGR_MAX_CLIENT_BYTES (256u << 20)
+ #define GGR_BO_READONLY 2u
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -100,14 +100,19 @@
+     uint32_t handle,flags;
+     bool installed;
+ };
++/* Queue-local sequential fences map to the one synchronous hardware ring.
++ * Every visible number denotes a completed submit on this exact live queue. */
++struct gpu_queue {uint32_t id,completed;};
+ class GauguinGPUUserClient : public IOUserClient {
+     OSDeclareDefaultStructors(GauguinGPUUserClient);
+     task_t fTask;
+     gpu_buffer *fBuffers;
+     uint64_t fBytes;
+-    uint32_t fNextHandle,fQueue,fNextQueue,fLastFence;
++    uint32_t fNextHandle,fNextQueue,fNativeFence;
++    gpu_queue fDefaultQueue,fQueues[GGR_MAX_QUEUES];
+     bool fClosed;
+     gpu_buffer *find(uint32_t);
++    gpu_queue *queue(uint32_t);
+     IOReturn add(IOMemoryDescriptor *,SweetSurface *,uint64_t,uint32_t,uint32_t *);
+     bool drop(gpu_buffer *);
+     IOReturn submit(struct ggr_submit *);
+@@ -205,6 +210,17 @@
+     for(uint32_t i=0;i<GGR_MAX_BUFFERS;i++)if(fBuffers[i].memory&&fBuffers[i].handle==handle)return fBuffers+i;
+     return nullptr;
+ }
++gpu_queue *GauguinGPUUserClient::queue(uint32_t id)
++{
++    if(id){for(auto &q:fQueues)if(q.id==id)return &q;return nullptr;}
++    /* Preserve legacy default/single-queue clients. Once there are multiple
++     * explicit queues, zero cannot guess a fence's namespace. A used default
++     * queue retains its own identity rather than aliasing a later new queue. */
++    if(fDefaultQueue.completed)return &fDefaultQueue;
++    gpu_queue *only=nullptr;
++    for(auto &q:fQueues)if(q.id){if(only)return nullptr;only=&q;}
++    return only?only:&fDefaultQueue;
++}
+ IOReturn GauguinGPUUserClient::add(IOMemoryDescriptor *m,SweetSurface *s,uint64_t size,uint32_t flags,uint32_t *handle)
+ {
+     if(!size||(size&PAGE_MASK)||size>GGR_MAX_BO_BYTES||size>GGR_MAX_CLIENT_BYTES-fBytes||!fNextHandle)
+@@ -306,9 +322,10 @@
+ 
+ IOReturn GauguinGPUUserClient::submit(struct ggr_submit *r)
+ {
++    gpu_queue *q=queue(r->queueid);
+     if((r->flags&~UINT32_C(0x80000010))||(r->flags&0x1f)!=0x10||r->fence||
+        !r->nr_bos||r->nr_bos>GGR_MAX_BUFFERS||!r->nr_cmds||r->nr_cmds>GGR_MAX_COMMANDS||
+-       (r->queueid&&r->queueid!=fQueue)||r->in_syncobjs||r->out_syncobjs||r->nr_in_syncobjs||
++       !q||q->completed==UINT32_MAX||r->in_syncobjs||r->out_syncobjs||r->nr_in_syncobjs||
+        r->nr_out_syncobjs||r->syncobj_stride||r->pad||r->fence_fd!=-1||
+        !ggr_user_span(r->bos,(uint64_t)r->nr_bos*sizeof(struct ggr_submit_bo))||
+        !ggr_user_span(r->cmds,(uint64_t)r->nr_cmds*sizeof(struct ggr_submit_cmd)))return kIOReturnBadArgument;
+@@ -352,6 +369,7 @@
+         }
+         memoryBarrier();uint32_t fence=0;
+         bool ok=sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
++        if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;}
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+             gpu_buffer *b=find(bos[i].handle);
+             if(b->surface) {
+@@ -360,7 +378,7 @@
+             }
+         }
+         memoryBarrier();
+-        if(ok){r->fence=fence;fLastFence=fence;result=kIOReturnSuccess;}
++        if(ok){fNativeFence=fence;r->fence=++q->completed;result=kIOReturnSuccess;}
+         else result=kIOReturnTimeout;
+     }
+ out:
+@@ -414,16 +432,24 @@
+     case 0x45:if(find(r.fini.handle)){memoryBarrier();result=kIOReturnSuccess;}break;
+     case 0x46:result=submit(&r.submit);break;
+     case 0x47:
+-        if(r.wait.fence&&r.wait.fence<=fLastFence&&!r.wait.flags&&ggr_timeout_valid(&r.wait.timeout)&&
+-           (!r.wait.queueid||r.wait.queueid==fQueue))result=sweet_gpu_runtime_done(r.wait.fence)?kIOReturnSuccess:kIOReturnTimeout;
++        if(r.wait.fence&&!r.wait.flags&&ggr_timeout_valid(&r.wait.timeout)) {
++            gpu_queue *q=queue(r.wait.queueid);
++            if(q&&r.wait.fence<=q->completed)result=kIOReturnSuccess;
++        }
+         break;
+     case 0x48:
+         if(find(r.madvise.handle)&&r.madvise.madv<=1){r.madvise.retained=1;result=kIOReturnSuccess;}break;
+     case 0x4a:
+-        if(!fQueue&&!r.queue.flags&&!r.queue.prio&&!r.queue.id&&fNextQueue) {
+-            fQueue=fNextQueue++;r.queue.id=fQueue;result=kIOReturnSuccess;
+-        }break;
+-    case 0x4b:if(fQueue&&r.queueId==fQueue){fQueue=0;result=kIOReturnSuccess;}break;
++        if(r.queue.flags||r.queue.prio||r.queue.id)break;
++        result=kIOReturnNoResources;
++        if(fNextQueue) {
++            for(auto &q:fQueues)if(!q.id) {
++                q={fNextQueue++,0};r.queue.id=q.id;result=kIOReturnSuccess;break;
++            }
++        }
++        break;
++    case 0x4b:
++        if(r.queueId){gpu_queue *q=queue(r.queueId);if(q){*q={0,0};result=kIOReturnSuccess;}}break;
+     case 0x4c:result=kIOReturnUnsupported;break;
+     case 0x7e:result=surface(&r.surface);break;
+     default:result=kIOReturnUnsupported;break;

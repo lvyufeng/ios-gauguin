@@ -1,0 +1,318 @@
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -63,6 +63,122 @@
+ #include <machine/pal_routines.h>
+ #include <machine/atomic.h>
+ 
++#if defined(GAUGUIN)
++#include <mach/mach_time.h>
++#include <pexpert/pexpert.h>
++#include "../dev/gauguin_frame374_wire.h"
++
++void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
++void sweet_ca374_drain(void);
++extern void sweet_log_append(const char *, int);
++
++#define F374_CLOSED (UINT32_C(1) << 31)
++static uint32_t f374_gate = F374_CLOSED, f374_count;
++static bool f374_configured, f374_exported;
++static uint64_t f374_receiver, f374_start, f374_end;
++static struct f374_event f374_events[F374_EVENT_CAP];
++static uint64_t f374_threads[F372_THREAD_CAP];
++
++void
++sweet_ca374_arm(uint64_t receiver, uint64_t start, uint64_t end)
++{
++	if (!f374_configured || !(kdebug_enable & KDEBUG_ENABLE_TRACE) ||
++	    !kdebug_debugid_explicitly_enabled(0x31ca002c) || !receiver ||
++	    !start || end <= start || end - start > UINT32_MAX || f374_start) {
++		return;
++	}
++	f374_receiver = receiver;
++	f374_start = start;
++	f374_end = end;
++	__atomic_store_n(&f374_gate, 0, __ATOMIC_RELEASE);
++}
++
++/* Mirror only the selected existing userspace trace events during F344. */
++static void
++f374_observe(struct proc *p, const struct kdebug_trace64_args *uap)
++{
++	const unsigned kind = f374_kind(uap->code);
++	if (!kind) return;
++	uint32_t gate = __atomic_load_n(&f374_gate, __ATOMIC_ACQUIRE);
++	while (!(gate & F374_CLOSED)) {
++		if (__atomic_compare_exchange_n(&f374_gate, &gate, gate + 1, true,
++		    __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE)) {
++			break;
++		}
++	}
++	if (gate & F374_CLOSED) return;
++	const uint64_t tick = mach_absolute_time();
++	if (tick >= f374_start && tick < f374_end) {
++		const audit_token_t *token = task_get_audit_token(proc_task(p));
++		const uint64_t receiver = ((uint64_t)token->val[7] << 32) | token->val[5];
++		if (receiver == f374_receiver) {
++			const uint32_t index = __atomic_fetch_add(&f374_count, 1, __ATOMIC_RELAXED);
++			if (index < F374_EVENT_CAP) {
++				f374_events[index] = (struct f374_event){tick,
++				    thread_tid(current_thread()), uap->arg1, uap->arg2,
++				    uap->arg3, uap->arg4, kind};
++			}
++		}
++	}
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++static void
++f374_block(unsigned ordinal, unsigned count, const uint8_t *packed, unsigned used)
++{
++	char encoded[4 * ((F374_BLOCK * F374_MAX_ROW + 2) / 3) + 1];
++	char line[sizeof(encoded) + 64];
++	f372_base64(packed, used, encoded);
++	const int length = snprintf(line, sizeof(line), "\nSWEET F374 B %u %u %s\n",
++	    ordinal, count, encoded);
++	if (length > 0 && (size_t)length < sizeof(line)) sweet_log_append(line, length);
++}
++
++void
++sweet_ca374_drain(void)
++{
++	if (f374_exported) return;
++	if (!f374_start) {
++		f374_exported = true;
++		printf("SWEET F374: unavailable active=%u\n", (unsigned)f374_configured);
++		return;
++	}
++	__atomic_fetch_or(&f374_gate, F374_CLOSED, __ATOMIC_ACQ_REL);
++	if (__atomic_load_n(&f374_gate, __ATOMIC_ACQUIRE) != F374_CLOSED) return;
++	f374_exported = true;
++	const unsigned captured = __atomic_load_n(&f374_count, __ATOMIC_RELAXED);
++	const bool live = (kdebug_enable & KDEBUG_ENABLE_TRACE) &&
++	    kdebug_debugid_explicitly_enabled(0x31ca002c);
++	printf("SWEET F374 H: version=1 active=%u start=%llu end=%llu captured=%u\n",
++	    (unsigned)live, (unsigned long long)f374_start, (unsigned long long)f374_end, captured);
++	unsigned threads = 0, total = 0, emitted = 0, used = 0, count = 0;
++	uint8_t packed[F374_BLOCK * F374_MAX_ROW];
++	for (unsigned index = 0; index < captured && index < F374_EVENT_CAP; ++index) {
++		const struct f374_event *event = &f374_events[index];
++		unsigned thread = 0;
++		while (thread < threads && f374_threads[thread] != event->thread) ++thread;
++		if (thread == F372_THREAD_CAP) break;
++		const unsigned size = f374_pack(packed + used, f374_start, f374_end, event, (uint8_t)thread);
++		if (!size || total + size > F374_WIRE_CAP) break;
++		if (thread == threads) {
++			f374_threads[threads++] = event->thread;
++			printf("SWEET F374 T %u %llx\n", thread, (unsigned long long)event->thread);
++		}
++		total += size;
++		used += size;
++		++count;
++		++emitted;
++		if (count == F374_BLOCK) {
++			f374_block(emitted - count, count, packed, used);
++			count = used = 0;
++		}
++	}
++	if (count) f374_block(emitted - count, count, packed, used);
++	printf("SWEET F374 F: rows=%u threads=%u bytes=%u lost=%u\n",
++	    emitted, threads, total, captured - emitted);
++}
++#endif
++
+ 
+ extern unsigned int wake_nkdbufs;
+ extern unsigned int trace_wrap;
+@@ -1010,6 +1126,9 @@
+ 	if (_kernel_only_event(uap->code)) {
+ 		return EPERM;
+ 	}
++#if defined(GAUGUIN)
++	f374_observe(p, uap);
++#endif
+ 	kernel_debug_internal(uap->code, (uintptr_t)uap->arg1,
+ 	    (uintptr_t)uap->arg2, (uintptr_t)uap->arg3, (uintptr_t)uap->arg4,
+ 	    (uintptr_t)thread_tid(current_thread()), 0);
+@@ -2739,6 +2858,19 @@
+ 	    _deferred_coproc_notify, THREAD_CALL_PRIORITY_KERNEL,
+ 	    MPSC_DAEMON_INIT_NONE);
+ 
++#if defined(GAUGUIN)
++	static char ca_filter[] = "S0x31ca";
++	unsigned int stats = 0, swipe = 0, hz = 0;
++	if (!n_events &&
++	    PE_parse_boot_argn("sweetfb_stats", &stats, sizeof(stats)) && stats == 9 &&
++	    PE_parse_boot_argn("swp", &swipe, sizeof(swipe)) && swipe == 4 &&
++	    PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz)) && hz == 60) {
++		n_events = 8192;
++		filter_desc = ca_filter;
++		opts |= KDOPT_WRAPPING;
++		f374_configured = true;
++	}
++#endif
+ 	kdebug_trace_start(n_events, filter_desc, opts);
+ }
+ 
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -37,6 +37,8 @@
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+ extern void sweet_log_append(const char *, int);
++extern void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
++extern void sweet_ca374_drain(void);
+ extern task_t proc_task(proc_t);
+ 
+ /* Lagoon entry points from the board's live DT and Xiaomi gauguin-r-oss
+@@ -730,31 +732,24 @@
+             SCAN358_PROBE_FIRST_LINE, SCAN358_PROBE_LIMIT);
+ }
+ 
+-struct frame371_processes {
+-    uint64_t source, receiver;
+-    unsigned sources, receivers;
++struct frame374_receiver {
++    uint64_t identity;
++    unsigned count;
+ };
+ 
+-static int frame371_find_process(proc_t process, void *argument)
+-{
+-    struct frame371_processes *pair = argument;
++static int frame374_find_receiver(proc_t process, void *argument)
++{
++    struct frame374_receiver *receiver = argument;
+     char name[32];
+     const int pid = proc_pid(process);
+     proc_name(pid, name, sizeof(name));
+-    const bool source = strcmp(name, "SpringBoard") == 0;
+-    if (!source && strcmp(name, "backboardd") != 0) return PROC_RETURNED;
++    if (strcmp(name, "backboardd") != 0) return PROC_RETURNED;
+     task_t task = proc_task(process);
+     if (task == TASK_NULL) return PROC_RETURNED;
+     const audit_token_t *token = task_get_audit_token(task);
+     if (token->val[5] != (uint32_t)pid || pid <= 0) return PROC_RETURNED;
+-    const uint64_t key = ((uint64_t)token->val[7] << 32) | token->val[5];
+-    if (source) {
+-        pair->source = key;
+-        ++pair->sources;
+-    } else {
+-        pair->receiver = key;
+-        ++pair->receivers;
+-    }
++    receiver->identity = ((uint64_t)token->val[7] << 32) | token->val[5];
++    ++receiver->count;
+     return PROC_RETURNED;
+ }
+ 
+@@ -776,12 +771,10 @@
+     }
+     scan_intf += F344_INTF_OFF / 4;
+     if (scan357_enabled) {
+-        struct frame371_processes pair = {0};
+-        proc_iterate(PROC_ALLPROCLIST, frame371_find_process, &pair, NULL, NULL);
+-        if (pair.sources == 1 && pair.receivers == 1)
+-            sweet_frame371_arm(pair.source, pair.receiver, frames.start, frames.end);
+-        else
+-            printf("SWEET F372: unavailable sources=%u receivers=%u\n", pair.sources, pair.receivers);
++        struct frame374_receiver receiver = {0};
++        proc_iterate(PROC_ALLPROCLIST, frame374_find_receiver, &receiver, NULL, NULL);
++        if (receiver.count == 1)
++            sweet_ca374_arm(receiver.identity, frames.start, frames.end);
+     }
+     clock_interval_to_deadline(F345_STARTUP_MS, NSEC_PER_MSEC, &scan.startup_end);
+     scan_call = thread_call_allocate(scan_poll, NULL);
+@@ -792,7 +785,7 @@
+ static void frame_drain(void)
+ {
+     if (frame_footer) {
+-        sweet_frame371_drain();
++        sweet_ca374_drain();
+         return;
+     }
+     struct gut_event batch[32];
+--- /dev/null
++++ b/bsd/dev/gauguin_frame374_wire.h
+@@ -0,0 +1,82 @@
++#ifndef GAUGUIN_FRAME374_WIRE_H
++#define GAUGUIN_FRAME374_WIRE_H
++
++#include "gauguin_frame372_wire.h"
++
++enum {
++    F374_EVENT_CAP = 16384, F374_WIRE_CAP = 210000, F374_BLOCK = 32,
++    F374_MAX_ROW = 34,
++    F374_RENDER_BEGIN = 1, F374_RENDER_END, F374_ANNOTATION, F374_FRAME_INFO,
++    F374_HITCH, F374_RENDER_TIME, F374_VSYNC, F374_VSYNC_UPDATE
++};
++
++struct f374_event {
++    uint64_t tick, thread, a, b, c, d;
++    unsigned kind;
++};
++
++static inline unsigned
++f374_kind(uint32_t debugid)
++{
++    switch (debugid) {
++    case 0x31ca000d: return F374_RENDER_BEGIN;
++    case 0x31ca000e: return F374_RENDER_END;
++    case 0x31ca0084: return F374_ANNOTATION;
++    case 0x31ca002c: return F374_FRAME_INFO;
++    case 0x31ca01e0: return F374_HITCH;
++    case 0x31ca0010: return F374_RENDER_TIME;
++    case 0x31ca0000: return F374_VSYNC;
++    case 0x31ca0110: return F374_VSYNC_UPDATE;
++    default: return 0;
++    }
++}
++
++static inline void
++f374_le64(uint8_t *out, uint64_t value)
++{
++    f372_le32(out, (uint32_t)value);
++    f372_le32(out + 4, (uint32_t)(value >> 32));
++}
++
++static inline unsigned
++f374_pack(uint8_t out[F374_MAX_ROW], uint64_t start, uint64_t end,
++    const struct f374_event *event, uint8_t thread)
++{
++    if (!event->thread || event->tick < start || event->tick >= end ||
++        event->tick - start > UINT32_MAX) {
++        return 0;
++    }
++    f372_le32(out, (uint32_t)(event->tick - start));
++    out[4] = (uint8_t)event->kind;
++    out[5] = thread;
++    switch (event->kind) {
++    case F374_RENDER_BEGIN:
++        if (event->b > UINT32_MAX) return 0;
++        f372_le32(out + 6, (uint32_t)event->b);
++        return 10;
++    case F374_RENDER_END:
++    case F374_VSYNC:
++    case F374_VSYNC_UPDATE:
++        return 6;
++    case F374_ANNOTATION:
++        if (event->a > UINT32_MAX || event->d > UINT32_MAX) return 0;
++        f372_le32(out + 6, (uint32_t)event->a);
++        f372_le32(out + 10, (uint32_t)event->d);
++        return 14;
++    case F374_FRAME_INFO:
++    case F374_HITCH:
++        if (event->a > UINT32_MAX) return 0;
++        f372_le32(out + 6, (uint32_t)event->a);
++        f374_le64(out + 10, event->b);
++        f374_le64(out + 18, event->c);
++        f374_le64(out + 26, event->d);
++        return 34;
++    case F374_RENDER_TIME:
++        f374_le64(out + 6, event->a);
++        return 14;
++    default:
++        return 0;
++    }
++}
++
++#endif

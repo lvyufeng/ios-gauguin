@@ -1,0 +1,89 @@
+diff --git a/bsd/dev/gauguin_cx_power.c b/bsd/dev/gauguin_cx_power.c
+--- a/bsd/dev/gauguin_cx_power.c
++++ b/bsd/dev/gauguin_cx_power.c
+@@ -394,7 +394,7 @@
+     if(!gauguin_wdt_lease_check_budget(GCX_STEP_TICKS)||value==UINT32_MAX)return false;
+     *out=value;return true;
+ }
+-bool sweet_gmu_clock_live(bool allow_gx,uint32_t *gx_gdsc)
++static bool gmq_live(bool allow_gx,uint32_t *gx_gdsc,bool snapshot)
+ {
+     if(!gx_gdsc||!gcx_context()||sweet_gmu_clock_state()!=GCX_COMPLETE||
+        sweet_cx_power_state()!=GCX_COMPLETE||sweet_cx_rail_state()!=GCR_COMPLETE||
+@@ -404,7 +404,25 @@
+     static const uint32_t offsets[]={0,4,0x38,0x114c,0x1078,0x106c,
+         0x1120,0x1124,0x1098,0x109c,0x1038,0x100c,0x1064,0x100c};
+     uint32_t s[14];
+-    for(unsigned i=0;i<14;i++)if(!gmq_read(maps[i],offsets[i],&s[i]))return false;
++    if(snapshot){
++        /* Cold clock configuration has finished. The unpublished startup
++         * owner, or runtime operation lock after publication, excludes WDT
++         * refresh. Read ONLY the same fourteen status registers;
++         * no clock/PTE/doorbell/PET store occurs in this snapshot. Keep a
++         * full live WDT sample at BOTH boundaries instead of around each
++         * read. A failed boundary/deadline never publishes an observation
++         * or authorizes subsequent GPU work. This cannot cancel stalled IO. */
++        if(!gauguin_wdt_lease_check_budget(GCX_STEP_TICKS))return false;
++        uint64_t end;clock_interval_to_deadline(5,NSEC_PER_MSEC,&end);
++        bool readable=true;
++        for(unsigned i=0;i<14;i++){
++            if(mach_absolute_time()>=end){readable=false;break;}
++            s[i]=gmc_read(maps[i],offsets[i]);
++            if(s[i]==UINT32_MAX){readable=false;break;}
++        }
++        if(!gauguin_wdt_lease_check_budget(GCX_STEP_TICKS)||!readable||
++           mach_absolute_time()>=end)return false;
++    } else for(unsigned i=0;i<14;i++)if(!gmq_read(maps[i],offsets[i],&s[i]))return false;
+     if((s[0]&0xc0100000u)!=0xc0100000u||s[1]!=31||s[2]!=0x4000||(s[3]&3)!=1||
+        !(s[4]&1)||(s[5]&0x8000f007u)!=0x80008000u||(s[6]&0xf3)||
+        (s[7]&0x10371f)!=0x602||(s[8]&0xff1)!=0xff1||!(s[9]&1)||
+@@ -417,6 +435,13 @@
+     }
+     *gx_gdsc=s[13];return true;
+ }
++bool sweet_gmu_clock_live(bool allow_gx,uint32_t *gx_gdsc)
++{return gmq_live(allow_gx,gx_gdsc,false);}
++bool sweet_gmu_clock_live_snapshot(uint32_t *gx_gdsc)
++{
++    int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
++    return mode==12&&gmq_live(true,gx_gdsc,true);
++}
+ bool sweet_gmu_clock_quiet(uint32_t *gx_gdsc)
+ {return sweet_gmu_clock_live(false,gx_gdsc);}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3953,7 +3953,8 @@
+ static bool ggrb_live_check(void *cookie)
+ {
+     (void)cookie;struct ggrb_live_sample sample={0};
+-    /* Preserve the original predicate order and short-circuit hardware trace. */
++    /* Preserve predicate order and all values. Runtime's read-only clock
++     * snapshot bounds its repeated WDT sampling at the group boundaries. */
+     if(!ggrb_started)return ggrb_reject(&sample,1);
+     if(!gmb_thread())return ggrb_reject(&sample,2);
+     if(mach_absolute_time()>=ggrb_end)return ggrb_reject(&sample,3);
+@@ -3962,7 +3963,7 @@
+     if(!sweet_pas_zap_owner_authenticated(gmb_stage.pa))return ggrb_reject(&sample,6);
+     if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggrb_reject(&sample,7);
+     if(!ggwb_unsecured())return ggrb_reject(&sample,8);
+-    if(!sweet_gmu_clock_live(true,&sample.gx))return ggrb_reject(&sample,9);
++    if(!sweet_gmu_clock_live_snapshot(&sample.gx))return ggrb_reject(&sample,9);
+     sample.valid|=1;
+     if((sample.gx&0x80000001u)!=0x80000000u)return ggrb_reject(&sample,10);
+     if(!sweet_gmu_irq_quiet(sample.irq))return ggrb_reject(&sample,11);
+diff --git a/bsd/dev/gauguin_gmu_clock.h b/bsd/dev/gauguin_gmu_clock.h
+--- a/bsd/dev/gauguin_gmu_clock.h
++++ b/bsd/dev/gauguin_gmu_clock.h
+@@ -28,4 +28,10 @@
+  * own GX OOB store, may allow GX power/branch transitions. No new mappings,
+  * clocks or watchdog arm. Caller still enforces reset/IRQ/fault/deadline. */
+ bool sweet_gmu_clock_live(bool allow_gx, uint32_t *gx_gdsc);
++/* Mode12 only after cold owners finish: the unpublished startup owner,
++ * or GPU operation lock after publication, must exclude concurrent refresh. Same fourteen clock reads and exact value predicates as live;
++ * full WDT budgets surround the read-only snapshot with a5ms CPU deadline.
++ * No store/PET/mapping or stale-clock authorization. Cold paths above keep
++ * their per-register WDT samples. Caller retains IRQ/fault/reset/route checks. */
++bool sweet_gmu_clock_live_snapshot(uint32_t *gx_gdsc);
+ #endif

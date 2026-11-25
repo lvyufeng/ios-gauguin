@@ -1,0 +1,146 @@
+--- a/bsd/dev/gauguin_gpu_core.c
++++ b/bsd/dev/gauguin_gpu_core.c
+@@ -339,7 +339,7 @@
+        gpu->bank<gpu->s2banks||!gpu->groups||gpu->groups>GSM_STREAMS||gpu->slot>=gpu->groups||
+        !gpu->asid||gpu->asid>255||gpu->stream_match>1||gpu->s2cr!=gpu->bank||
+        (!gpu->stream_match&&gpu->slot!=0)||gpu->smr!=(gpu->stream_match?0x80000000u:0u)||gpu->sctlr!=0xc01167||
+-       gpu->gpu_pages!=18||gpu->gmu_pages!=131||gpu->translations!=168||
++       !ggs_receipt_layout_valid(gpu)||
+        gpu->ttbr0!=((plan->owner_pa+GGP_TABLE_OFFSET)|((uint64_t)gpu->asid<<48))||
+        gpu->ttbr1!=((plan->owner_pa+GGP_TABLE_OFFSET+0x3000)|((uint64_t)gpu->asid<<48))||
+        !ops->guard||!ops->read32||!ops->write32||!ops->barrier||!ops->start_gpu||
+--- a/bsd/dev/gauguin_gpu_smmu.c
++++ b/bsd/dev/gauguin_gpu_smmu.c
+@@ -2,6 +2,7 @@
+  * Add only GPU SID0 to the already initialized, still quiescent controller. */
+ #include <string.h>
+ #include "gauguin_gpu_smmu.h"
++#include "gauguin_gpu_data.h"
+ #define CB(n) (0x8000u+0x1000u*(n))
+ #define SMR(n) (0x800u+4u*(n))
+ #define S2CR(n) (0xc00u+4u*(n))
+@@ -256,9 +257,19 @@
+     for(unsigned n=0;n<GGP_COUNT;n++)for(unsigned off=0;off<c->plan.region[n].mapped;off+=4096){
+         const struct ggp_region *m=&c->plan.region[n];r=translate(c,0,w->bank,m->iova+off,c->plan.owner_pa+m->offset+off,0);if(r)return r;++w->gpu_pages;
+     }
++    if(c->layout==GGS_DATA19){
++        struct ggd_plan data;if(!ggd_plan_build(&c->plan,&data))return GSM_ARGUMENT;
++        r=translate(c,0,w->bank,data.data.iova,c->plan.owner_pa+data.data.offset,0);if(r)return r;++w->gpu_pages;
++    }
+     static const uint32_t holes[]={0,0x60001000,0xfbfff000,0xfc011000,0xfc013000,0xfc015000,0xfc017000,0xfc018000,0xfc200000,0xfffff000};
+     static const unsigned levels[]={1,1,2,3,3,3,3,3,2,2};
+-    for(unsigned i=0;i<sizeof(holes)/sizeof(*holes);i++){r=translate(c,0,w->bank,holes[i],UINT64_MAX,levels[i]);if(r)return r;}
++    for(unsigned i=0;i<sizeof(holes)/sizeof(*holes);i++){
++        if(c->layout==GGS_DATA19&&holes[i]==GGD_DATA_IOVA)continue;
++        r=translate(c,0,w->bank,holes[i],UINT64_MAX,levels[i]);if(r)return r;
++    }
++    if(c->layout==GGS_DATA19)for(unsigned off=GGD_DATA_BYTES;off<GGD_DATA_RESERVED;off+=4096){
++        r=translate(c,0,w->bank,GGD_DATA_IOVA+off,UINT64_MAX,3);if(r)return r;
++    }
+     struct ggm_plan p;if(!ggm_plan_build(c->plan.owner_pa,&p))return GSM_ARGUMENT;
+     for(unsigned n=0;n<GGM_COUNT;n++)for(unsigned off=0;off<p.region[n].bytes;off+=4096){
+         r=translate(c,5,c->gmu.bank[1],p.region[n].iova+off,p.owner_pa+p.region[n].offset+off,0);if(r)return r;++w->gmu_pages;
+@@ -309,13 +320,12 @@
+        !ops->barrier||!ops->delay_us||!ops->prepare)return 22;
+     return 0;
+ }
+-enum gsm_result ggs_configure_once(struct ggs_context *c,const struct ggs_ops *ops,
+-    const struct ggp_plan *plan,const struct gsm_receipt *gmu,struct ggs_receipt *out)
+-{
+-    if(ggs_argument_reason(c,ops,plan,gmu,out))return GSM_ARGUMENT;
++static enum gsm_result configure(struct ggs_context *c,const struct ggs_ops *ops,
++    const struct ggp_plan *plan,const struct gsm_receipt *gmu,struct ggs_receipt *out,enum ggs_layout layout)
++{
+     struct ggs_ops o=*ops;struct ggp_plan p=*plan;struct gsm_receipt s=*gmu;uint32_t expected=0;
+     if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GSM_ALREADY;
+-    c->ops=o;c->plan=p;c->gmu=s;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));memset(&c->translation,0,sizeof(c->translation));
++    c->ops=o;c->plan=p;c->gmu=s;c->layout=layout;memset(&c->work,0,sizeof(c->work));c->work.layout=layout;memset(&c->diagnostic,0,sizeof(c->diagnostic));memset(&c->translation,0,sizeof(c->translation));
+     c->phase=GGS_CAPTURE;enum gsm_result r=capture(c);struct ggp_s1_config cfg;
+     if(!r){c->phase=GGS_RESOLVE;r=resolve(c);}
+     if(!r){c->phase=GGS_PREPARE;r=prepare(c,&cfg);}
+@@ -325,3 +335,28 @@
+     if(!r){c->phase=GGS_DONE;*out=c->work;}
+     __atomic_store_n(&c->state,r?3:2,__ATOMIC_RELEASE);return r;
+ }
++
++/* Legacy entry deliberately cannot select the optional mapping via context
++ * bytes, receipt counters or prepare output. Only the new full-plan entry
++ * below can select it, and both share the same once-only owner state. */
++enum gsm_result ggs_configure_once(struct ggs_context *c,const struct ggs_ops *ops,
++    const struct ggp_plan *plan,const struct gsm_receipt *gmu,struct ggs_receipt *out)
++{
++    if(ggs_argument_reason(c,ops,plan,gmu,out))return GSM_ARGUMENT;
++    return configure(c,ops,plan,gmu,out,GGS_BOOTSTRAP18);
++}
++unsigned ggs_data_argument_reason(const struct ggs_context *c,const struct ggs_ops *ops,
++    const struct ggd_plan *plan,const struct gsm_receipt *gmu,const struct ggs_receipt *out)
++{
++    if(!span(plan,sizeof(*plan)))return 23;
++    unsigned reason=ggs_argument_reason(c,ops,&plan->bootstrap,gmu,out);if(reason)return reason;
++    if(overlap(plan,sizeof(*plan),c,sizeof(*c)))return 6;
++    if(overlap(plan,sizeof(*plan),out,sizeof(*out)))return 10;
++    return ggd_plan_valid(plan)?0:23;
++}
++enum gsm_result ggs_configure_data_once(struct ggs_context *c,const struct ggs_ops *ops,
++    const struct ggd_plan *plan,const struct gsm_receipt *gmu,struct ggs_receipt *out)
++{
++    if(ggs_data_argument_reason(c,ops,plan,gmu,out))return GSM_ARGUMENT;
++    return configure(c,ops,&plan->bootstrap,gmu,out,GGS_DATA19);
++}
+--- a/bsd/dev/gauguin_gpu_smmu.h
++++ b/bsd/dev/gauguin_gpu_smmu.h
+@@ -19,15 +19,26 @@
+ };
+ enum ggs_phase {GGS_IDLE,GGS_CAPTURE,GGS_RESOLVE,GGS_PREPARE,GGS_HALT,
+     GGS_BANK,GGS_ATOS,GGS_RESTORE,GGS_FINAL,GGS_DONE};
++enum ggs_layout {GGS_BOOTSTRAP18,GGS_DATA19};
++struct ggd_plan;
+ struct ggs_receipt {
+     uint32_t slot,bank,asid,ias,oas,groups,banks,s2banks,stream_match;
+     uint32_t cr0,micro_before,micro_after,smr_before,s2cr_before,smr,s2cr;
+     uint32_t sctlr,tcr,tcr2,mair0,mair1,writes,polls,gpu_pages,gmu_pages,translations;
+     uint64_t ttbr0,ttbr1;
++    uint32_t layout;
+ };
++/* Shape check only, not physical/private ownership authority. The live
++ * provider must bind the exact selected layout to this same-boot receipt. */
++static inline bool ggs_receipt_layout_valid(const struct ggs_receipt *s)
++{
++    return s&&s->gmu_pages==131&&
++        ((s->layout==GGS_BOOTSTRAP18&&s->gpu_pages==18&&s->translations==168)||
++         (s->layout==GGS_DATA19&&s->gpu_pages==19&&s->translations==171));
++}
+ struct ggs_bank {uint32_t sctlr,actlr,tcr2,tcr,mair0,mair1,fsr,cbar,cba2r;uint64_t ttbr0,ttbr1;};
+ struct ggs_context {
+-    uint32_t state,phase,halt_attempted,probe_active,probe_bank,probe_hole;
++    uint32_t state,phase,halt_attempted,probe_active,probe_bank,probe_hole,layout;
+     struct ggs_ops ops;struct ggp_plan plan;struct gsm_receipt gmu;
+     struct ggs_receipt work;struct gsm_diagnostics diagnostic;
+     struct gsm_atos_sample translation;
+@@ -48,4 +59,15 @@
+  * A zero reason is neither an attempt nor physical ownership authorization. */
+ unsigned ggs_argument_reason(const struct ggs_context *,const struct ggs_ops *,
+     const struct ggp_plan *,const struct gsm_receipt *,const struct ggs_receipt *);
++/* Optional explicit cold19-leaf entry. It retains every original controller,
++ * route/bank/ASID/fault/GMU rule, verifies the normal data page and ALL three
++ * padding holes (171 total ATOS), and tags the output GGS_DATA19. The original
++ * configure_once ALWAYS selects18 leaves/168 ATOS and GGS_BOOTSTRAP18.
++ * prepare must emit the matching inactive table via ggd_emit_tables, with
++ * complete private PTE/NC/owner checks; ATOS alone is not permission proof.
++ * No on-running-GMU use, live PTE edit, rollback, retry or command dispatch. */
++unsigned ggs_data_argument_reason(const struct ggs_context *,const struct ggs_ops *,
++    const struct ggd_plan *,const struct gsm_receipt *,const struct ggs_receipt *);
++enum gsm_result ggs_configure_data_once(struct ggs_context *,const struct ggs_ops *,
++    const struct ggd_plan *,const struct gsm_receipt *,struct ggs_receipt *);
+ #endif
+--- a/bsd/dev/gauguin_gpu_start.c
++++ b/bsd/dev/gauguin_gpu_start.c
+@@ -71,7 +71,7 @@
+        gpu->bank<gpu->s2banks||!gpu->groups||gpu->groups>GSM_STREAMS||gpu->slot>=gpu->groups||
+        !gpu->asid||gpu->asid>255||gpu->stream_match>1||gpu->s2cr!=gpu->bank||
+        (!gpu->stream_match&&gpu->slot!=0)||gpu->smr!=(gpu->stream_match?0x80000000u:0u)||gpu->sctlr!=0xc01167||
+-       gpu->gpu_pages!=18||gpu->gmu_pages!=131||gpu->translations!=168||
++       !ggs_receipt_layout_valid(gpu)||
+        gpu->ttbr0!=((plan->owner_pa+GGP_TABLE_OFFSET)|((uint64_t)gpu->asid<<48))||
+        gpu->ttbr1!=((plan->owner_pa+GGP_TABLE_OFFSET+0x3000)|((uint64_t)gpu->asid<<48))||
+        !ops->guard||!ops->read32||!ops->write32||!ops->read64||!ops->write64||

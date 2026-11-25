@@ -1,0 +1,115 @@
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -57,6 +57,8 @@
+ #define TOUCH_FTS_CHIP_ID (0x54u << 8 | 0x54u)  /* FT5452: A3=0x54, A4=0x54 */
+ #define TOUCH_SDA_PIN    20u
+ #define TOUCH_SCL_PIN    19u
++/* The experimental probe still needs board-specific clock/GENI fixes. */
++#define TOUCH_DEFAULT_MODE 0
+ #else
+ #define TOUCH_SE_PA      0x00a84000u
+ #define TOUCH_GCC_PA     0x00100000u
+@@ -71,6 +73,7 @@
+ #define TOUCH_FTS_CHIP_ID (0x52u << 8 | 0x54u)
+ #define TOUCH_SDA_PIN    6u
+ #define TOUCH_SCL_PIN    7u
++#define TOUCH_DEFAULT_MODE 1
+ #endif
+ #define TOUCH_GPIO_CFG(n) ((uint32_t)(n) * 0x1000u)
+ #define TOUCH_GPIO_IO(n)  (TOUCH_GPIO_CFG(n) + 4u)
+@@ -723,28 +726,13 @@
+ extern void sweet_log_mark(const char *text);
+ #define TOUCH_MARK(t) sweet_log_mark(t)
+ 
+-/*
+- * Called from AppleCLCD::vsyncFired (AppleCLCD runs its timer reliably). Waits
+- * for the boot-arg delay to expire in frames, then runs the bring-up once.
+- */
+-/*
+- * Synchronous, read-only bring-up.
+- *
+- * Every asynchronous context has failed: a kernel thread parked on a deadline
+- * never wakes, and an IOTimerEventSource callback wedges the boot even when it
+- * only increments a counter (NOTES 12:20). So this runs directly in the exec
+- * hook, takes no lock we do not own, creates nothing, never sleeps, and only
+- * *reads* registers - a read cannot hang the way a write to a clock gate can,
+- * and the result tells us whether the MMIO windows are even reachable.
+- */
++/* Experimental hardware bring-up, disabled by default on GAUGUIN.
++ * Explicit sweettouchmode=1 enables this incomplete clock/GPIO/I2C sequence;
++ * it does not imply that touch input is operational. */
+ void
+ touch_bringup(void)
+ {
+-	/*
+-	 * Every step is a read, yet the phone reset after the first marker. Paint
+-	 * before AND after each step so the panel names the exact culprit:
+-	 *   red -> map GCC -> yellow -> read -> purple -> map TLMM -> cyan -> ...
+-	 */
++	/* Paint stage markers around the hardware operations. */
+ 	printf("SWEET TOUCH: stage A: map GCC\n");
+ 	sweet_fb_mark(0x00ffff00u);             /* RGB(0,255,255) CYAN: map GCC */
+ 	vm_offset_t gcc = ml_io_map(TOUCH_GCC_PA, 0x60000);
+@@ -767,35 +755,6 @@
+ 	 */
+ 	printf("SWEET TOUCH: stage C: clock on\n");
+ 	st.gcc = gcc;
+-	/*
+-	 * Everything from 0x18058 to 0x18188 reads back zero while 0x0000-0x0fe8 is
+-	 * populated (NOTES 15:05), which means that part of the aperture is not
+-	 * mapped at all rather than having the wrong offset. Walk the 0x60000 window
+-	 * one page at a time and print only pages that contain a non-zero word, so
+-	 * the real extent of GCC is visible in one boot.
+-	 */
+-	/*
+-	 * Only walk up to 0x19000: the full 0x60000 walk locks up (NOTES 15:08),
+-	 * which by itself says some page in the window is not backed. The words at
+-	 * 0x18058+ read zero, so find the page where reads stop making sense.
+-	 */
+-	/*
+-	 * Sparse walk: 4 reads per page instead of 1024. The dense walk cost 6400
+-	 * strongly-ordered reads (each with a dmb) and made the boot look dead, so
+-	 * this samples the page head, +0x800 and the tail - enough to tell a real
+-	 * register page from an unmapped hole.
+-	 */
+-	printf("SWEET TOUCH: sparse GCC walk\n");
+-	for (uint32_t page = 0; page < 0x19000; page += 0x1000) {
+-		static const uint32_t sample[3] = { 0x0u, 0x800u, 0xff0u };
+-		uint32_t a = touch_rd(gcc, page + sample[0]);
+-		uint32_t b = touch_rd(gcc, page + sample[1]);
+-		uint32_t c = touch_rd(gcc, page + sample[2]);
+-		printf("SWEET TOUCH: %#06x: %#010x %#010x %#010x\n",
+-		    page, a, b, c);
+-	}
+-	printf("SWEET TOUCH: GCC page walk done\n");
+-	sweet_fb_mark(0x00ff8000u);             /* AZURE: walk finished */
+ 	if (!touch_clocks()) {
+ 		printf("SWEET TOUCH: clocks failed; not touching TLMM\n");
+ 		sweet_fb_mark(0x00ffffffu);         /* white: clock failure */
+@@ -905,7 +864,7 @@
+ 	TOUCH_MARK(present ? "TOUCH: bringup done, chip answered" : "TOUCH: bringup done, no chip");
+ 	sweet_fb_mark(present ? 0x0000ff00u : 0x000000ffu);
+ 
+-	printf("SWEET TOUCH: read-only probe complete\n");
++	printf("SWEET TOUCH: experimental probe complete\n");
+ }
+ 
+ 
+@@ -973,7 +932,7 @@
+ void
+ sweet_touch_start_at_init(void)
+ {
+-	int mode = 1;
++	int mode = TOUCH_DEFAULT_MODE;
+ 	(void)PE_parse_boot_argn("sweettouchmode", &mode, sizeof(mode));
+ 	printf("SWEET TOUCH: start_at_init, mode=%d\n", mode);
+ 	/*
+@@ -1049,7 +1008,7 @@
+ 	 * before BSD can mount the root (NOTES 2026-11-03 (3) and (5)).
+ 	 */
+ 	{
+-		int mode = 1;
++		int mode = TOUCH_DEFAULT_MODE;
+ 		(void)PE_parse_boot_argn("sweettouchmode", &mode, sizeof(mode));
+ 		if (mode == 0) {
+ 			printf("SWEET TOUCH: mode 0, bring-up skipped\n");

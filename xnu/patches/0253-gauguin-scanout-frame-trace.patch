@@ -1,0 +1,544 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_frame344.h
+@@ -0,0 +1,25 @@
++#ifndef GAUGUIN_FRAME344_H
++#define GAUGUIN_FRAME344_H
++
++#include <stdint.h>
++
++/* Private boot-local evidence. UI254 keeps its own event numbers and
++ * wire format. Timestamps are absolute ticks. */
++enum frame344_kind {
++    F344_SWAP = 40, F344_ATTEMPT, F344_RESULT, F344_LOCK, F344_COPY,
++    F344_ISSUE, F344_WRITER, F344_EOP, F344_READY,
++    F344_VBLANK, F344_CRC, F344_TIMING
++};
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++void sweet_frame344_prepare(void);
++uint64_t sweet_frame344_clock(void);
++void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
++    uint64_t a, uint64_t b, uint64_t c);
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+--- a/bsd/dev/gauguin_ui_trace.c
++++ b/bsd/dev/gauguin_ui_trace.c
+@@ -63,16 +63,26 @@
+     __atomic_fetch_sub(&c->gate,UINT64_C(1),__ATOMIC_RELEASE);
+     return seq;
+ }
+-bool gut_init(struct gut_core *c,struct gut_event *events,uint32_t capacity,uint32_t which,
+-    uint64_t window,uint64_t (*clock)(void *),void *cookie)
++static bool init(struct gut_core *c,struct gut_event *events,uint32_t capacity,uint32_t which,
++    uint64_t window,uint64_t (*clock)(void *),void *cookie,uint32_t max_capacity)
+ {
+     if(!c)return false;
+     uint32_t expected=0;
+     if(!__atomic_compare_exchange_n(&c->initialized,&expected,1,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return false;
+-    if(!events||!capacity||capacity>4096||!which||which>16||!window||!clock)return false;
++    if(!events||!capacity||capacity>max_capacity||!which||which>16||!window||!clock)return false;
+     c->events=events;c->capacity=capacity;c->which=which;c->window=window;
+     c->clock=clock;c->cookie=cookie;
+     __atomic_store_n(&c->state,GUT_ARMED,__ATOMIC_RELEASE);return true;
++}
++bool gut_init(struct gut_core *c,struct gut_event *events,uint32_t capacity,uint32_t which,
++    uint64_t window,uint64_t (*clock)(void *),void *cookie)
++{
++    return init(c,events,capacity,which,window,clock,cookie,4096);
++}
++bool gut_init_frames(struct gut_core *c,struct gut_event *events,uint32_t capacity,uint64_t window,
++    uint64_t (*clock)(void *))
++{
++    return init(c,events,capacity,1,window,clock,NULL,16384);
+ }
+ uint64_t gut_report(struct gut_core *c,uint64_t begin,uint64_t end,uint32_t status,uint32_t mask)
+ {
+--- a/bsd/dev/gauguin_ui_trace.h
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -43,6 +43,8 @@
+ #endif
+ bool gut_init(struct gut_core *,struct gut_event *,uint32_t,uint32_t,uint64_t,
+               uint64_t (*)(void *),void *);
++bool gut_init_frames(struct gut_core *,struct gut_event *,uint32_t,uint64_t,
++                     uint64_t (*clock)(void *));
+ bool gut_enabled(const struct gut_core *);
+ uint64_t gut_report(struct gut_core *,uint64_t,uint64_t,uint32_t,uint32_t);
+ void gut_record(struct gut_core *,uint32_t,uint64_t,uint32_t,uint32_t,uint64_t,uint64_t,uint64_t);
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -10,7 +10,9 @@
+ #include <pexpert/pexpert.h>
+ #include <kern/clock.h>
+ #include <kern/kalloc.h>
++#include <kern/thread_call.h>
+ #include <mach/mach_time.h>
++#include <mach/vm_prot.h>
+ #include "../kern/sweet_eagl_diagnostics.h"
+ #endif
+ #include "gauguin_ui_trace.h"
+@@ -20,8 +22,263 @@
+ static bool header,footer;
+ static uint64_t now(void *unused)
+ {(void)unused;return mach_absolute_time();}
++
++#ifndef GUT_BOARD_HOST_TEST
++#include "gauguin_frame344.h"
++
++extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
++extern uint32_t sweet_fb_display_state(void);
++extern void sweet_log_append(const char *, int);
++
++/* Lagoon entry points from the board's live DT and Xiaomi gauguin-r-oss
++ * SDE/clock drivers. Mapped pages are aligned for the 16 KiB XNU kernel.
++ * Only the INTF1 MISR control receives writes, after a running 60 Hz
++ * interface and a zero control preimage have both been observed. */
++enum {
++    F344_PAGE = 0x4000, F344_GCC_PAGE = 0x00114000, F344_DISPCC_PA = 0x0af00000,
++    F344_MDP_PA = 0x0ae00000, F344_INTF_PAGE = 0x0ae68000, F344_INTF_OFF = 0x3800,
++    F344_GCC_AHB = 0x300c, F344_DISP_AHB = 0x104c, F344_DISP_MDP = 0x1010,
++    F344_TIMING_EN = 0, F344_HSYNC = 8, F344_VPERIOD = 0xc,
++    F344_VSTART = 0x1c, F344_VEND = 0x24, F344_FRAME_COUNT = 0xac,
++    F344_LINE_COUNT = 0xb0, F344_MISR_CTRL = 0x180, F344_MISR_SIG = 0x184,
++    F344_INTF_STATUS = 0x26c, F344_CRC_STATUS = 1u << 9, F344_CRC_CLEAR = 1u << 10,
++    F344_POLL_US = 1200, F344_POLL_LIMIT = 40960
++};
++#define F344_CRC_CONFIG UINT32_C(0x81000101)
++
++static struct gut_core frames;
++static mach_timebase_info_data_t frame_timebase;
++static bool frame_header, frame_footer;
++static thread_call_t scan_call;
++static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
++static volatile uint32_t *scan_intf;
++static struct {
++    uint64_t last_tick, first_edge;
++    uint32_t frame, first_frame, crc_frame, crc_candidate_frame, crc_candidate;
++    uint32_t polls, vperiod, first_active, last_active;
++    bool have_frame, have_edge, configured, have_crc, have_candidate;
++} scan;
++
++static bool frame_active(void)
++{
++    return __atomic_load_n(&frames.state, __ATOMIC_ACQUIRE) == GUT_CAPTURE
++        && gut_enabled(&frames);
++}
++
++uint64_t sweet_frame344_clock(void)
++{
++    return frame_active() ? mach_absolute_time() : 0;
++}
++
++void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
++    uint64_t a, uint64_t b, uint64_t c)
++{
++    gut_record(&frames, kind, id, 0, flags, a, b, c);
++}
++
++static bool branch_on(uint32_t reg)
++{
++    return (reg & UINT32_C(0x80000001)) == 1;
++}
++
++static bool scan_powered(void)
++{
++    return scan_intf && branch_on(scan_gcc[F344_GCC_AHB / 4])
++        && branch_on(scan_disp[F344_DISP_AHB / 4]) && branch_on(scan_disp[F344_DISP_MDP / 4]);
++}
++
++static void misr_write(uint32_t value)
++{
++    scan_intf[F344_MISR_CTRL / 4] = value;
++    __asm__ volatile("dsb sy" ::: "memory");
++}
++
++static void scan_stop(const char *reason)
++{
++    bool restored = !scan.configured;
++    if (scan.configured && scan_powered()) {
++        misr_write(F344_CRC_CLEAR);
++        misr_write(0);
++        restored = scan_intf[F344_MISR_CTRL / 4] == 0;
++    }
++    printf("SWEET F344 DPU: stopped=%s polls=%u configured=%u restored=%u\n",
++        reason, scan.polls, scan.configured, restored);
++}
++
++static bool scan_timing(void)
++{
++    if (scan_mdp[0] != UINT32_C(0x60040000) ||
++        !(scan_intf[F344_INTF_STATUS / 4] & 1u) ||
++        !(scan_intf[F344_TIMING_EN / 4] & 1u)) return false;
++    const uint32_t hperiod = scan_intf[F344_HSYNC / 4] >> 16;
++    if (!hperiod) return false;
++    const uint32_t vperiod = scan_intf[F344_VPERIOD / 4] / hperiod;
++    const uint32_t first = scan_intf[F344_VSTART / 4] / hperiod;
++    const uint32_t last = scan_intf[F344_VEND / 4] / hperiod;
++    if (last < first || last - first != 2399 || vperiod <= last || vperiod > 6000)
++        return false;
++    if (scan.vperiod) {
++        return scan.vperiod == vperiod && scan.first_active == first && scan.last_active == last;
++    }
++    scan.vperiod = vperiod;
++    scan.first_active = first;
++    scan.last_active = last;
++    sweet_frame344_record(F344_TIMING, 1, 0, vperiod, first, last);
++    return true;
++}
++
++static bool scan_edge(uint32_t frame, uint64_t tick, uint32_t line)
++{
++    const uint32_t step = frame - scan.frame;
++    if (!scan.have_frame || step == 0) return true;
++    sweet_frame344_record(F344_VBLANK, frame, step, scan.last_tick, tick, line);
++    if (scan.configured) return true;
++    if (!scan.have_edge || step != 1) {
++        scan.have_edge = true;
++        scan.first_frame = frame;
++        scan.first_edge = tick;
++        return true;
++    }
++    if (frame - scan.first_frame < 3) return true;
++    uint64_t elapsed;
++    absolutetime_to_nanoseconds(tick - scan.first_edge, &elapsed);
++    if (elapsed < 46000000 || elapsed > 54000000 || scan_intf[F344_MISR_CTRL / 4])
++        return false;
++    misr_write(F344_CRC_CLEAR);
++    misr_write(F344_CRC_CONFIG);
++    scan.configured = true;
++    return true;
++}
++
++static void scan_crc(uint32_t frame, uint32_t line, uint32_t control, uint32_t signature)
++{
++    if (!scan.configured || frame - scan.first_frame < 5 ||
++        control != (F344_CRC_CONFIG | F344_CRC_STATUS) ||
++        line < scan.first_active + 128 || line >= scan.first_active + 768 ||
++        (scan.have_crc && frame == scan.crc_frame)) return;
++    if (!scan.have_candidate || frame != scan.crc_candidate_frame) {
++        scan.have_candidate = true;
++        scan.crc_candidate_frame = frame;
++        scan.crc_candidate = signature;
++        return;
++    }
++    /* Two polls inside the same part of active video must agree. A live
++     * accumulator or a latch moving within this window is not a frame CRC. */
++    sweet_frame344_record(F344_CRC, frame, signature != scan.crc_candidate,
++        signature, line, control);
++    scan.have_crc = true;
++    scan.crc_frame = frame;
++}
++
++static void scan_poll(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
++{
++    const uint64_t tick = mach_absolute_time();
++    if (!frame_active() || tick >= frames.end || scan.polls >= F344_POLL_LIMIT) {
++        scan_stop("deadline");
++        return;
++    }
++    ++scan.polls;
++    if (sweet_fb_display_state() != 1 || !scan_powered() || !scan_timing()) {
++        scan_stop("route");
++        return;
++    }
++    const uint32_t frame = scan_intf[F344_FRAME_COUNT / 4];
++    const uint32_t line = scan_intf[F344_LINE_COUNT / 4];
++    const uint32_t control = scan.configured ? scan_intf[F344_MISR_CTRL / 4] : 0;
++    const uint32_t sig = scan.configured ? scan_intf[F344_MISR_SIG / 4] : 0;
++    const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
++    const uint64_t sampled = mach_absolute_time();
++    if (frame == checked_frame && line < scan.vperiod) {
++        if (!scan_edge(frame, sampled, line)) {
++            scan_stop("preflight");
++            return;
++        }
++        scan_crc(frame, line, control, sig);
++        scan.have_frame = true;
++        scan.frame = frame;
++        scan.last_tick = tick; /* before the prior same-counter read */
++    }
++    uint64_t deadline;
++    clock_interval_to_deadline(F344_POLL_US, NSEC_PER_USEC, &deadline);
++    thread_call_enter_delayed(scan_call, deadline);
++}
++
++static void frame_init(void)
++{
++    uint32_t enabled = 0, script = 0, physical = 0;
++    PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
++    PE_parse_boot_argn("swp", &script, sizeof(script));
++    PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
++    if (enabled != 2 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    const uint32_t capacity = 16384;
++    uint64_t window;
++    nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
++    clock_timebase_info(&frame_timebase);
++    if (!window || !frame_timebase.numer || !frame_timebase.denom) return;
++    struct gut_event *events = kalloc_data(capacity * sizeof(*events), Z_WAITOK | Z_ZERO);
++    if (!events) return;
++    if (!gut_init_frames(&frames, events, capacity, window, now)) {
++        kfree_data(events, capacity * sizeof(*events));
++        return;
++    }
++    printf("SWEET F344: armed window=45s capacity=%u\n", capacity);
++}
++
++void sweet_frame344_prepare(void)
++{
++    if (__atomic_load_n(&frames.state, __ATOMIC_ACQUIRE) != GUT_ARMED) return;
++    const uint64_t tick = mach_absolute_time();
++    if (!gut_report(&frames, tick, tick, 0, 1)) return;
++    scan_gcc = (const volatile uint32_t *)ml_io_map_with_prot(F344_GCC_PAGE, F344_PAGE, VM_PROT_READ);
++    scan_disp = (const volatile uint32_t *)ml_io_map_with_prot(F344_DISPCC_PA, F344_PAGE, VM_PROT_READ);
++    scan_mdp = (const volatile uint32_t *)ml_io_map_with_prot(F344_MDP_PA, F344_PAGE, VM_PROT_READ);
++    scan_intf = (volatile uint32_t *)ml_io_map_with_prot(F344_INTF_PAGE, F344_PAGE, VM_PROT_READ | VM_PROT_WRITE);
++    if (!scan_gcc || !scan_disp || !scan_mdp || !scan_intf) {
++        scan_intf = NULL;
++        scan_stop("map");
++        return;
++    }
++    scan_intf += F344_INTF_OFF / 4;
++    scan_call = thread_call_allocate(scan_poll, NULL);
++    if (scan_call) thread_call_enter(scan_call);
++    else scan_stop("timer");
++}
++
++static void frame_drain(void)
++{
++    if (frame_footer) return;
++    struct gut_event batch[32];
++    struct gut_meta meta;
++    uint32_t n;
++    if (!gut_read(&frames, batch, 32, &n, &meta)) return;
++    if (!frame_header) {
++        frame_header = true;
++        printf("SWEET F344 H: count=%u reason=%u lost=%llu start=%llu end=%llu numer=%u denom=%u\n",
++            meta.count, meta.reason, (unsigned long long)meta.lost, (unsigned long long)meta.start,
++            (unsigned long long)meta.end, frame_timebase.numer, frame_timebase.denom);
++    }
++    for (uint32_t i = 0; i < n; ++i) {
++        const struct gut_event *row = batch + i;
++        char line[160];
++        int bytes = snprintf(line, sizeof(line), "\nSWEET F344 E %x %llx %x %llx %x %llx %llx %llx\n",
++            (uint32_t)row->seq, (unsigned long long)row->tick, row->kind,
++            (unsigned long long)row->id, row->flags, (unsigned long long)row->a,
++            (unsigned long long)row->b, (unsigned long long)row->c);
++        if (bytes > 0 && (size_t)bytes < sizeof(line)) sweet_log_append(line, bytes);
++        else printf("SWEET F344: formatter overflow\n");
++    }
++    if (meta.state == GUT_DRAINED) {
++        frame_footer = true;
++        printf("SWEET F344 F: count=%u lost=%llu\n", meta.count, (unsigned long long)meta.lost);
++    }
++}
++#endif
++
+ void sweet_ui_trace_init(void)
+ {
++#ifndef GUT_BOARD_HOST_TEST
++    frame_init();
++#endif
+     uint32_t which=0;
+     if(!PE_parse_boot_argn("sweettrace",&which,sizeof(which))||!which)return;
+     if(which>16||!sweet_metal_desktop_enabled()) {
+@@ -47,6 +304,9 @@
+ {gut_stop(&trace,reason);}
+ void sweet_ui_trace_drain(void)
+ {
++#ifndef GUT_BOARD_HOST_TEST
++    frame_drain();
++#endif
+     /* Called only by the existing single log worker. No UFS or console work
+      * until the capture is immutable; at most 16 records per existing tick. */
+     if(footer)return;
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -37,6 +37,7 @@
+ #if defined(GAUGUIN)
+ #include <IOKit/SweetHIDTouchFrame.h>
+ #include "gauguin_ui_trace.h"
++#include "gauguin_frame344.h"
+ /*
+  * gauguin is SM7225 (lito / lagoon), NOT the SM7125 the port was planned on.
+  * The TLMM is at 0x00f100000 (`qcom,lagoon-pinctrl`, 0x30000 - read from the
+@@ -548,6 +549,7 @@
+ 			return true;
+ 		}
+ 		sweet_script_wake_phase = SWEET_WAKE_SETTLE;
++		sweet_frame344_prepare();
+ 		clock_interval_to_deadline(1000, NSEC_PER_MSEC, &sweet_script_due);
+ 		clock_interval_to_deadline(2500, NSEC_PER_MSEC, &sweet_script_end);
+ 		printf("SWEET UI WAKE: observed on tick=%llu; settle 1s\n", (unsigned long long)now);
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -26,6 +26,7 @@
+ #include "../../../bsd/kern/sweet_eagl_diagnostics.h"
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
++#include "../../../bsd/dev/gauguin_frame344.h"
+ static_assert(GUT_HID_QUEUE_STATE==31 && GUT_BO_ALLOC333==32 && GUT_BO_REUSE335==33,
+     "legacy UI254 event kinds must agree with the HID producer and host decoder");
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+@@ -407,13 +408,18 @@
+     IOLock *lock=__atomic_load_n(&gLock,__ATOMIC_ACQUIRE);
+     if(!lock)return 1;
+     uint64_t queued=sweet_ui_trace_clock();
++    const uint64_t frameQueued = sweet_frame344_clock();
+     IOLockLock(lock);
++    const uint64_t frameLocked = frameQueued ? mach_absolute_time() : 0;
+     sweet_ui_trace_record(GUT_READ_LOCK,s->id,0,s->gpuState,queued,0,0);
+     /* A compositor may have returned an issued fence. Never read its pixels
+      * before the board proves completion; the next timer beat can retry. */
+     if(s->gpuState==1&&!completePendingOwnerLocked(false,false)){
++        if (frameQueued) sweet_frame344_record(F344_LOCK,s->id,0,frameQueued,frameLocked,mach_absolute_time());
+         IOLockUnlock(lock);return 0;
+     }
++    if (frameQueued) sweet_frame344_record(F344_LOCK,s->id,s->gpuState == 0 ? 2 : 0,
++        frameQueued,frameLocked,mach_absolute_time());
+     if(s->gpuState){IOLockUnlock(lock);return 0;}
+     gTraceReader=s->id;
+     return 2;
+@@ -698,6 +704,7 @@
+         /* Fault escrow stays mapped until reset. */
+         return rc==GGR_TIMEOUT?kIOReturnTimeout:kIOReturnNotReady;
+     }
++    sweet_frame344_record(F344_EOP,fence,0,0,0,0);
+     /* Check every retained alias before clearing any surface or pending BO.
+      * A failed late alias must leave the complete submitted set quarantined. */
+     for(uint32_t i=0;i<fPendingCount;i++){
+@@ -723,6 +730,7 @@
+     }
+     fPendingQueue->completed=fPendingQueueFence;
+     fNativeFence=fPendingNativeFence;
++    sweet_frame344_record(F344_READY,fence,0,0,0,0);
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
+     if(reap&&!reapClosed())return kIOReturnNotReady;
+     return kIOReturnSuccess;
+@@ -967,6 +975,15 @@
+         }
+         memoryBarrier();
+         sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,r->queueid,r->fence,fence);
++        if (ok && fAsync && sweet_frame344_clock()) {
++            const auto* io = io342::current();
++            sweet_frame344_record(F344_ISSUE,fence,0,io ? io->token() : 0,r->queueid,r->fence);
++            for (uint32_t i = 0; i < r->nr_bos; ++i) {
++                if (!(bos[i].flags & 2u)) continue; /* submitted WRITE, not BO permissions */
++                const gpu_buffer* b = fPending[i];
++                if (b->surface) sweet_frame344_record(F344_WRITER,fence,0,b->surface->id,0,0);
++            }
++        }
+     }
+ out:
+     io342::phase(0x46,11);
+--- a/iokit/Kernel/arm/Kernel342.hpp
++++ b/iokit/Kernel/arm/Kernel342.hpp
+@@ -44,6 +44,7 @@
+     }
+     bool isThread()const noexcept {return row_.enabled&&row_.tid==thread_tid(current_thread());}
+     uint32_t selector()const noexcept{return row_.selector;}
++    uint64_t token()const noexcept{return row_.token;}
+     void tag(uint32_t queue,uint32_t fence,uint32_t handle,uint64_t bytes,uint32_t bos=0,uint32_t cmds=0) noexcept {
+         row_.queue=queue;row_.fence=fence;row_.handle=handle;row_.bytes=bytes;row_.bos=bos;row_.cmds=cmds;
+     }
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -39,6 +39,7 @@
+ #if defined(GAUGUIN)
+ #include "SweetPresentClock.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
++#include "../../../bsd/dev/gauguin_frame344.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ /* END SWEET PRESENT STATS INCLUDE */
+@@ -407,12 +408,14 @@
+     SweetSurface *surfaces[SWEET_FB_LAYERS];
+     IOMobileFramebufferUserClient *owner;
+     uint64_t retryEpoch;
++    uint64_t generation;
+     uint32_t retries;
+ };
+ static void sweet_fb_frame_release(struct sweet_fb_frame *);
+ static void sweet_fb_frame_move(struct sweet_fb_frame *, struct sweet_fb_frame *);
+ static bool sweet_fb_frame_prepare(struct sweet_fb_frame *, const uint8_t *, IOMobileFramebufferUserClient *, uint32_t *);
+ static SweetSurface *sweet_fb_present_surface(const uint8_t *, SweetSurface *const *, uint32_t);
++static uint32_t get32(const uint8_t *, uint32_t);
+ #endif
+ 
+ class AppleCLCD : public IOMobileFramebuffer {
+@@ -615,7 +618,7 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    fPresentStatsEnabled = statsRequested == 1;
++    fPresentStatsEnabled = statsRequested == 1 || statsRequested == 2;
+     fPresentSample = NULL;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");
+@@ -1033,12 +1036,16 @@
+             fb->fPresentClock.nextBeat, fb->fPresentClock.nextCopy);
+     }
+     struct sweet_fb_frame frame = {};
++    uint64_t frameAttempt = 0;
+ #endif
+     uint8_t *rec = NULL;
+     if (flush) {
+ #if defined(GAUGUIN)
+         if (fb->fHoldPresent) {
+-            if (fb->takeHeldFrameLocked(&frame)) rec = frame.record;
++            if (fb->takeHeldFrameLocked(&frame)) {
++                rec = frame.record;
++                frameAttempt = fb->fHeldConsumed;
++            }
+         } else
+ #endif
+         {
+@@ -1062,7 +1069,11 @@
+         if (measuring) { sample.timingValid = true; fb->fPresentSample = &sample; }
+         else if (priorSample != NULL) fb->fPresentSample = NULL; /* do not mix a reentrant call */
+         /* END SWEET PRESENT STATS START */
++        if (frameAttempt) sweet_frame344_record(F344_ATTEMPT,frameAttempt,frame.retries,
++            frame.generation,get32(rec,0x50),get32(rec,0x104));
+         bool ready = fb->present(rec, fb->fHoldPresent ? frame.surfaces : NULL);
++        if (frameAttempt) sweet_frame344_record(F344_RESULT,frameAttempt,ready ? 1 : 0,
++            measuring ? sample.copiedBytes : 0,measuring ? sample.gpuRefusals : 0,0);
+         /* BEGIN SWEET PRESENT STATS CLEAR */
+         if (measuring || priorSample != NULL) fb->fPresentSample = priorSample;
+         /* END SWEET PRESENT STATS CLEAR */
+@@ -1309,6 +1320,7 @@
+             return false;
+         }
+         next.retryEpoch = fHeldRetryEpoch;
++        next.generation = fHeldSubmitted + 1;
+         if (fPowerOff) {
+             cancelHeldFrameLocked(&retired, NULL);
+             fHeldCanceled++; /* accepted valid frame while the display is off */
+@@ -1322,6 +1334,8 @@
+             fDirty = true;
+         }
+         fHeldSubmitted++;
++        sweet_frame344_record(F344_SWAP,fHeldSubmitted,fPowerOff,
++            get32(rec,0x50),get32(rec,0x104),0);
+     } else
+ #endif
+     {
+@@ -1521,6 +1535,7 @@
+ #if defined(GAUGUIN)
+             uint64_t statsCopyBegin = 0;
+             if (fPresentSample != NULL && fPresentSample->timingValid) statsCopyBegin = mach_absolute_time();
++            const uint64_t frameCopyBegin = sweet_frame344_clock();
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+ 			for (int32_t y = 0; y < h; y++) {
+@@ -1530,6 +1545,8 @@
+ 			}
+             /* BEGIN SWEET PRESENT STATS COPY END */
+ #if defined(GAUGUIN)
++            if (frameCopyBegin) sweet_frame344_record(F344_COPY,id,layer,frameCopyBegin,
++                mach_absolute_time(),(uint64_t)(uint32_t)w * (uint32_t)h * 4);
+             if (fPresentSample != NULL) {
+                 if (fPresentSample->timingValid &&
+                     !sweet_present_sample_add_ticks(&fPresentSample->copyTicks, statsCopyBegin, mach_absolute_time()))

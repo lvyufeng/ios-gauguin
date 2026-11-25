@@ -1,0 +1,300 @@
+--- a/bsd/dev/gauguin_ready357.h
++++ b/bsd/dev/gauguin_ready357.h
+@@ -3,7 +3,15 @@
+-
++
+ #include "gauguin_ready354.h"
+-
++
+-enum { SCAN357_WRITERS = 2, SCAN357_NONE = SCAN357_WRITERS };
++enum { SCAN357_WRITERS = 2, SCAN357_NONE = SCAN357_WRITERS, SCAN391_RETIRE_SLOTS = SCAN357_WRITERS + 1 };
++
++static inline bool
++scan391_keep(uint64_t ticket, uint32_t version, uint32_t incoming_surface)
++{
++    const uint32_t surface = (uint32_t)ticket;
++    return (ticket >> 32) && surface && incoming_surface && surface != incoming_surface &&
++        version && scan354_has_version(version, version);
++}
+-
++
+ /* The native submit path has one in-flight fence. The second mailbox
+  * cell lets the next writer bind before the workloop drains completion. */
+@@ -68,6 +76,8 @@
+ #endif
+ bool sweet_fb357_claim_writer(uint64_t ticket, uint32_t version);
+ void sweet_fb357_finish_writer(uint64_t ticket, uint32_t version, uint32_t fence);
++uint32_t sweet_fb391_previous_surface(void);
++uint64_t sweet_fb391_claim_previous(uint32_t surface, uint32_t version);
+ #ifdef __cplusplus
+ }
+ #endif
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -506,7 +506,8 @@
+     bool collectIssuedLocked(bool polled, struct sweet_fb_retired *retired);
+     uint64_t pendingTicketLocked() const;
+     struct sweet_fb_frame *boundFrameLocked(unsigned, uint64_t);
+-    void replacePendingLocked(struct sweet_fb_retired *retired);
++    void replacePendingLocked(const struct sweet_fb_frame &next, struct sweet_fb_retired *retired,
++        struct sweet_fb_retired *previous);
+     unsigned calibrate357(unsigned step, uint32_t frame);
+     IOWorkLoop *fStage384Loop;
+     IOInterruptEventSource *fStage384Event;
+@@ -548,7 +549,7 @@
+     void configurePresentClock(void);
+     bool presentClockTickLocked(uint64_t now, uint64_t *elapsed, bool *copy); /* fLock held */
+     void presentClockCopiedLocked(void); /* fLock held */
+-    struct sweet_fb_frame fHeldPending, fHeldIssued[SCAN357_WRITERS], fHeldReady;
++    struct sweet_fb_frame fHeldPending, fHeldPrevious, fHeldIssued[SCAN357_WRITERS], fHeldReady;
+     uint64_t fHeldLastTaken;
+     uint64_t fHeldSubmitted, fHeldReplaced, fHeldConsumed, fHeldRetired, fHeldCanceled, fHeldRejected;
+     uint64_t fHeldRejectReasons[8]; /* 1 owner-null, 2 mask, 3..6 surface layer, 7 unregistered */
+@@ -592,6 +593,8 @@
+ static IOInterruptEventSource *gReadySource;
+ static SweetReadySignal gReadySignal;
+ static uint64_t gReadyTicket;
++static uint64_t gPreviousTicket;
++static uint32_t gPreviousVersion;                   /* gReadyLock */
+ static uint32_t gReadyVersion;              /* gReadyLock */
+ static bool gReadyRetainsIssued;
+ static struct scan357_writer gReadyWriters[SCAN357_WRITERS]; /* gReadyLock */
+@@ -634,6 +637,26 @@
+     if (bound) sweet_frame344_record(F357_BOUND, ticket >> 32, 0, ticket, version, 0);
+     IOLockUnlock(lock);
+     return bound;
++}
++
++extern "C" uint32_t
++sweet_fb391_previous_surface(void)
++{
++    return (uint32_t)__atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE);
++}
++
++extern "C" uint64_t
++sweet_fb391_claim_previous(uint32_t surface, uint32_t version)
++{
++    if (!surface || !__atomic_load_n(&gReadyRetainsIssued, __ATOMIC_ACQUIRE)) return 0;
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    IOLockLock(lock);
++    const uint64_t ticket = __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE);
++    const bool claimed = gReadySource && sweet_frame351_window() && (uint32_t)ticket == surface &&
++        scan357_claim(gReadyWriters, ticket, gPreviousVersion, version);
++    if (claimed) sweet_frame344_record(F357_BOUND, ticket >> 32, 1, ticket, version, 0);
++    IOLockUnlock(lock);
++    return claimed ? ticket : 0;
+ }
+-
++
+ extern "C" void
+@@ -881,6 +904,7 @@
+     fHoldPresent = held == 1;
+     fHeldActive = fHeldStopped = false;
+     bzero(&fHeldPending, sizeof(fHeldPending));
++    bzero(&fHeldPrevious, sizeof(fHeldPrevious));
+     bzero(fHeldIssued, sizeof(fHeldIssued));
+     bzero(&fHeldReady, sizeof(fHeldReady));
+     fHeldLastTaken = 0;
+@@ -1051,7 +1075,7 @@
+     IOInterruptEventSource *staging = nullptr;
+     IOWorkLoop *stagingLoop = nullptr;
+     IOTimerEventSource *cadence = nullptr;
+-    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+     if (fLock) {
+         IOLockLock(fLock);
+         event = fReadyEvent;
+@@ -1086,6 +1110,7 @@
+         IOLockLock(lock);
+         gReadySource = nullptr;
+         gReadyDisplay = nullptr;
++        __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
+         gReadySignal = {};
+         gReadyProbe = {};
+         __atomic_store_n(&gReadyRetainsIssued, false, __ATOMIC_RELEASE);
+@@ -1182,25 +1207,46 @@
+     if (fHeldIssued[i].owner &&
+         scan352_ticket(fHeldIssued[i].generation, fHeldIssued[i].surfaces[0]->id) == ticket)
+         return &fHeldIssued[i];
++    if (ticket && ticket == __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE)) return &fHeldPrevious;
+     return ticket == pendingTicketLocked() ? &fHeldPending : nullptr;
+ }
+-
++
+-/* A new swap may replace only a descriptor the driver hasn't claimed.
+- * A claim and the replacement decision use the same publication lock. */
++/* Keep one older pending surface until its writer binds or one more swap
++ * arrives. The publication lock orders replacement and native claims. */
+ void
+-AppleCLCD::replacePendingLocked(struct sweet_fb_retired *retired)
+-{
+-    unsigned bound = SCAN357_NONE;
++AppleCLCD::replacePendingLocked(const struct sweet_fb_frame &next, struct sweet_fb_retired *retired,
++    struct sweet_fb_retired *previous)
++{
+     if (fReadyAcrossFrames && fReadyEvent) {
+         IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+         IOLockLock(lock);
++        if (fHeldPrevious.owner) {
++            const unsigned bound = scan357_find(gReadyWriters, __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE));
++            __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
++            if (bound != SCAN357_NONE) {
++                sweet_fb_frame_move(&fHeldIssued[bound], &fHeldPrevious);
++            } else {
++                sweet_fb_frame_retire(previous, &fHeldPrevious);
++                ++fHeldReplaced;
++            }
++        }
++        const uint64_t ticket = pendingTicketLocked();
++        const unsigned bound = scan357_find(gReadyWriters, ticket);
++        const bool keep = stage384EnabledLocked() && blankEnabledLocked() && fHeldPending.owner == next.owner &&
++            scan354_single_surface(get32(next.record,0x104),next.surfaces[0] != nullptr) &&
++            scan354_single_surface(get32(fHeldPending.record,0x104),fHeldPending.surfaces[0] != nullptr) &&
++            scan391_keep(ticket, fHeldPending.surfaceVersion, next.surfaces[0]->id);
+         clearReadyTicketLocked();
+-        bound = scan357_find(gReadyWriters, pendingTicketLocked());
++        if (bound != SCAN357_NONE) {
++            sweet_fb_frame_move(&fHeldIssued[bound], &fHeldPending);
++        } else if (keep) {
++            sweet_fb_frame_move(&fHeldPrevious,&fHeldPending);
++            gPreviousVersion = fHeldPrevious.surfaceVersion;
++            __atomic_store_n(&gPreviousTicket, ticket, __ATOMIC_RELEASE);
++        }
+         IOLockUnlock(lock);
+     }
+-    if (bound != SCAN357_NONE)
+-        sweet_fb_frame_move(&fHeldIssued[bound], &fHeldPending);
+-    else {
++    if (fHeldPending.owner) {
+         sweet_fb_frame_retire(retired, &fHeldPending);
+         ++fHeldReplaced;
+     }
+@@ -1236,6 +1282,7 @@
+         const struct scan357_writer writer = gReadyWriters[index];
+         auto *candidate = boundFrameLocked(index, writer.ticket);
+         if (candidate == &fHeldPending) clearReadyTicketLocked();
++        if (candidate == &fHeldPrevious) __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
+         gReadyWriters[index] = {};
+         IOLockUnlock(lock);
+         if (!candidate) continue;
+@@ -1262,7 +1309,7 @@
+         sweet_frame344_record(F354_PROMOTE, generation, 0, retired[done].generation, version, surfaceID);
+         marked = true;
+     }
+-    fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    fDirty = fHeldPending.owner || fHeldPrevious.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
+     if (marked) signalStage384Locked();
+     return marked;
+ }
+@@ -1635,7 +1682,7 @@
+ #endif
+     if (fb->fPowerOff) {
+ #if defined(GAUGUIN)
+-        struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++        struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+         fb->cancelHeldFramesLocked(&waiting, &ready, issued, nullptr);
+ #endif
+ 		/* Fade out: halve every channel each vsync, then black, then idle. */
+@@ -2265,7 +2312,7 @@
+ AppleCLCD::removeClient(IOMobileFramebufferUserClient *client)
+ {
+ #if defined(GAUGUIN)
+-    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++    struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+ #endif
+     IOLockLock(fLock);
+ #if defined(GAUGUIN)
+@@ -2398,7 +2445,7 @@
+     }
+     fHeldLastTaken = candidate->generation;
+     sweet_fb_frame_move(frame, candidate);
+-    fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    fDirty = fHeldPending.owner || fHeldPrevious.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
+     fHeldActive = true;
+     fHeldConsumed++;
+     return true;
+@@ -2410,6 +2457,7 @@
+ {
+     if (!fHoldPresent) return;
+     const bool cancelPending = fHeldPending.owner && (!owner || fHeldPending.owner == owner);
++    const bool cancelPrevious = fHeldPrevious.owner && (!owner || fHeldPrevious.owner == owner);
+     if (fReadyAcrossFrames && fReadyEvent) {
+         IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+         IOLockLock(lock);
+@@ -2418,6 +2466,13 @@
+             if (i != SCAN357_NONE) gReadyWriters[i] = {};
+             clearReadyTicketLocked();
+         }
++        if (cancelPrevious) {
++            const unsigned i = scan357_find(gReadyWriters, __atomic_load_n(&gPreviousTicket, __ATOMIC_ACQUIRE));
++            if (i != SCAN357_NONE) gReadyWriters[i] = {};
++            __atomic_store_n(&gPreviousTicket, 0, __ATOMIC_RELEASE);
++            sweet_fb_frame_retire(&issued[SCAN357_WRITERS], &fHeldPrevious);
++            ++fHeldCanceled;
++        }
+         for (unsigned i = 0; i < SCAN357_WRITERS; ++i) {
+             if (!fHeldIssued[i].owner || (owner && fHeldIssued[i].owner != owner)) continue;
+             gReadyWriters[i] = {};
+@@ -2435,7 +2490,7 @@
+         sweet_fb_frame_retire(ready, &fHeldReady);
+         ++fHeldCanceled;
+     }
+-    fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    fDirty = fHeldPending.owner || fHeldPrevious.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
+ }
+-
++
+ void
+@@ -2503,7 +2558,7 @@
+     (void)owner;
+ #if defined(GAUGUIN)
+     struct sweet_fb_frame next = {};
+-    struct sweet_fb_retired retired = {}, retiredReady = {}, issued[SCAN357_WRITERS] = {};
++    struct sweet_fb_retired retired = {}, retiredReady = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+ #endif
+     IOLockLock(fLock);
+ #if defined(GAUGUIN)
+@@ -2545,7 +2600,8 @@
+             fHeldCanceled++; /* accepted valid frame while the display is off */
+             fDirty = false;
+         } else {
+-            if (fHeldPending.owner != NULL) replacePendingLocked(&retired);
++            if (fHeldPending.owner || fHeldPrevious.owner)
++                replacePendingLocked(next, &retired, &issued[SCAN357_WRITERS]);
+             sweet_fb_frame_move(&fHeldPending, &next);
+             fDirty = true;
+         }
+@@ -3106,7 +3162,7 @@
+ 		if (args->scalarInputCount >= 1) {
+ 			bool off = args->scalarInput[0] == 0;
+ #if defined(GAUGUIN)
+-            struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
++            struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN391_RETIRE_SLOTS] = {};
+ #endif
+ 			IOLockLock(fFB->fLock);
+ 			if (off != fFB->fPowerOff) {
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -1097,6 +1097,22 @@
+                 flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
+             }
+         }
++        const uint32_t previousSurface = fAsync && !fPendingDisplayTicket ? sweet_fb391_previous_surface() : 0;
++        if (previousSurface) {
++            // The current swap has priority. An older descriptor is eligible
++            // only when this exact submission writes its expected version.
++            for (uint32_t i = 0; i < r->nr_bos; ++i) {
++                auto *surface = resolved[i]->surface;
++                if (!surface || surface->id != previousSurface || !(bos[i].flags & 2u)) continue;
++                const uint32_t version = GauguinGPUSurfaceState(surface) & SCAN354_GPU_VERSION;
++                const uint64_t previous = sweet_fb391_claim_previous(surface->id,version);
++                if (previous) {
++                    fPendingDisplayTicket = previous;
++                    fPendingDisplayVersion = version;
++                    break;
++                }
++            }
++        }
+         io342::phase(0x46,10);
+         memoryBarrier();uint32_t fence=0;
+         sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);

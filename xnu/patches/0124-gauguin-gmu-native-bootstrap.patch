@@ -1,0 +1,356 @@
+diff --git a/bsd/dev/gauguin_bcm_coordinator.c b/bsd/dev/gauguin_bcm_coordinator.c
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -1,4 +1,5 @@
+ /* Opt-in BCM trial with separate PAS or fixed CX power diagnostics.
+- * CX mode excludes PAS. No AUTH_RESET, firmware-code load or GPU execution here.
++ * CX mode excludes PAS. Optional GMU firmware bootstrap runs only after the
++ * completed clock path; no AUTH_RESET, GPU command or Metal claim is made.
+  * One preemptible coordinator serializes: CPU-stage claim -> same-boot CMDDB
+  * plan -> watchdog arm/advance -> native six-command transfer -> optional
+@@ -26,4 +27,7 @@
+ #include "gauguin_cx_power.h"
+ #include "gauguin_gmu_clock.h"
++#include "gauguin_gmu_board.h"
++#include "gauguin_gmu_asset.h"
++#include "cmd_db_snapshot.h"
+ extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
+ extern void thread_terminate_self(void);
+@@ -33,4 +37,6 @@
+ void sweet_bcm_vote_init(void);
+ static unsigned bcm_started;
++static bool bcm_firmware_requested(void)
++{int flag=0;(void)PE_parse_boot_argn("sweetgmufw",&flag,sizeof(flag));return flag==1;}
+ static bool bcm_context(void)
+ { return ml_get_interrupts_enabled() && !ml_at_interrupt_context() && get_preemption_level() == 0; }
+@@ -59,4 +65,6 @@
+     int gmu = 0; (void)PE_parse_boot_argn("sweetgmuclk", &gmu, sizeof(gmu));
+     if ((gmu != 0 && gmu != 1) || (gmu == 1 && cx != 1)) return false;
++    int fw = 0; (void)PE_parse_boot_argn("sweetgmufw", &fw, sizeof(fw));
++    if ((fw != 0 && fw != 1) || (fw == 1 && gmu != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+@@ -69,4 +77,5 @@
+     struct gbcm_plan plan;
+     struct gcr_plan cx_plan;
++    struct gmf_plan fw_plan;
+     struct gauguin_wdt_lease_record lease;
+     struct gbcmt_receipt receipt;
+@@ -90,4 +99,13 @@
+         bcm_record("SWEET BCM BOOT: same-boot CMDDB preparation failed; no watchdog/RSC write");
+         return;
++    }
++    const bool fw_requested=bcm_firmware_requested();
++    if(fw_requested){
++        struct ndb_entry arc[4];struct gma_view asset;
++        if(!bcm_context()||!sweet_bus_arc_entries(arc)||!gmf_plan_build(arc,&fw_plan)||
++           !sweet_gmu_asset_view(&asset)){
++            bcm_record("SWEET GMU BOOT: real ARC plan/pinned asset unavailable; no watchdog/RSC write");return;
++        }
++        snprintf(line,sizeof(line),"SWEET GMU BOOT: pinned asset pa=%016llx bytes=%lu ARC GFX=%u MX=%u; no watchdog/RSC write yet",asset.pa,(unsigned long)asset.bytes,fw_plan.selector[GMF_GFX],fw_plan.selector[GMF_MX]);bcm_record(line);
+     }
+     if (!bcm_context() || !gauguin_wdt_lease_arm(&lease)) {
+@@ -137,5 +155,23 @@
+             snprintf(line, sizeof(line), "SWEET BCM BOOT: GMU clock complete configured_hz=%u direct_writes=%u hold_requests=%u polls=%u", clock.configured_hz, clock.direct_writes, clock.hold_requests, clock.polls);
+             bcm_record(line);
+-            bcm_record("SWEET BCM BOOT: GMU clock trial done; requests retained; awaiting watchdog reset; no firmware/reset-release/PAS/GX operation");
++            if(fw_requested){
++                struct gmb_firmware_receipt fw;
++                enum gmb_result result=sweet_gmu_firmware_once(&stage,&fw_plan,&fw);
++                if(result!=GMB_OK){
++                    enum gmb_state state=sweet_gmu_firmware_state();
++                    if(state!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
++                    snprintf(line,sizeof(line),"SWEET GMU BOOT: firmware stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)result,(unsigned)state);bcm_record(line);return;
++                }
++                const struct gmf_receipt *f=&fw.firmware;
++                snprintf(line,sizeof(line),"SWEET GMU BOOT: firmware complete phase=%u fw=%08x version=%08x copy=%u/%u writes=%u polls=%u debug=%u",fw.phase,f->fw_result,f->reported_version,f->tcm_written,f->tcm_checked,f->writes,f->polls,f->debug_messages);bcm_record(line);
++                snprintf(line,sizeof(line),"SWEET GMU BOOT: init_ack=%08x/%08x/%08x version_ack=%08x/%08x/%08x/%08x",f->init_ack[0],f->init_ack[1],f->init_ack[2],f->version_ack[0],f->version_ack[1],f->version_ack[2],f->version_ack[3]);bcm_record(line);
++                snprintf(line,sizeof(line),"SWEET GMU BOOT: reset=%08x gx=%08x release=%u oob=%u hfi=%08x/%08x oob_info=%08x/%08x irq=%08x/%08x/%08x",fw.reset,fw.gx,fw.release_attempted,fw.oob_attempted,f->hfi_before,f->hfi_after,f->oob_before,f->oob_after,fw.irq[0],fw.irq[1],fw.irq[2]);bcm_record(line);
++                for(unsigned n=0;n<5;n++){
++                    snprintf(line,sizeof(line),"SWEET GMU BOOT: tcm_version%u=%08x",n,f->versions[n]);bcm_record(line);
++                }
++                bcm_record("SWEET GMU BOOT: INIT/version diagnostic done; awaiting watchdog reset; no normal HFI_ON/GPU commands/Metal");
++            }else{
++                bcm_record("SWEET BCM BOOT: GMU clock trial done; requests retained; awaiting watchdog reset; no firmware/reset-release/PAS/GX operation");
++            }
+         } else {
+             bcm_record("SWEET BCM BOOT: CX trial done; ARC/BCM requests retained; awaiting watchdog reset; no PAS/GMU/GX/GPU execution");
+diff --git a/bsd/dev/gauguin_cx_power.c b/bsd/dev/gauguin_cx_power.c
+--- a/bsd/dev/gauguin_cx_power.c
++++ b/bsd/dev/gauguin_cx_power.c
+@@ -395,5 +395,5 @@
+     *out=value;return true;
+ }
+-bool sweet_gmu_clock_quiet(uint32_t *gx_gdsc)
++bool sweet_gmu_clock_live(bool allow_gx,uint32_t *gx_gdsc)
+ {
+     if(!gx_gdsc||!gcx_context()||sweet_gmu_clock_state()!=GCX_COMPLETE||
+@@ -409,6 +409,7 @@
+        !(s[4]&1)||(s[5]&0x8000f007u)!=0x80008000u||(s[6]&0xf3)||
+        (s[7]&0x10371f)!=0x602||(s[8]&0xff1)!=0xff1||!(s[9]&1)||
+-       !(s[10]&1)||!(s[11]&1)||(s[12]&1)||!(s[12]&0x80000000u)||
+-       (s[13]&0x80000000u))return false;
++       !(s[10]&1)||!(s[11]&1))return false;
++    if(!allow_gx&&((s[12]&1)||!(s[12]&0x80000000u)||
++       (s[13]&0x80000000u)))return false;
+     for(unsigned i=8;i<=11;i++){
+         if(i>=10&&(s[i]&2))continue;
+@@ -417,3 +418,5 @@
+     *gx_gdsc=s[13];return true;
+ }
++bool sweet_gmu_clock_quiet(uint32_t *gx_gdsc)
++{return sweet_gmu_clock_live(false,gx_gdsc);}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gmu_board.c b/bsd/dev/gauguin_gmu_board.c
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -10,4 +10,5 @@
+ #include "gauguin_gmu_board.h"
+ #include "gauguin_gmu_clock.h"
++#include "gauguin_gmu_asset.h"
+ #include "gauguin_wdt_lease.h"
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t,vm_size_t,vm_prot_t);
+@@ -40,5 +41,5 @@
+     __atomic_store_n(&gmb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+     gauguin_wdt_lease_quarantine();char line[192];
+-    snprintf(line,sizeof(line),"SWEET GMU BOARD: stopped rc=%u smmu=%u reason=%s; mappings retained, no retry/reset release",(unsigned)rc,(unsigned)gmb_work.smmu_result,why);
++    snprintf(line,sizeof(line),"SWEET GMU BOARD: stopped rc=%u smmu=%u reason=%s; mappings retained, no retry/rollback",(unsigned)rc,(unsigned)gmb_work.smmu_result,why);
+     gmb_record(line);return rc;
+ }
+@@ -174,3 +175,191 @@
+     return GMB_OK;
+ }
++/* The firmware adapter stays in this TU: the CSR, SMMU and low NC aliases
++ * above never escape their sole board owner. The five additional apertures
++ * are disjoint from those mappings and from the adjacent GPUCC region. */
++static unsigned gfw_lifecycle;
++static uint64_t gfw_deadline;
++static vm_offset_t gfw_map[GMF_WINDOWS];
++static const uint64_t gfw_pa[GMF_WINDOWS]={0x03d7c000,0x03d8c000,0x0b294000,
++    0x0b490000,0x03d6c000,0x03d0c000};
++static const unsigned gfw_bytes[GMF_WINDOWS]={0x4000,0x4000,0x4000,0x4000,0xc000,0x4000};
++static struct gma_view gfw_asset;
++static struct gmf_context gfw_context;
++static struct gmb_firmware_receipt gfw_work;
++static unsigned gfw_copy_issued,gfw_copy_compared;
++enum gmb_state sweet_gmu_firmware_state(void)
++{return (enum gmb_state)__atomic_load_n(&gfw_lifecycle,__ATOMIC_ACQUIRE);}
++static uint32_t gfw_load32(vm_offset_t address)
++{
++    uint32_t value=*(volatile uint32_t *)address;
++    __asm__ volatile("dmb oshld" ::: "memory");return value;
++}
++static void gfw_store32(vm_offset_t address,uint32_t value)
++{
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)address=value;
++    /* Critical reset/OOB intent is latched BEFORE the store. Complete the
++     * Device write before the engine's immediate post-write guard samples. */
++    __asm__ volatile("dsb sy" ::: "memory");
++}
++static bool gfw_faults(void)
++{
++    const struct gsm_receipt *s=&gmb_work.smmu;uint32_t v;uint64_t ttbr;
++    if(!gmb_read32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
++       !gmb_read32(NULL,0,&v)||v!=s->cr0_after||
++       !gmb_read32(NULL,0x6000,&v)||(v&~8u)!=(s->micro_after&~8u)||(v&4))return false;
++    for(unsigned n=0;n<2;n++){
++        if(s->bank[n]>=GSM_BANKS||s->slot[n]>=GSM_STREAMS)return false;
++        uint32_t cb=0x8000+0x1000*s->bank[n];
++        if(!gmb_read32(NULL,cb+0x58,&gfw_work.fsr[n])||gfw_work.fsr[n]||
++           !gmb_read32(NULL,cb,&v)||v!=s->sctlr[n]||
++           !gmb_read32(NULL,cb+4,&v)||v!=s->actlr[n]||
++           !gmb_read32(NULL,cb+0x10,&v)||v!=s->tcr2||
++           !gmb_read32(NULL,cb+0x30,&v)||v!=s->tcr||
++           !gmb_read32(NULL,cb+0x38,&v)||v!=s->mair0||
++           !gmb_read32(NULL,cb+0x3c,&v)||v!=s->mair1||
++           !gmb_read32(NULL,0x1000+4*s->bank[n],&v)||v!=0x1f300||
++           !gmb_read32(NULL,0x1800+4*s->bank[n],&v)||v!=1||
++           !gmb_read32(NULL,0xc00+4*s->slot[n],&v)||v!=s->s2cr_after[n]||
++           (s->stream_match&&(!gmb_read32(NULL,0x800+4*s->slot[n],&v)||v!=s->smr_after[n]))||
++           !gmb_read64(NULL,cb+0x20,&ttbr)||ttbr!=s->ttbr0[n]||
++           !gmb_read64(NULL,cb+0x28,&ttbr)||ttbr!=s->ttbr1[n])return false;
++    }
++    gfw_work.host_info=gfw_load32(gmb_reset+0x2648);
++    if(gfw_work.host_info==UINT32_MAX||(gfw_work.host_info&0x8000))return false;
++    if(gfw_map[GMF_AO]){
++        gfw_work.ao_status=gfw_load32(gfw_map[GMF_AO]+0x2c14);
++        /* Native AO watchdog/fence/AHB errors; delivery remains masked. */
++        if(gfw_work.ao_status==UINT32_MAX||(gfw_work.ao_status&0x29))return false;
++    }
++    return true;
++}
++static bool gfw_guard(void *cookie,enum gmf_phase phase)
++{
++    (void)cookie;
++    if(phase>GMF_DONE||phase<gfw_work.phase||phase>gfw_work.phase+1)return false;
++    gfw_work.phase=phase;
++    if(sweet_gmu_firmware_state()!=GMB_RUNNING||sweet_gmu_board_state()!=GMB_READY||
++       !gmb_thread()||mach_absolute_time()>=gfw_deadline||
++       !gauguin_wdt_lease_check_budget(GMB_MIN)||
++       !sweet_gmu_clock_live(gfw_work.oob_attempted!=0,&gfw_work.gx)||
++       !sweet_gmu_irq_quiet(gfw_work.irq)||(gfw_work.irq[1]&0x1000)||
++       !gmb_reset||!gmb_smmu||!gmb_ram)return false;
++    gfw_work.reset=gfw_load32(gmb_reset+0x2000);
++    if(phase==GMF_RESET){if(gfw_work.release_attempted||gfw_work.reset!=1)return false;}
++    else if(phase==GMF_RELEASING){if(gfw_work.reset!=(gfw_work.release_attempted?0u:1u))return false;}
++    else if(!gfw_work.release_attempted||gfw_work.reset)return false;
++    if(gfw_work.oob_attempted&&phase<GMF_GX_REQUEST)return false;
++    return gfw_faults()&&mach_absolute_time()<gfw_deadline&&
++        gauguin_wdt_lease_check_budget(GMB_MIN);
++}
++static bool gfw_read(void *cookie,enum gmf_window w,uint32_t off,uint32_t *out)
++{
++    (void)cookie;if(!out||(unsigned)w>=GMF_WINDOWS||!gfw_map[w]||
++        (off&3)||off>gfw_bytes[w]-4)return false;
++    *out=gfw_load32(gfw_map[w]+off);return true;
++}
++static bool gfw_write(void *cookie,enum gmf_window w,uint32_t off,uint32_t value)
++{
++    (void)cookie;if((unsigned)w>=GMF_WINDOWS||!gfw_map[w]||(off&3)||off>gfw_bytes[w]-4)return false;
++    if(w==GMF_CSR&&off==0x2000){
++        if(value||gfw_work.phase!=GMF_RELEASING||gfw_work.release_attempted)return false;
++        gfw_work.release_attempted=1;
++    }
++    if(w==GMF_CSR&&off==0x2650&&(value&(1u<<22))){
++        if(value!=(1u<<22)||gfw_work.phase!=GMF_GX_REQUEST||gfw_work.oob_attempted)return false;
++        gfw_work.oob_attempted=1;
++    }
++    gfw_store32(gfw_map[w]+off,value);return true;
++}
++static bool gfw_delay(void *cookie,unsigned us)
++{(void)cookie;if(us!=100)return false;delay(us);return true;}
++static bool gfw_asset_view(void *cookie,const uint8_t **data,size_t *bytes)
++{
++    (void)cookie;struct gma_view current;
++    if(!data||!bytes||!sweet_gmu_asset_view(&current)||current.pa!=gfw_asset.pa||
++       current.data!=gfw_asset.data||current.bytes!=GMF_FW_BYTES)return false;
++    *data=current.data;*bytes=current.bytes;return true;
++}
++static bool gfw_copy(void *cookie,const uint8_t *data,size_t bytes,struct gmf_copy *out)
++{
++    (void)cookie;
++    if(!out||data!=gfw_asset.data||bytes!=GMF_FW_BYTES||!gfw_map[GMF_TCM]||
++       gfw_work.phase!=GMF_RESET||!sweet_pas_stage_owner_valid(&gmb_stage))return false;
++    struct gmf_copy done={0};
++    for(unsigned base=0;base<GMF_FW_BYTES;base+=1024){
++        if(!gfw_guard(NULL,GMF_RESET))return false;
++        for(unsigned i=0;i<1024;i+=4){uint32_t word;memcpy(&word,data+base+i,4);
++            gfw_store32(gfw_map[GMF_TCM]+0x1000+base+i,word);++done.written;++gfw_copy_issued;}
++        if(!gfw_guard(NULL,GMF_RESET))return false;
++        for(unsigned i=0;i<1024;i+=4){uint32_t word;memcpy(&word,data+base+i,4);
++            if(gfw_load32(gfw_map[GMF_TCM]+0x1000+base+i)!=word)return false;++done.checked;++gfw_copy_compared;}
++        if(!gfw_guard(NULL,GMF_RESET))return false;
++    }
++    if(!sweet_pas_stage_owner_valid(&gmb_stage))return false;*out=done;return true;
++}
++static bool gfw_shared_read(void *cookie,uint32_t word,uint32_t *out)
++{
++    (void)cookie;if(!out||!gmb_ram||word>=GGM_HFI_RESERVED/4)return false;
++    *out=gfw_load32(gmb_ram+0x8c000-GMB_PAGE+4*word);return true;
++}
++static bool gfw_shared_write(void *cookie,uint32_t word,uint32_t value)
++{
++    (void)cookie;if(!gmb_ram||word>=GGM_HFI_RESERVED/4)return false;
++    gfw_store32(gmb_ram+0x8c000-GMB_PAGE+4*word,value);return true;
++}
++static enum gmb_result gfw_fail(enum gmb_result rc,const char *why)
++{
++    __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    /* Quarantine both owners and the shared lease BEFORE synchronous logs. */
++    gmb_fail(rc,why);
++    char line[192];
++    snprintf(line,sizeof(line),"SWEET GMU FW: stopped phase=%u engine=%u reset=%08x gx=%08x release=%u oob=%u gfsr=%08x fsr=%08x/%08x ao=%08x info=%08x",
++        gfw_work.phase,(unsigned)gfw_work.result,gfw_work.reset,gfw_work.gx,
++        gfw_work.release_attempted,gfw_work.oob_attempted,gfw_work.gfsr,
++        gfw_work.fsr[0],gfw_work.fsr[1],gfw_work.ao_status,gfw_work.host_info);
++    gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GMU FW: partial engine_phase=%u writes=%u polls=%u copy_issued=%u copy_compared=%u fw=%08x version=%08x",
++        (unsigned)gfw_context.phase,gfw_context.work.writes,gfw_context.work.polls,
++        gfw_copy_issued,gfw_copy_compared,gfw_context.work.fw_result,gfw_context.work.reported_version);
++    gmb_record(line);return rc;
++}
++enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
++    const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
++{
++    if(!stage||!out||!gmf_plan_valid(plan))return GMB_ARGUMENT;
++    unsigned expected=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&gfw_lifecycle,&expected,GMB_RUNNING,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMB_ALREADY;
++    if(!gmb_thread())return gfw_fail(GMB_CONTEXT,"firmware thread context");
++    if(!sweet_gmu_asset_view(&gfw_asset))return gfw_fail(GMB_ASSET,"pinned firmware asset before any board map");
++    if(!sweet_gmu_irq_quiet(gfw_work.irq)||(gfw_work.irq[1]&0x1000))return gfw_fail(GMB_PARENT,"firmware NS IRQ policy before SMMU maps");
++    enum gmb_result rc=sweet_gmu_smmu_once(stage,&gfw_work.board);
++    if(rc!=GMB_OK){__atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);return rc;}
++    gfw_work.asset_pa=gfw_asset.pa;
++    clock_interval_to_deadline(8,NSEC_PER_SEC,&gfw_deadline);
++    /* Cold map helper retains its original predicates; refresh only this
++     * new owned transaction's CPU deadline, never the hardware watchdog. */
++    gmb_deadline=gfw_deadline;
++    if(!gauguin_wdt_lease_check_budget(13u*GAUGUIN_WDT_CLOCK_HZ)||
++       !sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_RESET))return gfw_fail(GMB_BUDGET,"firmware initial13s/live predicates");
++    char line[192];const struct gsm_receipt *s=&gmb_work.smmu;
++    snprintf(line,sizeof(line),"SWEET GMU SMMU: id=%08x/%08x/%08x cr0=%08x ias=%u oas=%u mapped=%u atos=%u",s->id0,s->id1,s->id2,s->cr0_after,s->ias,s->oas,s->mapped_pages,s->translations);gmb_record(line);
++    for(unsigned n=0;n<2;n++){
++        snprintf(line,sizeof(line),"SWEET GMU SMMU: stream%u slot=%u bank=%u asid=%u smr=%08x s2cr=%08x sctlr=%08x ttbr0=%016llx ttbr1=%016llx",4+n,s->slot[n],s->bank[n],s->asid[n],s->smr_after[n],s->s2cr_after[n],s->sctlr[n],s->ttbr0[n],s->ttbr1[n]);gmb_record(line);
++    }
++    gfw_map[GMF_CSR]=gmb_reset;
++    for(unsigned w=1;w<GMF_WINDOWS;w++){
++        snprintf(line,sizeof(line),"SWEET GMU FW: before narrow window%u pa=%08llx bytes=%x RW map",w,gfw_pa[w],gfw_bytes[w]);gmb_record(line);
++        if(!gfw_guard(NULL,GMF_RESET)||!gmb_device_map(gfw_pa[w],gfw_bytes[w],&gfw_map[w])||
++           !gfw_guard(NULL,GMF_RESET))return gfw_fail(GMB_MAPPING,"narrow firmware window");
++    }
++    struct gmf_ops ops={NULL,gfw_guard,gfw_read,gfw_write,gmb_barrier,gfw_delay,
++        gfw_asset_view,gfw_copy,gfw_shared_read,gfw_shared_write};
++    gfw_work.result=gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
++    if(gfw_work.result!=GMF_OK)return gfw_fail(GMB_FIRMWARE,"native firmware/HFI bootstrap");
++    if(!sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_DONE))return gfw_fail(GMB_MEMORY,"final firmware owner/phase predicates");
++    *out=gfw_work;__atomic_store_n(&gfw_lifecycle,GMB_READY,__ATOMIC_RELEASE);
++    gmb_record("SWEET GMU FW: complete native FW result and INIT/version ACKs; no normal HFI_ON/GPU/Metal qualification");
++    return GMB_OK;
++}
+ #endif /* GAUGUIN */
+diff --git a/bsd/dev/gauguin_gmu_board.h b/bsd/dev/gauguin_gmu_board.h
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -3,10 +3,11 @@
+ #include "gauguin_gmu_smmu.h"
+ #include "gauguin_pas_stage.h"
++#include "gauguin_gmu_firmware.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+-    GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU};
++    GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE};
+ struct gmb_receipt {uint64_t owner_pa;uint32_t reset_before,gx_before,irq_before[3];
+     enum gsm_result smmu_result;struct gsm_receipt smmu;};
+-/* Internal coherent-GMU-initializer entry, deliberately no boot hook/flag yet.
++/* Internal cold stage of the opt-in coherent GMU firmware initializer.
+  * Caller is the sole consumer of the real same-boot CPU-stage claim. Requires
+  * completed native clock/CX path, an armed lease, asserted CM3 reset and GX
+@@ -20,3 +21,16 @@
+ enum gmb_result sweet_gmu_smmu_once(const struct sweet_pas_cpu_stage *,struct gmb_receipt *);
+ enum gmb_state sweet_gmu_board_state(void);
++struct gmb_firmware_receipt {struct gmb_receipt board;struct gmf_receipt firmware;
++    uint64_t asset_pa;uint32_t reset,gx,irq[3],gfsr,fsr[2],ao_status,host_info;
++    uint32_t release_attempted,oob_attempted,phase;enum gmf_result result;};
++/* One coherent native cold transaction: real asset -> existing board SMMU
++ * initializer -> narrow firmware mappings -> actual GMF/HFI engine. Reuses
++ * all retained CSR/SMMU/NC aliases. Fresh phase-aware deadline/clock/IRQ/fault
++ * guards survive our owned reset/GX transitions. All mappings are retained;
++ * failure quarantines the shared WDT and both owners, with no retry/rollback.
++ * Success qualifies ONLY firmware boot and INIT/version replies. It does not
++ * claim normal HFI_ON, GPU commands, secure ZAP, DVFS or Metal capability. */
++enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *,
++    const struct gmf_plan *,struct gmb_firmware_receipt *);
++enum gmb_state sweet_gmu_firmware_state(void);
+ #endif
+diff --git a/bsd/dev/gauguin_gmu_clock.h b/bsd/dev/gauguin_gmu_clock.h
+--- a/bsd/dev/gauguin_gmu_clock.h
++++ b/bsd/dev/gauguin_gmu_clock.h
+@@ -25,3 +25,7 @@
+  */
+ bool sweet_gmu_clock_quiet(uint32_t *gx_gdsc);
++/* Same retained fixed parent/CX profile. Only the firmware owner, AFTER its
++ * own GX OOB store, may allow GX power/branch transitions. No new mappings,
++ * clocks or watchdog arm. Caller still enforces reset/IRQ/fault/deadline. */
++bool sweet_gmu_clock_live(bool allow_gx, uint32_t *gx_gdsc);
+ #endif

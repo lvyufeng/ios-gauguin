@@ -38,11 +38,28 @@ def load(path):
         return plistlib.load(f)
 
 
+def _chown(path, uid, gid):
+    """Best-effort chown.
+
+    On a macFUSE/native HFS+ mount macOS refuses chown even for the owner, so the
+    file keeps the owner it already had - which is the right one anyway, because
+    every file this script touches already belongs to root or mobile on a real
+    iOS root. Linux honours the call. Either way the script must not stop here.
+    """
+    try:
+        os.chown(path, uid, gid)
+    except (PermissionError, OSError):
+        pass
+
+
 def save(path, data, uid, gid, mode, fmt=plistlib.FMT_BINARY):
     with open(path, 'wb') as f:
         plistlib.dump(data, f, fmt=fmt)
-    os.chown(path, uid, gid)
-    os.chmod(path, mode)
+    _chown(path, uid, gid)
+    try:
+        os.chmod(path, mode)
+    except PermissionError:
+        pass
 
 
 def merge_pref(root, name, values):
@@ -77,7 +94,10 @@ def containers(root):
         d = os.path.join(base, sub)
         if not os.path.isdir(d):
             os.makedirs(d)
-            os.chown(d, uid, uid)
+            # macOS refuses chown on a mounted HFS+ volume even as root; the
+            # directory inherits the parent's owner, which is right on iOS
+            # (root for the System ones, mobile for Bundle). Linux honours it.
+            _chown(d, uid, uid)
             os.chmod(d, 0o755)
             print('mkdir', d)
 
@@ -97,7 +117,7 @@ def activation(root):
         return
     d = os.path.join(c, 'Library/internal')
     os.makedirs(d, exist_ok=True)
-    os.chown(d, MOBILE, MOBILE)
+    _chown(d, MOBILE, MOBILE)
     os.chmod(d, 0o755)
     save(os.path.join(d, 'data_ark.plist'), {
         '-ActivationState': 'Activated', '-BrickState': False,

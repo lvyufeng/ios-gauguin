@@ -1,0 +1,362 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_sustain417.h
+@@ -0,0 +1,23 @@
++#ifndef GAUGUIN_SUSTAIN_417_H
++#define GAUGUIN_SUSTAIN_417_H
++
++#include <stdbool.h>
++
++enum {
++    F417_FLIP_LIMIT = 3072, F417_CAPTURE_RECORDS = 6144,
++    F417_SAMPLE_MS = 10, F417_HALF_DRAG = 160, F417_REPORT_LIMIT = 3300
++};
++
++static inline bool f417_profile(unsigned capture, unsigned script, unsigned physical, unsigned hz)
++{
++    return capture == 9 && script == 5 && physical == 0 && hz == 60;
++}
++
++static inline unsigned f417_position(unsigned step)
++{
++    const unsigned phase = step % (2 * F417_HALF_DRAG);
++    const unsigned offset = phase <= F417_HALF_DRAG ? phase : 2 * F417_HALF_DRAG - phase;
++    return 900 - 720 * offset / F417_HALF_DRAG;
++}
++
++#endif
+--- a/bsd/dev/gauguin_page_flip.h
++++ b/bsd/dev/gauguin_page_flip.h
+@@ -27,6 +27,7 @@
+ uintptr_t sweet_frame382_buffer(unsigned slot);
+ bool sweet_frame382_active(void);
+ bool sweet_frame382_ending(void);
++unsigned sweet_frame382_copy_limit(void);
+ unsigned sweet_frame382_issue(unsigned front, unsigned next, uint32_t *scan);
+ unsigned sweet_frame382_latch(unsigned next, uint32_t requested_scan);
+ unsigned sweet_fb382_poll(uint32_t scan);
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -43,6 +43,7 @@
+ #include "gauguin_frame388_receipts.h"
+ #include "gauguin_frame385.h"
+ #include "gauguin_page_flip.h"
++#include "gauguin_sustain417.h"
+ #include "gauguin_cpufreq402.h"
+ #include "gauguin_completion_sample405.h"
+ 
+@@ -83,7 +84,7 @@
+ static mach_timebase_info_data_t frame_timebase;
+ static bool frame_header, frame_footer;
+ static thread_call_t scan_call, manual_preview_call;
+-static bool manual_preview;
++static bool manual_preview, sustained417;
+ static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
+ static volatile uint32_t *scan_intf;
+ static bool scan351_enabled, scan351_published, scan352_enabled;
+@@ -373,6 +374,8 @@
+ void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
+     uint64_t a, uint64_t b, uint64_t c)
+ {
++    if (sustained417 && kind != F344_VBLANK && kind != F344_CRC && kind != F344_TIMING)
++        return;
+     gut_record(&frames, kind, id, 0, flags, a, b, c);
+ }
+ 
+@@ -425,7 +428,7 @@
+ bool sweet_frame351_window(void)
+ {
+     return __atomic_load_n(&scan351_published, __ATOMIC_ACQUIRE) &&
+-        frame_active() && mach_absolute_time() < frames.end;
++        (sustained417 || frame_active()) && mach_absolute_time() < frames.end;
+ }
+ 
+ static bool scan351_position(struct scan351_position *out)
+@@ -891,9 +894,14 @@
+         *scan382.source == scan382.address[front] && !*scan382.flush;
+ }
+ 
++unsigned sweet_frame382_copy_limit(void)
++{
++    return sustained417 ? F417_FLIP_LIMIT : F382_MAX_FLIPS;
++}
++
+ bool sweet_frame382_ending(void)
+ {
+-    if (__atomic_load_n(&scan382.stop_requested, __ATOMIC_ACQUIRE) || !frame_active())
++    if (__atomic_load_n(&scan382.stop_requested, __ATOMIC_ACQUIRE) || (!sustained417 && !frame_active()))
+         return true;
+     uint64_t ticks;
+     nanoseconds_to_absolutetime(NSEC_PER_MSEC * F382_DRAIN_MS, &ticks);
+@@ -918,7 +926,7 @@
+ {
+     struct scan351_position before, after;
+     if (!sweet_frame382_active() || front > F382_SECOND || next > F382_SECOND || front == next ||
+-        scan382.requests >= F382_MAX_FLIPS + (next == F382_FRONT))
++        scan382.requests >= sweet_frame382_copy_limit() + (next == F382_FRONT))
+         return F382_UNCERTAIN;
+     if ((next != F382_FRONT && sweet_frame382_ending()) ||
+         !scan382_position(&before) || before.line < SCAN351_OPEN ||
+@@ -1180,7 +1188,7 @@
+ 
+ bool sweet_frame375_edge(uint32_t frame, uint64_t *lo, uint64_t *hi)
+ {
+-    if (!frame_active()) return false;
++    if (!(sustained417 ? sweet_frame351_window() : frame_active())) return false;
+     const unsigned index = frame % F375_INFO_QUEUE;
+     const uint32_t version = __atomic_load_n(&frame375_edges[index].version, __ATOMIC_ACQUIRE);
+     if (!version || version & 1) return false;
+@@ -1437,7 +1445,7 @@
+         return;
+     }
+     if (scan357_enabled) scan357_finish_if_expired(tick);
+-    if (!frame_active() || tick >= frames.end || scan.polls >= F344_POLL_LIMIT) {
++    if ((!sustained417 && !frame_active()) || tick >= frames.end || scan.polls >= F344_POLL_LIMIT) {
+         scan_finish("deadline");
+         return;
+     }
+@@ -1519,7 +1527,8 @@
+             if (scan357_enabled) scan367_poll(frame);
+             if (phase380_enabled) scan381_poll(frame);
+             if (sweet_frame382_active()) sweet_fb382_poll(frame);
+-            if (scan357_enabled && !manual_preview && scan358_probe_line(line) && sweet_frame351_window())
++            if (scan357_enabled && !manual_preview && !sustained417 &&
++                scan358_probe_line(line) && sweet_frame351_window())
+                 sweet_fb358_request_probe(frame);
+             scan405_observe(frame, line);
+         } else if (scan.counter_readonly) {
+@@ -1545,9 +1554,11 @@
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+     const bool preview = f387_physical_profile(enabled, script, physical, hz);
+-    if (enabled < 2 || enabled > 9 || (!preview && ((script != 3 && script != 4) || physical)) ||
++    const bool sustained = f417_profile(enabled, script, physical, hz);
++    if (enabled < 2 || enabled > 9 || (!preview && !sustained && ((script != 3 && script != 4) || physical)) ||
+         !sweet_metal_desktop_enabled() || (enabled >= 4 && hz != 60)) return;
+     manual_preview = preview;
++    sustained417 = sustained;
+     scan.counter_opt_in = enabled == 3 && hz == 60;
+     scan.counter_readonly = enabled >= 4;
+     scan.crc_blanking = enabled >= 5;
+@@ -1556,12 +1567,13 @@
+     scan352_enabled = enabled >= 8;
+     scan357_enabled = enabled == 9;
+     scan.crc_blocked = enabled == 4;
+-    const uint32_t capacity = scan357_enabled ? SCAN358_FRAME_CAPACITY : 16384;
++    const uint32_t capacity = sustained417 ? F417_CAPTURE_RECORDS :
++        (scan357_enabled ? SCAN358_FRAME_CAPACITY : 16384);
+     uint64_t window;
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+     clock_timebase_info(&frame_timebase);
+     if (!window || !frame_timebase.numer || !frame_timebase.denom) return;
+-    phase380_enabled = scan357_enabled && (script == 4 || preview) &&
++    phase380_enabled = scan357_enabled && (script == 4 || preview || sustained417) &&
+         frame_timebase.numer == 625 && frame_timebase.denom == 12;
+     struct gut_event *events = kalloc_data(capacity * sizeof(*events), Z_WAITOK | Z_ZERO);
+     if (!events) return;
+@@ -1576,7 +1588,7 @@
+         __atomic_store_n(&manual_preview_call, call, __ATOMIC_RELEASE);
+         if (call) printf("SWEET F387 MANUAL: ready for first physical contact\n");
+     }
+-    if (scan357_enabled && !preview)
++    if (scan357_enabled && !preview && !sustained417)
+         printf("SWEET F358 PROBE: first_line=%u limit=%u\n",
+             SCAN358_PROBE_FIRST_LINE, SCAN358_PROBE_LIMIT);
+ }
+@@ -1628,11 +1640,12 @@
+     scan_intf += F344_INTF_OFF / 4;
+     uint32_t stock_profile = 0;
+     PE_parse_boot_argn("gpf", &stock_profile, sizeof(stock_profile));
+-    if (stock_profile == 5 && scan357_enabled && phase380_enabled && !manual_preview)
++    if (stock_profile == 5 && scan357_enabled && phase380_enabled && !manual_preview && !sustained417)
+         scan402_prepare();
+     if (phase380_enabled) f388_arm(&phase388, frames.start, frames.end);
+     if (manual_preview) printf("SWEET F387 MANUAL: opening guarded display window\n");
+-    if (scan357_enabled && !manual_preview) {
++    if (sustained417) printf("SWEET F417 DISPLAY: compact CRC and vblank, copies=%u\n", sweet_frame382_copy_limit());
++    if (scan357_enabled && !manual_preview && !sustained417) {
+         struct frame374_receiver receiver = {0};
+         proc_iterate(PROC_ALLPROCLIST, frame374_find_receiver, &receiver, NULL, NULL);
+         if (receiver.receivers == 1) {
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -53,6 +53,7 @@
+ #include "../../../bsd/dev/gauguin_frame388_receipts.h"
+ #include "../../../bsd/dev/gauguin_scanout_write415.h"
+ #include "../../../bsd/dev/gauguin_page_flip.h"
++#include "../../../bsd/dev/gauguin_sustain417.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+@@ -1044,7 +1045,9 @@
+     PE_parse_boot_argn("sweetfb_hz", &hz375, sizeof(hz375));
+     PE_parse_boot_argn("sweetnvt", &physical387, sizeof(physical387));
+     const bool preview = f387_physical_profile(statsRequested, swipe375, physical387, hz375);
+-    fFrameInfo375 = fHoldPresent && statsRequested == 9 && (swipe375 == 4 || preview) && hz375 == 60;
++    const bool sustained = f417_profile(statsRequested, swipe375, physical387, hz375);
++    fFrameInfo375 = fHoldPresent && statsRequested == 9 && hz375 == 60 &&
++        (swipe375 == 4 || preview || sustained);
+     fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
+     fFlip382 = {};
+     fStage384Loop = nullptr;
+@@ -2181,7 +2184,7 @@
+     --fFrameInfo375Size;
+     if (!captured || fPowerOff) return;
+     IOReturn code = kIOReturnNotReady;
+-    if (fFrameInfo375Sends < F375_INFO_LIMIT) {
++    if (fFrameInfo375Sends < sweet_frame382_copy_limit()) {
+         for (unsigned i = 0; i < fClients->getCount(); ++i) {
+             auto *client = static_cast<IOMobileFramebufferUserClient *>(fClients->getObject(i));
+             if (client->fFrameInfo375ID != copy.owner) continue;
+@@ -2214,7 +2217,7 @@
+     fStage384Event = event;
+     event->enable();
+     IOLockUnlock(fLock);
+-    IOLog("SWEET F384 WORKER: separate=1 copies=%u\n", F382_MAX_FLIPS);
++    IOLog("SWEET F384 WORKER: separate=1 copies=%u\n", sweet_frame382_copy_limit());
+ }
+ 
+ bool
+@@ -2265,7 +2268,7 @@
+ bool
+ AppleCLCD::flip382EndingLocked() const
+ {
+-    return fFlip382.copies >= F382_MAX_FLIPS || sweet_frame382_ending();
++    return fFlip382.copies >= sweet_frame382_copy_limit() || sweet_frame382_ending();
+ }
+ 
+ unsigned
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -37,6 +37,7 @@
+ #if defined(GAUGUIN)
+ #include <IOKit/SweetHIDTouchFrame.h>
+ #include "gauguin_ui_trace.h"
++#include "gauguin_sustain417.h"
+ #include "gauguin_frame344.h"
+ #include "gauguin_frame385.h"
+ #include "gauguin_calibration357.h"
+@@ -605,6 +606,76 @@
+ 	printf("SWEET M362: complete reports=%u\n", sweet_motion_step);
+ }
+ 
++/* One warmed, continuous horizontal drag. The due time is absolute to
++ * avoid accumulating callback jitter over the 33-second motion window. */
++static bool sweet_continuous_mode;
++static struct {
++	uint64_t due, interval, start, last, max_gap;
++	unsigned reports;
++	bool armed;
++} motion417;
++
++static void
++motion417_arm(void)
++{
++	nanoseconds_to_absolutetime(F417_SAMPLE_MS * NSEC_PER_MSEC, &motion417.interval);
++	if (!motion417.interval) return;
++	clock_interval_to_deadline(6, NSEC_PER_SEC, &motion417.due);
++	motion417.armed = true;
++	thread_call_enter_delayed(sweet_script_call, motion417.due);
++}
++
++static void
++motion417_finish(uint64_t now, bool complete)
++{
++	motion417.armed = false;
++	int rc = 0;
++	if (motion417.reports) {
++		struct sweet_hid_touch_snapshot release = {0};
++		rc = sweet_hid_touch_frame(&release);
++	}
++	printf("SWEET F417 MOTION: end=%llu reports=%u max_gap=%llu release_rc=%x complete=%u\n",
++	    (unsigned long long)now, motion417.reports, (unsigned long long)motion417.max_gap,
++	    rc, complete && !rc);
++}
++
++static void
++motion417_fire(uint64_t now)
++{
++	if (sweet_fb_display_state() != 1 || (motion417.start && now < motion417.start)) {
++		motion417_finish(now, false);
++		return;
++	}
++	if (now < motion417.due) {
++		thread_call_enter_delayed(sweet_script_call, motion417.due);
++		return;
++	}
++	if (!motion417.start) {
++		motion417.start = now;
++		printf("SWEET F417 MOTION: begin=%llu interval=%llu limit=%u\n",
++		    (unsigned long long)now, (unsigned long long)motion417.interval, F417_REPORT_LIMIT);
++	}
++	const uint64_t step = (now - motion417.start) / motion417.interval;
++	if (step >= F417_REPORT_LIMIT) {
++		motion417_finish(now, true);
++		return;
++	}
++	if (motion417.last && now - motion417.last > motion417.max_gap)
++		motion417.max_gap = now - motion417.last;
++	motion417.last = now;
++	struct sweet_hid_touch_snapshot position = {0};
++	position.active_mask = 1;
++	position.x[0] = f417_position((unsigned)step);
++	position.y[0] = 1200;
++	++motion417.reports;
++	if (sweet_hid_touch_frame(&position)) {
++		motion417_finish(mach_absolute_time(), false);
++		return;
++	}
++	motion417.due = motion417.start + (step + 1) * motion417.interval;
++	thread_call_enter_delayed(sweet_script_call, motion417.due);
++}
++
+ static void
+ sweet_script_abort(void)
+ {
+@@ -665,7 +736,8 @@
+ 	if (sweet_script_call == NULL) return;
+ 	uint64_t now = mach_absolute_time();
+ 	if (sweet_script_stroke >= 13) {
+-		if (sweet_motion_armed) sweet_motion_fire(now);
++		if (motion417.armed) motion417_fire(now);
++		else if (sweet_motion_armed) sweet_motion_fire(now);
+ 		return;
+ 	}
+ 	if (now < sweet_script_due || now >= sweet_script_end ||
+@@ -709,6 +781,11 @@
+ 		return;
+ 	}
+ 	printf("SWEET UI SCRIPT: end stroke=%u tick=%llu events=34; HID return only\n", stroke, (unsigned long long)mach_absolute_time());
++	if (sweet_continuous_mode) {
++		sweet_script_stroke = 13;
++		motion417_arm();
++		return;
++	}
+ 	if (++sweet_script_stroke >= 13) {
+ 		printf("SWEET UI SCRIPT: complete strokes=13 events=442; UI acceptance and physical touch unqualified\n");
+ 		if (sweet_script_wake_mode) sweet_frame357_calibrate_after_script();
+@@ -733,7 +810,8 @@
+ 	clock_interval_to_deadline(180, NSEC_PER_SEC, &sweet_script_due);
+ 	clock_interval_to_deadline(181500, NSEC_PER_MSEC, &sweet_script_end);
+ 	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
+-	printf("SWEET UI SCRIPT: armed strokes=13 origin=synthetic physical=off; first at +180s\n");
++	printf("SWEET UI SCRIPT: armed strokes=%u origin=synthetic physical=off; first at +180s\n",
++	    sweet_continuous_mode ? 1u : 13u);
+ 	if (sweet_script_wake_mode) printf("SWEET UI WAKE: enabled; one power pair if off, 5s limit, observe on before strokes\n");
+ }
+ #endif
+@@ -1306,7 +1384,14 @@
+ 		sweet_script_arm();
+ 		return;
+ 	}
+-	if (physical == 0 && (swipe == 3 || swipe == 4)) {
++	if (physical == 0 && (swipe == 3 || swipe == 4 || swipe == 5)) {
++		if (swipe == 5) {
++			unsigned capture = 0, hz = 0;
++			(void)PE_parse_boot_argn("sweetfb_stats", &capture, sizeof(capture));
++			(void)PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
++			if (!f417_profile(capture, swipe, physical, hz)) return;
++			sweet_continuous_mode = true;
++		}
+ 		sweet_motion_mode = swipe == 4;
+ 		sweet_script_wake_mode = true;
+ 		sweet_script_arm();

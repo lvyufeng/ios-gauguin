@@ -1,0 +1,31 @@
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -305,11 +305,11 @@
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    if (enabled != 2 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
+-    uint32_t counters = 0, hz = 0;
+-    PE_parse_boot_argn("swpcount", &counters, sizeof(counters));
++    if ((enabled != 2 && enabled != 3) || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    // Use a mode value so the complete 607-byte boot line still fits.
++    uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+-    scan.counter_opt_in = counters == 1 && hz == 60;
++    scan.counter_opt_in = enabled == 3 && hz == 60;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -618,7 +618,7 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    fPresentStatsEnabled = statsRequested == 1 || statsRequested == 2;
++    fPresentStatsEnabled = statsRequested == 1 || statsRequested == 2 || statsRequested == 3;
+     fPresentSample = NULL;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");

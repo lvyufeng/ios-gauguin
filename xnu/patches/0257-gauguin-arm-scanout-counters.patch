@@ -1,0 +1,180 @@
+diff --git a/bsd/dev/gauguin_scanout345.h b/bsd/dev/gauguin_scanout345.h
+--- a/bsd/dev/gauguin_scanout345.h
++++ b/bsd/dev/gauguin_scanout345.h
+@@ -66,6 +66,14 @@
+ }
+
+ static inline bool
++scan345_counter_can_arm(const struct scan345_status *status,
++    const struct scan345_geometry *previous, const struct scan345_geometry *current)
++{
++    return status->enable == 1 && status->count == 0 && current->vtotal != 0 &&
++        scan345_same_timing(previous, current);
++}
++
++static inline bool
+ scan345_edge_60(uint64_t interval_ns, uint64_t bracket_ns, uint32_t line, uint32_t vtotal)
+ {
+     /* At the frame counter boundary the current line must have wrapped.
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -33,8 +33,9 @@
+
+ /* Lagoon entry points from the board's live DT and Xiaomi gauguin-r-oss
+  * SDE/clock drivers. Mapped pages are aligned for the 16 KiB XNU kernel.
+- * Only the INTF1 MISR control receives writes, after a running 60 Hz
+- * interface and a zero control preimage have both been observed. */
++ * The INTF1 MISR control requires a running 60 Hz interface and a zero
++ * preimage. A separate diagnostic flag permits enabling frame/line counters
++ * for this capture, with independent preimage and cleanup checks. */
+ enum {
+     F344_PAGE = 0x4000, F344_GCC_PAGE = 0x00114000, F344_DISPCC_PA = 0x0af00000,
+     F344_MDP_PA = 0x0ae00000, F344_INTF_PAGE = 0x0ae68000, F344_INTF_OFF = 0x3800,
+@@ -43,6 +44,7 @@
+     F344_VSTART = 0x1c, F344_VEND = 0x24, F345_COUNT_EN = 0xa8, F344_FRAME_COUNT = 0xac,
+     F344_LINE_COUNT = 0xb0, F344_MISR_CTRL = 0x180, F344_MISR_SIG = 0x184,
+     F344_INTF_STATUS = 0x26c, F344_CRC_STATUS = 1u << 9, F344_CRC_CLEAR = 1u << 10,
++    F346_COUNT_ON = 3,
+     F344_POLL_US = 1200, F344_POLL_LIMIT = 40960, F345_STARTUP_MS = 800
+ };
+ #define F344_CRC_CONFIG UINT32_C(0x81000101)
+@@ -58,8 +60,9 @@
+     uint32_t frame, edge_streak, arm_frame, crc_frame, crc_candidate_frame, crc_candidate;
+     uint32_t polls, gate_logs;
+     enum scan345_gate last_gate;
+-    struct scan345_geometry geometry;
++    struct scan345_geometry geometry, counter_candidate;
+     bool have_frame, configured, crc_blocked, have_crc, have_candidate;
++    bool counter_opt_in, counter_attempted;
+ } scan;
+
+ static bool frame_active(void)
+@@ -110,7 +113,6 @@
+     /* Lagoon's vendor catalog uses INTF_STATUS for SDE major 6. The
+      * timing-engine register is also recorded to diagnose handoff. */
+     if (!(status->live & 1u)) return SCAN345_VIDEO;
+-    if ((status->count & 3u) != 3) return SCAN345_COUNTERS;
+     status->hsync = scan_intf[F344_HSYNC / 4];
+     status->period = scan_intf[F344_VPERIOD / 4];
+     status->start = scan_intf[F344_VSTART / 4];
+@@ -119,7 +121,8 @@
+     if (!scan345_timing(status, geometry)) return SCAN345_GEOMETRY;
+     if (scan.geometry.vtotal && !scan345_same_timing(&scan.geometry, geometry))
+         return SCAN345_CHANGED;
+-    return SCAN345_OK;
++    const uint32_t count_mask = scan.counter_opt_in ? UINT32_MAX : F346_COUNT_ON;
++    return (status->count & count_mask) == F346_COUNT_ON ? SCAN345_OK : SCAN345_COUNTERS;
+ }
+
+ static void scan_report(enum scan345_gate gate, const struct scan345_status *s)
+@@ -129,24 +132,55 @@
+         s->enable, s->count, s->hsync, s->period, s->start, s->end);
+ }
+
+-static void misr_write(uint32_t value)
+-{
+-    scan_intf[F344_MISR_CTRL / 4] = value;
++static void scan_intf_write(uint32_t offset, uint32_t value)
++{
++    scan_intf[offset / 4] = value;
+     __asm__ volatile("dsb sy" ::: "memory");
++}
++
++static bool scan_count_probe(const struct scan345_status *status, const struct scan345_geometry *geometry)
++{
++    const bool ready = scan345_counter_can_arm(status, &scan.counter_candidate, geometry);
++    scan.counter_candidate = *geometry;
++    if (status->enable != 1 || status->count != 0) scan.counter_candidate.vtotal = 0;
++    if (!ready || mach_absolute_time() >= scan.startup_end) return true;
++    const uint32_t preimage = scan_intf[F345_COUNT_EN / 4];
++    if (preimage != 0) {
++        scan.counter_candidate.vtotal = 0;
++        return true;
++    }
++
++    scan.counter_attempted = true;
++    scan_intf_write(F345_COUNT_EN, F346_COUNT_ON);
++    const uint32_t readback = scan_intf[F345_COUNT_EN / 4];
++    printf("SWEET F346 COUNTER: arm poll=%u preimage=%x readback=%x\n",
++        scan.polls, preimage, readback);
++    return readback == F346_COUNT_ON;
+ }
+
+ static void scan_stop(const char *reason)
+ {
+     bool restored = !scan.configured;
+     struct scan345_status status = {0};
+-    if (scan.configured && scan_clocks(&status) == SCAN345_OK &&
+-        scan_mdp[0] == UINT32_C(0x60040000)) {
++    const bool readable = (scan.configured || scan.counter_attempted) &&
++        scan_clocks(&status) == SCAN345_OK && scan_mdp[0] == UINT32_C(0x60040000);
++    if (scan.configured && readable) {
+         const uint32_t current = scan_intf[F344_MISR_CTRL / 4];
+         if ((current & ~F344_CRC_STATUS) == F344_CRC_CONFIG) {
+-            misr_write(F344_CRC_CLEAR);
+-            misr_write(0);
++            scan_intf_write(F344_MISR_CTRL, F344_CRC_CLEAR);
++            scan_intf_write(F344_MISR_CTRL, 0);
+         }
+         restored = scan_intf[F344_MISR_CTRL / 4] == 0;
++    }
++    if (scan.counter_attempted) {
++        uint32_t before = UINT32_MAX, after = UINT32_MAX;
++        if (readable) {
++            before = scan_intf[F345_COUNT_EN / 4];
++            if (before == F346_COUNT_ON) scan_intf_write(F345_COUNT_EN, 0);
++            after = scan_intf[F345_COUNT_EN / 4];
++        }
++        printf("SWEET F346 COUNTER: cleanup poll=%u readable=%u before=%x after=%x\n",
++            scan.polls, readable, before, after);
+     }
+     printf("SWEET F345 DPU: stopped=%s polls=%u configured=%u restored=%u gate=%u\n",
+         reason, scan.polls, scan.configured, restored, scan.last_gate);
+@@ -174,8 +208,8 @@
+         scan.crc_blocked = true;
+         return;
+     }
+-    misr_write(F344_CRC_CLEAR);
+-    misr_write(F344_CRC_CONFIG);
++    scan_intf_write(F344_MISR_CTRL, F344_CRC_CLEAR);
++    scan_intf_write(F344_MISR_CTRL, F344_CRC_CONFIG);
+     scan.arm_frame = frame;
+     scan.configured = true;
+ }
+@@ -216,14 +250,23 @@
+     }
+     scan.last_gate = gate;
+     if (gate != SCAN345_OK) {
+-        if (scan.configured || expired) {
++        if (scan.configured || scan.counter_attempted || expired) {
+             scan_stop("route");
+             return;
+         }
+         scan.have_frame = false;
+         scan.edge_tick = 0;
+         scan.edge_streak = 0;
++        if (scan.counter_opt_in && gate == SCAN345_COUNTERS) {
++            if (!scan_count_probe(&status, &geometry)) {
++                scan_stop("counter");
++                return;
++            }
++        } else {
++            scan.counter_candidate.vtotal = 0;
++        }
+     } else {
++        scan.counter_candidate.vtotal = 0;
+         if (expired && !scan.configured && !scan.crc_blocked) {
+             scan.crc_blocked = true;
+             printf("SWEET F345 CRC: edge qualification expired at poll=%u\n", scan.polls);
+@@ -263,6 +306,10 @@
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+     if (enabled != 2 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    uint32_t counters = 0, hz = 0;
++    PE_parse_boot_argn("swpcount", &counters, sizeof(counters));
++    PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
++    scan.counter_opt_in = counters == 1 && hz == 60;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);

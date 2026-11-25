@@ -1,0 +1,427 @@
+diff --git a/bsd/dev/sweet_ufs.c b/bsd/dev/sweet_ufs.c
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -107,7 +107,7 @@
+ #define DMA_UTRL        0x0000                  /* 1 KiB aligned */
+ #define DMA_UCD         0x1000                  /* 128 byte aligned */
+ #define DMA_BOUNCE      0x4000
+-#define DMA_STAGE       (DMA_BOUNCE + BOUNCE_SIZE)      /* stage block, see sweet_stage() */
++#define DMA_STAGE       (DMA_BOUNCE + BOUNCE_SIZE)      /* unused legacy stage block; keep DMA layout */
+ /*
+  * The persistent log gets its own request slot and its own data buffer.
+  *
+@@ -152,14 +152,31 @@
+ 	bool ready;
+ } su;
+ 
++/* No DMA buffer or descriptor may be reused after an uncertain completion.
++ * The contiguous allocation is permanent; only a proven host/device recovery
++ * could safely clear this latch. This diagnostic driver implements no such recovery.
++ */
++static bool ufs_poisoned;
++
++static bool
++ufs_dma_available(void)
++{
++	return !__atomic_load_n(&ufs_poisoned, __ATOMIC_ACQUIRE);
++}
++
+ static LCK_GRP_DECLARE(sweet_ufs_grp, "sweet_ufs");
+ static LCK_MTX_DECLARE(sweet_io_serial_lock, &sweet_ufs_grp);
++/* Lock order: MAIN/LOG/MARK owner mutex -> global DMA owner. Never reverse it.
++ * Keep this through bounce preparation, command polling, cache sync and result.
++ * Panic logging uses try-lock only; it may skip storage to preserve ownership.
++ */
++static LCK_MTX_DECLARE(sweet_dma_owner_lock, &sweet_ufs_grp);
+ /*
+  * One lock per request slot. sweet_io_serial_lock still serialises everything that
+  * uses slot 0 and DMA_BOUNCE (root device, file system, partition scan); the
+  * persistent log takes sweet_log_lock and UFS_SLOT_LOG, so the two never wait on
+- * each other's completion. See the DMA layout comment for why sharing was a
+- * deadlock.
++ * each other's request storage. Global DMA ownership now serializes complete
++ * transactions until a real host/device recovery implementation exists.
+  */
+ static LCK_MTX_DECLARE(sweet_log_lock, &sweet_ufs_grp);
+ static LCK_MTX_DECLARE(sweet_mark_lock, &sweet_ufs_grp);
+@@ -225,7 +242,6 @@
+  * One SCSI command in `slot`, data (if any) to/from that slot's bounce buffer
+  * (to the device when write is set). Returns 0 or an errno.
+  */
+-static int ufs_write_abs(uint64_t lba, uint32_t count, uintptr_t pa);
+ static int ufs_scsi_slot(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write,
+     uintptr_t data_pa, unsigned slot);
+ 
+@@ -235,11 +251,15 @@
+ 	return ufs_scsi_slot(cdb, cdb_len, len, write, su.dma_pa + DMA_BOUNCE, UFS_SLOT_MAIN);
+ }
+ 
+-/* Same command with its data at an arbitrary physical address (stage block). */
++/* Command with data in one of the fixed owned DMA buffers. */
+ static int
+ ufs_scsi_slot(const uint8_t *cdb, unsigned cdb_len, uint32_t len, bool write,
+     uintptr_t data_pa, unsigned slot)
+ {
++	lck_mtx_assert(&sweet_dma_owner_lock, LCK_MTX_ASSERT_OWNED);
++	if (!ufs_dma_available()) {
++		return EIO;
++	}
+ 	struct utrd *utrd = (struct utrd *)(su.dma + DMA_UTRL + slot * sizeof(struct utrd));
+ 	uint32_t ucd_off = slot == UFS_SLOT_LOG ? DMA_UCD_LOG : (slot == UFS_SLOT_MARK ? DMA_UCD_MARK : DMA_UCD);
+ 	struct ucd *ucd = (struct ucd *)(su.dma + ucd_off);
+@@ -317,6 +337,10 @@
+ 		sweet_ufs_log("SWEET UFS: scsi cdb 0x%02x len %u, slot %u, ringing\n",
+ 		    cdb[0], len, slot);
+ 	}
++	/* A different slot may have timed out while this request was prepared. */
++	if (!ufs_dma_available()) {
++		return EIO;
++	}
+ 	ufs_wr(REG_UTRLDBR, bit);
+ 	uint64_t deadline;
+ 	nanoseconds_to_absolutetime(CMD_TIMEOUT_NS, &deadline);
+@@ -338,6 +362,9 @@
+ 			    ufs_rd(REG_UTRLDBR));
+ 		}
+ 		if (now > deadline) {
++			/* Clear is asynchronous and does not establish device task abort.
++			 * Quarantine first, retaining every DMA allocation for this boot. */
++			__atomic_store_n(&ufs_poisoned, true, __ATOMIC_RELEASE);
+ 			ufs_wr(REG_UTRLCLR, ~bit);
+ 			sweet_ufs_log("SWEET UFS: command 0x%02x timed out\n", cdb[0]);
+ 			return ETIMEDOUT;
+@@ -354,6 +381,10 @@
+ 		}
+ 	}
+ 	__builtin_arm_dsb(0xf);
++	/* Do not report data success once another slot made host state uncertain. */
++	if (!ufs_dma_available()) {
++		return EIO;
++	}
+ 	/*
+ 	 * Per-command completion lines are on by default because they are the
+ 	 * cheapest way to see the storage layer move, but they swamp everything
+@@ -452,60 +483,19 @@
+ 	    su.dma_pa + DMA_BOUNCE_LOG, UFS_SLOT_LOG);
+ }
+ 
+-static int
+-sweet_log_write_abs(uint64_t lba, uint32_t count, uintptr_t pa)
+-{
+-	if (lba + count - 1 > UINT32_MAX) {
+-		return EPERM;
+-	}
+-	uint8_t cdb[10] = {
+-		0x2a, 0,
+-		(uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8), (uint8_t)lba,
+-		0, (uint8_t)(count >> 8), (uint8_t)count, 0
+-	};
+-	return ufs_scsi_slot(cdb, sizeof(cdb), count * UFS_BLOCK, true, pa, UFS_SLOT_LOG);
+-}
+ 
+ static int
+ sweet_log_sync_cache(void)
+ {
+ 	static const uint8_t cdb[10] = { 0x35 };
+ 	int rc = ufs_scsi_slot(cdb, sizeof(cdb), 0, false, 0, UFS_SLOT_LOG);
+-	/*
+-	 * SYNC CACHE is a durability hint, not a precondition: the data is
+-	 * already in the controller's cache after the WRITE, and the point of the
+-	 * log is to be readable by TWRP after a reset, which does not need the
+-	 * media flushed. It started failing with OCS 0xf once HFS+ owned the
+-	 * partition (NOTES 2026-11-03 (39)), which used to abort the whole flush
+-	 * and silence the ring for the rest of the boot - exactly when the boot
+-	 * was most interesting.
+-	 */
+ 	if (rc != 0) {
+-		static bool warned;
+-		if (!warned) {
+-			warned = true;
+-			sweet_ufs_log("SWEET LOG: sync cache failed (%d), continuing unflushed\n", rc);
+-		}
+-	}
+-	return 0;
+-}
+-
+-/* WRITE(10) of count blocks straight from a physical address; no partition
+- * bounds (the stage block may sit outside the named partition). Polled like
+- * every command here, so it is safe from panic(). */
+-static int
+-ufs_write_abs(uint64_t lba, uint32_t count, uintptr_t pa)
+-{
+-	if (lba + count - 1 > UINT32_MAX) {
+-		return EPERM;
+-	}
+-	uint8_t cdb[10] = {
+-		0x2a, 0,
+-		(uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8), (uint8_t)lba,
+-		0, (uint8_t)(count >> 8), (uint8_t)count, 0
+-	};
+-	return ufs_scsi_slot(cdb, sizeof(cdb), count * UFS_BLOCK, true, pa, UFS_SLOT_MAIN);
+-}
++		/* Written bytes are not proof of completed media synchronization. */
++		sweet_ufs_log("SWEET LOG: sync cache failed (%d); flush not acknowledged\n", rc);
++	}
++	return rc;
++}
++
+ 
+ static int
+ ufs_sync_cache(void)
+@@ -657,7 +647,13 @@
+ 	}
+ 
+ 	lck_mtx_lock(&sweet_io_serial_lock);
++	lck_mtx_lock(&sweet_dma_owner_lock);
+ 	for (uint32_t done = 0; done < count;) {
++		/* Test under the slot owner lock BEFORE any bounce-buffer mutation. */
++		if (!ufs_dma_available()) {
++			error = EIO;
++			break;
++		}
+ 		uint64_t pos = off + done;
+ 		uint64_t lba = pos / UFS_BLOCK;
+ 		uint32_t skip = (uint32_t)(pos % UFS_BLOCK);
+@@ -685,6 +681,7 @@
+ 		done += want;
+ 		buf_setresid(bp, count - done);
+ 	}
++	lck_mtx_unlock(&sweet_dma_owner_lock);
+ 	lck_mtx_unlock(&sweet_io_serial_lock);
+ 	buf_unmap(bp);
+ 
+@@ -730,7 +727,9 @@
+ 			return 0;
+ 		}
+ 		lck_mtx_lock(&sweet_io_serial_lock);
++		lck_mtx_lock(&sweet_dma_owner_lock);
+ 		int error = ufs_sync_cache();
++		lck_mtx_unlock(&sweet_dma_owner_lock);
+ 		lck_mtx_unlock(&sweet_io_serial_lock);
+ 		return error;
+ 	}
+@@ -809,109 +808,28 @@
+ 	.d_type       = D_DISK,
+ };
+ 
+-/*
+- * Crash-proof stage record ("sweetstage=<MiB>", default off).
+- *
+- * A stuck kernel cannot be diagnosed from the console log: the flush thread is
+- * often the one that stopped, and a panic that never prints says nothing. So
+- * the kernel reports marks here and this writes them, one 4 KiB block, at
+- * partition MiB <n> (64 or later: past the HFS image at the start, before the
+- * 4 MiB log ring at the end). Device lba = su.first_block + n * 256.
+- *
+- *   0:      'S','W','E','E','T','S','T','G' | u32 tick_lo | u32 count
+- *           | { u64 tick, u32 code, u32 arg }[50]
+- *   2048:   'S','W','E','E','T','P','A','N' | u32 code | u32 arg | u32 pid
+- *           | u64 thread | u64 pc | u64 tick | u64 sp | u8 saved_state[272]
+- *   2336:   u8 kernel stack[1024]
+- *
+- * It goes out with polling SCSI from its own DMA block (never the bounce
+- * buffer), so panic() and a wedged thread can both use it.
+- */
+-#define SWEET_STAGE_MAX          50
+-#define STG_PANIC_OFF            2048
+-#define STG_STACK_OFF            2336
+-#define STG_STACK_SIZE           1024
+-
+-static bool sweet_stage_on;
+-static uint64_t sweet_stage_lba;
+-static uint32_t sweet_stage_count;
+-
+-#define STG_BLK ((uint8_t *)(su.dma + DMA_STAGE))
+-
+-static void
+-sweet_stage_header(void)
+-{
+-	static const char magic[8] = { 'S', 'W', 'E', 'E', 'T', 'S', 'T', 'G' };
+-	if (sweet_stage_on && memcmp(STG_BLK, magic, 8) != 0) {
+-		bzero(STG_BLK, UFS_BLOCK);
+-		memcpy(STG_BLK, magic, 8);
+-		sweet_stage_count = 0;
+-	}
+-}
+-
+-static void
+-sweet_stage_commit(void)
+-{
+-	uint32_t tick = (uint32_t)mach_absolute_time();
+-	memcpy(STG_BLK + 8, &tick, 4);
+-	clean_dcache64((addr64_t)(su.dma_pa + DMA_STAGE), UFS_BLOCK, TRUE);
+-	(void)ufs_write_abs(sweet_stage_lba, 1, (uintptr_t)STG_BLK);
+-}
+-
+-/* Record one stage. Safe from any thread context; not from an interrupt. */
++/* Legacy sweetstage is unsupported. Keep ABI entry points without touching
++ * DMA, storage or caller pointers. Fixed physical-tail log/marks replace it. */
+ void
+ sweet_stage(uint32_t code, uint32_t arg)
+ {
+-	if (!sweet_stage_on) {
+-		return;
+-	}
+-	sweet_stage_header();
+-	if (sweet_stage_count < SWEET_STAGE_MAX) {
+-		uint32_t i = sweet_stage_count++;
+-		uint64_t tick = mach_absolute_time();
+-		memcpy(STG_BLK + 12, &sweet_stage_count, 4);
+-		memcpy(STG_BLK + 16 + i * 16, &tick, 8);
+-		memcpy(STG_BLK + 24 + i * 16, &code, 4);
+-		memcpy(STG_BLK + 28 + i * 16, &arg, 4);
+-	}
+-	sweet_stage_commit();
+-}
+-
+-/* Called from panic() (osfmk/kern/debug.c, weak): where and why it died. */
+-void sweet_stage_panic(uint32_t code, uint32_t arg, uint64_t thread_id,
+-    uint64_t pc, void *saved_state);
+-
++	(void)code; (void)arg;
++}
++
++void sweet_stage_panic(uint32_t, uint32_t, uint64_t, uint64_t, void *);
+ void
+ sweet_stage_panic(uint32_t code, uint32_t arg, uint64_t thread_id,
+     uint64_t pc, void *saved_state)
+ {
+-	if (!sweet_stage_on) {
+-		return;
+-	}
+-	sweet_stage_header();
+-	uint8_t *p = STG_BLK + STG_PANIC_OFF;
+-	uint32_t pid = (uint32_t)proc_selfpid();
+-	uint64_t tick = mach_absolute_time();
+-	uintptr_t sp;
+-	__asm__ volatile ("mov %0, sp" : "=r"(sp));
+-	memcpy(p, "SWEETPAN", 8);
+-	memcpy(p + 8, &code, 4);
+-	memcpy(p + 12, &arg, 4);
+-	memcpy(p + 16, &pid, 4);
+-	memcpy(p + 24, &thread_id, 8);
+-	memcpy(p + 32, &pc, 8);
+-	memcpy(p + 40, &tick, 8);
+-	memcpy(p + 48, &sp, 8);
+-	if (saved_state != NULL) {
+-		memcpy(p + 56, saved_state, 272);
+-	}
+-	memcpy(STG_BLK + STG_STACK_OFF, (void *)sp, STG_STACK_SIZE);
+-	sweet_stage_commit();
++	(void)code; (void)arg; (void)thread_id; (void)pc; (void)saved_state;
+ }
+ 
+ static int
+ sweet_ufs_init(void)
+ {
++	if (!ufs_dma_available()) {
++		return EIO;
++	}
+ 	DTEntry node;
+ 	uintptr_t const *reg = NULL;
+ 	unsigned int size = 0;
+@@ -952,7 +870,8 @@
+ 
+ 	printf("SWEET UFS: dma ok, taking over the host\n");
+ 	lck_mtx_lock(&sweet_io_serial_lock);
+-	error = ufs_take_over_host();
++	lck_mtx_lock(&sweet_dma_owner_lock);
++	error = ufs_dma_available() ? ufs_take_over_host() : EIO;
+ 	printf("SWEET UFS: take over rc=%d\n", error);
+ 	if (!error) {
+ 		static const uint8_t tur[6] = { 0x00 };
+@@ -965,6 +884,7 @@
+ 		error = ufs_find_partition(want);
+ 		printf("SWEET UFS: find partition rc=%d\n", error);
+ 	}
++	lck_mtx_unlock(&sweet_dma_owner_lock);
+ 	lck_mtx_unlock(&sweet_io_serial_lock);
+ 	if (error) {
+ 		return error;
+@@ -987,19 +907,12 @@
+ 	printf("SWEET UFS: \"%s\" on LUN %u: first block 0x%llx, %llu MiB, %s, DMA at 0x%llx\n",
+ 	    want, su.lun, su.first_block, su.nblocks * UFS_BLOCK >> 20,
+ 	    su.writable ? "read-write" : "read-only", su.dma_pa);
+-	{
+-		uint32_t stg = 0;
+-		PE_parse_boot_argn("sweetstage", &stg, sizeof(stg));
+-		if (stg && su.writable && su.nblocks / (1024 * 1024 / UFS_BLOCK) > stg) {
+-			sweet_stage_lba = su.first_block + (uint64_t)stg * (1024 * 1024 / UFS_BLOCK);
+-			sweet_stage_on = true;
+-			sweet_stage_header();
+-			sweet_stage_commit();
+-			sweet_stage(0x100, stg);
+-			printf("SWEET STAGE: stages to device lba 0x%llx\n",
+-			    (unsigned long long)sweet_stage_lba);
+-		}
+-	}
++	uint32_t stg = 0;
++	PE_parse_boot_argn("sweetstage", &stg, sizeof(stg));
++	if (stg) {
++		printf("SWEET STAGE: sweetstage unsupported; no stage storage access\n");
++	}
++
+ 	sweet_log_start();
+ 	sweet_reboot_start();
+ 	/*
+@@ -1235,7 +1148,11 @@
+ 	uint64_t base = su.first_block +
+ 	    (su.nblocks - SWEET_LOG_BLOCKS - SWEET_MARK_BLOCKS);
+ 	lck_mtx_lock(&sweet_mark_lock);
++	lck_mtx_lock(&sweet_dma_owner_lock);
+ 	for (uint32_t i = 0; i < SWEET_MARK_BLOCKS; i++) {
++		if (!ufs_dma_available()) {
++			break;
++		}
+ 		uint32_t bit = 1u << (i % 32);
+ 		/* Claim this update before copying. A new mark during the I/O sets
+ 		 * the bit again and must survive the completion of this write. */
+@@ -1260,6 +1177,7 @@
+ 			__atomic_fetch_or(&sweet_mark_dirty[i / 32], bit, __ATOMIC_RELEASE);
+ 		}
+ 	}
++	lck_mtx_unlock(&sweet_dma_owner_lock);
+ 	lck_mtx_unlock(&sweet_mark_lock);
+ 	return written;
+ }
+@@ -1290,12 +1208,21 @@
+ 		 * deadlock on a lock no one will release.
+ 		 */
+ 		if (!lck_mtx_try_lock(&sweet_log_lock)) {
+-			return 0;
++			return EBUSY;
++		}
++		if (!lck_mtx_try_lock(&sweet_dma_owner_lock)) {
++			lck_mtx_unlock(&sweet_log_lock);
++			return EBUSY;
+ 		}
+ 	} else {
+ 		lck_mtx_lock(&sweet_log_lock);
++		lck_mtx_lock(&sweet_dma_owner_lock);
+ 	}
+ 	while (pos < total && !error) {
++		if (!ufs_dma_available()) {
++			error = EIO;
++			break;
++		}
+ 		uint32_t off = (uint32_t)(pos % SWEET_LOG_SIZE);
+ 		uint32_t blk = off / UFS_BLOCK;
+ 		uint64_t need = ((uint64_t)off % UFS_BLOCK + (total - pos) + UFS_BLOCK - 1) / UFS_BLOCK;
+@@ -1305,6 +1232,9 @@
+ 		error = sweet_log_write_blocks(base + 1 + blk, n);
+ 		pos += (uint64_t)(blk + n) * UFS_BLOCK - off;
+ 	}
++	if (!ufs_dma_available()) {
++		error = EIO;
++	}
+ 	if (!error) {
+ 		struct sweet_log_header h = {
+ 			.magic = { 'S', 'W', 'E', 'E', 'T', 'L', 'O', 'G' },
+@@ -1317,6 +1247,7 @@
+ 	if (!error) {
+ 		error = sweet_log_sync_cache();
+ 	}
++	lck_mtx_unlock(&sweet_dma_owner_lock);
+ 	lck_mtx_unlock(&sweet_log_lock);
+ 	if (error) {
+ 		sweet_ufs_log("SWEET LOG: write failed (%d), stopping\n", error);

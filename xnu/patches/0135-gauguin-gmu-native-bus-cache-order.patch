@@ -1,0 +1,13 @@
+diff --git a/bsd/dev/gauguin_gmu_firmware.c b/bsd/dev/gauguin_gmu_firmware.c
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -193,7 +193,8 @@
+         {GMF_CSR,C(0x1f985),0x60001000},{GMF_CSR,C(0x1f984),1},
+         {GMF_AO,A(0x23b11),0x80a008a0},{GMF_CSR,C(0x1f82d),0x4052},
+         {GMF_CSR,C(0x1f982),0x06019000},{GMF_CSR,C(0x1f900),0x6000a000},
+-        {GMF_CSR,C(0x1f400),1},{GMF_CSR,C(0x1f401),1},{GMF_CSR,C(0x1f40f),1},
++        /* Native19b63c8 power_config disables bus buffers before caches. */
++        {GMF_CSR,C(0x1f40f),1},{GMF_CSR,C(0x1f400),1},{GMF_CSR,C(0x1f401),1},
+         {GMF_CSR,C(0x1f8c0),0x09c40400},{GMF_CSR,C(0x1f8c1),0x000a1680},
+         {GMF_CSR,C(0x1f8c2),0x000a1680},{GMF_CSR,C(0x1f901),0}
+     };

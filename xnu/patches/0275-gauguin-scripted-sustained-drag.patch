@@ -1,0 +1,126 @@
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -516,6 +516,91 @@
+ static unsigned sweet_script_wake_phase, sweet_script_wake_polls;
+ enum { SWEET_WAKE_INITIAL, SWEET_WAKE_WAIT, SWEET_WAKE_SETTLE, SWEET_WAKE_READY };
+ 
++/* The 13-stroke test and its calibration keep their original schedule.
++ * Mode 4 adds one constant-speed drag after the comparison window. */
++enum {
++	SWEET_MOTION_STEPS = 160,
++	SWEET_MOTION_REPORTS = SWEET_MOTION_STEPS + 2,
++	SWEET_MOTION_WAIT_MS = 2500,
++	SWEET_MOTION_LIMIT_MS = 2400,
++};
++static bool sweet_motion_mode, sweet_motion_armed;
++static unsigned sweet_motion_step;
++static uint64_t sweet_motion_due, sweet_motion_limit;
++static struct {
++	uint64_t entered, returned;
++	unsigned x, down;
++} sweet_motion_samples[SWEET_MOTION_REPORTS];
++
++static void
++sweet_motion_arm(void)
++{
++	clock_interval_to_deadline(SWEET_MOTION_WAIT_MS, NSEC_PER_MSEC, &sweet_motion_due);
++	clock_interval_to_deadline(SWEET_MOTION_WAIT_MS + SWEET_MOTION_LIMIT_MS,
++	    NSEC_PER_MSEC, &sweet_motion_limit);
++	sweet_motion_armed = true;
++	printf("SWEET M362: armed due=%llu limit=%llu reports=%u\n",
++	    (unsigned long long)sweet_motion_due, (unsigned long long)sweet_motion_limit,
++	    SWEET_MOTION_REPORTS);
++	thread_call_enter_delayed(sweet_script_call, sweet_motion_due);
++}
++
++static void
++sweet_motion_abort(void)
++{
++	sweet_motion_armed = false;
++	int rc = 0;
++	if (sweet_motion_step) {
++		struct sweet_hid_touch_snapshot release = {0};
++		rc = sweet_hid_touch_frame(&release);
++	}
++	printf("SWEET M362: aborted reports=%u release_rc=%x\n", sweet_motion_step, rc);
++}
++
++static void
++sweet_motion_fire(uint64_t now)
++{
++	if (now < sweet_motion_due || now >= sweet_motion_limit ||
++	    sweet_fb_display_state() != 1 || sweet_motion_step >= SWEET_MOTION_REPORTS) {
++		sweet_motion_abort();
++		return;
++	}
++
++	unsigned step = sweet_motion_step++;
++	bool down = step <= SWEET_MOTION_STEPS;
++	unsigned x = down ? 900 - 720 * step / SWEET_MOTION_STEPS : 180;
++	struct sweet_hid_touch_snapshot snapshot = {0};
++	snapshot.active_mask = down ? 1 : 0;
++	snapshot.x[0] = x;
++	snapshot.y[0] = 1200;
++	int rc = sweet_hid_touch_frame(&snapshot);
++	uint64_t returned = mach_absolute_time();
++	sweet_motion_samples[step].entered = now;
++	sweet_motion_samples[step].returned = returned;
++	sweet_motion_samples[step].x = x;
++	sweet_motion_samples[step].down = down;
++	if (rc || returned >= sweet_motion_limit) {
++		sweet_motion_abort();
++		return;
++	}
++
++	if (down) {
++		uint64_t deadline;
++		clock_interval_to_deadline(10, NSEC_PER_MSEC, &deadline);
++		thread_call_enter_delayed(sweet_script_call, deadline);
++		return;
++	}
++
++	sweet_motion_armed = false;
++	for (unsigned i = 0; i < SWEET_MOTION_REPORTS; ++i) {
++		printf("SWEET M362: sample=%u tick=%llu returned=%llu x=%u down=%u\n", i,
++		    (unsigned long long)sweet_motion_samples[i].entered,
++		    (unsigned long long)sweet_motion_samples[i].returned,
++		    sweet_motion_samples[i].x, sweet_motion_samples[i].down);
++	}
++	printf("SWEET M362: complete reports=%u\n", sweet_motion_step);
++}
++
+ static void
+ sweet_script_abort(void)
+ {
+@@ -572,8 +657,12 @@
+ static void
+ sweet_script_fire(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+ {
+-	if (sweet_script_call == NULL || sweet_script_stroke >= 13) return;
++	if (sweet_script_call == NULL) return;
+ 	uint64_t now = mach_absolute_time();
++	if (sweet_script_stroke >= 13) {
++		if (sweet_motion_armed) sweet_motion_fire(now);
++		return;
++	}
+ 	if (now < sweet_script_due || now >= sweet_script_end ||
+ 	    (sweet_script_step && now < sweet_script_start)) {
+ 		sweet_script_abort(); return;
+@@ -615,6 +704,7 @@
+ 	if (++sweet_script_stroke >= 13) {
+ 		printf("SWEET UI SCRIPT: complete strokes=13 events=442; UI acceptance and physical touch unqualified\n");
+ 		if (sweet_script_wake_mode) sweet_frame357_calibrate_after_script();
++		if (sweet_motion_mode) sweet_motion_arm();
+ 		return;
+ 	}
+ 	sweet_script_step = 0;
+@@ -1208,7 +1298,8 @@
+ 		sweet_script_arm();
+ 		return;
+ 	}
+-	if (physical == 0 && swipe == 3) {
++	if (physical == 0 && (swipe == 3 || swipe == 4)) {
++		sweet_motion_mode = swipe == 4;
+ 		sweet_script_wake_mode = true;
+ 		sweet_script_arm();
+ 		return;

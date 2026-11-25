@@ -1,0 +1,86 @@
+--- a/bsd/dev/gauguin_gmu_firmware.c
++++ b/bsd/dev/gauguin_gmu_firmware.c
+@@ -444,7 +444,7 @@
+     c->dcvs_started=1;
+     if(!rd(c,GMF_CSR,C(0x1f992),&c->dcvs_before))return GMF_IO;
+     if(c->dcvs_before&0x80008000u)return GMF_INHERITED;
+-    /* The fixed wrappers select paired PERF and BW indices from the same
++    /* The fixed wrappers select PERF and BW indices admitted by the same
+      * captured Android DT. Both indices address already acknowledged tables. */
+     const uint32_t off[]={T(0x1cbfc),T(0x1cbfd),T(0x1cbfe)};
+     const uint32_t value[]={0,0x30000000u | perf_index,(bw_index << 12) | bw_index};
+@@ -545,3 +545,11 @@
+ enum gmf_result gmf_bootstrap_dcvs650_once(struct gmf_context *c,const struct gmf_ops *ops,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
+ {if(!bw)return GMF_ARGUMENT;return bootstrap(c,ops,plan,out,true,bw,5,10);}
++enum gmf_result gmf_bootstrap_dcvs650_bw11_once(struct gmf_context *c,const struct gmf_ops *ops,
++    const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmf_receipt *out)
++{
++    /* Stock bin 169 admits BW 8–12 at 650 MHz. The bounded test uses
++     * one step above the default BW10, on the same acknowledged table. */
++    if(!bw)return GMF_ARGUMENT;
++    return bootstrap(c,ops,plan,out,true,bw,5,11);
++}
+--- a/bsd/dev/gauguin_gmu_firmware.h
++++ b/bsd/dev/gauguin_gmu_firmware.h
+@@ -153,4 +153,6 @@
+     const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
+ enum gmf_result gmf_bootstrap_dcvs650_once(struct gmf_context *,const struct gmf_ops *,
+     const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
++enum gmf_result gmf_bootstrap_dcvs650_bw11_once(struct gmf_context *,const struct gmf_ops *,
++    const struct gmf_plan *,const struct gmf_bw_plan *,struct gmf_receipt *);
+ #endif
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -760,6 +760,17 @@
+     gfw_reply_record();
+     return rc;
+ }
++static bool gfw_frame409_bw11(int profile, bool sqe)
++{
++    if(profile!=5||!sqe)return false;
++    int script=0,stats=0,refresh=0,native=0,service=0,seconds=0;
++    return PE_parse_boot_argn("swp",&script,sizeof(script))&&script==4&&
++        PE_parse_boot_argn("sweetfb_stats",&stats,sizeof(stats))&&stats==9&&
++        PE_parse_boot_argn("sweetfb_hz",&refresh,sizeof(refresh))&&refresh==60&&
++        PE_parse_boot_argn("sweetnvt",&native,sizeof(native))&&!native&&
++        PE_parse_boot_argn("sweetgpuservice",&service,sizeof(service))&&service==1&&
++        PE_parse_boot_argn("sweetgpuservicesecs",&seconds,sizeof(seconds))&&seconds==600;
++}
+ static enum gmb_result gfw_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool dcvs,bool gpu,bool sqe)
+ {
+@@ -799,12 +810,17 @@
+     }
+     struct gmf_ops ops={NULL,gfw_guard,gfw_read,gfw_write,gmb_barrier,gfw_delay,
+         gfw_asset_view,gfw_copy,gfw_shared_read,gfw_shared_write};
+-    gfw_work.result=dcvs?(profile==5?gmf_bootstrap_dcvs650_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
+-        profile==4?gmf_bootstrap_dcvs565_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
+-        gmf_bootstrap_dcvs_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware)):
+-        bw?gmf_bootstrap_bw_test_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
+-        perf?gmf_bootstrap_perf_once(&gfw_context,&ops,plan,&gfw_work.firmware):
+-        gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
++    const bool bw11=dcvs&&gfw_frame409_bw11(profile,sqe);
++    if(bw11){
++        gfw_work.result=gmf_bootstrap_dcvs650_bw11_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware);
++    }else{
++        gfw_work.result=dcvs?(profile==5?gmf_bootstrap_dcvs650_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++            profile==4?gmf_bootstrap_dcvs565_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++            gmf_bootstrap_dcvs_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware)):
++            bw?gmf_bootstrap_bw_test_once(&gfw_context,&ops,plan,bw,&gfw_work.firmware):
++            perf?gmf_bootstrap_perf_once(&gfw_context,&ops,plan,&gfw_work.firmware):
++            gmf_bootstrap_once(&gfw_context,&ops,plan,&gfw_work.firmware);
++    }
+     if(gfw_work.result!=GMF_OK)return gfw_fail(GMB_FIRMWARE,"native firmware/HFI bootstrap");
+     if(perf&&(!gfw_context.perf_requested||!gfw_context.perf_started||!gfw_context.perf_valid))
+         return gfw_fail(GMB_FIRMWARE,"PERF ACK receipt unavailable");
+@@ -835,7 +851,8 @@
+         snprintf(line,sizeof(line),"SWEET GMU TEST: complete request=00500105 words=1 ack=%08x/%08x/%08x; native legacy startup only",gfw_context.test_ack[0],gfw_context.test_ack[1],gfw_context.test_ack[2]);gmb_record(line);
+     }
+     if(dcvs){
+-        if(profile==5)gmb_record("SWEET GMU DCVS: request perf_index=5 hz=650000000 bw_index=10 Bps=6220000000 option=00000000 perf=30000005 bw=0000a00a; requested, not measured");
++        if(bw11)gmb_record("SWEET GMU DCVS: request perf_index=5 hz=650000000 bw_index=11 Bps=7216000000 option=00000000 perf=30000005 bw=0000b00b; requested, not measured");
++        else if(profile==5)gmb_record("SWEET GMU DCVS: request perf_index=5 hz=650000000 bw_index=10 Bps=6220000000 option=00000000 perf=30000005 bw=0000a00a; requested, not measured");
+         else if(profile==4)gmb_record("SWEET GMU DCVS: request perf_index=4 hz=565000000 bw_index=9 Bps=5412000000 option=00000000 perf=30000004 bw=00009009; requested, not measured");
+         else gmb_record("SWEET GMU DCVS: request perf_index=1 hz=253000000 bw_index=5 Bps=2188000000 option=00000000 perf=30000001 bw=00005005; requested, not measured");
+         snprintf(line,sizeof(line),"SWEET GMU DCVS: complete before=%08x ack=%08x cleared=%08x return=%08x; native register/OOB request only",gfw_context.dcvs_before,gfw_context.dcvs_ack,gfw_context.dcvs_cleared,gfw_context.dcvs_return);gmb_record(line);

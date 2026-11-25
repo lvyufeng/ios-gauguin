@@ -1,0 +1,425 @@
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -25,6 +25,7 @@
+ 
+ #ifndef GUT_BOARD_HOST_TEST
+ #include "gauguin_frame344.h"
++#include "gauguin_scanout345.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+@@ -39,10 +40,10 @@
+     F344_MDP_PA = 0x0ae00000, F344_INTF_PAGE = 0x0ae68000, F344_INTF_OFF = 0x3800,
+     F344_GCC_AHB = 0x300c, F344_DISP_AHB = 0x104c, F344_DISP_MDP = 0x1010,
+     F344_TIMING_EN = 0, F344_HSYNC = 8, F344_VPERIOD = 0xc,
+-    F344_VSTART = 0x1c, F344_VEND = 0x24, F344_FRAME_COUNT = 0xac,
++    F344_VSTART = 0x1c, F344_VEND = 0x24, F345_COUNT_EN = 0xa8, F344_FRAME_COUNT = 0xac,
+     F344_LINE_COUNT = 0xb0, F344_MISR_CTRL = 0x180, F344_MISR_SIG = 0x184,
+     F344_INTF_STATUS = 0x26c, F344_CRC_STATUS = 1u << 9, F344_CRC_CLEAR = 1u << 10,
+-    F344_POLL_US = 1200, F344_POLL_LIMIT = 40960
++    F344_POLL_US = 1200, F344_POLL_LIMIT = 40960, F345_STARTUP_MS = 800
+ };
+ #define F344_CRC_CONFIG UINT32_C(0x81000101)
+ 
+@@ -53,10 +54,12 @@
+ static const volatile uint32_t *scan_gcc, *scan_disp, *scan_mdp;
+ static volatile uint32_t *scan_intf;
+ static struct {
+-    uint64_t last_tick, first_edge;
+-    uint32_t frame, first_frame, crc_frame, crc_candidate_frame, crc_candidate;
+-    uint32_t polls, vperiod, first_active, last_active;
+-    bool have_frame, have_edge, configured, have_crc, have_candidate;
++    uint64_t last_tick, edge_tick, startup_end;
++    uint32_t frame, edge_streak, arm_frame, crc_frame, crc_candidate_frame, crc_candidate;
++    uint32_t polls, gate_logs;
++    enum scan345_gate last_gate;
++    struct scan345_geometry geometry;
++    bool have_frame, configured, crc_blocked, have_crc, have_candidate;
+ } scan;
+ 
+ static bool frame_active(void)
+@@ -76,15 +79,54 @@
+     gut_record(&frames, kind, id, 0, flags, a, b, c);
+ }
+ 
+-static bool branch_on(uint32_t reg)
+-{
+-    return (reg & UINT32_C(0x80000001)) == 1;
+-}
+-
+-static bool scan_powered(void)
+-{
+-    return scan_intf && branch_on(scan_gcc[F344_GCC_AHB / 4])
+-        && branch_on(scan_disp[F344_DISP_AHB / 4]) && branch_on(scan_disp[F344_DISP_MDP / 4]);
++/* The GCC register is reached first. Do not read a downstream domain until
++ * its clocks are running. Keep raw enable bits in the report for comparison. */
++static enum scan345_gate scan_clocks(struct scan345_status *status)
++{
++    status->gcc = scan_gcc[F344_GCC_AHB / 4];
++    status->seen |= SCAN345_GCC;
++    if (!scan345_branch_on(status->gcc)) return SCAN345_GCC_OFF;
++    status->ahb = scan_disp[F344_DISP_AHB / 4];
++    status->mdp = scan_disp[F344_DISP_MDP / 4];
++    status->seen |= SCAN345_DISP;
++    if (!scan345_branch_on(status->ahb)) return SCAN345_AHB_OFF;
++    if (!scan345_branch_on(status->mdp)) return SCAN345_MDP_OFF;
++    return SCAN345_OK;
++}
++
++static enum scan345_gate scan_route(struct scan345_status *status, struct scan345_geometry *geometry)
++{
++    status->display = sweet_fb_display_state();
++    if (status->display != 1) return SCAN345_DISPLAY;
++    enum scan345_gate gate = scan_clocks(status);
++    if (gate != SCAN345_OK) return gate;
++    status->revision = scan_mdp[0];
++    status->seen |= SCAN345_REV;
++    if (status->revision != UINT32_C(0x60040000)) return SCAN345_REVISION;
++    status->live = scan_intf[F344_INTF_STATUS / 4];
++    status->enable = scan_intf[F344_TIMING_EN / 4];
++    status->count = scan_intf[F345_COUNT_EN / 4];
++    status->seen |= SCAN345_INTF;
++    /* Lagoon's vendor catalog uses INTF_STATUS for SDE major 6. The
++     * timing-engine register is also recorded to diagnose handoff. */
++    if (!(status->live & 1u)) return SCAN345_VIDEO;
++    if ((status->count & 3u) != 3) return SCAN345_COUNTERS;
++    status->hsync = scan_intf[F344_HSYNC / 4];
++    status->period = scan_intf[F344_VPERIOD / 4];
++    status->start = scan_intf[F344_VSTART / 4];
++    status->end = scan_intf[F344_VEND / 4];
++    status->seen |= SCAN345_TIMING;
++    if (!scan345_timing(status, geometry)) return SCAN345_GEOMETRY;
++    if (scan.geometry.vtotal && !scan345_same_timing(&scan.geometry, geometry))
++        return SCAN345_CHANGED;
++    return SCAN345_OK;
++}
++
++static void scan_report(enum scan345_gate gate, const struct scan345_status *s)
++{
++    printf("SWEET F345 G: poll=%u gate=%u seen=%x display=%u gcc=%x ahb=%x mdp=%x rev=%x live=%x en=%x counter=%x hsync=%x period=%x start=%x end=%x\n",
++        scan.polls, gate, s->seen, s->display, s->gcc, s->ahb, s->mdp, s->revision, s->live,
++        s->enable, s->count, s->hsync, s->period, s->start, s->end);
+ }
+ 
+ static void misr_write(uint32_t value)
+@@ -96,66 +138,51 @@
+ static void scan_stop(const char *reason)
+ {
+     bool restored = !scan.configured;
+-    if (scan.configured && scan_powered()) {
+-        misr_write(F344_CRC_CLEAR);
+-        misr_write(0);
++    struct scan345_status status = {0};
++    if (scan.configured && scan_clocks(&status) == SCAN345_OK &&
++        scan_mdp[0] == UINT32_C(0x60040000)) {
++        const uint32_t current = scan_intf[F344_MISR_CTRL / 4];
++        if ((current & ~F344_CRC_STATUS) == F344_CRC_CONFIG) {
++            misr_write(F344_CRC_CLEAR);
++            misr_write(0);
++        }
+         restored = scan_intf[F344_MISR_CTRL / 4] == 0;
+     }
+-    printf("SWEET F344 DPU: stopped=%s polls=%u configured=%u restored=%u\n",
+-        reason, scan.polls, scan.configured, restored);
+-}
+-
+-static bool scan_timing(void)
+-{
+-    if (scan_mdp[0] != UINT32_C(0x60040000) ||
+-        !(scan_intf[F344_INTF_STATUS / 4] & 1u) ||
+-        !(scan_intf[F344_TIMING_EN / 4] & 1u)) return false;
+-    const uint32_t hperiod = scan_intf[F344_HSYNC / 4] >> 16;
+-    if (!hperiod) return false;
+-    const uint32_t vperiod = scan_intf[F344_VPERIOD / 4] / hperiod;
+-    const uint32_t first = scan_intf[F344_VSTART / 4] / hperiod;
+-    const uint32_t last = scan_intf[F344_VEND / 4] / hperiod;
+-    if (last < first || last - first != 2399 || vperiod <= last || vperiod > 6000)
+-        return false;
+-    if (scan.vperiod) {
+-        return scan.vperiod == vperiod && scan.first_active == first && scan.last_active == last;
+-    }
+-    scan.vperiod = vperiod;
+-    scan.first_active = first;
+-    scan.last_active = last;
+-    sweet_frame344_record(F344_TIMING, 1, 0, vperiod, first, last);
+-    return true;
+-}
+-
+-static bool scan_edge(uint32_t frame, uint64_t tick, uint32_t line)
++    printf("SWEET F345 DPU: stopped=%s polls=%u configured=%u restored=%u gate=%u\n",
++        reason, scan.polls, scan.configured, restored, scan.last_gate);
++}
++
++static void scan_edge(uint32_t frame, uint64_t tick, uint32_t line)
+ {
+     const uint32_t step = frame - scan.frame;
+-    if (!scan.have_frame || step == 0) return true;
++    if (!scan.have_frame || step == 0) return;
+     sweet_frame344_record(F344_VBLANK, frame, step, scan.last_tick, tick, line);
+-    if (scan.configured) return true;
+-    if (!scan.have_edge || step != 1) {
+-        scan.have_edge = true;
+-        scan.first_frame = frame;
+-        scan.first_edge = tick;
+-        return true;
+-    }
+-    if (frame - scan.first_frame < 3) return true;
+-    uint64_t elapsed;
+-    absolutetime_to_nanoseconds(tick - scan.first_edge, &elapsed);
+-    if (elapsed < 46000000 || elapsed > 54000000 || scan_intf[F344_MISR_CTRL / 4])
+-        return false;
++    if (scan.configured || scan.crc_blocked) return;
++    uint64_t interval = 0, bracket = 0;
++    if (scan.edge_tick) absolutetime_to_nanoseconds(tick - scan.edge_tick, &interval);
++    absolutetime_to_nanoseconds(tick - scan.last_tick, &bracket);
++    scan.edge_tick = tick;
++    if (step == 1 && scan345_edge_60(interval, bracket, line, scan.geometry.vtotal))
++        ++scan.edge_streak;
++    else
++        scan.edge_streak = 0;
++    if (scan.edge_streak < 3) return;
++    const uint32_t preimage = scan_intf[F344_MISR_CTRL / 4];
++    printf("SWEET F345 CRC: poll=%u frame=%u preimage=%x line=%u\n",
++        scan.polls, frame, preimage, line);
++    if (preimage) {
++        scan.crc_blocked = true;
++        return;
++    }
+     misr_write(F344_CRC_CLEAR);
+     misr_write(F344_CRC_CONFIG);
++    scan.arm_frame = frame;
+     scan.configured = true;
+-    return true;
+ }
+ 
+ static void scan_crc(uint32_t frame, uint32_t line, uint32_t control, uint32_t signature)
+ {
+-    if (!scan.configured || frame - scan.first_frame < 5 ||
+-        control != (F344_CRC_CONFIG | F344_CRC_STATUS) ||
+-        line < scan.first_active + 128 || line >= scan.first_active + 768 ||
+-        (scan.have_crc && frame == scan.crc_frame)) return;
++    if (control != (F344_CRC_CONFIG | F344_CRC_STATUS)) return;
+     if (!scan.have_candidate || frame != scan.crc_candidate_frame) {
+         scan.have_candidate = true;
+         scan.crc_candidate_frame = frame;
+@@ -178,25 +205,51 @@
+         return;
+     }
+     ++scan.polls;
+-    if (sweet_fb_display_state() != 1 || !scan_powered() || !scan_timing()) {
+-        scan_stop("route");
+-        return;
+-    }
+-    const uint32_t frame = scan_intf[F344_FRAME_COUNT / 4];
+-    const uint32_t line = scan_intf[F344_LINE_COUNT / 4];
+-    const uint32_t control = scan.configured ? scan_intf[F344_MISR_CTRL / 4] : 0;
+-    const uint32_t sig = scan.configured ? scan_intf[F344_MISR_SIG / 4] : 0;
+-    const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
+-    const uint64_t sampled = mach_absolute_time();
+-    if (frame == checked_frame && line < scan.vperiod) {
+-        if (!scan_edge(frame, sampled, line)) {
+-            scan_stop("preflight");
++    struct scan345_status status = {0};
++    struct scan345_geometry geometry = {0};
++    const enum scan345_gate gate = scan_route(&status, &geometry);
++    const bool expired = tick >= scan.startup_end;
++    if (scan.polls == 1 || (expired && !scan.configured && !scan.crc_blocked) || (gate != scan.last_gate &&
++        (scan.gate_logs < 16 || scan.configured))) {
++        scan_report(gate, &status);
++        ++scan.gate_logs;
++    }
++    scan.last_gate = gate;
++    if (gate != SCAN345_OK) {
++        if (scan.configured || expired) {
++            scan_stop("route");
+             return;
+         }
+-        scan_crc(frame, line, control, sig);
+-        scan.have_frame = true;
+-        scan.frame = frame;
+-        scan.last_tick = tick; /* before the prior same-counter read */
++        scan.have_frame = false;
++        scan.edge_tick = 0;
++        scan.edge_streak = 0;
++    } else {
++        if (expired && !scan.configured && !scan.crc_blocked) {
++            scan.crc_blocked = true;
++            printf("SWEET F345 CRC: edge qualification expired at poll=%u\n", scan.polls);
++        }
++        if (!scan.geometry.vtotal) {
++            scan.geometry = geometry;
++            sweet_frame344_record(F344_TIMING, 1, 0, geometry.vtotal,
++                geometry.first, geometry.last);
++        }
++        const uint64_t before = mach_absolute_time();
++        const uint32_t frame = scan_intf[F344_FRAME_COUNT / 4];
++        const uint32_t line = scan_intf[F344_LINE_COUNT / 4];
++        const bool sample_crc = scan.configured && frame - scan.arm_frame >= 2 &&
++            (!scan.have_crc || frame != scan.crc_frame) && scan345_crc_line(&geometry, line);
++        const uint32_t control = sample_crc ? scan_intf[F344_MISR_CTRL / 4] : 0;
++        const uint32_t sig = control == (F344_CRC_CONFIG | F344_CRC_STATUS) ?
++            scan_intf[F344_MISR_SIG / 4] : 0;
++        const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
++        const uint64_t sampled = mach_absolute_time();
++        if (frame == checked_frame && line < geometry.vtotal) {
++            scan_edge(frame, sampled, line);
++            if (sample_crc) scan_crc(frame, line, control, sig);
++            scan.have_frame = true;
++            scan.frame = frame;
++            scan.last_tick = before;
++        }
+     }
+     uint64_t deadline;
+     clock_interval_to_deadline(F344_POLL_US, NSEC_PER_USEC, &deadline);
+@@ -239,6 +292,7 @@
+         return;
+     }
+     scan_intf += F344_INTF_OFF / 4;
++    clock_interval_to_deadline(F345_STARTUP_MS, NSEC_PER_MSEC, &scan.startup_end);
+     scan_call = thread_call_allocate(scan_poll, NULL);
+     if (scan_call) thread_call_enter(scan_call);
+     else scan_stop("timer");
+diff --git a/bsd/dev/gauguin_scanout345.h b/bsd/dev/gauguin_scanout345.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_scanout345.h
+@@ -0,0 +1,74 @@
++#ifndef GAUGUIN_SCANOUT345_H
++#define GAUGUIN_SCANOUT345_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum scan345_gate {
++    SCAN345_OK, SCAN345_DISPLAY, SCAN345_GCC_OFF, SCAN345_AHB_OFF, SCAN345_MDP_OFF,
++    SCAN345_REVISION, SCAN345_VIDEO, SCAN345_COUNTERS, SCAN345_GEOMETRY, SCAN345_CHANGED
++};
++
++enum {
++    SCAN345_GCC = 1, SCAN345_DISP = 2, SCAN345_REV = 4, SCAN345_INTF = 8, SCAN345_TIMING = 16
++};
++
++struct scan345_status {
++    uint32_t seen, display, gcc, ahb, mdp, revision, live, enable, count, hsync, period, start, end;
++};
++
++struct scan345_geometry {
++    uint32_t htotal, vtotal, first, last, start, end;
++};
++
++static inline bool
++scan345_branch_on(uint32_t value)
++{
++    /* Branch 2 reports the actual halt state in bit 31. Bit 0 is a
++     * software vote, including on the HW-gated GCC display branch. */
++    return (value & UINT32_C(0x80000000)) == 0;
++}
++
++static inline bool
++scan345_timing(const struct scan345_status *status, struct scan345_geometry *geometry)
++{
++    const uint32_t horizontal = status->hsync >> 16;
++    if (horizontal < 128 || status->end < status->start ||
++        status->end >= status->period || status->period % horizontal ||
++        status->end - status->start + 1 != 2400u * horizontal)
++        return false;
++    const uint32_t vertical = status->period / horizontal;
++    if (vertical <= 2400 || vertical > 6000) return false;
++    const uint32_t first = status->start / horizontal;
++    if (first + 2399 >= vertical) return false;
++    *geometry = (struct scan345_geometry){
++        horizontal, vertical, first, first + 2399, status->start, status->end
++    };
++    return true;
++}
++
++static inline bool
++scan345_same_timing(const struct scan345_geometry *a, const struct scan345_geometry *b)
++{
++    return a->htotal == b->htotal && a->vtotal == b->vtotal &&
++        a->start == b->start && a->end == b->end;
++}
++
++static inline bool
++scan345_edge_60(uint64_t interval_ns, uint64_t bracket_ns, uint32_t line, uint32_t vtotal)
++{
++    /* At the frame counter boundary the current line must have wrapped.
++     * Use a bounded observation of the early part of the new interval. */
++    return interval_ns >= 14300000 && interval_ns <= 19000000 &&
++        bracket_ns <= 3200000 && line < vtotal / 4;
++}
++
++static inline bool
++scan345_crc_line(const struct scan345_geometry *geometry, uint32_t line)
++{
++    /* Two stable reads of the latched CRC, well before end of active video.
++     * Leave enough room for both samples at either 2400 or 4910 total lines. */
++    return line >= geometry->first + 128 && line < geometry->first + 1536;
++}
++
++#endif
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -879,6 +879,9 @@
+     }
+     {
+         uint64_t addresses[GGR_MAX_COMMANDS];uint32_t words[GGR_MAX_COMMANDS];
++        // gRequests and gLock protect these slots until submission returns.
++        // Validate once, then use the same slots for commands and escrow.
++        gpu_buffer *resolved[GGR_MAX_BUFFERS];
+         io342::phase(0x46,5);
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+             gpu_buffer *b=find(bos[i].handle);
+@@ -897,6 +900,7 @@
+                 fSubmitDiag327.stage=15;fSubmitDiag327.index=i;
+                 fSubmitDiag327.handle=bos[i].handle;fSubmitDiag327.cmd_index=j;goto out;
+             }
++            resolved[i]=b;
+         }
+         io342::phase(0x46,6);
+         for(uint32_t i=0;i<r->nr_cmds;i++) {
+@@ -904,7 +908,7 @@
+                 fSubmitDiag327.stage=16;fSubmitDiag327.index=i;
+                 fSubmitDiag327.cmd_index=cmds[i].submit_idx;goto out;
+             }
+-            gpu_buffer *b=find(bos[cmds[i].submit_idx].handle);
++            gpu_buffer *b=resolved[cmds[i].submit_idx];
+             if(!(bos[cmds[i].submit_idx].flags&1)||!ggr_command_range(cmds+i,b->size)){
+                 fSubmitDiag327.stage=17;fSubmitDiag327.index=i;fSubmitDiag327.handle=b->handle;
+                 fSubmitDiag327.requested=bos[cmds[i].submit_idx].flags;fSubmitDiag327.actual=b->flags;
+@@ -919,7 +923,7 @@
+         /* Validate ALL requests before changing any surface state or ringing
+          * a doorbell. Descriptor arrays are kernel copies, not reread later. */
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+-            gpu_buffer *b=find(bos[i].handle);
++            gpu_buffer *b=resolved[i];
+             if(b->surface) {
+                 uintptr_t ptr=b->surface->kernelAddress();
+                 if(!ptr){fSubmitDiag327.stage=18;fSubmitDiag327.index=i;fSubmitDiag327.handle=b->handle;goto out;}
+@@ -931,13 +935,13 @@
+         if(fAsync){
+             fPendingCount=r->nr_bos;fPendingQueue=q;fPendingQueueFence=q->issued+1;
+             for(uint32_t i=0;i<r->nr_bos;i++){
+-                gpu_buffer *b=find(bos[i].handle);
++                gpu_buffer *b=resolved[i];
+                 fPending[i]=b;b->pending=true;
+             }
+         }
+         io342::phase(0x46,9);
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+-            gpu_buffer *b=find(bos[i].handle);
++            gpu_buffer *b=resolved[i];
+             if(b->surface) {
+                 b->surface->gpuState=1;
+                 flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
+@@ -963,7 +967,7 @@
+             }
+         } else {
+             for(uint32_t i=0;i<r->nr_bos;i++) {
+-                gpu_buffer *b=find(bos[i].handle);
++                gpu_buffer *b=resolved[i];
+                 if(b->surface) {
+                     if(ok)flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
+                     b->surface->gpuState=ok?0:2;

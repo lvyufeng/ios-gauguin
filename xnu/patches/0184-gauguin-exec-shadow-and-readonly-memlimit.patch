@@ -1,0 +1,152 @@
+diff --git a/bsd/kern/kern_exec.c b/bsd/kern/kern_exec.c
+--- a/bsd/kern/kern_exec.c
++++ b/bsd/kern/kern_exec.c
+@@ -181,6 +181,9 @@
+ #include <IOKit/IOBSD.h>
+ 
+ #include "kern_exec_internal.h"
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++#include "sweet_eagl_diagnostics.h"
++#endif
+ 
+ extern boolean_t vm_darkwake_mode;
+ 
+@@ -5683,6 +5686,12 @@
+ #if defined(ARM64_BOARD_CONFIG_SWEET)
+ static TUNABLE(uint32_t, sweet_eagl_inject_requested, "sweeteagl", 0);
+ /* SWEET_EAGL_INJECT_BEGIN: complete body used by typed host boundary tests. */
++bool
++sweet_eagl_diagnostics_enabled(void)
++{
++	return sweet_eagl_inject_requested == 1 && sweet_exec_loader_probe != 0;
++}
++
+ enum sweet_eagl_inject_outcome {
+ 	SEI_APPENDED = 1, SEI_ALREADY, SEI_MODE, SEI_CONFLICT, SEI_SPACE,
+ 	SEI_SUBJECT, SEI_COPY, SEI_INVALID
+@@ -5724,9 +5733,22 @@
+ 	vnode_t target = NULLVP, library = NULLVP;
+ 	unsigned reason = 1;
+ 	*effective = *real = (uid_t)-1;
+-	if (p == NULL || p != current_proc() || imgp->ip_vp == NULLVP ||
+-	    imgp->ip_scriptvp != NULLVP || !(imgp->ip_flags & IMGPF_IS_64BIT_ADDR)) {
++	if (p == NULL || imgp->ip_new_thread == THREAD_NULL ||
++	    p != (proc_t)get_bsdthreadtask_info(imgp->ip_new_thread)) {
+ 		return reason;
++	}
++	if (imgp->ip_vp == NULLVP || imgp->ip_scriptvp != NULLVP ||
++	    !(imgp->ip_flags & IMGPF_IS_64BIT_ADDR)) {
++		return 8;
++	}
++	/* __mac_execve activates a shadow proc before proc_exec_switch_task.
++	 * forkproc copies the caller's PID, unique ID and PID version to it. */
++	proc_t caller = current_proc();
++	if (caller == NULL || (p != caller && (!(imgp->ip_flags & IMGPF_EXEC) ||
++	    !proc_is_shadow(p) || proc_pid(p) != proc_pid(caller) ||
++	    proc_uniqueid(p) != proc_uniqueid(caller) ||
++	    proc_pidversion(p) != proc_pidversion(caller)))) {
++		return 9;
+ 	}
+ 	reason = 2;
+ 	vfs_context_t context = imgp->ip_vfs_context;
+@@ -5779,7 +5801,7 @@
+ 	unsigned outcome = SEI_INVALID, reason = 0, added = 0;
+ 	uid_t effective = (uid_t)-1, real = (uid_t)-1;
+ 	int error = 0;
+-	if (sweet_eagl_inject_requested != 1 || !sweet_exec_loader_probe || imgp == NULL ||
++	if (!sweet_eagl_diagnostics_enabled() || imgp == NULL ||
+ 	    imgp->ip_strings == NULL || imgp->ip_vfs_context == NULL) {
+ 		return;
+ 	}
+diff --git a/bsd/kern/sweet_amfi.c b/bsd/kern/sweet_amfi.c
+--- a/bsd/kern/sweet_amfi.c
++++ b/bsd/kern/sweet_amfi.c
+@@ -39,6 +39,7 @@
+ #include <sys/ubc_internal.h>
+ #include <sys/vnode.h>
+ #include <security/mac_policy.h>
++#include "sweet_eagl_diagnostics.h"
+ 
+ /* iokit/Kernel/arm/SweetEntitlements.cpp */
+ void *sweet_entitlements_create(const CS_GenericBlob *blob, size_t blob_len);
+@@ -165,6 +166,16 @@
+ 	return error;
+ }
+ /* SWEET_DYLD_PROBE_END */
++
++/* SWEET_EAGL_DIAGNOSTIC_CALLER_BEGIN */
++bool
++sweet_eagl_diagnostic_caller(proc_t p)
++{
++	uid_t effective, real;
++	return sweet_eagl_diagnostics_enabled() &&
++	       sweet_dyld_probe_subject(p, &effective, &real) && effective == 501;
++}
++/* SWEET_EAGL_DIAGNOSTIC_CALLER_END */
+ 
+ /* SWEET_DYLD_FILE_PROBE_BEGIN: complete body used by the host boundary test. */
+ static void
+diff --git a/bsd/kern/kern_memorystatus.c b/bsd/kern/kern_memorystatus.c
+--- a/bsd/kern/kern_memorystatus.c
++++ b/bsd/kern/kern_memorystatus.c
+@@ -81,6 +81,9 @@
+ #include <sys/kern_memorystatus.h>
+ #include <sys/kern_memorystatus_freeze.h>
+ #include <sys/kern_memorystatus_notify.h>
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++#include "sweet_eagl_diagnostics.h"
++#endif
+ 
+ 
+ extern uint32_t vm_compressor_pool_size(void);
+@@ -7950,6 +7953,26 @@
+ 	return 0;
+ }
+ 
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++/* SWEET_EAGL_DENIED_GET8_BEGIN */
++static void
++sweet_eagl_log_denied_get8(proc_t p, const struct memorystatus_control_args *args)
++{
++	memorystatus_memlimit_properties_t limits;
++	if (args->command != MEMORYSTATUS_CMD_GET_MEMLIMIT_PROPERTIES ||
++	    args->pid != proc_pid(p) || args->flags != 0 || args->buffer == USER_ADDR_NULL ||
++	    args->buffersize != sizeof(limits) || !sweet_eagl_diagnostic_caller(p)) {
++		return;
++	}
++	/* Same kernel snapshot as GET8. The caller still receives EPERM. */
++	memorystatus_get_memlimit_properties_internal(p, &limits);
++	printf("SWEET EAGL MEMLIMIT: pid=%d active_mb=%d active_attr=%u inactive_mb=%d inactive_attr=%u\n",
++	    proc_pid(p), limits.memlimit_active, limits.memlimit_active_attr,
++	    limits.memlimit_inactive, limits.memlimit_inactive_attr);
++}
++/* SWEET_EAGL_DENIED_GET8_END */
++#endif
++
+ int
+ memorystatus_control(struct proc *p, struct memorystatus_control_args *args, int *ret)
+ {
+@@ -7971,6 +7994,9 @@
+ 
+ 	/* Need to be root or have entitlement. */
+ 	if (!kauth_cred_issuser(kauth_cred_get()) && !IOCurrentTaskHasEntitlement(MEMORYSTATUS_ENTITLEMENT) && !skip_auth_check) {
++#if defined(ARM64_BOARD_CONFIG_SWEET)
++		sweet_eagl_log_denied_get8(p, args);
++#endif
+ 		error = EPERM;
+ 		goto out;
+ 	}
+diff --git a/bsd/kern/sweet_eagl_diagnostics.h b/bsd/kern/sweet_eagl_diagnostics.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/kern/sweet_eagl_diagnostics.h
+@@ -0,0 +1,9 @@
++#ifndef _BSD_KERN_SWEET_EAGL_DIAGNOSTICS_H_
++#define _BSD_KERN_SWEET_EAGL_DIAGNOSTICS_H_
++
++#include <sys/kernel_types.h>
++
++bool sweet_eagl_diagnostics_enabled(void);
++bool sweet_eagl_diagnostic_caller(proc_t p);
++
++#endif

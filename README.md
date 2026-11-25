@@ -6,6 +6,11 @@ This project ports Apple's open-source XNU kernel (xnu-8796, the iOS 16 generati
 
 As of **2026-10-18** the phone boots to the **iOS home screen**. You can unlock it, open Settings, pull down Control Center and the notification center, and use the touchscreen and the hardware buttons. Rendering runs entirely on the CPU; there is no GPU driver.
 
+Development now also targets Redmi Note 9 Pro 5G and Mi 10T Lite (`gauguin`).
+On that device, the 0427 display baseline produced 1,801 distinct output
+images in a 30-second hardware CRC test, averaging 60.03 images/s. See the
+[gauguin 60 Hz baseline](docs/gauguin-60hz.md) for the profile and build notes.
+
 > Experimental bring-up, not a usable phone OS. Many things are missing or stubbed (see below), and Apple's security model is mostly switched off. It installs into the `userdata` partition and so **erases Android's user data**.
 
 ## What works

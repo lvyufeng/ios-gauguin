@@ -1,0 +1,10 @@
+--- a/osfmk/ipc/ipc_mqueue.c
++++ b/osfmk/ipc/ipc_mqueue.c
+@@ -225,6 +225,7 @@
+ 		cache[idx].want = true;
+ 	}
+ matched:
++	; /* C11 labels must precede a statement, not a declaration. */
+ 	uint32_t slot = __atomic_fetch_add(&sweet_kmsg_count, 1, __ATOMIC_RELAXED);
+ 	if (slot >= SWEET_KMSG_SLOTS) {
+ 		return;

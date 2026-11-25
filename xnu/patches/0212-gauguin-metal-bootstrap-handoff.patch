@@ -1,0 +1,202 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -4,6 +4,7 @@
+  * are local. Opt-in and one client; submissions initially synchronize
+  * before returning. This is not an IOAccelerator or a Metal implementation. */
+ #include <pexpert/arm64/board_config.h>
++#include <pexpert/pexpert.h>
+ #if defined(GAUGUIN)
+ #include <IOKit/IOLib.h>
+ #include <IOKit/IOLocks.h>
+@@ -19,6 +20,7 @@
+ #include <sys/systm.h>
+ #include <sys/proc.h>
+ #include "SweetSurface.h"
++#include "SweetMetalBootstrap.h"
+ #include "../../../bsd/kern/sweet_eagl_diagnostics.h"
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+@@ -30,6 +32,8 @@
+  * client following the six native fences. Protected by gLock. */
+ static constexpr uint32_t kPilotRootFences = 6;
+ static uint32_t gReleasedRootFence;
++static bool gMetalBootstrapMode;
++static struct ggr_bootstrap_state gMetalBootstrap;
+ /* Kept until reset even on failure: a table visible to a live SMMU may never
+  * be returned to the allocator merely because an operation timed out. */
+ static IOBufferMemoryDescriptor *gTables;
+@@ -43,10 +47,10 @@
+ /* All mutable samples are protected by gLock after publication. Before it,
+  * the unpublished runtime owner is exclusive and no API sample is active.
+  * Times are elapsed wall time, NOT CPU-active or GPU-only execution time. */
+-enum { GAPI_COUNT=16 };
++enum { GAPI_COUNT=17 };
+ static const uint32_t gapi_selectors[GAPI_COUNT]={
+     0x09,0x40,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x4a,0x4b,0x4c,0x7e,
+-    0x100,0x101,0x102 /* memory mapping,clientClose,heartbeat */
++    0x100,0x101,0x102,0x7c /* memory mapping,clientClose,heartbeat,bootstrap arm */
+ };
+ struct gapi_sample {uint64_t calls,failures,queue_ticks,held_ticks,max_held_ticks;};
+ struct gapi_pending {uint64_t token,queued,locked;uint32_t index;};
+@@ -191,7 +195,7 @@
+     task_t fTask;
+     gpu_buffer *fBuffers;
+     uint64_t fBytes;
+-    uint32_t fNextHandle,fNextQueue,fNativeFence;
++    uint32_t fNextHandle,fNextQueue,fNativeFence,fBootstrapJobs;
+     uint32_t fAllocationStage,fAllocationFailures;
+     gpu_queue fDefaultQueue,fQueues[GGR_MAX_QUEUES];
+     bool fClosed, fCompositor;
+@@ -228,6 +232,9 @@
+ extern "C" bool GauguinGPUStart(void)
+ {
+     if(gPublished||!sweet_gpu_runtime_ready())return false;
++    uint32_t mode=0;
++    gMetalBootstrapMode=sweet_eagl_gpu_pilot_enabled()&&
++        PE_parse_boot_argn("gmt",&mode,sizeof(mode))&&mode==2;
+     IOLock *lock=IOLockAlloc();
+     if(!lock)return false;
+     /* Display readers can race publication; install once and never replace. */
+@@ -249,6 +256,7 @@
+ extern "C" void GauguinGPUStop(void)
+ {
+     if(gLock)IOLockLock(gLock);
++    ggr_bootstrap_fail(&gMetalBootstrap);
+     sweet_gpu_runtime_stop();
+     if(gLock)IOLockUnlock(gLock);
+ }
+@@ -286,14 +294,17 @@
+     if(!IOUserClient::initWithTask(task,sid,type,properties))return false;
+     fTask=task;fCompositor=!admin;
+     if(fCompositor)task_reference(fTask);
+-    fNextHandle=1;fNextQueue=1;fAllocationStage=0;fAllocationFailures=0;return true;
++    fNextHandle=1;fNextQueue=1;fBootstrapJobs=0;fAllocationStage=0;fAllocationFailures=0;return true;
+ }
+ bool GauguinGPUUserClient::start(IOService *p)
+ {
+     if(!gLock||!IOUserClient::start(p))return false;
+     IOLockLock(gLock);
+-    bool ok=!gOwner&&(!fCompositor||gReleasedRootFence>=kPilotRootFences)&&sweet_gpu_runtime_ready()&&prepareTables();
++    bool compositorReady=!fCompositor||(gReleasedRootFence>=kPilotRootFences&&
++        (!gMetalBootstrapMode||gMetalBootstrap.ready));
++    bool ok=!gOwner&&compositorReady&&sweet_gpu_runtime_ready()&&prepareTables();
+     if(ok){fBuffers=IONewZero(gpu_buffer,GGR_MAX_CLIENT_BUFFERS);ok=fBuffers!=nullptr;}
++    if(ok&&gMetalBootstrapMode&&!fCompositor)ok=ggr_bootstrap_begin(&gMetalBootstrap);
+     if(ok) {
+         gOwner=this;
+         if(fCompositor)IOLog("SWEET GPU AUTH: compositor opened pid=%d root_fence=%u\n",
+@@ -415,9 +426,17 @@
+         if(!fClosed) {
+             fClosed=true;bool clean=true;
+             if(fBuffers)for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
+-            if(gOwner==this&&clean) {
+-                if(!fCompositor&&fNativeFence>gReleasedRootFence)gReleasedRootFence=fNativeFence;
+-                gOwner=nullptr;
++            if(gOwner==this) {
++                if(gMetalBootstrapMode&&!fCompositor) {
++                    ggr_bootstrap_close(&gMetalBootstrap,clean,fBootstrapJobs,fNativeFence);
++                    IOLog("SWEET METAL245: root close ready=%u jobs=%u fence=%u epoch=%llu clean=%u\n",
++                        (unsigned)gMetalBootstrap.ready,fBootstrapJobs,fNativeFence,
++                        (unsigned long long)gMetalBootstrap.epoch,(unsigned)clean);
++                }
++                if(clean) {
++                    if(!fCompositor&&fNativeFence>gReleasedRootFence)gReleasedRootFence=fNativeFence;
++                    gOwner=nullptr;
++                }
+             }
+             if(!clean)IOLog("SWEET GPU USER: client closed after fault; DMA-visible memory/tables retained until reset\n");
+         }
+@@ -557,9 +576,9 @@
+     union { struct ggr_param param;struct ggr_new make;struct ggr_info info;
+         struct ggr_cpu_prep prep;struct ggr_cpu_fini fini;struct ggr_close close;
+         struct ggr_submit submit;struct ggr_wait wait;struct ggr_madvise madvise;
+-        struct ggr_queue queue;struct ggr_queue_query query;struct ggr_surface surface;uint32_t queueId;
++        struct ggr_queue queue;struct ggr_queue_query query;struct ggr_surface surface;struct ggr_bootstrap bootstrap;uint32_t queueId;
+     } r;
+-    size_t size=ggr_request_size(selector);
++    size_t size=selector==GGR_BOOTSTRAP_SELECTOR?sizeof(struct ggr_bootstrap):ggr_request_size(selector);
+     if(!size)return kIOReturnUnsupported;
+     if(!a||!a->structureInput||!a->structureOutput||a->structureInputSize!=size||a->structureOutputSize!=size||
+        a->scalarInputCount||a->scalarOutputCount||a->structureInputDescriptor||a->structureOutputDescriptor||!gLock)
+@@ -602,7 +621,16 @@
+         }break;
+     }
+     case 0x45:if(find(r.fini.handle)){memoryBarrier();result=kIOReturnSuccess;}break;
+-    case 0x46:result=submit(&r.submit);break;
++    case 0x46:
++        if(gMetalBootstrapMode&&!fCompositor&&gMetalBootstrap.armed) {
++            ggr_bootstrap_fail(&gMetalBootstrap);result=kIOReturnNotPrivileged;break;
++        }
++        result=submit(&r.submit);
++        if(gMetalBootstrapMode&&!fCompositor&&result==kIOReturnSuccess) {
++            if(fBootstrapJobs==UINT32_MAX)ggr_bootstrap_fail(&gMetalBootstrap);
++            else ++fBootstrapJobs;
++        }
++        break;
+     case 0x47:
+         if(r.wait.fence&&!r.wait.flags&&ggr_timeout_valid(&r.wait.timeout)) {
+             gpu_queue *q=queue(r.wait.queueid);
+@@ -623,6 +651,16 @@
+     case 0x4b:
+         if(r.queueId){gpu_queue *q=queue(r.queueId);if(q){*q={0,0};result=kIOReturnSuccess;}}break;
+     case 0x4c:result=kIOReturnUnsupported;break;
++    case GGR_BOOTSTRAP_SELECTOR:
++        if(fCompositor){result=kIOReturnNotPrivileged;break;}
++        if(!gMetalBootstrapMode){result=kIOReturnUnsupported;break;}
++        if(r.bootstrap.version!=GGR_BOOTSTRAP_VERSION||r.bootstrap.reserved||
++           r.bootstrap.fence||r.bootstrap.epoch||r.bootstrap.checks!=fBootstrapJobs)break;
++        if(!ggr_bootstrap_arm(&gMetalBootstrap,fBootstrapJobs,fNativeFence))break;
++        r.bootstrap.fence=fNativeFence;r.bootstrap.epoch=gMetalBootstrap.epoch;
++        IOLog("SWEET METAL245: root armed jobs=%u fence=%u epoch=%llu ready=0\n",
++            fBootstrapJobs,fNativeFence,(unsigned long long)gMetalBootstrap.epoch);
++        result=kIOReturnSuccess;break;
+     case 0x7e:result=surface(&r.surface);break;
+     default:result=kIOReturnUnsupported;break;
+     }
+--- /dev/null
++++ b/iokit/Kernel/arm/SweetMetalBootstrap.h
+@@ -0,0 +1,44 @@
++/* Root-to-compositor readiness, protected by the driver's existing GPU lock. MIT. */
++#ifndef GAUGUIN_METAL_BOOTSTRAP_H
++#define GAUGUIN_METAL_BOOTSTRAP_H
++#include <stdint.h>
++#include <stdbool.h>
++#define GGR_BOOTSTRAP_SELECTOR 0x7cu
++#define GGR_BOOTSTRAP_VERSION 1u
++#define GGR_BOOTSTRAP_MIN_JOBS 8u
++#define GGR_BOOTSTRAP_MAX_JOBS 64u
++struct ggr_bootstrap {
++    uint32_t version, checks, fence, reserved;
++    uint64_t epoch;
++};
++struct ggr_bootstrap_state {
++    uint64_t epoch;
++    uint32_t jobs, fence;
++    bool armed, ready, failed;
++};
++static inline void ggr_bootstrap_fail(struct ggr_bootstrap_state *s)
++{ s->ready=false; s->armed=false; s->failed=true; }
++static inline bool ggr_bootstrap_begin(struct ggr_bootstrap_state *s)
++{
++    if(s->epoch==UINT64_MAX){ggr_bootstrap_fail(s);return false;}
++    s->epoch++;s->jobs=s->fence=0;s->armed=s->ready=s->failed=false;return true;
++}
++static inline bool ggr_bootstrap_arm(struct ggr_bootstrap_state *s,uint32_t jobs,uint32_t fence)
++{
++    if(s->armed){ggr_bootstrap_fail(s);return false;}
++    if(!s->epoch||s->failed||s->ready||jobs<GGR_BOOTSTRAP_MIN_JOBS||
++       jobs>GGR_BOOTSTRAP_MAX_JOBS||!fence)return false;
++    s->jobs=jobs;s->fence=fence;s->armed=true;return true;
++}
++static inline void ggr_bootstrap_close(struct ggr_bootstrap_state *s,bool clean,uint32_t jobs,uint32_t fence)
++{
++    s->ready=clean&&s->armed&&!s->failed&&s->epoch&&jobs==s->jobs&&fence==s->fence;
++    s->armed=false;
++    if(!clean)s->failed=true;
++}
++#if defined(__cplusplus)
++static_assert(sizeof(ggr_bootstrap)==24,"root readiness wire size");
++#else
++_Static_assert(sizeof(struct ggr_bootstrap)==24,"root readiness wire size");
++#endif
++#endif

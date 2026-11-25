@@ -1,0 +1,105 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -493,9 +493,13 @@
+     SweetPresentSample *fPresentSample; /* timer workloop only; points to stack */
+     uint32_t fEmpty355Receipts;         /* workloop only */
+     uint32_t fSwapTimingSamples;        /* fLock held */
++    uint32_t fSwapWaitSamples;
++    uint32_t fActiveSwapID;             /* fLock held */
++    IOMobileFramebufferUserClient *fActiveSwapOwner; /* observed only with fLock */
+     SweetPresentStats fPresentStats;     /* protected by fLock */
+     /* END SWEET PRESENT STATS FIELDS */
+     void configurePresentClock(void);
++    void observeSwapWait(IOMobileFramebufferUserClient *owner, uint64_t swapID, uint64_t timeout);
+     bool presentClockTickLocked(uint64_t now, uint64_t *elapsed, bool *copy); /* fLock held */
+     void presentClockCopiedLocked(void); /* fLock held */
+     struct sweet_fb_frame fHeldPending, fHeldIssued[SCAN357_WRITERS], fHeldReady;
+@@ -798,6 +802,9 @@
+     fPresentSample = NULL;
+     fEmpty355Receipts = 0;
+     fSwapTimingSamples = 0;
++    fSwapWaitSamples = 0;
++    fActiveSwapID = 0;
++    fActiveSwapOwner = nullptr;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");
+     /* END SWEET PRESENT STATS INIT */
+@@ -1889,9 +1896,50 @@
+     fHeldLastTaken = candidate->generation;
+     sweet_fb_frame_move(frame, candidate);
+     fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    fActiveSwapID = get32(frame->record, 0x50);
++    fActiveSwapOwner = frame->owner;
+     fHeldActive = true;
+     fHeldConsumed++;
+     return true;
++}
++
++void
++AppleCLCD::observeSwapWait(IOMobileFramebufferUserClient *owner, uint64_t swapID, uint64_t timeout)
++{
++    constexpr uint32_t maxSamples = 384;
++    if (!swapID || swapID > UINT32_MAX || (swapID & 3) || !sweet_frame344_clock() ||
++        __atomic_load_n(&fSwapWaitSamples, __ATOMIC_RELAXED) >= maxSamples ||
++        __atomic_fetch_add(&fSwapWaitSamples, 1, __ATOMIC_RELAXED) >= maxSamples) return;
++    /* The diagnostic never waits for the framebuffer lock. Kind 63 reports
++     * a requested swap ID, timeout scalar, live generation and latest accept. */
++    if (!IOLockTryLock(fLock)) {
++        sweet_frame344_record(63, swapID, 5, timeout, 0, 0);
++        return;
++    }
++    const auto matches = [owner, swapID](const sweet_fb_frame &frame) {
++        return frame.owner == owner && get32(frame.record, 0x50) == swapID;
++    };
++    uint32_t state = 0;
++    uint64_t generation = 0;
++    if (matches(fHeldPending)) {
++        state = 1;
++        generation = fHeldPending.generation;
++    } else if (matches(fHeldReady)) {
++        state = 3;
++        generation = fHeldReady.generation;
++    } else if (fHeldActive && fActiveSwapOwner == owner && fActiveSwapID == swapID) {
++        state = 4;
++        generation = fHeldLastTaken;
++    } else {
++        for (const auto &frame : fHeldIssued) {
++            if (!matches(frame)) continue;
++            state = 2;
++            generation = frame.generation;
++            break;
++        }
++    }
++    sweet_frame344_record(63, swapID, state, timeout, generation, fHeldSubmitted);
++    IOLockUnlock(fLock);
+ }
+ 
+ void
+@@ -1963,6 +2011,7 @@
+             fDirty = true;
+             if (!wasReady) watchPendingReadyLocked();
+             fHeldActive = false;
++            fActiveSwapOwner = nullptr;
+             ++fHeldRequeued;
+             requeued = true;
+         }
+@@ -1972,6 +2021,7 @@
+     sweet_fb_frame_release(frame); /* after GPURead, outside framebuffer lock */
+     IOLockLock(fLock);
+     fHeldActive = false;
++    fActiveSwapOwner = nullptr;
+     ++fHeldRetired;
+     IOLockUnlock(fLock);
+ }
+@@ -2563,6 +2613,10 @@
+ 		}
+ 		break;
+ 	case kSweetFBSwapWait:
++#if defined(GAUGUIN)
++		if (args->scalarInputCount == 3 && args->scalarInput[2] == 0)
++			fFB->observeSwapWait(this, args->scalarInput[0], args->scalarInput[1]);
++#endif
+ 		break;
+ 	/*
+ 	 * The ABI backboardd actually uses. Filling these with self-consistent

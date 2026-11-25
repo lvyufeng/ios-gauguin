@@ -1,0 +1,34 @@
+diff --git a/bsd/dev/gauguin_gpu_runtime.c b/bsd/dev/gauguin_gpu_runtime.c
+--- a/bsd/dev/gauguin_gpu_runtime.c
++++ b/bsd/dev/gauguin_gpu_runtime.c
+@@ -144,14 +144,23 @@
+      * around the barrier itself and the full guards at both ends of each
+      * span. The ring remains CPU-owned until the guarded MMIO below. */
+     if(!(share_span_guards&&c->ops.ring_span?deadline_barrier(c):barrier(c)))goto io;
+-    if(c->ops.ring_span) {
+-        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,true)||!alive(c))goto io;
+-    } else for(uint32_t i=0;i<n;i++) {
+-        uint32_t v;
+-        if(!mr(c,GGR_RING,4*((c->wptr+i)%8192),&v)||v!=packet[i])goto io;
+-    }
+     uint32_t end=(c->wptr+n)%8192;
+-    if(!wr(c,0x1f8c3,1)||!wr(c,0x807,end))goto io;
++    if(share_span_guards&&c->ops.ring_span) {
++        /* A full check separates every pair of effects. The check after
++         * readback also guards enabling fence-off, and the check after
++         * enable also guards the doorbell. Keep the immediate deadlines. */
++        if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,true)||!alive(c)||
++           !alive_time(c)||!c->ops.write_reg(c->ops.cookie,0x1f8c3,1)||!alive(c)||
++           !alive_time(c)||!c->ops.write_reg(c->ops.cookie,0x807,end)||!alive(c))goto io;
++    } else {
++        if(c->ops.ring_span) {
++            if(!alive(c)||!c->ops.ring_span(c->ops.cookie,4*c->wptr,packet,n,true)||!alive(c))goto io;
++        } else for(uint32_t i=0;i<n;i++) {
++            uint32_t v;
++            if(!mr(c,GGR_RING,4*((c->wptr+i)%8192),&v)||v!=packet[i])goto io;
++        }
++        if(!wr(c,0x1f8c3,1)||!wr(c,0x807,end))goto io;
++    }
+     c->submitted=next;
+     /* Native fence-off path: protocol WPTR reissues, not command replays. */
+     uint32_t i;

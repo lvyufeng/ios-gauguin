@@ -1,0 +1,84 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -2628,7 +2628,7 @@
+         r->fence_checks,r->fence_status,r->fence_slow,r->counter_before_valid,r->counter_after_valid,r->counter_before,r->counter_after,r->keepalive_set_attempted,r->keepalive_clear_attempted,r->submit_attempted);record(line);
+     snprintf(line,sizeof(line),"SWEET GPU CLEAR IDLE: polls=%u rptr=%08x busy=%08x rbbm=%08x cp=%08x; device shadow27 and AO busy bit23",r->idle_polls,r->rptr,r->busy,r->rbbm_status,r->cp_status);record(line);
+     snprintf(line,sizeof(line),"SWEET GPU CLEAR DATA: before=%u after=%u pixels=%u foreground=%u background=%u eop=%u unchanged=%u ring=%u batch=%u; full ordinary4096-byte page checked",r->data_before_checked,r->data_after_checked,r->pixels_checked,r->foreground_checked,r->background_checked,r->eop_checked,r->unchanged_checked,r->ring_after_checked,r->max_nc_batch_words);record(line);
+-    snprintf(line,sizeof(line),"SWEET GPU CLEAR TIMESTAMP: polls=%u value=%08x complete=%u; actual native bit30 RB_DONE6/CACHE_FLUSH7 readback, no IRQ request",r->eop_polls,r->eop_value,r->eop_complete);record(line);
++    snprintf(line,sizeof(line),"SWEET GPU CLEAR FENCE: polls=%u value=%08x complete=%u; actual native A619 USER32 RB_DONE6/CACHE_FLUSH7 readback, no IRQ request",r->eop_polls,r->eop_value,r->eop_complete);record(line);
+     snprintf(line,sizeof(line),"SWEET GPU CLEAR BUFFER: kind=ib clean=%u written=%u checked=%u after=%u offset=%08x words=%u; existing RO/NX ring, IB_PRIV0",r->ib_clean_checked,r->ib_written,r->ib_checked,r->ib_after_checked,GGL_IB_OFFSET,GGL_IB_WORDS);record(line);
+     snprintf(line,sizeof(line),"SWEET GPU CLEAR BUFFER: kind=restore clean=%u written=%u checked=%u after=%u offset=%08x words=%u; existing RO/NX ring",r->restore_clean_checked,r->restore_written,r->restore_checked,r->restore_after_checked,GGL_RESTORE_OFFSET,GGL_RESTORE_WORDS);record(line);
+     snprintf(line,sizeof(line),"SWEET GPU CLEAR BUFFER: kind=preamble clean=%u written=%u checked=%u after=%u offset=%08x words=%u; existing RO/NX ring",r->preamble_clean_checked,r->preamble_written,r->preamble_checked,r->preamble_after_checked,GGL_PREAMBLE_OFFSET,GGL_PREAMBLE_WORDS);record(line);
+--- a/bsd/dev/gauguin_gpu_clear.c
++++ b/bsd/dev/gauguin_gpu_clear.c
+@@ -1,6 +1,9 @@
+ /* Fixed native Mesa24.3.4 A619 offscreen clear with static restore/preamble.
+  * Primary769e51468b49b2a42f0a0eaf71cf9eed5ff4e5de, source/packet evidence
+- * research/tmp/dsh-0169/native-clear-v6. Exact native arrays, no GPU emulator. */
++ * research/tmp/dsh-0170/native-event-profile-v1/a619. Native-generated
++ * A619 USER32 event transport; original clear/static/restore/preamble core.
++ * Explicit specialization tests/fixtures/gpu-clear/a619_event_source_profile.h.
++ * No post-capture binary edits, GPU emulator or hardware success claim. */
+ #include <string.h>
+ #include "gauguin_gpu_clear.h"
+ static bool span(const void *p,size_t n)
+@@ -13,8 +16,8 @@
+     0xfc00d000u,0x00000000u,0x000000c2u,0x70268000u,0x408e0701u,0x08000000u,
+     0x70d58003u,0xfc00e000u,0x00000000u,0x001000cdu,0x70d58003u,0x00000000u,
+     0x00000000u,0x00000000u,0x70d58003u,0x00000000u,0x00000000u,0x00200000u,
+-    0x70460001u,0x00000026u,0x70460004u,0x4000001du,0xfc018c00u,0x00000000u,
+-    0x00000001u,0x70460004u,0x4000001cu,0xfc018c00u,0x00000000u,0x00000002u,
++    0x70460001u,0x00000026u,0x70460004u,0x0000001du,0xfc018c00u,0x00000000u,
++    0x00000001u,0x70460004u,0x0000001cu,0xfc018c00u,0x00000000u,0x00000002u,
+     0x70460001u,0x00000019u,0x70460001u,0x00000018u,0x70268000u,0x408e0701u,
+     0x08000000u,0x48840502u,0x00000000u,0x000f000fu,0x488c2c04u,0x00000000u,
+     0x00000000u,0x000000ffu,0x000000ffu,0x408c0001u,0x10f03080u,0x48840001u,
+@@ -26,12 +29,12 @@
+     0x48840001u,0x10f03080u,0x48acc001u,0x0000f180u,0x488c0101u,0x00000000u,
+     0x408c1704u,0x00000030u,0xfc018000u,0x00000000u,0x00000001u,0x70460001u,
+     0x0000003fu,0x70268000u,0x408e0401u,0x04100000u,0x702c0001u,0x00000003u,
+-    0x70268000u,0x408e0401u,0x00000000u,0x70460004u,0x4000001du,0xfc018c00u,
+-    0x00000000u,0x00000003u,0x70460004u,0x4000001cu,0xfc018c00u,0x00000000u,
+-    0x00000004u,0x70460004u,0x40000004u,0xfc018c00u,0x00000000u,0x00000005u,
+-    0x70268000u,0x70460004u,0x40000016u,0xfc018c00u,0x00000000u,0x00000006u,
++    0x70268000u,0x408e0401u,0x00000000u,0x70460004u,0x0000001du,0xfc018c00u,
++    0x00000000u,0x00000003u,0x70460004u,0x0000001cu,0xfc018c00u,0x00000000u,
++    0x00000004u,0x70460004u,0x00000004u,0xfc018c00u,0x00000000u,0x00000005u,
++    0x70268000u,0x70460004u,0x00000016u,0xfc018c00u,0x00000000u,0x00000006u,
+     0x70bc8006u,0x00000013u,0xfc018c00u,0x00000000u,0x00000006u,0xffffffffu,
+-    0x00000010u,0x70460004u,0x40000004u,0xfc018c00u,0x00000000u,0x00000007u,
++    0x00000010u,0x70460004u,0x00000004u,0xfc018c00u,0x00000000u,0x00000007u,
+     0x70940004u,0x00000000u,0xfc018c00u,0x00000000u,0x00000007u,
+ };
+ static const uint32_t native_restore[194]={
+@@ -280,8 +283,8 @@
+ {
+     for(unsigned i=0;i<GGQ_IDLE_LIMIT;i++){
+         TRY(faults(c));TRY(barrier(c));TRY(mr(c,GGL_SCRATCH,0,&c->work.rptr));++c->work.idle_polls;
+-        /* Cache real control/neighbor samples even if the native bit30
+-         * protocol stalls. These do not replace the separate EOP poll. */
++        /* Cache real control/neighbor samples even if the event transport
++         * stalls. These do not replace the separate EOP poll. */
+         TRY(mr(c,GGL_DATA,GGL_EOP_OFFSET,&c->work.wait_control));
+         TRY(mr(c,GGL_DATA,GGL_EOP_OFFSET+4,&c->work.wait_control_hi));
+         ++c->work.wait_samples;
+@@ -293,7 +296,7 @@
+     }
+     return GGL_TIMEOUT;
+ }
+-/* Device ring progress/idle alone is not the EOP timestamp observation.
++/* Device ring progress/idle alone is not the EOP sequence observation.
+  * No delay callback is needed here: each NC read is barrier-ordered and
+  * bracketed by the provider's monotonic2s phase/4s total/WDT guards. */
+ static enum ggl_result wait_eop(struct ggl_context *c)
+--- a/bsd/dev/gauguin_gpu_clear.h
++++ b/bsd/dev/gauguin_gpu_clear.h
+@@ -71,7 +71,7 @@
+  * Main IB149 at+4000, native restore194 at+5000 and preamble205 at+6000
+  * reuse the same RO/NX ring. Pixels are DATA[0..255], with192blue/64green
+  * in a centered8x8 rectangle; control DATA+c00 must finish7, all767other
+- * words stay0. Original bit30 events and nested restore/preamble retained;
++ * words stay0. Source-profiled USER32 events and nested restore/preamble retained;
+  * no IRQ, new mapping/alias, protected override or CPU DATA store aftercold.
+  * Full pre/post page and artifact comparisons, separate actual EOP poll,
+  * <=64word guarded NC batches and individually guarded MMIO/polls.

@@ -1,0 +1,142 @@
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -331,7 +331,7 @@
+     if(!s)return kIOReturnNotFound;
+     /* SweetSurface::memory ALREADY names pixels. Its state page is separate.
+      * Importing a MiniIOSurface-style PAGE_SIZE subrange here corrupts rows. */
+-    if(!OSDynamicCast(IOBufferMemoryDescriptor,s->memory)||!s->allocSize||
++    if(s->readOnly||!OSDynamicCast(IOBufferMemoryDescriptor,s->memory)||!s->allocSize||
+        s->allocSize>GGR_MAX_BO_BYTES||(s->allocSize&PAGE_MASK)||s->offset>=s->allocSize||s->planeCount>1||
+        !s->width||!s->height||s->bytesPerElement!=4||s->bytesPerRow<4ull*s->width||
+        (uint64_t)s->offset+(uint64_t)(s->height-1)*s->bytesPerRow+4ull*s->width>s->allocSize) {
+diff --git a/iokit/Kernel/arm/SweetSurface.cpp b/iokit/Kernel/arm/SweetSurface.cpp
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -41,6 +41,7 @@
+ #include <libkern/c++/OSNumber.h>
+ #include <libkern/c++/OSUnserialize.h>
+ #include <sys/proc.h>
++#include <mach/kern_return.h>
+ 
+ enum {
+ 	kSweetSurfaceCreate             = 0,
+@@ -103,16 +104,23 @@
+ SweetSurface::kernelAddress()
+ {
+ 	IOBufferMemoryDescriptor *buffer = OSDynamicCast(IOBufferMemoryDescriptor, memory);
+-	if (buffer != NULL) {
++	if (buffer != NULL && !readOnly) {
+ 		return (uintptr_t)buffer->getBytesNoCopy();
+ 	}
+ 	IOLockLock(sweet_surface_lock);
+ 	if (kernelMap == NULL && memory != NULL) {
+ 		/* Preserve the cache type of task-backed images as well as panel memory. */
+-		kernelMap = memory->map(mapCache);
++		kernelMap = memory->map(mapCache | (readOnly ? kIOMapReadOnly : 0));
+ 	}
+ 	IOLockUnlock(sweet_surface_lock);
+ 	return kernelMap != NULL ? (uintptr_t)kernelMap->getVirtualAddress() : 0;
++}
++
++IOMemoryMap *
++SweetSurface::mapPixelsInTask(task_t task)
++{
++	return memory != NULL ? memory->createMappingInTask(task, 0,
++	    kIOMapAnywhere | mapCache | (readOnly ? kIOMapReadOnly : 0)) : NULL;
+ }
+ 
+ static uint32_t *
+@@ -539,7 +547,7 @@
+ 	s->retain();
+ 	ref->surface = s;
+ 	ref->count = 1;
+-	ref->data = s->memory->createMappingInTask(fTask, 0, kIOMapAnywhere | s->mapCache);
++	ref->data = s->mapPixelsInTask(fTask);
+ 	ref->state = s->state->createMappingInTask(fTask, 0, kIOMapAnywhere | kIOMapReadOnly);
+ 	if (ref->data == NULL || ref->state == NULL) {
+ 		ref->release();
+@@ -832,6 +840,7 @@
+ 	s->mapCache = kIOMapDefaultCache;
+ 	uint32_t charge = (uint32_t)round_page((input.address & PAGE_MASK) + input.size);
+ 	IOReturn ret = kIOReturnNoMemory;
++	bool readOnlyAttempt = false;
+ 	uint64_t previous = (uint64_t)OSAddAtomic64(charge, (volatile SInt64 *)&sweet_surface_wired);
+ 	if (previous > SWEET_SURFACE_WIRED_MAX - charge) {
+ 		OSAddAtomic64(-(SInt64)charge, (volatile SInt64 *)&sweet_surface_wired);
+@@ -841,6 +850,17 @@
+ 		    kIODirectionInOut | kIOMemoryThreadSafe, fTask);
+ 		if (s->memory != NULL) {
+ 			ret = s->memory->prepare();
++			if (ret == KERN_PROTECTION_FAILURE) {
++				/* InOut needs writable task pages. Only a protection failure
++				 * permits a fresh device-READ descriptor; never reuse failed
++				 * wiring or manufacture a writable alias of immutable pixels. */
++				readOnlyAttempt = true;
++				OSSafeReleaseNULL(s->memory);
++				s->memory = IOMemoryDescriptor::withAddressRange(input.address, input.size,
++				    kIODirectionOut | kIOMemoryThreadSafe, fTask);
++				ret = s->memory != NULL ? s->memory->prepare() : kIOReturnNoMemory;
++				if (ret == kIOReturnSuccess) s->readOnly = true;
++			}
+ 			if (ret == kIOReturnSuccess) {
+ 				s->memoryPrepared = true;
+ 				ret = sweet_surface_publish(s) ? returnSurface(s, args) : kIOReturnNoResources;
+@@ -854,6 +874,10 @@
+ 		IOLog("SWEET SURF: %s wrap id %u %ux%u fmt 0x%x bpe %u bpr %u size %u wired %u -> 0x%x\n",
+ 		    name, s->id, s->width, s->height, s->pixelFormat, s->bytesPerElement,
+ 		    s->bytesPerRow, s->allocSize, s->wiredSize, ret);
++		if (readOnlyAttempt) {
++			IOLog("SWEET SURF WRAP RO: id=%u initial=2 readonly=%u result=%x; immutable task pixels, no writable alias or GPU import\n",
++			    s->id, s->readOnly ? 1u : 0u, ret);
++		}
+ 	}
+ 	s->release();
+ 	return ret;
+@@ -965,14 +989,15 @@
+ }
+ 
+ IOReturn
+-IOSurfaceRootUserClient::trapLock(void *id, __unused void *options, void *seedOut,
++IOSurfaceRootUserClient::trapLock(void *id, void *options, void *seedOut,
+     void *, void *, void *)
+ {
+ 	SweetSurface *s = sweet_surface_held(fLock, fRefs, (uint32_t)(uintptr_t)id);
+ 	if (s == NULL) {
+ 		return kIOReturnNotFound;
+ 	}
+-	IOReturn ret = sweet_surface_seed_out(s, seedOut, false);
++	IOReturn ret = s->readOnly && !((uintptr_t)options & kIOSurfaceLockReadOnly) ?
++	    kIOReturnNotWritable : sweet_surface_seed_out(s, seedOut, false);
+ 	s->release();
+ 	return ret;
+ }
+@@ -985,7 +1010,8 @@
+ 	if (s == NULL) {
+ 		return kIOReturnNotFound;
+ 	}
+-	IOReturn ret = sweet_surface_seed_out(s, seedOut,
++	IOReturn ret = s->readOnly && !((uintptr_t)options & kIOSurfaceLockReadOnly) ?
++	    kIOReturnNotWritable : sweet_surface_seed_out(s, seedOut,
+ 	    !((uintptr_t)options & kIOSurfaceLockReadOnly));
+ 	s->release();
+ 	return ret;
+diff --git a/iokit/Kernel/arm/SweetSurface.h b/iokit/Kernel/arm/SweetSurface.h
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -42,12 +42,14 @@
+ 	IOMemoryMap              *kernelMap;    /* lazily created for kernel copies */
+ 	uint32_t                  wiredSize;    /* quota charge, including partial pages */
+ 	bool                      memoryPrepared;
++	bool                      readOnly; /* immutable task pixels; state is separate */
+ 
+-	bool init() APPLE_KEXT_OVERRIDE { gpuState=0; wiredSize=0; memoryPrepared=false; return OSObject::init(); }
++	bool init() APPLE_KEXT_OVERRIDE { gpuState=0; wiredSize=0; memoryPrepared=false; readOnly=false; return OSObject::init(); }
+ 	void free() APPLE_KEXT_OVERRIDE;
+ 
+ 	/* Kernel address of the pixels (mapped on first use), or 0. */
+ 	uintptr_t kernelAddress();
++	IOMemoryMap *mapPixelsInTask(task_t task);
+ };
+ 
+ /* Retained surface for an id, or NULL. */

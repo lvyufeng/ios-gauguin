@@ -1,0 +1,491 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -28,6 +28,8 @@
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+ extern "C" boolean_t pmap_valid_page(ppnum_t);
++#include "Kernel342.hpp"
++extern "C" void sweet_log_append(const char*,int);
+ 
+ static IOLock *gLock;
+ static bool gMapUnrelated;
+@@ -146,7 +148,7 @@
+ extern "C" void GauguinGPUProfileDump(void (*record)(const char *))
+ {
+     if(!record||!gapi_frozen||gapi_dumped)return;
+-    gapi_dumped=true;char line[256];uint64_t queued,held;
++    gapi_dumped=true;io342::dump(record,sweet_log_append);char line[256];uint64_t queued,held;
+     snprintf(line,sizeof(line),"SWEET BC335: hits=%llu misses=%llu stores=%llu evicts=%llu aliases=%llu valid=%u",
+         (unsigned long long)gCache335.hits,(unsigned long long)gCache335.misses,
+         (unsigned long long)gCache335.stores,(unsigned long long)gCache335.evicts,
+@@ -180,6 +182,7 @@
+  * runtime transitions remain under gLock. This adds no unchecked GPU access. */
+ static void gpuWaitUnlocked(void)
+ {
++    auto* wait342=io342::current();const uint64_t begin342=wait342?io342::wall():0;
+     if(gapi_pending.token&&!gapi_frozen)gapi_pending.paused_at=mach_absolute_time();
+     IOLockUnlock(gLock);
+     delay_for_interval(200,NSEC_PER_USEC);
+@@ -190,6 +193,7 @@
+         else gapi_add(&gapi_pending.unlocked_ticks,now-gapi_pending.paused_at);
+         gapi_pending.paused_at=0;
+     }
++    if(wait342)wait342->waited(begin342);
+ }
+ 
+ static bool physicalPage(IOMemoryDescriptor *m,uint64_t off,uint64_t *pa)
+@@ -495,6 +499,7 @@
+ }
+ IOReturn GauguinGPUUserClient::add(IOMemoryDescriptor *m,SweetSurface *s,uint64_t size,uint32_t flags,uint32_t *handle)
+ {
++    io342::phase(0x42,6);
+     const bool borrowed=s&&s->readOnly;
+     fAllocationStage=3; /* logical size/client-byte/handle limits */
+     if(!m||!size||(!borrowed&&(size&PAGE_MASK))||size>GGR_MAX_BO_BYTES||
+@@ -522,8 +527,10 @@
+     fAllocationStage=5;
+     uint64_t address=reserveAddress(mappingSize);
+     if(!address){if(borrowed)m->complete();return kIOReturnNoResources;}
++    io342::phase(0x42,7);
+     fAllocationStage=6;
+     if(!borrowed&&m->prepare()!=kIOReturnSuccess){releaseAddress(address,mappingSize);return kIOReturnVMError;}
++    io342::phase(0x42,8);
+     fAllocationStage=7;
+     for(uint64_t off=0;off<mappingSize;off+=4096) {
+         uint64_t pa;
+@@ -541,6 +548,7 @@
+      * dropping the original task's surface reference cannot recycle pixels. */
+     m->retain();if(s)s->retain();
+     *slot={m,s,address+bias,size,address,mappingSize,fNextHandle++,flags,true,false,false,false};fBytes+=mappingSize;
++    io342::phase(0x42,9);
+     fAllocationStage=8;
+     for(uint64_t off=0;off<mappingSize;off+=4096) {
+         uint64_t pa=0;
+@@ -548,8 +556,10 @@
+         *leafAt(address+off)=pa|UINT64_C(0xe43)|((flags&GGR_BO_READONLY)?0x80:0);
+     }
+     gbo333_record(5,mappingSize,slot->handle,flags);
++    io342::phase(0x42,10);
+     memoryBarrier();fAllocationStage=9;
+     if(!sweet_gpu_runtime_sync())return kIOReturnNotReady; /* retained until reset */
++    io342::phase(0x42,11);
+     *handle=slot->handle;fAllocationStage=0;return kIOReturnSuccess;
+ }
+ 
+@@ -760,7 +770,10 @@
+ {
+     if(fCompositor&&current_task()!=fTask)return kIOReturnNotPrivileged;
+     if(!options||!memory||!gLock)return kIOReturnBadArgument;
+-    uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
++    uint64_t queued=mach_absolute_time();
++    io342::Scope trace342(fCompositor,0x100,queued);
++    IOLockLock(gRequests);trace342.phase(1);IOLockLock(gLock);trace342.phase(2);trace342.activate();
++    trace342.allocation(type,0);
+     uint64_t profile=gapi_begin(0x100,queued,mach_absolute_time());
+     IOReturn r=kIOReturnBadArgument;
+     gpu_buffer *b=!fClosed&&gOwner==this?find(type):nullptr;
+@@ -768,6 +781,7 @@
+      * pixels stay accessible through their original read-only IOSurface, while
+      * generic texture replace/read calls fail rather than obtaining a writable
+      * alias through IOConnectMapMemory. Ordinary GPU-RO upload BOs are unchanged. */
++    trace342.phase(3);
+     const bool fast=gMapUnrelated&&fCompositor&&fAsync&&b&&b->memory&&
+         !b->surface&&!b->pending&&!b->closePending&&
+         OSDynamicCast(IOBufferMemoryDescriptor,b->memory)!=nullptr&&
+@@ -775,20 +789,24 @@
+         fPendingQueue->issued==fPendingQueueFence&&fPendingQueue->completed!=UINT32_MAX&&
+         fPendingQueueFence==fPendingQueue->completed+1&&
+         sweet_gpu_runtime_pending_metadata(fPendingNativeFence);
++    trace342.phase(4);
+     bool waited=false;
+     if(b&&fPendingCount&&!fast){
+         waited=true;
+         if(finishPending(true,true)!=kIOReturnSuccess)b=nullptr;
+     }
++    trace342.phase(5);
+     if(b&&!(b->surface&&b->surface->readOnly)&&(fast||sweet_gpu_runtime_ready())) {
+         b->memory->retain();*memory=b->memory;*options=0;r=kIOReturnSuccess;
+     }
++    trace342.phase(11);
++    trace342.allocation(type,b?b->size:0);
+     if(profile&&!gapi_frozen){
+         if(gMapStats.calls==UINT64_MAX)gMapStats.overflow=true;
+         else {++gMapStats.calls;gMapStats.fast+=fast&&r==kIOReturnSuccess;
+               gMapStats.waited+=waited;gMapStats.failures+=r!=kIOReturnSuccess;}
+     }
+-    gapi_end(profile,r);IOLockUnlock(gLock);IOLockUnlock(gRequests);return r;
++    gapi_end(profile,r);trace342.finish((uint32_t)r);IOLockUnlock(gLock);IOLockUnlock(gRequests);return r;
+ }
+ 
+ IOReturn GauguinGPUUserClient::surface(struct ggr_surface *r)
+@@ -833,6 +851,7 @@
+         IOReturn settled=finishPending(true,true);
+         if(settled!=kIOReturnSuccess){fSubmitDiag327.stage=11;return settled;}
+     }
++    io342::phase(0x46,3);
+     gpu_queue *q=queue(r->queueid);
+     if((r->flags&~UINT32_C(0x80000010))||(r->flags&0x1f)!=0x10||r->fence||
+        !r->nr_bos||r->nr_bos>GGR_MAX_BUFFERS||!r->nr_cmds||r->nr_cmds>GGR_MAX_COMMANDS||
+@@ -844,11 +863,13 @@
+     auto cmds=IONew(struct ggr_submit_cmd,r->nr_cmds);
+     IOReturn result=kIOReturnBadArgument;
+     if(!bos||!cmds){fSubmitDiag327.stage=12;result=kIOReturnNoMemory;goto out;}
++    io342::phase(0x46,4);
+     if(copyin(r->bos,bos,r->nr_bos*sizeof(*bos))||copyin(r->cmds,cmds,r->nr_cmds*sizeof(*cmds))) {
+         fSubmitDiag327.stage=13;result=kIOReturnVMError;goto out;
+     }
+     {
+         uint64_t addresses[GGR_MAX_COMMANDS];uint32_t words[GGR_MAX_COMMANDS];
++        io342::phase(0x46,5);
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+             gpu_buffer *b=find(bos[i].handle);
+             if(!b||!bos[i].flags||(bos[i].flags&~3u)||
+@@ -867,6 +888,7 @@
+                 fSubmitDiag327.handle=bos[i].handle;fSubmitDiag327.cmd_index=j;goto out;
+             }
+         }
++        io342::phase(0x46,6);
+         for(uint32_t i=0;i<r->nr_cmds;i++) {
+             if(cmds[i].submit_idx>=r->nr_bos){
+                 fSubmitDiag327.stage=16;fSubmitDiag327.index=i;
+@@ -880,8 +902,10 @@
+                 fSubmitDiag327.cmd_offset=cmds[i].submit_offset;fSubmitDiag327.cmd_bytes=cmds[i].size;
+                 goto out;
+             }
++            if(i==0)if(auto* p=io342::current())p->tag(r->queueid,r->fence,b->handle,cmds[i].size,r->nr_bos,r->nr_cmds);
+             addresses[i]=b->address+cmds[i].submit_offset;words[i]=cmds[i].size/4;
+         }
++        io342::phase(0x46,7);
+         /* Validate ALL requests before changing any surface state or ringing
+          * a doorbell. Descriptor arrays are kernel copies, not reread later. */
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+@@ -891,6 +915,7 @@
+                 if(!ptr){fSubmitDiag327.stage=18;fSubmitDiag327.index=i;fSubmitDiag327.handle=b->handle;goto out;}
+             }
+         }
++        io342::phase(0x46,8);
+         /* Escrow every descriptor and mapping BEFORE the doorbell. A failed
+          * post-doorbell issue cannot prove that the GPU never saw the BOs. */
+         if(fAsync){
+@@ -900,6 +925,7 @@
+                 fPending[i]=b;b->pending=true;
+             }
+         }
++        io342::phase(0x46,9);
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+             gpu_buffer *b=find(bos[i].handle);
+             if(b->surface) {
+@@ -907,10 +933,12 @@
+                 flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
+             }
+         }
++        io342::phase(0x46,10);
+         memoryBarrier();uint32_t fence=0;
+         sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);
+         bool ok=fAsync?sweet_gpu_runtime_issue(addresses,words,r->nr_cmds,&fence)==GGR_OK:
+                        sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
++        io342::phase(0x46,11);
+         if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;fSubmitDiag327.stage=20;}
+         if(!ok&&fSubmitDiag327.stage!=20)fSubmitDiag327.stage=19;
+         if(fAsync){
+@@ -939,6 +967,7 @@
+         sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,r->queueid,r->fence,fence);
+     }
+ out:
++    io342::phase(0x46,11);
+     if(bos)IODelete(bos,struct ggr_submit_bo,r->nr_bos);
+     if(cmds)IODelete(cmds,struct ggr_submit_cmd,r->nr_cmds);
+     return result;
+@@ -959,10 +988,15 @@
+        a->scalarInputCount||a->scalarOutputCount||a->structureInputDescriptor||a->structureOutputDescriptor||!gLock)
+         return kIOReturnBadArgument;
+     bzero(&r,sizeof(r));memcpy(&r,a->structureInput,size);
+-    uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
++    uint64_t queued=mach_absolute_time();
++    io342::Scope trace342(fCompositor,selector,queued);
++    IOLockLock(gRequests);trace342.phase(1);IOLockLock(gLock);trace342.phase(2);trace342.activate();
+     uint64_t profile=gapi_begin(selector,queued,mach_absolute_time());
+     IOReturn result=kIOReturnBadArgument;
+     fAllocationStage=0; /* runtime/client gate, before request validation */
++    if(selector==0x42)trace342.allocation(r.make.handle,r.make.size);
++    if(selector==0x43)trace342.allocation(r.info.handle,0);
++    if(selector==0x46)trace342.tag(r.submit.queueid,r.submit.fence,0,0,r.submit.nr_bos,r.submit.nr_cmds);
+     if(selector==0x42)gbo333_record(1,r.make.size,r.make.flags,thread_tid(current_thread()));
+     if(selector==0x46)fSubmitDiag327={1,UINT32_MAX,0,0,0,0,0,0,0,0};
+     /* These requests can inspect or defer a handle while one fence runs.
+@@ -983,6 +1017,7 @@
+         if(r.param.pipe!=0x10||r.param.len||r.param.pad)break;
+         result=sweet_gpu_runtime_parameter(r.param.param,&r.param.value)?kIOReturnSuccess:kIOReturnUnsupported;break;
+     case 0x42: {
++        io342::phase(0x42,3);
+         fAllocationStage=1; /* request flags/shape */
+         if(!r.make.size||r.make.size>GGR_MAX_BO_BYTES||r.make.handle||(r.make.flags&~(GGR_BO_READONLY|GGR_BO_WC)))break;
+         uint64_t n=(r.make.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
+@@ -991,8 +1026,10 @@
+         if(gpu_buffer *b=takeCached335(n,r.make.flags)) {
+             auto *m=OSDynamicCast(IOBufferMemoryDescriptor,b->memory);
+             gbo333_record(3,1,0,0);
++            io342::phase(0x42,5);
+             bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
+             gbo333_record(4,0,0,0);
++            io342::phase(0x42,11);
+             b->handle=fNextHandle++;r.make.handle=b->handle;fAllocationStage=0;
+             gbo333_record(5,b->mappingSize,b->handle,b->flags);
+             if(gapi_pending.token&&!gapi_frozen&&gapi_valid)
+@@ -1003,6 +1040,7 @@
+         if(fCacheEnabled&&!trimCached335(n,false)){
+             gbo333_record(3,0,0,0);result=kIOReturnNotReady;break;
+         }
++        io342::phase(0x42,4);
+         auto m=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
+             kIODirectionInOut|kIOMemoryKernelUserShared|kIOMapWriteCombineCache,(vm_size_t)n,PAGE_SIZE);
+         // Under allocator pressure, release retained completed mappings and
+@@ -1016,11 +1054,13 @@
+         }
+         gbo333_record(3,m!=nullptr,0,0);
+         if(!m){result=kIOReturnNoMemory;break;}
++        io342::phase(0x42,5);
+         bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
+         gbo333_record(4,0,0,0);
+         result=add(m,nullptr,n,r.make.flags,&r.make.handle);m->release();break;
+     }
+     case 0x43: {
++        io342::phase(0x43,3);
+         gpu_buffer *b=find(r.info.handle);if(!b||r.info.pad||r.info.len)break;
+         if(r.info.info==0)r.info.value=(uint64_t)b->handle<<32;
+         else if(r.info.info==1)r.info.value=b->address;
+@@ -1106,6 +1146,9 @@
+     default:result=kIOReturnUnsupported;break;
+     }
+ out:
++    trace342.phase(11);
++    if(selector==0x42)trace342.allocation(r.make.handle,r.make.size);
++    if(selector==0x46)trace342.fence(r.submit.queueid,r.submit.fence);
+     if(selector==0x42)gbo333_record(6,(uint32_t)result,r.make.handle,fAllocationStage);
+     if(selector==0x42&&result!=kIOReturnSuccess&&fAllocationFailures<8){
+         ++fAllocationFailures;
+@@ -1128,6 +1171,6 @@
+         gsub_diag327_log(&fSubmitDiag327,&r.submit,result,fCompositor,fAsync,profile,
+             fPendingCount,fNativeFence,fBytes);
+     if(result==kIOReturnSuccess){memcpy(a->structureOutput,&r,size);a->structureOutputSize=(uint32_t)size;}
+-    gapi_end(profile,result);IOLockUnlock(gLock);IOLockUnlock(gRequests);return result;
++    gapi_end(profile,result);trace342.finish((uint32_t)result);IOLockUnlock(gLock);IOLockUnlock(gRequests);return result;
+ }
+ #endif
+--- /dev/null
++++ b/iokit/Kernel/arm/Phase342.hpp
+@@ -0,0 +1,69 @@
++#pragma once
++#include <stdint.h>
++#include <stddef.h>
++
++// No allocation, thread, ownership, device call or synchronization operation.
++// Clocks return ns; kernel callers explicitly convert both mach tick clocks.
++namespace gauguin342phase {
++constexpr uint64_t slop=2000;
++enum : uint64_t { clockError=1,backward=2,overflow=4,orderError=8,incoherent=16 };
++inline bool add(uint64_t& target,uint64_t value) noexcept {
++    if(value>UINT64_MAX-target)return false;
++    target+=value;return true;
++}
++template<size_t N> struct Data {
++    uint64_t begin[N]{},end[N]{},cpu[N]{},envelope[N]{};
++    uint64_t first=0,last=0,queryWall=0,queries=0,mask=0,flags=0;
++};
++struct Bounds {uint64_t cpuLower,cpuUpper,offLower,offUpper;};
++inline Bounds bounds(uint64_t wall,uint64_t cpu,uint64_t envelope) noexcept {
++    uint64_t lower=(envelope<=UINT64_MAX-slop&&cpu>envelope+slop)?cpu-envelope-slop:0;
++    uint64_t upper=cpu>UINT64_MAX-slop?UINT64_MAX:cpu+slop;
++    if(upper>wall)upper=wall;
++    if(lower>upper)lower=upper; // Invalid data is separately rejected by flags.
++    return {lower,upper,wall-upper,wall-lower};
++}
++template<size_t N> class Probe {
++public:
++    using Wall=uint64_t(*)() noexcept;
++    using CPU=bool(*)(uint64_t*) noexcept;
++    Probe(Data<N>* data,Wall wall,CPU cpu) noexcept : data_(data),wall_(wall),cpu_(cpu) {
++        static_assert(N>0&&N<64,"bounded phase mask");
++        if(data_){*data_={};previous_=sample();data_->first=previous_.before;}
++    }
++    ~Probe(){finish();}
++    void phase(size_t next) noexcept {
++        if(!data_||finished_)return;
++        if(next<=index_||next>N){data_->flags|=orderError;return;}
++        Tick now=sample();
++        const size_t i=index_;data_->mask|=uint64_t(1)<<i;
++        data_->begin[i]=previous_.after;data_->end[i]=now.before;
++        if(now.before<previous_.after||now.cpu<previous_.cpu){data_->flags|=backward;}
++        else {
++            data_->cpu[i]=now.cpu-previous_.cpu;
++            uint64_t envelope=previous_.width;
++            if(!add(envelope,now.width)){data_->flags|=overflow;envelope=UINT64_MAX;}
++            data_->envelope[i]=envelope;
++            uint64_t maximum=now.before-previous_.after;
++            if(!add(maximum,envelope)||!add(maximum,slop))data_->flags|=overflow;
++            else if(data_->cpu[i]>maximum)data_->flags|=incoherent;
++        }
++        data_->last=now.after;previous_=now;index_=next;
++        if(next==N)finished_=true;
++    }
++    void finish() noexcept {if(data_&&!finished_)phase(N);}
++    Probe(const Probe&)=delete;Probe& operator=(const Probe&)=delete;
++private:
++    struct Tick {uint64_t before=0,cpu=0,after=0,width=0;};
++    Tick sample() noexcept {
++        Tick value;value.before=wall_();
++        if(!cpu_(&value.cpu))data_->flags|=clockError;
++        value.after=wall_();
++        if(value.after<value.before)data_->flags|=backward;
++        else value.width=value.after-value.before;
++        if(!add(data_->queryWall,value.width)||!add(data_->queries,1))data_->flags|=overflow;
++        return value;
++    }
++    Data<N>* data_;Wall wall_;CPU cpu_;Tick previous_{};size_t index_=0;bool finished_=false;
++};
++} // namespace gauguin342phase
+--- /dev/null
++++ b/iokit/Kernel/arm/Kernel342.hpp
+@@ -0,0 +1,130 @@
++#pragma once
++#include "Phase342.hpp"
++
++// Included only by GauguinGPU.cpp. Use the
++// ORIGINAL gRequests + gLock for publication/append; the shutdown dump
++// requires gLock, and refuses an active request. Pre-lock state is stack-only.
++namespace io342 {
++constexpr uint64_t windowFirst=210000000000ull,windowLast=270000000000ull;
++constexpr unsigned capacity=4096;
++inline uint64_t wall() noexcept {uint64_t ns;absolutetime_to_nanoseconds(mach_absolute_time(),&ns);return ns;}
++inline bool cpu(uint64_t* ns) noexcept {absolutetime_to_nanoseconds(thread_get_runtime_self(),ns);return true;}
++struct Row {
++    gauguin342phase::Data<12> phases;
++    uint64_t token=0,tid=0,bytes=0,waitNs=0,waits=0;
++    uint32_t pid=0,selector=0,queue=0,fence=0,handle=0,bos=0,cmds=0,result=~0u;
++    bool enabled=false;
++};
++static Row rows[capacity];static unsigned count;
++static uint64_t sequence,lost;static bool dumped,invalid;
++class Scope;static Scope* active;
++inline Row initial(bool compositor,uint32_t selector,uint64_t queued) noexcept {
++    Row value;
++    if(!compositor||(selector!=0x42&&selector!=0x43&&selector!=0x46&&selector!=0x100))return value;
++    uint64_t ns;absolutetime_to_nanoseconds(queued,&ns);
++    value.enabled=ns>=windowFirst&&ns<windowLast;
++    if(value.enabled){value.selector=selector;value.pid=(uint32_t)proc_pid(current_proc());value.tid=thread_tid(current_thread());}
++    return value;
++}
++class Scope {
++public:
++    Scope(bool compositor,uint32_t selector,uint64_t queued) noexcept : row_(initial(compositor,selector,queued)),
++        probe_(row_.enabled?&row_.phases:nullptr,wall,cpu) {}
++    ~Scope(){if(row_.enabled&&!finished_){row_.phases.flags|=gauguin342phase::orderError;finish(~0u);}}
++    void phase(unsigned next) noexcept {
++        if(!row_.enabled||finished_)return;
++        if(next==index_)return;
++        if(next<index_){row_.phases.flags|=gauguin342phase::orderError;return;}
++        probe_.phase(next);index_=next;
++    }
++    void activate() noexcept {
++        if(!row_.enabled)return;
++        if(active||dumped||sequence==UINT64_MAX){invalid=true;row_.phases.flags|=gauguin342phase::orderError;return;}
++        row_.token=++sequence;active=this;
++    }
++    bool isThread()const noexcept {return row_.enabled&&row_.tid==thread_tid(current_thread());}
++    uint32_t selector()const noexcept{return row_.selector;}
++    void tag(uint32_t queue,uint32_t fence,uint32_t handle,uint64_t bytes,uint32_t bos=0,uint32_t cmds=0) noexcept {
++        row_.queue=queue;row_.fence=fence;row_.handle=handle;row_.bytes=bytes;row_.bos=bos;row_.cmds=cmds;
++    }
++    void fence(uint32_t queue,uint32_t fence) noexcept {row_.queue=queue;row_.fence=fence;}
++    void allocation(uint32_t handle,uint64_t bytes) noexcept {row_.handle=handle;row_.bytes=bytes;}
++    void waited(uint64_t begin) noexcept {
++        uint64_t end=wall();
++        if(end<begin||!gauguin342phase::add(row_.waitNs,end-begin)||!gauguin342phase::add(row_.waits,1))
++            row_.phases.flags|=gauguin342phase::overflow;
++    }
++    void finish(uint32_t result) noexcept {
++        if(!row_.enabled||finished_)return;
++        probe_.finish();row_.result=result;finished_=true;
++        if(active==this)active=nullptr;
++        else {invalid=true;row_.phases.flags|=gauguin342phase::orderError;}
++        if(dumped||count==capacity){if(lost==UINT64_MAX)invalid=true;else ++lost;return;}
++        rows[count++]=row_;
++    }
++private:
++    Row row_;gauguin342phase::Probe<12> probe_;unsigned index_=0;bool finished_=false;
++};
++inline Scope* current() noexcept {return active&&active->isThread()?active:nullptr;}
++inline void phase(uint32_t selector,unsigned next) noexcept {auto* p=current();if(p&&p->selector()==selector)p->phase(next);}
++
++class Line {
++public:
++    char data[2048]{};unsigned used=0;bool ok=true;
++    void word(const char* s) noexcept {while(*s){if(used+1>=sizeof(data)){ok=false;return;}data[used++]=*s++;}data[used]=0;}
++    void number(uint64_t n) noexcept {char reverse[20];unsigned at=0;do{reverse[at++]=char('0'+n%10);n/=10;}while(n);
++        while(at){char s[2]={reverse[--at],0};word(s);}}
++    void field(const char* name,uint64_t n) noexcept {word(name);number(n);}
++    template<size_t N> void array(const char* name,const uint64_t(&values)[N]) noexcept {
++        word(name);for(unsigned i=0;i<N;i++){if(i)word(",");number(values[i]);}
++    }
++};
++inline void formatRow(Line& line,const Row& r,unsigned i) noexcept {
++    const auto& p=r.phases;line.used=0;line.ok=true;line.data[0]=0;line.word("SWEET IO342: row");
++    line.field(" index=",i);line.field(" token=",r.token);line.field(" pid=",r.pid);line.field(" tid=",r.tid);
++    line.field(" selector=",r.selector);line.field(" queue=",r.queue);line.field(" fence=",r.fence);
++    line.field(" handle=",r.handle);line.field(" bytes=",r.bytes);line.field(" bos=",r.bos);line.field(" cmds=",r.cmds);
++    line.field(" result=",r.result);line.field(" first_ns=",p.first);line.field(" last_ns=",p.last);
++    line.field(" query_ns=",p.queryWall);line.field(" queries=",p.queries);line.field(" mask=",p.mask);
++    line.field(" flags=",p.flags);line.field(" wait_ns=",r.waitNs);line.field(" waits=",r.waits);
++    line.array(" begin=",p.begin);line.array(" end=",p.end);line.array(" cpu=",p.cpu);line.array(" envelope=",p.envelope);
++}
++// One atomic reservation in the EXISTING persistent RAM ring per complete
++// line. Bypass console_write's256-byte chunks; the next original BC335
++// record performs the existing persistent flush after all our appends finish.
++inline bool emit(Line& line,void(*record)(const char*),void(*frame)(const char*,int)) noexcept {
++    if(!line.ok)return false;
++    if(!frame){record(line.data);return true;}
++    if(line.used+2>sizeof(line.data))return false;
++    for(unsigned i=line.used;i;i--)line.data[i]=line.data[i-1];
++    line.data[0]='\n';line.data[line.used+1]='\n';frame(line.data,(int)line.used+2);return true;
++}
++constexpr uint64_t dumpByteLimit=2u*1024u*1024u;
++inline void dump(void(*record)(const char*),void(*frame)(const char*,int)=nullptr) noexcept {
++    if(dumped||!record)return;dumped=true;
++    // Bound the entire new stream before printing any row. The unchanged
++    // 4MiB persistent log must retain the old trace and boot identity too.
++    Line line;uint64_t rowBytes=0;
++    for(unsigned i=0;i<count;i++){
++        formatRow(line,rows[i],i);
++        if(!line.ok||!gauguin342phase::add(rowBytes,line.used+2))invalid=true;
++    }
++    const bool byteLimited=rowBytes>dumpByteLimit-4096;
++    if(byteLimited)invalid=true;
++    line.used=0;line.ok=true;line.data[0]=0;
++    line.word("SWEET IO342: begin version=1");line.field(" first_ns=",windowFirst);
++    line.field(" last_ns=",windowLast);line.field(" count=",count);line.field(" capacity=",capacity);
++    line.field(" lost=",lost);line.field(" pending=",active!=nullptr);line.field(" invalid=",invalid);
++    line.field(" row_bytes=",rowBytes);line.field(" byte_limit=",dumpByteLimit);
++    line.field(" byte_limited=",byteLimited);if(!emit(line,record,frame))invalid=true;
++    unsigned emitted=0;
++    if(!byteLimited&&!invalid)for(unsigned i=0;i<count;i++){
++        formatRow(line,rows[i],i);
++        if(emit(line,record,frame))++emitted;
++        else invalid=true;
++    }
++    line.used=0;line.ok=true;line.data[0]=0;line.word("SWEET IO342: end");line.field(" count=",count);line.field(" lost=",lost);
++    line.field(" pending=",active!=nullptr);line.field(" invalid=",invalid);
++    line.field(" emitted=",emitted);line.field(" byte_limited=",byteLimited);if(!emit(line,record,frame))invalid=true;
++}
++} // namespace io342
+--- a/bsd/dev/gauguin_ui_trace.h
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -12,7 +12,8 @@
+     GUT_HID_ENQUEUE, GUT_HID_NO_QUEUE,
+     GUT_API_BEGIN=10, GUT_API_END, GUT_SUBMIT_BEGIN, GUT_SUBMIT_END, GUT_SURFACE,
+     GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END,
+-    GUT_SYNTHETIC=30 /* explicit origin marker for a generated report ID */
++    GUT_SYNTHETIC=30 /* explicit origin marker for a generated report ID */,
++    GUT_BO_ALLOC333=31, GUT_BO_REUSE335=32
+ };
+ struct gut_event {
+     uint64_t seq, tick, id;

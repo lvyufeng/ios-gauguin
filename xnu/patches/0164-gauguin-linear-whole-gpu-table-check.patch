@@ -1,0 +1,54 @@
+--- a/bsd/dev/gauguin_gpu_data.c
++++ b/bsd/dev/gauguin_gpu_data.c
+@@ -50,29 +50,34 @@
+         0x703d8003u,p->data.iova+GGD_DATA_BYTES-4,0,GGD_LAST_VALUE}};
+     *out=c;return true;
+ }
+-static uint64_t expected_leaf(const struct ggd_plan *p,unsigned index)
++/* The fixed plan has monotonically ordered mapped regions. Read every
++ * actual table word exactly once on success. Canonical attributes are built
++ * once per region, never searched again for each empty L3 entry. There is no
++ * cached expected table, relaxed hole check, or skipped retained TTBR1 word. */
++static bool table_zero(const volatile uint64_t *actual,unsigned first,unsigned end)
+ {
+-    uint32_t va=GGP_GLOBAL_BASE+4096u*index;
+-    for(unsigned i=0;i<=GGP_COUNT;i++){
+-        const struct ggp_region *m=i<GGP_COUNT?&p->bootstrap.region[i]:&p->data;
+-        if(va<m->iova||va-m->iova>=m->mapped)continue;
+-        uint64_t attr=UINT64_C(0xe03)|(m->privileged?0:0x40u)|(m->readonly?0x80u:0);
+-        if(!m->executable)attr|=UINT64_C(3)<<53;
+-        return (p->bootstrap.owner_pa+m->offset+(va-m->iova))|attr;
+-    }
+-    return 0;
++    for(unsigned i=first;i<end;i++)if(actual[i])return false;
++    return true;
+ }
+ bool ggd_tables_match(const struct ggd_plan *p,const volatile void *memory,size_t bytes)
+ {
+     if(!ggd_plan_valid(p)||bytes<GGP_TABLE_BYTES||!span((const void *)memory,GGP_TABLE_BYTES)||
+        ((uintptr_t)memory&7)||overlap(p,sizeof(*p),(const void *)memory,GGP_TABLE_BYTES))return false;
+     const volatile uint64_t *actual=memory;uint64_t pa=p->bootstrap.owner_pa+GGP_TABLE_OFFSET;
+-    for(unsigned i=0;i<GGP_TABLE_BYTES/8;i++){
+-        uint64_t expected=0;
+-        if(i==3)expected=(pa+0x1000)|3u;
+-        else if(i==512+480)expected=(pa+0x2000)|3u;
+-        else if(i>=1024&&i<1536)expected=expected_leaf(p,i-1024);
+-        if(actual[i]!=expected)return false;
++    if(!table_zero(actual,0,3)||actual[3]!=((pa+0x1000)|3u)||
++       !table_zero(actual,4,512+480)||actual[512+480]!=((pa+0x2000)|3u)||
++       !table_zero(actual,512+481,1024))return false;
++    unsigned next=1024;
++    for(unsigned i=0;i<=GGP_COUNT;i++){
++        const struct ggp_region *m=i<GGP_COUNT?&p->bootstrap.region[i]:&p->data;
++        unsigned first=1024+((m->iova>>12)&511u),pages=m->mapped/4096u;
++        if(first<next||first>1536||pages>1536-first||!table_zero(actual,next,first))return false;
++        uint64_t attr=UINT64_C(0xe03)|(m->privileged?0:0x40u)|(m->readonly?0x80u:0);
++        if(!m->executable)attr|=UINT64_C(3)<<53;
++        uint64_t base=p->bootstrap.owner_pa+m->offset;
++        for(unsigned n=0;n<pages;n++)if(actual[first+n]!=((base+4096u*n)|attr))return false;
++        next=first+pages;
+     }
+-    return true;
++    /* Remaining L3 holes AND all empty TTBR1 entries, through word2047. */
++    return table_zero(actual,next,GGP_TABLE_BYTES/8);
+ }

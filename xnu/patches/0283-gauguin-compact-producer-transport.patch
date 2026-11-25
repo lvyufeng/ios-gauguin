@@ -1,0 +1,364 @@
+diff --git a/bsd/dev/gauguin_frame344.h b/bsd/dev/gauguin_frame344.h
+--- a/bsd/dev/gauguin_frame344.h
++++ b/bsd/dev/gauguin_frame344.h
+@@ -19,7 +19,7 @@
+ uint64_t sweet_frame344_clock(void);
+ void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
+     uint64_t a, uint64_t b, uint64_t c);
+-void sweet_frame371_arm(uint64_t source, uint64_t receiver, uint64_t end);
++void sweet_frame371_arm(uint64_t source, uint64_t receiver, uint64_t start, uint64_t end);
+ void sweet_frame371_drain(void);
+ #ifdef __cplusplus
+ }
+diff --git a/bsd/dev/gauguin_frame372_wire.h b/bsd/dev/gauguin_frame372_wire.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_frame372_wire.h
+@@ -0,0 +1,58 @@
++#ifndef GAUGUIN_FRAME372_WIRE_H
++#define GAUGUIN_FRAME372_WIRE_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum {
++    F372_PAIR_CAP = 10240, F372_BLOCK = 64, F372_ROW = 20,
++    F372_THREAD_CAP = 256, F372_MISS_CAP = 64
++};
++
++static inline void
++f372_le32(uint8_t *out, uint32_t value)
++{
++    for (unsigned i = 0; i < 4; ++i) {
++        out[i] = (uint8_t)(value >> (8 * i));
++    }
++}
++
++static inline bool
++f372_pack_pair(uint8_t out[F372_ROW], uint64_t base, uint32_t serial, uint32_t message,
++    uint64_t send, uint64_t post, uint64_t copyout, uint8_t source, uint8_t receiver)
++{
++    if (!serial || serial > UINT16_MAX || send < base || post < send ||
++        copyout < post || copyout - base > UINT32_MAX) {
++        return false;
++    }
++    out[0] = (uint8_t)serial;
++    out[1] = (uint8_t)(serial >> 8);
++    f372_le32(out + 2, message);
++    f372_le32(out + 6, (uint32_t)(send - base));
++    f372_le32(out + 10, (uint32_t)(post - send));
++    f372_le32(out + 14, (uint32_t)(copyout - send));
++    out[18] = source;
++    out[19] = receiver;
++    return true;
++}
++
++static inline unsigned
++f372_base64(const uint8_t *in, unsigned count, char *out)
++{
++    static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
++    unsigned length = 0;
++    for (unsigned i = 0; i < count; i += 3) {
++        unsigned left = count - i;
++        uint32_t bits = (uint32_t)in[i] << 16;
++        if (left > 1) bits |= (uint32_t)in[i + 1] << 8;
++        if (left > 2) bits |= in[i + 2];
++        out[length++] = alphabet[(bits >> 18) & 63];
++        out[length++] = alphabet[(bits >> 12) & 63];
++        out[length++] = left > 1 ? alphabet[(bits >> 6) & 63] : '=';
++        out[length++] = left > 2 ? alphabet[bits & 63] : '=';
++    }
++    out[length] = '\0';
++    return length;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -779,9 +779,9 @@
+         struct frame371_processes pair = {0};
+         proc_iterate(PROC_ALLPROCLIST, frame371_find_process, &pair, NULL, NULL);
+         if (pair.sources == 1 && pair.receivers == 1)
+-            sweet_frame371_arm(pair.source, pair.receiver, frames.end);
++            sweet_frame371_arm(pair.source, pair.receiver, frames.start, frames.end);
+         else
+-            printf("SWEET F371: unavailable sources=%u receivers=%u\n", pair.sources, pair.receivers);
++            printf("SWEET F372: unavailable sources=%u receivers=%u\n", pair.sources, pair.receivers);
+     }
+     clock_interval_to_deadline(F345_STARTUP_MS, NSEC_PER_MSEC, &scan.startup_end);
+     scan_call = thread_call_allocate(scan_poll, NULL);
+diff --git a/osfmk/ipc/ipc_kmsg.c b/osfmk/ipc/ipc_kmsg.c
+--- a/osfmk/ipc/ipc_kmsg.c
++++ b/osfmk/ipc/ipc_kmsg.c
+@@ -151,10 +151,11 @@
+ #if defined(GAUGUIN)
+ #include <mach/mach_time.h>
+ #include "../../bsd/dev/gauguin_frame344.h"
++#include "../../bsd/dev/gauguin_frame372_wire.h"
+ 
+ extern void sweet_log_append(const char *, int);
+ 
+-enum { F371_SLOTS = 4096, F371_SENDS = 16384, F371_PAIRS = 1536 };
++enum { F371_SLOTS = 4096, F371_SENDS = 16384 };
+ #define F371_CLOSED (UINT64_C(1) << 63)
+ 
+ struct f371_delivery {
+@@ -168,11 +169,28 @@
+ 	struct f371_delivery data;
+ } f371_slots[F371_SLOTS];
+ 
+-static struct f371_delivery f371_pairs[F371_PAIRS];
++static struct f371_delivery f371_pairs[F372_PAIR_CAP];
++static uint64_t f372_start, f372_misses[F372_MISS_CAP];
+ static uint64_t f371_source, f371_receiver, f371_end;
+ static uint64_t f371_gate = F371_CLOSED;
+ static uint32_t f371_sent, f371_copied, f371_missed, f371_busy, f371_evicted, f371_failed;
+ 
++/* A thread's stamp changes for every observed BackBoard copyout, including
++ * copyouts from other tasks. Zero in the low bits means no scoped receipt.
++ * Slot owners never change, so a collision cannot supply another thread's
++ * identity. Existing process samples bracket their register read with it. */
++#define F372_RECEIVER_SLOTS 512
++static struct f372_receiver_slot {
++	uint64_t thread, stamp;
++} f372_receivers[F372_RECEIVER_SLOTS];
++static uint64_t f372_receiver_sequence;
++
++static struct f372_receiver_slot *
++f372_receiver_for(uint64_t thread)
++{
++	return &f372_receivers[(thread ^ (thread >> 9)) & (F372_RECEIVER_SLOTS - 1)];
++}
++
+ static bool
+ f371_live(void)
+ {
+@@ -199,9 +217,14 @@
+ }
+ 
+ void
+-sweet_frame371_arm(uint64_t source, uint64_t receiver, uint64_t end)
+-{
+-	assert(source && receiver && source != receiver && end && !f371_end);
++sweet_frame371_arm(uint64_t source, uint64_t receiver, uint64_t start, uint64_t end)
++{
++	assert(source && receiver && source != receiver && start < end && !f371_end);
++	if (end - start > UINT32_MAX) {
++		printf("SWEET F372: counter span outside codec\n");
++		return;
++	}
++	f372_start = start;
+ 	f371_source = source;
+ 	f371_receiver = receiver;
+ 	__atomic_store_n(&f371_end, end, __ATOMIC_RELAXED);
+@@ -219,6 +242,35 @@
+ {
+ 	return task != TASK_NULL && (uint32_t)task_pid(task) == (uint32_t)identity &&
+ 	       f371_identity(task_get_audit_token(task)) == identity;
++}
++
++uint64_t sweet_frame372_receiver_stamp(task_t task, uint64_t thread);
++
++uint64_t
++sweet_frame372_receiver_stamp(task_t task, uint64_t thread)
++{
++	if (!f371_live() || !thread || !f371_task(task, f371_receiver) ||
++	    mach_absolute_time() >= __atomic_load_n(&f371_end, __ATOMIC_RELAXED)) return 0;
++	struct f372_receiver_slot *slot = f372_receiver_for(thread);
++	if (__atomic_load_n(&slot->thread, __ATOMIC_ACQUIRE) != thread) return 0;
++	return __atomic_load_n(&slot->stamp, __ATOMIC_ACQUIRE);
++}
++
++static void
++f372_observe_copyout(ipc_space_t space, uint16_t serial)
++{
++	if (!f371_live()) return;
++	task_t task = current_task();
++	if (space != task->itk_space || !f371_task(task, f371_receiver) ||
++	    mach_absolute_time() >= __atomic_load_n(&f371_end, __ATOMIC_RELAXED)) return;
++	const uint64_t thread = thread_tid(current_thread());
++	struct f372_receiver_slot *slot = f372_receiver_for(thread);
++	uint64_t owner = __atomic_load_n(&slot->thread, __ATOMIC_RELAXED);
++	if (!owner && __atomic_compare_exchange_n(&slot->thread, &owner, thread, false,
++	    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) owner = thread;
++	if (owner != thread) return;
++	const uint64_t sequence = __atomic_add_fetch(&f372_receiver_sequence, 1, __ATOMIC_RELAXED);
++	__atomic_store_n(&slot->stamp, (sequence << 16) | serial, __ATOMIC_RELEASE);
+ }
+ 
+ static struct f371_slot *
+@@ -332,7 +384,8 @@
+ 		f371_release_slot(slot);
+ 	}
+ 	if (!found) {
+-		__atomic_fetch_add(&f371_missed, 1, __ATOMIC_RELAXED);
++		const uint32_t i = __atomic_fetch_add(&f371_missed, 1, __ATOMIC_RELAXED);
++		if (i < F372_MISS_CAP) f372_misses[i] = mach_absolute_time();
+ 	}
+ 	f371_leave();
+ 	return found;
+@@ -347,13 +400,31 @@
+ 	}
+ 	if (result == MACH_MSG_SUCCESS) {
+ 		const uint32_t idx = __atomic_fetch_add(&f371_copied, 1, __ATOMIC_RELAXED);
+-		if (idx < F371_PAIRS) {
++		if (idx < F372_PAIR_CAP) {
+ 			f371_pairs[idx] = *row;
+ 		}
+ 	} else {
+ 		__atomic_fetch_add(&f371_failed, 1, __ATOMIC_RELAXED);
+ 	}
+ 	f371_leave();
++}
++
++/* The single log worker owns the codec after all producers leave the gate.
++ * Thread indexes preserve full thread IDs without enlarging each row. */
++static uint64_t f372_threads[F372_THREAD_CAP];
++static unsigned f372_thread_count;
++
++static int
++f372_thread_index(uint64_t thread)
++{
++	for (unsigned i = 0; i < f372_thread_count; ++i) {
++		if (f372_threads[i] == thread) return (int)i;
++	}
++	if (!thread || f372_thread_count == F372_THREAD_CAP) return -1;
++	const unsigned index = f372_thread_count++;
++	f372_threads[index] = thread;
++	printf("SWEET F372 D: index=%u tid=%llu\n", index, (unsigned long long)thread);
++	return (int)index;
+ }
+ 
+ void
+@@ -367,28 +438,47 @@
+ 	if ((__atomic_fetch_or(&f371_gate, F371_CLOSED, __ATOMIC_ACQ_REL) & ~F371_CLOSED) != 0) {
+ 		return;
+ 	}
+-	const uint32_t count = MIN(f371_copied, F371_PAIRS);
++	const uint32_t count = MIN(f371_copied, F372_PAIR_CAP);
+ 	if (!header) {
+ 		header = true;
+-		printf("SWEET F371 H: count=%u cap=%u sent=%u sent_cap=%u copied=%u missed=%u busy=%u evicted=%u failed=%u\n",
+-		    count, F371_PAIRS, f371_sent, F371_SENDS, f371_copied, f371_missed,
+-		    f371_busy, f371_evicted, f371_failed);
+-	}
+-	const uint32_t end = MIN(cursor + 64, count);
+-	for (; cursor < end; ++cursor) {
+-		const struct f371_delivery *row = &f371_pairs[cursor];
+-		char line[144];
+-		const int bytes = snprintf(line, sizeof(line), "\nSWEET F371 E %x %x %llx %llx %llx %llx %llx\n",
+-		    row->serial, row->message_id, (unsigned long long)row->send,
+-		    (unsigned long long)row->post, (unsigned long long)row->copyout,
+-		    (unsigned long long)row->source_thread, (unsigned long long)row->receiver_thread);
+-		if (bytes > 0 && (size_t)bytes < sizeof(line)) {
+-			sweet_log_append(line, bytes);
+-		}
++		printf("SWEET F372 H: count=%u cap=%u sent=%u sent_cap=%u copied=%u missed=%u busy=%u evicted=%u failed=%u start=%llu\n",
++		    count, F372_PAIR_CAP, f371_sent, F371_SENDS, f371_copied, f371_missed,
++		    f371_busy, f371_evicted, f371_failed, (unsigned long long)f372_start);
++		for (unsigned i = 0; i < MIN(f371_missed, F372_MISS_CAP); ++i) {
++			printf("SWEET F372 M: tick=%llu\n", (unsigned long long)f372_misses[i]);
++		}
++	}
++	const uint32_t end = MIN(cursor + F372_BLOCK, count);
++	if (cursor < end) {
++		static uint8_t packed[F372_BLOCK * F372_ROW];
++		static char encoded[4 * ((sizeof(packed) + 2) / 3) + 1];
++		static char line[sizeof(encoded) + 64];
++		for (uint32_t i = cursor; i < end; ++i) {
++			const struct f371_delivery *row = &f371_pairs[i];
++			const int sender = f372_thread_index(row->source_thread);
++			const int receiver = f372_thread_index(row->receiver_thread);
++			if (sender < 0 || receiver < 0 ||
++			    !f372_pack_pair(packed + (i - cursor) * F372_ROW, f372_start,
++			    row->serial, row->message_id, row->send, row->post, row->copyout,
++			    (uint8_t)sender, (uint8_t)receiver)) {
++				printf("SWEET F372: refused row=%u\n", i);
++				done = true;
++				return;
++			}
++		}
++		f372_base64(packed, (end - cursor) * F372_ROW, encoded);
++		const int bytes = snprintf(line, sizeof(line), "\nSWEET F372 B %u %u %s\n", cursor, end - cursor, encoded);
++		if (bytes <= 0 || (size_t)bytes >= sizeof(line)) {
++			printf("SWEET F372: refused block=%u\n", cursor);
++			done = true;
++			return;
++		}
++		sweet_log_append(line, bytes);
++		cursor = end;
+ 	}
+ 	if (cursor == count) {
+ 		done = true;
+-		printf("SWEET F371 F: count=%u\n", count);
++		printf("SWEET F372 F: count=%u threads=%u\n", count, f372_thread_count);
+ 	}
+ }
+ #endif /* GAUGUIN */
+@@ -6692,6 +6782,7 @@
+ 		if (f371_matched) {
+ 			f371_complete(&f371_delivery, mr);
+ 		}
++		f372_observe_copyout(space, 0);
+ #endif
+ 		return mr;
+ 	}
+@@ -6708,6 +6799,8 @@
+ 	if (f371_matched) {
+ 		f371_complete(&f371_delivery, mr);
+ 	}
++	f372_observe_copyout(space, f371_matched && mr == MACH_MSG_SUCCESS ?
++	    (uint16_t)f371_delivery.serial : 0);
+ #endif
+ 	return mr;
+ }
+diff --git a/osfmk/kern/exception.c b/osfmk/kern/exception.c
+--- a/osfmk/kern/exception.c
++++ b/osfmk/kern/exception.c
+@@ -996,6 +996,11 @@
+  */
+ void sweet_sample_task(const char *name, int pid, task_t task);
+ 
++#if defined(GAUGUIN)
++extern uint64_t sweet_frame372_receiver_stamp(task_t task, uint64_t thread);
++static unsigned sweet_frame372_stamped_samples;
++#endif
++
+ void
+ sweet_sample_task(const char *name, int pid, task_t task)
+ {
+@@ -1043,8 +1048,16 @@
+ 		thread_unlock(thread);
+ 		splx(s);
+ 
++#if defined(GAUGUIN)
++		const uint64_t receipt = sweet_frame372_receiver_stamp(task, thread->thread_id);
++		const uint64_t read_start = receipt ? mach_absolute_time() : 0;
++#endif
+ 		kern_return_t kr = thread_getstatus(thread, ARM_THREAD_STATE64,
+ 		    (thread_state_t)&regs, &count);
++#if defined(GAUGUIN)
++		const uint64_t read_end = receipt ? mach_absolute_time() : 0;
++		const bool same_receipt = receipt && receipt == sweet_frame372_receiver_stamp(task, thread->thread_id);
++#endif
+ 		if (kr != KERN_SUCCESS) {
+ 			printf("SMP %s t%u tid %llu state unavailable %d\n", name,
+ 			    tn, (unsigned long long)thread->thread_id, kr);
+@@ -1054,6 +1067,16 @@
+ 		printf("SMP %s t%u tid %llu st %d ev 0x%llx wr %d pc 0x%llx lr 0x%llx sp 0x%llx\n",
+ 		    name, tn, (unsigned long long)thread->thread_id, state,
+ 		    (unsigned long long)event, result, regs.pc, regs.lr, regs.sp);
++#if defined(GAUGUIN)
++		if (same_receipt && (receipt & 0xffff) &&
++		    sweet_frame372_stamped_samples < 64) {
++			++sweet_frame372_stamped_samples;
++			printf("SWEET F372 S: tid=%llu serial=%u epoch=%llu read=%llu,%llu\n",
++			    (unsigned long long)thread->thread_id, (unsigned)(receipt & 0xffff),
++			    (unsigned long long)(receipt >> 16),
++			    (unsigned long long)read_start, (unsigned long long)read_end);
++		}
++#endif
+ 
+ 		/* The thread has resumed. Frames of a running thread are best-effort.
+ 		 * Keep every printf below the console's per-call size limit. */

@@ -1,0 +1,75 @@
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -445,6 +445,59 @@
+ static thread_call_t sweet_tap_call;
+ static unsigned sweet_tap_delay_s = 20;
+ 
++#if defined(GAUGUIN)
++/* One opt-in UI regression stroke, through the existing synthetic entry.
++ * Only sweetnvt=0 swp=1 selects it; ordinary and physical input are unchanged.
++ * No MMIO, physical snapshots, sleeps or repeated unlock attempts here. */
++static thread_call_t sweet_swipe_call;
++static unsigned sweet_swipe_step;
++static uint64_t sweet_swipe_due, sweet_swipe_start, sweet_swipe_end;
++
++static void
++sweet_swipe_fire(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
++{
++	if (sweet_swipe_call == NULL || sweet_swipe_step > 33) return;
++	uint64_t now = mach_absolute_time();
++	if (now < sweet_swipe_due || now >= sweet_swipe_end ||
++	    (sweet_swipe_step != 0 && now < sweet_swipe_start)) {
++		if (sweet_swipe_step != 0) sweet_hid_touch(0, 0, 540, 900);
++		sweet_swipe_step = 34;
++		printf("SWEET UI SWIPE: aborted clock outside bounded window\n");
++		return;
++	}
++	if (sweet_swipe_step == 0) {
++		sweet_swipe_start = now;
++		printf("SWEET UI SWIPE: begin one bottom-to-top stroke; synthetic input\n");
++	}
++	unsigned step = sweet_swipe_step++;
++	int down = step <= 32;
++	int y = down ? 2390 - (1490 * (int)step) / 32 : 900;
++	sweet_hid_touch(0, down, 540, y);
++	if (!down) {
++		printf("SWEET UI SWIPE: emitted 33 positions and one release; UI acceptance unqualified\n");
++		return;
++	}
++	uint64_t deadline;
++	clock_interval_to_deadline(10, NSEC_PER_MSEC, &deadline);
++	thread_call_enter_delayed(sweet_swipe_call, deadline);
++}
++
++static void
++sweet_swipe_arm(void)
++{
++	if (sweet_swipe_call != NULL) return;
++	sweet_swipe_call = thread_call_allocate(sweet_swipe_fire, NULL);
++	if (sweet_swipe_call == NULL) {
++		printf("SWEET UI SWIPE: no timer; no synthetic input\n");
++		return;
++	}
++	clock_interval_to_deadline(180, NSEC_PER_SEC, &sweet_swipe_due);
++	clock_interval_to_deadline(182, NSEC_PER_SEC, &sweet_swipe_end);
++	thread_call_enter_delayed(sweet_swipe_call, sweet_swipe_due);
++	printf("SWEET UI SWIPE: one stroke armed at +180s, physical polling disabled\n");
++}
++#endif
++
+ static void
+ sweet_tap_fire(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+ {
+@@ -1003,6 +1056,12 @@
+ 		sweet_nvt_start();
+ 		return;
+ 	}
++	int swipe = 0;
++	(void)PE_parse_boot_argn("swp", &swipe, sizeof(swipe));
++	if (physical == 0 && swipe == 1) {
++		sweet_swipe_arm();
++		return; /* Diagnostic only: neither physical nor legacy probes run. */
++	}
+ 	/* Independent opt-in stage0; default returns before mapping hardware. */
+ 	extern void sweet_nvt_probe_init(void);
+ 	sweet_nvt_probe_init();

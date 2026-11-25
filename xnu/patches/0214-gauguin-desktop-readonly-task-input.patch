@@ -1,0 +1,18 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -475,9 +475,12 @@
+     /* SweetSurface::memory ALREADY names pixels. Its state page is separate.
+      * Importing a MiniIOSurface-style PAGE_SIZE subrange here corrupts rows. */
+     const bool owned=OSDynamicCast(IOBufferMemoryDescriptor,s->memory)!=nullptr;
+-    const bool borrowed=!owned&&s->readOnly&&s->memoryPrepared&&!fCompositor;
+-    /* Root qualification only for borrowed task pixels. Compositor admission
+-     * stays unchanged until these mappings and ownership pass physical tests. */
++    const bool compositorBorrowed=fCompositor&&gMetalBootstrapMode&&gMetalBootstrap.ready;
++    const bool borrowed=!owned&&s->readOnly&&s->memoryPrepared&&(!fCompositor||compositorBorrowed);
++    /* The mode2 owner has passed protected caller checks and the root's clean
++     * bootstrap handoff. Reuse the qualified RO task mapping/lifetime path;
++     * legacy compositor mode and mutable generic task pixels remain denied.
++     * A borrowed input never gains a writable CPU alias or GPU PTE. */
+     if((!owned&&!borrowed)||(owned&&s->readOnly)||!s->allocSize||
+        s->allocSize>GGR_MAX_BO_BYTES||(!borrowed&&(s->allocSize&PAGE_MASK))||
+        s->offset>=s->allocSize||s->planeCount>1||!s->width||!s->height||

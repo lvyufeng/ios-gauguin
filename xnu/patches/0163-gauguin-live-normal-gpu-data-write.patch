@@ -1,0 +1,492 @@
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -88,7 +88,7 @@
+     int start = 0; (void)PE_parse_boot_argn("sweetgpustart", &start, sizeof(start));
+     if ((start != 0 && start != 1) || (start == 1 && gpu != 1)) return false;
+     int zap = 0; (void)PE_parse_boot_argn("sweetgpuzap", &zap, sizeof(zap));
+-    if ((zap != 0 && zap != 1 && zap != 2) || (zap != 0 && start != 1)) return false;
++    if ((zap != 0 && zap != 1 && zap != 2 && zap != 3) || (zap != 0 && start != 1)) return false;
+     int probe = 0, stage = 0;
+     (void)PE_parse_boot_argn("sweetpasprobe", &probe, sizeof(probe));
+     (void)PE_parse_boot_argn("sweetpasstage", &stage, sizeof(stage));
+@@ -252,7 +252,16 @@
+                                 if(sweet_gpu_unsecure_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
+                                 snprintf(line,sizeof(line),"SWEET GPU UNSECURE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)unsecure_result,(unsigned)sweet_gpu_unsecure_state());bcm_record(line);return;
+                             }
+-                            bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; awaiting watchdog reset; no rendering/Metal");
++                            if(sweet_gpu_write_requested()){
++                                bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; before ordinary data writes; no rendering/Metal");
++                                struct ggw_receipt write;
++                                enum ggw_result write_result=sweet_gpu_write_once(&write);
++                                if(write_result!=GGW_OK){
++                                    if(sweet_gpu_write_state()!=GMB_QUARANTINED)gauguin_wdt_lease_quarantine();
++                                    snprintf(line,sizeof(line),"SWEET GPU WRITE BOOT: stopped rc=%u state=%u; shared lease quarantined, no retry",(unsigned)write_result,(unsigned)sweet_gpu_write_state());bcm_record(line);return;
++                                }
++                                bcm_record("SWEET GPU WRITE BOOT: native MEM_WRITE pair/device data and shadow31 verified; GPU requests held; awaiting watchdog reset; no rendering/Metal");
++                            }else bcm_record("SWEET GPU UNSECURE BOOT: native SET_SECURE_MODE0/WHERE_AM_I completed; GPU requests held; awaiting watchdog reset; no rendering/Metal");
+                         }else bcm_record("SWEET GPU ZAP BOOT: signed ZAP load accepted; GPU requests held; awaiting watchdog reset; no unsecured/rendering/Metal");
+                     }else bcm_record("SWEET GPU CP BOOT: first native ME_INIT/WHERE_AM_I completed; GPU requests held; awaiting watchdog reset; no ZAP/rendering/Metal");
+                 }
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -216,6 +216,8 @@
+ static uint64_t ggb_deadline;
+ static unsigned ggb_started;
+ static unsigned ggb_argument;
++static unsigned ggb_data_selected,ggb_data_ready;
++static struct ggd_plan ggb_data_plan;
+ static struct gsa_view ggb_sqe_asset;
+ static unsigned ggb_sqe_requested,ggb_sqe_loaded,ggb_sqe_written,ggb_sqe_checked;
+ static enum gsm_result ggb_result;
+@@ -401,11 +403,42 @@
+     }
+ }
+ /* GPU default-PT stage shares this TU's sole Device/NC aliases. */
++static bool ggb_data_geometry(void)
++{
++    return ggb_data_selected==1&&ggd_plan_valid(&ggb_data_plan)&&
++        !memcmp(&ggb_data_plan.bootstrap,&ggb_plan,sizeof(ggb_plan))&&ggb_plan.owner_pa==gmb_stage.pa;
++}
++/* Cached geometry/receipts ONLY: safe even in signed SECURE/LATE scopes.
++ * This never reads a table, device register or the protected secure buffer. */
++static bool ggb_profile_cached(void)
++{
++    const struct ggs_receipt *s=&ggb_smmu;
++    if(ggb_data_selected>1||ggb_data_selected!=(unsigned)sweet_gpu_write_requested()||
++       !ggs_receipt_layout_valid(s)||s->layout!=(ggb_data_selected?GGS_DATA19:GGS_BOOTSTRAP18)||
++       ggb_context.layout!=s->layout)return false;
++    return !ggb_data_selected||(ggb_data_ready==1&&ggb_data_geometry()&&
++        !memcmp(s,&ggb_context.work,sizeof(*s)));
++}
++static bool ggb_data_live(void)
++{
++    if(!ggb_data_ready||!ggb_data_geometry()||!gmb_ram||(gmb_ram&(GMB_PAGE-1))||
++       gmb_ram>UINTPTR_MAX-(GGM_REGION_BYTES-GMB_PAGE-1))return false;
++    /* Sole retained alias, table+all GPU regions including the new CPU16KiB
++     * reservation. No metadata or secure first page is dereferenced. */
++    for(unsigned off=GGP_TABLE_OFFSET;off<GGD_ARENA_END;off+=GMB_PAGE){
++        uint64_t pa=gmb_stage.pa+off;vm_offset_t va=gmb_ram+off-GMB_PAGE;
++        ppnum_t pn=(ppnum_t)(pa>>PAGE_SHIFT);
++        if(pmap_valid_page(pn)||pmap_cache_attributes(pn)!=UINT32_C(0xd0000006)||
++           ml_vtophys(va)!=pa||ml_vtophys(va+GMB_PAGE-1)!=pa+GMB_PAGE-1)return false;
++    }
++    if(!ggd_tables_match(&ggb_data_plan,(const volatile void *)(gmb_ram+GGP_TABLE_OFFSET-GMB_PAGE),GGP_TABLE_BYTES))return false;
++    __asm__ volatile("dmb oshld" ::: "memory");return true;
++}
+ static bool ggb_context_valid(void)
+ {
+     const struct ggs_receipt *s=&ggb_smmu;uint32_t v;uint64_t t;
+     if(ggb_context.state!=2||ggb_result!=GSM_OK||s->bank>=GSM_BANKS||s->slot>=GSM_STREAMS||
+-       s->gpu_pages!=18||s->gmu_pages!=131||s->translations!=168)return false;
++       !ggb_profile_cached()||(ggb_data_selected&&!ggb_data_live()))return false;
+     unsigned b=0x8000+4096*s->bank;
+     return gmb_read32(NULL,b,&v)&&v==s->sctlr&&gmb_read32(NULL,b+4,&v)&&v==0x70000000&&
+         gmb_read32(NULL,b+0x58,&v)&&!(v&GSM_FSR_FAULT_MASK)&&v!=UINT32_MAX&&
+@@ -425,8 +458,10 @@
+ }
+ static bool ggb_memory(unsigned offset,const uint32_t *source,unsigned bytes,bool check)
+ {
+-    if(!gmb_ram||offset<GGP_TABLE_OFFSET||(offset&4095)||!bytes||(bytes&4095)||
+-       offset>GGP_ARENA_END||bytes>GGP_ARENA_END-offset)return false;
++    unsigned end=ggb_data_selected?GGD_ARENA_END:GGP_ARENA_END;
++    if(ggb_data_selected>1||(ggb_data_selected&&!ggb_data_geometry())||
++       !gmb_ram||offset<GGP_TABLE_OFFSET||(offset&4095)||!bytes||(bytes&4095)||
++       offset>end||bytes>end-offset)return false;
+     for(unsigned chunk=0;chunk<bytes;chunk+=4096){
+         if(!ggb_guard(NULL))return false;
+         volatile uint32_t *dst=(volatile uint32_t *)(gmb_ram+offset-GMB_PAGE+chunk);
+@@ -482,20 +517,28 @@
+     (void)cookie;if(!ggb_guard(NULL))return false;
+     /* Reuse the retained NC owner, after the protected MDT and GMU regions.
+      * Revalidate every16KiB tail page before writing; no second mapping. */
+-    for(unsigned off=GGP_TABLE_OFFSET;off<GGP_ARENA_END;off+=GMB_PAGE){
++    if(ggb_data_selected>1||(ggb_data_selected&&!ggb_data_geometry()))return false;
++    unsigned end=ggb_data_selected?GGD_ARENA_END:GGP_ARENA_END;
++    for(unsigned off=GGP_TABLE_OFFSET;off<end;off+=GMB_PAGE){
+         ppnum_t pn=(ppnum_t)((gmb_stage.pa+off)>>PAGE_SHIFT);vm_offset_t va=gmb_ram+off-GMB_PAGE;
+         if(!ggb_guard(NULL)||pmap_valid_page(pn)||pmap_cache_attributes(pn)!=UINT32_C(0xd0000006)||
+            ml_vtophys(va)!=gmb_stage.pa+off||ml_vtophys(va+GMB_PAGE-1)!=gmb_stage.pa+off+GMB_PAGE-1)return false;
+     }
+     uint8_t *scratch=IOMalloc(GGP_TABLE_BYTES);if(!scratch)return false;
+-    struct ggp_s1_config cfg;bool good=ggp_emit_tables(&ggb_plan,ias,oas,scratch,GGP_TABLE_BYTES,&cfg);
++    struct ggp_s1_config cfg;bool good=ggb_data_selected?
++        ggd_emit_tables(&ggb_data_plan,ias,oas,scratch,GGP_TABLE_BYTES,&cfg):
++        ggp_emit_tables(&ggb_plan,ias,oas,scratch,GGP_TABLE_BYTES,&cfg);
+     for(unsigned r=0;r<GGP_COUNT&&good;r++)good=
+         ggb_memory(ggb_plan.region[r].offset,NULL,ggb_plan.region[r].reserved,false)&&
+         ggb_memory(ggb_plan.region[r].offset,NULL,ggb_plan.region[r].reserved,true);
++    if(good&&ggb_data_selected)good=
++        ggb_memory(ggb_data_plan.data.offset,NULL,ggb_data_plan.data.reserved,false)&&
++        ggb_memory(ggb_data_plan.data.offset,NULL,ggb_data_plan.data.reserved,true);
+     if(good&&ggb_sqe_requested)good=ggb_sqe_load();
+     if(good)good=ggb_memory(GGP_TABLE_OFFSET,(const uint32_t *)scratch,GGP_TABLE_BYTES,false)&&
+         ggb_memory(GGP_TABLE_OFFSET,(const uint32_t *)scratch,GGP_TABLE_BYTES,true);
+     IOFree(scratch,GGP_TABLE_BYTES);if(!good||!ggb_guard(NULL))return false;
++    if(ggb_data_selected){ggb_data_ready=1;if(!ggb_data_live())return false;}
+     *out=cfg;return true;
+ }
+ static bool ggb_secure_guard(void *cookie,bool initial)
+@@ -525,8 +568,15 @@
+     ggb_started=1;clock_interval_to_deadline(8,NSEC_PER_SEC,&ggb_deadline);gmb_deadline=ggb_deadline;
+     if(!ggb_guard(NULL)||!ggp_plan_build(&gmb_context.plan,&ggb_plan))return false;
+     struct ggs_ops o={NULL,ggb_guard,gmb_read32,gmb_write32,gmb_read64,gmb_write64,gmb_barrier,gmb_delay,ggb_prepare};
+-    ggb_argument=ggs_argument_reason(&ggb_context,&o,&ggb_plan,&gmb_work.smmu,&ggb_smmu);
+-    ggb_result=ggs_configure_once(&ggb_context,&o,&ggb_plan,&gmb_work.smmu,&ggb_smmu);
++    ggb_data_selected=(unsigned)sweet_gpu_write_requested();ggb_data_ready=0;
++    if(ggb_data_selected){
++        if(!ggd_plan_build(&ggb_plan,&ggb_data_plan))return false;
++        ggb_argument=ggs_data_argument_reason(&ggb_context,&o,&ggb_data_plan,&gmb_work.smmu,&ggb_smmu);
++        ggb_result=ggs_configure_data_once(&ggb_context,&o,&ggb_data_plan,&gmb_work.smmu,&ggb_smmu);
++    }else{
++        ggb_argument=ggs_argument_reason(&ggb_context,&o,&ggb_plan,&gmb_work.smmu,&ggb_smmu);
++        ggb_result=ggs_configure_once(&ggb_context,&o,&ggb_plan,&gmb_work.smmu,&ggb_smmu);
++    }
+     if(ggb_result!=GSM_OK||!ggb_guard(NULL))return false;
+     clock_interval_to_deadline(5,NSEC_PER_SEC,&ggb_deadline);gmb_deadline=ggb_deadline;
+     struct gpa_ops secure={NULL,ggb_secure_guard,ggb_before,ggb_invoke,ggb_delay_ms};
+@@ -545,6 +595,10 @@
+     }
+     snprintf(line,sizeof(line),"SWEET GPU SMMU: %s phase=%u rc=%u slot=%u bank=%u asid=%u gpu_pages=%u gmu_pages=%u atos=%u writes=%u polls=%u",complete?"complete":"partial",ggb_context.phase,ggb_result,s->slot,s->bank,s->asid,s->gpu_pages,s->gmu_pages,s->translations,s->writes,s->polls);gmb_record(line);
+     snprintf(line,sizeof(line),"SWEET GPU SMMU: ttbr0=%016llx ttbr1=%016llx sctlr=%08x smr=%08x s2cr=%08x micro=%08x/%08x; context only, no GPU commands",s->ttbr0,s->ttbr1,s->sctlr,s->smr,s->s2cr,s->micro_before,s->micro_after);gmb_record(line);
++    if(ggb_data_selected){
++        const struct ggp_region *m=&ggb_data_plan.data;
++        snprintf(line,sizeof(line),"SWEET GPU DATA MAP: layout=%u ready=%u off=%05x reserved=%u mapped=%u iova=%08x pages=%u atos=%u table_bytes=16384; userRW NC NX",s->layout,ggb_data_ready,m->offset,m->reserved,m->mapped,m->iova,s->gpu_pages,s->translations);gmb_record(line);
++    }
+     const struct gsm_diagnostics *d=&ggb_context.diagnostic;
+     if(!complete&&d->check){snprintf(line,sizeof(line),"SWEET GPU SMMU FAIL: phase=%u check=%u off=%05x mask=%016llx expected=%016llx actual=%016llx",ggb_context.phase,d->check,d->offset,d->mask,d->expected,d->actual);gmb_record(line);}
+     const struct gsm_atos_sample *a=&ggb_context.translation;
+@@ -1164,13 +1218,13 @@
+     PZB_FAULT,PZB_ROUTES,PZB_DEVICE,PZB_NC,PZB_SCOPE,PZB_TIME};
+ static struct {unsigned reason,phase,scope;uint64_t now;uint32_t rbbm,cp,shadow,busy;} gpzb_diagnostic;
+ bool sweet_gpu_zap_requested(void)
+-{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2;}
++{int flag=0;(void)PE_parse_boot_argn("sweetgpuzap",&flag,sizeof(flag));return flag==1||flag==2||flag==3;}
+ enum gmb_state sweet_gpu_zap_state(void)
+ {return (enum gmb_state)__atomic_load_n(&gpzb_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool gpzb_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2)return false;
++    if(mode!=1&&mode!=2&&mode!=3)return false;
+     static const char *const on[]={"sweetbusvote","sweetpasprobe","sweetpasstage",
+         "sweetcxpower","sweetgmuclk","sweetgmufw","sweetgmuperf","sweetgmubw","sweetgmudcvs","sweetgpucontext","sweetgpustart"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem","sweettouchmode","sweetwdtpet",
+@@ -1229,7 +1283,7 @@
+         gfw_context.state==2&&gfw_context.perf_valid&&gfw_context.bw_valid&&gfw_context.test_valid&&
+         gfw_context.dcvs_valid&&gfw_context.dcvs_return_valid&&!gfw_context.dcvs_return&&
+         ggb_sqe_requested&&ggb_sqe_loaded&&ggb_sqe_written==8192&&ggb_sqe_checked==8192&&
+-        ggb_aperture.state==2&&ggb_secure_result==GPA_OK&&ggp_plan_valid(&ggb_plan)&&ggb_plan.owner_pa==gmb_stage.pa;
++        ggb_aperture.state==2&&ggb_secure_result==GPA_OK&&ggp_plan_valid(&ggb_plan)&&ggb_plan.owner_pa==gmb_stage.pa&&ggb_profile_cached();
+ }
+ static bool gpzb_guard(void *cookie,enum gpz_phase phase,enum gpz_scope scope,unsigned minimum)
+ {
+@@ -1366,7 +1420,7 @@
+     UGD_DEVICE,UGD_NC,UGD_ENTRY_BUDGET};
+ static struct {unsigned reason,phase;uint64_t now;uint32_t rbbm,cp;} ggub_diagnostic;
+ bool sweet_gpu_unsecure_requested(void)
+-{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2;}
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==2||mode==3;}
+ enum gmb_state sweet_gpu_unsecure_state(void)
+ {return (enum gmb_state)__atomic_load_n(&ggub_lifecycle,__ATOMIC_ACQUIRE);}
+ static bool ggub_reject(enum ggu_phase phase,enum ggub_reason reason)
+@@ -1521,4 +1575,205 @@
+     *out=ggub_work;__atomic_store_n(&ggub_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggub_records(true);return GGU_OK;
+ }
+ 
++/* Separate post-native-mode ordinary data continuation; no old RUNNING guard reuse. */
++static unsigned ggwb_lifecycle,ggwb_phase,ggwb_sealed;
++static uint64_t ggwb_entry,ggwb_phase_entry,ggwb_deadline,ggwb_phase_end,ggwb_last_now;
++static struct ggw_context ggwb_context;
++static struct ggw_receipt ggwb_work;
++static enum ggw_result ggwb_result;
++enum ggwb_reason {WGD_NONE,WGD_CONFIG,WGD_PHASE,WGD_CONTEXT,WGD_TIME,WGD_WDT,
++    WGD_PARENT,WGD_OWNER,WGD_CLOCK,WGD_IRQ,WGD_RESET,WGD_FAULT,WGD_ROUTES,
++    WGD_DEVICE,WGD_NC,WGD_ENTRY_BUDGET,WGD_ENGINE};
++static struct {unsigned reason,phase;uint64_t now;uint32_t rbbm,cp;} ggwb_diagnostic;
++static unsigned ggwb_samples;
++static uint32_t ggwb_before_first,ggwb_before_last,ggwb_after_first,ggwb_after_last;
++bool sweet_gpu_write_requested(void)
++{int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==3;}
++enum gmb_state sweet_gpu_write_state(void)
++{return (enum gmb_state)__atomic_load_n(&ggwb_lifecycle,__ATOMIC_ACQUIRE);}
++static bool ggwb_reject(enum ggw_phase phase,enum ggwb_reason reason)
++{
++    if(!ggwb_diagnostic.reason){ggwb_diagnostic.reason=reason;ggwb_diagnostic.phase=phase;ggwb_diagnostic.now=mach_absolute_time();}
++    return false;
++}
++static bool ggwb_time(enum ggw_phase phase)
++{
++    uint64_t now=mach_absolute_time();ggwb_diagnostic.phase=phase;ggwb_diagnostic.now=now;
++    if(now<ggwb_last_now||now>=ggwb_deadline||now>=ggwb_phase_end)return ggwb_reject(phase,WGD_TIME);
++    ggwb_last_now=now;return true;
++}
++static bool ggwb_unsecured(void)
++{
++    const struct ggu_receipt *r=&ggub_work;
++    return ggb_data_selected==1&&ggb_data_ready==1&&ggb_profile_cached()&&ggub_signed()&&
++        sweet_gpu_unsecure_state()==GMB_READY&&ggub_context.state==2&&ggub_context.phase==GGU_DONE&&
++        ggub_result==GGU_OK&&ggub_phase==GGU_FINAL&&ggub_sealed==1&&!ggub_diagnostic.reason&&
++        !memcmp(r,&ggub_context.work,sizeof(*r))&&r->complete==1&&r->sealed==1&&r->requests_retained==1&&
++        r->initial_wptr==15&&r->initial_shadow==15&&!(r->initial_busy&(1u<<23))&&r->prefix_checked==15&&r->clean_checked==5&&
++        r->commands_written==5&&r->commands_checked==5&&r->rptr==20&&r->busy!=UINT32_MAX&&!(r->busy&(1u<<23))&&
++        !(r->rbbm_status&GGQ_RBBM_ERRORS)&&!(r->cp_status&GGQ_CP_ERRORS)&&
++        r->submit_attempted==1&&r->keepalive_set_attempted==1&&r->keepalive_clear_attempted==1&&
++        r->fence_checks>=1&&r->fence_checks<=GGQ_FENCE_LIMIT&&!(r->fence_status&1u)&&
++        r->counter_before_valid==1&&r->fence_slow==(r->fence_checks>=101)&&r->counter_after_valid==r->fence_slow&&
++        r->writes==r->fence_checks+2&&r->idle_polls>=1&&r->idle_polls<=GGQ_IDLE_LIMIT&&
++        r->reads>=8+r->fence_checks+3*r->fence_slow+2*r->idle_polls&&
++        r->reads<=8+r->fence_checks+4*r->fence_slow+3*r->idle_polls&&
++        (r->fence_slow||!r->counter_after);
++}
++static bool ggwb_guard(void *cookie,enum ggw_phase phase)
++{
++    (void)cookie;if(ggwb_diagnostic.reason)return false;
++    if(phase<GGW_SEAL||phase>GGW_FINAL||phase<ggwb_phase||phase>ggwb_phase+1)return ggwb_reject(phase,WGD_PHASE);
++    if(phase!=ggwb_phase){
++        ggwb_phase=phase;ggwb_phase_entry=mach_absolute_time();
++        if(ggwb_phase_entry<ggwb_last_now||ggwb_phase_entry>=ggwb_deadline)return ggwb_reject(phase,WGD_TIME);
++        clock_interval_to_deadline(2,NSEC_PER_SEC,&ggwb_phase_end);
++    }
++    if(sweet_gpu_write_state()!=GMB_RUNNING||
++       !((ggwb_context.state==1&&ggwb_context.phase==(unsigned)phase)||
++         (ggwb_context.state==2&&ggwb_context.phase==GGW_DONE&&phase==GGW_FINAL))||
++       (phase>GGW_SEAL&&(!ggwb_sealed||ggwb_context.work.sealed!=1)))return ggwb_reject(phase,WGD_PHASE);
++    if(ggwb_context.state==2){
++        const struct ggw_receipt *r=&ggwb_work;
++        if(memcmp(r,&ggwb_context.work,sizeof(*r))||r->sealed!=1||r->complete!=1||r->requests_retained!=1||
++           r->commands_written!=11||r->commands_checked!=11||r->prefix_checked!=20||r->clean_checked!=11||
++           r->data_before_checked!=1024||r->data_after_checked!=1024||r->edge_checked!=2||
++           r->unchanged_checked!=1022||r->ring_after_checked!=31||r->initial_wptr!=20||r->initial_shadow!=20||
++           r->rptr!=31||r->busy==UINT32_MAX||(r->busy&(1u<<23))||
++           (r->rbbm_status&GGQ_RBBM_ERRORS)||(r->cp_status&GGQ_CP_ERRORS)||ggwb_samples!=15||
++           ggwb_before_first||ggwb_before_last||ggwb_after_first!=GGD_FIRST_VALUE||ggwb_after_last!=GGD_LAST_VALUE)
++            return ggwb_reject(phase,WGD_ENGINE);
++    }
++    if(!gmb_thread())return ggwb_reject(phase,WGD_CONTEXT);
++    if(!ggwb_time(phase))return false;
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggwb_reject(phase,WGD_WDT);
++    if(!ggwb_time(phase))return false;
++    if(!ggwb_unsecured())return ggwb_reject(phase,WGD_PARENT);
++    if(!sweet_pas_zap_owner_authenticated(gmb_stage.pa))return ggwb_reject(phase,WGD_OWNER);
++    if(!ggwb_time(phase))return false;
++    if(!gmb_reset||!gmb_smmu||!gmb_ram||!ggx_core||!gfw_map[GMF_AO]||
++       gfw_map[GMF_CSR]!=gmb_reset||!ggc_maps_ready||ggc_created!=6)return ggwb_reject(phase,WGD_DEVICE);
++    uint32_t gx,irq[3],v;
++    if(!sweet_gmu_clock_live(true,&gx)||(gx&0x80000001u)!=0x80000000u)return ggwb_reject(phase,WGD_CLOCK);
++    if(!sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000))return ggwb_reject(phase,WGD_IRQ);
++    if(gfw_load32(gmb_reset+0x2000))return ggwb_reject(phase,WGD_RESET);
++    if(!gfw_faults(false))return ggwb_reject(phase,WGD_FAULT);
++    if(!ggb_context_valid()||(gfw_work.host_info&(1u<<24))||ggx_context.state!=2||ggx_context.phase!=GGX_DONE||ggx_result!=GGX_OK||
++       ggx_work.bank!=ggb_smmu.bank||ggx_work.asid!=ggb_smmu.asid||ggx_work.ttbr0!=ggb_smmu.ttbr0||
++       ggx_work.ack_valid!=1||ggx_work.ack_clear_attempted!=1||ggx_work.request_retained!=1||ggx_work.core_opened!=1||
++       memcmp(&ggc_work.start,&ggx_work,sizeof(ggx_work))||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x34,&v)||v||
++       !gmb_read32(NULL,0x8000+4096*ggb_smmu.bank+0x7f4,&v)||(v&1u))return ggwb_reject(phase,WGD_ROUTES);
++    if(ggc_alias[0]!=ggx_core||ggc_alias[8]!=gmb_reset||ggc_alias[9]!=gfw_map[GMF_AO]||
++       !ggc_device_valid(ggx_core,0x03d00000)||!ggc_device_valid(gmb_reset,0x03d7c000)||
++       !ggc_device_valid(gfw_map[GMF_AO],0x03d8c000))return ggwb_reject(phase,WGD_DEVICE);
++    if(!ggq_nc_valid())return ggwb_reject(phase,WGD_NC);
++    ggwb_diagnostic.rbbm=gfw_load32(ggx_core+4*0x201);ggwb_diagnostic.cp=gfw_load32(ggx_core+4*0x823);
++    if((ggwb_diagnostic.rbbm&GGQ_RBBM_ERRORS)||(ggwb_diagnostic.cp&GGQ_CP_ERRORS))return ggwb_reject(phase,WGD_FAULT);
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggwb_reject(phase,WGD_WDT);
++    return ggwb_time(phase);
++}
++static bool ggwb_seal(void *cookie,uint64_t pa)
++{
++    (void)cookie;
++    if(ggwb_sealed||ggwb_context.phase!=GGW_SEAL||ggwb_context.work.sealed||pa!=gmb_stage.pa||
++       !sweet_gpu_write_requested()||!gpzb_flags()||!ggwb_unsecured()||!sweet_pas_zap_owner_authenticated(pa))return false;
++    ggwb_sealed=1;return true;
++}
++static bool ggwb_read(void *cookie,uint32_t reg,uint32_t *out)
++{
++    (void)cookie;if(!out||!ggw_register_allowed(reg,false))return false;
++    vm_offset_t va=ggq_address(reg,false);if(!va)return false;*out=gfw_load32(va);return true;
++}
++static bool ggwb_write(void *cookie,uint32_t reg,uint32_t value)
++{
++    (void)cookie;if(!ggw_register_allowed(reg,true)||ggwb_context.phase!=GGW_SUBMIT||
++       (reg==0x807?value!=GGW_END_DWORD:value>1))return false;
++    vm_offset_t va=ggq_address(reg,true);if(!va)return false;gfw_store32(va,value);return true;
++}
++static vm_offset_t ggwb_memory(enum ggw_memory memory,uint32_t off,bool write)
++{
++    if(!gmb_ram||!ggb_data_geometry()||(off&3))return 0;
++    enum ggw_phase phase=(enum ggw_phase)ggwb_context.phase;
++    bool ring=memory==GGW_RING&&off<124,scratch=memory==GGW_SCRATCH&&off==0;
++    bool data=memory==GGW_DATA&&off<GGD_DATA_BYTES,commands=ring&&off>=80;
++    if(write){if(phase!=GGW_COMMANDS||!commands)return 0;}
++    else if(!((phase==GGW_CAPTURE&&(ring||scratch||data))||(phase==GGW_COMMANDS&&commands)||
++              (phase==GGW_WAIT&&scratch)||(phase==GGW_VERIFY&&(ring||data))))return 0;
++    unsigned offset=data?ggb_data_plan.data.offset:ggb_plan.region[ring?GGP_RING:GGP_SCRATCH].offset;
++    return gmb_ram+offset-GMB_PAGE+off;
++}
++static bool ggwb_memory_read(void *cookie,enum ggw_memory memory,uint32_t off,uint32_t *out)
++{
++    (void)cookie;vm_offset_t va=ggwb_memory(memory,off,false);if(!va||!out)return false;
++    *out=gfw_load32(va);
++    if(memory==GGW_DATA&&ggwb_context.phase==GGW_CAPTURE){
++        if(!off){ggwb_before_first=*out;ggwb_samples|=1;}
++        if(off==GGD_DATA_BYTES-4){ggwb_before_last=*out;ggwb_samples|=2;}
++    }
++    if(memory==GGW_DATA&&ggwb_context.phase==GGW_VERIFY){
++        if(!off){ggwb_after_first=*out;ggwb_samples|=4;}
++        if(off==GGD_DATA_BYTES-4){ggwb_after_last=*out;ggwb_samples|=8;}
++    }
++    return true;
++}
++static bool ggwb_memory_write(void *cookie,enum ggw_memory memory,uint32_t off,uint32_t value)
++{(void)cookie;vm_offset_t va=ggwb_memory(memory,off,true);if(!va)return false;gfw_store32(va,value);return true;}
++static void ggwb_quarantine(void *cookie)
++{
++    (void)cookie;bool needs=sweet_gmu_board_state()!=GMB_QUARANTINED;
++    __atomic_store_n(&ggwb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggwb_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggub_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggub_context.state,3,__ATOMIC_RELEASE);
++    __atomic_store_n(&gpzb_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);sweet_pas_zap_quarantine();
++    __atomic_store_n(&ggq_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggc_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
++    if(needs)gmb_fail(GMB_GPU,"ordinary GPU data write/readback");
++}
++static void ggwb_records(bool complete)
++{
++    const struct ggw_receipt *r=complete?&ggwb_work:&ggwb_context.work;char line[256];
++    snprintf(line,sizeof(line),"SWEET GPU WRITE: %s phase=%u rc=%u reads=%u writes=%u sealed=%u commands=%u/%u prefix=%u clean=%u complete=%u retained=%u",
++        complete?"complete":"partial",ggwb_context.phase,ggwb_result,r->reads,r->writes,r->sealed,r->commands_written,r->commands_checked,r->prefix_checked,r->clean_checked,r->complete,r->requests_retained);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU WRITE INITIAL: wptr=%08x shadow=%08x busy=%08x; no ring/SQE/scratch reinitialization",r->initial_wptr,r->initial_shadow,r->initial_busy);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU WRITE FENCE: checks=%u status=%08x slow=%u counters=%u/%u before=%016llx after=%016llx keepalive=%u/%u submit=%u",
++        r->fence_checks,r->fence_status,r->fence_slow,r->counter_before_valid,r->counter_after_valid,r->counter_before,r->counter_after,r->keepalive_set_attempted,r->keepalive_clear_attempted,r->submit_attempted);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU WRITE IDLE: polls=%u rptr=%08x busy=%08x rbbm=%08x cp=%08x; device shadow31 and AO busy bit23",r->idle_polls,r->rptr,r->busy,r->rbbm_status,r->cp_status);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU WRITE DATA: before=%u after=%u edges=%u middle=%u ring=%u; full ordinary4096-byte page checked",r->data_before_checked,r->data_after_checked,r->edge_checked,r->unchanged_checked,r->ring_after_checked);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU WRITE SAMPLES: mask=%x before=%08x/%08x after=%08x/%08x; actual cached CPU reads, no CPU data stores",ggwb_samples,ggwb_before_first,ggwb_before_last,ggwb_after_first,ggwb_after_last);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU WRITE GUARD: reason=%u phase=%u now=%016llx entry=%016llx phase_entry=%016llx total_end=%016llx phase_end=%016llx; cached post-AUTH ticks",
++        ggwb_diagnostic.reason,ggwb_diagnostic.phase,ggwb_diagnostic.now,ggwb_entry,ggwb_phase_entry,ggwb_deadline,ggwb_phase_end);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU WRITE FAULT: rbbm=%08x cp=%08x; cached authorized post-AUTH GPU samples, no secure-buffer read",ggwb_diagnostic.rbbm,ggwb_diagnostic.cp);gmb_record(line);
++    if(complete)for(unsigned i=0;i<GGW_COMMAND_WORDS;i++){
++        snprintf(line,sizeof(line),"SWEET GPU WRITE WORD: index=%u value=%08x",GGW_START_DWORD+i,ggwb_context.command.word[i]);gmb_record(line);
++    }else if(ggwb_context.diagnostic.valid){
++        const struct ggw_diagnostic *d=&ggwb_context.diagnostic;
++        snprintf(line,sizeof(line),"SWEET GPU WRITE SAMPLE: phase=%u memory=%u off=%05x expected=%08x actual=%08x; last cached sample",ggwb_context.phase,d->memory,d->reg,d->expected,d->actual);gmb_record(line);
++    }
++}
++enum ggw_result sweet_gpu_write_once(struct ggw_receipt *out)
++{
++    if(!out||!sweet_gpu_write_requested())return GGW_ARGUMENT;unsigned idle=GMB_IDLE;
++    if(!__atomic_compare_exchange_n(&ggwb_lifecycle,&idle,GMB_RUNNING,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return GGW_ALREADY;
++    ggwb_entry=ggwb_phase_entry=ggwb_last_now=mach_absolute_time();ggwb_phase=GGW_IDLE;ggwb_sealed=0;
++    clock_interval_to_deadline(4,NSEC_PER_SEC,&ggwb_deadline);ggwb_phase_end=ggwb_deadline;
++    memset(&ggwb_diagnostic,0,sizeof(ggwb_diagnostic));ggwb_result=GGW_GUARD;
++    ggwb_samples=ggwb_before_first=ggwb_before_last=ggwb_after_first=ggwb_after_last=0;
++    if(!gpzb_flags()||!gmb_thread())ggwb_reject(GGW_IDLE,WGD_CONFIG);
++    else if(!gauguin_wdt_lease_check_budget(8u*GAUGUIN_WDT_CLOCK_HZ))ggwb_reject(GGW_IDLE,WGD_ENTRY_BUDGET);
++    else{
++        const struct ggw_ops ops={NULL,ggwb_guard,ggwb_seal,ggwb_read,ggwb_write,gmb_barrier,ggq_board_delay,ggwb_memory_read,ggwb_memory_write,ggwb_quarantine};
++        ggwb_result=ggw_start_once(&ggwb_context,&ops,&ggb_data_plan,&ggwb_work);
++    }
++    if(ggwb_result!=GGW_OK||!ggwb_guard(NULL,GGW_FINAL)){
++        if(ggwb_result==GGW_OK)ggwb_result=GGW_GUARD;
++        if(sweet_gpu_write_state()!=GMB_QUARANTINED)ggwb_quarantine(NULL);
++        ggwb_records(false);return ggwb_result;
++    }
++    *out=ggwb_work;__atomic_store_n(&ggwb_lifecycle,GMB_READY,__ATOMIC_RELEASE);ggwb_records(true);return GGW_OK;
++}
++
+ #endif /* GAUGUIN */
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -9,6 +9,8 @@
+ #include "gauguin_gpu_core.h"
+ #include "gauguin_gpu_cp.h"
+ #include "gauguin_gpu_unsecure.h"
++#include "gauguin_gpu_data.h"
++#include "gauguin_gpu_write.h"
+ enum gmb_state {GMB_IDLE,GMB_RUNNING,GMB_READY,GMB_QUARANTINED};
+ enum gmb_result {GMB_OK,GMB_ARGUMENT,GMB_ALREADY,GMB_CONTEXT,GMB_PARENT,
+     GMB_BUDGET,GMB_MAPPING,GMB_RESET,GMB_MEMORY,GMB_SMMU,GMB_ASSET,GMB_FIRMWARE,GMB_GPU};
+@@ -81,15 +83,22 @@
+  * no ZAP, unsecured mode, multi-ring scheduling, rendering or Metal claim. */
+ enum ggq_result sweet_gpu_cp_once(struct ggq_receipt *);
+ enum gmb_state sweet_gpu_cp_state(void);
+-/* Signed ZAP load after this boot's completed core/first CP. Exact modes1/2
+- * request signing; mode2 additionally requests the separately guarded native
+- * unsecured append below. Mode1 behavior and legacy PAS0 remain unchanged. */
++/* Signed ZAP load after this boot's completed core/first CP. Modes1/2/3
++ * request signing;2/3 additionally request the native unsecured append.
++ * Only mode3 selects cold DATA19 and subsequent ordinary data writes.
++ * Mode0/1/2 behavior and legacy PAS0 remain unchanged. */
+ bool sweet_gpu_zap_requested(void);
+ enum gpz_result sweet_gpu_zap_once(struct gpz_receipt *);
+ enum gmb_state sweet_gpu_zap_state(void);
+ /* Post-AUTH native5word RB0 append under THIS private signed/CP/core/FW owner.
+- * Mode2 only; no secure-region access or original MDT revalidation. */
++ * Modes2/3; no secure-region access or original MDT revalidation. */
+ bool sweet_gpu_unsecure_requested(void);
+ enum ggu_result sweet_gpu_unsecure_once(struct ggu_receipt *);
+ enum gmb_state sweet_gpu_unsecure_state(void);
++/* Mode3 only: same-boot ordinary user-RW page write/readback after signed
++ * load and native mode completion. Source-bound fixed transfer, no general
++ * scheduler/shader/rendering/Metal claim. Disabled calls consume no attempt. */
++bool sweet_gpu_write_requested(void);
++enum ggw_result sweet_gpu_write_once(struct ggw_receipt *);
++enum gmb_state sweet_gpu_write_state(void);
+ #endif
+--- a/bsd/dev/gauguin_gpu_data.c
++++ b/bsd/dev/gauguin_gpu_data.c
+@@ -50,3 +50,29 @@
+         0x703d8003u,p->data.iova+GGD_DATA_BYTES-4,0,GGD_LAST_VALUE}};
+     *out=c;return true;
+ }
++static uint64_t expected_leaf(const struct ggd_plan *p,unsigned index)
++{
++    uint32_t va=GGP_GLOBAL_BASE+4096u*index;
++    for(unsigned i=0;i<=GGP_COUNT;i++){
++        const struct ggp_region *m=i<GGP_COUNT?&p->bootstrap.region[i]:&p->data;
++        if(va<m->iova||va-m->iova>=m->mapped)continue;
++        uint64_t attr=UINT64_C(0xe03)|(m->privileged?0:0x40u)|(m->readonly?0x80u:0);
++        if(!m->executable)attr|=UINT64_C(3)<<53;
++        return (p->bootstrap.owner_pa+m->offset+(va-m->iova))|attr;
++    }
++    return 0;
++}
++bool ggd_tables_match(const struct ggd_plan *p,const volatile void *memory,size_t bytes)
++{
++    if(!ggd_plan_valid(p)||bytes<GGP_TABLE_BYTES||!span((const void *)memory,GGP_TABLE_BYTES)||
++       ((uintptr_t)memory&7)||overlap(p,sizeof(*p),(const void *)memory,GGP_TABLE_BYTES))return false;
++    const volatile uint64_t *actual=memory;uint64_t pa=p->bootstrap.owner_pa+GGP_TABLE_OFFSET;
++    for(unsigned i=0;i<GGP_TABLE_BYTES/8;i++){
++        uint64_t expected=0;
++        if(i==3)expected=(pa+0x1000)|3u;
++        else if(i==512+480)expected=(pa+0x2000)|3u;
++        else if(i>=1024&&i<1536)expected=expected_leaf(p,i-1024);
++        if(actual[i]!=expected)return false;
++    }
++    return true;
++}
+--- a/bsd/dev/gauguin_gpu_data.h
++++ b/bsd/dev/gauguin_gpu_data.h
+@@ -33,4 +33,11 @@
+  * native completion/fault checks and device-written data readback. No
+  * allocation, MMIO, cache action, live PTE mutation or Metal interface. */
+ bool ggd_write_command_build(const struct ggd_plan *,struct ggd_write_command *);
++/* Check ALL16KiB table bytes against canonical DATA19 geometry, including
++ * every unused L1/L2/L3 slot and empty TTBR1 root. Little-endian ARM64;
++ * require an8-byte-aligned, private readable RAM range, nonoverlapping plan.
++ * Volatile64-bit loads do not mutate tables or grant ownership. Caller must
++ * separately guard exact retained NC alias/ranges/context and barriers/time.
++ * No cached expected pointer or caller-supplied PTE bytes are authority. */
++bool ggd_tables_match(const struct ggd_plan *,const volatile void *,size_t);
+ #endif
+--- a/bsd/dev/gauguin_pas_stage.c
++++ b/bsd/dev/gauguin_pas_stage.c
+@@ -266,7 +266,7 @@
+ static bool psz_flags(void)
+ {
+     int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));
+-    if(mode!=1&&mode!=2)return false;
++    if(mode!=1&&mode!=2&&mode!=3)return false;
+     static const char *const on[]={"sweetpasprobe","sweetpasstage"};
+     static const char *const off[]={"sweetpasinit","sweetpasmem"};
+     for(unsigned i=0;i<sizeof(on)/sizeof(on[0]);i++){int v=0;(void)PE_parse_boot_argn(on[i],&v,sizeof(v));if(v!=1)return false;}

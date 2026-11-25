@@ -1,0 +1,79 @@
+diff --git a/include/hakios-metal/command.hpp b/include/hakios-metal/command.hpp
+--- a/include/hakios-metal/command.hpp
++++ b/include/hakios-metal/command.hpp
+@@ -230,9 +230,9 @@
+             const size_t mask = keys_.size() - 1;
+             for (size_t i = (reg * 2654435761u) & mask;; i = (i + 1) & mask) {
+                 if (keys_[i] == reg) {
+-                    const bool same = values_[i] == value;
++                    if (values_[i] == value) return true;
+                     values_[i] = value;
+-                    return same;
++                    return false;
+                 }
+                 if (keys_[i] == kEmpty) {
+                     keys_[i] = reg;
+diff --git a/src/render.cpp b/src/render.cpp
+--- a/src/render.cpp
++++ b/src/render.cpp
+@@ -10,5 +10,6 @@
+ #include <algorithm>
+ #include <array>
++#include <cassert>
+ #include <cmath>
+ #include <cstring>
+ #include <initializer_list>
+@@ -2720,12 +2720,19 @@
+     // register packet whose payload has been shortened or omitted.
+     size_t copyAt = 0;
+     for (size_t i = 0; i < w.size();) {
+-        pm4::Header h = pm4::decode(w[i]);
+-        if (h.kind == pm4::Header::kRegisters) {
++        // These streams come from encodeBegin/encodeInPass. Stream creates
++        // every header, so its parity has already been set at emission.
++        const uint32_t header = w[i];
++        const bool registers = (header >> 28) == 4;
++        assert(registers || (header >> 28) == 7);
++        const uint32_t count = header & (registers ? 0x7fu : 0x3fffu);
++        assert(count < w.size() - i);
++        if (registers) {
++            const uint32_t first = (header >> 8) & 0x3ffffu;
+             uint32_t runStart = 0, runLen = 0;
+             bool shortened = false;
+-            for (uint32_t k = 0; k < h.count; k++) {
+-                const uint32_t reg = h.reg + k, value = w[i + 1 + k];
++            for (uint32_t k = 0; k < count; k++) {
++                const uint32_t reg = first + k, value = w[i + 1 + k];
+                 const bool same = regs.hold(reg, value) && reg != REG_A6XX_HLSQ_INVALIDATE_CMD;
+                 if (!same) {
+                     if (runLen == 0) runStart = k;
+@@ -2737,16 +2744,16 @@
+                     shortened = true;
+                 }
+                 if (runLen != 0) {
+-                    to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
++                    to.registers(first + runStart, &w[i + 1 + runStart], runLen);
+                     runLen = 0;
+                 }
+             }
+             if (shortened) {
+-                if (runLen != 0) to.registers(h.reg + runStart, &w[i + 1 + runStart], runLen);
+-                copyAt = i + 1 + h.count;
++                if (runLen != 0) to.registers(first + runStart, &w[i + 1 + runStart], runLen);
++                copyAt = i + 1 + count;
+             }
+         } else {
+-            switch (h.opcode) {
++            switch ((header >> 16) & 0x7fu) {
+             case pm4::kNop: case CP_WAIT_MEM_GTE: case CP_SKIP_IB2_ENABLE_GLOBAL: case CP_WAIT_FOR_IDLE: case CP_LOAD_STATE6_GEOM:
+             case CP_LOAD_STATE6_FRAG: case CP_LOAD_STATE6: case CP_DRAW_INDX_OFFSET: case CP_DRAW_INDIRECT_MULTI: case CP_WAIT_REG_MEM:
+             case CP_EVENT_WRITE: case CP_SET_MODE: case CP_SET_VISIBILITY_OVERRIDE: case CP_SET_MARKER: case CP_REG_TO_MEM:
+@@ -2758,7 +2765,7 @@
+                 break;
+             }
+         }
+-        i += 1 + h.count;
++        i += 1 + count;
+     }
+     if (copyAt < w.size()) to.appendEncoded(from, copyAt, w.size() - copyAt);
+     return forgot;

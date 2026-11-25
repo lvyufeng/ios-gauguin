@@ -1,0 +1,82 @@
+diff --git a/bsd/dev/gauguin_wdt_test.c b/bsd/dev/gauguin_wdt_test.c
+--- a/bsd/dev/gauguin_wdt_test.c
++++ b/bsd/dev/gauguin_wdt_test.c
+@@ -445,12 +445,11 @@
+         return wdt_lease_fail("SWEET WDT SERVICE: concurrent lease operation; quarantined");
+     }
+     bool valid = false;
+-    uint32_t before = 0, after = 0, irq = UINT32_MAX;
++    uint32_t before = 0, after = 0, confirmed = 0, irq = UINT32_MAX;
+     uint32_t en = 0, bark = 0, bite = 0, status = 0, reason = 1;
+     uint64_t now = 0, elapsed_ns = 0, refreshed_at = 0;
+     uint64_t ack_ns = 0;
+-    unsigned samples = 0, stable = 0;
+-    uint32_t previous = UINT32_MAX;
++    unsigned samples = 0;
+     bool acknowledged = false;
+     if (__atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) != WDL_READY ||
+         !wdt_context() || !sweet_wdt_irq_quiet(&irq) || wdt_refresh_sequence == UINT32_MAX) {
+@@ -491,23 +490,26 @@
+     wdt_write(WDT_RST, 1u);
+     /* The APSS counter lives in a slower clock domain: an immediately
+      * following STS read may still contain the PRE-pulse count (real177).
+-     * Never replay the pulse. Wait read-only for two matching decreased
+-     * samples, bounded by BOTH CPU time and count even if a clock stalls. */
++     * Never replay the pulse. Confirm a decreased count with BACK-TO-BACK
++     * reads, as in the native stable-counter loop. Delaying between these
++     * reads can let a healthy32765Hz counter advance on every attempt (179).
++     * Keep BOTH the2ms CPU limit and256 TOTAL STS reads. */
+     reason = 6;
+-    for (samples = 0; samples < 256; ++samples) {
++    while (samples < 256) {
+         now = mach_absolute_time();
+         if (!wdt_context() || now < refreshed_at ||
+             __atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) != WDL_READY) goto done;
+         absolutetime_to_nanoseconds(now - refreshed_at, &ack_ns);
+         if (ack_ns >= UINT64_C(2000000)) goto done;
+         status = wdt_read(WDT_STS);
++        ++samples;
+         after = (status >> 1) & 0xfffffu;
+-        if (after < before && after <= WDT_HZ / 4u) {
+-            stable = after == previous ? stable + 1u : 1u;
+-            previous = after;
+-            if (stable >= 2u) { acknowledged = true; break; }
+-        } else {
+-            stable = 0; previous = UINT32_MAX;
++        if (after < before && after <= WDT_HZ / 4u && samples < 256) {
++            uint32_t first = after;
++            status = wdt_read(WDT_STS); /* no delay/conversion between pair */
++            ++samples;
++            after = (status >> 1) & 0xfffffu;
++            if (after == first) { confirmed = first; acknowledged = true; break; }
+         }
+         IODelay(10);
+     }
+@@ -516,9 +518,12 @@
+     bite = wdt_read(WDT_BITE); status = wdt_read(WDT_STS);
+     after = (status >> 1) & 0xfffffu;
+     now = mach_absolute_time();
++    if (now < refreshed_at) goto done;
++    absolutetime_to_nanoseconds(now - refreshed_at, &ack_ns);
+     reason = 6;
+     valid = en == 3u && bark == WDT_BARK_TICKS && bite == WDT_BITE_TICKS &&
+-        after < before && after <= WDT_HZ / 4u && now >= refreshed_at &&
++        after >= confirmed && after < before && after <= WDT_HZ / 4u &&
++        ack_ns < UINT64_C(2000000) &&
+         wdt_context() && __atomic_load_n(&wdt_lease_state, __ATOMIC_ACQUIRE) == WDL_READY;
+     if (valid) {
+         wdt_lease_record.armed_at_ticks = refreshed_at;
+diff --git a/bsd/dev/gauguin_wdt_lease.h b/bsd/dev/gauguin_wdt_lease.h
+--- a/bsd/dev/gauguin_wdt_lease.h
++++ b/bsd/dev/gauguin_wdt_lease.h
+@@ -69,7 +69,9 @@
+  * lock and verify idle/EOP/fault/routes/power BEFORE calling. Serialize with
+  * budget checks. Require fresh advancing counter + CPU-clock agreement, exact
+  * EN3/thresholds/quiet NS IRQs and three seconds left before ONE RST1 write.
+- * Allow bounded read-only clock-domain acknowledgement, then check the reset
++ * Confirm read-only clock-domain acknowledgement with an adjacent equal STS
++ * pair (no delay between reads), at most256STS reads and2ms including final
++ * readbacks when platform calls return. Then check the reset
+  * counter/readbacks before moving the CPU-time epoch. Never
+  * enable/disable/reprogram thresholds, sleep, retry or release DMA memory.
+  * Failure permanently quarantines this lease. A concurrent quarantine cannot

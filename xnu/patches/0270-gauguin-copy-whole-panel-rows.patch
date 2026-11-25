@@ -1,0 +1,96 @@
+diff --git a/bsd/dev/gauguin_copy356.h b/bsd/dev/gauguin_copy356.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_copy356.h
+@@ -0,0 +1,67 @@
++#ifndef GAUGUIN_COPY356_H
++#define GAUGUIN_COPY356_H
++
++#include "gauguin_blank352.h"
++
++enum { SCAN356_COPY_BLOCK_BYTES = 288 };
++
++static inline void
++scan356_copy_row(void *dst, const void *src)
++{
++#if defined(__aarch64__)
++    size_t remaining = SCAN352_PANEL_STRIDE;
++    /* Fifteen whole blocks cover the row, including its old 96-byte tail.
++     * Keep the lookahead inside the source row and use the same integer
++     * non-temporal stores on the write-combined panel. */
++    __asm__ volatile(
++        "1:\n"
++        "prfm pldl1keep, [%[s], #160]\n"
++        "ldp x8, x9, [%[s], #0]\n"
++        "ldp x10, x11, [%[s], #16]\n"
++        "ldp x12, x13, [%[s], #32]\n"
++        "ldp x14, x15, [%[s], #48]\n"
++        "stnp x8, x9, [%[d], #0]\n"
++        "stnp x10, x11, [%[d], #16]\n"
++        "stnp x12, x13, [%[d], #32]\n"
++        "stnp x14, x15, [%[d], #48]\n"
++        "ldp x8, x9, [%[s], #64]\n"
++        "ldp x10, x11, [%[s], #80]\n"
++        "ldp x12, x13, [%[s], #96]\n"
++        "ldp x14, x15, [%[s], #112]\n"
++        "stnp x8, x9, [%[d], #64]\n"
++        "stnp x10, x11, [%[d], #80]\n"
++        "stnp x12, x13, [%[d], #96]\n"
++        "stnp x14, x15, [%[d], #112]\n"
++        "ldp x8, x9, [%[s], #128]\n"
++        "ldp x10, x11, [%[s], #144]\n"
++        "ldp x12, x13, [%[s], #160]\n"
++        "ldp x14, x15, [%[s], #176]\n"
++        "stnp x8, x9, [%[d], #128]\n"
++        "stnp x10, x11, [%[d], #144]\n"
++        "stnp x12, x13, [%[d], #160]\n"
++        "stnp x14, x15, [%[d], #176]\n"
++        "ldp x8, x9, [%[s], #192]\n"
++        "ldp x10, x11, [%[s], #208]\n"
++        "ldp x12, x13, [%[s], #224]\n"
++        "ldp x14, x15, [%[s], #240]\n"
++        "stnp x8, x9, [%[d], #192]\n"
++        "stnp x10, x11, [%[d], #208]\n"
++        "stnp x12, x13, [%[d], #224]\n"
++        "stnp x14, x15, [%[d], #240]\n"
++        "ldp x8, x9, [%[s], #256]\n"
++        "ldp x10, x11, [%[s], #272]\n"
++        "stnp x8, x9, [%[d], #256]\n"
++        "stnp x10, x11, [%[d], #272]\n"
++        "add %[s], %[s], #288\n"
++        "add %[d], %[d], #288\n"
++        "subs %[n], %[n], #288\n"
++        "b.ne 1b\n"
++        : [d] "+&r"(dst), [s] "+&r"(src), [n] "+&r"(remaining)
++        :
++        : "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "cc", "memory");
++#else
++    __builtin_memcpy(dst, src, SCAN352_PANEL_STRIDE);
++#endif
++}
++
++#endif
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -42,6 +42,7 @@
+ #include "../../../bsd/dev/gauguin_frame344.h"
+ #include "../../../bsd/dev/gauguin_ready353.h"
+ #include "../../../bsd/dev/gauguin_ready354.h"
++#include "../../../bsd/dev/gauguin_copy356.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ /* END SWEET PRESENT STATS INCLUDE */
+@@ -1957,7 +1958,11 @@
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
+-            if (pairedCopy) {
++            if (pairedCopy && fReadyAcrossFrames) {
++                for (int32_t y = 0; y < h; ++y)
++                    scan356_copy_row((void *)(dst + (uint64_t)y * fRowBytes),
++                        (const void *)(first + (uint64_t)y * s->bytesPerRow));
++            } else if (pairedCopy) {
+                 for (int32_t y = 0; y < h; ++y)
+                     scan352_copy_row((void *)(dst + (uint64_t)y * fRowBytes),
+                         (const void *)(first + (uint64_t)y * s->bytesPerRow));

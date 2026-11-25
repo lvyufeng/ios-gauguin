@@ -1,0 +1,355 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -44,6 +44,7 @@
+ #include "../../../bsd/dev/gauguin_ready354.h"
+ #include "../../../bsd/dev/gauguin_ready357.h"
+ #include "../../../bsd/dev/gauguin_calibration357.h"
++#include "../../../bsd/dev/gauguin_probe358.h"
+ #include "../../../bsd/dev/gauguin_copy356.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+@@ -410,7 +411,7 @@
+ /* A waiting swap, a ready candidate and an active copy own independent
+  * display references. Owner pointers are only compared under fLock. */
+ extern "C" uint32_t GauguinGPUSurfaceState(SweetSurface *);
+-extern "C" uint32_t GauguinGPUSurfaceReadyFence(SweetSurface *, uint64_t, uint32_t);
++extern "C" uint32_t GauguinGPUSurfaceReadyFence(SweetSurface *, uint64_t, uint32_t, uint32_t *);
+ 
+ struct sweet_fb_frame {
+     struct scan353_ready ready;
+@@ -480,7 +481,7 @@
+     uint32_t fCalibrationPixel;
+     bool blankEnabledLocked() const;
+     bool waitingForReadyLocked() const;
+-    void observePendingReady();
++    bool observePendingReady(const struct scan358_request *probe = nullptr);
+     static void readyEventFired(OSObject *, IOInterruptEventSource *, int);
+     void stop(IOService *) APPLE_KEXT_OVERRIDE;
+     bool blankPendingLocked() const;
+@@ -541,6 +542,7 @@
+ static uint32_t gReadyVersion;              /* gReadyLock */
+ static bool gReadyRetainsIssued;
+ static struct scan357_writer gReadyWriters[SCAN357_WRITERS]; /* gReadyLock */
++static struct scan358_probe_slot gReadyProbe;                /* gReadyLock */
+ static AppleCLCD *gReadyDisplay;                             /* gReadyLock */
+ 
+ extern "C" uint64_t
+@@ -589,6 +591,25 @@
+     IOLockLock(lock);
+     if (gReadySource && scan357_signal(gReadyWriters, ticket, version, fence))
+         gReadySource->interruptOccurred(nullptr, nullptr, 0);
++    IOLockUnlock(lock);
++}
++
++/* The scan monitor sends only a value into the existing workloop. It
++ * may skip a busy publication lock and never waits on the GPU lock. */
++extern "C" void
++sweet_fb358_request_probe(uint32_t frame)
++{
++    if (!__atomic_load_n(&gReadyRetainsIssued, __ATOMIC_ACQUIRE)) return;
++    IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++    if (!IOLockTryLock(lock)) return;
++    if (gReadySource && scan357_terminal(gReadyWriters) == SCAN357_NONE) {
++        for (const auto &writer : gReadyWriters) {
++            if (!writer.ticket || writer.terminal) continue;
++            if (scan358_offer(&gReadyProbe, frame, writer.ticket))
++                gReadySource->interruptOccurred(nullptr, nullptr, 0);
++            break;
++        }
++    }
+     IOLockUnlock(lock);
+ }
+ 
+@@ -900,6 +921,7 @@
+         gReadySource = nullptr;
+         gReadyDisplay = nullptr;
+         gReadySignal = {};
++        gReadyProbe = {};
+         __atomic_store_n(&gReadyRetainsIssued, false, __ATOMIC_RELEASE);
+         IOLockUnlock(lock);
+         fWorkLoop->removeEventSource(event);
+@@ -1072,37 +1094,57 @@
+ 
+ /* Poll the claimed writer even if the waiting slot has changed. Keep a
+  * reference across the unlocked probe, and collect any terminal receipts. */
+-void
+-AppleCLCD::observePendingReady()
++bool
++AppleCLCD::observePendingReady(const struct scan358_request *probe)
+ {
+     SweetSurface *surface = nullptr;
+     struct scan357_writer writer = {};
+     IOLockLock(fLock);
+-    if (!__atomic_load_n(&gReadyTicket, __ATOMIC_ACQUIRE)) watchPendingReadyLocked();
++    if (probe) {
++        struct scan351_position pos;
++        if (fCalibrating || fHeldReady.owner || !blankEnabledLocked() ||
++            !sweet_frame351_position(&pos) || !scan358_still_timely(probe, &pos, &fBlankSlot)) {
++            IOLockUnlock(fLock);
++            return false;
++        }
++    } else if (!__atomic_load_n(&gReadyTicket, __ATOMIC_ACQUIRE)) {
++        watchPendingReadyLocked();
++    }
+     if (fReadyEvent) {
+         IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+         IOLockLock(lock);
+-        for (unsigned i = 0; i < SCAN357_WRITERS; ++i) {
+-            if (!gReadyWriters[i].ticket || gReadyWriters[i].terminal) continue;
+-            writer = gReadyWriters[i];
+-            if (auto *candidate = boundFrameLocked(i, writer.ticket)) {
+-                surface = candidate->surfaces[0];
+-                surface->retain();
++        if (!probe || scan357_terminal(gReadyWriters) == SCAN357_NONE) {
++            for (unsigned i = 0; i < SCAN357_WRITERS; ++i) {
++                writer = gReadyWriters[i];
++                if (!writer.ticket || writer.terminal || (probe && writer.ticket != probe->ticket))
++                    continue;
++                if (auto *candidate = boundFrameLocked(i, writer.ticket)) {
++                    surface = candidate->surfaces[0];
++                    surface->retain();
++                }
++                break;
+             }
+-            break;
+         }
+         IOLockUnlock(lock);
+     }
+     IOLockUnlock(fLock);
+     if (surface) {
+-        GauguinGPUSurfaceReadyFence(surface, writer.ticket, writer.version);
++        uint32_t outcome;
++        const uint64_t start = probe ? sweet_frame344_clock() : 0;
++        const uint32_t fence = GauguinGPUSurfaceReadyFence(surface, writer.ticket, writer.version,
++            probe ? &outcome : nullptr);
++        if (start)
++            sweet_frame344_record(F358_PROBE, probe->frame, outcome, writer.ticket,
++                ((uint64_t)writer.version << 32) | fence, start);
+         surface->release();
+     }
++    if (probe && !surface) return false;
+     struct sweet_fb_retired retired[SCAN357_WRITERS] = {};
+     IOLockLock(fLock);
+-    collectIssuedLocked(true, retired);
++    const bool marked = collectIssuedLocked(true, retired);
+     IOLockUnlock(fLock);
+     for (auto &frame : retired) sweet_fb_retired_release(&frame);
++    return marked;
+ }
+ 
+ void
+@@ -1112,9 +1154,14 @@
+     struct sweet_fb_frame frame = {};
+     uint64_t blankFrame = UINT64_MAX;
+     if (fb->fReadyAcrossFrames) {
++        IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
++        IOLockLock(lock);
++        const struct scan358_request probe = gReadySource == sender ? scan358_take(&gReadyProbe) : scan358_request{};
++        IOLockUnlock(lock);
++        const bool observed = probe.ticket && fb->observePendingReady(&probe);
+         struct sweet_fb_retired retired[SCAN357_WRITERS] = {};
+         IOLockLock(fb->fLock);
+-        const bool marked = fb->collectIssuedLocked(false, retired);
++        const bool marked = fb->collectIssuedLocked(false, retired) || observed;
+         const bool taken = marked && fb->takeBlankFrameLocked(&frame, &blankFrame);
+         const uint64_t attempt = taken ? fb->fHeldConsumed : 0;
+         IOLockUnlock(fb->fLock);
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -30,6 +30,7 @@
+ #include "../../../bsd/dev/gauguin_blank352.h"
+ #include "../../../bsd/dev/gauguin_ready354.h"
+ #include "../../../bsd/dev/gauguin_ready357.h"
++#include "../../../bsd/dev/gauguin_probe358.h"
+ static_assert(GUT_HID_QUEUE_STATE==31 && GUT_BO_ALLOC333==32 && GUT_BO_REUSE335==33,
+     "legacy UI254 event kinds must agree with the HID producer and host decoder");
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+@@ -336,6 +337,10 @@
+     IOReturn surface(struct ggr_surface *);
+ public:
+     IOReturn finishPending(bool wait,bool reap,const struct ggr_timespec *deadline=nullptr);
++    bool pendingDisplayIs(uint64_t ticket, uint32_t version) const {
++        return fPendingCount && fPendingNativeFence && fPendingDisplayTicket == ticket &&
++            fPendingDisplayVersion == version;
++    }
+     void cancelDisplayWriter();
+     bool initWithTask(task_t,void *,UInt32,OSDictionary *) APPLE_KEXT_OVERRIDE;
+     bool start(IOService *) APPLE_KEXT_OVERRIDE;
+@@ -453,16 +458,29 @@
+ }
+ /* Observe readiness outside the framebuffer lock. This is not a read
+  * permission. The presenter takes the normal read guard when it copies. */
+-extern "C" uint32_t GauguinGPUSurfaceReadyFence(SweetSurface *s, uint64_t ticket, uint32_t version)
++extern "C" uint32_t GauguinGPUSurfaceReadyFence(SweetSurface *s, uint64_t ticket, uint32_t version,
++    uint32_t *outcome)
+ {
+     IOLock *lock = __atomic_load_n(&gLock, __ATOMIC_ACQUIRE);
++    if (outcome) *outcome = SCAN358_PROBE_LOCK_BUSY;
+     if (!lock || !IOLockTryLock(lock)) return 0;
+     const uint32_t state = GauguinGPUSurfaceState(s);
+-    if (scan354_has_version(state, version) && (state & SCAN354_GPU_STATUS) == 1)
++    const bool pending = scan354_has_version(state, version) && (state & SCAN354_GPU_STATUS) == 1;
++    if (outcome) {
++        const auto *owner = OSDynamicCast(GauguinGPUUserClient, gOwner);
++        if (!pending || !owner || !owner->pendingDisplayIs(ticket, version)) {
++            *outcome = SCAN358_PROBE_STALE;
++            IOLockUnlock(lock);
++            return 0;
++        }
++        *outcome = SCAN358_PROBE_PENDING;
++    }
++    if (pending)
+         completePendingOwnerLocked(false, false);
+     const uint32_t fence = gCompletedDisplayWrite.ticket == ticket &&
+         gCompletedDisplayWrite.version == version && GauguinGPUSurfaceState(s) == version ?
+         gCompletedDisplayWrite.fence : 0;
++    if (outcome && fence) *outcome = SCAN358_PROBE_PUBLISHED;
+     IOLockUnlock(lock);
+     return fence;
+ }
+diff --git a/bsd/dev/gauguin_probe358.h b/bsd/dev/gauguin_probe358.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_probe358.h
+@@ -0,0 +1,76 @@
++#ifndef GAUGUIN_PROBE358_H
++#define GAUGUIN_PROBE358_H
++
++#include "gauguin_blank352.h"
++
++enum {
++    SCAN358_PROBE_FIRST_LINE = 1728,
++    SCAN358_PROBE_LIMIT = 1024,
++    SCAN358_FRAME_CAPACITY = 20480,
++    SCAN358_PROBE_LOCK_BUSY = 1,
++    SCAN358_PROBE_STALE,
++    SCAN358_PROBE_PENDING,
++    SCAN358_PROBE_PUBLISHED
++};
++
++struct scan358_request {
++    uint64_t ticket;
++    uint32_t frame;
++};
++
++struct scan358_probe_slot {
++    struct scan358_request request;
++    uint32_t sent;
++};
++
++/* The route monitor already samples this counter. A request can be
++ * replaced by a newer scan before the workloop sees it. */
++static inline bool
++scan358_offer(struct scan358_probe_slot *slot, uint32_t frame, uint64_t ticket)
++{
++    const uint32_t step = frame - slot->request.frame;
++    if (!ticket || slot->sent >= SCAN358_PROBE_LIMIT ||
++        (slot->sent && (!step || step >= UINT32_C(0x80000000))))
++        return false;
++    slot->request.ticket = ticket;
++    slot->request.frame = frame;
++    ++slot->sent;
++    return true;
++}
++
++static inline struct scan358_request
++scan358_take(struct scan358_probe_slot *slot)
++{
++    const struct scan358_request request = slot->request;
++    slot->request.ticket = 0;
++    return request;
++}
++
++static inline bool
++scan358_probe_line(uint32_t line)
++{
++    /* The workloop separately checks the live, potentially earlier,
++     * end-of-blank guard before touching the GPU. */
++    return line >= SCAN358_PROBE_FIRST_LINE &&
++        (line < SCAN351_OPEN || scan352_can_copy(line, SCAN351_TOTAL - SCAN351_END_GUARD));
++}
++
++static inline bool
++scan358_still_timely(const struct scan358_request *request, const struct scan351_position *position,
++    const struct scan351_slot *blank)
++{
++    const uint32_t copy_line = position->line < SCAN351_OPEN ? SCAN351_OPEN : position->line;
++    return request->ticket && position->frame == request->frame &&
++        position->line >= SCAN358_PROBE_FIRST_LINE && scan352_can_copy(copy_line, position->end) &&
++        (!blank->attempts || blank->frame != position->frame);
++}
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++void sweet_fb358_request_probe(uint32_t frame);
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/bsd/dev/gauguin_frame344.h b/bsd/dev/gauguin_frame344.h
+--- a/bsd/dev/gauguin_frame344.h
++++ b/bsd/dev/gauguin_frame344.h
+@@ -9,7 +9,7 @@
+     F344_SWAP = 40, F344_ATTEMPT, F344_RESULT, F344_LOCK, F344_COPY,
+     F344_ISSUE, F344_WRITER, F344_EOP, F344_READY,
+     F344_VBLANK, F344_CRC, F344_TIMING, F351_PRESENT, F352_WAKE, F353_READY, F353_TAKE, F354_PROMOTE, F354_VALIDATE,
+-    F357_BOUND, F357_CALIBRATION
++    F357_BOUND, F357_CALIBRATION, F358_PROBE
+ };
+ 
+ #ifdef __cplusplus
+diff --git a/bsd/dev/gauguin_ui_trace.c b/bsd/dev/gauguin_ui_trace.c
+--- a/bsd/dev/gauguin_ui_trace.c
++++ b/bsd/dev/gauguin_ui_trace.c
+@@ -82,7 +82,7 @@
+ bool gut_init_frames(struct gut_core *c,struct gut_event *events,uint32_t capacity,uint64_t window,
+     uint64_t (*clock)(void *))
+ {
+-    return init(c,events,capacity,1,window,clock,NULL,16384);
++    return init(c,events,capacity,1,window,clock,NULL,20480);
+ }
+ uint64_t gut_report(struct gut_core *c,uint64_t begin,uint64_t end,uint32_t status,uint32_t mask)
+ {
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -28,6 +28,7 @@
+ #include "gauguin_scanout345.h"
+ #include "gauguin_blank352.h"
+ #include "gauguin_calibration357.h"
++#include "gauguin_probe358.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+@@ -558,6 +559,8 @@
+             scan.have_frame = true;
+             scan.frame = frame;
+             scan.last_tick = before;
++            if (scan357_enabled && scan358_probe_line(line) && sweet_frame351_window())
++                sweet_fb358_request_probe(frame);
+         } else if (scan.counter_readonly) {
+             scan.motion.previous_valid = false;
+             scan.motion.rejected_control += !same_control;
+@@ -588,7 +591,7 @@
+     scan352_enabled = enabled >= 8;
+     scan357_enabled = enabled == 9;
+     scan.crc_blocked = enabled == 4;
+-    const uint32_t capacity = 16384;
++    const uint32_t capacity = scan357_enabled ? SCAN358_FRAME_CAPACITY : 16384;
+     uint64_t window;
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+     clock_timebase_info(&frame_timebase);
+@@ -600,6 +603,9 @@
+         return;
+     }
+     printf("SWEET F344: armed window=45s capacity=%u\n", capacity);
++    if (scan357_enabled)
++        printf("SWEET F358 PROBE: first_line=%u limit=%u\n",
++            SCAN358_PROBE_FIRST_LINE, SCAN358_PROBE_LIMIT);
+ }
+ 
+ void sweet_frame344_prepare(void)

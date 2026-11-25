@@ -1,0 +1,2469 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/nvt_protocol.c
+@@ -0,0 +1,200 @@
++/* SPDX-License-Identifier: MIT */
++#include "nvt_protocol.h"
++#include <string.h>
++
++static bool geometry_ok(uint16_t x, uint16_t y)
++{
++    return x != 0 && y != 0 && x <= NVT_MAX_X && y <= NVT_MAX_Y;
++}
++
++static void page_for(uint32_t address, uint8_t page[3])
++{
++    page[0] = 0xff;
++    page[1] = (uint8_t)(address >> 15);
++    page[2] = (uint8_t)(address >> 7);
++}
++
++int nvt_check_observed_chip(const uint8_t *trim, size_t length)
++{
++    static const uint8_t observed[6] = {0x0c, 0, 0, 0x72, 0x66, 3};
++    if (!trim) return NVT_ERR_ARGUMENT;
++    if (length != sizeof(observed)) return NVT_ERR_LENGTH;
++    return memcmp(trim, observed, sizeof(observed)) == 0 ? NVT_OK : NVT_ERR_IDENTITY;
++}
++
++int nvt_make_request(enum nvt_read_kind kind, struct nvt_request *out)
++{
++    struct nvt_request request = {0};
++    unsigned offset;
++    if (!out) return NVT_ERR_ARGUMENT;
++    switch (kind) {
++    case NVT_READ_FWINFO: offset = 0x78; request.payload_length = 16; break;
++    case NVT_READ_RESET: offset = 0x60; request.payload_length = 5; break;
++    case NVT_READ_PID: offset = 0x9a; request.payload_length = 2; break;
++    case NVT_READ_POINTS: offset = 0; request.payload_length = NVT_POINT_PAYLOAD; break;
++    default: return NVT_ERR_ARGUMENT;
++    }
++    request.address = NVT_EVENT_BASE + offset;
++    page_for(request.address, request.page);
++    page_for(NVT_EVENT_BASE, request.restore_page);
++    request.tx[0] = (uint8_t)(offset & 0x7f); /* Native SPI_READ_MASK. */
++    request.wire_length = request.payload_length + 2;
++    *out = request;
++    return NVT_OK;
++}
++
++static int payload(const uint8_t *rx, size_t length, size_t expected,
++                   const uint8_t **out)
++{
++    if (!rx || !out) return NVT_ERR_ARGUMENT;
++    if (length != expected + 2) return NVT_ERR_LENGTH;
++    *out = rx + 2; /* Native rbuf+2 -> logical buf+1. */
++    return NVT_OK;
++}
++
++int nvt_decode_fwinfo(const uint8_t *rx, size_t length, struct nvt_fw_info *out)
++{
++    const uint8_t *p;
++    struct nvt_fw_info info = {0};
++    int result;
++    if (!out) return NVT_ERR_ARGUMENT;
++    result = payload(rx, length, 16, &p);
++    if (result != NVT_OK) return result;
++    if ((unsigned)p[0] + p[1] != 255) return NVT_ERR_FW_CHECKSUM;
++    info.version = p[0];
++    info.x_channels = p[2]; info.y_channels = p[3];
++    info.max_x = (uint16_t)((unsigned)p[4] << 8 | p[5]);
++    info.max_y = (uint16_t)((unsigned)p[6] << 8 | p[7]);
++    info.buttons = p[10]; info.firmware_type = p[13];
++    if (!geometry_ok(info.max_x, info.max_y) || !info.x_channels || !info.y_channels)
++        return NVT_ERR_GEOMETRY;
++    *out = info;
++    return NVT_OK;
++}
++
++int nvt_decode_reset(const uint8_t *rx, size_t length, struct nvt_reset_info *out)
++{
++    const uint8_t *p;
++    struct nvt_reset_info info;
++    int result;
++    if (!out) return NVT_ERR_ARGUMENT;
++    result = payload(rx, length, 5, &p);
++    if (result != NVT_OK) return result;
++    info.state = p[0];
++    memcpy(info.detail, p + 1, sizeof(info.detail));
++    *out = info;
++    return NVT_OK;
++}
++
++bool nvt_reset_ready(const struct nvt_reset_info *info, uint8_t minimum)
++{
++    return info && minimum >= 0xa0 && minimum <= 0xa3 &&
++           info->state >= minimum && info->state <= 0xaf;
++}
++
++int nvt_decode_pid(const uint8_t *rx, size_t length, uint16_t *out)
++{
++    const uint8_t *p;
++    int result;
++    if (!out) return NVT_ERR_ARGUMENT;
++    result = payload(rx, length, 2, &p);
++    if (result != NVT_OK) return result;
++    *out = (uint16_t)((unsigned)p[1] << 8 | p[0]);
++    return NVT_OK;
++}
++
++int nvt_state_init(struct nvt_state *state, const struct nvt_fw_info *info)
++{
++    struct nvt_state next = {0};
++    if (!state || !info) return NVT_ERR_ARGUMENT;
++    if (!geometry_ok(info->max_x, info->max_y)) return NVT_ERR_GEOMETRY;
++    next.max_x = info->max_x; next.max_y = info->max_y;
++    next.initialized = true;
++    *state = next;
++    return NVT_OK;
++}
++
++int nvt_decode_points(struct nvt_state *state, const uint8_t *rx, size_t length,
++                      struct nvt_frame *out)
++{
++    const uint8_t *p;
++    struct nvt_contact next[NVT_MAX_CONTACTS] = {{0}};
++    struct nvt_frame frame = {0};
++    bool seen[NVT_MAX_CONTACTS] = {false};
++    uint8_t inactive_status[NVT_MAX_CONTACTS] = {0};
++    bool esd = true, wdt = true;
++    int result;
++    if (!state || !out || !state->initialized) return NVT_ERR_ARGUMENT;
++    if (!geometry_ok(state->max_x, state->max_y)) return NVT_ERR_GEOMETRY;
++    result = payload(rx, length, NVT_POINT_PAYLOAD, &p);
++    if (result != NVT_OK) return result;
++    memcpy(frame.native_tail, p + 60, sizeof(frame.native_tail));
++    for (unsigned i = 0; i < 6; ++i) {
++        esd = esd && p[i] == 0x77;
++        wdt = wdt && (p[i] == 0xfd || p[i] == 0xfe);
++    }
++    if (esd || wdt) {
++        frame.kind = esd ? NVT_PACKET_ESD : NVT_PACKET_WDT;
++        frame.wdt_streak = esd ? 0 : (state->wdt_streak < 11 ? state->wdt_streak + 1 : 11);
++        frame.recovery_required = wdt && frame.wdt_streak >= 11;
++        for (unsigned i = 0; i < NVT_MAX_CONTACTS; ++i)
++            frame.active_count += state->contacts[i].active ? 1 : 0;
++        state->wdt_streak = frame.recovery_required ? 0 : frame.wdt_streak;
++        *out = frame;
++        return NVT_OK;
++    }
++    /* Ten six-byte records. Bytes62/63 extend pressure of record0/1,
++     * NOT controller IDs1/2. Native does not validate point byte64 as checksum. */
++    for (unsigned record = 0; record < NVT_MAX_CONTACTS; ++record) {
++        const uint8_t *r = p + 6 * record;
++        unsigned id = r[0] >> 3, status = r[0] & 7;
++        bool active = status == 1 || status == 2;
++        if (id == 0 || id > NVT_MAX_CONTACTS) {
++            if (active) return NVT_ERR_CONTACT_ID;
++            continue; /* Native unused slots include all00/allff. */
++        }
++        if (seen[id - 1]) return NVT_ERR_DUPLICATE_ID;
++        seen[id - 1] = true;
++        inactive_status[id - 1] = (uint8_t)status;
++        if (!active) continue;
++        struct nvt_contact *c = &next[id - 1];
++        c->x = (uint16_t)((unsigned)r[1] << 4 | r[3] >> 4);
++        c->y = (uint16_t)((unsigned)r[2] << 4 | (r[3] & 15));
++        if (c->x > state->max_x || c->y > state->max_y) return NVT_ERR_COORDINATE;
++        c->width = r[4] ? r[4] : 1;
++        c->pressure = r[5];
++        if (record < 2) {
++            c->pressure = (uint16_t)(c->pressure | (unsigned)p[62 + record] << 8);
++            if (c->pressure > 1000) c->pressure = 1000;
++        }
++        if (!c->pressure) c->pressure = 1;
++        c->wire_status = (uint8_t)status;
++        c->active = true;
++    }
++    frame.kind = NVT_PACKET_CONTACTS;
++    for (unsigned i = 0; i < NVT_MAX_CONTACTS; ++i) {
++        if (next[i].active || state->contacts[i].active) {
++            struct nvt_event *e = &frame.events[frame.event_count++];
++            e->id = (uint8_t)(i + 1);
++            if (next[i].active) {
++                e->kind = state->contacts[i].active ? NVT_MOVE : NVT_DOWN;
++                e->contact = next[i];
++            } else {
++                e->kind = NVT_UP; e->contact = state->contacts[i];
++                e->contact.active = false; e->contact.pressure = 0;
++                e->contact.wire_status = inactive_status[i];
++            }
++        }
++        frame.active_count += next[i].active ? 1 : 0;
++    }
++    memcpy(state->contacts, next, sizeof(next));
++    state->wdt_streak = 0;
++    *out = frame;
++    return NVT_OK;
++}
++
++int nvt_cancel_contacts(struct nvt_state *state, struct nvt_frame *out)
++{
++    uint8_t empty[NVT_MAX_WIRE] = {0};
++    return nvt_decode_points(state, empty, sizeof(empty), out);
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/nvt_protocol.h
+@@ -0,0 +1,95 @@
++/* SPDX-License-Identifier: MIT
++ * Pure protocol candidate for observed gauguin trim 0c0000726603.
++ * Protocol facts: LineageOS/android_kernel_xiaomi_gauguin
++ * 19b63c8192b1c9b7c4d931d7d3be92024bc2d778, nt36672c/nt36xxx*.
++ * No MMIO, GPIO, firmware upload, allocation or kernel/HID calls.
++ */
++#ifndef GAUGGUIN_NVT_PROTOCOL_H
++#define GAUGGUIN_NVT_PROTOCOL_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++
++#define NVT_EVENT_BASE 0x22d00u
++#define NVT_MAX_CONTACTS 10u
++#define NVT_MAX_X 1080u
++#define NVT_MAX_Y 2400u
++#define NVT_POINT_PAYLOAD 65u
++#define NVT_MAX_WIRE 67u
++
++enum nvt_status {
++    NVT_OK = 0,
++    NVT_ERR_ARGUMENT = -1,
++    NVT_ERR_LENGTH = -2,
++    NVT_ERR_IDENTITY = -3,
++    NVT_ERR_FW_CHECKSUM = -4,
++    NVT_ERR_GEOMETRY = -5,
++    NVT_ERR_CONTACT_ID = -6,
++    NVT_ERR_COORDINATE = -7,
++    NVT_ERR_DUPLICATE_ID = -8
++};
++enum nvt_read_kind { NVT_READ_FWINFO, NVT_READ_RESET, NVT_READ_PID, NVT_READ_POINTS };
++struct nvt_request {
++    uint32_t address;
++    uint8_t page[3];            /* One write transaction, separate CS. */
++    uint8_t tx[NVT_MAX_WIRE];   /* Fully initialized, including dummy clocks. */
++    size_t wire_length;        /* One full-duplex transaction, CS held throughout. */
++    size_t payload_length;
++    uint8_t restore_page[3];   /* Independent write returning cursor to EVENT_BASE. */
++};
++struct nvt_fw_info {
++    uint8_t version, x_channels, y_channels, buttons, firmware_type;
++    uint16_t max_x, max_y;      /* FWINFO extents; native worker accepts <=extent.
++                                * Advertised native input range is0..extent-1. */
++};
++struct nvt_reset_info { uint8_t state, detail[4]; };
++enum nvt_event_kind { NVT_DOWN, NVT_MOVE, NVT_UP };
++struct nvt_contact {
++    uint16_t x, y, pressure;
++    uint8_t width, wire_status;
++    bool active;
++};
++struct nvt_event {
++    enum nvt_event_kind kind;
++    uint8_t id;                /* Controller ID 1..10; HID adapter chooses its own IDs. */
++    struct nvt_contact contact;
++};
++enum nvt_packet_kind { NVT_PACKET_CONTACTS, NVT_PACKET_ESD, NVT_PACKET_WDT };
++struct nvt_frame {
++    enum nvt_packet_kind kind;
++    unsigned event_count, active_count;
++    struct nvt_event events[NVT_MAX_CONTACTS];
++    uint8_t wdt_streak;
++    bool recovery_required;    /* WDT signature seen >10 consecutive valid transfers. */
++    uint8_t native_tail[5];    /* Payload60..64: no point checksum specified by pinned source. */
++};
++struct nvt_state {
++    uint16_t max_x, max_y;
++    bool initialized;
++    uint8_t wdt_streak;
++    struct nvt_contact contacts[NVT_MAX_CONTACTS];
++};
++
++int nvt_check_observed_chip(const uint8_t *trim, size_t length);
++int nvt_make_request(enum nvt_read_kind kind, struct nvt_request *out);
++/* All decode inputs are the ENTIRE raw RX transfer: command response, dummy,
++ * then payload. RX[0:2] is undefined and is never checked as an echo/checksum.
++ * Require exact wire lengths18/7/4/67; never pass native point_data or RX+2.
++ * Outputs and contact state remain unchanged on error.
++ */
++int nvt_decode_fwinfo(const uint8_t *rx, size_t length, struct nvt_fw_info *out);
++int nvt_decode_reset(const uint8_t *rx, size_t length, struct nvt_reset_info *out);
++bool nvt_reset_ready(const struct nvt_reset_info *info, uint8_t minimum);
++int nvt_decode_pid(const uint8_t *rx, size_t length, uint16_t *out);
++int nvt_state_init(struct nvt_state *state, const struct nvt_fw_info *info);
++/* Awake, normal-report mode only. Controller status1/2 means active; native
++ * releases IDs absent from the active snapshot. Events derive from old/new
++ * presence, so a first observed MOVE still starts a new HID contact.
++ * Malformed active records and duplicate valid IDs reject the whole snapshot.
++ * ESD/WDT signatures preserve contacts; caller decides when to cancel input.
++ */
++int nvt_decode_points(struct nvt_state *state, const uint8_t *rx, size_t length,
++                      struct nvt_frame *out);
++/* Explicit transport-loss/suspend policy action; never implicit on a bad frame. */
++int nvt_cancel_contacts(struct nvt_state *state, struct nvt_frame *out);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/geni_spi_pio.c
+@@ -0,0 +1,215 @@
++#include "geni_spi_pio.h"
++
++static uint32_t rd(struct gs_pio *s, uint32_t reg)
++{ return s->io.read32(s->io.cookie, reg); }
++static void wr(struct gs_pio *s, uint32_t reg, uint32_t value)
++{ s->io.write32(s->io.cookie, reg, value); }
++static void fence(struct gs_pio *s)
++{ s->io.barrier(s->io.cookie); }
++
++/* Fixed to the actual observed 16-word, 32-bit FIFOs for this first probe.
++ * Refuse unknown shapes/configurations before making any register writes.
++ */
++static int configured(struct gs_pio *s)
++{
++    uint32_t p0 = rd(s, GS_HW_PARAM0), p1 = rd(s, GS_HW_PARAM1);
++    if (((p0 >> 16) & 63) != 16 || ((p1 >> 16) & 63) != 16 ||
++        ((p0 >> 24) & 63) != 32 || ((p1 >> 24) & 63) != 32 ||
++        ((rd(s, GS_FW_REVISION) >> 8) & 255) != 1 ||
++        (rd(s, GS_FIFO_DISABLE) & 1) || (rd(s, GS_DMA_MODE) & 1) ||
++        rd(s, GS_IRQ_EN) || rd(s, GS_GSI_EVENT_EN) ||
++        (rd(s, GS_CPHA) & 1) || (rd(s, GS_CPOL) & 4) ||
++        (rd(s, GS_LOOPBACK) & 3) || (rd(s, GS_CS_SEL) & 15) ||
++        (rd(s, GS_CS_INV) & 1) || (rd(s, GS_WORD_LEN) & 1023) != 4 ||
++        rd(s, GS_BYTE_GRAN) != 0 ||
++        rd(s, GS_TX_PACK0) != GS_PACK0 || rd(s, GS_RX_PACK0) != GS_PACK0 ||
++        rd(s, GS_TX_PACK1) != GS_PACK1 || rd(s, GS_RX_PACK1) != GS_PACK1)
++        return GS_NOT_CONFIGURED;
++    if (rd(s, GS_STATUS) & (GS_CMD_ACTIVE | GS_S_CMD_ACTIVE))
++        return GS_BUSY;
++    if ((rd(s, GS_TX_STATUS) & GS_TX_WC_MASK) ||
++        (rd(s, GS_RX_STATUS) & GS_RX_WC_MASK))
++        return GS_DIRTY;
++    return GS_OK;
++}
++
++static int drain(struct gs_pio *s, uint8_t *rx, size_t len, bool discard)
++{
++    uint32_t stat = rd(s, GS_RX_STATUS);
++    uint32_t words = stat & GS_RX_WC_MASK;
++    uint32_t last = (stat >> 28) & 7;
++    size_t bytes;
++    s->diag.last_rx_status = stat;
++    if (words > 16 || ((stat & GS_RX_LAST) && last > 4))
++        return GS_IO_ERROR;
++    if (!words)
++        return GS_OK;
++    bytes = (size_t)words * 4;
++    /* Native RX_LAST: zero denotes a complete 4-byte final FIFO word. */
++    if ((stat & GS_RX_LAST) && last && last < 4)
++        bytes -= 4 - last;
++    if (!discard && (bytes > len - s->diag.rx_received ||
++                     s->diag.rx_received > s->diag.tx_queued ||
++                     bytes > s->diag.tx_queued - s->diag.rx_received))
++        return GS_IO_ERROR;
++    for (uint32_t i = 0; i < words; i++) {
++        uint32_t word = rd(s, GS_RX_FIFO);
++        size_t n = bytes < 4 ? bytes : 4;
++        for (size_t j = 0; j < n; j++) {
++            if (!discard) {
++                if (rx)
++                    rx[s->diag.rx_received] = (uint8_t)(word >> (j * 8));
++                s->diag.rx_received++;
++            }
++        }
++        bytes -= n;
++    }
++    return GS_OK;
++}
++
++static bool wait_stop(struct gs_pio *s, uint32_t completion)
++{
++    uint64_t start = s->io.now_us(s->io.cookie);
++    for (uint32_t n = 0; n < s->max_polls; n++) {
++        uint32_t irq = rd(s, GS_M_IRQ_STATUS);
++        s->diag.irq_seen |= irq;
++        /* Draining can unblock a full RX FIFO during cancellation. */
++        if (drain(s, NULL, 0, true) != GS_OK)
++            return false;
++        if ((irq & completion) && !(rd(s, GS_STATUS) & GS_CMD_ACTIVE)) {
++            wr(s, GS_M_IRQ_CLEAR, irq);
++            fence(s);
++            return true;
++        }
++        if ((uint64_t)(s->io.now_us(s->io.cookie) - start) >=
++            s->recovery_timeout_us)
++            break;
++        s->io.relax(s->io.cookie);
++    }
++    return false;
++}
++
++static void recover(struct gs_pio *s)
++{
++    s->poisoned = true;
++    wr(s, GS_TX_WM, 0);
++    fence(s);
++    if (!(rd(s, GS_STATUS) & GS_CMD_ACTIVE)) {
++        s->diag.recovery = GS_REC_IDLE;
++    } else {
++        /* Like the native cancel path, stop expecting normal CMD_DONE. */
++        wr(s, GS_M_IRQ_EN, rd(s, GS_M_IRQ_EN) & ~GS_DONE);
++        wr(s, GS_M_CTRL, 1u << 2);
++        fence(s);
++        if (wait_stop(s, GS_CANCELLED)) {
++            s->diag.recovery = GS_REC_CANCEL;
++        } else {
++            wr(s, GS_M_CTRL, 1u << 1);
++            fence(s);
++            s->diag.recovery = wait_stop(s, GS_ABORTED) ?
++                GS_REC_ABORT : GS_REC_STUCK;
++        }
++    }
++    if (drain(s, NULL, 0, true) != GS_OK)
++        s->diag.recovery = GS_REC_STUCK;
++}
++
++int gs_pio_xfer(struct gs_pio *s, const uint8_t *tx, uint8_t *rx, size_t len)
++{
++    uint64_t start;
++    int result;
++    bool done = false;
++    if (!s || !tx || !len || len > GS_MAX_WIRE ||
++        !s->io.read32 || !s->io.write32 || !s->io.barrier ||
++        !s->io.now_us || !s->io.relax || !s->timeout_us ||
++        s->timeout_us > 1000000 || !s->recovery_timeout_us ||
++        s->recovery_timeout_us > 100000 || !s->max_polls ||
++        s->max_polls > 1000000)
++        return GS_INVALID;
++    if (s->in_flight)
++        return GS_BUSY;
++    if (s->poisoned)
++        return GS_POISONED;
++    s->diag = (struct gs_diag){0};
++    result = configured(s);
++    if (result != GS_OK)
++        return result;
++    s->in_flight = true;
++    start = s->io.now_us(s->io.cookie);
++    wr(s, GS_M_IRQ_CLEAR, rd(s, GS_M_IRQ_STATUS));
++    wr(s, GS_M_IRQ_EN, GS_ERRORS | GS_DONE | (1u << 26) |
++       (1u << 27) | (1u << 30));
++    wr(s, GS_RX_WM, 0);
++    wr(s, GS_RX_RFR_WM, 14);
++    wr(s, GS_TRANS_CFG, rd(s, GS_TRANS_CFG) & ~1u);
++    wr(s, GS_TX_LEN, (uint32_t)len);
++    wr(s, GS_RX_LEN, (uint32_t)len);
++    fence(s);
++    /* One command: no fragmentation, per-word CS toggle, or FIFO splitting. */
++    wr(s, GS_M_CMD, GS_FULL_DUPLEX);
++    wr(s, GS_TX_WM, 1);
++    fence(s);
++    result = GS_TIMEOUT;
++    for (uint32_t n = 0; n < s->max_polls; n++) {
++        uint32_t irq = rd(s, GS_M_IRQ_STATUS), wc;
++        s->diag.polls++;
++        s->diag.irq_seen |= irq;
++        if (irq & GS_ERRORS) {
++            result = GS_IO_ERROR;
++            break;
++        }
++        /* Inspect RX even when only CMD_DONE is set: the last partial word
++         * must be drained before any completion/counter decision.
++         */
++        result = drain(s, rx, len, false);
++        if (result != GS_OK)
++            break;
++        done = done || (irq & GS_DONE);
++        if (done) {
++            if (s->diag.tx_queued != len || s->diag.rx_received != len) {
++                result = GS_SHORT;
++                break;
++            }
++            if (!(rd(s, GS_STATUS) & GS_CMD_ACTIVE)) {
++                result = GS_OK;
++                break;
++            }
++        }
++        s->diag.last_tx_status = rd(s, GS_TX_STATUS);
++        wc = s->diag.last_tx_status & GS_TX_WC_MASK;
++        if (wc > 16) {
++            result = GS_IO_ERROR;
++            break;
++        }
++        /* Credit covers ALL queued-but-not-drained bytes, including bytes
++         * already shifted into RX while the CPU was draining a snapshot.
++         * TX occupancy alone cannot prevent RX overflow under that race.
++         * <=60 outstanding bytes leave one RX FIFO word of headroom.
++         */
++        while (!done && wc < 15 && s->diag.tx_queued < len &&
++               s->diag.tx_queued - s->diag.rx_received < 60) {
++            uint32_t word = 0;
++            for (unsigned j = 0; j < 4 && s->diag.tx_queued < len; j++)
++                word |= (uint32_t)tx[s->diag.tx_queued++] << (j * 8);
++            wr(s, GS_TX_FIFO, word);
++            fence(s);
++            wc++;
++        }
++        if (s->diag.tx_queued == len)
++            wr(s, GS_TX_WM, 0);
++        wr(s, GS_M_IRQ_CLEAR, irq);
++        fence(s);
++        result = GS_TIMEOUT;
++        if ((uint64_t)(s->io.now_us(s->io.cookie) - start) >= s->timeout_us)
++            break;
++        s->io.relax(s->io.cookie);
++    }
++    if (result != GS_OK)
++        recover(s);
++    wr(s, GS_TX_WM, 0);
++    wr(s, GS_M_IRQ_EN, 0);
++    wr(s, GS_M_IRQ_CLEAR, rd(s, GS_M_IRQ_STATUS));
++    fence(s);
++    s->in_flight = false;
++    return result;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/geni_spi_pio.h
+@@ -0,0 +1,85 @@
++#ifndef GAUGUIN_GENI_SPI_PIO_H
++#define GAUGUIN_GENI_SPI_PIO_H
++
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++
++/* Register facts from the pinned native qcom-geni-se.h/spi-geni-qcom.c.
++ * This candidate contains no MMIO mapping, clock, pinmux, or firmware loader.
++ */
++enum {
++    GS_STATUS = 0x040, GS_FIFO_DISABLE = 0x064, GS_FW_REVISION = 0x068,
++    GS_CPHA = 0x224, GS_LOOPBACK = 0x22c, GS_CPOL = 0x230,
++    GS_CS_INV = 0x24c, GS_CS_SEL = 0x250, GS_BYTE_GRAN = 0x254,
++    GS_DMA_MODE = 0x258, GS_TRANS_CFG = 0x25c,
++    GS_TX_PACK0 = 0x260, GS_TX_PACK1 = 0x264, GS_WORD_LEN = 0x268,
++    GS_TX_LEN = 0x26c, GS_RX_LEN = 0x270,
++    GS_RX_PACK0 = 0x284, GS_RX_PACK1 = 0x288,
++    GS_M_CMD = 0x600, GS_M_CTRL = 0x604,
++    GS_M_IRQ_STATUS = 0x610, GS_M_IRQ_EN = 0x614, GS_M_IRQ_CLEAR = 0x618,
++    GS_TX_FIFO = 0x700, GS_RX_FIFO = 0x780,
++    GS_TX_STATUS = 0x800, GS_RX_STATUS = 0x804,
++    GS_TX_WM = 0x80c, GS_RX_WM = 0x810, GS_RX_RFR_WM = 0x814,
++    GS_GSI_EVENT_EN = 0xe18, GS_IRQ_EN = 0xe1c,
++    GS_HW_PARAM0 = 0xe24, GS_HW_PARAM1 = 0xe28
++};
++#define GS_CMD_ACTIVE ((uint32_t)1)
++#define GS_S_CMD_ACTIVE ((uint32_t)1 << 12)
++#define GS_DONE ((uint32_t)1)
++#define GS_CANCELLED ((uint32_t)1 << 4)
++#define GS_ABORTED ((uint32_t)1 << 5)
++#define GS_RX_LAST ((uint32_t)1 << 31)
++#define GS_RX_WC_MASK ((uint32_t)0x1ffffff)
++#define GS_TX_WC_MASK ((uint32_t)0xfffffff)
++#define GS_ERRORS (((uint32_t)7 << 1) | ((uint32_t)3 << 4) | \
++                   ((uint32_t)3 << 24) | ((uint32_t)3 << 28))
++#define GS_PACK0 ((uint32_t)0x7f8fe)
++#define GS_PACK1 ((uint32_t)0xffefe)
++#define GS_FULL_DUPLEX ((uint32_t)3 << 27)
++#define GS_MAX_WIRE 256u
++
++enum gs_result {
++    GS_OK = 0, GS_INVALID = -1, GS_NOT_CONFIGURED = -2, GS_BUSY = -3,
++    GS_DIRTY = -4, GS_IO_ERROR = -5, GS_SHORT = -6, GS_TIMEOUT = -7,
++    GS_POISONED = -8
++};
++enum gs_recovery { GS_REC_NONE, GS_REC_IDLE, GS_REC_CANCEL,
++                   GS_REC_ABORT, GS_REC_STUCK };
++
++struct gs_io {
++    void *cookie;
++    uint32_t (*read32)(void *, uint32_t offset);
++    void (*write32)(void *, uint32_t offset, uint32_t value);
++    void (*barrier)(void *);
++    uint64_t (*now_us)(void *); /* monotonic microseconds, NOT raw arch ticks */
++    void (*relax)(void *);     /* bounded; must not disable IRQs for a transfer */
++};
++struct gs_diag {
++    size_t tx_queued, rx_received;
++    uint32_t irq_seen, last_rx_status, last_tx_status;
++    uint32_t polls;
++    enum gs_recovery recovery;
++};
++struct gs_pio {
++    struct gs_io io;
++    uint32_t timeout_us, recovery_timeout_us, max_polls;
++    bool in_flight, poisoned;
++    struct gs_diag diag;
++};
++
++/* Caller holds exclusive ownership across page/write/read/restore, not merely
++ * this call. Board must FIRST establish powered, accessible registers, SPI
++ * firmware, FIFO mode, mode0/8bit/MSB/CS0 packing and bounded known clock.
++ * SE_IRQ_EN and GSI_EVENT_EN must be zero (polling has no competing ISR/DMA).
++ * No callback can make an inaccessible MMIO read safe: that is board work.
++ *
++ * One command/CS transaction clocks exactly wire_len bytes. tx is fully
++ * initialized, rx receives raw wire bytes (rx may be NULL to discard page-write
++ * RX). No dummy is added or stripped here. Buffers must not overlap.
++ * On transfer error the context is latched poisoned, even if cancel succeeds;
++ * do not retry or reset the touch IC. Review/reinitialize controller separately.
++ */
++int gs_pio_xfer(struct gs_pio *, const uint8_t *tx, uint8_t *rx, size_t wire_len);
++
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/setup/geni_spi_setup.c
+@@ -0,0 +1,244 @@
++#include "geni_spi_setup.h"
++
++/* Fixed native source: qcom-geni-se.h and drivers/platform/msm/qcom-geni-se.c
++ * plus spi-geni-qcom.c, commit19b63c8192b1c9b7c4d931d7d3be92024bc2d778.
++ * This table contains ordinary R/W configuration only. Never add status,
++ * W1C, FIFO data, command or FORCE_DEFAULT registers to the restore table.
++ */
++enum {
++    FORCE_DEFAULT = 0x20, OUTPUT_CTRL = 0x24, CGC_CTRL = 0x28,
++    STATUS = 0x40, M_CLK = 0x48, FIFO_DISABLE = 0x64, FW = 0x68, S_FW = 0x6c,
++    CLK_SEL = 0x7c, CPHA = 0x224, LOOPBACK = 0x22c, CPOL = 0x230,
++    CS_INV = 0x24c, CS_SEL = 0x250, BYTE_GRAN = 0x254, DMA_MODE = 0x258,
++    TRANS_CFG = 0x25c, TX_PACK0 = 0x260, TX_PACK1 = 0x264, WORD_LEN = 0x268,
++    DELAYS = 0x278, RX_PACK0 = 0x284, RX_PACK1 = 0x288,
++    M_IRQ_STATUS = 0x610, M_IRQ_EN = 0x614, M_IRQ_CLEAR = 0x618,
++    S_IRQ_STATUS = 0x640, S_IRQ_EN = 0x644, S_IRQ_CLEAR = 0x648,
++    TX_STATUS = 0x800, RX_STATUS = 0x804, TX_WM = 0x80c, RX_WM = 0x810,
++    RX_RFR = 0x814, GSI_EN = 0xe18, IRQ_EN = 0xe1c,
++    PARAM0 = 0xe24, PARAM1 = 0xe28, DMA_GENERAL = 0xe30
++};
++static const struct { uint32_t offset, mask; } config[] = {
++    {IRQ_EN, 15}, {GSI_EN, 15}, {M_IRQ_EN, UINT32_MAX}, {S_IRQ_EN, UINT32_MAX},
++    {CGC_CTRL, 0x7f}, {DMA_GENERAL, 15}, {OUTPUT_CTRL, 0x7f}, {DMA_MODE, 1},
++    {CLK_SEL, 7}, {M_CLK, 0xfff1},
++    {TX_PACK0, 0xfffff}, {TX_PACK1, 0xfffff}, {RX_PACK0, 0xfffff}, {RX_PACK1, 0xfffff},
++    {BYTE_GRAN, UINT32_MAX}, {WORD_LEN, 0x3ff}, {LOOPBACK, 3}, {CS_SEL, 15},
++    {CPHA, 1}, {CPOL, 4}, {CS_INV, 15}, {DELAYS, 0xfffff}, {TRANS_CFG, 1},
++    {TX_WM, 63}, {RX_WM, 63}, {RX_RFR, 63},
++    {0x26c, 0xffffff}, {0x270, 0xffffff} /* PIO TX/RX lengths, no command issue */
++};
++_Static_assert(sizeof(config) / sizeof(config[0]) == GSS_SAVED_MAX, "snapshot size");
++
++static bool current(struct gss_session *s)
++{
++    if (!s->owner->current(s->owner->cookie, s->generation)) {
++        s->report.ownership_lost = true;
++        return false;
++    }
++    return true;
++}
++static int rd(struct gss_session *s, enum gss_space space, uint32_t off, uint32_t *v)
++{
++    if (!current(s)) return GSS_OWNERSHIP;
++    *v = s->owner->read32(s->owner->cookie, s->generation, space, off);
++    return current(s) ? GSS_OK : GSS_OWNERSHIP;
++}
++static int wr(struct gss_session *s, uint32_t off, uint32_t v)
++{
++    if (!current(s)) return GSS_OWNERSHIP;
++    s->owner->write32(s->owner->cookie, s->generation, GSS_SE, off, v);
++    if (!current(s)) return GSS_OWNERSHIP;
++    s->owner->barrier(s->owner->cookie, s->generation);
++    return current(s) ? GSS_OK : GSS_OWNERSHIP;
++}
++static int idle(struct gss_session *s)
++{
++    uint32_t status, tx, rx;
++    if (rd(s, GSS_SE, STATUS, &status) || rd(s, GSS_SE, TX_STATUS, &tx) ||
++        rd(s, GSS_SE, RX_STATUS, &rx)) return GSS_OWNERSHIP;
++    return (status & 0x1001) || (tx & 0x0fffffff) || (rx & 0x01ffffff) ?
++        GSS_BUSY : GSS_OK;
++}
++static int source_clock(struct gss_session *s)
++{
++    uint32_t dfs, cfg, again_dfs, again_cfg, sel;
++    if (rd(s, GSS_GCC, 0x2115c, &dfs)) return GSS_OWNERSHIP;
++    /* Exactly the proven level0/XO tuple; do not read another DFS table. */
++    if (!(dfs & 1) || ((dfs >> 1) & 15) != 0) return GSS_CLOCK;
++    if (rd(s, GSS_GCC, 0x21164, &cfg) || rd(s, GSS_SE, CLK_SEL, &sel) ||
++        rd(s, GSS_GCC, 0x2115c, &again_dfs) || rd(s, GSS_GCC, 0x21164, &again_cfg))
++        return GSS_OWNERSHIP;
++    if (cfg != 1 || sel != 0 || dfs != again_dfs || cfg != again_cfg) return GSS_CLOCK;
++    s->report.dfs = dfs; s->report.cfg = cfg; s->report.source_hz = 19200000;
++    return GSS_OK;
++}
++static int qualify(struct gss_session *s)
++{
++    uint32_t p0, p1, fifo, dma;
++    if (rd(s, GSS_WRAPPER, 4, &s->report.wrapper) ||
++        rd(s, GSS_SE, FW, &s->report.fw) || rd(s, GSS_SE, S_FW, &s->report.sfw) ||
++        rd(s, GSS_SE, PARAM0, &p0) || rd(s, GSS_SE, PARAM1, &p1) ||
++        rd(s, GSS_SE, FIFO_DISABLE, &fifo) || rd(s, GSS_SE, DMA_MODE, &dma))
++        return GSS_OWNERSHIP;
++    if (s->report.wrapper != 0x20070000 || s->report.fw != 0x101 ||
++        s->report.sfw != 0x101 || (fifo & 1) || (dma & 1) ||
++        ((p0 >> 24) & 63) != 32 || ((p1 >> 24) & 63) != 32 ||
++        ((p0 >> 16) & 63) != 16 || ((p1 >> 16) & 63) != 16) return GSS_PROFILE;
++    int result = idle(s);
++    return result ? result : source_clock(s);
++}
++static int set(struct gss_session *s, uint32_t offset, uint32_t value)
++{
++    for (unsigned i = 0; i < s->saved_count; i++) {
++        struct gss_saved *p = &s->saved[i];
++        if (p->offset != offset) continue;
++        uint32_t old, now;
++        if (rd(s, GSS_SE, offset, &old)) return GSS_OWNERSHIP;
++        uint32_t want = (old & ~p->mask) | (value & p->mask);
++        p->touched = true; /* includes uncertain write/readback failure */
++        if (wr(s, offset, want) || rd(s, GSS_SE, offset, &now)) return GSS_OWNERSHIP;
++        return now == want ? GSS_OK : GSS_READBACK;
++    }
++    return GSS_ARGUMENT;
++}
++static void release(struct gss_session *s, bool quarantine)
++{
++    s->owner->release(s->owner->cookie, s->generation, quarantine);
++    s->state = quarantine ? GSS_QUARANTINED : GSS_CLOSED;
++}
++
++int gss_restore(struct gss_session *s, int transport_status)
++{
++    if (!s || !s->owner || (s->state != GSS_HELD && s->state != GSS_CONFIGURED))
++        return GSS_ARGUMENT;
++    s->report.transport_status = transport_status;
++    int result = GSS_OK;
++    /* Output routes stay masked until every restored register has read back. */
++    int irq_mask = set(s, IRQ_EN, 0);
++    int gsi_mask = set(s, GSI_EN, 0);
++    if (irq_mask || gsi_mask) {
++        /* Attempt both masks, but never rewrite clocks/packing/IO with an
++         * unconfirmed output mask. A retry is containment, not restoration. */
++        (void)set(s, IRQ_EN, 0); (void)set(s, GSI_EN, 0);
++        s->report.restore_failure = GSS_RESTORE_FAILED;
++        release(s, true);
++        return GSS_RESTORE_FAILED;
++    }
++    if (idle(s) != GSS_OK) {
++        s->report.restore_failure = GSS_UNSAFE_RESTORE;
++        release(s, true);
++        return GSS_UNSAFE_RESTORE;
++    }
++    for (unsigned n = s->saved_count; n > 2; n--) {
++        struct gss_saved *p = &s->saved[n - 1];
++        /* CONFIGURED also restores fields modified by a later owned PIO call. */
++        if ((p->touched || s->state == GSS_CONFIGURED) && set(s, p->offset, p->value))
++            result = GSS_RESTORE_FAILED;
++    }
++    if (rd(s, GSS_SE, M_IRQ_STATUS, &s->report.irq_after_m) ||
++        rd(s, GSS_SE, S_IRQ_STATUS, &s->report.irq_after_s)) result = GSS_RESTORE_FAILED;
++    if ((s->report.irq_after_m & ~s->report.irq_before_m) ||
++        (s->report.irq_after_s & ~s->report.irq_before_s)) result = GSS_UNSAFE_RESTORE;
++    /* A failed commit after an action write has effects we cannot undo.
++     * Restore ordinary fields, but do not re-enable outputs for another user. */
++    if ((s->report.failure && s->report.effects) || transport_status)
++        result = GSS_UNSAFE_RESTORE;
++    if (result == GSS_OK) {
++        if (set(s, GSI_EN, s->saved[1].value) || set(s, IRQ_EN, s->saved[0].value))
++            result = GSS_RESTORE_FAILED;
++    }
++    if (result != GSS_OK) {
++        (void)set(s, IRQ_EN, 0); (void)set(s, GSI_EN, 0);
++        s->report.restore_failure = result;
++    }
++    s->report.config_restored = result == GSS_OK;
++    release(s, result != GSS_OK);
++    return result;
++}
++static int fail(struct gss_session *s, int result)
++{
++    s->report.failure = result;
++    bool changed = false;
++    for (unsigned i = 0; i < s->saved_count; i++) changed |= s->saved[i].touched;
++    if (changed) {
++        int restored = gss_restore(s, 0);
++        return restored ? restored : result;
++    }
++    /* No configuration writes occur before the entire snapshot exists. */
++    s->report.config_restored = true; /* no register was changed */
++    release(s, s->report.ownership_lost);
++    return result;
++}
++
++int gss_prepare(struct gss_session *s, const struct gss_owner *o, uint32_t hz)
++{
++    if (!s || !o || s->state != GSS_CLOSED || !hz || hz > 1000000 ||
++        !o->claim || !o->current || !o->read32 || !o->write32 || !o->barrier || !o->release)
++        return GSS_ARGUMENT;
++    *s = (struct gss_session){.owner = o};
++    if (o->claim(o->cookie, &s->generation) || !s->generation) return GSS_OWNERSHIP;
++    s->state = GSS_HELD;
++    int result = qualify(s);
++    if (result) return fail(s, result);
++    /* Wrapper2.7 uses oversampling1;19.2MHz/(ceil19.2MHz/hz) never exceeds hz. */
++    s->report.divider = (19200000u + hz - 1) / hz;
++    if (!s->report.divider || s->report.divider > 4095) return fail(s, GSS_CLOCK);
++    s->report.sck_hz = 19200000u / s->report.divider;
++    if (rd(s, GSS_SE, M_IRQ_STATUS, &s->report.irq_before_m) ||
++        rd(s, GSS_SE, S_IRQ_STATUS, &s->report.irq_before_s)) return fail(s, GSS_OWNERSHIP);
++    for (unsigned i = 0; i < GSS_SAVED_MAX; i++) {
++        struct gss_saved *p = &s->saved[i];
++        p->offset = config[i].offset; p->mask = config[i].mask;
++        if (rd(s, GSS_SE, p->offset, &p->value)) return fail(s, GSS_OWNERSHIP);
++        s->saved_count++;
++    }
++    /* Unknown reserved packing/route bits would fail the existing PIO contract. */
++    if ((s->saved[0].value & ~15u) || (s->saved[1].value & ~15u) ||
++        (s->saved[10].value & ~0xfffffu) || (s->saved[11].value & ~0xfffffu) ||
++        (s->saved[12].value & ~0xfffffu) || (s->saved[13].value & ~0xfffffu))
++        return fail(s, GSS_PROFILE);
++    if ((result = set(s, IRQ_EN, 0)) || (result = set(s, GSI_EN, 0)) ||
++        (result = set(s, M_IRQ_EN, 0)) || (result = set(s, S_IRQ_EN, 0)) ||
++        (result = set(s, CGC_CTRL, 0x7f)) || (result = set(s, DMA_GENERAL, 15)) ||
++        (result = set(s, OUTPUT_CTRL, 0x7f))) return fail(s, result);
++    return GSS_PREPARED;
++}
++
++int gss_commit_native_defaults(struct gss_session *s)
++{
++    if (!s || !s->owner || s->state != GSS_HELD || s->saved_count != GSS_SAVED_MAX)
++        return GSS_ARGUMENT;
++    int result = qualify(s);
++    if (result) return fail(s, result);
++    /* Action/strobe, deliberately absent from snapshot/restore table. */
++    s->report.effects |= GSS_FORCE_ISSUED;
++    if (wr(s, FORCE_DEFAULT, 1)) return fail(s, GSS_OWNERSHIP);
++    static const struct { uint32_t reg, value; } values[] = {
++        {TX_PACK0,0x7f8fe}, {TX_PACK1,0xffefe},
++        {RX_PACK0,0x7f8fe}, {RX_PACK1,0xffefe}, {BYTE_GRAN,0}, {WORD_LEN,4},
++        {LOOPBACK,0}, {CS_SEL,0}, {CPHA,0}, {CPOL,0}, {CS_INV,0}, {DELAYS,0},
++        {TRANS_CFG,0}, {TX_WM,0}, {RX_WM,0}, {RX_RFR,14}
++    };
++    if ((result = set(s, DMA_MODE, 0)) || (result = set(s, CLK_SEL, 0)) ||
++        (result = set(s, M_CLK, (s->report.divider << 4) | 1))) return fail(s, result);
++    for (unsigned i = 0; i < sizeof(values)/sizeof(values[0]); i++)
++        if ((result = set(s, values[i].reg, values[i].value))) return fail(s, result);
++    uint32_t m, slave;
++    if (rd(s, GSS_SE, M_IRQ_STATUS, &m) || rd(s, GSS_SE, S_IRQ_STATUS, &slave))
++        return fail(s, GSS_OWNERSHIP);
++    if (m) {
++        s->report.effects |= GSS_M_ACK_ISSUED; s->report.acknowledged_m = m;
++        if (wr(s, M_IRQ_CLEAR, m)) return fail(s, GSS_OWNERSHIP);
++    }
++    if (slave) {
++        s->report.effects |= GSS_S_ACK_ISSUED; s->report.acknowledged_s = slave;
++        if (wr(s, S_IRQ_CLEAR, slave)) return fail(s, GSS_OWNERSHIP);
++    }
++    if (rd(s, GSS_SE, M_IRQ_STATUS, &s->report.irq_after_m) ||
++        rd(s, GSS_SE, S_IRQ_STATUS, &s->report.irq_after_s)) return fail(s, GSS_OWNERSHIP);
++    if (s->report.irq_after_m || s->report.irq_after_s) return fail(s, GSS_READBACK);
++    if ((result = idle(s)) || (result = source_clock(s))) return fail(s, result);
++    s->state = GSS_CONFIGURED;
++    return GSS_OK;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/setup/geni_spi_setup.h
+@@ -0,0 +1,81 @@
++#ifndef GAUGUIN_GENI_SPI_SETUP_H
++#define GAUGUIN_GENI_SPI_SETUP_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++
++enum gss_space { GSS_SE, GSS_WRAPPER, GSS_GCC };
++enum gss_result {
++    GSS_OK = 0, GSS_PREPARED = 1,
++    GSS_ARGUMENT = -1, GSS_OWNERSHIP = -2, GSS_PROFILE = -3,
++    GSS_BUSY = -4, GSS_CLOCK = -5, GSS_READBACK = -6,
++    GSS_RESTORE_FAILED = -7, GSS_UNSAFE_RESTORE = -8
++};
++enum gss_state { GSS_CLOSED, GSS_HELD, GSS_CONFIGURED, GSS_QUARANTINED };
++enum gss_effect { GSS_FORCE_ISSUED = 1, GSS_M_ACK_ISSUED = 2, GSS_S_ACK_ISSUED = 4 };
++
++/* The real adapter must ALREADY have qualified wrapper0/SE0 access in THIS
++ * boot and must hold its mapped board resources/clock votes and exclusive
++ * controller ownership until release. This module cannot establish bus access.
++ *
++ * claim/current/generation establish SOFTWARE ownership only, not fabric
++ * accessibility. No caller-supplied "fabric=true" flag or PA mapping API exists.
++ * read32/write32/barrier are bounded adapter operations on already-owned IO;
++ * neither callbacks nor a software deadline recover a bus-blocked MMIO load.
++ * release(quarantine=true) must keep the controller out of service, not return
++ * an uncertain configuration to another user. No real adapter is supplied here.
++ */
++struct gss_owner {
++    void *cookie;
++    int (*claim)(void *, uint64_t *generation);
++    bool (*current)(void *, uint64_t generation);
++    uint32_t (*read32)(void *, uint64_t, enum gss_space, uint32_t offset);
++    void (*write32)(void *, uint64_t, enum gss_space, uint32_t offset, uint32_t value);
++    void (*barrier)(void *, uint64_t);
++    void (*release)(void *, uint64_t, bool quarantine);
++};
++
++#define GSS_SAVED_MAX 28u
++struct gss_saved { uint32_t offset, mask, value; bool touched; };
++struct gss_report {
++    int failure, restore_failure, transport_status;
++    uint32_t effects, acknowledged_m, acknowledged_s;
++    uint32_t irq_before_m, irq_before_s, irq_after_m, irq_after_s;
++    uint32_t wrapper, fw, sfw, dfs, cfg, source_hz, divider, sck_hz;
++    bool config_restored, ownership_lost;
++};
++struct gss_session {
++    /* Caller zero-initializes and otherwise treats these fields as private. */
++    const struct gss_owner *owner;
++    uint64_t generation;
++    enum gss_state state;
++    struct gss_saved saved[GSS_SAVED_MAX];
++    unsigned saved_count;
++    struct gss_report report;
++};
++
++/* prepare: qualify live profile, snapshot, mask outputs, set native IO defaults
++ * that are ordinary R/W fields. It does not assert FORCE_DEFAULT or clear IRQs.
++ * max_sck_hz must be1..1000000; the observed19.2MHz input yields div20/960kHz
++ * at a1MHz request. Unknown/changed source or unsupported profile is refused.
++ */
++int gss_prepare(struct gss_session *, const struct gss_owner *, uint32_t max_sck_hz);
++/* Explicit irreversible boundary: issue native FORCE_DEFAULT, then configure
++ * FIFO, divider,8-bit packing, mode0/CS0. Acknowledge only observed M/S flags.
++ * effects records attempted action writes (a lost lease/write fault can leave
++ * their effect uncertain), not a claim that external pin history or
++ * IRQ history is reversible. No SPI M_CMD, FIFO data, GPIO or reset operation.
++ * On success the same owner/lease may back an existing gs_pio_xfer SE adapter.
++ */
++int gss_commit_native_defaults(struct gss_session *);
++/* Caller must have stopped using the PIO adapter. Requires command idle and
++ * empty FIFOs, restores saved R/W fields in reverse order, output IRQ/GSI last.
++ * New pending IRQ state or restore failure keeps outputs masked and quarantines.
++ * FORCE_DEFAULT and IRQ status are NEVER replayed as part of restoration.
++ * transport_status is0 for configuration-only/successful transfer, otherwise
++ * the actual PIO error. Any transfer error forces quarantine even if idle now.
++ * Register callbacks stop when the software ownership generation is lost;
++ * the owner still receives the quarantine/release notification.
++ */
++int gss_restore(struct gss_session *, int transport_status);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/kernel-bus/nvt_kernel_bus.c
+@@ -0,0 +1,441 @@
++/* Fixed gauguin QUP0/SE0 adapter, no automatic startup.
++ * Native commit19b63c8192b1c9b7c4d931d7d3be92024bc2d778 and recovered0102
++ * establish the access sequence/addresses. Successful reads below qualify
++ * THIS invocation; a software lease cannot establish fabric accessibility or
++ * bound a blocked MMIO load. No fabric/RPMh/PLL/RCG/firmware programming here.
++ */
++#ifdef NVT_BUS_HOST_TEST
++#include "test_kernel_shim.h"
++#else
++#include <pexpert/arm64/board_config.h>
++#endif
++
++#if defined(GAUGUIN) || defined(NVT_BUS_HOST_TEST)
++#ifndef NVT_BUS_HOST_TEST
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <sys/errno.h>
++#include <kern/clock.h>
++#include <kern/locks.h>
++#include <kern/thread.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++#endif
++#include "nvt_kernel_bus.h"
++
++static LCK_GRP_DECLARE(nvt_bus_group, "gauguin-nvt-bus");
++static LCK_MTX_DECLARE(nvt_bus_mutex, &nvt_bus_group);
++
++#define NV_CLOCK_PA 0x00121000u
++#define NV_VOTE_PA 0x00152000u
++#define NV_WRAPPER_PA 0x008c0000u
++#define NV_SE_PA 0x00880000u
++#define NV_TLMM_PA 0x0f100000u
++#define NV_VOTES 0x4c0u /* bits6/7/10 only, never core/core2x bits8/9 */
++#define NV_PIN_FIELDS 0x1ffu /* pull[1:0], mux[5:2], drive[8:6] */
++#define NV_OE 0x200u
++#define NV_EGPIO_PRESENT 0x800u
++#define NV_EGPIO_ENABLE 0x1000u
++#define NV_GPIO_OUT 2u
++
++static const unsigned nv_pins[6] = {0, 1, 2, 3, 21, 22};
++static const uint32_t nv_pin_values[6] = {0x89, 0x89, 0x85, 0x84, 0x1c3, 0x1c1};
++static const uint32_t nv_vote_bits[3] = {1u << 6, 1u << 7, 1u << 10};
++static const uint32_t nv_gates[3] = {0x21004, 0x21008, 0x21144};
++struct nv_maps { vm_offset_t clock, vote, wrapper, se, pins[6]; };
++static struct nv_maps nv_maps;
++struct nv_pin_save { uint32_t cfg, io, mask; bool touched, io_touched; };
++struct nvt_bus {
++    struct nvt_bus_status status;
++    struct gss_owner setup_owner;
++    struct gss_session setup;
++    struct gs_pio pio;
++    struct nv_pin_save pins[6];
++    bool held, qualified, claimed;
++};
++static struct nvt_bus nv_bus;
++static uint64_t nv_generation;
++static bool nv_quarantined;
++/* Publish/clear ownership atomically so rejected status queries never inspect
++ * non-atomic session fields being rewritten by a different worker's open. */
++static thread_t nv_worker = THREAD_NULL;
++
++static uint32_t nv_read(vm_offset_t base, uint32_t offset)
++{
++#ifdef NVT_BUS_HOST_TEST
++    return test_mmio_read(base, offset);
++#else
++    uint32_t value = *(volatile uint32_t *)(base + offset);
++    __asm__ volatile("dmb oshld" ::: "memory");
++    return value;
++#endif
++}
++static void nv_barrier(void)
++{
++#ifdef NVT_BUS_HOST_TEST
++    test_barrier();
++#else
++    __asm__ volatile("dsb osh" ::: "memory");
++#endif
++}
++static void nv_write(vm_offset_t base, uint32_t offset, uint32_t value)
++{
++#ifdef NVT_BUS_HOST_TEST
++    test_mmio_write(base, offset, value);
++#else
++    __asm__ volatile("dmb oshst" ::: "memory");
++    *(volatile uint32_t *)(base + offset) = value;
++#endif
++    nv_barrier();
++}
++static uint64_t nv_now_us(void)
++{
++    uint64_t ns;
++    absolutetime_to_nanoseconds(mach_absolute_time(), &ns);
++    return ns / 1000u;
++}
++static bool nv_context(void)
++{
++    return current_thread() != THREAD_NULL && ml_get_interrupts_enabled() &&
++        !ml_at_interrupt_context() && get_preemption_level() == 0;
++}
++static bool nv_owned(struct nvt_bus *b)
++{
++    return b == &nv_bus && nv_context() &&
++        __atomic_load_n(&nv_worker, __ATOMIC_ACQUIRE) == current_thread() && b->held;
++}
++static int nv_set(vm_offset_t base, uint32_t off, uint32_t mask, uint32_t value)
++{
++    uint32_t want = (nv_read(base, off) & ~mask) | (value & mask);
++    nv_write(base, off, want);
++    return (nv_read(base, off) & mask) == (want & mask) ? 0 : EIO;
++}
++static bool nv_map(vm_offset_t *out, vm_offset_t pa, vm_size_t size)
++{
++    if (!*out) *out = ml_io_map(pa, size); /* permanent kernel IO mappings */
++    return *out != 0;
++}
++static bool nv_gate(uint32_t off, bool ahb)
++{
++    uint64_t start = nv_now_us();
++    for (unsigned n = 0; n < 2000; n++) {
++        uint32_t v = nv_read(nv_maps.clock, off - 0x21000u);
++        if ((ahb && (v & 2u)) || !(v & 0x80000000u) ||
++            (v & 0xf0000000u) == 0x20000000u) return true;
++        if (nv_now_us() - start >= 2000u) break;
++        delay(1);
++    }
++    return false;
++}
++static bool nv_clock(void)
++{
++    uint32_t dfs = nv_read(nv_maps.clock, 0x15c);
++    if (!(dfs & 1) || ((dfs >> 1) & 15) != 0) return false;
++    uint32_t cfg = nv_read(nv_maps.clock, 0x164);
++    return cfg == 1 && nv_read(nv_maps.clock, 0x15c) == dfs &&
++        nv_read(nv_maps.clock, 0x164) == cfg;
++}
++static int nv_restore_votes(struct nvt_bus *b)
++{
++    bool accessible = b->qualified;
++    /* Even a rejected/partial vote removal can gate SE. No SE callback may
++     * run until all required votes and native gate checks succeed again. */
++    b->qualified = false;
++    if (b->status.added_votes && nv_set(nv_maps.vote, 0, b->status.added_votes, 0)) {
++        if (accessible) {
++            bool requalified = true;
++            for (unsigned i = 0; i < 3; i++) {
++                if (nv_set(nv_maps.vote, 0, nv_vote_bits[i], nv_vote_bits[i]) ||
++                    !nv_gate(nv_gates[i], i < 2)) { requalified = false; break; }
++            }
++            b->qualified = requalified;
++        }
++        return EIO;
++    }
++    b->status.clocks_restored = true;
++    return 0;
++}
++static void nv_release_worker(struct nvt_bus *b)
++{
++    b->held = false;
++    b->qualified = false;
++    b->claimed = false;
++    __atomic_store_n(&nv_worker, THREAD_NULL, __ATOMIC_RELEASE);
++    lck_mtx_unlock(&nvt_bus_mutex);
++}
++static void nv_contain(struct nvt_bus *b, int error)
++{
++    /* Do not change pins/reset/votes on an uncertain command or failed restore.
++     * Mask attempts do not prove containment when hardware rejects a write. */
++    b->status.mask_confirmed = false;
++    if (b->qualified) {
++        int irq = nv_set(nv_maps.se, GS_IRQ_EN, 15, 0);
++        int gsi = nv_set(nv_maps.se, GS_GSI_EVENT_EN, 15, 0);
++        b->status.mask_confirmed = irq == 0 && gsi == 0;
++    }
++    b->status.state = NVT_BUS_QUARANTINED;
++    if (!b->status.error) b->status.error = error ? error : EIO;
++    nv_quarantined = true;
++}
++static bool nv_current(void *cookie, uint64_t generation)
++{
++    struct nvt_bus *b = cookie;
++    return nv_owned(b) && b->qualified && b->claimed &&
++        b->status.generation == generation;
++}
++static int nv_claim(void *cookie, uint64_t *generation)
++{
++    struct nvt_bus *b = cookie;
++    if (!nv_owned(b) || !b->qualified || b->claimed || nv_quarantined) return EBUSY;
++    b->claimed = true;
++    *generation = b->status.generation;
++    return 0;
++}
++static uint32_t nv_setup_read(void *cookie, uint64_t gen, enum gss_space sp, uint32_t off)
++{
++    (void)cookie; (void)gen; /* gss checks current before AND after callback */
++    if (sp == GSS_GCC) return nv_read(nv_maps.clock, off - 0x21000u);
++    return nv_read(sp == GSS_WRAPPER ? nv_maps.wrapper : nv_maps.se, off);
++}
++static void nv_setup_write(void *cookie, uint64_t gen, enum gss_space sp, uint32_t off, uint32_t v)
++{
++    (void)cookie; (void)gen;
++    /* Frozen setup only writes SE. A programming error must not write GCC. */
++    if (sp == GSS_SE) nv_write(nv_maps.se, off, v);
++}
++static void nv_setup_barrier(void *cookie, uint64_t gen)
++{
++    (void)cookie; (void)gen; nv_barrier();
++}
++static void nv_setup_release(void *cookie, uint64_t gen, bool quarantine)
++{
++    struct nvt_bus *b = cookie;
++    if (b->status.generation != gen) quarantine = true;
++    b->claimed = false;
++    if (quarantine) { b->status.state = NVT_BUS_QUARANTINED; nv_quarantined = true; }
++    /* The outer worker still owns resources through GPIO/vote restoration. */
++}
++static uint32_t nv_pio_read(void *cookie, uint32_t off)
++{ (void)cookie; return nv_read(nv_maps.se, off); }
++static void nv_pio_write(void *cookie, uint32_t off, uint32_t v)
++{ (void)cookie; nv_write(nv_maps.se, off, v); }
++static void nv_pio_barrier(void *cookie) { (void)cookie; nv_barrier(); }
++static uint64_t nv_pio_time(void *cookie) { (void)cookie; return nv_now_us(); }
++static void nv_pio_relax(void *cookie) { (void)cookie; delay(1); }
++
++int nvt_bus_open(struct nvt_bus **out)
++{
++    if (!out) return EINVAL;
++    *out = NULL;
++    if (!nv_context()) return EPERM;
++    int legacy = 0, probe = 0;
++    (void)PE_parse_boot_argn("sweettouchmode", &legacy, sizeof(legacy));
++    (void)PE_parse_boot_argn("sweetnvtprobe", &probe, sizeof(probe));
++    if (legacy || probe) return EBUSY;
++    if (!lck_mtx_try_lock(&nvt_bus_mutex)) return EBUSY;
++    if (nv_quarantined) { lck_mtx_unlock(&nvt_bus_mutex); return EIO; }
++    struct nvt_bus *b = &nv_bus;
++    bzero(b, sizeof(*b));
++    b->held = true;
++    __atomic_store_n(&nv_worker, current_thread(), __ATOMIC_RELEASE);
++    b->status.generation = ++nv_generation;
++    b->status.state = NVT_BUS_OPEN;
++    int error = ENOMEM;
++    if (!nv_map(&nv_maps.vote, NV_VOTE_PA, 0x1000) ||
++        !nv_map(&nv_maps.clock, NV_CLOCK_PA, 0x1000)) goto fail;
++    error = ENOTSUP;
++    if (!nv_clock()) goto fail; /* unknown source: no votes or wrapper/SE access */
++    b->status.vote_before = nv_read(nv_maps.vote, 0);
++    for (unsigned i = 0; i < 3; i++) {
++        if (!(nv_read(nv_maps.vote, 0) & nv_vote_bits[i])) {
++            b->status.added_votes |= nv_vote_bits[i];
++            error = nv_set(nv_maps.vote, 0, nv_vote_bits[i], nv_vote_bits[i]);
++            if (error) goto fail;
++        }
++        if (!nv_gate(nv_gates[i], i < 2)) { error = ETIMEDOUT; goto fail; }
++    }
++    error = ENOMEM;
++    if (!nv_map(&nv_maps.wrapper, NV_WRAPPER_PA, 0x2000)) goto fail;
++    sweet_log_mark_sync("NVT BUS: reading wrapper0, this boot access not yet qualified");
++    error = ENOTSUP;
++    if (nv_read(nv_maps.wrapper, 4) != 0x20070000u) goto fail;
++    error = ENOMEM;
++    if (!nv_map(&nv_maps.se, NV_SE_PA, 0x4000)) goto fail;
++    sweet_log_mark_sync("NVT BUS: reading SE0 identity/status/FIFO/clock qualification");
++    error = ENOTSUP;
++    if (nv_read(nv_maps.se, 0x68) != 0x101 || nv_read(nv_maps.se, 0x6c) != 0x101)
++        goto fail;
++    error = EBUSY;
++    if (nv_read(nv_maps.se, 0x40) & 0x1001) goto fail;
++    uint32_t p0 = nv_read(nv_maps.se, 0xe24), p1 = nv_read(nv_maps.se, 0xe28);
++    error = ENOTSUP;
++    if (((p0 >> 24) & 63) != 32 || ((p1 >> 24) & 63) != 32 ||
++        ((p0 >> 16) & 63) != 16 || ((p1 >> 16) & 63) != 16 ||
++        (nv_read(nv_maps.se, 0x64) & 1) || (nv_read(nv_maps.se, 0x258) & 1) ||
++        nv_read(nv_maps.se, 0x7c) != 0 || !nv_clock()) goto fail;
++    error = EBUSY;
++    if ((nv_read(nv_maps.se, 0x800) & GS_TX_WC_MASK) ||
++        (nv_read(nv_maps.se, 0x804) & GS_RX_WC_MASK)) goto fail;
++    b->qualified = true;
++    b->status.source_hz = 19200000;
++    b->setup_owner = (struct gss_owner){b, nv_claim, nv_current, nv_setup_read,
++        nv_setup_write, nv_setup_barrier, nv_setup_release};
++    b->pio.io = (struct gs_io){b, nv_pio_read, nv_pio_write, nv_pio_barrier,
++        nv_pio_time, nv_pio_relax};
++    b->pio.timeout_us = 20000; b->pio.recovery_timeout_us = 2000;
++    b->pio.max_polls = 20000;
++    *out = b;
++    return 0;
++fail:
++    b->status.error = error;
++    if (nv_restore_votes(b)) nv_contain(b, EIO);
++    else b->status.state = NVT_BUS_CLOSED;
++    nv_release_worker(b);
++    return error;
++}
++
++int nvt_bus_configure(struct nvt_bus *b, uint32_t max_sck_hz)
++{
++    if (!nv_owned(b)) return EPERM;
++    if (b->status.state != NVT_BUS_OPEN || nv_quarantined) return EBUSY;
++    if (!max_sck_hz || max_sck_hz > 1000000) return EINVAL;
++    int result = gss_prepare(&b->setup, &b->setup_owner, max_sck_hz);
++    if (result == GSS_PREPARED) result = gss_commit_native_defaults(&b->setup);
++    b->status.setup_result = result;
++    if (result != GSS_OK) { b->status.error = EIO; return EIO; }
++    b->status.state = NVT_BUS_CONFIGURED;
++    b->status.sck_hz = b->setup.report.sck_hz;
++    return 0;
++}
++
++int nvt_bus_activate_native_pins(struct nvt_bus *b)
++{
++    if (!nv_owned(b)) return EPERM;
++    if (b->status.state != NVT_BUS_CONFIGURED || b->status.pins_active) return EBUSY;
++    /* Map/snapshot ALL before the first GPIO write. Only these six pins. */
++    for (unsigned i = 0; i < 6; i++) {
++        if (!nv_map(&nv_maps.pins[i], NV_TLMM_PA + nv_pins[i] * 0x1000u, 0x1000))
++            return ENOMEM;
++        b->pins[i].cfg = nv_read(nv_maps.pins[i], 0);
++        b->pins[i].io = nv_read(nv_maps.pins[i], 4);
++        b->pins[i].mask = NV_PIN_FIELDS | (i >= 4 ? NV_OE : 0) |
++            ((b->pins[i].cfg & NV_EGPIO_PRESENT) ? NV_EGPIO_ENABLE : 0);
++    }
++    /* Assert reset BEFORE muxing SPI pins. IO low precedes the OE write. */
++    b->pins[4].io_touched = true;
++    if (nv_set(nv_maps.pins[4], 4, NV_GPIO_OUT, 0)) goto failed;
++    static const unsigned order[6] = {4, 5, 0, 1, 2, 3};
++    for (unsigned n = 0; n < 6; n++) {
++        unsigned i = order[n];
++        uint32_t value = nv_pin_values[i] | (i == 4 ? NV_OE : 0) |
++            ((b->pins[i].cfg & NV_EGPIO_PRESENT) ? NV_EGPIO_ENABLE : 0);
++        b->pins[i].touched = true;
++        if (nv_set(nv_maps.pins[i], 0, b->pins[i].mask, value)) goto failed;
++    }
++    b->status.pins_active = true; b->status.reset_high = false;
++    return 0;
++failed:
++    nv_contain(b, EIO); /* uncertain pin configuration: no automatic retry */
++    return EIO;
++}
++
++int nvt_bus_set_reset(struct nvt_bus *b, bool high)
++{
++    if (!nv_owned(b)) return EPERM;
++    if (b->status.state != NVT_BUS_CONFIGURED || !b->status.pins_active) return EBUSY;
++    if (nv_set(nv_maps.pins[4], 4, NV_GPIO_OUT, high ? NV_GPIO_OUT : 0)) {
++        nv_contain(b, EIO); return EIO;
++    }
++    b->status.reset_high = high;
++    return 0;
++}
++
++int nvt_bus_xfer(struct nvt_bus *b, const uint8_t *tx, uint8_t *rx, size_t length)
++{
++    if (!nv_owned(b)) return EPERM;
++    if (b->status.state != NVT_BUS_CONFIGURED || !b->status.pins_active ||
++        !nv_current(b, b->status.generation)) return EBUSY;
++    if (!tx || !length || length > GS_MAX_WIRE) return EINVAL;
++    if (rx && ((uintptr_t)tx <= (uintptr_t)rx ?
++        (uintptr_t)rx - (uintptr_t)tx : (uintptr_t)tx - (uintptr_t)rx) < length)
++        return EINVAL;
++    /* Recheck the qualified source before EVERY command. Configuration/clock
++     * changes by another owner are a fault; never send at an unbounded SCK. */
++    if (!nv_clock() || nv_read(nv_maps.se, 0x7c) != 0 ||
++        (nv_read(nv_maps.se, 0x48) & 0xfff1) != ((b->setup.report.divider << 4) | 1)) {
++        nv_contain(b, EIO); return EIO;
++    }
++    int result = gs_pio_xfer(&b->pio, tx, rx, length);
++    b->status.pio_result = result;
++    if (result != GS_OK) {
++        b->status.error = result == GS_TIMEOUT ? ETIMEDOUT : EIO;
++        (void)gss_restore(&b->setup, result);
++        nv_contain(b, b->status.error);
++        return b->status.error;
++    }
++    return 0;
++}
++
++static int nv_restore_pins(struct nvt_bus *b)
++{
++    for (unsigned n = 6; n > 0; n--) {
++        unsigned i = n - 1;
++        struct nv_pin_save *p = &b->pins[i];
++        if (!p->touched && !p->io_touched) continue;
++        /* Reset: tri-state before restoring the saved latch, then restore its
++         * original mux/pull/drive/OE. Do not manufacture a reset-high edge. */
++        if (p->io_touched && (nv_set(nv_maps.pins[i], 0, NV_OE, 0) ||
++            nv_set(nv_maps.pins[i], 4, NV_GPIO_OUT, p->io))) return EIO;
++        if (nv_set(nv_maps.pins[i], 0, p->mask, p->cfg)) return EIO;
++    }
++    b->status.pins_restored = true;
++    return 0;
++}
++
++static void nv_snapshot(struct nvt_bus *b, struct nvt_bus_status *out)
++{
++    if (out) {
++        *out = b->status;
++        out->setup = b->setup.report;
++        out->pio = b->pio.diag;
++    }
++}
++
++int nvt_bus_close(struct nvt_bus *b, struct nvt_bus_status *final_status)
++{
++    if (!nv_owned(b)) return EPERM;
++    int error = 0;
++    if (b->setup.state == GSS_HELD || b->setup.state == GSS_CONFIGURED) {
++        int result = gss_restore(&b->setup, nv_quarantined ? EIO : 0);
++        if (result) error = EIO;
++    }
++    if (nv_quarantined || error) nv_contain(b, error);
++    else if (nv_restore_pins(b) || nv_restore_votes(b)) nv_contain(b, EIO);
++    else b->status.state = NVT_BUS_CLOSED;
++    error = nv_quarantined ? (b->status.error ? b->status.error : EIO) : 0;
++    nv_snapshot(b, final_status);
++    nv_release_worker(b);
++    return error;
++}
++
++void nvt_bus_abort(struct nvt_bus *b, int error, struct nvt_bus_status *final_status)
++{
++    if (!nv_owned(b)) return;
++    if (b->setup.state == GSS_HELD || b->setup.state == GSS_CONFIGURED)
++        (void)gss_restore(&b->setup, error ? error : EIO);
++    nv_contain(b, error);
++    nv_snapshot(b, final_status);
++    nv_release_worker(b);
++}
++
++int nvt_bus_get_status(struct nvt_bus *b, struct nvt_bus_status *out)
++{
++    if (!out) return EINVAL;
++    if (!nv_owned(b)) return EPERM;
++    nv_snapshot(b, out);
++    return 0;
++}
++#endif /* GAUGUIN || NVT_BUS_HOST_TEST */
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/kernel-bus/nvt_kernel_bus.h
+@@ -0,0 +1,59 @@
++#ifndef GAUGUIN_NVT_KERNEL_BUS_H
++#define GAUGUIN_NVT_KERNEL_BUS_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++#include "../setup/geni_spi_setup.h"
++#include "../geni_spi_pio.h"
++
++struct nvt_bus;
++enum nvt_bus_state { NVT_BUS_CLOSED, NVT_BUS_OPEN, NVT_BUS_CONFIGURED,
++                     NVT_BUS_QUARANTINED };
++struct nvt_bus_status {
++    enum nvt_bus_state state;
++    int error, setup_result, pio_result;
++    uint64_t generation;
++    uint32_t vote_before, added_votes, source_hz, sck_hz;
++    bool pins_active, reset_high, pins_restored, clocks_restored, mask_confirmed;
++    struct gss_report setup;
++    struct gs_diag pio;
++};
++
++/* All calls belong to ONE ordinary kernel worker, IRQs enabled and preemption
++ * enabled. The worker retains exclusive ownership until close/abort. A handle
++ * becomes invalid after either call. No parallel legacy sweetnvtprobe or
++ * sweettouchmode is allowed; open also rejects their nonzero boot arguments.
++ * Return values are positive BSD errno values (0 success).
++ * No driver startup hook/thread/map/IO. Only XNU software-lock registration
++ * runs automatically during the kernel's ordinary LOCKS startup phase.
++ */
++int nvt_bus_open(struct nvt_bus **out);
++/* Requests1..1000000Hz. Exact observed XO19.2MHz profile gives960kHz at1MHz.
++ * configure explicitly performs native FORCE_DEFAULT and observed IRQ W1C;
++ * these history/line actions are not reversible. It does NOT mux GPIOs. */
++int nvt_bus_configure(struct nvt_bus *, uint32_t max_sck_hz);
++/* Explicitly snapshot/mux GPIO0..3; GPIO21 output LOW, GPIO22 input. Reset's
++ * output latch is written LOW before output enable, even if already output.
++ * No delay or reset release is hidden in this call. */
++int nvt_bus_activate_native_pins(struct nvt_bus *);
++int nvt_bus_set_reset(struct nvt_bus *, bool high);
++/* Raw full-duplex bytes, single CS,1..256B. tx initialized; rx may beNULL to
++ * discard received page-write data. tx/rx must not overlap. No prefix/dummy
++ * modification or protocol.
++ * Requires explicitly activated pins. RESET LOW is allowed: native eng-reset
++ * is an SPI write BEFORE GPIO21 goes high. Upper layer owns that sequence. */
++int nvt_bus_xfer(struct nvt_bus *, const uint8_t *tx, uint8_t *rx, size_t wire_len);
++/* Success: restore setup, touched GPIO fields, then only votes we added.
++ * Failure: retain clocks/pins, best-effort IRQ/GSI masking, permanent quarantine
++ * for this boot. While still holding the mutex, copy the complete final report
++ * to optional_final_status (NULL is allowed), then release/invalidate handle.
++ * An invalid/non-owned handle returnsEPERM without touching the output. */
++int nvt_bus_close(struct nvt_bus *, struct nvt_bus_status *optional_final_status);
++/* Explicit fault exit: always quarantine, never reset touch/retry/unvote.
++ * Copies optional final report before releasing the worker's mutex. A later
++ * open returnsEIO. Invalid/non-owned handle is a no-op, including the output. */
++void nvt_bus_abort(struct nvt_bus *, int error,
++    struct nvt_bus_status *optional_final_status);
++/* Strictly owner-held snapshot; after close/abort returnsEPERM. */
++int nvt_bus_get_status(struct nvt_bus *, struct nvt_bus_status *);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/firmware/nvt_firmware.c
+@@ -0,0 +1,149 @@
++#include "nvt_firmware.h"
++#include <string.h>
++
++static uint32_t u32(const uint8_t *p)
++{
++    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
++}
++static int range(uint32_t start, uint32_t bytes, uint32_t limit)
++{
++    return bytes && start < limit && bytes <= limit - start;
++}
++static int overlap(uint32_t a, uint32_t an, uint32_t b, uint32_t bn)
++{
++    return (uint64_t)a < (uint64_t)b + bn && (uint64_t)b < (uint64_t)a + an;
++}
++static int allowed(uint32_t start, uint32_t bytes, const struct nfw_policy *p)
++{
++    for (size_t i = 0; i < p->window_count; ++i) {
++        struct nfw_window w = p->windows[i];
++        if (start >= w.base && start - w.base < w.bytes && bytes <= w.bytes - (start - w.base)) return 1;
++    }
++    return 0;
++}
++enum nfw_result nfw_parse(const uint8_t *b, size_t length, const struct nfw_policy *policy, struct nfw_image *out)
++{
++    struct nfw_image image = {0};
++    if (!b || !policy || !out || !policy->window_count || policy->window_count > NFW_MAX_WINDOWS) return NFW_ARGUMENT;
++    if (length < 4096 || length > NFW_MAX_FILE) return NFW_BOUNDS;
++    for (size_t i = 0; i < policy->window_count; ++i) {
++        struct nfw_window w = policy->windows[i];
++        if (!range(w.base, w.bytes, NFW_ADDRESS_LIMIT)) return NFW_SRAM;
++        for (size_t j = 0; j < i; ++j)
++            if (overlap(w.base, w.bytes, policy->windows[j].base, policy->windows[j].bytes)) return NFW_OVERLAP;
++    }
++    image.file_bytes = (uint32_t)length;
++    image.header_bytes = u32(b);
++    if (image.header_bytes < 0x30 || image.header_bytes > length || (image.header_bytes - 0x30) % 16) return NFW_HEADER;
++    uint32_t infos = (image.header_bytes - 0x30) / 16;
++    uint32_t overlays = (b[0x28] & 0x10) ? (uint32_t)(b[0x28] & 0x0f) : 0;
++    if (infos > NFW_MAX_PARTITIONS - 2 || overlays > NFW_MAX_PARTITIONS - 2 - infos) return NFW_CAPACITY;
++    image.table_entries = 2 + infos + overlays;
++    for (uint32_t end = image.file_bytes & ~4095u; end; end -= 4096) {
++        if (!memcmp(b + end - 3, "NVT", 3) || !memcmp(b + end - 3, "MOD", 3)) {
++            image.needed_file_bytes = end;
++            break;
++        }
++    }
++    if (!image.needed_file_bytes) return NFW_END_MARKER;
++    image.version = b[image.needed_file_bytes - 4096];
++    if ((unsigned)image.version + b[image.needed_file_bytes - 4095] != 255) return NFW_VERSION;
++    for (uint32_t i = 0; i < image.table_entries; ++i) {
++        struct nfw_partition part = {0};
++        if (i < 2) {
++            part.kind = i ? NFW_DLM : NFW_ILM;
++            part.bin_offset = u32(b + i * 12);
++            part.sram = u32(b + i * 12 + 4);
++            part.size_field = u32(b + i * 12 + 8);
++            part.golden_crc = u32(b + 0x18 + i * 4);
++            if (!part.size_field || part.size_field > 0x1ffff) return NFW_CRC_LENGTH;
++        } else {
++            uint32_t pos;
++            if (i < 2 + infos) {
++                part.kind = NFW_INFO; part.index = i - 2;
++                pos = 0x30 + part.index * 16;
++            } else {
++                part.kind = NFW_OVERLAY; part.index = i - 2 - infos;
++                const struct nfw_partition *dlm = &image.parts[1];
++                /* Overlay metadata resides inside the DLM source payload. */
++                if (overlays * 16 > dlm->bytes) return NFW_HEADER;
++                pos = dlm->bin_offset + part.index * 16;
++            }
++            if (pos > image.file_bytes || 16 > image.file_bytes - pos) return NFW_HEADER;
++            part.sram = u32(b + pos); part.size_field = u32(b + pos + 4);
++            part.bin_offset = u32(b + pos + 8); part.golden_crc = u32(b + pos + 12);
++        }
++        if (!part.size_field) { ++image.reserved_entries; continue; }
++        if (part.size_field == UINT32_MAX) return NFW_BOUNDS;
++        part.bytes = part.size_field + 1;
++        if (!range(part.bin_offset, part.bytes, image.file_bytes)) return NFW_BOUNDS;
++        if (!range(part.sram, part.bytes, NFW_ADDRESS_LIMIT) || !allowed(part.sram, part.bytes, policy)) return NFW_SRAM;
++        for (size_t j = 0; j < image.part_count; ++j)
++            if (overlap(part.sram, part.bytes, image.parts[j].sram, image.parts[j].bytes)) return NFW_OVERLAP;
++        if (part.bytes > UINT32_MAX - image.total_write_bytes) return NFW_BOUNDS;
++        image.total_write_bytes += part.bytes;
++        image.parts[image.part_count++] = part;
++    }
++    *out = image;
++    return NFW_OK;
++}
++static enum nfw_result valid_plan(const struct nfw_image *image, unsigned max_wire)
++{
++    if (!image || max_wire < 3 || max_wire > NFW_MAX_WIRE || image->part_count < 2 || image->part_count > NFW_MAX_PARTITIONS) return NFW_ARGUMENT;
++    for (size_t i = 0; i < image->part_count; ++i) {
++        const struct nfw_partition *p = &image->parts[i];
++        if (!p->size_field || p->size_field == UINT32_MAX || p->bytes != p->size_field + 1 ||
++            !range(p->bin_offset, p->bytes, image->file_bytes) || !range(p->sram, p->bytes, NFW_ADDRESS_LIMIT)) return NFW_BOUNDS;
++        if ((p->sram & 0x7f) == 0x7f) return NFW_UNQUALIFIED_OFFSET;
++    }
++    return NFW_OK;
++}
++enum nfw_result nfw_next(const struct nfw_image *image, unsigned max_wire, struct nfw_cursor *cursor, struct nfw_chunk *out, int *done)
++{
++    enum nfw_result result = valid_plan(image, max_wire);
++    if (result != NFW_OK) return result;
++    if (!cursor || !out || !done || cursor->partition > image->part_count) return NFW_ARGUMENT;
++    if (cursor->partition == image->part_count) {
++        if (cursor->offset) return NFW_ARGUMENT;
++        *done = 1; return NFW_OK;
++    }
++    const struct nfw_partition *p = &image->parts[cursor->partition];
++    if (cursor->offset >= p->bytes) return NFW_BOUNDS;
++    struct nfw_chunk chunk = {0};
++    chunk.partition = cursor->partition;
++    chunk.bin_offset = p->bin_offset + cursor->offset;
++    chunk.sram = p->sram + cursor->offset;
++    if ((chunk.sram & 0x7f) == 0x7f) return NFW_UNQUALIFIED_OFFSET;
++    uint32_t bytes = p->bytes - cursor->offset;
++    uint32_t page_left = NFW_PAGE_BYTES - (chunk.sram & (NFW_PAGE_BYTES - 1));
++    if (bytes > page_left) bytes = page_left;
++    if (bytes > max_wire - 1) bytes = max_wire - 1;
++    if (bytes < p->bytes - cursor->offset && ((chunk.sram + bytes) & 0x7f) == 0x7f) --bytes;
++    chunk.payload_bytes = (uint16_t)bytes; chunk.wire_bytes = (uint16_t)(bytes + 1);
++    chunk.page[0] = 0xff; chunk.page[1] = (uint8_t)(chunk.sram >> 15); chunk.page[2] = (uint8_t)(chunk.sram >> 7);
++    chunk.command = (uint8_t)(0x80 | (chunk.sram & 0x7f));
++    struct nfw_cursor next = *cursor;
++    next.offset += bytes;
++    if (next.offset == p->bytes) { ++next.partition; next.offset = 0; }
++    *cursor = next; *out = chunk; *done = 0;
++    return NFW_OK;
++}
++enum nfw_result nfw_chunk_count(const struct nfw_image *image, unsigned max_wire, uint32_t *out)
++{
++    enum nfw_result result = valid_plan(image, max_wire);
++    if (result != NFW_OK) return result;
++    if (!out) return NFW_ARGUMENT;
++    uint64_t count = 0; uint32_t step = max_wire - 1;
++    for (size_t i = 0; i < image->part_count; ++i) {
++        const struct nfw_partition *p = &image->parts[i];
++        uint32_t first = NFW_PAGE_BYTES - (p->sram & (NFW_PAGE_BYTES - 1));
++        if (first > p->bytes) first = p->bytes;
++        uint32_t remaining = p->bytes - first;
++        count += (first + step - 1) / step;
++        count += (remaining / NFW_PAGE_BYTES) * (uint64_t)((NFW_PAGE_BYTES + step - 1) / step);
++        count += ((remaining % NFW_PAGE_BYTES) + step - 1) / step;
++    }
++    if (count > UINT32_MAX) return NFW_CAPACITY;
++    *out = (uint32_t)count;
++    return NFW_OK;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/firmware/nvt_firmware.h
+@@ -0,0 +1,69 @@
++/* Pure offline NT36675/hw_crc=2 image parser and SRAM write planner.
++ * No SPI, reset, register writes, allocation, firmware execution or success fence.
++ */
++#ifndef NVT_FIRMWARE_H
++#define NVT_FIRMWARE_H
++#include <stddef.h>
++#include <stdint.h>
++
++#define NFW_MAX_PARTITIONS 64u
++#define NFW_MAX_WINDOWS 8u
++#define NFW_PAGE_BYTES 128u
++#define NFW_MAX_WIRE 256u /* current gs_pio_xfer capacity, not hardware qualification */
++#define NFW_ADDRESS_LIMIT 0x800000u /* 16 page bits plus 7 offset bits */
++#define NFW_MAX_FILE (4u * 1024u * 1024u)
++
++enum nfw_result {
++    NFW_OK, NFW_ARGUMENT, NFW_HEADER, NFW_BOUNDS, NFW_CAPACITY,
++    NFW_SRAM, NFW_OVERLAP, NFW_CRC_LENGTH, NFW_END_MARKER, NFW_VERSION,
++    NFW_UNQUALIFIED_OFFSET
++};
++enum nfw_kind { NFW_ILM, NFW_DLM, NFW_INFO, NFW_OVERLAY };
++struct nfw_window { uint32_t base, bytes; };
++struct nfw_policy {
++    size_t window_count;
++    struct nfw_window windows[NFW_MAX_WINDOWS];
++};
++struct nfw_partition {
++    enum nfw_kind kind;
++    uint32_t index, bin_offset, sram, size_field, bytes, golden_crc;
++};
++struct nfw_image {
++    uint32_t file_bytes, header_bytes, needed_file_bytes, total_write_bytes;
++    uint32_t table_entries, reserved_entries;
++    uint8_t version;
++    size_t part_count;
++    struct nfw_partition parts[NFW_MAX_PARTITIONS];
++};
++struct nfw_cursor { size_t partition; uint32_t offset; };
++struct nfw_chunk {
++    size_t partition;
++    uint32_t bin_offset, sram;
++    uint16_t payload_bytes, wire_bytes;
++    uint8_t page[3];   /* raw write: FF, address[22:15], address[14:7] */
++    uint8_t command;   /* raw write command: 0x80 | address[6:0]; no read dummy */
++};
++
++/* Policy windows must be caller-qualified, nonempty, nonoverlapping SRAM only.
++ * They are not inferred from the 23-bit protocol addressability. Zero size_field
++ * means reserved (skip); every nonzero field describes bytes=size_field+1.
++ * ILM/DLM must exist and size_field must fit the hw_crc=2 17-bit length register.
++ * All parse output remains unchanged on failure; golden_crc is opaque metadata,
++ * not a computed/authenticated digest. Caller must pin the actual firmware file.
++ */
++enum nfw_result nfw_parse(const uint8_t *, size_t, const struct nfw_policy *, struct nfw_image *);
++
++/* Caller keeps the successfully parsed image immutable. A chunk emits metadata
++ * only; two separate CS transactions are needed (page then command+payload).
++ * Caller serializes the entire loader and aborts on any real transfer failure.
++ * max_wire 3..256 is a caller ceiling, including the command byte. Each chunk
++ * also stops at the 128-byte page boundary. A conservative first plan uses64.
++ * Until byte-offset127 writes are qualified separately, never emit data with
++ * command FF (the page command). Avoid leaving a last one-byte page fragment;
++ * reject a partition/cursor already starting at127. End-of-plan sets done=1,
++ * leaves cursor/chunk unchanged. Failure changes none.
++ */
++enum nfw_result nfw_next(const struct nfw_image *, unsigned max_wire,
++    struct nfw_cursor *, struct nfw_chunk *, int *done);
++enum nfw_result nfw_chunk_count(const struct nfw_image *, unsigned max_wire, uint32_t *);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/bootstrap/nvt_bootstrap.c
+@@ -0,0 +1,287 @@
++#include "nvt_bootstrap.h"
++#include "../firmware/nvt_firmware.h"
++#include <string.h>
++
++/* Fixed DT/native profile; actual trim must select NT36675/hw_crc2 before load.
++ * Native source anchors: project docs/gauguin-nvt.md. */
++#define ENG_RESET 0x7fff80u
++#define SW_RESET 0x3f0feu
++#define SPI_FAST 0x3f310u
++#define TRIM_ADDRESS 0x1f64eu
++#define CRC_FLAG 0x3f133u
++#define CRC_ENABLE 0x3f30eu
++#define BOOT_READY 0x3f10du
++#define TOTAL_TIMEOUT_US UINT64_C(120000000)
++
++struct context {
++    struct nbs_session *session;
++    const struct nbs_io *io;
++    uint64_t start, last;
++};
++static int clock_check(struct context *c)
++{
++    uint64_t now = c->io->now_us(c->io->cookie);
++    if (now < c->last) return NBS_CLOCK;
++    c->last = now;
++    c->session->report.elapsed_us = now - c->start;
++    c->session->report.valid |= NBS_VALID_ELAPSED;
++    return now - c->start > TOTAL_TIMEOUT_US ? NBS_TIMEOUT : NBS_OK;
++}
++static int phase(struct context *c, enum nbs_phase next, uint32_t done, uint32_t total)
++{
++    c->session->report.phase = next;
++    if (c->io->progress) c->io->progress(c->io->cookie, next, done, total);
++    return clock_check(c);
++}
++static int delay(struct context *c, unsigned ms)
++{
++    int result = clock_check(c);
++    if (result) return result;
++    uint64_t before = c->last;
++    c->io->delay_ms(c->io->cookie, ms);
++    result = clock_check(c);
++    if (result) return result;
++    return c->last - before < (uint64_t)ms * 1000 ? NBS_CLOCK : NBS_OK;
++}
++static int xfer(struct context *c, const uint8_t *tx, uint8_t *rx, size_t length)
++{
++    int result = clock_check(c);
++    if (result) return result;
++    c->session->report.hardware_touched = true;
++    ++c->session->report.transfers;
++    result = c->io->xfer(c->io->cookie, tx, rx, length);
++    if (result) { c->session->report.callback_error = result; return NBS_TRANSPORT; }
++    return clock_check(c);
++}
++static int set_reset(struct context *c, bool high)
++{
++    int result = clock_check(c);
++    if (result) return result;
++    c->session->report.hardware_touched = true;
++    result = c->io->reset(c->io->cookie, high);
++    if (result) { c->session->report.callback_error = result; return NBS_RESET_IO; }
++    c->session->report.reset_raised = high;
++    c->session->report.valid |= NBS_VALID_RESET_PIN;
++    return clock_check(c);
++}
++static int page(struct context *c, uint32_t address)
++{
++    uint8_t tx[] = {0xff, (uint8_t)(address >> 15), (uint8_t)(address >> 7)};
++    if (address >= NFW_ADDRESS_LIMIT) return NBS_ARGUMENT;
++    return xfer(c, tx, NULL, sizeof(tx));
++}
++static int read_memory(struct context *c, uint32_t address, uint8_t *out, size_t bytes)
++{
++    uint8_t tx[NBS_WRITE_WIRE_MAX] = {0}, rx[NBS_WRITE_WIRE_MAX];
++    if (!bytes || bytes > sizeof(tx) - 2 || address >= NFW_ADDRESS_LIMIT ||
++        bytes > NFW_PAGE_BYTES - (address & 0x7f)) return NBS_ARGUMENT;
++    int result = page(c, address);
++    if (result) return result;
++    tx[0] = (uint8_t)(address & 0x7f);
++    memset(rx, 0xa5, sizeof(rx));
++    result = xfer(c, tx, rx, bytes + 2);
++    if (!result) memcpy(out, rx + 2, bytes);
++    return result;
++}
++static int write_memory(struct context *c, uint32_t address, const uint8_t *data, size_t bytes)
++{
++    uint8_t tx[NBS_WRITE_WIRE_MAX] = {0};
++    if (!bytes || bytes >= sizeof(tx) || address >= NFW_ADDRESS_LIMIT ||
++        (address & 0x7f) == 0x7f || bytes > NFW_PAGE_BYTES - (address & 0x7f)) return NBS_ARGUMENT;
++    int result = page(c, address);
++    if (result) return result;
++    tx[0] = (uint8_t)(0x80 | (address & 0x7f));
++    memcpy(tx + 1, data, bytes);
++    return xfer(c, tx, NULL, bytes + 1);
++}
++static int write_byte(struct context *c, uint32_t address, uint8_t value)
++{
++    return write_memory(c, address, &value, 1);
++}
++static int write_verify(struct context *c, uint32_t address, const uint8_t *data, size_t bytes)
++{
++    uint8_t actual[4];
++    if (bytes > sizeof(actual)) return NBS_ARGUMENT;
++    int result = write_memory(c, address, data, bytes);
++    if (result) return result;
++    result = read_memory(c, address, actual, bytes);
++    return result ? result : memcmp(actual, data, bytes) ? NBS_READBACK : NBS_OK;
++}
++static uint32_t little32(const uint8_t data[4])
++{
++    return (uint32_t)data[0] | (uint32_t)data[1] << 8 | (uint32_t)data[2] << 16 | (uint32_t)data[3] << 24;
++}
++static int read_word(struct context *c, uint32_t address, uint32_t *out)
++{
++    uint8_t value[4]; int result = read_memory(c, address, value, sizeof(value));
++    if (!result) *out = little32(value);
++    return result;
++}
++static int bootloader_reset(struct context *c)
++{
++    int result = write_byte(c, SW_RESET, 0x69);
++    if (!result) result = delay(c, 5);
++    if (!result) result = write_byte(c, SPI_FAST, 0);
++    return result;
++}
++static int event_read(struct context *c, enum nvt_read_kind kind, uint8_t rx[NVT_MAX_WIRE])
++{
++    struct nvt_request request;
++    if (nvt_make_request(kind, &request) != NVT_OK) return NBS_ARGUMENT;
++    int result = xfer(c, request.page, NULL, sizeof(request.page));
++    if (result) return result;
++    memset(rx, 0xa5, NVT_MAX_WIRE);
++    result = xfer(c, request.tx, rx, request.wire_length);
++    /* A failed transaction poisons the adapter: do not attempt page restoration. */
++    if (result) return result;
++    return xfer(c, request.restore_page, NULL, sizeof(request.restore_page));
++}
++static int fixed_image(const uint8_t *firmware, size_t bytes, struct nfw_image *image)
++{
++    static const struct nfw_policy policy = {2, {{0, 0x13608}, {0x27040, 0x44a0}}};
++    static const uint32_t offsets[] = {0x100, 0x18100, 0};
++    static const uint32_t addresses[] = {0, 0x27140, 0x27040};
++    static const uint32_t lengths[] = {79368, 17312, 256};
++    static const uint32_t crcs[] = {0x15fe9c6d, 0x90fe20f8, 0xb0183db6};
++    if (bytes != NBS_FIRMWARE_BYTES || nfw_parse(firmware, bytes, &policy, image) != NFW_OK) return NBS_FIRMWARE;
++    if (image->header_bytes != 256 || image->needed_file_bytes != 0x20000 || image->version != 0x10 ||
++        image->part_count != 3 || image->table_entries != 15 || image->reserved_entries != 12 || image->total_write_bytes != 96936)
++        return NBS_FIRMWARE;
++    for (size_t i = 0; i < 3; ++i) {
++        const struct nfw_partition *p = &image->parts[i];
++        if (p->kind != (enum nfw_kind)i || p->index != (i == 2 ? 12u : 0u) ||
++            p->bin_offset != offsets[i] || p->sram != addresses[i] || p->bytes != lengths[i] || p->golden_crc != crcs[i])
++            return NBS_FIRMWARE;
++    }
++    return NBS_OK;
++}
++static int upload(struct context *c, const uint8_t *firmware, const struct nfw_image *image)
++{
++    struct nfw_cursor cursor = {0}; struct nfw_chunk chunk; int done;
++    for (;;) {
++        if (nfw_next(image, NBS_WRITE_WIRE_MAX, &cursor, &chunk, &done) != NFW_OK) return NBS_FIRMWARE;
++        if (done) return NBS_OK;
++        uint8_t tx[NBS_WRITE_WIRE_MAX] = {0};
++        int result = xfer(c, chunk.page, NULL, sizeof(chunk.page));
++        if (result) return result;
++        tx[0] = chunk.command; memcpy(tx + 1, firmware + chunk.bin_offset, chunk.payload_bytes);
++        result = xfer(c, tx, NULL, chunk.wire_bytes);
++        if (result) return result;
++        c->session->report.bytes_written += chunk.payload_bytes;
++        if (!(c->session->report.transfers % 256)) {
++            result = phase(c, NBS_UPLOAD, c->session->report.bytes_written, image->total_write_bytes);
++            if (result) return result;
++        }
++    }
++}
++static int verify_sram(struct context *c, const uint8_t *firmware, const struct nfw_image *image)
++{
++    for (size_t i = 0; i < image->part_count; ++i) {
++        const struct nfw_partition *p = &image->parts[i];
++        for (uint32_t offset = 0; offset < p->bytes;) {
++            uint8_t data[NBS_WRITE_WIRE_MAX - 2];
++            uint32_t address = p->sram + offset;
++            uint32_t bytes = p->bytes - offset;
++            uint32_t page_left = NFW_PAGE_BYTES - (address & 0x7f);
++            if (bytes > sizeof(data)) bytes = sizeof(data);
++            if (bytes > page_left) bytes = page_left;
++            int result = read_memory(c, address, data, bytes);
++            if (result) return result;
++            if (memcmp(data, firmware + p->bin_offset + offset, bytes)) return NBS_READBACK;
++            offset += bytes; c->session->report.bytes_verified += bytes;
++            if (!(c->session->report.transfers % 256)) {
++                result = phase(c, NBS_SRAM_READBACK, c->session->report.bytes_verified, image->total_write_bytes);
++                if (result) return result;
++            }
++        }
++    }
++    return NBS_OK;
++}
++static int crc_bank(struct context *c, const struct nfw_partition *p, uint32_t dest, uint32_t length, uint32_t golden)
++{
++    uint8_t address[] = {(uint8_t)p->sram, (uint8_t)(p->sram >> 8), (uint8_t)(p->sram >> 16)};
++    uint8_t size[] = {(uint8_t)p->size_field, (uint8_t)(p->size_field >> 8), (uint8_t)((p->size_field >> 16) & 1)};
++    uint8_t crc[] = {(uint8_t)p->golden_crc, (uint8_t)(p->golden_crc >> 8), (uint8_t)(p->golden_crc >> 16), (uint8_t)(p->golden_crc >> 24)};
++    int result = write_verify(c, dest, address, sizeof(address));
++    if (!result) result = write_verify(c, length, size, sizeof(size));
++    if (!result) result = write_verify(c, golden, crc, sizeof(crc));
++    return result;
++}
++
++int nbs_bootstrap(struct nbs_session *s, const struct nbs_io *io, const uint8_t *firmware, size_t bytes)
++{
++    if (!s) return NBS_ARGUMENT;
++    if (s->attempted) return NBS_ALREADY_USED; /* Preserve first attempt evidence. */
++    s->attempted = true; memset(&s->report, 0, sizeof(s->report));
++    s->report.phase = NBS_VALIDATE;
++    if (!io || !io->xfer || !io->reset || !io->delay_ms || !io->now_us || !firmware) {
++        s->report.result = NBS_ARGUMENT; return NBS_ARGUMENT;
++    }
++    struct nfw_image image;
++    int result = fixed_image(firmware, bytes, &image);
++    if (result) { s->report.result = result; return result; }
++    uint64_t start = io->now_us(io->cookie);
++    struct context c = {s, io, start, start};
++    uint8_t value = 0, rx[NVT_MAX_WIRE];
++#define STEP(expression) do { result = (expression); if (result) goto fail; } while (0)
++    STEP(phase(&c, NBS_RESET_LOW, 0, 0)); STEP(set_reset(&c, false));
++    STEP(phase(&c, NBS_ENG_RESET, 0, 0)); STEP(write_byte(&c, ENG_RESET, 0x5a)); STEP(delay(&c, 1));
++    STEP(phase(&c, NBS_RESET_HIGH, 0, 0)); STEP(set_reset(&c, true)); STEP(delay(&c, 10));
++    STEP(phase(&c, NBS_IDENTIFY_RESET, 0, 0)); STEP(bootloader_reset(&c));
++    STEP(phase(&c, NBS_TRIM, 0, 0)); STEP(read_memory(&c, TRIM_ADDRESS, s->report.trim, sizeof(s->report.trim)));
++    s->report.valid |= NBS_VALID_TRIM;
++    if (nvt_check_observed_chip(s->report.trim, sizeof(s->report.trim)) != NVT_OK) { result = NBS_IDENTITY; goto fail; }
++    s->report.trim_verified = true; s->report.event_base = NVT_EVENT_BASE; s->report.hw_crc = 2;
++    /* Native probe identifies first; native updater then performs its own reset. */
++    STEP(phase(&c, NBS_LOAD_RESET, 0, 0)); STEP(bootloader_reset(&c));
++    STEP(phase(&c, NBS_CRC_BASELINE, 0, 0)); STEP(read_memory(&c, CRC_FLAG, &s->report.crc_before, 1));
++    s->report.valid |= NBS_VALID_CRC_BEFORE;
++    /* The native sources do not specify clearing semantics for CRC history. */
++    STEP(phase(&c, NBS_UPLOAD, 0, image.total_write_bytes)); STEP(upload(&c, firmware, &image));
++    STEP(phase(&c, NBS_SRAM_READBACK, 0, image.total_write_bytes)); STEP(verify_sram(&c, firmware, &image));
++    STEP(phase(&c, NBS_CRC_BANKS, 0, 0));
++    STEP(crc_bank(&c, &image.parts[0], 0x3f128, 0x3f118, 0x3f100));
++    STEP(crc_bank(&c, &image.parts[1], 0x3f12c, 0x3f130, 0x3f104));
++    STEP(phase(&c, NBS_CRC_ENABLE, 0, 0)); STEP(read_memory(&c, CRC_ENABLE, &value, 1));
++    value |= 0x80; STEP(write_verify(&c, CRC_ENABLE, &value, 1));
++    STEP(phase(&c, NBS_FW_CRC_ENABLE, 0, 0));
++    STEP(write_byte(&c, NVT_EVENT_BASE + 0x60, 0)); STEP(write_byte(&c, NVT_EVENT_BASE + 0x50, 0xae));
++    STEP(phase(&c, NBS_BOOT_READY, 0, 0)); STEP(write_byte(&c, BOOT_READY, 1)); STEP(delay(&c, 5));
++    STEP(phase(&c, NBS_WAIT_READY, 0, 0));
++    for (unsigned attempt = 0; attempt < 11; ++attempt) {
++        STEP(read_memory(&c, CRC_FLAG, &s->report.crc_status, 1));
++        s->report.valid |= NBS_VALID_CRC_STATUS;
++        if ((s->report.crc_status & 4) && (s->report.crc_status & 3)) { result = NBS_CRC; goto fail; }
++        STEP(event_read(&c, NVT_READ_RESET, rx));
++        if (nvt_decode_reset(rx, 7, &s->report.reset_state) != NVT_OK) { result = NBS_FWINFO; goto fail; }
++        s->report.valid |= NBS_VALID_RESET_STATE;
++        if ((s->report.crc_status & 4) && nvt_reset_ready(&s->report.reset_state, 0xa0)) break;
++        if (attempt == 10) { result = NBS_TIMEOUT; goto fail; }
++        STEP(delay(&c, 10)); /* bounded status polling, never retry failed IO/reset/load */
++    }
++    STEP(phase(&c, NBS_CRC_RESULT, 0, 0));
++    STEP(read_word(&c, 0x3f120, &s->report.ilm_crc)); s->report.valid |= NBS_VALID_ILM_CRC;
++    STEP(read_word(&c, 0x3f124, &s->report.dlm_crc)); s->report.valid |= NBS_VALID_DLM_CRC;
++    if (s->report.ilm_crc != image.parts[0].golden_crc || s->report.dlm_crc != image.parts[1].golden_crc) { result = NBS_CRC; goto fail; }
++    STEP(read_word(&c, 0x3f100, &s->report.ilm_golden)); s->report.valid |= NBS_VALID_ILM_GOLDEN;
++    if (s->report.ilm_golden != image.parts[0].golden_crc) { result = NBS_CRC; goto fail; }
++    STEP(read_word(&c, 0x3f104, &s->report.dlm_golden)); s->report.valid |= NBS_VALID_DLM_GOLDEN;
++    if (s->report.dlm_golden != image.parts[1].golden_crc) { result = NBS_CRC; goto fail; }
++    STEP(phase(&c, NBS_READ_FWINFO, 0, 0)); STEP(event_read(&c, NVT_READ_FWINFO, rx));
++    if (nvt_decode_fwinfo(rx, 18, &s->report.fwinfo) != NVT_OK) { result = NBS_FWINFO; goto fail; }
++    s->report.valid |= NBS_VALID_FWINFO;
++    /* Native buf[14] is raw payload13. Recovery dmesg2768/2770 observed type1,
++     * version16 after loading this exact fw01; this is a fixed-profile gate. */
++    if (s->report.fwinfo.version != image.version ||
++        s->report.fwinfo.firmware_type != 1) { result = NBS_FWINFO; goto fail; }
++    STEP(phase(&c, NBS_READ_PID, 0, 0)); STEP(event_read(&c, NVT_READ_PID, rx));
++    if (nvt_decode_pid(rx, 4, &s->report.pid) != NVT_OK) { result = NBS_IDENTITY; goto fail; }
++    s->report.valid |= NBS_VALID_PID;
++    if (s->report.pid != NBS_EXPECTED_PID) { result = NBS_IDENTITY; goto fail; }
++    STEP(phase(&c, NBS_READY, image.total_write_bytes, image.total_write_bytes));
++    s->report.ready = true; s->report.result = NBS_OK; return NBS_OK;
++fail:
++    s->report.result = result; s->report.quarantine = s->report.hardware_touched;
++    return result;
++#undef STEP
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/bootstrap/nvt_bootstrap.h
+@@ -0,0 +1,76 @@
++#ifndef GAUGUIN_NVT_BOOTSTRAP_H
++#define GAUGUIN_NVT_BOOTSTRAP_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++#include "../nvt_protocol.h"
++
++#define NBS_FIRMWARE_BYTES 139264u
++#define NBS_FIRMWARE_SHA256 "007143e7d0a816e4ef228b5a08bf3132285230a5cd16164e8086696115d60f88"
++#define NBS_WRITE_WIRE_MAX 64u
++#define NBS_EXPECTED_PID 0x5937u /* observed recovery project ID, not a response sentinel */
++
++enum nbs_status {
++    NBS_OK = 0, NBS_ARGUMENT = -1, NBS_ALREADY_USED = -2,
++    NBS_FIRMWARE = -3, NBS_TRANSPORT = -4, NBS_RESET_IO = -5,
++    NBS_IDENTITY = -6, NBS_READBACK = -7, NBS_CRC = -8,
++    NBS_TIMEOUT = -9, NBS_CLOCK = -10, NBS_FWINFO = -11
++};
++enum nbs_phase {
++    NBS_VALIDATE, NBS_RESET_LOW, NBS_ENG_RESET, NBS_RESET_HIGH,
++    NBS_IDENTIFY_RESET, NBS_TRIM, NBS_LOAD_RESET, NBS_CRC_BASELINE,
++    NBS_UPLOAD, NBS_SRAM_READBACK, NBS_CRC_BANKS, NBS_CRC_ENABLE,
++    NBS_FW_CRC_ENABLE, NBS_BOOT_READY, NBS_WAIT_READY,
++    NBS_CRC_RESULT, NBS_READ_FWINFO, NBS_READ_PID, NBS_READY
++};
++enum nbs_valid {
++    NBS_VALID_TRIM = 1u << 0, NBS_VALID_CRC_BEFORE = 1u << 1,
++    NBS_VALID_CRC_STATUS = 1u << 2, NBS_VALID_RESET_STATE = 1u << 3,
++    NBS_VALID_ILM_CRC = 1u << 4, NBS_VALID_DLM_CRC = 1u << 5,
++    NBS_VALID_ILM_GOLDEN = 1u << 6, NBS_VALID_DLM_GOLDEN = 1u << 7,
++    NBS_VALID_FWINFO = 1u << 8, NBS_VALID_PID = 1u << 9,
++    NBS_VALID_ELAPSED = 1u << 10, NBS_VALID_RESET_PIN = 1u << 11
++};
++struct nbs_io {
++    void *cookie;
++    /* Exact raw full-duplex length. Zero means the whole transaction completed;
++     * read data includes undefined RX0/RX1. No implicit dummy/mask/retry here. */
++    int (*xfer)(void *, const uint8_t *tx, uint8_t *rx, size_t wire_length);
++    /* Drive/readback the already-owned GPIO21. false=LOW, true=HIGH. */
++    int (*reset)(void *, bool high);
++    void (*delay_ms)(void *, unsigned milliseconds);
++    uint64_t (*now_us)(void *); /* monotonic microseconds */
++    void (*progress)(void *, enum nbs_phase, uint32_t completed, uint32_t total);
++};
++struct nbs_report {
++    enum nbs_phase phase;
++    int result, callback_error;
++    /* Flags identify last successfully read/decoded fields, not current state
++     * after a later failure. Unflagged zero fields are NOT observations. Byte
++     * and transfer counters are software progress/attempt counts from zero. */
++    uint32_t valid;
++    bool hardware_touched, reset_raised, trim_verified, ready, quarantine;
++    uint32_t bytes_written, bytes_verified, transfers;
++    uint8_t trim[6], crc_before, crc_status, hw_crc;
++    uint32_t event_base;
++    uint32_t ilm_crc, dlm_crc, ilm_golden, dlm_golden;
++    struct nvt_reset_info reset_state;
++    struct nvt_fw_info fwinfo;
++    uint16_t pid; /* Actual decoded PID; READY requires NBS_EXPECTED_PID. */
++    uint64_t elapsed_us;
++};
++struct nbs_session { bool attempted; struct nbs_report report; };
++
++/* Zero-initialize session once; a second call is refused with no IO. Caller
++ * must verify the exact SHA256/size above BEFORE acquiring the configured bus,
++ * retain immutable firmware bytes, and own the same bus/GPIO lease throughout.
++ * Entry bus is configured and GPIO21 LOW. This function is the sole allowed
++ * ENG_RESET SPI exception while LOW; it then drives HIGH and identifies the chip
++ * before any SRAM upload. No automatic retry, HID/input dispatch or cleanup IO.
++ * On any failure after hardware_touched, quarantine=true: caller must isolate
++ * and must not issue further SPI. Success leaves the bus lease held and event
++ * page selected for the caller's later protocol reads. READY means observed
++ * chip/CRC/reset/FWINFO/readback gates passed, not a successful touch gesture.
++ */
++int nbs_bootstrap(struct nbs_session *, const struct nbs_io *, const uint8_t *firmware, size_t bytes);
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/runtime/nvt_runtime.c
+@@ -0,0 +1,385 @@
++/* Gauguin physical NVT input coordinator. No startup hook is installed here.
++ * Dependencies own their respective controller/firmware/protocol contracts.
++ * Missing or unauthenticated reserved data is rejected BEFORE bus acquisition.
++ */
++#ifdef NVT_RUNTIME_HOST_TEST
++#include "test_runtime_shim.h"
++#else
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <sys/errno.h>
++#include <kern/thread.h>
++#include <kern/sched_prim.h>
++#include <kern/clock.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <pexpert/device_tree.h>
++#include <pexpert/arm64/boot.h>
++#include <libkern/crypto/sha2.h>
++#include <IOKit/IOLib.h>
++#endif
++#endif
++
++#if defined(GAUGUIN)
++#include "nvt_runtime.h"
++#include "../kernel-bus/nvt_kernel_bus.h"
++#include "../bootstrap/nvt_bootstrap.h"
++#include "../nvt_protocol.h"
++#include <IOKit/SweetHIDTouchFrame.h>
++
++extern kern_return_t kernel_thread_start(thread_continue_t, void *, thread_t *);
++extern void thread_terminate_self(void);
++extern int get_preemption_level(void);
++extern void sweet_log_mark_sync(const char *);
++extern void sweet_log_flush_now(void);
++extern void sweet_log_append(const char *, int);
++/* arm64/arm_vm_init.c establishes these from the real boot memory map. */
++extern unsigned long gPhysBase, real_phys_size;
++extern vm_offset_t arm_vm_kernelcache_phys_end;
++
++#define NRT_PAGE 0x4000u
++#define NRT_ASSET_RESERVED ((NBS_FIRMWARE_BYTES + NRT_PAGE - 1) & ~(NRT_PAGE - 1))
++#define NRT_POLL_MS 8u
++#define NRT_BAD_LIMIT 3u
++#define NRT_HID_LIMIT 8u
++#define NRT_STALE_US 250000u
++#define NRT_RELEASE_ATTEMPTS 3u
++_Static_assert(NBS_FIRMWARE_BYTES == 139264u, "pinned image size");
++_Static_assert(SWEET_HID_TOUCH_CONTACTS == NVT_MAX_CONTACTS, "full snapshot slots");
++
++static unsigned nrt_started;
++enum nrt_phase { NRT_DELAY, NRT_ASSET, NRT_OPEN, NRT_CONFIGURE, NRT_PINS,
++                 NRT_BOOTSTRAP, NRT_POLL, NRT_RELEASING, NRT_STOPPED };
++struct nrt_session {
++    struct nvt_bus *bus;
++    struct nbs_session bootstrap;
++    struct nvt_state points;
++    uint32_t last_hid_mask, packets, accepted, rejected;
++    unsigned bad_frames, hid_failures;
++    int last_bootstrap_phase;
++    uint64_t last_good_us, last_summary_us;
++};
++
++static void nrt_phase(enum nrt_phase phase, int error)
++{
++    char line[112];
++    snprintf(line, sizeof(line), "SWEET NVT: phase=%u error=%d", (unsigned)phase, error);
++    printf("%s\n", line);
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++static uint64_t nrt_now_us(void *unused)
++{
++    uint64_t ns;
++    (void)unused;
++    absolutetime_to_nanoseconds(mach_absolute_time(), &ns);
++    return ns / 1000u;
++}
++
++static int nrt_asset(const uint8_t **image)
++{
++    static const uint8_t expected[SHA256_DIGEST_LENGTH] = {
++        0x00,0x71,0x43,0xe7,0xd0,0xa8,0x16,0xe4,0xef,0x22,0x8b,0x5a,0x08,0xbf,0x31,0x32,
++        0x28,0x52,0x30,0xa5,0xcd,0x16,0x16,0x4e,0x80,0x86,0x69,0x61,0x15,0xd6,0x0f,0x88
++    };
++    DTEntry node;
++    const void *property = NULL;
++    unsigned length = 0;
++    uint64_t range[2];
++    *image = NULL;
++    if (SecureDTLookupEntry(NULL, "/chosen/memory-map", &node) != kSuccess ||
++        SecureDTGetProperty(node, "NovatekFirmware", &property, &length) != kSuccess ||
++        !property || length != sizeof(range)) return ENOENT;
++    memcpy(range, property, sizeof(range));
++    const boot_args *args = PE_state.bootArgs;
++    if (!args || args->Version != kBootArgsVersion2 ||
++        range[1] != NBS_FIRMWARE_BYTES || (range[0] & (NRT_PAGE - 1)) ||
++        (args->topOfKernelData & (NRT_PAGE - 1))) return EINVAL;
++    uint64_t pa = range[0], base = args->physBase, bytes = args->memSize;
++    uint64_t top = args->topOfKernelData;
++    /* Include the complete reserved pages, not just the hash's raw file bytes.
++     * Kernel data end..top is RWNX in arm_vm_init; use its existing RAM alias,
++     * never create a Device-memory alias of RAM or an executable mapping. */
++    if (base != gPhysBase || !bytes || !real_phys_size || bytes > UINT64_MAX - base ||
++        real_phys_size > UINT64_MAX - base || top < base || top > base + bytes ||
++        top > base + real_phys_size || arm_vm_kernelcache_phys_end < base ||
++        arm_vm_kernelcache_phys_end > top || pa < arm_vm_kernelcache_phys_end ||
++        pa >= top || NRT_ASSET_RESERVED > top - pa) return EINVAL;
++    vm_offset_t first = ml_static_ptovirt((vm_offset_t)pa);
++    vm_offset_t last = ml_static_ptovirt((vm_offset_t)(pa + NBS_FIRMWARE_BYTES - 1));
++    if (!first || first > UINTPTR_MAX - (NBS_FIRMWARE_BYTES - 1) ||
++        last != first + NBS_FIRMWARE_BYTES - 1) return EFAULT;
++    const uint8_t *data = (const uint8_t *)first;
++    SHA256_CTX ctx;
++    uint8_t digest[SHA256_DIGEST_LENGTH];
++    SHA256_Init(&ctx);
++    SHA256_Update(&ctx, data, NBS_FIRMWARE_BYTES);
++    SHA256_Final(digest, &ctx);
++    if (memcmp(digest, expected, sizeof(expected))) return EAUTH;
++    *image = data;
++    printf("SWEET NVT: reserved firmware SHA256 verified size=%u\n", NBS_FIRMWARE_BYTES);
++    return 0;
++}
++
++static int nrt_xfer(void *cookie, const uint8_t *tx, uint8_t *rx, size_t length)
++{
++    struct nrt_session *s = cookie;
++    return nvt_bus_xfer(s->bus, tx, rx, length);
++}
++static int nrt_reset(void *cookie, bool high)
++{
++    struct nrt_session *s = cookie;
++    return nvt_bus_set_reset(s->bus, high);
++}
++static void nrt_delay(void *cookie, unsigned ms)
++{
++    (void)cookie;
++    IOSleep(ms);
++}
++static void nrt_progress(void *cookie, enum nbs_phase phase, uint32_t done, uint32_t goal_bytes)
++{
++    struct nrt_session *s = cookie;
++    /* Upload/readback chunk callbacks do not flush once per SPI transaction. */
++    if (s->last_bootstrap_phase == (int)phase) return;
++    s->last_bootstrap_phase = (int)phase;
++    char line[112];
++    snprintf(line, sizeof(line), "SWEET NVT: bootstrap phase=%u done=%u total=%u",
++        (unsigned)phase, done, goal_bytes);
++    printf("%s\n", line);
++    sweet_log_mark_sync(line);
++    sweet_log_flush_now();
++}
++
++/* Each field is the last successful observation recorded by bootstrap.
++ * A later failed read does not turn an old value into a current observation. */
++static const char *nrt_hex(char out[12], bool valid, uint32_t value)
++{
++    if (valid) snprintf(out, 12, "%08x", value);
++    else snprintf(out, 12, "unread");
++    return out;
++}
++static void nrt_bootstrap_report(const struct nbs_report *r, int result)
++{
++    char trim[24], elapsed[24], fw[48];
++    char before[12], status[12], ilm[12], dlm[12], igolden[12], dgolden[12], reset[12], pid[12];
++    if (r->valid & NBS_VALID_TRIM)
++        snprintf(trim, sizeof(trim), "%02x%02x%02x%02x%02x%02x",
++            r->trim[0], r->trim[1], r->trim[2], r->trim[3], r->trim[4], r->trim[5]);
++    else snprintf(trim, sizeof(trim), "unread");
++    if (r->valid & NBS_VALID_ELAPSED)
++        snprintf(elapsed, sizeof(elapsed), "%llu", (unsigned long long)r->elapsed_us);
++    else snprintf(elapsed, sizeof(elapsed), "unread");
++    if (r->valid & NBS_VALID_FWINFO)
++        snprintf(fw, sizeof(fw), "%ux%u/ver%u/type%u", r->fwinfo.max_x, r->fwinfo.max_y,
++            r->fwinfo.version, r->fwinfo.firmware_type);
++    else snprintf(fw, sizeof(fw), "unread");
++    printf("SWEET NVT: bootstrap summary phase=%u result=%d reported=%d callback=%d touched=%u ready=%u valid=%x written=%u verified=%u transfers=%u\n",
++        (unsigned)r->phase, result, r->result, r->callback_error, (unsigned)r->hardware_touched,
++        (unsigned)r->ready, r->valid, r->bytes_written, r->bytes_verified, r->transfers);
++    printf("SWEET NVT: bootstrap last_verified trim=%s reset_pin=%s elapsed_us=%s\n", trim,
++        (r->valid & NBS_VALID_RESET_PIN) ? (r->reset_raised ? "high" : "low") : "unread", elapsed);
++    printf("SWEET NVT: bootstrap CRC last_verified before=%s status=%s ILM=%s DLM=%s golden_ILM=%s golden_DLM=%s\n",
++        nrt_hex(before, r->valid & NBS_VALID_CRC_BEFORE, r->crc_before),
++        nrt_hex(status, r->valid & NBS_VALID_CRC_STATUS, r->crc_status),
++        nrt_hex(ilm, r->valid & NBS_VALID_ILM_CRC, r->ilm_crc),
++        nrt_hex(dlm, r->valid & NBS_VALID_DLM_CRC, r->dlm_crc),
++        nrt_hex(igolden, r->valid & NBS_VALID_ILM_GOLDEN, r->ilm_golden),
++        nrt_hex(dgolden, r->valid & NBS_VALID_DLM_GOLDEN, r->dlm_golden));
++    printf("SWEET NVT: bootstrap last_verified reset_state=%s PID=%s FWINFO=%s\n",
++        nrt_hex(reset, r->valid & NBS_VALID_RESET_STATE, r->reset_state.state),
++        nrt_hex(pid, r->valid & NBS_VALID_PID, r->pid), fw);
++}
++static void nrt_bus_report(const struct nvt_bus_status *r, uint32_t release_mask)
++{
++    const struct gs_diag *d = &r->pio;
++    char irq[12], tx[12], rx[12];
++    printf("SWEET NVT: final bus state=%u error=%d pio=%d release_mask=%x masked=%u clocks_restored=%u pins_restored=%u setup=%d primary=%d restore=%d effects=%x\n",
++        (unsigned)r->state, r->error, r->pio_result, release_mask, (unsigned)r->mask_confirmed,
++        (unsigned)r->clocks_restored, (unsigned)r->pins_restored, r->setup_result,
++        r->setup.failure, r->setup.restore_failure, r->setup.effects);
++    /* Snapshot can precede a later bus preflight refusal. irq_seen is an OR,
++     * not the last IRQ value. Validity follows PIO poll/drain/recover ordering. */
++    printf("SWEET NVT: last PIO snapshot irq_seen=%s tx_status=%s rx_status=%s queued=%lu received=%lu polls=%u recovery=%u\n",
++        nrt_hex(irq, d->polls != 0, d->irq_seen),
++        nrt_hex(tx, d->tx_queued != 0 || d->last_tx_status != 0, d->last_tx_status),
++        nrt_hex(rx, d->polls != 0 || d->recovery != GS_REC_NONE, d->last_rx_status),
++        (unsigned long)d->tx_queued, (unsigned long)d->rx_received, d->polls, (unsigned)d->recovery);
++}
++
++static void nrt_snapshot(const struct nvt_state *points, struct sweet_hid_touch_snapshot *out)
++{
++    memset(out, 0, sizeof(*out));
++    for (unsigned i = 0; i < NVT_MAX_CONTACTS; i++) {
++        const struct nvt_contact *p = &points->contacts[i];
++        if (!p->active) continue;
++        uint32_t xmax = points->max_x - 1u, ymax = points->max_y - 1u;
++        uint32_t x = p->x > xmax ? xmax : p->x, y = p->y > ymax ? ymax : p->y;
++        out->active_mask |= 1u << i;
++        out->x[i] = (int32_t)((x * 1079u) / xmax);
++        out->y[i] = (int32_t)((y * 2399u) / ymax);
++    }
++}
++
++static bool nrt_release_contacts(struct nrt_session *s)
++{
++    if (!s->last_hid_mask) return true;
++    printf("SWEET NVT: releasing submitted mask=%x\n", s->last_hid_mask);
++    struct sweet_hid_touch_snapshot up = {0};
++    for (unsigned i = 0; i < NRT_RELEASE_ATTEMPTS; i++) {
++        int result = sweet_hid_touch_frame(&up);
++        if (result == 0) {
++            printf("SWEET NVT: HID release accepted mask=%x\n", s->last_hid_mask);
++            s->last_hid_mask = 0;
++            return true;
++        }
++        printf("SWEET NVT: contact release refused=%x attempt=%u\n", (unsigned)result, i + 1);
++        if (i + 1 < NRT_RELEASE_ATTEMPTS) IOSleep(NRT_POLL_MS);
++    }
++    printf("SWEET NVT: contact release unconfirmed mask=%x\n", s->last_hid_mask);
++    return false;
++}
++
++static int nrt_poll(struct nrt_session *s)
++{
++    struct nvt_request request;
++    uint8_t rx[NVT_MAX_WIRE];
++    if (nvt_make_request(NVT_READ_POINTS, &request) != NVT_OK || request.wire_length != 67) return EINVAL;
++    s->last_good_us = s->last_summary_us = nrt_now_us(NULL);
++    for (;;) {
++        int result = nrt_xfer(s, request.page, NULL, sizeof(request.page));
++        if (!result) result = nrt_xfer(s, request.tx, rx, request.wire_length);
++        if (!result) result = nrt_xfer(s, request.restore_page, NULL, sizeof(request.restore_page));
++        if (result) return result;
++        s->packets++;
++        struct nvt_frame frame;
++        result = nvt_decode_points(&s->points, rx, sizeof(rx), &frame);
++        uint64_t now = nrt_now_us(NULL);
++        if (now < s->last_good_us) return EIO;
++        if (result != NVT_OK) {
++            s->rejected++;
++            printf("SWEET NVT: malformed frame rc=%d streak=%u\n", result, s->bad_frames + 1);
++            if (++s->bad_frames >= NRT_BAD_LIMIT) return EPROTO;
++        } else if (frame.kind == NVT_PACKET_ESD) {
++            printf("SWEET NVT: controller ESD signature; stopping\n");
++            return EIO;
++        } else if (frame.kind == NVT_PACKET_WDT) {
++            if (frame.recovery_required) {
++                printf("SWEET NVT: controller WDT streak=%u; stopping\n", frame.wdt_streak);
++                return EIO;
++            }
++        } else {
++            s->bad_frames = 0;
++            s->last_good_us = now;
++            struct sweet_hid_touch_snapshot snapshot;
++            nrt_snapshot(&s->points, &snapshot);
++            int hid = sweet_hid_touch_frame(&snapshot);
++            if (hid != 0) {
++                if (++s->hid_failures >= NRT_HID_LIMIT) {
++                    printf("SWEET NVT: HID failure=%x count=%u; stopping\n", (unsigned)hid, s->hid_failures);
++                    return EIO;
++                }
++            } else {
++                s->hid_failures = 0;
++                s->accepted++;
++                if (s->last_hid_mask != snapshot.active_mask)
++                    printf("SWEET NVT: observed contact mask=%x packets=%u\n", snapshot.active_mask, s->packets);
++                s->last_hid_mask = snapshot.active_mask;
++            }
++        }
++        if (now - s->last_good_us >= NRT_STALE_US) return ETIMEDOUT;
++        if (now - s->last_summary_us >= 10000000u) {
++            printf("SWEET NVT: packets=%u accepted=%u rejected=%u mask=%x\n",
++                s->packets, s->accepted, s->rejected, s->last_hid_mask);
++            s->last_summary_us = now;
++        }
++        IOSleep(NRT_POLL_MS);
++    }
++}
++
++static void nrt_run(void)
++{
++    struct nrt_session s = {0};
++    const uint8_t *image = NULL;
++    struct nvt_bus_status bus_status = {0};
++    int error;
++    s.last_bootstrap_phase = -1;
++    if (!ml_get_interrupts_enabled() || ml_at_interrupt_context() || get_preemption_level()) {
++        static const char text[] = "SWEET NVT: invalid worker context; stopped\n";
++        sweet_log_append(text, (int)sizeof(text) - 1);
++        return;
++    }
++    nrt_phase(NRT_ASSET, 0);
++    error = nrt_asset(&image);
++    if (error) { nrt_phase(NRT_STOPPED, error); return; }
++    nrt_phase(NRT_OPEN, 0);
++    error = nvt_bus_open(&s.bus);
++    if (error || !s.bus) { nrt_phase(NRT_STOPPED, error ? error : EIO); return; }
++    nrt_phase(NRT_CONFIGURE, 0);
++    error = nvt_bus_configure(s.bus, 1000000);
++    if (error) goto stop;
++    error = nvt_bus_get_status(s.bus, &bus_status);
++    if (error || bus_status.state != NVT_BUS_CONFIGURED || bus_status.sck_hz != 960000) {
++        error = error ? error : EPROTO;
++        goto stop;
++    }
++    nrt_phase(NRT_PINS, 0);
++    error = nvt_bus_activate_native_pins(s.bus);
++    if (error) goto stop;
++    nrt_phase(NRT_BOOTSTRAP, 0);
++    const struct nbs_io io = { .cookie = &s, .xfer = nrt_xfer, .reset = nrt_reset,
++        .delay_ms = nrt_delay, .now_us = nrt_now_us, .progress = nrt_progress };
++    error = nbs_bootstrap(&s.bootstrap, &io, image, NBS_FIRMWARE_BYTES);
++    nrt_bootstrap_report(&s.bootstrap.report, error);
++    if (error || !s.bootstrap.report.ready || !s.bootstrap.report.trim_verified ||
++        s.bootstrap.report.event_base != NVT_EVENT_BASE || s.bootstrap.report.hw_crc != 2 ||
++        !s.bootstrap.report.bytes_written || s.bootstrap.report.bytes_verified != s.bootstrap.report.bytes_written) {
++        error = EIO;
++        goto stop;
++    }
++    const struct nvt_fw_info *fw = &s.bootstrap.report.fwinfo;
++    if (fw->max_x < 2 || fw->max_y < 2 || nvt_state_init(&s.points, fw) != NVT_OK) {
++        error = EINVAL;
++        goto stop;
++    }
++    printf("SWEET NVT: observed geometry=%ux%u PID=%x; starting physical reports\n",
++        fw->max_x, fw->max_y, s.bootstrap.report.pid);
++    nrt_phase(NRT_POLL, 0);
++    error = nrt_poll(&s);
++stop:
++    /* No disk flush delays UP, and no SPI follows any failed transaction. */
++    (void)nrt_release_contacts(&s);
++    nvt_bus_abort(s.bus, error ? error : EIO, &bus_status);
++    nrt_bus_report(&bus_status, s.last_hid_mask);
++    nrt_phase(NRT_STOPPED, error);
++}
++
++static void nrt_worker(void *argument, wait_result_t result)
++{
++    (void)argument; (void)result;
++    nrt_phase(NRT_DELAY, 0);
++    for (unsigned i = 0; i < 30; i++) IOSleep(1000);
++    nrt_run();
++    thread_terminate_self();
++}
++
++void sweet_nvt_start(void)
++{
++    int enabled = 0, diagnostic = 0, legacy = 0;
++    (void)PE_parse_boot_argn("sweetnvt", &enabled, sizeof(enabled));
++    if (enabled != 1) return;
++    if (__atomic_exchange_n(&nrt_started, 1, __ATOMIC_ACQ_REL)) return;
++    (void)PE_parse_boot_argn("sweetnvtprobe", &diagnostic, sizeof(diagnostic));
++    (void)PE_parse_boot_argn("sweettouchmode", &legacy, sizeof(legacy));
++    if (diagnostic || legacy) {
++        printf("SWEET NVT: conflicting probe/legacy mode; no worker\n");
++        return;
++    }
++    thread_t thread;
++    kern_return_t result = kernel_thread_start(nrt_worker, NULL, &thread);
++    if (result == KERN_SUCCESS) thread_deallocate(thread);
++    else printf("SWEET NVT: worker creation failed=%d; no inline fallback\n", result);
++}
++#endif /* GAUGUIN */
+--- /dev/null
++++ b/bsd/dev/gauguin_nvt/runtime/nvt_runtime.h
+@@ -0,0 +1,6 @@
++#ifndef GAUGUIN_NVT_RUNTIME_H
++#define GAUGUIN_NVT_RUNTIME_H
++/* Queue at most one ordinary worker only for sweetnvt=1. Default performs no
++ * asset access, hardware operation or HID dispatch. Startup hook is external. */
++void sweet_nvt_start(void);
++#endif
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -109,6 +109,13 @@
+ bsd/dev/sweet_keys.c			standard
+ bsd/dev/sweet_touch.c			standard
+ bsd/dev/gauguin_nvt_probe.c		standard
++bsd/dev/gauguin_nvt/nvt_protocol.c		standard
++bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
++bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
++bsd/dev/gauguin_nvt/kernel-bus/nvt_kernel_bus.c		standard
++bsd/dev/gauguin_nvt/firmware/nvt_firmware.c		standard
++bsd/dev/gauguin_nvt/bootstrap/nvt_bootstrap.c		standard
++bsd/dev/gauguin_nvt/runtime/nvt_runtime.c		standard
+ bsd/dev/sweet_rpmh.c			standard
+ bsd/dev/sweet_spmi.c			standard
+ bsd/dev/sweet_usb.c			standard
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -993,6 +993,16 @@
+ 	}
+ 	st.started = true;
+ #if defined(GAUGUIN)
++	/* Real SPI input owns this startup path exclusively. If its independent
++	 * worker refuses conflicting arguments, do not fall through to probes or
++	 * the old controller. Default0 keeps the established diagnostic path. */
++	int physical = 0;
++	(void)PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
++	if (physical == 1) {
++		extern void sweet_nvt_start(void);
++		sweet_nvt_start();
++		return;
++	}
+ 	/* Independent opt-in stage0; default returns before mapping hardware. */
+ 	extern void sweet_nvt_probe_init(void);
+ 	sweet_nvt_probe_init();

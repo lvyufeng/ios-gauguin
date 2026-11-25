@@ -1,0 +1,77 @@
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -16,6 +16,7 @@
+ #include <IOKit/IOBufferMemoryDescriptor.h>
+ #include <kern/clock.h>
+ #include <kern/task.h>
++#include <kern/thread.h> /* BO333 numeric current-thread ID */
+ #include <mach/mach_time.h>
+ #include <vm/pmap.h>
+ #include <sys/systm.h>
+@@ -86,6 +87,18 @@
+     sweet_ui_trace_record(GUT_API_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),selector,queued,locked,0);
+     return gapi_pending.token;
+ }
++/* BO333: bounded UI trace only. Existing producer supplies the CPU clock;
++ * no new allocation, locks, waits, GPU calls or MMIO. All calls below hold
++ * the original request and GPU locks. Never publish raw kernel pointers. */
++static void gbo333_record(uint32_t phase,uint64_t a,uint64_t b,uint64_t c)
++{
++    if(!gapi_pending.token||gapi_frozen||!gapi_valid||
++       gapi_pending.index>=GAPI_COUNT||gapi_selectors[gapi_pending.index]!=0x42)return;
++    sweet_ui_trace_record(GUT_BO_ALLOC333,gapi_pending.token,
++        (uint32_t)proc_pid(current_proc()),phase,a,b,c);
++}
++/* END BO333 helper */
++
+ static void gapi_end(uint64_t token,IOReturn result)
+ {
+     if(!token||gapi_frozen)return;
+@@ -502,6 +515,7 @@
+         if(!importedPhysicalPage(m,size,bias,off,&pa)){sweet_gpu_runtime_stop();return kIOReturnVMError;}
+         *leafAt(address+off)=pa|UINT64_C(0xe43)|((flags&GGR_BO_READONLY)?0x80:0);
+     }
++    gbo333_record(5,mappingSize,slot->handle,flags);
+     memoryBarrier();fAllocationStage=9;
+     if(!sweet_gpu_runtime_sync())return kIOReturnNotReady; /* retained until reset */
+     *handle=slot->handle;fAllocationStage=0;return kIOReturnSuccess;
+@@ -845,6 +859,7 @@
+     uint64_t profile=gapi_begin(selector,queued,mach_absolute_time());
+     IOReturn result=kIOReturnBadArgument;
+     fAllocationStage=0; /* runtime/client gate, before request validation */
++    if(selector==0x42)gbo333_record(1,r.make.size,r.make.flags,thread_tid(current_thread()));
+     if(selector==0x46)fSubmitDiag327={1,UINT32_MAX,0,0,0,0,0,0,0,0};
+     /* These requests can inspect or defer a handle while one fence runs.
+      * Allocation, mapping, submit and queue teardown first complete it. */
+@@ -868,10 +883,13 @@
+         if(!r.make.size||r.make.size>GGR_MAX_BO_BYTES||r.make.handle||(r.make.flags&~(GGR_BO_READONLY|GGR_BO_WC)))break;
+         uint64_t n=(r.make.size+PAGE_MASK)&~(uint64_t)PAGE_MASK;
+         fAllocationStage=2; /* backing IOBuffer allocation */
++        gbo333_record(2,n,0,0);
+         auto m=IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
+             kIODirectionInOut|kIOMemoryKernelUserShared|kIOMapWriteCombineCache,(vm_size_t)n,PAGE_SIZE);
++        gbo333_record(3,m!=nullptr,0,0);
+         if(!m){result=kIOReturnNoMemory;break;}
+         bzero(m->getBytesNoCopy(),(size_t)n);memoryBarrier();
++        gbo333_record(4,0,0,0);
+         result=add(m,nullptr,n,r.make.flags,&r.make.handle);m->release();break;
+     }
+     case 0x43: {
+@@ -960,6 +978,7 @@
+     default:result=kIOReturnUnsupported;break;
+     }
+ out:
++    if(selector==0x42)gbo333_record(6,(uint32_t)result,r.make.handle,fAllocationStage);
+     if(selector==0x42&&result!=kIOReturnSuccess&&fAllocationFailures<8){
+         ++fAllocationFailures;
+         uint32_t buffers=0,freeUnits=0,largest=0,run=0;
+--- a/bsd/dev/gauguin_ui_trace.h
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -13,6 +13,7 @@
+     GUT_API_BEGIN=10, GUT_API_END, GUT_SUBMIT_BEGIN, GUT_SUBMIT_END, GUT_SURFACE,
+     GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END,
+     GUT_SYNTHETIC=30, /* explicit origin marker for a generated report ID */
++    GUT_BO_ALLOC333=32, /* CPU allocation phases; API token and numeric metadata */
+     GUT_HID_QUEUE_STATE=31 /* queue registry ID; owner PID; enqueue/port flags;
+                            * packed head:tail, capacity, notification attempts */
+ };

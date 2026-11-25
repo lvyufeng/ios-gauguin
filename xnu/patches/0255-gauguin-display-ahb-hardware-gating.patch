@@ -1,0 +1,33 @@
+diff --git a/bsd/dev/gauguin_scanout345.h b/bsd/dev/gauguin_scanout345.h
+--- a/bsd/dev/gauguin_scanout345.h
++++ b/bsd/dev/gauguin_scanout345.h
+@@ -27,6 +27,17 @@
+     /* Branch 2 reports the actual halt state in bit 31. Bit 0 is a
+      * software vote, including on the HW-gated GCC display branch. */
+     return (value & UINT32_C(0x80000000)) == 0;
++}
++
++static inline bool
++scan345_gcc_ahb_accessible(uint32_t value)
++{
++    /* Lagoon GCC DISP AHB has HWCG at bit 1. With its software vote
++     * present, the branch can clock an AHB request while CLK_OFF is set
++     * between requests. DISPCC's AHB and MDP predicates remain separate. */
++    const uint32_t voted_hwcg = UINT32_C(0x3);
++    return value != UINT32_MAX &&
++        (scan345_branch_on(value) || (value & voted_hwcg) == voted_hwcg);
+ }
+ 
+ static inline bool
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -85,7 +85,7 @@
+ {
+     status->gcc = scan_gcc[F344_GCC_AHB / 4];
+     status->seen |= SCAN345_GCC;
+-    if (!scan345_branch_on(status->gcc)) return SCAN345_GCC_OFF;
++    if (!scan345_gcc_ahb_accessible(status->gcc)) return SCAN345_GCC_OFF;
+     status->ahb = scan_disp[F344_DISP_AHB / 4];
+     status->mdp = scan_disp[F344_DISP_MDP / 4];
+     status->seen |= SCAN345_DISP;

@@ -1,0 +1,24 @@
+--- a/bsd/dev/gauguin_nvt/bootstrap/nvt_bootstrap.c
++++ b/bsd/dev/gauguin_nvt/bootstrap/nvt_bootstrap.c
+@@ -259,14 +259,18 @@
+         if (attempt == 10) { result = NBS_TIMEOUT; goto fail; }
+         STEP(delay(&c, 10)); /* bounded status polling, never retry failed IO/reset/load */
+     }
++    /* Native hw_crc success uses reset readiness; R/G checksum registers are
++     * read only for failure diagnostics (pinned fw_update.c:939-1001). Their
++     * contents are not promised to remain the loader's ILM/DLM banks after
++     * firmware starts. Hardware0107 reported DLM=Info12's CRC with CRC flags4,
++     * resetA1 and every uploaded byte verified. Record these later observations
++     * without inventing an equality/whitelist gate. Pre-start bank readback,
++     * full SRAM comparison, CRC status/reset and FWINFO/PID checks remain. */
+     STEP(phase(&c, NBS_CRC_RESULT, 0, 0));
+     STEP(read_word(&c, 0x3f120, &s->report.ilm_crc)); s->report.valid |= NBS_VALID_ILM_CRC;
+     STEP(read_word(&c, 0x3f124, &s->report.dlm_crc)); s->report.valid |= NBS_VALID_DLM_CRC;
+-    if (s->report.ilm_crc != image.parts[0].golden_crc || s->report.dlm_crc != image.parts[1].golden_crc) { result = NBS_CRC; goto fail; }
+     STEP(read_word(&c, 0x3f100, &s->report.ilm_golden)); s->report.valid |= NBS_VALID_ILM_GOLDEN;
+-    if (s->report.ilm_golden != image.parts[0].golden_crc) { result = NBS_CRC; goto fail; }
+     STEP(read_word(&c, 0x3f104, &s->report.dlm_golden)); s->report.valid |= NBS_VALID_DLM_GOLDEN;
+-    if (s->report.dlm_golden != image.parts[1].golden_crc) { result = NBS_CRC; goto fail; }
+     STEP(phase(&c, NBS_READ_FWINFO, 0, 0)); STEP(event_read(&c, NVT_READ_FWINFO, rx));
+     if (nvt_decode_fwinfo(rx, 18, &s->report.fwinfo) != NVT_OK) { result = NBS_FWINFO; goto fail; }
+     s->report.valid |= NBS_VALID_FWINFO;

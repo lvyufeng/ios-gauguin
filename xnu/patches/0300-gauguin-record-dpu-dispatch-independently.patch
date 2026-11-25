@@ -1,0 +1,166 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_frame388_receipts.h
+@@ -0,0 +1,79 @@
++#ifndef GAUGUIN_FRAME388_RECEIPTS_H
++#define GAUGUIN_FRAME388_RECEIPTS_H
++
++#include "gauguin_frame380_phase.h"
++
++#define F388_CLOSED UINT32_C(0x80000000)
++#define F388_UNARMED UINT32_C(0x40000000)
++
++struct f388_receipt {
++    struct f380_dispatch dispatch;
++    uint64_t tick;
++    unsigned sequence;
++};
++
++struct f388_receipts {
++    uint32_t gate;
++    uint64_t start, end, first, last;
++    unsigned aligned, software, fallback, missed, count;
++    struct f388_receipt rows[F380_SAMPLES];
++};
++
++static inline void
++f388_arm(struct f388_receipts *capture, uint64_t start, uint64_t end)
++{
++    if (__atomic_load_n(&capture->gate, __ATOMIC_RELAXED) != F388_UNARMED ||
++        !start || start >= end) return;
++    capture->start = start;
++    capture->end = end;
++    __atomic_store_n(&capture->gate, 0, __ATOMIC_RELEASE);
++}
++
++/* The framebuffer lock serializes the writer. Close waits for a writer
++ * that already entered and prevents any later writer from entering. */
++static inline void
++f388_record(struct f388_receipts *capture, enum f380_notice notice, uint64_t tick,
++    const struct f380_dispatch *dispatch)
++{
++    uint32_t expected = 0;
++    if (!__atomic_compare_exchange_n(&capture->gate, &expected, 1, false,
++        __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) return;
++    if (tick >= capture->start && tick < capture->end) {
++        if (notice == F380_ALIGNED && dispatch) {
++            if (!capture->first) capture->first = tick;
++            capture->last = tick;
++            ++capture->aligned;
++            if (capture->count < F380_SAMPLES &&
++                (capture->aligned == F380_FIRST_SAMPLE || capture->aligned % F380_SAMPLE_STEP == 0)) {
++                struct f388_receipt *row = &capture->rows[capture->count++];
++                row->dispatch = *dispatch;
++                row->tick = tick;
++                row->sequence = capture->aligned;
++            }
++        } else if (notice == F380_MISSED) {
++            ++capture->missed;
++        } else if (notice == F380_SOFTWARE) {
++            ++capture->software;
++            if (capture->first) ++capture->fallback;
++        }
++    }
++    __atomic_fetch_sub(&capture->gate, 1, __ATOMIC_RELEASE);
++}
++
++static inline bool
++f388_close(struct f388_receipts *capture)
++{
++    if (__atomic_load_n(&capture->gate, __ATOMIC_ACQUIRE) == F388_UNARMED) return false;
++    __atomic_fetch_or(&capture->gate, F388_CLOSED, __ATOMIC_ACQ_REL);
++    return __atomic_load_n(&capture->gate, __ATOMIC_ACQUIRE) == F388_CLOSED;
++}
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++void sweet_frame388_notice(enum f380_notice, uint64_t, const struct f380_dispatch *);
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -38,6 +38,7 @@
+ #include "gauguin_frame375_present.h"
+ #include "gauguin_frame380_phase.h"
+ #include "gauguin_frame387_preview.h"
++#include "gauguin_frame388_receipts.h"
+ #include "gauguin_page_flip.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+@@ -798,6 +799,28 @@
+ /* Published once with the qualified scan351 window. */
+ static uint32_t phase380_tail_lines;
+ static struct f380_prediction phase380_prediction;
++static struct f388_receipts phase388 = { .gate = F388_UNARMED };
++
++void sweet_frame388_notice(enum f380_notice notice, uint64_t tick, const struct f380_dispatch *dispatch)
++{
++    f388_record(&phase388, notice, tick, dispatch);
++}
++
++static void frame388_drain(void)
++{
++    static bool drained;
++    if (drained || !f388_close(&phase388)) return;
++    drained = true;
++    for (unsigned i = 0; i < phase388.count; ++i) {
++        const struct f388_receipt *row = &phase388.rows[i];
++        const struct f380_wake *p = &row->dispatch.pulse;
++        printf("SWEET F388 P: seq=%u scan=%u source=%u o=%llu w=%llu r=%llu p=%llu a=%llu\n",
++            row->sequence, p->scan, p->source, p->observed, p->wake, row->dispatch.ready, p->edge, row->tick);
++    }
++    printf("SWEET F388 F: rows=%u aligned=%u software=%u fallback=%u missed=%u first=%llu last=%llu\n",
++        phase388.count, phase388.aligned, phase388.software, phase388.fallback, phase388.missed,
++        phase388.first, phase388.last);
++}
+ 
+ static void phase380_publish(const struct f380_prediction *p)
+ {
+@@ -1243,6 +1266,7 @@
+         return;
+     }
+     scan_intf += F344_INTF_OFF / 4;
++    if (phase380_enabled) f388_arm(&phase388, frames.start, frames.end);
+     if (manual_preview) printf("SWEET F387 MANUAL: opening guarded display window\n");
+     if (scan357_enabled && !manual_preview) {
+         struct frame374_receiver receiver = {0};
+@@ -1262,6 +1286,7 @@
+ static void frame_drain(void)
+ {
+     if (frame_footer) {
++        frame388_drain();
+         sweet_ca374_drain();
+         sweet_frame371_drain();
+         return;
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -49,6 +49,7 @@
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ #include "../../../bsd/dev/gauguin_frame380_phase.h"
+ #include "../../../bsd/dev/gauguin_frame387_preview.h"
++#include "../../../bsd/dev/gauguin_frame388_receipts.h"
+ #include "../../../bsd/dev/gauguin_page_flip.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+@@ -1498,8 +1499,10 @@
+                 fb->fCAVsyncMisses = 0;
+                 fb->notifyVsyncLocked(tick, 1);
+                 sweet_frame380_notice(F380_ALIGNED, tick, &pulse);
++                sweet_frame388_notice(F380_ALIGNED, tick, &dispatch);
+             } else {
+                 sweet_frame380_notice(F380_MISSED, tick, nullptr);
++                sweet_frame388_notice(F380_MISSED, tick, nullptr);
+                 ++fb->fCAVsyncMisses;
+                 fb->fCAVsyncRetryAfter = sweet_present_clock_add(tick, F380_FALLBACK);
+             }
+@@ -1618,6 +1621,7 @@
+         if (fb->fCAVsync) {
+             fb->fCAVsyncSent.tick = now;
+             sweet_frame380_notice(F380_SOFTWARE, now, nullptr);
++            sweet_frame388_notice(F380_SOFTWARE, now, nullptr);
+         }
+         fb->notifyVsyncLocked(now, elapsed);
+     }

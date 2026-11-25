@@ -1,0 +1,265 @@
+diff --git a/src/render.cpp b/src/render.cpp
+--- a/src/render.cpp
++++ b/src/render.cpp
+@@ -8,6 +8,7 @@
+ #include "hakios-metal/render.hpp"
+ 
+ #include <algorithm>
++#include <optional>
+ #include <array>
+ #include <cmath>
+ #include <cstring>
+@@ -358,47 +359,47 @@
+ // a step other than per vertex, a stride of 0, no buffer bound at the layout's index, and a fetch that reads past the
+ // bound length for the draw's last vertex (Metal requires the bytes to be there; the GPU would read whatever follows).
+ bool vertexFetch(const Stage& vs, const VertexDescriptor& vd, const Draw& draw, const Bindings& b, VertexFetch* f, std::string* why) {
+-    const std::string name = stageName(vs);
++    const auto name = [&vs] { return std::string(stageName(vs)); };
+     for (uint32_t i = 0; i < vs.numInputs; i++) {
+         const StageInput& in = vs.inputs[i];
+         if (in.sysval || in.regid == kRegidNone) continue;
+         if (in.slot < kVertAttribGeneric0 || in.slot - kVertAttribGeneric0 >= kMaxVertexAttributes) {
+-            return refuse(why, name + ": an input at slot " + n(in.slot) + " that is not a [[stage_in]] attribute");
++            return refuse(why, name() + ": an input at slot " + n(in.slot) + " that is not a [[stage_in]] attribute");
+         }
+         const uint32_t loc = in.slot - kVertAttribGeneric0;
+         const VertexAttribute& a = vd.attributes[loc];
+         if (a.format == VertexFormat::kInvalid) {
+-            return refuse(why, name + " reads [[attribute(" + n(loc) + ")]], which the vertex descriptor does not describe");
++            return refuse(why, name() + " reads [[attribute(" + n(loc) + ")]], which the vertex descriptor does not describe");
+         }
+         const VertexFormatInfo* fi = vertexFormatInfo(a.format);
+         if (fi == nullptr) {
+-            return refuse(why, name + ": [[attribute(" + n(loc) + ")]] is MTLVertexFormat " + n(uint32_t(a.format)) +
++            return refuse(why, name() + ": [[attribute(" + n(loc) + ")]] is MTLVertexFormat " + n(uint32_t(a.format)) +
+                                    ": the 1010102, RG11B10 and RGB9E5 formats are not served");
+         }
+         if (a.bufferIndex >= kMaxVertexBuffers) {
+-            return refuse(why, name + ": [[attribute(" + n(loc) + ")]] is fetched from buffer " + n(a.bufferIndex) + ": the layouts are 0 to 30");
++            return refuse(why, name() + ": [[attribute(" + n(loc) + ")]] is fetched from buffer " + n(a.bufferIndex) + ": the layouts are 0 to 30");
+         }
+         if (a.offset > 0xfff) {
+-            return refuse(why, name + ": [[attribute(" + n(loc) + ")]] at offset " + n(a.offset) + ": VFD_DECODE_INSTR.OFFSET holds 12 bits");
++            return refuse(why, name() + ": [[attribute(" + n(loc) + ")]] at offset " + n(a.offset) + ": VFD_DECODE_INSTR.OFFSET holds 12 bits");
+         }
+         const VertexLayout& l = vd.layouts[a.bufferIndex];
+         const bool perInstance = l.step == VertexStep::kPerInstance;
+         if (l.step != VertexStep::kPerVertex && !perInstance) {
+-            return refuse(why, name + ": buffer " + n(a.bufferIndex) + " steps " + (l.step == VertexStep::kConstant ? "constantly" : "in an unknown way") +
++            return refuse(why, name() + ": buffer " + n(a.bufferIndex) + " steps " + (l.step == VertexStep::kConstant ? "constantly" : "in an unknown way") +
+                                    ": per-vertex and per-instance fetch are served");
+         }
+         if (perInstance && l.stepRate == 0) {
+-            return refuse(why, name + ": buffer " + n(a.bufferIndex) + " steps per instance at a rate of 0: Metal's step rate is 1 or more");
++            return refuse(why, name() + ": buffer " + n(a.bufferIndex) + " steps per instance at a rate of 0: Metal's step rate is 1 or more");
+         }
+         if (l.stride == 0 || l.stride > 0xfff) {
+-            return refuse(why, name + ": buffer " + n(a.bufferIndex) + "'s stride of " + n(l.stride) + ": 1 to 4095 bytes (VFD_FETCH_STRIDE holds 12 bits)");
++            return refuse(why, name() + ": buffer " + n(a.bufferIndex) + "'s stride of " + n(l.stride) + ": 1 to 4095 bytes (VFD_FETCH_STRIDE holds 12 bits)");
+         }
+         if (a.bufferIndex >= b.buffers.size() || b.buffers[a.bufferIndex].buffer == nullptr) {
+-            return refuse(why, name + ": no buffer bound at index " + n(a.bufferIndex) + " (the vertex buffer of [[attribute(" + n(loc) + ")]])");
++            return refuse(why, name() + ": no buffer bound at index " + n(a.bufferIndex) + " (the vertex buffer of [[attribute(" + n(loc) + ")]])");
+         }
+         const Binding& x = b.buffers[a.bufferIndex];
+         if (x.offset > x.buffer->length()) {
+-            return refuse(why, name + ": buffer " + n(a.bufferIndex) + ": offset " + n(x.offset) + " lies past its end");
++            return refuse(why, name() + ": buffer " + n(a.bufferIndex) + ": offset " + n(x.offset) + " lies past its end");
+         }
+         const uint64_t bytes = x.buffer->length() - x.offset;
+         // the last element the draw fetches: for a per-instance attribute baseInstance + (instanceCount - 1) / stepRate
+@@ -414,7 +415,7 @@
+                                               : uint64_t(draw.vertexStart) + (draw.vertexCount == 0 ? 0 : draw.vertexCount - 1);
+             const uint64_t need = last * l.stride + a.offset + fi->bytes;
+             if (need > bytes) {
+-                return refuse(why, name + ": [[attribute(" + n(loc) + ")]] of " + (perInstance ? "instance step " : "vertex ") + n(uint32_t(last)) + " ends at byte " +
++                return refuse(why, name() + ": [[attribute(" + n(loc) + ")]] of " + (perInstance ? "instance step " : "vertex ") + n(uint32_t(last)) + " ends at byte " +
+                                        n(need) + " of buffer " + n(a.bufferIndex) + "; " + n(bytes) + " are bound");
+             }
+             // per instance: INSTANCED and the divisor in VFD_DECODE_STEP_RATE (tu6_emit_vertex_input, tu_pipeline.cc:2345-2354);
+@@ -631,11 +632,11 @@
+ 
+ bool stageTextures(const Stage& fs, const Bindings& b, const RenderPass& pass, StageTextures* out, std::string* why, const GmemPlan* gmem = nullptr) {
+     const Kernel& k = fs.k;
+-    const std::string name = stageName(fs);
++    const auto name = [&fs] { return std::string(stageName(fs)); };
+     out->numTex = k.numTextureSlots;
+     if (out->numTex == 0) {
+         if (fs.numSamplerPrefetch != 0) {
+-            return refuse(why, name + " prefetches a texture and loads none: ir3's tables disagree");
++            return refuse(why, name() + " prefetches a texture and loads none: ir3's tables disagree");
+         }
+         return true;
+     }
+@@ -646,11 +647,11 @@
+             // a framebuffer fetch's slot (compiler.cpp: lowerFbRead): the attachment it reads, at the level the pass draws
+             const Attachment a = attachmentOf(pass, kt.fbTarget - 1u);
+             if (a.texture == nullptr) {
+-                return refuse(why, name + " reads [[color(" + n(kt.fbTarget - 1u) + ")]] through framebuffer fetch and the pass has no colour attachment " +
++                return refuse(why, name() + " reads [[color(" + n(kt.fbTarget - 1u) + ")]] through framebuffer fetch and the pass has no colour attachment " +
+                                        n(kt.fbTarget - 1u));
+             }
+             if (a.slice != 0) {
+-                return refuse(why, name + " reads [[color(" + n(kt.fbTarget - 1u) + ")]] through framebuffer fetch from slice " + n(a.slice) +
++                return refuse(why, name() + " reads [[color(" + n(kt.fbTarget - 1u) + ")]] through framebuffer fetch from slice " + n(a.slice) +
+                                        ": a fetch from a layer, face or plane past the first is not served");
+             }
+             TexConst d = a.texture->levelDescriptor(a.level);
+@@ -672,7 +673,7 @@
+             continue;
+         }
+         if (t >= b.textures.size() || b.textures[t] == nullptr) {
+-            return refuse(why, name + ": no texture bound at index " + n(t));
++            return refuse(why, name() + ": no texture bound at index " + n(t));
+         }
+         const Texture* tex = b.textures[t];
+         if (kt.isNull || ((b.nullMask >> t) & 1) != 0) {
+@@ -686,17 +687,17 @@
+             continue;
+         }
+         if (!tex->isShaped(kt)) {
+-            return refuse(why, name + " samples texture " + n(t) + " as " +
++            return refuse(why, name() + " samples texture " + n(t) + " as " +
+                                    (kt.dim == kTexDim1D ? "1D" : kt.dim == kTexDim2D ? "2D" : kt.dim == kTexDim3D ? "3D" : kt.dim == kTexDimCube ? "a cube" : kt.dim == kTexDimMS ? "2D multisample" : "another kind") +
+                                    (kt.isArray ? " array" : "") + " and texture " + n(t) + " is of type " + n(uint32_t(tex->type())) +
+                                    ": 1D, 2D, 2D array, 2D multisample, cube and 3D, each as itself, are served in a draw");
+         }
+         if (kt.element != tex->info().element) {
+-            return refuse(why, "texture " + n(t) + " is " + tex->info().name + " (" + elementOf(tex->info().element) + "); " + name + " reads it as texture2d<" +
++            return refuse(why, "texture " + n(t) + " is " + tex->info().name + " (" + elementOf(tex->info().element) + "); " + name() + " reads it as texture2d<" +
+                                    elementOf(kt.element) + ">");
+         }
+         if ((tex->usage() & kTextureUsageRead) == 0) {
+-            return refuse(why, "texture " + n(t) + " was made without shader-read usage; " + name + " samples it");
++            return refuse(why, "texture " + n(t) + " was made without shader-read usage; " + name() + " samples it");
+         }
+         TexConst d = tex->sampledDescriptor();
+         memcpy(out->texWords[t], d.dword, sizeof d.dword);
+@@ -717,18 +718,18 @@
+         memcpy(out->sampWords[m], b.samplers[m]->words, 16);
+     }
+     if (fs.numSamplerPrefetch > kMaxSamplerPrefetch) {
+-        return refuse(why, name + " has " + n(fs.numSamplerPrefetch) + " texture prefetches: ir3 makes at most " + n(kMaxSamplerPrefetch));
++        return refuse(why, name() + " has " + n(fs.numSamplerPrefetch) + " texture prefetches: ir3 makes at most " + n(kMaxSamplerPrefetch));
+     }
+     for (uint32_t i = 0; i < fs.numSamplerPrefetch; i++) {
+         const SamplerPrefetch& pf = fs.prefetch[i];
+         if (pf.bindless != 0) {
+-            return refuse(why, name + "'s prefetch " + n(i) + " is bindless: the textures here are SB6_FS_TEX tables");
++            return refuse(why, name() + "'s prefetch " + n(i) + " is bindless: the textures here are SB6_FS_TEX tables");
+         }
+         if (pf.cmd != TEX_PREFETCH_SAM) {
+-            return refuse(why, name + "'s prefetch " + n(i) + " is not a plain sample (TEX_PREFETCH_SAM): no other prefetch is written here");
++            return refuse(why, name() + "'s prefetch " + n(i) + " is not a plain sample (TEX_PREFETCH_SAM): no other prefetch is written here");
+         }
+         if (pf.texId >= out->numTex || k.textures[pf.texId].kind != kTexSampled || ((k.samplerMask >> pf.sampId) & 1) == 0) {
+-            return refuse(why, name + "'s prefetch " + n(i) + " samples texture " + n(pf.texId) + " with sampler " + n(pf.sampId) +
++            return refuse(why, name() + "'s prefetch " + n(i) + " samples texture " + n(pf.texId) + " with sampler " + n(pf.sampId) +
+                                    ": not a texture and a sampler the FS declares");
+         }
+     }
+@@ -982,7 +983,8 @@
+ // packed apart (clearWords), since only a Clear has one. Every attachment set is held to the same rules, and those past
+ // 0 to attachment 0's size: the window is one rectangle for all of them.
+ bool checkTarget(const RenderPass& pass, std::string* why) {
+-    if (firstAttachment(pass) == nullptr) {
++    const Texture* first = firstAttachment(pass);
++    if (first == nullptr) {
+         return refuse(why, "a render pass with no attachment at all: nothing to draw into");
+     }
+     for (uint32_t i = 0; i < kMaxColorOutputs; i++) {
+@@ -991,45 +993,47 @@
+         const Texture& t = *a.texture;
+         const FormatInfo& f = t.info();
+         // (attachment 0's sentences are the ones a single target always had; a later one's name its index)
+-        const std::string which = "colour attachment " + n(i), of = i == 0 ? std::string() : " of " + which, at = i == 0 ? std::string() : which + ": ";
++        const auto which = [i] { return "colour attachment " + n(i); };
++        const auto of = [i, &which] { return i == 0 ? std::string() : " of " + which(); };
++        const auto at = [i, &which] { return i == 0 ? std::string() : which() + ": "; };
+         if (t.compressed() && (i == 0 ? pass.load : pass.more[i - 1].load) == LoadAction::kClear) {
+-            return refuse(why, at + "a Clear of a compressed texture: the 2D engine's fill writes linear rows (not served yet)");
++            return refuse(why, at() + "a Clear of a compressed texture: the 2D engine's fill writes linear rows (not served yet)");
+         }
+         if ((t.usage() & kTextureUsageRenderTarget) == 0) {
+-            return refuse(why, "the " + n(t.width()) + " x " + n(t.height()) + " " + f.name + " texture" + of +
++            return refuse(why, "the " + n(t.width()) + " x " + n(t.height()) + " " + f.name + " texture" + of() +
+                                    " was made without render-target usage (MTLTextureUsageRenderTarget, 4); a draw needs it");
+         }
+         if (t.type() != TextureType::k2D && t.type() != TextureType::k2DMultisample && t.type() != TextureType::k2DArray && t.type() != TextureType::kCube &&
+             t.type() != TextureType::k3D && t.type() != TextureType::kCubeArray) {
+-            return refuse(why, at + "a colour attachment of texture type " + n(uint32_t(t.type())) +
++            return refuse(why, at() + "a colour attachment of texture type " + n(uint32_t(t.type())) +
+                                    ": 2D (2), 2D multisample (4), a 2D array's layer (3), a cube's or cube array's face (5, 6) and a 3D texture's plane (7) are served");
+         }
+         // a slice of a 2D array, a cube (array) or a 3D texture (Texture::depth() counts them all: layers, faces, planes)
+         const uint32_t slices = (t.type() == TextureType::k2DArray || t.type() == TextureType::kCube || t.type() == TextureType::kCubeArray ||
+                                  t.type() == TextureType::k3D) ? t.depth() : 1;
+         if (a.slice >= slices) {
+-            return refuse(why, at + "slice " + n(a.slice) + " of a texture of " + n(slices));
++            return refuse(why, at() + "slice " + n(a.slice) + " of a texture of " + n(slices));
+         }
+         if (!rbMrtPitchValid(uint32_t(t.bytesPerRow())) || t.buffer()->length() >= (1ull << 32)) {
+-            return refuse(why, at + "the target's pitch of " + n(t.bytesPerRow()) + " bytes or its " + n(t.buffer()->length()) +
++            return refuse(why, at() + "the target's pitch of " + n(t.bytesPerRow()) + " bytes or its " + n(t.buffer()->length()) +
+                                    " bytes do not fit RB_MRT_PITCH / RB_MRT_ARRAY_PITCH");
+         }
+         if (a.load != LoadAction::kLoad && a.load != LoadAction::kDontCare && a.load != LoadAction::kClear) {
+-            return refuse(why, at + "load action " + n(uint32_t(a.load)) + ": MTLLoadAction is DontCare (0), Load (1) or Clear (2)");
++            return refuse(why, at() + "load action " + n(uint32_t(a.load)) + ": MTLLoadAction is DontCare (0), Load (1) or Clear (2)");
+         }
+         // DontCare is served as a Store: in sysmem the RB writes the target's memory as it draws, and what DontCare
+         // allows -- the contents undefined after the pass -- includes keeping them
+         if (a.store != StoreAction::kStore && a.store != StoreAction::kDontCare) {
+-            return refuse(why, at + "store action " + n(uint32_t(a.store)) + ": Store (1) and DontCare (0) are served");
++            return refuse(why, at() + "store action " + n(uint32_t(a.store)) + ": Store (1) and DontCare (0) are served");
+         }
+         if (f.depth) {
+-            return refuse(why, std::string("a ") + f.name + " texture as " + which + ": a depth format is the depth attachment's");
++            return refuse(why, std::string("a ") + f.name + " texture as " + which() + ": a depth format is the depth attachment's");
+         }
+         if (a.level >= t.levels()) {
+-            return refuse(why, which + " names mip level " + n(a.level) + " of a texture of " + n(t.levels()));
+-        }
+-        if (t.samples() != firstAttachment(pass)->samples()) {
+-            return refuse(why, which + " has " + n(t.samples()) + " sample(s) beside another attachment's " + n(firstAttachment(pass)->samples()) +
++            return refuse(why, which() + " names mip level " + n(a.level) + " of a texture of " + n(t.levels()));
++        }
++        if (t.samples() != first->samples()) {
++            return refuse(why, which() + " has " + n(t.samples()) + " sample(s) beside another attachment's " + n(first->samples()) +
+                                    ": a pass's attachments share one sample count");
+         }
+         // (attachments of different sizes are Metal's to allow: the window is the smallest of them, windowOf below)
+@@ -1039,8 +1043,8 @@
+         if (!d.info().depth) {
+             return refuse(why, std::string("a ") + d.info().name + " texture as the depth attachment: Depth32Float (252) is served");
+         }
+-        if (d.samples() != firstAttachment(pass)->samples()) {
+-            return refuse(why, "a depth attachment of " + n(d.samples()) + " sample(s) beside colour of " + n(firstAttachment(pass)->samples()) +
++        if (d.samples() != first->samples()) {
++            return refuse(why, "a depth attachment of " + n(d.samples()) + " sample(s) beside colour of " + n(first->samples()) +
+                                    ": a pass's attachments share one sample count");
+         }
+         if ((d.usage() & kTextureUsageRenderTarget) == 0) {
+@@ -1246,13 +1250,17 @@
+     // A [[color(n)]] the pass has no attachment n for is written nowhere: Metal leaves that pipeline slot's format Invalid
+     // and discards the output (CoreAnimation's fixed_frag_lph_cpf writes three into passes of one). The stage is drawn
+     // as if it did not write it -- no register for the slot, RB_MRT_CONTROL 0 -- which is the slot nothing writes.
+-    Stage fsDrawn = program.fs;
+-    // (a dual-source stage's second colour is the blend's second source, not attachment 1's: it is kept)
++    std::optional<Stage> fsDrawn;
++    // Keep the second colour for dual-source blending. Copy the stage only
++    // when a shader output needs to be masked for the selected attachments.
+     for (uint32_t i = 0; i < kMaxColorOutputs; i++) {
+         if (i == 1 && program.fs.dualSrcBlend) continue;
+-        if (fsDrawn.colorRegid[i] != kRegidNone && attachmentOf(pass, i).texture == nullptr) fsDrawn.colorRegid[i] = kRegidNone;
+-    }
+-    const Stage& fs = fsDrawn;
++        if (program.fs.colorRegid[i] != kRegidNone && attachmentOf(pass, i).texture == nullptr) {
++            if (!fsDrawn) fsDrawn.emplace(program.fs);
++            fsDrawn->colorRegid[i] = kRegidNone;
++        }
++    }
++    const Stage& fs = fsDrawn ? *fsDrawn : program.fs;
+     // --- the two stages ---
+     if (vs.kind != kStageVertex) {
+         return refuse(why, std::string(stageName(vs)) + " is not a vertex stage");

@@ -1,0 +1,133 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -3837,6 +3837,27 @@
+ static unsigned ggrb_started;
+ static bool ggrb_service;
+ static uint32_t ggrb_refreshes;
++/* Cached observations only: no diagnostic MMIO after a failed live guard. */
++struct ggrb_live_sample {
++    uint32_t reason,valid,gx,irq[3],reset;
++    uint64_t root1,root3;
++};
++static struct ggrb_live_sample ggrb_live_sample;
++/* op: 1 register read,2 register write,3 memory read,4 ring write,5 barrier,6 delay */
++static uint32_t ggrb_last_op,ggrb_last_space,ggrb_last_offset,ggrb_last_value,ggrb_last_ok;
++static bool ggrb_reject(struct ggrb_live_sample *sample,uint32_t reason)
++{
++    if(!ggrb_live_sample.reason){ggrb_live_sample=*sample;ggrb_live_sample.reason=reason;}
++    return false;
++}
++static bool ggrb_note(uint32_t op,uint32_t space,uint32_t offset,uint32_t value,bool ok)
++{
++    if(!ggrb_live_sample.reason){
++        ggrb_last_op=op;ggrb_last_space=space;ggrb_last_offset=offset;
++        ggrb_last_value=value;ggrb_last_ok=ok;
++    }
++    return ok;
++}
+ bool sweet_gpu_runtime_requested(void)
+ {int mode=0;(void)PE_parse_boot_argn("sweetgpuzap",&mode,sizeof(mode));return mode==12;}
+ bool sweet_gpu_service_requested(void)
+@@ -3845,17 +3866,34 @@
+ {(void)cookie;uint64_t ns;absolutetime_to_nanoseconds(mach_absolute_time(),&ns);return ns;}
+ static bool ggrb_live(void *cookie)
+ {
+-    (void)cookie;uint32_t gx,irq[3];
+-    if(!ggrb_started||!gmb_thread()||mach_absolute_time()>=ggrb_end||
+-       !sweet_gpu_runtime_requested()||sweet_gmu_board_state()!=GMB_READY||
+-       !sweet_pas_zap_owner_authenticated(gmb_stage.pa)||
+-       !gauguin_wdt_lease_check_budget(GMB_MIN)||!ggwb_unsecured()||
+-       !sweet_gmu_clock_live(true,&gx)||(gx&0x80000001u)!=0x80000000u||
+-       !sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000)||!gfw_faults(false)||
+-       gfw_load32(gmb_reset+0x2000))return false;
++    (void)cookie;struct ggrb_live_sample sample={0};
++    /* Preserve the original predicate order and short-circuit hardware trace. */
++    if(!ggrb_started)return ggrb_reject(&sample,1);
++    if(!gmb_thread())return ggrb_reject(&sample,2);
++    if(mach_absolute_time()>=ggrb_end)return ggrb_reject(&sample,3);
++    if(!sweet_gpu_runtime_requested())return ggrb_reject(&sample,4);
++    if(sweet_gmu_board_state()!=GMB_READY)return ggrb_reject(&sample,5);
++    if(!sweet_pas_zap_owner_authenticated(gmb_stage.pa))return ggrb_reject(&sample,6);
++    if(!gauguin_wdt_lease_check_budget(GMB_MIN))return ggrb_reject(&sample,7);
++    if(!ggwb_unsecured())return ggrb_reject(&sample,8);
++    if(!sweet_gmu_clock_live(true,&sample.gx))return ggrb_reject(&sample,9);
++    sample.valid|=1;
++    if((sample.gx&0x80000001u)!=0x80000000u)return ggrb_reject(&sample,10);
++    if(!sweet_gmu_irq_quiet(sample.irq))return ggrb_reject(&sample,11);
++    sample.valid|=2;
++    if(sample.irq[1]&0x1000)return ggrb_reject(&sample,12);
++    if(!gfw_faults(false))return ggrb_reject(&sample,13);
++    sample.valid|=4;
++    sample.reset=gfw_load32(gmb_reset+0x2000);sample.valid|=8;
++    if(sample.reset)return ggrb_reject(&sample,14);
+     volatile uint64_t *root=(volatile uint64_t *)(gmb_ram+GGP_TABLE_OFFSET-GMB_PAGE);
+-    return root[1]==ggrb_root&&root[3]==((gmb_stage.pa+GGP_TABLE_OFFSET+0x1000)|3u)&&
+-        mach_absolute_time()<ggrb_end;
++    sample.root1=root[1];sample.valid|=16;
++    if(sample.root1!=ggrb_root)return ggrb_reject(&sample,15);
++    sample.root3=root[3];sample.valid|=32;
++    if(sample.root3!=((gmb_stage.pa+GGP_TABLE_OFFSET+0x1000)|3u))return ggrb_reject(&sample,16);
++    if(mach_absolute_time()>=ggrb_end)return ggrb_reject(&sample,17);
++    if(!ggrb_live_sample.reason)ggrb_live_sample=sample;
++    return true;
+ }
+ static bool ggrb_routes(void)
+ {
+@@ -3872,24 +3910,28 @@
+         gmb_read64(NULL,b+0x20,&t)&&t==s->ttbr0&&gmb_read64(NULL,b+0x28,&t)&&t==s->ttbr1&&ggq_nc_valid();
+ }
+ static bool ggrb_read(void *cookie,uint32_t reg,uint32_t *v)
+-{(void)cookie;return ggq_board_read(NULL,reg,v);}
++{(void)cookie;bool ok=ggq_board_read(NULL,reg,v);return ggrb_note(1,0,reg,ok&&v?*v:0,ok);}
+ static bool ggrb_write(void *cookie,uint32_t reg,uint32_t v)
+-{(void)cookie;return ggq_board_write(NULL,reg,v);}
++{(void)cookie;return ggrb_note(2,0,reg,v,ggq_board_write(NULL,reg,v));}
+ static bool ggrb_memory(void *cookie,enum ggr_memory m,uint32_t off,uint32_t *v)
+ {
+-    (void)cookie;if(!v||(off&3))return false;
++    (void)cookie;if(!v||(off&3))return ggrb_note(3,m,off,0,false);
+     vm_offset_t va;
+     if(m==GGR_RING&&off<32768)va=gmb_ram+ggb_plan.region[GGP_RING].offset-GMB_PAGE+off;
+     else if(m==GGR_SHADOW&&!off)va=gmb_ram+ggb_plan.region[GGP_SCRATCH].offset-GMB_PAGE;
+     else if(m==GGR_COMPLETION&&!off)va=gmb_ram+ggb_data_plan.data.offset-GMB_PAGE;
+-    else return false;
+-    *v=gfw_load32(va);return true;
++    else return ggrb_note(3,m,off,0,false);
++    *v=gfw_load32(va);return ggrb_note(3,m,off,*v,true);
+ }
+ static bool ggrb_ring(void *cookie,uint32_t off,uint32_t value)
+ {
+-    (void)cookie;if((off&3)||off>=32768)return false;
+-    gfw_store32(gmb_ram+ggb_plan.region[GGP_RING].offset-GMB_PAGE+off,value);return true;
+-}
++    (void)cookie;if((off&3)||off>=32768)return ggrb_note(4,0,off,value,false);
++    gfw_store32(gmb_ram+ggb_plan.region[GGP_RING].offset-GMB_PAGE+off,value);return ggrb_note(4,0,off,value,true);
++}
++static bool ggrb_barrier(void *cookie)
++{return ggrb_note(5,0,0,0,gmb_barrier(cookie));}
++static bool ggrb_delay(void *cookie,unsigned us)
++{return ggrb_note(6,0,0,us,ggq_board_delay(cookie,us));}
+ static void ggrb_quarantine(void *cookie)
+ {
+     (void)cookie;
+@@ -3902,6 +3944,11 @@
+     __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+     gmb_fail(GMB_GPU,"A619 userspace runtime stopped; DMA owners retained");
++    char line[256];const struct ggrb_live_sample *s=&ggrb_live_sample;
++    snprintf(line,sizeof(line),"SWEET GPU STOP CACHE: live_reason=%u valid=%x gx=%08x irq=%08x/%08x/%08x reset=%x root1=%016llx root3=%016llx; cached only",
++        s->reason,s->valid,s->gx,s->irq[0],s->irq[1],s->irq[2],s->reset,s->root1,s->root3);gmb_record(line);
++    snprintf(line,sizeof(line),"SWEET GPU STOP CACHE: op=%u space=%u off=%x value=%08x ok=%u gfsr=%08x fsr=%08x/%08x; cached only",
++        ggrb_last_op,ggrb_last_space,ggrb_last_offset,ggrb_last_value,ggrb_last_ok,gfw_work.gfsr,gfw_work.fsr[0],gfw_work.fsr[1]);gmb_record(line);
+ }
+ bool sweet_gpu_runtime_ready(void)
+ {
+@@ -3919,7 +3966,7 @@
+     ggrb_started=1;ggrb_service=sweet_gpu_service_requested();
+     if(ggrb_service)ggrb_end=UINT64_MAX;
+     else clock_interval_to_deadline(20,NSEC_PER_SEC,&ggrb_end);
+-    struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,gmb_barrier,ggq_board_delay,ggrb_quarantine};
++    struct ggr_ops ops={NULL,ggrb_live,ggrb_ns,ggrb_read,ggrb_write,ggrb_memory,ggrb_ring,ggrb_barrier,ggrb_delay,ggrb_quarantine};
+     enum ggr_error rc=ggr_open(&ggrb_context,&ops,ggb_plan.region[GGP_SCRATCH].iova,ggb_data_plan.data.iova);
+     if(rc!=GGR_OK||!sweet_gpu_runtime_ready()||!GauguinGPUStart()) {
+         if(ggrb_context.state!=GGR_FAILED)ggr_fail(&ggrb_context,GGR_UNAVAILABLE);

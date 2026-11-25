@@ -1,0 +1,11 @@
+--- a/userland/src/HakiosMetalCA.m
++++ b/userland/src/HakiosMetalCA.m
+@@ -2141,7 +2141,7 @@
+ 	 * the software road it takes today. The alternative, a device that exists and refuses every buffer, was measured
+ 	 * worse than none: it lets CoreAnimation choose the Metal road and abort on it.
+ 	 */
+-	_gpu = hakios_metal_open();
++	_gpu = gauguin_metal_desktop_open();
+ 	if (_gpu == NULL) {
+ 		hm_print("no device: %s\n", hakios_metal_error());
+ 		[self release];

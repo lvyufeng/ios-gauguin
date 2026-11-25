@@ -1,0 +1,36 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -473,6 +473,7 @@
+     /* BEGIN SWEET PRESENT STATS FIELDS */
+     bool fPresentStatsEnabled;
+     SweetPresentSample *fPresentSample; /* timer workloop only; points to stack */
++    uint32_t fEmpty355Receipts;         /* workloop only */
+     SweetPresentStats fPresentStats;     /* protected by fLock */
+     /* END SWEET PRESENT STATS FIELDS */
+     void configurePresentClock(void);
+@@ -696,6 +697,7 @@
+     fReadyEvent = nullptr;
+     fReadyGeneration = 0;
+     fPresentSample = NULL;
++    fEmpty355Receipts = 0;
+     bzero(&fPresentStats, sizeof(fPresentStats));
+     if (fPresentStatsEnabled) IOLog("SWEET FB STATS: enabled; CPU timing only, panel unqualified\n");
+     /* END SWEET PRESENT STATS INIT */
+@@ -1426,6 +1428,16 @@
+     /* BEGIN SWEET PRESENT STATS CLEAR */
+     if (measuring || priorSample != NULL) fPresentSample = priorSample;
+     /* END SWEET PRESENT STATS CLEAR */
++    /* Witness an empty layer update after the ordinary present call. Its
++     * retained record is still live and the per-call counters are complete. */
++    if (fReadyAcrossFrames && measuring && frameAttempt && fEmpty355Receipts < 8 &&
++        get32(rec,0x104) == 1 && get32(rec,0x54) == 0) {
++        ++fEmpty355Receipts;
++        IOLog("SWEET FB EMPTY355: gen=%llu swap=%u attempt=%llu tick=%llu mask=1 surface=0 "
++              "timed=%u versioned=%u guards=%u bytes=%llu ready=%u\n",
++            frame->generation, get32(rec,0x50), frameAttempt, mach_absolute_time(), blankFrame != UINT64_MAX,
++            version != UINT32_MAX, sample.gpuGuards, sample.copiedBytes, ready);
++    }
+     if (blankFrame != UINT64_MAX && ready) fBlankSlot.done = true;
+     if (fHoldPresent) finishHeldFrame(frame, !ready, stale);
+     else IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);

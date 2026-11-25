@@ -1,0 +1,213 @@
+diff --git a/bsd/dev/gauguin_read360.h b/bsd/dev/gauguin_read360.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_read360.h
+@@ -0,0 +1,47 @@
++#ifndef GAUGUIN_READ360_H
++#define GAUGUIN_READ360_H
++
++#include "gauguin_ready354.h"
++
++/* A completed writer's pixels are pinned for one display read. GPU state
++ * observers still see the completed version. Only GPU admission and the
++ * display read guard participate in this additional state. */
++#define SCAN360_GPU_READ 3u
++
++static inline bool
++scan360_reserved(uint32_t state)
++{
++    return (state & SCAN354_GPU_STATUS) == SCAN360_GPU_READ;
++}
++
++static inline bool
++scan360_reserve(uint32_t *state, uint32_t version)
++{
++    if (!version || !scan354_has_version(version, version))
++        return false;
++    return __atomic_compare_exchange_n(state, &version, version | SCAN360_GPU_READ,
++        false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
++}
++
++/* GPU callers retain their serial request lock and buffer references while
++ * waiting. A read that wins the CAS precedes GPU admission for this surface. */
++static inline bool
++scan360_try_gpu_state(uint32_t *state, uint32_t status, bool writer)
++{
++    uint32_t previous = __atomic_load_n(state, __ATOMIC_ACQUIRE);
++    if (scan360_reserved(previous))
++        return false;
++    const uint32_t next = scan354_gpu_state(previous, status, writer);
++    return __atomic_compare_exchange_n(state, &previous, next, false,
++        __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
++}
++
++static inline bool
++scan360_release(uint32_t *state, uint32_t version)
++{
++    uint32_t held = version | SCAN360_GPU_READ;
++    return __atomic_compare_exchange_n(state, &held, version, false,
++        __ATOMIC_RELEASE, __ATOMIC_RELAXED);
++}
++
++#endif
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -31,6 +31,7 @@
+ #include "../../../bsd/dev/gauguin_ready354.h"
+ #include "../../../bsd/dev/gauguin_ready357.h"
+ #include "../../../bsd/dev/gauguin_probe358.h"
++#include "../../../bsd/dev/gauguin_read360.h"
+ static_assert(GUT_HID_QUEUE_STATE==31 && GUT_BO_ALLOC333==32 && GUT_BO_REUSE335==33,
+     "legacy UI254 event kinds must agree with the HID producer and host decoder");
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+@@ -46,6 +47,9 @@
+  * Keep handle/queue mutation serialized while a request yields gLock for
+  * completion. The owner reference keeps its buffer array alive throughout. */
+ static IOLock *gRequests;
++/* Only same-surface admissions can sleep here. Display release uses this
++ * interlock without taking gLock, which the waiting GPU caller still owns. */
++static IOLock *gReadWait;
+ static IOUserClient *gOwner;
+ /* Called with gLock. A faulted owner stays retained until reset. */
+ static bool completePendingOwnerLocked(bool wait,bool reap);
+@@ -381,6 +385,10 @@
+     IOLock *lock=IOLockAlloc(),*requests=IOLockAlloc();
+     if(!lock||!requests){if(lock)IOLockFree(lock);if(requests)IOLockFree(requests);return false;}
+     gRequests=requests;
++    uint32_t displayMode = 0;
++    PE_parse_boot_argn("sweetfb_stats", &displayMode, sizeof(displayMode));
++    if (displayMode == 9 && !gReadWait)
++        gReadWait = IOLockAlloc();
+     /* Display readers can race publication; install once and never replace. */
+     __atomic_store_n(&gLock,lock,__ATOMIC_RELEASE);
+     IOService *p=IOService::getPlatform();
+@@ -418,27 +426,48 @@
+ }
+ 
+ /* Display takes an acquire snapshot while holding its own frame references.
+- * Only GPU code under gLock changes these fields after surface creation. */
++ * A read reservation leaves the completed version visible to observers. */
+ extern "C" uint32_t GauguinGPUSurfaceState(SweetSurface *s)
+ {
+-    return __atomic_load_n(&s->gpuState, __ATOMIC_ACQUIRE);
++    const uint32_t state = __atomic_load_n(&s->gpuState, __ATOMIC_ACQUIRE);
++    return scan360_reserved(state) ? state & SCAN354_GPU_VERSION : state;
+ }
+ 
+ static void setSurfaceGPUState(SweetSurface *s, uint32_t status, bool writer = false)
+ {
+-    __atomic_store_n(&s->gpuState, scan354_gpu_state(GauguinGPUSurfaceState(s), status, writer), __ATOMIC_RELEASE);
+-}
+-
+-/* Token 1: CPU-only path before GPU publication; 2: the GPU lock is held.
+- * The token avoids unlocking a lock published between begin and end. Lock
+- * order is framebuffer -> GPU -> surface lookup. Completion can signal
+- * the display workloop without taking its gate or the framebuffer lock. */
+-extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *s)
++    if (!gReadWait) {
++        __atomic_store_n(&s->gpuState, scan354_gpu_state(GauguinGPUSurfaceState(s), status, writer),
++            __ATOMIC_RELEASE);
++        return;
++    }
++    while (!scan360_try_gpu_state(&s->gpuState, status, writer)) {
++        IOLockLock(gReadWait);
++        while (scan360_reserved(__atomic_load_n(&s->gpuState, __ATOMIC_ACQUIRE)))
++            IOLockSleep(gReadWait, &s->gpuState, THREAD_UNINT);
++        IOLockUnlock(gReadWait);
++    }
++}
++
++/* Token 1: CPU-only before GPU publication; 2: the GPU lock is held;
++ * 3: an exact, completed version of an owned surface is pinned. */
++extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *s, uint32_t version)
+ {
+     IOLock *lock=__atomic_load_n(&gLock,__ATOMIC_ACQUIRE);
+     if(!lock)return 1;
+     uint64_t queued=sweet_ui_trace_clock();
+     const uint64_t frameQueued = sweet_frame344_clock();
++    /* Owned surfaces allocate separate, page-aligned IOBuffer storage.
++     * GPU imports deduplicate this object and mark it pending before cache
++     * maintenance and issue. Wrapped task and physical surfaces use gLock. */
++    if (gReadWait && version != UINT32_MAX && !s->readOnly &&
++        OSDynamicCast(IOBufferMemoryDescriptor, s->memory) && scan360_reserve(&s->gpuState, version)) {
++        s->retain();
++        const uint64_t reserved = frameQueued ? mach_absolute_time() : 0;
++        sweet_ui_trace_record(GUT_READ_LOCK,s->id,0,0,queued,0,0);
++        if (frameQueued)
++            sweet_frame344_record(F344_LOCK,s->id,3,frameQueued,reserved,mach_absolute_time());
++        return 3;
++    }
+     IOLockLock(lock);
+     const uint64_t frameLocked = frameQueued ? mach_absolute_time() : 0;
+     uint32_t status = GauguinGPUSurfaceState(s) & SCAN354_GPU_STATUS;
+@@ -485,8 +514,22 @@
+     return fence;
+ }
+ 
+-extern "C" void GauguinGPUSurfaceEnd(uint32_t token)
+-{if(token==2){sweet_ui_trace_record(GUT_READ_END,gTraceReader,0,0,0,0,0);IOLockUnlock(gLock);}}
++extern "C" void GauguinGPUSurfaceEnd(SweetSurface *s, uint32_t version, uint32_t token)
++{
++    if (token == 2) {
++        sweet_ui_trace_record(GUT_READ_END,gTraceReader,0,0,0,0,0);
++        IOLockUnlock(gLock);
++    } else if (token == 3) {
++        sweet_ui_trace_record(GUT_READ_END,s->id,0,0,0,0,0);
++        IOLockLock(gReadWait);
++        const bool released = scan360_release(&s->gpuState, version);
++        assert(released);
++        (void)released;
++        IOLockWakeup(gReadWait, &s->gpuState, false);
++        IOLockUnlock(gReadWait);
++        s->release();
++    }
++}
+ 
+ bool GauguinGPUUserClient::initWithTask(task_t task,void *sid,UInt32 type,OSDictionary *properties)
+ {
+diff --git a/iokit/Kernel/arm/SweetSurface.h b/iokit/Kernel/arm/SweetSurface.h
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -33,7 +33,7 @@
+ 	uint16_t bytesPerElement;
+ 	uint8_t  elementWidth, elementHeight;
+ 	uint32_t cacheMode, planeCount, parentID;
+-	uint32_t gpuState; /* GPU lock writes: low two bits status, high bits writer version */
++	uint32_t gpuState; /* atomic status and writer version */
+ 	struct sweet_surface_plane planes[SWEET_SURFACE_MAX_PLANES];
+ 
+ 	IOMemoryDescriptor       *memory;       /* pixels (buffer or physical) */
+@@ -70,13 +70,15 @@
+ /* Balanced display holder: keeps both the ID table entry and object alive. */
+ SweetSurface *sweet_surface_hold(uint32_t id);
+ void sweet_surface_drop(SweetSurface *surface);
+-extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *);
+-extern "C" void GauguinGPUSurfaceEnd(uint32_t);
++extern "C" uint32_t GauguinGPUSurfaceBegin(SweetSurface *, uint32_t);
++extern "C" void GauguinGPUSurfaceEnd(SweetSurface *, uint32_t, uint32_t);
+ class SweetSurfaceGPURead {
+-    uint32_t token;
++    SweetSurface *surface;
++    const uint32_t version, token;
+ public:
+-    explicit SweetSurfaceGPURead(SweetSurface *s) : token(GauguinGPUSurfaceBegin(s)) {}
+-    ~SweetSurfaceGPURead() { GauguinGPUSurfaceEnd(token); }
++    SweetSurfaceGPURead(SweetSurface *s, uint32_t v) :
++        surface(s), version(v), token(GauguinGPUSurfaceBegin(s, v)) {}
++    ~SweetSurfaceGPURead() { GauguinGPUSurfaceEnd(surface, version, token); }
+     bool valid() const { return token!=0; }
+     SweetSurfaceGPURead(const SweetSurfaceGPURead &)=delete;
+     SweetSurfaceGPURead &operator=(const SweetSurfaceGPURead &)=delete;
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -2112,7 +2112,7 @@
+         }
+         /* END SWEET PRESENT STATS GUARD START */
+         sweet_ui_trace_record(GUT_LAYER,get32(rec,0x50),0,layer,id,s->width,s->height);
+-        SweetSurfaceGPURead gpuRead(s);
++        SweetSurfaceGPURead gpuRead(s, fastBlank ? version : UINT32_MAX);
+         /* BEGIN SWEET PRESENT STATS GUARD END */
+         if (fPresentSample != NULL) {
+             if (fPresentSample->timingValid &&

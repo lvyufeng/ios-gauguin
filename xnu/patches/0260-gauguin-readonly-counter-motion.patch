@@ -1,0 +1,97 @@
+diff --git a/bsd/dev/gauguin_scanout345.h b/bsd/dev/gauguin_scanout345.h
+--- a/bsd/dev/gauguin_scanout345.h
++++ b/bsd/dev/gauguin_scanout345.h
+@@ -80,6 +80,33 @@
+     return status->enable == 1 && (status->count == 0 || status->count == 3);
+ }
+
++struct scan348_motion_lane {
++    uint32_t samples, compared_pairs, frame_changes, line_changes, line_wraps;
++};
++
++struct scan348_motion {
++    struct scan348_motion_lane zero, enabled;
++    uint32_t control, frame, line, rejected_control;
++    bool previous_valid;
++};
++
++static inline void
++scan348_sample(struct scan348_motion *motion, uint32_t control, uint32_t frame, uint32_t line)
++{
++    struct scan348_motion_lane *lane = control == 0 ? &motion->zero : &motion->enabled;
++    ++lane->samples;
++    if (motion->previous_valid && control == motion->control) {
++        ++lane->compared_pairs;
++        lane->frame_changes += frame != motion->frame;
++        lane->line_changes += line != motion->line;
++        lane->line_wraps += line < motion->line;
++    }
++    motion->control = control;
++    motion->frame = frame;
++    motion->line = line;
++    motion->previous_valid = true;
++}
++
+ static inline bool
+ scan345_edge_60(uint64_t interval_ns, uint64_t bracket_ns, uint32_t line, uint32_t vtotal)
+ {
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -62,6 +62,7 @@
+     uint32_t readonly_samples, readonly_first_frame, readonly_first_line, readonly_last_line;
+     enum scan345_gate last_gate;
+     struct scan345_geometry geometry, counter_candidate;
++    struct scan348_motion motion;
+     bool have_frame, configured, crc_blocked, have_crc, have_candidate;
+     bool counter_opt_in, counter_attempted, counter_readonly;
+ } scan;
+@@ -185,10 +186,16 @@
+         printf("SWEET F346 COUNTER: cleanup poll=%u readable=%u before=%x after=%x\n",
+             scan.polls, readable, before, after);
+     }
+-    if (scan.counter_readonly)
++    if (scan.counter_readonly) {
+         printf("SWEET F347 RO: samples=%u first_frame=%u first_line=%u last_frame=%u last_line=%u\n",
+             scan.readonly_samples, scan.readonly_first_frame, scan.readonly_first_line,
+             scan.frame, scan.readonly_last_line);
++        const struct scan348_motion_lane *zero = &scan.motion.zero, *on = &scan.motion.enabled;
++        printf("SWEET F348 MOTION: zero=%u,%u,%u,%u,%u enabled=%u,%u,%u,%u,%u rejected_control=%u\n",
++            zero->samples, zero->compared_pairs, zero->frame_changes, zero->line_changes, zero->line_wraps,
++            on->samples, on->compared_pairs, on->frame_changes, on->line_changes, on->line_wraps,
++            scan.motion.rejected_control);
++    }
+     printf("SWEET F345 DPU: stopped=%s polls=%u configured=%u restored=%u gate=%u\n",
+         reason, scan.polls, scan.configured, restored, scan.last_gate);
+ }
+@@ -262,6 +269,7 @@
+             return;
+         }
+         scan.have_frame = false;
++        scan.motion.previous_valid = false;
+         scan.edge_tick = 0;
+         scan.edge_streak = 0;
+         if (scan.counter_opt_in && gate == SCAN345_COUNTERS) {
+@@ -292,9 +300,11 @@
+         const uint32_t sig = control == (F344_CRC_CONFIG | F344_CRC_STATUS) ?
+             scan_intf[F344_MISR_SIG / 4] : 0;
+         const uint32_t checked_frame = scan_intf[F344_FRAME_COUNT / 4];
++        const bool same_control = !scan.counter_readonly || scan_intf[F345_COUNT_EN / 4] == status.count;
+         const uint64_t sampled = mach_absolute_time();
+-        if (frame == checked_frame && line < geometry.vtotal) {
++        if (same_control && frame == checked_frame && line < geometry.vtotal) {
+             if (scan.counter_readonly) {
++                scan348_sample(&scan.motion, status.count, frame, line);
+                 if (scan.readonly_samples++ == 0) {
+                     scan.readonly_first_frame = frame;
+                     scan.readonly_first_line = line;
+@@ -306,6 +316,9 @@
+             scan.have_frame = true;
+             scan.frame = frame;
+             scan.last_tick = before;
++        } else if (scan.counter_readonly) {
++            scan.motion.previous_valid = false;
++            scan.motion.rejected_control += !same_control;
+         }
+     }
+     uint64_t deadline;

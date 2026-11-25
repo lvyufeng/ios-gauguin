@@ -1,0 +1,609 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -150,6 +150,8 @@
+ bsd/dev/gauguin_gpu_varying.c			standard
+ bsd/dev/gauguin_gpu_texture.c			standard
+ bsd/dev/gauguin_gpu_runtime.c			standard
++bsd/dev/gauguin_ui_trace.c			standard
++bsd/dev/gauguin_ui_trace_board.c			standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -9,6 +9,7 @@
+ #include <IOKit/IOLib.h>
+ #include "gauguin_gmu_board.h"
+ #include "gauguin_gmu_clock.h"
++#include "gauguin_ui_trace.h"
+ #include "gauguin_gmu_asset.h"
+ #include "gauguin_gpu_sqe_asset.h"
+ #include "gauguin_wdt_lease.h"
+@@ -4135,6 +4136,7 @@
+     __atomic_store_n(&ggx_board_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+     __atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);
+     gmb_fail(GMB_GPU,"A619 userspace runtime stopped; DMA owners retained");
++    sweet_ui_trace_stop(GUT_GPU_STOP);
+     GauguinGPUProfileFreeze();
+     char line[256];const struct ggrb_live_sample *s=&ggrb_live_sample;
+     snprintf(line,sizeof(line),"SWEET GPU STOP CACHE: live_reason=%u valid=%x gx=%08x irq=%08x/%08x/%08x reset=%x root1=%016llx root3=%016llx; cached only",
+--- a/bsd/dev/gauguin_nvt/runtime/nvt_runtime.c
++++ b/bsd/dev/gauguin_nvt/runtime/nvt_runtime.c
+@@ -24,6 +24,7 @@
+ 
+ #if defined(GAUGUIN)
+ #include "nvt_runtime.h"
++#include "../../gauguin_ui_trace.h"
+ #include "../kernel-bus/nvt_kernel_bus.h"
+ #include "../bootstrap/nvt_bootstrap.h"
+ #include "../nvt_protocol.h"
+@@ -228,6 +229,8 @@
+     if (!s->last_hid_mask) return true;
+     printf("SWEET NVT: releasing submitted mask=%x\n", s->last_hid_mask);
+     struct sweet_hid_touch_snapshot up = {0};
++    uint64_t trace_now=sweet_ui_trace_clock();
++    (void)sweet_ui_trace_report(trace_now,trace_now,0,0);
+     for (unsigned i = 0; i < NRT_RELEASE_ATTEMPTS; i++) {
+         int result = sweet_hid_touch_frame(&up);
+         if (result == 0) {
+@@ -249,16 +252,22 @@
+     if (nvt_make_request(NVT_READ_POINTS, &request) != NVT_OK || request.wire_length != 67) return EINVAL;
+     s->last_good_us = s->last_summary_us = nrt_now_us(NULL);
+     for (;;) {
++        uint64_t trace_begin=sweet_ui_trace_clock();
+         int result = nrt_xfer(s, request.page, NULL, sizeof(request.page));
+         if (!result) result = nrt_xfer(s, request.tx, rx, request.wire_length);
+         if (!result) result = nrt_xfer(s, request.restore_page, NULL, sizeof(request.restore_page));
+-        if (result) return result;
++        uint64_t trace_end=sweet_ui_trace_clock();
++        if (result) {
++            (void)sweet_ui_trace_report(trace_begin,trace_end,(uint32_t)result,UINT32_MAX);
++            return result;
++        }
+         s->packets++;
+         struct nvt_frame frame;
+         result = nvt_decode_points(&s->points, rx, sizeof(rx), &frame);
+         uint64_t now = nrt_now_us(NULL);
+         if (now < s->last_good_us) return EIO;
+         if (result != NVT_OK) {
++            (void)sweet_ui_trace_report(trace_begin,trace_end,(uint32_t)result,UINT32_MAX);
+             s->rejected++;
+             printf("SWEET NVT: malformed frame rc=%d streak=%u\n", result, s->bad_frames + 1);
+             if (++s->bad_frames >= NRT_BAD_LIMIT) return EPROTO;
+@@ -275,7 +284,9 @@
+             s->last_good_us = now;
+             struct sweet_hid_touch_snapshot snapshot;
+             nrt_snapshot(&s->points, &snapshot);
+-            int hid = sweet_hid_touch_frame(&snapshot);
++            uint64_t trace_id=sweet_ui_trace_report(trace_begin,trace_end,0,snapshot.active_mask);
++            int hid = sweet_hid_touch_frame_traced(&snapshot,trace_id);
++            if(trace_id)sweet_ui_trace_record(GUT_HID_RETURN,trace_id,0,(uint32_t)hid,snapshot.active_mask,0,0);
+             if (hid != 0) {
+                 if (++s->hid_failures >= NRT_HID_LIMIT) {
+                     printf("SWEET NVT: HID failure=%x count=%u; stopping\n", (unsigned)hid, s->hid_failures);
+--- /dev/null
++++ b/bsd/dev/gauguin_ui_trace.c
+@@ -0,0 +1,104 @@
++#include "gauguin_ui_trace.h"
++
++static uint32_t state(const struct gut_core *c)
++{return c?__atomic_load_n(&c->state,__ATOMIC_ACQUIRE):GUT_OFF;}
++bool gut_enabled(const struct gut_core *c)
++{uint32_t s=state(c);return s==GUT_ARMED||s==GUT_CAPTURE;}
++static bool enter(struct gut_core *c,bool producer)
++{
++    if(__atomic_exchange_n(&c->busy,1,__ATOMIC_ACQUIRE)) {
++        if(producer)__atomic_fetch_add(&c->lost,UINT64_C(1),__ATOMIC_RELAXED);
++        return false;
++    }
++    return true;
++}
++static void leave(struct gut_core *c)
++{__atomic_store_n(&c->busy,0,__ATOMIC_RELEASE);}
++static void freeze(struct gut_core *c,uint32_t reason)
++{
++    /* Closing the loss counter is its linearization point. Attempts after
++     * closure belong outside this immutable prefix, even if preempted earlier. */
++    c->lost_final=__atomic_fetch_or(&c->lost,UINT64_C(1)<<63,__ATOMIC_ACQ_REL)&~(UINT64_C(1)<<63);
++    c->reason=reason;__atomic_store_n(&c->state,GUT_FROZEN,__ATOMIC_RELEASE);
++}
++static bool live(struct gut_core *c,uint64_t now)
++{
++    if(state(c)!=GUT_CAPTURE)return false;
++    uint32_t stop=__atomic_load_n(&c->stop,__ATOMIC_ACQUIRE);
++    if(stop)freeze(c,stop);
++    else if(now<c->start)freeze(c,GUT_CLOCK);
++    else if(now>=c->end)freeze(c,GUT_DEADLINE);
++    else return true;
++    return false;
++}
++static uint64_t append(struct gut_core *c,uint64_t now,uint32_t kind,uint64_t id,
++    uint32_t pid,uint32_t flags,uint64_t a,uint64_t b,uint64_t d)
++{
++    if(!live(c,now))return 0;
++    if(c->count==c->capacity){freeze(c,GUT_CAPACITY);return 0;}
++    uint64_t seq=(uint64_t)c->count+1;
++    if(kind==GUT_REPORT)id=seq;
++    struct gut_event e={seq,now,id,kind,pid,flags,0,a,b,d};
++    c->events[c->count++]=e;
++    if(c->count==c->capacity)freeze(c,GUT_CAPACITY);
++    return seq;
++}
++bool gut_init(struct gut_core *c,struct gut_event *events,uint32_t capacity,uint32_t which,
++    uint64_t window,uint64_t (*clock)(void *),void *cookie)
++{
++    if(!c)return false;
++    uint32_t expected=0;
++    if(!__atomic_compare_exchange_n(&c->initialized,&expected,1,false,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE))return false;
++    if(!events||!capacity||capacity>4096||!which||which>16||!window||!clock)return false;
++    /* A zero-initialized core is configured exactly once, before publication. */
++    c->events=events;c->capacity=capacity;c->which=which;c->window=window;
++    c->clock=clock;c->cookie=cookie;
++    __atomic_store_n(&c->state,GUT_ARMED,__ATOMIC_RELEASE);return true;
++}
++uint64_t gut_report(struct gut_core *c,uint64_t begin,uint64_t end,uint32_t status,uint32_t mask)
++{
++    if(!gut_enabled(c)||!enter(c,true))return 0;
++    uint64_t now=c->clock(c->cookie),id=0;
++    bool valid=!status&&mask<1024&&begin&&begin<=end&&end<=now;
++    if(valid) {
++        bool down=!c->mask&&mask;c->mask=mask;
++        if(state(c)==GUT_ARMED&&down&&++c->gestures==c->which) {
++            c->start=now;
++            if(now>UINT64_MAX-c->window)freeze(c,GUT_CLOCK);
++            else {c->end=now+c->window;__atomic_store_n(&c->state,GUT_CAPTURE,__ATOMIC_RELEASE);}
++        }
++    }
++    if(!valid&&!status)status=UINT32_MAX;
++    if(state(c)==GUT_CAPTURE)id=append(c,now,GUT_REPORT,0,0,status,begin,end,mask);
++    leave(c);return id;
++}
++void gut_record(struct gut_core *c,uint32_t kind,uint64_t id,uint32_t pid,uint32_t flags,
++    uint64_t a,uint64_t b,uint64_t d)
++{
++    if(state(c)!=GUT_CAPTURE||!enter(c,true))return;
++    (void)append(c,c->clock(c->cookie),kind,id,pid,flags,a,b,d);leave(c);
++}
++void gut_stop(struct gut_core *c,uint32_t reason)
++{
++    if(!gut_enabled(c)||reason<GUT_DEADLINE||reason>GUT_GPU_STOP)return;
++    uint32_t expected=0;
++    (void)__atomic_compare_exchange_n(&c->stop,&expected,reason,false,__ATOMIC_RELEASE,__ATOMIC_RELAXED);
++}
++bool gut_read(struct gut_core *c,struct gut_event *out,uint32_t capacity,uint32_t *count,struct gut_meta *meta)
++{
++    if(!c||!out||!capacity||!count||!meta||state(c)==GUT_OFF)return false;
++    if(!enter(c,false))return false;
++    uint32_t s=state(c);
++    if(s==GUT_ARMED&&__atomic_load_n(&c->stop,__ATOMIC_ACQUIRE))
++        freeze(c,__atomic_load_n(&c->stop,__ATOMIC_ACQUIRE));
++    if(s==GUT_CAPTURE)(void)live(c,c->clock(c->cookie));
++    s=state(c);
++    if(s<GUT_FROZEN){leave(c);return false;}
++    uint32_t n=c->count-c->cursor;if(n>capacity)n=capacity;
++    for(uint32_t i=0;i<n;i++)out[i]=c->events[c->cursor+i];
++    c->cursor+=n;
++    if(c->cursor==c->count)__atomic_store_n(&c->state,GUT_DRAINED,__ATOMIC_RELEASE);
++    *count=n;*meta=(struct gut_meta){c->start,c->end,c->lost_final,
++        state(c),c->reason,c->count,c->cursor,c->which,c->gestures};
++    leave(c);return true;
++}
+--- /dev/null
++++ b/bsd/dev/gauguin_ui_trace.h
+@@ -0,0 +1,58 @@
++/* Bounded CPU-clock UI evidence. No allocation, MMIO or wait in producers. */
++#ifndef GAUGUIN_UI_TRACE_H
++#define GAUGUIN_UI_TRACE_H
++#include <stdint.h>
++#include <stdbool.h>
++#include <stddef.h>
++
++enum gut_state { GUT_OFF, GUT_ARMED, GUT_CAPTURE, GUT_FROZEN, GUT_DRAINED };
++enum gut_reason { GUT_DEADLINE=1, GUT_CAPACITY, GUT_CLOCK, GUT_GPU_STOP };
++enum gut_kind {
++    GUT_REPORT=1, GUT_HID_BEGIN, GUT_HID_END, GUT_HID_RETURN,
++    GUT_HID_ENQUEUE, GUT_HID_NO_QUEUE,
++    GUT_API_BEGIN=10, GUT_API_END, GUT_SUBMIT_BEGIN, GUT_SUBMIT_END, GUT_SURFACE,
++    GUT_SWAP=20, GUT_PRESENT_BEGIN, GUT_PRESENT_END, GUT_LAYER, GUT_READ_LOCK, GUT_READ_END
++};
++struct gut_event {
++    uint64_t seq, tick, id;
++    uint32_t kind, pid, flags, reserved;
++    uint64_t a,b,c;
++};
++struct gut_meta {
++    uint64_t start,end,lost;
++    uint32_t state,reason,count,cursor,which,gestures;
++};
++struct gut_core {
++    uint32_t initialized,state,busy,stop;
++    uint64_t lost,lost_final,window,start,end;
++    uint32_t count,cursor,capacity,which,gestures,mask,reason;
++    struct gut_event *events;
++    uint64_t (*clock)(void *);
++    void *cookie;
++};
++#ifdef __cplusplus
++static_assert(sizeof(gut_event)==64,"UI trace wire record");
++extern "C" {
++#else
++_Static_assert(sizeof(struct gut_event)==64,"UI trace wire record");
++#endif
++bool gut_init(struct gut_core *,struct gut_event *,uint32_t,uint32_t,uint64_t,
++              uint64_t (*)(void *),void *);
++bool gut_enabled(const struct gut_core *);
++uint64_t gut_report(struct gut_core *,uint64_t,uint64_t,uint32_t,uint32_t);
++void gut_record(struct gut_core *,uint32_t,uint64_t,uint32_t,uint32_t,uint64_t,uint64_t,uint64_t);
++void gut_stop(struct gut_core *,uint32_t);
++/* Single logger consumer. Copies a bounded immutable prefix; never waits.
++ * False means busy or still armed/capturing; output and cursor unchanged. */
++bool gut_read(struct gut_core *,struct gut_event *,uint32_t,uint32_t *,struct gut_meta *);
++
++void sweet_ui_trace_init(void);
++uint64_t sweet_ui_trace_clock(void);
++uint64_t sweet_ui_trace_report(uint64_t,uint64_t,uint32_t,uint32_t);
++void sweet_ui_trace_record(uint32_t,uint64_t,uint32_t,uint32_t,uint64_t,uint64_t,uint64_t);
++void sweet_ui_trace_stop(uint32_t);
++void sweet_ui_trace_drain(void);
++#ifdef __cplusplus
++}
++#endif
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -0,0 +1,72 @@
++#ifdef GUT_BOARD_HOST_TEST
++#include "test_ui_trace_board_shim.h"
++#else
++#include <pexpert/arm64/board_config.h>
++#endif
++#if defined(GAUGUIN)
++#ifndef GUT_BOARD_HOST_TEST
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <pexpert/pexpert.h>
++#include <kern/clock.h>
++#include <kern/kalloc.h>
++#include <mach/mach_time.h>
++#include "../kern/sweet_eagl_diagnostics.h"
++#endif
++#include "gauguin_ui_trace.h"
++
++static struct gut_core trace;
++static mach_timebase_info_data_t timebase;
++static bool header,footer;
++static uint64_t now(void *unused)
++{(void)unused;return mach_absolute_time();}
++void sweet_ui_trace_init(void)
++{
++    uint32_t which=0;
++    if(!PE_parse_boot_argn("sweettrace",&which,sizeof(which))||!which)return;
++    if(which>16||!sweet_metal_desktop_enabled()) {
++        printf("SWEET UI254: refused selector=%u; requires exact desktop profile\n",which);return;
++    }
++    uint64_t window;nanoseconds_to_absolutetime(UINT64_C(4)*NSEC_PER_SEC,&window);
++    clock_timebase_info(&timebase);
++    if(!window||!timebase.numer||!timebase.denom)return;
++    struct gut_event *events=kalloc_data(4096*sizeof(*events),Z_WAITOK|Z_ZERO);
++    if(!events){printf("SWEET UI254: allocation failed; disabled\n");return;}
++    if(!gut_init(&trace,events,4096,which,window,now,NULL)) {
++        kfree_data(events,4096*sizeof(*events));return;
++    }
++    printf("SWEET UI254: armed gesture=%u window=4s capacity=4096 CPU-clock; no panel or GPU hardware time\n",which);
++}
++uint64_t sweet_ui_trace_clock(void)
++{return gut_enabled(&trace)?mach_absolute_time():0;}
++uint64_t sweet_ui_trace_report(uint64_t begin,uint64_t end,uint32_t status,uint32_t mask)
++{return gut_report(&trace,begin,end,status,mask);}
++void sweet_ui_trace_record(uint32_t kind,uint64_t id,uint32_t pid,uint32_t flags,uint64_t a,uint64_t b,uint64_t c)
++{gut_record(&trace,kind,id,pid,flags,a,b,c);}
++void sweet_ui_trace_stop(uint32_t reason)
++{gut_stop(&trace,reason);}
++void sweet_ui_trace_drain(void)
++{
++    /* Called only by the existing single log worker. No UFS or console work
++     * until the capture is immutable; at most 16 records per existing tick. */
++    if(footer)return;
++    struct gut_event batch[16];struct gut_meta m;uint32_t count;
++    if(!gut_read(&trace,batch,16,&count,&m))return;
++    if(!header) {
++        header=true;
++        printf("SWEET UI254 H: version=1 count=%u reason=%u lost=%llu start=%llu end=%llu numer=%u denom=%u which=%u gestures=%u\n",
++            m.count,m.reason,(unsigned long long)m.lost,(unsigned long long)m.start,
++            (unsigned long long)m.end,timebase.numer,timebase.denom,m.which,m.gestures);
++    }
++    for(uint32_t i=0;i<count;i++) {
++        const struct gut_event *e=batch+i;
++        printf("SWEET UI254 E: seq=%llu tick=%llu kind=%u id=%llu pid=%u flags=%u a=%llu b=%llu c=%llu\n",
++            (unsigned long long)e->seq,(unsigned long long)e->tick,e->kind,(unsigned long long)e->id,e->pid,e->flags,
++            (unsigned long long)e->a,(unsigned long long)e->b,(unsigned long long)e->c);
++    }
++    if(m.state==GUT_DRAINED) {
++        footer=true;
++        printf("SWEET UI254 F: count=%u lost=%llu; CPU-clock capture only\n",m.count,(unsigned long long)m.lost);
++    }
++}
++#endif
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -33,6 +33,9 @@
+ #include <miscfs/devfs/devfs.h>
+ /* Kept identical to xnu/sweet_init_watchdog.h in the repo (deps/sync-watchdog.sh). */
+ #include "sweet_init_watchdog.h"
++#if defined(GAUGUIN)
++#include "gauguin_ui_trace.h"
++#endif
+ #include <kern/locks.h>
+ #include <kern/clock.h>
+ #include <kern/sched_prim.h>
+@@ -1660,6 +1663,9 @@
+ 			return;
+ 		}
+ 		(void)sweet_log_flush(&flushed, &seq, false);
++#if defined(GAUGUIN)
++		sweet_ui_trace_drain();
++#endif
+ 		/* Marks are RAM-only until here: write any pending ones now. */
+ 		(void)sweet_log_mark_flush();
+ 		/*
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -810,6 +810,8 @@
+ 
+ 	bsd_init_kprintf("calling bsd_autoconf\n");
+ #if defined(GAUGUIN)
++	extern void sweet_ui_trace_init(void);
++	sweet_ui_trace_init();
+ 	const boot_args *boot = (const boot_args *)PE_state.bootArgs;
+ 	printf("SWEET RAM: base=%016llx vm_bytes=%llu boot_bytes=%llu max_bytes=%llu max_actual_bytes=%llu sane_bytes=%llu\n",
+ 	    (unsigned long long)boot->physBase, (unsigned long long)mem_size,
+--- a/iokit/IOKit/SweetHIDTouchFrame.h
++++ b/iokit/IOKit/SweetHIDTouchFrame.h
+@@ -21,6 +21,8 @@
+  * Callback reentry returns Busy without consuming the frame. No synthetic input.
+  */
+ int sweet_hid_touch_frame(const struct sweet_hid_touch_snapshot *snapshot);
++/* Internal physical-report correlation; zero retains the ordinary path. */
++int sweet_hid_touch_frame_traced(const struct sweet_hid_touch_snapshot *snapshot,uint64_t report_id);
+ #ifdef __cplusplus
+ }
+ #endif
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -23,11 +23,13 @@
+ #include "SweetMetalBootstrap.h"
+ #include "../../../bsd/kern/sweet_eagl_diagnostics.h"
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
++#include "../../../bsd/dev/gauguin_ui_trace.h"
+ extern "C" void flush_dcache64(addr64_t,unsigned,int);
+ extern "C" boolean_t pmap_valid_page(ppnum_t);
+ 
+ static IOLock *gLock;
+ static IOUserClient *gOwner;
++static uint32_t gTraceReader; /* protected by gLock; numeric ID only */
+ /* Pilot access starts only after the existing root test has released its
+  * client following the six native fences. Protected by gLock. */
+ static constexpr uint32_t kPilotRootFences = 6;
+@@ -71,6 +73,7 @@
+         gapi_valid=false;return 0;
+     }
+     gapi_pending={++gapi_sequence,queued,locked,index};
++    sweet_ui_trace_record(GUT_API_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),selector,queued,locked,0);
+     return gapi_pending.token;
+ }
+ static void gapi_end(uint64_t token,IOReturn result)
+@@ -79,6 +82,7 @@
+     if(token!=gapi_pending.token){gapi_valid=false;return;}
+     uint64_t now=mach_absolute_time();
+     if(!gapi_valid||now<gapi_pending.locked){gapi_valid=false;gapi_pending={};return;}
++    sweet_ui_trace_record(GUT_API_END,token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,now,gapi_selectors[gapi_pending.index],0);
+     uint64_t queued=gapi_pending.locked-gapi_pending.queued,held=now-gapi_pending.locked;
+     struct gapi_sample sample=gapi_samples[gapi_pending.index];
+     if(gapi_add(&sample.calls,1)&&gapi_add(&sample.failures,result!=kIOReturnSuccess)&&
+@@ -277,12 +281,15 @@
+ {
+     IOLock *lock=__atomic_load_n(&gLock,__ATOMIC_ACQUIRE);
+     if(!lock)return 1;
++    uint64_t queued=sweet_ui_trace_clock();
+     IOLockLock(lock);
++    sweet_ui_trace_record(GUT_READ_LOCK,s->id,0,s->gpuState,queued,0,0);
+     if(s->gpuState){IOLockUnlock(lock);return 0;}
++    gTraceReader=s->id;
+     return 2;
+ }
+ extern "C" void GauguinGPUSurfaceEnd(uint32_t token)
+-{if(token==2)IOLockUnlock(gLock);}
++{if(token==2){sweet_ui_trace_record(GUT_READ_END,gTraceReader,0,0,0,0,0);IOLockUnlock(gLock);}}
+ 
+ bool GauguinGPUUserClient::initWithTask(task_t task,void *sid,UInt32 type,OSDictionary *properties)
+ {
+@@ -551,6 +558,7 @@
+             }
+         }
+         memoryBarrier();uint32_t fence=0;
++        sweet_ui_trace_record(GUT_SUBMIT_BEGIN,gapi_pending.token,(uint32_t)proc_pid(current_proc()),r->queueid,r->nr_bos,r->nr_cmds,0);
+         bool ok=sweet_gpu_runtime_submit(addresses,words,r->nr_cmds,&fence);
+         if(ok&&(!fence||fence<=fNativeFence)){sweet_gpu_runtime_stop();ok=false;}
+         for(uint32_t i=0;i<r->nr_bos;i++) {
+@@ -558,11 +566,13 @@
+             if(b->surface) {
+                 if(ok)flush_dcache64(b->surface->kernelAddress(),(unsigned)b->size,0);
+                 b->surface->gpuState=ok?0:2;
++                sweet_ui_trace_record(GUT_SURFACE,gapi_pending.token,(uint32_t)proc_pid(current_proc()),bos[i].flags,b->surface->id,fence,ok);
+             }
+         }
+         memoryBarrier();
+         if(ok){fNativeFence=fence;r->fence=++q->completed;result=kIOReturnSuccess;}
+         else result=kIOReturnTimeout;
++        sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,r->queueid,r->fence,fence);
+     }
+ out:
+     if(bos)IODelete(bos,struct ggr_submit_bo,r->nr_bos);
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -38,6 +38,7 @@
+ #include "SweetSurface.h"
+ #if defined(GAUGUIN)
+ #include "SweetPresentClock.h"
++#include "../../../bsd/dev/gauguin_ui_trace.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ /* END SWEET PRESENT STATS INCLUDE */
+@@ -1274,6 +1275,9 @@
+         fDirty = true;
+     }
+     uint64_t count = ++sweet_fb_swap_count;
++#if defined(GAUGUIN)
++    sweet_ui_trace_record(GUT_SWAP,get32(rec,0x50),0,fPowerOff,get32(rec,0x104),count,fHeldReplaced);
++#endif
+     IOLockUnlock(fLock);
+ #if defined(GAUGUIN)
+     sweet_fb_frame_release(&retired);
+@@ -1289,6 +1293,9 @@
+ AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held)
+ {
+     (void)held;
++#if defined(GAUGUIN)
++    sweet_ui_trace_record(GUT_PRESENT_BEGIN,get32(rec,0x50),0,0,get32(rec,0x104),0,0);
++#endif
+ 	uint32_t mask = get32(rec, 0x104);
+ 
+ 
+@@ -1340,6 +1347,7 @@
+             if (fPresentSample->timingValid) statsGuardBegin = mach_absolute_time();
+         }
+         /* END SWEET PRESENT STATS GUARD START */
++        sweet_ui_trace_record(GUT_LAYER,get32(rec,0x50),0,layer,id,s->width,s->height);
+         SweetSurfaceGPURead gpuRead(s);
+         /* BEGIN SWEET PRESENT STATS GUARD END */
+         if (fPresentSample != NULL) {
+@@ -1480,6 +1488,9 @@
+ 		}
+ 		s->release();
+ 	}
++#if defined(GAUGUIN)
++    sweet_ui_trace_record(GUT_PRESENT_END,get32(rec,0x50),0,0,mask,0,0);
++#endif
+ }
+ 
+ bool
+--- a/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp
++++ b/iokit/Kernel/arm/hid/IOHIDEventServiceUserClient.cpp
+@@ -32,6 +32,9 @@
+ #include "IOHIDShared.h"
+ #include "IOHIDFamilyTrace.h"
+ #include <pexpert/pexpert.h>
++#if defined(GAUGUIN)
++#include "../../../../bsd/dev/gauguin_ui_trace.h"
++#endif
+ 
+ #define kQueueSizeMin   0
+ #define kQueueSizeFake  128
+@@ -608,6 +611,12 @@
+                                 IOOptionBits                    options __unused)
+ {
+     if (!_queue || _state != kUserClientStateOpen) {
++#if defined(GAUGUIN)
++        if (event && event->getType() == kIOHIDEventTypeDigitizer)
++            sweet_ui_trace_record(GUT_HID_NO_QUEUE,
++                event->getTimeStampOfType(kIOHIDEventTimestampTypeAbsolute),
++                0, _state, _queue != NULL, _eventCount, _droppedEventCount);
++#endif
+         return;
+     }
+ 
+@@ -637,6 +646,12 @@
+             ++_droppedEventCount;
+             IOHID_DEBUG(kIOHIDDebugCode_HIDEventServiceEnqueueFail, event->getTimeStampOfType(kIOHIDEventTimestampTypeDefault), event->getOptions() & kIOHIDEventOptionContinuousTime, 0, 0);
+         }
++#if defined(GAUGUIN)
++        if (event->getType() == kIOHIDEventTypeDigitizer)
++            sweet_ui_trace_record(GUT_HID_ENQUEUE,
++                event->getTimeStampOfType(kIOHIDEventTimestampTypeAbsolute),
++                0, result != false, _eventCount, _droppedEventCount, 0);
++#endif
+     }
+ }
+ 
+--- a/iokit/Kernel/arm/hid/SweetHID.cpp
++++ b/iokit/Kernel/arm/hid/SweetHID.cpp
+@@ -29,6 +29,9 @@
+ #include "IOHIDPrivateKeys.h"
+ #include "IOHIDUsageTables.h"
+ #include <IOKit/SweetHIDTouchFrame.h>
++#if defined(GAUGUIN)
++#include "../../../../bsd/dev/gauguin_ui_trace.h"
++#endif
+ 
+ extern "C" uint64_t mach_absolute_time(void);
+ 
+@@ -381,7 +384,7 @@
+ 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+ 	virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
+ 	void touch(int finger, bool down, int x, int y);
+-	IOReturn touchFrame(const struct sweet_hid_touch_snapshot *snapshot);
++	IOReturn touchFrame(const struct sweet_hid_touch_snapshot *snapshot,uint64_t trace_id=0);
+ protected:
+ 	virtual UInt32 getPrimaryUsagePage() APPLE_KEXT_OVERRIDE { return kHIDPage_Digitizer; }
+ 	virtual UInt32 getPrimaryUsage() APPLE_KEXT_OVERRIDE { return kHIDUsage_Dig_TouchScreen; }
+@@ -391,6 +394,7 @@
+ 		UInt32 updateMask;
+ 		int anchor; /* Old single-finger parent position, or -1 for a frame. */
+ 		struct sweet_hid_touch_snapshot snapshot;
++		uint64_t trace_id;
+ 	};
+ 	static IOReturn touchAction(OSObject *owner, void *, void *, void *, void *);
+ 	static IOReturn stopTouchAction(OSObject *owner, void *, void *, void *, void *);
+@@ -585,7 +589,7 @@
+ }
+ 
+ IOReturn
+-SweetHIDTouch::touchFrame(const struct sweet_hid_touch_snapshot *snapshot)
++SweetHIDTouch::touchFrame(const struct sweet_hid_touch_snapshot *snapshot,uint64_t trace_id)
+ {
+ 	if (!snapshot || (snapshot->active_mask & ~((1u << SWEET_TOUCH_FINGERS) - 1)))
+ 		return kIOReturnBadArgument;
+@@ -594,6 +598,7 @@
+ 	request.updateMask = (1u << SWEET_TOUCH_FINGERS) - 1;
+ 	request.anchor = -1;
+ 	request.snapshot = *snapshot;
++	request.trace_id = trace_id;
+ 	return _hidGate->runAction(touchAction, &request);
+ }
+ 
+@@ -685,8 +690,16 @@
+ 	}
+ 	fDispatching = true;
+ 	uint64_t callbackStart = mach_absolute_time();
++#if defined(GAUGUIN)
++	if (request.trace_id)
++		sweet_ui_trace_record(GUT_HID_BEGIN,request.trace_id,0,request.snapshot.active_mask,now,0,0);
++#endif
+ 	dispatchEvent(collection);
+ 	uint64_t callbackTicks = mach_absolute_time() - callbackStart;
++#if defined(GAUGUIN)
++	if (request.trace_id)
++		sweet_ui_trace_record(GUT_HID_END,request.trace_id,0,request.snapshot.active_mask,now,callbackTicks,0);
++#endif
+ 	fDispatching = false;
+ 	++fChangedFrames;
+ 	if (cmask & (kIOHIDDigitizerEventTouch | kIOHIDDigitizerEventRange)) ++fEdgeFrames;
+@@ -731,11 +744,17 @@
+ extern "C" int
+ sweet_hid_touch_frame(const struct sweet_hid_touch_snapshot *snapshot)
+ {
++	return sweet_hid_touch_frame_traced(snapshot,0);
++}
++
++extern "C" int
++sweet_hid_touch_frame_traced(const struct sweet_hid_touch_snapshot *snapshot,uint64_t trace_id)
++{
+ 	if (!snapshot || (snapshot->active_mask & ~((1u << SWEET_TOUCH_FINGERS) - 1)))
+ 		return kIOReturnBadArgument;
+ 	SweetHIDTouch *service = sweetTouchCopyService();
+ 	if (!service) return kIOReturnNotReady;
+-	IOReturn result = service->touchFrame(snapshot);
++	IOReturn result = service->touchFrame(snapshot,trace_id);
+ 	service->release();
+ 	return result;
+ }

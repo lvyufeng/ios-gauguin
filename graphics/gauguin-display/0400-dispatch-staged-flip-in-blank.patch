@@ -1,0 +1,42 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -519,5 +519,5 @@
+     static void stage384Fired(OSObject *, IOInterruptEventSource *, int);
+     void flip382Poll(uint32_t scan);
+-    void flip382AdvanceLocked(uint32_t scan);
++    void flip382AdvanceLocked(uint32_t scan, bool fromStaging = false);
+     uintptr_t flip382Begin(const struct sweet_fb_frame *, uint64_t, uint64_t, bool, bool *);
+     void flip382Finish(const struct sweet_fb_frame *, uint64_t, uint64_t);
+@@ -2093,4 +2093,10 @@
+     fb->presentTimed(frame.record, &frame, attempt, UINT64_MAX, true);
+     IOLockLock(fb->fLock);
++    // The staging barrier and frame release are complete. If the blanking
++    // window is still open, the same serialized flip path can publish now.
++    if (fb->fFlip382.stage == sweet_fb_flip382::Ready && fb->fFlip382.attempt == attempt) {
++        struct scan351_position position;
++        if (sweet_frame351_position(&position)) fb->flip382AdvanceLocked(position.frame, true);
++    }
+     if (fb->fHeldReady.generation > generation) fb->signalStage384Locked();
+     IOLockUnlock(fb->fLock);
+@@ -2106,5 +2112,5 @@
+ 
+ void
+-AppleCLCD::flip382AdvanceLocked(uint32_t scan)
++AppleCLCD::flip382AdvanceLocked(uint32_t scan, bool fromStaging)
+ {
+     auto &flip = fFlip382;
+@@ -2143,5 +2149,6 @@
+     if (fHeldActive || fCalibrating || flip.stage == sweet_fb_flip382::Copying) return;
+     if (sweet_frame382_ending()) {
++        if (fromStaging) return;
+         if (flip.front == F382_FRONT) {
+             flip.closed = true;
+             return;
+@@ -2162,5 +2169,6 @@
+         flip.issueTick = mach_absolute_time();
+         flip.stage = sweet_fb_flip382::Pending;
+-        IOLog("SWEET F382 I %llu %u %u %llu\n",flip.attempt,flip.scan,flip.next,flip.issueTick);
++        IOLog("SWEET F382 I %llu %u %u %llu%s\n",flip.attempt,flip.scan,flip.next,flip.issueTick,
++            fromStaging ? " C" : "");
+     } else if (result != F382_WAIT) {
+         flip.stage = sweet_fb_flip382::Quarantined;

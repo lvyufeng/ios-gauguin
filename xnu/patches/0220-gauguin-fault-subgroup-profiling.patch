@@ -1,0 +1,88 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -295,6 +295,25 @@
+ struct gfw_micro_wait { uint64_t start_ns,end_ns;uint32_t delays;bool started; };
+ static uint64_t ggrb_ns(void *cookie);
+ static bool ggrb_micro_settle(bool gpu_probe,uint32_t expected,uint32_t mask,uint32_t current,struct gfw_micro_wait *wait);
++/* BEGIN GFW FAULT PROFILE: all callers, CPU wall intervals; diagnostic only. */
++enum { GFW_FAULT_GLOBAL, GFW_FAULT_SETTLE, GFW_FAULT_BANK0,
++       GFW_FAULT_BANK1, GFW_FAULT_HOST, GFW_FAULT_AO, GFW_FAULT_GROUPS };
++struct gfw_fault_perf { uint64_t calls, ticks; };
++static struct gfw_fault_perf gfw_fault_perf[GFW_FAULT_GROUPS];
++static void gfw_fault_profile_time(unsigned group,uint64_t begin,uint64_t end)
++{
++    if(group>=GFW_FAULT_GROUPS||end<begin)return;
++    __atomic_fetch_add(&gfw_fault_perf[group].calls,1,__ATOMIC_RELAXED);
++    __atomic_fetch_add(&gfw_fault_perf[group].ticks,end-begin,__ATOMIC_RELAXED);
++}
++#define GFW_FAULT_TIMED(group,expr) ({ \
++    uint64_t gfw_profile_begin=mach_absolute_time(); \
++    __typeof__(expr) gfw_profile_value=(expr); \
++    uint64_t gfw_profile_end=mach_absolute_time(); \
++    gfw_fault_profile_time((group),gfw_profile_begin,gfw_profile_end); \
++    gfw_profile_value; \
++})
++/* END GFW FAULT PROFILE */
+ static bool gfw_faults(bool gpu_probe)
+ {
+     const struct gsm_receipt *s=&gmb_work.smmu;uint32_t v;uint64_t ttbr;
+@@ -303,15 +322,15 @@
+     struct gfw_micro_wait wait={0};
+ again:
+     if(wait.started&&ggrb_ns(NULL)>=wait.end_ns){++gfw_micro_sample.expired;return false;}
+-    if(!gfw_observe32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
++    if(GFW_FAULT_TIMED(GFW_FAULT_GLOBAL, (!gfw_observe32(NULL,0x48,&gfw_work.gfsr)||gfw_work.gfsr||
+        !gfw_observe32(NULL,0,&v)||v!=s->cr0_after||
+-       !gfw_observe32(NULL,0x6000,&v))return false;
++       !gfw_observe32(NULL,0x6000,&v))))return false;
+     if((v&micro_mask)!=(s->micro_after&micro_mask)||((v&4)&&!own_halt)){
+         /* Bit8 is undocumented here: never ignore it or claim it is a status
+          * bit. During an in-flight runtime job ONLY, allow the observed2270
+          * word to settle back to the EXACT original predicate. Then repeat
+          * every fault/control read, including GFSR/CR0, once from the start. */
+-        if(ggrb_micro_settle(gpu_probe,s->micro_after,micro_mask,v,&wait))goto again;
++        if(GFW_FAULT_TIMED(GFW_FAULT_SETTLE, ggrb_micro_settle(gpu_probe,s->micro_after,micro_mask,v,&wait)))goto again;
+         return false;
+     }
+     for(unsigned n=0;n<2;n++){
+@@ -319,7 +338,7 @@
+         uint32_t cb=0x8000+0x1000*s->bank[n];
+         uint32_t own_tf=gpu_probe&&ggb_context.state==1&&ggb_context.probe_active&&
+             ggb_context.probe_hole&&ggb_context.probe_bank==s->bank[n]?2u:0u;
+-        if(!gfw_observe32(NULL,cb+0x58,&gfw_work.fsr[n])||(gfw_work.fsr[n]&GSM_FSR_FAULT_MASK&~own_tf)||
++        if(GFW_FAULT_TIMED(GFW_FAULT_BANK0+n, (!gfw_observe32(NULL,cb+0x58,&gfw_work.fsr[n])||(gfw_work.fsr[n]&GSM_FSR_FAULT_MASK&~own_tf)||
+            !gfw_observe32(NULL,cb,&v)||v!=s->sctlr[n]||
+            !gfw_observe32(NULL,cb+4,&v)||v!=s->actlr[n]||
+            !gfw_observe32(NULL,cb+0x10,&v)||v!=s->tcr2||
+@@ -331,12 +350,12 @@
+            !gfw_observe32(NULL,0xc00+4*s->slot[n],&v)||v!=s->s2cr_after[n]||
+            (s->stream_match&&(!gfw_observe32(NULL,0x800+4*s->slot[n],&v)||v!=s->smr_after[n]))||
+            !gfw_observe64(NULL,cb+0x20,&ttbr)||ttbr!=s->ttbr0[n]||
+-           !gfw_observe64(NULL,cb+0x28,&ttbr)||ttbr!=s->ttbr1[n])return false;
+-    }
+-    gfw_work.host_info=gfw_observe_load(1,0x2648,gmb_reset+0x2648);
++           !gfw_observe64(NULL,cb+0x28,&ttbr)||ttbr!=s->ttbr1[n])))return false;
++    }
++    gfw_work.host_info=GFW_FAULT_TIMED(GFW_FAULT_HOST, gfw_observe_load(1,0x2648,gmb_reset+0x2648));
+     if(gfw_work.host_info==UINT32_MAX||(gfw_work.host_info&0x8000))return false;
+     if(gfw_map[GMF_AO]){
+-        gfw_work.ao_status=gfw_observe_load(2,0x2c14,gfw_map[GMF_AO]+0x2c14);
++        gfw_work.ao_status=GFW_FAULT_TIMED(GFW_FAULT_AO, gfw_observe_load(2,0x2c14,gfw_map[GMF_AO]+0x2c14));
+         /* Native AO watchdog/fence/AHB errors; delivery remains masked. */
+         if(gfw_work.ao_status==UINT32_MAX||(gfw_work.ao_status&0x29))return false;
+     }
+@@ -4147,6 +4166,14 @@
+             group,__atomic_load_n(&g->calls,__ATOMIC_RELAXED),elapsed_ns,
+             __atomic_load_n(&g->overlap_calls,__ATOMIC_RELAXED),overlap_ns);gmb_record(line);
+     }
++    /* BEGIN GFW FAULT PROFILE DUMP */
++    for(unsigned group=0;group<GFW_FAULT_GROUPS;group++) {
++        uint64_t ns;
++        absolutetime_to_nanoseconds(__atomic_load_n(&gfw_fault_perf[group].ticks,__ATOMIC_RELAXED),&ns);
++        snprintf(line,sizeof(line),"SWEET GPU FAULT PERF: group=%u calls=%llu ns=%llu; all callers, CPU wall",
++            group,__atomic_load_n(&gfw_fault_perf[group].calls,__ATOMIC_RELAXED),ns);gmb_record(line);
++    }
++    /* END GFW FAULT PROFILE DUMP */
+     GauguinGPUProfileDump(gmb_record);
+ }
+ bool sweet_gpu_runtime_ready(void)

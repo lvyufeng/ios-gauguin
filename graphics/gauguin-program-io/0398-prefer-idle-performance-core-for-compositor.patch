@@ -1,0 +1,161 @@
+--- a/osfmk/kern/sched_prim.c
++++ b/osfmk/kern/sched_prim.c
+@@ -5617,6 +5617,42 @@
+ 	return pset;
+ }
+ 
++#if defined(GAUGUIN)
++extern uint64_t gauguin_display_thread_398;
++extern uint64_t gauguin_display_preferred_dispatches_398;
++extern uint64_t sweet_frame344_clock(void);
++
++static bool
++gauguin_display_idle_performance_cpu(processor_set_t pset, processor_t cpu)
++{
++	return cpu != PROCESSOR_NULL && cpu->processor_set == pset &&
++	       cpu->processor_primary == cpu && (cpu->cpu_id == 6 || cpu->cpu_id == 7) &&
++	       cpu->is_recommended && cpu->state == PROCESSOR_IDLE;
++}
++
++/* The caller holds this pset and the thread locks. As in the usual idle
++ * dispatch, the selected core remains protected until processor_setrun. */
++static processor_t
++gauguin_display_preferred_cpu(processor_set_t pset, processor_t hint, thread_t thread)
++{
++	const uint64_t tid = __atomic_load_n(&gauguin_display_thread_398, __ATOMIC_ACQUIRE);
++	if (!tid || tid != thread_tid(thread) || thread->bound_processor != PROCESSOR_NULL ||
++	    thread->sched_pri >= BASEPRI_RTQUEUES || !pset->online_processor_count || !sweet_frame344_clock()) {
++		return PROCESSOR_NULL;
++	}
++	if (gauguin_display_idle_performance_cpu(pset, hint)) {
++		return hint;
++	}
++	for (unsigned cpu = 6; cpu <= 7; ++cpu) {
++		processor_t candidate = processor_array[cpu];
++		if (gauguin_display_idle_performance_cpu(pset, candidate)) {
++			return candidate;
++		}
++	}
++	return PROCESSOR_NULL;
++}
++#endif
++
+ /*
+  *	thread_setrun:
+  *
+@@ -5673,7 +5709,15 @@
+ 
+ 			pset_lock(starting_pset);
+ 
+-			processor = SCHED(choose_processor)(starting_pset, processor_hint, thread);
++#if defined(GAUGUIN)
++			processor = gauguin_display_preferred_cpu(starting_pset, processor_hint, thread);
++			if (processor != PROCESSOR_NULL) {
++				__atomic_fetch_add(&gauguin_display_preferred_dispatches_398, 1, __ATOMIC_RELAXED);
++			} else
++#endif
++			{
++				processor = SCHED(choose_processor)(starting_pset, processor_hint, thread);
++			}
+ 			if (processor != PROCESSOR_NULL) {
+ 				pset = processor->processor_set;
+ 				pset_assert_locked(pset);
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -15,6 +15,8 @@
+ #include <IOKit/IOUserClient.h>
+ #include <IOKit/IOBufferMemoryDescriptor.h>
+ #include <kern/clock.h>
++#include <kern/cpu_number.h>
++#include <machine/machine_routines.h>
+ #include <kern/task.h>
+ #include <kern/thread.h> /* BO333 numeric current-thread ID */
+ #include <mach/mach_time.h>
+@@ -145,6 +147,31 @@
+     bool invalid;
+ } gCache335;
+ static uint64_t gPendingCache397Hits, gPendingCache397CaptureHits;
++
++extern "C" {
++uint64_t gauguin_display_thread_398;
++uint64_t gauguin_display_preferred_dispatches_398;
++}
++static bool gDisplayPerformanceCpus398;
++static uint64_t gDisplayWriterThread398;
++static uint32_t gDisplayIssueCpus398[8], gDisplayOtherWriter398;
++
++static void observeDisplayIssueCpu398(uint64_t displayTicket)
++{
++    if (!gDisplayPerformanceCpus398 || gapi_frozen) return;
++    const uint64_t tid=thread_tid(current_thread());
++    uint64_t selected=__atomic_load_n(&gauguin_display_thread_398,__ATOMIC_RELAXED);
++    if (!selected && displayTicket && tid) {
++        selected=gDisplayWriterThread398=tid;
++        __atomic_store_n(&gauguin_display_thread_398,tid,__ATOMIC_RELEASE);
++    }
++    if (!selected || tid!=selected) {
++        if (displayTicket && gDisplayOtherWriter398!=UINT32_MAX) ++gDisplayOtherWriter398;
++        return;
++    }
++    const int cpu=cpu_number();
++    if (cpu>=0 && cpu<8 && gDisplayIssueCpus398[cpu]!=UINT32_MAX) ++gDisplayIssueCpus398[cpu];
++}
+ static void cache335_count(uint64_t *value)
+ {if(!gapi_frozen){if(*value==UINT64_MAX)gCache335.invalid=true;else ++*value;}}
+ 
+@@ -169,6 +196,7 @@
+ }
+ extern "C" void GauguinGPUProfileFreeze(void)
+ {
++    __atomic_store_n(&gauguin_display_thread_398,0,__ATOMIC_RELEASE);
+     if(gapi_frozen)return;
+     gapi_frozen=true;
+     if(gapi_pending.token){
+@@ -211,6 +239,14 @@
+         snprintf(line,sizeof(line),"SWEET BC397: pending_hits=%llu capture_hits=%llu valid=%u",
+             (unsigned long long)gPendingCache397Hits,(unsigned long long)gPendingCache397CaptureHits,
+             !gCache335.invalid&&gapi_valid?1u:0u);record(line);
++    }
++    if (gDisplayPerformanceCpus398) {
++        snprintf(line,sizeof(line),"SWEET CPU398: tid=%llu selected=%llu other_writer=%u issues=%u,%u,%u,%u,%u,%u,%u,%u",
++            (unsigned long long)gDisplayWriterThread398,
++            (unsigned long long)__atomic_load_n(&gauguin_display_preferred_dispatches_398,__ATOMIC_RELAXED),
++            gDisplayOtherWriter398,gDisplayIssueCpus398[0],gDisplayIssueCpus398[1],gDisplayIssueCpus398[2],
++            gDisplayIssueCpus398[3],gDisplayIssueCpus398[4],gDisplayIssueCpus398[5],
++            gDisplayIssueCpus398[6],gDisplayIssueCpus398[7]);record(line);
+     }
+ }
+ 
+@@ -407,6 +443,8 @@
+     gMetalBootstrapMode=sweet_metal_desktop_enabled();
+     int mapRequested=0;PE_parse_boot_argn("sweetgpumap",&mapRequested,sizeof(mapRequested));
+     gMapUnrelated=mapRequested==1;
++    gDisplayPerformanceCpus398=gMapUnrelated&&ml_get_max_cpu_number()==7&&
++        ml_get_cpu_number(0x600)==6&&ml_get_cpu_number(0x700)==7;
+     IOLock *lock=IOLockAlloc(),*requests=IOLockAlloc();
+     if(!lock||!requests){if(lock)IOLockFree(lock);if(requests)IOLockFree(requests);return false;}
+     gRequests=requests;
+@@ -875,6 +913,7 @@
+ }
+ void GauguinGPUUserClient::cancelDisplayWriter()
+ {
++    if (fCompositor) __atomic_store_n(&gauguin_display_thread_398,0,__ATOMIC_RELEASE);
+     clearDisplayProbeTicket(fPendingDisplayTicket);
+     sweet_fb357_finish_writer(fPendingDisplayTicket, fPendingDisplayVersion, 0);
+     fPendingDisplayTicket = 0;
+@@ -968,6 +1007,7 @@
+         uint64_t queued=mach_absolute_time();IOLockLock(gRequests);IOLockLock(gLock);
+         uint64_t profile=gapi_begin(0x101,queued,mach_absolute_time());
+         if(!fClosed) {
++            if (fCompositor) __atomic_store_n(&gauguin_display_thread_398,0,__ATOMIC_RELEASE);
+             fClosed=true;bool clean=true;
+             if(fPendingCount&&finishPending(true,true)!=kIOReturnSuccess)clean=false;
+             if(fBuffers)for(uint32_t i=0;i<GGR_MAX_CLIENT_BUFFERS;i++)if(!drop(fBuffers+i))clean=false;
+@@ -1228,6 +1268,7 @@
+         memoryBarrier();
+         sweet_ui_trace_record(GUT_SUBMIT_END,gapi_pending.token,(uint32_t)proc_pid(current_proc()),(uint32_t)result,r->queueid,r->fence,fence);
+         if (ok && fAsync && sweet_frame344_clock()) {
++            if (fCompositor) observeDisplayIssueCpu398(fPendingDisplayTicket);
+             const auto* io = io342::current();
+             sweet_frame344_record(F344_ISSUE,fence,0,io ? io->token() : 0,r->queueid,r->fence);
+             for (uint32_t i = 0; i < r->nr_bos; ++i) {

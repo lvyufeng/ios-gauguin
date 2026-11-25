@@ -1,0 +1,299 @@
+diff --git a/bsd/dev/gauguin_frame344.h b/bsd/dev/gauguin_frame344.h
+--- a/bsd/dev/gauguin_frame344.h
++++ b/bsd/dev/gauguin_frame344.h
+@@ -8,7 +8,7 @@
+ enum frame344_kind {
+     F344_SWAP = 40, F344_ATTEMPT, F344_RESULT, F344_LOCK, F344_COPY,
+     F344_ISSUE, F344_WRITER, F344_EOP, F344_READY,
+-    F344_VBLANK, F344_CRC, F344_TIMING, F351_PRESENT, F352_WAKE
++    F344_VBLANK, F344_CRC, F344_TIMING, F351_PRESENT, F352_WAKE, F353_READY, F353_TAKE
+ };
+ 
+ #ifdef __cplusplus
+diff --git a/bsd/dev/gauguin_ready353.h b/bsd/dev/gauguin_ready353.h
+new file mode 100644
+--- /dev/null
++++ b/bsd/dev/gauguin_ready353.h
+@@ -0,0 +1,35 @@
++#ifndef GAUGUIN_READY353_H
++#define GAUGUIN_READY353_H
++
++#include "gauguin_blank352.h"
++
++struct scan353_ready {
++    bool observed;
++    uint64_t frame;
++};
++
++static inline bool
++scan353_mark(struct scan353_ready *ready, uint64_t ticket, uint64_t watched,
++    uint64_t watched_generation, uint64_t pending_generation, uint32_t surface, uint64_t observed_frame)
++{
++    if (ready->observed || !scan352_matches(ticket, watched, watched_generation, pending_generation, surface))
++        return false;
++    ready->observed = true;
++    ready->frame = observed_frame;
++    return true;
++}
++
++static inline bool
++scan353_can_take(const struct scan353_ready *ready, const struct scan351_slot *slot,
++    const struct scan351_position *position)
++{
++    return ready->observed && scan352_can_take(slot, position, false);
++}
++
++static inline bool
++scan353_carried(const struct scan353_ready *ready, uint32_t target_frame)
++{
++    return ready->observed && ready->frame != UINT64_MAX && (uint32_t)ready->frame != target_frame;
++}
++
++#endif
+diff --git a/bsd/dev/gauguin_ui_trace_board.c b/bsd/dev/gauguin_ui_trace_board.c
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -520,7 +520,7 @@
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    if (enabled < 2 || enabled > 8 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    if (enabled < 2 || enabled > 9 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
+     // Use a mode value so the complete 607-byte boot line still fits.
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));
+@@ -530,7 +530,7 @@
+     scan.crc_blanking = enabled >= 5;
+     scan.crc_preserve_idle_data = enabled >= 6;
+     scan351_enabled = enabled >= 7;
+-    scan352_enabled = enabled == 8;
++    scan352_enabled = enabled >= 8;
+     scan.crc_blocked = enabled == 4;
+     const uint32_t capacity = 16384;
+     uint64_t window;
+diff --git a/iokit/Kernel/arm/GauguinGPU.cpp b/iokit/Kernel/arm/GauguinGPU.cpp
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -426,6 +426,19 @@
+     gTraceReader=s->id;
+     return 2;
+ }
++/* Observe readiness outside the framebuffer lock. This is not a read
++ * permission. The presenter takes the normal read guard when it copies. */
++extern "C" bool GauguinGPUSurfaceIsReady(SweetSurface *s)
++{
++    IOLock *lock = __atomic_load_n(&gLock, __ATOMIC_ACQUIRE);
++    if (!lock) return true;
++    if (!IOLockTryLock(lock)) return false;
++    if (s->gpuState == 1) completePendingOwnerLocked(false, false);
++    const bool ready = s->gpuState == 0;
++    IOLockUnlock(lock);
++    return ready;
++}
++
+ extern "C" void GauguinGPUSurfaceEnd(uint32_t token)
+ {if(token==2){sweet_ui_trace_record(GUT_READ_END,gTraceReader,0,0,0,0,0);IOLockUnlock(gLock);}}
+ 
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -40,7 +40,7 @@
+ #include "SweetPresentClock.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
+ #include "../../../bsd/dev/gauguin_frame344.h"
+-#include "../../../bsd/dev/gauguin_blank352.h"
++#include "../../../bsd/dev/gauguin_ready353.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ /* END SWEET PRESENT STATS INCLUDE */
+@@ -405,7 +405,10 @@
+ #if defined(GAUGUIN)
+ /* One pending record plus one frame being consumed. The owner is compared
+  * under fLock only, never dereferenced by a queued or active frame. */
++extern "C" bool GauguinGPUSurfaceIsReady(SweetSurface *);
++
+ struct sweet_fb_frame {
++    struct scan353_ready ready;
+     uint8_t record[SWEET_FB_SWAP_REC_SIZE];
+     SweetSurface *surfaces[SWEET_FB_LAYERS];
+     IOMobileFramebufferUserClient *owner;
+@@ -449,11 +452,14 @@
+     bool fPhasePresent;
+     struct SweetPresentClock fPresentClock;
+     struct scan351_slot fBlankSlot;
+-    bool fReadyRequested;
++    bool fReadyRequested, fReadyAcrossFrames;
+     IOInterruptEventSource *fReadyEvent;
+     uint64_t fReadyGeneration;
+     void attachReadyEvent();
+     void clearReadyTicketLocked();
++    uint64_t watchPendingReadyLocked();
++    bool markPendingReadyLocked(uint64_t, uint32_t, bool);
++    void observePendingReady();
+     static void readyEventFired(OSObject *, IOInterruptEventSource *, int);
+     void stop(IOService *) APPLE_KEXT_OVERRIDE;
+     bool blankPendingLocked() const;
+@@ -675,9 +681,10 @@
+     /* BEGIN SWEET PRESENT STATS INIT */
+     int statsRequested = 0;
+     PE_parse_boot_argn("sweetfb_stats", &statsRequested, sizeof(statsRequested));
+-    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 8;
++    fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 9;
+     fBlankSlot = {};
+-    fReadyRequested = statsRequested == 8;
++    fReadyRequested = statsRequested == 8 || statsRequested == 9;
++    fReadyAcrossFrames = statsRequested == 9;
+     fReadyEvent = nullptr;
+     fReadyGeneration = 0;
+     fPresentSample = NULL;
+@@ -815,6 +822,52 @@
+     if (!fReadyEvent) return;
+     __atomic_store_n(&gReadyTicket, 0, __ATOMIC_RELEASE);
+     fReadyGeneration = 0;
++}
++
++/* Only the latest held generation is watched. This publication does
++ * not reserve a hardware frame or give GPU code a surface pointer. */
++uint64_t
++AppleCLCD::watchPendingReadyLocked()
++{
++    if (!fReadyAcrossFrames || !blankPendingLocked() || fHeldPending.ready.observed) return 0;
++    const uint64_t ticket = scan352_ticket(fHeldPending.generation, fHeldPending.surfaces[0]->id);
++    fReadyGeneration = fHeldPending.generation;
++    __atomic_store_n(&gReadyTicket, ticket, __ATOMIC_RELEASE);
++    return ticket;
++}
++
++bool
++AppleCLCD::markPendingReadyLocked(uint64_t ticket, uint32_t fence, bool polled)
++{
++    if (!blankPendingLocked()) return false;
++    struct scan351_position pos;
++    const uint64_t observedFrame = sweet_frame351_position(&pos) ? pos.frame : UINT64_MAX;
++    const uint32_t surface = fHeldPending.surfaces[0]->id;
++    if (!scan353_mark(&fHeldPending.ready, ticket, sweet_fb352_waiting_ticket(), fReadyGeneration,
++        fHeldPending.generation, surface, observedFrame)) return false;
++    sweet_frame344_record(F353_READY, fHeldPending.generation, polled, surface, fence, observedFrame);
++    clearReadyTicketLocked();
++    return true;
++}
++
++/* The normal software beat gives precompleted surfaces and a last isolated
++ * submission a chance to become ready without waiting on the GPU lock. */
++void
++AppleCLCD::observePendingReady()
++{
++    IOLockLock(fLock);
++    const uint64_t ticket = watchPendingReadyLocked();
++    auto *surface = ticket ? fHeldPending.surfaces[0] : nullptr;
++    if (surface) surface->retain();
++    IOLockUnlock(fLock);
++    if (!surface) return;
++    const bool ready = GauguinGPUSurfaceIsReady(surface);
++    surface->release();
++    if (ready) {
++        IOLockLock(fLock);
++        markPendingReadyLocked(ticket, 0, true);
++        IOLockUnlock(fLock);
++    }
+ }
+ 
+ void
+@@ -834,9 +887,17 @@
+     struct sweet_fb_frame frame = {};
+     uint64_t blankFrame = UINT64_MAX;
+     IOLockLock(fb->fLock);
+-    const bool taken = fb->takeBlankFrameLocked(&frame, &blankFrame, signal.ticket);
++    const bool deferred = fb->fReadyAcrossFrames;
++    const bool marked = deferred && fb->markPendingReadyLocked(signal.ticket, signal.fence, false);
++    const bool taken = deferred ? marked && fb->takeBlankFrameLocked(&frame, &blankFrame) :
++        fb->takeBlankFrameLocked(&frame, &blankFrame, signal.ticket);
+     const uint64_t attempt = taken ? fb->fHeldConsumed : 0;
+     IOLockUnlock(fb->fLock);
++    if (deferred) {
++        if (taken) fb->presentTimed(frame.record, &frame, attempt, blankFrame);
++        if (marked) fb->armVsync(fb->fVsync);
++        return;
++    }
+     if (!taken) return;
+     sweet_frame344_record(F352_WAKE, attempt, 0, signal.ticket, signal.fence, blankFrame);
+     /* The timed attempt already armed the next beat. Keep notifications
+@@ -857,7 +918,9 @@
+ {
+     struct scan351_position pos;
+     if (!blankPendingLocked() || !sweet_frame351_position(&pos)) return false;
+-    if (fReadyRequested) {
++    if (fReadyAcrossFrames) {
++        if (!scan353_can_take(&fHeldPending.ready, &fBlankSlot, &pos)) return false;
++    } else if (fReadyRequested) {
+         if (!scan352_can_take(&fBlankSlot, &pos, readyTicket != 0)) return false;
+         if (readyTicket && !scan352_matches(readyTicket, sweet_fb352_waiting_ticket(), fReadyGeneration,
+             fHeldPending.generation, fHeldPending.surfaces[0]->id)) return false;
+@@ -872,7 +935,10 @@
+     if (!takeHeldFrameLocked(frame)) return false;
+     scan351_take(&fBlankSlot,&pos);
+     *blankFrame = pos.frame;
+-    if (fReadyRequested) {
++    if (fReadyAcrossFrames) {
++        sweet_frame344_record(F353_TAKE, fHeldConsumed, scan353_carried(&frame->ready, pos.frame),
++            frame->generation, frame->ready.frame, pos.frame);
++    } else if (fReadyRequested) {
+         clearReadyTicketLocked();
+         if (!readyTicket) {
+             fReadyGeneration = frame->generation;
+@@ -914,11 +980,15 @@
+     uint64_t deadline = 0;
+     IOLockLock(fLock);
+     bool phase = fPhasePresent;
+-    if (phase && !sweet_present_clock_next(&fPresentClock, mach_absolute_time(), &deadline)) {
++    const uint64_t now = mach_absolute_time();
++    if (phase && !sweet_present_clock_next(&fPresentClock, now, &deadline)) {
+         fPhasePresent = phase = false;
+         IOLog("SWEET FB CLOCK: failed monotonic/overflow arm; legacy timer selected\n");
+     }
+-    if (phase && blankPendingLocked()) {
++    /* An asynchronous ready notification must keep an already due
++     * software beat deliverable instead of rearming it a beat away. */
++    if (phase && fReadyAcrossFrames && fPresentClock.nextBeat <= now) deadline = now;
++    if (phase && blankPendingLocked() && (!fReadyAcrossFrames || fHeldPending.ready.observed)) {
+         struct scan351_position pos;
+         if (sweet_frame351_position(&pos)) {
+             uint64_t delta;
+@@ -1282,6 +1352,9 @@
+         IOFreeData(rec, SWEET_FB_SWAP_REC_SIZE);
+ #endif
+ 	}
++#if defined(GAUGUIN)
++    if (fb->fReadyAcrossFrames) fb->observePendingReady();
++#endif
+ 	fb->armVsync(sender);
+ }
+ 
+@@ -1299,7 +1372,7 @@
+     /* END SWEET PRESENT STATS START */
+     if (frameAttempt) sweet_frame344_record(F344_ATTEMPT,frameAttempt,frame->retries,
+         frame->generation,get32(rec,0x50),get32(rec,0x104));
+-    const uint64_t retryTicket = fReadyRequested && blankFrame != UINT64_MAX ?
++    const uint64_t retryTicket = fReadyRequested && !fReadyAcrossFrames && blankFrame != UINT64_MAX ?
+         scan352_ticket(frameAttempt, frame->surfaces[0]->id) : 0;
+     bool ready = present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket);
+     if (ready) sweet_fb352_clear_ticket(retryTicket);
+@@ -1495,8 +1568,10 @@
+             ++fHeldRetryExhausted;
+         } else {
+             ++frame->retries;
++            frame->ready = {};
+             sweet_fb_frame_move(&fHeldPending, frame);
+             fDirty = true;
++            watchPendingReadyLocked();
+             fHeldActive = false;
+             ++fHeldRequeued;
+             requeued = true;
+@@ -1566,6 +1641,7 @@
+         fHeldSubmitted++;
+         sweet_frame344_record(F344_SWAP,fHeldSubmitted,fPowerOff,
+             get32(rec,0x50),get32(rec,0x104),0);
++        watchPendingReadyLocked();
+     } else
+ #endif
+     {

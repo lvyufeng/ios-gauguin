@@ -1,0 +1,136 @@
+--- a/bsd/dev/sweet_touch.c
++++ b/bsd/dev/sweet_touch.c
+@@ -505,6 +505,14 @@
+ static thread_call_t sweet_script_call;
+ static unsigned sweet_script_stroke, sweet_script_step;
+ static uint64_t sweet_script_due, sweet_script_end, sweet_script_start;
++/* swp=3 only: unknown/on/off are observed framebuffer requests. A single
++ * inline button press/release may ask backboardd to wake; no direct display
++ * override, retry, held key across a timer, or assumed unlock success. */
++extern uint32_t sweet_fb_display_state(void);
++extern void sweet_hid_key(int key, int down);
++static bool sweet_script_wake_mode;
++static unsigned sweet_script_wake_phase, sweet_script_wake_polls;
++enum { SWEET_WAKE_INITIAL, SWEET_WAKE_WAIT, SWEET_WAKE_SETTLE, SWEET_WAKE_READY };
+
+ static void
+ sweet_script_abort(void)
+@@ -513,6 +521,49 @@
+ 	int rc = sweet_hid_touch_frame(&release);
+ 	sweet_script_stroke = 13;
+ 	printf("SWEET UI SCRIPT: aborted; final release rc=%x, no retry\n", rc);
++}
++
++static bool
++sweet_script_display_ready(uint64_t now)
++{
++	uint32_t state = sweet_fb_display_state();
++	if (state == 0 || state > 2) {
++		printf("SWEET UI WAKE: unknown display state=%u; abort\n", state);
++		sweet_script_abort(); return false;
++	}
++	if (sweet_script_wake_phase == SWEET_WAKE_INITIAL && state == 2) {
++		sweet_script_wake_phase = SWEET_WAKE_WAIT;
++		clock_interval_to_deadline(5000, NSEC_PER_MSEC, &sweet_script_end);
++		/* Queue release in this same callback, even if wake rendering is slow.
++		 * A later timer must never be responsible for releasing the key. */
++		printf("SWEET UI WAKE: power press tick=%llu state=off\n", (unsigned long long)now);
++		sweet_hid_key(0, 1);
++		sweet_hid_key(0, 0);
++		printf("SWEET UI WAKE: power release tick=%llu; one pair only\n", (unsigned long long)mach_absolute_time());
++	} else if (state == 1) {
++		if (sweet_script_wake_phase == SWEET_WAKE_SETTLE) {
++			sweet_script_wake_phase = SWEET_WAKE_READY;
++			clock_interval_to_deadline(1500, NSEC_PER_MSEC, &sweet_script_end);
++			printf("SWEET UI WAKE: display-on confirmed tick=%llu; begin workload\n", (unsigned long long)now);
++			return true;
++		}
++		sweet_script_wake_phase = SWEET_WAKE_SETTLE;
++		clock_interval_to_deadline(1000, NSEC_PER_MSEC, &sweet_script_due);
++		clock_interval_to_deadline(2500, NSEC_PER_MSEC, &sweet_script_end);
++		printf("SWEET UI WAKE: observed on tick=%llu; settle 1s\n", (unsigned long long)now);
++		thread_call_enter_delayed(sweet_script_call, sweet_script_due);
++		return false;
++	} else if (sweet_script_wake_phase == SWEET_WAKE_SETTLE) {
++		printf("SWEET UI WAKE: display returned off during settle; abort\n");
++		sweet_script_abort(); return false;
++	}
++	if (++sweet_script_wake_polls > 100) {
++		printf("SWEET UI WAKE: poll limit; abort\n");
++		sweet_script_abort(); return false;
++	}
++	clock_interval_to_deadline(50, NSEC_PER_MSEC, &sweet_script_due);
++	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
++	return false;
+ }
+
+ static void
+@@ -523,6 +574,13 @@
+ 	if (now < sweet_script_due || now >= sweet_script_end ||
+ 	    (sweet_script_step && now < sweet_script_start)) {
+ 		sweet_script_abort(); return;
++	}
++	if (sweet_script_wake_mode) {
++		if (sweet_script_wake_phase != SWEET_WAKE_READY && !sweet_script_display_ready(now)) return;
++		if (sweet_fb_display_state() != 1) {
++			printf("SWEET UI WAKE: display no longer on during workload; abort\n");
++			sweet_script_abort(); return;
++		}
+ 	}
+ 	unsigned stroke = sweet_script_stroke, step = sweet_script_step++;
+ 	bool down = step <= 32;
+@@ -574,6 +632,7 @@
+ 	clock_interval_to_deadline(181500, NSEC_PER_MSEC, &sweet_script_end);
+ 	thread_call_enter_delayed(sweet_script_call, sweet_script_due);
+ 	printf("SWEET UI SCRIPT: armed strokes=13 origin=synthetic physical=off; first at +180s\n");
++	if (sweet_script_wake_mode) printf("SWEET UI WAKE: enabled; one power pair if off, 5s limit, observe on before strokes\n");
+ }
+ #endif
+
+@@ -1145,6 +1204,11 @@
+ 		sweet_script_arm();
+ 		return;
+ 	}
++	if (physical == 0 && swipe == 3) {
++		sweet_script_wake_mode = true;
++		sweet_script_arm();
++		return;
++	}
+ 	/* Independent opt-in stage0; default returns before mapping hardware. */
+ 	extern void sweet_nvt_probe_init(void);
+ 	sweet_nvt_probe_init();
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -60,6 +60,15 @@
+ #include <pexpert/pexpert.h>
+ #include <kern/clock.h>
+ #include <sys/proc.h>
++
++#if defined(GAUGUIN)
++/* Requested display state, not a panel latch or proof of visible pixels.
++ * The diagnostic input worker only reads this cache; it never changes power
++ * or bypasses backboardd. Zero remains unknown until the first request. */
++static uint32_t sweet_fb_display_power;
++extern "C" uint32_t sweet_fb_display_state(void)
++{return __atomic_load_n(&sweet_fb_display_power,__ATOMIC_ACQUIRE);}
++#endif
+
+ enum {
+ 	kSweetFBGetLayerDefaultSurface  = 3,
+@@ -1691,8 +1700,16 @@
+ 				fFB->fFadeStep = 0;
+ 				fFB->fDirty = true;     /* on: redraw the latest frame */
+ 			}
++#if defined(GAUGUIN)
++            __atomic_store_n(&sweet_fb_display_power,off?2u:1u,__ATOMIC_RELEASE);
++            uint64_t powerTick = mach_absolute_time();
++#endif
+ 			IOLockUnlock(fFB->fLock);
+ 			IOLog("SWEET FB: display %s\n", off ? "off" : "on");
++#if defined(GAUGUIN)
++            IOLog("SWEET FB POWER: state=%u tick=%llu; requested, panel unqualified\n",
++                  off?2u:1u,(unsigned long long)powerTick);
++#endif
+ 		}
+ 		break;
+ 	case kSweetFBSwapWait:

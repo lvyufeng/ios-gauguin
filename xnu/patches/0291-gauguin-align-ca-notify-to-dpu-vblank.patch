@@ -1,0 +1,677 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_frame380_phase.h
+@@ -0,0 +1,158 @@
++/* Observed DPU phase and notification timing for the 60 Hz trial.
++ * Limits use the qualified 19.2 MHz absolute clock. */
++#ifndef GAUGUIN_FRAME380_PHASE_H
++#define GAUGUIN_FRAME380_PHASE_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++enum {
++    F380_HISTORY = 20,
++    F380_MAX_BRACKET = 57600,        /* 3 ms */
++    F380_MIN_SAMPLE_PERIOD = 259200, /* 13.5 ms */
++    F380_MAX_SAMPLE_PERIOD = 379200, /* 19.75 ms */
++    F380_MIN_PERIOD = 312000,        /* 16.25 ms */
++    F380_MAX_PERIOD = 328320,        /* 17.1 ms */
++    F380_LEAD = 76800,               /* 4 ms */
++    F380_MIN_NOTIFY_GAP = 230400,    /* 12 ms */
++    F380_MAX_AGE = 768000,           /* 40 ms */
++    F380_FALLBACK = 768000,          /* 40 ms after a missed notification */
++    F380_MAX_CONSECUTIVE_MISSES = 3,
++    F380_MAX_WAKE_AHEAD = 460800,    /* 24 ms */
++    F380_FIRST_SAMPLE = 1,
++    F380_SAMPLE_STEP = 128,
++    F380_SAMPLES = 24
++};
++
++struct f380_prediction {
++    uint64_t edge, observed, period;
++    uint32_t frame; /* last observed scan, not the predicted scan */
++};
++
++struct f380_fit {
++    uint64_t midpoints[F380_HISTORY], previous;
++    uint32_t frame;
++    unsigned count, next;
++};
++
++struct f380_wake {
++    uint64_t wake, edge, observed;
++    uint32_t scan, source;
++};
++
++struct f380_sent {
++    uint64_t tick;
++    uint32_t scan;
++    bool has_scan;
++};
++
++static inline bool
++f380_fit_add(struct f380_fit *fit, uint32_t frame, uint64_t lo, uint64_t hi,
++    struct f380_prediction *out)
++{
++    if (!lo || lo >= hi || hi - lo > F380_MAX_BRACKET) {
++        fit->count = fit->next = 0;
++        return false;
++    }
++    const uint64_t point = lo + (hi - lo) / 2;
++    if (fit->count && (frame - fit->frame != 1 || point <= fit->previous ||
++        point - fit->previous < F380_MIN_SAMPLE_PERIOD ||
++        point - fit->previous > F380_MAX_SAMPLE_PERIOD)) {
++        fit->count = fit->next = 0;
++    }
++    fit->midpoints[fit->next] = point;
++    fit->next = (fit->next + 1) % F380_HISTORY;
++    fit->previous = point;
++    fit->frame = frame;
++    if (fit->count < F380_HISTORY) ++fit->count;
++    if (fit->count < F380_HISTORY) return false;
++
++    /* Fit x=0..19 relative to the first midpoint to bound products.
++     * sum(x)=190 and 20*sum(x*x)-sum(x)^2=13300. */
++    const uint64_t origin = fit->midpoints[fit->next];
++    uint64_t sum = 0, weighted = 0;
++    for (unsigned i = 0; i < F380_HISTORY; ++i) {
++        const uint64_t offset = fit->midpoints[(fit->next + i) % F380_HISTORY] - origin;
++        sum += offset;
++        weighted += i * offset;
++    }
++    const uint64_t covariance = 20 * weighted - 190 * sum;
++    const uint64_t period = (covariance + 6650) / 13300;
++    const uint64_t next = (sum * 13300 + covariance * 210 + 133000) / 266000;
++    if (period < F380_MIN_PERIOD || period > F380_MAX_PERIOD ||
++        origin > UINT64_MAX - next || origin + next <= hi) return false;
++    out->edge = origin + next;
++    out->observed = hi;
++    out->period = period;
++    out->frame = frame;
++    return true;
++}
++
++static inline bool
++f380_fresh(const struct f380_prediction *p, uint64_t now)
++{
++    return p->observed && now >= p->observed && now - p->observed <= F380_MAX_AGE &&
++        p->edge > p->observed && p->period >= F380_MIN_PERIOD && p->period <= F380_MAX_PERIOD;
++}
++
++static inline bool
++f380_newer(uint32_t scan, uint32_t previous)
++{
++    const uint32_t delta = scan - previous;
++    return delta && delta < (UINT32_C(1) << 31);
++}
++
++static inline bool
++f380_can_send(const struct f380_sent *sent, uint64_t now)
++{
++    return !sent->tick || (now >= sent->tick && now - sent->tick >= F380_MIN_NOTIFY_GAP);
++}
++
++static inline bool
++f380_pick(const struct f380_prediction *p, const struct f380_sent *sent, uint64_t now,
++    struct f380_wake *out)
++{
++    if (!f380_fresh(p, now)) return false;
++    for (unsigned i = 0; i < 4; ++i) {
++        const uint64_t advance = i * p->period;
++        if (p->edge > UINT64_MAX - advance) return false;
++        const uint64_t edge = p->edge + advance;
++        if (edge < F380_LEAD) continue;
++        const uint64_t wake = edge - F380_LEAD;
++        const uint32_t scan = p->frame + 1 + i;
++        if (wake < now || !f380_can_send(sent, wake) ||
++            (sent->has_scan && !f380_newer(scan, sent->scan))) continue;
++        if (wake - now > F380_MAX_WAKE_AHEAD || wake - p->observed > F380_MAX_AGE)
++            return false;
++        out->wake = wake;
++        out->edge = edge;
++        out->observed = p->observed;
++        out->scan = scan;
++        out->source = p->frame;
++        return true;
++    }
++    return false;
++}
++
++static inline bool
++f380_due(const struct f380_prediction *p, const struct f380_sent *sent,
++    const struct f380_wake *wake, uint64_t now)
++{
++    return f380_fresh(p, now) && wake->wake && now >= wake->wake && now < wake->edge &&
++        now >= wake->observed && now - wake->observed <= F380_MAX_AGE &&
++        f380_newer(wake->scan, p->frame) &&
++        (!sent->has_scan || f380_newer(wake->scan, sent->scan)) && f380_can_send(sent, now);
++}
++
++enum f380_notice { F380_SOFTWARE, F380_ALIGNED, F380_MISSED };
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++bool sweet_frame380_prediction(uint64_t, struct f380_prediction *);
++void sweet_frame380_notice(enum f380_notice, uint64_t, const struct f380_wake *);
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -34,6 +34,7 @@
+ #include "gauguin_calibration357.h"
+ #include "gauguin_probe358.h"
+ #include "gauguin_frame375_present.h"
++#include "gauguin_frame380_phase.h"
+ 
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t, vm_size_t, vm_prot_t);
+ extern uint32_t sweet_fb_display_state(void);
+@@ -71,6 +72,7 @@
+ static volatile uint32_t *scan_intf;
+ static bool scan351_enabled, scan351_published, scan352_enabled;
+ static bool scan357_enabled;
++static bool phase380_enabled;
+ static uint64_t scan357_due, scan357_deadline;
+ static uint32_t scan357_step, scan357_previous;
+ static struct {
+@@ -101,16 +103,11 @@
+     return frame_active() ? mach_absolute_time() : 0;
+ }
+ 
+-extern void sweet_frame379_observe_gpu(uint32_t, uint64_t, uint64_t);
+ 
+ void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
+     uint64_t a, uint64_t b, uint64_t c)
+ {
+     gut_record(&frames, kind, id, 0, flags, a, b, c);
+-    if (__improbable(kind == F344_ISSUE || kind == F344_EOP)) {
+-        const uint64_t tick = sweet_frame344_clock();
+-        if (tick) sweet_frame379_observe_gpu(kind == F344_EOP, id, tick);
+-    }
+ }
+ 
+ /* The GCC register is reached first. Do not read a downstream domain until
+@@ -431,6 +428,40 @@
+     uint64_t lo, hi;
+ } frame375_edges[F375_INFO_QUEUE];
+ 
++/* The existing scan worker is the sole writer. The notification workloop
++ * reads a versioned snapshot without introducing MMIO or a lock dependency. */
++static struct f380_fit phase380_fit;
++static uint32_t phase380_version;
++static struct f380_prediction phase380_prediction;
++
++static void phase380_publish(const struct f380_prediction *p)
++{
++    __atomic_fetch_add(&phase380_version, 1, __ATOMIC_ACQ_REL);
++    __atomic_store_n(&phase380_prediction.edge, p->edge, __ATOMIC_RELAXED);
++    __atomic_store_n(&phase380_prediction.observed, p->observed, __ATOMIC_RELAXED);
++    __atomic_store_n(&phase380_prediction.period, p->period, __ATOMIC_RELAXED);
++    __atomic_store_n(&phase380_prediction.frame, p->frame, __ATOMIC_RELAXED);
++    __atomic_fetch_add(&phase380_version, 1, __ATOMIC_RELEASE);
++}
++
++bool sweet_frame380_prediction(uint64_t tick, struct f380_prediction *out)
++{
++    if (!sweet_frame351_window()) return false;
++    const uint32_t version = __atomic_load_n(&phase380_version, __ATOMIC_ACQUIRE);
++    if (!version || version & 1) return false;
++    struct f380_prediction p = {
++        .edge = __atomic_load_n(&phase380_prediction.edge, __ATOMIC_RELAXED),
++        .observed = __atomic_load_n(&phase380_prediction.observed, __ATOMIC_RELAXED),
++        .period = __atomic_load_n(&phase380_prediction.period, __ATOMIC_RELAXED),
++        .frame = __atomic_load_n(&phase380_prediction.frame, __ATOMIC_RELAXED)
++    };
++    __atomic_thread_fence(__ATOMIC_ACQUIRE);
++    if (__atomic_load_n(&phase380_version, __ATOMIC_RELAXED) != version || !f380_fresh(&p, tick))
++        return false;
++    *out = p;
++    return true;
++}
++
+ static void frame375_publish_edge(uint32_t frame, uint64_t lo, uint64_t hi)
+ {
+     const unsigned index = frame % F375_INFO_QUEUE;
+@@ -467,6 +498,12 @@
+         uint64_t width = 0;
+         absolutetime_to_nanoseconds(tick - scan.last_tick, &width);
+         if (width <= F375_IF_EDGE_LIMIT_NS) frame375_publish_edge(frame, scan.last_tick, tick);
++    }
++    if (phase380_enabled && scan.configured) {
++        struct f380_prediction prediction = {0};
++        if (step != 1) phase380_fit.count = phase380_fit.next = 0;
++        else (void)f380_fit_add(&phase380_fit, frame, scan.last_tick, tick, &prediction);
++        phase380_publish(&prediction);
+     }
+     if (scan.configured || scan.crc_blocked) return;
+     uint64_t interval = 0, bracket = 0;
+@@ -766,6 +803,8 @@
+     nanoseconds_to_absolutetime(UINT64_C(45) * NSEC_PER_SEC, &window);
+     clock_timebase_info(&frame_timebase);
+     if (!window || !frame_timebase.numer || !frame_timebase.denom) return;
++    phase380_enabled = scan357_enabled && script == 4 &&
++        frame_timebase.numer == 625 && frame_timebase.denom == 12;
+     struct gut_event *events = kalloc_data(capacity * sizeof(*events), Z_WAITOK | Z_ZERO);
+     if (!events) return;
+     if (!gut_init_frames(&frames, events, capacity, window, now)) {
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -69,12 +69,10 @@
+ #include "../dev/gauguin_frame374_wire.h"
+ #include "../dev/gauguin_frame376_wire.h"
+ #include "../dev/gauguin_frame379_probe.h"
++#include "../dev/gauguin_frame380_phase.h"
+ 
+ void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
+ void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+-void sweet_frame379_observe_gpu(uint32_t, uint64_t, uint64_t);
+-uint64_t sweet_frame379_pending(uint64_t);
+-bool sweet_frame379_defer(uint32_t, uint64_t, uint64_t, uint64_t);
+ unsigned sweet_frame379_select(uint64_t, uint64_t);
+ void sweet_frame379_probe(uint64_t, unsigned, const struct f379_segments *);
+ void sweet_ca374_drain(void);
+@@ -91,18 +89,19 @@
+ 	uint64_t attempt, begin, stores, end, runtime;
+ } f377_copies[F377_COPY_CAP];
+ 
+-static uint64_t f379_issued;
+-static uint32_t f379_selected[4], f379_count, f379_waits[4], f379_wait_count;
++static uint32_t f379_selected[4], f379_count;
+ static struct f379_probe_event {
+ 	uint64_t attempt;
+ 	unsigned lane;
+ 	struct f379_segments data;
+ } f379_samples[F379_CAP];
+-static struct f379_defer_event {
+-	uint64_t tick, ticket, generation;
+-	uint32_t scan;
+-	unsigned lane;
+-} f379_defers[2 * F379_WAIT_LIMIT];
++static uint32_t f380_aligned, f380_software, f380_fallback, f380_missed, f380_samples;
++static uint64_t f380_first, f380_last;
++static struct f380_notice_row {
++	struct f380_wake pulse;
++	uint64_t tick;
++	uint32_t ordinal;
++} f380_rows[F380_SAMPLES];
+ 
+ void
+ sweet_ca374_arm(uint64_t receiver, uint64_t start, uint64_t end)
+@@ -207,53 +206,43 @@
+ 	printf("SWEET F377 C footer: rows=%u lost=%u\n", emitted, captured - emitted);
+ }
+ 
+-/* This is the existing software issue-to-observed-EOP interval. It
+- * supplies a contention hint and leaves GPU state and fences untouched. */
++/* One producer, the display workloop. Keep the counters lossless and
++ * retain bounded timing witnesses outside the FrameInfo and IPC lanes. */
+ void
+-sweet_frame379_observe_gpu(uint32_t kind, uint64_t fence, uint64_t tick)
+-{
+-	if (!fence || fence > UINT32_MAX || !f375_enter()) return;
++sweet_frame380_notice(enum f380_notice mode, uint64_t tick, const struct f380_wake *pulse)
++{
++	if (!f375_enter()) return;
+ 	if (tick >= f374_start && tick < f374_end) {
+-		if (kind == 0) {
+-			__atomic_store_n(&f379_issued, (fence << 32) | (tick - f374_start), __ATOMIC_RELEASE);
++		if (mode == F380_ALIGNED) {
++			if (!f380_first) f380_first = tick;
++			f380_last = tick;
++			++f380_aligned;
++			if (pulse && f380_samples < F380_SAMPLES &&
++			    (f380_aligned == F380_FIRST_SAMPLE || f380_aligned % F380_SAMPLE_STEP == 0))
++				f380_rows[f380_samples++] = (struct f380_notice_row){*pulse, tick, f380_aligned};
++		} else if (mode == F380_MISSED) {
++			++f380_missed;
+ 		} else {
+-			uint64_t ticket = __atomic_load_n(&f379_issued, __ATOMIC_RELAXED);
+-			if ((ticket >> 32) == fence) {
+-				(void)__atomic_compare_exchange_n(&f379_issued, &ticket, 0, false,
+-				    __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+-			}
++			++f380_software;
++			if (f380_first) ++f380_fallback;
+ 		}
+ 	}
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+ }
+ 
+-uint64_t
+-sweet_frame379_pending(uint64_t tick)
+-{
+-	if (!f375_enter()) return 0;
+-	const uint64_t ticket = __atomic_load_n(&f379_issued, __ATOMIC_ACQUIRE);
+-	const uint64_t issued = f374_start + (uint32_t)ticket;
+-	const uint64_t result = issued <= tick && tick < f374_end &&
+-	    tick - issued <= F379_MAX_ISSUE_AGE_TICKS ? ticket : 0;
+-	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+-	return result;
+-}
+-
+-/* These producers are serialized by the framebuffer workloop. The
+- * capture gate keeps their stores ordered against the exporter. */
+-bool
+-sweet_frame379_defer(uint32_t scan, uint64_t generation, uint64_t ticket, uint64_t tick)
+-{
+-	if (!generation || !ticket || !f375_enter()) return false;
+-	const unsigned lane = tick >= f374_start && tick < f374_end ? f379_wait_scene(tick - f374_start) : 0;
+-	const bool admitted = lane && f379_waits[lane] < F379_WAIT_LIMIT &&
+-	    f379_wait_count < 2 * F379_WAIT_LIMIT && ticket == __atomic_load_n(&f379_issued, __ATOMIC_ACQUIRE);
+-	if (admitted) {
+-		++f379_waits[lane];
+-		f379_defers[f379_wait_count++] = (struct f379_defer_event){tick, ticket, generation, scan, lane};
+-	}
+-	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+-	return admitted;
++static void
++f380_drain(void)
++{
++	for (unsigned i = 0; i < f380_samples; ++i) {
++		const struct f380_notice_row *row = &f380_rows[i];
++		const struct f380_wake *p = &row->pulse;
++		printf("SWEET F380 P: seq=%u scan=%u source=%u o=%u w=%u p=%u a=%u\n",
++		    row->ordinal, p->scan, p->source, (uint32_t)(p->observed - f374_start),
++		    (uint32_t)(p->wake - f374_start), (uint32_t)(p->edge - f374_start),
++		    (uint32_t)(row->tick - f374_start));
++	}
++	printf("SWEET F380 F: rows=%u aligned=%u software=%u fallback=%u missed=%u first=%llu last=%llu\n",
++	    f380_samples, f380_aligned, f380_software, f380_fallback, f380_missed, f380_first, f380_last);
+ }
+ 
+ unsigned
+@@ -310,13 +299,7 @@
+ 	printf("SWEET F379 F: rows=%u lost=%u control=%u stroke2=%u stroke4=%u\n",
+ 	    emitted, selected - emitted, f379_selected[F379_CONTROL],
+ 	    f379_selected[F379_STROKE2], f379_selected[F379_STROKE4]);
+-	for (unsigned i = 0; i < f379_wait_count; ++i) {
+-		const struct f379_defer_event *row = &f379_defers[i];
+-		printf("SWEET F379 D: scan=%u gen=%llu fence=%u tick=%llu issue=%llu lane=%u\n",
+-		    row->scan, row->generation, (uint32_t)(row->ticket >> 32), row->tick,
+-		    f374_start + (uint32_t)row->ticket, row->lane);
+-	}
+-	printf("SWEET F379 D footer: rows=%u\n", f379_wait_count);
++	printf("SWEET F379 D footer: rows=0\n");
+ }
+ 
+ static void
+@@ -374,6 +357,7 @@
+ 	    emitted, threads, total, captured - emitted);
+ 	f377_copy_drain();
+ 	f379_drain();
++	f380_drain();
+ }
+ #endif
+ 
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -47,14 +47,13 @@
+ #include "../../../bsd/dev/gauguin_probe358.h"
+ #include "../../../bsd/dev/gauguin_copy379_probe.h"
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
++#include "../../../bsd/dev/gauguin_frame380_phase.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+ extern "C" void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+ extern "C" unsigned sweet_frame379_select(uint64_t, uint64_t);
+ extern "C" void sweet_frame379_probe(uint64_t, unsigned, const struct f379_segments *);
+-extern "C" uint64_t sweet_frame379_pending(uint64_t);
+-extern "C" bool sweet_frame379_defer(uint32_t, uint64_t, uint64_t, uint64_t);
+ /* END SWEET PRESENT STATS INCLUDE */
+ #endif
+ 
+@@ -453,8 +452,10 @@
+ 	IOWorkLoop         *fWorkLoop;
+ 	IOTimerEventSource *fVsync;
+ 	uint64_t            fVsyncCount;
++	uint64_t            fNotifyCount;
+ 
+ 	static void vsyncFired(OSObject *owner, IOTimerEventSource *sender);
++	void notifyVsyncLocked(uint64_t tick, uint64_t elapsed);
+ 
+ public:
+ 	uint64_t      fPhys;
+@@ -476,7 +477,13 @@
+     bool fPhasePresent;
+     struct SweetPresentClock fPresentClock;
+     struct scan351_slot fBlankSlot;
+-    struct f379_wait_state fPresent379Wait;
++    IOTimerEventSource *fCAVsync;
++    uint64_t fCAVsyncRetryAfter;
++    unsigned fCAVsyncMisses;
++    struct f380_wake fCAVsyncWake;
++    struct f380_sent fCAVsyncSent;
++    bool armCAVsyncLocked(uint64_t tick);
++    static void caVsyncFired(OSObject *, IOTimerEventSource *);
+     bool fReadyRequested, fReadyAcrossFrames;
+     IOInterruptEventSource *fReadyEvent;
+     uint64_t fReadyGeneration;
+@@ -816,7 +823,11 @@
+     fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
+     fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 9;
+     fBlankSlot = {};
+-    fPresent379Wait = {};
++    fCAVsync = nullptr;
++    fCAVsyncRetryAfter = 0;
++    fCAVsyncMisses = 0;
++    fCAVsyncWake = {};
++    fCAVsyncSent = {};
+     fReadyRequested = statsRequested == 8 || statsRequested == 9;
+     fReadyAcrossFrames = statsRequested == 9;
+     fReadyEvent = nullptr;
+@@ -843,6 +854,7 @@
+ 		return false;
+ 	}
+ 	gSweetFB = this;
++	fNotifyCount = 0;
+ 	fVsync = IOTimerEventSource::timerEventSource(this, &AppleCLCD::vsyncFired);
+ 	if (fVsync == NULL || fWorkLoop->addEventSource(fVsync) != kIOReturnSuccess) {
+ 		IOLog("SWEET FB: no vsync timer\n");
+@@ -856,6 +868,13 @@
+     if (fReadyRequested && fPhasePresent) {
+         attachReadyEvent();
+         IOLog("SWEET F352 READY: event=%u budget=%u\n", fReadyEvent != nullptr, SCAN352_COPY_NS);
++    }
++    if (fFrameInfo375 && fPhasePresent) {
++        auto *timer = IOTimerEventSource::timerEventSource(this, &AppleCLCD::caVsyncFired);
++        if (timer && fWorkLoop->addEventSource(timer) == kIOReturnSuccess) fCAVsync = timer;
++        else if (timer) timer->release();
++        IOLog("SWEET F380 READY: timer=%u lead=%u history=%u\n",
++            fCAVsync != nullptr, F380_LEAD, F380_HISTORY);
+     }
+ #endif
+     armVsync(fVsync);
+@@ -937,10 +956,14 @@
+ AppleCLCD::stop(IOService *provider)
+ {
+     IOInterruptEventSource *event = nullptr;
++    IOTimerEventSource *cadence = nullptr;
+     struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
+     if (fLock) {
+         IOLockLock(fLock);
+         event = fReadyEvent;
++        cadence = fCAVsync;
++        fCAVsync = nullptr;
++        fCAVsyncWake = {};
+         fHeldStopped = true;
+         invalidateHeldRetryLocked();
+         cancelHeldFramesLocked(&waiting, &ready, issued, nullptr);
+@@ -950,6 +973,11 @@
+     sweet_fb_retired_release(&waiting);
+     sweet_fb_retired_release(&ready);
+     for (auto &frame : issued) sweet_fb_retired_release(&frame);
++    if (cadence) {
++        cadence->cancelTimeout();
++        fWorkLoop->removeEventSource(cadence);
++        cadence->release();
++    }
+     if (event) {
+         IOLock *lock = __atomic_load_n(&gReadyLock, __ATOMIC_ACQUIRE);
+         IOLockLock(lock);
+@@ -1260,15 +1288,6 @@
+     if (!blankPendingLocked() || !sweet_frame351_position(&pos)) return false;
+     if (fReadyAcrossFrames) {
+         if (!scan353_can_take(&fHeldReady.ready, &fBlankSlot, &pos)) return false;
+-        if (fFrameInfo375) {
+-            const uint64_t pending = sweet_frame379_pending(pos.tick);
+-            if (f379_waiting(&fPresent379Wait, pos.frame, pending)) return false;
+-            if (pending && f379_new_wait(&fPresent379Wait, pos.frame, fHeldReady.generation) &&
+-                sweet_frame379_defer(pos.frame, fHeldReady.generation, pending, pos.tick)) {
+-                fPresent379Wait = {fHeldReady.generation, pending, pos.frame};
+-                return false; /* keep the ready slot and use the existing timer */
+-            }
+-        }
+     } else if (fReadyRequested) {
+         if (!scan352_can_take(&fBlankSlot, &pos, readyTicket != 0)) return false;
+         if (readyTicket && !scan352_matches(readyTicket, sweet_fb352_waiting_ticket(), fReadyGeneration,
+@@ -1319,6 +1338,57 @@
+         fPhasePresent = false;
+         IOLog("SWEET FB CLOCK: failed copy slot; legacy timer selected\n");
+     }
++}
++
++/* This timer only delivers the notification. The original timer and ready
++ * event still own frame admission, read reservations and FrameInfo. */
++bool
++AppleCLCD::armCAVsyncLocked(uint64_t tick)
++{
++    if (!fCAVsync) return false;
++    if (!fPhasePresent || fHeldStopped || fPowerOff) {
++        if (fCAVsyncWake.wake) fCAVsync->cancelTimeout();
++        fCAVsyncWake = {};
++        return false;
++    }
++    if (tick < fCAVsyncRetryAfter || fCAVsyncMisses >= F380_MAX_CONSECUTIVE_MISSES) return false;
++    if (fCAVsyncWake.wake) return true;
++    struct f380_prediction prediction = {};
++    struct f380_wake pulse = {};
++    if (!sweet_frame380_prediction(tick, &prediction) ||
++        !f380_pick(&prediction, &fCAVsyncSent, tick, &pulse) ||
++        fCAVsync->wakeAtTime(pulse.wake) != kIOReturnSuccess) return false;
++    fCAVsyncWake = pulse;
++    return true;
++}
++
++void
++AppleCLCD::caVsyncFired(OSObject *owner, IOTimerEventSource *sender)
++{
++    auto *fb = static_cast<AppleCLCD *>(owner);
++    IOLockLock(fb->fLock);
++    if (fb->fCAVsync == sender && fb->fCAVsyncWake.wake) {
++        const uint64_t tick = mach_absolute_time();
++        const struct f380_wake pulse = fb->fCAVsyncWake;
++        if (tick >= pulse.wake || sender->wakeAtTime(pulse.wake) != kIOReturnSuccess) {
++            fb->fCAVsyncWake = {};
++            struct f380_prediction prediction = {};
++            if (fb->fPhasePresent && !fb->fHeldStopped && !fb->fPowerOff &&
++                sweet_frame380_prediction(tick, &prediction) &&
++                f380_due(&prediction, &fb->fCAVsyncSent, &pulse, tick)) {
++                fb->fCAVsyncSent = {tick, pulse.scan, true};
++                fb->fCAVsyncMisses = 0;
++                fb->notifyVsyncLocked(tick, 1);
++                sweet_frame380_notice(F380_ALIGNED, tick, &pulse);
++            } else {
++                sweet_frame380_notice(F380_MISSED, tick, nullptr);
++                ++fb->fCAVsyncMisses;
++                fb->fCAVsyncRetryAfter = sweet_present_clock_add(tick, F380_FALLBACK);
++            }
++            (void)fb->armCAVsyncLocked(mach_absolute_time());
++        }
++    }
++    IOLockUnlock(fb->fLock);
+ }
+ #endif
+ 
+@@ -1367,6 +1437,41 @@
+ }
+ 
+ void
++AppleCLCD::notifyVsyncLocked(uint64_t now, uint64_t elapsed)
++{
++	const uint64_t count = fNotifyCount += elapsed;
++	uint64_t values[6] = {
++		(uint32_t)count, (uint32_t)(count >> 32),
++		(uint32_t)now, (uint32_t)(now >> 32),
++		0, 0,
++	};
++
++	for (unsigned int i = 0; i < fClients->getCount(); i++) {
++		IOMobileFramebufferUserClient *client =
++		    (IOMobileFramebufferUserClient *)fClients->getObject(i);
++		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
++		/*
++		 * Deliver to every other registered notification type as well: today
++		 * only vsync (5) fires, so a client waiting on type 3 - which is what
++		 * backboardd registers, NOTES 21:14 - never hears anything, and a
++		 * registered notification that never fires looks exactly like a
++		 * display that never scans out. Sending the same payload to all
++		 * registered types costs nothing and tells us whether type 3 is the
++		 * one backboardd is waiting on.
++		 */
++		for (uint32_t t = 0; t < SWEET_FB_NOTIFY_TYPES; t++) {
++#if defined(GAUGUIN)
++			if (t == F375_INFO_TYPE && client->fFrameInfo375ID) continue;
++#endif
++			if (t != SWEET_FB_NOTIFY_VSYNC && client->hasNotification(t)) {
++				client->notify(t, values, 6);
++			}
++		}
++		if (count == 2 || (count % 600) == 0) client->logNotificationStats(i);
++	}
++}
++
++void
+ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+ {
+ 	AppleCLCD *fb = (AppleCLCD *)owner;
+@@ -1389,35 +1494,17 @@
+     }
+ #endif
+     uint64_t count = fb->fVsyncCount += elapsed;
+-	uint64_t values[6] = {
+-		(uint32_t)count, (uint32_t)(count >> 32),
+-		(uint32_t)now, (uint32_t)(now >> 32),
+-		0, 0,
+-	};
+-
+-	for (unsigned int i = 0; i < fb->fClients->getCount(); i++) {
+-		IOMobileFramebufferUserClient *client =
+-		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
+-		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
+-		/*
+-		 * Deliver to every other registered notification type as well: today
+-		 * only vsync (5) fires, so a client waiting on type 3 - which is what
+-		 * backboardd registers, NOTES 21:14 - never hears anything, and a
+-		 * registered notification that never fires looks exactly like a
+-		 * display that never scans out. Sending the same payload to all
+-		 * registered types costs nothing and tells us whether type 3 is the
+-		 * one backboardd is waiting on.
+-		 */
+-		for (uint32_t t = 0; t < SWEET_FB_NOTIFY_TYPES; t++) {
+-#if defined(GAUGUIN)
+-			if (t == F375_INFO_TYPE && client->fFrameInfo375ID) continue;
+-#endif
+-			if (t != SWEET_FB_NOTIFY_VSYNC && client->hasNotification(t)) {
+-				client->notify(t, values, 6);
+-			}
+-		}
+-		if (count == 2 || (count % 600) == 0) client->logNotificationStats(i);
+-	}
++#if defined(GAUGUIN)
++    if (!fb->armCAVsyncLocked(now) && (!fb->fCAVsync || f380_can_send(&fb->fCAVsyncSent, now))) {
++        if (fb->fCAVsync) {
++            fb->fCAVsyncSent.tick = now;
++            sweet_frame380_notice(F380_SOFTWARE, now, nullptr);
++        }
++        fb->notifyVsyncLocked(now, elapsed);
++    }
++#else
++    fb->notifyVsyncLocked(now, elapsed);
++#endif
+     if (fb->fPowerOff) {
+ #if defined(GAUGUIN)
+         struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};

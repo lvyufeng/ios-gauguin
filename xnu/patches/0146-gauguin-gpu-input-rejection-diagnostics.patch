@@ -1,0 +1,115 @@
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -214,6 +214,7 @@
+ static struct gpa_receipt ggb_secure;
+ static uint64_t ggb_deadline;
+ static unsigned ggb_started;
++static unsigned ggb_argument;
+ static enum gsm_result ggb_result;
+ static enum gpa_result ggb_secure_result;
+ static bool ggb_context_valid(void);
+@@ -482,6 +483,7 @@
+     ggb_started=1;clock_interval_to_deadline(8,NSEC_PER_SEC,&ggb_deadline);gmb_deadline=ggb_deadline;
+     if(!ggb_guard(NULL)||!ggp_plan_build(&gmb_context.plan,&ggb_plan))return false;
+     struct ggs_ops o={NULL,ggb_guard,gmb_read32,gmb_write32,gmb_read64,gmb_write64,gmb_barrier,gmb_delay,ggb_prepare};
++    ggb_argument=ggs_argument_reason(&ggb_context,&o,&ggb_plan,&gmb_work.smmu,&ggb_smmu);
+     ggb_result=ggs_configure_once(&ggb_context,&o,&ggb_plan,&gmb_work.smmu,&ggb_smmu);
+     if(ggb_result!=GSM_OK||!ggb_guard(NULL))return false;
+     clock_interval_to_deadline(5,NSEC_PER_SEC,&ggb_deadline);gmb_deadline=ggb_deadline;
+@@ -492,6 +494,13 @@
+ static void ggb_records(bool complete)
+ {
+     if(!ggb_started)return;char line[224];const struct ggs_receipt *s=complete?&ggb_smmu:&ggb_context.work;
++    if(!complete&&ggb_result==GSM_ARGUMENT){
++        const struct gsm_receipt *m=&gmb_work.smmu;
++        snprintf(line,sizeof(line),"SWEET GPU INPUT: reason=%u groups=%u banks=%u s2banks=%u ias=%u oas=%u match=%u mapped=%u atos=%u; cached only",ggb_argument,m->groups,m->banks,m->s2banks,m->ias,m->oas,m->stream_match,m->mapped_pages,m->translations);gmb_record(line);
++        for(unsigned n=0;n<2;n++){
++            snprintf(line,sizeof(line),"SWEET GPU INPUT: stream%u slot=%u bank=%u asid=%u smr=%08x s2cr=%08x sctlr=%08x actlr=%08x; cached only",4+n,m->slot[n],m->bank[n],m->asid[n],m->smr_after[n],m->s2cr_after[n],m->sctlr[n],m->actlr[n]);gmb_record(line);
++        }
++    }
+     snprintf(line,sizeof(line),"SWEET GPU SMMU: %s phase=%u rc=%u slot=%u bank=%u asid=%u gpu_pages=%u gmu_pages=%u atos=%u writes=%u polls=%u",complete?"complete":"partial",ggb_context.phase,ggb_result,s->slot,s->bank,s->asid,s->gpu_pages,s->gmu_pages,s->translations,s->writes,s->polls);gmb_record(line);
+     snprintf(line,sizeof(line),"SWEET GPU SMMU: ttbr0=%016llx ttbr1=%016llx sctlr=%08x smr=%08x s2cr=%08x micro=%08x/%08x; context only, no GPU commands",s->ttbr0,s->ttbr1,s->sctlr,s->smr,s->s2cr,s->micro_before,s->micro_after);gmb_record(line);
+     const struct gsm_diagnostics *d=&ggb_context.diagnostic;
+--- a/bsd/dev/gauguin_gpu_smmu.c
++++ b/bsd/dev/gauguin_gpu_smmu.c
+@@ -68,16 +68,19 @@
+         r32(c,base+0x58,&b->fsr)&&r32(c,0x1000+4*n,&b->cbar)&&r32(c,0x1800+4*n,&b->cba2r)&&
+         r64(c,base+0x20,&b->ttbr0)&&r64(c,base+0x28,&b->ttbr1);
+ }
+-static bool baseline_valid(const struct gsm_receipt *s)
+-{
+-    if(!span(s,sizeof(*s))||s->groups<8||s->groups>GSM_STREAMS||s->banks<3||s->banks>GSM_BANKS||
+-       s->s2banks>=s->banks||s->ias<32||s->ias>39||s->stream_match>1||
+-       s->mapped_pages!=131||s->translations!=140||s->bank[0]==s->bank[1]||s->slot[0]==s->slot[1])return false;
+-    for(unsigned n=0;n<2;n++)if(s->bank[n]<s->s2banks||s->bank[n]>=s->banks||
+-        s->slot[n]>=s->groups||!s->asid[n]||s->asid[n]>255||s->sctlr[n]!=0xc01067||
+-        s->actlr[n]!=0x70000000||s->s2cr_after[n]!=s->bank[n]||
+-        s->smr_after[n]!=(s->stream_match?(VALID|4u+n):0))return false;
+-    return s->asid[0]!=s->asid[1];
++static unsigned baseline_reason(const struct gsm_receipt *s)
++{
++    if(s->groups<8||s->groups>GSM_STREAMS||s->banks<3||s->banks>GSM_BANKS||
++       s->s2banks>=s->banks||s->ias<32||s->ias>39||s->stream_match>1)return 14;
++    if(s->mapped_pages!=131||s->translations!=140)return 15;
++    if(s->bank[0]==s->bank[1]||s->slot[0]==s->slot[1])return 16;
++    for(unsigned n=0;n<2;n++){
++        if(s->bank[n]<s->s2banks||s->bank[n]>=s->banks||s->slot[n]>=s->groups)return 17;
++        if(!s->asid[n]||s->asid[n]>255)return 18;
++        if(s->sctlr[n]!=0xc01067||s->actlr[n]!=0x70000000)return 19;
++        if(s->s2cr_after[n]!=s->bank[n]||s->smr_after[n]!=(s->stream_match?(VALID|4u+n):0))return 20;
++    }
++    return s->asid[0]==s->asid[1]?21:0;
+ }
+ static enum gsm_result capture(struct ggs_context *c)
+ {
+@@ -284,17 +287,29 @@
+     if(w->stream_match){if(!r32(c,SMR(w->slot),&v))return GSM_IO;if(v!=w->smr)return GSM_READBACK;}
+     return barrier(c)?GSM_OK:GSM_IO;
+ }
++unsigned ggs_argument_reason(const struct ggs_context *c,const struct ggs_ops *ops,
++    const struct ggp_plan *plan,const struct gsm_receipt *gmu,const struct ggs_receipt *out)
++{
++    if(!span(c,sizeof(*c)))return 1;if(!span(ops,sizeof(*ops)))return 2;
++    if(!span(plan,sizeof(*plan)))return 3;if(!span(gmu,sizeof(*gmu)))return 4;
++    if(!span(out,sizeof(*out)))return 5;
++    if(overlap(plan,sizeof(*plan),c,sizeof(*c)))return 6;
++    if(overlap(gmu,sizeof(*gmu),c,sizeof(*c)))return 7;
++    if(overlap(ops,sizeof(*ops),c,sizeof(*c)))return 8;
++    if(overlap(out,sizeof(*out),c,sizeof(*c)))return 9;
++    if(overlap(out,sizeof(*out),plan,sizeof(*plan)))return 10;
++    if(overlap(out,sizeof(*out),gmu,sizeof(*gmu)))return 11;
++    if(overlap(out,sizeof(*out),ops,sizeof(*ops)))return 12;
++    if(!ggp_plan_valid(plan))return 13;
++    unsigned reason=baseline_reason(gmu);if(reason)return reason;
++    if(!ops->guard||!ops->read32||!ops->write32||!ops->read64||!ops->write64||
++       !ops->barrier||!ops->delay_us||!ops->prepare)return 22;
++    return 0;
++}
+ enum gsm_result ggs_configure_once(struct ggs_context *c,const struct ggs_ops *ops,
+     const struct ggp_plan *plan,const struct gsm_receipt *gmu,struct ggs_receipt *out)
+ {
+-    if(!span(c,sizeof(*c))||!span(ops,sizeof(*ops))||!span(plan,sizeof(*plan))||
+-       !span(gmu,sizeof(*gmu))||!span(out,sizeof(*out))||
+-       overlap(plan,sizeof(*plan),c,sizeof(*c))||overlap(gmu,sizeof(*gmu),c,sizeof(*c))||
+-       overlap(ops,sizeof(*ops),c,sizeof(*c))||overlap(out,sizeof(*out),c,sizeof(*c))||
+-       overlap(out,sizeof(*out),plan,sizeof(*plan))||overlap(out,sizeof(*out),gmu,sizeof(*gmu))||
+-       overlap(out,sizeof(*out),ops,sizeof(*ops))||!ggp_plan_valid(plan)||!baseline_valid(gmu)||
+-       !ops->guard||!ops->read32||!ops->write32||!ops->read64||!ops->write64||
+-       !ops->barrier||!ops->delay_us||!ops->prepare)return GSM_ARGUMENT;
++    if(ggs_argument_reason(c,ops,plan,gmu,out))return GSM_ARGUMENT;
+     struct ggs_ops o=*ops;struct ggp_plan p=*plan;struct gsm_receipt s=*gmu;uint32_t expected=0;
+     if(!__atomic_compare_exchange_n(&c->state,&expected,1,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GSM_ALREADY;
+     c->ops=o;c->plan=p;c->gmu=s;memset(&c->work,0,sizeof(c->work));memset(&c->diagnostic,0,sizeof(c->diagnostic));memset(&c->translation,0,sizeof(c->translation));
+--- a/bsd/dev/gauguin_gpu_smmu.h
++++ b/bsd/dev/gauguin_gpu_smmu.h
+@@ -42,4 +42,10 @@
+  */
+ enum gsm_result ggs_configure_once(struct ggs_context *,const struct ggs_ops *,
+     const struct ggp_plan *,const struct gsm_receipt *,struct ggs_receipt *);
++/* Pure argument classification, no writes even to context/output. The exact
++ * same checker gates configure_once; diagnostics never waive a predicate.
++ * Codes1..5 pointer spans,6..12 aliases,13 plan,14..21 baseline,22 callbacks.
++ * A zero reason is neither an attempt nor physical ownership authorization. */
++unsigned ggs_argument_reason(const struct ggs_context *,const struct ggs_ops *,
++    const struct ggp_plan *,const struct gsm_receipt *,const struct ggs_receipt *);
+ #endif

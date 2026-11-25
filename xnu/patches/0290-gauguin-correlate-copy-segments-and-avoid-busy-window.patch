@@ -1,0 +1,538 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_frame379_probe.h
+@@ -0,0 +1,93 @@
++#ifndef GAUGUIN_FRAME379_PROBE_H
++#define GAUGUIN_FRAME379_PROBE_H
++
++#include "gauguin_frame372_wire.h"
++
++enum {
++    F379_SEGMENTS = 8,
++    F379_SEGMENT_ROWS = 300,
++    F379_RECORD_BYTES = 99,
++    F379_BLOCK = 8,
++    F379_CAP = 64,
++    F379_CONTROL = 1,
++    F379_STROKE2 = 2,
++    F379_STROKE4 = 3,
++    F379_CONTROL_LIMIT = 12,
++    F379_SCENE_LIMIT = 26,
++    F379_WAIT_LIMIT = 12,
++    F379_PROBE_SLACK_NS = 5600000,
++    F379_MAX_ISSUE_AGE_TICKS = 1536000, /* 80 ms */
++};
++
++static inline unsigned
++f379_scene(uint64_t offset)
++{
++    if (offset >= UINT64_C(157056000) && offset < UINT64_C(166656000)) return F379_STROKE2;
++    if (offset >= UINT64_C(246720000) && offset < UINT64_C(256320000)) return F379_STROKE4;
++    return 0;
++}
++
++static inline unsigned
++f379_wait_scene(uint64_t offset)
++{
++    /* The two release-tail windows at 8.320–8.510 and 13.015–13.215 s. */
++    if (offset >= UINT64_C(159744000) && offset < UINT64_C(163392000)) return F379_STROKE2;
++    if (offset >= UINT64_C(249888000) && offset < UINT64_C(253728000)) return F379_STROKE4;
++    return 0;
++}
++
++struct f379_wait_state {
++    uint64_t generation, ticket;
++    uint32_t scan;
++};
++
++static inline bool
++f379_waiting(const struct f379_wait_state *wait, uint32_t scan, uint64_t ticket)
++{
++    return ticket && wait->scan == scan && wait->ticket == ticket;
++}
++
++static inline bool
++f379_new_wait(const struct f379_wait_state *wait, uint32_t scan, uint64_t generation)
++{
++    return generation && (!wait->ticket || (wait->scan != scan && wait->generation != generation));
++}
++
++struct f379_segments {
++    uint32_t end[F379_SEGMENTS];
++    uint32_t row[F379_SEGMENTS];
++    uint32_t read[F379_SEGMENTS];
++    uint32_t issue[F379_SEGMENTS];
++};
++
++static inline bool
++f379_le24(uint8_t *out, uint32_t value)
++{
++    if (value > 0xffffff) return false;
++    out[0] = (uint8_t)value;
++    out[1] = (uint8_t)(value >> 8);
++    out[2] = (uint8_t)(value >> 16);
++    return true;
++}
++
++static inline bool
++f379_pack(uint8_t out[F379_RECORD_BYTES], uint64_t attempt, unsigned lane,
++    const struct f379_segments *data)
++{
++    if (!attempt || attempt > UINT16_MAX || lane < F379_CONTROL || lane > F379_STROKE4) return false;
++    out[0] = (uint8_t)attempt;
++    out[1] = (uint8_t)(attempt >> 8);
++    out[2] = (uint8_t)lane;
++    uint32_t last = 0;
++    for (unsigned i = 0; i < F379_SEGMENTS; ++i) {
++        uint8_t *record = out + 3 + i * 12;
++        if (data->end[i] <= last || data->row[i] > data->end[i] - last ||
++            data->read[i] > data->row[i] || data->issue[i] > data->row[i] - data->read[i] ||
++            !f379_le24(record, data->end[i]) || !f379_le24(record + 3, data->row[i]) ||
++            !f379_le24(record + 6, data->read[i]) || !f379_le24(record + 9, data->issue[i])) return false;
++        last = data->end[i];
++    }
++    return true;
++}
++
++#endif
+--- /dev/null
++++ b/bsd/dev/gauguin_copy379_probe.h
+@@ -0,0 +1,105 @@
++#ifndef GAUGUIN_COPY379_PROBE_H
++#define GAUGUIN_COPY379_PROBE_H
++
++#include "gauguin_copy356.h"
++#include "gauguin_frame379_probe.h"
++
++static_assert(F379_SEGMENTS * F379_SEGMENT_ROWS == SCAN352_HEIGHT,
++    "segments cover the complete original surface");
++
++#define SCAN379_LOAD64 \
++"ldp x8, x9, [%[s], #0]\n" \
++"ldp x10, x11, [%[s], #16]\n" \
++"ldp x12, x13, [%[s], #32]\n" \
++"ldp x14, x15, [%[s], #48]\n"
++
++#define SCAN379_STORE64 \
++"stnp x8, x9, [%[d], #0]\n" \
++"stnp x10, x11, [%[d], #16]\n" \
++"stnp x12, x13, [%[d], #32]\n" \
++"stnp x14, x15, [%[d], #48]\n"
++
++#define SCAN379_REST288 \
++"ldp x8, x9, [%[s], #64]\n" \
++"ldp x10, x11, [%[s], #80]\n" \
++"ldp x12, x13, [%[s], #96]\n" \
++"ldp x14, x15, [%[s], #112]\n" \
++"stnp x8, x9, [%[d], #64]\n" \
++"stnp x10, x11, [%[d], #80]\n" \
++"stnp x12, x13, [%[d], #96]\n" \
++"stnp x14, x15, [%[d], #112]\n" \
++"ldp x8, x9, [%[s], #128]\n" \
++"ldp x10, x11, [%[s], #144]\n" \
++"ldp x12, x13, [%[s], #160]\n" \
++"ldp x14, x15, [%[s], #176]\n" \
++"stnp x8, x9, [%[d], #128]\n" \
++"stnp x10, x11, [%[d], #144]\n" \
++"stnp x12, x13, [%[d], #160]\n" \
++"stnp x14, x15, [%[d], #176]\n" \
++"ldp x8, x9, [%[s], #192]\n" \
++"ldp x10, x11, [%[s], #208]\n" \
++"ldp x12, x13, [%[s], #224]\n" \
++"ldp x14, x15, [%[s], #240]\n" \
++"stnp x8, x9, [%[d], #192]\n" \
++"stnp x10, x11, [%[d], #208]\n" \
++"stnp x12, x13, [%[d], #224]\n" \
++"stnp x14, x15, [%[d], #240]\n" \
++"ldp x8, x9, [%[s], #256]\n" \
++"ldp x10, x11, [%[s], #272]\n" \
++"stnp x8, x9, [%[d], #256]\n" \
++"stnp x10, x11, [%[d], #272]\n" \
++"add %[s], %[s], #288\n" \
++"add %[d], %[d], #288\n"
++
++static inline uint32_t
++scan379_delta(uint64_t begin, uint64_t end)
++{
++    return end >= begin && end - begin <= UINT32_MAX ? (uint32_t)(end - begin) : UINT32_MAX;
++}
++
++/* Only the first 64 bytes of this row are timed. The other instructions
++ * preserve the original 0375 data movement, including its prefetch. */
++static inline void
++scan379_probe_row(void *dst, const void *src, unsigned segment,
++    struct f379_segments *out)
++{
++#if defined(__aarch64__)
++    size_t remaining = SCAN352_PANEL_STRIDE - SCAN356_COPY_BLOCK_BYTES;
++    uint64_t before, loaded, issued;
++    __asm__ volatile(
++        "prfm pldl1keep, [%[s], #160]\n"
++        "isb\n"
++        "mrs %[before], cntvct_el0\n"
++        SCAN379_LOAD64
++        "dsb ld\n"
++        "isb\n"
++        "mrs %[loaded], cntvct_el0\n"
++        SCAN379_STORE64
++        "isb\n"
++        "mrs %[issued], cntvct_el0\n"
++        SCAN379_REST288
++        "2:\n"
++        "prfm pldl1keep, [%[s], #160]\n"
++        SCAN379_LOAD64
++        SCAN379_STORE64
++        SCAN379_REST288
++        "subs %[n], %[n], #288\n"
++        "b.ne 2b\n"
++        : [d] "+&r"(dst), [s] "+&r"(src), [n] "+&r"(remaining),
++          [before] "=&r"(before), [loaded] "=&r"(loaded),
++          [issued] "=&r"(issued)
++        :
++        : "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "cc", "memory");
++    out->read[segment] = scan379_delta(before, loaded);
++    out->issue[segment] = scan379_delta(loaded, issued);
++#else
++    __builtin_memcpy(dst, src, SCAN352_PANEL_STRIDE);
++    out->read[segment] = out->issue[segment] = 0;
++#endif
++}
++
++#undef SCAN379_LOAD64
++#undef SCAN379_STORE64
++#undef SCAN379_REST288
++
++#endif
+--- a/bsd/dev/gauguin_frame374_wire.h
++++ b/bsd/dev/gauguin_frame374_wire.h
+@@ -5,7 +5,7 @@
+ #include "gauguin_frame375_present.h"
+ 
+ enum {
+-    F374_EVENT_CAP = 16384, F374_WIRE_CAP = 155000, F374_BLOCK = 32,
++    F374_EVENT_CAP = 16384, F374_WIRE_CAP = 150000, F374_BLOCK = 32,
+     F374_MAX_ROW = 34,
+     F374_RENDER_BEGIN = 1, F374_RENDER_END, F374_ANNOTATION, F374_FRAME_INFO,
+     F374_HITCH, F374_RENDER_TIME, F374_VSYNC, F374_VSYNC_UPDATE,
+--- a/bsd/kern/kdebug.c
++++ b/bsd/kern/kdebug.c
+@@ -68,12 +68,15 @@
+ #include <pexpert/pexpert.h>
+ #include "../dev/gauguin_frame374_wire.h"
+ #include "../dev/gauguin_frame376_wire.h"
+-#include "../dev/gauguin_frame378_probe.h"
++#include "../dev/gauguin_frame379_probe.h"
+ 
+ void sweet_ca374_arm(uint64_t, uint64_t, uint64_t);
+ void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+-unsigned sweet_frame378_select(uint64_t, uint64_t);
+-void sweet_frame378_probe(uint64_t, unsigned, const struct f378_probe_deltas *);
++void sweet_frame379_observe_gpu(uint32_t, uint64_t, uint64_t);
++uint64_t sweet_frame379_pending(uint64_t);
++bool sweet_frame379_defer(uint32_t, uint64_t, uint64_t, uint64_t);
++unsigned sweet_frame379_select(uint64_t, uint64_t);
++void sweet_frame379_probe(uint64_t, unsigned, const struct f379_segments *);
+ void sweet_ca374_drain(void);
+ extern void sweet_log_append(const char *, int);
+ 
+@@ -88,12 +91,18 @@
+ 	uint64_t attempt, begin, stores, end, runtime;
+ } f377_copies[F377_COPY_CAP];
+ 
+-static uint32_t f378_selected[4], f378_count;
+-static struct f378_probe_event {
++static uint64_t f379_issued;
++static uint32_t f379_selected[4], f379_count, f379_waits[4], f379_wait_count;
++static struct f379_probe_event {
+ 	uint64_t attempt;
+ 	unsigned lane;
+-	struct f378_probe_deltas deltas;
+-} f378_probes[F378_PROBE_CAP];
++	struct f379_segments data;
++} f379_samples[F379_CAP];
++static struct f379_defer_event {
++	uint64_t tick, ticket, generation;
++	uint32_t scan;
++	unsigned lane;
++} f379_defers[2 * F379_WAIT_LIMIT];
+ 
+ void
+ sweet_ca374_arm(uint64_t receiver, uint64_t start, uint64_t end)
+@@ -198,62 +207,116 @@
+ 	printf("SWEET F377 C footer: rows=%u lost=%u\n", emitted, captured - emitted);
+ }
+ 
++/* This is the existing software issue-to-observed-EOP interval. It
++ * supplies a contention hint and leaves GPU state and fences untouched. */
++void
++sweet_frame379_observe_gpu(uint32_t kind, uint64_t fence, uint64_t tick)
++{
++	if (!fence || fence > UINT32_MAX || !f375_enter()) return;
++	if (tick >= f374_start && tick < f374_end) {
++		if (kind == 0) {
++			__atomic_store_n(&f379_issued, (fence << 32) | (tick - f374_start), __ATOMIC_RELEASE);
++		} else {
++			uint64_t ticket = __atomic_load_n(&f379_issued, __ATOMIC_RELAXED);
++			if ((ticket >> 32) == fence) {
++				(void)__atomic_compare_exchange_n(&f379_issued, &ticket, 0, false,
++				    __ATOMIC_RELEASE, __ATOMIC_RELAXED);
++			}
++		}
++	}
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++}
++
++uint64_t
++sweet_frame379_pending(uint64_t tick)
++{
++	if (!f375_enter()) return 0;
++	const uint64_t ticket = __atomic_load_n(&f379_issued, __ATOMIC_ACQUIRE);
++	const uint64_t issued = f374_start + (uint32_t)ticket;
++	const uint64_t result = issued <= tick && tick < f374_end &&
++	    tick - issued <= F379_MAX_ISSUE_AGE_TICKS ? ticket : 0;
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++	return result;
++}
++
++/* These producers are serialized by the framebuffer workloop. The
++ * capture gate keeps their stores ordered against the exporter. */
++bool
++sweet_frame379_defer(uint32_t scan, uint64_t generation, uint64_t ticket, uint64_t tick)
++{
++	if (!generation || !ticket || !f375_enter()) return false;
++	const unsigned lane = tick >= f374_start && tick < f374_end ? f379_wait_scene(tick - f374_start) : 0;
++	const bool admitted = lane && f379_waits[lane] < F379_WAIT_LIMIT &&
++	    f379_wait_count < 2 * F379_WAIT_LIMIT && ticket == __atomic_load_n(&f379_issued, __ATOMIC_ACQUIRE);
++	if (admitted) {
++		++f379_waits[lane];
++		f379_defers[f379_wait_count++] = (struct f379_defer_event){tick, ticket, generation, scan, lane};
++	}
++	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
++	return admitted;
++}
++
+ unsigned
+-sweet_frame378_select(uint64_t attempt, uint64_t tick)
+-{
+-	if (!f375_enter()) return 0;
+-	unsigned lane = tick < f374_end ? f378_probe_class(tick, f374_start, attempt) : 0;
++sweet_frame379_select(uint64_t attempt, uint64_t tick)
++{
++	if (!attempt || !f375_enter()) return 0;
++	unsigned lane = 0;
++	if (tick >= f374_start && tick < f374_end) {
++		lane = f379_scene(tick - f374_start);
++		if (!lane && attempt % 71 == 0) lane = F379_CONTROL;
++	}
+ 	if (lane) {
+-		const unsigned limit = lane == F378_CONTROL ? F378_CONTROL_LIMIT : F378_SCENE_LIMIT;
+-		unsigned count = __atomic_load_n(&f378_selected[lane], __ATOMIC_RELAXED);
+-		while (count < limit &&
+-		    !__atomic_compare_exchange_n(&f378_selected[lane], &count, count + 1, true,
+-		    __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
+-		if (count >= limit) lane = 0;
++		const unsigned limit = lane == F379_CONTROL ? F379_CONTROL_LIMIT : F379_SCENE_LIMIT;
++		if (f379_selected[lane] < limit) ++f379_selected[lane];
++		else lane = 0;
+ 	}
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+ 	return lane;
+ }
+ 
+ void
+-sweet_frame378_probe(uint64_t attempt, unsigned lane, const struct f378_probe_deltas *deltas)
++sweet_frame379_probe(uint64_t attempt, unsigned lane, const struct f379_segments *data)
+ {
+ 	if (!lane || !f375_enter()) return;
+-	const unsigned index = __atomic_fetch_add(&f378_count, 1, __ATOMIC_RELAXED);
+-	if (index < F378_PROBE_CAP) {
+-		f378_probes[index] = (struct f378_probe_event){attempt, lane, *deltas};
++	if (f379_count < F379_CAP) {
++		f379_samples[f379_count++] = (struct f379_probe_event){attempt, lane, *data};
+ 	}
+ 	__atomic_fetch_sub(&f374_gate, 1, __ATOMIC_RELEASE);
+ }
+ 
+ static void
+-f378_drain(void)
+-{
+-	const unsigned selected = f378_selected[F378_CONTROL] + f378_selected[F378_STROKE2] +
+-	    f378_selected[F378_STROKE6];
+-	const unsigned available = f378_count < F378_PROBE_CAP ? f378_count : F378_PROBE_CAP;
++f379_drain(void)
++{
++	const unsigned selected = f379_selected[F379_CONTROL] + f379_selected[F379_STROKE2] +
++	    f379_selected[F379_STROKE4];
+ 	unsigned emitted = 0;
+-	while (emitted < available) {
+-		uint8_t packed[F378_PROBE_BLOCK * F378_PROBE_ROW_BYTES];
++	while (emitted < f379_count) {
++		uint8_t packed[F379_BLOCK * F379_RECORD_BYTES];
+ 		char encoded[4 * ((sizeof(packed) + 2) / 3) + 1];
+ 		char line[sizeof(encoded) + 64];
+ 		unsigned count = 0;
+-		while (count < F378_PROBE_BLOCK && emitted + count < available) {
+-			const struct f378_probe_event *row = &f378_probes[emitted + count];
+-			if (!f378_pack_probe(packed + count * F378_PROBE_ROW_BYTES,
+-			    row->attempt, row->lane, &row->deltas)) break;
++		while (count < F379_BLOCK && emitted + count < f379_count) {
++			const struct f379_probe_event *row = &f379_samples[emitted + count];
++			if (!f379_pack(packed + count * F379_RECORD_BYTES, row->attempt, row->lane, &row->data)) break;
+ 			++count;
+ 		}
+ 		if (!count) break;
+-		f372_base64(packed, count * F378_PROBE_ROW_BYTES, encoded);
+-		const int length = snprintf(line, sizeof(line), "\nSWEET F378 P %u %u %s\n", emitted, count, encoded);
++		f372_base64(packed, count * F379_RECORD_BYTES, encoded);
++		const int length = snprintf(line, sizeof(line), "\nSWEET F379 S %u %u %s\n", emitted, count, encoded);
+ 		if (length <= 0 || (size_t)length >= sizeof(line)) break;
+ 		emitted += count;
+ 		sweet_log_append(line, length);
+ 	}
+-	printf("SWEET F378 F: rows=%u lost=%u control=%u stroke2=%u stroke6=%u\n",
+-	    emitted, selected - emitted, f378_selected[F378_CONTROL],
+-	    f378_selected[F378_STROKE2], f378_selected[F378_STROKE6]);
++	printf("SWEET F379 F: rows=%u lost=%u control=%u stroke2=%u stroke4=%u\n",
++	    emitted, selected - emitted, f379_selected[F379_CONTROL],
++	    f379_selected[F379_STROKE2], f379_selected[F379_STROKE4]);
++	for (unsigned i = 0; i < f379_wait_count; ++i) {
++		const struct f379_defer_event *row = &f379_defers[i];
++		printf("SWEET F379 D: scan=%u gen=%llu fence=%u tick=%llu issue=%llu lane=%u\n",
++		    row->scan, row->generation, (uint32_t)(row->ticket >> 32), row->tick,
++		    f374_start + (uint32_t)row->ticket, row->lane);
++	}
++	printf("SWEET F379 D footer: rows=%u\n", f379_wait_count);
+ }
+ 
+ static void
+@@ -310,7 +373,7 @@
+ 	printf("SWEET F374 F: rows=%u threads=%u bytes=%u lost=%u\n",
+ 	    emitted, threads, total, captured - emitted);
+ 	f377_copy_drain();
+-	f378_drain();
++	f379_drain();
+ }
+ #endif
+ 
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -101,10 +101,16 @@
+     return frame_active() ? mach_absolute_time() : 0;
+ }
+ 
++extern void sweet_frame379_observe_gpu(uint32_t, uint64_t, uint64_t);
++
+ void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
+     uint64_t a, uint64_t b, uint64_t c)
+ {
+     gut_record(&frames, kind, id, 0, flags, a, b, c);
++    if (__improbable(kind == F344_ISSUE || kind == F344_EOP)) {
++        const uint64_t tick = sweet_frame344_clock();
++        if (tick) sweet_frame379_observe_gpu(kind == F344_EOP, id, tick);
++    }
+ }
+ 
+ /* The GCC register is reached first. Do not read a downstream domain until
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -45,14 +45,16 @@
+ #include "../../../bsd/dev/gauguin_ready357.h"
+ #include "../../../bsd/dev/gauguin_calibration357.h"
+ #include "../../../bsd/dev/gauguin_probe358.h"
+-#include "../../../bsd/dev/gauguin_copy378_probe.h"
++#include "../../../bsd/dev/gauguin_copy379_probe.h"
+ #include "../../../bsd/dev/gauguin_frame375_present.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+ extern "C" void sweet_frame377_copy(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+-extern "C" unsigned sweet_frame378_select(uint64_t, uint64_t);
+-extern "C" void sweet_frame378_probe(uint64_t, unsigned, const struct f378_probe_deltas *);
++extern "C" unsigned sweet_frame379_select(uint64_t, uint64_t);
++extern "C" void sweet_frame379_probe(uint64_t, unsigned, const struct f379_segments *);
++extern "C" uint64_t sweet_frame379_pending(uint64_t);
++extern "C" bool sweet_frame379_defer(uint32_t, uint64_t, uint64_t, uint64_t);
+ /* END SWEET PRESENT STATS INCLUDE */
+ #endif
+ 
+@@ -474,6 +476,7 @@
+     bool fPhasePresent;
+     struct SweetPresentClock fPresentClock;
+     struct scan351_slot fBlankSlot;
++    struct f379_wait_state fPresent379Wait;
+     bool fReadyRequested, fReadyAcrossFrames;
+     IOInterruptEventSource *fReadyEvent;
+     uint64_t fReadyGeneration;
+@@ -813,6 +816,7 @@
+     fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
+     fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 9;
+     fBlankSlot = {};
++    fPresent379Wait = {};
+     fReadyRequested = statsRequested == 8 || statsRequested == 9;
+     fReadyAcrossFrames = statsRequested == 9;
+     fReadyEvent = nullptr;
+@@ -1256,6 +1260,15 @@
+     if (!blankPendingLocked() || !sweet_frame351_position(&pos)) return false;
+     if (fReadyAcrossFrames) {
+         if (!scan353_can_take(&fHeldReady.ready, &fBlankSlot, &pos)) return false;
++        if (fFrameInfo375) {
++            const uint64_t pending = sweet_frame379_pending(pos.tick);
++            if (f379_waiting(&fPresent379Wait, pos.frame, pending)) return false;
++            if (pending && f379_new_wait(&fPresent379Wait, pos.frame, fHeldReady.generation) &&
++                sweet_frame379_defer(pos.frame, fHeldReady.generation, pending, pos.tick)) {
++                fPresent379Wait = {fHeldReady.generation, pending, pos.frame};
++                return false; /* keep the ready slot and use the existing timer */
++            }
++        }
+     } else if (fReadyRequested) {
+         if (!scan352_can_take(&fBlankSlot, &pos, readyTicket != 0)) return false;
+         if (readyTicket && !scan352_matches(readyTicket, sweet_fb352_waiting_ticket(), fReadyGeneration,
+@@ -2377,26 +2390,25 @@
+             const uint64_t runtimeBegin = timePairedCopy ? thread_get_runtime_self() : 0;
+             const uint64_t frameCopyBegin = sweet_frame344_clock();
+             const bool probeMargin = timePairedCopy && fReadyAcrossFrames && copyStart.end > copyStart.line &&
+-                (uint64_t)(copyStart.end - copyStart.line) * SCAN351_MIN_LINE_NS >= F378_MIN_SLACK_NS;
++                (uint64_t)(copyStart.end - copyStart.line) * SCAN351_MIN_LINE_NS >= F379_PROBE_SLACK_NS;
+             const unsigned probeLane = probeMargin && frameCopyBegin ?
+-                sweet_frame378_select(attempt, frameCopyBegin) : 0;
+-            struct f378_probe_deltas probe = {};
++                sweet_frame379_select(attempt, frameCopyBegin) : 0;
++            struct f379_segments probe = {};
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
+             if (probeLane) {
+-                unsigned sample = 0, sampleRow = F378_ROW_FIRST;
+-                const unsigned drainRow = (unsigned)(attempt % F378_PROBE_ROWS);
+-                for (int32_t y = 0; y < h; ++y) {
+-                    auto *target = (void *)(dst + (uint64_t)y * fRowBytes);
+-                    auto *source = (const void *)(first + (uint64_t)y * s->bytesPerRow);
+-                    if (sample < F378_PROBE_ROWS && (unsigned)y == sampleRow) {
+-                        scan378_probe_row(target, source, sample, sample == drainRow, &probe);
+-                        ++sample;
+-                        sampleRow += F378_ROW_STEP;
+-                    } else {
+-                        scan356_copy_row(target, source);
+-                    }
++                uint64_t segmentStart = frameCopyBegin;
++                for (unsigned i = 0; i < F379_SEGMENTS; ++i) {
++                    const unsigned firstRow = i * F379_SEGMENT_ROWS;
++                    scan379_probe_row((void *)(dst + (uint64_t)firstRow * fRowBytes),
++                        (const void *)(first + (uint64_t)firstRow * s->bytesPerRow), i, &probe);
++                    probe.row[i] = scan379_delta(segmentStart, mach_absolute_time());
++                    for (unsigned row = firstRow + 1; row < firstRow + F379_SEGMENT_ROWS; ++row)
++                        scan356_copy_row((void *)(dst + (uint64_t)row * fRowBytes),
++                            (const void *)(first + (uint64_t)row * s->bytesPerRow));
++                    segmentStart = mach_absolute_time();
++                    probe.end[i] = scan379_delta(frameCopyBegin, segmentStart);
+                 }
+             } else if (pairedCopy && fReadyAcrossFrames) {
+                 for (int32_t y = 0; y < h; ++y)
+@@ -2433,7 +2445,7 @@
+                 if (storesDone && runtimeEnd >= runtimeBegin)
+                     sweet_frame377_copy(attempt, frameCopyBegin, storesDone, frameCopyEnd, runtimeEnd - runtimeBegin);
+                 if (probeLane)
+-                    sweet_frame378_probe(attempt, probeLane, &probe);
++                    sweet_frame379_probe(attempt, probeLane, &probe);
+             }
+             if (fPresentSample != NULL) {
+                 if (fPresentSample->timingValid &&

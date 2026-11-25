@@ -30,7 +30,7 @@ for src in "${args[@]:0:${#args[@]}-1}"; do
 	if [ -d "$dst" ]; then
 		target=$dst/$(basename "$src")
 	fi
-	if ! /home/lvyufeng/Project/ios-gauguin/deps/toolchain/compat/installfile -c -S -m "$mode" "$src" "$target"; then
+	if ! "$(dirname "$0")/../compat/installfile" -c -S -m "$mode" "$src" "$target"; then
 		exit 1
 	fi
 done

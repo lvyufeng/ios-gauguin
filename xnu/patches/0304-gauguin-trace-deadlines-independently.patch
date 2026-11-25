@@ -1,0 +1,277 @@
+--- /dev/null
++++ b/bsd/dev/gauguin_deadlines419.h
+@@ -0,0 +1,21 @@
++#ifndef GAUGUIN_DEADLINES419_H
++#define GAUGUIN_DEADLINES419_H
++
++#include <stdint.h>
++
++enum {
++    F419_GPU = 64, F419_PROMOTE, F419_COPY, F419_DISPATCH,
++    F419_CAPACITY = 12288, F419_MAX_WIRE_BYTES = 786432
++};
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++uint64_t sweet_frame419_clock(void);
++void sweet_frame419_record(uint32_t kind, uint64_t id, uint32_t lane,
++    uint32_t version, uint64_t a, uint64_t b, uint64_t c);
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -44,6 +44,7 @@
+ #include "gauguin_frame385.h"
+ #include "gauguin_page_flip.h"
+ #include "gauguin_sustain417.h"
++#include "gauguin_deadlines419.h"
+ #include "gauguin_cpufreq402.h"
+ #include "gauguin_completion_sample405.h"
+ 
+@@ -80,7 +81,7 @@
+ };
+ #define F344_CRC_CONFIG UINT32_C(0x81000101)
+ 
+-static struct gut_core frames;
++static struct gut_core frames, timeline419;
+ static mach_timebase_info_data_t frame_timebase;
+ static bool frame_header, frame_footer;
+ static thread_call_t scan_call, manual_preview_call;
+@@ -370,6 +371,18 @@
+     return frame_active() ? mach_absolute_time() : 0;
+ }
+ 
++
++uint64_t sweet_frame419_clock(void)
++{
++    return __atomic_load_n(&timeline419.state, __ATOMIC_ACQUIRE) == GUT_CAPTURE &&
++        gut_enabled(&timeline419) ? mach_absolute_time() : 0;
++}
++
++void sweet_frame419_record(uint32_t kind, uint64_t id, uint32_t lane,
++    uint32_t version, uint64_t a, uint64_t b, uint64_t c)
++{
++    gut_record(&timeline419, kind, id, lane, version, a, b, c);
++}
+ 
+ void sweet_frame344_record(uint32_t kind, uint64_t id, uint32_t flags,
+     uint64_t a, uint64_t b, uint64_t c)
+@@ -1582,6 +1595,13 @@
+         return;
+     }
+     printf("SWEET F344: armed window=45s capacity=%u\n", capacity);
++    unsigned diagnostic = 0;
++    if (sustained && PE_parse_boot_argn("f419", &diagnostic, sizeof(diagnostic)) && diagnostic == 1) {
++        const size_t bytes = F419_CAPACITY * sizeof(struct gut_event);
++        struct gut_event *timeline = kalloc_data(bytes, Z_WAITOK | Z_ZERO);
++        if (timeline && !gut_init_frames(&timeline419, timeline, F419_CAPACITY, window, now))
++            kfree_data(timeline, bytes);
++    }
+     if (preview) {
+         thread_call_t call = thread_call_allocate_with_options(start_manual_preview, NULL,
+             THREAD_CALL_PRIORITY_KERNEL, THREAD_CALL_OPTIONS_ONCE);
+@@ -1626,6 +1646,7 @@
+     if (__atomic_load_n(&frames.state, __ATOMIC_ACQUIRE) != GUT_ARMED) return;
+     const uint64_t tick = mach_absolute_time();
+     if (!gut_report(&frames, tick, tick, 0, 1)) return;
++    (void)gut_report(&timeline419, tick, tick, 0, 1);
+     scan_gcc = (const volatile uint32_t *)ml_io_map_with_prot(F344_GCC_PAGE, F344_PAGE, VM_PROT_READ);
+     scan_disp = (const volatile uint32_t *)ml_io_map_with_prot(F344_DISPCC_PA, F344_PAGE, VM_PROT_READ);
+     scan_mdp = (const volatile uint32_t *)ml_io_map_with_prot(F344_MDP_PA, F344_PAGE, VM_PROT_READ);
+@@ -1661,9 +1682,47 @@
+     else scan_stop("timer");
+ }
+ 
++static void frame419_drain(void)
++{
++    static bool header, footer, overflow;
++    static uint32_t wire_bytes;
++    if (footer) return;
++
++    struct gut_event batch[32];
++    struct gut_meta meta;
++    uint32_t count;
++    if (!gut_read(&timeline419, batch, 32, &count, &meta)) return;
++    if (!header) {
++        header = true;
++        printf("SWEET F419 H: count=%u reason=%u lost=%llu start=%llu end=%llu\n",
++            meta.count, meta.reason, (unsigned long long)meta.lost, (unsigned long long)meta.start,
++            (unsigned long long)meta.end);
++    }
++    for (uint32_t i = 0; i < count && !overflow; ++i) {
++        const struct gut_event *row = batch + i;
++        char line[128];
++        const int bytes = snprintf(line, sizeof(line), "\nF419E %x %llx %x %llx %x %x %llx %llx %llx\n",
++            (uint32_t)row->seq, (unsigned long long)row->tick, row->kind, (unsigned long long)row->id,
++            row->pid, row->flags, (unsigned long long)row->a, (unsigned long long)row->b,
++            (unsigned long long)row->c);
++        if (bytes <= 0 || (size_t)bytes >= sizeof(line) || (uint32_t)bytes > F419_MAX_WIRE_BYTES - wire_bytes) {
++            overflow = true;
++        } else {
++            sweet_log_append(line, bytes);
++            wire_bytes += bytes;
++        }
++    }
++    if (meta.state == GUT_DRAINED) {
++        footer = true;
++        printf("SWEET F419 F: count=%u lost=%llu bytes=%u overflow=%u\n",
++            meta.count, (unsigned long long)meta.lost, wire_bytes, overflow);
++    }
++}
++
+ static void frame_drain(void)
+ {
+     if (frame_footer) {
++        frame419_drain();
+         frame388_drain();
+         sweet_ca374_drain();
+         sweet_frame371_drain();
+--- a/iokit/Kernel/arm/GauguinGPU.cpp
++++ b/iokit/Kernel/arm/GauguinGPU.cpp
+@@ -29,6 +29,7 @@
+ #include "../../../bsd/dev/gauguin_gpu_runtime.h"
+ #include "../../../bsd/dev/gauguin_ui_trace.h"
+ #include "../../../bsd/dev/gauguin_frame344.h"
++#include "../../../bsd/dev/gauguin_deadlines419.h"
+ #include "../../../bsd/dev/gauguin_blank352.h"
+ #include "../../../bsd/dev/gauguin_ready354.h"
+ #include "../../../bsd/dev/gauguin_ready357.h"
+@@ -1173,6 +1174,7 @@
+         return rc==GGR_TIMEOUT?kIOReturnTimeout:kIOReturnNotReady;
+     }
+     clearDisplayProbeTicket(fPendingDisplayTicket);
++    const uint64_t observedEop = fPendingDisplayTicket ? sweet_frame419_clock() : 0;
+     sweet_frame344_record(F344_EOP,fence,0,0,0,0);
+     /* Check every retained alias before clearing any surface or pending BO.
+      * A failed late alias must leave the complete submitted set quarantined. */
+@@ -1204,6 +1206,9 @@
+     fPendingQueue->completed=fPendingQueueFence;
+     fNativeFence=fPendingNativeFence;
+     sweet_frame344_record(F344_READY,fence,0,0,0,0);
++    if (observedEop)
++        sweet_frame419_record(F419_GPU, fPendingDisplayTicket, fence, fPendingDisplayVersion,
++            observedEop, mach_absolute_time(), 0);
+     fPendingQueue=nullptr;fPendingCount=fPendingNativeFence=fPendingQueueFence=0;
+     if (fPendingDisplayTicket) {
+         gCompletedDisplayWrite = {fPendingDisplayTicket, fPendingDisplayVersion, fence};
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -54,6 +54,7 @@
+ #include "../../../bsd/dev/gauguin_scanout_write415.h"
+ #include "../../../bsd/dev/gauguin_page_flip.h"
+ #include "../../../bsd/dev/gauguin_sustain417.h"
++#include "../../../bsd/dev/gauguin_deadlines419.h"
+ /* BEGIN SWEET PRESENT STATS INCLUDE */
+ #include "SweetPresentStats.h"
+ #include <kern/thread.h>
+@@ -455,6 +456,7 @@
+     SweetSurface *surfaces[SWEET_FB_LAYERS];
+     uint64_t generation;
+ };
++static uint64_t requestedPresentation375(const uint8_t *record);
+ static void sweet_fb_frame_release(struct sweet_fb_frame *);
+ static void sweet_fb_frame_move(struct sweet_fb_frame *, struct sweet_fb_frame *);
+ static void sweet_fb_frame_retire(struct sweet_fb_retired *, struct sweet_fb_frame *);
+@@ -531,7 +533,7 @@
+     unsigned flip382Poll(uint32_t scan);
+     void flip382AdvanceLocked(uint32_t scan, bool fromStaging = false);
+     uintptr_t flip382Begin(const struct sweet_fb_frame *, uint64_t, uint64_t, bool, bool *);
+-    void flip382Finish(const struct sweet_fb_frame *, uint64_t, uint64_t);
++    void flip382Finish(const struct sweet_fb_frame *, uint64_t attempt, uint64_t staged, uint64_t copyBegin);
+     struct sweet_fb_flip382 fFlip382;
+     void deliverFrameInfo375Locked(uint64_t now);
+     void queueFrameInfo375(const struct sweet_fb_frame *, uint64_t blankFrame, uint64_t checked);
+@@ -584,7 +586,7 @@
+ 	bool present(const uint8_t *rec, SweetSurface *const *held = NULL,
+         uint64_t blankFrame = UINT64_MAX, uint64_t retryTicket = 0,
+         uint32_t version = UINT32_MAX, uint64_t attempt = 0, bool *stale = nullptr,
+-        uint64_t *verifiedFullCopy = nullptr, uintptr_t flipDst = 0);
++        uint64_t *verifiedFullCopy = nullptr, uintptr_t flipDst = 0, uint64_t *privateCopyBegin = nullptr);
+ 	void mark(uint32_t colour);     /* panel colour block: stage witness */
+ };
+ 
+@@ -1471,6 +1473,8 @@
+         sweet_fb_frame_move(&fHeldReady, candidate);
+         sweet_frame344_record(F353_READY, generation, polled, surfaceID, writer.fence, observedFrame);
+         sweet_frame344_record(F354_PROMOTE, generation, 0, retired[done].generation, version, surfaceID);
++        sweet_frame419_record(F419_PROMOTE, writer.ticket, writer.fence, version, generation,
++            observedFrame, requestedPresentation375(fHeldReady.record));
+         marked = true;
+     }
+     fDirty = fHeldPending.owner || fHeldPrevious.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
+@@ -1711,6 +1715,7 @@
+                 fb->notifyVsyncLocked(tick, 1);
+                 sweet_frame380_notice(F380_ALIGNED, tick, &pulse);
+                 sweet_frame388_notice(F380_ALIGNED, tick, &dispatch);
++                sweet_frame419_record(F419_DISPATCH, pulse.scan, 0, 0, pulse.edge, dispatch.ready, tick);
+             } else {
+                 sweet_frame380_notice(F380_MISSED, tick, nullptr);
+                 sweet_frame388_notice(F380_MISSED, tick, nullptr);
+@@ -2392,7 +2397,7 @@
+ }
+ 
+ void
+-AppleCLCD::flip382Finish(const struct sweet_fb_frame *frame, uint64_t attempt, uint64_t staged)
++AppleCLCD::flip382Finish(const struct sweet_fb_frame *frame, uint64_t attempt, uint64_t staged, uint64_t copyBegin)
+ {
+     IOLockLock(fLock);
+     auto &flip = fFlip382;
+@@ -2403,6 +2408,9 @@
+         if (staged)
+             IOLog("SWEET F%u P %llu %u %llu\n",flip.stageEpoch ? 384u : 382u,attempt,flip.next,staged);
+         const uint64_t target = requestedPresentation375(frame->record);
++        if (staged && copyBegin)
++            sweet_frame419_record(F419_COPY, attempt, frame->surfaces[0]->id, frame->surfaceVersion,
++                frame->generation, target, copyBegin);
+         uint64_t separation = 0;
+         if (target && staged)
+             absolutetime_to_nanoseconds(staged > target ? staged - target : target - staged, &separation);
+@@ -2428,14 +2436,15 @@
+     const uint64_t retryTicket = fReadyRequested && !fReadyAcrossFrames && blankFrame != UINT64_MAX ?
+         scan352_ticket(frameAttempt, frame->surfaces[0]->id) : 0;
+     bool stale = false;
+-    uint64_t verifiedFullCopy = 0;
++    uint64_t verifiedFullCopy = 0, privateCopyBegin = 0;
+     const uint32_t version = frame->ready.observed ? frame->surfaceVersion : UINT32_MAX;
+     bool blocked = false;
+     const uintptr_t flipDst = flip382Begin(frame,frameAttempt,blankFrame,earlyStage,&blocked);
+     const bool ready = !blocked && (!earlyStage || flipDst) &&
+         present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket,
+-        version, frameAttempt, &stale, flipDst || frame->frameInfoOwner ? &verifiedFullCopy : nullptr, flipDst);
+-    if (flipDst) flip382Finish(frame,frameAttempt,ready ? verifiedFullCopy : 0);
++        version, frameAttempt, &stale, flipDst || frame->frameInfoOwner ? &verifiedFullCopy : nullptr,
++        flipDst, &privateCopyBegin);
++    if (flipDst) flip382Finish(frame, frameAttempt, ready ? verifiedFullCopy : 0, privateCopyBegin);
+     else if (ready && verifiedFullCopy) queueFrameInfo375(frame, blankFrame, verifiedFullCopy);
+     if (ready) sweet_fb352_clear_ticket(retryTicket);
+     if (frameAttempt) sweet_frame344_record(F344_RESULT,frameAttempt,ready ? 1 : 0,
+@@ -2835,7 +2844,8 @@
+ 
+ bool
+ AppleCLCD::present(const uint8_t *rec, SweetSurface *const *held, uint64_t blankFrame, uint64_t retryTicket,
+-    uint32_t version, uint64_t attempt, bool *stale, uint64_t *verifiedFullCopy, uintptr_t flipDst)
++    uint32_t version, uint64_t attempt, bool *stale, uint64_t *verifiedFullCopy, uintptr_t flipDst,
++    uint64_t *privateCopyBegin)
+ {
+     (void)held;
+     (void)blankFrame;
+@@ -2845,6 +2855,7 @@
+     (void)stale;
+     (void)verifiedFullCopy;
+     (void)flipDst;
++    (void)privateCopyBegin;
+     bool ready = true;
+     bool fastBlank = false;
+ #if defined(GAUGUIN)
+@@ -3077,6 +3088,7 @@
+ #endif
+             /* END SWEET PRESENT STATS COPY START */
+ #if defined(GAUGUIN)
++            if (flipDst && privateCopyBegin) *privateCopyBegin = sweet_frame419_clock();
+             if (padded) {
+                 for (int32_t y = 0; y < h; ++y)
+                     memcpy((void *)(dst + (uint64_t)y * dstStride),

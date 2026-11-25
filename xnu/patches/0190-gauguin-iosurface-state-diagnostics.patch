@@ -1,0 +1,78 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -72,6 +72,10 @@
+ static uint32_t      sweet_surface_users[SWEET_SURFACE_MAX_ID];
+ static uint32_t      sweet_surface_next_id = 1;
+ static uint32_t      sweet_surface_creates_logged;
++#if defined(GAUGUIN)
++static volatile SInt32 sweet_surface_abi_results;
++static volatile SInt32 sweet_surface_abi_ignored[48];
++#endif
+ static uint64_t      sweet_surface_wired;       /* bytes of buffer surfaces */
+ #define SWEET_SURFACE_WIRED_MAX         (1536ull << 20)
+ 
+@@ -618,6 +622,44 @@
+ 	return kIOReturnSuccess;
+ }
+ 
++#if defined(GAUGUIN)
++/* Observe the exact existing ABI bytes; mapping, output and lifetime are unchanged. */
++static void
++sweet_surface_log_result(uint32_t id, bool existing, const uint8_t *out,
++    const IOExternalMethodArguments *args)
++{
++	if (OSAddAtomic(1, &sweet_surface_abi_results) >= 64) {
++		return;
++	}
++	uint64_t pixels, state, timestamps;
++	memcpy(&pixels, out + 0x00, sizeof(pixels));
++	memcpy(&state, out + 0x08, sizeof(state));
++	memcpy(&timestamps, out + 0x10, sizeof(timestamps));
++	char name[32];
++	proc_selfname(name, sizeof(name));
++	IOLog("SWEET SURF ABI: %s pid=%d id=%u existing=%u data=%llx state=%llx timestamps=%llx out=%u desc=%u\n",
++	    name, proc_pid(current_proc()), id, (unsigned)existing,
++	    (unsigned long long)pixels, (unsigned long long)state,
++	    (unsigned long long)timestamps, args->structureOutputSize,
++	    (unsigned)(args->structureOutputDescriptor != NULL));
++}
++
++static void
++sweet_surface_log_ignored(uint32_t selector, const IOExternalMethodArguments *args,
++    uint64_t arg0)
++{
++	if (selector >= 48 || OSAddAtomic(1, &sweet_surface_abi_ignored[selector]) >= 2) {
++		return;
++	}
++	char name[32];
++	proc_selfname(name, sizeof(name));
++	IOLog("SWEET SURF ABI: %s pid=%d ignored=%u in=%u/%u out=%u/%u desc=%u arg0=%llx\n",
++	    name, proc_pid(current_proc()), selector, args->scalarInputCount,
++	    args->structureInputSize, args->scalarOutputCount, args->structureOutputSize,
++	    (unsigned)(args->structureOutputDescriptor != NULL), (unsigned long long)arg0);
++}
++#endif
++
+ /* Map s for this client and answer with its lock result. Takes s's user count. */
+ IOReturn
+ IOSurfaceRootUserClient::returnSurface(SweetSurface *s, IOExternalMethodArguments *args)
+@@ -636,6 +678,9 @@
+ 		if (existing) {
+ 			put64(out, 0x00, ~0ULL);        /* "already yours": use the cached client */
+ 		}
++#if defined(GAUGUIN)
++		sweet_surface_log_result(s->id, existing, out, args);
++#endif
+ 		ret = sweet_struct_out(args, out, SWEET_SURFACE_RESULT_SIZE);
+ 		IOFreeData(out, SWEET_SURFACE_RESULT_SIZE);
+ 	}
+@@ -773,6 +818,9 @@
+ 		return kIOReturnSuccess;
+ 	}
+ 	default:
++#if defined(GAUGUIN)
++		sweet_surface_log_ignored(selector, args, arg0);
++#endif
+ 		/* Values, notifications, ownership, timestamps...: accept and ignore. */
+ 		for (uint32_t i = 0; i < args->scalarOutputCount; i++) {
+ 			args->scalarOutput[i] = 0;

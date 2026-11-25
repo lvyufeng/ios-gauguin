@@ -1,0 +1,13 @@
+--- a/bsd/dev/gauguin_ui_trace_board.c
++++ b/bsd/dev/gauguin_ui_trace_board.c
+@@ -578,7 +578,9 @@
+     PE_parse_boot_argn("sweetfb_stats", &enabled, sizeof(enabled));
+     PE_parse_boot_argn("swp", &script, sizeof(script));
+     PE_parse_boot_argn("sweetnvt", &physical, sizeof(physical));
+-    if (enabled < 2 || enabled > 9 || script != 3 || physical || !sweet_metal_desktop_enabled()) return;
++    /* Both scripted wake modes use this capture, with the fixed drag only in mode 4. */
++    if (enabled < 2 || enabled > 9 || (script != 3 && script != 4) ||
++        physical || !sweet_metal_desktop_enabled()) return;
+     // Use a mode value so the complete 607-byte boot line still fits.
+     uint32_t hz = 0;
+     PE_parse_boot_argn("sweetfb_hz", &hz, sizeof(hz));

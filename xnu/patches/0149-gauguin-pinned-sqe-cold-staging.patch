@@ -1,0 +1,277 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -133,6 +133,7 @@
+ bsd/dev/gauguin_gmu_board.c		standard
+ bsd/dev/gauguin_gmu_firmware.c		standard
+ bsd/dev/gauguin_gmu_asset.c		standard
++bsd/dev/gauguin_gpu_sqe_asset.c		standard
+ bsd/dev/gauguin_nvt/nvt_protocol.c		standard
+ bsd/dev/gauguin_nvt/geni_spi_pio.c		standard
+ bsd/dev/gauguin_nvt/setup/geni_spi_setup.c		standard
+--- a/bsd/dev/gauguin_bcm_coordinator.c
++++ b/bsd/dev/gauguin_bcm_coordinator.c
+@@ -188,8 +188,9 @@
+             bcm_record(line);
+             if(fw_requested){
+                 struct gmb_firmware_receipt fw;
+-                const bool perf=bcm_perf_requested(),dcvs=bcm_dcvs_requested();
+-                enum gmb_result result=bcm_gpu_requested()?sweet_gmu_firmware_gpu_once(&stage,&fw_plan,&bw_plan,&fw):
++                const bool perf=bcm_perf_requested(),dcvs=bcm_dcvs_requested(),start=bcm_gpu_start_requested();
++                enum gmb_result result=start?sweet_gmu_firmware_gpu_sqe_once(&stage,&fw_plan,&bw_plan,&fw):
++                    bcm_gpu_requested()?sweet_gmu_firmware_gpu_once(&stage,&fw_plan,&bw_plan,&fw):
+                     dcvs?sweet_gmu_firmware_dcvs_once(&stage,&fw_plan,&bw_plan,&fw):
+                     bw_requested?sweet_gmu_firmware_bw_test_once(&stage,&fw_plan,&bw_plan,&fw):
+                     perf?sweet_gmu_firmware_perf_once(&stage,&fw_plan,&fw):
+@@ -210,7 +211,7 @@
+                 else if(bw_requested)bcm_record("SWEET GMU BOOT: PERF/BW/TEST startup done; awaiting watchdog reset; no async HFI/power lifecycle/GPU commands/Metal");
+                 else if(perf)bcm_record("SWEET GMU BOOT: PERF diagnostic done; awaiting watchdog reset; no BW/TEST/normal HFI_ON/GPU commands/Metal");
+                 else bcm_record("SWEET GMU BOOT: INIT/version diagnostic done; awaiting watchdog reset; no normal HFI_ON/GPU commands/Metal");
+-                if(bcm_gpu_start_requested()){
++                if(start){
+                     struct ggx_receipt core;
+                     enum ggx_result core_result=sweet_gpu_start_once(&core);
+                     if(core_result!=GGX_OK){
+--- a/bsd/dev/gauguin_gmu_board.c
++++ b/bsd/dev/gauguin_gmu_board.c
+@@ -10,6 +10,7 @@
+ #include "gauguin_gmu_board.h"
+ #include "gauguin_gmu_clock.h"
+ #include "gauguin_gmu_asset.h"
++#include "gauguin_gpu_sqe_asset.h"
+ #include "gauguin_wdt_lease.h"
+ extern vm_offset_t ml_io_map_with_prot(vm_offset_t,vm_size_t,vm_prot_t);
+ extern vm_offset_t ml_io_map_wcomb(vm_offset_t,vm_size_t);
+@@ -215,6 +216,8 @@
+ static uint64_t ggb_deadline;
+ static unsigned ggb_started;
+ static unsigned ggb_argument;
++static struct gsa_view ggb_sqe_asset;
++static unsigned ggb_sqe_requested,ggb_sqe_loaded,ggb_sqe_written,ggb_sqe_checked;
+ static enum gsm_result ggb_result;
+ static enum gpa_result ggb_secure_result;
+ static bool ggb_context_valid(void);
+@@ -436,6 +439,44 @@
+     }
+     return true;
+ }
++static bool ggb_sqe_same(void)
++{
++    struct gsa_view v;
++    return sweet_gpu_sqe_asset_view(&v)&&v.data==ggb_sqe_asset.data&&
++        v.pa==ggb_sqe_asset.pa&&v.bytes==ggb_sqe_asset.bytes;
++}
++static bool ggb_sqe_load(void)
++{
++    const struct ggp_region *r=&ggb_plan.region[GGP_SQE];
++    if(!ggb_sqe_requested||ggb_sqe_loaded||ggb_sqe_written||ggb_sqe_checked||
++       r->reserved!=GSA_RESERVED_BYTES||r->bytes!=GSA_CODE_BYTES||
++       !ggb_sqe_asset.data||ggb_sqe_asset.bytes!=GSA_ASSET_BYTES||
++       !ggb_guard(NULL)||!ggb_sqe_same())return false;
++    /* Existing NC alias only. GGB guards require GX off and CM3 reset here.
++     * Match native _load_firmware: skip its first four bytes, pad the already
++     * reserved32KiB with zero. Publish no table or GPU request during copying. */
++    volatile uint32_t *dest=(volatile uint32_t *)(gmb_ram+r->offset-GMB_PAGE);
++    for(unsigned pass=0;pass<2;pass++)for(unsigned base=0;base<GSA_RESERVED_BYTES;base+=4096){
++        if(!ggb_guard(NULL))return false;
++        for(unsigned off=base;off<base+4096;off+=4){
++            uint32_t expected=0;
++            if(off<GSA_CODE_BYTES)memcpy(&expected,ggb_sqe_asset.data+GSA_HEADER_BYTES+off,4);
++            if(!pass){dest[off/4]=expected;++ggb_sqe_written;}
++            else {if(dest[off/4]!=expected)return false;++ggb_sqe_checked;}
++        }
++        __asm__ volatile("dsb sy" ::: "memory");
++        if(!ggb_guard(NULL))return false;
++    }
++    if(ggb_sqe_written!=GSA_RESERVED_BYTES/4||ggb_sqe_checked!=GSA_RESERVED_BYTES/4||
++       !ggb_sqe_same()||!ggb_guard(NULL))return false;
++    ggb_sqe_loaded=1;return true;
++}
++static void ggb_sqe_records(bool complete)
++{
++    if(!ggb_sqe_requested)return;char line[192];
++    snprintf(line,sizeof(line),"SWEET GPU SQE: %s asset_pa=%016llx raw=32304 code=32300 copied=%u checked=%u pad=468 loaded=%u; staged under reset, no SQE execution",complete?"complete":"partial",ggb_sqe_asset.pa,ggb_sqe_written,ggb_sqe_checked,ggb_sqe_loaded);gmb_record(line);
++}
++
+ static bool ggb_prepare(void *cookie,unsigned ias,unsigned oas,struct ggp_s1_config *out)
+ {
+     (void)cookie;if(!ggb_guard(NULL))return false;
+@@ -451,6 +492,7 @@
+     for(unsigned r=0;r<GGP_COUNT&&good;r++)good=
+         ggb_memory(ggb_plan.region[r].offset,NULL,ggb_plan.region[r].reserved,false)&&
+         ggb_memory(ggb_plan.region[r].offset,NULL,ggb_plan.region[r].reserved,true);
++    if(good&&ggb_sqe_requested)good=ggb_sqe_load();
+     if(good)good=ggb_memory(GGP_TABLE_OFFSET,(const uint32_t *)scratch,GGP_TABLE_BYTES,false)&&
+         ggb_memory(GGP_TABLE_OFFSET,(const uint32_t *)scratch,GGP_TABLE_BYTES,true);
+     IOFree(scratch,GGP_TABLE_BYTES);if(!good||!ggb_guard(NULL))return false;
+@@ -517,6 +559,7 @@
+     /* Quarantine both owners and the shared lease BEFORE synchronous logs. */
+     gmb_fail(rc,why);
+     ggb_records(false);
++    ggb_sqe_records(false);
+     char line[192];
+     snprintf(line,sizeof(line),"SWEET GMU FW: stopped phase=%u engine=%u reset=%08x gx=%08x release=%u oob=%u gfsr=%08x fsr=%08x/%08x ao=%08x info=%08x",
+         gfw_work.phase,(unsigned)gfw_work.result,gfw_work.reset,gfw_work.gx,
+@@ -553,13 +596,15 @@
+     return rc;
+ }
+ static enum gmb_result gfw_once(const struct sweet_pas_cpu_stage *stage,
+-    const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool dcvs,bool gpu)
+-{
+-    if((gpu&&!dcvs)||(dcvs&&!bw)||!stage||!out||!gmf_plan_valid(plan)||(bw&&(!perf||!gmf_bw_plan_valid(bw))))return GMB_ARGUMENT;
++    const struct gmf_plan *plan,struct gmb_firmware_receipt *out,bool perf,const struct gmf_bw_plan *bw,bool dcvs,bool gpu,bool sqe)
++{
++    if((sqe&&!gpu)||(gpu&&!dcvs)||(dcvs&&!bw)||!stage||!out||!gmf_plan_valid(plan)||(bw&&(!perf||!gmf_bw_plan_valid(bw))))return GMB_ARGUMENT;
+     unsigned expected=GMB_IDLE;
+     if(!__atomic_compare_exchange_n(&gfw_lifecycle,&expected,GMB_RUNNING,false,__ATOMIC_ACQUIRE,__ATOMIC_RELAXED))return GMB_ALREADY;
+     if(!gmb_thread())return gfw_fail(GMB_CONTEXT,"firmware thread context");
++    ggb_sqe_requested=sqe;
+     if(!sweet_gmu_asset_view(&gfw_asset))return gfw_fail(GMB_ASSET,"pinned firmware asset before any board map");
++    if(sqe&&!sweet_gpu_sqe_asset_view(&ggb_sqe_asset))return gfw_fail(GMB_ASSET,"pinned SQE asset before any board map");
+     if(!sweet_gmu_irq_quiet(gfw_work.irq)||(gfw_work.irq[1]&0x1000))return gfw_fail(GMB_PARENT,"firmware NS IRQ policy before SMMU maps");
+     enum gmb_result rc=sweet_gmu_smmu_once(stage,&gfw_work.board);
+     if(rc!=GMB_OK){__atomic_store_n(&gfw_lifecycle,GMB_QUARANTINED,__ATOMIC_RELEASE);return rc;}
+@@ -600,8 +645,10 @@
+        !gfw_context.dcvs_clear_attempted||!gfw_context.dcvs_valid))return gfw_fail(GMB_FIRMWARE,"DCVS request/return receipt unavailable");
+     if(!sweet_pas_stage_owner_valid(&gmb_stage)||!gfw_guard(NULL,GMF_DONE))return gfw_fail(GMB_MEMORY,"final firmware owner/phase predicates");
+     if(gpu&&(ggb_context.state!=2||ggb_aperture.state!=2||!ggb_context_valid()))return gfw_fail(GMB_GPU,"final GPU context/aperture receipts");
++    if(sqe&&(!ggb_sqe_loaded||ggb_sqe_written!=8192||ggb_sqe_checked!=8192))return gfw_fail(GMB_GPU,"SQE staging receipt unavailable");
+     *out=gfw_work;__atomic_store_n(&gfw_lifecycle,GMB_READY,__ATOMIC_RELEASE);
+     if(gpu)ggb_records(true);
++    if(sqe)ggb_sqe_records(true);
+     gfw_hidden_records();
+     gfw_pdc_records();
+     gfw_ao_record();
+@@ -624,19 +671,22 @@
+ }
+ enum gmb_result sweet_gmu_firmware_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
+-{return gfw_once(stage,plan,out,false,NULL,false,false);}
++{return gfw_once(stage,plan,out,false,NULL,false,false,false);}
+ enum gmb_result sweet_gmu_firmware_perf_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,struct gmb_firmware_receipt *out)
+-{return gfw_once(stage,plan,out,true,NULL,false,false);}
++{return gfw_once(stage,plan,out,true,NULL,false,false,false);}
+ enum gmb_result sweet_gmu_firmware_bw_test_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+-{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,false,false);}
++{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,false,false,false);}
+ enum gmb_result sweet_gmu_firmware_dcvs_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+-{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true,false);}
++{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true,false,false);}
+ enum gmb_result sweet_gmu_firmware_gpu_once(const struct sweet_pas_cpu_stage *stage,
+     const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
+-{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true,true);}
++{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true,true,false);}
++enum gmb_result sweet_gmu_firmware_gpu_sqe_once(const struct sweet_pas_cpu_stage *stage,
++    const struct gmf_plan *plan,const struct gmf_bw_plan *bw,struct gmb_firmware_receipt *out)
++{if(!bw)return GMB_ARGUMENT;return gfw_once(stage,plan,out,true,bw,true,true,true);}
+ /* Post-firmware native MMU/OOB stage. No cold guard or mapping helper here:
+  * CM3 is running and GX is owned through native firmware requests. */
+ static unsigned ggx_board_lifecycle,ggx_board_phase;
+@@ -664,6 +714,7 @@
+        !gfw_work.oob_attempted||gfw_context.state!=2||!gfw_context.perf_valid||
+        !gfw_context.bw_valid||!gfw_context.test_valid||!gfw_context.dcvs_valid||
+        !gfw_context.dcvs_return_valid||gfw_context.dcvs_return||
++       (ggb_sqe_requested&&!ggb_sqe_loaded)||
+        ggb_aperture.state!=2||ggb_secure_result!=GPA_OK||
+        !sweet_gmu_clock_live(true,&gx)||!sweet_gmu_irq_quiet(irq)||(irq[1]&0x1000)||
+        gfw_load32(gmb_reset+0x2000)||!gfw_faults(false)||!ggb_context_valid())return false;
+--- a/bsd/dev/gauguin_gmu_board.h
++++ b/bsd/dev/gauguin_gmu_board.h
+@@ -59,6 +59,10 @@
+ enum gmb_result sweet_gmu_firmware_gpu_once(const struct sweet_pas_cpu_stage *,
+     const struct gmf_plan *,const struct gmf_bw_plan *,struct gmb_firmware_receipt *);
+ enum gmb_state sweet_gmu_firmware_state(void);
++/* Same coherent GPU transaction with authenticated SQE data staged in its
++ * existing NC region under reset, before tables/GX start. Does not run SQE. */
++enum gmb_result sweet_gmu_firmware_gpu_sqe_once(const struct sweet_pas_cpu_stage *,
++    const struct gmf_plan *,const struct gmf_bw_plan *,struct gmb_firmware_receipt *);
+ /* Post-firmware native MMU start/GPU OOB/core reads. Same private mappings,
+  * default context and accepted firmware required; one core mapping after OOB.
+  * Success holds GPU/boot-slumber requests for later CP startup; no commands. */
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_sqe_asset.c
+@@ -0,0 +1,62 @@
++#include <pexpert/arm64/board_config.h>
++#if defined(GAUGUIN)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <vm/vm_map.h>
++#include <machine/machine_routines.h>
++#include <pexpert/pexpert.h>
++#include <pexpert/device_tree.h>
++#include <pexpert/arm64/boot.h>
++#include <libkern/crypto/sha2.h>
++#include "gauguin_gpu_sqe_asset.h"
++extern unsigned long gPhysBase,real_phys_size;
++extern vm_offset_t arm_vm_kernelcache_phys_end;
++static const uint8_t gsa_expected[32]={
++    0xa0,0xe1,0xb5,0x83,0xf6,0x20,0xfa,0xbe,0x32,0x72,0x9c,0xe3,0x67,0x95,0x9d,0x19,
++    0x60,0x63,0x86,0x63,0x24,0x4d,0x7d,0x0c,0xfc,0x21,0xb9,0xa5,0x21,0x5a,0x01,0x8b
++};
++static bool gsa_range(const boot_args *a,uint64_t pa,uint64_t bytes)
++{
++    return pa&&!(pa&0x3fff)&&pa>=arm_vm_kernelcache_phys_end&&
++        pa<a->topOfKernelData&&bytes<=a->topOfKernelData-pa&&
++        bytes<=a->physBase+a->memSize-pa;
++}
++bool sweet_gpu_sqe_asset_view(struct gsa_view *out)
++{
++    if(!out)return false;
++    const boot_args *a=PE_state.bootArgs;
++    DTEntry node;const void *property=NULL;unsigned length=0;uint64_t range[2];
++    if(!a||a->Version!=kBootArgsVersion2||a->physBase!=gPhysBase||!real_phys_size||
++       !a->memSize||a->memSize>real_phys_size||a->physBase>UINT64_MAX-real_phys_size||
++       (a->topOfKernelData&0x3fff)||a->topOfKernelData<a->physBase||
++       a->topOfKernelData>a->physBase+a->memSize||arm_vm_kernelcache_phys_end<a->physBase||
++       arm_vm_kernelcache_phys_end>a->topOfKernelData||
++       SecureDTLookupEntry(NULL,"/chosen/memory-map",&node)!=kSuccess||
++       SecureDTGetProperty(node,"A630SQEFirmware",&property,&length)!=kSuccess||
++       !property||length!=sizeof(range))return false;
++    memcpy(range,property,sizeof(range));uint64_t pa=range[0];
++    if(range[1]!=GSA_ASSET_BYTES||!gsa_range(a,pa,GSA_RESERVED_BYTES))return false;
++    static const char *const names[]={"NovatekFirmware","A615ZapMDT","A619GMUFirmware"};
++    static const uint64_t raw[]={139264,16384,32768},reserved[]={147456,16384,32768};
++    uint64_t old_pa[3];
++    for(unsigned i=0;i<3;i++){
++        property=NULL;length=0;
++        if(SecureDTGetProperty(node,names[i],&property,&length)!=kSuccess||
++           !property||length!=sizeof(range))return false;
++        memcpy(range,property,sizeof(range));old_pa[i]=range[0];
++        if(range[1]!=raw[i]||!gsa_range(a,range[0],reserved[i])||
++           (pa<range[0]+reserved[i]&&range[0]<pa+GSA_RESERVED_BYTES))return false;
++        for(unsigned j=0;j<i;j++)
++            if(range[0]<old_pa[j]+reserved[j]&&old_pa[j]<range[0]+reserved[i])return false;
++    }
++    vm_offset_t first=ml_static_ptovirt((vm_offset_t)pa);
++    if(!first||first>UINTPTR_MAX-(GSA_RESERVED_BYTES-1)||
++       ml_static_ptovirt((vm_offset_t)(pa+GSA_RESERVED_BYTES-1))!=first+GSA_RESERVED_BYTES-1)return false;
++    const uint8_t *data=(const uint8_t *)first;
++    for(unsigned i=GSA_ASSET_BYTES;i<GSA_RESERVED_BYTES;i++)if(data[i])return false;
++    uint8_t digest[32];SHA256_CTX ctx;
++    SHA256_Init(&ctx);SHA256_Update(&ctx,data,GSA_ASSET_BYTES);SHA256_Final(digest,&ctx);
++    if(memcmp(digest,gsa_expected,sizeof(digest)))return false;
++    *out=(struct gsa_view){data,pa,GSA_ASSET_BYTES};return true;
++}
++#endif /* GAUGUIN */
+--- /dev/null
++++ b/bsd/dev/gauguin_gpu_sqe_asset.h
+@@ -0,0 +1,17 @@
++#ifndef GAUGUIN_GPU_SQE_ASSET_H
++#define GAUGUIN_GPU_SQE_ASSET_H
++#include <stdbool.h>
++#include <stdint.h>
++#define GSA_ASSET_BYTES 32304u
++#define GSA_HEADER_BYTES 4u
++#define GSA_CODE_BYTES (GSA_ASSET_BYTES-GSA_HEADER_BYTES)
++#define GSA_RESERVED_BYTES 32768u
++struct gsa_view {const uint8_t *data;uint64_t pa;uint32_t bytes;};
++/* Exact pinned a630_sqe.fw raw asset, including its native four-byte header.
++ * Full reserved extent, zero padding, contiguous direct-map endpoints and
++ * disjoint NVT/MDT/GMU descriptors are checked before native SHA256.
++ * Caller later copies data+4/code32300 to its owned SQE region; this view
++ * never allocates/maps, writes memory, touches GPU or authorizes execution.
++ * Output unchanged on failure. Requires the coherent boot's three old assets. */
++bool sweet_gpu_sqe_asset_view(struct gsa_view *);
++#endif

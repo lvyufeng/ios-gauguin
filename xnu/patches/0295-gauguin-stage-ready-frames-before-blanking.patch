@@ -1,0 +1,373 @@
+diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -425,9 +425,9 @@
+ 
+ struct sweet_fb_flip382 {
+     enum { Idle, Copying, Ready, Pending, Quarantined };
+-    unsigned stage, front, next;
++    unsigned stage, front, next, copies;
+     uint32_t scan;
+-    uint64_t attempt, issueTick;
++    uint64_t attempt, issueTick, stageEpoch;
+     struct f375_copy receipt;
+     bool closed;
+ };
+@@ -505,9 +505,17 @@
+     struct sweet_fb_frame *boundFrameLocked(unsigned, uint64_t);
+     void replacePendingLocked(struct sweet_fb_retired *retired);
+     unsigned calibrate357(unsigned step, uint32_t frame);
++    IOWorkLoop *fStage384Loop;
++    IOInterruptEventSource *fStage384Event;
++    uint64_t fStage384PauseUntil;
++    void attachStage384Worker();
++    bool stage384EnabledLocked() const;
++    bool stage384CanTakeLocked() const;
++    void signalStage384Locked();
++    static void stage384Fired(OSObject *, IOInterruptEventSource *, int);
+     void flip382Poll(uint32_t scan);
+     void flip382AdvanceLocked(uint32_t scan);
+-    uintptr_t flip382Begin(const struct sweet_fb_frame *, uint64_t, uint64_t, bool *);
++    uintptr_t flip382Begin(const struct sweet_fb_frame *, uint64_t, uint64_t, bool, bool *);
+     void flip382Finish(const struct sweet_fb_frame *, uint64_t, uint64_t);
+     struct sweet_fb_flip382 fFlip382;
+     void deliverFrameInfo375Locked(uint64_t now);
+@@ -526,7 +534,7 @@
+     void stop(IOService *) APPLE_KEXT_OVERRIDE;
+     bool blankPendingLocked() const;
+     bool takeBlankFrameLocked(struct sweet_fb_frame *, uint64_t *, uint64_t readyTicket = 0);
+-    void presentTimed(uint8_t *, struct sweet_fb_frame *, uint64_t, uint64_t);
++    void presentTimed(uint8_t *, struct sweet_fb_frame *, uint64_t, uint64_t, bool earlyStage = false);
+     /* BEGIN SWEET PRESENT STATS FIELDS */
+     bool fPresentStatsEnabled;
+     SweetPresentSample *fPresentSample; /* timer workloop only; points to stack */
+@@ -889,6 +897,9 @@
+     fFrameInfo375 = fHoldPresent && statsRequested == 9 && swipe375 == 4 && hz375 == 60;
+     fFrameInfo375Owners = fFrameInfo375Sends = fFrameInfo375Head = fFrameInfo375Size = 0;
+     fFlip382 = {};
++    fStage384Loop = nullptr;
++    fStage384Event = nullptr;
++    fStage384PauseUntil = 0;
+     fPresentStatsEnabled = statsRequested >= 1 && statsRequested <= 9;
+     fBlankSlot = {};
+     fCAVsync = nullptr;
+@@ -935,6 +946,7 @@
+     configurePresentClock();
+     if (fReadyRequested && fPhasePresent) {
+         attachReadyEvent();
++        if (fFrameInfo375 && fReadyEvent) attachStage384Worker();
+         IOLog("SWEET F352 READY: event=%u budget=%u\n", fReadyEvent != nullptr, SCAN352_COPY_NS);
+     }
+     if (fFrameInfo375 && fPhasePresent) {
+@@ -1024,11 +1036,17 @@
+ AppleCLCD::stop(IOService *provider)
+ {
+     IOInterruptEventSource *event = nullptr;
++    IOInterruptEventSource *staging = nullptr;
++    IOWorkLoop *stagingLoop = nullptr;
+     IOTimerEventSource *cadence = nullptr;
+     struct sweet_fb_retired waiting = {}, ready = {}, issued[SCAN357_WRITERS] = {};
+     if (fLock) {
+         IOLockLock(fLock);
+         event = fReadyEvent;
++        staging = fStage384Event;
++        stagingLoop = fStage384Loop;
++        fStage384Event = nullptr;
++        fStage384Loop = nullptr;
+         cadence = fCAVsync;
+         fCAVsync = nullptr;
+         fCAVsyncWake = {};
+@@ -1041,6 +1059,11 @@
+     sweet_fb_retired_release(&waiting);
+     sweet_fb_retired_release(&ready);
+     for (auto &frame : issued) sweet_fb_retired_release(&frame);
++    if (staging) {
++        stagingLoop->removeEventSource(staging);
++        staging->release();
++        stagingLoop->release();
++    }
+     if (cadence) {
+         cadence->cancelTimeout();
+         fWorkLoop->removeEventSource(cadence);
+@@ -1077,6 +1100,10 @@
+     IOLockLock(fLock);
+     unsigned result = 0;
+     const bool abort = step == SCAN357_ABORT;
++    /* Stop admitting new staging work while the timing probe drains an
++     * in-flight flip. The pause expires if no qualified scan arrives. */
++    if (step == SCAN357_PAUSE && stage384EnabledLocked())
++        clock_interval_to_deadline(50, NSEC_PER_MSEC, &fStage384PauseUntil);
+     const uintptr_t destination = fFlip382.front ? sweet_frame382_buffer(fFlip382.front) : fPixels;
+     const bool usable = fHoldPresent && fPhasePresent && fReadyAcrossFrames && !fHeldStopped && !fPowerOff &&
+         !fHeldActive && destination && fFlip382.stage == sweet_fb_flip382::Idle &&
+@@ -1121,6 +1148,8 @@
+     }
+     if (step == SCAN357_RESUME || abort) {
+         fCalibrating = false;
++        fStage384PauseUntil = 0;
++        signalStage384Locked();
+         sweet_frame344_record(F357_CALIBRATION, ((uint64_t)SCAN357_RESUME<<32)|frame,
+             !abort && result==1, 0, 0, 0);
+     }
+@@ -1222,6 +1251,7 @@
+         marked = true;
+     }
+     fDirty = fHeldPending.owner || fHeldReady.owner || fHeldIssued[0].owner || fHeldIssued[1].owner;
++    if (marked) signalStage384Locked();
+     return marked;
+ }
+ 
+@@ -1355,7 +1385,7 @@
+ AppleCLCD::takeBlankFrameLocked(struct sweet_fb_frame *frame, uint64_t *blankFrame, uint64_t readyTicket)
+ {
+     struct scan351_position pos;
+-    if (!blankPendingLocked() || !sweet_frame351_position(&pos) ||
++    if (stage384EnabledLocked() || !blankPendingLocked() || !sweet_frame351_position(&pos) ||
+         (sweet_frame382_active() && fFlip382.stage != sweet_fb_flip382::Idle)) return false;
+     if (fReadyAcrossFrames) {
+         if (!scan353_can_take(&fHeldReady.ready, &fBlankSlot, &pos)) return false;
+@@ -1478,7 +1508,8 @@
+     /* An asynchronous ready notification must keep an already due
+      * software beat deliverable instead of rearming it a beat away. */
+     if (phase && fReadyAcrossFrames && fPresentClock.nextBeat <= now) deadline = now;
+-    if (phase && !fCalibrating && blankPendingLocked() && (!fReadyAcrossFrames || fHeldReady.owner)) {
++    if (phase && !stage384EnabledLocked() && !fCalibrating && blankPendingLocked() &&
++        (!fReadyAcrossFrames || fHeldReady.owner)) {
+         struct scan351_position pos;
+         if (sweet_frame351_position(&pos)) {
+             uint64_t delta;
+@@ -1575,6 +1606,11 @@
+     }
+ #else
+     fb->notifyVsyncLocked(now, elapsed);
++#endif
++#if defined(GAUGUIN)
++    /* A beat may retry a transient read-lock failure without rearming the
++     * old blanking copy timer or spinning the staging workloop. */
++    fb->signalStage384Locked();
+ #endif
+     if (fb->fPowerOff) {
+ #if defined(GAUGUIN)
+@@ -1931,9 +1967,68 @@
+     }
+     sweet_ca375_platform(F375_DELIVERY, copy.swap,
+         ((uint64_t)(uint32_t)code << 32) | copy.scan, lo, hi);
++}
++
++void
++AppleCLCD::attachStage384Worker()
++{
++    auto *loop = IOWorkLoop::workLoop();
++    if (!loop) return;
++    auto *event = IOInterruptEventSource::interruptEventSource(this, &AppleCLCD::stage384Fired);
++    if (!event || loop->addEventSource(event) != kIOReturnSuccess) {
++        OSSafeReleaseNULL(event);
++        loop->release();
++        return;
++    }
++    IOLockLock(fLock);
++    fStage384Loop = loop;
++    fStage384Event = event;
++    event->enable();
++    IOLockUnlock(fLock);
++    IOLog("SWEET F384 WORKER: separate=1 copies=%u\n", F382_MAX_FLIPS);
++}
++
++bool
++AppleCLCD::stage384EnabledLocked() const
++{
++    return fStage384Event && sweet_frame382_active() && !fFlip382.closed;
++}
++
++bool
++AppleCLCD::stage384CanTakeLocked() const
++{
++    return stage384EnabledLocked() && fHeldReady.owner && fHeldReady.ready.observed &&
++        blankEnabledLocked() &&
++        !fHeldActive && !fCalibrating && fFlip382.stage == sweet_fb_flip382::Idle &&
++        fFlip382.copies < F382_MAX_FLIPS && mach_absolute_time() >= fStage384PauseUntil &&
++        !sweet_frame382_ending();
++}
++
++void
++AppleCLCD::signalStage384Locked()
++{
++    if (stage384CanTakeLocked()) fStage384Event->interruptOccurred(nullptr, nullptr, 0);
+ }
+ 
+ void
++AppleCLCD::stage384Fired(OSObject *owner, IOInterruptEventSource *sender, int)
++{
++    auto *fb = static_cast<AppleCLCD *>(owner);
++    struct sweet_fb_frame frame = {};
++    IOLockLock(fb->fLock);
++    const bool taken = fb->fStage384Event == sender && fb->stage384CanTakeLocked() &&
++        fb->takeHeldFrameLocked(&frame, &fb->fHeldReady);
++    const uint64_t attempt = fb->fHeldConsumed;
++    const uint64_t generation = frame.generation;
++    IOLockUnlock(fb->fLock);
++    if (!taken) return;
++    fb->presentTimed(frame.record, &frame, attempt, UINT64_MAX, true);
++    IOLockLock(fb->fLock);
++    if (fb->fHeldReady.generation > generation) fb->signalStage384Locked();
++    IOLockUnlock(fb->fLock);
++}
++
++void
+ AppleCLCD::flip382Poll(uint32_t scan)
+ {
+     if (!IOLockTryLock(fLock)) return;
+@@ -1972,6 +2067,7 @@
+         }
+         flip.receipt = {};
+         flip.closed = flip.front == F382_FRONT;
++        signalStage384Locked();
+         return;
+     }
+     if (fHeldActive || fCalibrating || flip.stage == sweet_fb_flip382::Copying) return;
+@@ -1983,9 +2079,16 @@
+         flip.next = F382_FRONT;
+         flip.receipt = {};
+         flip.attempt = 0;
++        flip.stageEpoch = 0;
+         flip.stage = sweet_fb_flip382::Ready;
+     }
+     if (flip.stage != sweet_fb_flip382::Ready) return;
++    if (flip.stageEpoch && flip.stageEpoch != fHeldRetryEpoch) {
++        flip.stage = sweet_fb_flip382::Idle;
++        flip.receipt = {};
++        signalStage384Locked();
++        return;
++    }
+     const unsigned result = sweet_frame382_issue(flip.front, flip.next, &flip.scan);
+     if (result == F382_TOUCHED) {
+         flip.issueTick = mach_absolute_time();
+@@ -1999,7 +2102,7 @@
+ 
+ uintptr_t
+ AppleCLCD::flip382Begin(const struct sweet_fb_frame *frame, uint64_t attempt,
+-    uint64_t blankFrame, bool *blocked)
++    uint64_t blankFrame, bool early, bool *blocked)
+ {
+     if (!sweet_frame382_active() || !get32(frame->record,0x104)) return 0;
+     bool haveLayer = false;
+@@ -2009,9 +2112,11 @@
+     auto &flip = fFlip382;
+     uintptr_t dst = 0;
+     if (!flip.closed) {
+-        if (flip.stage != sweet_fb_flip382::Idle || sweet_frame382_ending()) {
++        if (flip.stage != sweet_fb_flip382::Idle || sweet_frame382_ending() ||
++            flip.copies >= F382_MAX_FLIPS || fHeldStopped || fPowerOff ||
++            (early && (!fHeldRetryEpoch || frame->retryEpoch != fHeldRetryEpoch))) {
+             *blocked = true;
+-        } else if (blankFrame == UINT64_MAX || !attempt || !frame->ready.observed ||
++        } else if ((!early && blankFrame == UINT64_MAX) || !attempt || !frame->ready.observed ||
+             !frame->surfaces[0] || get32(frame->record,0x104) != 1) {
+             if (flip.front) {
+                 flip.stage = sweet_fb_flip382::Quarantined;
+@@ -2024,6 +2129,8 @@
+             if (dst) {
+                 flip.stage = sweet_fb_flip382::Copying;
+                 flip.attempt = attempt;
++                flip.stageEpoch = early ? frame->retryEpoch : 0;
++                ++flip.copies;
+             } else {
+                 *blocked = true;
+             }
+@@ -2039,8 +2146,11 @@
+     IOLockLock(fLock);
+     auto &flip = fFlip382;
+     if (flip.stage == sweet_fb_flip382::Copying && flip.attempt == attempt) {
++        if (flip.stageEpoch && (flip.stageEpoch != fHeldRetryEpoch || fHeldStopped || fPowerOff))
++            staged = 0;
+         flip.stage = staged ? sweet_fb_flip382::Ready : sweet_fb_flip382::Idle;
+-        if (staged) IOLog("SWEET F382 P %llu %u %llu\n",attempt,flip.next,staged);
++        if (staged)
++            IOLog("SWEET F%u P %llu %u %llu\n",flip.stageEpoch ? 384u : 382u,attempt,flip.next,staged);
+         const uint64_t target = requestedPresentation375(frame->record);
+         uint64_t separation = 0;
+         if (target && staged)
+@@ -2053,7 +2163,7 @@
+ 
+ void
+ AppleCLCD::presentTimed(uint8_t *rec, struct sweet_fb_frame *frame,
+-    uint64_t frameAttempt, uint64_t blankFrame)
++    uint64_t frameAttempt, uint64_t blankFrame, bool earlyStage)
+ {
+     /* BEGIN SWEET PRESENT STATS START */
+     SweetPresentSample sample = {};
+@@ -2070,8 +2180,9 @@
+     uint64_t verifiedFullCopy = 0;
+     const uint32_t version = frame->ready.observed ? frame->surfaceVersion : UINT32_MAX;
+     bool blocked = false;
+-    const uintptr_t flipDst = flip382Begin(frame,frameAttempt,blankFrame,&blocked);
+-    const bool ready = !blocked && present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket,
++    const uintptr_t flipDst = flip382Begin(frame,frameAttempt,blankFrame,earlyStage,&blocked);
++    const bool ready = !blocked && (!earlyStage || flipDst) &&
++        present(rec, fHoldPresent ? frame->surfaces : NULL, blankFrame, retryTicket,
+         version, frameAttempt, &stale, flipDst || frame->frameInfoOwner ? &verifiedFullCopy : nullptr, flipDst);
+     if (flipDst) flip382Finish(frame,frameAttempt,ready ? verifiedFullCopy : 0);
+     else if (ready && verifiedFullCopy) queueFrameInfo375(frame, blankFrame, verifiedFullCopy);
+@@ -2469,7 +2580,7 @@
+     bool ready = true;
+     bool fastBlank = false;
+ #if defined(GAUGUIN)
+-    fastBlank = blankFrame != UINT64_MAX && fReadyRequested;
++    fastBlank = (blankFrame != UINT64_MAX || flipDst) && fReadyRequested;
+     sweet_ui_trace_record(GUT_PRESENT_BEGIN,get32(rec,0x50),0,0,get32(rec,0x104),0,0);
+ #endif
+ 	uint32_t mask = get32(rec, 0x104);
+@@ -2672,10 +2783,11 @@
+             }
+             uint64_t statsCopyBegin = 0;
+             if (fPresentSample != NULL && fPresentSample->timingValid) statsCopyBegin = mach_absolute_time();
+-            const bool timePairedCopy = checked && pairedCopy && fFrameInfo375;
++            const bool ordered = checked || flipDst;
++            const bool timePairedCopy = ordered && pairedCopy && fFrameInfo375;
+             const uint64_t runtimeBegin = timePairedCopy ? thread_get_runtime_self() : 0;
+             const uint64_t frameCopyBegin = sweet_frame344_clock();
+-            const bool probeMargin = timePairedCopy && fReadyAcrossFrames && copyStart.end > copyStart.line &&
++            const bool probeMargin = checked && timePairedCopy && fReadyAcrossFrames && copyStart.end > copyStart.line &&
+                 (uint64_t)(copyStart.end - copyStart.line) * SCAN351_MIN_LINE_NS >= F379_PROBE_SLACK_NS;
+             const unsigned probeLane = probeMargin && frameCopyBegin ?
+                 sweet_frame379_select(attempt, frameCopyBegin) : 0;
+@@ -2714,28 +2826,26 @@
+             /* BEGIN SWEET PRESENT STATS COPY END */
+ #if defined(GAUGUIN)
+             const uint64_t storesDone = timePairedCopy && frameCopyBegin ? mach_absolute_time() : 0;
+-            if (checked) __asm__ volatile("dsb sy" ::: "memory");
++            if (ordered) __asm__ volatile("dsb sy" ::: "memory");
+             const uint64_t frameCopyEnd = frameCopyBegin ? mach_absolute_time() : 0;
+             const uint64_t runtimeEnd = timePairedCopy && frameCopyBegin ? thread_get_runtime_self() : 0;
+             if (frameCopyBegin) sweet_frame344_record(F344_COPY,id,layer,frameCopyBegin,
+                 frameCopyEnd,(uint64_t)(uint32_t)w * (uint32_t)h * 4);
+-            if (checked) {
+-                if (flipDst && verifiedFullCopy) *verifiedFullCopy = frameCopyEnd;
++            if (flipDst && verifiedFullCopy) *verifiedFullCopy = frameCopyEnd;
++            if (checked && !flipDst) {
+                 struct scan351_position copyEnd = {0};
+                 const bool verified = sweet_frame351_position(&copyEnd) && copyEnd.frame == blankFrame &&
+                     copyEnd.line >= copyStart.line && copyEnd.line < copyStart.end && copyEnd.end == copyStart.end;
+                 const uint32_t flags = (verified ? 1 : 2) | (pairedCopy ? SCAN352_FAST_COPY : 0);
+-                if (!flipDst) {
+-                    if (verifiedFullCopy && verified && pairedCopy && layer == 0 && mask == 1)
+-                        *verifiedFullCopy = mach_absolute_time();
+-                    sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
+-                        ((uint64_t)copyStart.end << 32) | copyEnd.line);
+-                }
+-                if (storesDone && runtimeEnd >= runtimeBegin)
+-                    sweet_frame377_copy(attempt, frameCopyBegin, storesDone, frameCopyEnd, runtimeEnd - runtimeBegin);
+-                if (probeLane)
+-                    sweet_frame379_probe(attempt, probeLane, &probe);
++                if (verifiedFullCopy && verified && pairedCopy && layer == 0 && mask == 1)
++                    *verifiedFullCopy = mach_absolute_time();
++                sweet_frame344_record(F351_PRESENT,blankFrame,flags,id,copyStart.line,
++                    ((uint64_t)copyStart.end << 32) | copyEnd.line);
+             }
++            if (storesDone && runtimeEnd >= runtimeBegin)
++                sweet_frame377_copy(attempt, frameCopyBegin, storesDone, frameCopyEnd, runtimeEnd - runtimeBegin);
++            if (probeLane)
++                sweet_frame379_probe(attempt, probeLane, &probe);
+             if (fPresentSample != NULL) {
+                 if (fPresentSample->timingValid &&
+                     !sweet_present_sample_add_ticks(&fPresentSample->copyTicks, statsCopyBegin, mach_absolute_time()))
